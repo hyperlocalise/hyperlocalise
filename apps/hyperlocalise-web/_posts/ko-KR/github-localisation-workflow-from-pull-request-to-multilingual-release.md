@@ -65,7 +65,7 @@ tags:
 저장소 루트에 `i18n.yml`를 만드세요:
 
 ```yaml
-version: hyperlocalise@1.13.6
+version: hyperlocalise@1.13.7
 
 locales:
   source: en-US

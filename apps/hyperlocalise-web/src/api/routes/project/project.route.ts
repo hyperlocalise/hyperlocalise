@@ -77,6 +77,13 @@ import {
   isContentEditorAllFilesSourcePath,
   parseCatSourcePathsFilter,
 } from "@/lib/projects/content-editor-all-files";
+import { importCatBilingualRows } from "@/lib/projects/content-editor/content-editor-bilingual-import-apply";
+import {
+  inferCatBilingualFormat,
+  maxCatFilteredExportSegments,
+} from "@/lib/projects/content-editor/content-editor-filtered-export";
+import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 
 import {
   countTmsProviderLiveOpenJobsForProject,
@@ -4594,6 +4601,137 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           },
           200,
         );
+      },
+    )
+    .post(
+      "/:projectId/files/bilingual/import",
+      validateProjectParams,
+      bodyLimit({
+        maxSize: maxProjectFileUploadBytes,
+        onError: (c) => badRequestResponse(c, "file_upload_too_large", "File upload is too large"),
+      }),
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_import_unsupported",
+            "Bilingual imports are only available for workspace files.",
+          );
+        }
+
+        const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const body = await c.req.parseBody({ all: true });
+        const parsed = projectFileTranslationImportBodySchema.safeParse({
+          sourcePath: asString(body.sourcePath),
+          locale: asString(body.locale),
+        });
+        if (!parsed.success) {
+          return invalidProjectPayloadResponse(c);
+        }
+
+        const file = asFile(body.file);
+        if (!file) {
+          return invalidProjectPayloadResponse(c);
+        }
+
+        if (!project.targetLocales.includes(parsed.data.locale)) {
+          return badRequestResponse(
+            c,
+            "invalid_target_locale",
+            "Locale is not a target locale of this project.",
+          );
+        }
+
+        const isAllFiles = isContentEditorAllFilesSourcePath(parsed.data.sourcePath);
+        if (!isAllFiles) {
+          const sourceFile = await getRepositorySourceFileByPath({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: parsed.data.sourcePath,
+          });
+          if (!sourceFile) {
+            return notFoundResponse(c, "source_file_not_found", "Source file not found");
+          }
+        }
+
+        const format = inferCatBilingualFormat(file.name);
+        if (!format) {
+          return badRequestResponse(
+            c,
+            "unsupported_bilingual_format",
+            "Upload a CSV, TMX, XLF, XLIFF, or XLSX file exported from the Content Editor.",
+          );
+        }
+
+        const fileBytes = new Uint8Array(await file.arrayBuffer());
+        let rows;
+        try {
+          const parsedFile = await createGoSvcServerClient().editorExport.parseFiltered({
+            format,
+            filename: file.name,
+            body: fileBytes,
+          });
+          rows = parsedFile.rows;
+        } catch (error) {
+          if (error instanceof GoSvcClientError && error.status === 400) {
+            return badRequestResponse(
+              c,
+              "invalid_bilingual_file",
+              error.message || "The bilingual file could not be parsed.",
+            );
+          }
+          return serviceUnavailableResponse(
+            c,
+            "bilingual_parse_unavailable",
+            "The bilingual import service is unavailable.",
+          );
+        }
+
+        if (rows.length === 0) {
+          return badRequestResponse(
+            c,
+            "empty_bilingual_file",
+            "The bilingual file does not contain any strings.",
+          );
+        }
+        if (rows.length > maxCatFilteredExportSegments) {
+          return badRequestResponse(
+            c,
+            "too_many_bilingual_rows",
+            "The bilingual file has more than 5,000 strings.",
+          );
+        }
+
+        try {
+          const result = await importCatBilingualRows({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: parsed.data.sourcePath,
+            targetLocale: parsed.data.locale,
+            rows,
+            actorUserId: c.var.auth.user.localUserId,
+          });
+          return c.json({ import: result }, 200);
+        } catch (error) {
+          const message =
+            error instanceof Error && error.message === "too many rows"
+              ? "The bilingual file has more than 5,000 strings."
+              : "Failed to import bilingual translations.";
+          return badRequestResponse(c, "bilingual_import_failed", message);
+        }
       },
     )
     .get("/:projectId/locale-progress", validateProjectParams, async (c) => {

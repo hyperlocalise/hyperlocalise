@@ -108,7 +108,7 @@ The web app uses two call paths:
 | --- | --- | --- | --- |
 | Browser (`GoSvcClient` via `useGoSvcClient`) | `NEXT_PUBLIC_API_BASE_URL` (defaults to `https://api.hyperlocalise.com`) | WorkOS session access token (`Authorization: Bearer`) | CAT validation, dictionaries, teams, native projects, QA reports |
 | Next.js server (guideline checks, QA scans) | `GO_SVC_URL` | `X-Go-Svc-Research-Token` | `/internal/*` |
-| CLI, agents, and integrations | `https://api.hyperlocalise.com` (not the web `/api` host) | `X-API-Key` or Agent Registration JWT with `jobs:read` / `files:read` | `GET /v1/jobs/*`, `GET /v1/projects/{id}/translations/download` |
+| CLI, agents, and integrations | `https://api.hyperlocalise.com` (not the web `/api` host) | `X-API-Key` or Agent Registration JWT with `jobs:read` / `files:read` / `memories:read` | `GET /v1/jobs/*`, `GET /v1/projects/{id}/translations/download`, TMX import/export on `/v1/translation-memories/{id}/entries/*` |
 
 Job creation (`POST /api/v1/jobs` on the web app) and the Platform **Jobs** UI still use Hono `/api/orgs/.../jobs`. Session-authenticated native job reads are also implemented on go-svc at `/v1/orgs/{slug}/projects/{id}/jobs...` and `/v1/orgs/{slug}/jobs...` (see [`apps/go-svc/README.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/go-svc/README.md#native-job-reads)). Public PAT/agent job **reads** (`GET /v1/jobs/latest`, `/v1/jobs/{jobId}`, `/v1/jobs/{jobId}/status`) are go-svc only on `https://api.hyperlocalise.com` — do not re-add them to Hono.
 

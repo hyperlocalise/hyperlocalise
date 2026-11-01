@@ -129,6 +129,7 @@ func main() {
 	h.overview = &overviewAPI{}
 	h.publicTranslations = &publicTranslationsAPI{auth: newPublicAPIAuthFromEnv(nil, nil)}
 	h.publicJobs = &publicJobsAPI{auth: h.publicTranslations.auth}
+	h.publicMemory = &publicMemoryAPI{auth: h.publicTranslations.auth, memories: h.memories}
 	if autumnKey := strings.TrimSpace(os.Getenv("AUTUMN_API_KEY")); autumnKey != "" {
 		if client, err := autumn.NewClient(autumn.Config{SecretKey: autumnKey}); err != nil {
 			log.Printf("configure autumn: %v", err)

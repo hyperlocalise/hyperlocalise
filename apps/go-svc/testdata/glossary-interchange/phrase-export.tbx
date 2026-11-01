@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE martif SYSTEM "TBXBasiccoreStructV02.dtd">
+<martif type="TBX-Basic" xml:lang="en">
+  <martifHeader>
+    <fileDesc>
+      <sourceDesc>
+        <p>This is an TBX file extracted from a Phrase TMS term base.</p>
+      </sourceDesc>
+    </fileDesc>
+    <encodingDesc>
+      <p type="XCSURI">TBXBasicXCSV02.xcs</p>
+    </encodingDesc>
+  </martifHeader>
+  <text>
+    <body>
+      <termEntry id="1001">
+        <descrip type="subjectField">Commerce</descrip>
+        <descrip type="definition">Payment step</descrip>
+        <langSet xml:lang="en-US">
+          <tig>
+            <term>Checkout</term>
+            <termNote type="termType">fullForm</termNote>
+            <termNote type="partOfSpeech">noun</termNote>
+            <termNote type="status">Approved</termNote>
+            <termNote type="preferred">true</termNote>
+            <termNote type="forbidden">false</termNote>
+            <termNote type="caseSensitive">false</termNote>
+          </tig>
+        </langSet>
+        <langSet xml:lang="fr-FR">
+          <tig>
+            <term>Paiement</term>
+            <termNote type="status">Approved</termNote>
+            <termNote type="forbidden">false</termNote>
+          </tig>
+        </langSet>
+        <langSet xml:lang="de-DE">
+          <tig>
+            <term>Kasse alt</term>
+            <termNote type="status">Approved</termNote>
+            <termNote type="forbidden">true</termNote>
+          </tig>
+        </langSet>
+      </termEntry>
+      <termEntry id="1002">
+        <langSet xml:lang="en-US">
+          <ntig>
+            <termGrp>
+              <term>Cart</term>
+            </termGrp>
+            <termNote type="status">New</termNote>
+            <termNote type="forbidden">false</termNote>
+          </ntig>
+        </langSet>
+        <langSet xml:lang="fr-FR">
+          <ntig>
+            <termGrp>
+              <term>Panier interdit</term>
+            </termGrp>
+            <termNote type="administrativeStatus">forbiddenTerm</termNote>
+          </ntig>
+        </langSet>
+      </termEntry>
+    </body>
+  </text>
+</martif>

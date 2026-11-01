@@ -99,6 +99,17 @@ func RawHTMLSyntaxStartCount(s string) int {
 	return rawHTMLSyntaxStartCount(s)
 }
 
+// isHTMLTranslatableText reports whether decoded text has a letter or digit.
+// Named entities such as &nbsp; and &amp; stay literals: they have nothing to
+// translate, and sending them to MT fails the whole target.
+func isHTMLTranslatableText(s string) bool {
+	decoded := html.UnescapeString(s)
+	if decoded == "" || isAllHTMLWhitespace(decoded) {
+		return false
+	}
+	return isTranslatableChunk(decoded)
+}
+
 func isAllHTMLWhitespace(s string) bool {
 	for i := 0; i < len(s); {
 		if s[i] < 0x80 {
@@ -264,7 +275,7 @@ func parseHTMLDocumentWithSkip(content []byte, foldInline bool, skip map[string]
 			return
 		}
 		placeholdered, placeholders, plainText, _ := protectHTMLInlineSyntax(raw)
-		if !isTranslatableChunk(plainText) {
+		if !isHTMLTranslatableText(plainText) {
 			appendLiteral(raw)
 			return
 		}

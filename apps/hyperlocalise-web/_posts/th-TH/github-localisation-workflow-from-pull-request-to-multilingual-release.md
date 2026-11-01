@@ -65,7 +65,7 @@ tags:
 สร้าง `i18n.yml` ที่รูทของ repository:
 
 ```yaml
-version: hyperlocalise@1.13.6
+version: hyperlocalise@1.13.7
 
 locales:
   source: en-US

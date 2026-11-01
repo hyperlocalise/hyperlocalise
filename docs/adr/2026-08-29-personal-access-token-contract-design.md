@@ -161,6 +161,8 @@ requires:
 | `jobs:write` | `jobs:write` | all except `member` |
 | `files:read` | `projects:read` | all |
 | `files:write` | `jobs:create` | all except `member` |
+| `memories:read` | `memories:read` | all |
+| `memories:write` | `memories:write` | `admin`, `localization_manager` |
 
 `files:read` and `files:write` have no organization capability of their own, so
 they map to the capability governing the equivalent product action: reading
@@ -206,21 +208,20 @@ computed from `getCapabilitiesForRole` rather than derived by hand:
 
 | Role | Grantable scopes |
 | --- | --- |
-| `admin` | `jobs:read`, `jobs:write`, `files:read`, `files:write` |
-| `localization_manager` | `jobs:read`, `jobs:write`, `files:read`, `files:write` |
-| `developer` | `jobs:read`, `jobs:write`, `files:read`, `files:write` |
-| `reviewer` | `jobs:read`, `jobs:write`, `files:read`, `files:write` |
-| `translator` | `jobs:read`, `jobs:write`, `files:read`, `files:write` |
-| `member` | `jobs:read`, `files:read` |
+| `admin` | `jobs:read`, `jobs:write`, `files:read`, `files:write`, `memories:read`, `memories:write` |
+| `localization_manager` | `jobs:read`, `jobs:write`, `files:read`, `files:write`, `memories:read`, `memories:write` |
+| `developer` | `jobs:read`, `jobs:write`, `files:read`, `files:write`, `memories:read` |
+| `reviewer` | `jobs:read`, `jobs:write`, `files:read`, `files:write`, `memories:read` |
+| `translator` | `jobs:read`, `jobs:write`, `files:read`, `files:write`, `memories:read` |
+| `member` | `jobs:read`, `files:read`, `memories:read` |
 | unknown | none — creation refused |
 
-Only `member` is restricted, and only to read. Every other role gets the full
-set, so opening creation changes what four roles can hold without changing what
-any of them can do.
+`memories:write` is limited to localization operators. Every other role receives
+the file and job scopes they can already back, plus `memories:read`. `member`
+stays read-only.
 
-The default when `permissions` is omitted is the owner's full grantable set, not
-the fixed list of four scopes it is today. A `member` who omits `permissions`
-gets a read-only token instead of a `403`.
+The default when `permissions` is omitted is the owner's full grantable set. A
+`member` who omits `permissions` gets a read-only token instead of a `403`.
 
 Requesting a scope the role cannot back is refused, not silently narrowed. A
 credential that quietly does less than you asked for fails at three in the
@@ -276,7 +277,7 @@ not hold the `jobs:write` capability.
 
 Applying the mapping here is what closes that. A `member`-owned token stops
 writing jobs and uploading sources; nothing else changes, because every other
-role holds all four capabilities. This check is also what makes open creation
+role holds the file and job capabilities. This check is also what makes open creation
 safe, so it must ship before or with the creation change, never after.
 
 A failed capability check answers `403`, matching the existing scope failure.

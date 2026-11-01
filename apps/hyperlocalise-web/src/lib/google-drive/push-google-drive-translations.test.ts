@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => ({
   loadProjectOfficeTranslationDownload: vi.fn(),
   loadProjectPdfTranslationDownload: vi.fn(),
   loadProjectTxtTranslationDownload: vi.fn(),
+  loadProjectHtmlTranslationDownload: vi.fn(),
   loadProjectTranslationsAsPrefilledEntries: vi.fn(),
   loadProjectLottieTranslationDownload: vi.fn(),
   loadProjectSubtitleTranslationDownload: vi.fn(),
@@ -54,6 +55,11 @@ vi.mock("@/lib/projects/files/pdf-translation-download", () => ({
 vi.mock("@/lib/projects/files/txt-translation-download", () => ({
   loadProjectTxtTranslationDownload: (...args: unknown[]) =>
     mocks.loadProjectTxtTranslationDownload(...args),
+}));
+
+vi.mock("@/lib/projects/files/html-translation-download", () => ({
+  loadProjectHtmlTranslationDownload: (...args: unknown[]) =>
+    mocks.loadProjectHtmlTranslationDownload(...args),
 }));
 
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
@@ -200,6 +206,7 @@ describe("loadTranslatedBytes", () => {
     mocks.loadProjectOfficeTranslationDownload.mockReset();
     mocks.loadProjectPdfTranslationDownload.mockReset();
     mocks.loadProjectTxtTranslationDownload.mockReset();
+    mocks.loadProjectHtmlTranslationDownload.mockReset();
     mocks.loadProjectTranslationsAsPrefilledEntries.mockReset();
     mocks.loadProjectLottieTranslationDownload.mockReset();
     mocks.loadProjectSubtitleTranslationDownload.mockReset();
@@ -372,6 +379,50 @@ describe("loadTranslatedBytes", () => {
       }),
     );
     expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+  });
+
+  it("returns the html download for html sources", async () => {
+    mocks.loadProjectHtmlTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: {
+        content: Buffer.from("<p>Xin chào</p>"),
+        contentType: "text/html",
+        extension: ".html",
+        translatedKeyCount: 1,
+      },
+    });
+
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/welcome.html",
+        ingestFormat: "html",
+      }),
+    ).resolves.toEqual({
+      buffer: Buffer.from("<p>Xin chào</p>"),
+      fileName: "welcome.html",
+      mimeType: "text/html",
+    });
+    expect(mocks.loadProjectHtmlTranslationDownload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        approvedTranslationsOnly: true,
+      }),
+    );
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+  });
+
+  it("returns null for html when the download has no ready translations", async () => {
+    mocks.loadProjectHtmlTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: { translatedKeyCount: 0, content: Buffer.from("<p>Hello</p>") },
+    });
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/welcome.html",
+        ingestFormat: "html",
+      }),
+    ).resolves.toBeNull();
   });
 
   it("returns null for txt when the download has no ready translations", async () => {

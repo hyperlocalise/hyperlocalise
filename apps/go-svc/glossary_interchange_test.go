@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/stretchr/testify/require"
 )
 
@@ -532,6 +534,35 @@ func TestGlossaryImportReplaceRejectsParserErrors(t *testing.T) {
 	require.Contains(t, rec.Body.String(), `"diagnostics"`)
 	require.Contains(t, rec.Body.String(), "invalid_csv_row")
 	require.NotContains(t, rec.Body.String(), `"concepts"`)
+}
+
+func TestGlossaryImportTBXPersistsForbiddenFlags(t *testing.T) {
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	content, err := os.ReadFile(glossaryInterchangeFixturePath("phrase-export.tbx"))
+	require.NoError(t, err)
+	payload, err := json.Marshal(map[string]string{"format": "tbx", "content": string(content), "mode": "merge"})
+	require.NoError(t, err)
+
+	rec := glossaryRequest(api, scope, "POST", scope.OrgPath("/glossaries/"+id+"/concepts/import"), string(payload))
+	require.Equal(t, 201, rec.Code, rec.Body.String())
+	requireForbiddenTermFlag(t, scope, id, "Checkout", false)
+	requireForbiddenTermFlag(t, scope, id, "Kasse alt", true)
+	requireForbiddenTermFlag(t, scope, id, "Panier interdit", true)
+
+	rec = glossaryRequest(api, scope, "POST", scope.OrgPath("/glossaries/"+id+"/concepts/import"), string(payload))
+	require.Equal(t, 201, rec.Code, rec.Body.String())
+	requireForbiddenTermFlag(t, scope, id, "Checkout", false)
+	requireForbiddenTermFlag(t, scope, id, "Kasse alt", true)
+	requireForbiddenTermFlag(t, scope, id, "Panier interdit", true)
+}
+
+func requireForbiddenTermFlag(t *testing.T, scope *testenv.Scope, glossaryID, term string, want bool) {
+	t.Helper()
+	var forbidden bool
+	err := scope.Pool.QueryRow(t.Context(), `select forbidden from glossary_terms where glossary_id=$1 and term=$2`, glossaryID, term).Scan(&forbidden)
+	require.NoError(t, err, term)
+	require.Equal(t, want, forbidden, term)
 }
 
 func TestGlossaryExportTBXHTTP(t *testing.T) {

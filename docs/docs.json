@@ -541,6 +541,7 @@
                         "root": "changelog",
                         "directory": "accordion",
                         "pages": [
+                          "changelog/v1-13-7",
                           "changelog/v1-13-6",
                           "changelog/v1-13-5",
                           "changelog/v1-13-4",

@@ -18,6 +18,10 @@ import { requireApiKeyPermission, type ApiKeyAuthVariables } from "@/api/auth/ap
 import { getAccessibleProjectForApiKey } from "@/api/auth/api-key-access";
 import { publicApiAuthMiddleware } from "@/api/auth/workos-agent";
 import { internalErrorResponse } from "@/api/response.schema";
+import {
+  htmlTranslationDownloadFailure,
+  loadProjectHtmlTranslationDownload,
+} from "@/lib/projects/files/html-translation-download";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import {
   loadProjectOfficeTranslationDownload,
@@ -157,6 +161,26 @@ export function createPublicTranslationRoutes() {
             headers["X-Hyperlocalise-Overflow-Keys"] = pdfDownload.value.overflowKeys.join(",");
           }
           return c.body(new Uint8Array(pdfDownload.value.content), 200, headers);
+        }
+
+        const htmlDownload = await loadProjectHtmlTranslationDownload({
+          organizationId,
+          projectId: project.id,
+          sourcePath: query.sourcePath,
+          targetLocale: query.locale,
+        });
+        if (isErr(htmlDownload)) {
+          if (htmlDownload.error.code === "source_content_not_found") {
+            return sourceFileNotFoundResponse(c);
+          }
+          const failure = htmlTranslationDownloadFailure();
+          return internalErrorResponse(c, failure.code, failure.message);
+        }
+        if (htmlDownload.value) {
+          return c.body(new Uint8Array(htmlDownload.value.content), 200, {
+            "Content-Type": htmlDownload.value.contentType,
+            "Content-Disposition": contentDisposition,
+          });
         }
 
         const result = await loadProjectTranslationsAsPrefilledEntries({
