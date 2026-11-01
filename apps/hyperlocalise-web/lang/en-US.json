@@ -283,6 +283,10 @@
     "defaultMessage": "{actor} marked this as no longer a duplicate of {relatedIssue}",
     "description": "Activity line when a duplicate_of relationship is removed"
   },
+  "+QwpaztRql": {
+    "defaultMessage": "Auto",
+    "description": "Placeholder when an Excel column index is left empty"
+  },
   "+R091fatkR": {
     "defaultMessage": "Can I change plans later?",
     "description": "Pricing FAQ question about changing plans"
@@ -611,6 +615,10 @@
     "defaultMessage": "Continue",
     "description": "Button in the leave workspace dialog that moves on to another workspace after access was lost"
   },
+  "+uLF/HX2Vk": {
+    "defaultMessage": "Import filters",
+    "description": "Title of the per-file import filter dialog"
+  },
   "+ufsbqnrz9": {
     "defaultMessage": "Agent Activity",
     "description": "Heading for the agent run history list"
@@ -791,6 +799,10 @@
     "defaultMessage": "Acknowledge duplicate risk or add idempotency for actions in the retry body.",
     "description": "Validation issue for non-idempotent retry body"
   },
+  "/846Cme9F7": {
+    "defaultMessage": "Cancel",
+    "description": "Closes the bilingual import dialog without uploading"
+  },
   "/8fHPQltQc": {
     "defaultMessage": "Bring the right context back when needed.",
     "description": "Knowledge hero signal card description"
@@ -958,6 +970,10 @@
   "/O89M/pt0V": {
     "defaultMessage": "Landing pages and ads drift across locales after the initial launch push.",
     "description": "Problem pain point 4 for the marketing-localisation use case"
+  },
+  "/OlbcrmkUX": {
+    "defaultMessage": "Mark strings that contain ICU arguments so they validate as ICU.",
+    "description": "Hint for the ICU sub-filter checkbox"
   },
   "/PO5w1JP7C": {
     "defaultMessage": "Full-screen visual asset comparison and upload",
@@ -1275,6 +1291,10 @@
     "defaultMessage": "One publication. A home in every market.",
     "description": "Marketing homepage cmsDemoHeading"
   },
+  "/v8UgBZCqG": {
+    "defaultMessage": "Spanish (Argentina)",
+    "description": "Display name for BCP-47 locale es-AR"
+  },
   "/vkBLbtzp+": {
     "defaultMessage": "Fixed fee (USD)",
     "description": "Label of the task's fixed fee field"
@@ -1370,6 +1390,10 @@
   "05cAoYwBUA": {
     "defaultMessage": "Target locales",
     "description": "Label for the target locale multi-select in the create translation job dialog"
+  },
+  "05jUvDQjWy": {
+    "defaultMessage": "Sibling fields for character limit",
+    "description": "Label for JSON sibling fields used as max length"
   },
   "06V6dOkQzU": {
     "defaultMessage": "Request a Demo",
@@ -1855,6 +1879,10 @@
     "defaultMessage": "Sources failed to render",
     "description": "Error boundary title when sources UI crashes"
   },
+  "0nNWFudqdb": {
+    "defaultMessage": "Source column",
+    "description": "Label for the Excel source-text column index"
+  },
   "0nWdyNoMtT": {
     "defaultMessage": "Changes made by workspace operators will appear here.",
     "description": "Empty state description for activity logs"
@@ -2026,6 +2054,10 @@
   "12tUFj7BbU": {
     "defaultMessage": "{rate} / character",
     "description": "A rate charged per character without spaces"
+  },
+  "14fjm7KS5p": {
+    "defaultMessage": "No file selected",
+    "description": "Placeholder when no bilingual file has been chosen"
   },
   "15JsK395Aq": {
     "defaultMessage": "Bring content to your audience with a CMS and automated AEO and SEO operations.",
@@ -4531,6 +4563,10 @@
     "defaultMessage": "No issues for \"{source}\"",
     "description": "Empty-state title naming the CAT source text when the segment has no linked issues"
   },
+  "57vdPa03Kj": {
+    "defaultMessage": "Could not import the bilingual file.",
+    "description": "Toast when bilingual import fails"
+  },
   "584/OLp2LZ": {
     "defaultMessage": "the tools",
     "description": "What an undo step changed, used in 'Undo {change}' and 'Undid {change}'"
@@ -5891,6 +5927,10 @@
     "defaultMessage": "Original page",
     "description": "Label when the visitor sees the original page"
   },
+  "7JjWKwlwGP": {
+    "defaultMessage": "description\ncontext",
+    "description": "Placeholder for JSON sibling context fields"
+  },
   "7JjjDkCqaI": {
     "defaultMessage": "Ask",
     "description": "Hyperlocalise Agent Ask capability name"
@@ -6526,6 +6566,10 @@
   "8MEkOXiww5": {
     "defaultMessage": "Automation",
     "description": "Button label to open repository automation settings"
+  },
+  "8MUhdYT135": {
+    "defaultMessage": "Custom placeholder patterns",
+    "description": "Label for the per-file custom placeholder regular expressions field"
   },
   "8MkwvIyeaM": {
     "defaultMessage": "the last change",
@@ -7394,6 +7438,10 @@
   "9jLtl6PUKI": {
     "defaultMessage": "No locale",
     "description": "Option to clear the issue locale value"
+  },
+  "9klX4rpx6h": {
+    "defaultMessage": "{count, plural, one {# placeholder} other {# placeholders}}: {matches}",
+    "description": "Lists the custom placeholders found in the sample text"
   },
   "9ks0sE9gB3": {
     "defaultMessage": "Current filters",
@@ -9163,6 +9211,14 @@
     "defaultMessage": "Approved",
     "description": "Progress table row label for approved work"
   },
+  "CcFOw9wq1W": {
+    "defaultMessage": "Could not save import filters.",
+    "description": "Error when import filters fail to save"
+  },
+  "CcKgiJARwK": {
+    "defaultMessage": "Key column",
+    "description": "Label for the Excel identifier column index"
+  },
   "CcfrzXT5ah": {
     "defaultMessage": "Glossary history could not be loaded",
     "description": "Glossary history error state title"
@@ -10287,6 +10343,10 @@
     "defaultMessage": "Created",
     "description": "Sort option for translation memory entry created time"
   },
+  "EOTMIMF/c9": {
+    "defaultMessage": "Bilingual file",
+    "description": "Label for the bilingual file picker in the import dialog"
+  },
   "EOnZA0Blf8": {
     "defaultMessage": "Active",
     "description": "Label when a visual workflow is active and receiving production triggers"
@@ -10362,6 +10422,10 @@
   "ETBYkoWGcl": {
     "defaultMessage": "Show hidden files",
     "description": "Content editor file sidebar button that shows files whose strings are all hidden from translators"
+  },
+  "ETeuBsnEYM": {
+    "defaultMessage": "One tag name per line, in addition to head, script, style, and pre.",
+    "description": "Hint for HTML excluded tag names"
   },
   "ETurL1gTEW": {
     "defaultMessage": "Campaign context sits in Notion, Figma, Slack, and agency decks — not in the translation workflow.",
@@ -12555,6 +12619,10 @@
     "defaultMessage": "Use it when",
     "description": "Label above the situation a pricing model fits"
   },
+  "I3jsEhp8EX": {
+    "defaultMessage": "Mark strings that contain HTML tags so they validate as HTML.",
+    "description": "Hint for the HTML sub-filter checkbox"
+  },
   "I42jTEngJ1": {
     "defaultMessage": "AI captures the signal",
     "description": "Knowledge mock UI stage 2 title"
@@ -13603,6 +13671,10 @@
     "defaultMessage": "Glossary violation",
     "description": "Label for the glossary violation issue template"
   },
+  "JpP4nc8IcB": {
+    "defaultMessage": "ICU sub-filter",
+    "description": "Label for treating matching strings as ICU MessageFormat"
+  },
   "Jq8P8koF7y": {
     "defaultMessage": "{count, plural, one {# not recorded} other {# not recorded}}",
     "description": "Under an AI credit amount: how many runs, images or videos have no credit recorded by billing"
@@ -14122,6 +14194,10 @@
   "KqiLqEGTTZ": {
     "defaultMessage": "Verify your email address to see invitations to other workspaces, then reload this page.",
     "description": "Shown on the workspace picker to someone whose email address is not verified, since invitations are hidden"
+  },
+  "KrcMVcci8Z": {
+    "defaultMessage": "Re-import a CSV, TMX, XLF, XLIFF, or XLSX file exported from this queue to apply tag and translation fixes for {locale}. Matching keys are updated. Empty targets are skipped.",
+    "description": "Description of the Content Editor bilingual import dialog. {locale} is the current target locale"
   },
   "Ks+Feeoung": {
     "defaultMessage": "{count} characters",
@@ -15487,6 +15563,10 @@
     "defaultMessage": "AI",
     "description": "Crowdin machine-translation submenu: AI"
   },
+  "MyCHJKVL+S": {
+    "defaultMessage": "Choose file",
+    "description": "Button that opens the bilingual file picker"
+  },
   "MyG7pe2tfV": {
     "defaultMessage": "Blocked until resolved",
     "description": "Guideline mock UI compliance blocked label"
@@ -16591,6 +16671,10 @@
     "defaultMessage": "Repository",
     "description": "Label for the GitHub repository select"
   },
+  "Omjxdb7wIl": {
+    "defaultMessage": "Include key paths",
+    "description": "Label for JSON key paths to import"
+  },
   "Onn6EwAIjq": {
     "defaultMessage": "No description",
     "description": "Fallback when a project list row has no description"
@@ -16686,6 +16770,10 @@
   "P+MaWGCLAB": {
     "defaultMessage": "Scheduled and GitHub-triggered agent playbooks (not the visual workflow editor).",
     "description": "Pricing matrix detail for agent automation quota row"
+  },
+  "P+ULCdr4tE": {
+    "defaultMessage": "No placeholders match.",
+    "description": "Shown when no custom placeholder pattern matches the sample text"
   },
   "P+kQwSEjlX": {
     "defaultMessage": "Preparing",
@@ -17970,6 +18058,10 @@
   "R6n2logETh": {
     "defaultMessage": "Rate card",
     "description": "Label of the rate card select"
+  },
+  "R7DirRTdeG": {
+    "defaultMessage": "No matching translations were imported.",
+    "description": "Toast when bilingual import matches no keys"
   },
   "R7vhxRuwOx": {
     "defaultMessage": "Scheduled",
@@ -19523,6 +19615,10 @@
     "defaultMessage": "Choose the template preselected when someone creates an issue for this project, and who each template should default to assigning. The Content Editor always preselects Context request, regardless of this setting.",
     "description": "Description of the project issue templates settings section"
   },
+  "TeRbDN8x03": {
+    "defaultMessage": "Field names on the same object, one per line. Those fields are not imported as strings.",
+    "description": "Hint for JSON sibling context fields"
+  },
   "Tertld8DQl": {
     "defaultMessage": "Hyperlocalise connects CMS change signals to translation, terminology checks, and ongoing freshness monitoring.",
     "description": "Workflow section description for the help-center-localisation use case"
@@ -19586,6 +19682,10 @@
   "Tji75UVkKX": {
     "defaultMessage": "Rates",
     "description": "Title of the rates panel for people who can only read it"
+  },
+  "Tkf+LdCpRA": {
+    "defaultMessage": "Paste a source string",
+    "description": "Placeholder text for the custom placeholder sample field"
   },
   "Tl0CYs/kQf": {
     "defaultMessage": "Scheduled run · 1st of month",
@@ -20951,6 +21051,10 @@
     "defaultMessage": "Glossary exported with {count} metadata warnings",
     "description": "Toast after an export with representational warnings"
   },
+  "VzLClJsLg0": {
+    "defaultMessage": "Import bilingual file",
+    "description": "Title of the Content Editor bilingual import dialog"
+  },
   "VzdHtrwQej": {
     "defaultMessage": "Send an invitation by email. They join after accepting through your identity provider.",
     "description": "Description of the invite member dialog"
@@ -21651,6 +21755,14 @@
     "defaultMessage": "Search source and target text",
     "description": "Accessible label for the translation memory entry search field"
   },
+  "XBjtqyv7fx": {
+    "defaultMessage": "maxLength\ncharacterLimit",
+    "description": "Placeholder for JSON sibling character-limit fields"
+  },
+  "XD+bIMwUyH": {
+    "defaultMessage": "One regular expression per line, up to {max}. Text that matches is treated as a placeholder, in addition to the syntax above. Lookaround and backreferences are not supported.",
+    "description": "Help text under the custom placeholder patterns field"
+  },
   "XDo7GTXYVG": {
     "defaultMessage": "Finished words per day",
     "description": "Title of the chart of finished words for each day"
@@ -21930,6 +22042,10 @@
   "XgEDOt4cQC": {
     "defaultMessage": "Log time",
     "description": "Button that saves the logged time"
+  },
+  "XgwWkCr4oC": {
+    "defaultMessage": "\\[\\[\\w+\\]\\]",
+    "description": "Example regular expression shown in the empty custom placeholder patterns field; matches [[name]]"
   },
   "XhZzwexSlh": {
     "defaultMessage": "Hyperlocalise is working…",
@@ -22786,6 +22902,10 @@
   "Z6yIjKdK2x": {
     "defaultMessage": "The change could not be undone.",
     "description": "Toast when undoing an operation fails"
+  },
+  "Z73RWKPiOM": {
+    "defaultMessage": "Line {line} is longer than {max} characters.",
+    "description": "Validation error for a custom placeholder pattern that is too long"
   },
   "Z7EtcHtkyS": {
     "defaultMessage": "No automations yet. Start from a template below or create a new automation.",
@@ -23875,6 +23995,10 @@
     "defaultMessage": "Save",
     "description": "Save button in the placeholder format dialog"
   },
+  "aq+Hkv5Fr8": {
+    "defaultMessage": "Azerbaijani",
+    "description": "Display name for BCP-47 locale az"
+  },
   "aqL5Q4cYQs": {
     "defaultMessage": "This file is too large to process.",
     "description": "Reason a guideline document failed: the file is too large"
@@ -24467,6 +24591,10 @@
     "defaultMessage": "or",
     "description": "Separator between knowledge upload dropzone and source buttons"
   },
+  "bl3sCCu5tP": {
+    "defaultMessage": "Import filters saved. The file is being re-read.",
+    "description": "Success toast after saving import filters"
+  },
   "blaz/Tdo6f": {
     "defaultMessage": "Remove",
     "description": "Remove a single break rule"
@@ -25019,6 +25147,10 @@
     "defaultMessage": "What would you like to know?",
     "description": "Default placeholder for the prompt text input"
   },
+  "ck1HBQc2GC": {
+    "defaultMessage": "Test your patterns",
+    "description": "Label for a sample text field that previews custom placeholder matches"
+  },
   "clCA8uRLFv": {
     "defaultMessage": "Context request",
     "description": "Issue Sheet issue type option for a context request"
@@ -25162,6 +25294,10 @@
   "cx3+OxbAb3": {
     "defaultMessage": "Download filtered view…",
     "description": "Overflow menu item that opens the filtered export dialog"
+  },
+  "cxb+FsoLJb": {
+    "defaultMessage": "Import bilingual file…",
+    "description": "Overflow menu item that opens the bilingual file re-import dialog"
   },
   "cy9+fmyi91": {
     "defaultMessage": "Run the test for visitors in France first. If it works, open Japan and Germany. If it does not, the rest of the world never saw it.",
@@ -25955,6 +26091,10 @@
     "defaultMessage": "Retry",
     "description": "Retry loading an import report"
   },
+  "e+RlAlQTGC": {
+    "defaultMessage": "Retry",
+    "description": "Retry button when import filters fail to load"
+  },
   "e+WPqvuP5X": {
     "defaultMessage": "Resolved",
     "description": "Issue status resolved"
@@ -26202,6 +26342,10 @@
   "eJvMGD1rKZ": {
     "defaultMessage": "Experiments",
     "description": "Experiments list page title"
+  },
+  "eKC03Z1B9Y": {
+    "defaultMessage": "Import filters",
+    "description": "Context menu action to configure HTML, JSON, and Excel import filters"
   },
   "eKHIVZMNbd": {
     "defaultMessage": "Empty matches any locale. A language such as fr also matches fr-FR and fr-CA.",
@@ -28015,6 +28159,10 @@
     "defaultMessage": "Matched concepts from the project glossary.",
     "description": "Description for the glossary guidance dialog"
   },
+  "h7ecP3kpVa": {
+    "defaultMessage": "{imported, plural, one {Imported # translation.} other {Imported # translations.}}",
+    "description": "Toast after bilingual import. {imported} is the number of saved translations"
+  },
   "h7fFvoKQMq": {
     "defaultMessage": "New automation",
     "description": "App shell breadcrumb title for the new automation page"
@@ -28587,6 +28735,10 @@
     "defaultMessage": "Paste a Iterable App API key and choose the region for that workspace.",
     "description": "Intro text shown before a Iterable API key is saved"
   },
+  "i3xNDFJAo9": {
+    "defaultMessage": "This file type has no extra import filters.",
+    "description": "Shown when the selected file cannot use import filters"
+  },
   "i4A8tgsl1c": {
     "defaultMessage": "Time estimate",
     "description": "Column heading: how long the step is expected to take"
@@ -28807,6 +28959,10 @@
     "defaultMessage": "Translation mistake",
     "description": "Unresolved issue submenu: translation mistake"
   },
+  "iNrywGyfgn": {
+    "defaultMessage": "First row is a header",
+    "description": "Label for treating the first Excel row as column names"
+  },
   "iO1SSVXmtH": {
     "defaultMessage": "Running",
     "description": "A task's state in the task picker"
@@ -28871,6 +29027,10 @@
     "defaultMessage": "Emailed images",
     "description": "AI feature: images sent by email"
   },
+  "iSuHPJi7Ue": {
+    "defaultMessage": "Could not load import filters.",
+    "description": "Error when import filters fail to load"
+  },
   "iSz2hKqv1Z": {
     "defaultMessage": "Your next story.\nReady for the world.",
     "description": "Bottom CTA headline on the multilingual Content Studio product page"
@@ -28914,6 +29074,10 @@
   "iVnVwwFFdq": {
     "defaultMessage": "Locales",
     "description": "Chip placeholder when no target locales are selected"
+  },
+  "iWpj/vuBE1": {
+    "defaultMessage": "Turn this off for sheets that start with data. Column positions below are 0-based (A is 0).",
+    "description": "Hint for the Excel header-row checkbox"
   },
   "iXddAxYfyx": {
     "defaultMessage": "{arg} · {type}",
@@ -29130,6 +29294,10 @@
   "is2cQ1v97u": {
     "defaultMessage": "What we saw",
     "description": "Label for evidence on a localisation audit finding"
+  },
+  "isK0xVIbUs": {
+    "defaultMessage": "Exclude key paths",
+    "description": "Label for JSON key paths to skip"
   },
   "isRKrk8w8z": {
     "defaultMessage": "Term deleted",
@@ -29439,6 +29607,10 @@
     "defaultMessage": "{planName}: {priceLabel} per month",
     "description": "Accessible pricing card heading for a monthly paid plan"
   },
+  "jPLbJdtewx": {
+    "defaultMessage": "Import",
+    "description": "Starts the bilingual file import"
+  },
   "jPddLz1mvi": {
     "defaultMessage": "No source files linked to this job.",
     "description": "Empty state when a synced provider job has no source files"
@@ -29658,6 +29830,10 @@
   "jhOfPn0iZ0": {
     "defaultMessage": "{name} cancelled the job",
     "description": "Job activity row when a user cancels the job"
+  },
+  "jhaXEyezy6": {
+    "defaultMessage": "Line {line} is not a valid regular expression.",
+    "description": "Validation error for an invalid custom placeholder pattern"
   },
   "jhwzOupLZL": {
     "defaultMessage": "Related posts",
@@ -30435,6 +30611,10 @@
     "defaultMessage": "Powered by DataForSEO Labs’ Google Domain Rank Overview API.",
     "description": "Market data attribution"
   },
+  "kzjEnGFmtM": {
+    "defaultMessage": "{skipped, plural, one {Skipped # unmatched or empty row.} other {Skipped # unmatched or empty rows.}}",
+    "description": "Follow-on toast text after bilingual import. {skipped} is unmatched or empty rows"
+  },
   "kzwi13YrTF": {
     "defaultMessage": "Optional. Add anything specific to your team: tone, report format, what to ignore.",
     "description": "Placeholder for the automation instructions textarea when a skill is attached"
@@ -30594,6 +30774,10 @@
   "lH4tr3c/1j": {
     "defaultMessage": "{count, plural, one {Translation file downloaded.} other {# translation files downloaded.}}",
     "description": "Toast after translation files download successfully"
+  },
+  "lH6AbCkzBn": {
+    "defaultMessage": "Save",
+    "description": "Save button on the import filter dialog"
   },
   "lHKw2e6/kS": {
     "defaultMessage": "Select a file",
@@ -30810,6 +30994,10 @@
   "lfBcHAAQiY": {
     "defaultMessage": "Original and localised image comparison",
     "description": "Image viewer: comparisonAlt"
+  },
+  "lfDVbUWg2+": {
+    "defaultMessage": "Sibling fields for context",
+    "description": "Label for JSON sibling fields copied as translator context"
   },
   "lfPogGpRYm": {
     "defaultMessage": "AI Engine",
@@ -32371,6 +32559,10 @@
     "defaultMessage": "Rules shared by every project in this workspace.",
     "description": "Description for the workspace guideline tab in the editor guideline sheet"
   },
+  "o4talEzW4n": {
+    "defaultMessage": "messages.*\n*.text",
+    "description": "Placeholder for JSON include key paths"
+  },
   "o5RLnUXcEq": {
     "defaultMessage": "Startmate",
     "description": "Startmate name shown in the backed-by section"
@@ -33006,6 +33198,10 @@
   "p46MXtZbsQ": {
     "defaultMessage": "Glossary Deleted",
     "description": "Activity log event type label for glossary deletion"
+  },
+  "p4EP3lBEdG": {
+    "defaultMessage": "Line {line} uses lookaround or a backreference, which is not supported.",
+    "description": "Validation error for a custom placeholder pattern that uses unsupported syntax"
   },
   "p4xkAKJ/3y": {
     "defaultMessage": "Project",
@@ -34119,6 +34315,14 @@
     "defaultMessage": "Context signal",
     "description": "Knowledge product visual memory node description"
   },
+  "qjLg/sUBaB": {
+    "defaultMessage": "Use at most {max} patterns.",
+    "description": "Validation error when too many custom placeholder patterns are entered"
+  },
+  "qjQww08Liu": {
+    "defaultMessage": "Line {line} matches empty text. Make it match at least one character.",
+    "description": "Validation error for a custom placeholder pattern that can match an empty string"
+  },
   "qjnIHRqIL8": {
     "defaultMessage": "Replay",
     "description": "Replay button in the guidelines board chat"
@@ -34454,6 +34658,10 @@
   "rEDnl3jroe": {
     "defaultMessage": "Documentation",
     "description": "External link label to integration documentation"
+  },
+  "rESRbutFXn": {
+    "defaultMessage": "Control which strings this file imports. Saving re-reads the file.",
+    "description": "Description of the per-file import filter dialog"
   },
   "rGLAOwkIrN": {
     "defaultMessage": "Unsaved changes",
@@ -36179,6 +36387,10 @@
     "defaultMessage": "OAuth client ID",
     "description": "Label for the OAuth client ID field"
   },
+  "uBuX1gN2I5": {
+    "defaultMessage": "HTML sub-filter",
+    "description": "Label for treating matching JSON strings as HTML"
+  },
   "uC9uH1Yi+P": {
     "defaultMessage": "Could not save the translation.",
     "description": "Error when saving a translation variant fails"
@@ -36907,6 +37119,10 @@
     "defaultMessage": "Translation memory used",
     "description": "Heading above detailed TM matches on an agent proposal"
   },
+  "vHbt+8Ajkh": {
+    "defaultMessage": "Character limit column",
+    "description": "Label for the Excel max-length column index"
+  },
   "vHkuFGKp7T": {
     "defaultMessage": "Failed to create API key",
     "description": "Error when creating an API key fails"
@@ -37034,6 +37250,10 @@
   "vVbXCgpKIh": {
     "defaultMessage": "Open in Inbox",
     "description": "Link from chat dock to the full inbox page"
+  },
+  "vVsJslDQBT": {
+    "defaultMessage": "One dotted path per line. Use * for one segment and ** for the rest. Leave empty to import every string.",
+    "description": "Hint for JSON include key paths"
   },
   "vVscXxYSjv": {
     "defaultMessage": "Meta tags, indexability, and discoverability across markets",
@@ -37322,6 +37542,10 @@
   "vx+yIOnd53": {
     "defaultMessage": "Token ending in {suffix}",
     "description": "Secondary Loops connection detail showing the stored token suffix"
+  },
+  "vxWXD/yiTP": {
+    "defaultMessage": "nav\nfooter",
+    "description": "Placeholder for HTML excluded tag names"
   },
   "vxm9RJy+2w": {
     "defaultMessage": "QA scan started.",
@@ -38687,6 +38911,10 @@
     "defaultMessage": "URL: {url}",
     "description": "Contentful webhook callback URL display"
   },
+  "y+3an6BQ1Y": {
+    "defaultMessage": "Skip these HTML tags",
+    "description": "Label for extra HTML tags to exclude from import"
+  },
   "y+NaInUKRl": {
     "defaultMessage": "Brought your discarded changes back",
     "description": "Notice after a discard was undone"
@@ -38922,6 +39150,10 @@
   "yKFLGCc18p": {
     "defaultMessage": "Style guide",
     "description": "Title for the content editor style guide sheet"
+  },
+  "yKk8PSmKHK": {
+    "defaultMessage": "Spanish (Latin America)",
+    "description": "Display name for BCP-47 locale es-419"
   },
   "yKlYrz3iYw": {
     "defaultMessage": "Model",
@@ -39282,6 +39514,10 @@
   "z2bAu9ByVm": {
     "defaultMessage": "Verification method",
     "description": "Verification method label"
+  },
+  "z3GhOmYfP8": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button on the import filter dialog"
   },
   "z3bR+/cqxl": {
     "defaultMessage": "Found {count, plural, one {# string} other {# strings}} in the file",
@@ -39854,6 +40090,10 @@
   "zvSexbzyTe": {
     "defaultMessage": "Add a skill that translates Contentful entries.",
     "description": "A still-needed step: the Contentful trigger has no Contentful tool"
+  },
+  "zvnwVPdAGU": {
+    "defaultMessage": "Context column",
+    "description": "Label for the Excel context column index"
   },
   "zvokgWLGk/": {
     "defaultMessage": "Accept all pending",
