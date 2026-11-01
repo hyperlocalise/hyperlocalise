@@ -72,3 +72,53 @@ describe("hashPublicJobRequest", () => {
     expect(hashPublicJobRequest(parsed({ description: "" }))).toBe(hashPublicJobRequest(parsed()));
   });
 });
+
+describe("hashPublicJobRequest file jobs", () => {
+  const fileJob = {
+    type: "file" as const,
+    projectId: "project_123",
+    fileInput: {
+      sourceFileId: "file_123",
+      fileFormat: "xliff" as const,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    },
+  };
+
+  function parsedFile(overrides: Record<string, unknown> = {}) {
+    const result = createPublicJobBodySchema.safeParse({ ...fileJob, ...overrides });
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      throw new Error("expected a valid public file job body");
+    }
+    return result.data;
+  }
+
+  it("treats owner email case and matching dueAt instants as the same file request", () => {
+    expect(
+      hashPublicJobRequest(
+        parsedFile({ ownerEmail: "pm@example.com", dueAt: "2026-11-15T17:00:00Z" }),
+      ),
+    ).toBe(
+      hashPublicJobRequest(
+        parsedFile({ ownerEmail: "PM@example.com", dueAt: "2026-11-15T17:00:00.000Z" }),
+      ),
+    );
+  });
+
+  it("treats file metadata that differs only in key order as the same request", () => {
+    const left = parsedFile({
+      fileInput: {
+        ...fileJob.fileInput,
+        metadata: { instructions: "Keep names", tone: "formal" },
+      },
+    });
+    const right = parsedFile({
+      fileInput: {
+        ...fileJob.fileInput,
+        metadata: { tone: "formal", instructions: "Keep names" },
+      },
+    });
+    expect(hashPublicJobRequest(left)).toBe(hashPublicJobRequest(right));
+  });
+});

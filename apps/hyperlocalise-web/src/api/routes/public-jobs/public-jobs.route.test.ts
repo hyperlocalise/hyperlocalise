@@ -386,6 +386,22 @@ describe("publicJobRoutes job fields and idempotency", () => {
     return job;
   }
 
+  const fileJob = (
+    projectId: string,
+    sourceFileId: string,
+    overrides: Record<string, unknown> = {},
+  ) => ({
+    type: "file" as const,
+    projectId,
+    fileInput: {
+      sourceFileId,
+      fileFormat: "xliff" as const,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    },
+    ...overrides,
+  });
+
   it("stores the title, description, due date and owner a client sets", async () => {
     const { apiKey, project, user } = await createPublicApiFixture();
 
@@ -410,6 +426,104 @@ describe("publicJobRoutes job fields and idempotency", () => {
     expect(job?.inputPayload).toMatchObject({
       metadata: { title: "Spring campaign", description: "Landing page" },
     });
+  });
+
+  it("stores title, due date and owner on a file job", async () => {
+    const { apiKey, project, user } = await createPublicApiFixture();
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      filename: "source.xliff",
+      contentType: "application/xliff+xml",
+    });
+
+    const response = await client.api.v1.jobs.$post(
+      {
+        json: fileJob(project.id, sourceFile.id, {
+          title: " Spring campaign ",
+          description: "Landing page",
+          dueAt: "2026-11-15T17:00:00+10:00",
+          ownerEmail: user.email.toUpperCase(),
+        }),
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { job: { id: string } };
+    const job = await jobRow(body.job.id);
+    expect(job?.ownerUserId).toBe(user.id);
+    expect(job?.assigneeType).toBe("user");
+    expect(job?.dueAt?.toISOString()).toBe("2026-11-15T07:00:00.000Z");
+    expect(job?.inputPayload).toMatchObject({
+      sourceFileId: sourceFile.id,
+      fileFormat: "xliff",
+      metadata: { title: "Spring campaign", description: "Landing page" },
+    });
+  });
+
+  it("replays a file job when owner email case or dueAt form change", async () => {
+    const { apiKey, project, user } = await createPublicApiFixture();
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      filename: "source.xliff",
+      contentType: "application/xliff+xml",
+    });
+    const headers = { "x-api-key": apiKey, "idempotency-key": "file-order-45" };
+
+    const first = await client.api.v1.jobs.$post(
+      {
+        json: fileJob(project.id, sourceFile.id, {
+          ownerEmail: user.email,
+          dueAt: "2026-11-15T17:00:00Z",
+        }),
+      },
+      { headers },
+    );
+    expect(first.status).toBe(201);
+    const firstBody = (await first.json()) as { job: { id: string } };
+
+    const retry = await client.api.v1.jobs.$post(
+      {
+        json: fileJob(project.id, sourceFile.id, {
+          ownerEmail: user.email.toUpperCase(),
+          dueAt: "2026-11-15T17:00:00+00:00",
+        }),
+      },
+      { headers },
+    );
+    expect(retry.status).toBe(200);
+    expect(retry.headers.get("idempotent-replayed")).toBe("true");
+    await expect(retry.json()).resolves.toEqual({
+      job: { id: firstBody.job.id, type: "file", status: "queued" },
+    });
+    expect(enqueueJob).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a reused file-job Idempotency-Key when the title changes", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      filename: "source.xliff",
+      contentType: "application/xliff+xml",
+    });
+    const headers = { "x-api-key": apiKey, "idempotency-key": "file-order-44" };
+
+    const first = await client.api.v1.jobs.$post(
+      { json: fileJob(project.id, sourceFile.id) },
+      { headers },
+    );
+    expect(first.status).toBe(201);
+
+    const changed = await client.api.v1.jobs.$post(
+      { json: fileJob(project.id, sourceFile.id, { title: "Different" }) },
+      { headers },
+    );
+    expect(changed.status).toBe(422);
+    await expect(changed.json()).resolves.toMatchObject({ error: "idempotency_key_reused" });
+    expect(enqueueJob).toHaveBeenCalledTimes(1);
   });
 
   it("rejects an owner who is not a workspace member", async () => {
