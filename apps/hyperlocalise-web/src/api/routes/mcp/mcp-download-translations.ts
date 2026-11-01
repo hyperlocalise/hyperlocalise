@@ -12,6 +12,10 @@
  */
 import path from "node:path";
 
+import {
+  htmlTranslationDownloadFailure,
+  loadProjectHtmlTranslationDownload,
+} from "@/lib/projects/files/html-translation-download";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import {
   loadProjectOfficeTranslationDownload,
@@ -56,6 +60,7 @@ export type McpDownloadTranslationsResult =
         | "source_file_not_found"
         | "translations_not_found"
         | "unsupported_binary_download"
+        | "html_export_failed"
         | "lottie_export_failed"
         | "xlsx_export_failed"
         | "office_export_failed"
@@ -157,6 +162,32 @@ export async function downloadMcpTranslations(input: {
       value.overflowKeys = [...pdfDownload.value.overflowKeys];
     }
     return { ok: true, value };
+  }
+
+  const htmlDownload = await loadProjectHtmlTranslationDownload({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    targetLocale: input.locale,
+  });
+  if (isErr(htmlDownload)) {
+    if (htmlDownload.error.code === "source_content_not_found") {
+      return { ok: false, error: "source_file_not_found" };
+    }
+    return { ok: false, error: htmlTranslationDownloadFailure().code };
+  }
+  if (htmlDownload.value) {
+    return {
+      ok: true,
+      value: {
+        filename: downloadFilename(input.sourcePath, input.locale),
+        contentType: `${htmlDownload.value.contentType}; charset=utf-8`,
+        locale: input.locale,
+        sourcePath: input.sourcePath,
+        contentEncoding: "utf8",
+        content: htmlDownload.value.content.toString("utf8"),
+      },
+    };
   }
 
   const sourceFormat = inferSupportedTranslationFileFormat(input.sourcePath);

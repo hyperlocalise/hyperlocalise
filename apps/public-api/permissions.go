@@ -40,6 +40,12 @@ func effectivePermissions(stored []string, role string) []string {
 	if _, ok := seen["files:read"]; ok {
 		add("projects:read")
 		add("queries:read")
+		add("strings:read")
+		add("glossaries:read")
+		add("translation-memories:read")
+	}
+	if _, ok := seen["files:write"]; ok {
+		add("strings:write")
 	}
 	return out
 }

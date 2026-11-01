@@ -34,6 +34,8 @@ import {
 } from "@/components/ui/select";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiError, readApiResponseError } from "@/lib/api-error";
+import { contentEditorImportDialogMessages } from "@/components/content-editor/shared/content-editor-chrome.messages";
+import { postCatBilingualImport } from "@/lib/projects/content-editor/content-editor-bilingual-import";
 import { apiClient } from "@/lib/api-client-instance";
 import {
   formatLocaleDisplayName,
@@ -337,6 +339,7 @@ export function ProjectFileContentEditorWorkspace({
   });
 
   const [isExporting, setIsExporting] = useState(false);
+  const [isImportingBilingualFile, setIsImportingBilingualFile] = useState(false);
 
   const handleDownloadFilteredView = useCallback(
     async (format: ContentEditorFilteredExportFormat) => {
@@ -388,6 +391,41 @@ export function ProjectFileContentEditorWorkspace({
       sourcePathsFilter,
       targetLocale,
     ],
+  );
+
+  const handleImportBilingualFile = useCallback(
+    async (file: File) => {
+      if (!targetLocale) {
+        throw new Error(intl.formatMessage(contentEditorImportDialogMessages.importFailed));
+      }
+      setIsImportingBilingualFile(true);
+      try {
+        const result = await postCatBilingualImport({
+          organizationSlug,
+          projectId,
+          sourcePath,
+          locale: targetLocale,
+          file,
+          fallbackMessage: intl.formatMessage(contentEditorImportDialogMessages.importFailed),
+        });
+        await Promise.all([
+          invalidateQueue(),
+          queryClient.invalidateQueries({
+            queryKey: ["project-file-content-editor-segment-target", organizationSlug, projectId],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["project-files", organizationSlug, projectId],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["project-file-progress", organizationSlug, projectId],
+          }),
+        ]);
+        return result;
+      } finally {
+        setIsImportingBilingualFile(false);
+      }
+    },
+    [invalidateQueue, intl, organizationSlug, projectId, queryClient, sourcePath, targetLocale],
   );
   const availableQueueFilters = useMemo(
     () => resolveAvailableCatQueueFilters(contentEditorFile?.provider?.kind),
@@ -472,6 +510,7 @@ export function ProjectFileContentEditorWorkspace({
     return projectFileCatToWorkspaceState(contentEditorFile, sourceLocale, intl);
   }, [contentEditorFile, intl, sourceLocale]);
   const fileMessageFormat = contentEditorFile?.messageFormat;
+  const filePlaceholderPatterns = contentEditorFile?.placeholderPatterns;
 
   const validateFormat = useCallback(
     async (
@@ -488,6 +527,7 @@ export function ProjectFileContentEditorWorkspace({
           targetLocale: segment.targetLocale,
           maxLength: segment.maxLength,
           messageFormat: segment.messageFormat ?? fileMessageFormat,
+          placeholderPatterns: segment.placeholderPatterns ?? filePlaceholderPatterns,
           acceptedWords: spellcheckDictionary.acceptedWords,
           signal: options?.signal,
           intl,
@@ -528,6 +568,7 @@ export function ProjectFileContentEditorWorkspace({
     },
     [
       fileMessageFormat,
+      filePlaceholderPatterns,
       goSvcClient,
       intl,
       qaPolicy,
@@ -564,6 +605,7 @@ export function ProjectFileContentEditorWorkspace({
         sourcePath?: string | null;
         maxLength?: number | null;
         messageFormat?: MessageFormat | null;
+        placeholderPatterns?: readonly string[] | null;
       },
       locale: string,
       value: string,
@@ -582,6 +624,7 @@ export function ProjectFileContentEditorWorkspace({
           targetLocale: locale,
           maxLength: segment.maxLength ?? undefined,
           messageFormat: segment.messageFormat ?? fileMessageFormat,
+          placeholderPatterns: segment.placeholderPatterns ?? filePlaceholderPatterns,
           acceptedWords: spellcheckDictionary.acceptedWords,
           intl,
           policy,
@@ -616,6 +659,7 @@ export function ProjectFileContentEditorWorkspace({
     },
     [
       fileMessageFormat,
+      filePlaceholderPatterns,
       goSvcClient,
       glossaryTermsForQaGate,
       intl,
@@ -1258,6 +1302,7 @@ export function ProjectFileContentEditorWorkspace({
             sourcePath: occurrence.sourcePath,
             maxLength: occurrence.maxLength,
             messageFormat: segment.messageFormat,
+            placeholderPatterns: segment.placeholderPatterns,
           },
           locale,
           text,
@@ -1564,6 +1609,10 @@ export function ProjectFileContentEditorWorkspace({
                   nativeIssuesEnabled={isNativeProject}
                   onDownloadFilteredView={handleDownloadFilteredView}
                   isDownloadingFilteredView={isExporting}
+                  onImportBilingualFile={
+                    isNativeProject && canEditTranslations ? handleImportBilingualFile : undefined
+                  }
+                  isImportingBilingualFile={isImportingBilingualFile}
                 />
               </AiFeaturesUpgradeHrefProvider>
             </ContentEditorGroupingView>

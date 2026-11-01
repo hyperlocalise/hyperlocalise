@@ -36,6 +36,7 @@ import {
   messageFormatParsesInterpolations,
   normalizeMessageFormat,
 } from "@/lib/i18n/message-format";
+import { extractCustomPlaceholderSpans } from "@/lib/i18n/placeholder-patterns";
 
 import {
   extractInternalMarkupSpans,
@@ -50,7 +51,9 @@ export type ContentEditorMessageTokenKind =
   | "time"
   | "pound"
   | "tag"
-  | "markup";
+  | "markup"
+  /** Matched by one of the file's custom placeholder regular expressions. */
+  | "custom";
 
 export interface ContentEditorMessageToken {
   id: string;
@@ -223,7 +226,7 @@ function mergeMessageTokens(
 
 function placeholderTokens(tokens: ContentEditorMessageToken[]) {
   return tokens.filter((token) =>
-    ["argument", "number", "date", "time", "tag", "markup"].includes(token.kind),
+    ["argument", "number", "date", "time", "tag", "markup", "custom"].includes(token.kind),
   );
 }
 
@@ -264,11 +267,64 @@ function icuBlockSummaries(tokens: ContentEditorMessageToken[]): ContentEditorIc
     }));
 }
 
+// Leaf tokens own their text. ICU and tag tokens span their children, so custom
+// placeholders inside a plural option or a tag still count.
+const LEAF_TOKEN_KINDS = new Set<ContentEditorMessageTokenKind>([
+  "argument",
+  "number",
+  "date",
+  "time",
+  "pound",
+  "markup",
+]);
+
+function withCustomPlaceholderTokens(
+  analysis: ContentEditorMessageAnalysis,
+  placeholderPatterns: readonly string[] | null | undefined,
+): ContentEditorMessageAnalysis {
+  const spans = extractCustomPlaceholderSpans(analysis.message, placeholderPatterns);
+  if (spans.length === 0) {
+    return analysis;
+  }
+  const leaves = analysis.tokens.filter((token) => LEAF_TOKEN_KINDS.has(token.kind));
+  const customTokens = spans
+    .filter((span) => !leaves.some((leaf) => span.start < leaf.end && leaf.start < span.end))
+    .map((span, index): ContentEditorMessageToken => ({
+      id: `custom-${span.start}-${index}`,
+      kind: "custom",
+      name: span.literal,
+      literal: span.literal,
+      start: span.start,
+      end: span.end,
+    }));
+  if (customTokens.length === 0) {
+    return analysis;
+  }
+  const tokens = [...analysis.tokens, ...customTokens].toSorted(
+    (first, second) => first.start - second.start,
+  );
+  return { ...analysis, tokens, placeholders: placeholderTokens(tokens) };
+}
+
 export function analyzeCatMessageFormat(
   message: string,
-  options: { messageFormat?: MessageFormat | null } = {},
+  options: {
+    messageFormat?: MessageFormat | null;
+    /** The file's custom placeholder regular expressions. */
+    placeholderPatterns?: readonly string[] | null;
+  } = {},
 ): ContentEditorMessageAnalysis {
-  const format = normalizeMessageFormat(options.messageFormat);
+  return withCustomPlaceholderTokens(
+    analyzeBuiltInMessageFormat(message, options.messageFormat),
+    options.placeholderPatterns,
+  );
+}
+
+function analyzeBuiltInMessageFormat(
+  message: string,
+  messageFormat: MessageFormat | null | undefined,
+): ContentEditorMessageAnalysis {
+  const format = normalizeMessageFormat(messageFormat);
   message = stripLeakedInternalMarkupFromStoredMessage(message);
   const markupTokens = markupTokensFromMessage(message);
 
@@ -345,8 +401,8 @@ export function contentEditorMessageTokenSignature(token: ContentEditorMessageTo
     return `${token.kind}:${token.name}:${token.type}`;
   }
 
-  if (token.kind === "markup") {
-    // Exact sentinel bytes must round-trip; label alone is not unique across hashes.
+  if (token.kind === "markup" || token.kind === "custom") {
+    // Exact bytes must round-trip; label alone is not unique across hashes.
     return `${token.kind}:${token.literal}`;
   }
 
@@ -368,6 +424,10 @@ function tokenDisplayName(token: ContentEditorMessageToken) {
 
   if (token.kind === "markup") {
     return token.displayLabel ?? token.name;
+  }
+
+  if (token.kind === "custom") {
+    return token.literal;
   }
 
   if (isInterpolationLiteral(token.literal)) {

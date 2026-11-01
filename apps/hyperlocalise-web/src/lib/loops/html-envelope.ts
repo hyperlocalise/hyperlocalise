@@ -142,7 +142,7 @@ export function parseLoopsEmailEnvelope(html: string): LoopsEmailEnvelope {
 }
 
 /**
- * Splice translated segments back into the source LMX in extraction order,
+ * Splice translated segments back into LMX in extraction order,
  * restoring `{data.*}` / `{contact.*}` / `{event.*}` tokens captured at import.
  */
 export function applyLoopsSegmentTranslations(input: {

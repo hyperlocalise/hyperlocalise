@@ -35,6 +35,45 @@ func TestParseGlossaryTBX_CrowdinExportFixture(t *testing.T) {
 	require.Equal(t, 274, countGlossaryImportTerms(concepts))
 }
 
+func TestParseGlossaryTBX_PhraseExportFixture(t *testing.T) {
+	content, err := os.ReadFile(glossaryInterchangeFixturePath("phrase-export.tbx"))
+	require.NoError(t, err)
+
+	concepts, diagnostics := parseGlossaryTBX(string(content))
+	require.Empty(t, diagnostics)
+	require.Len(t, concepts, 2)
+	require.Equal(t, 5, countGlossaryImportTerms(concepts))
+
+	var checkout, forbidden, adminForbidden *glossaryImportTerm
+	for i := range concepts {
+		for j := range concepts[i].Terms {
+			term := &concepts[i].Terms[j]
+			switch {
+			case term.Locale == "en-US" && term.Term == "Checkout":
+				checkout = term
+			case term.Locale == "de-DE" && term.Term == "Kasse alt":
+				forbidden = term
+			case term.Locale == "fr-FR" && term.Term == "Panier interdit":
+				adminForbidden = term
+			}
+		}
+	}
+	require.NotNil(t, checkout)
+	require.Equal(t, "preferred", checkout.Status)
+	require.False(t, checkout.Forbidden)
+	require.NotNil(t, forbidden)
+	require.True(t, forbidden.Forbidden)
+	require.NotNil(t, adminForbidden)
+	require.True(t, adminForbidden.Forbidden)
+}
+
+func TestParseGlossaryTBX_UnreadableEntriesReturnADiagnostic(t *testing.T) {
+	concepts, diagnostics := parseGlossaryTBX(`<?xml version="1.0"?><martif type="TBX"><text><body><termEntry id="1"><note>no terms</note></termEntry></body></text></martif>`)
+	require.Empty(t, concepts)
+	require.NotEmpty(t, diagnostics)
+	require.Equal(t, "tbx_entries_unreadable", diagnostics[0].Code)
+}
+
 func TestParseGlossaryTBX_HyperlocaliseExportFixture(t *testing.T) {
 	content, err := os.ReadFile(glossaryInterchangeFixturePath("hyperlocalise-export.tbx"))
 	require.NoError(t, err)

@@ -46,6 +46,7 @@ type QaScanKeyRow = {
   maxLength: number | null;
   sourcePath: string | null;
   messageFormat: MessageFormat | null;
+  placeholderPatterns: string[] | null;
 };
 
 type NativeQaProject = {
@@ -234,6 +235,7 @@ export async function scanTranslationQaPage(input: {
       maxLength: schema.projectTranslationKeys.maxLength,
       sourcePath: schema.repositorySourceFiles.sourcePath,
       messageFormat: schema.repositorySourceFiles.messageFormat,
+      placeholderPatterns: schema.repositorySourceFiles.placeholderPatterns,
     })
     .from(schema.projectTranslationKeys)
     .leftJoin(
@@ -328,6 +330,8 @@ export async function scanTranslationQaPage(input: {
       sourcePath: key.sourcePath ?? "",
       maxLength: key.maxLength ?? 0,
       targetLocale,
+      ...(key.messageFormat ? { messageFormat: key.messageFormat } : {}),
+      ...(key.placeholderPatterns?.length ? { placeholderPatterns: key.placeholderPatterns } : {}),
     };
   });
   let results: Awaited<ReturnType<typeof validateQaPageInSandbox>>;
@@ -360,6 +364,7 @@ export async function scanTranslationQaPage(input: {
       ...segment,
       glossaryTerms,
       messageFormat: requests[index]?.key.messageFormat ?? null,
+      placeholderPatterns: requests[index]?.key.placeholderPatterns ?? null,
     }));
     results = await mapWithConcurrency(fallbackSegments, 8, async (segment) => {
       const { checks, skippedChecks } = await validateScanSegment(

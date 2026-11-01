@@ -63,6 +63,7 @@ const eventActions = {
   member_joined: messages.memberJoinedAction,
   member_role_changed: messages.memberRoleChangedAction,
   member_removed: messages.memberRemovedAction,
+  member_left: messages.memberLeftAction,
   workspace_updated: messages.workspaceUpdatedAction,
   workspace_archived: messages.workspaceArchivedAction,
   personal_access_token_created: messages.personalAccessTokenCreatedAction,
@@ -196,6 +197,8 @@ function relativeTime(
 }
 
 function targetDisplayName(item: ActivityLogItem): string | null {
+  // The person who left is the actor already shown on the row.
+  if (item.eventType === "member_left") return null;
   if (item.target.displayName) return item.target.displayName;
   if (
     item.eventType.startsWith("integration_") &&

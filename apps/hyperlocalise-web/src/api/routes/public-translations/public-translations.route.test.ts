@@ -28,6 +28,7 @@ import {
 } from "@/lib/file-storage/records";
 import { loadProjectOfficeSourceEntries } from "@/lib/projects/files/office-source-entries";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
+import { HTML_CONTENT_TYPE } from "@/lib/projects/files/html-translation-download";
 import { multilingualXlsxFixture } from "@/lib/translation/xlsx/xlsx-workbook.fixture";
 import { XLSX_CONTENT_TYPE } from "@/lib/translation/xlsx/xlsx-workbook";
 import { DOCX_CONTENT_TYPE, readDocxEntries } from "@/lib/translation/ooxml/docx-document";
@@ -291,6 +292,47 @@ describe("publicTranslationRoutes", () => {
     expect(entries.value.find((entry) => entry.key === "ppt/slides/slide1.xml#0")?.text).toBe(
       "Price & plan",
     );
+  });
+
+  it("writes ready translations into an HTML source", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await allowAllPermissions(apiKey);
+    const sourcePath = "emails/welcome.html";
+    await db
+      .update(schema.projects)
+      .set({ sourceLocale: "en" })
+      .where(eq(schema.projects.id, project.id));
+    const storedFile = await createStoredFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      role: "source",
+      sourceKind: "repository_file",
+      filename: "welcome.html",
+      contentType: HTML_CONTENT_TYPE,
+      content: Buffer.from("<td>&nbsp;</td><p>Welcome</p>", "utf-8"),
+      metadata: { sourcePath },
+    });
+    const version = await createRepositorySourceFileVersion({
+      storedFile,
+      sourcePath,
+    });
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      repositorySourceFileId: version.repositorySourceFileId,
+      entries: [{ key: "html.p", text: "Welcome", context: null }],
+    });
+    await approveTranslation(project, "html.p", "Bienvenue");
+
+    const response = await client.api.v1.projects[":projectId"].translations.download.$get(
+      { param: { projectId: project.id }, query: { sourcePath, locale: "fr" } },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain(HTML_CONTENT_TYPE);
+    expect(response.headers.get("content-disposition")).toContain("welcome-fr.html");
+    expect(await response.text()).toBe("<td>&nbsp;</td><p>Bienvenue</p>");
   });
 
   it("downloads large source files across paginated key fetches", async () => {

@@ -1,5 +1,5 @@
 # Hyperlocalise sync config for the web app (react-intl / FormatJS).
-version: hyperlocalise@1.13.6
+version: hyperlocalise@1.13.7
 locales:
   source: en-US
   targets:

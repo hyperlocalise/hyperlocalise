@@ -16,6 +16,7 @@ import { observer } from "mobx-react-lite";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+import type { CatBilingualImportCounts } from "@/lib/projects/content-editor/content-editor-bilingual-import";
 import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
 
 import {
@@ -55,6 +56,8 @@ export const ContentEditorQueueToolbarConnected = observer(
     onBulkUnlock,
     onDownloadFilteredView,
     isDownloadingFilteredView = false,
+    onImportBilingualFile,
+    isImportingBilingualFile = false,
     adaptiveWorkspaceEnabled = false,
   }: {
     onQueueSearchChange?: (value: string) => void;
@@ -82,6 +85,8 @@ export const ContentEditorQueueToolbarConnected = observer(
     onBulkUnlock?: () => void;
     onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
     isDownloadingFilteredView?: boolean;
+    onImportBilingualFile?: (file: File) => Promise<CatBilingualImportCounts>;
+    isImportingBilingualFile?: boolean;
     /** Gate for the adaptive workspace persona options in the View menu. Off by default. */
     adaptiveWorkspaceEnabled?: boolean;
   }) {
@@ -174,6 +179,8 @@ export const ContentEditorQueueToolbarConnected = observer(
         }
         onDownloadFilteredView={onDownloadFilteredView}
         isDownloadingFilteredView={isDownloadingFilteredView}
+        onImportBilingualFile={onImportBilingualFile}
+        isImportingBilingualFile={isImportingBilingualFile}
         adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
       />
     );

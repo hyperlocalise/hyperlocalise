@@ -46,6 +46,23 @@ export const onboardingWizardMessages = defineMessages({
     id: "d4bDN80spw",
     description: "Preview of the workspace URL path derived from the workspace name",
   },
+  anotherWorkspaceTitle: {
+    defaultMessage: "Create another workspace",
+    id: "bJQH/XlrZq",
+    description: "Heading of the page where someone who already has a workspace creates a new one",
+  },
+  anotherWorkspaceDescription: {
+    defaultMessage:
+      "A new workspace has its own projects, members, settings and plan. You stay a member of your other workspaces.",
+    id: "nnVaD4zJuo",
+    description:
+      "Summary on the page for creating an additional workspace, explaining what is separate",
+  },
+  cancel: {
+    defaultMessage: "Cancel",
+    id: "IO9ifurzwW",
+    description: "Link back to the current workspace from the page for creating another workspace",
+  },
   createWorkspace: {
     defaultMessage: "Create workspace",
     id: "wRrp5VzBUC",

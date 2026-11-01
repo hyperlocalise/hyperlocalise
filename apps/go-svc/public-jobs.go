@@ -76,9 +76,10 @@ type publicJobRow struct {
 
 func (api *publicJobsAPI) register(mux *http.ServeMux) {
 	for pattern, handler := range map[string]http.HandlerFunc{
-		"GET /v1/jobs/latest":         api.latest,
-		"GET /v1/jobs/{jobId}":        api.get,
-		"GET /v1/jobs/{jobId}/status": api.status,
+		"GET /v1/jobs/latest":           api.latest,
+		"GET /v1/jobs/{jobId}":          api.get,
+		"GET /v1/jobs/{jobId}/status":   api.status,
+		"GET /v1/jobs/{jobId}/analysis": api.analysis,
 	} {
 		protected := api.auth.middleware(api.auth.requirePermission("jobs:read", handler))
 		mux.Handle(pattern, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

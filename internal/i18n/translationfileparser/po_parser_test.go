@@ -338,3 +338,61 @@ func TestPOOutputMapCapacity(t *testing.T) {
 		})
 	}
 }
+
+func TestClearPOFuzzyLinesCompactsInPlace(t *testing.T) {
+	tests := []struct {
+		name string
+		in   []poRawLine
+		want []poRawLine
+	}{
+		{
+			name: "empty",
+			in:   nil,
+			want: nil,
+		},
+		{
+			name: "drops fuzzy-only first line",
+			in: []poRawLine{
+				{raw: "#, fuzzy", newline: true},
+				{raw: `msgid "hello"`, newline: true},
+				{raw: `msgstr "Hello"`, newline: true},
+			},
+			want: []poRawLine{
+				{raw: `msgid "hello"`, newline: true},
+				{raw: `msgstr "Hello"`, newline: true},
+			},
+		},
+		{
+			name: "rewrites mixed flags and keeps other lines",
+			in: []poRawLine{
+				{raw: "# translator", newline: true},
+				{raw: "#, fuzzy, c-format", newline: true},
+				{raw: `msgid "hello"`, newline: true},
+			},
+			want: []poRawLine{
+				{raw: "# translator", newline: true},
+				{raw: "#, c-format", newline: true},
+				{raw: `msgid "hello"`, newline: true},
+			},
+		},
+		{
+			name: "drops trailing fuzzy-only line",
+			in: []poRawLine{
+				{raw: `msgid "hello"`, newline: true},
+				{raw: "#, fuzzy", newline: true},
+			},
+			want: []poRawLine{
+				{raw: `msgid "hello"`, newline: true},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := clearPOFuzzyLines(tc.in)
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("clearPOFuzzyLines() = %#v, want %#v", got, tc.want)
+			}
+		})
+	}
+}

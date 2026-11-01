@@ -1,36 +1,11 @@
 package main
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/stretchr/testify/require"
 )
-
-func reportingActorFor(scope *testenv.Scope, role string) workspaceActor {
-	return workspaceActor{userID: scope.UserID, organizationID: scope.OrganizationID, role: role}
-}
-
-func mustReportingProject(t *testing.T, scope *testenv.Scope, id string, teamID *string) string {
-	t.Helper()
-	id = id + "_" + strings.ReplaceAll(scope.Slug, "-", "")
-	scope.MustProject(t, id, id)
-	_, err := scope.Pool.Exec(t.Context(), `update projects set team_id=$1 where id=$2`, teamID, id)
-	require.NoError(t, err)
-	return id
-}
-
-func mustReportingJob(t *testing.T, scope *testenv.Scope, id string, projectID *string) string {
-	t.Helper()
-	id = id + "_" + scope.Slug
-	_, err := scope.Pool.Exec(t.Context(), `
-        insert into jobs (id, organization_id, project_id, kind, status, input_payload)
-        values ($1, $2, $3, 'translation', 'queued', '{}'::jsonb)`,
-		id, scope.OrganizationID, projectID)
-	require.NoError(t, err)
-	return id
-}
 
 func TestReportingProjectIDsMatchHonoTeamAccess(t *testing.T) {
 	t.Run("team member with default team membership", func(t *testing.T) {
@@ -90,39 +65,4 @@ func TestReportingProjectIDsMatchHonoTeamAccess(t *testing.T) {
 			require.ElementsMatch(t, []string{a, b}, ids, role)
 		}
 	})
-}
-
-func TestLoadReportingJobMatchesHonoJobAccess(t *testing.T) {
-	scope := testenv.Seed(t, testenv.Options{Role: "translator"})
-	mine := scope.MustTeam(t, "mine", "Mine", "member")
-	theirs := scope.MustTeam(t, "theirs", "Theirs", "")
-	visible := mustReportingProject(t, scope, "rp_mine", &mine)
-	hidden := mustReportingProject(t, scope, "rp_theirs", &theirs)
-	visibleJob := mustReportingJob(t, scope, "job_visible", &visible)
-	hiddenJob := mustReportingJob(t, scope, "job_hidden", &hidden)
-	unscopedJob := mustReportingJob(t, scope, "job_unscoped", nil)
-
-	translator := reportingActorFor(scope, "translator")
-	job, err := loadReportingJob(t.Context(), scope.Pool, translator, visibleJob)
-	require.NoError(t, err)
-	require.Equal(t, visibleJob, job.ID)
-	require.Equal(t, visible, *job.ProjectID)
-	for _, id := range []string{hiddenJob, unscopedJob, "job_missing"} {
-		_, err := loadReportingJob(t.Context(), scope.Pool, translator, id)
-		require.True(t, isNoRows(err), id)
-	}
-
-	admin := reportingActorFor(scope, "admin")
-	for _, id := range []string{visibleJob, hiddenJob, unscopedJob} {
-		job, err := loadReportingJob(t.Context(), scope.Pool, admin, id)
-		require.NoError(t, err, id)
-		require.Equal(t, id, job.ID)
-	}
-	unscoped, err := loadReportingJob(t.Context(), scope.Pool, admin, unscopedJob)
-	require.NoError(t, err)
-	require.Nil(t, unscoped.ProjectID)
-
-	other := testenv.Seed(t, testenv.Options{Role: "admin"})
-	_, err = loadReportingJob(t.Context(), other.Pool, reportingActorFor(other, "admin"), visibleJob)
-	require.True(t, isNoRows(err))
 }

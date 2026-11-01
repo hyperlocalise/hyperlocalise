@@ -32,6 +32,7 @@ func TestDecodeTBX_CrowdinAndHyperlocaliseFixtures(t *testing.T) {
 	}{
 		{name: "crowdin", filename: "crowdin-export.tbx", concepts: 52, terms: 274},
 		{name: "hyperlocalise", filename: "hyperlocalise-export.tbx", concepts: 52, terms: 66},
+		{name: "phrase", filename: "phrase-export.tbx", concepts: 2, terms: 5},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

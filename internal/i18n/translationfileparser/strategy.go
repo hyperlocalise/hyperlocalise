@@ -215,6 +215,17 @@ func (s *Strategy) ParseIngestEntries(path string, content []byte, locale string
 // read a locale column relative to a source column, such as .xlsx. An empty
 // sourceLocale treats locale as the source locale.
 func (s *Strategy) ParseIngestEntriesWithSourceLocale(path string, content []byte, sourceLocale, locale string) (map[string]IngestEntry, error) {
+	return s.ParseIngestEntriesWithOptions(path, content, sourceLocale, locale, ImportOptions{})
+}
+
+// ParseIngestEntriesWithOptions is ParseIngestEntriesWithSourceLocale plus
+// per-file HTML, JSON, and Excel import filters.
+func (s *Strategy) ParseIngestEntriesWithOptions(
+	path string,
+	content []byte,
+	sourceLocale, locale string,
+	opts ImportOptions,
+) (map[string]IngestEntry, error) {
 	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(path)))
 	if ext == "" {
 		return nil, fmt.Errorf("translation file parser: file %q has no extension", path)
@@ -255,11 +266,19 @@ func (s *Strategy) ParseIngestEntriesWithSourceLocale(path string, content []byt
 		}
 		return entries, nil
 	case ".xlsx":
-		entries, err := ParseXLSXIngestEntries(content, sourceLocale, locale)
+		entries, err := ParseXLSXIngestEntriesWithOptions(content, sourceLocale, locale, opts.Excel)
 		if err != nil {
 			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
 		}
 		return entries, nil
+	case ".html", ".htm":
+		if opts.HTML.active() {
+			entries, err := parseHTMLIngestEntries(content, opts.HTML)
+			if err != nil {
+				return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+			}
+			return entries, nil
+		}
 	case ".docx", ".pptx":
 		read := ReadDOCXEntries
 		if ext == ".pptx" {
@@ -294,6 +313,21 @@ func (s *Strategy) ParseIngestEntriesWithSourceLocale(path string, content []byt
 			return nil, err
 		}
 		return IngestEntriesFromStringMap(values), nil
+	}
+
+	if ext == ".json" && opts.JSON.active() {
+		entries, err := (JSONParser{}).ParseIngestEntries(content, opts.JSON)
+		if err != nil {
+			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return entries, nil
+	}
+	if ext == ".jsonc" && opts.JSON.active() {
+		entries, err := (JSONCParser{}).ParseIngestEntries(content, opts.JSON)
+		if err != nil {
+			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return entries, nil
 	}
 
 	values, contextByKey, err := s.parseWithContext(path, content)

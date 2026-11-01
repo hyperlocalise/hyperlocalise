@@ -17,6 +17,8 @@ export type HlEntryRecord = {
   text: string;
   maxLength?: number;
   context?: string | null;
+  /** Content sub-filter from import settings. Not persisted on source strings. */
+  format?: "html" | "icu";
 };
 
 export type HlEntriesPayload = Record<string, string | HlEntryRecord>;

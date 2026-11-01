@@ -22,6 +22,7 @@ import {
   messageFormatParsesInterpolations,
   normalizeMessageFormat,
 } from "@/lib/i18n/message-format";
+import { extractCustomPlaceholderSpans } from "@/lib/i18n/placeholder-patterns";
 
 import { countRunes } from "./count-runes";
 import type {
@@ -38,13 +39,25 @@ const INTERNAL_MARKUP_PATTERN = new RegExp(
   "gu",
 );
 
-function collectPlaceholders(value: string, format: MessageFormat) {
+function collectPlaceholders(
+  value: string,
+  format: MessageFormat,
+  placeholderPatterns: readonly string[] | null | undefined,
+) {
   const markup = [...value.matchAll(INTERNAL_MARKUP_PATTERN)].map(
     (match) => `${match[1]}#${match[2]}`,
   );
+  const withoutMarkup = value.replace(INTERNAL_MARKUP_PATTERN, "");
+  // Custom matches are removed before the built-in scan so one token is not counted twice.
+  const custom = extractCustomPlaceholderSpans(withoutMarkup, placeholderPatterns);
+  let remainder = withoutMarkup;
+  for (const span of custom.toReversed()) {
+    remainder = `${remainder.slice(0, span.start)} ${remainder.slice(span.end)}`;
+  }
   return [
     ...markup,
-    ...collectFormatPlaceholders(value.replace(INTERNAL_MARKUP_PATTERN, ""), format),
+    ...custom.map((span) => span.literal),
+    ...collectFormatPlaceholders(remainder, format),
   ];
 }
 
@@ -321,8 +334,8 @@ export function validateTranslationSegment(input: TranslationQaSegmentInput): Tr
   if (targetTrimmed !== "") {
     const format = normalizeMessageFormat(input.messageFormat);
     const { absent, extra } = leftoverPlaceholders(
-      collectPlaceholders(source, format),
-      collectPlaceholders(target, format),
+      collectPlaceholders(source, format, input.placeholderPatterns),
+      collectPlaceholders(target, format, input.placeholderPatterns),
     );
     if (absent.length > 0 || extra.length > 0) {
       checks.push({

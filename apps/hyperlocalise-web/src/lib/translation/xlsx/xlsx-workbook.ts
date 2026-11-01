@@ -82,6 +82,37 @@ export type XlsxWorkbook = {
   archive: JSZip;
 };
 
+/** 0-based column scheme for multilingual sheets, including headerless ones. */
+export type XlsxImportOptions = {
+  firstLineContainsHeader?: boolean | null;
+  columns?: {
+    identifier?: number | null;
+    source?: number | null;
+    context?: number | null;
+    maxLength?: number | null;
+  };
+};
+
+function xlsxSchemeActive(options?: XlsxImportOptions): boolean {
+  const columns = options?.columns;
+  return (
+    columns?.identifier != null ||
+    columns?.source != null ||
+    columns?.context != null ||
+    columns?.maxLength != null
+  );
+}
+
+function xlsxFirstDataRow(options?: XlsxImportOptions): number {
+  if (options?.firstLineContainsHeader === false) {
+    return 0;
+  }
+  if (options?.firstLineContainsHeader === true || xlsxSchemeActive(options)) {
+    return 1;
+  }
+  return 1;
+}
+
 function zipEntryUncompressedSize(file: JSZip.JSZipObject): number {
   const data = (file as { _data?: { uncompressedSize?: number } })._data;
   return typeof data?.uncompressedSize === "number" && data.uncompressedSize >= 0
@@ -257,32 +288,61 @@ export function readXlsxEntries(
   workbook: XlsxWorkbook,
   sourceLocale: string | null | undefined,
   locale: string,
+  options?: XlsxImportOptions,
 ): XlsxEntry[] {
   const source = sourceLocale?.trim() ? sourceLocale : locale;
   const entries: XlsxEntry[] = [];
+  const seenKeys = new Set<string>();
   for (const sheet of workbook.sheets) {
-    const sourceColumn = xlsxLocaleColumn(sheet.columns, source);
+    let sourceColumn = xlsxLocaleColumn(sheet.columns, source);
+    let keyColumn = sheet.columns.key;
+    let commentColumn = sheet.columns.comment;
+    let maxLengthColumn = sheet.columns.maxLength;
+    const scheme = xlsxSchemeActive(options);
+    if (options?.columns?.source != null) {
+      sourceColumn = options.columns.source;
+    }
+    if (options?.columns?.identifier != null) {
+      keyColumn = options.columns.identifier;
+    }
+    if (options?.columns?.context != null) {
+      commentColumn = options.columns.context;
+    }
+    if (options?.columns?.maxLength != null) {
+      maxLengthColumn = options.columns.maxLength;
+    }
     if (sourceColumn < 0) {
       entries.push(...cellLayoutEntries(sheet));
       continue;
     }
-    const column = sameXlsxLocale(locale, source)
-      ? sourceColumn
-      : xlsxLocaleColumn(sheet.columns, locale, [sourceColumn]);
+    const column =
+      !scheme && !sameXlsxLocale(locale, source)
+        ? xlsxLocaleColumn(sheet.columns, locale, [sourceColumn])
+        : sourceColumn;
     if (column < 0) {
       continue;
     }
-    for (let row = 1; row < sheet.rowCount; row += 1) {
+    const firstRow =
+      scheme || options?.firstLineContainsHeader === false ? xlsxFirstDataRow(options) : 1;
+    for (let row = firstRow; row < sheet.rowCount; row += 1) {
       if (!isTranslatableXlsxCell(sheet, row, column)) {
         continue;
       }
+      let key = scheme ? "" : (sheet.rowKeys.get(row) ?? "");
+      if (!key) {
+        key = xlsxCellValue(sheet, row, keyColumn).trim();
+        if (!key || seenKeys.has(key)) {
+          key = uniqueXlsxRowKey(seenKeys, sheet.name, row);
+        }
+        seenKeys.add(key);
+      }
       entries.push({
-        key: sheet.rowKeys.get(row) ?? xlsxRowKey(sheet.name, row),
+        key,
         text: xlsxCellValue(sheet, row, column),
         sheet: sheet.name,
         cell: xlsxCellAddress(row, column),
-        comment: xlsxCellValue(sheet, row, sheet.columns.comment).trim(),
-        maxLength: parseMaxLength(xlsxCellValue(sheet, row, sheet.columns.maxLength)),
+        comment: xlsxCellValue(sheet, row, commentColumn).trim(),
+        maxLength: parseMaxLength(xlsxCellValue(sheet, row, maxLengthColumn)),
       });
     }
   }

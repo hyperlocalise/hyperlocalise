@@ -24,7 +24,15 @@ describe("public API OAuth protected resource metadata", () => {
     await expect(response.json()).resolves.toMatchObject({
       resource: "https://www.hyperlocalise.com/api/v1",
       authorization_servers: ["https://authkit.test"],
-      scopes_supported: ["jobs:read", "jobs:write", "files:read", "files:write", "mcp"],
+      scopes_supported: [
+        "jobs:read",
+        "jobs:write",
+        "files:read",
+        "files:write",
+        "memories:read",
+        "memories:write",
+        "mcp",
+      ],
     });
   });
 });
