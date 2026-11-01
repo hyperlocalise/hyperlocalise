@@ -89,7 +89,7 @@ export function EditTimeDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => (open || busy ? null : onClose())}>
+    <Dialog open onOpenChange={(open) => (open ? null : onClose())}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{intl.formatMessage(messages.editTimeTitle)}</DialogTitle>
@@ -156,7 +156,7 @@ export function EditTimeDialog({
             {intl.formatMessage(remove.isPending ? messages.deleting : messages.deleteTime)}
           </Button>
           <div className="flex flex-col-reverse gap-2 sm:flex-row">
-            <Button variant="outline" disabled={busy} onClick={onClose}>
+            <Button variant="outline" onClick={onClose}>
               {intl.formatMessage(messages.cancel)}
             </Button>
             <Button disabled={busy} onClick={save}>

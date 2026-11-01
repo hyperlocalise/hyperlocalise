@@ -74,7 +74,7 @@ beforeEach(() => {
 });
 
 describe("Log time dialog", () => {
-  it("stays open while the time is saving, so it cannot be logged twice", async () => {
+  it("stays open only while the time is saving, so it cannot be logged twice", async () => {
     let finish = () => {};
     mocks.holds = {
       "post time-entries": new Promise<void>((resolve) => {

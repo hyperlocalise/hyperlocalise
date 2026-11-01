@@ -98,7 +98,7 @@ export function TaskPricingDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => (open || save.isPending ? null : onClose())}>
+    <Dialog open onOpenChange={(open) => (open ? null : onClose())}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{intl.formatMessage(messages.pricingTitle, { step })}</DialogTitle>
@@ -149,7 +149,7 @@ export function TaskPricingDialog({
           {error ? <FieldError data-slot="field-error">{error}</FieldError> : null}
         </div>
         <DialogFooter>
-          <Button variant="outline" disabled={save.isPending} onClick={onClose}>
+          <Button variant="outline" onClick={onClose}>
             {intl.formatMessage(messages.cancel)}
           </Button>
           <Button disabled={save.isPending} onClick={() => void submit()}>

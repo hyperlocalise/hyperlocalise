@@ -42,6 +42,7 @@ import { MATCH_BUCKETS, type MatchBucket } from "@/lib/reporting/word-analysis";
 import { manageRatesSheetMessages as messages } from "./manage-rates-sheet.messages";
 import { bandLabel, formatRateAmount, stepLabel } from "./report-format";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
+import { ReportLoadFailed } from "./report-section";
 import { ReportSelect } from "./reports-filter-bar";
 import { useRateCards, useSaveRateCard, type ReportSettings } from "./reports-queries";
 
@@ -212,6 +213,8 @@ export function ManageRatesSheet({
         <div className="grid gap-6 px-6 pb-6 [&>*]:min-w-0">
           {cards.isPending ? (
             <Skeleton className="h-64 w-full rounded-xl" />
+          ) : !cards.data ? (
+            <ReportLoadFailed error={cards.error} retry={cards.refetch} />
           ) : list.length === 0 && !canManage ? (
             <p className="text-sm text-muted-foreground">{intl.formatMessage(messages.noCards)}</p>
           ) : (
@@ -397,12 +400,12 @@ export function ManageRatesSheet({
           <Button variant="outline" onClick={onClose}>
             {intl.formatMessage(messages.cancel)}
           </Button>
-          {canManage && !creating ? (
+          {canManage && !creating && cards.data ? (
             <Button variant="outline" disabled={save.isPending} onClick={() => startCard("copy")}>
               {intl.formatMessage(messages.saveAsNew)}
             </Button>
           ) : null}
-          {canManage ? (
+          {canManage && cards.data ? (
             <Button disabled={save.isPending} onClick={() => void submit()}>
               {intl.formatMessage(save.isPending ? messages.saving : messages.save)}
             </Button>

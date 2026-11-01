@@ -59,8 +59,8 @@ const optional = (value: string | null) => value ?? undefined;
  * Codes the client gives a failure that is not go-svc's own answer, and go-svc's answers that it
  * could not read the report (an internal error, its database or WorkOS unavailable, or a sign-in
  * it could not check), whose own text is not for the person. The page shows only when the web
- * app has the flag on, so go-svc's `feature_unavailable` means its own lookup failed or is a
- * minute behind, not that Reports is off.
+ * app has the flag on, so go-svc's `feature_unavailable` nearly always means its own lookup failed
+ * or is a minute behind, rather than that Reports is off.
  */
 const UNANSWERED_CODES = new Set([
   "network_error",
@@ -497,8 +497,8 @@ export function useReportCsv(organizationSlug: string) {
 }
 
 /**
- * Saving anything on the page reads every section again, and the save finishes once they have
- * loaded (or failed), so a dialog reopened at once shows what was saved.
+ * Saving anything on the page reads every section again. Returned from `onSuccess`, the save
+ * finishes once they have loaded (or failed), so a dialog reopened at once shows what was saved.
  */
 function useInvalidateReports(organizationSlug: string) {
   const queryClient = useQueryClient();
@@ -543,7 +543,13 @@ export function useLogTime(organizationSlug: string) {
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.logTime(organizationSlug, body),
       ),
-    onSuccess: invalidate,
+    // The dialog cannot close during this request, as saving it twice would log the time twice.
+    // So the request fails at once when offline instead of waiting, and the dialog closes as soon
+    // as it is saved, with the sections reloading behind it.
+    networkMode: "always",
+    onSuccess: () => {
+      void invalidate();
+    },
   });
 }
 

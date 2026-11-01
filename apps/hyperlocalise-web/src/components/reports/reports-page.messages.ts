@@ -20,6 +20,21 @@ export const reportsPageMessages = defineMessages({
     defaultMessage: "This report could not be loaded.",
     description: "Error shown when a section of the Reports page fails to load",
   },
+  refreshFailed: {
+    id: "m6d0KfiqLJ",
+    defaultMessage: "These figures could not be refreshed, so they may be out of date.",
+    description: "Warning above figures on the Reports page when reloading them fails",
+  },
+  reportsBusy: {
+    id: "xk6Ug/3teq",
+    defaultMessage: "Reports is busy. Try again in a moment.",
+    description: "Error shown when a section of the Reports page waited too long for its turn",
+  },
+  reportTooSlow: {
+    id: "6E9OdOi0OA",
+    defaultMessage: "This report took too long. Try again, or choose fewer days.",
+    description: "Error shown when a section of the Reports page took too long to read",
+  },
   saveFailed: {
     id: "onN6IuR7qo",
     defaultMessage: "This could not be saved.",

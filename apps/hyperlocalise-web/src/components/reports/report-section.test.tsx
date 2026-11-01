@@ -11,9 +11,12 @@
  * Version 2.0 or later.
  */
 // @vitest-environment happy-dom
+
 import { render, screen } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
+
+import { ApiResponseError } from "@/lib/api-error";
 
 import { ReportSectionState } from "./report-section";
 
@@ -30,20 +33,29 @@ function renderSection(query: { data?: string; isError: boolean; error?: unknown
 }
 
 describe("ReportSectionState", () => {
-  it("keeps what was loaded under a reload that failed", () => {
-    renderSection({ data: "Loaded figures", isError: true, error: new Error("Too slow") });
+  it("keeps what was loaded under a reload that failed, and says it may be old", () => {
+    const error = new ApiResponseError("Busy", { code: "reports_busy", status: 503 });
+    renderSection({ data: "Loaded figures", isError: true, error });
     expect(screen.getByText("Loaded figures")).toBeInTheDocument();
-    expect(screen.getByText("Too slow")).toBeInTheDocument();
+    expect(
+      screen.getByText("These figures could not be refreshed, so they may be out of date."),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 
-  it("says why a first load failed, or that it could not load", () => {
-    renderSection({ isError: true, error: new Error("Choose fewer days") });
-    expect(screen.getByText("Choose fewer days")).toBeInTheDocument();
+  it.each([403, 404])("takes the figures away when go-svc refuses a reload with %i", (status) => {
+    const error = new ApiResponseError("No", { code: "report_costs_forbidden", status });
+    renderSection({ data: "Loaded figures", isError: true, error });
+    expect(screen.queryByText("Loaded figures")).not.toBeInTheDocument();
+    expect(screen.getByText("This report could not be loaded.")).toBeInTheDocument();
   });
 
-  it("falls back to its own message without an error to show", () => {
-    renderSection({ isError: true });
-    expect(screen.getByText("This report could not be loaded.")).toBeInTheDocument();
+  it.each([
+    ["reports_busy", "Reports is busy. Try again in a moment."],
+    ["report_timed_out", "This report took too long. Try again, or choose fewer days."],
+    ["internal_error", "This report could not be loaded."],
+  ])("says what it can about a first load that answered %s", (code, text) => {
+    renderSection({ isError: true, error: new ApiResponseError("go-svc", { code, status: 503 }) });
+    expect(screen.getByText(text)).toBeInTheDocument();
   });
 });

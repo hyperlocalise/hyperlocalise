@@ -38,8 +38,9 @@ vi.mock("@/lib/go-svc/use-go-svc-client", async () => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-function renderSheet(canManage: boolean, onCardChange = vi.fn()) {
+function renderSheet(canManage: boolean, onCardChange = vi.fn(), answers = {}) {
   mocks.bodies = {
+    ...answers,
     ...reportsResponseBodies(createReportsSettings({ canManage })),
     "rate-cards": { rateCards: reportsRateCards, canManage },
   };
@@ -118,5 +119,16 @@ describe("Rates panel", () => {
     expect((saved()[0].args.json as { lines: unknown[] }).lines).toHaveLength(2);
     await waitFor(() => expect(onCardChange).toHaveBeenCalledWith("Agency C"));
     expect(screen.getByRole("combobox", { name: "Rate card" })).toHaveTextContent("Agency C");
+  });
+
+  it("says when the rate cards cannot load, instead of offering a blank card", async () => {
+    mocks.statuses = { "get rate-cards": 503 };
+    renderSheet(true, vi.fn(), {
+      "get rate-cards": { error: "report_timed_out", message: "go-svc's own words" },
+    });
+    expect(
+      await screen.findByText("This report took too long. Try again, or choose fewer days."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
   });
 });

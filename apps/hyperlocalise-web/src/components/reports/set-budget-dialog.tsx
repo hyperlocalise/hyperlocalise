@@ -67,7 +67,7 @@ export function SetBudgetDialog({
   }
 
   // Fill in the chosen project's budget once the budgets have loaded.
-  const loaded = budgets.isSuccess;
+  const loaded = budgets.data !== undefined;
   useEffect(() => {
     if (loaded && chosenProjectId) chooseProject(chosenProjectId);
     // Only when the budgets first arrive; later choices are the person's.
@@ -92,7 +92,7 @@ export function SetBudgetDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => (open || setBudget.isPending ? null : onClose())}>
+    <Dialog open onOpenChange={(open) => (open ? null : onClose())}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{intl.formatMessage(messages.dialogTitle)}</DialogTitle>
@@ -109,14 +109,14 @@ export function SetBudgetDialog({
               label: project.name,
             }))}
             onChange={chooseProject}
-            disabled={!budgets.isSuccess}
+            disabled={!loaded}
           />
           <Field>
             <FieldLabel htmlFor={amountId}>{intl.formatMessage(messages.amount)}</FieldLabel>
             <Input
               id={amountId}
               inputMode="decimal"
-              disabled={!budgets.isSuccess}
+              disabled={!loaded}
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
             />
@@ -130,7 +130,7 @@ export function SetBudgetDialog({
               ...settings.rateCardNames.map((name) => ({ value: name, label: name })),
             ]}
             onChange={setRateCard}
-            disabled={!budgets.isSuccess}
+            disabled={!loaded}
           />
           {budgets.isError ? (
             <FieldError data-slot="field-error">
@@ -140,10 +140,10 @@ export function SetBudgetDialog({
           {error ? <FieldError data-slot="field-error">{error}</FieldError> : null}
         </div>
         <DialogFooter>
-          <Button variant="outline" disabled={setBudget.isPending} onClick={onClose}>
+          <Button variant="outline" onClick={onClose}>
             {intl.formatMessage(messages.cancel)}
           </Button>
-          <Button disabled={setBudget.isPending || !budgets.isSuccess} onClick={() => void save()}>
+          <Button disabled={setBudget.isPending || !loaded} onClick={() => void save()}>
             {intl.formatMessage(setBudget.isPending ? messages.saving : messages.save)}
           </Button>
         </DialogFooter>

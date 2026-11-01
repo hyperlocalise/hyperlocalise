@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { ApiResponseError } from "@/lib/api-error";
 import type { GoSvcDownload } from "@/lib/go-svc/go-svc-client.types";
 import { cn } from "@/lib/primitives/cn";
 
@@ -64,13 +65,34 @@ export function ReportSection({
   );
 }
 
-/** A failed read: go-svc's message when it refused (too slow, or busy), with a way to try again. */
-export function ReportLoadFailed({ error, retry }: { error?: unknown; retry: () => unknown }) {
+/** Whether go-svc refuses this person the read, so what was loaded should not stay on screen. */
+export function isRefusedRead(error: unknown) {
+  return error instanceof ApiResponseError && (error.status === 403 || error.status === 404);
+}
+
+function failureMessage(error: unknown, kept: boolean) {
+  if (kept) return messages.refreshFailed;
+  const code = error instanceof ApiResponseError ? error.code : null;
+  if (code === "reports_busy") return messages.reportsBusy;
+  if (code === "report_timed_out") return messages.reportTooSlow;
+  return messages.loadFailed;
+}
+
+/** A failed read, with a way to try again. `kept` says figures from earlier are on screen. */
+export function ReportLoadFailed({
+  error,
+  kept = false,
+  retry,
+}: {
+  error?: unknown;
+  kept?: boolean;
+  retry: () => unknown;
+}) {
   return (
     <Alert variant="destructive">
       <WarningCircleIcon />
       <AlertDescription>
-        {error instanceof Error ? error.message : <FormattedMessage {...messages.loadFailed} />}
+        <FormattedMessage {...failureMessage(error, kept)} />
       </AlertDescription>
       <AlertAction>
         <Button size="sm" variant="outline" onClick={() => void retry()}>
@@ -83,7 +105,8 @@ export function ReportLoadFailed({ error, retry }: { error?: unknown; retry: () 
 
 /**
  * A section's loading, failed and empty states, or its content once loaded. A reload that fails
- * keeps what was loaded under the failure, so a slow moment after a save takes nothing away.
+ * keeps what was loaded under the failure, so a slow moment after a save takes nothing away,
+ * unless go-svc refused it.
  */
 export function ReportSectionState<T>({
   query,
@@ -104,11 +127,11 @@ export function ReportSectionState<T>({
 }) {
   if (query.isPending && query.data === undefined)
     return <Skeleton className="w-full rounded-xl" style={{ height: skeletonHeight }} />;
-  if (query.data === undefined)
+  if (query.data === undefined || (query.isError && isRefusedRead(query.error)))
     return <ReportLoadFailed error={query.error} retry={query.refetch} />;
   return (
     <>
-      {query.isError ? <ReportLoadFailed error={query.error} retry={query.refetch} /> : null}
+      {query.isError ? <ReportLoadFailed kept retry={query.refetch} /> : null}
       {isEmpty?.(query.data) ? <ReportEmpty /> : children(query.data)}
     </>
   );

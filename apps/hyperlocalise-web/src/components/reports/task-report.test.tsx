@@ -272,13 +272,21 @@ describe("Task report", () => {
     "does not ask go-svc again when it answers %s",
     async (error) => {
       mocks.statuses.settings = 503;
-      mocks.bodies.settings = { error, message: "Try again shortly" };
+      mocks.bodies.settings = { error, message: "go-svc's own words" };
       renderReport();
       expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
-      expect(screen.getByText("Try again shortly")).toBeInTheDocument();
+      expect(screen.queryByText("go-svc's own words")).not.toBeInTheDocument();
       expect(callsTo("settings")).toHaveLength(1);
     },
   );
+
+  it("does not ask again for another status with no answer from go-svc", async () => {
+    mocks.statuses.settings = 500;
+    mocks.bodies.settings = "<html>Server error</html>";
+    renderReport();
+    expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(callsTo("settings")).toHaveLength(1);
+  });
 
   describe("Download CSV", () => {
     const saved: { name: string; href: string }[] = [];

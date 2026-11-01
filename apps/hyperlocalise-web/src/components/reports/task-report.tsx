@@ -157,14 +157,17 @@ export function TaskReport({
     previousStatus.current = status;
   }, [status, queryClient, organizationSlug, jobId]);
   // Until settings load the report waits, which TanStack Query counts as pending too.
-  const loading = !settings.isError && (settings.isPending || report.isPending);
+  const loading = settings.data ? report.isPending : settings.isPending;
   const query = {
     data:
       settings.data && report.data ? { settings: settings.data, report: report.data } : undefined,
     isPending: loading,
     isError: settings.isError || report.isError,
     error: settings.error ?? report.error,
-    refetch: () => (settings.isError ? settings.refetch() : report.refetch()),
+    refetch: () => {
+      if (settings.isError) void settings.refetch();
+      if (report.isError) void report.refetch();
+    },
   };
   return (
     <ReportSectionState query={query} skeletonHeight={420}>

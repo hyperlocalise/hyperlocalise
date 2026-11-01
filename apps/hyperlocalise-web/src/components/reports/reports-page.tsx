@@ -27,7 +27,7 @@ import { BudgetsTab } from "./budgets-tab";
 import { CostEstimateTab } from "./cost-estimate-tab";
 import { CostsTab } from "./costs-tab";
 import { ManageRatesSheet } from "./manage-rates-sheet";
-import { ReportLoadFailed } from "./report-section";
+import { isRefusedRead, ReportLoadFailed } from "./report-section";
 import { chosenRateCard, ReportsFilterBar } from "./reports-filter-bar";
 import { reportsPageMessages as messages } from "./reports-page.messages";
 import { useReportSettings } from "./reports-queries";
@@ -71,8 +71,8 @@ export function ReportsPage({
         <Skeleton className="h-80 w-full rounded-xl" />
       </div>
     );
-  // Settings that fail to reload keep the page and any open sheet; each section says so itself.
-  if (!settings.data)
+  // Settings that fail to reload keep the page and any open sheet, unless go-svc refused them.
+  if (!settings.data || (settings.isError && isRefusedRead(settings.error)))
     return (
       <div className="flex w-full flex-col gap-4">
         <h1 className="sr-only">{intl.formatMessage(messages.title)}</h1>
@@ -96,6 +96,7 @@ export function ReportsPage({
   return (
     <div className="flex w-full flex-col gap-4">
       <h1 className="sr-only">{intl.formatMessage(messages.title)}</h1>
+      {settings.isError ? <ReportLoadFailed kept retry={settings.refetch} /> : null}
       <p className="text-[13px] text-muted-foreground">
         {data.startedAt
           ? intl.formatMessage(messages.startedOn, {
