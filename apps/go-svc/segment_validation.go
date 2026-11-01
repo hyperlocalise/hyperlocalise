@@ -26,6 +26,8 @@ func (h *handler) composeSegmentValidation(
 		TargetLocale:  req.TargetLocale,
 		MessageFormat: segmentvalidate.ParseMessageFormat(req.MessageFormat),
 		Modes:         req.Modes,
+
+		PlaceholderPatterns: req.PlaceholderPatterns,
 	})
 
 	if !spellingRequested {

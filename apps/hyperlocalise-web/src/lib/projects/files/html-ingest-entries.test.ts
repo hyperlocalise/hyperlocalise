@@ -60,6 +60,28 @@ describe("extractHtmlIngestEntries", () => {
     expect(got["html.head.title"]).toBeUndefined();
   });
 
+  it("skips extra excluded tags", () => {
+    const got = extractHtmlIngestEntries(
+      `<html><body><nav>Menu</nav><p>Hello</p><footer>Legal</footer></body></html>`,
+      { excludedElements: ["nav", "footer"] },
+    );
+    expect(got["html.body.p"]).toBe("Hello");
+    expect(Object.values(got)).not.toContain("Menu");
+    expect(Object.values(got)).not.toContain("Legal");
+  });
+
+  it("marks ICU arguments when the HTML ICU sub-filter is on", () => {
+    const got = applyHtmlIngestEntryKeys(
+      "pages/home.html",
+      `<html><body><nav>Menu</nav><p>Hello {name}</p></body></html>`,
+      { leftover: "from cli" },
+      { excludedElements: ["nav"], icuSubfilter: true },
+    );
+    expect(got).toEqual({
+      "html.body.p": { text: "Hello {name}", format: "icu" },
+    });
+  });
+
   it("extracts the formatting fixture with table and list paths", () => {
     const got = extractHtmlIngestEntries(formattingFixture);
     expect(got["html.body.h1"]).toBe("HTML Formatting Test");

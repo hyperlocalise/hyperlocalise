@@ -35,6 +35,8 @@ type editorCatSegment struct {
 	SourcePath        *string `json:"sourcePath,omitempty"`
 	// Set in all-files queues, where segments come from files with different settings.
 	MessageFormat *string `json:"messageFormat,omitempty"`
+	// Set in all-files queues alongside MessageFormat: the file's custom placeholder regexes.
+	PlaceholderPatterns []string `json:"placeholderPatterns,omitempty"`
 	// Set in grouped queues: identical source strings in scope, including this one.
 	OccurrenceCount *int `json:"occurrenceCount,omitempty"`
 	// Set on grouped rows with several occurrences. The least complete status among the
@@ -70,6 +72,7 @@ type editorCatQueueFile struct {
 	Filename                  string                     `json:"filename"`
 	Provider                  any                        `json:"provider"`
 	MessageFormat             string                     `json:"messageFormat,omitempty"`
+	PlaceholderPatterns       []string                   `json:"placeholderPatterns,omitempty"`
 	TargetLocale              string                     `json:"targetLocale"`
 	CanEditTranslations       bool                       `json:"canEditTranslations"`
 	Truncated                 bool                       `json:"truncated"`
@@ -272,7 +275,8 @@ func (api *editorCatAPI) loadTextFileQueue(r *http.Request, actor editorCatActor
 	}
 	keys = api.rewriteHashedHTMLQueueKeys(r, actor, project, query.sourcePath, keys)
 	var messageFormat string
-	if err := api.pool.QueryRow(r.Context(), `select message_format from repository_source_files where id=$1`, sourceFileID).Scan(&messageFormat); err != nil {
+	var placeholderPatterns []string
+	if err := api.pool.QueryRow(r.Context(), `select message_format, placeholder_patterns from repository_source_files where id=$1`, sourceFileID).Scan(&messageFormat, &placeholderPatterns); err != nil {
 		return editorCatQueueFile{}, err
 	}
 	pagination := editorCatPagination{
@@ -287,6 +291,7 @@ func (api *editorCatAPI) loadTextFileQueue(r *http.Request, actor editorCatActor
 		Filename:            filenameFromSourcePath(query.sourcePath),
 		Provider:            nil,
 		MessageFormat:       messageFormat,
+		PlaceholderPatterns: placeholderPatterns,
 		TargetLocale:        query.targetLocale,
 		CanEditTranslations: actor.canEdit(),
 		Truncated:           pagination.HasMore,
@@ -617,7 +622,7 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 	listArgs = append(listArgs, query.limit, query.offset)
 	selectCols := `k.id, k.key, k.source_text, k.context, k.type, k.max_length, k.metadata, k.is_hidden`
 	if includeSourcePath {
-		selectCols += `, f.source_path, f.message_format`
+		selectCols += `, f.source_path, f.message_format, f.placeholder_patterns`
 	}
 	limitN := strconv.Itoa(len(listArgs) - 1)
 	offsetN := strconv.Itoa(len(listArgs))
@@ -663,10 +668,11 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		var metadata []byte
 		var hidden bool
 		var sourcePath, messageFormat *string
+		var placeholderPatterns []string
 		var occurrenceCount int
 		dest := []any{&segment.ExternalStringID, &segment.Key, &segment.SourceText, &context, &keyType, &maxLength, &metadata, &hidden}
 		if includeSourcePath {
-			dest = append(dest, &sourcePath, &messageFormat)
+			dest = append(dest, &sourcePath, &messageFormat, &placeholderPatterns)
 		}
 		if query.grouped {
 			dest = append(dest, &occurrenceCount)
@@ -702,6 +708,7 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		if includeSourcePath && sourcePath != nil {
 			segment.SourcePath = sourcePath
 			segment.MessageFormat = messageFormat
+			segment.PlaceholderPatterns = placeholderPatterns
 		}
 		segments = append(segments, segment)
 	}

@@ -21,6 +21,7 @@ import {
   canOpenProjectFileContentEditor,
 } from "@/lib/projects/project-file-content-editor-routing";
 import { sourcePathSupportsSrxSegmentation } from "@/lib/i18n/srx/format-supports";
+import { sourcePathImportKind } from "@/lib/projects/files/source-file-import-settings-schema";
 import {
   inferSupportedFileTranslationFileFormat,
   isSupportedSourceUploadFormat,
@@ -36,6 +37,7 @@ export type ProjectFileActionCapabilities = {
   contentEditorHref: ReturnType<typeof buildProjectFileContentEditorHref>;
   isNativeFile: boolean;
   canConfigureSegmentation: boolean;
+  canConfigureImportSettings: boolean;
   translateDisabledTitle: string | undefined;
 };
 
@@ -81,6 +83,7 @@ export function buildProjectFileActionCapabilities({
     canOpenCat,
     canTranslateWithAgent,
     canConfigureSegmentation: isNativeFile && sourcePathSupportsSrxSegmentation(file.sourcePath),
+    canConfigureImportSettings: isNativeFile && sourcePathImportKind(file.sourcePath) !== null,
     contentEditorHref,
     isNativeFile,
     translateDisabledTitle,
@@ -112,11 +115,13 @@ export function useProjectFileActions({
   const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
   const [segmentationDialogOpen, setSegmentationDialogOpen] = useState(false);
   const [messageFormatDialogOpen, setMessageFormatDialogOpen] = useState(false);
+  const [importSettingsDialogOpen, setImportSettingsDialogOpen] = useState(false);
 
   const {
     canOpenCat,
     canTranslateWithAgent,
     canConfigureSegmentation,
+    canConfigureImportSettings,
     contentEditorHref,
     isNativeFile,
     translateDisabledTitle,
@@ -136,11 +141,13 @@ export function useProjectFileActions({
     branch,
     canOpenCat,
     canConfigureSegmentation,
+    canConfigureImportSettings,
     canTranslateWithAgent,
     contentEditorHref,
     downloadDialogOpen,
     highlightLocale,
     importDialogOpen,
+    importSettingsDialogOpen,
     isNativeFile,
     messageFormatDialogOpen,
     nativeSourcePaths,
@@ -149,6 +156,7 @@ export function useProjectFileActions({
     segmentationDialogOpen,
     setDownloadDialogOpen,
     setImportDialogOpen,
+    setImportSettingsDialogOpen,
     setMessageFormatDialogOpen,
     setSegmentationDialogOpen,
     setTranslateDialogOpen,

@@ -86,7 +86,15 @@ func ParseXLSXLocaleWithContext(content []byte, sourceLocale, locale string) (ma
 
 // ParseXLSXIngestEntries returns locale entries with their length limits and comments.
 func ParseXLSXIngestEntries(content []byte, sourceLocale, locale string) (map[string]IngestEntry, error) {
-	entries, err := ReadXLSXEntries(content, sourceLocale, locale)
+	return ParseXLSXIngestEntriesWithOptions(content, sourceLocale, locale, ExcelImportOptions{})
+}
+
+func ParseXLSXIngestEntriesWithOptions(
+	content []byte,
+	sourceLocale, locale string,
+	opts ExcelImportOptions,
+) (map[string]IngestEntry, error) {
+	entries, err := ReadXLSXEntriesWithOptions(content, sourceLocale, locale, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -100,6 +108,14 @@ func ParseXLSXIngestEntries(content []byte, sourceLocale, locale string) (map[st
 // ReadXLSXEntries lists locale entries in sheet, row, and column order. See
 // ParseXLSXLocale for how sourceLocale and locale apply.
 func ReadXLSXEntries(content []byte, sourceLocale, locale string) ([]XLSXEntry, error) {
+	return ReadXLSXEntriesWithOptions(content, sourceLocale, locale, ExcelImportOptions{})
+}
+
+func ReadXLSXEntriesWithOptions(
+	content []byte,
+	sourceLocale, locale string,
+	opts ExcelImportOptions,
+) ([]XLSXEntry, error) {
 	if strings.TrimSpace(sourceLocale) == "" {
 		sourceLocale = locale
 	}
@@ -116,44 +132,87 @@ func ReadXLSXEntries(content []byte, sourceLocale, locale string) ([]XLSXEntry, 
 
 	var entries []XLSXEntry
 	for _, sheet := range sheets {
-		sourceColumn := sheet.columns.localeColumn(sourceLocale)
-		if sourceColumn < 0 {
-			sheetEntries, err := sheet.cellEntries(workbook)
-			if err != nil {
-				return nil, err
-			}
-			entries = append(entries, sheetEntries...)
+		sheetEntries, err := sheet.entriesForLocale(workbook, sourceLocale, locale, opts)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, sheetEntries...)
+	}
+	return entries, nil
+}
+
+func (s xlsxSheet) entriesForLocale(
+	workbook *excelize.File,
+	sourceLocale, locale string,
+	opts ExcelImportOptions,
+) ([]XLSXEntry, error) {
+	sourceColumn := s.columns.localeColumn(sourceLocale)
+	keyColumn := s.columns.key
+	commentColumn := s.columns.comment
+	maxLengthColumn := s.columns.maxLength
+	firstRow := 1
+	useGeneratedKeys := false
+
+	if opts.Columns.active() {
+		if opts.Columns.source() >= 0 {
+			sourceColumn = opts.Columns.source()
+		}
+		if opts.Columns.identifier() >= 0 {
+			keyColumn = opts.Columns.identifier()
+		}
+		if opts.Columns.context() >= 0 {
+			commentColumn = opts.Columns.context()
+		}
+		if opts.Columns.maxLength() >= 0 {
+			maxLengthColumn = opts.Columns.maxLength()
+		}
+		firstRow = opts.firstDataRow()
+		useGeneratedKeys = true
+	}
+
+	if sourceColumn < 0 {
+		return s.cellEntries(workbook)
+	}
+
+	column := sourceColumn
+	if !opts.Columns.active() && xlsxHeaderSlug(locale) != xlsxHeaderSlug(sourceLocale) {
+		column = s.columns.localeColumn(locale, sourceColumn)
+	}
+	if column < 0 {
+		return nil, nil
+	}
+
+	seenKeys := map[string]struct{}{}
+	var entries []XLSXEntry
+	for rowIndex := firstRow; rowIndex < len(s.rows); rowIndex++ {
+		cell, ok := xlsxCellName(column, rowIndex)
+		if !ok {
 			continue
 		}
-		column := sourceColumn
-		if xlsxHeaderSlug(locale) != xlsxHeaderSlug(sourceLocale) {
-			column = sheet.columns.localeColumn(locale, sourceColumn)
+		text := xlsxRowValue(s.rows[rowIndex], column)
+		translatable, err := xlsxIsTranslatableCell(workbook, s.name, cell, text)
+		if err != nil {
+			return nil, err
 		}
-		if column < 0 {
+		if !translatable {
 			continue
 		}
-		for rowIndex := 1; rowIndex < len(sheet.rows); rowIndex++ {
-			cell, ok := xlsxCellName(column, rowIndex)
-			if !ok {
-				continue
+		key := s.rowKeys[rowIndex]
+		if useGeneratedKeys || key == "" {
+			key = strings.TrimSpace(xlsxRowValue(s.rows[rowIndex], keyColumn))
+			if _, duplicate := seenKeys[key]; key == "" || duplicate {
+				key = uniqueXLSXRowKey(seenKeys, s.name, rowIndex)
 			}
-			text := xlsxRowValue(sheet.rows[rowIndex], column)
-			translatable, err := xlsxIsTranslatableCell(workbook, sheet.name, cell, text)
-			if err != nil {
-				return nil, err
-			}
-			if !translatable {
-				continue
-			}
-			entries = append(entries, XLSXEntry{
-				Key:       sheet.rowKeys[rowIndex],
-				Text:      text,
-				Sheet:     sheet.name,
-				Cell:      cell,
-				Comment:   strings.TrimSpace(xlsxRowValue(sheet.rows[rowIndex], sheet.columns.comment)),
-				MaxLength: parseXLSXMaxLength(xlsxRowValue(sheet.rows[rowIndex], sheet.columns.maxLength)),
-			})
+			seenKeys[key] = struct{}{}
 		}
+		entries = append(entries, XLSXEntry{
+			Key:       key,
+			Text:      text,
+			Sheet:     s.name,
+			Cell:      cell,
+			Comment:   strings.TrimSpace(xlsxRowValue(s.rows[rowIndex], commentColumn)),
+			MaxLength: parseXLSXMaxLength(xlsxRowValue(s.rows[rowIndex], maxLengthColumn)),
+		})
 	}
 	return entries, nil
 }

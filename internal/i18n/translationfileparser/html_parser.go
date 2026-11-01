@@ -167,8 +167,8 @@ var htmlVoidElements = map[string]bool{
 	"param": true, "source": true, "track": true, "wbr": true,
 }
 
-func htmlPushesPath(tag string) bool {
-	return !htmlSkipElements[tag] && !htmlVoidElements[tag]
+func htmlPushesPathWithSkip(tag string, skip map[string]bool) bool {
+	return !skip[tag] && !htmlVoidElements[tag]
 }
 
 // htmlVoidTranslatableAttrs maps void element names to their translatable
@@ -220,6 +220,21 @@ func parseHTMLDocumentFoldingInline(content []byte) (htmlDocument, map[string]st
 }
 
 func parseHTMLDocumentWithOptions(content []byte, foldInline bool) (htmlDocument, map[string]string, error) {
+	return parseHTMLDocumentWithSkip(content, foldInline, htmlSkipElements)
+}
+
+func parseHTMLIngestEntries(content []byte, opts HTMLImportOptions) (map[string]IngestEntry, error) {
+	_, values, err := parseHTMLDocumentWithSkip(content, false, htmlSkipElementSet(opts.ExcludedElements))
+	if err != nil {
+		return nil, err
+	}
+	return applyContentSubfiltersByKey(IngestEntriesFromStringMap(values), false, opts.ICUSubfilter), nil
+}
+
+func parseHTMLDocumentWithSkip(content []byte, foldInline bool, skip map[string]bool) (htmlDocument, map[string]string, error) {
+	if skip == nil {
+		skip = htmlSkipElements
+	}
 	// BOLT OPTIMIZATION: Heuristic capacity hints to minimize re-allocations.
 	doc := htmlDocument{
 		parts:       make([]htmlPart, 0, len(content)/128),
@@ -314,12 +329,12 @@ func parseHTMLDocumentWithOptions(content []byte, foldInline bool) (htmlDocument
 			switch tt {
 			case html.EndTagToken:
 				tn, _ := z.TagName()
-				if htmlSkipElements[string(tn)] {
+				if skip[string(tn)] {
 					skipDepth--
 				}
 			case html.StartTagToken:
 				tn, _ := z.TagName()
-				if htmlSkipElements[string(tn)] {
+				if skip[string(tn)] {
 					skipDepth++
 				}
 			}
@@ -339,7 +354,7 @@ func parseHTMLDocumentWithOptions(content []byte, foldInline bool) (htmlDocument
 			raw := string(rawBytes)
 			tn, _ := z.TagName()
 			tag := string(tn)
-			if htmlSkipElements[tag] {
+			if skip[tag] {
 				flushBuffer()
 				skipDepth++
 				appendLiteral(raw)
@@ -354,7 +369,7 @@ func parseHTMLDocumentWithOptions(content []byte, foldInline bool) (htmlDocument
 			} else {
 				flushBuffer()
 				appendLiteral(raw)
-				if htmlPushesPath(tag) {
+				if htmlPushesPathWithSkip(tag, skip) {
 					pushTag(tag)
 				}
 			}

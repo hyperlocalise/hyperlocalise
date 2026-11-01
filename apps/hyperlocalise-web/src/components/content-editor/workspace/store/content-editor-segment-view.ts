@@ -68,10 +68,12 @@ export function composeSegmentView(input: {
       : undefined;
 
   const messageFormat = meta.messageFormat ?? fileContext.messageFormat;
+  const placeholderPatterns = meta.placeholderPatterns ?? fileContext.placeholderPatterns;
 
   return {
     ...meta,
     ...(messageFormat ? { messageFormat } : {}),
+    ...(placeholderPatterns?.length ? { placeholderPatterns } : {}),
     sourceLocale: fileContext.sourceLocale,
     targetLocale: fileContext.targetLocale,
     targetText: stripLeakedInternalMarkupFromStoredMessage(draft?.targetText ?? ""),
@@ -91,6 +93,7 @@ export function toQueueSegment(
     | "sourceText"
     | "sourcePath"
     | "messageFormat"
+    | "placeholderPatterns"
     | "contentKind"
     | "sourceAssetUrl"
     | "targetAssetUrl"
@@ -111,6 +114,9 @@ export function toQueueSegment(
     sourceText: segment.sourceText,
     ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
     ...(segment.messageFormat ? { messageFormat: segment.messageFormat } : {}),
+    ...(segment.placeholderPatterns?.length
+      ? { placeholderPatterns: segment.placeholderPatterns }
+      : {}),
     ...(segment.contentKind ? { contentKind: segment.contentKind } : {}),
     ...(segment.sourceAssetUrl !== undefined ? { sourceAssetUrl: segment.sourceAssetUrl } : {}),
     ...(segment.targetAssetUrl !== undefined ? { targetAssetUrl: segment.targetAssetUrl } : {}),

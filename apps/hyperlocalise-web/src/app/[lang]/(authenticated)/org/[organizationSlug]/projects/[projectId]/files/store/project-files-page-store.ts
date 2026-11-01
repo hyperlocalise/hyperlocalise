@@ -21,7 +21,8 @@ export type ProjectFileDialogAction =
   | "import"
   | "download"
   | "segmentation"
-  | "messageFormat";
+  | "messageFormat"
+  | "importSettings";
 
 export type ProjectFileDialogRequest = {
   file: ProjectFileRecord;

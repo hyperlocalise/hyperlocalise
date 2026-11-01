@@ -104,10 +104,12 @@ function ProjectFileDialogHost({
   const {
     downloadDialogOpen,
     importDialogOpen,
+    importSettingsDialogOpen,
     messageFormatDialogOpen,
     segmentationDialogOpen,
     setDownloadDialogOpen,
     setImportDialogOpen,
+    setImportSettingsDialogOpen,
     setMessageFormatDialogOpen,
     setSegmentationDialogOpen,
     setTranslateDialogOpen,
@@ -125,6 +127,7 @@ function ProjectFileDialogHost({
       download: () => setDownloadDialogOpen(true),
       segmentation: () => setSegmentationDialogOpen(true),
       messageFormat: () => setMessageFormatDialogOpen(true),
+      importSettings: () => setImportSettingsDialogOpen(true),
     }[initialAction];
     openDialog();
     setHasOpened(true);
@@ -133,6 +136,7 @@ function ProjectFileDialogHost({
     initialAction,
     setDownloadDialogOpen,
     setImportDialogOpen,
+    setImportSettingsDialogOpen,
     setMessageFormatDialogOpen,
     setSegmentationDialogOpen,
     setTranslateDialogOpen,
@@ -148,7 +152,8 @@ function ProjectFileDialogHost({
       importDialogOpen ||
       downloadDialogOpen ||
       segmentationDialogOpen ||
-      messageFormatDialogOpen;
+      messageFormatDialogOpen ||
+      importSettingsDialogOpen;
     if (!anyOpen) {
       onClose();
     }
@@ -156,6 +161,7 @@ function ProjectFileDialogHost({
     downloadDialogOpen,
     hasOpened,
     importDialogOpen,
+    importSettingsDialogOpen,
     messageFormatDialogOpen,
     onClose,
     segmentationDialogOpen,
@@ -475,6 +481,7 @@ const ProjectFilesPageContentInner = observer(function ProjectFilesPageContentIn
       onDownloadFile: (file) => openFileDialog(file, "download"),
       onSegmentationSettings: (file) => openFileDialog(file, "segmentation"),
       onMessageFormatSettings: (file) => openFileDialog(file, "messageFormat"),
+      onImportSettings: (file) => openFileDialog(file, "importSettings"),
     }),
     [
       highlightLocale,

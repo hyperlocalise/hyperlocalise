@@ -510,6 +510,7 @@ export function ProjectFileContentEditorWorkspace({
     return projectFileCatToWorkspaceState(contentEditorFile, sourceLocale, intl);
   }, [contentEditorFile, intl, sourceLocale]);
   const fileMessageFormat = contentEditorFile?.messageFormat;
+  const filePlaceholderPatterns = contentEditorFile?.placeholderPatterns;
 
   const validateFormat = useCallback(
     async (
@@ -526,6 +527,7 @@ export function ProjectFileContentEditorWorkspace({
           targetLocale: segment.targetLocale,
           maxLength: segment.maxLength,
           messageFormat: segment.messageFormat ?? fileMessageFormat,
+          placeholderPatterns: segment.placeholderPatterns ?? filePlaceholderPatterns,
           acceptedWords: spellcheckDictionary.acceptedWords,
           signal: options?.signal,
           intl,
@@ -566,6 +568,7 @@ export function ProjectFileContentEditorWorkspace({
     },
     [
       fileMessageFormat,
+      filePlaceholderPatterns,
       goSvcClient,
       intl,
       qaPolicy,
@@ -602,6 +605,7 @@ export function ProjectFileContentEditorWorkspace({
         sourcePath?: string | null;
         maxLength?: number | null;
         messageFormat?: MessageFormat | null;
+        placeholderPatterns?: readonly string[] | null;
       },
       locale: string,
       value: string,
@@ -620,6 +624,7 @@ export function ProjectFileContentEditorWorkspace({
           targetLocale: locale,
           maxLength: segment.maxLength ?? undefined,
           messageFormat: segment.messageFormat ?? fileMessageFormat,
+          placeholderPatterns: segment.placeholderPatterns ?? filePlaceholderPatterns,
           acceptedWords: spellcheckDictionary.acceptedWords,
           intl,
           policy,
@@ -654,6 +659,7 @@ export function ProjectFileContentEditorWorkspace({
     },
     [
       fileMessageFormat,
+      filePlaceholderPatterns,
       goSvcClient,
       glossaryTermsForQaGate,
       intl,
@@ -1296,6 +1302,7 @@ export function ProjectFileContentEditorWorkspace({
             sourcePath: occurrence.sourcePath,
             maxLength: occurrence.maxLength,
             messageFormat: segment.messageFormat,
+            placeholderPatterns: segment.placeholderPatterns,
           },
           locale,
           text,

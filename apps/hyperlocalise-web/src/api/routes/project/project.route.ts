@@ -147,9 +147,13 @@ import {
   updateRepositorySourceFileSegmentation,
 } from "@/lib/projects/files/source-file-segmentation";
 import {
-  getRepositorySourceFileMessageFormat,
-  updateRepositorySourceFileMessageFormat,
+  getRepositorySourceFilePlaceholderSettings,
+  updateRepositorySourceFilePlaceholderSettings,
 } from "@/lib/projects/files/source-file-message-format";
+import {
+  getRepositorySourceFileImportSettings,
+  updateRepositorySourceFileImportSettings,
+} from "@/lib/projects/files/source-file-import-settings";
 import { localizeAndStoreDocumentVariant } from "@/lib/projects/files/document-variant-service";
 import {
   localizeAndStoreImageVariant,
@@ -242,6 +246,8 @@ import {
   updateProjectFileSegmentationBodySchema,
   projectFileMessageFormatQuerySchema,
   updateProjectFileMessageFormatBodySchema,
+  projectFileImportSettingsQuerySchema,
+  updateProjectFileImportSettingsBodySchema,
   projectFileStringContextBodySchema,
   projectFileUploadBodySchema,
   projectFileTranslationImportBodySchema,
@@ -708,6 +714,26 @@ const validateProjectFileMessageFormatQuery = validator("query", (value, c) => {
 
 const validateUpdateProjectFileMessageFormatBody = validator("json", (value, c) => {
   const parsed = updateProjectFileMessageFormatBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileImportSettingsQuery = validator("query", (value, c) => {
+  const parsed = projectFileImportSettingsQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateUpdateProjectFileImportSettingsBody = validator("json", (value, c) => {
+  const parsed = updateProjectFileImportSettingsBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -3731,16 +3757,22 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
-        const messageFormat = await getRepositorySourceFileMessageFormat({
+        const settings = await getRepositorySourceFilePlaceholderSettings({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: query.sourcePath,
         });
-        if (!messageFormat) {
+        if (!settings) {
           return notFoundResponse(c, "source_file_not_found");
         }
 
-        return c.json({ messageFormat }, 200);
+        return c.json(
+          {
+            messageFormat: settings.messageFormat,
+            placeholderPatterns: settings.placeholderPatterns,
+          },
+          200,
+        );
       },
     )
     .patch(
@@ -3768,17 +3800,108 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
-        const messageFormat = await updateRepositorySourceFileMessageFormat({
+        const settings = await updateRepositorySourceFilePlaceholderSettings({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: body.sourcePath,
           messageFormat: body.messageFormat,
+          placeholderPatterns: body.placeholderPatterns,
         });
-        if (!messageFormat) {
+        if (!settings) {
           return notFoundResponse(c, "source_file_not_found");
         }
 
-        return c.json({ messageFormat }, 200);
+        return c.json(
+          {
+            messageFormat: settings.messageFormat,
+            placeholderPatterns: settings.placeholderPatterns,
+          },
+          200,
+        );
+      },
+    )
+    .get(
+      "/:projectId/files/import-settings",
+      validateProjectParams,
+      validateProjectFileImportSettingsQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind !== "native") {
+          return badRequestResponse(
+            c,
+            "import_settings_not_supported",
+            "Import settings apply to native workspace files only.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const record = await getRepositorySourceFileImportSettings({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+        });
+        if (!record) {
+          return notFoundResponse(c, "source_file_not_found");
+        }
+
+        return c.json(
+          {
+            importSettings: record.importSettings,
+            kind: record.kind,
+          },
+          200,
+        );
+      },
+    )
+    .patch(
+      "/:projectId/files/import-settings",
+      validateProjectParams,
+      validateUpdateProjectFileImportSettingsBody,
+      async (c) => {
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind !== "native") {
+          return badRequestResponse(
+            c,
+            "import_settings_not_supported",
+            "Import settings apply to native workspace files only.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const result = await updateRepositorySourceFileImportSettings({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: body.sourcePath,
+          settings: body.importSettings,
+        });
+        if (!result.ok) {
+          return notFoundResponse(c, result.error);
+        }
+
+        return c.json(
+          {
+            importSettings: result.importSettings,
+            kind: result.kind,
+            reingest: result.reingest,
+          },
+          200,
+        );
       },
     )
     .post(

@@ -43,6 +43,7 @@ import {
   reconcileSourceFileTranslationKeysStep,
   writeSourceIngestFileStep,
   loadSourceFileSegmentationStep,
+  loadSourceFileImportSettingsStep,
   writeSourceFileSegmentationSrxStep,
 } from "./steps/source-file-ingest";
 import { getStoredFileContentStep } from "./steps/translation-job";
@@ -147,11 +148,17 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
       }
 
       if (isOffice) {
+        const importSettings = await loadSourceFileImportSettingsStep({
+          organizationId: event.organizationId,
+          projectId: event.projectId,
+          repositorySourceFileId,
+        });
         const entries = await extractOfficeSourceEntriesStep({
           organizationId: event.organizationId,
           projectId: event.projectId,
           storedFileId: event.storedFileId,
           sourcePath: event.sourcePath,
+          excelImportSettings: importSettings.excel,
         });
         const reconciliation = await reconcileSourceFileTranslationKeysStep({
           organizationId: event.organizationId,
@@ -251,9 +258,15 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
       inputFilename,
       extractOptions,
     );
+    const importSettings = await loadSourceFileImportSettingsStep({
+      organizationId: event.organizationId,
+      projectId: event.projectId,
+      repositorySourceFileId,
+    });
     const entries = await parseHlEntriesStep(extractedEntries, {
       sourcePath: event.sourcePath,
       sourceContent: content,
+      importSettings,
     });
 
     const reconciliation = await reconcileSourceFileTranslationKeysStep({
