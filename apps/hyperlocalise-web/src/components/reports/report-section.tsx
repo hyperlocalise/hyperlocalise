@@ -27,6 +27,7 @@ import type { GoSvcDownload } from "@/lib/go-svc/go-svc-client.types";
 import { cn } from "@/lib/primitives/cn";
 
 import { reportsPageMessages as messages } from "./reports-page.messages";
+import { isRefusedRead } from "./reports-queries";
 
 /** A panel of the Reports page: a title, an optional note, actions, and its content. */
 export function ReportSection({
@@ -63,11 +64,6 @@ export function ReportSection({
       {children}
     </section>
   );
-}
-
-/** Whether go-svc refuses this person the read, so what was loaded should not stay on screen. */
-export function isRefusedRead(error: unknown) {
-  return error instanceof ApiResponseError && (error.status === 403 || error.status === 404);
 }
 
 function failureMessage(error: unknown, kept: boolean) {

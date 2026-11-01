@@ -127,7 +127,9 @@ describe("Rates panel", () => {
       "get rate-cards": { error: "report_timed_out", message: "go-svc's own words" },
     });
     expect(
-      await screen.findByText("This report took too long. Try again, or choose fewer days."),
+      await screen.findByText(
+        "This took too long to load. Try again, or narrow the report's filters.",
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
   });

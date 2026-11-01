@@ -12,13 +12,14 @@
  */
 // @vitest-environment happy-dom
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { render, renderHook, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { LogTimeDialog } from "./log-time-dialog";
+import { useLogTime } from "./reports-queries";
 import {
   createReportsSettings,
   reportsResponseBodies,
@@ -71,9 +72,44 @@ beforeEach(() => {
   mocks.calls.length = 0;
   mocks.bodies = reportsResponseBodies();
   mocks.holds = undefined;
+  mocks.bodies["post time-entries"] = {};
 });
 
 describe("Log time dialog", () => {
+  it("stops waiting for the reload after a few seconds, so the dialog can close", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const queryClient = new QueryClient();
+      const { result } = renderHook(
+        () => {
+          useQuery({
+            queryKey: ["reports", "acme", "slow"],
+            queryFn: () => new Promise(() => {}),
+          });
+          return useLogTime("acme");
+        },
+        {
+          wrapper: ({ children }) => (
+            <IntlProvider locale="en" messages={{}}>
+              <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+            </IntlProvider>
+          ),
+        },
+      );
+      const saved = result.current.mutateAsync({
+        jobId: "job_release",
+        step: "translation",
+        targetLocale: "ja-JP",
+        workDate: "2026-10-21",
+        minutes: 30,
+      });
+      await vi.advanceTimersByTimeAsync(5_000);
+      await expect(saved).resolves.toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stays open only while the time is saving, so it cannot be logged twice", async () => {
     let finish = () => {};
     mocks.holds = {

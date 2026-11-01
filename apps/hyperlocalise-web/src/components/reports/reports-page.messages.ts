@@ -31,8 +31,8 @@ export const reportsPageMessages = defineMessages({
     description: "Error shown when a section of the Reports page waited too long for its turn",
   },
   reportTooSlow: {
-    id: "6E9OdOi0OA",
-    defaultMessage: "This report took too long. Try again, or choose fewer days.",
+    id: "WoSyZZEH6N",
+    defaultMessage: "This took too long to load. Try again, or narrow the report's filters.",
     description: "Error shown when a section of the Reports page took too long to read",
   },
   saveFailed: {

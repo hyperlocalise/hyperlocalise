@@ -43,6 +43,12 @@ describe("ReportSectionState", () => {
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 
+  it("keeps the figures when a 403 means go-svc's flag lookup failed", () => {
+    const error = new ApiResponseError("x", { code: "feature_unavailable", status: 403 });
+    renderSection({ data: "Loaded figures", isError: true, error });
+    expect(screen.getByText("Loaded figures")).toBeInTheDocument();
+  });
+
   it.each([403, 404])("takes the figures away when go-svc refuses a reload with %i", (status) => {
     const error = new ApiResponseError("No", { code: "report_costs_forbidden", status });
     renderSection({ data: "Loaded figures", isError: true, error });
@@ -52,7 +58,7 @@ describe("ReportSectionState", () => {
 
   it.each([
     ["reports_busy", "Reports is busy. Try again in a moment."],
-    ["report_timed_out", "This report took too long. Try again, or choose fewer days."],
+    ["report_timed_out", "This took too long to load. Try again, or narrow the report's filters."],
     ["internal_error", "This report could not be loaded."],
   ])("says what it can about a first load that answered %s", (code, text) => {
     renderSection({ isError: true, error: new ApiResponseError("go-svc", { code, status: 503 }) });

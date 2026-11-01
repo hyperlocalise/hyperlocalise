@@ -99,6 +99,16 @@ async function reportRequest<T>(fallback: string, run: () => Promise<T>): Promis
   }
 }
 
+/** Whether go-svc refuses this person the read, so what was loaded should not stay on screen. */
+export function isRefusedRead(error: unknown) {
+  return (
+    error instanceof ApiResponseError &&
+    (error.status === 403 || error.status === 404) &&
+    error.code !== null &&
+    !UNANSWERED_CODES.has(error.code)
+  );
+}
+
 /**
  * Whether asking again soon may work: go-svc could not answer (`UNANSWERED_CODES`), was
  * restarting behind its load balancer (a load balancer's error has no CORS headers, so the
@@ -497,12 +507,26 @@ export function useReportCsv(organizationSlug: string) {
 }
 
 /**
+ * The save dialogs stay open while they save, since closing one and saving again could log the
+ * same time twice. So a save fails at once when offline instead of waiting to be sent later.
+ */
+const SAVE_OPTIONS = { networkMode: "always" } as const;
+
+/** The longest a save waits for the reload after it, as its dialog cannot close meanwhile. */
+const SAVE_WAITS_FOR_RELOAD_MS = 5_000;
+
+/**
  * Saving anything on the page reads every section again. Returned from `onSuccess`, the save
- * finishes once they have loaded (or failed), so a dialog reopened at once shows what was saved.
+ * finishes once they have loaded (or failed), so a dialog reopened at once shows what was saved,
+ * or after a few seconds when go-svc is busy, with the reload carrying on behind it.
  */
 function useInvalidateReports(organizationSlug: string) {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: reportsQueryKey(organizationSlug) });
+  return () =>
+    Promise.race([
+      queryClient.invalidateQueries({ queryKey: reportsQueryKey(organizationSlug) }),
+      new Promise((resolve) => setTimeout(resolve, SAVE_WAITS_FOR_RELOAD_MS)),
+    ]);
 }
 
 export function useSaveRateCard(organizationSlug: string) {
@@ -511,6 +535,7 @@ export function useSaveRateCard(organizationSlug: string) {
   const queryClient = useQueryClient();
   const invalidate = useInvalidateReports(organizationSlug);
   return useMutation({
+    ...SAVE_OPTIONS,
     mutationFn: (body: RateCardBody) =>
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.saveRateCard(organizationSlug, body),
@@ -539,17 +564,12 @@ export function useLogTime(organizationSlug: string) {
   const { client } = useGoSvcClient();
   const invalidate = useInvalidateReports(organizationSlug);
   return useMutation({
+    ...SAVE_OPTIONS,
     mutationFn: (body: TimeEntryBody) =>
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.logTime(organizationSlug, body),
       ),
-    // The dialog cannot close during this request, as saving it twice would log the time twice.
-    // So the request fails at once when offline instead of waiting, and the dialog closes as soon
-    // as it is saved, with the sections reloading behind it.
-    networkMode: "always",
-    onSuccess: () => {
-      void invalidate();
-    },
+    onSuccess: invalidate,
   });
 }
 
@@ -558,6 +578,7 @@ export function useSetBudget(organizationSlug: string) {
   const { client } = useGoSvcClient();
   const invalidate = useInvalidateReports(organizationSlug);
   return useMutation({
+    ...SAVE_OPTIONS,
     mutationFn: (body: BudgetBody) =>
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.setBudget(organizationSlug, body),
@@ -572,6 +593,7 @@ export function useSetTaskPricing(organizationSlug: string) {
   const { client } = useGoSvcClient();
   const invalidate = useInvalidateReports(organizationSlug);
   return useMutation({
+    ...SAVE_OPTIONS,
     mutationFn: (body: TaskRateBody) =>
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.setTaskPricing(organizationSlug, body),
@@ -585,6 +607,7 @@ export function useEditTime(organizationSlug: string) {
   const { client } = useGoSvcClient();
   const invalidate = useInvalidateReports(organizationSlug);
   return useMutation({
+    ...SAVE_OPTIONS,
     mutationFn: ({ id, ...body }: TimeEntryUpdateBody & { id: string }) =>
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.editTime(organizationSlug, id, body),
@@ -598,6 +621,7 @@ export function useDeleteTime(organizationSlug: string) {
   const { client } = useGoSvcClient();
   const invalidate = useInvalidateReports(organizationSlug);
   return useMutation({
+    ...SAVE_OPTIONS,
     mutationFn: (id: string) =>
       reportRequest(intl.formatMessage(messages.saveFailed), () =>
         client.reports.deleteTime(organizationSlug, id),

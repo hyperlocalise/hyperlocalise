@@ -106,7 +106,7 @@ export function ManageRatesSheet({
   const nameId = useId();
   const list = cards.data?.rateCards ?? [];
   const selected = list.find((card) => card.name === chosen) ?? list[0] ?? null;
-  const creating = draft !== null || (cards.isSuccess && list.length === 0);
+  const creating = draft !== null || (cards.data !== undefined && list.length === 0);
 
   const locales = useMemo(() => {
     const sources = new Set(settings.projects.map((project) => project.sourceLocale ?? "en"));
@@ -211,6 +211,7 @@ export function ManageRatesSheet({
           </SheetDescription>
         </SheetHeader>
         <div className="grid gap-6 px-6 pb-6 [&>*]:min-w-0">
+          {cards.isError && cards.data ? <ReportLoadFailed kept retry={cards.refetch} /> : null}
           {cards.isPending ? (
             <Skeleton className="h-64 w-full rounded-xl" />
           ) : !cards.data ? (
