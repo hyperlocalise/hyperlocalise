@@ -76,14 +76,14 @@ describe("GoSvcReportsApi", () => {
           status: 200,
           headers: {
             "Content-Type": "text/csv; charset=utf-8",
-            "Content-Disposition": 'attachment; filename="words-2026-10-21.csv"',
+            "Content-Disposition": 'attachment; filename="word-counts.csv"',
           },
         }),
     );
     const api = reportsApi(fetchMock);
 
     const file = await api.csv("acme", "words", { groupBy: "task", page: "2" });
-    expect(file.filename).toBe("words-2026-10-21.csv");
+    expect(file.filename).toBe("word-counts.csv");
     expect(await file.blob.text()).toBe("project,total\nDocs,3\n");
     expect(calledWith(fetchMock).url).toBe(`${base}/words?groupBy=task&page=2&format=csv`);
 
@@ -148,7 +148,7 @@ describe("GoSvcReportsApi", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(
-        json({ error: "reports_busy", message: "Reports is busy; try again in a moment" }, 503),
+        json({ error: "reports_busy", message: "Reports is busy; try again shortly" }, 503),
       );
     const api = reportsApi(fetchMock);
 
@@ -157,7 +157,7 @@ describe("GoSvcReportsApi", () => {
       .catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(GoSvcClientError);
     expect(failure).toMatchObject({ code: "reports_busy", status: 503 });
-    expect((failure as Error).message).toBe("Reports is busy; try again in a moment");
+    expect((failure as Error).message).toBe("Reports is busy; try again shortly");
   });
 
   it("reads a report for a member through the internal route with the service token", async () => {

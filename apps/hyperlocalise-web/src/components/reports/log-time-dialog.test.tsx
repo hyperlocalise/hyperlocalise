@@ -28,6 +28,7 @@ import {
 const mocks = vi.hoisted(() => ({
   calls: [] as ReportsApiCall[],
   bodies: {} as Record<string, unknown>,
+  holds: undefined as Record<string, Promise<void>> | undefined,
 }));
 
 vi.mock("@/lib/go-svc/use-go-svc-client", async () => ({
@@ -69,9 +70,31 @@ async function choose(label: string, option: string) {
 beforeEach(() => {
   mocks.calls.length = 0;
   mocks.bodies = reportsResponseBodies();
+  mocks.holds = undefined;
 });
 
 describe("Log time dialog", () => {
+  it("stays open while the time is saving, so it cannot be logged twice", async () => {
+    let finish = () => {};
+    mocks.holds = {
+      "post time-entries": new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    };
+    const onClose = renderDialog();
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Language" })).not.toBeDisabled(),
+    );
+    await choose("Language", "ja-JP");
+    await userEvent.click(screen.getByRole("button", { name: "Log time" }));
+    expect(await screen.findByRole("button", { name: "Saving…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    await userEvent.keyboard("{Escape}");
+    expect(onClose).not.toHaveBeenCalled();
+    finish();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
   it("offers the task's project's languages when the task names none and has no Reports data", async () => {
     // The task lookup finds only tasks with Reports strings.
     mocks.bodies.jobs = { jobs: [] };

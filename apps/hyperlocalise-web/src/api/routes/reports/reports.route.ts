@@ -11,9 +11,10 @@
  * Version 2.0 or later.
  */
 // Kept for one release after the Reports page moved to go-svc (`apps/go-svc/reporting*.go`), so
-// an open tab and a rollback keep working. Nothing calls these routes: change Reports in go-svc.
-// `reports.schema.ts` still checks the MCP `get_report` tool's input, so a query field added in
-// go-svc is added there too, and the schemas outlive these routes.
+// a tab opened before the release and a rollback keep working. The current page does not call
+// these routes: change Reports in go-svc. `reports.schema.ts` still checks the MCP `get_report`
+// tool's input, so a query field added in go-svc is added there and to the tool's input schema
+// too, and the schemas outlive these routes.
 import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { createMiddleware } from "hono/factory";
 import { validator } from "hono/validator";

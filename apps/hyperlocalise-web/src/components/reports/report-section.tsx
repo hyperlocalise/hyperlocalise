@@ -64,36 +64,54 @@ export function ReportSection({
   );
 }
 
-/** A section's loading, failed and empty states, or its content once loaded. */
+/** A failed read: go-svc's message when it refused (too slow, or busy), with a way to try again. */
+export function ReportLoadFailed({ error, retry }: { error?: unknown; retry: () => unknown }) {
+  return (
+    <Alert variant="destructive">
+      <WarningCircleIcon />
+      <AlertDescription>
+        {error instanceof Error ? error.message : <FormattedMessage {...messages.loadFailed} />}
+      </AlertDescription>
+      <AlertAction>
+        <Button size="sm" variant="outline" onClick={() => void retry()}>
+          <FormattedMessage {...messages.retry} />
+        </Button>
+      </AlertAction>
+    </Alert>
+  );
+}
+
+/**
+ * A section's loading, failed and empty states, or its content once loaded. A reload that fails
+ * keeps what was loaded under the failure, so a slow moment after a save takes nothing away.
+ */
 export function ReportSectionState<T>({
   query,
   isEmpty,
   skeletonHeight = 160,
   children,
 }: {
-  query: { data: T | undefined; isPending: boolean; isError: boolean; refetch: () => unknown };
+  query: {
+    data: T | undefined;
+    isPending: boolean;
+    isError: boolean;
+    error?: unknown;
+    refetch: () => unknown;
+  };
   isEmpty?: (data: T) => boolean;
   skeletonHeight?: number;
   children: (data: T) => React.ReactNode;
 }) {
   if (query.isPending && query.data === undefined)
     return <Skeleton className="w-full rounded-xl" style={{ height: skeletonHeight }} />;
-  if (query.isError || query.data === undefined)
-    return (
-      <Alert variant="destructive">
-        <WarningCircleIcon />
-        <AlertDescription>
-          <FormattedMessage {...messages.loadFailed} />
-        </AlertDescription>
-        <AlertAction>
-          <Button size="sm" variant="outline" onClick={() => void query.refetch()}>
-            <FormattedMessage {...messages.retry} />
-          </Button>
-        </AlertAction>
-      </Alert>
-    );
-  if (isEmpty?.(query.data)) return <ReportEmpty />;
-  return <>{children(query.data)}</>;
+  if (query.data === undefined)
+    return <ReportLoadFailed error={query.error} retry={query.refetch} />;
+  return (
+    <>
+      {query.isError ? <ReportLoadFailed error={query.error} retry={query.refetch} /> : null}
+      {isEmpty?.(query.data) ? <ReportEmpty /> : children(query.data)}
+    </>
+  );
 }
 
 export function ReportEmpty({ title, description }: { title?: string; description?: string }) {
@@ -146,6 +164,8 @@ export function ReportPager({
   );
 }
 
+const DOWNLOAD_RELEASE_MS = 40_000;
+
 /**
  * A button that downloads a table as CSV. The file is fetched with the viewer's sign-in and
  * then saved, so a report that go-svc refuses or cannot finish in time says so instead.
@@ -179,6 +199,6 @@ function saveReportDownload(file: GoSvcDownload) {
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  // Released after the click has started the download; some browsers cancel it otherwise.
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+  // Released well after the click: some browsers cancel a download whose file goes too soon.
+  setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_RELEASE_MS);
 }

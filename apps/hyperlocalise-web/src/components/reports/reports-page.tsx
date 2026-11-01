@@ -12,15 +12,12 @@
  */
 "use client";
 
-import { WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useState } from "react";
 import { useIntl } from "react-intl";
 
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
 
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -30,6 +27,7 @@ import { BudgetsTab } from "./budgets-tab";
 import { CostEstimateTab } from "./cost-estimate-tab";
 import { CostsTab } from "./costs-tab";
 import { ManageRatesSheet } from "./manage-rates-sheet";
+import { ReportLoadFailed } from "./report-section";
 import { chosenRateCard, ReportsFilterBar } from "./reports-filter-bar";
 import { reportsPageMessages as messages } from "./reports-page.messages";
 import { useReportSettings } from "./reports-queries";
@@ -73,19 +71,12 @@ export function ReportsPage({
         <Skeleton className="h-80 w-full rounded-xl" />
       </div>
     );
-  if (settings.isError || !settings.data)
+  // Settings that fail to reload keep the page and any open sheet; each section says so itself.
+  if (!settings.data)
     return (
       <div className="flex w-full flex-col gap-4">
         <h1 className="sr-only">{intl.formatMessage(messages.title)}</h1>
-        <Alert variant="destructive">
-          <WarningCircleIcon />
-          <AlertDescription>{intl.formatMessage(messages.loadFailed)}</AlertDescription>
-          <AlertAction>
-            <Button size="sm" variant="outline" onClick={() => void settings.refetch()}>
-              {intl.formatMessage(messages.retry)}
-            </Button>
-          </AlertAction>
-        </Alert>
+        <ReportLoadFailed error={settings.error} retry={settings.refetch} />
       </div>
     );
 

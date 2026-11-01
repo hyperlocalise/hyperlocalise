@@ -748,6 +748,8 @@ export type ReportsApiState = {
   bodies: Record<string, unknown>;
   /** A status per endpoint, for failures; 200 otherwise. */
   statuses?: Record<string, number>;
+  /** Requests ("post time-entries") that wait for a promise before answering. */
+  holds?: Record<string, Promise<void>>;
 };
 
 /**
@@ -771,6 +773,7 @@ export function reportsGoSvcClient(state: ReportsApiState) {
       state.calls.push({ endpoint: name, method, args: { param, query, json } });
       // An answer for one method ("put rate-cards") wins over the endpoint's own.
       const status = state.statuses?.[`${method} ${name}`] ?? state.statuses?.[name] ?? 200;
+      await state.holds?.[`${method} ${name}`];
       // Status 0 stands for go-svc not answering at all, as fetch fails then.
       if (status === 0) throw new TypeError("Failed to fetch");
       if (query.format === "csv" && status === 200)
@@ -780,13 +783,12 @@ export function reportsGoSvcClient(state: ReportsApiState) {
             "Content-Disposition": `attachment; filename="${name}.csv"`,
           },
         });
-      return new Response(
-        JSON.stringify(state.bodies[`${method} ${name}`] ?? state.bodies[name] ?? {}),
-        {
-          status,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      const body = state.bodies[`${method} ${name}`] ?? state.bodies[name] ?? {};
+      // A string stands for a body that is not JSON, as a load balancer's error page is.
+      return new Response(typeof body === "string" ? body : JSON.stringify(body), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      });
     },
   });
   return () => ({ client, loading: false });

@@ -163,6 +163,7 @@ export function TaskReport({
       settings.data && report.data ? { settings: settings.data, report: report.data } : undefined,
     isPending: loading,
     isError: settings.isError || report.isError,
+    error: settings.error ?? report.error,
     refetch: () => (settings.isError ? settings.refetch() : report.refetch()),
   };
   return (

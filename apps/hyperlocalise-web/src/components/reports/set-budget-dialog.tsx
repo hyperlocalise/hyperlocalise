@@ -92,7 +92,7 @@ export function SetBudgetDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => (open ? null : onClose())}>
+    <Dialog open onOpenChange={(open) => (open || setBudget.isPending ? null : onClose())}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{intl.formatMessage(messages.dialogTitle)}</DialogTitle>
@@ -140,7 +140,7 @@ export function SetBudgetDialog({
           {error ? <FieldError data-slot="field-error">{error}</FieldError> : null}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" disabled={setBudget.isPending} onClick={onClose}>
             {intl.formatMessage(messages.cancel)}
           </Button>
           <Button disabled={setBudget.isPending || !budgets.isSuccess} onClick={() => void save()}>

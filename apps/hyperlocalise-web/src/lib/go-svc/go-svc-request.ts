@@ -61,7 +61,8 @@ export class GoSvcRequest {
       throw new TypeError("Choose session or service authentication");
     this.getAccessToken = options.getAccessToken;
     this.getServiceToken = options.getServiceToken;
-    this.fetch = options.fetch ?? globalThis.fetch;
+    // Called as a method below, and the browser's own fetch refuses to run on anything but window.
+    this.fetch = options.fetch ?? ((input, init) => globalThis.fetch(input, init));
   }
 
   async response(path: string, request: GoSvcJsonRequest = {}): Promise<Response> {

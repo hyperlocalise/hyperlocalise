@@ -62,6 +62,9 @@ import {
 
 const logger = createLogger("mcp-project-manager-tools");
 
+/** Just past go-svc's own 30 s limit, so a stalled call answers instead of hanging. */
+const GET_REPORT_TIME_LIMIT_MS = 35_000;
+
 /**
  * go-svc's answers to `get_report` that are about the member's request, passed on as they are.
  * Anything else (go-svc unreachable, an internal error, the server call refused) is ours to fix.
@@ -544,7 +547,12 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
               userId: apiAuth.user.localUserId,
               query: reportQuery as Record<string, string | number | boolean | undefined>,
             },
-            { signal: extra.signal },
+            {
+              signal: AbortSignal.any([
+                extra.signal,
+                AbortSignal.timeout(GET_REPORT_TIME_LIMIT_MS),
+              ]),
+            },
           ),
         );
       } catch (error) {

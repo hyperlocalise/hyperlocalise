@@ -58,7 +58,9 @@ const optional = (value: string | null) => value ?? undefined;
 /**
  * Codes the client gives a failure that is not go-svc's own answer, and go-svc's answers that it
  * could not read the report (an internal error, its database or WorkOS unavailable, or a sign-in
- * it could not check), whose own text is not for the person.
+ * it could not check), whose own text is not for the person. The page shows only when the web
+ * app has the flag on, so go-svc's `feature_unavailable` means its own lookup failed or is a
+ * minute behind, not that Reports is off.
  */
 const UNANSWERED_CODES = new Set([
   "network_error",
@@ -69,7 +71,15 @@ const UNANSWERED_CODES = new Set([
   "reports_unavailable",
   "workos_membership_lookup_failed",
   "unauthorized",
+  "feature_unavailable",
 ]);
+
+/** Whether a failure is a cancelled request, which the client wraps if it came mid-answer. */
+function isCancelled(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  const cause = error.cause;
+  return error.name === "AbortError" || (cause instanceof Error && cause.name === "AbortError");
+}
 
 /**
  * A request's failure as the dialogs read it: go-svc's code, with go-svc's message when go-svc
@@ -80,7 +90,7 @@ async function reportRequest<T>(fallback: string, run: () => Promise<T>): Promis
   try {
     return await run();
   } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") throw error;
+    if (isCancelled(error)) throw error;
     const code = error instanceof GoSvcClientError ? error.code : null;
     const status = error instanceof GoSvcClientError ? (error.status ?? 0) : 0;
     const refused = error instanceof GoSvcClientError && !UNANSWERED_CODES.has(error.code);
@@ -90,20 +100,18 @@ async function reportRequest<T>(fallback: string, run: () => Promise<T>): Promis
 }
 
 /**
- * Whether asking again soon may work: go-svc could not be reached or was restarting behind its
- * load balancer (a load balancer's error has no CORS headers, so the browser reports it as
- * unreachable), or it hit an internal error such as a dropped database connection. go-svc's
- * other answers are not asked for again: a busy answer comes only after the request waited 30 s
- * for a slot, and a report that took too long would take as long again.
+ * Whether asking again soon may work: go-svc could not answer (`UNANSWERED_CODES`), was
+ * restarting behind its load balancer (a load balancer's error has no CORS headers, so the
+ * browser reports it as unreachable), or the sign-in token could not be fetched (no code). Any
+ * other status without go-svc's own code is final. go-svc's refusals are not asked for again: a
+ * busy answer comes only after the request waited 30 s for a slot, and a report that took too
+ * long would take as long again.
  */
 function worthRetrying(error: unknown) {
   if (!(error instanceof ApiResponseError)) return false;
-  return (
-    error.code === "network_error" ||
-    error.code === "internal_error" ||
-    error.status === 502 ||
-    error.status === 504
-  );
+  if (error.status === 502 || error.status === 504) return true;
+  if (error.code === "http_error") return false;
+  return error.code === null || UNANSWERED_CODES.has(error.code);
 }
 
 const reportRetry = {

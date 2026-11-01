@@ -244,6 +244,16 @@ describe("Task report", () => {
     ["could not be reached", 0, undefined],
     ["answered through its load balancer", 502, "<html>Bad gateway</html>"],
     ["hit an internal error", 500, { error: "internal_error", message: "Internal server error" }],
+    [
+      "could not check the membership",
+      503,
+      { error: "workos_membership_lookup_failed", message: "WorkOS is unavailable" },
+    ],
+    [
+      "could not look up the flag",
+      403,
+      { error: "feature_unavailable", message: "Reports is not enabled for this workspace" },
+    ],
   ])("asks again soon when go-svc %s", async (_, status, body) => {
     const settings = mocks.bodies.settings;
     mocks.statuses.settings = status;
@@ -265,6 +275,7 @@ describe("Task report", () => {
       mocks.bodies.settings = { error, message: "Try again shortly" };
       renderReport();
       expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
+      expect(screen.getByText("Try again shortly")).toBeInTheDocument();
       expect(callsTo("settings")).toHaveLength(1);
     },
   );
@@ -295,13 +306,18 @@ describe("Task report", () => {
     });
 
     it("saves the file under go-svc's name", async () => {
+      const delay = vi.spyOn(globalThis, "setTimeout");
       renderReport();
       await userEvent.click(await screen.findByRole("button", { name: "Download CSV" }));
       await waitFor(() =>
         expect(saved).toEqual([{ name: "task-report.csv", href: "blob:report" }]),
       );
       expect(callsTo("task-report").at(-1)?.args.query).toMatchObject({ format: "csv" });
-      await waitFor(() => expect(revoke).toHaveBeenCalledWith("blob:report"));
+      // The file stays for a while after the click, as some browsers need it to.
+      const release = delay.mock.calls.find(([, ms]) => ms === 40_000)?.[0] as () => void;
+      expect(revoke).not.toHaveBeenCalled();
+      release();
+      expect(revoke).toHaveBeenCalledWith("blob:report");
     });
 
     it("says why go-svc refused the download, and nothing technical when it could not answer", async () => {

@@ -110,7 +110,7 @@ export const WordCountsByMatchBand: Story = {
   play: async ({ canvas }) => {
     const chart = await canvas.findByRole("region", { name: "Volume over time" });
     await expect(await within(chart).findByText("100% and repetitions")).toBeInTheDocument();
-    const bands = canvas.getByRole("region", { name: "Match bands" });
+    const bands = await canvas.findByRole("region", { name: "Match bands" });
     await expect(within(bands).getAllByRole("listitem")).toHaveLength(3);
   },
 };
@@ -152,8 +152,8 @@ export const Budgets: Story = {
 export const Member: Story = {
   parameters: { msw: { handlers: reportsMemberMswHandlers } },
   play: async ({ canvas }) => {
-    await expect(await canvas.findByText("Source words")).toBeInTheDocument();
-    await expect(canvas.getAllByRole("tab")).toHaveLength(3);
+    await expect(await canvas.findByRole("tab", { name: "Time" })).toBeInTheDocument();
+    await expect(canvas.getAllByRole("tab")).toHaveLength(1);
   },
 };
 

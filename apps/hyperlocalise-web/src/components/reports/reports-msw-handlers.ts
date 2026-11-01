@@ -57,7 +57,10 @@ export function createReportsMswHandlers({
       http.get(`*/v1/orgs/:organizationSlug/reports/${endpoint}`, async ({ request }) => {
         if (wait) await delay("infinite");
         if (failing.includes(endpoint))
-          return HttpResponse.json({ error: "report_failed" }, { status: 500 });
+          return HttpResponse.json(
+            { error: "internal_error", message: "Internal server error" },
+            { status: 500 },
+          );
         const query = new URL(request.url).searchParams;
         if (endpoint === "words" && query.get("groupBy") === "week")
           return HttpResponse.json({
@@ -85,7 +88,10 @@ export function createReportsMswHandlers({
     http.get("*/v1/orgs/:organizationSlug/reports/words/series", async ({ request }) => {
       if (wait) await delay("infinite");
       if (failing.includes("word-series"))
-        return HttpResponse.json({ error: "report_failed" }, { status: 500 });
+        return HttpResponse.json(
+          { error: "internal_error", message: "Internal server error" },
+          { status: 500 },
+        );
       const query = new URL(request.url).searchParams;
       const series = query.get("split") === "band" ? reportsBandSeries : reportsWordCountSeries;
       return HttpResponse.json({
@@ -117,7 +123,10 @@ export function createReportsMswHandlers({
     http.get("*/v1/orgs/:organizationSlug/reports/tasks/:jobId/report", async () => {
       if (wait) await delay("infinite");
       if (failing.includes("task-report"))
-        return HttpResponse.json({ error: "report_failed" }, { status: 500 });
+        return HttpResponse.json(
+          { error: "internal_error", message: "Internal server error" },
+          { status: 500 },
+        );
       return HttpResponse.json(bodies["task-report"]);
     }),
     http.put("*/v1/orgs/:organizationSlug/reports/task-rates", () =>
