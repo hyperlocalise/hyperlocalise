@@ -273,8 +273,10 @@ export function applyJsonIngestEntries(
   } catch {
     return payload;
   }
+  // Keep the CLI snapshot when filters match nothing. Returning {} would
+  // reconcile an empty file and cascade-delete every key and translation.
   if (Object.keys(extracted).length === 0) {
-    return {};
+    return payload;
   }
 
   const out: HlEntriesPayload = {};

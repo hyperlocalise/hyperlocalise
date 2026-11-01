@@ -61,4 +61,30 @@ describe("applyJsonIngestEntries", () => {
       "about.html": { text: "<p>About us</p>", context: "footer", format: "html" },
     });
   });
+
+  it("keeps the CLI snapshot when key-path filters match no strings", () => {
+    const settings = defaultRepositorySourceFileImportSettings().json;
+    const cliPayload = { "welcome.text": "Hello", leftover: "from cli" };
+
+    expect(
+      applyJsonIngestEntries(
+        "locales/en.json",
+        JSON.stringify({ welcome: { text: "Hello" }, leftover: "from cli" }),
+        cliPayload,
+        { ...settings, keyPaths: ["messages.**"] },
+      ),
+    ).toEqual(cliPayload);
+  });
+
+  it("keeps the CLI snapshot when the JSON root is an array", () => {
+    const settings = defaultRepositorySourceFileImportSettings().json;
+    const cliPayload = { "0": "Hello", "1": "World" };
+
+    expect(
+      applyJsonIngestEntries("locales/en.json", JSON.stringify(["Hello", "World"]), cliPayload, {
+        ...settings,
+        icuSubfilter: true,
+      }),
+    ).toEqual(cliPayload);
+  });
 });
