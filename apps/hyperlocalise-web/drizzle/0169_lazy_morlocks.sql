@@ -1,1 +1,0 @@
-ALTER TABLE "repository_source_files" ADD COLUMN "import_settings" jsonb DEFAULT '{}'::jsonb NOT NULL;

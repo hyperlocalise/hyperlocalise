@@ -1,1 +1,0 @@
-ALTER TABLE "repository_source_files" ADD COLUMN "placeholder_patterns" jsonb DEFAULT '[]'::jsonb NOT NULL;

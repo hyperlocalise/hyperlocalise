@@ -1,5 +1,5 @@
 {
-  "id": "4a1fc1f8-eaea-4e49-b70f-32c289bc145d",
+  "id": "3c225c76-df70-41f7-a1bb-6f31733c75d8",
   "prevId": "842a4911-f07e-4c9f-9213-bb59b83be0d9",
   "version": "7",
   "dialect": "postgresql",
@@ -23752,6 +23752,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'[]'::jsonb"
+        },
+        "import_settings": {
+          "name": "import_settings",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "reconciled_source_file_version_id": {
           "name": "reconciled_source_file_version_id",
