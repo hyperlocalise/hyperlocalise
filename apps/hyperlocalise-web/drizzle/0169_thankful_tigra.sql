@@ -1,2 +1,0 @@
-ALTER TABLE "hubspot_content_sync_states" ADD COLUMN "last_push_content_hash" jsonb DEFAULT '{}'::jsonb NOT NULL;--> statement-breakpoint
-ALTER TABLE "hubspot_content_sync_states" ADD COLUMN "imported_translation_hashes" jsonb DEFAULT '{}'::jsonb NOT NULL;
