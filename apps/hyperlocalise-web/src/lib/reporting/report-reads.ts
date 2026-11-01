@@ -44,9 +44,8 @@ import {
 } from "./word-queries";
 
 /**
- * The reads behind the Reports page's tabs, shared by the page's endpoints, the public
- * `GET /reports` and the MCP `get_report` tool, so every reader gets the same figures from the
- * same summary.
+ * The reads behind the web Reports routes, kept with them for one release after the page and
+ * the MCP `get_report` tool moved to go-svc.
  */
 
 export const REPORT_KINDS = ["activity", "words", "time", "ai", "costs"] as const;

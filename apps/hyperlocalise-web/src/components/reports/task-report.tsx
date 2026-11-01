@@ -163,7 +163,7 @@ export function TaskReport({
       settings.data && report.data ? { settings: settings.data, report: report.data } : undefined,
     isPending: loading,
     isError: settings.isError || report.isError,
-    error: settings.error ?? report.error,
+    error: report.error ?? settings.error,
     refetch: () => {
       if (settings.isError) void settings.refetch();
       if (report.isError) void report.refetch();
@@ -216,9 +216,15 @@ export function TaskReport({
               </ReportSection>
             </>
           ) : null}
-          <TimeSection organizationSlug={organizationSlug} settings={loaded} data={data} />
+          <TimeSection
+            organizationSlug={organizationSlug}
+            settings={loaded}
+            data={data}
+            reloading={report.isFetching}
+          />
           {data.pricing ? (
             <PricingSection
+              reloading={report.isFetching}
               organizationSlug={organizationSlug}
               jobId={jobId}
               pricing={data.pricing}
@@ -539,10 +545,13 @@ function TimeSection({
   organizationSlug,
   settings,
   data,
+  reloading,
 }: {
   organizationSlug: string;
   settings: ReportSettings;
   data: TaskReportData;
+  /** Figures are being read again, so a form opened now would start from old ones. */
+  reloading: boolean;
 }) {
   const intl = useIntl();
   const [logging, setLogging] = useState(false);
@@ -601,6 +610,7 @@ function TimeSection({
                       aria-label={intl.formatMessage(messages.editTimeLabel, {
                         day: utcDay(intl, entry.workDate),
                       })}
+                      disabled={reloading}
                       onClick={() => setEditing(entry)}
                     >
                       {intl.formatMessage(messages.edit)}
@@ -648,6 +658,7 @@ function PricingSection({
   canEdit,
   ended,
   rateCardNames,
+  reloading,
 }: {
   organizationSlug: string;
   jobId: string;
@@ -656,6 +667,8 @@ function PricingSection({
   /** The task has ended, so nothing about its pricing can change. */
   ended: boolean;
   rateCardNames: string[];
+  /** Figures are being read again, so a form opened now would start from old ones. */
+  reloading: boolean;
 }) {
   const intl = useIntl();
   const [editing, setEditing] = useState<StepPricing | null>(null);
@@ -709,6 +722,7 @@ function PricingSection({
                     aria-label={intl.formatMessage(messages.setPricingLabel, {
                       step: stepLabel(intl, row.step),
                     })}
+                    disabled={reloading}
                     onClick={() => setEditing(row)}
                   >
                     {intl.formatMessage(messages.setPricing)}

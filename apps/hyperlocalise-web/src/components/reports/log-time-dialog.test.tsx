@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { onlineManager, QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { render, renderHook, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
@@ -76,7 +76,7 @@ beforeEach(() => {
 });
 
 describe("Log time dialog", () => {
-  it("stops waiting for the reload after a few seconds, so the dialog can close", async () => {
+  it("waits a few seconds for the reload, and no longer", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const queryClient = new QueryClient();
@@ -103,10 +103,31 @@ describe("Log time dialog", () => {
         workDate: "2026-10-21",
         minutes: 30,
       });
-      await vi.advanceTimersByTimeAsync(5_000);
+      let finished = false;
+      void saved.then(() => (finished = true));
+      await vi.advanceTimersByTimeAsync(4_000);
+      expect(finished).toBe(false);
+      await vi.advanceTimersByTimeAsync(1_000);
       await expect(saved).resolves.toBeDefined();
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it("sends the time even when the browser says it is offline, instead of queuing it", async () => {
+    renderDialog();
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Language" })).not.toBeDisabled(),
+    );
+    await choose("Language", "ja-JP");
+    onlineManager.setOnline(false);
+    try {
+      await userEvent.click(screen.getByRole("button", { name: "Log time" }));
+      await waitFor(() =>
+        expect(mocks.calls.some((call) => call.endpoint === "time-entries")).toBe(true),
+      );
+    } finally {
+      onlineManager.setOnline(true);
     }
   });
 

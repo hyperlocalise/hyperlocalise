@@ -66,8 +66,9 @@ export function SetBudgetDialog({
     setRateCard(current?.rateCardName ?? NONE);
   }
 
-  // Fill in the chosen project's budget once the budgets have loaded.
-  const loaded = budgets.data !== undefined;
+  // Fill in the chosen project's budget once the budgets are up to date, so a reload still
+  // running or failed after a save cannot put the old amount and rate card back.
+  const loaded = budgets.isSuccess && !budgets.isFetching;
   useEffect(() => {
     if (loaded && chosenProjectId) chooseProject(chosenProjectId);
     // Only when the budgets first arrive; later choices are the person's.
@@ -132,7 +133,7 @@ export function SetBudgetDialog({
             onChange={setRateCard}
             disabled={!loaded}
           />
-          {budgets.isError && !loaded ? (
+          {budgets.isError ? (
             <FieldError data-slot="field-error">
               {intl.formatMessage(messages.loadFailed)}
             </FieldError>

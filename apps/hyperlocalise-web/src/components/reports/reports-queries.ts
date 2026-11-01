@@ -512,6 +512,25 @@ export function useReportCsv(organizationSlug: string) {
  */
 const SAVE_OPTIONS = { networkMode: "always" } as const;
 
+/** The longest a save's request is waited for, just past go-svc's own 30 s limit. */
+const SAVE_TIME_LIMIT_MS = 35_000;
+
+/** A save's request, which fails if a stalled connection never answers, so its dialog can close. */
+function reportSave<T>(fallback: string, run: () => Promise<T>) {
+  return reportRequest(fallback, () =>
+    Promise.race([
+      run(),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () =>
+            reject(new GoSvcClientError({ code: "network_error", message: "No answer in time" })),
+          SAVE_TIME_LIMIT_MS,
+        ),
+      ),
+    ]),
+  );
+}
+
 /** The longest a save waits for the reload after it, as its dialog cannot close meanwhile. */
 const SAVE_WAITS_FOR_RELOAD_MS = 5_000;
 
@@ -537,7 +556,7 @@ export function useSaveRateCard(organizationSlug: string) {
   return useMutation({
     ...SAVE_OPTIONS,
     mutationFn: (body: RateCardBody) =>
-      reportRequest(intl.formatMessage(messages.saveFailed), () =>
+      reportSave(intl.formatMessage(messages.saveFailed), () =>
         client.reports.saveRateCard(organizationSlug, body),
       ),
     // The saved card is in the list at once, so the rate card sheet shows it even when the
@@ -566,7 +585,7 @@ export function useLogTime(organizationSlug: string) {
   return useMutation({
     ...SAVE_OPTIONS,
     mutationFn: (body: TimeEntryBody) =>
-      reportRequest(intl.formatMessage(messages.saveFailed), () =>
+      reportSave(intl.formatMessage(messages.saveFailed), () =>
         client.reports.logTime(organizationSlug, body),
       ),
     onSuccess: invalidate,
@@ -580,7 +599,7 @@ export function useSetBudget(organizationSlug: string) {
   return useMutation({
     ...SAVE_OPTIONS,
     mutationFn: (body: BudgetBody) =>
-      reportRequest(intl.formatMessage(messages.saveFailed), () =>
+      reportSave(intl.formatMessage(messages.saveFailed), () =>
         client.reports.setBudget(organizationSlug, body),
       ),
     onSuccess: invalidate,
@@ -595,7 +614,7 @@ export function useSetTaskPricing(organizationSlug: string) {
   return useMutation({
     ...SAVE_OPTIONS,
     mutationFn: (body: TaskRateBody) =>
-      reportRequest(intl.formatMessage(messages.saveFailed), () =>
+      reportSave(intl.formatMessage(messages.saveFailed), () =>
         client.reports.setTaskPricing(organizationSlug, body),
       ),
     onSuccess: invalidate,
@@ -609,7 +628,7 @@ export function useEditTime(organizationSlug: string) {
   return useMutation({
     ...SAVE_OPTIONS,
     mutationFn: ({ id, ...body }: TimeEntryUpdateBody & { id: string }) =>
-      reportRequest(intl.formatMessage(messages.saveFailed), () =>
+      reportSave(intl.formatMessage(messages.saveFailed), () =>
         client.reports.editTime(organizationSlug, id, body),
       ),
     onSuccess: invalidate,
@@ -623,7 +642,7 @@ export function useDeleteTime(organizationSlug: string) {
   return useMutation({
     ...SAVE_OPTIONS,
     mutationFn: (id: string) =>
-      reportRequest(intl.formatMessage(messages.saveFailed), () =>
+      reportSave(intl.formatMessage(messages.saveFailed), () =>
         client.reports.deleteTime(organizationSlug, id),
       ),
     onSuccess: invalidate,
