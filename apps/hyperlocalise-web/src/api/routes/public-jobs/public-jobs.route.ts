@@ -10,10 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 import { and, eq, sql } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
@@ -57,6 +57,7 @@ import {
 } from "./public-jobs.access";
 import {
   createPublicJobBodySchema,
+  hashPublicJobRequest,
   publicJobIdempotencyKeySchema,
   type CreatePublicJobBody,
 } from "./public-jobs.schema";
@@ -70,6 +71,7 @@ import {
   ownerNotFoundResponse,
   invalidIdempotencyKeyResponse,
   idempotencyKeyReusedResponse,
+  publicJobQueueUnavailableError,
 } from "./public-jobs.shared";
 
 const validateCreateJobBody = validator("json", (value, c) => {
@@ -120,8 +122,24 @@ class PublicJobIdempotencyConflictError extends Error {}
 
 type PublicJobIdempotency = { key: string; requestHash: string };
 
-function hashPublicJobRequest(payload: CreatePublicJobBody) {
-  return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+type ReplayedPublicJob = {
+  id: string;
+  type: "string" | "file";
+  status: string;
+  lastError: string | null;
+  outcomeKind: string | null;
+};
+
+function publicJobCreateResult(job: { id: string; type: "string" | "file"; status: string }) {
+  return { id: job.id, type: job.type, status: job.status };
+}
+
+function isRecoverableQueueFailure(job: ReplayedPublicJob) {
+  return (
+    job.status === "failed" &&
+    job.lastError === publicJobQueueUnavailableError &&
+    job.outcomeKind == null
+  );
 }
 
 /**
@@ -135,6 +153,8 @@ async function findIdempotentPublicJob(organizationId: string, idempotency: Publ
       id: schema.jobs.id,
       status: schema.jobs.status,
       type: schema.translationJobDetails.type,
+      lastError: schema.jobs.lastError,
+      outcomeKind: schema.translationJobDetails.outcomeKind,
     })
     .from(schema.publicJobIdempotencyKeys)
     .innerJoin(schema.jobs, eq(schema.jobs.id, schema.publicJobIdempotencyKeys.jobId))
@@ -155,8 +175,33 @@ async function findIdempotentPublicJob(organizationId: string, idempotency: Publ
   }
   return {
     kind: "replayed" as const,
-    job: { id: existing.id, type: existing.type, status: existing.status },
+    job: {
+      id: existing.id,
+      type: existing.type,
+      status: existing.status,
+      lastError: existing.lastError,
+      outcomeKind: existing.outcomeKind,
+    },
   };
+}
+
+/** Claims a failed create-time enqueue so only one retry re-queues the job. */
+async function reclaimPublicJobAfterQueueFailure(jobId: string) {
+  const [updated] = await db
+    .update(schema.jobs)
+    .set({
+      status: "queued",
+      lastError: null,
+    })
+    .where(
+      and(
+        eq(schema.jobs.id, jobId),
+        eq(schema.jobs.status, "failed"),
+        eq(schema.jobs.lastError, publicJobQueueUnavailableError),
+      ),
+    )
+    .returning({ id: schema.jobs.id });
+  return updated ?? null;
 }
 
 /** Finds the workspace member a client names as the job's owner, matching email without case. */
@@ -179,6 +224,85 @@ async function findPublicJobOwner(organizationId: string, email: string) {
 }
 
 export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}) {
+  async function enqueueCreatedPublicJob(input: {
+    actor: ReturnType<typeof publicApiActivityActor>;
+    jobId: string;
+    kind: string;
+    organizationId: string;
+    projectId: string;
+    type: CreatePublicJobBody["type"];
+  }) {
+    if (!options.jobQueue) {
+      return true;
+    }
+    try {
+      await options.jobQueue.enqueue({
+        kind: "translation",
+        jobId: input.jobId,
+        projectId: input.projectId,
+        type: input.type,
+      });
+      return true;
+    } catch {
+      await db
+        .update(schema.jobs)
+        .set({
+          status: "failed",
+          lastError: publicJobQueueUnavailableError,
+        })
+        .where(eq(schema.jobs.id, input.jobId));
+
+      await enqueueJobFailedActivity({
+        ...input.actor,
+        errorCode: "queue_unavailable",
+        jobId: input.jobId,
+        kind: input.kind,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        status: "failed",
+      });
+      return false;
+    }
+  }
+
+  async function replayIdempotentPublicJob(
+    c: Context<{ Variables: ApiKeyAuthVariables }>,
+    earlier: ReplayedPublicJob,
+    payload: CreatePublicJobBody,
+    organizationId: string,
+    idempotency: PublicJobIdempotency,
+  ) {
+    if (isRecoverableQueueFailure(earlier)) {
+      const claimed = await reclaimPublicJobAfterQueueFailure(earlier.id);
+      if (claimed) {
+        const enqueued = await enqueueCreatedPublicJob({
+          actor: publicApiActivityActor(c.var.auth),
+          jobId: earlier.id,
+          kind: "translation",
+          organizationId,
+          projectId: payload.projectId,
+          type: payload.type,
+        });
+        if (!enqueued) {
+          return jobQueueUnavailableResponse(c);
+        }
+        c.header("Idempotent-Replayed", "true");
+        return c.json(
+          { job: publicJobCreateResult({ id: earlier.id, type: earlier.type, status: "queued" }) },
+          200,
+        );
+      }
+      const current = await findIdempotentPublicJob(organizationId, idempotency);
+      if (current?.kind === "replayed") {
+        c.header("Idempotent-Replayed", "true");
+        return c.json({ job: publicJobCreateResult(current.job) }, 200);
+      }
+    }
+
+    c.header("Idempotent-Replayed", "true");
+    return c.json({ job: publicJobCreateResult(earlier) }, 200);
+  }
+
   return new Hono<{ Variables: ApiKeyAuthVariables }>().use("*", publicApiAuthMiddleware).post(
     "/",
     requireApiKeyPermission("jobs:write"),
@@ -215,8 +339,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           return idempotencyKeyReusedResponse(c);
         }
         if (earlier?.kind === "replayed") {
-          c.header("Idempotent-Replayed", "true");
-          return c.json({ job: earlier.job }, 200);
+          return replayIdempotentPublicJob(c, earlier.job, payload, organizationId, idempotency);
         }
       }
 
@@ -373,8 +496,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         if (error instanceof PublicJobIdempotencyConflictError && idempotency) {
           const earlier = await findIdempotentPublicJob(organizationId, idempotency);
           if (earlier?.kind === "replayed") {
-            c.header("Idempotent-Replayed", "true");
-            return c.json({ job: earlier.job }, 200);
+            return replayIdempotentPublicJob(c, earlier.job, payload, organizationId, idempotency);
           }
           return idempotencyKeyReusedResponse(c);
         }
@@ -390,36 +512,16 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         status: job.status,
       });
 
-      if (options.jobQueue) {
-        try {
-          await options.jobQueue.enqueue({
-            kind: "translation",
-            jobId: job.id,
-            projectId: payload.projectId,
-            type: payload.type,
-          });
-        } catch (error) {
-          await db
-            .update(schema.jobs)
-            .set({
-              status: "failed",
-              lastError:
-                error instanceof Error ? error.message : "translation job queue unavailable",
-            })
-            .where(eq(schema.jobs.id, job.id));
-
-          await enqueueJobFailedActivity({
-            ...publicApiActivityActor(c.var.auth),
-            errorCode: "queue_unavailable",
-            jobId: job.id,
-            kind: job.kind,
-            organizationId,
-            projectId: job.projectId,
-            status: "failed",
-          });
-
-          return jobQueueUnavailableResponse(c);
-        }
+      const enqueued = await enqueueCreatedPublicJob({
+        actor: publicApiActivityActor(c.var.auth),
+        jobId: job.id,
+        kind: job.kind,
+        organizationId,
+        projectId: payload.projectId,
+        type: payload.type,
+      });
+      if (!enqueued) {
+        return jobQueueUnavailableResponse(c);
       }
 
       return c.json({ job: { id: job.id, type: payload.type, status: "queued" } }, 201);

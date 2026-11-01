@@ -512,4 +512,111 @@ describe("publicJobRoutes job fields and idempotency", () => {
     }
     expect(enqueueJob).not.toHaveBeenCalled();
   });
+
+  it("replays when owner email case, dueAt form, or metadata key order change", async () => {
+    const { apiKey, project, user } = await createPublicApiFixture();
+    const headers = { "x-api-key": apiKey, "idempotency-key": "order-45" };
+
+    const first = await client.api.v1.jobs.$post(
+      {
+        json: stringJob(project.id, {
+          ownerEmail: user.email,
+          dueAt: "2026-11-15T17:00:00Z",
+          stringInput: {
+            sourceText: "Hello world",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            metadata: { instructions: "Keep names", tone: "formal" },
+          },
+        }),
+      },
+      { headers },
+    );
+    expect(first.status).toBe(201);
+    const firstBody = (await first.json()) as { job: { id: string } };
+
+    const retry = await client.api.v1.jobs.$post(
+      {
+        json: stringJob(project.id, {
+          ownerEmail: user.email.toUpperCase(),
+          dueAt: "2026-11-15T17:00:00+00:00",
+          stringInput: {
+            sourceText: "Hello world",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            metadata: { tone: "formal", instructions: "Keep names" },
+          },
+        }),
+      },
+      { headers },
+    );
+    expect(retry.status).toBe(200);
+    expect(retry.headers.get("idempotent-replayed")).toBe("true");
+    await expect(retry.json()).resolves.toEqual({
+      job: { id: firstBody.job.id, type: "string", status: "queued" },
+    });
+    expect(enqueueJob).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-enqueues the first job when a retry follows a queue failure", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const headers = { "x-api-key": apiKey, "idempotency-key": "order-46" };
+    enqueueJob.mockRejectedValueOnce(new Error("queue down"));
+
+    const first = await client.api.v1.jobs.$post({ json: stringJob(project.id) }, { headers });
+    expect(first.status).toBe(503);
+    await expect(first.json()).resolves.toMatchObject({ error: "job_queue_unavailable" });
+    const [failed] = await db
+      .select({ id: schema.jobs.id, status: schema.jobs.status })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.projectId, project.id));
+    expect(failed?.status).toBe("failed");
+
+    const retry = await client.api.v1.jobs.$post({ json: stringJob(project.id) }, { headers });
+    expect(retry.status).toBe(200);
+    expect(retry.headers.get("idempotent-replayed")).toBe("true");
+    await expect(retry.json()).resolves.toEqual({
+      job: { id: failed?.id, type: "string", status: "queued" },
+    });
+    const recovered = await jobRow(failed?.id ?? "");
+    expect(recovered?.status).toBe("queued");
+    expect(recovered?.lastError).toBeNull();
+    expect(enqueueJob).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns 503 again when the retry still cannot enqueue", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const headers = { "x-api-key": apiKey, "idempotency-key": "order-47" };
+    enqueueJob.mockRejectedValueOnce(new Error("queue down"));
+    enqueueJob.mockRejectedValueOnce(new Error("queue down"));
+
+    const first = await client.api.v1.jobs.$post({ json: stringJob(project.id) }, { headers });
+    expect(first.status).toBe(503);
+
+    const retry = await client.api.v1.jobs.$post({ json: stringJob(project.id) }, { headers });
+    expect(retry.status).toBe(503);
+    await expect(retry.json()).resolves.toMatchObject({ error: "job_queue_unavailable" });
+    expect(retry.headers.get("idempotent-replayed")).toBeNull();
+    expect(enqueueJob).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not re-enqueue a job that failed after it started", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const headers = { "x-api-key": apiKey, "idempotency-key": "order-48" };
+
+    const first = await client.api.v1.jobs.$post({ json: stringJob(project.id) }, { headers });
+    expect(first.status).toBe(201);
+    const firstBody = (await first.json()) as { job: { id: string } };
+    await db
+      .update(schema.jobs)
+      .set({ status: "failed", lastError: "translator rejected the source" })
+      .where(eq(schema.jobs.id, firstBody.job.id));
+
+    const retry = await client.api.v1.jobs.$post({ json: stringJob(project.id) }, { headers });
+    expect(retry.status).toBe(200);
+    await expect(retry.json()).resolves.toEqual({
+      job: { id: firstBody.job.id, type: "string", status: "failed" },
+    });
+    expect(enqueueJob).toHaveBeenCalledTimes(1);
+  });
 });

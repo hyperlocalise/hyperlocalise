@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createHash } from "node:crypto";
+
 import { z } from "zod";
 
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
@@ -83,3 +85,61 @@ export const jobIdParamsSchema = z.object({
 
 export type CreatePublicJobBody = z.infer<typeof createPublicJobBodySchema>;
 export type JobIdParams = z.infer<typeof jobIdParamsSchema>;
+
+function sortedMetadata(metadata: Record<string, string> | undefined) {
+  if (!metadata) {
+    return undefined;
+  }
+  const keys = Object.keys(metadata).sort();
+  if (keys.length === 0) {
+    return undefined;
+  }
+  const sorted: Record<string, string> = {};
+  for (const key of keys) {
+    sorted[key] = metadata[key]!;
+  }
+  return sorted;
+}
+
+/**
+ * SHA-256 of the create body after trimming, lowercasing `ownerEmail`,
+ * normalising `dueAt` to UTC, and sorting metadata keys, so a retry that
+ * only changes those forms still matches the first request.
+ */
+export function hashPublicJobRequest(payload: CreatePublicJobBody) {
+  const title = payload.title || undefined;
+  const description = payload.description || undefined;
+  const dueAt = payload.dueAt ? new Date(payload.dueAt).toISOString() : undefined;
+  const ownerEmail = payload.ownerEmail?.toLowerCase() || undefined;
+  const shared = { title, description, dueAt, ownerEmail };
+
+  const canonical =
+    payload.type === "string"
+      ? {
+          type: payload.type,
+          projectId: payload.projectId,
+          ...shared,
+          stringInput: {
+            sourceText: payload.stringInput.sourceText,
+            sourceLocale: payload.stringInput.sourceLocale,
+            targetLocales: payload.stringInput.targetLocales,
+            metadata: sortedMetadata(payload.stringInput.metadata),
+            context: payload.stringInput.context,
+            maxLength: payload.stringInput.maxLength,
+          },
+        }
+      : {
+          type: payload.type,
+          projectId: payload.projectId,
+          ...shared,
+          fileInput: {
+            sourceFileId: payload.fileInput.sourceFileId,
+            fileFormat: payload.fileInput.fileFormat,
+            sourceLocale: payload.fileInput.sourceLocale,
+            targetLocales: payload.fileInput.targetLocales,
+            metadata: sortedMetadata(payload.fileInput.metadata),
+          },
+        };
+
+  return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
+}

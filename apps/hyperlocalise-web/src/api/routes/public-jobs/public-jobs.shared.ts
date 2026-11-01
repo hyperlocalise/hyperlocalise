@@ -40,6 +40,8 @@ export function sourceFileFormatMismatchResponse(c: JsonContext, expectedFileFor
   );
 }
 
+export const publicJobQueueUnavailableError = "translation job queue unavailable";
+
 export function jobQueueUnavailableResponse(c: JsonContext) {
   return serviceUnavailableResponse(c, "job_queue_unavailable", "Job queue is unavailable");
 }
