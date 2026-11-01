@@ -273,8 +273,9 @@ export function applyJsonIngestEntries(
   } catch {
     return payload;
   }
-  // Keep the CLI snapshot when filters match nothing. Returning {} would
-  // reconcile an empty file and cascade-delete every key and translation.
+  // Keep the previous payload when extract is empty (typo'd include, over-broad
+  // exclude, array-root JSON, no string values). Returning {} would reconcile
+  // an empty file and cascade-delete every key and translation.
   if (Object.keys(extracted).length === 0) {
     return payload;
   }

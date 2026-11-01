@@ -76,6 +76,20 @@ describe("applyJsonIngestEntries", () => {
     ).toEqual(cliPayload);
   });
 
+  it("keeps the CLI snapshot when exclude paths match every string", () => {
+    const settings = defaultRepositorySourceFileImportSettings().json;
+    const cliPayload = { "welcome.text": "Hello", leftover: "from cli" };
+
+    expect(
+      applyJsonIngestEntries(
+        "locales/en.json",
+        JSON.stringify({ welcome: { text: "Hello" }, leftover: "from cli" }),
+        cliPayload,
+        { ...settings, excludeKeyPaths: ["**"] },
+      ),
+    ).toEqual(cliPayload);
+  });
+
   it("keeps the CLI snapshot when the JSON root is an array", () => {
     const settings = defaultRepositorySourceFileImportSettings().json;
     const cliPayload = { "0": "Hello", "1": "World" };
