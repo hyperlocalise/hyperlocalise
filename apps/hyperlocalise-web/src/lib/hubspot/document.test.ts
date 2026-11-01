@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   applyEmailDocument,
+  applyStringTree,
   applyFormDocument,
   applyPageDocument,
   applyBlogContentDocument,
@@ -33,6 +34,14 @@ import {
 } from "./document";
 
 describe("hubspot documents", () => {
+  it("ignores __proto__ keys when applying translation trees", () => {
+    const target = { body: "Welcome" };
+    applyStringTree(target, JSON.parse('{"body":"Bienvenue","__proto__":"polluted"}'));
+    expect(target.body).toBe("Bienvenue");
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect(Object.prototype.hasOwnProperty.call(target, "__proto__")).toBe(false);
+  });
+
   it("lifts preview text and leaves widget ids, urls, and colors out of the tree", () => {
     const document = buildEmailDocument({
       subject: "Hello",

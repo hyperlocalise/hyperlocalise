@@ -152,6 +152,9 @@ export function applyStringTree(target: HubspotJson, tree: HubspotStringTree): v
   }
   const record = target;
   for (const [key, value] of Object.entries(tree)) {
+    if (key === "__proto__") {
+      continue;
+    }
     if (typeof value === "string") {
       if (typeof record[key] === "string") {
         record[key] = value;
