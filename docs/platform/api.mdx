@@ -159,6 +159,59 @@ JSON body. Discriminate on `type`.
 }
 ```
 
+#### Title, deadline and owner
+
+Both job types take these optional top-level fields:
+
+| Field | Type | Notes |
+|---|---|---|
+| `title` | string, 1–256 | Shown as the job name in the app |
+| `description` | string, up to 2,048 | Shown on the job |
+| `dueAt` | ISO 8601 date-time with offset | For example `2026-11-15T17:00:00Z`. A date without a time zone is rejected |
+| `ownerEmail` | email | Must belong to a member of the workspace. Matched without regard to case. The member becomes the job's owner |
+
+```json
+{
+  "type": "file",
+  "projectId": "project_123",
+  "title": "Spring campaign – landing page",
+  "description": "Marketing review before Friday",
+  "dueAt": "2026-11-15T17:00:00Z",
+  "ownerEmail": "pm@example.com",
+  "fileInput": {
+    "sourceFileId": "file_...",
+    "fileFormat": "json",
+    "sourceLocale": "en-US",
+    "targetLocales": ["fr-FR", "de-DE"]
+  }
+}
+```
+
+[Get a job](#get-a-job) returns `title`, `description`, `dueAt` and `ownerEmail`, `null` when unset.
+
+#### Retries with `Idempotency-Key`
+
+Send an `Idempotency-Key` header to make retries safe. The key is 1–255 printable ASCII characters with no spaces, unique within the workspace, for example an order or ticket ID.
+
+- A retry with the same key and the same body creates nothing. It returns `200` with the job the first request created, its current `status`, and the header `Idempotent-Replayed: true`.
+- The same key with a different body returns `422` `idempotency_key_reused`.
+- Requests sent at the same time with one key create one job.
+
+```bash
+curl --fail-with-body "https://hyperlocalise.com/api/v1/jobs" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -H "Idempotency-Key: order-1042" \
+  -H "content-type: application/json" \
+  -d @job.json
+```
+
+| Status | `error` | When |
+|---|---|---|
+| 400 | `invalid_job_payload` | Body does not match the schema, including a `dueAt` without an offset |
+| 400 | `owner_not_found` | `ownerEmail` is not a workspace member |
+| 400 | `invalid_idempotency_key` | Empty, too long, or not printable ASCII |
+| 422 | `idempotency_key_reused` | Key already used with a different body |
+
 The CLI does not call this endpoint during `sync push`. Platform automations and the UI create jobs after upload.
 
 ### Read jobs
@@ -196,6 +249,10 @@ Permission: `jobs:read`
     "updatedAt": "...",
     "completedAt": "...",
     "lastError": null,
+    "title": "Spring campaign – landing page",
+    "description": null,
+    "dueAt": "2026-11-15T17:00:00.000Z",
+    "ownerEmail": "pm@example.com",
     "outputFiles": [
       { "fileId": "file_...", "locale": "fr-FR", "filename": "fr.json" }
     ]

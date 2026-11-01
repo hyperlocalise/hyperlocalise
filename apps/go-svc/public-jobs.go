@@ -21,6 +21,11 @@ const (
 	publicJobTimeLayout      = "2006-01-02T15:04:05.000Z"
 )
 
+// The fields a client sets when it creates a job: title and description live in metadata, where
+// the in-app job editor keeps them. Reads that select these join users as ou for the owner.
+const publicJobEditableColumnsSQL = `j.input_payload->'metadata'->>'title', j.input_payload->'metadata'->>'description',
+            j.due_at, ou.email`
+
 const publicJobAccessSQL = `j.organization_id=$2 and ($3 or exists(select 1 from projects p
         join teams t on t.organization_id=p.organization_id and (t.id=p.team_id or (p.team_id is null and t.slug='default'))
         join team_memberships m on m.team_id=t.id and m.user_id=$4
@@ -45,6 +50,10 @@ type publicJobEnvelope struct {
 	UpdatedAt   string                 `json:"updatedAt"`
 	CompletedAt *string                `json:"completedAt"`
 	LastError   *string                `json:"lastError"`
+	Title       *string                `json:"title"`
+	Description *string                `json:"description"`
+	DueAt       *string                `json:"dueAt"`
+	OwnerEmail  *string                `json:"ownerEmail"`
 	OutputFiles *[]publicJobOutputFile `json:"outputFiles"`
 }
 
@@ -72,6 +81,10 @@ type publicJobRow struct {
 	createdAt      time.Time
 	updatedAt      time.Time
 	completedAt    *time.Time
+	title          *string
+	description    *string
+	dueAt          *time.Time
+	ownerEmail     *string
 }
 
 func (api *publicJobsAPI) register(mux *http.ServeMux) {
@@ -209,9 +222,11 @@ func (api *publicJobsAPI) loadJob(ctx context.Context, principal publicAPIPrinci
 		return publicJobRow{}, publicJobsUnavailable()
 	}
 	row := pool.QueryRow(ctx, `select j.id, j.project_id, j.kind::text, d.type::text, j.status::text, d.outcome_kind::text,
-            j.outcome_payload, j.last_error, j.created_at, j.updated_at, j.completed_at
+            j.outcome_payload, j.last_error, j.created_at, j.updated_at, j.completed_at,
+            `+publicJobEditableColumnsSQL+`
         from jobs j
         left join translation_job_details d on d.job_id=j.id
+        left join users ou on ou.id=j.owner_user_id
         where j.id=$1 and `+publicJobAccessSQL+`
         limit 1`,
 		jobID, principal.organizationID, hasOrganizationCapability(principal.role, "teams:write"), principal.userID)
@@ -246,10 +261,12 @@ func (api *publicJobsAPI) loadLatest(ctx context.Context, principal publicAPIPri
 	}
 
 	row := pool.QueryRow(ctx, `select j.id, j.project_id, j.kind::text, d.type::text, j.status::text, d.outcome_kind::text,
-            j.outcome_payload, j.last_error, j.created_at, j.updated_at, j.completed_at
+            j.outcome_payload, j.last_error, j.created_at, j.updated_at, j.completed_at,
+            `+publicJobEditableColumnsSQL+`
         from repository_source_file_versions v
         join translation_job_details d on d.source_file_version_id=v.id
         join jobs j on j.id=d.job_id
+        left join users ou on ou.id=j.owner_user_id
         where v.organization_id=$2 and v.project_id=$1 and v.source_path=$5
             and `+publicJobAccessSQL+`
             and j.kind='translation' and j.status='succeeded'
@@ -270,7 +287,8 @@ func (api *publicJobsAPI) loadLatest(ctx context.Context, principal publicAPIPri
 func scanPublicJob(row pgx.Row) (publicJobRow, error) {
 	var job publicJobRow
 	err := row.Scan(&job.id, &job.projectID, &job.kind, &job.jobType, &job.status, &job.outcomeKind,
-		&job.outcomePayload, &job.lastError, &job.createdAt, &job.updatedAt, &job.completedAt)
+		&job.outcomePayload, &job.lastError, &job.createdAt, &job.updatedAt, &job.completedAt,
+		&job.title, &job.description, &job.dueAt, &job.ownerEmail)
 	return job, err
 }
 
@@ -284,6 +302,10 @@ func (job publicJobRow) envelope() publicJobEnvelope {
 		UpdatedAt:   formatPublicJobTime(job.updatedAt),
 		CompletedAt: formatOptionalPublicJobTime(job.completedAt),
 		LastError:   job.lastError,
+		Title:       job.title,
+		Description: job.description,
+		DueAt:       formatOptionalPublicJobTime(job.dueAt),
+		OwnerEmail:  job.ownerEmail,
 		OutputFiles: publicJobOutputFiles(job.jobType, job.outcomeKind, job.outcomePayload),
 	}
 }

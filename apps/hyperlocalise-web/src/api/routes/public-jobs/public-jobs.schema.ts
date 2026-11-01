@@ -26,10 +26,21 @@ const publicJobMetadataSchema = z
   })
   .optional();
 
+export const maxPublicJobIdempotencyKeyLength = 255;
+
+/** Fields every public job takes, whatever its input. Stored as the in-app job editor stores them. */
+const createPublicJobSharedFields = {
+  title: z.string().trim().min(1).max(256).optional(),
+  description: z.string().trim().max(2_048).optional(),
+  dueAt: z.string().datetime({ offset: true }).optional(),
+  ownerEmail: z.string().trim().email().max(320).optional(),
+};
+
 export const createPublicJobBodySchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("string"),
     projectId: projectIdSchema,
+    ...createPublicJobSharedFields,
     stringInput: z.object({
       sourceText: z.string().trim().min(1).max(100_000),
       sourceLocale: z.string().trim().min(1).max(32),
@@ -45,6 +56,7 @@ export const createPublicJobBodySchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("file"),
     projectId: projectIdSchema,
+    ...createPublicJobSharedFields,
     fileInput: z.object({
       sourceFileId: z.string().trim().min(1).max(128),
       fileFormat: z.enum(supportedFileTranslationFileFormats),
@@ -57,6 +69,13 @@ export const createPublicJobBodySchema = z.discriminatedUnion("type", [
     }),
   }),
 ]);
+
+// Printable ASCII without spaces, so keys compare exactly.
+export const publicJobIdempotencyKeySchema = z
+  .string()
+  .min(1)
+  .max(maxPublicJobIdempotencyKeyLength)
+  .regex(/^[\x21-\x7e]+$/);
 
 export const jobIdParamsSchema = z.object({
   jobId: z.string().trim().min(1).max(128),
