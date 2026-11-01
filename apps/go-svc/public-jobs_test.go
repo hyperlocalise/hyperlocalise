@@ -241,7 +241,25 @@ func TestPublicJobsRead(t *testing.T) {
             "id":"`+id+`","projectId":"`+f.scope.ProjectID+`","type":"file","status":"succeeded",
             "createdAt":"2026-01-02T03:04:05.678Z","updatedAt":"2026-01-02T04:04:05.678Z","completedAt":"2026-01-02T05:04:05.678Z",
             "lastError":"`+longError+`",
+            "title":null,"description":null,"dueAt":null,"ownerEmail":null,
             "outputFiles":[{"fileId":"file_output_fr","locale":"fr-FR","filename":"source.fr-FR.xliff"}]}}`, rec.Body.String())
+	})
+
+	t.Run("returns the title, description, due date and owner a client set", func(t *testing.T) {
+		f := newPublicJobsFixture(t, "admin", nil)
+		id := mustPublicJob(t, f.scope, publicJobSeed{status: "queued", jobType: "string"})
+		dueAt := time.Date(2026, 11, 15, 17, 0, 0, 0, time.UTC)
+		var email string
+		require.NoError(t, f.scope.Pool.QueryRow(t.Context(), `select email from users where id=$1`, f.scope.UserID).Scan(&email))
+		_, err := f.scope.Pool.Exec(t.Context(), `update jobs set owner_user_id=$2, due_at=$3,
+            input_payload='{"metadata":{"title":"Spring campaign","description":"Landing page"}}'::jsonb where id=$1`,
+			id, f.scope.UserID, dueAt)
+		require.NoError(t, err)
+		job := decodePublicJob(t, f.get(t, "/v1/jobs/"+id))
+		require.Equal(t, "Spring campaign", job["title"])
+		require.Equal(t, "Landing page", job["description"])
+		require.Equal(t, "2026-11-15T17:00:00.000Z", job["dueAt"])
+		require.Equal(t, email, job["ownerEmail"])
 	})
 
 	t.Run("returns null metadata for unfinished and string jobs", func(t *testing.T) {
