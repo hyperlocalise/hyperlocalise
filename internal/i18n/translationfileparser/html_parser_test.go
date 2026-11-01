@@ -191,6 +191,44 @@ func TestHTMLParserParsePreservesHTMLEntitiesInEntries(t *testing.T) {
 	}
 }
 
+func TestHTMLParserParseSkipsEntityOnlyTextNodes(t *testing.T) {
+	content := []byte(`<table><tr><td>&nbsp;</td><td>Hello</td><td>&amp;</td><td>&#160;</td></tr></table>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("expected 1 entry, got %d: %v", len(got), got)
+	}
+	for _, text := range got {
+		if text != "Hello" {
+			t.Fatalf("expected Hello as the only translatable cell, got %v", got)
+		}
+	}
+}
+
+func TestHTMLMarshalRoundTripPreservesEntityOnlyCells(t *testing.T) {
+	template := []byte(`<td>&nbsp;</td><td>Hello</td>`)
+	got, err := HTMLParser{}.Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 entry, got %d: %v", len(got), got)
+	}
+
+	rendered, _ := MarshalHTML(template, map[string]string{"html.td.2": "Bonjour", "html.td": "Bonjour"})
+	out := string(rendered)
+	if !strings.Contains(out, "&nbsp;") {
+		t.Fatalf("expected &nbsp; literal preserved, got %q", out)
+	}
+	if !strings.Contains(out, "Bonjour") {
+		t.Fatalf("expected translated Hello, got %q", out)
+	}
+}
+
 func TestHTMLParserParseSkipsWhitespaceOnlyTextNodes(t *testing.T) {
 	content := []byte(`<ul>
   <li>Item one</li>

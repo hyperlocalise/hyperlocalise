@@ -436,7 +436,7 @@ function walkHtmlDocument(
       return;
     }
     const { placeholdered, plainText } = protectHTMLInlineSyntax(raw);
-    if (!isTranslatableChunk(plainText)) {
+    if (!isHtmlTranslatableText(plainText)) {
       emitLiteral(raw);
       return;
     }
@@ -565,6 +565,15 @@ function htmlSlotKey(path: string, occurrences: Map<string, number>): string {
 
 function isAllHTMLWhitespace(value: string): boolean {
   return value.trim().length === 0;
+}
+
+/** Decode entities before the letter/digit check so `&nbsp;` is not a segment. */
+function isHtmlTranslatableText(value: string): boolean {
+  const decoded = unescapeHtml(value);
+  if (decoded === "" || isAllHTMLWhitespace(decoded)) {
+    return false;
+  }
+  return isTranslatableChunk(decoded);
 }
 
 function isTranslatableChunk(chunk: string): boolean {

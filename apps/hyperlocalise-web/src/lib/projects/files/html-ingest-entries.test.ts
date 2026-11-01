@@ -129,6 +129,16 @@ describe("extractHtmlIngestEntries", () => {
     });
   });
 
+  it("skips entity-only cells so spacer markup is not a segment", () => {
+    const html =
+      "<table><tr><td>&nbsp;</td><td>Hello</td><td>&amp;</td><td>&#160;</td></tr></table>";
+    const got = extractHtmlIngestEntries(html);
+    expect(Object.values(got)).toEqual(["Hello"]);
+    expect(applyHtmlIngestTranslations(html, { [Object.keys(got)[0]!]: "Bonjour" })).toBe(
+      "<table><tr><td>&nbsp;</td><td>Bonjour</td><td>&amp;</td><td>&#160;</td></tr></table>",
+    );
+  });
+
   it("treats Design Studio x- components as fold boundaries", () => {
     const html =
       "<x-base><x-section><x-heading-1>Welcome! Confirm your email</x-heading-1></x-section>" +
