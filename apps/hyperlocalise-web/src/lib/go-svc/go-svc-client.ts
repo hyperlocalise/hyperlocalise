@@ -15,6 +15,7 @@ import { GoSvcApiKeyApi } from "./go-svc-api-key-api";
 import { GoSvcCatApi } from "./go-svc-cat-api";
 import { GoSvcConversationApi } from "./go-svc-conversation-api";
 import { GoSvcDictionaryApi } from "./go-svc-dictionary-api";
+import { GoSvcEditorExportApi } from "./go-svc-editor-export-api";
 import { GoSvcGlossaryApi } from "./go-svc-glossary-api";
 import { GoSvcGuidelinesApi } from "./go-svc-guidelines-api";
 import { GoSvcIssueSheetApi } from "./go-svc-issue-sheet-api";
@@ -47,6 +48,7 @@ export class GoSvcClient {
   readonly cat: GoSvcCatApi;
   readonly conversation: GoSvcConversationApi;
   readonly dictionary: GoSvcDictionaryApi;
+  readonly editorExport: GoSvcEditorExportApi;
   readonly domains: GoSvcDomainsApi;
   readonly glossary: GoSvcGlossaryApi;
   readonly guidelines: GoSvcGuidelinesApi;
@@ -71,6 +73,7 @@ export class GoSvcClient {
     this.cat = new GoSvcCatApi(request);
     this.conversation = new GoSvcConversationApi(request);
     this.dictionary = new GoSvcDictionaryApi(request);
+    this.editorExport = new GoSvcEditorExportApi(request);
     this.domains = new GoSvcDomainsApi(request);
     this.glossary = new GoSvcGlossaryApi(request);
     this.guidelines = new GoSvcGuidelinesApi(request);

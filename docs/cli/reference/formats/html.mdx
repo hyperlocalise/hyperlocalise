@@ -68,8 +68,8 @@ configured target path and updates the lockfile.
 - Inline tags start a new segment. For
   `<p>Open <strong>your project</strong> to get started.</p>` the keys are
   `html.p` (`Open `), `html.p.strong` (`your project`), and `html.p.2`
-  (` to get started.`). Punctuation-only text is skipped. Tags stay in the
-  file around those text nodes.
+  (` to get started.`). Punctuation-only text and entity-only cells such as
+  `&nbsp;` are skipped. Tags stay in the file around those text nodes.
 
 - `script`, `style`, `pre`, and `head` content are excluded, including
   `<title>`. Comments and whitespace-only text are preserved.

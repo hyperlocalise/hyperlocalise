@@ -42,6 +42,7 @@ export const V1_ACTIVITY_EVENT_TYPES = [
   "member_joined",
   "member_role_changed",
   "member_removed",
+  "member_left",
   "workspace_updated",
   "workspace_archived",
   "personal_access_token_created",
@@ -230,6 +231,10 @@ export type ActivityPayloadByEventType = {
     nextRole: ActivityMembershipRole;
   };
   member_removed: {
+    memberUserId: string;
+    membershipId: string;
+  };
+  member_left: {
     memberUserId: string;
     membershipId: string;
   };
@@ -480,6 +485,7 @@ export type ActivityTargetKindByEventType = {
   member_joined: "membership";
   member_role_changed: "membership";
   member_removed: "membership";
+  member_left: "membership";
   workspace_updated: "organization";
   workspace_archived: "organization";
   personal_access_token_created: "personal_access_token";

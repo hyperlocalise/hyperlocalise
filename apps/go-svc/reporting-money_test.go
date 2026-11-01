@@ -2,10 +2,38 @@ package main
 
 import (
 	"math/big"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+var legacyUSDAmountPattern = regexp.MustCompile(`^\d+(\.\d{1,8})?$`)
+
+func legacyUSDUnits(value string) (*big.Int, error) {
+	if !legacyUSDAmountPattern.MatchString(value) {
+		return nil, errInvalidUSD
+	}
+	whole, fraction, _ := strings.Cut(value, ".")
+	units, ok := new(big.Int).SetString(whole+fraction+strings.Repeat("0", usdFractionDigits-len(fraction)), 10)
+	if !ok {
+		return nil, errInvalidUSD
+	}
+	return units, nil
+}
+
+func legacyUSDString(value *big.Int) string {
+	sign := ""
+	absolute := new(big.Int).Set(value)
+	if absolute.Sign() < 0 {
+		sign = "-"
+		absolute.Neg(absolute)
+	}
+	whole, fraction := new(big.Int).QuoRem(absolute, big.NewInt(100_000_000), new(big.Int))
+	digits := fraction.String()
+	return sign + whole.String() + "." + strings.Repeat("0", usdFractionDigits-len(digits)) + digits
+}
 
 func mustUSD(t *testing.T, value *big.Int, err error) string {
 	t.Helper()
@@ -49,10 +77,56 @@ func TestReportingMoneyMatchesHono(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "-150.50000000", usdString(budget.Sub(budget, spent)))
 
-	for _, invalid := range []string{"-1", "", "1.", ".5", "1.123456789", "1e3", " 1"} {
+	for _, invalid := range []string{"-1", "", "1.", ".5", "1.123456789", "1e3", " 1", "+1", "1.2.3", "1..2", ".", "..", "1. ", "1.0.0"} {
 		_, err := usdUnits(invalid)
 		require.ErrorIs(t, err, errInvalidUSD, invalid)
 	}
+
+	for _, valid := range []string{"0", "00", "0.0", "0.10", "100", "1.12345678", "1.1234567", "999999999999.99999999"} {
+		got, err := usdUnits(valid)
+		require.NoError(t, err, valid)
+		want, err := legacyUSDUnits(valid)
+		require.NoError(t, err, valid)
+		require.Equal(t, 0, got.Cmp(want), valid)
+	}
+}
+
+func TestUSDStringMatchesLegacyQuoRem(t *testing.T) {
+	values := []*big.Int{
+		big.NewInt(0),
+		big.NewInt(1),
+		big.NewInt(-1),
+		big.NewInt(99_999_999),
+		big.NewInt(100_000_000),
+		big.NewInt(100_000_001),
+		big.NewInt(-150_000_000),
+		big.NewInt(12_000_000),
+	}
+	large, ok := new(big.Int).SetString("23999999999999999976", 10)
+	require.True(t, ok)
+	values = append(values, large, new(big.Int).Neg(large))
+
+	for _, value := range values {
+		require.Equal(t, legacyUSDString(value), usdString(value), value.String())
+	}
+}
+
+func TestUSDUnitsRoundTrip(t *testing.T) {
+	for _, value := range []string{"0", "0.1", "0.10", "1.23456789", "100", "999999999999.99999999"} {
+		units, err := usdUnits(value)
+		require.NoError(t, err, value)
+		formatted := usdString(units)
+		again, err := usdUnits(formatted)
+		require.NoError(t, err, formatted)
+		require.Equal(t, 0, units.Cmp(again), value)
+	}
+}
+
+func TestWordCostFullPercent(t *testing.T) {
+	full, err := wordCost("0.15", 10, 100)
+	require.Equal(t, "1.50000000", mustUSD(t, full, err))
+	zero, err := wordCost("0.15", 0, 50)
+	require.Equal(t, "0.00000000", mustUSD(t, zero, err))
 }
 
 func TestReportingPayablePercent(t *testing.T) {
@@ -82,6 +156,27 @@ func TestReportingPayablePercent(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestReportingPaidPercentPricesUnavailableWorkAsNew(t *testing.T) {
+	got, err := reportingPaidPercent([]byte(`{"new":25,"unavailable":0}`), "unavailable")
+	require.NoError(t, err)
+	require.Equal(t, 25, got)
+
+	got, err = reportingPaidPercent(nil, "unavailable")
+	require.NoError(t, err)
+	require.Equal(t, 100, got)
+}
+
+func TestUsdFloatRejectsInvalidAmountsBeforeParsing(t *testing.T) {
+	got, err := usdFloat("1.25")
+	require.NoError(t, err)
+	require.Equal(t, 1.25, got)
+
+	_, err = usdFloat("-1")
+	require.ErrorIs(t, err, errInvalidUSD)
+	_, err = usdFloat("1e3")
+	require.ErrorIs(t, err, errInvalidUSD)
 }
 
 func TestReportingBudgetWarning(t *testing.T) {

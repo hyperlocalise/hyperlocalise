@@ -19,6 +19,7 @@ import {
   readImportCustomerIoCampaigns,
   readImportGoogleDriveFiles,
   readImportIntercomArticles,
+  readImportIterableTemplates,
   readImportLoopsEmails,
   readImportSanityDocuments,
   readImportWebflowItems,
@@ -27,6 +28,7 @@ import {
   readPushCustomerIoCampaigns,
   readPushGoogleDriveTranslations,
   readPushIntercomTranslations,
+  readPushIterableTemplates,
   readPushLoopsEmails,
   readPushSanityTranslations,
   readPushWebflowTranslations,
@@ -524,6 +526,59 @@ describe("readPushLoopsEmails", () => {
 
   it("rejects a persisted object missing pushedLocales", () => {
     expect(readPushLoopsEmails({ pushLoopsEmails: { status: "succeeded" } }, {})).toBeNull();
+  });
+});
+
+describe("readImportIterableTemplates", () => {
+  it("prefers the current step, then the persisted summary, then prior step results", () => {
+    expect(
+      readImportIterableTemplates(
+        { importIterableTemplates: { imported: 4, status: "stale" } },
+        { import_iterable_templates: { imported: 0, failed: 2 } },
+      ),
+    ).toEqual({ imported: 0, failed: 2 });
+    expect(
+      readImportIterableTemplates({ importIterableTemplates: { imported: 3, skipped: 1 } }, {}),
+    ).toEqual({
+      imported: 3,
+      skipped: 1,
+    });
+    expect(
+      readImportIterableTemplates(
+        {
+          orchestratorStepResults: {
+            import_iterable_templates: { imported: 2, status: "succeeded" },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ imported: 2, status: "succeeded" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportIterableTemplates(
+        { importIterableTemplates: { status: "succeeded", failed: 0 } },
+        { import_iterable_templates: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushIterableTemplates", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushIterableTemplates(
+        {},
+        { push_iterable_templates: { pushedLocales: 0, failedLocales: 0 } },
+      ),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(
+      readPushIterableTemplates({ pushIterableTemplates: { status: "succeeded" } }, {}),
+    ).toBeNull();
   });
 });
 

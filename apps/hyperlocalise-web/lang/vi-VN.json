@@ -533,6 +533,9 @@
   "+tsNE73Ud/": {
     "defaultMessage": "Đặt số lượng ký tự tối đa được phép trong bản dịch."
   },
+  "+u6bMZ2pRz": {
+    "defaultMessage": "Continue"
+  },
   "+ufsbqnrz9": {
     "defaultMessage": "Hoạt động của tác nhân"
   },
@@ -1445,6 +1448,9 @@
   "0TnAd5e2Yn": {
     "defaultMessage": "Sử dụng các mô hình khác nhau cho các loại nội dung khác nhau trong khi vẫn giữ logic xem xét và đồng bộ nhất quán."
   },
+  "0UO1BREBTM": {
+    "defaultMessage": "Đang chấp nhận…"
+  },
   "0UVlCvBqbT": {
     "defaultMessage": "Chưa có tin nhắn nào"
   },
@@ -1678,6 +1684,9 @@
   },
   "0s28QK0gJ3": {
     "defaultMessage": "Cài đặt · Hành động chính"
+  },
+  "0sHkme+8tb": {
+    "defaultMessage": "Thành viên đã rời đi"
   },
   "0su3rYbABy": {
     "defaultMessage": "Công việc mới nhất · {status}"
@@ -3395,6 +3404,9 @@
   "3xXiVgOezJ": {
     "defaultMessage": "Trang đó không còn hợp lệ. Đang hiển thị trang đầu tiên."
   },
+  "3xa+IqbvLl": {
+    "defaultMessage": "Chọn một không gian làm việc"
+  },
   "3xhOvPA3lu": {
     "defaultMessage": "Tải lên nguồn · {project}"
   },
@@ -4816,6 +4828,9 @@
   },
   "6acz11Hecl": {
     "defaultMessage": "Experiments"
+  },
+  "6alv0fvJQR": {
+    "defaultMessage": "Đây là không gian làm việc duy nhất của bạn. Bạn có thể được yêu cầu đăng nhập lại; sau đó, bạn có thể tạo không gian làm việc mới hoặc chấp nhận lời mời."
   },
   "6bCLEYenE4": {
     "defaultMessage": "Cờ hiện có"
@@ -8997,7 +9012,7 @@
     "defaultMessage": "Đã xóa thuật ngữ"
   },
   "ECeu9B3gSM": {
-    "defaultMessage": "Hyperlocalise AI"
+    "defaultMessage": "AI Hyperlocalise"
   },
   "ECh2wuwOCJ": {
     "defaultMessage": "Nội dung Markdown"
@@ -10775,6 +10790,9 @@
   "HV+orx8sr6": {
     "defaultMessage": "Phát hiện các thay đổi trong chuỗi và tự động dịch"
   },
+  "HVWNQgqVcW": {
+    "defaultMessage": "Lời mời của bạn đã được chấp nhận, nhưng không gian làm việc chưa sẵn sàng. Hãy tải lại trang sau một lát."
+  },
   "HVa66T0BGY": {
     "defaultMessage": "{count, plural, one {# bước đã chạy thực tế} other {# bước đã chạy thực tế}}"
   },
@@ -11263,6 +11281,9 @@
   },
   "IMr6sfD/7/": {
     "defaultMessage": "Files"
+  },
+  "IO9ifurzwW": {
+    "defaultMessage": "Hủy"
   },
   "IOmySBLwfP": {
     "defaultMessage": "Thử lại"
@@ -12449,6 +12470,9 @@
   "KePBZ202q8": {
     "defaultMessage": "“{name}” sẽ bị xóa khỏi thử nghiệm này. Hành động này không thể hoàn tác."
   },
+  "Kg5oomFJK7": {
+    "defaultMessage": "và thêm {count} mục nữa"
+  },
   "KgPZ5Uqgat": {
     "defaultMessage": "Manager"
   },
@@ -12514,6 +12538,9 @@
   },
   "Kq4aU8dzI5": {
     "defaultMessage": "Xem xét các phát hiện từ lần quét thành công gần đây nhất của từng dự án. Kiểm tra trạng thái dự án để biết các lần quét bị lỗi, đang chạy hoặc chưa từng được thực hiện."
+  },
+  "KqiLqEGTTZ": {
+    "defaultMessage": "Xác minh địa chỉ email của bạn để xem lời mời tham gia các không gian làm việc khác, sau đó tải lại trang này."
   },
   "Ks+Feeoung": {
     "defaultMessage": "{count} ký tự"
@@ -12667,6 +12694,9 @@
   },
   "L9CYRKrj6S": {
     "defaultMessage": "Quản trị viên"
+  },
+  "L9HXNtVWvN": {
+    "defaultMessage": "Lời mời này đã hết hạn hoặc bị thu hồi. Hãy yêu cầu quản trị viên không gian làm việc mời bạn lại."
   },
   "LAhLwqc2EA": {
     "defaultMessage": "Figma"
@@ -13246,6 +13276,9 @@
   },
   "M8XELItknC": {
     "defaultMessage": "Mở trong trình chỉnh sửa"
+  },
+  "M95Yl2ZYHn": {
+    "defaultMessage": "Tạo không gian làm việc"
   },
   "M9MtJAsUOq": {
     "defaultMessage": "On error được đặt thành Stop, vì vậy lượt chạy kiểm thử sẽ dừng ở bước này."
@@ -14773,6 +14806,9 @@
   },
   "P3c/gqRJ32": {
     "defaultMessage": "Bản dịch đã thay đổi — hãy chạy quét để kiểm tra lại."
+  },
+  "P3hJ1/69DS": {
+    "defaultMessage": "Không thể rời khỏi không gian làm việc. Hãy thử lại."
   },
   "P4A/eg4+zm": {
     "defaultMessage": "Tiêu đề 2"
@@ -16703,6 +16739,9 @@
   "SiPCg9X6AE": {
     "defaultMessage": "Preview"
   },
+  "Siv+JUHnHq": {
+    "defaultMessage": "Thử lại"
+  },
   "SjHx8vM/dA": {
     "defaultMessage": "Scoring"
   },
@@ -17608,6 +17647,9 @@
   },
   "UK+ou5Ws9N": {
     "defaultMessage": "6 tháng qua"
+  },
+  "UK7jOz9fV2": {
+    "defaultMessage": "Mở một trong các không gian làm việc của bạn, chấp nhận lời mời hoặc tạo không gian làm việc mới."
   },
   "UKFf8HWVZX": {
     "defaultMessage": "Đang tải miền…"
@@ -18530,6 +18572,9 @@
   "W3V5ERIIW9": {
     "defaultMessage": "Linked context"
   },
+  "W3dD2MKin0": {
+    "defaultMessage": "{count, plural, one {Tự động hóa này sử dụng tài khoản bạn đã kết nối và có thể ngừng hoạt động:} other {Các quy trình tự động hóa này sử dụng những tài khoản bạn đã kết nối và có thể ngừng hoạt động:}}"
+  },
   "W3kvUxF+V1": {
     "defaultMessage": "Quy trình đã tạm dừng"
   },
@@ -19078,6 +19123,9 @@
   },
   "X69pKW667o": {
     "defaultMessage": "Không tìm thấy vấn đề nào"
+  },
+  "X6NUPESd72": {
+    "defaultMessage": "Accept"
   },
   "X6g1omP0I1": {
     "defaultMessage": "Thông báo cho #compliance khi các phát hiện cần được xem xét."
@@ -19655,6 +19703,9 @@
   "Y9uUKekkpa": {
     "defaultMessage": "Tạo và điều chỉnh văn bản, tài liệu, slide, hình ảnh và video. Giữ nguyên bối cảnh, giọng điệu và đội ngũ của bạn."
   },
+  "Y9y6zTkXYd": {
+    "defaultMessage": "Rời khỏi không gian làm việc"
+  },
   "YAgd2vmpnm": {
     "defaultMessage": "Không thể tải các công việc của không gian làm việc."
   },
@@ -19813,6 +19864,9 @@
   },
   "YTRbiRB1qL": {
     "defaultMessage": "Không tìm thấy công việc Hyperlocalise nào được giao."
+  },
+  "YToRIe9hSd": {
+    "defaultMessage": "Đang chấp nhận lời mời đến {name}…"
   },
   "YTpu1j7/Q4": {
     "defaultMessage": "Action"
@@ -20378,6 +20432,9 @@
   "ZV8a5iOSNX": {
     "defaultMessage": "Đã xuất bản lên môi trường staging · đã thông báo cho #gtm"
   },
+  "ZVIyFNqsnD": {
+    "defaultMessage": "đã rời khỏi không gian làm việc"
+  },
   "ZVZIaOT6mh": {
     "defaultMessage": "Đối thủ cạnh tranh"
   },
@@ -20755,6 +20812,9 @@
   },
   "a5wP5u9Iqr": {
     "defaultMessage": "Suy luận"
+  },
+  "a6AWYfXez+": {
+    "defaultMessage": "Rời khỏi {name}?"
   },
   "a6JR5uFWOp": {
     "defaultMessage": "Bước"
@@ -21412,6 +21472,9 @@
   },
   "bJPgIG0M7T": {
     "defaultMessage": "Branch"
+  },
+  "bJQH/XlrZq": {
+    "defaultMessage": "Tạo một không gian làm việc khác"
   },
   "bKPrJiNBf6": {
     "defaultMessage": "Sự kiện"
@@ -22358,6 +22421,9 @@
   "d5Z1STDBKG": {
     "defaultMessage": "Lokalise"
   },
+  "d62LeLJXFa": {
+    "defaultMessage": "Bạn không còn là thành viên của không gian làm việc này."
+  },
   "d6ELhmM7BL": {
     "defaultMessage": "AI giúp giải thích các đánh đổi, nhưng người duyệt vẫn giữ quyền kiểm soát quyết định cuối cùng."
   },
@@ -22489,6 +22555,9 @@
   },
   "dIjV9bElOk": {
     "defaultMessage": "Đã bắt đầu báo cáo: {date}"
+  },
+  "dInHga4hn8": {
+    "defaultMessage": "Hãy xác minh địa chỉ email của bạn trước khi chấp nhận lời mời, sau đó thử lại."
   },
   "dIpX2t1U6p": {
     "defaultMessage": "Làm mới ngữ cảnh"
@@ -23131,6 +23200,9 @@
   },
   "eI8CB+a2hA": {
     "defaultMessage": "Lỗi dịch thuật"
+  },
+  "eIdejZFXxK": {
+    "defaultMessage": "{count, plural, one {Khóa API này sẽ ngừng hoạt động:} other {Các khóa API này sẽ ngừng hoạt động:}}"
   },
   "eIzQewHUyw": {
     "defaultMessage": "Bản xuất {format}"
@@ -25184,6 +25256,9 @@
   "hx+ozGK2uu": {
     "defaultMessage": "Pick up where you left off — {details}."
   },
+  "hxaX4oOeRm": {
+    "defaultMessage": "Chúng tôi không thể kết nối với dịch vụ đăng nhập. Vui lòng thử lại sau giây lát."
+  },
   "hxojPYuxF0": {
     "defaultMessage": "Previous"
   },
@@ -26789,6 +26864,9 @@
   "kjx+4Dj0jz": {
     "defaultMessage": "Lời nhắn từ những người sáng lập"
   },
+  "klDfkrFdL9": {
+    "defaultMessage": "Lời mời"
+  },
   "klJCqIQ+RC": {
     "defaultMessage": "Other"
   },
@@ -27173,6 +27251,9 @@
   "lPmc7tHCkL": {
     "defaultMessage": "{spaceId}/{environmentId}"
   },
+  "lQxXTbs2H9": {
+    "defaultMessage": "Tạo không gian làm việc"
+  },
   "lR7pNsCeCh": {
     "defaultMessage": "Tất cả dự án"
   },
@@ -27409,6 +27490,9 @@
   },
   "lsmpBVLKpZ": {
     "defaultMessage": "Hiệu đính"
+  },
+  "lsoHEzfNM1": {
+    "defaultMessage": "Đang kiểm tra những thay đổi khi bạn rời khỏi…"
   },
   "lsxAaZycti": {
     "defaultMessage": "GitHub"
@@ -28046,6 +28130,9 @@
   "n+jmfgFlG0": {
     "defaultMessage": "Bản dịch được đọc từ dự án này trước khi mở yêu cầu kéo."
   },
+  "n+wQ7BXYlc": {
+    "defaultMessage": "Rời khỏi không gian làm việc…"
+  },
   "n+ysONBMTA": {
     "defaultMessage": "Xóa"
   },
@@ -28060,6 +28147,9 @@
   },
   "n02KlXlk6i": {
     "defaultMessage": "Bước này không có cài đặt bổ sung nào trong bản xem trước."
+  },
+  "n0CHcDaj4y": {
+    "defaultMessage": "Chấp nhận lời mời tham gia {name}"
   },
   "n0l2Kl1EOo": {
     "defaultMessage": "Kho lưu trữ"
@@ -28532,6 +28622,9 @@
   "nnCxP1Ix40": {
     "defaultMessage": "Kết nối các công cụ của bạn"
   },
+  "nnVaD4zJuo": {
+    "defaultMessage": "Một không gian làm việc mới có các dự án, thành viên, cài đặt và gói riêng. Bạn vẫn là thành viên của các không gian làm việc khác."
+  },
   "nnXWSAtR1P": {
     "defaultMessage": "Store organization-wide localization guidance as one flexible markdown memory."
   },
@@ -28996,6 +29089,9 @@
   },
   "ohFSHTwja2": {
     "defaultMessage": "Đã cập nhật"
+  },
+  "oiJegD5+SZ": {
+    "defaultMessage": "Không thể kiểm tra những gì sẽ thay đổi khi bạn rời đi."
   },
   "oiLDAv4P0Y": {
     "defaultMessage": "Khớp tất cả các quy tắc"
@@ -30242,6 +30338,9 @@
   "qqzc5HNRQF": {
     "defaultMessage": "Giữ lại những tài liệu bạn có. Phát huy giá trị của chúng. | Hyperlocalise"
   },
+  "qr+n6Od9jO": {
+    "defaultMessage": "Hủy"
+  },
   "qs2xntPsAx": {
     "defaultMessage": "SEO & AEO"
   },
@@ -30643,6 +30742,9 @@
   },
   "rXIITR1I9M": {
     "defaultMessage": "Tự động hóa"
+  },
+  "rXMDxSDgo4": {
+    "defaultMessage": "Bạn là quản trị viên duy nhất của không gian làm việc này. Hãy đặt một thành viên khác làm quản trị viên trước khi rời đi."
   },
   "rXuCG4x28U": {
     "defaultMessage": "Chọn một tài nguyên"
@@ -33365,6 +33467,9 @@
   "wTei3/v4E4": {
     "defaultMessage": "Hoạt động xuyên suốt các quy trình kỹ thuật, sản phẩm và bản địa hóa"
   },
+  "wTouXDwM8N": {
+    "defaultMessage": "Đang rời đi…"
+  },
   "wU/mAJtu+z": {
     "defaultMessage": "Mô tả quy trình tự động hóa"
   },
@@ -34222,6 +34327,9 @@
   },
   "xzZ3ZLUqLC": {
     "defaultMessage": "Các bảng giá được dùng chung cho mọi báo cáo. Các thay đổi sẽ áp dụng cho công việc được ghi nhận từ thời điểm này trở đi."
+  },
+  "xzl3uN35Vr": {
+    "defaultMessage": "Bạn sẽ mất quyền truy cập vào không gian làm việc này và các dự án của không gian. Để quay lại, quản trị viên phải mời bạn lần nữa."
   },
   "y+0ftMWpAa": {
     "defaultMessage": "URL: {url}"

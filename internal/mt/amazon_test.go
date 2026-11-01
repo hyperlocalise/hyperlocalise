@@ -176,14 +176,18 @@ func TestAmazonClientTranslateSourceExceedsByteLimitMakesNoRequest(t *testing.T)
 }
 
 func TestAmazonClientTranslateEmptySourceMakesNoRequest(t *testing.T) {
+	var calls int
 	client := newAmazonTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		t.Fatal("unexpected HTTP call for an empty source")
+		calls++
+		w.Header().Set("Content-Type", "application/x-amz-json-1.1")
+		_, _ = w.Write([]byte(`{"TranslatedText":"salut"}`))
 	})
 
-	_, err := client.Translate(t.Context(), Request{SourceLocale: "en", TargetLocale: "fr", Sources: []string{"hi", ""}})
-	typed, ok := AsError(err)
-	require.True(t, ok)
-	require.Equal(t, ErrorCodeValidation, typed.Code)
+	resp, err := client.Translate(t.Context(), Request{SourceLocale: "en", TargetLocale: "fr", Sources: []string{"hi", "", " \u00a0 "}})
+	require.NoError(t, err)
+	require.Equal(t, 1, calls)
+	require.Equal(t, []string{"salut", "", " \u00a0 "}, resp.Translations)
+	require.Equal(t, 1, resp.RequestCount)
 }
 
 func TestAmazonClientTranslateEmptyInputMakesNoRequest(t *testing.T) {

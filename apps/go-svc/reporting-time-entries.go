@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -13,7 +12,10 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-type reportingTimeEntryRecord struct {
+// Time people log on tasks: logged, edited and deleted (voided, with the cost it was priced at).
+
+// reportingTimeEntryRow is a time entry as the web app records it in the audit.
+type reportingTimeEntryRow struct {
 	ID             string  `json:"id"`
 	OrganizationID string  `json:"organizationId"`
 	ProjectID      *string `json:"projectId"`
@@ -29,112 +31,92 @@ type reportingTimeEntryRecord struct {
 	CreatedAt      string  `json:"createdAt"`
 }
 
-const reportingTimeEntryColumns = `id, organization_id, project_id, job_id, contributor_id, step, target_locale, work_date, minutes, note, rate_id, voided, created_at`
+const reportingTimeEntryColumns = "id, organization_id, project_id, job_id, contributor_id, step, target_locale, work_date, minutes, note, rate_id, voided, created_at"
 
-func scanReportingTimeEntry(row pgx.Row) (reportingTimeEntryRecord, error) {
-	var entry reportingTimeEntryRecord
+func scanReportingTimeEntry(row pgx.Row) (reportingTimeEntryRow, error) {
+	var entry reportingTimeEntryRow
 	var workDate, created time.Time
-	err := row.Scan(&entry.ID, &entry.OrganizationID, &entry.ProjectID, &entry.JobID, &entry.ContributorID, &entry.Step,
-		&entry.TargetLocale, &workDate, &entry.Minutes, &entry.Note, &entry.RateID, &entry.Voided, &created)
-	entry.WorkDate = formatReportingTime(workDate)
-	entry.CreatedAt = formatReportingTime(created)
+	err := row.Scan(&entry.ID, &entry.OrganizationID, &entry.ProjectID, &entry.JobID, &entry.ContributorID, &entry.Step, &entry.TargetLocale,
+		&workDate, &entry.Minutes, &entry.Note, &entry.RateID, &entry.Voided, &created)
+	entry.WorkDate, entry.CreatedAt = formatReportingTime(workDate), formatReportingTime(created)
 	return entry, err
 }
 
-func resolveReportingRate(ctx context.Context, db dictionaryDB, organizationID, projectID, jobID, sourceLocale, targetLocale, step string) (*reportingRate, error) {
-	var overrideRateID *string
-	err := db.QueryRow(ctx, `select rate_id from reporting_task_rates where organization_id=$1 and job_id=$2 and step=$3`,
-		organizationID, jobID, step).Scan(&overrideRateID)
-	if err != nil && !isNoRows(err) {
-		return nil, fmt.Errorf("load task rate override: %w", err)
-	}
-	if overrideRateID != nil {
-		return optionalReportingRate(db.QueryRow(ctx, `select `+reportingRateColumns+` from reporting_rates where id=$1 and organization_id=$2`,
-			*overrideRateID, organizationID))
-	}
-	var rateCardName *string
-	err = db.QueryRow(ctx, `select rate_card_name from reporting_budgets where organization_id=$1 and project_id=$2`,
-		organizationID, projectID).Scan(&rateCardName)
-	if err != nil && !isNoRows(err) {
-		return nil, fmt.Errorf("load budget rate card: %w", err)
-	}
-	if rateCardName == nil || *rateCardName == "" {
-		return nil, nil
-	}
-	return optionalReportingRate(db.QueryRow(ctx, `
-        select `+reportingRateColumns+` from reporting_rates
-        where organization_id=$1 and name=$2 and source_locale=$3 and target_locale=$4 and step=$5
-        order by created_at desc, id desc limit 1`,
-		organizationID, *rateCardName, sourceLocale, targetLocale, step))
+type reportingRateRow struct {
+	id, basis, rate string
+	retired         bool
 }
 
-func optionalReportingRate(row pgx.Row) (*reportingRate, error) {
-	rate, err := scanReportingRate(row)
-	if isNoRows(err) {
+// reportingRateLineFor is a card's line for a language pair and step, as of the time asOf
+// reads (now when nil). Rates are versioned rows: a line taken off the card is a newer, retired
+// row, so the newest row decides.
+func reportingRateLineFor(ctx context.Context, db dictionaryDB, organizationID, name, sourceLocale, targetLocale, step string, asOf *string) (*reportingRateRow, error) {
+	var args reportingArgs
+	where := fmt.Sprintf("organization_id = %s and name = %s and source_locale = %s and target_locale = %s and step = %s",
+		args.add(organizationID), args.add(name), args.add(sourceLocale), args.add(targetLocale), args.add(step))
+	if asOf != nil {
+		where += " and created_at <= (select priced_at from reporting_task_rates where id = " + args.add(*asOf) + ")"
+	}
+	var rate reportingRateRow
+	err := db.QueryRow(ctx, `select id, basis, rate::text, retired from reporting_rates where `+where+` order by created_at desc, id desc limit 1`, args...).
+		Scan(&rate.id, &rate.basis, &rate.rate, &rate.retired)
+	if isNoRows(err) || (err == nil && rate.retired) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("load reporting rate: %w", err)
+		return nil, fmt.Errorf("read rate line: %w", err)
 	}
 	return &rate, nil
 }
 
-func reportingStart(ctx context.Context, db dictionaryDB) (time.Time, error) {
-	var startedAt time.Time
-	if _, err := db.Exec(ctx, `insert into reporting_rollout (id) values (1) on conflict do nothing`); err != nil {
-		return startedAt, fmt.Errorf("start reporting rollout: %w", err)
+// resolveReportingRate is the rate line that prices work: from the task's own rate card, as the
+// card was when the task was priced; else from its project budget's card, as it is now. The
+// first card found prices every language, so a language it has no line for has no rate. Nil
+// when none applies.
+func resolveReportingRate(ctx context.Context, db dictionaryDB, organizationID, projectID, jobID, sourceLocale, targetLocale, step string) (*reportingRateRow, error) {
+	var taskRateID string
+	var cardName *string
+	err := db.QueryRow(ctx, `select id, rate_card_name from reporting_task_rates where organization_id = $1 and job_id = $2 and step = $3`, organizationID, jobID, step).Scan(&taskRateID, &cardName)
+	if err != nil && !isNoRows(err) {
+		return nil, fmt.Errorf("read task pricing: %w", err)
 	}
-	if err := db.QueryRow(ctx, `select started_at from reporting_rollout limit 1`).Scan(&startedAt); err != nil {
-		return startedAt, fmt.Errorf("load reporting rollout: %w", err)
+	if err == nil && cardName != nil {
+		// Compared in the database: the moment priced keeps its microseconds.
+		return reportingRateLineFor(ctx, db, organizationID, *cardName, sourceLocale, targetLocale, step, &taskRateID)
 	}
-	return startedAt, nil
-}
-
-func reportingTimeCost(rate *reportingRate, minutes int) (*string, error) {
-	if rate == nil {
+	var budgetCard *string
+	err = db.QueryRow(ctx, `select rate_card_name from reporting_budgets where organization_id = $1 and project_id = $2`, organizationID, projectID).Scan(&budgetCard)
+	if isNoRows(err) || (err == nil && budgetCard == nil) {
 		return nil, nil
 	}
-	cost, err := hourlyCost(rate.Rate, minutes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read budget: %w", err)
 	}
-	amount := usdString(cost)
-	return &amount, nil
+	return reportingRateLineFor(ctx, db, organizationID, *budgetCard, sourceLocale, targetLocale, step, nil)
 }
 
-func insertReportingAudit(ctx context.Context, tx pgx.Tx, actor workspaceActor, resourceID, action string, before, after any) error {
-	encode := func(value any) (*string, error) {
-		if value == nil {
-			return nil, nil
-		}
-		encoded, err := json.Marshal(value)
-		if err != nil {
-			return nil, err
-		}
-		text := string(encoded)
-		return &text, nil
-	}
-	beforeJSON, err := encode(before)
+// reportingStartRecording records when Reports started for a workspace, the first time it
+// records anything for it: at its earliest record, or now. The earliest records are looked for
+// only while the workspace has no start, so the lookup runs once per workspace.
+func reportingStartRecording(ctx context.Context, db dictionaryDB, organizationID string) error {
+	_, err := db.Exec(ctx, `
+        insert into reporting_workspaces (organization_id, started_at)
+        select $1, coalesce(least(
+            (select min(created_at) from reporting_analyses where organization_id = $1),
+            (select min(created_at) from reporting_activity where organization_id = $1),
+            (select min(created_at) from reporting_costs where organization_id = $1)
+        ), now())
+        where not exists (select 1 from reporting_workspaces where organization_id = $1)
+        on conflict (organization_id) do nothing`, organizationID)
 	if err != nil {
-		return err
-	}
-	afterJSON, err := encode(after)
-	if err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, `
-        insert into reporting_audit (organization_id, actor_id, resource_id, action, before, after)
-        values ($1, $2, $3, $4, $5::text::jsonb, $6::text::jsonb)`,
-		actor.organizationID, actor.userID, resourceID, action, beforeJSON, afterJSON); err != nil {
-		return fmt.Errorf("insert reporting audit: %w", err)
+		return fmt.Errorf("start reporting: %w", err)
 	}
 	return nil
 }
 
-func (h *handler) createTimeEntry(r *http.Request, actor workspaceActor) (any, int, error) {
-	if !hasOrganizationCapability(actor.role, "jobs:write") {
-		return nil, 0, reportingForbidden("time_entry_forbidden")
-	}
+// logTime records time on a native task. The time is priced only by an hourly rate; per-unit
+// rates price finished work.
+func (api *reportingAPI) logTime(r *http.Request, actor reportingActor) (any, int, error) {
 	body, err := readReportingBody(r, "invalid_time_entry")
 	if err != nil {
 		return nil, 0, err
@@ -142,219 +124,210 @@ func (h *handler) createTimeEntry(r *http.Request, actor workspaceActor) (any, i
 	jobID := body.text("jobId", 1, math.MaxInt)
 	step := body.step("step")
 	targetLocale := body.text("targetLocale", 2, 35)
-	day := body.day("workDate")
+	workDate := body.day("workDate")
 	minutes := body.integer("minutes", 1, 1440)
 	note := body.optionalText("note", 2000)
 	if !body.valid {
 		return nil, 0, reportingInvalid("invalid_time_entry")
 	}
-	workDate, err := time.Parse(time.DateOnly, day)
-	if err != nil {
-		return nil, 0, reportingInvalid("invalid_time_entry")
-	}
-	ctx, pool := r.Context(), h.workspace.pool
-	job, err := loadReportingJob(ctx, pool, actor, jobID)
-	if isNoRows(err) || (err == nil && job.ProjectID == nil) {
-		return nil, 0, reportingNotFound("job_not_found")
-	}
-	if err != nil {
-		return nil, 0, err
-	}
-	var external bool
-	if err := pool.QueryRow(ctx, `select exists(select 1 from external_job_details where job_id=$1)`, job.ID).Scan(&external); err != nil {
-		return nil, 0, fmt.Errorf("check external job: %w", err)
-	}
-	if external {
-		return nil, 0, workspaceFailure(400, "native_job_required", "Time can only be logged on native jobs")
-	}
-	var payloadType string
-	var payloadLocale, projectLocale *string
-	if err := pool.QueryRow(ctx, `
-        select jsonb_typeof(j.input_payload), j.input_payload->>'sourceLocale', p.source_locale
-        from jobs j join projects p on p.id = j.project_id where j.id=$1`, job.ID,
-	).Scan(&payloadType, &payloadLocale, &projectLocale); err != nil {
-		return nil, 0, fmt.Errorf("load time entry locales: %w", err)
-	}
-	if payloadType == "null" {
-		return nil, 0, errors.New("time entry job payload is null")
-	}
-	sourceLocale := "en"
-	if payloadLocale != nil {
-		sourceLocale = *payloadLocale
-	} else if projectLocale != nil {
-		sourceLocale = *projectLocale
-	}
-	rate, err := resolveReportingRate(ctx, pool, actor.organizationID, *job.ProjectID, job.ID, sourceLocale, targetLocale, step)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	if _, err := tx.Exec(ctx, `select id from jobs where id=$1 for update`, job.ID); err != nil {
-		return nil, 0, fmt.Errorf("lock time entry job: %w", err)
-	}
-	var overrideUSD *string
-	err = tx.QueryRow(ctx, `select override_usd::text from reporting_task_rates where job_id=$1 and step=$2`, job.ID, step).Scan(&overrideUSD)
-	if err != nil && !isNoRows(err) {
-		return nil, 0, fmt.Errorf("load time entry task rate: %w", err)
-	}
-	var rateID *string
-	if rate != nil {
-		rateID = &rate.ID
-	}
-	entry, err := scanReportingTimeEntry(tx.QueryRow(ctx, `
-        insert into reporting_time_entries (organization_id, project_id, job_id, contributor_id, step, target_locale, work_date, minutes, note, rate_id)
-        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        returning `+reportingTimeEntryColumns,
-		actor.organizationID, *job.ProjectID, job.ID, actor.userID, step, targetLocale, workDate, minutes, note, rateID))
-	if err != nil {
-		return nil, 0, fmt.Errorf("insert time entry: %w", err)
-	}
-	if (rate == nil || rate.Basis != "word") && overrideUSD == nil {
-		amount, err := reportingTimeCost(rate, entry.Minutes)
+	ctx := r.Context()
+	var entry reportingTimeEntryRow
+	err = api.write(ctx, func(tx pgx.Tx) error {
+		job, err := loadReportingTaskRow(ctx, tx, actor, jobID)
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
-		basis := "unpriced"
+		if job.ProjectID == nil {
+			return reportingFailure(404, "job_not_found", "Resource not found")
+		}
+		var external bool
+		if err := tx.QueryRow(ctx, `select exists(select 1 from external_job_details where job_id = $1)`, job.ID).Scan(&external); err != nil {
+			return fmt.Errorf("read task source: %w", err)
+		}
+		if external {
+			return reportingFailure(400, "native_job_required", "Request payload is invalid")
+		}
+		var payload struct {
+			SourceLocale *string `json:"sourceLocale"`
+		}
+		_ = json.Unmarshal(job.Payload, &payload)
+		sourceLocale := payload.SourceLocale
+		if sourceLocale == nil {
+			if err := tx.QueryRow(ctx, `select source_locale from projects where id = $1`, *job.ProjectID).Scan(&sourceLocale); err != nil {
+				return fmt.Errorf("read project: %w", err)
+			}
+		}
+		if sourceLocale == nil {
+			sourceLocale = new(string)
+			*sourceLocale = "en"
+		}
+		// The task lock comes first, so a rate set while this runs (task pricing, which holds the
+		// same lock) cannot slip in between reading the rate and writing the entry.
+		if _, err := tx.Exec(ctx, `select id from jobs where id = $1 for update`, job.ID); err != nil {
+			return fmt.Errorf("lock task: %w", err)
+		}
+		rate, err := resolveReportingRate(ctx, tx, actor.organizationID, *job.ProjectID, job.ID, *sourceLocale, targetLocale, step)
+		if err != nil {
+			return err
+		}
+		var overrideUSD *string
+		if err := tx.QueryRow(ctx, `select override_usd::text from reporting_task_rates where job_id = $1 and step = $2`, job.ID, step).Scan(&overrideUSD); err != nil && !isNoRows(err) {
+			return fmt.Errorf("read task pricing: %w", err)
+		}
+		var rateID *string
 		if rate != nil {
-			basis = "rate"
+			rateID = &rate.id
 		}
-		if _, err := tx.Exec(ctx, `
-            insert into reporting_costs (organization_id, project_id, job_id, operation_key, kind, step, time_entry_id, target_locale, rate_id, amount_usd, basis, created_at)
-            values ($1, $2, $3, $4, 'human', $5, $6, $7, $8, $9::text::numeric, $10, $11)`,
-			actor.organizationID, *job.ProjectID, job.ID, "time:"+entry.ID, entry.Step, entry.ID, entry.TargetLocale, rateID, amount, basis, workDate); err != nil {
-			return nil, 0, fmt.Errorf("insert time cost: %w", err)
+		if entry, err = scanReportingTimeEntry(tx.QueryRow(ctx, `
+            insert into reporting_time_entries (organization_id, project_id, job_id, contributor_id, step, target_locale, work_date, minutes, note, rate_id)
+            values ($1, $2, $3, $4, $5, $6, $7::date::timestamp at time zone 'UTC', $8, $9, $10)
+            returning `+reportingTimeEntryColumns,
+			actor.organizationID, *job.ProjectID, job.ID, actor.userID, step, targetLocale, workDate, minutes, note, rateID)); err != nil {
+			return fmt.Errorf("log time: %w", err)
 		}
-	}
-	if err := insertReportingAudit(ctx, tx, actor, entry.ID, "time_created", nil, entry); err != nil {
-		return nil, 0, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, 0, err
-	}
-	if _, err := reportingStart(ctx, pool); err != nil {
+		if (rate == nil || rate.basis == "hour") && overrideUSD == nil {
+			var amount *string
+			basis := "unpriced"
+			if rate != nil {
+				cost, err := hourlyCost(rate.rate, minutes)
+				if err != nil {
+					return err
+				}
+				text := usdString(cost)
+				amount, basis = &text, "rate"
+			}
+			if _, err := tx.Exec(ctx, `
+                insert into reporting_costs (organization_id, project_id, job_id, operation_key, kind, step, time_entry_id, target_locale, rate_id, amount_usd, basis, created_at)
+                values ($1, $2, $3, 'time:' || $4::text, 'human', $5, $4::uuid, $6, $7, $8::numeric, $9, $10::date::timestamp at time zone 'UTC')`,
+				actor.organizationID, *job.ProjectID, job.ID, entry.ID, step, targetLocale, rateID, amount, basis, workDate); err != nil {
+				return fmt.Errorf("price time: %w", err)
+			}
+		}
+		if err := reportingAudit(ctx, tx, actor, entry.ID, "time_created", nil, entry); err != nil {
+			return err
+		}
+		// With the entry, so a failure leaves neither: the web starts Reports after its commit.
+		return reportingStartRecording(ctx, tx, actor.organizationID)
+	})
+	if err != nil {
 		return nil, 0, err
 	}
 	return map[string]any{"timeEntry": map[string]string{"id": entry.ID}}, http.StatusCreated, nil
 }
 
-func (h *handler) loadEditableTimeEntry(ctx context.Context, actor workspaceActor, id string, includeVoided bool) (reportingTimeEntryRecord, error) {
-	db := h.workspace.pool
-	entry, err := scanReportingTimeEntry(db.QueryRow(ctx, `
-        select `+reportingTimeEntryColumns+` from reporting_time_entries
-        where organization_id=$1 and id=$2 and ($3::boolean or voided=false)`,
-		actor.organizationID, id, includeVoided))
+// loadReportingTimeEntry reads and locks one of the workspace's time entries in a project the
+// viewer can open, so an edit waiting on a delete finds the entry gone instead of rewriting it.
+func loadReportingTimeEntry(ctx context.Context, db dictionaryDB, actor reportingActor, id string, includeVoided bool) (reportingTimeEntryRow, error) {
+	if !reportingValidText(id) {
+		return reportingTimeEntryRow{}, reportingFailure(404, "time_entry_not_found", "Resource not found")
+	}
+	voided := " and not voided"
+	if includeVoided {
+		voided = ""
+	}
+	entry, err := scanReportingTimeEntry(db.QueryRow(ctx, `select `+reportingTimeEntryColumns+` from reporting_time_entries where organization_id = $1 and id::text = $2`+voided+` for update`, actor.organizationID, id))
 	if isNoRows(err) {
-		return entry, reportingNotFound("time_entry_not_found")
+		return entry, reportingFailure(404, "time_entry_not_found", "Resource not found")
 	}
 	if err != nil {
-		return entry, fmt.Errorf("load time entry: %w", err)
-	}
-	if entry.ProjectID == nil {
-		return entry, reportingNotFound("time_entry_not_found")
+		return entry, fmt.Errorf("read time entry: %w", err)
 	}
 	projectIDs, err := reportingProjectIDs(ctx, db, actor)
 	if err != nil {
 		return entry, err
 	}
-	if !slices.Contains(projectIDs, *entry.ProjectID) {
-		return entry, reportingNotFound("time_entry_not_found")
+	if entry.ProjectID == nil || !slices.Contains(projectIDs, *entry.ProjectID) {
+		return entry, reportingFailure(404, "time_entry_not_found", "Resource not found")
 	}
 	return entry, nil
 }
 
-func (h *handler) updateTimeEntry(r *http.Request, actor workspaceActor) (any, int, error) {
+// editTime changes an entry's minutes, day and note; the entry's own cost follows. A
+// contributor edits their own time; billing write edits anyone's.
+func (api *reportingAPI) editTime(r *http.Request, actor reportingActor) (any, int, error) {
 	body, err := readReportingBody(r, "invalid_time_entry")
 	if err != nil {
 		return nil, 0, err
 	}
 	minutes := body.integer("minutes", 1, 1440)
-	day := body.day("workDate")
+	workDate := body.day("workDate")
 	note := body.optionalText("note", 2000)
 	if !body.valid {
 		return nil, 0, reportingInvalid("invalid_time_entry")
 	}
-	workDate, err := time.Parse(time.DateOnly, day)
-	if err != nil {
-		return nil, 0, reportingInvalid("invalid_time_entry")
-	}
 	ctx := r.Context()
-	entry, err := h.loadEditableTimeEntry(ctx, actor, r.PathValue("id"), false)
-	if err != nil {
-		return nil, 0, err
-	}
-	if !hasOrganizationCapability(actor.role, "jobs:write") ||
-		(entry.ContributorID != actor.userID && !hasOrganizationCapability(actor.role, "billing:write")) {
-		return nil, 0, reportingForbidden("time_entry_forbidden")
-	}
-
-	tx, err := h.workspace.pool.Begin(ctx)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	var rate *reportingRate
-	if entry.RateID != nil {
-		if rate, err = optionalReportingRate(tx.QueryRow(ctx, `select `+reportingRateColumns+` from reporting_rates where id=$1`, *entry.RateID)); err != nil {
-			return nil, 0, err
-		}
-	}
-	if _, err := tx.Exec(ctx, `
-        update reporting_time_entries set minutes=$2, work_date=$3, note=case when $4::boolean then $5 else note end
-        where id=$1`, entry.ID, minutes, workDate, note != nil, note); err != nil {
-		return nil, 0, fmt.Errorf("update time entry: %w", err)
-	}
-	if rate == nil || rate.Basis != "word" {
-		amount, err := reportingTimeCost(rate, minutes)
+	var entryID string
+	err = api.write(ctx, func(tx pgx.Tx) error {
+		entry, err := loadReportingTimeEntry(ctx, tx, actor, r.PathValue("id"), false)
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
-		if _, err := tx.Exec(ctx, `update reporting_costs set amount_usd=$2::text::numeric, created_at=$3 where time_entry_id=$1`,
-			entry.ID, amount, workDate); err != nil {
-			return nil, 0, fmt.Errorf("update time cost: %w", err)
+		if !actor.can("jobs:write") || (entry.ContributorID != actor.userID && !actor.can("billing:write")) {
+			return reportingForbidden("time_entry_forbidden")
 		}
-	}
-	after := map[string]any{"minutes": minutes, "workDate": day}
-	if note != nil {
-		after["note"] = *note
-	}
-	if err := insertReportingAudit(ctx, tx, actor, entry.ID, "time_updated", entry, after); err != nil {
+		entryID = entry.ID
+		var rate *reportingRateRow
+		if entry.RateID != nil {
+			var found reportingRateRow
+			err := tx.QueryRow(ctx, `select id, basis, rate::text, retired from reporting_rates where id = $1`, *entry.RateID).Scan(&found.id, &found.basis, &found.rate, &found.retired)
+			if err != nil && !isNoRows(err) {
+				return fmt.Errorf("read rate: %w", err)
+			}
+			if err == nil {
+				rate = &found
+			}
+		}
+		if _, err := tx.Exec(ctx, `update reporting_time_entries set minutes = $2, work_date = $3::date::timestamp at time zone 'UTC', note = coalesce($4, note) where id = $1`,
+			entry.ID, minutes, workDate, note); err != nil {
+			return fmt.Errorf("edit time: %w", err)
+		}
+		if rate == nil || rate.basis == "hour" {
+			var amount *string
+			if rate != nil {
+				cost, err := hourlyCost(rate.rate, minutes)
+				if err != nil {
+					return err
+				}
+				text := usdString(cost)
+				amount = &text
+			}
+			if _, err := tx.Exec(ctx, `update reporting_costs set amount_usd = $2::numeric, created_at = $3::date::timestamp at time zone 'UTC' where time_entry_id = $1`,
+				entry.ID, amount, workDate); err != nil {
+				return fmt.Errorf("reprice time: %w", err)
+			}
+		}
+		after := map[string]any{"minutes": minutes, "workDate": workDate}
+		if note != nil {
+			after["note"] = *note
+		}
+		return reportingAudit(ctx, tx, actor, entry.ID, "time_updated", entry, after)
+	})
+	if err != nil {
 		return nil, 0, err
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, 0, err
-	}
-	return map[string]any{"timeEntry": map[string]string{"id": entry.ID}}, http.StatusOK, nil
+	return map[string]any{"timeEntry": map[string]string{"id": entryID}}, http.StatusOK, nil
 }
 
-func (h *handler) deleteTimeEntry(r *http.Request, actor workspaceActor) (any, int, error) {
+// voidTime deletes an entry by voiding it and its cost, so the record stays.
+func (api *reportingAPI) voidTime(r *http.Request, actor reportingActor) (any, int, error) {
 	ctx := r.Context()
-	entry, err := h.loadEditableTimeEntry(ctx, actor, r.PathValue("id"), true)
+	err := api.write(ctx, func(tx pgx.Tx) error {
+		entry, err := loadReportingTimeEntry(ctx, tx, actor, r.PathValue("id"), true)
+		if err != nil {
+			return err
+		}
+		if entry.ContributorID != actor.userID && !actor.can("billing:write") {
+			return reportingForbidden("time_entry_forbidden")
+		}
+		if _, err := tx.Exec(ctx, `update reporting_time_entries set voided = true where id = $1`, entry.ID); err != nil {
+			return fmt.Errorf("void time: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `update reporting_costs set voided = true where time_entry_id = $1`, entry.ID); err != nil {
+			return fmt.Errorf("void time cost: %w", err)
+		}
+		return reportingAudit(ctx, tx, actor, entry.ID, "time_voided", entry, nil)
+	})
 	if err != nil {
-		return nil, 0, err
-	}
-	if entry.ContributorID != actor.userID && !hasOrganizationCapability(actor.role, "billing:write") {
-		return nil, 0, reportingForbidden("time_entry_forbidden")
-	}
-	tx, err := h.workspace.pool.Begin(ctx)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	if _, err := tx.Exec(ctx, `update reporting_time_entries set voided=true where id=$1`, entry.ID); err != nil {
-		return nil, 0, fmt.Errorf("void time entry: %w", err)
-	}
-	if _, err := tx.Exec(ctx, `update reporting_costs set voided=true where time_entry_id=$1`, entry.ID); err != nil {
-		return nil, 0, fmt.Errorf("void time cost: %w", err)
-	}
-	if err := insertReportingAudit(ctx, tx, actor, entry.ID, "time_voided", entry, nil); err != nil {
-		return nil, 0, err
-	}
-	if err := tx.Commit(ctx); err != nil {
 		return nil, 0, err
 	}
 	return nil, http.StatusNoContent, nil

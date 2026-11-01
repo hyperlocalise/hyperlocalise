@@ -108,8 +108,10 @@ export async function createWorkspaceAction(
   }
 
   const { session, onboardingState, auth } = await loadOnboardingContext();
+  // A person who already has a workspace reaches this form only through "Create workspace".
+  const isAnotherWorkspace = formData.get("intent") === "another";
 
-  if (onboardingState?.organizationSlug || auth?.activeOrganization.slug) {
+  if (!isAnotherWorkspace && (onboardingState?.organizationSlug || auth?.activeOrganization.slug)) {
     redirect(
       getOrganizationDashboardPath(
         auth?.activeOrganization.slug ?? onboardingState?.organizationSlug,
@@ -127,6 +129,7 @@ export async function createWorkspaceAction(
     ({ organization } = await createWorkspaceForSessionUser({
       sessionUser: session.user,
       organizationName: parsed.data.organizationName,
+      source: isAnotherWorkspace ? "another_workspace" : "onboarding",
     }));
   } catch (error) {
     if (error instanceof Error && error.message === "workspace_slug_conflict") {

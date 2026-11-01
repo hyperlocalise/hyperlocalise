@@ -25,6 +25,8 @@ import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team-constants";
 
 import { membersPageContentMessages } from "./members-page-content.messages";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
+import { LeaveWorkspaceDialog } from "./leave-workspace-dialog";
 import { MembersPageView } from "./members-page-view";
 import {
   resolveMembersPageState,
@@ -38,7 +40,15 @@ function resolveDefaultTeamId(teams: { id: string; slug: string }[]) {
   return teams.find((team) => team.slug === DEFAULT_WORKSPACE_TEAM_SLUG)?.id ?? teams[0]?.id ?? "";
 }
 
-export function MembersPageContent({ organizationSlug }: { organizationSlug: string }) {
+export function MembersPageContent({
+  organizationSlug,
+  organizationName,
+  isOnlyWorkspace,
+}: {
+  organizationSlug: string;
+  organizationName: string;
+  isOnlyWorkspace: boolean;
+}) {
   const intl = useIntl();
   const queryClient = useQueryClient();
   const { client: goSvcClient } = useGoSvcClient();
@@ -49,6 +59,7 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
   const [inviteTeamId, setInviteTeamId] = useState("");
   const [removingMember, setRemovingMember] = useState<MembersListMember | null>(null);
   const [editingMember, setEditingMember] = useState<MembersListMember | null>(null);
+  const [isLeaveOpen, setIsLeaveOpen] = useState(false);
 
   const teamsQuery = useQuery({
     queryKey: teamsQueryKey(organizationSlug),
@@ -165,6 +176,14 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
     },
     onError: (error) => {
       toast.error(error.message);
+      // Refused because the list was out of date: show what is true now.
+      if (
+        error.cause instanceof GoSvcClientError &&
+        error.cause.code === "invitation_already_accepted"
+      ) {
+        setRemovingMember(null);
+        void queryClient.invalidateQueries({ queryKey: membersQueryKey(organizationSlug) });
+      }
     },
   });
 
@@ -189,47 +208,57 @@ export function MembersPageContent({ organizationSlug }: { organizationSlug: str
   }
 
   return (
-    <MembersPageView
-      organizationSlug={organizationSlug}
-      members={members}
-      assignableRoles={assignableRoles}
-      canInvite={canInvite}
-      isLoading={membersQuery.isLoading}
-      loadError={
-        membersQuery.isError
-          ? membersQuery.error instanceof Error
-            ? membersQuery.error.message
-            : intl.formatMessage(membersPageContentMessages.loadErrorFallback)
-          : null
-      }
-      isInviteOpen={isInviteOpen}
-      inviteEmail={inviteEmail}
-      inviteRole={inviteRole}
-      inviteTeams={inviteTeams}
-      inviteTeamId={inviteTeamId}
-      inviteRequiresTeam={inviteRequiresTeam}
-      isLoadingTeams={teamsQuery.isLoading}
-      teamsLoadError={
-        teamsQuery.isError
-          ? teamsQuery.error instanceof Error
-            ? teamsQuery.error.message
-            : intl.formatMessage(membersPageContentMessages.teamsLoadFailed)
-          : null
-      }
-      isInviting={inviteMember.isPending}
-      removingMember={removingMember}
-      isRemoving={removeMember.isPending}
-      editingMember={editingMember}
-      isUpdatingRole={updateRole.isPending}
-      onInviteOpenChange={handleInviteOpenChange}
-      onInviteEmailChange={setInviteEmail}
-      onInviteRoleChange={setInviteRole}
-      onInviteTeamIdChange={setInviteTeamId}
-      onInviteSubmit={handleInviteSubmit}
-      onRemovingMemberChange={setRemovingMember}
-      onRemoveMember={(workosUserId) => removeMember.mutate(workosUserId)}
-      onEditingMemberChange={setEditingMember}
-      onUpdateRole={(input) => updateRole.mutate(input)}
-    />
+    <>
+      <MembersPageView
+        organizationSlug={organizationSlug}
+        members={members}
+        assignableRoles={assignableRoles}
+        canInvite={canInvite}
+        isLoading={membersQuery.isLoading}
+        loadError={
+          membersQuery.isError
+            ? membersQuery.error instanceof Error
+              ? membersQuery.error.message
+              : intl.formatMessage(membersPageContentMessages.loadErrorFallback)
+            : null
+        }
+        isInviteOpen={isInviteOpen}
+        inviteEmail={inviteEmail}
+        inviteRole={inviteRole}
+        inviteTeams={inviteTeams}
+        inviteTeamId={inviteTeamId}
+        inviteRequiresTeam={inviteRequiresTeam}
+        isLoadingTeams={teamsQuery.isLoading}
+        teamsLoadError={
+          teamsQuery.isError
+            ? teamsQuery.error instanceof Error
+              ? teamsQuery.error.message
+              : intl.formatMessage(membersPageContentMessages.teamsLoadFailed)
+            : null
+        }
+        isInviting={inviteMember.isPending}
+        removingMember={removingMember}
+        isRemoving={removeMember.isPending}
+        editingMember={editingMember}
+        isUpdatingRole={updateRole.isPending}
+        onInviteOpenChange={handleInviteOpenChange}
+        onInviteEmailChange={setInviteEmail}
+        onInviteRoleChange={setInviteRole}
+        onInviteTeamIdChange={setInviteTeamId}
+        onInviteSubmit={handleInviteSubmit}
+        onRemovingMemberChange={setRemovingMember}
+        onRemoveMember={(workosUserId) => removeMember.mutate(workosUserId)}
+        onEditingMemberChange={setEditingMember}
+        onUpdateRole={(input) => updateRole.mutate(input)}
+        onLeaveWorkspace={() => setIsLeaveOpen(true)}
+      />
+      <LeaveWorkspaceDialog
+        open={isLeaveOpen}
+        organizationSlug={organizationSlug}
+        organizationName={organizationName}
+        isOnlyWorkspace={isOnlyWorkspace}
+        onClose={() => setIsLeaveOpen(false)}
+      />
+    </>
   );
 }

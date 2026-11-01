@@ -14,16 +14,17 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 import { INVITED_WORKOS_USER_ID_PREFIX } from "@/lib/workos/constants";
 
-const { listMembershipsMock, getOrganizationMock } = vi.hoisted(() => ({
-  listMembershipsMock: vi.fn(),
+const { listMembershipsMock, getOrganizationMock, liveWorkosApiKey } = vi.hoisted(() => ({
+  listMembershipsMock: vi.fn().mockResolvedValue({ autoPagination: async () => [] }),
   getOrganizationMock: vi.fn(),
+  liveWorkosApiKey: { enabled: true },
 }));
 
 vi.mock("@/lib/env", async (importOriginal) => {
@@ -31,7 +32,7 @@ vi.mock("@/lib/env", async (importOriginal) => {
   return {
     env: new Proxy(actual.env, {
       get(target, property, receiver) {
-        if (property === "WORKOS_API_KEY") {
+        if (property === "WORKOS_API_KEY" && liveWorkosApiKey.enabled) {
           return "sk_test_reconcile";
         }
 
@@ -60,8 +61,13 @@ beforeAll(async () => {
 
 afterEach(async () => {
   listMembershipsMock.mockReset();
+  listMembershipsMock.mockResolvedValue({ autoPagination: async () => [] });
   getOrganizationMock.mockReset();
   await cleanup();
+});
+
+afterAll(() => {
+  liveWorkosApiKey.enabled = false;
 });
 
 describe("reconcileWorkosMembershipsForUser", () => {

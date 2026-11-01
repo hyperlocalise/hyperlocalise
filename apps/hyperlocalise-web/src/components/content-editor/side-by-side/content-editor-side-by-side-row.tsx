@@ -201,8 +201,11 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
     () =>
       isAssetSegment
         ? null
-        : analyzeCatMessageFormat(segment.sourceText, { messageFormat: segment.messageFormat }),
-    [isAssetSegment, segment.messageFormat, segment.sourceText],
+        : analyzeCatMessageFormat(segment.sourceText, {
+            messageFormat: segment.messageFormat,
+            placeholderPatterns: segment.placeholderPatterns,
+          }),
+    [isAssetSegment, segment.messageFormat, segment.placeholderPatterns, segment.sourceText],
   );
   const hasApprovingTarget = isAssetSegment
     ? hasAssetTarget(segment)
@@ -436,6 +439,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
           <Text size="small" wrapStyle="pretty">
             <ContentEditorMessagePreview
               message={segment.targetText}
+              placeholderPatterns={segment.placeholderPatterns}
               companionMessage={segment.sourceText}
             />
           </Text>
@@ -526,6 +530,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
               <Text size="small" wrapStyle="pretty">
                 <ContentEditorMessagePreview
                   message={segment.sourceText}
+                  placeholderPatterns={segment.placeholderPatterns}
                   companionMessage={segment.targetText}
                 />
               </Text>
@@ -611,6 +616,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                       value={segment.targetText}
                       maxLength={segment.maxLength}
                       messageFormat={segment.messageFormat}
+                      placeholderPatterns={segment.placeholderPatterns}
                       compact
                       highlightTokens={highlightTokens}
                       highlightStatus={highlightStatus}
@@ -709,6 +715,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                     <Text size="small" wrapStyle="pretty">
                       <ContentEditorMessagePreview
                         message={segment.targetText}
+                        placeholderPatterns={segment.placeholderPatterns}
                         companionMessage={segment.sourceText}
                         highlightTokens={highlightTokens}
                         highlightStatus={highlightStatus}

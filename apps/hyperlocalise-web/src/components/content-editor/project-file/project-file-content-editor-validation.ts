@@ -88,6 +88,7 @@ export async function fetchCatSegmentValidation(
     targetLocale: string;
     maxLength?: number;
     messageFormat?: MessageFormat | null;
+    placeholderPatterns?: readonly string[] | null;
     acceptedWords?: readonly string[];
     signal?: AbortSignal;
     intl: ContentEditorFormatMessageIntl;
@@ -123,6 +124,9 @@ export async function fetchCatSegmentValidation(
               ? { maxLength: input.maxLength }
               : {}),
             ...(input.messageFormat ? { messageFormat: input.messageFormat } : {}),
+            ...(input.placeholderPatterns?.length
+              ? { placeholderPatterns: [...input.placeholderPatterns] }
+              : {}),
             ...(targetLocale ? { targetLocale } : {}),
             ...(input.acceptedWords && input.acceptedWords.length > 0
               ? { acceptedWords: capResolvedSpellcheckWords(input.acceptedWords) }

@@ -533,6 +533,9 @@
   "+tsNE73Ud/": {
     "defaultMessage": "Définissez le nombre maximal de caractères autorisés dans la traduction."
   },
+  "+u6bMZ2pRz": {
+    "defaultMessage": "Continue"
+  },
   "+ufsbqnrz9": {
     "defaultMessage": "Activité de l’agent"
   },
@@ -1445,6 +1448,9 @@
   "0TnAd5e2Yn": {
     "defaultMessage": "Utilisez différents modèles pour différents types de contenu tout en conservant une logique de révision et de synchronisation cohérente."
   },
+  "0UO1BREBTM": {
+    "defaultMessage": "Acceptation en cours…"
+  },
   "0UVlCvBqbT": {
     "defaultMessage": "Pas encore de messages"
   },
@@ -1678,6 +1684,9 @@
   },
   "0s28QK0gJ3": {
     "defaultMessage": "Paramètres · Action principale"
+  },
+  "0sHkme+8tb": {
+    "defaultMessage": "Départ du membre"
   },
   "0su3rYbABy": {
     "defaultMessage": "Dernier traitement · {status}"
@@ -3395,6 +3404,9 @@
   "3xXiVgOezJ": {
     "defaultMessage": "Cette page n’est plus valide. Affichage de la première page."
   },
+  "3xa+IqbvLl": {
+    "defaultMessage": "Choisissez un espace de travail"
+  },
   "3xhOvPA3lu": {
     "defaultMessage": "Téléversement de la source · {project}"
   },
@@ -4816,6 +4828,9 @@
   },
   "6acz11Hecl": {
     "defaultMessage": "Experiments"
+  },
+  "6alv0fvJQR": {
+    "defaultMessage": "C'est votre seul espace de travail. Il se peut qu'on vous demande de vous reconnecter ; vous pourrez alors en créer un nouveau ou accepter une invitation."
   },
   "6bCLEYenE4": {
     "defaultMessage": "Drapeau existant"
@@ -10775,6 +10790,9 @@
   "HV+orx8sr6": {
     "defaultMessage": "Détecter les modifications des chaînes et traduire automatiquement"
   },
+  "HVWNQgqVcW": {
+    "defaultMessage": "Votre invitation a été acceptée, mais l’espace de travail n’est pas encore prêt. Rechargez cette page dans un instant."
+  },
   "HVa66T0BGY": {
     "defaultMessage": "{count, plural, one {# étape exécutée en conditions réelles} other {# étapes exécutées en conditions réelles}}"
   },
@@ -11263,6 +11281,9 @@
   },
   "IMr6sfD/7/": {
     "defaultMessage": "Fichiers"
+  },
+  "IO9ifurzwW": {
+    "defaultMessage": "Annuler"
   },
   "IOmySBLwfP": {
     "defaultMessage": "Réessayer"
@@ -12449,6 +12470,9 @@
   "KePBZ202q8": {
     "defaultMessage": "“{name}” sera supprimé(e) de cette expérience. Cette action est irréversible."
   },
+  "Kg5oomFJK7": {
+    "defaultMessage": "et {count} de plus"
+  },
   "KgPZ5Uqgat": {
     "defaultMessage": "Manager"
   },
@@ -12514,6 +12538,9 @@
   },
   "Kq4aU8dzI5": {
     "defaultMessage": "Consultez les résultats de la dernière analyse réussie de chaque projet. Vérifiez l’état des projets dont l’analyse a échoué, est en cours ou n’a jamais été lancée."
+  },
+  "KqiLqEGTTZ": {
+    "defaultMessage": "Vérifiez votre adresse e-mail pour voir les invitations à d’autres espaces de travail, puis rechargez cette page."
   },
   "Ks+Feeoung": {
     "defaultMessage": "{count} caractères"
@@ -12667,6 +12694,9 @@
   },
   "L9CYRKrj6S": {
     "defaultMessage": "Administrateur"
+  },
+  "L9HXNtVWvN": {
+    "defaultMessage": "Cette invitation a expiré ou a été retirée. Demandez à l’administrateur de l’espace de travail de vous envoyer une nouvelle invitation."
   },
   "LAhLwqc2EA": {
     "defaultMessage": "Figma"
@@ -13246,6 +13276,9 @@
   },
   "M8XELItknC": {
     "defaultMessage": "Ouvrir dans l’éditeur"
+  },
+  "M95Yl2ZYHn": {
+    "defaultMessage": "Créer un espace de travail"
   },
   "M9MtJAsUOq": {
     "defaultMessage": "L’option « En cas d’erreur » est définie sur « Arrêter », le test s’arrête donc à cette étape."
@@ -14773,6 +14806,9 @@
   },
   "P3c/gqRJ32": {
     "defaultMessage": "Traduction modifiée — lancez une analyse pour vérifier à nouveau."
+  },
+  "P3hJ1/69DS": {
+    "defaultMessage": "Impossible de quitter l’espace de travail. Réessayez."
   },
   "P4A/eg4+zm": {
     "defaultMessage": "Titre 2"
@@ -16703,6 +16739,9 @@
   "SiPCg9X6AE": {
     "defaultMessage": "Preview"
   },
+  "Siv+JUHnHq": {
+    "defaultMessage": "Réessayer"
+  },
   "SjHx8vM/dA": {
     "defaultMessage": "Évaluation"
   },
@@ -17608,6 +17647,9 @@
   },
   "UK+ou5Ws9N": {
     "defaultMessage": "6 derniers mois"
+  },
+  "UK7jOz9fV2": {
+    "defaultMessage": "Ouvrez l’un de vos espaces de travail, acceptez une invitation ou créez un nouvel espace de travail."
   },
   "UKFf8HWVZX": {
     "defaultMessage": "Chargement du domaine…"
@@ -18530,6 +18572,9 @@
   "W3V5ERIIW9": {
     "defaultMessage": "Linked context"
   },
+  "W3dD2MKin0": {
+    "defaultMessage": "{count, plural, one {Cette automatisation utilise un compte que vous avez connecté et risque de cesser de fonctionner :} other {Ces automatisations utilisent des comptes que vous avez connectés et risquent de cesser de fonctionner :}}"
+  },
   "W3kvUxF+V1": {
     "defaultMessage": "Flux de travail mis en pause"
   },
@@ -19078,6 +19123,9 @@
   },
   "X69pKW667o": {
     "defaultMessage": "Aucun problème détecté"
+  },
+  "X6NUPESd72": {
+    "defaultMessage": "Accept"
   },
   "X6g1omP0I1": {
     "defaultMessage": "Notifier #compliance lorsque les résultats nécessitent un examen."
@@ -19655,6 +19703,9 @@
   "Y9uUKekkpa": {
     "defaultMessage": "Créez et adaptez des textes, des documents, des diapositives, des images et des vidéos. Gardez votre contexte, votre voix et votre équipe réunis au même endroit."
   },
+  "Y9y6zTkXYd": {
+    "defaultMessage": "Quitter l’espace de travail"
+  },
   "YAgd2vmpnm": {
     "defaultMessage": "Les tâches de l’espace de travail n’ont pas pu être chargées."
   },
@@ -19813,6 +19864,9 @@
   },
   "YTRbiRB1qL": {
     "defaultMessage": "Aucun travail Hyperlocalise attribué trouvé."
+  },
+  "YToRIe9hSd": {
+    "defaultMessage": "Acceptation de l’invitation à {name}…"
   },
   "YTpu1j7/Q4": {
     "defaultMessage": "Action"
@@ -20378,6 +20432,9 @@
   "ZV8a5iOSNX": {
     "defaultMessage": "Publié sur l’environnement de staging · #gtm notifié"
   },
+  "ZVIyFNqsnD": {
+    "defaultMessage": "a quitté l’espace de travail"
+  },
   "ZVZIaOT6mh": {
     "defaultMessage": "Concurrents"
   },
@@ -20755,6 +20812,9 @@
   },
   "a5wP5u9Iqr": {
     "defaultMessage": "Raisonnement"
+  },
+  "a6AWYfXez+": {
+    "defaultMessage": "Quitter {name} ?"
   },
   "a6JR5uFWOp": {
     "defaultMessage": "Étape"
@@ -21412,6 +21472,9 @@
   },
   "bJPgIG0M7T": {
     "defaultMessage": "Branche"
+  },
+  "bJQH/XlrZq": {
+    "defaultMessage": "Créer un autre espace de travail"
   },
   "bKPrJiNBf6": {
     "defaultMessage": "Événement"
@@ -22358,6 +22421,9 @@
   "d5Z1STDBKG": {
     "defaultMessage": "Lokalise"
   },
+  "d62LeLJXFa": {
+    "defaultMessage": "Vous ne faites plus partie de cet espace de travail."
+  },
   "d6ELhmM7BL": {
     "defaultMessage": "L’IA aide à expliquer les compromis, mais le réviseur humain garde le contrôle de la décision finale."
   },
@@ -22489,6 +22555,9 @@
   },
   "dIjV9bElOk": {
     "defaultMessage": "Rapport commencé : {date}"
+  },
+  "dInHga4hn8": {
+    "defaultMessage": "Vérifiez votre adresse e-mail avant d’accepter une invitation, puis réessayez."
   },
   "dIpX2t1U6p": {
     "defaultMessage": "Actualiser le contexte"
@@ -23131,6 +23200,9 @@
   },
   "eI8CB+a2hA": {
     "defaultMessage": "Erreur de traduction"
+  },
+  "eIdejZFXxK": {
+    "defaultMessage": "{count, plural, one {Cette clé API cesse de fonctionner :} other {Ces clés API cessent de fonctionner :}}"
   },
   "eIzQewHUyw": {
     "defaultMessage": "Export {format}"
@@ -25184,6 +25256,9 @@
   "hx+ozGK2uu": {
     "defaultMessage": "Pick up where you left off — {details}."
   },
+  "hxaX4oOeRm": {
+    "defaultMessage": "Nous n’avons pas pu contacter le service de connexion. Réessayez dans un instant."
+  },
   "hxojPYuxF0": {
     "defaultMessage": "Previous"
   },
@@ -26789,6 +26864,9 @@
   "kjx+4Dj0jz": {
     "defaultMessage": "Un message des fondateurs"
   },
+  "klDfkrFdL9": {
+    "defaultMessage": "Invitations"
+  },
   "klJCqIQ+RC": {
     "defaultMessage": "Other"
   },
@@ -27173,6 +27251,9 @@
   "lPmc7tHCkL": {
     "defaultMessage": "{spaceId}/{environmentId}"
   },
+  "lQxXTbs2H9": {
+    "defaultMessage": "Créer un espace de travail"
+  },
   "lR7pNsCeCh": {
     "defaultMessage": "Tous les projets"
   },
@@ -27409,6 +27490,9 @@
   },
   "lsmpBVLKpZ": {
     "defaultMessage": "Relire"
+  },
+  "lsoHEzfNM1": {
+    "defaultMessage": "Vérification de ce qui changera lorsque vous quitterez…"
   },
   "lsxAaZycti": {
     "defaultMessage": "GitHub"
@@ -28046,6 +28130,9 @@
   "n+jmfgFlG0": {
     "defaultMessage": "Les traductions sont lues depuis ce projet avant l’ouverture de la pull request."
   },
+  "n+wQ7BXYlc": {
+    "defaultMessage": "Quitter l’espace de travail…"
+  },
   "n+ysONBMTA": {
     "defaultMessage": "Delete"
   },
@@ -28060,6 +28147,9 @@
   },
   "n02KlXlk6i": {
     "defaultMessage": "Cette étape ne comporte aucun paramètre supplémentaire dans l’aperçu."
+  },
+  "n0CHcDaj4y": {
+    "defaultMessage": "Accepter l’invitation à {name}"
   },
   "n0l2Kl1EOo": {
     "defaultMessage": "Dépôt"
@@ -28532,6 +28622,9 @@
   "nnCxP1Ix40": {
     "defaultMessage": "Connectez vos outils"
   },
+  "nnVaD4zJuo": {
+    "defaultMessage": "Un nouvel espace de travail possède ses propres projets, membres, paramètres et forfait. Vous restez membre de vos autres espaces de travail."
+  },
   "nnXWSAtR1P": {
     "defaultMessage": "Store organization-wide localization guidance as one flexible markdown memory."
   },
@@ -28996,6 +29089,9 @@
   },
   "ohFSHTwja2": {
     "defaultMessage": "Mis à jour"
+  },
+  "oiJegD5+SZ": {
+    "defaultMessage": "Impossible de vérifier ce qui change lorsque vous quittez."
   },
   "oiLDAv4P0Y": {
     "defaultMessage": "Respecter toutes les règles"
@@ -30242,6 +30338,9 @@
   "qqzc5HNRQF": {
     "defaultMessage": "Gardez les documents que vous avez. Mettez-les à profit. | Hyperlocalise"
   },
+  "qr+n6Od9jO": {
+    "defaultMessage": "Annuler"
+  },
   "qs2xntPsAx": {
     "defaultMessage": "SEO et AEO"
   },
@@ -30643,6 +30742,9 @@
   },
   "rXIITR1I9M": {
     "defaultMessage": "Automatisations"
+  },
+  "rXMDxSDgo4": {
+    "defaultMessage": "Vous êtes le seul administrateur de cet espace de travail. Nommez un autre membre administrateur avant de partir."
   },
   "rXuCG4x28U": {
     "defaultMessage": "Sélectionnez une ressource"
@@ -33365,6 +33467,9 @@
   "wTei3/v4E4": {
     "defaultMessage": "Fonctionne dans les flux de travail d’ingénierie, produit et localisation"
   },
+  "wTouXDwM8N": {
+    "defaultMessage": "En train de quitter…"
+  },
   "wU/mAJtu+z": {
     "defaultMessage": "Décrivez l’automatisation"
   },
@@ -34222,6 +34327,9 @@
   },
   "xzZ3ZLUqLC": {
     "defaultMessage": "Les grilles tarifaires sont partagées par tous les rapports. Les modifications s’appliquent au travail enregistré à partir de maintenant."
+  },
+  "xzl3uN35Vr": {
+    "defaultMessage": "Vous n’aurez plus accès à cet espace de travail ni à ses projets. Pour y revenir, un administrateur devra vous inviter à nouveau."
   },
   "y+0ftMWpAa": {
     "defaultMessage": "URL : {url}"

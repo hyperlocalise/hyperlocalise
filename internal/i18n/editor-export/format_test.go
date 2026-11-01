@@ -34,6 +34,12 @@ func TestParseFormat(t *testing.T) {
 	}
 }
 
+func TestFormatFromFilenameUsesExtension(t *testing.T) {
+	got, err := FormatFromFilename("queue-fr.xlf")
+	require.NoError(t, err)
+	require.Equal(t, FormatXLF, got)
+}
+
 func TestSerializeRejectsTooManyRows(t *testing.T) {
 	rows := makeExportRows(MaxRows + 1)
 	_, err := Serialize(FormatCSV, rows)

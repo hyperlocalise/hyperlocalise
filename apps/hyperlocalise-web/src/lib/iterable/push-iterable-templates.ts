@@ -20,9 +20,18 @@ import {
 } from "@/lib/file-storage/records";
 import { createLogger } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
+import { applyHtmlIngestTranslations } from "@/lib/projects/files/html-ingest-entries";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
-import { IterableApiError, type IterableClient } from "./client";
+import {
+  IterableApiError,
+  type IterableClient,
+  type IterableEmailTemplate,
+  type IterableInAppTemplate,
+  type IterablePushTemplate,
+  type IterableSmsTemplate,
+  type IterableSnippet,
+} from "./client";
 import {
   ITERABLE_EMAIL_CLIENT_TEMPLATE_PREFIX,
   ITERABLE_INAPP_CLIENT_TEMPLATE_PREFIX,
@@ -36,6 +45,8 @@ import {
 } from "./existing-translation-policy";
 import {
   applyApprovedIterableHtmlTranslations,
+  applyApprovedIterablePushTranslations,
+  applyApprovedIterableSmsTranslations,
   hashIterableContent,
   parseIterableEmailEnvelope,
   parseIterableInAppEnvelope,
@@ -45,6 +56,9 @@ import {
   restoreIterableEmailEnvelope,
   restoreIterableInAppEnvelope,
   restoreIterableSnippetContent,
+  serializeIterableEmailRemoteEnvelope,
+  serializeIterableInAppRemoteEnvelope,
+  serializeIterableSnippetRemoteEnvelope,
 } from "./html-envelope";
 import { mapProjectLocalesToIterable } from "./locale";
 import { iterableSnippetLocaleCopyName } from "./source-path";
@@ -207,18 +221,13 @@ export async function runPushIterableTemplates(input: {
         }
 
         const contentHash = hashIterableContent(
-          applyApprovedIterableHtmlTranslations(sourceHtml, approved.prefilled),
+          applyHtmlIngestTranslations(sourceHtml, approved.prefilled),
         );
         const lastHash = (mapping.lastPushContentHash ?? {})[suffix];
-        const remoteEmpty = await isIterableRemoteLocaleEmpty(
-          client,
-          mapping,
-          suffix,
-          projectLocale,
-        );
+        const remote = await loadIterableRemoteLocale(client, mapping, suffix, projectLocale);
         const action = decideIterablePushLocaleAction({
           policy,
-          remoteEmpty,
+          remoteEmpty: remote.empty,
           lastPushHash: lastHash,
           contentHash,
         });
@@ -235,6 +244,7 @@ export async function runPushIterableTemplates(input: {
             suffix,
             sourceHtml,
             approved: approved.prefilled,
+            remote: remote.empty ? undefined : remote.snippet,
           });
         } else if (mapping.resourceKind === "email") {
           await pushEmailLocale({
@@ -243,6 +253,7 @@ export async function runPushIterableTemplates(input: {
             suffix,
             sourceHtml,
             approved: approved.prefilled,
+            remote: remote.empty ? undefined : remote.email,
           });
         } else if (mapping.resourceKind === "in_app") {
           await pushInAppLocale({
@@ -251,6 +262,7 @@ export async function runPushIterableTemplates(input: {
             suffix,
             sourceHtml,
             approved: approved.prefilled,
+            remote: remote.empty ? undefined : remote.inApp,
           });
         } else if (mapping.resourceKind === "push") {
           await pushPushLocale({
@@ -259,6 +271,7 @@ export async function runPushIterableTemplates(input: {
             suffix,
             sourceHtml,
             approved: approved.prefilled,
+            remote: remote.empty ? undefined : remote.push,
           });
         } else {
           await pushSmsLocale({
@@ -267,6 +280,7 @@ export async function runPushIterableTemplates(input: {
             suffix,
             sourceHtml,
             approved: approved.prefilled,
+            remote: remote.empty ? undefined : remote.sms,
           });
         }
 
@@ -355,20 +369,29 @@ function lookupInAppPushTemplateId(
   return null;
 }
 
-async function isIterableRemoteLocaleEmpty(
+type IterableRemoteLocale = {
+  empty: boolean;
+  email?: IterableEmailTemplate;
+  inApp?: IterableInAppTemplate;
+  push?: IterablePushTemplate;
+  sms?: IterableSmsTemplate;
+  snippet?: IterableSnippet;
+};
+
+async function loadIterableRemoteLocale(
   client: IterableClient,
   mapping: typeof schema.iterableTemplateSyncStates.$inferSelect,
   suffix: string,
   projectLocale: string,
-): Promise<boolean> {
+): Promise<IterableRemoteLocale> {
   if (mapping.resourceKind === "snippet") {
     const copyName = iterableSnippetLocaleCopyName(mapping.sourceName, projectLocale);
     try {
       const snippet = await client.getSnippet(copyName);
-      return !(snippet.content ?? "").trim();
+      return { empty: !(snippet.content ?? "").trim(), snippet };
     } catch (error) {
       if (isRemoteLocaleEmpty(error)) {
-        return true;
+        return { empty: true };
       }
       throw error;
     }
@@ -383,33 +406,33 @@ async function isIterableRemoteLocaleEmpty(
     templateId = Number(mapping.sourceId);
   }
   if (templateId == null) {
-    return true;
+    return { empty: true };
   }
 
   try {
     if (mapping.resourceKind === "email") {
-      const remote = await client.getEmailTemplate(templateId, suffix);
-      return isRemoteContentEmpty(remote);
+      const email = await client.getEmailTemplate(templateId, suffix);
+      return { empty: isRemoteContentEmpty(email), email };
     }
     if (mapping.resourceKind === "in_app") {
-      const remote = await client.getInAppTemplate(templateId, suffix);
-      return isRemoteContentEmpty(remote);
+      const inApp = await client.getInAppTemplate(templateId, suffix);
+      return { empty: isRemoteContentEmpty(inApp), inApp };
     }
     if (mapping.resourceKind === "push") {
-      const remote = await client.getPushTemplate(templateId, suffix);
-      return isRemoteContentEmpty(remote);
+      const push = await client.getPushTemplate(templateId, suffix);
+      return { empty: isRemoteContentEmpty(push), push };
     }
     if (mapping.resourceKind === "sms") {
-      const remote = await client.getSmsTemplate(templateId, suffix);
-      return isRemoteContentEmpty(remote);
+      const sms = await client.getSmsTemplate(templateId, suffix);
+      return { empty: isRemoteContentEmpty(sms), sms };
     }
   } catch (error) {
     if (isRemoteLocaleEmpty(error)) {
-      return true;
+      return { empty: true };
     }
     throw error;
   }
-  return true;
+  return { empty: true };
 }
 
 async function resolveEmailPushTemplateId(
@@ -455,14 +478,32 @@ async function pushEmailLocale(input: {
   suffix: string;
   sourceHtml: string;
   approved: Record<string, string>;
+  remote?: IterableEmailTemplate;
 }) {
-  const translatedHtml = applyApprovedIterableHtmlTranslations(input.sourceHtml, input.approved);
+  const remoteEnvelope = input.remote
+    ? serializeIterableEmailRemoteEnvelope({
+        storedEnvelopeHtml: input.sourceHtml,
+        remote: {
+          subject: input.remote.subject,
+          preheaderText: input.remote.preheaderText,
+          html: input.remote.html,
+          plainText: input.remote.plainText,
+        },
+      })
+    : null;
+  const translatedHtml = applyApprovedIterableHtmlTranslations({
+    storedEnvelopeHtml: input.sourceHtml,
+    remoteEnvelopeHtml: remoteEnvelope?.html,
+    approved: input.approved,
+  });
   const parsed = restoreIterableEmailEnvelope(
     parseIterableEmailEnvelope(translatedHtml),
-    input.mapping.handlebarsTokens ?? {},
+    remoteEnvelope?.tokensByField ?? input.mapping.handlebarsTokens ?? {},
   );
   const templateId = await resolveEmailPushTemplateId(input.client, input.mapping, parsed);
-  const fromName = await readEmailFromName(input.client, templateId, input.suffix);
+  const fromName = input.remote?.fromName?.trim()
+    ? input.remote.fromName
+    : await readEmailFromName(input.client, templateId, input.suffix);
   await input.client.updateEmailTemplate({
     templateId,
     locale: input.suffix,
@@ -528,14 +569,32 @@ async function pushInAppLocale(input: {
   suffix: string;
   sourceHtml: string;
   approved: Record<string, string>;
+  remote?: IterableInAppTemplate;
 }) {
-  const translatedHtml = applyApprovedIterableHtmlTranslations(input.sourceHtml, input.approved);
+  const remoteEnvelope = input.remote
+    ? serializeIterableInAppRemoteEnvelope({
+        storedEnvelopeHtml: input.sourceHtml,
+        remote: {
+          html: input.remote.html,
+          title: input.remote.title ?? input.remote.inboxMetadata?.title,
+          subtitle: input.remote.subtitle ?? input.remote.inboxMetadata?.subtitle,
+          icon: input.remote.icon ?? input.remote.inboxMetadata?.icon,
+        },
+      })
+    : null;
+  const translatedHtml = applyApprovedIterableHtmlTranslations({
+    storedEnvelopeHtml: input.sourceHtml,
+    remoteEnvelopeHtml: remoteEnvelope?.html,
+    approved: input.approved,
+  });
   const parsed = restoreIterableInAppEnvelope(
     parseIterableInAppEnvelope(translatedHtml),
-    input.mapping.handlebarsTokens ?? {},
+    remoteEnvelope?.tokensByField ?? input.mapping.handlebarsTokens ?? {},
   );
   const templateId = await resolveInAppPushTemplateId(input.client, input.mapping, parsed.html);
-  const saveToInbox = await readInAppSaveToInbox(input.client, templateId, input.suffix);
+  const saveToInbox =
+    input.remote?.inboxMetadata?.saveToInbox ??
+    (await readInAppSaveToInbox(input.client, templateId, input.suffix));
   const inboxMetadata = {
     ...(parsed.title?.trim() ? { title: parsed.title } : {}),
     ...(parsed.subtitle?.trim() ? { subtitle: parsed.subtitle } : {}),
@@ -573,9 +632,13 @@ async function pushPushLocale(input: {
   suffix: string;
   sourceHtml: string;
   approved: Record<string, string>;
+  remote?: IterablePushTemplate;
 }) {
-  const translated = applyApprovedIterableHtmlTranslations(input.sourceHtml, input.approved);
-  const fields = parseIterablePushEnvelope(translated);
+  const fields = applyApprovedIterablePushTranslations({
+    source: parseIterablePushEnvelope(input.sourceHtml),
+    remote: input.remote ? { title: input.remote.title, message: input.remote.message } : null,
+    approved: input.approved,
+  });
   await input.client.updatePushTemplate({
     templateId: Number(input.mapping.sourceId),
     locale: input.suffix,
@@ -590,9 +653,13 @@ async function pushSmsLocale(input: {
   suffix: string;
   sourceHtml: string;
   approved: Record<string, string>;
+  remote?: IterableSmsTemplate;
 }) {
-  const translated = applyApprovedIterableHtmlTranslations(input.sourceHtml, input.approved);
-  const fields = parseIterableSmsEnvelope(translated);
+  const fields = applyApprovedIterableSmsTranslations({
+    source: parseIterableSmsEnvelope(input.sourceHtml),
+    remote: input.remote ? { message: input.remote.message } : null,
+    approved: input.approved,
+  });
   await input.client.updateSmsTemplate({
     templateId: Number(input.mapping.sourceId),
     locale: input.suffix,
@@ -607,11 +674,22 @@ async function pushSnippetLocale(input: {
   suffix: string;
   sourceHtml: string;
   approved: Record<string, string>;
+  remote?: IterableSnippet;
 }) {
-  const translatedHtml = applyApprovedIterableHtmlTranslations(input.sourceHtml, input.approved);
+  const remoteEnvelope = input.remote?.content
+    ? serializeIterableSnippetRemoteEnvelope({
+        storedEnvelopeHtml: input.sourceHtml,
+        remoteContent: input.remote.content,
+      })
+    : null;
+  const translatedHtml = applyApprovedIterableHtmlTranslations({
+    storedEnvelopeHtml: input.sourceHtml,
+    remoteEnvelopeHtml: remoteEnvelope?.html,
+    approved: input.approved,
+  });
   const content = restoreIterableSnippetContent(
     parseIterableSnippetHtml(translatedHtml),
-    input.mapping.handlebarsTokens?.content,
+    remoteEnvelope?.tokensByField.content ?? input.mapping.handlebarsTokens?.content,
   );
   const sourceSnippet = await input.client.getSnippet(input.mapping.sourceId);
   const copyName = iterableSnippetLocaleCopyName(input.mapping.sourceName, input.projectLocale);

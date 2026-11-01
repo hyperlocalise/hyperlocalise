@@ -533,6 +533,9 @@
   "+tsNE73Ud/": {
     "defaultMessage": "Legen Sie die maximal zulässige Anzahl an Zeichen in der Übersetzung fest."
   },
+  "+u6bMZ2pRz": {
+    "defaultMessage": "Weiter"
+  },
   "+ufsbqnrz9": {
     "defaultMessage": "Agentenaktivität"
   },
@@ -1445,6 +1448,9 @@
   "0TnAd5e2Yn": {
     "defaultMessage": "Verwenden Sie unterschiedliche Modelle für verschiedene Inhaltstypen, während die Prüf- und Synchronisierungslogik konsistent bleibt."
   },
+  "0UO1BREBTM": {
+    "defaultMessage": "Wird angenommen…"
+  },
   "0UVlCvBqbT": {
     "defaultMessage": "Noch keine Nachrichten"
   },
@@ -1678,6 +1684,9 @@
   },
   "0s28QK0gJ3": {
     "defaultMessage": "Einstellungen · Hauptaktion"
+  },
+  "0sHkme+8tb": {
+    "defaultMessage": "Mitglied ist ausgetreten"
   },
   "0su3rYbABy": {
     "defaultMessage": "Neuster Auftrag · {status}"
@@ -3395,6 +3404,9 @@
   "3xXiVgOezJ": {
     "defaultMessage": "Diese Seite ist nicht mehr gültig. Die erste Seite wird angezeigt."
   },
+  "3xa+IqbvLl": {
+    "defaultMessage": "Arbeitsbereich auswählen"
+  },
   "3xhOvPA3lu": {
     "defaultMessage": "Quell-Upload · {project}"
   },
@@ -4816,6 +4828,9 @@
   },
   "6acz11Hecl": {
     "defaultMessage": "Experimente"
+  },
+  "6alv0fvJQR": {
+    "defaultMessage": "Dies ist dein einziger Arbeitsbereich. Möglicherweise wirst du aufgefordert, dich erneut anzumelden. Anschließend kannst du einen neuen erstellen oder eine Einladung annehmen."
   },
   "6bCLEYenE4": {
     "defaultMessage": "Vorhandene Flagge"
@@ -7191,7 +7206,7 @@
     "defaultMessage": "Prüfen"
   },
   "B/d0rdoVJ/": {
-    "defaultMessage": "Block {number}"
+    "defaultMessage": "Textblock {number}"
   },
   "B/sHkRyWmP": {
     "defaultMessage": "Experiment"
@@ -10775,6 +10790,9 @@
   "HV+orx8sr6": {
     "defaultMessage": "Änderungen an Strings erkennen und automatisch übersetzen"
   },
+  "HVWNQgqVcW": {
+    "defaultMessage": "Deine Einladung wurde angenommen, aber der Workspace ist noch nicht bereit. Lade diese Seite gleich noch einmal."
+  },
   "HVa66T0BGY": {
     "defaultMessage": "{count, plural, one {# Schritt wurde tatsächlich ausgeführt} other {# Schritte wurden tatsächlich ausgeführt}}"
   },
@@ -11263,6 +11281,9 @@
   },
   "IMr6sfD/7/": {
     "defaultMessage": "Dateien"
+  },
+  "IO9ifurzwW": {
+    "defaultMessage": "Abbrechen"
   },
   "IOmySBLwfP": {
     "defaultMessage": "Erneut versuchen"
@@ -12449,6 +12470,9 @@
   "KePBZ202q8": {
     "defaultMessage": "„{name}“ wird aus diesem Experiment entfernt. Dies kann nicht rückgängig gemacht werden."
   },
+  "Kg5oomFJK7": {
+    "defaultMessage": "und {count} weitere"
+  },
   "KgPZ5Uqgat": {
     "defaultMessage": "Manager"
   },
@@ -12514,6 +12538,9 @@
   },
   "Kq4aU8dzI5": {
     "defaultMessage": "Überprüfen Sie die Ergebnisse des jeweils letzten erfolgreichen Scans jedes Projekts. Prüfen Sie den Projektstatus für Scans, die fehlgeschlagen sind, noch laufen oder noch nie ausgeführt wurden."
+  },
+  "KqiLqEGTTZ": {
+    "defaultMessage": "Bestätige deine E-Mail-Adresse, um Einladungen zu anderen Arbeitsbereichen zu sehen, und lade diese Seite anschließend neu."
   },
   "Ks+Feeoung": {
     "defaultMessage": "{count} Zeichen"
@@ -12667,6 +12694,9 @@
   },
   "L9CYRKrj6S": {
     "defaultMessage": "Administrator"
+  },
+  "L9HXNtVWvN": {
+    "defaultMessage": "Diese Einladung ist abgelaufen oder wurde zurückgezogen. Bitte den Workspace-Admin, dich erneut einzuladen."
   },
   "LAhLwqc2EA": {
     "defaultMessage": "Figma"
@@ -13246,6 +13276,9 @@
   },
   "M8XELItknC": {
     "defaultMessage": "Im Editor öffnen"
+  },
+  "M95Yl2ZYHn": {
+    "defaultMessage": "Arbeitsbereich erstellen"
   },
   "M9MtJAsUOq": {
     "defaultMessage": "„Bei Fehler“ ist auf „Stoppen“ gesetzt, daher wird der Testlauf bei diesem Schritt angehalten."
@@ -14773,6 +14806,9 @@
   },
   "P3c/gqRJ32": {
     "defaultMessage": "Übersetzung geändert – führe einen Scan zur erneuten Überprüfung aus."
+  },
+  "P3hJ1/69DS": {
+    "defaultMessage": "Der Arbeitsbereich konnte nicht verlassen werden. Versuchen Sie es erneut."
   },
   "P4A/eg4+zm": {
     "defaultMessage": "Überschrift 2"
@@ -16703,6 +16739,9 @@
   "SiPCg9X6AE": {
     "defaultMessage": "Vorschau"
   },
+  "Siv+JUHnHq": {
+    "defaultMessage": "Erneut versuchen"
+  },
   "SjHx8vM/dA": {
     "defaultMessage": "Bewertung"
   },
@@ -17608,6 +17647,9 @@
   },
   "UK+ou5Ws9N": {
     "defaultMessage": "Letzte 6 Monate"
+  },
+  "UK7jOz9fV2": {
+    "defaultMessage": "Öffne einen deiner Arbeitsbereiche, nimm eine Einladung an oder erstelle einen neuen Arbeitsbereich."
   },
   "UKFf8HWVZX": {
     "defaultMessage": "Domain wird geladen …"
@@ -18530,6 +18572,9 @@
   "W3V5ERIIW9": {
     "defaultMessage": "Verknüpfter Kontext"
   },
+  "W3dD2MKin0": {
+    "defaultMessage": "{count, plural, one {Diese Automatisierung verwendet ein von dir verbundenes Konto und funktioniert möglicherweise nicht mehr:} other {Diese Automatisierungen verwenden Konten, die du verbunden hast, und funktionieren möglicherweise nicht mehr:}}"
+  },
   "W3kvUxF+V1": {
     "defaultMessage": "Workflow pausiert"
   },
@@ -19078,6 +19123,9 @@
   },
   "X69pKW667o": {
     "defaultMessage": "Keine Probleme gefunden"
+  },
+  "X6NUPESd72": {
+    "defaultMessage": "Annehmen"
   },
   "X6g1omP0I1": {
     "defaultMessage": "Benachrichtige #compliance, wenn Ergebnisse überprüft werden müssen."
@@ -19655,6 +19703,9 @@
   "Y9uUKekkpa": {
     "defaultMessage": "Erstellen und bearbeiten Sie Texte, Dokumente, Präsentationen, Bilder und Videos. Behalten Sie Ihren Kontext, Ihre Stimme und Ihr Team zusammen."
   },
+  "Y9y6zTkXYd": {
+    "defaultMessage": "Workspace verlassen"
+  },
   "YAgd2vmpnm": {
     "defaultMessage": "Arbeitsaufträge des Workspace konnten nicht geladen werden."
   },
@@ -19813,6 +19864,9 @@
   },
   "YTRbiRB1qL": {
     "defaultMessage": "Keine zugewiesenen Hyperlocalise-Aufträge gefunden."
+  },
+  "YToRIe9hSd": {
+    "defaultMessage": "Einladung zu {name} wird angenommen…"
   },
   "YTpu1j7/Q4": {
     "defaultMessage": "Aktion"
@@ -20378,6 +20432,9 @@
   "ZV8a5iOSNX": {
     "defaultMessage": "In der Staging-Umgebung veröffentlicht · #gtm benachrichtigt"
   },
+  "ZVIyFNqsnD": {
+    "defaultMessage": "hat den Arbeitsbereich verlassen"
+  },
   "ZVZIaOT6mh": {
     "defaultMessage": "Wettbewerber"
   },
@@ -20755,6 +20812,9 @@
   },
   "a5wP5u9Iqr": {
     "defaultMessage": "Begründung"
+  },
+  "a6AWYfXez+": {
+    "defaultMessage": "{name} verlassen?"
   },
   "a6JR5uFWOp": {
     "defaultMessage": "Schritt"
@@ -21412,6 +21472,9 @@
   },
   "bJPgIG0M7T": {
     "defaultMessage": "Branch"
+  },
+  "bJQH/XlrZq": {
+    "defaultMessage": "Einen weiteren Arbeitsbereich erstellen"
   },
   "bKPrJiNBf6": {
     "defaultMessage": "Ereignis"
@@ -22358,6 +22421,9 @@
   "d5Z1STDBKG": {
     "defaultMessage": "Lokalise"
   },
+  "d62LeLJXFa": {
+    "defaultMessage": "Du bist kein Mitglied dieses Arbeitsbereichs mehr."
+  },
   "d6ELhmM7BL": {
     "defaultMessage": "KI hilft, die Kompromisse zu erklären, aber der menschliche Prüfer behält die Kontrolle über die endgültige Entscheidung."
   },
@@ -22489,6 +22555,9 @@
   },
   "dIjV9bElOk": {
     "defaultMessage": "Berichterstellung gestartet: {date}"
+  },
+  "dInHga4hn8": {
+    "defaultMessage": "Bestätigen Sie Ihre E-Mail-Adresse, bevor Sie eine Einladung annehmen, und versuchen Sie es dann erneut."
   },
   "dIpX2t1U6p": {
     "defaultMessage": "Kontext aktualisieren"
@@ -23131,6 +23200,9 @@
   },
   "eI8CB+a2hA": {
     "defaultMessage": "Übersetzungsfehler"
+  },
+  "eIdejZFXxK": {
+    "defaultMessage": "{count, plural, one {Dieser API-Schlüssel funktioniert nicht mehr:} other {Diese API-Schlüssel funktionieren nicht mehr:}}"
   },
   "eIzQewHUyw": {
     "defaultMessage": "{format}-Export"
@@ -25184,6 +25256,9 @@
   "hx+ozGK2uu": {
     "defaultMessage": "Fahren Sie dort fort, wo Sie aufgehört haben – {details}."
   },
+  "hxaX4oOeRm": {
+    "defaultMessage": "Der Anmeldedienst ist nicht erreichbar. Bitte versuchen Sie es gleich noch einmal."
+  },
   "hxojPYuxF0": {
     "defaultMessage": "Zurück:VEVENT"
   },
@@ -26789,6 +26864,9 @@
   "kjx+4Dj0jz": {
     "defaultMessage": "Ein Hinweis von den Gründern"
   },
+  "klDfkrFdL9": {
+    "defaultMessage": "Einladungen"
+  },
   "klJCqIQ+RC": {
     "defaultMessage": "Sonstige"
   },
@@ -27173,6 +27251,9 @@
   "lPmc7tHCkL": {
     "defaultMessage": "{spaceId}/{environmentId}"
   },
+  "lQxXTbs2H9": {
+    "defaultMessage": "Arbeitsbereich erstellen"
+  },
   "lR7pNsCeCh": {
     "defaultMessage": "Alle Projekte"
   },
@@ -27409,6 +27490,9 @@
   },
   "lsmpBVLKpZ": {
     "defaultMessage": "Korrekturlesen"
+  },
+  "lsoHEzfNM1": {
+    "defaultMessage": "Es wird geprüft, was sich ändert, wenn du den Workspace verlässt …"
   },
   "lsxAaZycti": {
     "defaultMessage": "GitHub"
@@ -28046,6 +28130,9 @@
   "n+jmfgFlG0": {
     "defaultMessage": "Übersetzungen werden aus diesem Projekt gelesen, bevor der Pull Request geöffnet wird."
   },
+  "n+wQ7BXYlc": {
+    "defaultMessage": "Arbeitsbereich verlassen…"
+  },
   "n+ysONBMTA": {
     "defaultMessage": "Löschen"
   },
@@ -28060,6 +28147,9 @@
   },
   "n02KlXlk6i": {
     "defaultMessage": "Dieser Schritt hat in der Vorschau keine zusätzlichen Einstellungen."
+  },
+  "n0CHcDaj4y": {
+    "defaultMessage": "Einladung zu {name} annehmen"
   },
   "n0l2Kl1EOo": {
     "defaultMessage": "Repository"
@@ -28532,6 +28622,9 @@
   "nnCxP1Ix40": {
     "defaultMessage": "Verbinde deine Tools"
   },
+  "nnVaD4zJuo": {
+    "defaultMessage": "Ein neuer Arbeitsbereich hat eigene Projekte, Mitglieder, Einstellungen und einen eigenen Tarif. Du bleibst Mitglied deiner anderen Arbeitsbereiche."
+  },
   "nnXWSAtR1P": {
     "defaultMessage": "Speichern Sie organisationsweite Lokalisierungsrichtlinien als einen flexiblen Markdown-Speicher."
   },
@@ -28996,6 +29089,9 @@
   },
   "ohFSHTwja2": {
     "defaultMessage": "Aktualisiert"
+  },
+  "oiJegD5+SZ": {
+    "defaultMessage": "Es konnte nicht überprüft werden, was sich ändert, wenn du den Arbeitsbereich verlässt."
   },
   "oiLDAv4P0Y": {
     "defaultMessage": "Alle Regeln müssen übereinstimmen"
@@ -30242,6 +30338,9 @@
   "qqzc5HNRQF": {
     "defaultMessage": "Behalten Sie Ihre Dokumente. Nutzen Sie sie sinnvoll. | Hyperlocalise"
   },
+  "qr+n6Od9jO": {
+    "defaultMessage": "Abbrechen"
+  },
   "qs2xntPsAx": {
     "defaultMessage": "SEO & AEO"
   },
@@ -30643,6 +30742,9 @@
   },
   "rXIITR1I9M": {
     "defaultMessage": "Automatisierungen"
+  },
+  "rXMDxSDgo4": {
+    "defaultMessage": "Du bist der einzige Admin in diesem Arbeitsbereich. Mache ein anderes Mitglied zum Admin, bevor du den Arbeitsbereich verlässt."
   },
   "rXuCG4x28U": {
     "defaultMessage": "Wählen Sie eine Ressource aus."
@@ -33365,6 +33467,9 @@
   "wTei3/v4E4": {
     "defaultMessage": "Funktioniert über Engineering-, Produkt- und Lokalisierungs-Workflows hinweg"
   },
+  "wTouXDwM8N": {
+    "defaultMessage": "Wird verlassen …"
+  },
   "wU/mAJtu+z": {
     "defaultMessage": "Beschreiben Sie die Automatisierung"
   },
@@ -34222,6 +34327,9 @@
   },
   "xzZ3ZLUqLC": {
     "defaultMessage": "Preiskarten werden von allen Berichten gemeinsam genutzt. Änderungen gelten für ab jetzt erfasste Arbeit."
+  },
+  "xzl3uN35Vr": {
+    "defaultMessage": "Du verlierst den Zugriff auf diesen Arbeitsbereich und seine Projekte. Um zurückzukehren, muss dich ein Administrator erneut einladen."
   },
   "y+0ftMWpAa": {
     "defaultMessage": "URL: {url}"

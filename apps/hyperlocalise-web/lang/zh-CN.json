@@ -533,6 +533,9 @@
   "+tsNE73Ud/": {
     "defaultMessage": "设置翻译中允许的最大字符数。"
   },
+  "+u6bMZ2pRz": {
+    "defaultMessage": "Continue"
+  },
   "+ufsbqnrz9": {
     "defaultMessage": "智能体活动"
   },
@@ -1445,6 +1448,9 @@
   "0TnAd5e2Yn": {
     "defaultMessage": "针对不同内容类型使用不同模型，同时保持审核和同步逻辑一致。"
   },
+  "0UO1BREBTM": {
+    "defaultMessage": "正在接受…"
+  },
   "0UVlCvBqbT": {
     "defaultMessage": "还没有消息"
   },
@@ -1678,6 +1684,9 @@
   },
   "0s28QK0gJ3": {
     "defaultMessage": "设置 · 主要操作"
+  },
+  "0sHkme+8tb": {
+    "defaultMessage": "成员已离开"
   },
   "0su3rYbABy": {
     "defaultMessage": "最新任务 · {status}"
@@ -3395,6 +3404,9 @@
   "3xXiVgOezJ": {
     "defaultMessage": "该页面已失效。正在显示第一页。"
   },
+  "3xa+IqbvLl": {
+    "defaultMessage": "选择工作区"
+  },
   "3xhOvPA3lu": {
     "defaultMessage": "源上传 · {project}"
   },
@@ -4816,6 +4828,9 @@
   },
   "6acz11Hecl": {
     "defaultMessage": "Experiments"
+  },
+  "6alv0fvJQR": {
+    "defaultMessage": "这是您唯一的工作区。系统可能会要求您重新登录；之后您可以创建一个新工作区或接受邀请。"
   },
   "6bCLEYenE4": {
     "defaultMessage": "现有旗帜"
@@ -10775,6 +10790,9 @@
   "HV+orx8sr6": {
     "defaultMessage": "检测字符串更改并自动翻译"
   },
+  "HVWNQgqVcW": {
+    "defaultMessage": "您的邀请已接受，但工作区尚未准备就绪。请稍后重新加载此页面。"
+  },
   "HVa66T0BGY": {
     "defaultMessage": "{count, plural, one {实际运行了 # 个步骤} other {实际运行了 # 个步骤}}"
   },
@@ -11263,6 +11281,9 @@
   },
   "IMr6sfD/7/": {
     "defaultMessage": "文件"
+  },
+  "IO9ifurzwW": {
+    "defaultMessage": "取消"
   },
   "IOmySBLwfP": {
     "defaultMessage": "重试"
@@ -12449,6 +12470,9 @@
   "KePBZ202q8": {
     "defaultMessage": "“{name}”将从此实验中移除。此操作无法撤销。"
   },
+  "Kg5oomFJK7": {
+    "defaultMessage": "还有 {count} 项"
+  },
   "KgPZ5Uqgat": {
     "defaultMessage": "Manager"
   },
@@ -12514,6 +12538,9 @@
   },
   "Kq4aU8dzI5": {
     "defaultMessage": "查看每个项目最近一次成功扫描的审查结果。对于扫描失败、正在运行或从未运行过的项目，请检查其状态。"
+  },
+  "KqiLqEGTTZ": {
+    "defaultMessage": "验证您的电子邮件地址以查看其他工作区的邀请，然后重新加载此页面。"
   },
   "Ks+Feeoung": {
     "defaultMessage": "{count} 个字符"
@@ -12667,6 +12694,9 @@
   },
   "L9CYRKrj6S": {
     "defaultMessage": "管理员"
+  },
+  "L9HXNtVWvN": {
+    "defaultMessage": "此邀请已过期或已撤回。请联系工作区管理员重新邀请你。"
   },
   "LAhLwqc2EA": {
     "defaultMessage": "Figma"
@@ -13246,6 +13276,9 @@
   },
   "M8XELItknC": {
     "defaultMessage": "在编辑器中打开"
+  },
+  "M95Yl2ZYHn": {
+    "defaultMessage": "创建工作区"
   },
   "M9MtJAsUOq": {
     "defaultMessage": "“发生错误时”设为“停止”，因此测试运行会在此步骤停止。"
@@ -14773,6 +14806,9 @@
   },
   "P3c/gqRJ32": {
     "defaultMessage": "翻译已更改 — 请运行扫描以重新检查。"
+  },
+  "P3hJ1/69DS": {
+    "defaultMessage": "无法离开工作区。请重试。"
   },
   "P4A/eg4+zm": {
     "defaultMessage": "二级标题"
@@ -16703,6 +16739,9 @@
   "SiPCg9X6AE": {
     "defaultMessage": "Preview"
   },
+  "Siv+JUHnHq": {
+    "defaultMessage": "重试"
+  },
   "SjHx8vM/dA": {
     "defaultMessage": "Scoring"
   },
@@ -17608,6 +17647,9 @@
   },
   "UK+ou5Ws9N": {
     "defaultMessage": "过去 6 个月"
+  },
+  "UK7jOz9fV2": {
+    "defaultMessage": "打开一个工作区、接受邀请或创建新工作区。"
   },
   "UKFf8HWVZX": {
     "defaultMessage": "正在加载域名…"
@@ -18530,6 +18572,9 @@
   "W3V5ERIIW9": {
     "defaultMessage": "Linked context"
   },
+  "W3dD2MKin0": {
+    "defaultMessage": "{count, plural, one {此自动化使用了您连接的账户，可能会停止运行：} other {这些自动化使用了您连接的账户，可能会停止运行：}}"
+  },
   "W3kvUxF+V1": {
     "defaultMessage": "工作流已暂停"
   },
@@ -19078,6 +19123,9 @@
   },
   "X69pKW667o": {
     "defaultMessage": "未发现问题"
+  },
+  "X6NUPESd72": {
+    "defaultMessage": "Accept"
   },
   "X6g1omP0I1": {
     "defaultMessage": "当发现结果需要审核时，通知 #compliance。"
@@ -19655,6 +19703,9 @@
   "Y9uUKekkpa": {
     "defaultMessage": "创建并改编文本、文档、幻灯片、图片和视频。保持上下文、语气和团队协作连贯一致。"
   },
+  "Y9y6zTkXYd": {
+    "defaultMessage": "退出工作区"
+  },
   "YAgd2vmpnm": {
     "defaultMessage": "无法加载工作区作业。"
   },
@@ -19813,6 +19864,9 @@
   },
   "YTRbiRB1qL": {
     "defaultMessage": "未找到分配的 Hyperlocalise 任务。"
+  },
+  "YToRIe9hSd": {
+    "defaultMessage": "正在接受加入 {name} 的邀请…"
   },
   "YTpu1j7/Q4": {
     "defaultMessage": "Action"
@@ -20378,6 +20432,9 @@
   "ZV8a5iOSNX": {
     "defaultMessage": "已发布到预发布环境 · 已通知 #gtm"
   },
+  "ZVIyFNqsnD": {
+    "defaultMessage": "已离开工作区"
+  },
   "ZVZIaOT6mh": {
     "defaultMessage": "竞争对手"
   },
@@ -20755,6 +20812,9 @@
   },
   "a5wP5u9Iqr": {
     "defaultMessage": "推理"
+  },
+  "a6AWYfXez+": {
+    "defaultMessage": "要离开 {name} 吗？"
   },
   "a6JR5uFWOp": {
     "defaultMessage": "步骤"
@@ -21412,6 +21472,9 @@
   },
   "bJPgIG0M7T": {
     "defaultMessage": "Branch"
+  },
+  "bJQH/XlrZq": {
+    "defaultMessage": "创建另一个工作区"
   },
   "bKPrJiNBf6": {
     "defaultMessage": "事件"
@@ -22358,6 +22421,9 @@
   "d5Z1STDBKG": {
     "defaultMessage": "Lokalise"
   },
+  "d62LeLJXFa": {
+    "defaultMessage": "你已不再是此工作区的成员。"
+  },
   "d6ELhmM7BL": {
     "defaultMessage": "AI 有助于解释权衡取舍，但人工审校者始终掌握最终决定权。"
   },
@@ -22489,6 +22555,9 @@
   },
   "dIjV9bElOk": {
     "defaultMessage": "报告已开始：{date}"
+  },
+  "dInHga4hn8": {
+    "defaultMessage": "请先验证您的电子邮件地址，然后再接受邀请，然后重试。"
   },
   "dIpX2t1U6p": {
     "defaultMessage": "刷新上下文"
@@ -23131,6 +23200,9 @@
   },
   "eI8CB+a2hA": {
     "defaultMessage": "翻译错误"
+  },
+  "eIdejZFXxK": {
+    "defaultMessage": "{count, plural, one {此 API 密钥将失效：} other {这些 API 密钥将失效：}}"
   },
   "eIzQewHUyw": {
     "defaultMessage": "{format} 导出"
@@ -25184,6 +25256,9 @@
   "hx+ozGK2uu": {
     "defaultMessage": "Pick up where you left off — {details}."
   },
+  "hxaX4oOeRm": {
+    "defaultMessage": "无法连接到登录服务。请稍后重试。"
+  },
   "hxojPYuxF0": {
     "defaultMessage": "Previous"
   },
@@ -26789,6 +26864,9 @@
   "kjx+4Dj0jz": {
     "defaultMessage": "创始人寄语"
   },
+  "klDfkrFdL9": {
+    "defaultMessage": "邀请񎟢"
+  },
   "klJCqIQ+RC": {
     "defaultMessage": "Other"
   },
@@ -27173,6 +27251,9 @@
   "lPmc7tHCkL": {
     "defaultMessage": "{spaceId}/{environmentId}"
   },
+  "lQxXTbs2H9": {
+    "defaultMessage": "创建工作区"
+  },
   "lR7pNsCeCh": {
     "defaultMessage": "所有项目"
   },
@@ -27409,6 +27490,9 @@
   },
   "lsmpBVLKpZ": {
     "defaultMessage": "校对"
+  },
+  "lsoHEzfNM1": {
+    "defaultMessage": "正在检查离开后会发生哪些变化…"
   },
   "lsxAaZycti": {
     "defaultMessage": "GitHub"
@@ -28046,6 +28130,9 @@
   "n+jmfgFlG0": {
     "defaultMessage": "在打开拉取请求之前，会先从此项目中读取翻译。"
   },
+  "n+wQ7BXYlc": {
+    "defaultMessage": "离开工作区…"
+  },
   "n+ysONBMTA": {
     "defaultMessage": "Delete"
   },
@@ -28060,6 +28147,9 @@
   },
   "n02KlXlk6i": {
     "defaultMessage": "此步骤在预览中没有其他设置。"
+  },
+  "n0CHcDaj4y": {
+    "defaultMessage": "接受加入 {name} 的邀请"
   },
   "n0l2Kl1EOo": {
     "defaultMessage": "仓库"
@@ -28532,6 +28622,9 @@
   "nnCxP1Ix40": {
     "defaultMessage": "连接您的工具"
   },
+  "nnVaD4zJuo": {
+    "defaultMessage": "新工作区拥有独立的项目、成员、设置和套餐。您仍是其他工作区的成员。"
+  },
   "nnXWSAtR1P": {
     "defaultMessage": "Store organization-wide localization guidance as one flexible markdown memory."
   },
@@ -28996,6 +29089,9 @@
   },
   "ohFSHTwja2": {
     "defaultMessage": "已更新"
+  },
+  "oiJegD5+SZ": {
+    "defaultMessage": "无法检查离开后会发生哪些变化。"
   },
   "oiLDAv4P0Y": {
     "defaultMessage": "匹配所有规则"
@@ -30242,6 +30338,9 @@
   "qqzc5HNRQF": {
     "defaultMessage": "保留您现有的文档。让它们发挥作用。| Hyperlocalise"
   },
+  "qr+n6Od9jO": {
+    "defaultMessage": "取消"
+  },
   "qs2xntPsAx": {
     "defaultMessage": "SEO 与 AEO"
   },
@@ -30643,6 +30742,9 @@
   },
   "rXIITR1I9M": {
     "defaultMessage": "自动化"
+  },
+  "rXMDxSDgo4": {
+    "defaultMessage": "你是此工作区唯一的管理员。请先将另一位成员设为管理员，然后再离开。"
   },
   "rXuCG4x28U": {
     "defaultMessage": "选择一个资源"
@@ -33365,6 +33467,9 @@
   "wTei3/v4E4": {
     "defaultMessage": "适用于工程、产品和本地化工作流程"
   },
+  "wTouXDwM8N": {
+    "defaultMessage": "正在退出…"
+  },
   "wU/mAJtu+z": {
     "defaultMessage": "描述自动化流程"
   },
@@ -34222,6 +34327,9 @@
   },
   "xzZ3ZLUqLC": {
     "defaultMessage": "所有报告共用费率卡。更改将应用于今后记录的工作。"
+  },
+  "xzl3uN35Vr": {
+    "defaultMessage": "你将无法再访问此工作区及其项目。如需重新加入，管理员必须再次邀请你。"
   },
   "y+0ftMWpAa": {
     "defaultMessage": "URL：{url}"

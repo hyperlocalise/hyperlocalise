@@ -17,6 +17,7 @@ import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { CreateTranslationJobDialog } from "./create-translation-job-dialog";
 import { DownloadTranslationsDialog } from "./download-translations-dialog";
 import { ImportTranslationsDialog } from "./import-translations-dialog";
+import { ProjectFileImportSettingsDialog } from "./project-file-import-settings-dialog";
 import { ProjectFileMessageFormatDialog } from "./project-file-message-format-dialog";
 import { ProjectFileSegmentationDialog } from "./project-file-segmentation-dialog";
 import type { useProjectFileActions } from "./use-project-file-actions";
@@ -73,6 +74,15 @@ export function ProjectFileActionDialogs({
         <ProjectFileMessageFormatDialog
           open={actions.messageFormatDialogOpen}
           onOpenChange={actions.setMessageFormatDialogOpen}
+          organizationSlug={actions.organizationSlug}
+          projectId={actions.projectId}
+          sourcePath={file.sourcePath}
+        />
+      ) : null}
+      {actions.importSettingsDialogOpen ? (
+        <ProjectFileImportSettingsDialog
+          open={actions.importSettingsDialogOpen}
+          onOpenChange={actions.setImportSettingsDialogOpen}
           organizationSlug={actions.organizationSlug}
           projectId={actions.projectId}
           sourcePath={file.sourcePath}

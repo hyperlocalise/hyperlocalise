@@ -56,8 +56,8 @@ export function htmlTranslationDownloadFailure(): {
 
 /**
  * Builds the target-locale copy of an HTML source from its ready translations.
- * Resolves to `null` when the path is not an HTML file or the file has no keys,
- * so callers keep their stored-file download.
+ * Missing keys keep their source text. Resolves to `null` when the path is not
+ * an HTML file so callers keep their stored-file or JSON download.
  */
 export async function loadProjectHtmlTranslationDownload(input: {
   organizationId: string;
@@ -78,9 +78,6 @@ export async function loadProjectHtmlTranslationDownload(input: {
     readyTranslationsOnly: true,
     approvedTranslationsOnly: input.approvedTranslationsOnly,
   });
-  if (translations.loadedKeyCount === 0) {
-    return ok(null);
-  }
 
   const version = await getLatestRepositorySourceFileVersion({
     organizationId: input.organizationId,

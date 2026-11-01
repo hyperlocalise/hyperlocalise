@@ -129,6 +129,7 @@ func main() {
 	h.overview = &overviewAPI{}
 	h.publicTranslations = &publicTranslationsAPI{auth: newPublicAPIAuthFromEnv(nil, nil)}
 	h.publicJobs = &publicJobsAPI{auth: h.publicTranslations.auth}
+	h.publicMemory = &publicMemoryAPI{auth: h.publicTranslations.auth, memories: h.memories}
 	if autumnKey := strings.TrimSpace(os.Getenv("AUTUMN_API_KEY")); autumnKey != "" {
 		if client, err := autumn.NewClient(autumn.Config{SecretKey: autumnKey}); err != nil {
 			log.Printf("configure autumn: %v", err)
@@ -157,6 +158,7 @@ func main() {
 		h.irisGeneration.membership = membershipLookup
 	}
 	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
+	h.reports = newReportingAPI()
 	if workosClient != nil {
 		h.workspace.flags = workosWorkspaceFlags{client: workosClient}
 		h.workspace.pipes = workosPipeTokens{client: workosClient}
@@ -202,6 +204,7 @@ func main() {
 		h.projects.pool = traced
 		h.conversations.pool = traced
 		h.overview.pool = traced
+		h.reports.pool = traced
 		h.publicTranslations.auth.pool = traced
 		h.workspace.pool = traced
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
@@ -299,6 +302,8 @@ func main() {
 	h.conversations.membership = membershipLookup
 	h.overview.membership = membershipLookup
 	h.overview.flags = h.workspace.flags
+	h.reports.membership = membershipLookup
+	h.reports.flags = newCachedWorkspaceFlags(h.workspace.flags)
 	h.publicTranslations.auth.membership = membershipLookup
 	h.workspace.membership = membershipLookup
 

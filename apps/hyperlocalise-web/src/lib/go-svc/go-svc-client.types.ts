@@ -473,7 +473,23 @@ export type MembersResponse = {
   memberManagement?: MemberManagement;
 };
 
-export type ApiKeyPermission = "jobs:read" | "jobs:write" | "files:read" | "files:write";
+export type LeaveWorkspacePreview = {
+  /** `last_admin` when the caller is the only admin who has accepted their invitation. */
+  blockedReason: "last_admin" | null;
+  apiKeys: Array<{ name: string; keyPrefix: string }>;
+  automations: Array<{ id: string; name: string }>;
+  /** The lists are cut at 50; the totals count every match. */
+  apiKeyTotal: number;
+  automationTotal: number;
+};
+
+export type ApiKeyPermission =
+  | "jobs:read"
+  | "jobs:write"
+  | "files:read"
+  | "files:write"
+  | "memories:read"
+  | "memories:write";
 
 export type ApiKeyOwner = {
   userId: string;
@@ -679,6 +695,8 @@ export type ValidateSegmentBody = {
   maxLength?: number;
   /** auto | icu | i18next; omitted means auto. */
   messageFormat?: string;
+  /** The file's custom placeholder regular expressions. */
+  placeholderPatterns?: readonly string[];
   modes?: readonly string[];
   targetLocale?: string;
   acceptedWords?: readonly string[];

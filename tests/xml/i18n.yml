@@ -1,4 +1,4 @@
-version: hyperlocalise@1.13.6
+version: hyperlocalise@1.13.7
 locales:
   source: en-US
   targets:

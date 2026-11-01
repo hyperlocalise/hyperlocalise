@@ -1,8 +1,14 @@
 package editor_export
 
 import (
+	"bytes"
+	"encoding/xml"
+	"fmt"
+	"io"
 	"strings"
 )
+
+const tmxSourcePathPropType = "x-source-path"
 
 // SerializeTMX writes a TMX 1.4 document for the given rows.
 func SerializeTMX(rows []Row) []byte {
@@ -27,6 +33,13 @@ func SerializeTMX(rows []Row) []byte {
 		doc.WriteString("  <tu tuid=\"")
 		doc.WriteString(tuid)
 		doc.WriteString("\">\n")
+		if row.SourcePath != "" {
+			doc.WriteString("    <prop type=\"")
+			doc.WriteString(tmxSourcePathPropType)
+			doc.WriteString("\">")
+			doc.WriteString(escapeXML(row.SourcePath))
+			doc.WriteString("</prop>\n")
+		}
 		doc.WriteString("    <tuv xml:lang=\"")
 		doc.WriteString(escapeXML(row.SourceLocale))
 		doc.WriteString("\"><seg>")
@@ -43,4 +56,89 @@ func SerializeTMX(rows []Row) []byte {
 	doc.WriteString("  </body>\n")
 	doc.WriteString("</tmx>\n")
 	return []byte(doc.String())
+}
+
+type tmxParseState struct {
+	sourceLang  string
+	current     Row
+	hasTU       bool
+	pendingLang string
+}
+
+func (state *tmxParseState) flush(rows *[]Row) {
+	if !state.hasTU || strings.TrimSpace(state.current.Key) == "" {
+		state.hasTU = false
+		state.current = Row{}
+		state.pendingLang = ""
+		return
+	}
+	*rows = append(*rows, state.current)
+	state.hasTU = false
+	state.current = Row{}
+	state.pendingLang = ""
+}
+
+func (state *tmxParseState) assignSeg(text, lang string) {
+	if state.current.SourceText == "" && (lang == "" || state.sourceLang == "" || strings.EqualFold(lang, state.sourceLang)) {
+		state.current.SourceText = text
+		if lang != "" {
+			state.current.SourceLocale = lang
+		}
+		return
+	}
+	if state.current.TargetText == "" {
+		state.current.TargetText = text
+		if lang != "" {
+			state.current.TargetLocale = lang
+		}
+	}
+}
+
+// ParseTMX reads a TMX 1.4 bilingual export.
+func ParseTMX(body []byte) ([]Row, error) {
+	decoder := xml.NewDecoder(bytes.NewReader(body))
+	var rows []Row
+	var state tmxParseState
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("parse tmx: %w", err)
+		}
+		switch t := token.(type) {
+		case xml.StartElement:
+			switch xmlLocalName(t.Name) {
+			case "header":
+				state.sourceLang = xmlAttr(t, "srclang")
+			case "tu":
+				state.flush(&rows)
+				state.hasTU = true
+				state.current = Row{Key: xmlAttr(t, "tuid")}
+			case "prop":
+				inner, innerErr := readXMLElementInner(decoder)
+				if innerErr != nil {
+					return nil, fmt.Errorf("parse tmx: %w", innerErr)
+				}
+				if strings.EqualFold(xmlAttr(t, "type"), tmxSourcePathPropType) {
+					state.current.SourcePath = strings.TrimSpace(inner)
+				}
+			case "tuv":
+				state.pendingLang = xmlAttr(t, "lang")
+			case "seg":
+				inner, innerErr := readXMLElementInner(decoder)
+				if innerErr != nil {
+					return nil, fmt.Errorf("parse tmx: %w", innerErr)
+				}
+				state.assignSeg(inner, state.pendingLang)
+			}
+		case xml.EndElement:
+			if xmlLocalName(t.Name) == "tu" {
+				state.flush(&rows)
+			}
+		}
+	}
+	state.flush(&rows)
+	return rows, nil
 }

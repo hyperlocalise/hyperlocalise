@@ -27,3 +27,7 @@ export async function setStoredActiveOrganizationSlug(slug: string) {
     maxAge: 60 * 60 * 24 * 30,
   });
 }
+
+export async function clearStoredActiveOrganizationSlug() {
+  (await cookies()).delete(activeOrganizationCookieName);
+}

@@ -74,6 +74,7 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
       "member_joined",
       "member_role_changed",
       "member_removed",
+      "member_left",
     ],
   },
   {
@@ -214,6 +215,7 @@ const eventTypeLabels = {
   member_joined: messages.memberJoinedEventType,
   member_role_changed: messages.memberRoleChangedEventType,
   member_removed: messages.memberRemovedEventType,
+  member_left: messages.memberLeftEventType,
   workspace_updated: messages.workspaceUpdatedEventType,
   workspace_archived: messages.workspaceArchivedEventType,
   personal_access_token_created: messages.personalAccessTokenCreatedEventType,

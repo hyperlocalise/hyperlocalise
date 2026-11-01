@@ -81,6 +81,18 @@ describe("OrganizationSwitcher", () => {
     expect(screen.getByRole("menuitem", { name: "Invite and manage members" })).toBeTruthy();
   });
 
+  it("links to creating another workspace", async () => {
+    renderSwitcher();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Current workspace: Acme Localization/ }),
+    );
+
+    expect(
+      (await screen.findByRole("menuitem", { name: "Create workspace" })).getAttribute("href"),
+    ).toBe("/auth/new-workspace?from=acme");
+  });
+
   it("shows a read-only members link to roles that cannot invite", async () => {
     renderSwitcher({ showMembersLink: true, canInviteMembers: false });
 

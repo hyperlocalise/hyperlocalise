@@ -1,12 +1,26 @@
 package main
 
-var apiKeyScopes = []string{"jobs:read", "jobs:write", "files:read", "files:write"}
+import "strings"
+
+var apiKeyScopes = []string{
+	"jobs:read", "jobs:write", "files:read", "files:write", "memories:read", "memories:write",
+}
 
 var apiKeyScopeCapability = map[string]string{
-	"jobs:read":   "jobs:read",
-	"jobs:write":  "jobs:write",
-	"files:read":  "projects:read",
-	"files:write": "jobs:create",
+	"jobs:read":      "jobs:read",
+	"jobs:write":     "jobs:write",
+	"files:read":     "projects:read",
+	"files:write":    "jobs:create",
+	"memories:read":  "memories:read",
+	"memories:write": "memories:write",
+}
+
+func apiKeyScopeOptionMessage() string {
+	parts := make([]string, len(apiKeyScopes))
+	for i, scope := range apiKeyScopes {
+		parts[i] = `"` + scope + `"`
+	}
+	return `Invalid option: expected one of ` + strings.Join(parts, "|")
 }
 
 func isAPIKeyScope(scope string) bool {

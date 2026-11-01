@@ -26,6 +26,27 @@ export type ContentEditorFilteredExportRow = {
 
 export const maxCatFilteredExportSegments = 5_000;
 
+export const catBilingualImportAccept = ".csv,.tmx,.xlf,.xliff,.xlsx";
+
+const bilingualFormatByExtension: Record<string, ContentEditorFilteredExportFormat> = {
+  csv: "csv",
+  tmx: "tmx",
+  xlf: "xlf",
+  xliff: "xliff",
+  xlsx: "xlsx",
+};
+
+export function inferCatBilingualFormat(
+  filename: string,
+): ContentEditorFilteredExportFormat | null {
+  const dot = filename.lastIndexOf(".");
+  if (dot < 0 || dot === filename.length - 1) {
+    return null;
+  }
+  const ext = filename.slice(dot + 1).toLowerCase();
+  return bilingualFormatByExtension[ext] ?? null;
+}
+
 export function buildCatFilteredExportFilename(input: {
   sourcePath: string;
   targetLocale: string;

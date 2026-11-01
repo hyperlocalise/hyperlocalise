@@ -117,4 +117,29 @@ describe("ActivityLogList", () => {
     await user.click(screen.getByRole("button", { name: "Show activity by Ada Lovelace" }));
     expect(onActorFilter).toHaveBeenCalledWith("user:user-1");
   });
+
+  it("names the person who left a workspace once", () => {
+    renderWithIntl(
+      <ActivityLogList
+        activityLogs={[
+          {
+            ...apiKeyActivity(),
+            eventType: "member_left",
+            id: "activity-2",
+            payload: { memberUserId: "user-1", membershipId: "membership-1" },
+            target: {
+              ...apiKeyActivity().target,
+              displayName: "Ada Lovelace",
+              id: "membership-1",
+              kind: "membership",
+            },
+          },
+        ]}
+        now={new Date("2026-09-04T10:00:00.000Z").getTime()}
+      />,
+    );
+
+    const row = screen.getByText(/left the workspace/).closest("li");
+    expect(row?.textContent?.match(/Ada Lovelace/g)).toHaveLength(1);
+  });
 });

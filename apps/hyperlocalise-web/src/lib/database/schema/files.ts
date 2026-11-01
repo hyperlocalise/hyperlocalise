@@ -37,10 +37,13 @@ import { interactions, workspaceAutomations } from "./agents";
 import { jobs } from "./jobs";
 import { organizationApiKeys } from "./integrations";
 import type { RepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
+import type { RepositorySourceFileImportSettings } from "@/lib/projects/files/source-file-import-settings-schema";
 import type { MessageFormat } from "@/lib/i18n/message-format";
 
 export type { RepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
 export { defaultRepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
+export type { RepositorySourceFileImportSettings } from "@/lib/projects/files/source-file-import-settings-schema";
+export { defaultRepositorySourceFileImportSettings } from "@/lib/projects/files/source-file-import-settings-schema";
 
 /**
  * Stores metadata for files kept in object storage, including tenant/project scope, source provenance, role, storage location, content metadata, hashes, and audit timestamps.
@@ -132,6 +135,16 @@ export const repositorySourceFiles = pgTable(
       .default(sql`'{"enabled":false,"template":"default"}'::jsonb`),
     /** Placeholder syntax used by validation: auto, icu, or i18next. */
     messageFormat: text("message_format").$type<MessageFormat>().notNull().default("auto"),
+    /** Custom placeholder regular expressions used by validation and the editor. */
+    placeholderPatterns: jsonb("placeholder_patterns")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    /** Format-specific import filters applied on ingest. */
+    importSettings: jsonb("import_settings")
+      .$type<RepositorySourceFileImportSettings>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     reconciledSourceFileVersionId: uuid("reconciled_source_file_version_id").references(
       (): AnyPgColumn => repositorySourceFileVersions.id,
       { onDelete: "set null" },

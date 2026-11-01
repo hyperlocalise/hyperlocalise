@@ -215,11 +215,106 @@ export function hashIterableContent(content: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
 
-export function applyApprovedIterableHtmlTranslations(
-  sourceHtml: string,
-  prefilled: Record<string, string>,
+/**
+ * Apply approved HTML ingest keys onto the remote translation envelope, not
+ * the stored source. Unapproved nodes then keep the existing Iterable copy
+ * instead of falling back to source language and overwriting it.
+ *
+ * Keys come from the envelope structure (field blocks). Rebuilding the remote
+ * map as the same envelope keeps those keys stable when the remote HTML still
+ * matches the imported template.
+ */
+export function applyApprovedIterableHtmlTranslations(input: {
+  storedEnvelopeHtml: string;
+  remoteEnvelopeHtml?: string | null;
+  approved: Record<string, string>;
+}): string {
+  const envelope = input.remoteEnvelopeHtml?.trim()
+    ? input.remoteEnvelopeHtml
+    : input.storedEnvelopeHtml;
+  return applyHtmlIngestTranslations(envelope, input.approved);
+}
+
+export function serializeIterableEmailRemoteEnvelope(input: {
+  storedEnvelopeHtml: string;
+  remote?: Partial<IterableEmailEnvelope> | null;
+}): ReturnType<typeof serializeIterableEmailEnvelope> {
+  const stored = parseIterableEmailEnvelope(input.storedEnvelopeHtml);
+  return serializeIterableEmailEnvelope({
+    subject: input.remote?.subject ?? stored.subject,
+    preheaderText: input.remote?.preheaderText ?? stored.preheaderText,
+    html: input.remote?.html ?? stored.html,
+    plainText: input.remote?.plainText ?? stored.plainText,
+  });
+}
+
+export function serializeIterableInAppRemoteEnvelope(input: {
+  storedEnvelopeHtml: string;
+  remote?: Partial<IterableInAppEnvelope> | null;
+}): ReturnType<typeof serializeIterableInAppEnvelope> {
+  const stored = parseIterableInAppEnvelope(input.storedEnvelopeHtml);
+  return serializeIterableInAppEnvelope({
+    html: input.remote?.html ?? stored.html,
+    title: input.remote?.title ?? stored.title,
+    subtitle: input.remote?.subtitle ?? stored.subtitle,
+    icon: input.remote?.icon ?? stored.icon,
+  });
+}
+
+export function serializeIterableSnippetRemoteEnvelope(input: {
+  storedEnvelopeHtml: string;
+  remoteContent?: string | null;
+}): ReturnType<typeof serializeIterableSnippetHtml> {
+  const stored = parseIterableSnippetHtml(input.storedEnvelopeHtml);
+  return serializeIterableSnippetHtml(input.remoteContent?.trim() ? input.remoteContent : stored);
+}
+
+function pickTranslatedField(
+  approved: Record<string, string>,
+  field: string,
+  remote: string | undefined,
+  source: string,
 ): string {
-  return applyHtmlIngestTranslations(sourceHtml, prefilled);
+  const approvedValue = approved[field];
+  if (typeof approvedValue === "string") {
+    return approvedValue;
+  }
+  if (typeof remote === "string" && remote.length > 0) {
+    return remote;
+  }
+  return source;
+}
+
+/** JSON merge: approved key, else remote, else source. Do not run HTML ingest. */
+export function applyApprovedIterablePushTranslations(input: {
+  source: IterablePushEnvelope;
+  remote?: Partial<IterablePushEnvelope> | null;
+  approved: Record<string, string>;
+}): IterablePushEnvelope {
+  return {
+    title: pickTranslatedField(input.approved, "title", input.remote?.title, input.source.title),
+    message: pickTranslatedField(
+      input.approved,
+      "message",
+      input.remote?.message,
+      input.source.message,
+    ),
+  };
+}
+
+export function applyApprovedIterableSmsTranslations(input: {
+  source: IterableSmsEnvelope;
+  remote?: Partial<IterableSmsEnvelope> | null;
+  approved: Record<string, string>;
+}): IterableSmsEnvelope {
+  return {
+    message: pickTranslatedField(
+      input.approved,
+      "message",
+      input.remote?.message,
+      input.source.message,
+    ),
+  };
 }
 
 export function seedEntriesForIterableHtml(_sourcePath: string, html: string) {
