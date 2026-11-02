@@ -317,6 +317,7 @@ function visibleCopy(value: string): string {
 }
 
 export function buildBlogContentDocument(input: {
+  name?: string;
   htmlTitle: string;
   metaDescription: string;
   featuredImageAltText: string;
@@ -329,6 +330,9 @@ export function buildBlogContentDocument(input: {
   widgetContainers?: HubspotJson;
 }): HubspotStringTree {
   const document = buildPageDocument(input);
+  if (input.name && isCopyString(input.name)) {
+    document.name = input.name;
+  }
   if (isCopyString(input.postBody)) {
     document.postBody = input.postBody;
   }
@@ -364,6 +368,7 @@ export function applyBlogContentDocument(
   },
   translated: HubspotStringTree,
 ): {
+  name: string;
   htmlTitle: string;
   metaDescription: string;
   featuredImageAltText: string;
@@ -376,7 +381,9 @@ export function applyBlogContentDocument(
   widgetContainers: HubspotJson;
 } {
   const page = applyPageDocument(live, translated);
+  const translatedName = typeof translated.name === "string" ? translated.name.trim() : "";
   return {
+    name: translatedName,
     ...page,
     postBody: typeof translated.postBody === "string" ? translated.postBody : live.postBody,
     rssBody: typeof translated.rssBody === "string" ? translated.rssBody : (live.rssBody ?? ""),

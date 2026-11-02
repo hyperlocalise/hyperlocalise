@@ -898,6 +898,7 @@ function messageTemplateWriteBody(input: HubspotMessageTemplateDraft): Record<st
 }
 
 const BLOG_SETTINGS_PATH = "/cms/v3/blog-settings/settings";
+const BLOG_V2_PATH = "/content/api/v2/blogs";
 
 function blogVariationSlug(slug: string, language: string): string {
   const base = slug.trim().replace(/^\/+|\/+$/g, "");
@@ -966,7 +967,13 @@ type BlogSettingsSnapshot = {
   slug: string;
   language: string;
   domainField: string;
+  absoluteUrlHost: string;
+};
+
+type LegacyBlogDomain = {
+  domain: string;
   resolvedDomain: string;
+  liveDomain: string;
 };
 
 function hostnameFromUrl(value: string): string {
@@ -1003,7 +1010,7 @@ async function readBlogSettings(
       slug: typeof parsed.slug === "string" ? parsed.slug : "",
       language: typeof parsed.language === "string" ? parsed.language : "",
       domainField,
-      resolvedDomain: domainField || hostnameFromUrl(absoluteUrl),
+      absoluteUrlHost: hostnameFromUrl(absoluteUrl),
     };
   } catch {
     return null;
@@ -1107,46 +1114,94 @@ function hubspotBlogMissingDomainMessage(domainsApiFailed: boolean): string {
   }
   return (
     "hubspot_blog_missing_domain: Connect a publishing domain in HubSpot Settings → Website → " +
-    "Domains and Blog settings before pushing blog translations."
+    "Domains and Blog before pushing blog translations."
   );
 }
 
-/** Ensure the blog content group has a publishing domain HubSpot accepts for multi-language setup. */
-async function applyBlogPublishingDomainIfMissing(
+function legacyBlogString(parsed: Record<string, HubspotJson | undefined>, key: string): string {
+  const value = parsed[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+async function readLegacyBlogDomain(
   sdk: HubspotSdk,
   blogId: string,
-  settings: BlogSettingsSnapshot | null,
-): Promise<string> {
+): Promise<LegacyBlogDomain | null> {
+  if (!sdk.apiRequest) {
+    return null;
+  }
+  const response = await sdk.apiRequest({
+    method: "GET",
+    path: `${BLOG_V2_PATH}/${encodeURIComponent(blogId)}`,
+  });
+  const text = await response.text();
+  if (!response.ok || !text) {
+    return null;
+  }
+  try {
+    const parsed: HubspotJson = JSON.parse(text);
+    if (!isHubspotJsonObject(parsed)) {
+      return null;
+    }
+    return {
+      domain: legacyBlogString(parsed, "domain"),
+      resolvedDomain: legacyBlogString(parsed, "resolved_domain"),
+      liveDomain: legacyBlogString(parsed, "live_domain"),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function putLegacyBlogDomain(sdk: HubspotSdk, blogId: string, domain: string): Promise<void> {
   if (!sdk.apiRequest) {
     throw new Error(hubspotBlogMissingDomainMessage(true));
   }
-  const configured = settings?.domainField?.trim();
-  if (configured) {
-    return configured;
-  }
-  const candidate = settings?.resolvedDomain?.trim() ?? "";
-  const { domain: listedDomain, domainsApiFailed } = candidate
-    ? { domain: candidate, domainsApiFailed: false }
-    : await primaryBlogDomainLookup(sdk);
-  const domain = candidate || listedDomain;
-  if (!domain) {
-    throw new Error(hubspotBlogMissingDomainMessage(domainsApiFailed));
-  }
   const response = await sdk.apiRequest({
-    method: "PATCH",
-    path: `${BLOG_SETTINGS_PATH}/${encodeURIComponent(blogId)}`,
+    method: "PUT",
+    path: `${BLOG_V2_PATH}/${encodeURIComponent(blogId)}`,
     body: { domain },
   });
-  const patchText = await response.text();
+  const text = await response.text();
   if (!response.ok) {
-    const detail = hubspotFailureDetail(patchText);
+    const detail = hubspotFailureDetail(text);
     throw new Error(
       detail
-        ? `hubspot_blog_missing_domain: PATCH failed (${response.status}): ${detail}`
-        : `hubspot_blog_missing_domain: PATCH failed (${response.status})`,
+        ? `hubspot_blog_missing_domain: PUT failed (${response.status}): ${detail}`
+        : `hubspot_blog_missing_domain: PUT failed (${response.status})`,
     );
   }
-  return domain;
+}
+
+/** Stored blog domain, or a candidate written onto the blog when that field is blank. */
+async function ensureBlogPublishingDomain(
+  sdk: HubspotSdk,
+  blogId: string,
+  settings: BlogSettingsSnapshot | null,
+  alreadyWritten: boolean,
+): Promise<{ domain: string; wrote: boolean }> {
+  if (!sdk.apiRequest) {
+    throw new Error(hubspotBlogMissingDomainMessage(true));
+  }
+  const v3Domain = settings?.domainField.trim() ?? "";
+  const legacy = v3Domain ? null : await readLegacyBlogDomain(sdk, blogId);
+  const stored = v3Domain || legacy?.domain || "";
+  let candidate =
+    stored || legacy?.resolvedDomain || legacy?.liveDomain || settings?.absoluteUrlHost || "";
+  let domainsApiFailed = false;
+  if (!candidate) {
+    const listed = await primaryBlogDomainLookup(sdk);
+    candidate = listed.domain;
+    domainsApiFailed = listed.domainsApiFailed;
+  }
+  if (!candidate) {
+    throw new Error(hubspotBlogMissingDomainMessage(domainsApiFailed));
+  }
+  if (!stored && !alreadyWritten) {
+    await putLegacyBlogDomain(sdk, blogId, candidate);
+    return { domain: candidate, wrote: true };
+  }
+  return { domain: stored || candidate, wrote: alreadyWritten };
 }
 
 function isBlogDomainPermissionError(status: number, detail: string): boolean {
@@ -1164,16 +1219,22 @@ async function postBlogLanguageVariation(input: {
   primaryLanguage?: string;
   blog: BlogSettingsSnapshot | null;
   domainRetry: boolean;
+  domainWritten: boolean;
+  publishingDomain?: string;
 }): Promise<void> {
   if (!input.sdk.apiRequest) {
     throw new Error("hubspot_blog_language_failed");
   }
-  await applyBlogPublishingDomainIfMissing(input.sdk, input.blogId, input.blog);
+  const ensured =
+    input.domainWritten && input.publishingDomain
+      ? { domain: input.publishingDomain, wrote: true }
+      : await ensureBlogPublishingDomain(input.sdk, input.blogId, input.blog, input.domainWritten);
   const primaryLanguage = input.blog?.language.trim() || input.primaryLanguage?.trim() || "";
   const body: Record<string, string> = {
     id: input.blogId,
     language: input.language,
     slug: blogVariationSlug(input.blog?.slug ?? "", input.language),
+    domain: ensured.domain,
   };
   if (primaryLanguage) {
     body.primaryLanguage = primaryLanguage;
@@ -1190,8 +1251,19 @@ async function postBlogLanguageVariation(input: {
   const detail = hubspotFailureDetail(text);
   if (!input.domainRetry && isBlogDomainPermissionError(response.status, detail)) {
     const refreshed = await readBlogSettings(input.sdk, input.blogId);
-    await applyBlogPublishingDomainIfMissing(input.sdk, input.blogId, refreshed);
-    return postBlogLanguageVariation({ ...input, blog: refreshed, domainRetry: true });
+    await readLegacyBlogDomain(input.sdk, input.blogId);
+    let domain = ensured.domain;
+    if (!ensured.wrote) {
+      const written = await ensureBlogPublishingDomain(input.sdk, input.blogId, refreshed, false);
+      domain = written.domain;
+    }
+    return postBlogLanguageVariation({
+      ...input,
+      blog: refreshed,
+      domainRetry: true,
+      domainWritten: true,
+      publishingDomain: domain,
+    });
   }
   throw new Error(
     detail
@@ -1207,7 +1279,12 @@ async function ensureBlogPublishingReady(input: {
   primaryLanguage?: string;
 }): Promise<void> {
   const blog = await readBlogSettings(input.sdk, input.blogId);
-  await postBlogLanguageVariation({ ...input, blog, domainRetry: false });
+  await postBlogLanguageVariation({
+    ...input,
+    blog,
+    domainRetry: false,
+    domainWritten: false,
+  });
 }
 
 function formSummary(form: FormLike): HubspotFormSummary {

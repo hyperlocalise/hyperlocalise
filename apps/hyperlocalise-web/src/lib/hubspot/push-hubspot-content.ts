@@ -54,6 +54,7 @@ import {
 import { readHubspotDocumentJson } from "./import-hubspot-content";
 import {
   blogDraftFieldsFromPostHtml,
+  blogPostPushName,
   hashHubspotBlogPostHtml,
   hashRemoteBlogPostHtml,
   isHubspotBlogBundleSourcePath,
@@ -539,7 +540,11 @@ export async function runPushHubspotContent(input: {
             });
             await client.updateBlogDraft({
               id: targetId,
-              name: copyName,
+              name: blogPostPushName({
+                sourceName: mapping.sourceName,
+                translatedName: applied.name,
+                translatedHtmlTitle: applied.htmlTitle,
+              }),
               htmlTitle: applied.htmlTitle,
               metaDescription: applied.metaDescription,
               featuredImageAltText: applied.featuredImageAltText,
@@ -560,7 +565,11 @@ export async function runPushHubspotContent(input: {
             const applied = applyBlogContentDocument(live, translated);
             await client.updateBlogDraft({
               id: targetId,
-              name: copyName,
+              name: blogPostPushName({
+                sourceName: mapping.sourceName,
+                translatedName: applied.name,
+                translatedHtmlTitle: applied.htmlTitle,
+              }),
               htmlTitle: applied.htmlTitle,
               metaDescription: applied.metaDescription,
               featuredImageAltText: applied.featuredImageAltText,
@@ -580,7 +589,10 @@ export async function runPushHubspotContent(input: {
             const blog = readBlogDocument(translatedHtml);
             await client.updateBlogDraft({
               id: targetId,
-              name: copyName,
+              name: blogPostPushName({
+                sourceName: mapping.sourceName,
+                translatedHtmlTitle: blog.htmlTitle,
+              }),
               htmlTitle: blog.htmlTitle,
               metaDescription: blog.metaDescription,
               postBody: blog.postBody,

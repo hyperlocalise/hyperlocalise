@@ -161,7 +161,13 @@ describe("hubspot message templates", () => {
       {
         method: "POST",
         path: "/cms/v3/blog-settings/settings/multi-language/create-language-variation",
-        body: { id: "blog-1", language: "zh-cn", primaryLanguage: "en", slug: "blog-zh-cn" },
+        body: {
+          id: "blog-1",
+          language: "zh-cn",
+          primaryLanguage: "en",
+          slug: "blog-zh-cn",
+          domain: "blog.example.com",
+        },
       },
     ]);
   });
@@ -244,7 +250,8 @@ describe("hubspot message templates", () => {
     ).toBe(false);
   });
 
-  it("retries blog language creation after assigning a domain when HubSpot returns 403", async () => {
+  it("retries blog language creation when HubSpot returns 403 for domain permissions", async () => {
+    const calls: ApiCall[] = [];
     let blogLanguagePosts = 0;
     let postVariations = 0;
     const blogs = {
@@ -265,19 +272,15 @@ describe("hubspot message templates", () => {
     };
     const content = createHubspotContentClientFromSdk({
       ...sdkWith(async (opts) => {
-        if (opts.method === "GET" && opts.path === "/cms/v3/domains/") {
-          return jsonResponse(200, {
-            results: [
-              {
-                domain: "247843607.hubspotpagebuilder.com",
-                primaryBlogPost: true,
-                isResolving: true,
-              },
-            ],
-          });
-        }
+        calls.push(opts);
         if (opts.method === "GET") {
-          return jsonResponse(200, { id: "blog-1", slug: "blog", language: "en", domain: "" });
+          return jsonResponse(200, {
+            id: "blog-1",
+            slug: "blog",
+            language: "en",
+            domain: "",
+            absoluteUrl: "https://247843607.hubspotpagebuilder.com/blog",
+          });
         }
         if (
           opts.method === "POST" &&
@@ -303,9 +306,24 @@ describe("hubspot message templates", () => {
     expect(created).toEqual({ id: "post-zh" });
     expect(blogLanguagePosts).toBe(2);
     expect(postVariations).toBe(2);
+    const puts = calls.filter((call) => call.method === "PUT");
+    expect(puts).toEqual([
+      {
+        method: "PUT",
+        path: "/content/api/v2/blogs/blog-1",
+        body: { domain: "247843607.hubspotpagebuilder.com" },
+      },
+    ]);
+    const languagePosts = calls.filter(
+      (call) =>
+        call.method === "POST" &&
+        call.path === "/cms/v3/blog-settings/settings/multi-language/create-language-variation",
+    );
+    expect(languagePosts).toHaveLength(2);
+    expect(calls.indexOf(puts[0]!)).toBeLessThan(calls.indexOf(languagePosts[1]!));
   });
 
-  it("sets a blog domain before creating a language variation when the blog has none", async () => {
+  it("assigns a publishing domain from the domains API when the blog domain is blank", async () => {
     const calls: ApiCall[] = [];
     let postVariations = 0;
     const blogs = {
@@ -330,7 +348,6 @@ describe("hubspot message templates", () => {
         if (opts.method === "GET" && opts.path === "/cms/v3/domains/") {
           return jsonResponse(200, {
             results: [
-              { domain: "old.hs-sites.com", isUsedForBlogPost: true, isResolving: true },
               {
                 domain: "247843607.hubspotpagebuilder.com",
                 primaryBlogPost: true,
@@ -354,16 +371,23 @@ describe("hubspot message templates", () => {
     expect(created).toEqual({ id: "post-zh" });
     expect(calls).toEqual([
       { method: "GET", path: "/cms/v3/blog-settings/settings/blog-1" },
+      { method: "GET", path: "/content/api/v2/blogs/blog-1" },
       { method: "GET", path: "/cms/v3/domains/" },
       {
-        method: "PATCH",
-        path: "/cms/v3/blog-settings/settings/blog-1",
+        method: "PUT",
+        path: "/content/api/v2/blogs/blog-1",
         body: { domain: "247843607.hubspotpagebuilder.com" },
       },
       {
         method: "POST",
         path: "/cms/v3/blog-settings/settings/multi-language/create-language-variation",
-        body: { id: "blog-1", language: "zh-cn", primaryLanguage: "en", slug: "blog-zh-cn" },
+        body: {
+          id: "blog-1",
+          language: "zh-cn",
+          primaryLanguage: "en",
+          slug: "blog-zh-cn",
+          domain: "247843607.hubspotpagebuilder.com",
+        },
       },
     ]);
   });
@@ -409,14 +433,26 @@ describe("hubspot message templates", () => {
     } as unknown as HubspotSdk);
 
     await content.createBlogLanguageVariation({ id: "post-1", language: "zh-cn" });
-    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
-      "GET /cms/v3/blog-settings/settings/blog-1",
-      "PATCH /cms/v3/blog-settings/settings/blog-1",
-      "POST /cms/v3/blog-settings/settings/multi-language/create-language-variation",
+    expect(calls).toEqual([
+      { method: "GET", path: "/cms/v3/blog-settings/settings/blog-1" },
+      { method: "GET", path: "/content/api/v2/blogs/blog-1" },
+      {
+        method: "PUT",
+        path: "/content/api/v2/blogs/blog-1",
+        body: { domain: "247843607.hubspotpagebuilder.com" },
+      },
+      {
+        method: "POST",
+        path: "/cms/v3/blog-settings/settings/multi-language/create-language-variation",
+        body: {
+          id: "blog-1",
+          language: "zh-cn",
+          primaryLanguage: "en",
+          slug: "blog-zh-cn",
+          domain: "247843607.hubspotpagebuilder.com",
+        },
+      },
     ]);
-    expect(calls[1]).toMatchObject({
-      body: { domain: "247843607.hubspotpagebuilder.com" },
-    });
   });
 
   it("reads draft module text when the published page is empty", async () => {

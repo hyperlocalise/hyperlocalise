@@ -17,6 +17,7 @@ import { extractHtmlIngestEntries } from "@/lib/projects/files/html-ingest-entri
 import type { HubspotBlogRecord, HubspotContentClient } from "./client";
 import {
   blogDraftFieldsFromPostHtml,
+  blogPostPushName,
   hashHubspotBlogPostHtml,
   hashRemoteBlogPostHtml,
   isHubspotBlogBundleSourcePath,
@@ -93,6 +94,34 @@ describe("blog-post-bundle", () => {
     expect(draft.htmlTitle).toBe("Titre de lancement");
     expect(draft.postBody).toContain("Bonjour le monde");
     expect(draft.metaDescription).toBe("Meta description");
+    expect(
+      blogPostPushName({
+        sourceName: post.name,
+        translatedName: draft.name,
+        translatedHtmlTitle: draft.htmlTitle,
+      }),
+    ).toBe("Titre de lancement");
+  });
+
+  it("uses a translated post name instead of the HTML title", () => {
+    const post = samplePost();
+    const sourceHtml = buildBlogPostHtmlDocument(post, "");
+    const entries = extractHtmlIngestEntries(sourceHtml);
+    const nameKey = Object.entries(entries).find(([, text]) => text.trim() === "Launch")?.[0];
+    expect(nameKey).toBeTruthy();
+    const draft = blogDraftFieldsFromPostHtml({
+      live: post,
+      sourceHtml,
+      prefilled: { [nameKey!]: "Lancement" },
+    });
+    expect(draft.name).toBe("Lancement");
+    expect(
+      blogPostPushName({
+        sourceName: post.name,
+        translatedName: draft.name,
+        translatedHtmlTitle: draft.htmlTitle,
+      }),
+    ).toBe("Lancement");
   });
 
   it("hashes a remote locale copy the same way as imported post.html", async () => {

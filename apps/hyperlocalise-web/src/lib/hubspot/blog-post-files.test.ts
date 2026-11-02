@@ -54,9 +54,11 @@ describe("blog-post-files", () => {
     const html = buildBlogPostHtmlDocument(samplePost(), "article { max-width: 720px; }");
     expect(html).toContain('data-hl-style="hubspot"');
     expect(html).toContain("article { max-width: 720px; }");
+    expect(html).toContain('data-hl-field="name"');
     expect(html).toContain('data-hl-field="htmlTitle"');
     expect(html).toContain('data-hl-field="postBody"');
     const tree = readBlogPostHtmlDocument(html);
+    expect(tree.name).toBe("Launch");
     expect(tree.htmlTitle).toBe("Launch title");
     expect(tree.postBody).toContain("Hello world");
   });

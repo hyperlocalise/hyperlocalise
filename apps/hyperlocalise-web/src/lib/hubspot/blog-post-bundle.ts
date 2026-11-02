@@ -74,6 +74,24 @@ export async function hashRemoteBlogPostHtml(
   return hashHubspotContent(buildBlogPostHtmlDocument(copy, stylesCss));
 }
 
+/** HubSpot post name uses the translated title, not a `{source} [locale]` label. */
+export function blogPostPushName(input: {
+  sourceName: string;
+  translatedName?: string;
+  translatedHtmlTitle?: string;
+}): string {
+  const sourceName = input.sourceName.trim();
+  const translatedName = input.translatedName?.trim() ?? "";
+  if (translatedName && translatedName !== sourceName) {
+    return translatedName;
+  }
+  const htmlTitle = input.translatedHtmlTitle?.trim() ?? "";
+  if (htmlTitle) {
+    return htmlTitle;
+  }
+  return sourceName || "Content";
+}
+
 export function blogDraftFieldsFromPostHtml(input: {
   live: HubspotBlogRecord;
   sourceHtml: string;
