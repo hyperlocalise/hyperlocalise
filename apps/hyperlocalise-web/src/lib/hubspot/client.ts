@@ -21,6 +21,11 @@ import { PublicEmailContent } from "@hubspot/api-client/lib/codegen/marketing/em
 import { collectBlogPostStylesCss } from "./blog-stylesheets";
 import { HUBSPOT_LIST_PAGE_SIZE } from "./constants";
 import {
+  findBlogLanguageVariation,
+  findBlogSettingsLanguageId,
+  type HubspotBlogSettingsMember,
+} from "./locale";
+import {
   buildBlogContentDocument,
   buildPageDocument,
   collectCopyTree,
@@ -135,10 +140,20 @@ export type HubspotBlogDraftBody = {
   widgetContainers?: HubspotJson;
 };
 
+export type HubspotBlogPostCreateBody = {
+  name: string;
+  slug: string;
+  language: string;
+  contentGroupId: string;
+  translatedFromId: string;
+  state: "DRAFT";
+};
+
 export type HubspotApiRequestBody =
   | Record<string, string>
   | HubspotPageDraftBody
-  | HubspotBlogDraftBody;
+  | HubspotBlogDraftBody
+  | HubspotBlogPostCreateBody;
 
 export type HubspotContentClient = {
   listEmails(): Promise<HubspotEmailSummary[]>;
@@ -158,6 +173,11 @@ export type HubspotContentClient = {
     templatePath?: string | null;
     attachedStylesheets?: HubspotJson[] | null;
   }): Promise<string>;
+  createBlogPostLanguageDraft(input: {
+    id: string;
+    language: string;
+    name?: string;
+  }): Promise<{ id: string }>;
   updateBlogDraft(input: {
     id: string;
     name: string;
@@ -233,6 +253,8 @@ type BlogLike = {
   name?: string;
   language?: string;
   translatedFromId?: string;
+  contentGroupId?: string;
+  slug?: string;
   htmlTitle?: string;
   metaDescription?: string;
   featuredImageAltText?: string;
@@ -542,6 +564,136 @@ function jsonString(record: { [key: string]: HubspotJson }, key: string): string
 }
 
 const BLOG_POSTS_PATH = "/cms/v3/blogs/posts";
+const BLOG_SETTINGS_PATH = "/cms/v3/blog-settings/settings";
+
+function blogSettingsString(parsed: Record<string, HubspotJson | undefined>, key: string): string {
+  const value = parsed[key];
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  return "";
+}
+
+function blogGroupMembers(payload: HubspotJson): HubspotBlogSettingsMember[] {
+  if (!isHubspotJsonObject(payload) || !Array.isArray(payload.results)) {
+    return [];
+  }
+  return payload.results.flatMap((item) => {
+    if (!isHubspotJsonObject(item)) {
+      return [];
+    }
+    const id = blogSettingsString(item, "id");
+    if (!id) {
+      return [];
+    }
+    return [
+      {
+        id,
+        language: blogSettingsString(item, "language"),
+        translatedFromId: blogSettingsString(item, "translatedFromId"),
+      },
+    ];
+  });
+}
+
+function nextBlogPage(payload: HubspotJson): string {
+  if (!isHubspotJsonObject(payload) || !isHubspotJsonObject(payload.paging)) {
+    return "";
+  }
+  const paging = payload.paging;
+  if (!isHubspotJsonObject(paging.next)) {
+    return "";
+  }
+  return blogSettingsString(paging.next, "after");
+}
+
+async function listBlogGroupMembers(sdk: HubspotSdk): Promise<HubspotBlogSettingsMember[]> {
+  if (!sdk.apiRequest) {
+    return [];
+  }
+  const members: HubspotBlogSettingsMember[] = [];
+  let after = "";
+  for (let page = 0; page < 20; page += 1) {
+    const qs: Record<string, string> = { limit: String(HUBSPOT_LIST_PAGE_SIZE) };
+    if (after) {
+      qs.after = after;
+    }
+    const response = await sdk.apiRequest({ method: "GET", path: BLOG_SETTINGS_PATH, qs });
+    const text = await response.text();
+    if (!response.ok || !text) {
+      return members;
+    }
+    try {
+      const parsed: HubspotJson = JSON.parse(text);
+      members.push(...blogGroupMembers(parsed));
+      after = nextBlogPage(parsed);
+    } catch {
+      return members;
+    }
+    if (!after) {
+      return members;
+    }
+  }
+  return members;
+}
+
+function blogPostVariationSlug(slug: string, language: string): string {
+  const base = slug.trim().replace(/^\/+|\/+$/g, "");
+  const stem = base.length > 0 ? base : "post";
+  const suffix = `-${language}`;
+  return stem.endsWith(suffix) ? stem : `${stem}${suffix}`;
+}
+
+function isLanguageAlreadyTranslatedError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return lower.includes("409") || lower.includes("language_already_translated");
+}
+
+function parseExistingBlogLanguageVariationId(message: string): string | null {
+  const candidates = [message];
+  const bodyMatch = /Body:\s*(\{[\s\S]*\})/i.exec(message);
+  if (bodyMatch?.[1]) {
+    candidates.unshift(bodyMatch[1]);
+  }
+  for (const candidate of candidates) {
+    try {
+      const parsed: HubspotJson = JSON.parse(candidate);
+      if (!isHubspotJsonObject(parsed)) {
+        continue;
+      }
+      const tokens = parsed.errorTokens;
+      if (isHubspotJsonObject(tokens) && Array.isArray(tokens.id)) {
+        const id = tokens.id.find((value): value is string => typeof value === "string")?.trim();
+        if (id) {
+          return id;
+        }
+      }
+      const hubspotMessage = typeof parsed.message === "string" ? parsed.message : message;
+      const fromMessage = /variation with id:\s*(\d+)/i.exec(hubspotMessage)?.[1];
+      if (fromMessage?.trim()) {
+        return fromMessage.trim();
+      }
+    } catch {
+      // try the next candidate
+    }
+  }
+  return /variation with id:\s*(\d+)/i.exec(message)?.[1]?.trim() ?? null;
+}
+
+function readCreatedBlogPostId(text: string): string {
+  try {
+    const parsed: HubspotJson = JSON.parse(text);
+    if (!isHubspotJsonObject(parsed)) {
+      return "";
+    }
+    return blogSettingsString(parsed, "id");
+  } catch {
+    return "";
+  }
+}
 
 async function readRawBlog(sdk: HubspotSdk, path: string): Promise<BlogLike | null> {
   if (!sdk.apiRequest) {
@@ -562,6 +714,8 @@ async function readRawBlog(sdk: HubspotSdk, path: string): Promise<BlogLike | nu
       name: jsonString(parsed, "name"),
       language: jsonString(parsed, "language"),
       translatedFromId: jsonString(parsed, "translatedFromId"),
+      contentGroupId: jsonString(parsed, "contentGroupId"),
+      slug: jsonString(parsed, "slug"),
       htmlTitle: jsonString(parsed, "htmlTitle"),
       metaDescription: jsonString(parsed, "metaDescription"),
       featuredImageAltText: jsonString(parsed, "featuredImageAltText"),
@@ -1036,6 +1190,75 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
     },
     async collectBlogPostStylesCss(input) {
       return collectBlogPostStylesCss(sdk, input);
+    },
+    async createBlogPostLanguageDraft(input) {
+      const encodedId = encodeURIComponent(input.id);
+      const source =
+        (await readRawBlog(sdk, `${BLOG_POSTS_PATH}/${encodedId}`)) ??
+        (await readRawBlog(sdk, `${BLOG_POSTS_PATH}/${encodedId}/draft`));
+      const contentGroupId = source?.contentGroupId?.trim();
+      if (!source || !contentGroupId) {
+        throw new Error("hubspot_blog_language_missing");
+      }
+      const members = await listBlogGroupMembers(sdk);
+      const languageBlogId = findBlogSettingsLanguageId(members, contentGroupId, input.language);
+      if (!languageBlogId) {
+        throw new Error("hubspot_blog_language_missing");
+      }
+      const existingSummaries = blogs.basicApi?.getPage
+        ? (
+            await listPages((after) =>
+              blogs.basicApi.getPage(
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                after,
+                HUBSPOT_LIST_PAGE_SIZE,
+              ),
+            )
+          )
+            .filter((post) => post.id)
+            .map(blogSummary)
+        : [];
+      const existing = findBlogLanguageVariation(existingSummaries, input.id, input.language);
+      if (existing) {
+        return { id: existing };
+      }
+      if (!sdk.apiRequest) {
+        throw new Error("hubspot_blog_draft_create_failed");
+      }
+      const body: HubspotBlogPostCreateBody = {
+        name: input.name?.trim() || source.name?.trim() || "Post",
+        slug: blogPostVariationSlug(source.slug ?? "", input.language),
+        language: input.language,
+        contentGroupId: languageBlogId,
+        translatedFromId: input.id,
+        state: "DRAFT",
+      };
+      const response = await sdk.apiRequest({
+        method: "POST",
+        path: BLOG_POSTS_PATH,
+        body,
+      });
+      const text = await response.text();
+      if (response.ok) {
+        const createdId = readCreatedBlogPostId(text);
+        if (!createdId) {
+          throw new Error("hubspot_blog_draft_create_failed");
+        }
+        return { id: createdId };
+      }
+      if (isLanguageAlreadyTranslatedError(text) || response.status === 409) {
+        const existingId = parseExistingBlogLanguageVariationId(text);
+        if (existingId) {
+          return { id: existingId };
+        }
+      }
+      throw new Error(`hubspot_blog_draft_create_failed:${response.status}`);
     },
     async updateBlogDraft(input) {
       const body: HubspotBlogDraftBody = {

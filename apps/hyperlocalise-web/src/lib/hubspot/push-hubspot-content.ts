@@ -425,11 +425,6 @@ export async function runPushHubspotContent(input: {
         if (!copyId && blogSummaries) {
           copyId = findBlogLanguageVariation(blogSummaries, mapping.sourceId, hubspotCode);
         }
-        if (!copyId && mapping.resourceKind === "blog") {
-          result.skippedLocales += 1;
-          pushWarning(`${label}: skipped ${locale} (${HUBSPOT_BLOG_LANGUAGE_HINT})`);
-          continue;
-        }
         if (copyId && hubspot.overwriteWhenRemoteNewer === false) {
           const copyUpdatedAt = await loadCopyUpdatedAt(client, mapping.resourceKind, copyId);
           if (isHubspotRemoteCopyNewer({ lastPushedAt: mapping.lastPushedAt, copyUpdatedAt })) {
@@ -531,9 +526,13 @@ export async function runPushHubspotContent(input: {
           }
         } else if (mapping.resourceKind === "blog") {
           if (!copyId) {
-            result.skippedLocales += 1;
-            pushWarning(`${label}: skipped ${locale} (${HUBSPOT_BLOG_LANGUAGE_HINT})`);
-            continue;
+            copyId = (
+              await client.createBlogPostLanguageDraft({
+                id: mapping.sourceId,
+                language: hubspotCode,
+                name: copyName,
+              })
+            ).id;
           }
           if (blogPostId && blogPostHtml) {
             const live = await client.getBlogPost(mapping.sourceId);

@@ -415,6 +415,118 @@ describe("hubspot message templates", () => {
     expect(JSON.stringify(document)).toContain("template default the editor shows");
   });
 
+  it("creates an unpublished blog post draft when the blog settings have that language", async () => {
+    const calls: ApiCall[] = [];
+    const client = createHubspotContentClientFromSdk(
+      sdkWith(async (opts) => {
+        calls.push(opts);
+        if (opts.method === "GET" && opts.path === "/cms/v3/blogs/posts/post-1") {
+          return jsonResponse(200, {
+            id: "post-1",
+            name: "Launch",
+            slug: "launch",
+            contentGroupId: "blog-en",
+            language: "en",
+          });
+        }
+        if (opts.method === "GET" && opts.path === "/cms/v3/blog-settings/settings") {
+          return jsonResponse(200, {
+            results: [
+              { id: "blog-en", language: "en", translatedFromId: "" },
+              { id: "blog-th", language: "th-th", translatedFromId: "blog-en" },
+            ],
+          });
+        }
+        if (opts.method === "POST" && opts.path === "/cms/v3/blogs/posts") {
+          return jsonResponse(201, { id: "post-th" });
+        }
+        return jsonResponse(404, {});
+      }),
+    );
+
+    const created = await client.createBlogPostLanguageDraft({
+      id: "post-1",
+      language: "th-th",
+      name: "Launch [th-TH]",
+    });
+    expect(created).toEqual({ id: "post-th" });
+    expect(calls.find((call) => call.method === "POST")?.body).toEqual({
+      name: "Launch [th-TH]",
+      slug: "launch-th-th",
+      language: "th-th",
+      contentGroupId: "blog-th",
+      translatedFromId: "post-1",
+      state: "DRAFT",
+    });
+  });
+
+  it("does not create a blog post draft when the blog settings lack that language", async () => {
+    const calls: ApiCall[] = [];
+    const client = createHubspotContentClientFromSdk(
+      sdkWith(async (opts) => {
+        calls.push(opts);
+        if (opts.path === "/cms/v3/blogs/posts/post-1") {
+          return jsonResponse(200, {
+            id: "post-1",
+            name: "Launch",
+            slug: "launch",
+            contentGroupId: "blog-en",
+            language: "en",
+          });
+        }
+        if (opts.path === "/cms/v3/blog-settings/settings") {
+          return jsonResponse(200, {
+            results: [{ id: "blog-en", language: "en", translatedFromId: "" }],
+          });
+        }
+        return jsonResponse(200, {});
+      }),
+    );
+
+    await expect(
+      client.createBlogPostLanguageDraft({ id: "post-1", language: "th-th" }),
+    ).rejects.toThrow("hubspot_blog_language_missing");
+    expect(calls.some((call) => call.method === "POST")).toBe(false);
+  });
+
+  it("reuses an existing blog post variation when HubSpot reports LANGUAGE_ALREADY_TRANSLATED", async () => {
+    const client = createHubspotContentClientFromSdk(
+      sdkWith(async (opts) => {
+        if (opts.path === "/cms/v3/blogs/posts/post-1") {
+          return jsonResponse(200, {
+            id: "post-1",
+            name: "Launch",
+            slug: "launch",
+            contentGroupId: "blog-en",
+            language: "en",
+          });
+        }
+        if (opts.path === "/cms/v3/blog-settings/settings") {
+          return jsonResponse(200, {
+            results: [
+              { id: "blog-en", language: "en", translatedFromId: "" },
+              { id: "blog-zh", language: "zh-tw", translatedFromId: "blog-en" },
+            ],
+          });
+        }
+        if (opts.method === "POST") {
+          return jsonResponse(409, {
+            errorType: "LANGUAGE_ALREADY_TRANSLATED",
+            message: "There is already an existing zh-tw variation with id: 420539377366.",
+            errorTokens: { id: ["420539377366"], language: ["zh-tw"] },
+          });
+        }
+        return jsonResponse(404, {});
+      }),
+    );
+
+    const created = await client.createBlogPostLanguageDraft({
+      id: "post-1",
+      language: "zh-tw",
+    });
+    expect(created).toEqual({ id: "420539377366" });
+  });
+
   it("fails the list when HubSpot rejects the request", async () => {
     const client = createHubspotContentClientFromSdk(
       sdkWith(async () => jsonResponse(403, { message: "missing scope" })),

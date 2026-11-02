@@ -3499,6 +3499,10 @@
     "defaultMessage": "Members failed to load.",
     "description": "Error title when the members list fails to load"
   },
+  "3S3afNJApr": {
+    "defaultMessage": "In HubSpot Settings, open Blog and choose Add/edit multi-language variations. When that language is on the blog, push creates an unpublished post draft. It does not add a language to the blog.",
+    "description": "Warning in the HubSpot push dialog that blog posts need a HubSpot language on the blog"
+  },
   "3SLTb8lWnJ": {
     "defaultMessage": "Source locale",
     "description": "Label for the project source locale in the create translation job dialog"
@@ -33208,8 +33212,8 @@
     "description": "Validation error for a custom placeholder pattern that uses unsupported syntax"
   },
   "p4Rv7tNc2A": {
-    "defaultMessage": "In HubSpot Settings, open Blog and choose Add/edit multi-language variations. Push updates that draft and does not create a language.",
-    "description": "Warning in the HubSpot push dialog that blog posts need a HubSpot language variant"
+    "defaultMessage": "In HubSpot Settings, open Blog and choose Add/edit multi-language variations. When that language is on the blog, push creates an unpublished post draft. It does not add a language to the blog.",
+    "description": "Warning in the HubSpot push dialog that blog posts need a HubSpot language on the blog"
   },
   "p4xkAKJ/3y": {
     "defaultMessage": "Project",
