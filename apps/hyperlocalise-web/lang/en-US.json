@@ -2703,6 +2703,10 @@
     "defaultMessage": "{count, number} characters extracted",
     "description": "Extracted text size for a knowledge file"
   },
+  "24KJbvrklx": {
+    "defaultMessage": "Choose which mapped blog posts to update with approved translations. This creates unpublished locale drafts and never changes or publishes the source.",
+    "description": "Description of the HubSpot item picker dialog"
+  },
   "24tcVtmHO9": {
     "defaultMessage": "No localized video yet",
     "description": "Empty state when the CAT target video has not been created"
@@ -3498,6 +3502,10 @@
   "3RQjQSebWm": {
     "defaultMessage": "Members failed to load.",
     "description": "Error title when the members list fails to load"
+  },
+  "3S3afNJApr": {
+    "defaultMessage": "In HubSpot Settings, open Blog and choose Add/edit multi-language variations. When that language is on the blog, push creates an unpublished post draft. It does not add a language to the blog.",
+    "description": "Warning in the HubSpot push dialog that blog posts need a HubSpot language on the blog"
   },
   "3SLTb8lWnJ": {
     "defaultMessage": "Source locale",
@@ -30083,6 +30091,10 @@
     "defaultMessage": "Move up",
     "description": "Button to move an issue column earlier in sort order"
   },
+  "k8nQ2wLm0P": {
+    "defaultMessage": "Add/edit multi-language variations first",
+    "description": "Title of the HubSpot push dialog warning for blog post language variants"
+  },
   "k9j7R6aLei": {
     "defaultMessage": "Could not load messages",
     "description": "Error when mapped Customer.io messages fail to load"
@@ -33218,6 +33230,10 @@
   "p4EP3lBEdG": {
     "defaultMessage": "Line {line} uses lookaround or a backreference, which is not supported.",
     "description": "Validation error for a custom placeholder pattern that uses unsupported syntax"
+  },
+  "p4Rv7tNc2A": {
+    "defaultMessage": "In HubSpot Settings, open Blog and choose Add/edit multi-language variations. When that language is on the blog, push creates an unpublished post draft. It does not add a language to the blog.",
+    "description": "Warning in the HubSpot push dialog that blog posts need a HubSpot language on the blog"
   },
   "p4xkAKJ/3y": {
     "defaultMessage": "Project",

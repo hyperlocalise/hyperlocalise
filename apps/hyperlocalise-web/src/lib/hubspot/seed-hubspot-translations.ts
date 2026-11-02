@@ -67,8 +67,12 @@ function parseStoredJsonObject(content: string): { [key: string]: HubspotJson } 
 }
 
 /** Source keys a locale must cover before it counts as fully seeded. */
+function isHubspotHtmlSourceContent(sourceContent: string): boolean {
+  return sourceContent.trimStart().startsWith("<");
+}
+
 export function hubspotSeedSourceKeys(kind: HubspotSeedableKind, sourceContent: string): string[] {
-  if (kind === "email") {
+  if (kind === "email" || (kind === "blog" && isHubspotHtmlSourceContent(sourceContent))) {
     return Object.keys(extractHtmlIngestEntries(sourceContent));
   }
   const json = parseStoredJsonObject(sourceContent);
@@ -339,7 +343,8 @@ export async function seedHubspotItemLocales(input: {
     return { importedHashes, seededComplete, warnings };
   }
   const sourceFlat =
-    input.kind === "email"
+    input.kind === "email" ||
+    (input.kind === "blog" && isHubspotHtmlSourceContent(input.sourceContent))
       ? flattenHubspotDocument(readEmailHtmlDocument(input.sourceContent))
       : flattenHubspotDocument(
           readHubspotStringTree(parseStoredJsonObject(input.sourceContent) ?? {}),
@@ -372,7 +377,10 @@ export async function seedHubspotItemLocales(input: {
         continue;
       }
       let entries: Record<string, string>;
-      if (input.kind === "email") {
+      if (
+        input.kind === "email" ||
+        (input.kind === "blog" && isHubspotHtmlSourceContent(input.sourceContent))
+      ) {
         entries = emailSeedEntries(input.sourceContent, localeFlat);
       } else {
         entries = hubspotDifferingEntries(sourceFlat, localeFlat);

@@ -107,6 +107,294 @@ export function layoutSectionsFromTemplateFiles(
   };
 }
 
+const DND_BLOCKS = new Set(["dnd_area", "dnd_section"]);
+const TEXT_FIELD_TYPES = new Set(["text", "textarea", "richtext"]);
+const MODULE_OPEN = /\{%\s*module\s+["']([^"']+)["']([\s\S]*?)%\}/g;
+
+type StaticModuleTag = {
+  name: string;
+  modulePath: string;
+  overrides: Array<{ field: string; value: string }>;
+};
+
+/** `fields.json` paths for static `{% module %}` tags outside drag-and-drop areas. */
+export function listStaticModuleFieldPaths(source: string, fromPath: string): string[] {
+  const paths: string[] = [];
+  for (const moduleTag of parseStaticModules(stripDndBlocks(source))) {
+    const fieldsPath = staticModuleFieldsPath(fromPath, moduleTag.modulePath);
+    if (fieldsPath) {
+      paths.push(fieldsPath);
+    }
+  }
+  return paths;
+}
+
+/** Widget bodies for static modules. Tag attributes override `fields.json` defaults. */
+export function staticModuleWidgetsFromTemplateFiles(
+  files: ReadonlyMap<string, string>,
+  entryPath: string,
+): HubspotJson {
+  const widgets: { [key: string]: HubspotJson } = {};
+  collectStaticModuleWidgets(files.get(entryPath) ?? "", entryPath, files, widgets, new Set(), 0);
+  return widgets;
+}
+
+function collectStaticModuleWidgets(
+  source: string,
+  fromPath: string,
+  files: ReadonlyMap<string, string>,
+  widgets: { [key: string]: HubspotJson },
+  seen: Set<string>,
+  depth: number,
+): void {
+  if (!source || depth > 4 || seen.has(fromPath)) {
+    return;
+  }
+  seen.add(fromPath);
+  const outsideDnd = stripDndBlocks(source);
+  for (const moduleTag of parseStaticModules(outsideDnd)) {
+    if (widgets[moduleTag.name]) {
+      continue;
+    }
+    const body = fieldDefaults(files, fromPath, moduleTag.modulePath);
+    applyFieldOverrides(body, moduleTag.overrides);
+    if (Object.keys(body).length === 0) {
+      continue;
+    }
+    widgets[moduleTag.name] = {
+      body,
+      id: moduleTag.name,
+      name: moduleTag.name,
+      type: "module",
+    };
+  }
+  for (const includePath of listDndPartialPaths(outsideDnd)) {
+    const resolved = resolveTemplatePath(fromPath, includePath);
+    const partial = files.get(resolved);
+    if (!partial) {
+      continue;
+    }
+    collectStaticModuleWidgets(partial, resolved, files, widgets, seen, depth + 1);
+  }
+}
+
+function staticModuleFieldsPath(fromPath: string, modulePath: string): string | null {
+  const raw = modulePath.trim();
+  if (!raw || raw.startsWith("@") || raw.startsWith("http")) {
+    return null;
+  }
+  const resolved = resolveTemplatePath(fromPath, raw);
+  return resolved.endsWith(".module") ? `${resolved}/fields.json` : null;
+}
+
+function parseStaticModules(source: string): StaticModuleTag[] {
+  MODULE_OPEN.lastIndex = 0;
+  const modules: StaticModuleTag[] = [];
+  for (const match of source.matchAll(MODULE_OPEN)) {
+    const name = (match[1] ?? "").trim();
+    const attrs = match[2] ?? "";
+    if (!name || match.index === undefined) {
+      continue;
+    }
+    const inner = moduleInner(source, match.index + match[0].length);
+    modules.push({
+      name,
+      modulePath: readNamedString(attrs, "path") ?? "",
+      overrides: [...attributeOverrides(attrs), ...moduleAttributeOverrides(inner)],
+    });
+  }
+  MODULE_OPEN.lastIndex = 0;
+  return modules;
+}
+
+function moduleInner(source: string, openEnd: number): string {
+  const close = /\{%\s*end_module\s*%\}/.exec(source.slice(openEnd));
+  if (!close || close.index === undefined) {
+    return "";
+  }
+  const between = source.slice(openEnd, openEnd + close.index);
+  const leftover = between
+    .replace(/\{%\s*module_attribute\b[\s\S]*?\{%\s*end_module_attribute\s*%\}/g, "")
+    .trim();
+  return leftover ? "" : between;
+}
+
+function attributeOverrides(attrs: string): Array<{ field: string; value: string }> {
+  FIELD_ATTRIBUTE.lastIndex = 0;
+  const overrides: Array<{ field: string; value: string }> = [];
+  for (const match of attrs.matchAll(FIELD_ATTRIBUTE)) {
+    pushOverride(overrides, (match[1] ?? "").toLowerCase(), readAttributeValue(match[2] ?? ""));
+  }
+  FIELD_ATTRIBUTE.lastIndex = 0;
+  return overrides;
+}
+
+function moduleAttributeOverrides(inner: string): Array<{ field: string; value: string }> {
+  if (!inner) {
+    return [];
+  }
+  MODULE_ATTRIBUTE.lastIndex = 0;
+  const overrides: Array<{ field: string; value: string }> = [];
+  for (const match of inner.matchAll(MODULE_ATTRIBUTE)) {
+    pushOverride(overrides, (match[1] ?? "").toLowerCase(), match[2] ?? "");
+  }
+  MODULE_ATTRIBUTE.lastIndex = 0;
+  return overrides;
+}
+
+function pushOverride(
+  overrides: Array<{ field: string; value: string }>,
+  field: string,
+  value: string,
+): void {
+  const trimmed = value.trim();
+  if (!COPY_FIELDS.has(field) || !isTemplateProse(trimmed)) {
+    return;
+  }
+  overrides.push({ field, value: trimmed });
+}
+
+function fieldDefaults(
+  files: ReadonlyMap<string, string>,
+  fromPath: string,
+  modulePath: string,
+): { [key: string]: HubspotJson } {
+  const fieldsPath = staticModuleFieldsPath(fromPath, modulePath);
+  if (!fieldsPath) {
+    return {};
+  }
+  const raw = files.get(fieldsPath);
+  return raw ? defaultsFromFieldsJson(raw) : {};
+}
+
+function defaultsFromFieldsJson(raw: string): { [key: string]: HubspotJson } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return {};
+  }
+  const fields = Array.isArray(parsed)
+    ? parsed
+    : parsed && typeof parsed === "object" && Array.isArray((parsed as { fields?: unknown }).fields)
+      ? (parsed as { fields: unknown[] }).fields
+      : null;
+  return fields ? readFieldList(fields) : {};
+}
+
+function readFieldList(fields: unknown[]): { [key: string]: HubspotJson } {
+  const out: { [key: string]: HubspotJson } = {};
+  for (const field of fields) {
+    if (!field || typeof field !== "object") {
+      continue;
+    }
+    const record = field as {
+      name?: unknown;
+      type?: unknown;
+      default?: unknown;
+      children?: unknown;
+    };
+    if (typeof record.name !== "string" || !record.name.trim()) {
+      continue;
+    }
+    const type = typeof record.type === "string" ? record.type.toLowerCase() : "";
+    if (type === "group" && Array.isArray(record.children)) {
+      const nested = readFieldList(record.children);
+      if (Object.keys(nested).length > 0) {
+        out[record.name] = nested;
+      }
+      continue;
+    }
+    if (!TEXT_FIELD_TYPES.has(type) || typeof record.default !== "string") {
+      continue;
+    }
+    if (!isTemplateProse(record.default)) {
+      continue;
+    }
+    out[record.name] = record.default.trim();
+  }
+  return out;
+}
+
+function applyFieldOverrides(
+  body: { [key: string]: HubspotJson },
+  overrides: Array<{ field: string; value: string }>,
+): void {
+  for (const override of overrides) {
+    if (!assignField(body, override.field, override.value)) {
+      body[override.field] = override.value;
+    }
+  }
+}
+
+function assignField(node: { [key: string]: HubspotJson }, field: string, value: string): boolean {
+  if (typeof node[field] === "string") {
+    node[field] = value;
+    return true;
+  }
+  for (const child of Object.values(node)) {
+    if (child && typeof child === "object" && !Array.isArray(child)) {
+      if (assignField(child as { [key: string]: HubspotJson }, field, value)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function stripDndBlocks(source: string): string {
+  const tags: Array<{ closing: boolean; name: string; start: number; end: number }> = [];
+  const tagPattern = /\{%\s*(end_)?([A-Za-z0-9_]+)\b[\s\S]*?%\}/g;
+  for (const match of source.matchAll(tagPattern)) {
+    if (match.index === undefined) {
+      continue;
+    }
+    tags.push({
+      closing: Boolean(match[1]),
+      name: match[2] ?? "",
+      start: match.index,
+      end: match.index + match[0].length,
+    });
+  }
+  const ranges: Array<[number, number]> = [];
+  const stack: Array<{ name: string; start: number }> = [];
+  for (const tag of tags) {
+    if (tag.closing) {
+      for (let index = stack.length - 1; index >= 0; index -= 1) {
+        if (stack[index]?.name !== tag.name) {
+          continue;
+        }
+        const open = stack[index];
+        stack.splice(index);
+        if (open && DND_BLOCKS.has(tag.name)) {
+          ranges.push([open.start, tag.end]);
+        }
+        break;
+      }
+      continue;
+    }
+    stack.push({ name: tag.name, start: tag.start });
+  }
+  if (ranges.length === 0) {
+    return source;
+  }
+  ranges.sort((left, right) => left[0] - right[0]);
+  const merged: Array<[number, number]> = [];
+  for (const range of ranges) {
+    const last = merged.at(-1);
+    if (last && range[0] >= last[0] && range[0] < last[1]) {
+      last[1] = Math.max(last[1], range[1]);
+      continue;
+    }
+    merged.push([range[0], range[1]]);
+  }
+  let next = source;
+  for (const [start, end] of merged.toReversed()) {
+    next = next.slice(0, start) + next.slice(end);
+  }
+  return next;
+}
+
 function moduleNode(
   area: string,
   index: number,

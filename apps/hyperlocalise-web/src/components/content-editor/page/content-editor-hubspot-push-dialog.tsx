@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useMemo, useState } from "react";
+import { WarningIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -48,7 +49,6 @@ import {
   type ContentEditorHubspotPushItem,
 } from "./content-editor-hubspot-push-queries";
 import {
-  ContentEditorPushApproveHint,
   ContentEditorPushLocaleProgressRows,
   ContentEditorPushRefreshButton,
 } from "./content-editor-push-progress";
@@ -132,6 +132,7 @@ export function ContentEditorHubspotPushDialog({
   };
 
   const canConfirmPush = selectedSourcePaths.length > 0;
+  const hasBlogItems = items.some((item) => item.resourceKind === "blog");
 
   return (
     <Dialog
@@ -143,29 +144,21 @@ export function ContentEditorHubspotPushDialog({
         onOpenChange(nextOpen);
       }}
     >
-      <DialogContent className="flex max-h-[80vh] flex-col sm:max-w-xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[80vh] flex-col gap-4 overflow-hidden sm:max-w-xl">
+        <DialogHeader className="shrink-0 gap-1.5">
           <DialogTitle>
             <FormattedMessage {...messages.selectItemsTitle} />
           </DialogTitle>
           <DialogDescription>
             <FormattedMessage {...messages.selectItemsDescription} />
           </DialogDescription>
-          <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">
-              <FormattedMessage {...messages.pushPolicyLabel} />
-            </span>
-            {": "}
-            <FormattedMessage
-              {...(selectedAutomation?.overwriteWhenRemoteNewer
-                ? messages.pushPolicyOverwrite
-                : messages.pushPolicyKeepRemote)}
-            />
-          </p>
-          <ContentEditorPushApproveHint />
         </DialogHeader>
+        <HubspotPushNotes
+          overwriteWhenRemoteNewer={selectedAutomation?.overwriteWhenRemoteNewer === true}
+          showBlogLanguageReminder={hasBlogItems}
+        />
         {candidates.length > 1 ? (
-          <div className="flex flex-col gap-2">
+          <div className="flex shrink-0 flex-col gap-1.5">
             <Label htmlFor="hubspot-push-automation">
               <FormattedMessage {...messages.automationLabel} />
             </Label>
@@ -190,72 +183,75 @@ export function ContentEditorHubspotPushDialog({
             </Select>
           </div>
         ) : null}
-        <div className="flex flex-col gap-1.5">
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder={intl.formatMessage(messages.searchItemsPlaceholder)}
-            aria-label={intl.formatMessage(messages.searchItemsLabel)}
-          />
-          <div className="flex items-center gap-1.5">
-            <Button
-              type="button"
-              variant="link"
-              className="h-auto px-0 text-xs underline"
-              disabled={items.length === 0 || pending}
-              onClick={() => setSelectedSourcePaths(items.map((item) => item.sourcePath))}
-            >
-              <FormattedMessage {...messages.selectAllItems} />
-            </Button>
-            <Button
-              type="button"
-              variant="link"
-              className="h-auto px-0 text-xs underline"
-              disabled={selectedSourcePaths.length === 0 || pending}
-              onClick={() => setSelectedSourcePaths([])}
-            >
-              <FormattedMessage {...messages.clearItemSelection} />
-            </Button>
-            <ContentEditorPushRefreshButton
-              fetching={itemsQuery.isRefetching}
-              disabled={pending || automationId.length === 0}
-              onRefresh={() => {
-                void itemsQuery.refetch();
-              }}
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={intl.formatMessage(messages.searchItemsPlaceholder)}
+              aria-label={intl.formatMessage(messages.searchItemsLabel)}
+              className="min-w-0 flex-1"
             />
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto px-0 text-xs underline"
+                disabled={items.length === 0 || pending}
+                onClick={() => setSelectedSourcePaths(items.map((item) => item.sourcePath))}
+              >
+                <FormattedMessage {...messages.selectAllItems} />
+              </Button>
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto px-0 text-xs underline"
+                disabled={selectedSourcePaths.length === 0 || pending}
+                onClick={() => setSelectedSourcePaths([])}
+              >
+                <FormattedMessage {...messages.clearItemSelection} />
+              </Button>
+              <ContentEditorPushRefreshButton
+                fetching={itemsQuery.isRefetching}
+                disabled={pending || automationId.length === 0}
+                onRefresh={() => {
+                  void itemsQuery.refetch();
+                }}
+              />
+            </div>
+          </div>
+          <div className="min-h-48 flex-1 overflow-y-auto rounded-lg border border-border">
+            {itemsQuery.isLoading ? (
+              <div className="flex items-center justify-center gap-2 p-8 text-muted-foreground">
+                <Spinner />
+                <FormattedMessage {...messages.loadingItems} />
+              </div>
+            ) : itemsQuery.isError ? (
+              <p className="p-6 text-center text-sm text-destructive">
+                <FormattedMessage {...messages.loadItemsError} />
+              </p>
+            ) : visibleItems.length === 0 ? (
+              <p className="p-6 text-center text-sm text-muted-foreground">
+                <FormattedMessage
+                  {...(items.length === 0 ? messages.noItems : messages.noMatchingItems)}
+                />
+              </p>
+            ) : (
+              <div className="divide-y divide-border">
+                {visibleItems.map((item) => (
+                  <HubspotPushItemRow
+                    key={`${item.resourceKind}-${item.sourceId}`}
+                    item={item}
+                    checked={selectedSourcePaths.includes(item.sourcePath)}
+                    disabled={pending}
+                    onCheckedChange={(checked) => toggleSourcePath(item.sourcePath, checked)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
-          {itemsQuery.isLoading ? (
-            <div className="flex items-center justify-center gap-2 p-8 text-muted-foreground">
-              <Spinner />
-              <FormattedMessage {...messages.loadingItems} />
-            </div>
-          ) : itemsQuery.isError ? (
-            <p className="p-6 text-center text-sm text-destructive">
-              <FormattedMessage {...messages.loadItemsError} />
-            </p>
-          ) : visibleItems.length === 0 ? (
-            <p className="p-6 text-center text-sm text-muted-foreground">
-              <FormattedMessage
-                {...(items.length === 0 ? messages.noItems : messages.noMatchingItems)}
-              />
-            </p>
-          ) : (
-            <div className="divide-y divide-border">
-              {visibleItems.map((item) => (
-                <HubspotPushItemRow
-                  key={`${item.resourceKind}-${item.sourceId}`}
-                  item={item}
-                  checked={selectedSourcePaths.includes(item.sourcePath)}
-                  disabled={pending}
-                  onCheckedChange={(checked) => toggleSourcePath(item.sourcePath, checked)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
             <FormattedMessage {...messages.cancelItemSelection} />
           </Button>
@@ -284,6 +280,48 @@ export function ContentEditorHubspotPushDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function HubspotPushNotes({
+  overwriteWhenRemoteNewer,
+  showBlogLanguageReminder,
+}: {
+  overwriteWhenRemoteNewer: boolean;
+  showBlogLanguageReminder: boolean;
+}) {
+  return (
+    <div className="flex shrink-0 flex-col gap-2">
+      <p className="text-xs leading-5 text-muted-foreground">
+        <span className="font-medium text-foreground">
+          <FormattedMessage {...messages.pushPolicyLabel} />
+        </span>
+        {": "}
+        <FormattedMessage
+          {...(overwriteWhenRemoteNewer
+            ? messages.pushPolicyOverwrite
+            : messages.pushPolicyKeepRemote)}
+        />
+      </p>
+      <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
+        <WarningIcon className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <p className="text-foreground">
+            <FormattedMessage {...pushProgressMessages.approveHint} />
+          </p>
+          {showBlogLanguageReminder ? (
+            <p className="text-foreground">
+              <span className="font-medium">
+                <FormattedMessage {...messages.blogLanguageReminderTitle} />
+              </span>{" "}
+              <span className="text-muted-foreground">
+                <FormattedMessage {...messages.blogLanguageReminder} />
+              </span>
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </div>
   );
 }
 

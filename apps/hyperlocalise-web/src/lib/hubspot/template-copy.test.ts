@@ -14,7 +14,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { buildPageDocument, hubspotDocumentHasCopy } from "./document";
-import { layoutSectionsFromTemplateFiles, resolveTemplatePath } from "./template-copy";
+import {
+  layoutSectionsFromTemplateFiles,
+  resolveTemplatePath,
+  staticModuleWidgetsFromTemplateFiles,
+} from "./template-copy";
 
 const entryPath = "theme/templates/landing-page.html";
 const heroPath = "theme/sections/hero.html";
@@ -96,5 +100,49 @@ describe("hubspot template copy", () => {
     const serialized = JSON.stringify(layout);
     expect(serialized).toContain("From the journal");
     expect(serialized).toContain("Keep reading this section");
+  });
+
+  it("reads static module defaults outside the drag and drop area", () => {
+    const entry = "theme/templates/blog-post.html";
+    const widgets = staticModuleWidgetsFromTemplateFiles(
+      new Map([
+        [
+          entry,
+          `{% module "subscribe" path="../modules/subscribe.module" heading="Join the newsletter" %}
+           {% dnd_area "dnd_area" %}
+             {% dnd_module path="@hubspot/rich_text" %}
+               {% module_attribute "html" %}
+                 <h2>Article only.</h2>
+               {% end_module_attribute %}
+             {% end_dnd_module %}
+           {% end_dnd_area %}`,
+        ],
+        [
+          "theme/modules/subscribe.module/fields.json",
+          JSON.stringify([
+            { name: "heading", type: "text", default: "Subscribe to the blog" },
+            { name: "link", type: "url", default: "https://example.com/subscribe" },
+            {
+              name: "notes",
+              type: "group",
+              children: [
+                {
+                  name: "content",
+                  type: "richtext",
+                  default: "<p>Weekly notes from the team.</p>",
+                },
+              ],
+            },
+          ]),
+        ],
+      ]),
+      entry,
+    );
+    const serialized = JSON.stringify(widgets);
+    expect(serialized).toContain("Join the newsletter");
+    expect(serialized).toContain("Weekly notes from the team");
+    expect(serialized).not.toContain("Subscribe to the blog");
+    expect(serialized).not.toContain("Article only");
+    expect(serialized).not.toContain("https://example.com/subscribe");
   });
 });

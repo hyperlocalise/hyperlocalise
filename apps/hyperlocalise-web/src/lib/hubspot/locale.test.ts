@@ -14,9 +14,13 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   assignHubspotLocales,
+  blogSettingsHasLanguage,
+  findBlogLanguageVariation,
+  findBlogSettingsLanguageId,
   hubspotCopyName,
   hubspotLanguageMatchesSource,
   isHubspotLocaleCopyName,
+  isMissingBlogLanguageMessage,
   mapProjectLocaleToHubspot,
 } from "./locale";
 
@@ -83,5 +87,41 @@ describe("hubspot language and copy names", () => {
     expect(hubspotCopyName("Welcome", "fr-FR")).toBe("Welcome [fr-FR]");
     expect(isHubspotLocaleCopyName("Welcome [fr-FR]")).toBe(true);
     expect(isHubspotLocaleCopyName("Welcome")).toBe(false);
+  });
+
+  it("finds blog language variations by primary post id and normalized language", () => {
+    const posts = [
+      { id: "post-1", language: "en", translatedFromId: null },
+      { id: "420539377366", language: "zh-tw", translatedFromId: "post-1" },
+      { id: "post-3", language: "zh-cn", translatedFromId: "post-1" },
+    ];
+    expect(findBlogLanguageVariation(posts, "post-1", "zh-tw")).toBe("420539377366");
+    expect(findBlogLanguageVariation(posts, "post-1", "zh-TW")).toBe("420539377366");
+    expect(findBlogLanguageVariation(posts, "post-1", "fr")).toBeNull();
+  });
+
+  it("matches a language blog in the same Settings group", () => {
+    const members = [
+      { id: "blog-en", language: "en", translatedFromId: "" },
+      { id: "blog-zh", language: "zh-tw", translatedFromId: "blog-en" },
+      { id: "blog-th", language: "th-th", translatedFromId: "blog-en" },
+    ];
+    expect(findBlogSettingsLanguageId(members, "blog-en", "th-th")).toBe("blog-th");
+    expect(findBlogSettingsLanguageId(members, "blog-en", "th-TH")).toBe("blog-th");
+    expect(findBlogSettingsLanguageId(members, "blog-en", "th")).toBe("blog-th");
+    expect(findBlogSettingsLanguageId(members, "blog-zh", "th-th")).toBe("blog-th");
+    expect(blogSettingsHasLanguage(members, "blog-en", "fr")).toBe(false);
+    expect(findBlogSettingsLanguageId(members, "blog-en", "fr")).toBeNull();
+  });
+
+  it("recognizes a missing HubSpot language variant warning", () => {
+    expect(
+      isMissingBlogLanguageMessage(
+        "hubspot_blog_language_missing: create the language variant in HubSpot first",
+      ),
+    ).toBe(true);
+    expect(isMissingBlogLanguageMessage("Actions → Create multi-language variation")).toBe(true);
+    expect(isMissingBlogLanguageMessage("Add/edit multi-language variations")).toBe(true);
+    expect(isMissingBlogLanguageMessage("hubspot_blog_draft_failed:404")).toBe(false);
   });
 });

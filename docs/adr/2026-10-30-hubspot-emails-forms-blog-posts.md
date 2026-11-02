@@ -3,8 +3,10 @@
 ## Status
 
 Accepted. Import, push, and **Translate HubSpot content** are
-implemented. Connect is WorkOS Pipes OAuth on the existing `hubspot`
-slug, from a custom Integrations pane.
+implemented. The stacked automation currently supports emails and
+blog posts. Forms, landing pages, and website pages stay in the
+client for later work. Connect is WorkOS Pipes OAuth on the existing
+`hubspot` slug, from a custom Integrations pane.
 
 Tracking lives in Linear project
 [HubSpot Integration](https://linear.app/hyperlocalise/project/hubspot-integration-4fd159902d9b)
@@ -39,7 +41,7 @@ Operators need five content surfaces:
 | --- | --- | --- | --- |
 | Marketing emails | Subject, preview, and widget fields | `clone` with `cloneName`, then `upsertDraft` to set `language` and the translated widgets | No. Clone copies the source widgets. Language is set on the draft. |
 | Forms | Labels, placeholders, help text, submit text, legal copy | `create` a new form | No. `configuration.language` selects built-in chrome only. |
-| Blog posts | Title, meta description, summary, post body, widgets, and layout sections | `createLangVariation`, then patch the draft | No. The call clones an untranslated variant. |
+| Blog posts | Title, meta description, summary, post body, widgets, and layout sections | Find the existing language variation or create an unpublished draft when the blog already has that language, then patch the draft | No. The operator adds the language on the blog in HubSpot (**Settings → Blog → Add/edit multi-language variations**). |
 | Landing pages | Title, meta description, alt text, widgets, layout sections | `createLangVariation`, then `updateDraft` | No. The call clones an untranslated variant. |
 | Website pages | Same fields as landing pages | `createLangVariation`, then `updateDraft` | No. The call clones an untranslated variant. |
 
@@ -99,7 +101,7 @@ which HubSpot will not grant on this account-level app.
 | Surface | SDK | Read | Write-back |
 | --- | --- | --- | --- |
 | Marketing emails | `client.marketing.emails.marketingEmailsApi` | `getPage` and `getById` | `clone` with `id` and `cloneName`, then `upsertDraft` to set `language`, `name`, `subject`, and `content.widgets`. The clone request has no `language` field. Do not call `createAbTestVariation` or publish. |
-| Blog posts | `client.cms.blogs.blogPosts.basicApi` and `multiLanguageApi` | List with the SDK. Read the raw published post and its draft so layout section text is not dropped. When the layout has no copy, read `templatePath` through the source-code API, including `include_dnd_partial` sections. | `createLangVariation({ id, language })`, then `PATCH` the draft `name`, `htmlTitle`, `metaDescription`, `postBody`, `postSummary`, `rssSummary`, `featuredImageAltText`, `widgets`, `layoutSections`, and `widgetContainers`. Template defaults are written onto the locale draft, not the template. If HubSpot reports the blog has no variation for that language, `POST /cms/v3/blog-settings/settings/multi-language/create-language-variation` for the post's `contentGroupId` with a slug, then retry. When that blog has no domain, set `domain` from its URL or the account's primary blog domain first. HubSpot rejects the variation when the domain is blank. Reuse an existing variant in that language. Never call push-live. |
+| Blog posts | `client.cms.blogs.blogPosts.basicApi` | List with the SDK. Read the raw published post and its draft so layout section text is not dropped. When the layout has no copy, read `templatePath` through the source-code API, including `include_dnd_partial` sections. | Find an existing language variation (`translatedFromId` + language). If none exists, read `/cms/v3/blog-settings/settings` and `POST` an unpublished draft onto the matching language blog with `translatedFromId`. Then `PATCH` the draft `name`, `htmlTitle`, `metaDescription`, `postBody`, `postSummary`, `rssSummary`, `featuredImageAltText`, `widgets`, `layoutSections`, and `widgetContainers`. Template defaults are written onto the locale draft, not the template. Do not call `createLangVariation` or create a blog language. The operator adds the language in HubSpot first (**Settings → Blog → Add/edit multi-language variations**). Never call push-live. |
 | Landing pages | `client.cms.pages.landingPagesApi` | `getPage` and raw published plus draft JSON. Skip rows with `translatedFromId`. When the page and draft have no module text, read `templatePath` through the source-code API, including `include_dnd_partial` sections, and use that default copy. | `createLangVariation({ id, language })`, then `updateDraft` with `name`, `language`, `htmlTitle`, `metaDescription`, `featuredImageAltText`, `widgets`, and `layoutSections`. Template defaults are written onto the locale draft, not the template. Never publish. |
 | Website pages | `client.cms.pages.sitePagesApi` | Same as landing pages. | Same write-back as landing pages. Never publish. |
 | Forms | `client.marketing.forms.formsApi` | Get the definition | `create` a new form. There is no clone endpoint and no language group. The create body must include `createdAt` and must omit `id`. A later replace puts the locale copy's id in the body so it matches the id in the path. |

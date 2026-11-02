@@ -25,7 +25,12 @@ import {
 } from "@/lib/projects/locale-progress/push-translation-progress";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
-import type { HubspotResourceKind } from "./constants";
+import { isHubspotSupportedResourceKind, type HubspotResourceKind } from "./constants";
+import {
+  isHubspotBlogBundleSourcePath,
+  loadHubspotBlogApprovedPrefilled,
+} from "./blog-post-bundle";
+import { parseHubspotBlogFolderPath } from "./source-path";
 
 export type HubspotPushItem = {
   sourceId: string;
@@ -135,9 +140,42 @@ export async function getHubspotPushEligibility(input: {
   ) => translationService.loadAsPrefilledEntries(request);
 
   for (const mapping of mappings) {
+    if (!isHubspotSupportedResourceKind(mapping.resourceKind)) {
+      continue;
+    }
     const eligibleLocales: string[] = [];
     const locales: PushLocaleProgressRow[] = [];
+    const blogPostId =
+      mapping.resourceKind === "blog" && isHubspotBlogBundleSourcePath(mapping.sourcePath)
+        ? parseHubspotBlogFolderPath(mapping.sourcePath)
+        : null;
     for (const projectLocale of jobTargetLocales) {
+      if (blogPostId) {
+        const approved = await loadHubspotBlogApprovedPrefilled({
+          translationService,
+          organizationId: input.organizationId,
+          projectId,
+          postId: blogPostId,
+          targetLocale: projectLocale,
+        });
+        if (includeLocaleProgress) {
+          locales.push(
+            toPushLocaleProgressRow(projectLocale, {
+              translatedKeyCount: approved.translatedKeyCount,
+              approvedKeyCount: approved.translatedKeyCount,
+              loadedKeyCount: approved.loadedKeyCount,
+            }),
+          );
+          if (approved.translatedKeyCount > 0) {
+            eligibleLocales.push(projectLocale);
+          }
+          continue;
+        }
+        if (approved.translatedKeyCount > 0) {
+          eligibleLocales.push(projectLocale);
+        }
+        continue;
+      }
       const localeInput = {
         organizationId: input.organizationId,
         projectId,

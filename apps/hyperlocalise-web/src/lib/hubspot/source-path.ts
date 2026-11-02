@@ -27,6 +27,7 @@ function normalizeSourcePath(value: string): string {
 
 const HUBSPOT_PATH =
   /^hubspot\/(emails|forms|blog-posts|landing-pages|website-pages|message-templates)\/([^/]+)\/([^/]+)\.(json|html)$/;
+const HUBSPOT_BLOG_FOLDER_PATH = /^hubspot\/blog-posts\/([^/]+)$/;
 
 const HUBSPOT_FOLDERS = {
   email: "emails",
@@ -62,10 +63,23 @@ export function buildHubspotSourcePath(input: {
   return normalizeSourcePath(`hubspot/${folder}/${id}/${slug}.${extension}`);
 }
 
+export function parseHubspotBlogFolderPath(sourcePath: string): string | null {
+  const match = HUBSPOT_BLOG_FOLDER_PATH.exec(sourcePath.trim());
+  const id = match?.[1]?.trim();
+  if (!id) {
+    return null;
+  }
+  return decodeURIComponent(id);
+}
+
 export function parseHubspotSourcePath(sourcePath: string): {
   kind: HubspotResourceKind;
   id: string;
 } | null {
+  const folderId = parseHubspotBlogFolderPath(sourcePath);
+  if (folderId) {
+    return { kind: "blog", id: folderId };
+  }
   const match = HUBSPOT_PATH.exec(sourcePath.trim());
   if (!match) {
     return null;

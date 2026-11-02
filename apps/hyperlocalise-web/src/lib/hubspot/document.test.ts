@@ -349,11 +349,79 @@ describe("hubspot documents", () => {
       },
     });
     expect(applied.postBody).toBe("<p>Introduction</p>");
+    expect(applied.rssBody).toBe("");
     expect(applied.layoutSections).toMatchObject({
       dnd_area: {
         rows: [{ "0": { params: { html: "<h2>Titre de section</h2>" } } }],
       },
     });
+  });
+
+  it("uses the translated post body for RSS when the source RSS duplicates the article", () => {
+    const live = {
+      htmlTitle: "Launch",
+      metaDescription: "",
+      featuredImageAltText: "",
+      postBody: "<p>Hello world</p>",
+      postSummary: "",
+      rssBody: "<p>Hello world</p>",
+      rssSummary: "",
+      widgets: {},
+      layoutSections: {},
+    };
+    const document = buildBlogContentDocument(live);
+    expect(document.rssBody).toBeUndefined();
+    const applied = applyBlogContentDocument(live, {
+      ...document,
+      postBody: "<p>Bonjour le monde</p>",
+    });
+    expect(applied.postBody).toBe("<p>Bonjour le monde</p>");
+    expect(applied.rssBody).toBe("<p>Bonjour le monde</p>");
+  });
+
+  it("imports and pushes an RSS excerpt instead of expanding it to the full article", () => {
+    const live = {
+      htmlTitle: "Launch",
+      metaDescription: "",
+      featuredImageAltText: "",
+      postBody: "<p>Hello world. More article copy.</p>",
+      postSummary: "",
+      rssBody: "<p>Hello world.</p>",
+      rssSummary: "",
+      widgets: {},
+      layoutSections: {},
+    };
+    const document = buildBlogContentDocument(live);
+    expect(document.rssBody).toBe("<p>Hello world.</p>");
+    const applied = applyBlogContentDocument(live, {
+      ...document,
+      postBody: "<p>Bonjour le monde. Suite de l'article.</p>",
+      rssBody: "<p>Bonjour le monde.</p>",
+    });
+    expect(applied.rssBody).toBe("<p>Bonjour le monde.</p>");
+    expect(
+      applyBlogContentDocument(live, {
+        postBody: "<p>Bonjour le monde. Suite de l'article.</p>",
+      }).rssBody,
+    ).toBe("<p>Hello world.</p>");
+  });
+
+  it("keeps a distinct live RSS body when that field was not translated", () => {
+    const live = {
+      htmlTitle: "Launch",
+      metaDescription: "",
+      featuredImageAltText: "",
+      postBody: "<p>Hello world</p>",
+      postSummary: "",
+      rssBody: "<p>Feed-only teaser</p>",
+      rssSummary: "",
+      widgets: {},
+      layoutSections: {},
+    };
+    const applied = applyBlogContentDocument(live, {
+      postBody: "<p>Bonjour le monde</p>",
+    });
+    expect(applied.rssBody).toBe("<p>Feed-only teaser</p>");
   });
 
   it("round-trips blog title, description, and body", () => {

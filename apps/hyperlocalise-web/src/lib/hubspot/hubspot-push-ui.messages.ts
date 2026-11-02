@@ -36,10 +36,22 @@ export const hubspotPushUiMessages = defineMessages({
     description: "Title of the Content editor dialog for choosing HubSpot items to push",
   },
   selectItemsDescription: {
-    id: "h+ie5F1ydq",
+    id: "8tVmfTn6bg",
     defaultMessage:
-      "Choose which mapped emails, forms, blog posts, landing pages, and website pages to update with approved translations. This creates locale copies and never changes or publishes the source.",
+      "Choose which mapped emails and blog posts to update with approved translations. Emails become a cloned locale draft. Blog posts become unpublished locale drafts. This never changes or publishes the source.",
     description: "Description of the HubSpot item picker dialog",
+  },
+  blogLanguageReminderTitle: {
+    id: "9RWd1cWWqm",
+    defaultMessage: "Add/edit multi-language variations first",
+    description: "Title of the HubSpot push dialog warning for blog post language variants",
+  },
+  blogLanguageReminder: {
+    id: "3S3afNJApr",
+    defaultMessage:
+      "In HubSpot Settings, open Blog and choose Add/edit multi-language variations. When that language is on the blog, push creates an unpublished post draft. It does not add a language to the blog.",
+    description:
+      "Warning in the HubSpot push dialog that blog posts need a HubSpot language on the blog",
   },
   pushPolicyLabel: {
     id: "bsYaITED8a",

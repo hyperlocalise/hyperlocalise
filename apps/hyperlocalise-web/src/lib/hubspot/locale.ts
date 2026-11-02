@@ -139,3 +139,107 @@ export function hubspotCopyName(sourceName: string, locale: string): string {
 export function isHubspotLocaleCopyName(name: string): boolean {
   return /\[[^\]]+\]\s*$/.test(name.trim());
 }
+
+export type HubspotLanguageVariationSummary = {
+  id: string;
+  language: string | null;
+  translatedFromId: string | null;
+};
+
+export const HUBSPOT_BLOG_LANGUAGE_HINT =
+  "add the language in HubSpot first — Settings → Blog → Add/edit multi-language variations";
+
+export function isMissingBlogLanguageMessage(message: string): boolean {
+  return (
+    message.includes("hubspot_blog_language_missing") ||
+    message.includes("Create multi-language variation") ||
+    message.includes("Add/edit multi-language variations")
+  );
+}
+
+export type HubspotBlogSettingsMember = {
+  id: string;
+  language: string;
+  translatedFromId: string;
+};
+
+function blogSettingsGroupIds(
+  members: readonly HubspotBlogSettingsMember[],
+  contentGroupId: string,
+): Set<string> {
+  const source = members.find((member) => member.id === contentGroupId);
+  const primaryId = source?.translatedFromId || contentGroupId;
+  const ids = new Set<string>([contentGroupId, primaryId]);
+  for (const member of members) {
+    if (
+      member.id === primaryId ||
+      member.translatedFromId === primaryId ||
+      member.translatedFromId === contentGroupId
+    ) {
+      ids.add(member.id);
+    }
+  }
+  return ids;
+}
+
+function hubspotLanguageCompatible(left: string, right: string): boolean {
+  const normalizedLeft = normalizeHubspotLocaleTag(left);
+  const normalizedRight = normalizeHubspotLocaleTag(right);
+  if (!normalizedLeft || !normalizedRight) {
+    return false;
+  }
+  if (normalizedLeft === normalizedRight) {
+    return true;
+  }
+  const leftPrimary = normalizedLeft.split("-")[0] ?? "";
+  const rightPrimary = normalizedRight.split("-")[0] ?? "";
+  return normalizedLeft === rightPrimary || normalizedRight === leftPrimary;
+}
+
+/** The language blog in the same Settings → Blog group, or null when that language is missing. */
+export function findBlogSettingsLanguageId(
+  members: readonly HubspotBlogSettingsMember[],
+  contentGroupId: string,
+  hubspotCode: string,
+): string | null {
+  const groupId = contentGroupId.trim();
+  const code = normalizeHubspotLocaleTag(hubspotCode);
+  if (!groupId || !code) {
+    return null;
+  }
+  const group = blogSettingsGroupIds(members, groupId);
+  const inGroup = members.filter((member) => group.has(member.id));
+  const exact = inGroup.find((member) => normalizeHubspotLocaleTag(member.language) === code);
+  if (exact) {
+    return exact.id;
+  }
+  return inGroup.find((member) => hubspotLanguageCompatible(member.language, code))?.id ?? null;
+}
+
+export function blogSettingsHasLanguage(
+  members: readonly HubspotBlogSettingsMember[],
+  contentGroupId: string,
+  hubspotCode: string,
+): boolean {
+  return findBlogSettingsLanguageId(members, contentGroupId, hubspotCode) != null;
+}
+
+/** Match a HubSpot multi-language post variation to its primary post and language code. */
+export function findBlogLanguageVariation(
+  posts: readonly HubspotLanguageVariationSummary[],
+  sourcePostId: string,
+  hubspotCode: string,
+): string | null {
+  const sourceId = sourcePostId.trim();
+  const code = normalizeHubspotLocaleTag(hubspotCode);
+  if (!sourceId || !code) {
+    return null;
+  }
+  return (
+    posts.find(
+      (post) =>
+        post.translatedFromId === sourceId &&
+        normalizeHubspotLocaleTag(post.language ?? "") === code,
+    )?.id ?? null
+  );
+}

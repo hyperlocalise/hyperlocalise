@@ -65,8 +65,8 @@ export function WorkspaceAutomationHubspotSettings({
         onToggle={(kind, id) => onChange(toggleHubspotTreeSelection(form, kind, id))}
       />
       <p className="text-xs text-muted-foreground">
-        Tick the emails to translate. Nothing is imported until at least one email is ticked. Push
-        only updates drafts — it never publishes or sends.
+        Tick the blog posts to translate. Nothing is imported until at least one post is ticked.
+        Push writes unpublished drafts — it never publishes.
       </p>
 
       <div className="space-y-2">
