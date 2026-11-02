@@ -144,6 +144,26 @@ describe("GoSvcReportsApi", () => {
     expect(calls[5].init.body).toBeUndefined();
   });
 
+  it("passes a cancel signal through writes and CSV downloads", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(json({ rateCard: { name: "Standard", lines: [] } }));
+    const api = reportsApi(fetchMock);
+    const signal = new AbortController().signal;
+
+    await api.saveRateCard("acme", { name: "Standard", lines: [] }, { signal });
+    expect(calledWith(fetchMock).init.signal).toBe(signal);
+
+    fetchMock.mockResolvedValueOnce(
+      new Response("a,b\n1,2\n", {
+        status: 200,
+        headers: { "Content-Type": "text/csv", "Content-Disposition": 'filename="words.csv"' },
+      }),
+    );
+    await api.csv("acme", "words", {}, { signal });
+    expect(calledWith(fetchMock, 1).init.signal).toBe(signal);
+  });
+
   it("passes go-svc's code and message on when a request is refused", async () => {
     const fetchMock = vi
       .fn()

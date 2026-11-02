@@ -114,6 +114,68 @@ describe("Log time dialog", () => {
     }
   });
 
+  it("fails a save that never answers, and stops waiting for it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mocks.holds = { "post time-entries": new Promise(() => {}) };
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const { result } = renderHook(() => useLogTime("acme"), {
+        wrapper: ({ children }) => (
+          <IntlProvider locale="en" messages={{}}>
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+          </IntlProvider>
+        ),
+      });
+      const saved = result.current
+        .mutateAsync({
+          jobId: "job_release",
+          step: "translation",
+          targetLocale: "ja-JP",
+          workDate: "2026-10-21",
+          minutes: 30,
+        })
+        .then(
+          () => null,
+          (error: unknown) => error,
+        );
+      await vi.advanceTimersByTimeAsync(39_000);
+      expect(mocks.calls.some((call) => call.endpoint === "time-entries")).toBe(true);
+      await vi.advanceTimersByTimeAsync(1_000);
+      await expect(saved).resolves.toMatchObject({ message: "This could not be saved." });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not fail later once a save has finished", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const rejections: unknown[] = [];
+    const onRejection = (reason: unknown) => rejections.push(reason);
+    process.on("unhandledRejection", onRejection);
+    try {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const { result } = renderHook(() => useLogTime("acme"), {
+        wrapper: ({ children }) => (
+          <IntlProvider locale="en" messages={{}}>
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+          </IntlProvider>
+        ),
+      });
+      await result.current.mutateAsync({
+        jobId: "job_release",
+        step: "translation",
+        targetLocale: "ja-JP",
+        workDate: "2026-10-21",
+        minutes: 30,
+      });
+      await vi.advanceTimersByTimeAsync(45_000);
+      expect(rejections).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onRejection);
+      vi.useRealTimers();
+    }
+  });
+
   it("sends the time even when the browser says it is offline, instead of queuing it", async () => {
     renderDialog();
     await waitFor(() =>

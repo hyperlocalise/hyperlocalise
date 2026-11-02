@@ -108,6 +108,7 @@ export function ReportSectionState<T>({
   query,
   isEmpty,
   skeletonHeight = 160,
+  showFailure = true,
   children,
 }: {
   query: {
@@ -119,15 +120,20 @@ export function ReportSectionState<T>({
   };
   isEmpty?: (data: T) => boolean;
   skeletonHeight?: number;
+  /**
+   * Whether this wrapper says the query failed. Several wrappers of one query leave it to the
+   * first, so a failed reload does not stack the same warning.
+   */
+  showFailure?: boolean;
   children: (data: T) => React.ReactNode;
 }) {
   if (query.isPending && query.data === undefined)
     return <Skeleton className="w-full rounded-xl" style={{ height: skeletonHeight }} />;
   if (query.data === undefined || (query.isError && isRefusedRead(query.error)))
-    return <ReportLoadFailed error={query.error} retry={query.refetch} />;
+    return showFailure ? <ReportLoadFailed error={query.error} retry={query.refetch} /> : null;
   return (
     <>
-      {query.isError ? <ReportLoadFailed kept retry={query.refetch} /> : null}
+      {showFailure && query.isError ? <ReportLoadFailed kept retry={query.refetch} /> : null}
       {isEmpty?.(query.data) ? <ReportEmpty /> : children(query.data)}
     </>
   );

@@ -498,10 +498,16 @@ export function useReportCsv(organizationSlug: string) {
   const fallback = () => intl.formatMessage(messages.downloadFailed);
   return {
     section: (section: ReportCsvSection, query: ReportQuery) =>
-      reportRequest(fallback(), () => client.reports.csv(organizationSlug, section, query)),
+      reportRequest(fallback(), () =>
+        withTimeLimit(SAVE_TIME_LIMIT_MS, (signal) =>
+          client.reports.csv(organizationSlug, section, query, { signal }),
+        ),
+      ),
     taskReport: (jobId: string, view: TaskReportView) =>
       reportRequest(fallback(), () =>
-        client.reports.taskReportCsv(organizationSlug, jobId, taskReportQuery(view)),
+        withTimeLimit(SAVE_TIME_LIMIT_MS, (signal) =>
+          client.reports.taskReportCsv(organizationSlug, jobId, taskReportQuery(view), { signal }),
+        ),
       ),
   };
 }
@@ -512,23 +518,47 @@ export function useReportCsv(organizationSlug: string) {
  */
 const SAVE_OPTIONS = { networkMode: "always" } as const;
 
-/** The longest a save's request is waited for, past go-svc's own 30 s limit and the way there. */
+/** The longest a save or download is waited for, past go-svc's own 30 s limit and the way there. */
 const SAVE_TIME_LIMIT_MS = 40_000;
 
+/**
+ * A request that fails if a stalled connection never answers, and stops the fetch then, so a
+ * save is not sent twice and its dialog can close. The timer is cleared once the request
+ * finishes, so a finished save does not reject later.
+ */
+function withTimeLimit<T>(ms: number, run: (signal: AbortSignal) => Promise<T>) {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let settled = false;
+  return new Promise<T>((resolve, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      if (settled) return;
+      settled = true;
+      reject(new GoSvcClientError({ code: "network_error", message: "No answer in time" }));
+    }, ms);
+    void run(controller.signal).then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        resolve(value);
+      },
+      (error) => {
+        if (settled) return;
+        settled = true;
+        reject(
+          controller.signal.aborted
+            ? new GoSvcClientError({ code: "network_error", message: "No answer in time" })
+            : error,
+        );
+      },
+    );
+  }).finally(() => clearTimeout(timer));
+}
+
 /** A save's request, which fails if a stalled connection never answers, so its dialog can close. */
-function reportSave<T>(fallback: string, run: () => Promise<T>) {
-  return reportRequest(fallback, () =>
-    Promise.race([
-      run(),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () =>
-            reject(new GoSvcClientError({ code: "network_error", message: "No answer in time" })),
-          SAVE_TIME_LIMIT_MS,
-        ),
-      ),
-    ]),
-  );
+function reportSave<T>(fallback: string, run: (signal: AbortSignal) => Promise<T>) {
+  return reportRequest(fallback, () => withTimeLimit(SAVE_TIME_LIMIT_MS, run));
 }
 
 /** The longest a save waits for the reload after it, as its dialog cannot close meanwhile. */
@@ -556,8 +586,8 @@ export function useSaveRateCard(organizationSlug: string) {
   return useMutation({
     ...SAVE_OPTIONS,
     mutationFn: (body: RateCardBody) =>
-      reportSave(intl.formatMessage(messages.saveFailed), () =>
-        client.reports.saveRateCard(organizationSlug, body),
+      reportSave(intl.formatMessage(messages.saveFailed), (signal) =>
+        client.reports.saveRateCard(organizationSlug, body, { signal }),
       ),
     // The saved card is in the list at once, so the rate card sheet shows it even when the
     // list's reload fails.
@@ -585,8 +615,8 @@ export function useLogTime(organizationSlug: string) {
   return useMutation({
     ...SAVE_OPTIONS,
     mutationFn: (body: TimeEntryBody) =>
-      reportSave(intl.formatMessage(messages.saveFailed), () =>
-        client.reports.logTime(organizationSlug, body),
+      reportSave(intl.formatMessage(messages.saveFailed), (signal) =>
+        client.reports.logTime(organizationSlug, body, { signal }),
       ),
     onSuccess: invalidate,
   });
@@ -599,8 +629,8 @@ export function useSetBudget(organizationSlug: string) {
   return useMutation({
     ...SAVE_OPTIONS,
     mutationFn: (body: BudgetBody) =>
-      reportSave(intl.formatMessage(messages.saveFailed), () =>
-        client.reports.setBudget(organizationSlug, body),
+      reportSave(intl.formatMessage(messages.saveFailed), (signal) =>
+        client.reports.setBudget(organizationSlug, body, { signal }),
       ),
     onSuccess: invalidate,
   });
@@ -614,8 +644,8 @@ export function useSetTaskPricing(organizationSlug: string) {
   return useMutation({
     ...SAVE_OPTIONS,
     mutationFn: (body: TaskRateBody) =>
-      reportSave(intl.formatMessage(messages.saveFailed), () =>
-        client.reports.setTaskPricing(organizationSlug, body),
+      reportSave(intl.formatMessage(messages.saveFailed), (signal) =>
+        client.reports.setTaskPricing(organizationSlug, body, { signal }),
       ),
     onSuccess: invalidate,
   });
@@ -628,8 +658,8 @@ export function useEditTime(organizationSlug: string) {
   return useMutation({
     ...SAVE_OPTIONS,
     mutationFn: ({ id, ...body }: TimeEntryUpdateBody & { id: string }) =>
-      reportSave(intl.formatMessage(messages.saveFailed), () =>
-        client.reports.editTime(organizationSlug, id, body),
+      reportSave(intl.formatMessage(messages.saveFailed), (signal) =>
+        client.reports.editTime(organizationSlug, id, body, { signal }),
       ),
     onSuccess: invalidate,
   });
@@ -642,8 +672,8 @@ export function useDeleteTime(organizationSlug: string) {
   return useMutation({
     ...SAVE_OPTIONS,
     mutationFn: (id: string) =>
-      reportSave(intl.formatMessage(messages.saveFailed), () =>
-        client.reports.deleteTime(organizationSlug, id),
+      reportSave(intl.formatMessage(messages.saveFailed), (signal) =>
+        client.reports.deleteTime(organizationSlug, id, { signal }),
       ),
     onSuccess: invalidate,
   });

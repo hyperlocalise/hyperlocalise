@@ -321,8 +321,9 @@ describe("Task report", () => {
         expect(saved).toEqual([{ name: "task-report.csv", href: "blob:report" }]),
       );
       expect(callsTo("task-report").at(-1)?.args.query).toMatchObject({ format: "csv" });
-      // The file stays for a while after the click, as some browsers need it to.
-      const release = delay.mock.calls.find(([, ms]) => ms === 40_000)?.[0] as () => void;
+      // The file stays for a while after the click, as some browsers need it to. A download
+      // also starts a 40 s time limit, so the release is the last of those timers.
+      const release = delay.mock.calls.filter(([, ms]) => ms === 40_000).at(-1)?.[0] as () => void;
       expect(revoke).not.toHaveBeenCalled();
       release();
       expect(revoke).toHaveBeenCalledWith("blob:report");

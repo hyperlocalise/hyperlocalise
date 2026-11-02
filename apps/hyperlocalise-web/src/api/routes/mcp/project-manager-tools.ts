@@ -538,6 +538,7 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
 
       // go-svc reads the report as the member, with the member's own project access.
       const { format: _format, ...reportQuery } = parsed.data as Record<string, unknown>;
+      const limit = AbortSignal.timeout(GET_REPORT_TIME_LIMIT_MS);
       try {
         return mcpToolJson(
           await createGoSvcServerClient().reports.internal(
@@ -548,17 +549,15 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
               query: reportQuery as Record<string, string | number | boolean | undefined>,
             },
             {
-              signal: AbortSignal.any([
-                extra.signal,
-                AbortSignal.timeout(GET_REPORT_TIME_LIMIT_MS),
-              ]),
+              signal: extra.signal ? AbortSignal.any([extra.signal, limit]) : limit,
             },
           ),
         );
       } catch (error) {
         if (error instanceof GoSvcClientError && REPORT_REFUSAL_CODES.has(error.code))
           return mcpToolError(error.code, error.message);
-        if (error instanceof Error && error.name === "AbortError") throw error;
+        // The host cancelled; leave it to the transport. Our own time limit answers as usual.
+        if (extra.signal?.aborted) throw error;
         logger.warn(
           {
             error: error instanceof Error ? error.message : String(error),

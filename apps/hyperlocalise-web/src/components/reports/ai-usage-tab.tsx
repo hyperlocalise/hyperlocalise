@@ -161,7 +161,7 @@ export function AiUsageTab({
           {(data) => <AiUsageCards data={data} organizationSlug={input.organizationSlug} />}
         </ReportSectionState>
       )}
-      <ReportSectionState query={usage} skeletonHeight={280}>
+      <ReportSectionState query={usage} showFailure={false} skeletonHeight={280}>
         {(data) => <AiUsageChart data={data} input={input} onChange={onChange} />}
       </ReportSectionState>
       <AiUsageTable input={input} usage={usage} onChange={onChange} />
@@ -444,7 +444,7 @@ function AiUsageTable({
         </>
       }
     >
-      <ReportSectionState query={usage}>
+      <ReportSectionState query={usage} showFailure={false}>
         {(data) => {
           if (data.totals.calls + data.totals.images + data.totals.videos === 0)
             return <ReportEmpty description={intl.formatMessage(messages.noAiUsage)} />;

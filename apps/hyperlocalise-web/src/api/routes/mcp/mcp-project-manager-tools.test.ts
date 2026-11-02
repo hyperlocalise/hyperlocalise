@@ -849,4 +849,18 @@ describe("MCP project manager tools", () => {
       expect(failed.output.message).not.toMatch(/go-svc|token/);
     }
   });
+
+  it("answers get_report when the go-svc call is aborted, instead of failing the tool", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    reportsInternalMock.mockReset();
+    reportsInternalMock.mockRejectedValueOnce(
+      Object.assign(new Error("The operation was aborted"), { name: "AbortError" }),
+    );
+    const stalled = await readToolResult<{ error?: string; message?: string }>(
+      await callMcpTool(headers, "get_report", { report: "activity" }),
+    );
+    expect(stalled).toMatchObject({ isError: true, output: { error: "reports_unavailable" } });
+    expect(stalled.output.message).not.toMatch(/abort/i);
+  });
 });

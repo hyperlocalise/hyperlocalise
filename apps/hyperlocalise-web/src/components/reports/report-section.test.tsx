@@ -20,11 +20,15 @@ import { ApiResponseError } from "@/lib/api-error";
 
 import { ReportSectionState } from "./report-section";
 
-function renderSection(query: { data?: string; isError: boolean; error?: unknown }) {
+function renderSection(
+  query: { data?: string; isError: boolean; error?: unknown },
+  showFailure?: boolean,
+) {
   render(
     <IntlProvider locale="en" messages={{}}>
       <ReportSectionState
         query={{ data: query.data, isPending: false, ...query, refetch: vi.fn() }}
+        showFailure={showFailure}
       >
         {(data) => <p>{data}</p>}
       </ReportSectionState>
@@ -54,6 +58,15 @@ describe("ReportSectionState", () => {
     renderSection({ data: "Loaded figures", isError: true, error });
     expect(screen.queryByText("Loaded figures")).not.toBeInTheDocument();
     expect(screen.getByText("This report could not be loaded.")).toBeInTheDocument();
+  });
+
+  it("can leave saying the failure to another wrapper of the same query", () => {
+    const error = new ApiResponseError("Busy", { code: "reports_busy", status: 503 });
+    renderSection({ data: "Loaded figures", isError: true, error }, false);
+    expect(screen.getByText("Loaded figures")).toBeInTheDocument();
+    expect(
+      screen.queryByText("These figures could not be refreshed, so they may be out of date."),
+    ).not.toBeInTheDocument();
   });
 
   it.each([

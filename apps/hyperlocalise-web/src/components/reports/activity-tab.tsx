@@ -69,10 +69,10 @@ export function ActivityTab({
         </ReportSectionState>
       )}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <ReportSectionState query={activity} skeletonHeight={280}>
+        <ReportSectionState query={activity} showFailure={false} skeletonHeight={280}>
           {(data) => <FinishedWordsChart data={data} onChange={onChange} />}
         </ReportSectionState>
-        <ReportSectionState query={activity} skeletonHeight={280}>
+        <ReportSectionState query={activity} showFailure={false} skeletonHeight={280}>
           {(data) => <FinishedByLanguage data={data} />}
         </ReportSectionState>
       </div>

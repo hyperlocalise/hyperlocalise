@@ -773,7 +773,7 @@ export function reportsGoSvcClient(state: ReportsApiState) {
       state.calls.push({ endpoint: name, method, args: { param, query, json } });
       // An answer for one method ("put rate-cards") wins over the endpoint's own.
       const status = state.statuses?.[`${method} ${name}`] ?? state.statuses?.[name] ?? 200;
-      await state.holds?.[`${method} ${name}`];
+      await waitForHold(state.holds?.[`${method} ${name}`], init?.signal ?? undefined);
       // Status 0 stands for go-svc not answering at all, as fetch fails then.
       if (status === 0) throw new TypeError("Failed to fetch");
       if (query.format === "csv" && status === 200)
@@ -792,6 +792,29 @@ export function reportsGoSvcClient(state: ReportsApiState) {
     },
   });
   return () => ({ client, loading: false });
+}
+
+/** Wait for a held answer, or stop at once if the request was cancelled. */
+function waitForHold(hold: Promise<void> | undefined, signal?: AbortSignal) {
+  if (!hold && !signal) return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const onAbort = () => reject(new DOMException("Aborted", "AbortError"));
+    signal?.addEventListener("abort", onAbort, { once: true });
+    void (hold ?? Promise.resolve()).then(
+      () => {
+        signal?.removeEventListener("abort", onAbort);
+        resolve();
+      },
+      (error) => {
+        signal?.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
 }
 
 /** The endpoint a path names, as the tests know it, with its path values. */

@@ -602,9 +602,11 @@ export class GoSvcReportsApi {
     organizationSlug: string,
     section: ReportCsvSection,
     query: ReportQuery,
+    options: GoSvcRequestOptions = {},
   ): Promise<GoSvcDownload> {
     return this.request.download(orgPath(organizationSlug, "reports", section), {
       query: { ...query, format: "csv" },
+      ...options,
     });
   }
 
@@ -613,55 +615,65 @@ export class GoSvcReportsApi {
     organizationSlug: string,
     jobId: string,
     query: ReportQuery,
+    options: GoSvcRequestOptions = {},
   ): Promise<GoSvcDownload> {
     return this.request.download(orgPath(organizationSlug, "reports", "tasks", jobId, "report"), {
       query: { ...query, format: "csv" },
+      ...options,
     });
   }
 
-  saveRateCard(organizationSlug: string, body: RateCardBody) {
+  saveRateCard(organizationSlug: string, body: RateCardBody, options: GoSvcRequestOptions = {}) {
     return this.request
       .json<{ rateCard: RateCard }>(orgPath(organizationSlug, "reports", "rate-cards"), {
         method: "PUT",
         body,
+        ...options,
       })
       .then((answer) => answer.rateCard);
   }
 
-  setBudget(organizationSlug: string, body: BudgetBody) {
+  setBudget(organizationSlug: string, body: BudgetBody, options: GoSvcRequestOptions = {}) {
     return this.request.json<{ budget: SavedBudget }>(
       orgPath(organizationSlug, "reports", "budgets"),
-      { method: "PUT", body },
+      { method: "PUT", body, ...options },
     );
   }
 
   /** Saves a task's own pricing for one step: its rate card, time estimate and fixed fee. */
-  setTaskPricing(organizationSlug: string, body: TaskRateBody) {
+  setTaskPricing(organizationSlug: string, body: TaskRateBody, options: GoSvcRequestOptions = {}) {
     return this.request
       .json<{ taskRate: SavedTaskRate }>(orgPath(organizationSlug, "reports", "task-rates"), {
         method: "PUT",
         body,
+        ...options,
       })
       .then((answer) => answer.taskRate);
   }
 
-  logTime(organizationSlug: string, body: TimeEntryBody) {
+  logTime(organizationSlug: string, body: TimeEntryBody, options: GoSvcRequestOptions = {}) {
     return this.request.json<{ timeEntry: { id: string } }>(
       orgPath(organizationSlug, "reports", "time-entries"),
-      { method: "POST", body },
+      { method: "POST", body, ...options },
     );
   }
 
-  editTime(organizationSlug: string, id: string, body: TimeEntryUpdateBody) {
+  editTime(
+    organizationSlug: string,
+    id: string,
+    body: TimeEntryUpdateBody,
+    options: GoSvcRequestOptions = {},
+  ) {
     return this.request.json<{ timeEntry: { id: string } }>(
       orgPath(organizationSlug, "reports", "time-entries", id),
-      { method: "PATCH", body },
+      { method: "PATCH", body, ...options },
     );
   }
 
-  deleteTime(organizationSlug: string, id: string) {
+  deleteTime(organizationSlug: string, id: string, options: GoSvcRequestOptions = {}) {
     return this.request.empty(orgPath(organizationSlug, "reports", "time-entries", id), {
       method: "DELETE",
+      ...options,
     });
   }
 
