@@ -14,6 +14,8 @@
 import { Client } from "@hubspot/api-client";
 import { BlogPost } from "@hubspot/api-client/lib/codegen/cms/blogs/blog_posts/models/BlogPost";
 import { BlogPostLanguageCloneRequestVNext } from "@hubspot/api-client/lib/codegen/cms/blogs/blog_posts/models/BlogPostLanguageCloneRequestVNext";
+
+import { collectBlogPostStylesCss } from "./blog-stylesheets";
 import { ContentLanguageCloneRequestVNext } from "@hubspot/api-client/lib/codegen/cms/pages/models/ContentLanguageCloneRequestVNext";
 import { Page as HubspotPageModel } from "@hubspot/api-client/lib/codegen/cms/pages/models/Page";
 import { ContentCloneRequestVNext } from "@hubspot/api-client/lib/codegen/marketing/emails/models/ContentCloneRequestVNext";
@@ -66,6 +68,8 @@ export type HubspotBlogRecord = HubspotBlogSummary & {
   widgets: HubspotJson;
   layoutSections: HubspotJson;
   widgetContainers: HubspotJson;
+  templatePath: string | null;
+  attachedStylesheets: HubspotJson[];
   updatedAt: string | null;
 };
 
@@ -151,6 +155,10 @@ export type HubspotContentClient = {
   }): Promise<void>;
   listBlogPosts(): Promise<HubspotBlogSummary[]>;
   getBlogPost(id: string): Promise<HubspotBlogRecord>;
+  collectBlogPostStylesCss(input: {
+    templatePath?: string | null;
+    attachedStylesheets?: HubspotJson[] | null;
+  }): Promise<string>;
   createBlogLanguageVariation(input: { id: string; language: string }): Promise<{ id: string }>;
   updateBlogDraft(input: {
     id: string;
@@ -239,6 +247,7 @@ type BlogLike = {
   layoutSections?: HubspotJson;
   widgetContainers?: HubspotJson;
   templatePath?: string;
+  attachedStylesheets?: HubspotJson;
   updatedAt?: Date | string;
 };
 
@@ -397,7 +406,15 @@ function blogSummary(post: BlogLike): HubspotBlogSummary {
   };
 }
 
+function parseAttachedStylesheets(value: HubspotJson | undefined): HubspotJson[] {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  return [];
+}
+
 function blogRecord(post: BlogLike, id: string): HubspotBlogRecord {
+  const templatePath = post.templatePath?.trim() ? post.templatePath.trim() : null;
   return {
     ...blogSummary(post),
     id: post.id ?? id,
@@ -411,6 +428,8 @@ function blogRecord(post: BlogLike, id: string): HubspotBlogRecord {
     widgets: parseStructuredField(post.widgets),
     layoutSections: parseStructuredField(post.layoutSections),
     widgetContainers: parseStructuredField(post.widgetContainers),
+    templatePath,
+    attachedStylesheets: parseAttachedStylesheets(post.attachedStylesheets),
     updatedAt: readTimestamp(post.updatedAt),
   };
 }
@@ -461,6 +480,11 @@ function mergeBlogBuffers(published: BlogLike, draft: BlogLike): BlogLike {
         ? draft.widgetContainers
         : published.widgetContainers,
     templatePath: draft.templatePath || published.templatePath,
+    attachedStylesheets: parseAttachedStylesheets(
+      Array.isArray(draft.attachedStylesheets)
+        ? draft.attachedStylesheets
+        : published.attachedStylesheets,
+    ),
     name: draft.name || published.name,
     language: draft.language || published.language,
     translatedFromId: published.translatedFromId || draft.translatedFromId,
@@ -558,6 +582,7 @@ async function readRawBlog(sdk: HubspotSdk, path: string): Promise<BlogLike | nu
       layoutSections: parsed.layoutSections,
       widgetContainers: parsed.widgetContainers,
       templatePath: jsonString(parsed, "templatePath"),
+      attachedStylesheets: parsed.attachedStylesheets,
     };
   } catch {
     return null;
@@ -1191,6 +1216,9 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
         }
       }
       return blogRecord(await blogs.basicApi.getById(id), id);
+    },
+    async collectBlogPostStylesCss(input) {
+      return collectBlogPostStylesCss(sdk, input);
     },
     async createBlogLanguageVariation(input) {
       const createPostVariation = async () => {

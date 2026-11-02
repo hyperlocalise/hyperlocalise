@@ -53,6 +53,12 @@ import {
   type HubspotSeedDiscoveryCache,
   type HubspotSeedableKind,
 } from "./seed-hubspot-translations";
+import {
+  buildHubspotBlogPostSourcePath,
+  hashHubspotBlogImportBundle,
+  hubspotBlogSyncSourcePath,
+  splitBlogPostIntoImportFiles,
+} from "./blog-post-files";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 const logger = createLogger("import-hubspot-content");
@@ -149,6 +155,31 @@ async function loadCoveredJobs(input: {
   }));
 }
 
+type UpsertSourceFileResult = { ok: true; storedFileId: string } | { ok: false; reason: string };
+
+async function readSourceFileVersionIngestError(
+  sourceFileVersionId: string,
+): Promise<string | null> {
+  const [version] = await db
+    .select({ ingestError: schema.repositorySourceFileVersions.ingestError })
+    .from(schema.repositorySourceFileVersions)
+    .where(eq(schema.repositorySourceFileVersions.id, sourceFileVersionId))
+    .limit(1);
+  const message = version?.ingestError;
+  return typeof message === "string" && message.trim() ? message.trim() : null;
+}
+
+function upsertSourceFileFailureMessage(input: {
+  sourcePath: string;
+  reason: string;
+  detail?: string | null;
+}): string {
+  const label = input.sourcePath.split("/").pop() ?? input.sourcePath;
+  return input.detail?.trim()
+    ? `${label}: ${input.reason} (${input.detail.trim()})`
+    : `${label}: ${input.reason}`;
+}
+
 async function upsertSourceFile(input: {
   organizationId: string;
   projectId: string;
@@ -158,7 +189,7 @@ async function upsertSourceFile(input: {
   hash: string;
   sourceLocale: string;
   workflowRunId?: string | null;
-}): Promise<string | null> {
+}): Promise<UpsertSourceFileResult> {
   const latest = await getLatestRepositorySourceFileVersion({
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -166,7 +197,7 @@ async function upsertSourceFile(input: {
   });
   if (latest?.sourceHash === input.hash && latest.storedFileId) {
     if (latest.ingestState === "ingested") {
-      return latest.storedFileId;
+      return { ok: true, storedFileId: latest.storedFileId };
     }
     if (latest.ingestState != null && latest.ingestState !== "failed") {
       const ingest = await waitForSourceFileVersionIngest({
@@ -174,8 +205,25 @@ async function upsertSourceFile(input: {
         sourceFileVersionId: latest.id,
       });
       if (ingest === "ingested") {
-        return latest.storedFileId;
+        return { ok: true, storedFileId: latest.storedFileId };
       }
+      if (ingest === "failed") {
+        return {
+          ok: false,
+          reason: upsertSourceFileFailureMessage({
+            sourcePath: input.sourcePath,
+            reason: "ingest failed",
+            detail: await readSourceFileVersionIngestError(latest.id),
+          }),
+        };
+      }
+      return {
+        ok: false,
+        reason: upsertSourceFileFailureMessage({
+          sourcePath: input.sourcePath,
+          reason: "ingest timed out",
+        }),
+      };
     }
   }
 
@@ -190,7 +238,13 @@ async function upsertSourceFile(input: {
     )
     .limit(1);
   if (!project) {
-    return null;
+    return {
+      ok: false,
+      reason: upsertSourceFileFailureMessage({
+        sourcePath: input.sourcePath,
+        reason: "project not found",
+      }),
+    };
   }
 
   const uploaded = await uploadSourceFile({
@@ -207,17 +261,51 @@ async function upsertSourceFile(input: {
       content: new TextEncoder().encode(input.content),
     },
   });
-  if (!uploaded.ok || uploaded.value.destination !== "native") {
-    return null;
+  if (!uploaded.ok) {
+    return {
+      ok: false,
+      reason: upsertSourceFileFailureMessage({
+        sourcePath: input.sourcePath,
+        reason: "upload failed",
+        detail: uploaded.error.code,
+      }),
+    };
   }
+  if (uploaded.value.destination !== "native") {
+    return {
+      ok: false,
+      reason: upsertSourceFileFailureMessage({
+        sourcePath: input.sourcePath,
+        reason: "upload failed",
+        detail: uploaded.value.destination,
+      }),
+    };
+  }
+  const sourceFileVersionId = uploaded.value.file.sourceFileVersionId;
   const ingest = await waitForSourceFileVersionIngest({
     organizationId: input.organizationId,
-    sourceFileVersionId: uploaded.value.file.sourceFileVersionId,
+    sourceFileVersionId,
   });
-  if (ingest !== "ingested") {
-    return null;
+  if (ingest === "ingested") {
+    return { ok: true, storedFileId: uploaded.value.file.id };
   }
-  return uploaded.value.file.id;
+  if (ingest === "failed") {
+    return {
+      ok: false,
+      reason: upsertSourceFileFailureMessage({
+        sourcePath: input.sourcePath,
+        reason: "ingest failed",
+        detail: await readSourceFileVersionIngestError(sourceFileVersionId),
+      }),
+    };
+  }
+  return {
+    ok: false,
+    reason: upsertSourceFileFailureMessage({
+      sourcePath: input.sourcePath,
+      reason: "ingest timed out",
+    }),
+  };
 }
 
 async function loadPreviousSyncState(input: {
@@ -374,7 +462,7 @@ async function importOne(input: {
     resourceKind: input.kind,
     sourceId: input.sourceId,
   });
-  const sourceFileId = await upsertSourceFile({
+  const upserted = await upsertSourceFile({
     organizationId: input.organizationId,
     projectId: input.projectId,
     sourcePath,
@@ -384,10 +472,12 @@ async function importOne(input: {
     sourceLocale: input.sourceLocale,
     workflowRunId: input.workflowRunId,
   });
-  if (!sourceFileId) {
+  if (!upserted.ok) {
     input.result.failed += 1;
+    pushWarning(input.result, `${input.sourceName}: ${upserted.reason}`);
     return;
   }
+  const sourceFileId = upserted.storedFileId;
   let importedHashes: Record<string, string> = previous?.importedTranslationHashes
     ? { ...(previous.importedTranslationHashes as Record<string, string>) }
     : {};
@@ -456,6 +546,124 @@ async function importOne(input: {
 function noteSkip(result: ImportHubspotContentResult, message: string) {
   result.skipped += 1;
   pushWarning(result, message);
+}
+
+async function importBlogPostBundle(input: {
+  organizationId: string;
+  automation: WorkspaceAutomationRecord;
+  projectId: string;
+  sourceLocale: string;
+  targetLocales: string[];
+  workflowRunId?: string | null;
+  openJobs: CoveredJob[];
+  result: ImportHubspotContentResult;
+  client: HubspotContentClient;
+  policy: HubspotExistingTranslationPolicy;
+  discovery: HubspotSeedDiscoveryCache;
+  translationService: ProjectTranslationService;
+  postId: string;
+  postName: string;
+}): Promise<void> {
+  const post = await input.client.getBlogPost(input.postId);
+  let stylesCss = "";
+  try {
+    stylesCss = await input.client.collectBlogPostStylesCss({
+      templatePath: post.templatePath,
+      attachedStylesheets: post.attachedStylesheets,
+    });
+  } catch (error) {
+    pushWarning(
+      input.result,
+      `${input.postName}: stylesheet fetch failed (${String(error)}); importing without template CSS`,
+    );
+  }
+  const files = splitBlogPostIntoImportFiles(post, stylesCss);
+  if (files.length === 0) {
+    noteSkip(input.result, `Blog post "${input.postName}" has no translatable text`);
+    return;
+  }
+  const file = files[0]!;
+  const contentHash = hashHubspotBlogImportBundle(files);
+  const syncSourcePath = hubspotBlogSyncSourcePath(input.postId);
+  const fileSourcePath = buildHubspotBlogPostSourcePath(input.postId);
+  const previous = await loadPreviousSyncState({
+    organizationId: input.organizationId,
+    automationId: input.automation.id,
+    resourceKind: "blog",
+    sourceId: input.postId,
+  });
+  const upserted = await upsertSourceFile({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: file.sourcePath,
+    content: file.content,
+    contentType: file.contentType,
+    hash: hashHubspotContent(file.content),
+    sourceLocale: input.sourceLocale,
+    workflowRunId: input.workflowRunId,
+  });
+  if (!upserted.ok) {
+    input.result.failed += 1;
+    pushWarning(input.result, `Blog post "${input.postName}": ${upserted.reason}`);
+    return;
+  }
+  let importedHashes: Record<string, string> = previous?.importedTranslationHashes
+    ? { ...(previous.importedTranslationHashes as Record<string, string>) }
+    : {};
+  let skipLocales: string[] = [];
+  try {
+    const seed = await seedHubspotItemLocales({
+      client: input.client,
+      discovery: input.discovery,
+      translationService: input.translationService,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      kind: "blog",
+      sourceId: input.postId,
+      sourceName: input.postName,
+      sourcePath: fileSourcePath,
+      sourceContent: file.content,
+      targetLocales: input.targetLocales,
+      policy: input.policy,
+      previousHashes: importedHashes,
+      previousCopyIds: {},
+    });
+    importedHashes = seed.importedHashes;
+    skipLocales = seed.seededComplete;
+    for (const warning of seed.warnings) {
+      pushWarning(input.result, warning);
+    }
+  } catch (error) {
+    pushWarning(input.result, `${input.postName}: translation seeding failed (${String(error)})`);
+  }
+  await rememberSyncState({
+    organizationId: input.organizationId,
+    automationId: input.automation.id,
+    projectId: input.projectId,
+    resourceKind: "blog",
+    sourceId: input.postId,
+    sourceName: input.postName,
+    sourcePath: syncSourcePath,
+    sourceLocale: input.sourceLocale,
+    contentHash,
+    importedHashes,
+  });
+  input.result.imported += 1;
+  const jobId = await maybeCreateJob({
+    organizationId: input.organizationId,
+    automation: input.automation,
+    projectId: input.projectId,
+    sourceFileId: upserted.storedFileId,
+    sourceLocale: input.sourceLocale,
+    targetLocales: input.targetLocales,
+    fileFormat: file.fileFormat,
+    openJobs: input.openJobs,
+    skipLocales,
+  });
+  if (jobId) {
+    input.result.jobsCreated += 1;
+    input.result.jobIds.push(jobId);
+  }
 }
 
 function selectedIds(ids: readonly string[] | undefined): Set<string> {
@@ -531,7 +739,7 @@ export async function runImportHubspotContent(input: {
     warnings: [],
   };
 
-  for (const surface of ["email"] as const) {
+  for (const surface of ["email", "blog"] as const) {
     const assignment = assignHubspotLocales(targetLocales, surface);
     for (const locale of assignment.unmapped) {
       pushWarning(result, `${surface}: ${locale} has no HubSpot language code`);
@@ -545,6 +753,7 @@ export async function runImportHubspotContent(input: {
   }
 
   const emailIds = selectedIds(hubspot.emailIds);
+  const blogPostIds = selectedIds(hubspot.blogPostIds);
 
   const emails = await client.listEmails();
   for (const summary of emails) {
@@ -596,14 +805,59 @@ export async function runImportHubspotContent(input: {
         translationService,
       });
     } catch (error) {
-      logger.warn({ sourceId: summary.id, error: String(error) }, "hubspot email import failed");
+      const message = error instanceof Error ? error.message : String(error);
+      logger.warn({ sourceId: summary.id, error: message }, "hubspot email import failed");
       result.failed += 1;
+      pushWarning(result, `Email "${summary.name}": import failed (${message})`);
     }
   }
 
-  // Forms, blog posts, landing pages, and website pages are temporarily
-  // unsupported: skip them entirely (including previously saved selections)
-  // until re-enabled.
+  const posts = await client.listBlogPosts();
+  for (const summary of posts) {
+    if (!blogPostIds.has(summary.id)) {
+      continue;
+    }
+    if (summary.translatedFromId?.trim()) {
+      noteSkip(result, `Blog post "${summary.name}" is a language variation`);
+      continue;
+    }
+    if (
+      !hubspotLanguageMatchesSource({
+        objectLanguage: summary.language,
+        projectSourceLocale: sourceLocale,
+        surface: "blog",
+      })
+    ) {
+      noteSkip(
+        result,
+        `Blog post "${summary.name}" is ${summary.language}, which does not match the project source ${sourceLocale}`,
+      );
+      continue;
+    }
+    try {
+      await importBlogPostBundle({
+        organizationId: input.organizationId,
+        automation: input.automation,
+        projectId,
+        sourceLocale,
+        targetLocales,
+        workflowRunId: input.workflowRunId,
+        openJobs,
+        result,
+        client,
+        policy,
+        discovery,
+        translationService,
+        postId: summary.id,
+        postName: summary.name || summary.id,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.warn({ sourceId: summary.id, error: message }, "hubspot blog import failed");
+      result.failed += 1;
+      pushWarning(result, `Blog post "${summary.name || summary.id}": import failed (${message})`);
+    }
+  }
 
   return result;
 }

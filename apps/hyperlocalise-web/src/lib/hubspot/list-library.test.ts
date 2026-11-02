@@ -37,7 +37,7 @@ describe("listHubspotLibrary", () => {
 
     expect(library.emails).toEqual([{ id: "email-1", name: "Welcome" }]);
     expect(library.forms).toEqual([]);
-    expect(library.blogPosts).toEqual([]);
+    expect(library.blogPosts).toEqual([{ id: "post-1", name: "Launch" }]);
     expect(library.landingPages).toEqual([]);
     expect(library.websitePages).toEqual([]);
     expect(library.messageTemplates).toEqual([]);

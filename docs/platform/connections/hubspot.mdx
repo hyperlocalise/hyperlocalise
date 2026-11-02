@@ -31,7 +31,7 @@ Import reads primary objects and writes source files:
 
 - Marketing emails at `hubspot/emails/{id}/{slug}.html`, with the subject, preview text, and translatable widget fields
 - Forms at `hubspot/forms/{id}/{slug}.json`, with labels, placeholders, help text, submit text, and legal copy
-- Blog posts at `hubspot/blog-posts/{id}/{slug}.json`, with the title, meta description, summary, post body, and section text
+- Blog posts at `hubspot/blog-posts/{id}/post.html`, one HTML document with inlined template CSS for preview and email-style sections for title, meta description, summaries, body and RSS copy (when RSS text differs from the article body), and widget or layout text
 - Landing pages at `hubspot/landing-pages/{id}/{slug}.json`, with the title, meta description, image alt text, and translatable widget and layout fields
 - Website pages at `hubspot/website-pages/{id}/{slug}.json`, with the same fields as landing pages
 
@@ -90,7 +90,7 @@ See [Automation troubleshooting](/platform/help/automations) and [Connection tro
 | --- | --- |
 | Emails | Supported |
 | Forms | Temporarily unsupported |
-| Blog posts | Temporarily unsupported |
+| Blog posts | Supported (`hubspot/blog-posts/{id}/post.html`) |
 | Landing pages | Temporarily unsupported |
 | Website pages | Temporarily unsupported |
 

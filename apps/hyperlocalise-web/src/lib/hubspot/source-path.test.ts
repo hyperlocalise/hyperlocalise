@@ -12,7 +12,12 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildHubspotSourcePath, isHubspotSourcePath, parseHubspotSourcePath } from "./source-path";
+import {
+  buildHubspotSourcePath,
+  isHubspotSourcePath,
+  parseHubspotBlogFolderPath,
+  parseHubspotSourcePath,
+} from "./source-path";
 
 describe("hubspot source paths", () => {
   it("round-trips the source id and chooses json or html", () => {
@@ -41,5 +46,11 @@ describe("hubspot source paths", () => {
     expect(template).toBe("hubspot/message-templates/tmpl-3/follow-up.html");
     expect(parseHubspotSourcePath(template)).toEqual({ kind: "message-template", id: "tmpl-3" });
     expect(isHubspotSourcePath("projects/welcome.json")).toBe(false);
+  });
+
+  it("parses blog post folder sync paths", () => {
+    const folder = "hubspot/blog-posts/post-9";
+    expect(parseHubspotBlogFolderPath(folder)).toBe("post-9");
+    expect(parseHubspotSourcePath(folder)).toEqual({ kind: "blog", id: "post-9" });
   });
 });
