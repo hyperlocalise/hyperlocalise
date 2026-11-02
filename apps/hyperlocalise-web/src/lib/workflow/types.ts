@@ -191,6 +191,10 @@ export type LocalisationAuditQueue = JobQueue<{
   attemptNumber: number;
 }>;
 
+export type EngineSetupQueue = JobQueue<{
+  runId: string;
+}>;
+
 export type TranslationQaScanEventData = {
   runId: string;
   organizationId: string;
