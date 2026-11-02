@@ -30,9 +30,6 @@ import {
   applyBlogContentDocument,
   applyEmailDocument,
   applyFormDocument,
-  buildBlogContentDocument,
-  buildEmailDocument,
-  buildEmailHtmlDocument,
   extractEmailStyleSettings,
   hashHubspotContent,
   mergeHubspotTranslations,
@@ -41,6 +38,7 @@ import {
   readHubspotStringTree,
   serializeHubspotDocument,
 } from "./document";
+import { isHubspotRemoteCopyEmpty } from "./remote-copy";
 import { isNewEditorForm, newEditorFormPushWarning } from "./form-definition";
 import { formDefinitionForWrite } from "./form-write";
 import {
@@ -53,15 +51,11 @@ import { readHubspotDocumentJson } from "./import-hubspot-content";
 import {
   blogDraftFieldsFromPostHtml,
   blogPostPushName,
-  hashHubspotBlogPostHtml,
-  hashRemoteBlogPostHtml,
   isHubspotBlogBundleSourcePath,
   loadHubspotBlogApprovedPrefilled,
   loadHubspotBlogPostHtml,
 } from "./blog-post-bundle";
 import {
-  hashHubspotPageHtml,
-  hashRemotePageHtml,
   isHubspotPageKind,
   pageDraftFieldsFromHtml,
   type HubspotPageKind,
@@ -148,50 +142,6 @@ async function rememberCopy(input: {
       updatedAt: new Date(),
     })
     .where(eq(schema.hubspotContentSyncStates.id, input.id));
-}
-
-/**
- * A remote locale copy counts as empty when it carries no translated content
- * yet: either it does not exist, or it is still identical to the imported
- * source (e.g. a freshly cloned email). Used by the `seed_empty` push policy
- * so pushes never overwrite copies that already hold locale content.
- */
-async function isHubspotRemoteCopyEmpty(input: {
-  client: HubspotContentClient;
-  kind: HubspotResourceKind;
-  copyId: string;
-  sourceText: string;
-  sourceJson: Record<string, unknown> | null;
-  blogPostHtml?: string | null;
-}): Promise<boolean> {
-  try {
-    if (input.blogPostHtml) {
-      const sourceHash = hashHubspotBlogPostHtml(input.blogPostHtml);
-      const copyHash = await hashRemoteBlogPostHtml(input.client, input.copyId);
-      return sourceHash === copyHash;
-    }
-    if (input.kind === "email") {
-      const copy = await input.client.getEmail(input.copyId);
-      const document = buildEmailDocument({ subject: copy.subject, widgets: copy.widgets });
-      const copyContent = input.sourceJson
-        ? serializeHubspotDocument(document)
-        : buildEmailHtmlDocument(document, { styleSettings: copy.styleSettings });
-      return hashHubspotContent(copyContent) === hashHubspotContent(input.sourceText);
-    }
-    if (isHubspotPageKind(input.kind)) {
-      const sourceHash = hashHubspotPageHtml(input.sourceText);
-      const copyHash = await hashRemotePageHtml(input.client, input.kind, input.copyId);
-      return sourceHash === copyHash;
-    }
-    if (input.sourceJson) {
-      const copy = await input.client.getBlogPost(input.copyId);
-      const copyContent = serializeHubspotDocument(buildBlogContentDocument(copy));
-      return hashHubspotContent(copyContent) === hashHubspotContent(input.sourceText);
-    }
-    return false;
-  } catch {
-    return false;
-  }
 }
 
 async function markPushFailed(id: string, message: string): Promise<void> {
@@ -399,6 +349,14 @@ export async function runPushHubspotContent(input: {
       continue;
     }
     const assignment = assignHubspotLocales(locales, mapping.resourceKind);
+    for (const locale of assignment.unmapped) {
+      pushWarning(`${mapping.resourceKind}: ${locale} has no HubSpot language code`);
+    }
+    for (const collision of assignment.collisions) {
+      pushWarning(
+        `${mapping.resourceKind}: ${collision.locale} uses the same HubSpot code as ${collision.keptLocale} (${collision.code})`,
+      );
+    }
     const label = mapping.sourceName || mapping.sourcePath;
     const blogPostId =
       mapping.resourceKind === "blog" && isHubspotBlogBundleSourcePath(mapping.sourcePath)

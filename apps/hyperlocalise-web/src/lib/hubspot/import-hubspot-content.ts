@@ -942,7 +942,7 @@ export async function runImportHubspotContent(input: {
     }
   }
 
-  const posts = await client.listBlogPosts();
+  const posts = blogPostIds.size > 0 ? await client.listBlogPosts() : [];
   for (const summary of posts) {
     if (!blogPostIds.has(summary.id)) {
       continue;
