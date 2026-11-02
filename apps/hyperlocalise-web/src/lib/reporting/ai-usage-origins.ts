@@ -125,21 +125,6 @@ export const ORIGIN_RULES: SourceRule<AiOrigin>[] = [
   { prefix: "workspace_", result: "running_automations" },
 ];
 
-/** How a call reached us; a source no rule names came through the app or the API. */
-export const CHANNEL_RULES: SourceRule<AiChannel>[] = [
-  { prefix: "slack_", result: "slack" },
-  { prefix: "email_", result: "email" },
-  { prefix: "contentful_", result: "contentful" },
-  { exact: "web_chat_agent_turn", result: "web_chat" },
-  { exact: "agent_run_create", result: "connected_tms" },
-  { prefix: "github_", result: "github" },
-  { exact: "repository_agent_workflow", result: "github" },
-  { prefix: "workspace_github_", result: "github" },
-  { prefix: "workspace_gitlab_", result: "gitlab" },
-  { prefix: "workspace_", result: "automation" },
-  { exact: "visual_workflow_ai_step", result: "automation" },
-];
-
 function ruleFor<T>(rules: SourceRule<T>[], source: string): T | undefined {
   return rules.find((rule) =>
     "exact" in rule ? rule.exact === source : source.startsWith(rule.prefix),
@@ -154,9 +139,4 @@ export function aiOrigin(source: string, agentRunKind?: string | null): AiOrigin
   if (MEDIA_SOURCES.has(source)) return "images_and_video";
   if (source === "agent_run_create") return ORIGIN_BY_AGENT_RUN_KIND[agentRunKind ?? ""] ?? "other";
   return ruleFor(ORIGIN_RULES, source) ?? "other";
-}
-
-/** How a call reached us: the app unless its source or task says otherwise. */
-export function aiChannel(source: string, viaApiKey: boolean): AiChannel {
-  return ruleFor(CHANNEL_RULES, source) ?? (viaApiKey ? "api" : "app");
 }

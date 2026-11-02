@@ -22,7 +22,7 @@ var errReportingBusy = reportingFailure(503, "reports_busy", "Reports is busy; t
 
 // Reports: the reads behind the Reports page under /v1/orgs/{slug}/reports. The web app records
 // the work (analyses, finished strings, time, costs) and keeps the daily summary; this serves what
-// the page shows from those tables. Answers match the web app's Hono routes field for field.
+// the page shows from those tables. The page's types in `go-svc-reports-api.ts` follow these answers field for field.
 
 const (
 	workspaceReportsFlag      = "workspace-reports"
@@ -138,7 +138,7 @@ func (api *reportingAPI) actor(ctx context.Context, claims AuthClaims, slug stri
 }
 
 // handle checks the session, the workspace, the Reports flag and the route's capability, in that
-// order as the web routes do. The database admission limit is in read.
+// order the page relies on. The database admission limit is in read.
 func (api *reportingAPI) handle(capability, deniedCode string, fn func(*http.Request, reportingActor) (any, int, error)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")

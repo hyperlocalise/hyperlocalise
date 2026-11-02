@@ -772,7 +772,7 @@ go test ./apps/go-svc/internal/autumn -run HTTPStatus
 
 ## Reports
 
-The Reports page's reads and writes under `/v1/orgs/{organizationSlug}/reports`, ported from the web app's Hono routes (`apps/hyperlocalise-web/src/api/routes/reports`) one section at a time; the web app keeps recording the work and refreshing the daily summary. Each route answers as the web route does: same query fields, error codes, shapes and permissions, plus a `message` on errors as every go-svc API gives.
+The Reports page's reads and writes under `/v1/orgs/{organizationSlug}/reports`, the only copy of them; the web app keeps recording the work and refreshing the daily summary. Each route has its query fields, error codes, shapes and permissions, plus a `message` on errors as every go-svc API gives.
 
 Requires workspace authentication, `DATABASE_URL`, and the `workspace-reports` feature flag. A disabled or unavailable flag returns `403 feature_unavailable`.
 

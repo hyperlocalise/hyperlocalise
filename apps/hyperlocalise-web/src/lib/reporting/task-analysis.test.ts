@@ -14,7 +14,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
@@ -33,7 +33,6 @@ import {
   refreshTaskDays,
 } from "./task-analysis";
 import { readTaskAnalysis, setTaskAnalysisStatus } from "./task-analysis-status";
-import { queryTaskWords } from "./word-queries";
 
 vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
@@ -42,6 +41,22 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
 
 const projectFixture = createProjectTestFixture();
 const SOURCE_PATH = "locales/en.json";
+
+/** The words a task's review has arrived with, in the summary the Reports page reads. */
+async function summaryWords(jobId: string) {
+  const [row] = await db
+    .select({
+      words: sql<number>`coalesce(sum(${schema.reportingDailyByTask.arrivedWords}), 0)::int`,
+    })
+    .from(schema.reportingDailyByTask)
+    .where(
+      and(
+        eq(schema.reportingDailyByTask.jobId, jobId),
+        eq(schema.reportingDailyByTask.step, "review"),
+      ),
+    );
+  return row.words;
+}
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -170,13 +185,12 @@ describe("analyseTaskStrings", () => {
       targetLocales: ["fr-FR"],
       repositorySourceFileId: sourceFile.id,
     });
-    const words = () =>
-      queryTaskWords({ organizationId: organization.id, jobId: task.id, unit: "words" });
+    const words = () => summaryWords(task.id);
     // Recorded, but the summary the report reads does not have it yet.
-    expect((await words()).totals.review.arrived).toBe(0);
+    expect(await words()).toBe(0);
 
     await refreshTaskDays({ organizationId: organization.id, projectId: project.id, days });
-    expect((await words()).totals.review.arrived).toBe(5);
+    expect(await words()).toBe(5);
     // The task's refresh leaves the project's current rows, and the days' marks, to the
     // scheduled run, which then rewrites both.
     const current = () =>
@@ -211,16 +225,15 @@ describe("analyseTaskStrings", () => {
       .delete(schema.reportingSummaryQueue)
       .where(eq(schema.reportingSummaryQueue.organizationId, organization.id));
     await refreshTaskDays({ organizationId: organization.id, projectId: project.id, days });
-    const words = () =>
-      queryTaskWords({ organizationId: organization.id, jobId: task.id, unit: "words" });
+    const words = () => summaryWords(task.id);
     // Nothing was written, as the refresh found no day to do.
-    expect((await words()).totals.review.arrived).toBe(0);
+    expect(await words()).toBe(0);
     // A day marked again is refreshed.
     await db.transaction((tx) =>
       markSummaryDays(tx, organization.id, [{ projectId: project.id, day: days[0] }]),
     );
     await refreshTaskDays({ organizationId: organization.id, projectId: project.id, days });
-    expect((await words()).totals.review.arrived).toBe(5);
+    expect(await words()).toBe(5);
   });
 });
 

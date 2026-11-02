@@ -35,7 +35,7 @@ type StepTime = StepTimesReport["logged"][number];
 type LoggedTime = TimeReport["logged"];
 /** The word counts and their chart without the query they echo, which the handlers add. */
 type WordCounts = Omit<WordCountsReport, "period" | "unit" | "step" | "mode" | "groupBy">;
-type WordCountSeries = Omit<WordSeriesReport, "period" | "unit" | "step" | "mode">;
+export type WordCountSeries = Omit<WordSeriesReport, "period" | "unit" | "step" | "mode">;
 type AiUsage = AiUsageReport;
 
 /** Sample Reports data for component tests, Storybook and its MSW handlers. */
