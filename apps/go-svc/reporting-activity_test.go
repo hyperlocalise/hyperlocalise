@@ -42,7 +42,7 @@ func TestReportingActivityIsForBillingRolesOnly(t *testing.T) {
 		status, body := reportingSend(t, scope, role, http.MethodGet, "/reports/activity", "")
 		require.Equal(t, http.StatusForbidden, status, role)
 		require.Equal(t, "report_costs_forbidden", body["error"], role)
-		// The capability is checked before the query, as the web route does.
+		// The capability is checked before the query.
 		status, _ = reportingSend(t, scope, role, http.MethodGet, "/reports/activity?unit=bogus", "")
 		require.Equal(t, http.StatusForbidden, status, role)
 	}

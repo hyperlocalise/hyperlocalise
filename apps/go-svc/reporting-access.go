@@ -46,7 +46,7 @@ func reportingStart(ctx context.Context, db dictionaryDB, organizationID string)
 }
 
 // reportingContext is the viewer's workspace, projects and money access, and the dates Reports
-// can cover: the web app's reportContext.
+// can cover.
 type reportingContext struct {
 	organizationID string
 	projectIDs     []string

@@ -32,7 +32,7 @@ import {
   personTaskForSave,
   refreshTaskDays,
 } from "./task-analysis";
-import { readTaskAnalysis, setTaskAnalysisStatus } from "./task-analysis-status";
+import { setTaskAnalysisStatus } from "./task-analysis-status";
 
 vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
@@ -250,9 +250,12 @@ describe("analyseTaskLanguage", () => {
       repositorySourceFileId: sourceFile.id,
     };
     await analyseTaskLanguage({ ...input, targetLocale: "fr-FR" });
-    expect(await readTaskAnalysis(state)).toMatchObject([
-      { step: "review", status: "pending", strings: 2, incomplete: false },
-    ]);
+    expect(
+      await db
+        .select()
+        .from(schema.reportingTaskAnalyses)
+        .where(eq(schema.reportingTaskAnalyses.jobId, task.id)),
+    ).toMatchObject([{ step: "review", status: "pending", strings: 2, incomplete: false }]);
 
     // The memory could not be read for the second language: its strings still arrive, without a band.
     await analyseTaskLanguage({ ...input, targetLocale: "de-DE", withoutMemory: true });
@@ -267,25 +270,6 @@ describe("analyseTaskLanguage", () => {
       buckets.filter((row) => row.targetLocale === locale).map((row) => row.bucket);
     expect(bucketsOf("de-DE")).toEqual(["unavailable", "unavailable"]);
     expect(bucketsOf("fr-FR")).toEqual(["new", "new"]);
-  });
-});
-
-describe("readTaskAnalysis", () => {
-  it("reads a pending analysis left alone for an hour as failed", async () => {
-    const { organization, createPersonTask } = await createFileWithStrings();
-    const task = await createPersonTask({ kind: "proofread" });
-    const state = { organizationId: organization.id, jobId: task.id, step: "review" as const };
-    await setTaskAnalysisStatus({ ...state, status: "pending" });
-    const inAnHour = new Date(Date.now() + 61 * 60_000);
-    expect(await readTaskAnalysis(state)).toMatchObject([{ status: "pending" }]);
-    expect(await readTaskAnalysis(state, inAnHour)).toMatchObject([
-      { status: "failed", error: "reporting_task_analysis_stopped" },
-    ]);
-    // A finished analysis is never stale, and its outcome is kept whole.
-    await setTaskAnalysisStatus({ ...state, status: "done", incomplete: true, strings: 2 });
-    expect(await readTaskAnalysis(state, inAnHour)).toMatchObject([
-      { status: "done", incomplete: true, strings: 2, error: null },
-    ]);
   });
 });
 

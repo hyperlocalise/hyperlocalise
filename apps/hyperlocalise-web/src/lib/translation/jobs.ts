@@ -571,7 +571,7 @@ class TranslationJobCompletionService {
         `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
       );
     }
-    // Reports saw the job start running; without this it would stay running there for good.
+    // A job that stopped holds its unfinished strings no more, so Reports recounts its days.
     await captureJobStatus({
       jobId: input.jobId,
       status: "failed",

@@ -138,7 +138,7 @@ func (api *reportingAPI) actor(ctx context.Context, claims AuthClaims, slug stri
 }
 
 // handle checks the session, the workspace, the Reports flag and the route's capability, in that
-// order the page relies on. The database admission limit is in read.
+// order. The database admission limit is in read.
 func (api *reportingAPI) handle(capability, deniedCode string, fn func(*http.Request, reportingActor) (any, int, error)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
@@ -391,7 +391,7 @@ func (b *reportingBody) nullableUSD(key string) *string {
 	return &value
 }
 
-// day is a calendar day from 2000 on, as the web schema takes it.
+// day is a calendar day from 2000 on.
 func (b *reportingBody) day(key string) string {
 	value := b.text(key, 0, math.MaxInt)
 	if !isReportingDay(value) || value < "2000-01-01" {
@@ -470,7 +470,7 @@ func (b *reportingBody) percentages(key string) map[string]int {
 	return result
 }
 
-// isReportingDay accepts a day as the web schema does: YYYY-MM-DD, a real calendar date.
+// isReportingDay accepts a day as YYYY-MM-DD, a real calendar date.
 func isReportingDay(value string) bool {
 	if len(value) != len(time.DateOnly) {
 		return false

@@ -13,7 +13,7 @@ import (
 )
 
 // reportingMoneyFixture seeds a workspace with a default team and a named project, and offers
-// the inserts the money tests need: rate cards as the web app saves them, budgets, task pricing,
+// the inserts the money tests need: rate cards as saved, budgets, task pricing,
 // costs and billing rows.
 type reportingMoneyFixture struct {
 	t     *testing.T
@@ -56,7 +56,7 @@ func line(targetLocale, rate string, rest ...string) reportingTestLine {
 	return l
 }
 
-// card saves a rate card as the web app does: a card row and a rate row per line, at a time.
+// card saves a rate card: a card row and a rate row per line, at a time.
 func (f reportingMoneyFixture) card(name, at string, lines ...reportingTestLine) {
 	f.t.Helper()
 	f.exec(`insert into reporting_rate_cards (organization_id, name, default_basis) values ($1, $2, 'word') on conflict do nothing`, f.scope.OrganizationID, name)
@@ -694,4 +694,19 @@ func TestReportingRateCardsListEveryCardWithItsLines(t *testing.T) {
 	require.Equal(t, "character", standard["defaultBasis"])
 	require.Len(t, standard["lines"], 1)
 	require.Equal(t, "ja-JP", standard["lines"].([]any)[0].(map[string]any)["targetLocale"])
+}
+
+func TestReportingBudgetForecastsUnfinishedPerCharacterWork(t *testing.T) {
+	f := seedReportingMoney(t)
+	f.card("Per character", "2026-03-01T00:00:00Z", line("ja-JP", "0.05", "character"))
+	f.budget(f.scope.ProjectID, "1000", some("Per character"))
+	job := f.job("job_chars", f.scope.ProjectID, "running", false, "")
+	mustReportingSummary(t, f.scope, []reportingSummaryRow{
+		{jobID: job, targetLocale: "ja-JP", payable: true, day: "2026-06-01", arrived: 2, arrivedStrings: 1, arrivedCharacters: 10, arrivedCharactersWithSpaces: 11},
+	})
+	budget := reportingReadJSON(t, f.scope, "admin", "/reports/budgets")["budgets"].([]any)[0].(map[string]any)
+	// 10 characters still to translate at $0.05.
+	require.Equal(t, "0.00000000", budget["spentUsd"])
+	require.Equal(t, "0.50000000", budget["stillToComeUsd"])
+	require.Equal(t, false, budget["incomplete"])
 }

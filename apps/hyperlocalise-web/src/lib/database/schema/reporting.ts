@@ -421,7 +421,7 @@ export const reportingCosts = pgTable(
     projectId: projectId(),
     jobId: jobId(),
     operationKey: text("operation_key").notNull(),
-    /** Expense rows were added by hand through the old API, which go-svc still carries; the web app neither writes nor sums them. */
+    /** Only old rows are `ai` or `expense`: nothing writes or sums them now. */
     kind: text("kind", { enum: ["human", "ai", "expense"] }).notNull(),
     step: text("step").notNull(),
     targetLocale: text("target_locale"),

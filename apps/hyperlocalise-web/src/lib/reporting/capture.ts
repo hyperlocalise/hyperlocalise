@@ -661,8 +661,7 @@ async function writeReportingCompletions(
     const marks: SummaryMark[] = [];
     // A person's work is priced when it is finished, at the rate in force then, as the estimate
     // prices it: the task's own card as it was when the task was priced, else its project
-    // budget's card now. A task for people has its strings recorded before it is priced, so the
-    // rate stored with each string when it arrived is not the one that applies.
+    // budget's card now.
     const rates = new Map<string, Awaited<ReturnType<typeof resolveReportingRate>>>();
     const rateFor = async (analysis: { projectId: string | null; sourceLocale: string }) => {
       if (!analysis.projectId) return null;
@@ -858,15 +857,19 @@ async function writeReportingCompletions(
     return marks;
   });
 }
+/**
+ * What Reports does when a task changes status: starts Reports for the workspace, charges a fixed
+ * fee when the task succeeds, and recounts its days when it is no longer open.
+ */
 export async function captureJobStatus(input: { jobId: string; status: string }) {
   try {
-    await writeJobStatus(input);
+    await applyJobStatus(input);
   } catch (error) {
     console.warn("reporting_job_status_failed", { jobId: input.jobId, error });
   }
 }
 
-async function writeJobStatus(input: { jobId: string; status: string }) {
+async function applyJobStatus(input: { jobId: string; status: string }) {
   const [ownedJob] = await db
     .select({ organizationId: schema.jobs.organizationId })
     .from(schema.jobs)

@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// Query strings as the web schemas take them: every parameter optional, as text, repeated keys
-// refused, lengths in UTF-16 units. A parameter given empty is present and invalid, as in Zod.
+// Query strings: every parameter optional, as text, repeated keys
+// refused, lengths in UTF-16 units. A parameter given empty is present and invalid.
 
 type reportingQuery struct {
 	values url.Values
@@ -126,7 +126,7 @@ func (q *reportingQuery) number(key string, minValue, maxValue, fallback int) in
 
 func (q *reportingQuery) page() int { return q.number("page", 1, 10_000, 1) }
 
-// flag is an optional "true" or "false", as the web's enum flags are.
+// flag is an optional "true" or "false".
 func (q *reportingQuery) flag(key string, fallback bool) bool {
 	return q.choice(key, strconv.FormatBool(fallback), "true", "false") == "true"
 }

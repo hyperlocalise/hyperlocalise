@@ -29,6 +29,7 @@ import {
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
 import { isErr } from "@/lib/primitives/result/results";
+import { captureAnalysis } from "@/lib/reporting/capture";
 import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,
@@ -421,6 +422,51 @@ describe("translation job workflow helpers", () => {
         },
       }),
     ).rejects.toThrow("is not owned by workflow run run_stale");
+  });
+
+  it("recounts a failed job's days, so its strings leave Progress", async () => {
+    resolveWorkspaceReportsFlagMock.mockResolvedValue(true);
+    const { project, user } = await projectFixture.createStoredProjectFixture();
+    const job = await insertJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "running",
+      workflowRunId: "run_failing",
+      inputPayload: {
+        sourceText: "Hello world",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+    await captureAnalysis({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      jobId: job.id,
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceEntries: { greeting: "Hello world" },
+    });
+    const marks = () =>
+      db
+        .select({ projectId: schema.reportingSummaryQueue.projectId })
+        .from(schema.reportingSummaryQueue)
+        .where(eq(schema.reportingSummaryQueue.organizationId, project.organizationId));
+    await db
+      .delete(schema.reportingSummaryQueue)
+      .where(eq(schema.reportingSummaryQueue.organizationId, project.organizationId));
+    expect(await marks()).toEqual([]);
+
+    await failTranslationJob({
+      jobId: job.id,
+      projectId: project.id,
+      workflowRunId: "run_failing",
+      code: "provider_unavailable",
+      message: "provider unavailable",
+    });
+
+    expect(await marks()).toEqual([{ projectId: project.id }]);
   });
 
   it("does not fail a job owned by another workflow run", async () => {
