@@ -10,6 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
 )
 
 var errResourceNotFound = errors.New("resource not found")
@@ -97,6 +99,8 @@ type resourceStore interface {
 	listMemories(context.Context, principal, int, int) ([]translationMemory, int, error)
 	getMemory(context.Context, principal, string) (translationMemory, error)
 	listMemoryEntries(context.Context, principal, string, memoryEntryFilters) ([]memoryEntry, int, error)
+	exportBilingualRows(context.Context, principal, string, bilingualExportQuery) ([]editor_export.Row, error)
+	importBilingualRows(context.Context, principal, string, bilingualImportInput) (bilingualImportCounts, error)
 }
 
 type postgresStore struct{ pool *pgxpool.Pool }

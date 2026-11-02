@@ -38,6 +38,7 @@ func newHandler(auth authenticator, stores ...resourceStore) http.Handler {
 	mux.HandleFunc("/v1/projects/{projectId}/strings/{stringId}/translations", s.stringTranslations)
 	mux.HandleFunc("/v1/projects/{projectId}/strings/{stringId}/translations/{locale}", s.stringTranslation)
 	mux.HandleFunc("/v1/projects/{projectId}/translations", s.projectTranslations)
+	mux.HandleFunc("/v1/projects/{projectId}/bilingual-file", s.projectBilingualFile)
 	mux.HandleFunc("/v1/glossaries", s.glossaries)
 	mux.HandleFunc("/v1/glossaries/{glossaryId}", s.glossary)
 	mux.HandleFunc("/v1/glossaries/{glossaryId}/terms", s.glossaryTerms)

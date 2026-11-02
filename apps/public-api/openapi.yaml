@@ -15,6 +15,7 @@ tags:
   - name: Queries
   - name: Strings
   - name: Translations
+  - name: Bilingual files
   - name: Glossaries
   - name: Translation memories
 paths:
@@ -475,6 +476,86 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/bilingual-file:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: exportBilingualFile
+      tags: [Bilingual files]
+      summary: Export a bilingual file
+      description: >-
+        Requires `strings:read`. Returns the project's strings with their translations in one
+        target locale, in the same CSV, TMX, XLF, XLIFF, or XLSX layout as the Content Editor's
+        bilingual export. Use `filePath` to export one file. A file holds at most 5,000 strings.
+      parameters:
+        - name: locale
+          in: query
+          required: true
+          description: A target locale of the project.
+          schema: { type: string, maxLength: 64 }
+        - name: format
+          in: query
+          schema: { type: string, enum: [csv, tmx, xlf, xliff, xlsx], default: xliff }
+        - name: filePath
+          in: query
+          schema: { type: string, maxLength: 2048 }
+        - name: includeHidden
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: The bilingual file, sent as an attachment.
+          content:
+            text/csv: { schema: { type: string } }
+            application/x-tmx+xml: { schema: { type: string } }
+            application/x-xliff+xml: { schema: { type: string } }
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: { schema: { type: string, format: binary } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: importBilingualFile
+      tags: [Bilingual files]
+      summary: Re-import a bilingual file
+      description: >-
+        Requires `strings:write`. Native projects only. Saves each row's target text as an
+        approved, imported translation of the string with the same key and file. Rows without a
+        key or target text, for another locale, for an unknown string, for a locked segment, or
+        longer than the string's `maxLength` are skipped. With `filePath`, rows that name no file
+        belong to it and rows that name another file are skipped. The format comes from the file
+        name unless `format` is set.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, locale]
+              properties:
+                file: { type: string, format: binary, description: At most 25 MiB and 5,000 rows. }
+                locale: { type: string, maxLength: 64 }
+                filePath: { type: string, maxLength: 2048 }
+                format: { type: string, enum: [csv, tmx, xlf, xliff, xlsx] }
+      responses:
+        "200":
+          description: Import counts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [import]
+                properties:
+                  import: { $ref: "#/components/schemas/BilingualImportCounts" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/glossaries:
     get:
       operationId: listGlossaries
@@ -873,6 +954,14 @@ components:
         reviewStatus: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    BilingualImportCounts:
+      type: object
+      required: [matched, imported, skipped, files]
+      properties:
+        matched: { type: integer, minimum: 0, description: Strings found for the file's rows. }
+        imported: { type: integer, minimum: 0, description: Translations saved or already up to date. }
+        skipped: { type: integer, minimum: 0 }
+        files: { type: integer, minimum: 0 }
     Error:
       type: object
       required: [error, message]
@@ -911,12 +1000,12 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     PayloadTooLarge:
-      description: The request body exceeds 256 KiB.
+      description: The request body exceeds 256 KiB, or 25 MiB for a bilingual file.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     UnsupportedMediaType:
-      description: The request body is not `application/json`.
+      description: The request body is not `application/json`, or `multipart/form-data` for a bilingual file.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
