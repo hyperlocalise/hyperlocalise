@@ -45,6 +45,15 @@ An administrator can connect GitLab from **Integrations** through the authorizat
 
 Use **Use GitLab repo** in a manual or scheduled automation for repository analysis. Merge-request comment tools and GitLab content sync are not available in this workflow.
 
+### Self-hosted GitLab
+
+An admin or localization manager can connect the workspace to its own GitLab server under **Integrations → Self-hosted GitLab**, with the server's `https` address and an access token. Hyperlocalise checks both before saving, and checks again whenever you open the row.
+
+- While connected, the server replaces GitLab.com for everyone in the workspace, and they can reach whatever the token can reach. Use a token from a non-admin user, with the `api` scope, or `read_api` and `read_repository` for reading only.
+- Paste links from your server into chat. GitLab.com links are ignored while a server is connected.
+- Automations and chats name a project by its path. Replacing or removing the connection points those paths at the new server, or back at GitLab.com.
+- The server must be reachable from the internet. Fixed outgoing addresses for an allow-list aren't available yet.
+
 ## Intercom
 
 Connect Intercom from **Integrations**, then create a scheduled or manual automation with the **Translate Intercom Help Center articles** skill. Import writes markdown source files into a native project. **Push to Intercom** writes Intercom drafts. It does not publish. See [Localize Intercom Help Center articles](/platform/connections/intercom).

@@ -119,6 +119,7 @@ import { GOOGLE_DRIVE_PIPES_SLUG } from "@/lib/google-drive/constants";
 import { WorkspaceAutomationGoogleDriveSettings } from "./workspace-automation-google-drive-settings";
 import type { WorkspaceAutomationEditorTab } from "@/lib/navigation/workspace-automation-editor-tab";
 import { GITLAB_PIPES_SLUG } from "@/lib/gitlab/constants";
+import { useGitLabServerConnection } from "../../integrations/_components/use-gitlab-server-connection";
 import { createApiClient } from "@/lib/api-client";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model.messages";
@@ -4287,6 +4288,7 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const gitlabServerConnectionQuery = useGitLabServerConnection(organizationSlug);
   const gitlabProjectsQuery = useQuery({
     queryKey: ["gitlab-projects", organizationSlug],
     queryFn: async () => {
@@ -4333,7 +4335,8 @@ export function WorkspaceAutomationEditor({
   const iterableConnected = Boolean(iterablePipesQuery.data?.connected);
   const loopsConnected = Boolean(loopsPipesQuery.data?.connected);
   const hubspotConnected = Boolean(hubspotPipesQuery.data?.connected);
-  const gitlabConnected = Boolean(gitlabPipesQuery.data?.connected);
+  const gitlabConnected =
+    Boolean(gitlabPipesQuery.data?.connected) || Boolean(gitlabServerConnectionQuery.data);
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
   const hasHistory = mode === "detail";

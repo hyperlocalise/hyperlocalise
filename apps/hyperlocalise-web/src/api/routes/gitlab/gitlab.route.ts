@@ -25,6 +25,7 @@ import {
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import {
+  checkSavedGitLabConnection,
   deleteGitLabConnection,
   getGitLabConnection,
   saveGitLabConnection,
@@ -88,6 +89,22 @@ export function createGitlabRoutes() {
       });
 
       return c.json({ gitlabConnection }, 200);
+    })
+    .get("/connection/check", async (c) => {
+      if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const result = await checkSavedGitLabConnection({
+        organizationId: c.var.auth.organization.localOrganizationId,
+      });
+
+      return c.json(
+        isErr(result)
+          ? { working: false as const, code: result.error.code, message: result.error.message }
+          : { working: true as const },
+        200,
+      );
     })
     .put("/connection", validateSaveConnectionBody, async (c) => {
       if (!canWriteGitLabConnection(c.var.auth.membership.role)) {

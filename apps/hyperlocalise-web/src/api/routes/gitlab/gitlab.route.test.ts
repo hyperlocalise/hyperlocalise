@@ -213,6 +213,31 @@ describe("gitlabRoutes", () => {
       expect(await after.json()).toEqual({ gitlabConnection: null });
     });
 
+    it("checks the saved token live and reports when it stops working", async () => {
+      mockGitLabServer();
+      const identity = fixture.createWorkosIdentityWithRole("admin");
+      const headers = await fixture.authHeadersFor(identity);
+      const param = { organizationSlug: identity.organization.slug ?? "missing-slug" };
+      const connection = client.api.orgs[":organizationSlug"].gitlab.connection;
+      await connection.$put(
+        { param, json: { serverUrl, accessToken: "glpat-secret-abcd" } },
+        { headers },
+      );
+
+      const working = await connection.check.$get({ param }, { headers });
+      expect(await working.json()).toEqual({ working: true });
+
+      mocks.withPublicHttpFetch.mockImplementation(
+        async (_url: string, _init: unknown, handler: (response: Response) => unknown) =>
+          handler(new Response("{}", { status: 401 })),
+      );
+      const stopped = await connection.check.$get({ param }, { headers });
+      expect(await stopped.json()).toMatchObject({
+        working: false,
+        code: "gitlab_token_rejected",
+      });
+    });
+
     it("explains a rejected token and saves nothing", async () => {
       mocks.withPublicHttpFetch.mockImplementation(
         async (_url: string, _init: unknown, handler: (response: Response) => unknown) =>

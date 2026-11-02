@@ -124,6 +124,9 @@ function createIntegrationsGetHandlers({
       "/api/orgs/:organizationSlug/customer-io",
       () => new HttpResponse(null, { status: 204 }),
     ),
+    http.get("/api/orgs/:organizationSlug/gitlab/connection", () =>
+      HttpResponse.json({ gitlabConnection: null }),
+    ),
     http.get("/api/orgs/:organizationSlug/pipes/:provider", ({ params }) =>
       HttpResponse.json({
         pipe: {

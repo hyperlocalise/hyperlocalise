@@ -86,6 +86,9 @@ export const automationEditorMswHandlers = [
   http.get("/api/orgs/:organizationSlug/contentful-connections", () =>
     HttpResponse.json({ contentfulConnections: automationEditorContentfulConnectionsFixture }),
   ),
+  http.get("/api/orgs/:organizationSlug/gitlab/connection", () =>
+    HttpResponse.json({ gitlabConnection: null }),
+  ),
   http.get("/api/orgs/:organizationSlug/gitlab/projects", () =>
     HttpResponse.json({
       projects: [
@@ -181,6 +184,9 @@ export const automationEditorDisconnectedMswHandlers = [
   ),
   http.get("/api/orgs/:organizationSlug/webflow-connections", () =>
     HttpResponse.json({ webflowConnections: [] }),
+  ),
+  http.get("/api/orgs/:organizationSlug/gitlab/connection", () =>
+    HttpResponse.json({ gitlabConnection: null }),
   ),
   http.get("/api/orgs/:organizationSlug/gitlab/projects", () =>
     HttpResponse.json({ projects: [] }),
