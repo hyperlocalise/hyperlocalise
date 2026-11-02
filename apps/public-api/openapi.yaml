@@ -5,7 +5,7 @@ info:
   description: >-
     Read projects, Queries, jobs, glossaries, and translation memories from a Hyperlocalise
     workspace; manage the strings, translations, and settings of native projects; round-trip
-    bilingual files; update jobs; export glossaries; and import and export translation memories.
+    bilingual files; update jobs; and import and export glossaries and translation memories.
 servers:
   - url: https://api.hyperlocalise.com
 security:
@@ -871,6 +871,76 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/glossaries/{glossaryId}/import:
+    parameters:
+      - $ref: "#/components/parameters/GlossaryId"
+    post:
+      operationId: importGlossary
+      tags: [Glossaries]
+      summary: Import a TBX, CSV, or XLSX file into a glossary
+      description: >-
+        Requires `glossaries:write`, which `files:write` grants to admins, localization managers,
+        and translators. Translators can import only into team-controlled glossaries of their
+        teams. Native glossaries only. The file is processed by the same importer as the web app
+        (TBX 2 and TBX 3, forbidden terms included), so the request returns `202` with a run to
+        poll at `.../import-reports/{reportId}`. `mode` defaults to `merge`; `preview` reports
+        changes without applying them. At most 25 MB.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                format: { type: string, enum: [tbx, csv, xlsx], description: Defaults to the file extension. }
+                mode: { type: string, enum: [preview, create, update, merge, replace], default: merge }
+                strictLocale: { type: boolean, default: true, description: Skip concepts without a term in the glossary source locale. }
+      responses:
+        "202":
+          description: The queued import.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [import]
+                properties:
+                  import: { $ref: "#/components/schemas/GlossaryImportReport" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/glossaries/{glossaryId}/import-reports/{reportId}:
+    parameters:
+      - $ref: "#/components/parameters/GlossaryId"
+      - name: reportId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getGlossaryImportReport
+      tags: [Glossaries]
+      summary: Get a glossary import's status and diagnostics
+      description: Requires `glossaries:read`. Poll until `status` is `completed` or `failed`.
+      responses:
+        "200":
+          description: The import run.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [import]
+                properties:
+                  import: { $ref: "#/components/schemas/GlossaryImportReport" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/translation-memories:
     get:
       operationId: listTranslationMemories
@@ -1305,6 +1375,36 @@ components:
       required: [job]
       properties:
         job: { $ref: "#/components/schemas/Job" }
+    GlossaryImportReport:
+      type: object
+      required: [id, glossaryId, format, mode, status, counts, errorCode, errorMessage, createdAt, completedAt, diagnostics]
+      properties:
+        id: { type: string, format: uuid }
+        glossaryId: { type: string, format: uuid }
+        format: { type: string, enum: [tbx, csv, xlsx] }
+        mode: { type: string, enum: [preview, create, update, merge, replace] }
+        status: { type: string, description: "queued, processing, completed, or failed" }
+        counts:
+          type: object
+          additionalProperties: { type: integer }
+          description: Concepts and terms read, and terms created, updated, and merged.
+        errorCode: { type: [string, "null"] }
+        errorMessage: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+        diagnostics:
+          type: array
+          description: Up to 500 validation messages.
+          items:
+            type: object
+            required: [severity, code, message, conceptId, termId, field]
+            properties:
+              severity: { type: string, enum: [warning, error] }
+              code: { type: string }
+              message: { type: string }
+              conceptId: { type: [string, "null"] }
+              termId: { type: [string, "null"] }
+              field: { type: [string, "null"] }
     MemoryImportResult:
       type: object
       required: [importAttemptId, importBatchId, totalRead, created, updated, warned, failed, headerSrclang, issues]
@@ -1374,7 +1474,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     PayloadTooLarge:
-      description: The request body exceeds 256 KiB (16 MiB for a strings batch, 25 MiB for a bilingual file or memory import).
+      description: The request body exceeds 256 KiB (16 MiB for a strings batch, 25 MiB for a bilingual file or a memory or glossary import).
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }

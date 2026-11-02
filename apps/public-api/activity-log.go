@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 	"github.com/hyperlocalise/hyperlocalise/internal/activitylog"
 )
 

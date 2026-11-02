@@ -57,6 +57,10 @@ func effectivePermissions(stored []string, role string) []string {
 		if role == "admin" || role == "localization_manager" || role == "developer" {
 			add("projects:write")
 		}
+		// Glossary edits follow go-svc: managers, and translators on their teams' glossaries.
+		if role == "admin" || role == "localization_manager" || role == "translator" {
+			add("glossaries:write")
+		}
 	}
 	if _, ok := seen["memories:read"]; ok {
 		add("translation-memories:read")

@@ -57,8 +57,10 @@ func TestJobStoreDatabase(t *testing.T) {
 	events := f.activities(t, "job_updated")
 	require.Len(t, events, 1)
 	require.Equal(t, jobID, events[0].TargetID)
-	require.Equal(t, map[string]any{"jobId": jobID, "kind": "translation", "projectId": f.project,
-		"changedFields": []any{"title", "description", "dueAt", "owner"}}, events[0].Payload)
+	require.Equal(t, map[string]any{
+		"jobId": jobID, "kind": "translation", "projectId": f.project,
+		"changedFields": []any{"title", "description", "dueAt", "owner"},
+	}, events[0].Payload)
 
 	var payload map[string]any
 	var raw []byte

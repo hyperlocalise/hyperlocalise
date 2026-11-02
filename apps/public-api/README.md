@@ -5,7 +5,7 @@ The web frontend continues to use its existing APIs. It does not call this servi
 The API reports the token's effective identity, reads Projects, Queries, Jobs,
 Glossaries, and Translation memories, manages the strings, translations, and
 settings of native projects, round-trips bilingual files, updates jobs, exports
-glossaries, and imports and exports translation memories. Job creation and file
+glossaries, and imports and exports glossaries and translation memories. Job creation and file
 uploads continue to use the existing platform API.
 
 ## Run locally
@@ -67,7 +67,9 @@ scopes and the owner's role. `files:read` also grants `projects:read`,
 grants `strings:write`, and `projects:write` for admins, localization managers,
 and developers. `memories:read` grants `translation-memories:read`, and
 `memories:write` (admins and localization managers) grants
-`translation-memories:write`. Queries additionally require the Queries plan
+`translation-memories:write`. `files:write` grants `glossaries:write` to admins,
+localization managers, and translators; translators can import only into
+team-controlled glossaries of their teams. Queries additionally require the Queries plan
 entitlement from Autumn when `AUTUMN_API_KEY` is configured. Authentication
 results are not cached. Resource queries apply organization and team access
 rules directly in PostgreSQL.
@@ -98,6 +100,7 @@ filters. Missing and inaccessible records both return `404`.
 | Translations | `GET /v1/projects/{projectId}/translations`, `GET /v1/projects/{projectId}/strings/{stringId}/translations`, `GET, PUT .../translations/{locale}` | `strings:read` / `strings:write` |
 | Glossaries | `GET /v1/glossaries`, `GET /v1/glossaries/{glossaryId}`, `GET .../terms`, `GET .../export` (TBX, CSV, XLSX) | `glossaries:read` |
 | Translation memories | `GET /v1/translation-memories`, `GET /v1/translation-memories/{memoryId}`, `GET .../entries`, `GET .../export` (TMX, CSV) | `translation-memories:read` |
+| Glossary import | `POST /v1/glossaries/{glossaryId}/import` (TBX, CSV, XLSX; returns `202`), `GET .../import-reports/{reportId}` | `glossaries:write` / `glossaries:read` |
 | Translation memory import | `POST /v1/translation-memories/{memoryId}/import` (TMX, CSV) | `translation-memories:write` |
 
 Project lists and nested string routes treat unassigned projects as belonging to
@@ -124,6 +127,14 @@ bilingual import changed, `job_updated`, `project_settings_changed`,
 glossary exports record `translation_memory_exported` and `glossary_exported`,
 best effort, as go-svc does. Translations of strings that belong to no file
 have no file to target and record no event.
+
+Glossary imports reuse the web app's pipeline: the file is stored in object
+storage (`OBJECT_STORAGE_LOCATIONS`, the same variables go-svc reads), a
+`glossary_import_runs` row is queued, and `GLOSSARY_INTERCHANGE_QUEUE_URL`
+hands it to the glossary interchange lambda, which records `glossary_imported`
+for the token. Without both, the import endpoint returns `503`. The lambda
+bumps the glossary's `updated_at`, which go-svc includes in its cache keys, so
+the app does not serve stale glossary data after an import.
 
 Database-backed tests run when `DATABASE_URL` points at a migrated database
 and are skipped otherwise.
