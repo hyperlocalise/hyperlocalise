@@ -487,7 +487,107 @@ type FormField = {
   placeholder?: unknown;
   description?: unknown;
   options?: unknown;
+  dependentFields?: unknown;
 };
+
+function formFieldCopy(field: FormField): HubspotStringTree {
+  const entry: HubspotStringTree = {};
+  for (const key of ["label", "placeholder", "description"] as const) {
+    const value = field[key];
+    if (typeof value === "string" && isCopyString(value)) {
+      entry[key] = value;
+    }
+  }
+  if (Array.isArray(field.options)) {
+    const options: HubspotStringTree = {};
+    for (const option of field.options) {
+      if (!option || typeof option !== "object" || Array.isArray(option)) {
+        continue;
+      }
+      const optionValue = (option as { value?: unknown }).value;
+      const optionLabel = (option as { label?: unknown }).label;
+      if (
+        typeof optionValue === "string" &&
+        optionValue.trim() &&
+        typeof optionLabel === "string" &&
+        isCopyString(optionLabel)
+      ) {
+        options[optionValue] = optionLabel;
+      }
+    }
+    if (Object.keys(options).length > 0) {
+      entry.options = options;
+    }
+  }
+  return entry;
+}
+
+function collectFormFields(field: unknown, fields: HubspotStringTree): void {
+  if (!field || typeof field !== "object" || Array.isArray(field)) {
+    return;
+  }
+  const named = field as FormField;
+  if (typeof named.name === "string" && named.name.trim()) {
+    const entry = formFieldCopy(named);
+    if (Object.keys(entry).length > 0) {
+      fields[named.name] = entry;
+    }
+  }
+  if (!Array.isArray(named.dependentFields)) {
+    return;
+  }
+  for (const dependent of named.dependentFields) {
+    if (!dependent || typeof dependent !== "object" || Array.isArray(dependent)) {
+      continue;
+    }
+    collectFormFields((dependent as { dependentField?: unknown }).dependentField, fields);
+  }
+}
+
+function applyFormFieldCopy(field: Record<string, unknown>, fieldCopy: HubspotStringTree): void {
+  const name = field.name;
+  if (typeof name === "string") {
+    const entry = fieldCopy[name];
+    if (entry && typeof entry !== "string") {
+      for (const key of ["label", "placeholder", "description"] as const) {
+        if (typeof entry[key] === "string" && typeof field[key] === "string") {
+          field[key] = entry[key];
+        }
+      }
+      const options = field.options;
+      const optionCopy = entry.options;
+      if (optionCopy && typeof optionCopy !== "string" && Array.isArray(options)) {
+        for (const option of options) {
+          if (!option || typeof option !== "object" || Array.isArray(option)) {
+            continue;
+          }
+          const optionValue = (option as { value?: unknown }).value;
+          if (typeof optionValue !== "string") {
+            continue;
+          }
+          const label = optionCopy[optionValue];
+          if (typeof label === "string") {
+            (option as { label?: string }).label = label;
+          }
+        }
+      }
+    }
+  }
+  const dependents = field.dependentFields;
+  if (!Array.isArray(dependents)) {
+    return;
+  }
+  for (const dependent of dependents) {
+    if (!dependent || typeof dependent !== "object" || Array.isArray(dependent)) {
+      continue;
+    }
+    const nested = (dependent as { dependentField?: unknown }).dependentField;
+    if (!nested || typeof nested !== "object" || Array.isArray(nested)) {
+      continue;
+    }
+    applyFormFieldCopy(nested as Record<string, unknown>, fieldCopy);
+  }
+}
 
 export function buildFormDocument(definition: Record<string, unknown>): HubspotStringTree {
   const document: HubspotStringTree = {};
@@ -499,6 +599,21 @@ export function buildFormDocument(definition: Record<string, unknown>): HubspotS
     }
   }
 
+  const configuration = definition.configuration;
+  if (configuration && typeof configuration === "object" && !Array.isArray(configuration)) {
+    const postSubmit = (configuration as { postSubmitAction?: unknown }).postSubmitAction;
+    if (postSubmit && typeof postSubmit === "object" && !Array.isArray(postSubmit)) {
+      const action = postSubmit as { type?: unknown; value?: unknown };
+      if (
+        action.type === "thank_you" &&
+        typeof action.value === "string" &&
+        isCopyString(action.value)
+      ) {
+        document.thankYou = action.value;
+      }
+    }
+  }
+
   const fields: HubspotStringTree = {};
   const groups: HubspotStringTree = {};
   const fieldGroups = Array.isArray(definition.fieldGroups) ? definition.fieldGroups : [];
@@ -506,53 +621,22 @@ export function buildFormDocument(definition: Record<string, unknown>): HubspotS
     if (!group || typeof group !== "object" || Array.isArray(group)) {
       return;
     }
-    const richText = (group as { richText?: unknown }).richText;
-    if (typeof richText === "string" && isCopyString(richText)) {
-      groups[String(index)] = { richText };
+    const groupRecord = group as Record<string, unknown>;
+    const {
+      fields: groupFields,
+      groupType: _groupType,
+      richTextType: _richTextType,
+      ...groupRest
+    } = groupRecord;
+    const groupCopy = collectCopyTree(groupRest as HubspotJson);
+    if (Object.keys(groupCopy).length > 0) {
+      groups[String(index)] = groupCopy;
     }
-    const groupFields = (group as { fields?: unknown }).fields;
     if (!Array.isArray(groupFields)) {
       return;
     }
     for (const field of groupFields) {
-      if (!field || typeof field !== "object" || Array.isArray(field)) {
-        continue;
-      }
-      const named = field as FormField;
-      if (typeof named.name !== "string" || !named.name.trim()) {
-        continue;
-      }
-      const entry: HubspotStringTree = {};
-      for (const key of ["label", "placeholder", "description"] as const) {
-        const value = named[key];
-        if (typeof value === "string" && isCopyString(value)) {
-          entry[key] = value;
-        }
-      }
-      if (Array.isArray(named.options)) {
-        const options: HubspotStringTree = {};
-        for (const option of named.options) {
-          if (!option || typeof option !== "object" || Array.isArray(option)) {
-            continue;
-          }
-          const optionValue = (option as { value?: unknown }).value;
-          const optionLabel = (option as { label?: unknown }).label;
-          if (
-            typeof optionValue === "string" &&
-            optionValue.trim() &&
-            typeof optionLabel === "string" &&
-            isCopyString(optionLabel)
-          ) {
-            options[optionValue] = optionLabel;
-          }
-        }
-        if (Object.keys(options).length > 0) {
-          entry.options = options;
-        }
-      }
-      if (Object.keys(entry).length > 0) {
-        fields[named.name] = entry;
-      }
+      collectFormFields(field, fields);
     }
   });
   if (Object.keys(fields).length > 0) {
@@ -584,6 +668,18 @@ export function applyFormDocument(
       (display as { submitButtonText?: string }).submitButtonText = translated.submitText;
     }
   }
+  if (typeof translated.thankYou === "string") {
+    const configuration = next.configuration;
+    if (configuration && typeof configuration === "object" && !Array.isArray(configuration)) {
+      const postSubmit = (configuration as { postSubmitAction?: unknown }).postSubmitAction;
+      if (postSubmit && typeof postSubmit === "object" && !Array.isArray(postSubmit)) {
+        const action = postSubmit as { type?: unknown; value?: unknown };
+        if (action.type === "thank_you") {
+          action.value = translated.thankYou;
+        }
+      }
+    }
+  }
   const fieldCopy = translated.fields;
   const groupCopy = translated.groups;
   const fieldGroups = Array.isArray(next.fieldGroups) ? next.fieldGroups : [];
@@ -593,8 +689,8 @@ export function applyFormDocument(
     }
     const groupEntry =
       groupCopy && typeof groupCopy !== "string" ? groupCopy[String(index)] : undefined;
-    if (groupEntry && typeof groupEntry !== "string" && typeof groupEntry.richText === "string") {
-      (group as { richText?: string }).richText = groupEntry.richText;
+    if (groupEntry && typeof groupEntry !== "string") {
+      applyStringTree(group as HubspotJson, groupEntry);
     }
     const groupFields = (group as { fields?: unknown }).fields;
     if (!fieldCopy || typeof fieldCopy === "string" || !Array.isArray(groupFields)) {
@@ -604,40 +700,7 @@ export function applyFormDocument(
       if (!field || typeof field !== "object" || Array.isArray(field)) {
         continue;
       }
-      const name = (field as { name?: unknown }).name;
-      if (typeof name !== "string") {
-        continue;
-      }
-      const entry = fieldCopy[name];
-      if (!entry || typeof entry === "string") {
-        continue;
-      }
-      for (const key of ["label", "placeholder", "description"] as const) {
-        if (
-          typeof entry[key] === "string" &&
-          typeof (field as Record<string, unknown>)[key] === "string"
-        ) {
-          (field as Record<string, unknown>)[key] = entry[key];
-        }
-      }
-      const options = (field as { options?: unknown }).options;
-      const optionCopy = entry.options;
-      if (!optionCopy || typeof optionCopy === "string" || !Array.isArray(options)) {
-        continue;
-      }
-      for (const option of options) {
-        if (!option || typeof option !== "object" || Array.isArray(option)) {
-          continue;
-        }
-        const optionValue = (option as { value?: unknown }).value;
-        if (typeof optionValue !== "string") {
-          continue;
-        }
-        const label = optionCopy[optionValue];
-        if (typeof label === "string") {
-          (option as { label?: string }).label = label;
-        }
-      }
+      applyFormFieldCopy(field as Record<string, unknown>, fieldCopy);
     }
   });
   const legal = translated.legal;

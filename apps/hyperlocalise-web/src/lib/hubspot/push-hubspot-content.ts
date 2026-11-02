@@ -29,9 +29,11 @@ import { loadHubspotAutomationClient } from "./credentials";
 import {
   applyBlogContentDocument,
   applyEmailDocument,
+  applyFormDocument,
   buildBlogContentDocument,
   buildEmailDocument,
   buildEmailHtmlDocument,
+  buildFormDocument,
   extractEmailStyleSettings,
   hashHubspotContent,
   mergeHubspotTranslations,
@@ -40,6 +42,7 @@ import {
   readHubspotStringTree,
   serializeHubspotDocument,
 } from "./document";
+import { formDefinitionForWrite } from "./form-write";
 import {
   decideHubspotPushLocaleAction,
   DEFAULT_HUBSPOT_EXISTING_TRANSLATION_POLICY,
@@ -168,6 +171,11 @@ async function isHubspotRemoteCopyEmpty(input: {
         : buildEmailHtmlDocument(document, { styleSettings: copy.styleSettings });
       return hashHubspotContent(copyContent) === hashHubspotContent(input.sourceText);
     }
+    if (input.kind === "form") {
+      const copy = await input.client.getForm(input.copyId);
+      const copyContent = serializeHubspotDocument(buildFormDocument(copy.definition));
+      return hashHubspotContent(copyContent) === hashHubspotContent(input.sourceText);
+    }
     if (input.sourceJson) {
       const copy = await input.client.getBlogPost(input.copyId);
       const copyContent = serializeHubspotDocument(buildBlogContentDocument(copy));
@@ -199,6 +207,10 @@ async function findNamedCopy(input: {
     const emails = await input.client.listEmails();
     return emails.find((item) => item.name === input.copyName)?.id ?? null;
   }
+  if (input.kind === "form") {
+    const forms = await input.client.listForms();
+    return forms.find((item) => item.name === input.copyName)?.id ?? null;
+  }
   const posts = await input.client.listBlogPosts();
   return posts.find((item) => item.name === input.copyName)?.id ?? null;
 }
@@ -215,6 +227,9 @@ async function loadCopyUpdatedAt(
   try {
     if (kind === "email") {
       return (await client.getEmail(copyId)).updatedAt;
+    }
+    if (kind === "form") {
+      return (await client.getForm(copyId)).updatedAt;
     }
     return (await client.getBlogPost(copyId)).updatedAt;
   } catch {
@@ -302,12 +317,11 @@ export async function runPushHubspotContent(input: {
   const policy = isHubspotExistingTranslationPolicy(hubspot.existingTranslationPolicy)
     ? hubspot.existingTranslationPolicy
     : DEFAULT_HUBSPOT_EXISTING_TRANSLATION_POLICY;
-  const assignment = assignHubspotLocales(locales, "blog");
-
   for (const mapping of mappings) {
     if (!isHubspotSupportedResourceKind(mapping.resourceKind)) {
       continue;
     }
+    const assignment = assignHubspotLocales(locales, mapping.resourceKind);
     const label = mapping.sourceName || mapping.sourcePath;
     const blogPostId =
       mapping.resourceKind === "blog" && isHubspotBlogBundleSourcePath(mapping.sourcePath)
@@ -340,7 +354,7 @@ export async function runPushHubspotContent(input: {
     }
     const localeCopyIds = { ...mapping.localeCopyIds };
     const pushHashes = { ...mapping.lastPushContentHash };
-    const blogSummaries = await client.listBlogPosts();
+    const blogSummaries = mapping.resourceKind === "blog" ? await client.listBlogPosts() : [];
 
     for (const { locale, code } of assignment.mapped) {
       try {
@@ -377,7 +391,7 @@ export async function runPushHubspotContent(input: {
         if (!copyId) {
           copyId = await findNamedCopy({ client, kind: mapping.resourceKind, copyName });
         }
-        if (!copyId && blogSummaries) {
+        if (!copyId && mapping.resourceKind === "blog") {
           copyId = findBlogLanguageVariation(blogSummaries, mapping.sourceId, hubspotCode);
         }
         if (copyId && hubspot.overwriteWhenRemoteNewer === false) {
@@ -437,6 +451,31 @@ export async function runPushHubspotContent(input: {
             ...(styleSettings !== undefined ? { styleSettings } : {}),
           });
           copyId = targetId;
+        } else if (mapping.resourceKind === "form") {
+          if (!sourceJson) {
+            throw new Error("hubspot_form_source_missing");
+          }
+          const live = await client.getForm(mapping.sourceId);
+          const applied = applyFormDocument(
+            live.definition,
+            mergeHubspotTranslations(readHubspotStringTree(sourceJson), approved.prefilled),
+          );
+          if (!copyId) {
+            copyId = (
+              await client.createForm(
+                formDefinitionForWrite(applied, { name: copyName, language: hubspotCode }),
+              )
+            ).id;
+          } else {
+            await client.replaceForm(
+              copyId,
+              formDefinitionForWrite(applied, {
+                name: copyName,
+                language: hubspotCode,
+                id: copyId,
+              }),
+            );
+          }
         } else {
           if (!copyId) {
             copyId = (
@@ -516,6 +555,9 @@ export async function runPushHubspotContent(input: {
           }
         }
 
+        if (!copyId) {
+          throw new Error("hubspot_locale_copy_missing");
+        }
         localeCopyIds[locale] = copyId;
         pushHashes[locale] = contentHash;
         await rememberCopy({

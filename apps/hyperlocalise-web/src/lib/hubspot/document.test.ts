@@ -85,6 +85,123 @@ describe("hubspot documents", () => {
     });
   });
 
+  it("extracts every form group, dependent field, thank-you, and legal copy", () => {
+    const definition = {
+      displayOptions: { submitButtonText: "Send" },
+      configuration: {
+        language: "en",
+        postSubmitAction: { type: "thank_you", value: "Thanks for joining" },
+      },
+      legalConsentOptions: {
+        type: "explicit_consent_to_process",
+        privacyText: "We keep this private",
+        communicationConsentText: "Email me updates",
+      },
+      fieldGroups: [
+        {
+          groupType: "default_group",
+          richTextType: "text",
+          richText: "Step one intro",
+          fields: [
+            {
+              name: "email",
+              label: "Email",
+              placeholder: "you@example.com",
+              dependentFields: [
+                {
+                  dependentField: {
+                    name: "company",
+                    label: "Company",
+                    placeholder: "Acme",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          groupType: "queued",
+          richTextType: "text",
+          richText: "Step two intro",
+          fields: [
+            {
+              name: "role",
+              label: "Role",
+              options: [{ value: "eng", label: "Engineer" }],
+            },
+          ],
+        },
+      ],
+    };
+    const document = buildFormDocument(definition);
+    expect(document).toEqual({
+      submitText: "Send",
+      thankYou: "Thanks for joining",
+      fields: {
+        email: {
+          label: "Email",
+          placeholder: "you@example.com",
+        },
+        company: {
+          label: "Company",
+          placeholder: "Acme",
+        },
+        role: {
+          label: "Role",
+          options: { eng: "Engineer" },
+        },
+      },
+      groups: {
+        "0": { richText: "Step one intro" },
+        "1": { richText: "Step two intro" },
+      },
+      legal: {
+        privacyText: "We keep this private",
+        communicationConsentText: "Email me updates",
+      },
+    });
+    const translated = mergeHubspotTranslations(document, {
+      submitText: "Envoyer",
+      thankYou: "Merci de nous rejoindre",
+      "fields.email.label": "Courriel",
+      "fields.company.label": "Entreprise",
+      "fields.role.options.eng": "Ingenieur",
+      "groups.0.richText": "Intro etape un",
+      "legal.privacyText": "Nous gardons ceci prive",
+    });
+    const applied = applyFormDocument(definition, translated);
+    expect((applied.displayOptions as { submitButtonText: string }).submitButtonText).toBe(
+      "Envoyer",
+    );
+    expect(
+      (applied.configuration as { postSubmitAction: { value: string } }).postSubmitAction.value,
+    ).toBe("Merci de nous rejoindre");
+    const groups = applied.fieldGroups as Array<{
+      richText: string;
+      fields: Array<Record<string, unknown>>;
+    }>;
+    const firstField = groups[0]?.fields[0];
+    const secondField = groups[1]?.fields[0];
+    const dependents = Array.isArray(firstField?.dependentFields)
+      ? (firstField.dependentFields as Array<{
+          dependentField: { name: string; label: string };
+        }>)
+      : [];
+    const roleOptions = Array.isArray(secondField?.options)
+      ? (secondField.options as Array<{ value: string; label: string }>)
+      : [];
+    expect(groups[0]?.richText).toBe("Intro etape un");
+    expect(firstField?.name).toBe("email");
+    expect(firstField?.label).toBe("Courriel");
+    expect(dependents[0]?.dependentField.name).toBe("company");
+    expect(dependents[0]?.dependentField.label).toBe("Entreprise");
+    expect(secondField?.name).toBe("role");
+    expect(roleOptions[0]?.label).toBe("Ingenieur");
+    expect((applied.legalConsentOptions as { privacyText: string }).privacyText).toBe(
+      "Nous gardons ceci prive",
+    );
+  });
+
   it("keeps form field names locked and updates labels", () => {
     const definition = {
       displayOptions: { submitButtonText: "Send" },

@@ -1,18 +1,18 @@
 ---
 title: "Localize HubSpot"
-description: "Import HubSpot emails and blog posts, translate them in Jobs, and push unpublished locale copies."
+description: "Import HubSpot emails, blog posts, and forms, translate them in Jobs, and push unpublished locale copies."
 ---
 
-Hyperlocalise translates the copy. HubSpot does not. Import reads primary marketing emails and blog posts. **Push to HubSpot** writes unpublished locale copies and leaves the source unchanged. Nothing is published.
+Hyperlocalise translates the copy. HubSpot does not. Import reads primary marketing emails, blog posts, and forms. **Push to HubSpot** writes unpublished locale copies and leaves the source unchanged. Nothing is published.
 
-Forms, landing pages, and website pages are temporarily unsupported.
+Landing pages and website pages are temporarily unsupported.
 
 ## Prerequisites
 
 | Requirement | Description |
 | --- | --- |
 | Native project | A [native project](/platform/projects/create-project) whose source locale matches the language of the HubSpot source. Add a project target locale for each language you will push back. |
-| HubSpot account | Connect HubSpot from **Integrations**. The authorization needs the `content` scope. |
+| HubSpot account | Connect HubSpot from **Integrations**. The authorization needs the `content` and `forms` scopes. |
 | Locale mapping | HubSpot language codes are lowercase, with a hyphen when they include a region (`fr`, `fr-ca`, `pt-br`, `en-gb`, `zh-cn`). `fr` and `fr-ca` stay different languages. A project tag such as `fr-FR` maps to `fr` when HubSpot has no `fr-fr` code. The locale copy keeps the full tag in its name (`Launch [fr-FR]`). |
 | Blog languages | In HubSpot, open **Settings → Blog**. On that blog, choose **Add/edit multi-language variations** and add each language you will push. When that language is on the blog, push creates or updates an unpublished post draft. It does not add a language to the blog. A missing language skips that locale and leaves a warning; the run still succeeds. |
 
@@ -24,7 +24,7 @@ Open **Integrations** and choose **Connect** on **HubSpot**. Authorize the HubSp
 
 Add the **Translate HubSpot content** template from **Popular** or **Marketing**. It is mutually exclusive with Braze, Customer.io, and Loops. Choose the native project, then activate the automation.
 
-On the HubSpot tool, tick the emails and blog posts to translate. Nothing is imported until at least one item is ticked. Locale copies stay out of the tree. Set **Existing HubSpot translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**. **Overwrite HubSpot copies when the remote copy is newer** is on by default. Uncheck it to keep copies that teammates edited after the last push.
+On the HubSpot tool, tick the emails, blog posts, and forms to translate. Nothing is imported until at least one item is ticked. Locale copies stay out of the tree. Set **Existing HubSpot translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**. **Overwrite HubSpot copies when the remote copy is newer** is on by default. Uncheck it to keep copies that teammates edited after the last push.
 
 A scheduled or manual run imports content. It does not push. Push runs only when you choose **Push to HubSpot** in the Content editor.
 
@@ -33,6 +33,8 @@ A scheduled or manual run imports content. It does not push. Push runs only when
 Import reads primary marketing emails and writes `hubspot/emails/{id}/{slug}.html`, with the subject, preview text, and translatable widget fields.
 
 Import reads primary blog posts and writes `hubspot/blog-posts/{id}/post.html`, one HTML document with inlined template CSS for preview and email-style sections for title, meta description, summaries, body and RSS copy (when RSS text differs from the article body), and widget or layout text.
+
+Import reads primary forms and writes `hubspot/forms/{id}/{slug}.json`. The file holds labels, placeholders, help text, option labels, group rich text, submit text, thank-you copy, and legal consent text. Field names and option values stay locked. Multi-step forms are one definition. Every field group is imported, including queued and progressive groups.
 
 When a blog post has no saved module edits, import reads that template and included sections. The default copy the editor shows is imported from there. A blog post that already has an article body still picks up section text from its layout or template. Push writes the translation onto the locale draft and leaves the template unchanged.
 
@@ -53,13 +55,15 @@ When two project locales become the same HubSpot code, the second locale is skip
 ## What push writes
 
 1. Translate and [approve](/platform/cat) the mapped locales you want to write back.
-2. In the Content editor, choose **Push to HubSpot** and select the mapped emails and blog posts.
+2. In the Content editor, choose **Push to HubSpot** and select the mapped emails, blog posts, and forms.
 
 An email push clones the source, then writes a draft with the target language and the translated subject, preview, and widgets. The source email stays as it was.
 
 Add the languages on the blog first. In HubSpot, open **Settings → Blog** and choose **Add/edit multi-language variations**. When that language is on the blog, push creates an unpublished post draft or updates the existing variation. It does not add a language to the blog. If the language is missing, that locale is skipped with a warning and the run still succeeds.
 
 The HubSpot post title is the translated post name, or the translated HTML title when the name has no translation yet. The draft gets the translated title, meta description, summary, body, section text, and static module fields. The post stays unpublished.
+
+A form push creates a new form named `{source} [{locale}]`, or replaces that copy if it already exists. It sets HubSpot's form language for built-in chrome. It never edits the source form. Creating a form does not swap the embed on a live page. Someone still has to place the locale form in HubSpot.
 
 HubSpot's own translate actions are not used. Hyperlocalise writes the approved strings onto the copy.
 
@@ -72,7 +76,7 @@ Disconnect HubSpot from **Integrations** to stop this workspace using that accou
 ## If import or push does not run
 
 - Confirm HubSpot is connected and the automation is **Active**.
-- Confirm the HubSpot authorization still has `content`.
+- Confirm the HubSpot authorization still has `content` and `forms`.
 - Open **Settings → Blog** in HubSpot and choose **Add/edit multi-language variations**. When that language is on the blog, push creates or updates an unpublished post draft. It does not add a language to the blog. A missing language skips that locale and leaves a warning; the run still succeeds.
 - Confirm the project source locale matches the language of the HubSpot source.
 - Confirm each target locale maps to a HubSpot language the account has enabled.
@@ -86,7 +90,7 @@ See [Automation troubleshooting](/platform/help/automations) and [Connection tro
 | --- | --- |
 | Emails | Supported (`hubspot/emails/{id}/{slug}.html`) |
 | Blog posts | Supported (`hubspot/blog-posts/{id}/post.html`) |
-| Forms | Temporarily unsupported |
+| Forms | Supported (`hubspot/forms/{id}/{slug}.json`) |
 | Landing pages | Temporarily unsupported |
 | Website pages | Temporarily unsupported |
 

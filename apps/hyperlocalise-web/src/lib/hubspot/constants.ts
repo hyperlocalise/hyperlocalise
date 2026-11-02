@@ -30,7 +30,11 @@ export type HubspotResourceKind = (typeof HUBSPOT_RESOURCE_KINDS)[number];
 export const HUBSPOT_SUPPORTED_RESOURCE_KINDS = [
   "email",
   "blog",
+  "form",
 ] as const satisfies readonly HubspotResourceKind[];
+
+/** Current Forms API. Do not use legacy `/marketing/v3/forms`. */
+export const HUBSPOT_FORMS_PATH = "/marketing/forms/2026-09-beta";
 
 export function isHubspotSupportedResourceKind(
   kind: string,

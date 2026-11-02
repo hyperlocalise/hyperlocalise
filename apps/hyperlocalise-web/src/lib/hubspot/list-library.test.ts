@@ -26,10 +26,14 @@ describe("listHubspotLibrary", () => {
         { id: "post-2", name: "Launch", language: "zh-cn", translatedFromId: "post-1" },
         { id: "post-3", name: "Launch [fr-FR]", language: "fr-fr", translatedFromId: null },
       ],
+      listForms: async () => [
+        { id: "form-1", name: "Newsletter", language: "en" },
+        { id: "form-2", name: "Newsletter [fr-FR]", language: "fr" },
+      ],
     });
 
     expect(library.emails).toEqual([{ id: "email-1", name: "Welcome" }]);
-    expect(library.forms).toEqual([]);
+    expect(library.forms).toEqual([{ id: "form-1", name: "Newsletter" }]);
     expect(library.blogPosts).toEqual([{ id: "post-1", name: "Launch" }]);
     expect(library.landingPages).toEqual([]);
     expect(library.websitePages).toEqual([]);
