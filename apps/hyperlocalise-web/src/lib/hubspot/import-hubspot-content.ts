@@ -37,11 +37,14 @@ import { loadHubspotAutomationClient } from "./credentials";
 import {
   buildEmailDocument,
   buildEmailHtmlDocument,
+  buildFormDocument,
   hashHubspotContent,
   hubspotDocumentHasCopy,
   isHubspotJsonObject,
+  serializeHubspotDocument,
   type HubspotJson,
 } from "./document";
+import { isNewEditorForm, newEditorFormImportWarning } from "./form-definition";
 import {
   assignHubspotLocales,
   hubspotLanguageMatchesSource,
@@ -661,6 +664,118 @@ async function importBlogPostBundle(input: {
   }
 }
 
+async function importFormBundle(input: {
+  organizationId: string;
+  automation: WorkspaceAutomationRecord;
+  projectId: string;
+  sourceLocale: string;
+  targetLocales: string[];
+  workflowRunId?: string | null;
+  openJobs: CoveredJob[];
+  result: ImportHubspotContentResult;
+  client: HubspotContentClient;
+  policy: HubspotExistingTranslationPolicy;
+  discovery: HubspotSeedDiscoveryCache;
+  translationService: ProjectTranslationService;
+  formId: string;
+  formName: string;
+}): Promise<void> {
+  const form = await input.client.getForm(input.formId);
+  if (isNewEditorForm(form.definition)) {
+    pushWarning(input.result, newEditorFormImportWarning(input.formName));
+  }
+  const tree = buildFormDocument(form.definition);
+  if (!hubspotDocumentHasCopy(tree)) {
+    noteSkip(input.result, `Form "${input.formName}" has no translatable text`);
+    return;
+  }
+  const content = serializeHubspotDocument(tree);
+  const contentHash = hashHubspotContent(content);
+  const sourcePath = buildHubspotSourcePath({
+    kind: "form",
+    id: input.formId,
+    name: input.formName,
+  });
+  const previous = await loadPreviousSyncState({
+    organizationId: input.organizationId,
+    automationId: input.automation.id,
+    resourceKind: "form",
+    sourceId: input.formId,
+  });
+  const upserted = await upsertSourceFile({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath,
+    content,
+    contentType: "application/json",
+    hash: contentHash,
+    sourceLocale: input.sourceLocale,
+    workflowRunId: input.workflowRunId,
+  });
+  if (!upserted.ok) {
+    input.result.failed += 1;
+    pushWarning(input.result, `Form "${input.formName}": ${upserted.reason}`);
+    return;
+  }
+  let importedHashes: Record<string, string> = previous?.importedTranslationHashes
+    ? { ...(previous.importedTranslationHashes as Record<string, string>) }
+    : {};
+  let skipLocales: string[] = [];
+  try {
+    const seed = await seedHubspotItemLocales({
+      client: input.client,
+      discovery: input.discovery,
+      translationService: input.translationService,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      kind: "form",
+      sourceId: input.formId,
+      sourceName: input.formName,
+      sourcePath,
+      sourceContent: content,
+      targetLocales: input.targetLocales,
+      policy: input.policy,
+      previousHashes: importedHashes,
+      previousCopyIds: previous?.localeCopyIds ?? {},
+    });
+    importedHashes = seed.importedHashes;
+    skipLocales = seed.seededComplete;
+    for (const warning of seed.warnings) {
+      pushWarning(input.result, warning);
+    }
+  } catch (error) {
+    pushWarning(input.result, `${input.formName}: translation seeding failed (${String(error)})`);
+  }
+  await rememberSyncState({
+    organizationId: input.organizationId,
+    automationId: input.automation.id,
+    projectId: input.projectId,
+    resourceKind: "form",
+    sourceId: input.formId,
+    sourceName: input.formName,
+    sourcePath,
+    sourceLocale: input.sourceLocale,
+    contentHash,
+    importedHashes,
+  });
+  input.result.imported += 1;
+  const jobId = await maybeCreateJob({
+    organizationId: input.organizationId,
+    automation: input.automation,
+    projectId: input.projectId,
+    sourceFileId: upserted.storedFileId,
+    sourceLocale: input.sourceLocale,
+    targetLocales: input.targetLocales,
+    fileFormat: "json",
+    openJobs: input.openJobs,
+    skipLocales,
+  });
+  if (jobId) {
+    input.result.jobsCreated += 1;
+    input.result.jobIds.push(jobId);
+  }
+}
+
 function selectedIds(ids: readonly string[] | undefined): Set<string> {
   return new Set(ids ?? []);
 }
@@ -736,6 +851,7 @@ export async function runImportHubspotContent(input: {
 
   const emailIds = selectedIds(hubspot.emailIds);
   const blogPostIds = selectedIds(hubspot.blogPostIds);
+  const formIds = selectedIds(hubspot.formIds);
   if (emailIds.size > 0) {
     const assignment = assignHubspotLocales(targetLocales, "email");
     for (const locale of assignment.unmapped) {
@@ -757,6 +873,18 @@ export async function runImportHubspotContent(input: {
       pushWarning(
         result,
         `blog: ${collision.locale} uses the same HubSpot code as ${collision.keptLocale} (${collision.code})`,
+      );
+    }
+  }
+  if (formIds.size > 0) {
+    const assignment = assignHubspotLocales(targetLocales, "form");
+    for (const locale of assignment.unmapped) {
+      pushWarning(result, `form: ${locale} has no HubSpot language code`);
+    }
+    for (const collision of assignment.collisions) {
+      pushWarning(
+        result,
+        `form: ${collision.locale} uses the same HubSpot code as ${collision.keptLocale} (${collision.code})`,
       );
     }
   }
@@ -808,7 +936,7 @@ export async function runImportHubspotContent(input: {
     }
   }
 
-  const posts = await client.listBlogPosts();
+  const posts = blogPostIds.size > 0 ? await client.listBlogPosts() : [];
   for (const summary of posts) {
     if (!blogPostIds.has(summary.id)) {
       continue;
@@ -852,6 +980,53 @@ export async function runImportHubspotContent(input: {
       logger.warn({ sourceId: summary.id, error: message }, "hubspot blog import failed");
       result.failed += 1;
       pushWarning(result, `Blog post "${summary.name || summary.id}": import failed (${message})`);
+    }
+  }
+
+  const forms = formIds.size > 0 ? await client.listForms() : [];
+  for (const summary of forms) {
+    if (!formIds.has(summary.id)) {
+      continue;
+    }
+    if (isHubspotLocaleCopyName(summary.name)) {
+      noteSkip(result, `Form "${summary.name}" is a locale copy`);
+      continue;
+    }
+    if (
+      !hubspotLanguageMatchesSource({
+        objectLanguage: summary.language,
+        projectSourceLocale: sourceLocale,
+        surface: "form",
+      })
+    ) {
+      noteSkip(
+        result,
+        `Form "${summary.name}" is ${summary.language}, which does not match the project source ${sourceLocale}`,
+      );
+      continue;
+    }
+    try {
+      await importFormBundle({
+        organizationId: input.organizationId,
+        automation: input.automation,
+        projectId,
+        sourceLocale,
+        targetLocales,
+        workflowRunId: input.workflowRunId,
+        openJobs,
+        result,
+        client,
+        policy,
+        discovery,
+        translationService,
+        formId: summary.id,
+        formName: summary.name || summary.id,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.warn({ sourceId: summary.id, error: message }, "hubspot form import failed");
+      result.failed += 1;
+      pushWarning(result, `Form "${summary.name || summary.id}": import failed (${message})`);
     }
   }
 

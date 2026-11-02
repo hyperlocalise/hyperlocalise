@@ -17,6 +17,7 @@ import {
   type HubspotApiRequestBody,
   type HubspotSdk,
 } from "./client";
+import { HUBSPOT_FORMS_PATH } from "./constants";
 import {
   buildBlogContentDocument,
   buildPageDocument,
@@ -70,7 +71,10 @@ describe("hubspot message templates", () => {
           });
         }
         if (opts.method === "POST") {
-          const name = opts.body && "name" in opts.body ? opts.body.name : "";
+          const name =
+            opts.body && typeof opts.body === "object" && typeof opts.body.name === "string"
+              ? opts.body.name
+              : "";
           return jsonResponse(200, { id: "99", name });
         }
         return jsonResponse(200, {});
@@ -525,6 +529,57 @@ describe("hubspot message templates", () => {
       language: "zh-tw",
     });
     expect(created).toEqual({ id: "420539377366" });
+  });
+
+  it("lists, reads, creates, and replaces forms on the current Forms API", async () => {
+    const calls: ApiCall[] = [];
+    const definition = {
+      id: "form-1",
+      name: "Newsletter",
+      updatedAt: "2026-11-02T00:00:00.000Z",
+      configuration: { language: "en" },
+      fieldGroups: [],
+    };
+    const client = createHubspotContentClientFromSdk(
+      sdkWith(async (opts) => {
+        calls.push(opts);
+        if (opts.method === "GET" && opts.path === HUBSPOT_FORMS_PATH) {
+          return jsonResponse(200, { results: [definition] });
+        }
+        if (opts.method === "GET") {
+          return jsonResponse(200, definition);
+        }
+        if (opts.method === "POST") {
+          return jsonResponse(200, { id: "form-99", name: "Newsletter [fr-FR]" });
+        }
+        return jsonResponse(200, {});
+      }),
+    );
+
+    const listed = await client.listForms();
+    expect(listed).toEqual([
+      {
+        id: "form-1",
+        name: "Newsletter",
+        language: "en",
+        updatedAt: "2026-11-02T00:00:00.000Z",
+        definition,
+      },
+    ]);
+    const record = await client.getForm("form-1");
+    expect(record.definition).toEqual(definition);
+    const created = await client.createForm({ name: "Newsletter [fr-FR]" });
+    expect(created).toEqual({ id: "form-99" });
+    await client.replaceForm("form-99", { id: "form-99", name: "Newsletter [fr-FR]" });
+
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      `GET ${HUBSPOT_FORMS_PATH}`,
+      `GET ${HUBSPOT_FORMS_PATH}/form-1`,
+      `POST ${HUBSPOT_FORMS_PATH}`,
+      `PUT ${HUBSPOT_FORMS_PATH}/form-99`,
+    ]);
+    expect(calls[0]?.qs).toEqual({ limit: "100", formTypes: "hubspot" });
+    expect(calls.some((call) => call.path.includes("/marketing/v3/forms"))).toBe(false);
   });
 
   it("fails the list when HubSpot rejects the request", async () => {

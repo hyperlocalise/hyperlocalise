@@ -13,6 +13,16 @@
 
 import { createHash } from "node:crypto";
 
+import type {
+  HubspotFormDefinition,
+  HubspotFormDependent,
+  HubspotFormField,
+  HubspotFormFieldGroup,
+  HubspotFormLegalConsent,
+  HubspotVisualFormElement,
+  HubspotVisualFormLayoutNode,
+} from "./form-definition";
+
 /** Nested translatable strings. Keys are locked ids; values are copy. */
 export type HubspotStringTree = { [key: string]: string | HubspotStringTree };
 
@@ -481,79 +491,333 @@ export function applyEmailDocument(
   return { subject, widgets: nextWidgets };
 }
 
-type FormField = {
-  name?: unknown;
-  label?: unknown;
-  placeholder?: unknown;
-  description?: unknown;
-  options?: unknown;
-};
+const FORM_FIELD_LABEL_KEYS = ["label", "placeholder", "description"] as const;
+const FORM_FIELD_BODY_KEYS = ["defaultValue", "richText", "html", "content", "text"] as const;
+const FORM_LEGAL_COPY_KEYS = [
+  "privacyText",
+  "communicationConsentText",
+  "consentToProcessText",
+  "legitimateInterestText",
+] as const;
 
-export function buildFormDocument(definition: Record<string, unknown>): HubspotStringTree {
-  const document: HubspotStringTree = {};
-  const display = definition.displayOptions;
-  if (display && typeof display === "object" && !Array.isArray(display)) {
-    const submit = (display as { submitButtonText?: unknown }).submitButtonText;
-    if (typeof submit === "string" && isCopyString(submit)) {
-      document.submitText = submit;
+function isFormSubmitField(field: HubspotFormField): boolean {
+  const name = field.name?.trim().toLowerCase() ?? "";
+  const fieldType = field.fieldType?.trim().toLowerCase() ?? "";
+  return name === "submit" || fieldType === "submit";
+}
+
+function formFieldKey(
+  field: HubspotFormField,
+  groupIndex: number,
+  fieldIndex: number,
+): string | null {
+  if (field.name?.trim()) {
+    return field.name.trim();
+  }
+  if (isFormSubmitField(field)) {
+    return null;
+  }
+  return `__g${groupIndex}_f${fieldIndex}`;
+}
+
+function formFieldCopy(field: HubspotFormField): HubspotStringTree {
+  const entry: HubspotStringTree = {};
+  for (const key of FORM_FIELD_LABEL_KEYS) {
+    const value = field[key];
+    if (typeof value === "string" && isCopyString(value)) {
+      entry[key] = value;
     }
+  }
+  for (const key of FORM_FIELD_BODY_KEYS) {
+    const value = field[key];
+    if (typeof value === "string" && isCopyString(value) && isProseValue(value)) {
+      entry[key] = value;
+    }
+  }
+  if (field.options) {
+    const options: HubspotStringTree = {};
+    for (const option of field.options) {
+      if (option.value.trim() && isCopyString(option.label)) {
+        options[option.value] = option.label;
+      }
+    }
+    if (Object.keys(options).length > 0) {
+      entry.options = options;
+    }
+  }
+  return entry;
+}
+
+function collectFormFields(
+  field: HubspotFormField,
+  fields: HubspotStringTree,
+  groupIndex: number,
+  fieldIndex: number,
+): void {
+  const key = formFieldKey(field, groupIndex, fieldIndex);
+  if (key) {
+    const entry = formFieldCopy(field);
+    if (Object.keys(entry).length > 0) {
+      fields[key] = entry;
+    }
+  }
+  field.dependentFields?.forEach((dependent: HubspotFormDependent, dependentIndex: number) => {
+    if (dependent.dependentField) {
+      collectFormFields(
+        dependent.dependentField,
+        fields,
+        groupIndex,
+        fieldIndex * 1000 + dependentIndex + 1,
+      );
+    }
+  });
+}
+
+function applyFormFieldCopy(
+  field: HubspotFormField,
+  fieldCopy: HubspotStringTree,
+  groupIndex: number,
+  fieldIndex: number,
+): void {
+  const key = formFieldKey(field, groupIndex, fieldIndex);
+  if (key) {
+    const entry = fieldCopy[key];
+    if (entry && typeof entry !== "string") {
+      for (const copyKey of [...FORM_FIELD_LABEL_KEYS, ...FORM_FIELD_BODY_KEYS]) {
+        if (typeof entry[copyKey] === "string" && typeof field[copyKey] === "string") {
+          field[copyKey] = entry[copyKey];
+        }
+      }
+      const optionCopy = entry.options;
+      if (optionCopy && typeof optionCopy !== "string" && field.options) {
+        for (const option of field.options) {
+          const label = optionCopy[option.value];
+          if (typeof label === "string") {
+            option.label = label;
+          }
+        }
+      }
+    }
+  }
+  field.dependentFields?.forEach((dependent: HubspotFormDependent, dependentIndex: number) => {
+    if (dependent.dependentField) {
+      applyFormFieldCopy(
+        dependent.dependentField,
+        fieldCopy,
+        groupIndex,
+        fieldIndex * 1000 + dependentIndex + 1,
+      );
+    }
+  });
+}
+
+const VISUAL_ELEMENT_COPY_KEYS = ["label", "placeholder", "description", "text", "html"] as const;
+
+function visualElementCopy(element: HubspotVisualFormElement): HubspotStringTree {
+  const entry: HubspotStringTree = {};
+  for (const key of VISUAL_ELEMENT_COPY_KEYS) {
+    const value = element[key];
+    if (typeof value === "string" && isCopyString(value)) {
+      entry[key] = value;
+    }
+  }
+  return entry;
+}
+
+function visualPropertyName(element: HubspotVisualFormElement): string | null {
+  const name = element.propertyReference?.name?.trim();
+  return name || null;
+}
+
+function collectLayoutNodeIds(
+  nodes: HubspotVisualFormLayoutNode[] | undefined,
+  into: Set<string>,
+): void {
+  if (!nodes) {
+    return;
+  }
+  for (const node of nodes) {
+    if (node.id !== undefined && String(node.id).trim()) {
+      into.add(String(node.id));
+    }
+    collectLayoutNodeIds(node.nodes, into);
+  }
+}
+
+function postSubmitElementIds(definition: HubspotFormDefinition): Set<string> {
+  const ids = new Set<string>();
+  for (const node of definition.layout?.nodes ?? []) {
+    if (node.type === "postSubmitStep") {
+      collectLayoutNodeIds([node], ids);
+    }
+  }
+  return ids;
+}
+
+function collectVisualFormDocument(definition: HubspotFormDefinition): HubspotStringTree {
+  const elementsDefinition = definition.elementsDefinition;
+  if (!elementsDefinition) {
+    return {};
+  }
+  const postSubmitIds = postSubmitElementIds(definition);
+  const document: HubspotStringTree = {};
+  const fields: HubspotStringTree = {};
+  const elements: HubspotStringTree = {};
+  for (const [id, element] of Object.entries(elementsDefinition)) {
+    const type = element.type.trim();
+    const copy = visualElementCopy(element);
+    if (type === "submitButton") {
+      if (typeof copy.text === "string" && typeof document.submitText !== "string") {
+        document.submitText = copy.text;
+      }
+      continue;
+    }
+    if (type === "richText" && postSubmitIds.has(id) && typeof copy.html === "string") {
+      if (typeof document.thankYou !== "string") {
+        document.thankYou = copy.html;
+      }
+      continue;
+    }
+    const propertyName = visualPropertyName(element);
+    if (propertyName) {
+      const fieldCopy: HubspotStringTree = {};
+      for (const key of FORM_FIELD_LABEL_KEYS) {
+        if (typeof copy[key] === "string") {
+          fieldCopy[key] = copy[key];
+        }
+      }
+      if (Object.keys(fieldCopy).length > 0) {
+        fields[propertyName] = fieldCopy;
+      }
+      continue;
+    }
+    if (Object.keys(copy).length > 0) {
+      elements[id] = copy;
+    }
+  }
+  if (Object.keys(fields).length > 0) {
+    document.fields = fields;
+  }
+  if (Object.keys(elements).length > 0) {
+    document.elements = elements;
+  }
+  return document;
+}
+
+function applyVisualFormDocument(
+  definition: HubspotFormDefinition,
+  translated: HubspotStringTree,
+): void {
+  const elementsDefinition = definition.elementsDefinition;
+  if (!elementsDefinition) {
+    return;
+  }
+  const postSubmitIds = postSubmitElementIds(definition);
+  const fieldCopy = translated.fields;
+  const elementCopy = translated.elements;
+  for (const [id, element] of Object.entries(elementsDefinition)) {
+    const type = element.type.trim();
+    if (type === "submitButton" && typeof translated.submitText === "string") {
+      element.text = translated.submitText;
+      continue;
+    }
+    if (type === "richText" && postSubmitIds.has(id) && typeof translated.thankYou === "string") {
+      element.html = translated.thankYou;
+      continue;
+    }
+    const propertyName = visualPropertyName(element);
+    const fromField =
+      propertyName && fieldCopy && typeof fieldCopy !== "string"
+        ? fieldCopy[propertyName]
+        : undefined;
+    const fromElement =
+      elementCopy && typeof elementCopy !== "string" ? elementCopy[id] : undefined;
+    const entry = fromField && typeof fromField !== "string" ? fromField : fromElement;
+    if (!entry || typeof entry === "string") {
+      continue;
+    }
+    for (const key of VISUAL_ELEMENT_COPY_KEYS) {
+      if (typeof entry[key] === "string" && typeof element[key] === "string") {
+        element[key] = entry[key];
+      }
+    }
+  }
+}
+
+function groupCopyTree(group: HubspotFormFieldGroup): HubspotStringTree {
+  if (typeof group.richText === "string" && isCopyString(group.richText)) {
+    return { richText: group.richText };
+  }
+  return {};
+}
+
+function legalCopyTree(legal: HubspotFormLegalConsent | undefined): HubspotStringTree {
+  if (!legal) {
+    return {};
+  }
+  const tree: HubspotStringTree = {};
+  for (const key of FORM_LEGAL_COPY_KEYS) {
+    const value = legal[key];
+    if (typeof value === "string" && isCopyString(value)) {
+      tree[key] = value;
+    }
+  }
+  return tree;
+}
+
+function applyLegalCopy(legal: HubspotFormLegalConsent, translated: HubspotStringTree): void {
+  for (const key of FORM_LEGAL_COPY_KEYS) {
+    const value = translated[key];
+    if (typeof value === "string") {
+      legal[key] = value;
+    }
+  }
+}
+
+export function buildFormDocument(definition: HubspotFormDefinition): HubspotStringTree {
+  const document: HubspotStringTree = {};
+  const visual = collectVisualFormDocument(definition);
+  if (typeof visual.submitText === "string") {
+    document.submitText = visual.submitText;
+  }
+  const submit = definition.displayOptions?.submitButtonText;
+  if (typeof submit === "string" && isCopyString(submit)) {
+    document.submitText = submit;
+  }
+
+  const action = definition.configuration?.postSubmitAction;
+  if (
+    action &&
+    typeof action.value === "string" &&
+    isCopyString(action.value) &&
+    action.type !== "redirect_url" &&
+    !URL_VALUE.test(action.value.trim())
+  ) {
+    document.thankYou = action.value;
+  } else if (typeof visual.thankYou === "string") {
+    document.thankYou = visual.thankYou;
   }
 
   const fields: HubspotStringTree = {};
   const groups: HubspotStringTree = {};
-  const fieldGroups = Array.isArray(definition.fieldGroups) ? definition.fieldGroups : [];
-  fieldGroups.forEach((group, index) => {
-    if (!group || typeof group !== "object" || Array.isArray(group)) {
-      return;
+  definition.fieldGroups?.forEach((group: HubspotFormFieldGroup, index: number) => {
+    const groupCopy = groupCopyTree(group);
+    if (Object.keys(groupCopy).length > 0) {
+      groups[String(index)] = groupCopy;
     }
-    const richText = (group as { richText?: unknown }).richText;
-    if (typeof richText === "string" && isCopyString(richText)) {
-      groups[String(index)] = { richText };
-    }
-    const groupFields = (group as { fields?: unknown }).fields;
-    if (!Array.isArray(groupFields)) {
-      return;
-    }
-    for (const field of groupFields) {
-      if (!field || typeof field !== "object" || Array.isArray(field)) {
-        continue;
-      }
-      const named = field as FormField;
-      if (typeof named.name !== "string" || !named.name.trim()) {
-        continue;
-      }
-      const entry: HubspotStringTree = {};
-      for (const key of ["label", "placeholder", "description"] as const) {
-        const value = named[key];
-        if (typeof value === "string" && isCopyString(value)) {
-          entry[key] = value;
+    group.fields?.forEach((field: HubspotFormField, fieldIndex: number) => {
+      if (isFormSubmitField(field)) {
+        const submitLabel = field.label;
+        if (
+          typeof submitLabel === "string" &&
+          isCopyString(submitLabel) &&
+          typeof document.submitText !== "string"
+        ) {
+          document.submitText = submitLabel;
         }
       }
-      if (Array.isArray(named.options)) {
-        const options: HubspotStringTree = {};
-        for (const option of named.options) {
-          if (!option || typeof option !== "object" || Array.isArray(option)) {
-            continue;
-          }
-          const optionValue = (option as { value?: unknown }).value;
-          const optionLabel = (option as { label?: unknown }).label;
-          if (
-            typeof optionValue === "string" &&
-            optionValue.trim() &&
-            typeof optionLabel === "string" &&
-            isCopyString(optionLabel)
-          ) {
-            options[optionValue] = optionLabel;
-          }
-        }
-        if (Object.keys(options).length > 0) {
-          entry.options = options;
-        }
-      }
-      if (Object.keys(entry).length > 0) {
-        fields[named.name] = entry;
-      }
-    }
+      collectFormFields(field, fields, index, fieldIndex);
+    });
   });
   if (Object.keys(fields).length > 0) {
     document.fields = fields;
@@ -561,89 +825,66 @@ export function buildFormDocument(definition: Record<string, unknown>): HubspotS
   if (Object.keys(groups).length > 0) {
     document.groups = groups;
   }
-  const legalConsentOptions = definition.legalConsentOptions;
-  const legal = collectCopyTree(
-    legalConsentOptions !== null && typeof legalConsentOptions === "object"
-      ? (legalConsentOptions as HubspotJson)
-      : {},
-  );
+  const legal = legalCopyTree(definition.legalConsentOptions);
   if (Object.keys(legal).length > 0) {
     document.legal = legal;
+  }
+  if (visual.fields && typeof visual.fields !== "string") {
+    document.fields = {
+      ...(typeof document.fields === "object" && document.fields ? document.fields : {}),
+      ...visual.fields,
+    };
+  }
+  if (visual.elements && typeof visual.elements !== "string") {
+    document.elements = visual.elements;
   }
   return document;
 }
 
 export function applyFormDocument(
-  definition: Record<string, unknown>,
+  definition: HubspotFormDefinition,
   translated: HubspotStringTree,
-): Record<string, unknown> {
+): HubspotFormDefinition {
   const next = structuredClone(definition);
+  applyVisualFormDocument(next, translated);
   if (typeof translated.submitText === "string") {
-    const display = next.displayOptions;
-    if (display && typeof display === "object" && !Array.isArray(display)) {
-      (display as { submitButtonText?: string }).submitButtonText = translated.submitText;
-    }
+    next.displayOptions = {
+      ...next.displayOptions,
+      submitButtonText: translated.submitText,
+    };
+  }
+  if (
+    typeof translated.thankYou === "string" &&
+    next.configuration?.postSubmitAction?.type !== "redirect_url"
+  ) {
+    next.configuration = {
+      ...next.configuration,
+      postSubmitAction: {
+        type: "thank_you",
+        value: translated.thankYou,
+      },
+    };
   }
   const fieldCopy = translated.fields;
   const groupCopy = translated.groups;
-  const fieldGroups = Array.isArray(next.fieldGroups) ? next.fieldGroups : [];
-  fieldGroups.forEach((group, index) => {
-    if (!group || typeof group !== "object" || Array.isArray(group)) {
-      return;
-    }
+  next.fieldGroups?.forEach((group: HubspotFormFieldGroup, index: number) => {
     const groupEntry =
       groupCopy && typeof groupCopy !== "string" ? groupCopy[String(index)] : undefined;
     if (groupEntry && typeof groupEntry !== "string" && typeof groupEntry.richText === "string") {
-      (group as { richText?: string }).richText = groupEntry.richText;
+      group.richText = groupEntry.richText;
     }
-    const groupFields = (group as { fields?: unknown }).fields;
-    if (!fieldCopy || typeof fieldCopy === "string" || !Array.isArray(groupFields)) {
+    if (!fieldCopy || typeof fieldCopy === "string" || !group.fields) {
       return;
     }
-    for (const field of groupFields) {
-      if (!field || typeof field !== "object" || Array.isArray(field)) {
-        continue;
+    group.fields.forEach((field: HubspotFormField, fieldIndex: number) => {
+      if (isFormSubmitField(field) && typeof translated.submitText === "string" && field.label) {
+        field.label = translated.submitText;
       }
-      const name = (field as { name?: unknown }).name;
-      if (typeof name !== "string") {
-        continue;
-      }
-      const entry = fieldCopy[name];
-      if (!entry || typeof entry === "string") {
-        continue;
-      }
-      for (const key of ["label", "placeholder", "description"] as const) {
-        if (
-          typeof entry[key] === "string" &&
-          typeof (field as Record<string, unknown>)[key] === "string"
-        ) {
-          (field as Record<string, unknown>)[key] = entry[key];
-        }
-      }
-      const options = (field as { options?: unknown }).options;
-      const optionCopy = entry.options;
-      if (!optionCopy || typeof optionCopy === "string" || !Array.isArray(options)) {
-        continue;
-      }
-      for (const option of options) {
-        if (!option || typeof option !== "object" || Array.isArray(option)) {
-          continue;
-        }
-        const optionValue = (option as { value?: unknown }).value;
-        if (typeof optionValue !== "string") {
-          continue;
-        }
-        const label = optionCopy[optionValue];
-        if (typeof label === "string") {
-          (option as { label?: string }).label = label;
-        }
-      }
-    }
+      applyFormFieldCopy(field, fieldCopy, index, fieldIndex);
+    });
   });
-  const legal = translated.legal;
-  const consent = next.legalConsentOptions;
-  if (legal && typeof legal !== "string" && consent !== null && typeof consent === "object") {
-    applyStringTree(consent as HubspotJson, legal);
+  if (translated.legal && typeof translated.legal !== "string" && next.legalConsentOptions) {
+    applyLegalCopy(next.legalConsentOptions, translated.legal);
   }
   return next;
 }

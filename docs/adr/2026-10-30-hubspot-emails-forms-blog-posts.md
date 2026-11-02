@@ -3,10 +3,10 @@
 ## Status
 
 Accepted. Import, push, and **Translate HubSpot content** are
-implemented. The stacked automation currently supports emails and
-blog posts. Forms, landing pages, and website pages stay in the
-client for later work. Connect is WorkOS Pipes OAuth on the existing
-`hubspot` slug, from a custom Integrations pane.
+implemented. The stacked automation supports emails, blog posts, and
+forms. Landing pages and website pages stay in the client for later
+work. Connect is WorkOS Pipes OAuth on the existing `hubspot` slug,
+from a custom Integrations pane.
 
 Tracking lives in Linear project
 [HubSpot Integration](https://linear.app/hyperlocalise/project/hubspot-integration-4fd159902d9b)
@@ -104,13 +104,23 @@ which HubSpot will not grant on this account-level app.
 | Blog posts | `client.cms.blogs.blogPosts.basicApi` | List with the SDK. Read the raw published post and its draft so layout section text is not dropped. When the layout has no copy, read `templatePath` through the source-code API, including `include_dnd_partial` sections. | Find an existing language variation (`translatedFromId` + language). If none exists, read `/cms/v3/blog-settings/settings` and `POST` an unpublished draft onto the matching language blog with `translatedFromId`. Then `PATCH` the draft `name`, `htmlTitle`, `metaDescription`, `postBody`, `postSummary`, `rssSummary`, `featuredImageAltText`, `widgets`, `layoutSections`, and `widgetContainers`. Template defaults are written onto the locale draft, not the template. Do not call `createLangVariation` or create a blog language. The operator adds the language in HubSpot first (**Settings → Blog → Add/edit multi-language variations**). Never call push-live. |
 | Landing pages | `client.cms.pages.landingPagesApi` | `getPage` and raw published plus draft JSON. Skip rows with `translatedFromId`. When the page and draft have no module text, read `templatePath` through the source-code API, including `include_dnd_partial` sections, and use that default copy. | `createLangVariation({ id, language })`, then `updateDraft` with `name`, `language`, `htmlTitle`, `metaDescription`, `featuredImageAltText`, `widgets`, and `layoutSections`. Template defaults are written onto the locale draft, not the template. Never publish. |
 | Website pages | `client.cms.pages.sitePagesApi` | Same as landing pages. | Same write-back as landing pages. Never publish. |
-| Forms | `client.marketing.forms.formsApi` | Get the definition | `create` a new form. There is no clone endpoint and no language group. The create body must include `createdAt` and must omit `id`. A later replace puts the locale copy's id in the body so it matches the id in the path. |
+| Forms | `sdk.apiRequest` on `/marketing/forms/2026-09-beta` | List and get the definition | `POST` a new **V3** form. There is no clone endpoint and no language group. The create body must include `createdAt`, omit `id`, and set `configuration.embedType` to `V3`. Visual-only fields (`layout`, `elementsDefinition`, `settings`) are dropped. Any visual submit, thank-you, or step HTML we already have is copied onto `displayOptions.submitButtonText`, `postSubmitAction.value`, and the first group's `richText`. A later `PUT` puts the locale copy's id in the body so it matches the id in the path. Do not call `sdk.marketing.forms.formsApi` or `/marketing/v3/forms`. HubSpot catalogs that path as legacy. Do not `PUT` the V4 source; HubSpot rejects unallowlisted V4 writes. |
 
-Forms `2026-09-beta` is still beta. Stay on the SDK's forms client.
-Do not hand-write that URL.
+Forms `2026-09-beta` is the current Forms API. Call it through
+`sdk.apiRequest`. Do not use the legacy v3 SDK client.
 
 Creating a form makes it exist in the portal. It does not replace the
 source form on a live page. Do not patch the source form's labels.
+
+New-editor forms are `configuration.embedType: V4`. The public GET
+returns CRM `fieldGroups` only. Step rich text, submit, and on-submit
+copy live in HubSpot's undocumented editor buffer. There is no public
+V4 write API; unallowlisted `PUT`/`PATCH` against a V4 form returns
+`403` `The client is not allowlisted to perform an operation to v4
+forms`. Locale copies are therefore honest V3 forms: set
+`embedType` to `V3`, drop visual-only fields, and warn on import and
+push. Do not call `/hubspot-forms/v2/buffer`. List only
+`formTypes=hubspot`. Skip `blog_comment`, `captured`, and `flow`.
 
 ## Locale map
 

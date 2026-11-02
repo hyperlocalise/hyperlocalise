@@ -36,6 +36,7 @@ const GROUPS: Array<{
 }> = [
   { kind: "email", label: "Emails", itemsKey: "emails" },
   { kind: "blog", label: "Blog posts", itemsKey: "blogPosts" },
+  { kind: "form", label: "Forms", itemsKey: "forms" },
 ];
 
 export const HUBSPOT_TREE_FIELDS: Record<

@@ -19,7 +19,8 @@ import { EmailUpdateRequest } from "@hubspot/api-client/lib/codegen/marketing/em
 import { PublicEmailContent } from "@hubspot/api-client/lib/codegen/marketing/emails/models/PublicEmailContent";
 
 import { collectBlogPostStylesCss } from "./blog-stylesheets";
-import { HUBSPOT_LIST_PAGE_SIZE } from "./constants";
+import { HUBSPOT_FORMS_PATH, HUBSPOT_LIST_PAGE_SIZE } from "./constants";
+import { asFormDefinition, formLanguage, type HubspotFormDefinition } from "./form-definition";
 import {
   findBlogLanguageVariation,
   findBlogSettingsLanguageId,
@@ -84,7 +85,8 @@ export type HubspotFormSummary = {
 };
 
 export type HubspotFormRecord = HubspotFormSummary & {
-  definition: Record<string, unknown>;
+  definition: HubspotFormDefinition;
+  updatedAt: string | null;
 };
 
 export type HubspotPageSummary = {
@@ -151,6 +153,8 @@ export type HubspotBlogPostCreateBody = {
 
 export type HubspotApiRequestBody =
   | Record<string, string>
+  | Record<string, unknown>
+  | HubspotFormDefinition
   | HubspotPageDraftBody
   | HubspotBlogDraftBody
   | HubspotBlogPostCreateBody;
@@ -194,8 +198,8 @@ export type HubspotContentClient = {
   }): Promise<void>;
   listForms(): Promise<HubspotFormSummary[]>;
   getForm(id: string): Promise<HubspotFormRecord>;
-  createForm(definition: Record<string, unknown>): Promise<{ id: string }>;
-  replaceForm(id: string, definition: Record<string, unknown>): Promise<void>;
+  createForm(definition: HubspotFormDefinition): Promise<{ id: string }>;
+  replaceForm(id: string, definition: HubspotFormDefinition): Promise<void>;
   listLandingPages(): Promise<HubspotPageSummary[]>;
   getLandingPage(id: string): Promise<HubspotPageRecord>;
   createLandingPageLanguageVariation(input: {
@@ -270,12 +274,6 @@ type BlogLike = {
   updatedAt?: Date | string;
 };
 
-type FormLike = {
-  id?: string;
-  name?: string;
-  configuration?: { language?: string };
-};
-
 type PageLike = {
   id?: string;
   name?: string;
@@ -321,17 +319,6 @@ export type HubspotSdk = {
         getById: (emailId: string) => Promise<EmailLike>;
         clone: (request: ContentCloneRequestVNext) => Promise<{ id?: string }>;
         upsertDraft: (emailId: string, request: EmailUpdateRequest) => Promise<unknown>;
-      };
-    };
-    forms: {
-      formsApi: {
-        getPage: (
-          after?: string,
-          limit?: number,
-        ) => Promise<Page<FormLike & Record<string, unknown>>>;
-        getById: (formId: string) => Promise<FormLike & Record<string, unknown>>;
-        create: (definition: Record<string, unknown>) => Promise<{ id?: string }>;
-        replace: (formId: string, definition: Record<string, unknown>) => Promise<unknown>;
       };
     };
   };
@@ -1080,17 +1067,46 @@ function messageTemplateWriteBody(input: HubspotMessageTemplateDraft): Record<st
   return body;
 }
 
-function formSummary(form: FormLike): HubspotFormSummary {
+function formRecord(definition: HubspotFormDefinition, fallbackId: string): HubspotFormRecord {
+  const id = typeof definition.id === "string" && definition.id.trim() ? definition.id : fallbackId;
   return {
-    id: form.id ?? "",
-    name: form.name ?? "",
-    language: form.configuration?.language ?? null,
+    id,
+    name: typeof definition.name === "string" ? definition.name : "",
+    language: formLanguage(definition),
+    updatedAt: readTimestamp(
+      definition.updatedAt instanceof Date || typeof definition.updatedAt === "string"
+        ? definition.updatedAt
+        : undefined,
+    ),
+    definition,
   };
+}
+
+async function requestFormJson(
+  sdk: HubspotSdk,
+  opts: {
+    method: string;
+    path: string;
+    body?: HubspotFormDefinition;
+    qs?: Record<string, string>;
+  },
+): Promise<HubspotJson> {
+  if (!sdk.apiRequest) {
+    throw new Error("hubspot_form_request_failed");
+  }
+  const response = await sdk.apiRequest(opts);
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`hubspot_form_request_failed:${response.status}`);
+  }
+  if (!text) {
+    return {};
+  }
+  return JSON.parse(text) as HubspotJson;
 }
 
 export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotContentClient {
   const emails = sdk.marketing.emails.marketingEmailsApi;
-  const forms = sdk.marketing.forms.formsApi;
   const blogs = sdk.cms.blogs.blogPosts;
   const landingPages = bindCmsPages(
     sdk.cms.pages.landingPagesApi,
@@ -1302,26 +1318,52 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
       }
     },
     async listForms() {
-      const results = await listPages((after) => forms.getPage(after, HUBSPOT_LIST_PAGE_SIZE));
-      return results.filter((form) => form.id).map(formSummary);
+      const results = await listPages((after) =>
+        requestFormJson(sdk, {
+          method: "GET",
+          path: HUBSPOT_FORMS_PATH,
+          qs: after
+            ? {
+                limit: String(HUBSPOT_LIST_PAGE_SIZE),
+                after,
+                formTypes: "hubspot",
+              }
+            : { limit: String(HUBSPOT_LIST_PAGE_SIZE), formTypes: "hubspot" },
+        }).then((payload) => payload as Page<HubspotFormDefinition>),
+      );
+      return results
+        .filter((form) => typeof form.id === "string" && form.id.trim())
+        .map((form) => formRecord(form, ""));
     },
     async getForm(id) {
-      const form = await forms.getById(id);
-      return {
-        ...formSummary(form),
-        id: form.id ?? id,
-        definition: { ...form },
-      };
+      const definition = await requestFormJson(sdk, {
+        method: "GET",
+        path: `${HUBSPOT_FORMS_PATH}/${encodeURIComponent(id)}`,
+      });
+      if (!isHubspotJsonObject(definition)) {
+        throw new Error("hubspot_form_request_failed");
+      }
+      return formRecord(asFormDefinition(definition), id);
     },
     async createForm(definition) {
-      const created = await forms.create(definition);
-      if (!created.id) {
+      const created = await requestFormJson(sdk, {
+        method: "POST",
+        path: HUBSPOT_FORMS_PATH,
+        body: definition,
+      });
+      const id =
+        isHubspotJsonObject(created) && typeof created.id === "string" ? created.id.trim() : "";
+      if (!id) {
         throw new Error("hubspot_form_create_failed");
       }
-      return { id: created.id };
+      return { id };
     },
     async replaceForm(id, definition) {
-      await forms.replace(id, definition);
+      await requestFormJson(sdk, {
+        method: "PUT",
+        path: `${HUBSPOT_FORMS_PATH}/${encodeURIComponent(id)}`,
+        body: definition,
+      });
     },
     listLandingPages: () => landingPages.list(),
     getLandingPage: (id) => landingPages.get(id),

@@ -85,6 +85,123 @@ describe("hubspot documents", () => {
     });
   });
 
+  it("extracts every form group, dependent field, thank-you, and legal copy", () => {
+    const definition = {
+      displayOptions: { submitButtonText: "Send" },
+      configuration: {
+        language: "en",
+        postSubmitAction: { type: "thank_you", value: "Thanks for joining" },
+      },
+      legalConsentOptions: {
+        type: "explicit_consent_to_process",
+        privacyText: "We keep this private",
+        communicationConsentText: "Email me updates",
+      },
+      fieldGroups: [
+        {
+          groupType: "default_group",
+          richTextType: "text",
+          richText: "Step one intro",
+          fields: [
+            {
+              name: "email",
+              label: "Email",
+              placeholder: "you@example.com",
+              dependentFields: [
+                {
+                  dependentField: {
+                    name: "company",
+                    label: "Company",
+                    placeholder: "Acme",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          groupType: "queued",
+          richTextType: "text",
+          richText: "Step two intro",
+          fields: [
+            {
+              name: "role",
+              label: "Role",
+              options: [{ value: "eng", label: "Engineer" }],
+            },
+          ],
+        },
+      ],
+    };
+    const document = buildFormDocument(definition);
+    expect(document).toEqual({
+      submitText: "Send",
+      thankYou: "Thanks for joining",
+      fields: {
+        email: {
+          label: "Email",
+          placeholder: "you@example.com",
+        },
+        company: {
+          label: "Company",
+          placeholder: "Acme",
+        },
+        role: {
+          label: "Role",
+          options: { eng: "Engineer" },
+        },
+      },
+      groups: {
+        "0": { richText: "Step one intro" },
+        "1": { richText: "Step two intro" },
+      },
+      legal: {
+        privacyText: "We keep this private",
+        communicationConsentText: "Email me updates",
+      },
+    });
+    const translated = mergeHubspotTranslations(document, {
+      submitText: "Envoyer",
+      thankYou: "Merci de nous rejoindre",
+      "fields.email.label": "Courriel",
+      "fields.company.label": "Entreprise",
+      "fields.role.options.eng": "Ingenieur",
+      "groups.0.richText": "Intro etape un",
+      "legal.privacyText": "Nous gardons ceci prive",
+    });
+    const applied = applyFormDocument(definition, translated);
+    expect((applied.displayOptions as { submitButtonText: string }).submitButtonText).toBe(
+      "Envoyer",
+    );
+    expect(
+      (applied.configuration as { postSubmitAction: { value: string } }).postSubmitAction.value,
+    ).toBe("Merci de nous rejoindre");
+    const groups = applied.fieldGroups as Array<{
+      richText: string;
+      fields: Array<Record<string, unknown>>;
+    }>;
+    const firstField = groups[0]?.fields[0];
+    const secondField = groups[1]?.fields[0];
+    const dependents = Array.isArray(firstField?.dependentFields)
+      ? (firstField.dependentFields as Array<{
+          dependentField: { name: string; label: string };
+        }>)
+      : [];
+    const roleOptions = Array.isArray(secondField?.options)
+      ? (secondField.options as Array<{ value: string; label: string }>)
+      : [];
+    expect(groups[0]?.richText).toBe("Intro etape un");
+    expect(firstField?.name).toBe("email");
+    expect(firstField?.label).toBe("Courriel");
+    expect(dependents[0]?.dependentField.name).toBe("company");
+    expect(dependents[0]?.dependentField.label).toBe("Entreprise");
+    expect(secondField?.name).toBe("role");
+    expect(roleOptions[0]?.label).toBe("Ingenieur");
+    expect((applied.legalConsentOptions as { privacyText: string }).privacyText).toBe(
+      "Nous gardons ceci prive",
+    );
+  });
+
   it("keeps form field names locked and updates labels", () => {
     const definition = {
       displayOptions: { submitButtonText: "Send" },
@@ -122,6 +239,136 @@ describe("hubspot documents", () => {
     expect((applied.displayOptions as { submitButtonText: string }).submitButtonText).toBe(
       "Envoyer",
     );
+  });
+
+  it("extracts visual form step copy, field labels, submit, and thank-you", () => {
+    const definition = {
+      name: "New newsletter form",
+      settings: { hubspotFormLocale: "en" },
+      layout: {
+        nodes: [
+          {
+            type: "step",
+            id: 38,
+            nodes: [
+              { type: "row", id: 33, nodes: [{ id: 31 }] },
+              { type: "row", id: 34, nodes: [{ id: 6 }] },
+              { type: "navigationRow", id: 37, nodes: [{ id: 15 }] },
+            ],
+          },
+          {
+            type: "postSubmitStep",
+            id: 40,
+            nodes: [{ type: "row", id: 39, nodes: [{ id: 32 }] }],
+          },
+        ],
+      },
+      elementsDefinition: {
+        "3": {
+          type: "email",
+          id: 3,
+          propertyReference: { objectTypeId: "0-1", name: "email" },
+          label: "Email",
+          description: "",
+        },
+        "5": {
+          type: "text",
+          id: 5,
+          propertyReference: { objectTypeId: "0-1", name: "lastname" },
+          label: "Last Name",
+          description: "",
+        },
+        "6": {
+          type: "text",
+          id: 6,
+          propertyReference: { objectTypeId: "0-1", name: "firstname" },
+          label: "First Name",
+          description: "",
+        },
+        "15": {
+          type: "submitButton",
+          id: 15,
+          text: "Submit",
+        },
+        "31": {
+          type: "richText",
+          id: 31,
+          html: "<p>Sign Up for Our Newsletter</p><p>Stay updated with the latest news.</p>",
+        },
+        "32": {
+          type: "richText",
+          id: 32,
+          html: "<p>Thanks for Subscribing!</p><p>You've successfully joined our newsletter.</p>",
+        },
+      },
+    };
+    const document = buildFormDocument(definition);
+    expect(document).toEqual({
+      submitText: "Submit",
+      thankYou: "<p>Thanks for Subscribing!</p><p>You've successfully joined our newsletter.</p>",
+      fields: {
+        email: { label: "Email" },
+        lastname: { label: "Last Name" },
+        firstname: { label: "First Name" },
+      },
+      elements: {
+        "31": {
+          html: "<p>Sign Up for Our Newsletter</p><p>Stay updated with the latest news.</p>",
+        },
+      },
+    });
+    const translated = mergeHubspotTranslations(document, {
+      submitText: "Envoyer",
+      thankYou: "<p>Merci de vous etre abonne !</p>",
+      "fields.email.label": "Courriel",
+      "fields.firstname.label": "Prenom",
+      "fields.lastname.label": "Nom",
+      "elements.31.html": "<p>Inscrivez-vous a notre newsletter</p>",
+    });
+    const applied = applyFormDocument(definition, translated);
+    expect(applied.elementsDefinition?.["15"]?.text).toBe("Envoyer");
+    expect(applied.elementsDefinition?.["3"]?.label).toBe("Courriel");
+    expect(applied.elementsDefinition?.["6"]?.label).toBe("Prenom");
+    expect(applied.elementsDefinition?.["5"]?.label).toBe("Nom");
+    expect(applied.elementsDefinition?.["31"]?.html).toBe(
+      "<p>Inscrivez-vous a notre newsletter</p>",
+    );
+    expect(applied.elementsDefinition?.["32"]?.html).toBe("<p>Merci de vous etre abonne !</p>");
+    expect(applied.displayOptions?.submitButtonText).toBe("Envoyer");
+    expect(applied.configuration?.postSubmitAction).toEqual({
+      type: "thank_you",
+      value: "<p>Merci de vous etre abonne !</p>",
+    });
+  });
+
+  it("writes submit and thank-you onto public fields when HubSpot omitted them", () => {
+    const definition = {
+      fieldGroups: [{ fields: [{ name: "email", label: "Email" }] }],
+    };
+    const applied = applyFormDocument(definition, {
+      submitText: "Envoyer",
+      thankYou: "Merci",
+      fields: { email: { label: "Courriel" } },
+    });
+    expect(applied.displayOptions?.submitButtonText).toBe("Envoyer");
+    expect(applied.configuration?.postSubmitAction).toEqual({
+      type: "thank_you",
+      value: "Merci",
+    });
+    expect(applied.fieldGroups?.[0]?.fields?.[0]?.label).toBe("Courriel");
+  });
+
+  it("does not replace a thank-you redirect with translated copy", () => {
+    const definition = {
+      configuration: {
+        postSubmitAction: { type: "redirect_url", value: "https://example.com/thanks" },
+      },
+    };
+    const applied = applyFormDocument(definition, { thankYou: "Merci" });
+    expect(applied.configuration?.postSubmitAction).toEqual({
+      type: "redirect_url",
+      value: "https://example.com/thanks",
+    });
   });
 
   it("keeps page widget ids locked and writes layout copy back", () => {

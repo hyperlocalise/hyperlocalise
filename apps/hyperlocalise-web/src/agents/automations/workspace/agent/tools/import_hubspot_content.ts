@@ -25,7 +25,7 @@ import {
 export function createImportHubspotContentTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({
     description:
-      "Import HubSpot emails and blog posts into the attached project, wait for ingest, and open native translation jobs when configured.",
+      "Import HubSpot emails, blog posts, and forms into the attached project, wait for ingest, and open native translation jobs when configured.",
     inputSchema: z.object({
       summary: z.string().optional().describe("Optional operator note for the run record."),
     }),
