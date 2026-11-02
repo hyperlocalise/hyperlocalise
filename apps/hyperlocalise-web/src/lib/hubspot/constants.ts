@@ -28,6 +28,7 @@ export type HubspotResourceKind = (typeof HUBSPOT_RESOURCE_KINDS)[number];
 
 /** Surfaces the Translate HubSpot content automation imports and pushes. */
 export const HUBSPOT_SUPPORTED_RESOURCE_KINDS = [
+  "email",
   "blog",
 ] as const satisfies readonly HubspotResourceKind[];
 

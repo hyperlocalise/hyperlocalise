@@ -3,8 +3,8 @@
 ## Status
 
 Accepted. Import, push, and **Translate HubSpot content** are
-implemented. The shipped automation currently supports blog posts
-only. Emails, forms, landing pages, and website pages stay in the
+implemented. The stacked automation currently supports emails and
+blog posts. Forms, landing pages, and website pages stay in the
 client for later work. Connect is WorkOS Pipes OAuth on the existing
 `hubspot` slug, from a custom Integrations pane.
 

@@ -17,6 +17,10 @@ import { listHubspotLibrary } from "./list-library";
 describe("listHubspotLibrary", () => {
   it("keeps source content and drops locale copies and language variations", async () => {
     const library = await listHubspotLibrary({
+      listEmails: async () => [
+        { id: "email-1", name: "Welcome", language: "en" },
+        { id: "email-2", name: "Welcome [fr-FR]", language: "fr" },
+      ],
       listBlogPosts: async () => [
         { id: "post-1", name: "Launch", language: "en", translatedFromId: null },
         { id: "post-2", name: "Launch", language: "zh-cn", translatedFromId: "post-1" },
@@ -24,7 +28,7 @@ describe("listHubspotLibrary", () => {
       ],
     });
 
-    expect(library.emails).toEqual([]);
+    expect(library.emails).toEqual([{ id: "email-1", name: "Welcome" }]);
     expect(library.forms).toEqual([]);
     expect(library.blogPosts).toEqual([{ id: "post-1", name: "Launch" }]);
     expect(library.landingPages).toEqual([]);

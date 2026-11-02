@@ -34,8 +34,20 @@ import {
   type HubspotExistingTranslationPolicy,
 } from "./existing-translation-policy";
 import { loadHubspotAutomationClient } from "./credentials";
-import { hashHubspotContent, isHubspotJsonObject, type HubspotJson } from "./document";
-import { assignHubspotLocales, hubspotLanguageMatchesSource } from "./locale";
+import {
+  buildEmailDocument,
+  buildEmailHtmlDocument,
+  hashHubspotContent,
+  hubspotDocumentHasCopy,
+  isHubspotJsonObject,
+  type HubspotJson,
+} from "./document";
+import {
+  assignHubspotLocales,
+  hubspotLanguageMatchesSource,
+  isHubspotLocaleCopyName,
+} from "./locale";
+import { buildHubspotSourcePath } from "./source-path";
 import {
   seedHubspotItemLocales,
   type HubspotSeedDiscoveryCache,
@@ -422,6 +434,115 @@ function noteSkip(result: ImportHubspotContentResult, message: string) {
   pushWarning(result, message);
 }
 
+async function importEmailBundle(input: {
+  organizationId: string;
+  automation: WorkspaceAutomationRecord;
+  projectId: string;
+  sourceLocale: string;
+  targetLocales: string[];
+  workflowRunId?: string | null;
+  openJobs: CoveredJob[];
+  result: ImportHubspotContentResult;
+  client: HubspotContentClient;
+  policy: HubspotExistingTranslationPolicy;
+  discovery: HubspotSeedDiscoveryCache;
+  translationService: ProjectTranslationService;
+  emailId: string;
+  emailName: string;
+}): Promise<void> {
+  const email = await input.client.getEmail(input.emailId);
+  const document = buildEmailDocument({ subject: email.subject, widgets: email.widgets });
+  if (!hubspotDocumentHasCopy(document)) {
+    noteSkip(input.result, `Email "${input.emailName}" has no translatable text`);
+    return;
+  }
+  const content = buildEmailHtmlDocument(document, { styleSettings: email.styleSettings });
+  const contentHash = hashHubspotContent(content);
+  const sourcePath = buildHubspotSourcePath({
+    kind: "email",
+    id: input.emailId,
+    name: input.emailName,
+  });
+  const previous = await loadPreviousSyncState({
+    organizationId: input.organizationId,
+    automationId: input.automation.id,
+    resourceKind: "email",
+    sourceId: input.emailId,
+  });
+  const upserted = await upsertSourceFile({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath,
+    content,
+    contentType: "text/html",
+    hash: contentHash,
+    sourceLocale: input.sourceLocale,
+    workflowRunId: input.workflowRunId,
+  });
+  if (!upserted.ok) {
+    input.result.failed += 1;
+    pushWarning(input.result, `Email "${input.emailName}": ${upserted.reason}`);
+    return;
+  }
+  let importedHashes: Record<string, string> = previous?.importedTranslationHashes
+    ? { ...(previous.importedTranslationHashes as Record<string, string>) }
+    : {};
+  let skipLocales: string[] = [];
+  try {
+    const seed = await seedHubspotItemLocales({
+      client: input.client,
+      discovery: input.discovery,
+      translationService: input.translationService,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      kind: "email",
+      sourceId: input.emailId,
+      sourceName: input.emailName,
+      sourcePath,
+      sourceContent: content,
+      targetLocales: input.targetLocales,
+      policy: input.policy,
+      previousHashes: importedHashes,
+      previousCopyIds: previous?.localeCopyIds ?? {},
+    });
+    importedHashes = seed.importedHashes;
+    skipLocales = seed.seededComplete;
+    for (const warning of seed.warnings) {
+      pushWarning(input.result, warning);
+    }
+  } catch (error) {
+    pushWarning(input.result, `${input.emailName}: translation seeding failed (${String(error)})`);
+  }
+  await rememberSyncState({
+    organizationId: input.organizationId,
+    automationId: input.automation.id,
+    projectId: input.projectId,
+    resourceKind: "email",
+    sourceId: input.emailId,
+    sourceName: input.emailName,
+    sourcePath,
+    sourceLocale: input.sourceLocale,
+    contentHash,
+    importedHashes,
+  });
+  input.result.imported += 1;
+  const jobId = await maybeCreateJob({
+    organizationId: input.organizationId,
+    automation: input.automation,
+    projectId: input.projectId,
+    sourceFileId: upserted.storedFileId,
+    sourceLocale: input.sourceLocale,
+    targetLocales: input.targetLocales,
+    fileFormat: "html",
+    openJobs: input.openJobs,
+    skipLocales,
+  });
+  if (jobId) {
+    input.result.jobsCreated += 1;
+    input.result.jobIds.push(jobId);
+  }
+}
+
 async function importBlogPostBundle(input: {
   organizationId: string;
   automation: WorkspaceAutomationRecord;
@@ -613,18 +734,79 @@ export async function runImportHubspotContent(input: {
     warnings: [],
   };
 
-  const assignment = assignHubspotLocales(targetLocales, "blog");
-  for (const locale of assignment.unmapped) {
-    pushWarning(result, `blog: ${locale} has no HubSpot language code`);
+  const emailIds = selectedIds(hubspot.emailIds);
+  const blogPostIds = selectedIds(hubspot.blogPostIds);
+  if (emailIds.size > 0) {
+    const assignment = assignHubspotLocales(targetLocales, "email");
+    for (const locale of assignment.unmapped) {
+      pushWarning(result, `email: ${locale} has no HubSpot language code`);
+    }
+    for (const collision of assignment.collisions) {
+      pushWarning(
+        result,
+        `email: ${collision.locale} uses the same HubSpot code as ${collision.keptLocale} (${collision.code})`,
+      );
+    }
   }
-  for (const collision of assignment.collisions) {
-    pushWarning(
-      result,
-      `blog: ${collision.locale} uses the same HubSpot code as ${collision.keptLocale} (${collision.code})`,
-    );
+  if (blogPostIds.size > 0) {
+    const assignment = assignHubspotLocales(targetLocales, "blog");
+    for (const locale of assignment.unmapped) {
+      pushWarning(result, `blog: ${locale} has no HubSpot language code`);
+    }
+    for (const collision of assignment.collisions) {
+      pushWarning(
+        result,
+        `blog: ${collision.locale} uses the same HubSpot code as ${collision.keptLocale} (${collision.code})`,
+      );
+    }
   }
 
-  const blogPostIds = selectedIds(hubspot.blogPostIds);
+  const emails = emailIds.size > 0 ? await client.listEmails() : [];
+  for (const summary of emails) {
+    if (!emailIds.has(summary.id)) {
+      continue;
+    }
+    if (isHubspotLocaleCopyName(summary.name)) {
+      noteSkip(result, `Email "${summary.name}" is a locale copy`);
+      continue;
+    }
+    if (
+      !hubspotLanguageMatchesSource({
+        objectLanguage: summary.language,
+        projectSourceLocale: sourceLocale,
+        surface: "email",
+      })
+    ) {
+      noteSkip(
+        result,
+        `Email "${summary.name}" is ${summary.language}, which does not match the project source ${sourceLocale}`,
+      );
+      continue;
+    }
+    try {
+      await importEmailBundle({
+        organizationId: input.organizationId,
+        automation: input.automation,
+        projectId,
+        sourceLocale,
+        targetLocales,
+        workflowRunId: input.workflowRunId,
+        openJobs,
+        result,
+        client,
+        policy,
+        discovery,
+        translationService,
+        emailId: summary.id,
+        emailName: summary.name || summary.id,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.warn({ sourceId: summary.id, error: message }, "hubspot email import failed");
+      result.failed += 1;
+      pushWarning(result, `Email "${summary.name || summary.id}": import failed (${message})`);
+    }
+  }
 
   const posts = await client.listBlogPosts();
   for (const summary of posts) {
