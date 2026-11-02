@@ -342,7 +342,6 @@ class TranslationJobExecutor {
     await captureJobStatus({
       jobId: claimedJob.id,
       status: "running",
-      operationKey: `status:${claimedJob.workflowRunId}:running`,
     });
 
     if (translateStringJobOverride) {
@@ -476,7 +475,6 @@ class TranslationJobCompletionService {
     await captureJobStatus({
       jobId: input.jobId,
       status: "succeeded",
-      operationKey: `status:${input.workflowRunId}:succeeded`,
     });
 
     const operationKey = `job:${input.jobId}:translation_jobs`;
@@ -577,7 +575,6 @@ class TranslationJobCompletionService {
     await captureJobStatus({
       jobId: input.jobId,
       status: "failed",
-      operationKey: `status:${input.workflowRunId}:failed`,
     });
 
     serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobFailed, {

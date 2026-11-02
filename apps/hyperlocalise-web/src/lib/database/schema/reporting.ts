@@ -69,15 +69,6 @@ export const reportingWorkspaces = pgTable("reporting_workspaces", {
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   summaryVersion: integer("summary_version"),
 });
-/**
- * One Reports start for every workspace, from before each workspace had its own. The web app no
- * longer reads it; go-svc's reporting routes still do, so the table stays until they move to
- * `reporting_workspaces`.
- */
-export const reportingRollout = pgTable("reporting_rollout", {
-  id: integer("id").primaryKey().default(1),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
-});
 export const reportingRates = pgTable(
   "reporting_rates",
   {
@@ -137,11 +128,6 @@ export const reportingTaskRates = pgTable(
     rateCardName: text("rate_card_name"),
     /** The card's prices are taken as they were at this time, so later edits leave the task. */
     pricedAt: timestamp("priced_at", { withTimezone: true }),
-    /**
-     * The task's one rate line for every language, before it had a card. Not read any more;
-     * kept so the rework needs one migration, to be dropped in a later clean-up.
-     */
-    rateId: uuid("rate_id").references(() => reportingRates.id),
     estimatedMinutes: integer("estimated_minutes"),
     overrideUsd: amount("override_usd"),
     createdAt: createdAt(),
@@ -175,7 +161,6 @@ export const reportingAnalyses = pgTable(
     matchScore: integer("match_score"),
     bucket: text("bucket").$type<MatchBucket>().notNull(),
     algorithmVersion: integer("algorithm_version").notNull().default(1),
-    rateId: uuid("rate_id").references(() => reportingRates.id),
     createdAt: createdAt(),
   },
   (t) => [

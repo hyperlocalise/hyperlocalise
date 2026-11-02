@@ -106,7 +106,6 @@ export async function markTaskDone(input: {
   await captureJobStatus({
     jobId: done.id,
     status: "succeeded",
-    operationKey: `done:${done.id}`,
   });
 
   return ok({ id: done.id });

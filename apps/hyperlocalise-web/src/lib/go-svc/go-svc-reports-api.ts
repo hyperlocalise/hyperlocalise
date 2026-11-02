@@ -426,7 +426,6 @@ export type SavedTaskRate = {
   step: ReportStep;
   rateCardName: string | null;
   pricedAt: string | null;
-  rateId: string | null;
   estimatedMinutes: number | null;
   overrideUsd: string | null;
 };

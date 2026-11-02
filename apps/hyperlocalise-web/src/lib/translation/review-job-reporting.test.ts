@@ -20,7 +20,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
 import { captureJobStatus } from "@/lib/reporting/capture";
-import { completeReviewJob, failReviewJob } from "@/lib/translation/review-job-queued-function";
+import { completeReviewJob } from "@/lib/translation/review-job-queued-function";
 
 const resolveWorkspaceReportsFlagMock = vi.hoisted(() => vi.fn(async () => true));
 
@@ -84,7 +84,6 @@ describe("review job reporting", () => {
     await captureJobStatus({
       jobId: job.id,
       status: "succeeded",
-      operationKey: `review:${job.id}:succeeded`,
     });
     const beforeComplete = await db
       .select({ id: schema.reportingCosts.id })
@@ -113,43 +112,6 @@ describe("review job reporting", () => {
       basis: "manual",
       step: "review",
     });
-  });
-
-  it("records a failed review job as failed", async () => {
-    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
-    const workflowRunId = `run_${randomUUID()}`;
-    const [job] = await db
-      .insert(schema.jobs)
-      .values({
-        id: `job_${randomUUID()}`,
-        organizationId: organization.id,
-        projectId: project.id,
-        createdByUserId: user.id,
-        kind: "review",
-        status: "running",
-        workflowRunId,
-        inputPayload: {},
-      })
-      .returning();
-    await db.insert(schema.reviewJobDetails).values({
-      jobId: job.id,
-      criteria: "terminology",
-      targetLocale: "fr-FR",
-    });
-
-    await failReviewJob({
-      jobId: job.id,
-      projectId: project.id,
-      workflowRunId,
-      code: "review_failed",
-      message: "The review could not finish",
-    });
-
-    const statuses = await db
-      .select({ status: schema.reportingActivity.status })
-      .from(schema.reportingActivity)
-      .where(eq(schema.reportingActivity.jobId, job.id));
-    expect(statuses).toEqual([{ status: "failed" }]);
   });
 
   it("lets project deletion null reporting FKs instead of failing", async () => {

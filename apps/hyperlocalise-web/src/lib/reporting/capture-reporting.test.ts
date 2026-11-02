@@ -24,7 +24,6 @@ import { saveNativeProjectContentEditorTranslation } from "@/lib/projects/conten
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
-import { captureAiUsage } from "./ai-cost";
 import {
   analysisScopeLockKey,
   captureAnalysis,
@@ -771,19 +770,6 @@ describe("reporting capture", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("keeps usage capture from failing the caller", async () => {
-    await expect(
-      captureAiUsage({
-        organizationId: randomUUID(),
-        invocationId: `usage_${randomUUID()}`,
-        provider: "openai",
-        model: "gpt-4o",
-        inputTokens: 10,
-        outputTokens: 4,
-      }),
-    ).resolves.toBeUndefined();
-  });
-
   it("posts a fixed task fee once when the job has succeeded", async () => {
     const { organization, project, user } = await projectFixture.createStoredProjectFixture();
     const [running] = await db
@@ -840,7 +826,6 @@ describe("reporting capture", () => {
     await captureJobStatus({
       jobId: succeeded!.id,
       status: "succeeded",
-      operationKey: `status:${succeeded!.id}:succeeded`,
     });
 
     const costs = await db
@@ -872,7 +857,6 @@ describe("reporting capture", () => {
       captureJobStatus({
         jobId: `job_${randomUUID()}`,
         status: "running",
-        operationKey: `status:test:${randomUUID()}`,
       }),
     ).resolves.toBeUndefined();
 
@@ -892,7 +876,7 @@ describe("reporting capture", () => {
       })
       .returning();
 
-    const insertSpy = vi.spyOn(db, "insert").mockImplementation(() => {
+    const selectSpy = vi.spyOn(db, "select").mockImplementation(() => {
       throw new Error("reporting unavailable");
     });
     try {
@@ -900,11 +884,10 @@ describe("reporting capture", () => {
         captureJobStatus({
           jobId: job.id,
           status: "running",
-          operationKey: `status:${workflowRunId}:running`,
         }),
       ).resolves.toBeUndefined();
     } finally {
-      insertSpy.mockRestore();
+      selectSpy.mockRestore();
     }
   });
 
@@ -1123,35 +1106,6 @@ describe("reporting capture", () => {
       expect(await humanCosts(organization.id)).toEqual([
         { amountUsd: "0.10000000", basis: "rate" },
       ]);
-    });
-  });
-
-  it("records AI tokens without estimating a price", async () => {
-    const { organization, project } = await projectFixture.createStoredProjectFixture();
-    const invocationId = `usage_${randomUUID()}`;
-    await captureAiUsage({
-      organizationId: organization.id,
-      projectId: project.id,
-      invocationId,
-      provider: "openai",
-      model: "gpt-4o",
-      inputTokens: 1200,
-      outputTokens: 300,
-    });
-    const [row] = await db
-      .select({
-        amountUsd: schema.reportingCosts.amountUsd,
-        basis: schema.reportingCosts.basis,
-        inputTokens: schema.reportingCosts.inputTokens,
-        outputTokens: schema.reportingCosts.outputTokens,
-      })
-      .from(schema.reportingCosts)
-      .where(eq(schema.reportingCosts.operationKey, `ai:${invocationId}`));
-    expect(row).toEqual({
-      amountUsd: null,
-      basis: "unpriced",
-      inputTokens: 1200,
-      outputTokens: 300,
     });
   });
 

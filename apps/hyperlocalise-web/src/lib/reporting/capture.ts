@@ -325,7 +325,6 @@ async function writeReportingAnalysis(
     if (!job) return [];
   }
   const step = input.step ?? "translation";
-  const rate = await resolveReportingRate({ ...input, step });
   let memoryIds: string[] | null = null;
   if (!options.withoutMemory) {
     try {
@@ -397,7 +396,6 @@ async function writeReportingAnalysis(
         matchScore: score,
         bucket: matchBucket(score, repetition),
         algorithmVersion: MATCH_ALGORITHM_VERSION,
-        rateId: rate?.id,
         createdAt: input.occurredAt?.[segmentId],
       };
     });
@@ -860,12 +858,7 @@ async function writeReportingCompletions(
     return marks;
   });
 }
-export async function captureJobStatus(input: {
-  jobId: string;
-  status: string;
-  operationKey: string;
-  durationMs?: number;
-}) {
+export async function captureJobStatus(input: { jobId: string; status: string }) {
   try {
     await writeJobStatus(input);
   } catch (error) {
@@ -873,12 +866,7 @@ export async function captureJobStatus(input: {
   }
 }
 
-async function writeJobStatus(input: {
-  jobId: string;
-  status: string;
-  operationKey: string;
-  durationMs?: number;
-}) {
+async function writeJobStatus(input: { jobId: string; status: string }) {
   const [ownedJob] = await db
     .select({ organizationId: schema.jobs.organizationId })
     .from(schema.jobs)
@@ -895,28 +883,6 @@ async function writeJobStatus(input: {
   // so nothing else would mark those days.
   if (!OPEN_TASK_STATUSES.has(input.status))
     await markTaskDays(ownedJob.organizationId, input.jobId);
-  const [job] = await db
-    .select({
-      organizationId: schema.jobs.organizationId,
-      projectId: schema.jobs.projectId,
-      kind: schema.jobs.kind,
-    })
-    .from(schema.jobs)
-    .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-    .where(and(eq(schema.jobs.id, input.jobId), isNull(schema.externalJobDetails.jobId)));
-  if (!job) return;
-  await db
-    .insert(schema.reportingActivity)
-    .values({
-      ...job,
-      jobId: input.jobId,
-      kind: "status",
-      step: job.kind,
-      status: input.status,
-      operationKey: input.operationKey,
-      durationMs: input.durationMs,
-    })
-    .onConflictDoNothing();
 }
 
 /**

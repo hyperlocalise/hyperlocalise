@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-Moves the Reports API ([Reports rework](./2026-10-23-reports-rework-design.md)) from the web app's Hono routes to go-svc, one slice at a time, then switches the page over and removes the Hono routes, so Reports' API is in Go only. Recording (analyses, finished strings, job status, pricing at finish, AI costs), word counting, the memory matcher and the 15-minute capture cron stay in the web app.
+Moves the Reports API ([Reports rework](./2026-10-23-reports-rework-design.md)) from the web app's Hono routes to go-svc, one slice at a time, then switches the page over and removes the Hono routes, so Reports' API is in Go only. Recording (analyses, finished strings, pricing at finish), word counting, the memory matcher and the 15-minute capture cron stay in the web app.
 
 ## Context
 
@@ -22,7 +22,7 @@ Moves the Reports API ([Reports rework](./2026-10-23-reports-rework-design.md)) 
 - **Verification.** While both route sets existed, a comparison harness (on the port branch only, never on main: a fixed seed, a request list, both sides answered in-process with the same stubbed session and flag, compared field by field) proves each ported route. Lasting coverage is the ported Go tests.
 - **Defects fixed in the port** (each small, by the plan's rule): the task picker offers tasks Reports has not counted when asked (`counted=false`), so time can be logged on them once the page uses it (D160's server half). Starting the period no earlier than the day Reports started (D194) was tried and reverted in review: it collapsed a range wholly before the start to one day and hid time logged on earlier days; D194 stays open for a bar cap instead.
 - **Verification of writes.** The harness compares a write by the rows it leaves: each write request names a check query both sides run afterwards, returning one JSON document with generated ids masked (a rate line named by its card, language and rate instead of its id), and the answer's own generated ids are ignored by pattern.
-- **Slices.** Reads first (this record), money reads with the MCP route, the writes, then the page switch, then the Hono routes removed; `reporting_rollout` and `reporting_task_rates.rate_id` are dropped with them, since Reports has no customer users, so nothing needs the old code's rollback. The `rate_id` of the other tables stays: they are written or read.
+- **Slices.** Reads first (this record), money reads with the MCP route, the writes, then the page switch, then the Hono routes removed; `reporting_rollout`, `reporting_analyses.rate_id` and `reporting_task_rates.rate_id` are dropped with them, and the job status and AI cost rows stop being written, since nothing reads them and Reports has no customer users to need the old code's rollback. Existing rows stay and the workspace start date still counts them; billing starts a workspace at its first AI use (`startReportingAtAiUse`).
 
 ## Consequences
 
