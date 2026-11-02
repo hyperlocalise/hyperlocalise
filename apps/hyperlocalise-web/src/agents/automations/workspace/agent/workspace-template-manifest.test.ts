@@ -175,6 +175,7 @@ describe("workspace template manifest", () => {
       "translate-iterable-templates",
       "translate-customer-io-campaigns",
       "translate-loops-emails",
+      "translate-hubspot-content",
       "translate-contentful-article",
       "summarize-changes-daily",
       "review-code-daily",

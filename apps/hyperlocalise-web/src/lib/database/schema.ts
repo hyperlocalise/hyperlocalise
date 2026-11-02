@@ -29,6 +29,7 @@ export * from "./schema/zernio";
 export * from "./schema/ahrefs";
 export * from "./schema/braze";
 export * from "./schema/loops";
+export * from "./schema/hubspot";
 export * from "./schema/customer-io";
 export * from "./schema/iterable";
 export * from "./schema/intercom";

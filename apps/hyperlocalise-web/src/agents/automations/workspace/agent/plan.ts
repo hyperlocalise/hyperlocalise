@@ -25,6 +25,7 @@ import {
   hasWorkspaceAutomationCustomerIoTool,
   hasWorkspaceAutomationIterableTool,
   hasWorkspaceAutomationLoopsTool,
+  hasWorkspaceAutomationHubspotTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationGoogleDriveTool,
   hasWorkspaceAutomationSanityTool,
@@ -60,6 +61,8 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "push_iterable_templates",
   "import_loops_emails",
   "push_loops_emails",
+  "import_hubspot_content",
+  "push_hubspot_content",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -163,6 +166,9 @@ function workflowToolEnabled(
     case "import_loops_emails":
     case "push_loops_emails":
       return hasWorkspaceAutomationLoopsTool(toolConfig);
+    case "import_hubspot_content":
+    case "push_hubspot_content":
+      return hasWorkspaceAutomationHubspotTool(toolConfig);
     case "create_native_tms_job":
       return hasWorkspaceAutomationCreateNativeTmsJobTool(toolConfig);
     case "assign_translate_with_agent":
@@ -355,6 +361,17 @@ export function buildWorkspaceOrchestratorPlan(
       notificationToolEnabled(tool, automation.toolConfig),
     );
     return { tools: [loopsTool, ...notificationTools] };
+  }
+
+  if (hasWorkspaceAutomationHubspotTool(automation.toolConfig)) {
+    const hubspotTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_hubspot_content"
+        : "import_hubspot_content";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [hubspotTool, ...notificationTools] };
   }
 
   const workflowTools = orderWorkflowTools({
