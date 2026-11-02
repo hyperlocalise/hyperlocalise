@@ -95,7 +95,6 @@ export async function cancelNativeJob(input: {
   await captureJobStatus({
     jobId: cancelled.id,
     status: "cancelled",
-    operationKey: `cancel:${cancelled.id}`,
   });
 
   return ok({ id: cancelled.id });

@@ -19,7 +19,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
-import { captureJobStatus } from "@/lib/reporting/capture";
+import { captureAnalysis, captureJobStatus } from "@/lib/reporting/capture";
 import { completeReviewJob, failReviewJob } from "@/lib/translation/review-job-queued-function";
 
 const resolveWorkspaceReportsFlagMock = vi.hoisted(() => vi.fn(async () => true));
@@ -84,7 +84,6 @@ describe("review job reporting", () => {
     await captureJobStatus({
       jobId: job.id,
       status: "succeeded",
-      operationKey: `review:${job.id}:succeeded`,
     });
     const beforeComplete = await db
       .select({ id: schema.reportingCosts.id })
@@ -115,7 +114,7 @@ describe("review job reporting", () => {
     });
   });
 
-  it("records a failed review job as failed", async () => {
+  it("recounts a failed review job's days, so its strings leave Progress", async () => {
     const { organization, project, user } = await projectFixture.createStoredProjectFixture();
     const workflowRunId = `run_${randomUUID()}`;
     const [job] = await db
@@ -136,6 +135,24 @@ describe("review job reporting", () => {
       criteria: "terminology",
       targetLocale: "fr-FR",
     });
+    await captureAnalysis({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: job.id,
+      step: "review",
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceEntries: { greeting: "Hello world" },
+    });
+    const marks = () =>
+      db
+        .select({ projectId: schema.reportingSummaryQueue.projectId })
+        .from(schema.reportingSummaryQueue)
+        .where(eq(schema.reportingSummaryQueue.organizationId, organization.id));
+    await db
+      .delete(schema.reportingSummaryQueue)
+      .where(eq(schema.reportingSummaryQueue.organizationId, organization.id));
+    expect(await marks()).toEqual([]);
 
     await failReviewJob({
       jobId: job.id,
@@ -145,11 +162,7 @@ describe("review job reporting", () => {
       message: "The review could not finish",
     });
 
-    const statuses = await db
-      .select({ status: schema.reportingActivity.status })
-      .from(schema.reportingActivity)
-      .where(eq(schema.reportingActivity.jobId, job.id));
-    expect(statuses).toEqual([{ status: "failed" }]);
+    expect(await marks()).toEqual([{ projectId: project.id }]);
   });
 
   it("lets project deletion null reporting FKs instead of failing", async () => {

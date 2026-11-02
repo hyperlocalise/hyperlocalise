@@ -66,21 +66,20 @@ export type AiUsageDimension = (typeof AI_USAGE_DIMENSIONS)[number];
 
 /** What AI usage's chart shows and its groups are ranked by: tokens, runs or AI credit used. */
 export const AI_USAGE_MEASURES = ["tokens", "calls", "charge"] as const;
-export type AiUsageMeasure = (typeof AI_USAGE_MEASURES)[number];
 
 /** Sources of billing rows that each stand for one image or one video made. */
-export const AI_IMAGE_SOURCES = [
+const AI_IMAGE_SOURCES = [
   "project_image_variant",
   "project_image_url_translation",
   "slack_image_localization",
   "email_image_localization",
   "contentful_image_localization",
 ] as const;
-export const AI_VIDEO_SOURCES = ["project_video_variant", "project_video_url_translation"] as const;
+const AI_VIDEO_SOURCES = ["project_video_variant", "project_video_url_translation"] as const;
 
-export const MEDIA_SOURCES = new Set<string>([...AI_IMAGE_SOURCES, ...AI_VIDEO_SOURCES]);
+const MEDIA_SOURCES = new Set<string>([...AI_IMAGE_SOURCES, ...AI_VIDEO_SOURCES]);
 
-export const ORIGIN_BY_SOURCE: Record<string, AiOrigin> = {
+const ORIGIN_BY_SOURCE: Record<string, AiOrigin> = {
   translation_job_create: "translation",
   email_translation_job_create: "translation",
   contentful_agent: "translation",
@@ -103,41 +102,18 @@ export const ORIGIN_BY_SOURCE: Record<string, AiOrigin> = {
   image_text_extraction: "images_and_video",
 };
 
-/** Kinds of agent runs on tasks from a connected TMS (`agent_runs.kind`). */
-export const ORIGIN_BY_AGENT_RUN_KIND: Record<string, AiOrigin> = {
-  translate: "translation",
-  review: "review_and_qa",
-  qa_fix: "review_and_qa",
-  glossary_suggestion: "review_and_qa",
-  comment_only: "review_and_qa",
-};
-
 /**
- * A rule placing a source: the whole name, or a name's start. Rules are tried in order, and the
- * Reports queries turn the same rules into SQL, so the page and the database never disagree.
+ * A rule placing a source: the whole name, or a name's start, tried in order. go-svc keeps its own
+ * copy (`reporting-ai.go`), which places the calls; here it only names the area of a source that
+ * has no label of its own, so a new source goes in both.
  */
-export type SourceRule<T> = { exact: string; result: T } | { prefix: string; result: T };
+type SourceRule<T> = { exact: string; result: T } | { prefix: string; result: T };
 
 /** The origin of a source other than a connected TMS's agent run, after the media sources. */
-export const ORIGIN_RULES: SourceRule<AiOrigin>[] = [
+const ORIGIN_RULES: SourceRule<AiOrigin>[] = [
   ...Object.entries(ORIGIN_BY_SOURCE).map(([exact, result]) => ({ exact, result })),
   // Workspace automations and their agents: `workspace_orchestrator`, `workspace_*_agent`.
   { prefix: "workspace_", result: "running_automations" },
-];
-
-/** How a call reached us; a source no rule names came through the app or the API. */
-export const CHANNEL_RULES: SourceRule<AiChannel>[] = [
-  { prefix: "slack_", result: "slack" },
-  { prefix: "email_", result: "email" },
-  { prefix: "contentful_", result: "contentful" },
-  { exact: "web_chat_agent_turn", result: "web_chat" },
-  { exact: "agent_run_create", result: "connected_tms" },
-  { prefix: "github_", result: "github" },
-  { exact: "repository_agent_workflow", result: "github" },
-  { prefix: "workspace_github_", result: "github" },
-  { prefix: "workspace_gitlab_", result: "gitlab" },
-  { prefix: "workspace_", result: "automation" },
-  { exact: "visual_workflow_ai_step", result: "automation" },
 ];
 
 function ruleFor<T>(rules: SourceRule<T>[], source: string): T | undefined {
@@ -146,17 +122,8 @@ function ruleFor<T>(rules: SourceRule<T>[], source: string): T | undefined {
   )?.result;
 }
 
-/**
- * The origin of a billing row. `source` is the row's parent's source when it has a parent, else
- * its own; `agentRunKind` is set for agent runs on tasks from a connected TMS.
- */
-export function aiOrigin(source: string, agentRunKind?: string | null): AiOrigin {
+/** The area of a billing row's source, or of its parent's when it has a parent. */
+export function aiOrigin(source: string): AiOrigin {
   if (MEDIA_SOURCES.has(source)) return "images_and_video";
-  if (source === "agent_run_create") return ORIGIN_BY_AGENT_RUN_KIND[agentRunKind ?? ""] ?? "other";
   return ruleFor(ORIGIN_RULES, source) ?? "other";
-}
-
-/** How a call reached us: the app unless its source or task says otherwise. */
-export function aiChannel(source: string, viaApiKey: boolean): AiChannel {
-  return ruleFor(CHANNEL_RULES, source) ?? (viaApiKey ? "api" : "app");
 }

@@ -407,7 +407,7 @@ func reportingTaskWordsCSV(words reportingTaskWords, estimate *reportingCostEsti
 			weighted, cost := "", ""
 			var weightedSum, costSum float64
 			hasWeighted, hasCost := false, false
-			// Summed as doubles in the lines' order, as the web's CSV sums them.
+			// Summed as doubles in the lines' order.
 			for _, line := range lines {
 				if line.Weighted != nil {
 					weightedSum += *line.Weighted
