@@ -49,6 +49,7 @@ import {
   decideHubspotPushLocaleAction,
   DEFAULT_HUBSPOT_EXISTING_TRANSLATION_POLICY,
   isHubspotExistingTranslationPolicy,
+  isHubspotRemoteCopyNewer,
 } from "./existing-translation-policy";
 import { readHubspotDocumentJson } from "./import-hubspot-content";
 import { formDefinitionForWrite } from "./form-write";
@@ -216,6 +217,28 @@ async function findNamedCopy(input: {
   return posts.find((item) => item.name === input.copyName)?.id ?? null;
 }
 
+/**
+ * `updatedAt` of a locale copy for the remote-newer check. Surfaces without a
+ * tracked timestamp return null so callers protect the copy.
+ */
+async function loadCopyUpdatedAt(
+  client: HubspotContentClient,
+  kind: HubspotResourceKind,
+  copyId: string,
+): Promise<string | null> {
+  try {
+    if (kind === "email") {
+      return (await client.getEmail(copyId)).updatedAt;
+    }
+    if (kind === "blog") {
+      return (await client.getBlogPost(copyId)).updatedAt;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function runPushHubspotContent(input: {
   organizationId: string;
   automation: WorkspaceAutomationRecord;
@@ -349,8 +372,11 @@ export async function runPushHubspotContent(input: {
           copyId = await findNamedCopy({ client, kind: mapping.resourceKind, copyName });
         }
         if (copyId && hubspot.overwriteWhenRemoteNewer === false) {
-          result.skippedLocales += 1;
-          continue;
+          const copyUpdatedAt = await loadCopyUpdatedAt(client, mapping.resourceKind, copyId);
+          if (isHubspotRemoteCopyNewer({ lastPushedAt: mapping.lastPushedAt, copyUpdatedAt })) {
+            result.skippedLocales += 1;
+            continue;
+          }
         }
         const remoteEmpty =
           copyId == null

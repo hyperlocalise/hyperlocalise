@@ -104,3 +104,28 @@ export function decideHubspotPushLocaleAction(input: {
   }
   return input.lastPushHash !== input.contentHash ? "push" : "skip";
 }
+
+/**
+ * Grace window for HubSpot stamping a copy after our own push. Without it a
+ * copy we just pushed would always look newer than `lastPushedAt`.
+ */
+export const HUBSPOT_REMOTE_NEWER_SKEW_MS = 5 * 60 * 1000;
+
+/**
+ * Whether a locale copy changed in HubSpot after our last push. Unknown
+ * timestamps count as newer so callers protect the remote copy instead of
+ * clobbering teammate edits.
+ */
+export function isHubspotRemoteCopyNewer(input: {
+  lastPushedAt: Date | null;
+  copyUpdatedAt: string | null;
+}): boolean {
+  if (!input.lastPushedAt || !input.copyUpdatedAt) {
+    return true;
+  }
+  const copyTime = Date.parse(input.copyUpdatedAt);
+  if (Number.isNaN(copyTime)) {
+    return true;
+  }
+  return copyTime > input.lastPushedAt.getTime() + HUBSPOT_REMOTE_NEWER_SKEW_MS;
+}

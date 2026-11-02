@@ -17,6 +17,7 @@ import {
   decideHubspotPushLocaleAction,
   hubspotTranslationPresence,
   isHubspotExistingTranslationPolicy,
+  isHubspotRemoteCopyNewer,
 } from "./existing-translation-policy";
 
 describe("hubspot existing translation policy", () => {
@@ -142,5 +143,28 @@ describe("hubspot existing translation policy", () => {
         contentHash: "same",
       }),
     ).toBe("skip");
+  });
+
+  it("treats a copy as newer only when clearly updated after the last push", () => {
+    const pushedAt = new Date("2026-10-01T00:00:00.000Z");
+    expect(
+      isHubspotRemoteCopyNewer({
+        lastPushedAt: pushedAt,
+        copyUpdatedAt: "2026-10-02T00:00:00.000Z",
+      }),
+    ).toBe(true);
+    expect(
+      isHubspotRemoteCopyNewer({
+        lastPushedAt: pushedAt,
+        copyUpdatedAt: "2026-10-01T00:01:00.000Z",
+      }),
+    ).toBe(false);
+    expect(isHubspotRemoteCopyNewer({ lastPushedAt: pushedAt, copyUpdatedAt: null })).toBe(true);
+    expect(
+      isHubspotRemoteCopyNewer({ lastPushedAt: null, copyUpdatedAt: "2026-10-02T00:00:00.000Z" }),
+    ).toBe(true);
+    expect(isHubspotRemoteCopyNewer({ lastPushedAt: pushedAt, copyUpdatedAt: "not-a-date" })).toBe(
+      true,
+    );
   });
 });
