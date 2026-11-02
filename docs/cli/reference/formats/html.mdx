@@ -77,6 +77,10 @@ configured target path and updates the lockfile.
 - `<img alt="...">` is extracted as `html.*.img.alt`. Do not assume every
   attribute is translatable. Review the rendered result.
 
+- `hl entries page.html --import-settings settings.json` applies extra HTML
+  filters. `html.excludedElements` names more tags to skip. `html.icuSubfilter`
+  marks ICU-shaped values.
+
 ## Next steps
 
 - [Check translations](/cli/commands/check) before committing generated files.

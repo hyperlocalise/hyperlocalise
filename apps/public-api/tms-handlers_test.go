@@ -12,6 +12,11 @@ import (
 )
 
 type fakeTMSStore struct {
+	fakeBilingualStore
+	fakeJobStore
+	fakeProjectAdminStore
+	fakeMemoryInterchangeStore
+	fakeGlossaryImportStore
 	tmsErr           error
 	strings          []translationString
 	translations     []translationRecord

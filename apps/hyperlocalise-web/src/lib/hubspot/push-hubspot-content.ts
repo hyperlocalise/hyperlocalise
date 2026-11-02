@@ -172,11 +172,6 @@ async function isHubspotRemoteCopyEmpty(input: {
         : buildEmailHtmlDocument(document, { styleSettings: copy.styleSettings });
       return hashHubspotContent(copyContent) === hashHubspotContent(input.sourceText);
     }
-    if (input.kind === "form") {
-      const copy = await input.client.getForm(input.copyId);
-      const copyContent = serializeHubspotDocument(buildFormDocument(copy.definition));
-      return hashHubspotContent(copyContent) === hashHubspotContent(input.sourceText);
-    }
     if (input.sourceJson) {
       const copy = await input.client.getBlogPost(input.copyId);
       const copyContent = serializeHubspotDocument(buildBlogContentDocument(copy));

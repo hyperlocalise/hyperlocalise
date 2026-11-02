@@ -39,6 +39,7 @@ const targetKindByEventType: Record<V1ActivityEventType, ActivityLogItem["target
   project_created: "project",
   project_deleted: "project",
   project_settings_changed: "project",
+  project_strings_updated: "project",
   glossary_created: "glossary",
   glossary_deleted: "glossary",
   glossary_imported: "glossary",

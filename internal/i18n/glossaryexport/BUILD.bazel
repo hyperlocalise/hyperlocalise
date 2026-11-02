@@ -1,0 +1,9 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "glossaryexport",
+    srcs = ["glossaryexport.go"],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/glossaryexport",
+    visibility = ["//visibility:public"],
+    deps = ["@com_github_xuri_excelize_v2//:excelize"],
+)

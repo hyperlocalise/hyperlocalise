@@ -14391,6 +14391,10 @@
     "defaultMessage": "Canva connection deleted.",
     "description": "Toast when Canva connection is deleted"
   },
+  "LCEhMig6eV": {
+    "defaultMessage": "updated project strings",
+    "description": "Action for strings created or updated in bulk"
+  },
   "LCZsgeJImu": {
     "defaultMessage": "Name",
     "description": "Label for the translation memory name field"
@@ -16194,6 +16198,10 @@
   "NwknAq8TGX": {
     "defaultMessage": "Live in Contentful or Webflow. A ping in Slack. Help articles in Intercom. Translations into Crowdin, Lokalise, Phrase, or Smartling if you still use them.",
     "description": "Proof point 3 body for the agents automation product page"
+  },
+  "Nwo7t+Ovaq": {
+    "defaultMessage": "updated a job",
+    "description": "Action for job detail changes"
   },
   "Nx+ZrjUtj2": {
     "defaultMessage": "Cancel",
@@ -30483,6 +30491,10 @@
     "defaultMessage": "Adapt every slide together. Keep the layout, refine the message, and present it in any language.",
     "description": "Body for the slides format panel"
   },
+  "knAumzrJwC": {
+    "defaultMessage": "Job Updated",
+    "description": "Activity log event type label for job detail changes"
+  },
   "knFaGwAEFJ": {
     "defaultMessage": "Localisation checks that run with every pull request",
     "description": "Hero headline for the github-release-localisation use case"
@@ -30646,6 +30658,10 @@
   "l0dInWPeYD": {
     "defaultMessage": "Knowledge files",
     "description": "Tool badge when an automation uses uploaded knowledge files"
+  },
+  "l1G7XLzm4n": {
+    "defaultMessage": "Project Strings Updated",
+    "description": "Activity log event type label for strings created or updated in bulk"
   },
   "l1mlJzFoj/": {
     "defaultMessage": "Load more",

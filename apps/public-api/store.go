@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
+	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -97,9 +99,26 @@ type resourceStore interface {
 	listMemories(context.Context, principal, int, int) ([]translationMemory, int, error)
 	getMemory(context.Context, principal, string) (translationMemory, error)
 	listMemoryEntries(context.Context, principal, string, memoryEntryFilters) ([]memoryEntry, int, error)
+	exportBilingualRows(context.Context, principal, string, bilingualExportQuery) ([]editor_export.Row, error)
+	importBilingualRows(context.Context, principal, string, bilingualImportInput) (bilingualImportCounts, error)
+	listJobs(context.Context, principal, jobFilters) ([]job, int, error)
+	getJob(context.Context, principal, string) (job, error)
+	updateJob(context.Context, principal, string, jobPatch) (job, error)
+	updateProject(context.Context, principal, string, projectPatch) (project, error)
+	upsertStrings(context.Context, principal, string, []stringUpsert) (stringBatchResult, error)
+	exportMemoryEntries(context.Context, principal, string, memoryExportQuery) (interchangeFile, error)
+	importMemoryEntries(context.Context, principal, string, memoryImportInput) (memoryImportResult, error)
+	exportGlossary(context.Context, principal, string, string) (interchangeFile, error)
+	queueGlossaryImport(context.Context, principal, string, glossaryImportInput) (glossaryImportReport, error)
+	getGlossaryImportReport(context.Context, principal, string, string) (glossaryImportReport, error)
 }
 
-type postgresStore struct{ pool *pgxpool.Pool }
+type postgresStore struct {
+	pool *pgxpool.Pool
+	// objects and glossaryImports are optional; glossary imports need both.
+	objects         *objectstore.Registry
+	glossaryImports glossaryImportQueue
+}
 
 // workspaceOperatorPredicate matches go-svc's org-wide glossary, memory, and project access roles.
 const workspaceOperatorPredicate = `EXISTS (

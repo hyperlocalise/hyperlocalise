@@ -1,0 +1,33 @@
+---
+title: "v1.13.8"
+description: "Go CLI release notes for v1.13.8."
+---
+
+`hl run` skips empty source strings. HTML ingest leaves punctuation-only and entity-only cells such as `&nbsp;` untranslated, and `sync pull` writes reconstructed HTML when Platform returns a native HTML export. `hl entries --import-settings` applies per-format ingest filters.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.13.8) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.13.7...v1.13.8)
+
+## Breaking changes
+
+None.
+
+## Features
+
+- Add [`hl entries --import-settings`](https://github.com/hyperlocalise/hyperlocalise/pull/3064). Pass a JSON file of per-format ingest filters: HTML `excludedElements` and `icuSubfilter`; JSON/JSONC `keyPaths`, `excludeKeyPaths`, `contextFields`, `characterLimitFields`, `htmlSubfilter`, and `icuSubfilter`; Excel column indexes for identifier, source, context, and max length. See [Translate HTML](/cli/reference/formats/html), [Translate JSON](/cli/reference/formats/json), and [Translate Excel workbooks](/cli/reference/formats/xlsx).
+
+## Fixes
+
+- Skip [empty source strings](https://github.com/hyperlocalise/hyperlocalise/pull/3063) when planning `hl run`. A key whose source is empty or whitespace is left untranslated.
+- Skip [HTML punctuation-only and entity-only cells](https://github.com/hyperlocalise/hyperlocalise/pull/3063) such as `&nbsp;` and `&amp;`. Those nodes stay literals. Amazon Translate no longer fails the whole file when a cell has nothing to translate. See [Translate HTML](/cli/reference/formats/html).
+- Write [reconstructed HTML](https://github.com/hyperlocalise/hyperlocalise/pull/3063) on `sync pull` when Platform returns a native HTML export instead of JSON. `.htm` is treated as HTML. See [sync pull](/cli/commands/sync-pull).
+
+## Tests
+
+- Plan tasks skip empty and whitespace-only JSON sources.
+- HTML writeback keeps `&nbsp;` and `&amp;` and translates neighboring text.
+- `sync pull` accepts reconstructed HTML for `.html` files.
+
+## Maintenance
+
+- Bump Go dependencies, including OpenAI Go to v3.90.0, Phrase Go to v4.36.0, goldmark to v2.1.11, and go-pdfium to v1.21.4 ([#3077](https://github.com/hyperlocalise/hyperlocalise/pull/3077)).
+- Bump the `google.golang.org/genproto` replace to `v0.0.0-20261026165753-2ffab32bce7e` ([#3074](https://github.com/hyperlocalise/hyperlocalise/pull/3074)).

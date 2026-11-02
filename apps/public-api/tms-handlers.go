@@ -15,6 +15,7 @@ const (
 	maxTranslationTextBytes = 100_000
 	maxSourceTextBytes      = 100_000
 	maxLocaleLength         = 64
+	maxStringBatchBodyBytes = 16 << 20
 )
 
 var translationStatuses = []string{"draft", "needs_review", "approved", "rejected"}
@@ -92,7 +93,9 @@ func (s apiServer) projectStrings(w http.ResponseWriter, r *http.Request) {
 	if !valid {
 		return
 	}
+	keys := values["key"]
 	filters := stringFilters{
+		Keys:     keys,
 		Search:   strings.TrimSpace(values.Get("search")),
 		FilePath: strings.TrimSpace(values.Get("filePath")),
 		Limit:    page.Limit,
@@ -100,7 +103,11 @@ func (s apiServer) projectStrings(w http.ResponseWriter, r *http.Request) {
 	}
 	includeHidden := values.Get("includeHidden")
 	filters.IncludeHidden = includeHidden == "true"
-	if !member(includeHidden, "", "true", "false") || len(filters.Search) > 200 || len(filters.FilePath) > 2048 {
+	validKeys := len(keys) <= 100
+	for _, key := range keys {
+		validKeys = validKeys && key != "" && len(key) <= 1000
+	}
+	if !member(includeHidden, "", "true", "false") || len(filters.Search) > 200 || len(filters.FilePath) > 2048 || !validKeys {
 		writeError(w, http.StatusBadRequest, "invalid_query", "One or more query filters are invalid")
 		return
 	}
@@ -571,12 +578,16 @@ func pathID(w http.ResponseWriter, r *http.Request, name string) (string, bool) 
 }
 
 func decodeJSONBody(w http.ResponseWriter, r *http.Request, dst any) bool {
+	return decodeJSONBodyLimit(w, r, dst, maxRequestBodyBytes)
+}
+
+func decodeJSONBodyLimit(w http.ResponseWriter, r *http.Request, dst any, limit int64) bool {
 	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || mediaType != "application/json" {
 		writeError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "Use Content-Type: application/json")
 		return false
 	}
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxRequestBodyBytes))
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, limit))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(dst); err != nil {
 		var tooLarge *http.MaxBytesError

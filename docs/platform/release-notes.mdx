@@ -9,6 +9,14 @@ Hyperlocalise CLI version notes live in the [CLI changelog](/changelog).
 
 Start with [Your first translation](/platform/getting-started) if you are new to the product. Use [Troubleshooting and support](/platform/help/overview) when a change does not match what you see in the workspace.
 
+## 2026 November
+
+1. **Empty source strings skipped.** `hl run` no longer sends empty or whitespace-only source keys to a provider. See [`run`](/cli/commands/run) and [CLI v1.13.8](/changelog/v1-13-8).
+2. **HTML entity cells and reconstructed pull.** Punctuation-only and entity-only HTML cells such as `&nbsp;` stay literals. `sync pull` writes reconstructed HTML when Platform returns a native HTML export. See [Translate HTML](/cli/reference/formats/html), [sync pull](/cli/commands/sync-pull), and [CLI v1.13.8](/changelog/v1-13-8).
+3. **CLI import settings on `hl entries`.** Pass `--import-settings` with HTML excluded elements, JSON key paths, or Excel column indexes. See [Translate HTML](/cli/reference/formats/html), [Translate JSON](/cli/reference/formats/json), [Translate Excel workbooks](/cli/reference/formats/xlsx), and [CLI v1.13.8](/changelog/v1-13-8).
+4. **HubSpot emails and blog posts.** Connect HubSpot from **Integrations**, then use **Translate HubSpot content**. Import marketing emails and blog posts into a native project. **Push to HubSpot** writes unpublished locale copies. Add each blog language in HubSpot first. Forms, landing pages, and website pages stay unsupported. See [Localize HubSpot](/platform/connections/hubspot).
+5. **Mark a proofread task done.** When proofread work is finished, **Mark done** moves the task to **Succeeded**. Unfinished strings stay as they are. Reviewers, localization managers, and admins can mark any such task done; others can mark done only a task assigned to them. See [Track and recover jobs](/platform/translation/jobs).
+
 ## 2026 October
 
 1. **AsciiDoc files.** Native projects and the CLI now translate AsciiDoc documentation (`.adoc`, `.asciidoc`, `.asc`). Prose, headings, lists, tables, and admonitions are translated. Macros, attributes, comments, and verbatim blocks stay in place. Upload each included file on its own; `include::` directives are preserved and not resolved. See [Supported formats](/platform/file-formats) and [Translate AsciiDoc](/cli/reference/formats/asciidoc).
@@ -86,6 +94,11 @@ Start with [Your first translation](/platform/getting-started) if you are new to
 73. **Re-import bilingual files.** Native Content Editor queues can re-import a CSV, TMX, XLF, XLIFF, or XLSX file exported from **Download filtered view**, so you can repair inline tags outside the editor and write matching targets back. See [Review translations](/platform/cat#import-a-bilingual-file) and [Download translated files](/platform/translation/download).
 74. **PDF CJK, Thai, and Lao writeback.** Target PDFs keep the source font when it contains the translated glyphs. Other Chinese, Japanese, Korean, Vietnamese, Thai, and Lao blocks are redrawn with an embedded font. Scripts that need shaping still fail instead of writing missing glyphs. See [Translate PDF documents](/cli/reference/formats/pdf) and [CLI v1.13.7](/changelog/v1-13-7).
 75. **Smartling glossary export and TM admin in the CLI.** `hyperlocalise smartling glossary download` can export official CSV, XLSX, and TBX. `glossary import` accepts those formats. `tm list`, `tm create`, and `tm import` cover translation-memory admin. See [Smartling](/cli/commands/smartling) and [CLI v1.13.7](/changelog/v1-13-7).
+76. **Iterable templates and snippets.** Connect Iterable from **Integrations** with a server-side API key and US or EU data center. **Translate Iterable templates and snippets** imports email, in-app, push, and SMS templates plus snippets. **Push to Iterable** writes approved locales and does not send a campaign. See [Localize Iterable](/platform/connections/iterable).
+77. **Human approval workflow step.** Visual workflows add **Human approval** to pause a run until an authorized reviewer chooses **Approve**, **Reject**, or **Request changes**, or until the request expires. Decisions open from **Inbox**. See [Visual workflows](/platform/visual-workflows).
+78. **Import filters and custom placeholders.** On **Files**, set **Import filters** so HTML, JSON, JSONC, and Excel sources keep only the strings you want. Saving re-reads the file. On placeholder format, add per-file regular expressions so QA and the Content Editor treat matching text as placeholders. See [Upload source files](/platform/projects/files) and [i18next and interpolation placeholders](/platform/tutorials/i18next).
+79. **Create, join, and leave workspaces.** From the workspace menu, **Create workspace** opens another workspace, and **View all workspaces** lists pending invitations to **Accept**. On **Members**, **Leave workspace…** on your own row leaves the current workspace. The only admin cannot leave. See [Invite teammates](/platform/workspace/members).
+80. **Phrase TBX 2 glossary import.** Native glossary import accepts Phrase TBX 2 (`martif` / `termEntry`) as well as Hyperlocalise TBX 3, CSV, and XLSX. Forbidden flags come from Phrase `termNote` values. See [Glossary import and export](/platform/glossary-import-export).
 
 ## 2026 September
 

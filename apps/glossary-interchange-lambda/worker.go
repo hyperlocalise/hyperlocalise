@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/activitylog"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -40,6 +41,14 @@ type interchangeTerm struct {
 type interchangeImportOptions struct {
 	StrictLocale  *bool             `json:"strictLocale"`
 	LocaleMapping map[string]string `json:"localeMapping"`
+	// Actor names a public API token that started the import. Without it, the run's creator
+	// is recorded as a user.
+	Actor *interchangeImportActor `json:"actor"`
+}
+
+type interchangeImportActor struct {
+	Kind         string `json:"kind"`
+	CredentialID string `json:"credentialId"`
 }
 
 type interchangeImportDiagnostic struct {
@@ -332,6 +341,9 @@ func runImport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 		mutationCounts.TermsMerged += counts.TermsMerged
 	}
 	if err := refreshGlossaryLocaleCoverage(ctx, tx, glossaryID, sourceLocale); err != nil {
+		return err
+	}
+	if err := recordGlossaryImportedActivity(ctx, tx, runID, glossaryID, countTerms(concepts), importOptions.Actor); err != nil {
 		return err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -957,7 +969,44 @@ func refreshGlossaryLocaleCoverage(ctx context.Context, tx pgx.Tx, glossaryID, s
 			     and lower(locale) <> lower($2)
 			 ) locales),
 			'[]'::jsonb
-		)
+		),
+		-- go-svc keys cached glossary reads to updated_at, so this invalidates them.
+		updated_at = now()
 		where g.id = $1`, glossaryID, sourceLocale)
 	return err
+}
+
+// recordGlossaryImportedActivity records the same glossary_imported event as go-svc's inline
+// import, in the import's transaction.
+func recordGlossaryImportedActivity(ctx context.Context, tx pgx.Tx, runID, glossaryID string, itemCount int, actor *interchangeImportActor) error {
+	var organizationID string
+	var userID *string
+	if err := tx.QueryRow(ctx, `select organization_id::text, created_by_user_id::text from glossary_import_runs where id=$1`, runID).Scan(&organizationID, &userID); err != nil {
+		return fmt.Errorf("load import run actor: %w", err)
+	}
+	payload, err := json.Marshal(map[string]any{"batchId": runID, "itemCount": itemCount, "resourceId": glossaryID})
+	if err != nil {
+		return err
+	}
+	event := activitylog.Event{
+		ActorKind:      "user",
+		ActorUserID:    userID,
+		CreatedAt:      time.Now().UTC().Format(time.RFC3339Nano),
+		EventType:      "glossary_imported",
+		ID:             uuid.NewString(),
+		OrganizationID: organizationID,
+		Payload:        payload,
+		TargetID:       glossaryID,
+		TargetKind:     "glossary",
+	}
+	if actor != nil && actor.Kind == "api_key" && actor.CredentialID != "" {
+		credentialID := actor.CredentialID
+		event.ActorKind = "api_key"
+		event.ActorCredentialID = &credentialID
+	}
+	message := activitylog.Message{Event: event, MessageType: activitylog.MessageType, SchemaVersion: activitylog.SchemaVersion}
+	if err := activitylog.ValidateMessage(message); err != nil {
+		return fmt.Errorf("validate glossary_imported activity: %w", err)
+	}
+	return activitylog.NewStore(tx).Insert(ctx, event)
 }

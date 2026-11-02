@@ -27,6 +27,8 @@ type principal struct {
 	OrganizationID string       `json:"organizationId"`
 	Permissions    []string     `json:"permissions"`
 	Entitlements   entitlements `json:"entitlements"`
+	// Role is the token owner's workspace role, for per-resource rules such as glossary edits.
+	Role string `json:"-"`
 }
 
 type authenticator interface {
@@ -117,5 +119,6 @@ func (a *postgresAuthenticator) authenticate(ctx context.Context, token string) 
 		OrganizationID: organizationID,
 		Permissions:    permissions,
 		Entitlements:   ent,
+		Role:           *role,
 	}, nil
 }

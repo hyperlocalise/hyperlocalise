@@ -56,6 +56,10 @@ Use a **Webhook** trigger when another system should start the workflow with an 
 
 The endpoint accepts bodies up to 256 KiB and responds with `202` when a run is queued. Duplicate deliveries with the same idempotency key return the original run id. Webhook-triggered workflows are not reusable with **Call workflow** (that contract requires a **Manual** trigger).
 
+## Pause for a reviewer
+
+**Human approval** pauses the run until an authorized reviewer decides. Configure a reviewer (a person or a team), optional prompt text, and a deadline. The reviewer opens the request from **Inbox** and chooses **Approve**, **Reject**, or **Request changes**. If nobody decides before the deadline, the request expires and the error branch can continue. Wire the decision into later steps; do not treat a paused run as failed.
+
 ## Route people and due dates
 
 Human steps in MTPE and TEP flows can set owners and deadlines on native jobs and Crowdin tasks.

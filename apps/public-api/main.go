@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/objectstore/s3compat"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -57,9 +58,19 @@ func run(ctx context.Context) error {
 	if err != nil || number < 1 || number > 65535 {
 		return errors.New("PORT must be between 1 and 65535")
 	}
+	store := &postgresStore{pool: pool}
+	if store.objects, err = s3compat.RegistryFromEnv(ctx); err != nil {
+		return fmt.Errorf("configure object storage: %w", err)
+	}
+	if store.glossaryImports, err = newGlossaryImportQueue(ctx); err != nil {
+		return fmt.Errorf("configure glossary import queue: %w", err)
+	}
+	if store.objects == nil || store.glossaryImports == nil {
+		slog.Warn("glossary imports disabled", "reason", "object storage or "+glossaryInterchangeQueueURLEnv+" not configured")
+	}
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           newHandler(auth, &postgresStore{pool: pool}),
+		Handler:           newHandler(auth, store),
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
 		WriteTimeout:      writeTimeout,
