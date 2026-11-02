@@ -101,6 +101,9 @@ type resourceStore interface {
 	listMemoryEntries(context.Context, principal, string, memoryEntryFilters) ([]memoryEntry, int, error)
 	exportBilingualRows(context.Context, principal, string, bilingualExportQuery) ([]editor_export.Row, error)
 	importBilingualRows(context.Context, principal, string, bilingualImportInput) (bilingualImportCounts, error)
+	listJobs(context.Context, principal, jobFilters) ([]job, int, error)
+	getJob(context.Context, principal, string) (job, error)
+	updateJob(context.Context, principal, string, jobPatch) (job, error)
 }
 
 type postgresStore struct{ pool *pgxpool.Pool }

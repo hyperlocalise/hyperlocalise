@@ -13,6 +13,7 @@ tags:
   - name: Identity
   - name: Projects
   - name: Queries
+  - name: Jobs
   - name: Strings
   - name: Translations
   - name: Bilingual files
@@ -556,6 +557,94 @@ paths:
         "413": { $ref: "#/components/responses/PayloadTooLarge" }
         "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/jobs:
+    get:
+      operationId: listJobs
+      tags: [Jobs]
+      summary: List accessible jobs
+      description: Requires `jobs:read`. Newest first. Operators see every workspace job; others see jobs of projects their teams can access.
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: string, maxLength: 128 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [queued, running, succeeded, failed, waiting_for_review, cancelled] }
+        - name: kind
+          in: query
+          schema: { type: string, enum: [translation, research, review, proofread, sync, asset_management] }
+        - $ref: "#/components/parameters/Limit25"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Jobs.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [jobs, pagination]
+                properties:
+                  jobs:
+                    type: array
+                    items: { $ref: "#/components/schemas/Job" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/jobs/{jobId}:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    get:
+      operationId: getJob
+      tags: [Jobs]
+      summary: Get an accessible job
+      description: Requires `jobs:read`.
+      responses:
+        "200":
+          description: Job detail.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateJob
+      tags: [Jobs]
+      summary: Update a job's title, description, due date, or owner
+      description: >-
+        Requires `jobs:write`. Send at least one field; `null` clears `description`, `dueAt`, or
+        `ownerEmail`. The owner must be an active workspace member who can access the job's
+        project. Provider-backed jobs return `409`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                title: { type: string, minLength: 1, maxLength: 256 }
+                description: { type: [string, "null"], maxLength: 2048 }
+                dueAt: { type: [string, "null"], format: date-time }
+                ownerEmail: { type: [string, "null"], format: email, maxLength: 320 }
+      responses:
+        "200":
+          description: Updated job.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/glossaries:
     get:
       operationId: listGlossaries
@@ -759,6 +848,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema: { type: string, maxLength: 128 }
     MemoryId:
       name: memoryId
       in: path
@@ -954,6 +1048,38 @@ components:
         reviewStatus: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    Job:
+      type: object
+      required: [id, projectId, kind, type, status, createdAt, updatedAt, completedAt, lastError, title, description, dueAt, ownerEmail, outputFiles]
+      properties:
+        id: { type: string }
+        projectId: { type: [string, "null"] }
+        kind: { type: string, enum: [translation, research, review, proofread, sync, asset_management] }
+        type: { type: [string, "null"], enum: [string, file, null] }
+        status: { type: string, enum: [queued, running, succeeded, failed, waiting_for_review, cancelled] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+        lastError: { type: [string, "null"] }
+        title: { type: [string, "null"] }
+        description: { type: [string, "null"] }
+        dueAt: { type: [string, "null"], format: date-time }
+        ownerEmail: { type: [string, "null"] }
+        outputFiles:
+          type: [array, "null"]
+          description: Translated files of a finished file job.
+          items:
+            type: object
+            required: [fileId, locale, filename]
+            properties:
+              fileId: { type: string }
+              locale: { type: string }
+              filename: { type: string }
+    JobResponse:
+      type: object
+      required: [job]
+      properties:
+        job: { $ref: "#/components/schemas/Job" }
     BilingualImportCounts:
       type: object
       required: [matched, imported, skipped, files]
@@ -995,7 +1121,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: The project is not native, the key already exists, or the segment is locked.
+      description: The project is not native, the key already exists, the segment is locked, or the job is provider-backed.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
