@@ -61,7 +61,7 @@ Push creates a copy named `{source} [{locale}]`, for example `Welcome [fr-FR]`. 
 | Surface | What lands in HubSpot |
 | --- | --- |
 | Marketing email | A cloned email, then a draft with the target language and the translated subject, preview, and widgets. The source email stays as it was. |
-| Blog post | A language variation of the primary post, with the translated title, meta description, summary, body, and section text on the draft. The post stays unpublished. The HubSpot post title is the translated post name, or the translated HTML title when the name has no translation yet. Push updates an existing HubSpot variation for that locale when one is already linked to the primary post (including variations created in HubSpot), and only creates a new variation when none exists. If the blog itself has no variation for that language, push creates that blog variation first. |
+| Blog post | A language variation of the primary post, with the translated title, meta description, summary, body, section text, and static module fields on the draft. The post stays unpublished. The HubSpot post title is the translated post name, or the translated HTML title when the name has no translation yet. Push updates an existing HubSpot variation for that locale when one is already linked to the primary post (including variations created in HubSpot), and only creates a new variation when none exists. If the blog itself has no variation for that language, push creates a blog for that language and attaches it to the primary blog's multi-language group. That blog stays unpublished. |
 | Landing page | A language variation of the primary landing page, with the translated title, meta description, alt text, widgets, and layout on the draft. The page stays unpublished. |
 | Website page | A language variation of the primary website page, with the same draft fields as a landing page. The page stays unpublished. |
 | Form | A new form with the translated labels and HubSpot's built-in messages for that language. The source form stays on any page that already embeds it. The new form exists in the portal and is not embedded for you. |
@@ -78,7 +78,7 @@ Disconnect HubSpot from **Integrations** to stop this workspace using that accou
 
 - Confirm HubSpot is connected and the automation is **Active**.
 - Confirm the HubSpot authorization still has `content` and `forms`.
-- For **blog push**, the blog (content group) needs a **publishing domain** in HubSpot (**Settings → Website → Domains and Blog**). When that field is blank, Hyperlocalise assigns the account’s blog domain through the blogs API before creating the language variation. If push fails with `hubspot_blog_missing_domain`, connect a domain in HubSpot and reconnect the integration if domain listing was denied.
+- For **blog push**, HubSpot requires the blog's domain to have a primary language before a language can be added (**Settings → Content → Domains & URLs → Language settings**). Push adds a missing language by creating a blog and attaching it to the primary blog's multi-language group. It does not publish the blog.
 - Confirm the project source locale matches the language of the HubSpot source.
 - Confirm each target locale maps to a HubSpot language the account has enabled.
 - Open **Run History** for the failed item or locale.
