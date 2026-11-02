@@ -30076,7 +30076,7 @@
     "description": "Button to move an issue column earlier in sort order"
   },
   "k8nQ2wLm0P": {
-    "defaultMessage": "Create a HubSpot language variant first",
+    "defaultMessage": "Add/edit multi-language variations first",
     "description": "Title of the HubSpot push dialog warning for blog post language variants"
   },
   "k9j7R6aLei": {
@@ -33208,7 +33208,7 @@
     "description": "Validation error for a custom placeholder pattern that uses unsupported syntax"
   },
   "p4Rv7tNc2A": {
-    "defaultMessage": "Open the post and choose Actions → Create multi-language variation. Push updates that draft and does not create a language.",
+    "defaultMessage": "In HubSpot Settings, open Blog and choose Add/edit multi-language variations. Push updates that draft and does not create a language.",
     "description": "Warning in the HubSpot push dialog that blog posts need a HubSpot language variant"
   },
   "p4xkAKJ/3y": {

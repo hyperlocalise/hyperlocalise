@@ -147,12 +147,13 @@ export type HubspotLanguageVariationSummary = {
 };
 
 export const HUBSPOT_BLOG_LANGUAGE_HINT =
-  "create the language variant in HubSpot first — Actions → Create multi-language variation";
+  "add the language in HubSpot first — Settings → Blog → Add/edit multi-language variations";
 
 export function isMissingBlogLanguageMessage(message: string): boolean {
   return (
     message.includes("hubspot_blog_language_missing") ||
-    message.includes("Create multi-language variation")
+    message.includes("Create multi-language variation") ||
+    message.includes("Add/edit multi-language variations")
   );
 }
 

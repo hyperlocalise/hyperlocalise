@@ -13,6 +13,7 @@
 
 import type { HubspotBlogRecord } from "./client";
 import {
+  blogRssBodyIsDistinctCopy,
   buildBlogContentDocument,
   buildEmailHtmlDocument,
   emailHtmlKinds,
@@ -57,20 +58,8 @@ export function hubspotBlogSyncSourcePath(postId: string): string {
   return buildHubspotBlogFolderPath(postId);
 }
 
-function visibleCopy(value: string): string {
-  return value
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 export function shouldImportRssBody(postBody: string, rssBody: string): boolean {
-  const rss = visibleCopy(rssBody);
-  if (!rss) {
-    return false;
-  }
-  const body = visibleCopy(postBody);
-  return !body.includes(rss);
+  return blogRssBodyIsDistinctCopy(postBody, rssBody);
 }
 
 function blogImportTree(post: HubspotBlogRecord): HubspotStringTree {

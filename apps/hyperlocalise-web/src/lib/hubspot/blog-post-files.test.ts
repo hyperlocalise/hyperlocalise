@@ -80,6 +80,16 @@ describe("blog-post-files", () => {
     expect(html).toContain('data-hl-field="rssBody"');
   });
 
+  it("includes rssBody when the feed text is a shorter excerpt of the article", () => {
+    const post = samplePost({
+      postBody: "<p>Hello world. More article copy.</p>",
+      rssBody: "<p>Hello world.</p>",
+    });
+    const html = buildBlogPostHtmlDocument(post, "");
+    expect(html).toContain('data-hl-field="rssBody"');
+    expect(shouldImportRssBody(post.postBody, post.rssBody)).toBe(true);
+  });
+
   it("builds folder and post.html repository paths", () => {
     expect(buildHubspotBlogFolderPath("post-1")).toBe("hubspot/blog-posts/post-1");
     expect(hubspotBlogSyncSourcePath("post-1")).toBe("hubspot/blog-posts/post-1");

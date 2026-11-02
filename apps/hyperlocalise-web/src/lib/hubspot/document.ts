@@ -316,6 +316,18 @@ function visibleCopy(value: string): string {
     .trim();
 }
 
+/** True when RSS visible text is the same as the article, not a shorter excerpt. */
+export function blogRssBodyDuplicatesPostBody(postBody: string, rssBody: string): boolean {
+  const rss = visibleCopy(rssBody);
+  return Boolean(rss) && rss === visibleCopy(postBody);
+}
+
+/** True when RSS has its own copy and is not an exact duplicate of the article. */
+export function blogRssBodyIsDistinctCopy(postBody: string, rssBody: string): boolean {
+  const rss = visibleCopy(rssBody);
+  return Boolean(rss) && rss !== visibleCopy(postBody);
+}
+
 export function buildBlogContentDocument(input: {
   name?: string;
   htmlTitle: string;
@@ -337,12 +349,8 @@ export function buildBlogContentDocument(input: {
     document.postBody = input.postBody;
   }
   const rssBody = input.rssBody ?? "";
-  if (isCopyString(rssBody)) {
-    const rss = visibleCopy(rssBody);
-    const body = visibleCopy(input.postBody);
-    if (rss && !body.includes(rss)) {
-      document.rssBody = rssBody;
-    }
+  if (isCopyString(rssBody) && blogRssBodyIsDistinctCopy(input.postBody, rssBody)) {
+    document.rssBody = rssBody;
   }
   if (isCopyString(input.postSummary)) {
     document.postSummary = input.postSummary;
@@ -394,7 +402,7 @@ export function applyBlogContentDocument(
   };
 }
 
-/** When import omitted rssBody because it duplicated the article, push the translated body. */
+/** When import omitted rssBody because it matched the article, push the translated body. */
 function resolveAppliedBlogRssBody(
   live: { postBody: string; rssBody?: string },
   translated: HubspotStringTree,
@@ -404,12 +412,8 @@ function resolveAppliedBlogRssBody(
     return translated.rssBody;
   }
   const liveRss = live.rssBody ?? "";
-  if (isCopyString(liveRss)) {
-    const rss = visibleCopy(liveRss);
-    const body = visibleCopy(live.postBody);
-    if (rss && body.includes(rss)) {
-      return translatedPostBody;
-    }
+  if (blogRssBodyDuplicatesPostBody(live.postBody, liveRss)) {
+    return translatedPostBody;
   }
   return liveRss;
 }

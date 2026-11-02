@@ -105,6 +105,7 @@ describe("hubspot language and copy names", () => {
       ),
     ).toBe(true);
     expect(isMissingBlogLanguageMessage("Actions → Create multi-language variation")).toBe(true);
+    expect(isMissingBlogLanguageMessage("Add/edit multi-language variations")).toBe(true);
     expect(isMissingBlogLanguageMessage("hubspot_blog_draft_failed:404")).toBe(false);
   });
 });
