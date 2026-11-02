@@ -34,6 +34,18 @@ describe("formDefinitionForWrite", () => {
     expect(definition.configuration).toMatchObject({ language: "zh-cn" });
   });
 
+  it("sets the visual form locale when settings exist", () => {
+    const definition = formDefinitionForWrite(
+      {
+        name: "Newsletter",
+        settings: { hubspotFormLocale: "en" },
+      },
+      { name: "Newsletter [zh-CN]", language: "zh-cn" },
+    );
+
+    expect(definition.settings).toMatchObject({ hubspotFormLocale: "zh-cn" });
+  });
+
   it("sets the body id to the locale copy when replacing a form", () => {
     const definition = formDefinitionForWrite(
       {

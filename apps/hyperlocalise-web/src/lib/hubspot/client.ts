@@ -20,6 +20,7 @@ import { PublicEmailContent } from "@hubspot/api-client/lib/codegen/marketing/em
 
 import { collectBlogPostStylesCss } from "./blog-stylesheets";
 import { HUBSPOT_FORMS_PATH, HUBSPOT_LIST_PAGE_SIZE } from "./constants";
+import { asFormDefinition, formLanguage, type HubspotFormDefinition } from "./form-definition";
 import {
   findBlogLanguageVariation,
   findBlogSettingsLanguageId,
@@ -84,7 +85,7 @@ export type HubspotFormSummary = {
 };
 
 export type HubspotFormRecord = HubspotFormSummary & {
-  definition: Record<string, unknown>;
+  definition: HubspotFormDefinition;
   updatedAt: string | null;
 };
 
@@ -153,6 +154,7 @@ export type HubspotBlogPostCreateBody = {
 export type HubspotApiRequestBody =
   | Record<string, string>
   | Record<string, unknown>
+  | HubspotFormDefinition
   | HubspotPageDraftBody
   | HubspotBlogDraftBody
   | HubspotBlogPostCreateBody;
@@ -196,8 +198,8 @@ export type HubspotContentClient = {
   }): Promise<void>;
   listForms(): Promise<HubspotFormSummary[]>;
   getForm(id: string): Promise<HubspotFormRecord>;
-  createForm(definition: Record<string, unknown>): Promise<{ id: string }>;
-  replaceForm(id: string, definition: Record<string, unknown>): Promise<void>;
+  createForm(definition: HubspotFormDefinition): Promise<{ id: string }>;
+  replaceForm(id: string, definition: HubspotFormDefinition): Promise<void>;
   listLandingPages(): Promise<HubspotPageSummary[]>;
   getLandingPage(id: string): Promise<HubspotPageRecord>;
   createLandingPageLanguageVariation(input: {
@@ -1065,16 +1067,7 @@ function messageTemplateWriteBody(input: HubspotMessageTemplateDraft): Record<st
   return body;
 }
 
-function formLanguage(definition: Record<string, unknown>): string | null {
-  const configuration = definition.configuration;
-  if (!configuration || typeof configuration !== "object" || Array.isArray(configuration)) {
-    return null;
-  }
-  const language = (configuration as { language?: unknown }).language;
-  return typeof language === "string" && language.trim() ? language : null;
-}
-
-function formRecord(definition: Record<string, unknown>, fallbackId: string): HubspotFormRecord {
+function formRecord(definition: HubspotFormDefinition, fallbackId: string): HubspotFormRecord {
   const id = typeof definition.id === "string" && definition.id.trim() ? definition.id : fallbackId;
   return {
     id,
@@ -1094,7 +1087,7 @@ async function requestFormJson(
   opts: {
     method: string;
     path: string;
-    body?: Record<string, unknown>;
+    body?: HubspotFormDefinition;
     qs?: Record<string, string>;
   },
 ): Promise<HubspotJson> {
@@ -1336,7 +1329,7 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
                 formTypes: "hubspot",
               }
             : { limit: String(HUBSPOT_LIST_PAGE_SIZE), formTypes: "hubspot" },
-        }).then((payload) => payload as Page<Record<string, unknown>>),
+        }).then((payload) => payload as Page<HubspotFormDefinition>),
       );
       return results
         .filter((form) => typeof form.id === "string" && form.id.trim())
@@ -1350,7 +1343,7 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
       if (!isHubspotJsonObject(definition)) {
         throw new Error("hubspot_form_request_failed");
       }
-      return formRecord(definition, id);
+      return formRecord(asFormDefinition(definition), id);
     },
     async createForm(definition) {
       const created = await requestFormJson(sdk, {

@@ -11,7 +11,9 @@
  * Version 2.0 or later.
  */
 
-function dateValue(value: unknown): Date | null {
+import type { HubspotFormDefinition } from "./form-definition";
+
+function dateValue(value: Date | string | number | undefined): Date | null {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return value;
   }
@@ -30,14 +32,16 @@ function dateValue(value: unknown): Date | null {
  * Replace also rejects a body `id` that differs from the form id in the path.
  */
 export function formDefinitionForWrite(
-  definition: Record<string, unknown>,
+  definition: HubspotFormDefinition,
   input: { name: string; language: string; id?: string },
-): Record<string, unknown> {
+): HubspotFormDefinition {
   const next = structuredClone(definition);
   next.name = input.name;
-  const configuration = next.configuration;
-  if (configuration && typeof configuration === "object" && !Array.isArray(configuration)) {
-    (configuration as { language?: string }).language = input.language;
+  if (next.configuration) {
+    next.configuration.language = input.language;
+  }
+  if (next.settings) {
+    next.settings.hubspotFormLocale = input.language;
   }
   const now = new Date();
   next.createdAt = dateValue(next.createdAt) ?? now;

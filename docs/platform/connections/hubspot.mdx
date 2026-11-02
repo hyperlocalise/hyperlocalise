@@ -34,7 +34,7 @@ Import reads primary marketing emails and writes `hubspot/emails/{id}/{slug}.htm
 
 Import reads primary blog posts and writes `hubspot/blog-posts/{id}/post.html`, one HTML document with inlined template CSS for preview and email-style sections for title, meta description, summaries, body and RSS copy (when RSS text differs from the article body), and widget or layout text.
 
-Import reads primary forms and writes `hubspot/forms/{id}/{slug}.json`. The file holds labels, placeholders, help text, option labels, group rich text, submit text, thank-you copy, and legal consent text. Field names and option values stay locked. Multi-step forms are one definition. Every field group is imported, including queued and progressive groups.
+Import reads primary forms and writes `hubspot/forms/{id}/{slug}.json`. The file holds labels, placeholders, help text, option labels, group rich text, submit text, thank-you copy, and legal consent text. When the definition includes a visual layout, import also takes step and on-submit rich text. Field names and option values stay locked. Multi-step forms are one definition. Every field group is imported, including queued and progressive groups.
 
 When a blog post has no saved module edits, import reads that template and included sections. The default copy the editor shows is imported from there. A blog post that already has an article body still picks up section text from its layout or template. Push writes the translation onto the locale draft and leaves the template unchanged.
 
