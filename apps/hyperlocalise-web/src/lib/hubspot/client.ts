@@ -16,6 +16,7 @@ import { BlogPost } from "@hubspot/api-client/lib/codegen/cms/blogs/blog_posts/m
 import { BlogPostLanguageCloneRequestVNext } from "@hubspot/api-client/lib/codegen/cms/blogs/blog_posts/models/BlogPostLanguageCloneRequestVNext";
 
 import { collectBlogPostStylesCss } from "./blog-stylesheets";
+import { findBlogLanguageVariation } from "./locale";
 import { ContentLanguageCloneRequestVNext } from "@hubspot/api-client/lib/codegen/cms/pages/models/ContentLanguageCloneRequestVNext";
 import { Page as HubspotPageModel } from "@hubspot/api-client/lib/codegen/cms/pages/models/Page";
 import { ContentCloneRequestVNext } from "@hubspot/api-client/lib/codegen/marketing/emails/models/ContentCloneRequestVNext";
@@ -905,6 +906,46 @@ function blogVariationSlug(slug: string, language: string): string {
   return stem.endsWith(suffix) ? stem : `${stem}${suffix}`;
 }
 
+function isLanguageAlreadyTranslatedError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return lower.includes("409") || lower.includes("language_already_translated");
+}
+
+function parseExistingBlogLanguageVariationId(message: string): string | null {
+  const bodyMatch = /Body:\s*(\{[\s\S]*\})/i.exec(message);
+  if (bodyMatch?.[1]) {
+    try {
+      const parsed: HubspotJson = JSON.parse(bodyMatch[1]);
+      if (isHubspotJsonObject(parsed)) {
+        const errorType = typeof parsed.errorType === "string" ? parsed.errorType : "";
+        if (
+          errorType === "LANGUAGE_ALREADY_TRANSLATED" ||
+          isLanguageAlreadyTranslatedError(message)
+        ) {
+          const tokens = parsed.errorTokens;
+          if (isHubspotJsonObject(tokens) && Array.isArray(tokens.id)) {
+            const id = tokens.id
+              .find((value): value is string => typeof value === "string")
+              ?.trim();
+            if (id) {
+              return id;
+            }
+          }
+          const hubspotMessage = typeof parsed.message === "string" ? parsed.message : message;
+          const fromMessage = /variation with id:\s*(\d+)/i.exec(hubspotMessage)?.[1];
+          if (fromMessage?.trim()) {
+            return fromMessage.trim();
+          }
+        }
+      }
+    } catch {
+      // fall through to message regex
+    }
+  }
+  const fromMessage = /variation with id:\s*(\d+)/i.exec(message)?.[1];
+  return fromMessage?.trim() ?? null;
+}
+
 function hubspotFailureDetail(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) {
@@ -1235,6 +1276,30 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
         return await createPostVariation();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
+        if (isLanguageAlreadyTranslatedError(message)) {
+          const existingId = parseExistingBlogLanguageVariationId(message);
+          if (existingId) {
+            return { id: existingId };
+          }
+          const results = await listPages((after) =>
+            blogs.basicApi.getPage(
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              after,
+              HUBSPOT_LIST_PAGE_SIZE,
+            ),
+          );
+          const summaries = results.filter((post) => post.id).map(blogSummary);
+          const discovered = findBlogLanguageVariation(summaries, input.id, input.language);
+          if (discovered) {
+            return { id: discovered };
+          }
+        }
         if (!message.toLowerCase().includes("does not have a variation for language")) {
           throw error;
         }

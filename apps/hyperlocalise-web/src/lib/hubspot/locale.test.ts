@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   assignHubspotLocales,
+  findBlogLanguageVariation,
   hubspotCopyName,
   hubspotLanguageMatchesSource,
   isHubspotLocaleCopyName,
@@ -83,5 +84,16 @@ describe("hubspot language and copy names", () => {
     expect(hubspotCopyName("Welcome", "fr-FR")).toBe("Welcome [fr-FR]");
     expect(isHubspotLocaleCopyName("Welcome [fr-FR]")).toBe(true);
     expect(isHubspotLocaleCopyName("Welcome")).toBe(false);
+  });
+
+  it("finds blog language variations by primary post id and normalized language", () => {
+    const posts = [
+      { id: "post-1", language: "en", translatedFromId: null },
+      { id: "420539377366", language: "zh-tw", translatedFromId: "post-1" },
+      { id: "post-3", language: "zh-cn", translatedFromId: "post-1" },
+    ];
+    expect(findBlogLanguageVariation(posts, "post-1", "zh-tw")).toBe("420539377366");
+    expect(findBlogLanguageVariation(posts, "post-1", "zh-TW")).toBe("420539377366");
+    expect(findBlogLanguageVariation(posts, "post-1", "fr")).toBeNull();
   });
 });

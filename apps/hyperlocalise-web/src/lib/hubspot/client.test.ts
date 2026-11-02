@@ -166,6 +166,41 @@ describe("hubspot message templates", () => {
     ]);
   });
 
+  it("returns an existing blog post variation id when HubSpot reports LANGUAGE_ALREADY_TRANSLATED", async () => {
+    const blogs = {
+      basicApi: {
+        getPage: async () => ({
+          results: [
+            {
+              id: "420539377366",
+              name: "Your Blog Post Title Here...",
+              language: "zh-tw",
+              translatedFromId: "post-1",
+            },
+          ],
+        }),
+        getById: async () => ({ id: "post-1", contentGroupId: "blog-1", language: "en" }),
+      },
+      multiLanguageApi: {
+        createLangVariation: async () => {
+          throw new Error(
+            'HTTP-Code: 409\nMessage: An error occurred.\nBody: {"errorType":"LANGUAGE_ALREADY_TRANSLATED","message":"There is already an existing zh-tw variation with id: 420539377366. Language variations must be unique","errorTokens":{"id":["420539377366"],"language":["zh-tw"]}}',
+          );
+        },
+      },
+    };
+    const content = createHubspotContentClientFromSdk({
+      ...sdkWith(async () => jsonResponse(200, {})),
+      cms: {
+        blogs: { blogPosts: blogs },
+        pages: { landingPagesApi: {}, sitePagesApi: {} },
+      },
+    } as unknown as HubspotSdk);
+
+    const created = await content.createBlogLanguageVariation({ id: "post-1", language: "zh-tw" });
+    expect(created).toEqual({ id: "420539377366" });
+  });
+
   it("sets a blog domain before creating a language variation when the blog has none", async () => {
     const calls: ApiCall[] = [];
     let postVariations = 0;

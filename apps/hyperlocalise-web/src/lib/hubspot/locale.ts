@@ -139,3 +139,29 @@ export function hubspotCopyName(sourceName: string, locale: string): string {
 export function isHubspotLocaleCopyName(name: string): boolean {
   return /\[[^\]]+\]\s*$/.test(name.trim());
 }
+
+export type HubspotLanguageVariationSummary = {
+  id: string;
+  language: string | null;
+  translatedFromId: string | null;
+};
+
+/** Match a HubSpot multi-language post variation to its primary post and language code. */
+export function findBlogLanguageVariation(
+  posts: readonly HubspotLanguageVariationSummary[],
+  sourcePostId: string,
+  hubspotCode: string,
+): string | null {
+  const sourceId = sourcePostId.trim();
+  const code = normalizeHubspotLocaleTag(hubspotCode);
+  if (!sourceId || !code) {
+    return null;
+  }
+  return (
+    posts.find(
+      (post) =>
+        post.translatedFromId === sourceId &&
+        normalizeHubspotLocaleTag(post.language ?? "") === code,
+    )?.id ?? null
+  );
+}

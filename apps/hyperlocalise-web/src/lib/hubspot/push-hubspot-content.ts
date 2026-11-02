@@ -62,7 +62,12 @@ import {
 } from "./blog-post-bundle";
 import { parseHubspotBlogFolderPath } from "./source-path";
 import { formDefinitionForWrite } from "./form-write";
-import { assignHubspotLocales, hubspotCopyName, mapProjectLocaleToHubspot } from "./locale";
+import {
+  assignHubspotLocales,
+  findBlogLanguageVariation,
+  hubspotCopyName,
+  mapProjectLocaleToHubspot,
+} from "./locale";
 
 const logger = createLogger("push-hubspot-content");
 
@@ -377,6 +382,7 @@ export async function runPushHubspotContent(input: {
     const assignment = assignments[mapping.resourceKind];
     const localeCopyIds = { ...mapping.localeCopyIds };
     const pushHashes = { ...mapping.lastPushContentHash };
+    const blogSummaries = mapping.resourceKind === "blog" ? await client.listBlogPosts() : null;
 
     for (const { locale, code } of assignment.mapped) {
       try {
@@ -412,6 +418,9 @@ export async function runPushHubspotContent(input: {
         let copyId: string | null = localeCopyIds[locale] ?? null;
         if (!copyId) {
           copyId = await findNamedCopy({ client, kind: mapping.resourceKind, copyName });
+        }
+        if (!copyId && blogSummaries) {
+          copyId = findBlogLanguageVariation(blogSummaries, mapping.sourceId, hubspotCode);
         }
         if (copyId && hubspot.overwriteWhenRemoteNewer === false) {
           const copyUpdatedAt = await loadCopyUpdatedAt(client, mapping.resourceKind, copyId);

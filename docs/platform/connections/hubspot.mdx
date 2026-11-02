@@ -61,7 +61,7 @@ Push creates a copy named `{source} [{locale}]`, for example `Welcome [fr-FR]`. 
 | Surface | What lands in HubSpot |
 | --- | --- |
 | Marketing email | A cloned email, then a draft with the target language and the translated subject, preview, and widgets. The source email stays as it was. |
-| Blog post | A language variation of the primary post, with the translated title, meta description, summary, body, and section text on the draft. The post stays unpublished. If the blog itself has no variation for that language, push creates that blog variation first. |
+| Blog post | A language variation of the primary post, with the translated title, meta description, summary, body, and section text on the draft. The post stays unpublished. Push updates an existing HubSpot variation for that locale when one is already linked to the primary post (including variations created in HubSpot), renames it to `{source} [{locale}]`, and only creates a new variation when none exists. If the blog itself has no variation for that language, push creates that blog variation first. |
 | Landing page | A language variation of the primary landing page, with the translated title, meta description, alt text, widgets, and layout on the draft. The page stays unpublished. |
 | Website page | A language variation of the primary website page, with the same draft fields as a landing page. The page stays unpublished. |
 | Form | A new form with the translated labels and HubSpot's built-in messages for that language. The source form stays on any page that already embeds it. The new form exists in the portal and is not embedded for you. |
