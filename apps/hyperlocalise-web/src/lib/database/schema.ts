@@ -59,6 +59,7 @@ export * from "./schema/project-content-editor-string-overlays";
 export * from "./schema/project-content-editor-segment-locks";
 export * from "./schema/billing";
 export * from "./schema/localisation-audits";
+export * from "./schema/engine-setup";
 export * from "./schema/linked-domains";
 export * from "./schema/domain-research";
 export * from "./schema/experiments";
