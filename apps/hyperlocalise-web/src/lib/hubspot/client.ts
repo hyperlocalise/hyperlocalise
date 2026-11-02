@@ -12,7 +12,6 @@
  */
 
 import { Client } from "@hubspot/api-client";
-import { BlogPost } from "@hubspot/api-client/lib/codegen/cms/blogs/blog_posts/models/BlogPost";
 import { ContentLanguageCloneRequestVNext } from "@hubspot/api-client/lib/codegen/cms/pages/models/ContentLanguageCloneRequestVNext";
 import { Page as HubspotPageModel } from "@hubspot/api-client/lib/codegen/cms/pages/models/Page";
 import { ContentCloneRequestVNext } from "@hubspot/api-client/lib/codegen/marketing/emails/models/ContentCloneRequestVNext";
@@ -234,7 +233,6 @@ type BlogLike = {
   name?: string;
   language?: string;
   translatedFromId?: string;
-  contentGroupId?: string;
   htmlTitle?: string;
   metaDescription?: string;
   featuredImageAltText?: string;
@@ -331,12 +329,6 @@ export type HubspotSdk = {
             limit?: number,
           ) => Promise<Page<BlogLike>>;
           getById: (objectId: string) => Promise<BlogLike>;
-          updateDraft: (objectId: string, blogPost: BlogPost) => Promise<unknown>;
-        };
-        multiLanguageApi: {
-          createLangVariation: (request: { id?: string; language?: string }) => Promise<{
-            id?: string;
-          }>;
         };
       };
     };

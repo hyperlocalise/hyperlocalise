@@ -18,8 +18,8 @@ import {
   hubspotCopyName,
   hubspotLanguageMatchesSource,
   isHubspotLocaleCopyName,
+  isMissingBlogLanguageMessage,
   mapProjectLocaleToHubspot,
-  missingBlogLanguageError,
 } from "./locale";
 
 describe("mapProjectLocaleToHubspot", () => {
@@ -98,9 +98,13 @@ describe("hubspot language and copy names", () => {
     expect(findBlogLanguageVariation(posts, "post-1", "fr")).toBeNull();
   });
 
-  it("tells the operator to create the HubSpot language variant", () => {
-    expect(missingBlogLanguageError().message).toBe(
-      "hubspot_blog_language_missing: In HubSpot, open the blog post and choose Actions → Create multi-language variation for this locale",
-    );
+  it("recognizes a missing HubSpot language variant warning", () => {
+    expect(
+      isMissingBlogLanguageMessage(
+        "hubspot_blog_language_missing: create the language variant in HubSpot first",
+      ),
+    ).toBe(true);
+    expect(isMissingBlogLanguageMessage("Actions → Create multi-language variation")).toBe(true);
+    expect(isMissingBlogLanguageMessage("hubspot_blog_draft_failed:404")).toBe(false);
   });
 });

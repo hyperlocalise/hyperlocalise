@@ -33208,7 +33208,7 @@
     "description": "Validation error for a custom placeholder pattern that uses unsupported syntax"
   },
   "p4Rv7tNc2A": {
-    "defaultMessage": "For each blog post locale, open the post in HubSpot and choose Actions → Create multi-language variation. Push writes onto that unpublished draft and does not create a new language.",
+    "defaultMessage": "Open the post and choose Actions → Create multi-language variation. Push updates that draft and does not create a language.",
     "description": "Warning in the HubSpot push dialog that blog posts need a HubSpot language variant"
   },
   "p4xkAKJ/3y": {

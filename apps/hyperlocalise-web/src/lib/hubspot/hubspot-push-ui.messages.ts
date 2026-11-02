@@ -47,9 +47,9 @@ export const hubspotPushUiMessages = defineMessages({
     description: "Title of the HubSpot push dialog warning for blog post language variants",
   },
   blogLanguageReminder: {
-    id: "LjQac0V0Z1",
+    id: "R5GgbBTWjB",
     defaultMessage:
-      "For each blog post locale, open the post in HubSpot and choose Actions → Create multi-language variation. Push writes onto that unpublished draft and does not create a new language.",
+      "Open the post and choose Actions → Create multi-language variation. Push updates that draft and does not create a language.",
     description:
       "Warning in the HubSpot push dialog that blog posts need a HubSpot language variant",
   },

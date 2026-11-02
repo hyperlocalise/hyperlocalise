@@ -147,10 +147,13 @@ export type HubspotLanguageVariationSummary = {
 };
 
 export const HUBSPOT_BLOG_LANGUAGE_HINT =
-  "In HubSpot, open the blog post and choose Actions → Create multi-language variation for this locale";
+  "create the language variant in HubSpot first — Actions → Create multi-language variation";
 
-export function missingBlogLanguageError(): Error {
-  return new Error(`hubspot_blog_language_missing: ${HUBSPOT_BLOG_LANGUAGE_HINT}`);
+export function isMissingBlogLanguageMessage(message: string): boolean {
+  return (
+    message.includes("hubspot_blog_language_missing") ||
+    message.includes("Create multi-language variation")
+  );
 }
 
 /** Match a HubSpot multi-language post variation to its primary post and language code. */

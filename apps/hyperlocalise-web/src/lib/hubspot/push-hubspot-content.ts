@@ -66,9 +66,10 @@ import { formDefinitionForWrite } from "./form-write";
 import {
   assignHubspotLocales,
   findBlogLanguageVariation,
+  HUBSPOT_BLOG_LANGUAGE_HINT,
   hubspotCopyName,
+  isMissingBlogLanguageMessage,
   mapProjectLocaleToHubspot,
-  missingBlogLanguageError,
 } from "./locale";
 
 const logger = createLogger("push-hubspot-content");
@@ -424,6 +425,11 @@ export async function runPushHubspotContent(input: {
         if (!copyId && blogSummaries) {
           copyId = findBlogLanguageVariation(blogSummaries, mapping.sourceId, hubspotCode);
         }
+        if (!copyId && mapping.resourceKind === "blog") {
+          result.skippedLocales += 1;
+          pushWarning(`${label}: skipped ${locale} (${HUBSPOT_BLOG_LANGUAGE_HINT})`);
+          continue;
+        }
         if (copyId && hubspot.overwriteWhenRemoteNewer === false) {
           const copyUpdatedAt = await loadCopyUpdatedAt(client, mapping.resourceKind, copyId);
           if (isHubspotRemoteCopyNewer({ lastPushedAt: mapping.lastPushedAt, copyUpdatedAt })) {
@@ -525,9 +531,10 @@ export async function runPushHubspotContent(input: {
           }
         } else if (mapping.resourceKind === "blog") {
           if (!copyId) {
-            throw missingBlogLanguageError();
+            result.skippedLocales += 1;
+            pushWarning(`${label}: skipped ${locale} (${HUBSPOT_BLOG_LANGUAGE_HINT})`);
+            continue;
           }
-          const targetId = copyId;
           if (blogPostId && blogPostHtml) {
             const live = await client.getBlogPost(mapping.sourceId);
             const applied = blogDraftFieldsFromPostHtml({
@@ -536,7 +543,7 @@ export async function runPushHubspotContent(input: {
               prefilled: approved.prefilled,
             });
             await client.updateBlogDraft({
-              id: targetId,
+              id: copyId,
               name: blogPostPushName({
                 sourceName: mapping.sourceName,
                 translatedName: applied.name,
@@ -561,7 +568,7 @@ export async function runPushHubspotContent(input: {
             const live = await client.getBlogPost(mapping.sourceId);
             const applied = applyBlogContentDocument(live, translated);
             await client.updateBlogDraft({
-              id: targetId,
+              id: copyId,
               name: blogPostPushName({
                 sourceName: mapping.sourceName,
                 translatedName: applied.name,
@@ -585,7 +592,7 @@ export async function runPushHubspotContent(input: {
             );
             const blog = readBlogDocument(translatedHtml);
             await client.updateBlogDraft({
-              id: targetId,
+              id: copyId,
               name: blogPostPushName({
                 sourceName: mapping.sourceName,
                 translatedHtmlTitle: blog.htmlTitle,
@@ -595,7 +602,6 @@ export async function runPushHubspotContent(input: {
               postBody: blog.postBody,
             });
           }
-          copyId = targetId;
         } else {
           const sourceDocument = readHubspotStringTree(
             readHubspotDocumentJson(sourceFileContent) ?? {},
@@ -648,6 +654,11 @@ export async function runPushHubspotContent(input: {
         result.pushedLocales += 1;
       } catch (error) {
         const message = error instanceof Error ? error.message : "push_failed";
+        if (isMissingBlogLanguageMessage(message)) {
+          result.skippedLocales += 1;
+          pushWarning(`${label}: skipped ${locale} (${HUBSPOT_BLOG_LANGUAGE_HINT})`);
+          continue;
+        }
         logger.warn(
           { syncStateId: mapping.id, sourceId: mapping.sourceId, locale, error: String(error) },
           "hubspot push locale failed",
