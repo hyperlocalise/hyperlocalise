@@ -35,20 +35,20 @@ overrides:
   "undici@^7.0.0": "7.30.1"
   "undici@^8.0.0": "8.12.3"
   devalue: "6.0.3"
-  qs: "6.16.1"
+  qs: "6.17.1"
   "@anthropic-ai/sdk": "0.137.0"
-  postcss: "8.5.31"
+  postcss: "8.5.32"
   postcss-selector-parser: "7.1.7"
   esbuild: "0.28.2"
-  "ip-address": "10.7.4"
-  hono: "4.13.13"
+  "ip-address": "10.7.5"
+  hono: "4.13.14"
   "@hono/node-server": "2.1.5"
   form-data: "4.0.6"
-  "axios@^1.0.0": "1.20.0"
+  "axios@^1.0.0": "1.21.0"
   fast-uri: "3.1.9"
   # mammoth is built for the 0.8 line; 0.9 rejects parseFromString without a mimeType.
   "@xmldom/xmldom": "0.9.12"
-  browserslist: "4.29.4"
+  browserslist: "4.29.5"
   linkify-it: "5.0.2"
   # exceljs uses CommonJS require('uuid'); keep v11 only on that path.
   "@zwight/exceljs>uuid": "11.1.1"
@@ -70,7 +70,7 @@ overrides:
   # @tiptap/pm 3.31.2 pulls prosemirror-view 1.42.3 while nested PM packages
   # still resolve 1.42.2; dual copies make DecorationSet unassignable to
   # Plugin props.decorations (DecorationSource).
-  prosemirror-view: "1.42.7"
+  prosemirror-view: "1.42.8"
   vite@*: 'catalog:'
   vitest@*: 'catalog:'
 peerDependencyRules:
