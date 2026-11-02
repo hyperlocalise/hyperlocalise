@@ -47,6 +47,8 @@ func newHandler(auth authenticator, stores ...resourceStore) http.Handler {
 	mux.HandleFunc("/v1/translation-memories", s.memories)
 	mux.HandleFunc("/v1/translation-memories/{memoryId}", s.memory)
 	mux.HandleFunc("/v1/translation-memories/{memoryId}/entries", s.memoryEntries)
+	mux.HandleFunc("/v1/translation-memories/{memoryId}/export", s.memoryExport)
+	mux.HandleFunc("/v1/translation-memories/{memoryId}/import", s.memoryImport)
 	mux.HandleFunc("/v1/jobs", s.jobs)
 	mux.HandleFunc("/v1/jobs/{jobId}", s.job)
 	mux.HandleFunc("/v1/queries", s.queries)

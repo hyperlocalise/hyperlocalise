@@ -928,6 +928,88 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/translation-memories/{memoryId}/export:
+    parameters:
+      - $ref: "#/components/parameters/MemoryId"
+    get:
+      operationId: exportTranslationMemory
+      tags: [Translation memories]
+      summary: Export translation memory entries
+      description: >-
+        Requires `translation-memories:read`. Returns TMX 1.4 by default, or the Hyperlocalise
+        CSV layout with `format=csv`. `sourceLocale` and `targetLocale` narrow the export to
+        one language pair.
+      parameters:
+        - name: format
+          in: query
+          schema: { type: string, enum: [tmx, csv], default: tmx }
+        - name: sourceLocale
+          in: query
+          schema: { type: string, maxLength: 64 }
+        - name: targetLocale
+          in: query
+          schema: { type: string, maxLength: 64 }
+      responses:
+        "200":
+          description: The export, sent as an attachment.
+          content:
+            application/x-tmx+xml: { schema: { type: string } }
+            text/csv: { schema: { type: string } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/translation-memories/{memoryId}/import:
+    parameters:
+      - $ref: "#/components/parameters/MemoryId"
+    post:
+      operationId: importTranslationMemory
+      tags: [Translation memories]
+      summary: Import TMX or CSV into a translation memory
+      description: >-
+        Requires `translation-memories:write`, which the `memories:write` token scope grants to
+        admins and localization managers. Native, non-archived memories only. Each unit updates
+        the entry with the same TMX `tuid`, or the same locale pair and source text, and creates
+        one otherwise. At most 10,000 units and 25 MiB. The run appears in the memory's import
+        history.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [format, content]
+              properties:
+                format: { type: string, enum: [tmx, csv] }
+                content: { type: string }
+                sourceFilename: { type: string, maxLength: 512 }
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                format: { type: string, enum: [tmx, csv], description: Defaults to the file extension. }
+      responses:
+        "201":
+          description: Import result.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [import]
+                properties:
+                  import: { $ref: "#/components/schemas/MemoryImportResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
 components:
   securitySchemes:
     personalAccessToken:
@@ -1194,6 +1276,29 @@ components:
       required: [job]
       properties:
         job: { $ref: "#/components/schemas/Job" }
+    MemoryImportResult:
+      type: object
+      required: [importAttemptId, importBatchId, totalRead, created, updated, warned, failed, headerSrclang, issues]
+      properties:
+        importAttemptId: { type: string, format: uuid }
+        importBatchId: { type: string, format: uuid }
+        totalRead: { type: integer, minimum: 0 }
+        created: { type: integer, minimum: 0 }
+        updated: { type: integer, minimum: 0 }
+        warned: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+        headerSrclang: { type: [string, "null"] }
+        issues:
+          type: array
+          items:
+            type: object
+            required: [severity, code, message]
+            properties:
+              severity: { type: string, enum: [warning, error] }
+              code: { type: string }
+              message: { type: string }
+              unitIndex: { type: integer }
+              tuid: { type: string }
     BilingualImportCounts:
       type: object
       required: [matched, imported, skipped, files]
@@ -1240,12 +1345,12 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     PayloadTooLarge:
-      description: The request body exceeds 256 KiB (16 MiB for a strings batch, 25 MiB for a bilingual file).
+      description: The request body exceeds 256 KiB (16 MiB for a strings batch, 25 MiB for a bilingual file or memory import).
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     UnsupportedMediaType:
-      description: The request body is not `application/json`, or `multipart/form-data` for a bilingual file.
+      description: The request body has an unsupported media type.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }

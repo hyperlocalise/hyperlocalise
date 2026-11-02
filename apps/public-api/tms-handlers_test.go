@@ -15,6 +15,7 @@ type fakeTMSStore struct {
 	fakeBilingualStore
 	fakeJobStore
 	fakeProjectAdminStore
+	fakeMemoryInterchangeStore
 	tmsErr           error
 	strings          []translationString
 	translations     []translationRecord

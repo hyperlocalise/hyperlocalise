@@ -106,6 +106,8 @@ type resourceStore interface {
 	updateJob(context.Context, principal, string, jobPatch) (job, error)
 	updateProject(context.Context, principal, string, projectPatch) (project, error)
 	upsertStrings(context.Context, principal, string, []stringUpsert) (stringBatchResult, error)
+	exportMemoryEntries(context.Context, principal, string, memoryExportQuery) (interchangeFile, error)
+	importMemoryEntries(context.Context, principal, string, memoryImportInput) (memoryImportResult, error)
 }
 
 type postgresStore struct{ pool *pgxpool.Pool }

@@ -1,12 +1,14 @@
 package main
 
 var apiKeyScopeCapability = map[string]string{
-	"projects:read": "projects:read",
-	"queries:read":  "projects:read",
-	"jobs:read":     "jobs:read",
-	"jobs:write":    "jobs:write",
-	"files:read":    "projects:read",
-	"files:write":   "jobs:create",
+	"projects:read":  "projects:read",
+	"queries:read":   "projects:read",
+	"jobs:read":      "jobs:read",
+	"jobs:write":     "jobs:write",
+	"files:read":     "projects:read",
+	"files:write":    "jobs:create",
+	"memories:read":  "memories:read",
+	"memories:write": "memories:write",
 }
 
 func roleAllowsCapability(role, capability string) bool {
@@ -15,6 +17,11 @@ func roleAllowsCapability(role, capability string) bool {
 		return role != ""
 	case "jobs:write", "jobs:create":
 		return role != "" && role != "member"
+	case "memories:read":
+		return role != ""
+	case "memories:write":
+		// go-svc's canWriteMemories.
+		return role == "admin" || role == "localization_manager"
 	default:
 		return false
 	}
@@ -50,6 +57,12 @@ func effectivePermissions(stored []string, role string) []string {
 		if role == "admin" || role == "localization_manager" || role == "developer" {
 			add("projects:write")
 		}
+	}
+	if _, ok := seen["memories:read"]; ok {
+		add("translation-memories:read")
+	}
+	if _, ok := seen["memories:write"]; ok {
+		add("translation-memories:write")
 	}
 	return out
 }
