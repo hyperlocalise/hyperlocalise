@@ -57,6 +57,13 @@ func glossaryCacheKey(organizationID, glossaryID string, rev int64, parts ...str
 	return b.String()
 }
 
+// glossaryVersionedCacheKey includes the glossary row's updated_at so writers outside
+// go-svc can invalidate cached reads without bumping the Valkey revision.
+func glossaryVersionedCacheKey(organizationID, glossaryID string, rev int64, g glossaryRecord, parts ...string) string {
+	keyParts := append([]string{glossaryContentVersion(g)}, parts...)
+	return glossaryCacheKey(organizationID, glossaryID, rev, keyParts...)
+}
+
 func glossaryQueryDigest(parts ...string) string {
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
 	return hex.EncodeToString(sum[:16])
@@ -197,8 +204,7 @@ func (api *glossaryAPI) cachedGlossaryJSON(ctx context.Context, actor glossaryAc
 	if !ok {
 		return load()
 	}
-	keyParts := append([]string{glossaryContentVersion(g)}, parts...)
-	return api.cachedJSON(ctx, glossaryCacheKey(actor.organizationID, g.ID, rev, keyParts...), ttl, load)
+	return api.cachedJSON(ctx, glossaryVersionedCacheKey(actor.organizationID, g.ID, rev, g, parts...), ttl, load)
 }
 
 func (api *glossaryAPI) cachedGlossaryTermCount(ctx context.Context, actor glossaryActor, g glossaryRecord) (int, error) {
@@ -207,7 +213,7 @@ func (api *glossaryAPI) cachedGlossaryTermCount(ctx context.Context, actor gloss
 	if !ok {
 		return api.glossaryTermCount(ctx, glossaryID)
 	}
-	key := glossaryCacheKey(actor.organizationID, glossaryID, rev, glossaryContentVersion(g), "term-count")
+	key := glossaryVersionedCacheKey(actor.organizationID, glossaryID, rev, g, "term-count")
 	if raw, found := api.cacheGet(ctx, key); found {
 		var count int
 		if json.Unmarshal([]byte(raw), &count) == nil && count >= 0 {
