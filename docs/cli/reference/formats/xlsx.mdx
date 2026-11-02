@@ -128,3 +128,8 @@ hyperlocalise run
 - `hl entries strings.xlsx --source-locale en --locale fr` prints the French
   entries, keyed like the English source. Without `--source-locale`, `--locale`
   names the source column. Comments are printed as `context`.
+
+- `hl entries strings.xlsx --import-settings settings.json` maps Excel columns
+  by 0-based index (`excel.columns.identifier`, `source`, `context`,
+  `maxLength`) and can treat row 0 as a header with
+  `excel.firstLineContainsHeader`.

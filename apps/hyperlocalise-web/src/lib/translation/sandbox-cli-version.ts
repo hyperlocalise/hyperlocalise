@@ -12,7 +12,7 @@
  */
 
 /** Pinned hyperlocalise CLI release installed into every sandbox. */
-export const sandboxHyperlocaliseReleaseVersion = "1.13.7";
+export const sandboxHyperlocaliseReleaseVersion = "1.13.8";
 
 /**
  * First CLI release whose `hl entries` and `hl run` read and write `.xlsx`, `.docx`, and
