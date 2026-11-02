@@ -114,7 +114,16 @@ projects use.
 Bilingual imports, string batches, and memory imports apply in one transaction.
 Bilingual imports save approved translations with provenance `import` and skip
 locked or over-length segments. Job updates port the web app's
-`updateNativeJob`. These writes do not publish activity-log events.
+`updateNativeJob`.
+
+Every new write records a workspace activity-log event in the same transaction
+as the change, attributed to the token (`api_key` actor, the token id as the
+credential, its owner as the user): `file_translations_imported` per file a
+bilingual import changed, `job_updated`, `project_settings_changed`,
+`project_strings_updated`, and `translation_memory_imported`. Memory and
+glossary exports record `translation_memory_exported` and `glossary_exported`,
+best effort, as go-svc does. Translations of strings that belong to no file
+have no file to target and record no event.
 
 Database-backed tests run when `DATABASE_URL` points at a migrated database
 and are skipped otherwise.

@@ -37,6 +37,8 @@ import {
   enqueueJobCancelledActivity,
   enqueueJobCreatedActivity,
   enqueueJobFailedActivity,
+  enqueueJobUpdatedActivity,
+  jobUpdatedFields,
   stableJobFailureCode,
 } from "./job-automation-events";
 
@@ -49,6 +51,30 @@ const userActor = {
 describe("job and automation activity events", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("records job updates without the owner's identity", async () => {
+    expect(jobUpdatedFields({ title: "Launch", ownerWorkosUserId: "user_2", dueAt: null })).toEqual(
+      ["title", "dueAt", "owner"],
+    );
+
+    await enqueueJobUpdatedActivity({
+      ...userActor,
+      changedFields: ["owner"],
+      jobId: "job_1",
+      kind: "proofread",
+      organizationId: "org_1",
+      projectId: null,
+    });
+
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith({
+      ...userActor,
+      eventType: "job_updated",
+      organizationId: "org_1",
+      payload: { changedFields: ["owner"], jobId: "job_1", kind: "proofread" },
+      targetId: "job_1",
+      targetKind: "job",
+    });
   });
 
   it("records the safe job lifecycle payload and actor", async () => {

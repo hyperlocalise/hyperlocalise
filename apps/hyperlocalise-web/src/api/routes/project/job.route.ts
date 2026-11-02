@@ -55,6 +55,10 @@ import {
 } from "@/lib/activity-log/job-automation-events";
 import { recordJobEvents } from "@/lib/job-events/job-events-writer";
 import {
+  enqueueJobUpdatedActivity,
+  jobUpdatedFields,
+} from "@/lib/activity-log/job-automation-events";
+import {
   assertOrganizationCanEnqueueTranslationJobInTransaction,
   OrganizationJobBudgetExceededError,
 } from "@/lib/security/organization-operation-budget";
@@ -1504,6 +1508,17 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       if (!job) {
         return notFoundResponse(c, "job_not_found", "Job not found");
       }
+
+      await enqueueJobUpdatedActivity({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        changedFields: jobUpdatedFields(body),
+        jobId: job.id,
+        kind: job.kind,
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: job.projectId,
+      });
 
       return c.json({ job }, 200);
     })

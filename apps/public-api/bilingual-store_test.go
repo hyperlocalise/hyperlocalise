@@ -49,6 +49,11 @@ func TestBilingualRoundTripDatabase(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, bilingualImportCounts{Matched: 4, Imported: 2, Skipped: 4, Files: 2}, counts)
+	events := f.activities(t, "file_translations_imported")
+	require.Len(t, events, 1)
+	require.Equal(t, f.project+":en.json", events[0].TargetID)
+	require.Equal(t, "file", events[0].TargetKind)
+	require.Equal(t, map[string]any{"fileName": "en.json", "name": "en.json", "projectId": f.project, "sourcePath": "en.json", "targetLocale": "fr"}, events[0].Payload)
 
 	saved, err := f.store.getStringTranslation(ctx, f.actor, f.project, title.ID, "fr")
 	require.NoError(t, err)

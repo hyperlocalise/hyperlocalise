@@ -51,6 +51,14 @@ func TestMemoryInterchangeDatabase(t *testing.T) {
 	require.Equal(t, "Product-UI-en-fr.csv", file.Filename)
 	require.Contains(t, string(file.Body), "en,fr,Start,Commencer,100")
 
+	imported := f.activities(t, "translation_memory_imported")
+	require.Len(t, imported, 2)
+	require.Equal(t, memoryID, imported[0].TargetID)
+	require.Equal(t, float64(2), imported[0].Payload["itemCount"])
+	exported := f.activities(t, "translation_memory_exported")
+	require.Len(t, exported, 2)
+	require.Equal(t, map[string]any{"resourceId": memoryID}, exported[0].Payload)
+
 	f.exec(t, `UPDATE memories SET status = 'archived' WHERE id = $1`, memoryID)
 	_, err = f.store.importMemoryEntries(ctx, f.actor, memoryID, memoryImportInput{Format: "tmx", Content: tmx})
 	require.ErrorIs(t, err, errMemoryArchived)

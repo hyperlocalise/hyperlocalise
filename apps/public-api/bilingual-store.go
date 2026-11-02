@@ -192,6 +192,7 @@ func (s *postgresStore) importBilingualRows(ctx context.Context, actor principal
 			return err
 		}
 		write := bilingualWrite{}
+		importedByPath := map[string]int{}
 		for _, key := range keys {
 			text := texts[[2]string{key.path, key.key}]
 			if _, ok := locked[key.id]; ok || (key.maxLength != nil && *key.maxLength > 0 && utf8.RuneCountInString(text) > *key.maxLength) {
@@ -199,6 +200,7 @@ func (s *postgresStore) importBilingualRows(ctx context.Context, actor principal
 				continue
 			}
 			counts.Imported++
+			importedByPath[key.path]++
 			snapshot, existed := before[key.id]
 			if existed && snapshot.text == text && snapshot.status == "approved" {
 				continue
@@ -209,7 +211,10 @@ func (s *postgresStore) importBilingualRows(ctx context.Context, actor principal
 				write.before = append(write.before, snapshot)
 			}
 		}
-		return saveBilingualTranslations(ctx, tx, actor, scope, input.Locale, write)
+		if err := saveBilingualTranslations(ctx, tx, actor, scope, input.Locale, write); err != nil {
+			return err
+		}
+		return recordBilingualImportActivity(ctx, tx, actor, scope.ID, input.Locale, importedByPath)
 	})
 	if err != nil {
 		return bilingualImportCounts{}, err
@@ -380,6 +385,29 @@ func saveBilingualTranslations(ctx context.Context, tx pgx.Tx, actor principal, 
 		ids, actor.OrganizationID, actor.UserID,
 	); err != nil {
 		return fmt.Errorf("record revisions: %w", err)
+	}
+	return nil
+}
+
+// recordBilingualImportActivity records file_translations_imported for each file that received
+// translations, as the web app's importCatBilingualRows does. Strings outside any file, which only
+// the public API creates, have no file to target and record no event.
+func recordBilingualImportActivity(ctx context.Context, tx pgx.Tx, actor principal, projectID, locale string, importedByPath map[string]int) error {
+	paths := make([]string, 0, len(importedByPath))
+	for path, imported := range importedByPath {
+		if path != "" && imported > 0 {
+			paths = append(paths, path)
+		}
+	}
+	slices.Sort(paths)
+	for _, path := range paths {
+		event, err := fileActivityEvent("file_translations_imported", projectID, path, map[string]any{"targetLocale": locale})
+		if err != nil {
+			return err
+		}
+		if err := insertActivity(ctx, tx, actor, event); err != nil {
+			return err
+		}
 	}
 	return nil
 }

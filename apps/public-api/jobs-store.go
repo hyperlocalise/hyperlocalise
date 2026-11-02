@@ -176,12 +176,13 @@ func (s *postgresStore) updateJob(ctx context.Context, actor principal, jobID st
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	var projectID *string
+	var kind string
 	var external bool
-	err = tx.QueryRow(ctx, `SELECT j.project_id, x.job_id IS NOT NULL
+	err = tx.QueryRow(ctx, `SELECT j.project_id, j.kind::text, x.job_id IS NOT NULL
 		FROM jobs j
 		LEFT JOIN external_job_details x ON x.job_id = j.id
 		WHERE `+jobAccessPredicate+` AND j.id = $3
-		FOR UPDATE OF j`, actor.OrganizationID, actor.UserID, jobID).Scan(&projectID, &external)
+		FOR UPDATE OF j`, actor.OrganizationID, actor.UserID, jobID).Scan(&projectID, &kind, &external)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return job{}, errJobNotFound
 	}
@@ -241,6 +242,14 @@ func (s *postgresStore) updateJob(ctx context.Context, actor principal, jobID st
 	if err != nil {
 		return job{}, err
 	}
+	if err := insertActivity(ctx, tx, actor, activityEvent{
+		EventType:  "job_updated",
+		TargetID:   jobID,
+		TargetKind: "job",
+		Payload:    map[string]any{"jobId": jobID, "kind": kind, "projectId": *projectID, "changedFields": patch.changedFields()},
+	}); err != nil {
+		return job{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return job{}, fmt.Errorf("commit job update: %w", err)
 	}
@@ -284,4 +293,23 @@ func assignableJobOwner(ctx context.Context, tx pgx.Tx, actor principal, project
 		return "", errJobOwnerUnassigable
 	}
 	return ownerID, nil
+}
+
+// changedFields names the fields a job update set. The owner is reported as "owner", so the
+// event carries no email address.
+func (patch jobPatch) changedFields() []string {
+	fields := []string{}
+	if patch.Title != nil {
+		fields = append(fields, "title")
+	}
+	if patch.Description.Set {
+		fields = append(fields, "description")
+	}
+	if patch.DueAt.Set {
+		fields = append(fields, "dueAt")
+	}
+	if patch.OwnerEmail.Set {
+		fields = append(fields, "owner")
+	}
+	return fields
 }

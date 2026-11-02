@@ -38,6 +38,7 @@ const {
   enqueueJobCancelledActivityMock,
   enqueueJobCreatedActivityMock,
   enqueueJobFailedActivityMock,
+  enqueueJobUpdatedActivityMock,
   ensureAiFeaturesAllowedMock,
   resolveApiAuthContextFromSessionMock,
   startTaskAnalysisMock,
@@ -45,6 +46,7 @@ const {
   enqueueJobCancelledActivityMock: vi.fn(),
   enqueueJobCreatedActivityMock: vi.fn(),
   enqueueJobFailedActivityMock: vi.fn(),
+  enqueueJobUpdatedActivityMock: vi.fn(),
   ensureAiFeaturesAllowedMock: vi.fn(),
   startTaskAnalysisMock: vi.fn(async () => undefined),
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -75,10 +77,14 @@ vi.mock("@/lib/reporting/task-analysis-start", () => ({
   startTaskAnalysis: startTaskAnalysisMock,
 }));
 
-vi.mock("@/lib/activity-log/job-automation-events", () => ({
+vi.mock("@/lib/activity-log/job-automation-events", async (importOriginal) => ({
   enqueueJobCancelledActivity: enqueueJobCancelledActivityMock,
   enqueueJobCreatedActivity: enqueueJobCreatedActivityMock,
   enqueueJobFailedActivity: enqueueJobFailedActivityMock,
+  enqueueJobUpdatedActivity: enqueueJobUpdatedActivityMock,
+  jobUpdatedFields: (
+    await importOriginal<typeof import("@/lib/activity-log/job-automation-events")>()
+  ).jobUpdatedFields,
 }));
 
 const client = testClient<AppType>(app);
@@ -1103,6 +1109,16 @@ describe("workspace job update", () => {
     expect(body.job.inputPayload.metadata).toMatchObject({
       title: "Updated launch copy",
       description: "Please prioritize EU locales",
+    });
+    expect(enqueueJobUpdatedActivityMock).toHaveBeenCalledWith({
+      actorCredentialId: null,
+      actorKind: "user",
+      actorUserId: user.id,
+      changedFields: ["title", "description", "owner"],
+      jobId: job.id,
+      kind: "translation",
+      organizationId: organization.id,
+      projectId: project.id,
     });
   });
 

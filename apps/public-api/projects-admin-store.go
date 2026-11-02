@@ -106,9 +106,36 @@ func (s *postgresStore) updateProject(ctx context.Context, actor principal, proj
 		}
 		var err error
 		updated, err = scanProject(tx.QueryRow(ctx, `SELECT `+projectColumns+` FROM projects p WHERE p.id = $1`, scope.ID))
-		return err
+		if err != nil {
+			return err
+		}
+		// Same event and payload as the web app's project settings PATCH.
+		return insertActivity(ctx, tx, actor, activityEvent{
+			EventType:  "project_settings_changed",
+			TargetID:   scope.ID,
+			TargetKind: "project",
+			Payload:    map[string]any{"changedFields": patch.changedFields(), "projectId": scope.ID},
+		})
 	})
 	return updated, err
+}
+
+// changedFields names the fields a project update set, as the web app's Object.keys(payload).
+func (patch projectPatch) changedFields() []string {
+	fields := []string{}
+	if patch.Name != nil {
+		fields = append(fields, "name")
+	}
+	if patch.Description != nil {
+		fields = append(fields, "description")
+	}
+	if patch.TranslationContext != nil {
+		fields = append(fields, "translationContext")
+	}
+	if patch.TargetLocales != nil {
+		fields = append(fields, "targetLocales")
+	}
+	return fields
 }
 
 const maxStringBatchSize = 500
@@ -159,7 +186,14 @@ func (s *postgresStore) upsertStrings(ctx context.Context, actor principal, proj
 			}
 			result.Strings = append(result.Strings, saved)
 		}
-		return nil
+		return insertActivity(ctx, tx, actor, activityEvent{
+			EventType:  "project_strings_updated",
+			TargetID:   scope.ID,
+			TargetKind: "project",
+			Payload: map[string]any{
+				"projectId": scope.ID, "created": result.Created, "updated": result.Updated, "itemCount": len(items),
+			},
+		})
 	})
 	if err != nil {
 		return stringBatchResult{}, err

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -87,4 +88,36 @@ func (f dbFixture) createString(t *testing.T, filePath, key, sourceText string, 
 	item, err := f.store.createString(t.Context(), f.actor, f.project, input)
 	require.NoError(t, err)
 	return item
+}
+
+// recordedActivity is an organization_activity_events row written by the fixture's token.
+type recordedActivity struct {
+	TargetID   string
+	TargetKind string
+	Payload    map[string]any
+}
+
+// activities returns the fixture workspace's events of one type, oldest first, and checks each
+// is attributed to the token.
+func (f dbFixture) activities(t *testing.T, eventType string) []recordedActivity {
+	t.Helper()
+	rows, err := f.pool.Query(t.Context(), `SELECT target_id, target_kind, payload, actor_kind, actor_user_id::text, actor_credential_id
+		FROM organization_activity_events WHERE organization_id = $1 AND event_type = $2 ORDER BY created_at, id`,
+		f.actor.OrganizationID, eventType)
+	require.NoError(t, err)
+	defer rows.Close()
+	var out []recordedActivity
+	for rows.Next() {
+		var item recordedActivity
+		var raw []byte
+		var actorKind, actorUserID, credentialID string
+		require.NoError(t, rows.Scan(&item.TargetID, &item.TargetKind, &raw, &actorKind, &actorUserID, &credentialID))
+		require.Equal(t, "api_key", actorKind)
+		require.Equal(t, f.actor.UserID, actorUserID)
+		require.Equal(t, f.actor.TokenID, credentialID)
+		require.NoError(t, json.Unmarshal(raw, &item.Payload))
+		out = append(out, item)
+	}
+	require.NoError(t, rows.Err())
+	return out
 }

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -129,6 +130,13 @@ func (s *postgresStore) exportMemoryEntries(ctx context.Context, actor principal
 	if err != nil {
 		return interchangeFile{}, err
 	}
+	// go-svc records exports too. The export is served even if recording it fails.
+	if err := insertActivity(ctx, s.pool, actor, activityEvent{
+		EventType: "translation_memory_exported", TargetID: memory.ID, TargetKind: "translation_memory",
+		Payload: map[string]any{"resourceId": memory.ID},
+	}); err != nil {
+		slog.ErrorContext(ctx, "activity_log_record_failed", "event_type", "translation_memory_exported", "error", err)
+	}
 	slug := memoryExportSlug(memory.Name)
 	if query.SourceLocale != "" && query.TargetLocale != "" {
 		slug += "-" + query.SourceLocale + "-" + query.TargetLocale
@@ -228,6 +236,18 @@ func (s *postgresStore) importMemoryEntries(ctx context.Context, actor principal
 	result.ImportAttemptID, err = recordMemoryImportAttempt(ctx, tx, actor, memory.ID, input, result)
 	if err != nil {
 		return memoryImportResult{}, err
+	}
+	// The memory interchange lambda records the same event for imports with changes.
+	if itemCount := result.Created + result.Updated; itemCount > 0 {
+		payload := map[string]any{"batchId": result.ImportAttemptID, "itemCount": itemCount, "resourceId": memory.ID}
+		if input.SourceFilename != nil {
+			payload["fileName"] = *input.SourceFilename
+		}
+		if err := insertActivity(ctx, tx, actor, activityEvent{
+			EventType: "translation_memory_imported", TargetID: memory.ID, TargetKind: "translation_memory", Payload: payload,
+		}); err != nil {
+			return memoryImportResult{}, err
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return memoryImportResult{}, fmt.Errorf("commit memory import: %w", err)

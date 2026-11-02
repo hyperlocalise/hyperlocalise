@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/glossaryexport"
 )
@@ -23,6 +24,13 @@ func (s *postgresStore) exportGlossary(ctx context.Context, actor principal, glo
 	concepts, err := s.loadGlossaryConcepts(ctx, item.ID)
 	if err != nil {
 		return interchangeFile{}, err
+	}
+	// go-svc records exports too. The export is served even if recording it fails.
+	if err := insertActivity(ctx, s.pool, actor, activityEvent{
+		EventType: "glossary_exported", TargetID: item.ID, TargetKind: "glossary",
+		Payload: map[string]any{"resourceId": item.ID},
+	}); err != nil {
+		slog.ErrorContext(ctx, "activity_log_record_failed", "event_type", "glossary_exported", "error", err)
 	}
 	slug := glossaryexport.Slug(item.Name)
 	switch format {

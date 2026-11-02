@@ -36,6 +36,10 @@ func TestGlossaryExportDatabase(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "PK", string(file.Body[:2]))
 
+	exported := f.activities(t, "glossary_exported")
+	require.Len(t, exported, 3)
+	require.Equal(t, glossaryID, exported[0].TargetID)
+
 	_, err = f.store.exportGlossary(ctx, f.actor, uuid.NewString(), "tbx")
 	require.ErrorIs(t, err, errGlossaryNotFound)
 }

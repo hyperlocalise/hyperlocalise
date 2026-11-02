@@ -54,6 +54,11 @@ func TestJobStoreDatabase(t *testing.T) {
 	require.Equal(t, "Release copy", *updated.Description)
 	require.True(t, due.Equal(*updated.DueAt))
 	require.Nil(t, updated.OwnerEmail)
+	events := f.activities(t, "job_updated")
+	require.Len(t, events, 1)
+	require.Equal(t, jobID, events[0].TargetID)
+	require.Equal(t, map[string]any{"jobId": jobID, "kind": "translation", "projectId": f.project,
+		"changedFields": []any{"title", "description", "dueAt", "owner"}}, events[0].Payload)
 
 	var payload map[string]any
 	var raw []byte
@@ -81,4 +86,6 @@ func TestJobStoreDatabase(t *testing.T) {
 	require.ErrorIs(t, err, errJobProjectRequired)
 	_, err = f.store.updateJob(ctx, f.actor, "job_missing", jobPatch{Title: &title})
 	require.ErrorIs(t, err, errJobNotFound)
+	// Failed updates record nothing.
+	require.Len(t, f.activities(t, "job_updated"), 3)
 }
