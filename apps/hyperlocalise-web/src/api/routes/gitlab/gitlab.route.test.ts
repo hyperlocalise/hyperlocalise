@@ -23,6 +23,17 @@ const mocks = vi.hoisted(() => ({
       null,
   ),
   listAccessibleGitLabProjects: vi.fn(),
+  withPublicHttpFetch: vi.fn(),
+  assertProviderUrlResolvable: vi.fn(),
+}));
+
+vi.mock("@/lib/security/public-http-fetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/security/public-http-fetch")>()),
+  withPublicHttpFetch: mocks.withPublicHttpFetch,
+}));
+
+vi.mock("@/lib/providers/shared/provider-url-resolve", () => ({
+  assertProviderUrlResolvable: mocks.assertProviderUrlResolvable,
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -141,6 +152,121 @@ describe("gitlabRoutes", () => {
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toMatchObject({
       error: "gitlab_pipes_unavailable",
+    });
+  });
+
+  describe("connection", () => {
+    const serverUrl = "https://git.acme.example/";
+
+    it("hides the connection from people who can't read integrations", async () => {
+      const identity = fixture.createWorkosIdentityWithRole("member");
+      const headers = await fixture.authHeadersFor(identity);
+
+      const read = await client.api.orgs[":organizationSlug"].gitlab.connection.$get(
+        { param: { organizationSlug: identity.organization.slug ?? "missing-slug" } },
+        { headers },
+      );
+
+      expect(read.status).toBe(403);
+    });
+
+    function mockGitLabServer() {
+      mocks.withPublicHttpFetch.mockImplementation(
+        async (url: string, _init: unknown, handler: (response: Response) => unknown) =>
+          handler(
+            Response.json(url.includes("/api/v4/user") ? { username: "translations-bot" } : []),
+          ),
+      );
+    }
+
+    beforeEach(() => {
+      mocks.withPublicHttpFetch.mockReset();
+      mocks.assertProviderUrlResolvable.mockReset();
+    });
+
+    it("saves, reads and removes a connection without returning the token", async () => {
+      mockGitLabServer();
+      const identity = fixture.createWorkosIdentityWithRole("admin");
+      const headers = await fixture.authHeadersFor(identity);
+      const param = { organizationSlug: identity.organization.slug ?? "missing-slug" };
+      const connection = client.api.orgs[":organizationSlug"].gitlab.connection;
+
+      const saved = await connection.$put(
+        { param, json: { serverUrl, accessToken: "glpat-secret-abcd" } },
+        { headers },
+      );
+      expect(saved.status).toBe(200);
+
+      const read = await connection.$get({ param }, { headers });
+      const body = await read.text();
+      expect(JSON.parse(body)).toMatchObject({
+        gitlabConnection: {
+          serverUrl: "https://git.acme.example",
+          connectedUsername: "translations-bot",
+        },
+      });
+      expect(body).not.toContain("glpat-secret");
+
+      const removed = await connection.$delete({ param }, { headers });
+      expect(removed.status).toBe(200);
+      const after = await connection.$get({ param }, { headers });
+      expect(await after.json()).toEqual({ gitlabConnection: null });
+    });
+
+    it("explains a rejected token and saves nothing", async () => {
+      mocks.withPublicHttpFetch.mockImplementation(
+        async (_url: string, _init: unknown, handler: (response: Response) => unknown) =>
+          handler(new Response("{}", { status: 401 })),
+      );
+      const identity = fixture.createWorkosIdentityWithRole("admin");
+      const headers = await fixture.authHeadersFor(identity);
+      const param = { organizationSlug: identity.organization.slug ?? "missing-slug" };
+      const connection = client.api.orgs[":organizationSlug"].gitlab.connection;
+
+      const saved = await connection.$put(
+        { param, json: { serverUrl, accessToken: "glpat-bad" } },
+        { headers },
+      );
+
+      expect(saved.status).toBe(400);
+      expect(await saved.json()).toMatchObject({ error: "gitlab_token_rejected" });
+      const read = await connection.$get({ param }, { headers });
+      expect(await read.json()).toEqual({ gitlabConnection: null });
+    });
+
+    it("refuses a private address without contacting it", async () => {
+      const identity = fixture.createWorkosIdentityWithRole("admin");
+      const headers = await fixture.authHeadersFor(identity);
+      const param = { organizationSlug: identity.organization.slug ?? "missing-slug" };
+
+      const saved = await client.api.orgs[":organizationSlug"].gitlab.connection.$put(
+        { param, json: { serverUrl: "https://10.0.0.5", accessToken: "glpat-secret" } },
+        { headers },
+      );
+
+      expect(saved.status).toBe(400);
+      expect(await saved.json()).toMatchObject({ error: "gitlab_server_url_invalid" });
+      expect(mocks.withPublicHttpFetch).not.toHaveBeenCalled();
+    });
+
+    it("lets developers read the connection but not change it", async () => {
+      const identity = fixture.createWorkosIdentityWithRole("developer");
+      const headers = await fixture.authHeadersFor(identity);
+      const param = { organizationSlug: identity.organization.slug ?? "missing-slug" };
+      const connection = client.api.orgs[":organizationSlug"].gitlab.connection;
+
+      const saved = await connection.$put(
+        { param, json: { serverUrl, accessToken: "glpat-secret" } },
+        { headers },
+      );
+      const removed = await connection.$delete({ param }, { headers });
+
+      const read = await connection.$get({ param }, { headers });
+
+      expect(read.status).toBe(200);
+      expect(saved.status).toBe(403);
+      expect(removed.status).toBe(403);
+      expect(mocks.withPublicHttpFetch).not.toHaveBeenCalled();
     });
   });
 });

@@ -36,3 +36,24 @@ export type GitLabMergeRequestDetails = {
   sourceBranch: string | null;
   commitSha: string | null;
 };
+
+/** Who to ask and with what. A null baseUrl means GitLab.com; it's required so no caller defaults to it by accident. */
+export type GitLabAccess = {
+  accessToken: string;
+  baseUrl: string | null;
+};
+
+export type GitLabConnectionSummary = {
+  serverUrl: string;
+  connectedUsername: string;
+  maskedTokenSuffix: string;
+  lastValidatedAt: string;
+  updatedAt: string;
+};
+
+export type GitLabConnectionError =
+  | { code: "gitlab_server_url_invalid"; message: string }
+  | { code: "gitlab_server_unreachable"; message: string }
+  | { code: "gitlab_server_not_recognized"; message: string }
+  | { code: "gitlab_token_rejected"; message: string }
+  | { code: "gitlab_connection_decrypt_failed"; message: string };

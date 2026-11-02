@@ -11,11 +11,45 @@
  * Version 2.0 or later.
  */
 import { Hono } from "hono";
+import { validator } from "hono/validator";
 
 import { isIntegrationsReadAllowed } from "@/api/auth/capability-guards";
+import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { forbiddenResponse, serviceUnavailableResponse } from "@/api/response.schema";
+import {
+  badRequestResponse,
+  forbiddenResponse,
+  notFoundResponse,
+  serviceUnavailableResponse,
+} from "@/api/response.schema";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
+import {
+  deleteGitLabConnection,
+  getGitLabConnection,
+  saveGitLabConnection,
+} from "@/lib/gitlab/connections";
 import { listAccessibleGitLabProjects } from "@/lib/gitlab/repository-context";
+import { isErr } from "@/lib/primitives/result/results";
+
+import { saveGitLabConnectionBodySchema } from "./gitlab.schema";
+
+const validateSaveConnectionBody = validator("json", (value, c) => {
+  const parsed = saveGitLabConnectionBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_gitlab_connection_payload",
+      "GitLab connection payload is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+function canWriteGitLabConnection(role: AuthVariables["auth"]["membership"]["role"]) {
+  return hasCapability(role, "provider_credentials:write");
+}
 
 export function createGitlabRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
@@ -43,5 +77,53 @@ export function createGitlabRoutes() {
       }
 
       return c.json({ projects: result.projects }, 200);
+    })
+    .get("/connection", async (c) => {
+      if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const gitlabConnection = await getGitLabConnection({
+        organizationId: c.var.auth.organization.localOrganizationId,
+      });
+
+      return c.json({ gitlabConnection }, 200);
+    })
+    .put("/connection", validateSaveConnectionBody, async (c) => {
+      if (!canWriteGitLabConnection(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const body = c.req.valid("json");
+      const result = await saveGitLabConnection({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        serverUrl: body.serverUrl,
+        accessToken: body.accessToken,
+      });
+      if (isErr(result)) {
+        return badRequestResponse(c, result.error.code, result.error.message);
+      }
+
+      serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected, {
+        status: "created",
+        source: "gitlab",
+      });
+
+      return c.json({ gitlabConnection: result.value }, 200);
+    })
+    .delete("/connection", async (c) => {
+      if (!canWriteGitLabConnection(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const deleted = await deleteGitLabConnection({
+        organizationId: c.var.auth.organization.localOrganizationId,
+      });
+      if (!deleted) {
+        return notFoundResponse(c, "gitlab_connection_not_found");
+      }
+
+      return c.json({ deleted: true }, 200);
     });
 }

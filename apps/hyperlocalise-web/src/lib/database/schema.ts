@@ -24,6 +24,7 @@ export * from "./schema/integrations";
 export * from "./schema/contentful";
 export * from "./schema/webflow";
 export * from "./schema/mcp-server-connections";
+export * from "./schema/gitlab";
 export * from "./schema/semrush";
 export * from "./schema/zernio";
 export * from "./schema/ahrefs";
