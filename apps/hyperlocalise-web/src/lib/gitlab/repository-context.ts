@@ -16,10 +16,12 @@ import {
   normalizeGitLabPathWithNamespace,
 } from "@/lib/agent-contracts/gitlab-text-patterns";
 import type { RepositoryAgentGitLabContext } from "@/lib/agent-contracts/gitlab-repository-task";
-import { isErr } from "@/lib/primitives/result/results";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
+import { resolveGitLabAccess } from "./access";
 import { getGitLabMergeRequest, getGitLabProject, listGitLabMembershipProjects } from "./client";
-import { loadGitLabPipesAccessToken, resolveGitLabPipesWorkosUserId } from "./pipes";
+import { getGitLabConnection } from "./connections";
+import { resolveGitLabPipesWorkosUserId } from "./pipes";
 import type { GitLabApiError, GitLabProject } from "./types";
 
 export type GitLabContextResolution =
@@ -32,20 +34,16 @@ export async function listAccessibleGitLabProjects(input: {
   workosUserId: string;
   signal?: AbortSignal;
 }): Promise<{ projects: GitLabProject[]; error: GitLabApiError | null }> {
-  const tokenResult = await loadGitLabPipesAccessToken({
-    localOrganizationId: input.localOrganizationId,
-    workosUserId: input.workosUserId,
-  });
-  if (isErr(tokenResult)) {
-    if (tokenResult.error.code === "gitlab_not_connected") {
+  const access = await resolveGitLabAccess(input);
+  if (isErr(access)) {
+    if (access.error.code === "gitlab_not_connected") {
       return { projects: [], error: null };
     }
-    return { projects: [], error: tokenResult.error };
+    return { projects: [], error: access.error };
   }
 
   const projectsResult = await listGitLabMembershipProjects({
-    accessToken: tokenResult.value,
-    baseUrl: null,
+    ...access.value,
     signal: input.signal,
   });
   if (isErr(projectsResult)) {
@@ -55,60 +53,56 @@ export async function listAccessibleGitLabProjects(input: {
   return { projects: projectsResult.value, error: null };
 }
 
-export async function resolveGitLabProjectContext(input: {
+/** Keeps the reason a project couldn't be used, for callers that can explain it. */
+export async function loadGitLabProjectContext(input: {
   localOrganizationId: string;
-  workosUserId: string;
+  workosUserId?: string | null;
   pathWithNamespace: string;
   mergeRequestIid?: number;
   signal?: AbortSignal;
-}): Promise<RepositoryAgentGitLabContext | null> {
+}): Promise<Result<RepositoryAgentGitLabContext, GitLabApiError>> {
   const pathWithNamespace = normalizeGitLabPathWithNamespace(input.pathWithNamespace);
   if (!pathWithNamespace) {
-    return null;
+    return err({ code: "gitlab_not_found", message: "GitLab could not find that project." });
   }
 
-  const tokenResult = await loadGitLabPipesAccessToken({
-    localOrganizationId: input.localOrganizationId,
-    workosUserId: input.workosUserId,
-  });
-  if (isErr(tokenResult)) {
-    return null;
+  const access = await resolveGitLabAccess(input);
+  if (isErr(access)) {
+    return access;
   }
 
   const projectResult = await getGitLabProject({
-    accessToken: tokenResult.value,
-    baseUrl: null,
+    ...access.value,
     pathWithNamespace,
     signal: input.signal,
   });
   if (isErr(projectResult)) {
-    return null;
+    return projectResult;
   }
 
   const project = projectResult.value;
   if (input.mergeRequestIid === undefined) {
-    return {
+    return ok({
       resolved: true,
       provider: "gitlab",
       projectId: project.id,
       repositoryFullName: project.pathWithNamespace,
       httpUrlToRepo: project.httpUrlToRepo,
       branch: project.defaultBranch ?? undefined,
-    };
+    });
   }
 
   const mergeRequestResult = await getGitLabMergeRequest({
-    accessToken: tokenResult.value,
-    baseUrl: null,
+    ...access.value,
     pathWithNamespace: project.pathWithNamespace,
     mergeRequestIid: input.mergeRequestIid,
     signal: input.signal,
   });
   if (isErr(mergeRequestResult)) {
-    return null;
+    return mergeRequestResult;
   }
 
-  return {
+  return ok({
     resolved: true,
     provider: "gitlab",
     projectId: project.id,
@@ -117,7 +111,14 @@ export async function resolveGitLabProjectContext(input: {
     mergeRequestIid: input.mergeRequestIid,
     branch: mergeRequestResult.value.sourceBranch ?? project.defaultBranch ?? undefined,
     commitSha: mergeRequestResult.value.commitSha ?? undefined,
-  };
+  });
+}
+
+export async function resolveGitLabProjectContext(
+  input: Parameters<typeof loadGitLabProjectContext>[0],
+): Promise<RepositoryAgentGitLabContext | null> {
+  const context = await loadGitLabProjectContext(input);
+  return isErr(context) ? null : context.value;
 }
 
 export async function resolveConversationRepositoryGitLabContext(input: {
@@ -130,11 +131,13 @@ export async function resolveConversationRepositoryGitLabContext(input: {
     workosUserId: input.workosUserId,
     localUserId: input.localUserId,
   });
-  if (!workosUserId) {
+  const connection = await getGitLabConnection({ organizationId: input.organizationId });
+  if (!workosUserId && !connection) {
     return { status: "not_applicable" };
   }
 
-  const mergeRequests = extractGitLabMergeRequestReferences(input.text);
+  const serverUrl = connection?.serverUrl;
+  const mergeRequests = extractGitLabMergeRequestReferences(input.text, serverUrl);
   if (mergeRequests.length > 1) {
     return {
       status: "unresolved",
@@ -161,7 +164,7 @@ export async function resolveConversationRepositoryGitLabContext(input: {
     return { status: "resolved", context };
   }
 
-  const projectPaths = extractGitLabProjectPathReferences(input.text);
+  const projectPaths = extractGitLabProjectPathReferences(input.text, serverUrl);
   if (projectPaths.length > 1) {
     return {
       status: "unresolved",

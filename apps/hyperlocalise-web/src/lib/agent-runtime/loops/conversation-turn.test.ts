@@ -101,6 +101,11 @@ vi.mock("@/lib/gitlab/gitlab-repository-sandbox", () => ({
   createGitlabRepositorySandbox: createGitlabRepositorySandboxMock,
 }));
 
+vi.mock("@/lib/gitlab/connections", () => ({
+  getGitLabConnection: vi.fn(async () => null),
+  loadGitLabConnectionCredentials: vi.fn(),
+}));
+
 vi.mock("@/lib/gitlab/pipes", () => ({
   resolveGitLabPipesWorkosUserId: resolveGitLabPipesWorkosUserIdMock,
 }));

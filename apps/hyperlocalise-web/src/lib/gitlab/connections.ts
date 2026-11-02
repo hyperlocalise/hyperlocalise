@@ -165,7 +165,12 @@ export async function deleteGitLabConnection(input: { organizationId: string }):
 
 export async function loadGitLabConnectionCredentials(input: {
   organizationId: string;
-}): Promise<Result<{ baseUrl: string; accessToken: string } | null, GitLabConnectionError>> {
+}): Promise<
+  Result<
+    { baseUrl: string; accessToken: string } | null,
+    { code: "gitlab_connection_decrypt_failed"; message: string }
+  >
+> {
   const [row] = await db
     .select()
     .from(schema.gitlabConnections)

@@ -24,11 +24,33 @@ const gitlabPathWithNamespacePatternSource = String.raw`(?:(?!-\/)[A-Za-z0-9_.-]
 
 export const gitlabMergeRequestUrlPatternSource = String.raw`https?:\/\/(?:www\.)?gitlab\.com\/(${gitlabPathWithNamespacePatternSource})\/-\/merge_requests\/(\d+)(?=[/?#\s>|)\].,;:!?]|$)`;
 
-const gitlabMergeRequestUrlPattern = new RegExp(gitlabMergeRequestUrlPatternSource, "gi");
-const gitlabProjectUrlPattern = new RegExp(
-  String.raw`https?:\/\/(?:www\.)?gitlab\.com\/(${gitlabPathWithNamespacePatternSource})(?=\/-\/|[/?#\s>|)\].,;:!?]|$)`,
-  "gi",
-);
+const gitlabComUrlPrefixSource = String.raw`https?:\/\/(?:www\.)?gitlab\.com`;
+
+/** Links to a workspace's own server, including a server under a path such as /gitlab. */
+function serverUrlPrefixSource(serverUrl: string): string {
+  const url = new URL(serverUrl);
+  const hostAndPath = `${url.host}${url.pathname.replace(/\/+$/, "")}`;
+  return String.raw`https?:\/\/${hostAndPath.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}`;
+}
+
+function mergeRequestUrlPattern(serverUrl?: string): RegExp {
+  return new RegExp(
+    serverUrl
+      ? gitlabMergeRequestUrlPatternSource.replace(gitlabComUrlPrefixSource, () =>
+          serverUrlPrefixSource(serverUrl),
+        )
+      : gitlabMergeRequestUrlPatternSource,
+    "gi",
+  );
+}
+
+function projectUrlPattern(serverUrl?: string): RegExp {
+  const prefix = serverUrl ? serverUrlPrefixSource(serverUrl) : gitlabComUrlPrefixSource;
+  return new RegExp(
+    String.raw`${prefix}\/(${gitlabPathWithNamespacePatternSource})(?=\/-\/|[/?#\s>|)\].,;:!?]|$)`,
+    "gi",
+  );
+}
 
 function trimTrailingPunctuation(value: string) {
   return value.replace(/[.,;:!?]+$/g, "");
@@ -48,10 +70,14 @@ function normalizeGitLabPath(value: string): string | null {
   return parts.join("/");
 }
 
-export function extractGitLabMergeRequestReferences(text: string): GitLabMergeRequestReference[] {
+/** With a server, only that server's links count: a path means one server in a workspace. */
+export function extractGitLabMergeRequestReferences(
+  text: string,
+  serverUrl?: string,
+): GitLabMergeRequestReference[] {
   const references = new Map<string, GitLabMergeRequestReference>();
 
-  for (const match of text.matchAll(gitlabMergeRequestUrlPattern)) {
+  for (const match of text.matchAll(mergeRequestUrlPattern(serverUrl))) {
     const pathWithNamespace = normalizeGitLabPath(match[1] ?? "");
     const mergeRequestIid = Number.parseInt(match[2] ?? "", 10);
     if (!pathWithNamespace || !Number.isSafeInteger(mergeRequestIid)) {
@@ -68,10 +94,10 @@ export function extractGitLabMergeRequestReferences(text: string): GitLabMergeRe
   return [...references.values()];
 }
 
-export function extractGitLabProjectPathReferences(text: string): string[] {
+export function extractGitLabProjectPathReferences(text: string, serverUrl?: string): string[] {
   const references = new Map<string, string>();
 
-  for (const match of text.matchAll(gitlabProjectUrlPattern)) {
+  for (const match of text.matchAll(projectUrlPattern(serverUrl))) {
     const pathWithNamespace = normalizeGitLabPath(match[1] ?? "");
     if (!pathWithNamespace) {
       continue;

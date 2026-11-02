@@ -1,0 +1,155 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+const mocks = vi.hoisted(() => ({
+  getGitLabConnection: vi.fn(),
+  loadGitLabConnectionCredentials: vi.fn(),
+  loadGitLabPipesAccessToken: vi.fn(),
+}));
+
+vi.mock("./connections", () => ({
+  getGitLabConnection: mocks.getGitLabConnection,
+  loadGitLabConnectionCredentials: mocks.loadGitLabConnectionCredentials,
+}));
+vi.mock("./pipes", () => ({
+  loadGitLabPipesAccessToken: mocks.loadGitLabPipesAccessToken,
+}));
+
+import { err, isErr, isOk, ok } from "@/lib/primitives/result/results";
+
+import {
+  buildGitLabCloneUrl,
+  isGitLabContextOnCurrentServer,
+  resolveGitLabAccess,
+  resolveGitLabCredentialOwner,
+} from "./access";
+
+describe("resolveGitLabAccess", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.loadGitLabConnectionCredentials.mockResolvedValue(ok(null));
+  });
+
+  it("prefers the workspace's server over a person's GitLab.com account", async () => {
+    mocks.loadGitLabConnectionCredentials.mockResolvedValue(
+      ok({ baseUrl: "https://git.acme.example", accessToken: "server-token" }),
+    );
+
+    const result = await resolveGitLabAccess({
+      localOrganizationId: "org_1",
+      workosUserId: "user_1",
+    });
+
+    expect(isOk(result) && result.value).toEqual({
+      baseUrl: "https://git.acme.example",
+      accessToken: "server-token",
+    });
+    expect(mocks.loadGitLabPipesAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("doesn't fall back to GitLab.com when the saved token can't be read", async () => {
+    mocks.loadGitLabConnectionCredentials.mockResolvedValue(
+      err({ code: "gitlab_connection_decrypt_failed", message: "Connect GitLab again." }),
+    );
+
+    const result = await resolveGitLabAccess({
+      localOrganizationId: "org_1",
+      workosUserId: "user_1",
+    });
+
+    expect(isErr(result) && result.error.code).toBe("gitlab_connection_decrypt_failed");
+    expect(mocks.loadGitLabPipesAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("uses a person's GitLab.com account without a server", async () => {
+    mocks.loadGitLabPipesAccessToken.mockResolvedValue(ok("oauth-token"));
+
+    const result = await resolveGitLabAccess({
+      localOrganizationId: "org_1",
+      workosUserId: "user_1",
+    });
+
+    expect(isOk(result) && result.value).toEqual({ accessToken: "oauth-token", baseUrl: null });
+  });
+
+  it("reports not connected with neither", async () => {
+    const result = await resolveGitLabAccess({ localOrganizationId: "org_1" });
+
+    expect(isErr(result) && result.error.code).toBe("gitlab_not_connected");
+  });
+});
+
+describe("resolveGitLabCredentialOwner", () => {
+  it("changes on every save, so a clone made with an old token isn't reused", async () => {
+    mocks.getGitLabConnection.mockResolvedValueOnce({
+      serverUrl: "https://a.example",
+      updatedAt: "2026-11-03T00:00:00.000Z",
+    });
+    mocks.getGitLabConnection.mockResolvedValueOnce({
+      serverUrl: "https://a.example",
+      updatedAt: "2026-11-03T00:05:00.000Z",
+    });
+    const input = { localOrganizationId: "org_1", workosUserId: "user_1" };
+
+    expect(await resolveGitLabCredentialOwner(input)).not.toBe(
+      await resolveGitLabCredentialOwner(input),
+    );
+  });
+
+  it("is the person without a server, and nobody without either", async () => {
+    mocks.getGitLabConnection.mockResolvedValue(null);
+
+    expect(
+      await resolveGitLabCredentialOwner({ localOrganizationId: "org_1", workosUserId: "user_1" }),
+    ).toBe("user_1");
+    expect(await resolveGitLabCredentialOwner({ localOrganizationId: "org_1" })).toBeNull();
+  });
+});
+
+describe("buildGitLabCloneUrl", () => {
+  it("uses the server when there is one and GitLab.com otherwise", () => {
+    expect(buildGitLabCloneUrl("https://git.acme.example/gitlab", "acme/web")).toBe(
+      "https://git.acme.example/gitlab/acme/web.git",
+    );
+    expect(buildGitLabCloneUrl(null, "acme/web")).toBe("https://gitlab.com/acme/web.git");
+  });
+});
+
+describe("isGitLabContextOnCurrentServer", () => {
+  const context = {
+    repositoryFullName: "acme/web",
+    httpUrlToRepo: "https://git.acme.example/acme/web.git",
+  };
+
+  it("keeps a context from the saved server", async () => {
+    mocks.getGitLabConnection.mockResolvedValue({ serverUrl: "https://git.acme.example" });
+
+    expect(await isGitLabContextOnCurrentServer({ localOrganizationId: "org_1", context })).toBe(
+      true,
+    );
+  });
+
+  it("drops a context once the server is replaced or removed", async () => {
+    mocks.getGitLabConnection.mockResolvedValueOnce({ serverUrl: "https://code.acme.example" });
+    mocks.getGitLabConnection.mockResolvedValueOnce(null);
+
+    expect(await isGitLabContextOnCurrentServer({ localOrganizationId: "org_1", context })).toBe(
+      false,
+    );
+    expect(await isGitLabContextOnCurrentServer({ localOrganizationId: "org_1", context })).toBe(
+      false,
+    );
+  });
+});

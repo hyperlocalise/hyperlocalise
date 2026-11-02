@@ -55,6 +55,7 @@ import {
   normalizeWebflowLocaleTag,
 } from "@/lib/webflow/webflow-locale";
 import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/lib/email/pipes";
+import { getGitLabConnection } from "@/lib/gitlab/connections";
 import { getGitLabPipesConnectionStatus, resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
 import {
   getGoogleDrivePipesConnectionStatus,
@@ -752,7 +753,10 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
-  if (input.toolConfig.gitlab?.enabled) {
+  if (
+    input.toolConfig.gitlab?.enabled &&
+    !(await getGitLabConnection({ organizationId: input.organizationId }))
+  ) {
     const workosUserId = input.toolConfig.gitlab.workosUserId;
     if (!workosUserId) {
       return err({

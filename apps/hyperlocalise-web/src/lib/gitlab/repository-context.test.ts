@@ -12,12 +12,24 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { loadGitLabPipesAccessTokenMock, getGitLabProjectMock, getGitLabMergeRequestMock } =
-  vi.hoisted(() => ({
-    loadGitLabPipesAccessTokenMock: vi.fn(),
-    getGitLabProjectMock: vi.fn(),
-    getGitLabMergeRequestMock: vi.fn(),
-  }));
+const {
+  loadGitLabPipesAccessTokenMock,
+  getGitLabProjectMock,
+  getGitLabMergeRequestMock,
+  getGitLabConnectionMock,
+  loadGitLabConnectionCredentialsMock,
+} = vi.hoisted(() => ({
+  loadGitLabPipesAccessTokenMock: vi.fn(),
+  getGitLabProjectMock: vi.fn(),
+  getGitLabMergeRequestMock: vi.fn(),
+  getGitLabConnectionMock: vi.fn(),
+  loadGitLabConnectionCredentialsMock: vi.fn(),
+}));
+
+vi.mock("./connections", () => ({
+  getGitLabConnection: getGitLabConnectionMock,
+  loadGitLabConnectionCredentials: loadGitLabConnectionCredentialsMock,
+}));
 
 vi.mock("./pipes", () => ({
   loadGitLabPipesAccessToken: loadGitLabPipesAccessTokenMock,
@@ -42,6 +54,8 @@ import {
 describe("resolveGitLabProjectContext", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getGitLabConnectionMock.mockResolvedValue(null);
+    loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(null));
   });
 
   it("returns sandbox clone context for a membership project", async () => {
@@ -91,6 +105,8 @@ describe("resolveGitLabProjectContext", () => {
 describe("resolveConversationRepositoryGitLabContext", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getGitLabConnectionMock.mockResolvedValue(null);
+    loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(null));
   });
 
   it("resolves a merge request URL to clone context", async () => {
@@ -141,5 +157,54 @@ describe("resolveConversationRepositoryGitLabContext", () => {
         text: "where is the login copy?",
       }),
     ).resolves.toEqual({ status: "not_applicable" });
+  });
+
+  describe("with a workspace's own server", () => {
+    const project = {
+      id: 7,
+      name: "web",
+      pathWithNamespace: "acme/web",
+      defaultBranch: "main",
+      httpUrlToRepo: "https://git.acme.example/acme/web.git",
+      archived: false,
+    };
+
+    beforeEach(() => {
+      getGitLabConnectionMock.mockResolvedValue({ serverUrl: "https://git.acme.example" });
+      loadGitLabConnectionCredentialsMock.mockResolvedValue(
+        ok({ baseUrl: "https://git.acme.example", accessToken: "server-token" }),
+      );
+      getGitLabProjectMock.mockResolvedValue(ok(project));
+    });
+
+    it("resolves its links with its token, without a connected person", async () => {
+      const result = await resolveConversationRepositoryGitLabContext({
+        organizationId: "org_1",
+        text: "Check https://git.acme.example/acme/web please",
+      });
+
+      expect(result).toMatchObject({
+        status: "resolved",
+        context: { repositoryFullName: "acme/web" },
+      });
+      expect(getGitLabProjectMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          accessToken: "server-token",
+          baseUrl: "https://git.acme.example",
+        }),
+      );
+      expect(loadGitLabPipesAccessTokenMock).not.toHaveBeenCalled();
+    });
+
+    it("ignores GitLab.com links, which would name a different project", async () => {
+      const result = await resolveConversationRepositoryGitLabContext({
+        organizationId: "org_1",
+        workosUserId: "user_1",
+        text: "Check https://gitlab.com/acme/web please",
+      });
+
+      expect(result).toEqual({ status: "not_applicable" });
+      expect(getGitLabProjectMock).not.toHaveBeenCalled();
+    });
   });
 });

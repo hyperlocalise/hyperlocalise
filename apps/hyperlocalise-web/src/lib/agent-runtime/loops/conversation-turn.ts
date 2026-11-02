@@ -28,6 +28,7 @@ import {
   getOrganizationRepositoryConnectorConfig,
   resolveConversationRepositoryGitHubContext,
 } from "@/lib/agents/repository-context";
+import { isGitLabContextOnCurrentServer, resolveGitLabCredentialOwner } from "@/lib/gitlab/access";
 import { createGitlabRepositorySandbox } from "@/lib/gitlab/gitlab-repository-sandbox";
 import { resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
 import {
@@ -207,7 +208,15 @@ export async function resolveConversationRepositoryContext(
   input: ResolveRepositoryContextInput,
 ): Promise<ResolvedRepositoryContext> {
   const storedRepositoryContext = input.repositorySession?.repositoryGitHubContext ?? null;
-  const storedGitLabContext = input.repositorySession?.repositoryGitLabContext ?? null;
+  const rememberedGitLabContext = input.repositorySession?.repositoryGitLabContext ?? null;
+  const storedGitLabContext =
+    rememberedGitLabContext &&
+    (await isGitLabContextOnCurrentServer({
+      localOrganizationId: input.organizationId,
+      context: rememberedGitLabContext,
+    }))
+      ? rememberedGitLabContext
+      : null;
   const shouldResolve = shouldAttemptRepositoryContextResolution({
     classification: input.classification,
     storedRepositoryContext: storedRepositoryContext ?? storedGitLabContext,
@@ -448,7 +457,11 @@ export async function getOrCreateConversationGitlabRepositorySandbox(input: {
     workosUserId: input.workosUserId,
     localUserId: input.localUserId,
   });
-  if (!workosUserId) {
+  const credentialOwner = await resolveGitLabCredentialOwner({
+    localOrganizationId: input.organizationId,
+    workosUserId,
+  });
+  if (!credentialOwner) {
     throw new Error("gitlab_not_connected");
   }
 
@@ -458,7 +471,7 @@ export async function getOrCreateConversationGitlabRepositorySandbox(input: {
   const canReuseStoredSandbox =
     sandboxSession != null &&
     sandboxSession.repositoryContextKey === repositoryContextKey &&
-    sandboxSession.credentialOwnerWorkosUserId === workosUserId;
+    sandboxSession.credentialOwnerWorkosUserId === credentialOwner;
 
   if (canReuseStoredSandbox && (await isRepositorySandboxAvailable(sandboxSession.sandboxId))) {
     log.info(
@@ -506,7 +519,7 @@ export async function getOrCreateConversationGitlabRepositorySandbox(input: {
     repositorySandboxSession: {
       sandboxId,
       repositoryContextKey,
-      credentialOwnerWorkosUserId: workosUserId,
+      credentialOwnerWorkosUserId: credentialOwner,
       createdAt: now,
       lastUsedAt: now,
     },

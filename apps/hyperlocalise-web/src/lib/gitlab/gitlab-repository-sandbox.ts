@@ -18,8 +18,8 @@ import {
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
 
+import { buildGitLabCloneUrl, resolveGitLabAccess } from "./access";
 import { GITLAB_GIT_OAUTH_USERNAME } from "./constants";
-import { loadGitLabPipesAccessToken } from "./pipes";
 
 const logger = createLogger("gitlab-repository-sandbox");
 
@@ -37,7 +37,7 @@ function gitlabRepositorySandboxRevisionKind(
 
 export async function createGitlabRepositorySandbox(input: {
   localOrganizationId: string;
-  workosUserId: string;
+  workosUserId?: string | null;
   gitlabContext: RepositoryAgentGitLabContext;
   cloneDepth?: number;
   timeoutMs?: number;
@@ -46,15 +46,12 @@ export async function createGitlabRepositorySandbox(input: {
     projectId: input.gitlabContext.projectId,
     revisionKind: gitlabRepositorySandboxRevisionKind(input.gitlabContext),
   });
-  log.info("vending gitlab pipes access token for repository sandbox");
+  log.info("resolving gitlab access for repository sandbox");
 
-  const tokenResult = await loadGitLabPipesAccessToken({
-    localOrganizationId: input.localOrganizationId,
-    workosUserId: input.workosUserId,
-  });
-  if (isErr(tokenResult)) {
-    log.error({ err: tokenResult.error.code }, "gitlab pipes token unavailable for sandbox clone");
-    throw new Error(tokenResult.error.code);
+  const access = await resolveGitLabAccess(input);
+  if (isErr(access)) {
+    log.error({ err: access.error.code }, "gitlab access unavailable for sandbox clone");
+    throw new Error(access.error.code);
   }
 
   const revision = input.gitlabContext.commitSha ?? input.gitlabContext.branch ?? "HEAD";
@@ -64,11 +61,11 @@ export async function createGitlabRepositorySandbox(input: {
     const workspace = await createVercelSandboxWorkspace({
       source: {
         type: "git",
-        url: input.gitlabContext.httpUrlToRepo,
+        url: buildGitLabCloneUrl(access.value.baseUrl, input.gitlabContext.repositoryFullName),
         revision,
         depth: input.cloneDepth ?? 1,
         username: GITLAB_GIT_OAUTH_USERNAME,
-        password: tokenResult.value,
+        password: access.value.accessToken,
       },
       timeoutMs: input.timeoutMs,
     });
