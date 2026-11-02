@@ -41,6 +41,18 @@ export const hubspotPushUiMessages = defineMessages({
       "Choose which mapped emails, forms, blog posts, landing pages, and website pages to update with approved translations. This creates locale copies and never changes or publishes the source.",
     description: "Description of the HubSpot item picker dialog",
   },
+  blogLanguageReminderTitle: {
+    id: "clp9pECny1",
+    defaultMessage: "Create a HubSpot language variant first",
+    description: "Title of the HubSpot push dialog warning for blog post language variants",
+  },
+  blogLanguageReminder: {
+    id: "LjQac0V0Z1",
+    defaultMessage:
+      "For each blog post locale, open the post in HubSpot and choose Actions → Create multi-language variation. Push writes onto that unpublished draft and does not create a new language.",
+    description:
+      "Warning in the HubSpot push dialog that blog posts need a HubSpot language variant",
+  },
   pushPolicyLabel: {
     id: "bsYaITED8a",
     defaultMessage: "Push policy",

@@ -93,6 +93,7 @@ describe("blog-post-bundle", () => {
     const draft = blogDraftFieldsFromPostHtml({ live: post, sourceHtml, prefilled });
     expect(draft.htmlTitle).toBe("Titre de lancement");
     expect(draft.postBody).toContain("Bonjour le monde");
+    expect(draft.rssBody).toContain("Bonjour le monde");
     expect(draft.metaDescription).toBe("Meta description");
     expect(
       blogPostPushName({

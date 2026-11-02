@@ -146,6 +146,13 @@ export type HubspotLanguageVariationSummary = {
   translatedFromId: string | null;
 };
 
+export const HUBSPOT_BLOG_LANGUAGE_HINT =
+  "In HubSpot, open the blog post and choose Actions → Create multi-language variation for this locale";
+
+export function missingBlogLanguageError(): Error {
+  return new Error(`hubspot_blog_language_missing: ${HUBSPOT_BLOG_LANGUAGE_HINT}`);
+}
+
 /** Match a HubSpot multi-language post variation to its primary post and language code. */
 export function findBlogLanguageVariation(
   posts: readonly HubspotLanguageVariationSummary[],

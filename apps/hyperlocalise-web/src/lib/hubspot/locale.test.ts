@@ -19,6 +19,7 @@ import {
   hubspotLanguageMatchesSource,
   isHubspotLocaleCopyName,
   mapProjectLocaleToHubspot,
+  missingBlogLanguageError,
 } from "./locale";
 
 describe("mapProjectLocaleToHubspot", () => {
@@ -95,5 +96,11 @@ describe("hubspot language and copy names", () => {
     expect(findBlogLanguageVariation(posts, "post-1", "zh-tw")).toBe("420539377366");
     expect(findBlogLanguageVariation(posts, "post-1", "zh-TW")).toBe("420539377366");
     expect(findBlogLanguageVariation(posts, "post-1", "fr")).toBeNull();
+  });
+
+  it("tells the operator to create the HubSpot language variant", () => {
+    expect(missingBlogLanguageError().message).toBe(
+      "hubspot_blog_language_missing: In HubSpot, open the blog post and choose Actions → Create multi-language variation for this locale",
+    );
   });
 });

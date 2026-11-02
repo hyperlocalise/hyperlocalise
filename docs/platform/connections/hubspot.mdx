@@ -12,6 +12,7 @@ Hyperlocalise translates the copy. HubSpot does not. Import reads primary market
 | Native project | A [native project](/platform/projects/create-project) whose source locale matches the language of the HubSpot source. Add a project target locale for each language you will push back. |
 | HubSpot account | Connect HubSpot from **Integrations**. The authorization needs scopes `content` and `forms`. `content` covers marketing emails, blog posts, landing pages, and website pages. `forms` covers forms. |
 | Locale mapping | HubSpot language codes are lowercase, with a hyphen when they include a region (`fr`, `fr-ca`, `pt-br`, `en-gb`, `zh-cn`). `fr` and `fr-ca` stay different languages. A project tag such as `fr-FR` maps to `fr` when HubSpot has no `fr-fr` code. The locale copy keeps the full tag in its name (`Welcome [fr-FR]`). |
+| Blog language variants | For each blog post locale, open the post in HubSpot and choose **Actions → Create multi-language variation** before you push. Push updates that unpublished draft. It does not create a new language. |
 
 ## Connect HubSpot
 
@@ -58,10 +59,12 @@ When two project locales become the same HubSpot code, the second locale is skip
 
 Push creates a copy named `{source} [{locale}]`, for example `Welcome [fr-FR]`. A later push updates that copy instead of creating another one.
 
+For **blog posts**, create the language variant in HubSpot first. Open the post, then **Actions → Create multi-language variation** for each locale you will push. Push writes onto that unpublished draft. It does not create a new language.
+
 | Surface | What lands in HubSpot |
 | --- | --- |
 | Marketing email | A cloned email, then a draft with the target language and the translated subject, preview, and widgets. The source email stays as it was. |
-| Blog post | A language variation of the primary post, with the translated title, meta description, summary, body, section text, and static module fields on the draft. The post stays unpublished. The HubSpot post title is the translated post name, or the translated HTML title when the name has no translation yet. Push updates an existing HubSpot variation for that locale when one is already linked to the primary post (including variations created in HubSpot), and only creates a new variation when none exists. If the blog itself has no variation for that language, push creates a blog for that language and attaches it to the primary blog's multi-language group. That blog stays unpublished. |
+| Blog post | An existing language variation of the primary post, with the translated title, meta description, summary, body, section text, and static module fields on the draft. The post stays unpublished. The HubSpot post title is the translated post name, or the translated HTML title when the name has no translation yet. Push updates a variation already linked to the primary post. It does not create a language variant. Create that variant in HubSpot first (**Actions → Create multi-language variation**). |
 | Landing page | A language variation of the primary landing page, with the translated title, meta description, alt text, widgets, and layout on the draft. The page stays unpublished. |
 | Website page | A language variation of the primary website page, with the same draft fields as a landing page. The page stays unpublished. |
 | Form | A new form with the translated labels and HubSpot's built-in messages for that language. The source form stays on any page that already embeds it. The new form exists in the portal and is not embedded for you. |
@@ -78,7 +81,7 @@ Disconnect HubSpot from **Integrations** to stop this workspace using that accou
 
 - Confirm HubSpot is connected and the automation is **Active**.
 - Confirm the HubSpot authorization still has `content` and `forms`.
-- For **blog push**, HubSpot requires the blog's domain to have a primary language before a language can be added (**Settings → Content → Domains & URLs → Language settings**). Push adds a missing language by creating a blog and attaching it to the primary blog's multi-language group. It does not publish the blog.
+- For **blog push**, open the source post in HubSpot and choose **Actions → Create multi-language variation** for each locale before you push. Push updates that draft only. It does not create a new language.
 - Confirm the project source locale matches the language of the HubSpot source.
 - Confirm each target locale maps to a HubSpot language the account has enabled.
 - Open **Run History** for the failed item or locale.

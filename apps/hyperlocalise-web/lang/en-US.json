@@ -30075,6 +30075,10 @@
     "defaultMessage": "Move up",
     "description": "Button to move an issue column earlier in sort order"
   },
+  "k8nQ2wLm0P": {
+    "defaultMessage": "Create a HubSpot language variant first",
+    "description": "Title of the HubSpot push dialog warning for blog post language variants"
+  },
   "k9j7R6aLei": {
     "defaultMessage": "Could not load messages",
     "description": "Error when mapped Customer.io messages fail to load"
@@ -33202,6 +33206,10 @@
   "p4EP3lBEdG": {
     "defaultMessage": "Line {line} uses lookaround or a backreference, which is not supported.",
     "description": "Validation error for a custom placeholder pattern that uses unsupported syntax"
+  },
+  "p4Rv7tNc2A": {
+    "defaultMessage": "For each blog post locale, open the post in HubSpot and choose Actions → Create multi-language variation. Push writes onto that unpublished draft and does not create a new language.",
+    "description": "Warning in the HubSpot push dialog that blog posts need a HubSpot language variant"
   },
   "p4xkAKJ/3y": {
     "defaultMessage": "Project",

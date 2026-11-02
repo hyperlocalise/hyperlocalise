@@ -68,6 +68,7 @@ import {
   findBlogLanguageVariation,
   hubspotCopyName,
   mapProjectLocaleToHubspot,
+  missingBlogLanguageError,
 } from "./locale";
 
 const logger = createLogger("push-hubspot-content");
@@ -523,14 +524,10 @@ export async function runPushHubspotContent(input: {
             ).id;
           }
         } else if (mapping.resourceKind === "blog") {
-          const targetId =
-            copyId ??
-            (
-              await client.createBlogLanguageVariation({
-                id: mapping.sourceId,
-                language: hubspotCode,
-              })
-            ).id;
+          if (!copyId) {
+            throw missingBlogLanguageError();
+          }
+          const targetId = copyId;
           if (blogPostId && blogPostHtml) {
             const live = await client.getBlogPost(mapping.sourceId);
             const applied = blogDraftFieldsFromPostHtml({

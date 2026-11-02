@@ -13,10 +13,12 @@
  * Version 2.0 or later.
  */
 import { useEffect, useMemo, useState } from "react";
+import { WarningIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -163,6 +165,15 @@ export function ContentEditorHubspotPushDialog({
             />
           </p>
           <ContentEditorPushApproveHint />
+          <Alert>
+            <WarningIcon />
+            <AlertTitle>
+              <FormattedMessage {...messages.blogLanguageReminderTitle} />
+            </AlertTitle>
+            <AlertDescription>
+              <FormattedMessage {...messages.blogLanguageReminder} />
+            </AlertDescription>
+          </Alert>
         </DialogHeader>
         {candidates.length > 1 ? (
           <div className="flex flex-col gap-2">
