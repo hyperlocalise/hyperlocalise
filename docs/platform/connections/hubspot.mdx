@@ -78,6 +78,7 @@ Disconnect HubSpot from **Integrations** to stop this workspace using that accou
 
 - Confirm HubSpot is connected and the automation is **Active**.
 - Confirm the HubSpot authorization still has `content` and `forms`.
+- For **blog push**, the blog (content group) needs a **publishing domain** in HubSpot (**Settings → Website → Domains and URLs**, and the blog’s domain in blog settings). Hyperlocalise tries to assign a domain from the Domains API when the blog field is empty. If push fails with `hubspot_blog_missing_domain`, fix the domain in HubSpot and reconnect the integration if domain listing was denied.
 - Confirm the project source locale matches the language of the HubSpot source.
 - Confirm each target locale maps to a HubSpot language the account has enabled.
 - Open **Run History** for the failed item or locale.

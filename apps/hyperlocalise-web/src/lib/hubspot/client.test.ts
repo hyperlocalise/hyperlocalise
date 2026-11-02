@@ -201,6 +201,110 @@ describe("hubspot message templates", () => {
     expect(created).toEqual({ id: "420539377366" });
   });
 
+  it("fails with hubspot_blog_missing_domain when no publishing domain can be resolved", async () => {
+    const calls: ApiCall[] = [];
+    const blogs = {
+      basicApi: {
+        getById: async () => ({ id: "post-1", contentGroupId: "blog-1", language: "en" }),
+      },
+      multiLanguageApi: {
+        createLangVariation: async () => {
+          throw new Error(
+            'HTTP-Code: 400\nBody: {"message":"Blog does not have a variation for language zh-tw"}',
+          );
+        },
+      },
+    };
+    const content = createHubspotContentClientFromSdk({
+      ...sdkWith(async (opts) => {
+        calls.push(opts);
+        if (opts.method === "GET" && opts.path === "/cms/v3/domains/") {
+          return jsonResponse(200, { results: [] });
+        }
+        if (opts.method === "GET") {
+          return jsonResponse(200, { id: "blog-1", slug: "blog", language: "en", domain: "" });
+        }
+        return jsonResponse(200, {});
+      }),
+      cms: {
+        blogs: { blogPosts: blogs },
+        pages: { landingPagesApi: {}, sitePagesApi: {} },
+      },
+    } as unknown as HubspotSdk);
+
+    await expect(
+      content.createBlogLanguageVariation({ id: "post-1", language: "zh-tw" }),
+    ).rejects.toThrow(/hubspot_blog_missing_domain/);
+    expect(
+      calls.some(
+        (call) =>
+          call.method === "POST" &&
+          call.path === "/cms/v3/blog-settings/settings/multi-language/create-language-variation",
+      ),
+    ).toBe(false);
+  });
+
+  it("retries blog language creation after assigning a domain when HubSpot returns 403", async () => {
+    let blogLanguagePosts = 0;
+    let postVariations = 0;
+    const blogs = {
+      basicApi: {
+        getById: async () => ({ id: "post-1", contentGroupId: "blog-1", language: "en" }),
+      },
+      multiLanguageApi: {
+        createLangVariation: async () => {
+          postVariations += 1;
+          if (postVariations === 1) {
+            throw new Error(
+              'HTTP-Code: 400\nBody: {"message":"Blog does not have a variation for language zh-cn"}',
+            );
+          }
+          return { id: "post-zh" };
+        },
+      },
+    };
+    const content = createHubspotContentClientFromSdk({
+      ...sdkWith(async (opts) => {
+        if (opts.method === "GET" && opts.path === "/cms/v3/domains/") {
+          return jsonResponse(200, {
+            results: [
+              {
+                domain: "247843607.hubspotpagebuilder.com",
+                primaryBlogPost: true,
+                isResolving: true,
+              },
+            ],
+          });
+        }
+        if (opts.method === "GET") {
+          return jsonResponse(200, { id: "blog-1", slug: "blog", language: "en", domain: "" });
+        }
+        if (
+          opts.method === "POST" &&
+          opts.path === "/cms/v3/blog-settings/settings/multi-language/create-language-variation"
+        ) {
+          blogLanguagePosts += 1;
+          if (blogLanguagePosts === 1) {
+            return jsonResponse(403, {
+              message: "Portal does not have permission to publish blog on domain .",
+            });
+          }
+          return jsonResponse(200, {});
+        }
+        return jsonResponse(200, {});
+      }),
+      cms: {
+        blogs: { blogPosts: blogs },
+        pages: { landingPagesApi: {}, sitePagesApi: {} },
+      },
+    } as unknown as HubspotSdk);
+
+    const created = await content.createBlogLanguageVariation({ id: "post-1", language: "zh-cn" });
+    expect(created).toEqual({ id: "post-zh" });
+    expect(blogLanguagePosts).toBe(2);
+    expect(postVariations).toBe(2);
+  });
+
   it("sets a blog domain before creating a language variation when the blog has none", async () => {
     const calls: ApiCall[] = [];
     let postVariations = 0;
