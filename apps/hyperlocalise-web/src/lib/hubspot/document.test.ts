@@ -334,6 +334,41 @@ describe("hubspot documents", () => {
       "<p>Inscrivez-vous a notre newsletter</p>",
     );
     expect(applied.elementsDefinition?.["32"]?.html).toBe("<p>Merci de vous etre abonne !</p>");
+    expect(applied.displayOptions?.submitButtonText).toBe("Envoyer");
+    expect(applied.configuration?.postSubmitAction).toEqual({
+      type: "thank_you",
+      value: "<p>Merci de vous etre abonne !</p>",
+    });
+  });
+
+  it("writes submit and thank-you onto public fields when HubSpot omitted them", () => {
+    const definition = {
+      fieldGroups: [{ fields: [{ name: "email", label: "Email" }] }],
+    };
+    const applied = applyFormDocument(definition, {
+      submitText: "Envoyer",
+      thankYou: "Merci",
+      fields: { email: { label: "Courriel" } },
+    });
+    expect(applied.displayOptions?.submitButtonText).toBe("Envoyer");
+    expect(applied.configuration?.postSubmitAction).toEqual({
+      type: "thank_you",
+      value: "Merci",
+    });
+    expect(applied.fieldGroups?.[0]?.fields?.[0]?.label).toBe("Courriel");
+  });
+
+  it("does not replace a thank-you redirect with translated copy", () => {
+    const definition = {
+      configuration: {
+        postSubmitAction: { type: "redirect_url", value: "https://example.com/thanks" },
+      },
+    };
+    const applied = applyFormDocument(definition, { thankYou: "Merci" });
+    expect(applied.configuration?.postSubmitAction).toEqual({
+      type: "redirect_url",
+      value: "https://example.com/thanks",
+    });
   });
 
   it("keeps page widget ids locked and writes layout copy back", () => {

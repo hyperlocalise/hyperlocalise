@@ -12,6 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { applyFormDocument } from "./document";
 import { HUBSPOT_FORM_V3_EMBED_TYPE, isNewEditorForm } from "./form-definition";
 import { formDefinitionForWrite } from "./form-write";
 
@@ -122,5 +123,47 @@ describe("formDefinitionForWrite", () => {
     expect(definition.id).toBe("7c2accbe-a15b-407b-b5a8-8a376669b540");
     expect(definition.name).toBe("Newsletter [zh-CN]");
     expect(definition.configuration?.embedType).toBe(HUBSPOT_FORM_V3_EMBED_TYPE);
+  });
+
+  it("writes applied visual translations onto public V3 fields", () => {
+    const applied = applyFormDocument(
+      {
+        name: "Newsletter",
+        configuration: { language: "en", embedType: "V4" },
+        fieldGroups: [{ fields: [{ name: "email", label: "Email" }] }],
+        layout: {
+          nodes: [
+            { type: "step", id: 38, nodes: [{ id: 31 }] },
+            { type: "postSubmitStep", id: 40, nodes: [{ id: 32 }] },
+          ],
+        },
+        elementsDefinition: {
+          "15": { type: "submitButton", id: 15, text: "Submit" },
+          "31": { type: "richText", id: 31, html: "<p>Sign up</p>" },
+          "32": { type: "richText", id: 32, html: "<p>Thanks</p>" },
+        },
+      },
+      {
+        submitText: "Envoyer",
+        thankYou: "<p>Merci</p>",
+        fields: { email: { label: "Courriel" } },
+        elements: { "31": { html: "<p>Inscrivez-vous</p>" } },
+      },
+    );
+    const definition = formDefinitionForWrite(applied, {
+      name: "Newsletter [fr-FR]",
+      language: "fr",
+    });
+
+    expect(isNewEditorForm(definition)).toBe(false);
+    expect(definition.displayOptions).toMatchObject({ submitButtonText: "Envoyer" });
+    expect(definition.configuration?.postSubmitAction).toEqual({
+      type: "thank_you",
+      value: "<p>Merci</p>",
+    });
+    expect(definition.fieldGroups?.[0]?.fields?.[0]?.label).toBe("Courriel");
+    expect(definition.fieldGroups?.[0]?.richText).toBe("<p>Inscrivez-vous</p>");
+    expect(definition.layout).toBeUndefined();
+    expect(definition.elementsDefinition).toBeUndefined();
   });
 });

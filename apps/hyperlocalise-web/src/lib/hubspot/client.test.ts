@@ -578,6 +578,7 @@ describe("hubspot message templates", () => {
       `POST ${HUBSPOT_FORMS_PATH}`,
       `PUT ${HUBSPOT_FORMS_PATH}/form-99`,
     ]);
+    expect(calls[0]?.qs).toEqual({ limit: "100", formTypes: "hubspot" });
     expect(calls.some((call) => call.path.includes("/marketing/v3/forms"))).toBe(false);
   });
 

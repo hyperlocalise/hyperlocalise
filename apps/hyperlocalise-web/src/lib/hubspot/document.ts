@@ -847,14 +847,23 @@ export function applyFormDocument(
 ): HubspotFormDefinition {
   const next = structuredClone(definition);
   applyVisualFormDocument(next, translated);
-  if (typeof translated.submitText === "string" && next.displayOptions) {
-    next.displayOptions.submitButtonText = translated.submitText;
+  if (typeof translated.submitText === "string") {
+    next.displayOptions = {
+      ...next.displayOptions,
+      submitButtonText: translated.submitText,
+    };
   }
   if (
     typeof translated.thankYou === "string" &&
-    next.configuration?.postSubmitAction?.type === "thank_you"
+    next.configuration?.postSubmitAction?.type !== "redirect_url"
   ) {
-    next.configuration.postSubmitAction.value = translated.thankYou;
+    next.configuration = {
+      ...next.configuration,
+      postSubmitAction: {
+        type: "thank_you",
+        value: translated.thankYou,
+      },
+    };
   }
   const fieldCopy = translated.fields;
   const groupCopy = translated.groups;
