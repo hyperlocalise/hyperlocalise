@@ -382,15 +382,36 @@ export function applyBlogContentDocument(
 } {
   const page = applyPageDocument(live, translated);
   const translatedName = typeof translated.name === "string" ? translated.name.trim() : "";
+  const postBody = typeof translated.postBody === "string" ? translated.postBody : live.postBody;
   return {
     name: translatedName,
     ...page,
-    postBody: typeof translated.postBody === "string" ? translated.postBody : live.postBody,
-    rssBody: typeof translated.rssBody === "string" ? translated.rssBody : (live.rssBody ?? ""),
+    postBody,
+    rssBody: resolveAppliedBlogRssBody(live, translated, postBody),
     postSummary:
       typeof translated.postSummary === "string" ? translated.postSummary : live.postSummary,
     rssSummary: typeof translated.rssSummary === "string" ? translated.rssSummary : live.rssSummary,
   };
+}
+
+/** When import omitted rssBody because it duplicated the article, push the translated body. */
+function resolveAppliedBlogRssBody(
+  live: { postBody: string; rssBody?: string },
+  translated: HubspotStringTree,
+  translatedPostBody: string,
+): string {
+  if (typeof translated.rssBody === "string") {
+    return translated.rssBody;
+  }
+  const liveRss = live.rssBody ?? "";
+  if (isCopyString(liveRss)) {
+    const rss = visibleCopy(liveRss);
+    const body = visibleCopy(live.postBody);
+    if (rss && body.includes(rss)) {
+      return translatedPostBody;
+    }
+  }
+  return liveRss;
 }
 
 export function applyPageDocument(
