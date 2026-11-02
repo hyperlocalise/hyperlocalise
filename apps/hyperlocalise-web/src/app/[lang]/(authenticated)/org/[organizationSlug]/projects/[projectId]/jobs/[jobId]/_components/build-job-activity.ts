@@ -47,7 +47,7 @@ export type JobActivityRun = {
 export type JobActivityAction = {
   kind: "action";
   id: string;
-  type: "job_cancelled" | "job_retried" | "job_marked_failed";
+  type: "job_cancelled" | "job_retried" | "job_marked_failed" | "job_marked_done";
   actorUserId: string | null;
   createdAt: string;
 };
@@ -147,6 +147,7 @@ function applyRunEvent(run: JobActivityRun, event: JobEventRecord) {
     case "job_cancelled":
     case "job_retried":
     case "job_marked_failed":
+    case "job_marked_done":
       break;
     default:
       assertNever(event);
@@ -231,7 +232,8 @@ export function buildJobActivity(
     if (
       event.type === "job_cancelled" ||
       event.type === "job_retried" ||
-      event.type === "job_marked_failed"
+      event.type === "job_marked_failed" ||
+      event.type === "job_marked_done"
     ) {
       items.push({
         kind: "action",
