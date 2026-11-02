@@ -685,6 +685,77 @@ describe("project job create", () => {
     expect((await markDone()).status).toBe(409);
   });
 
+  it("lets a teammate translator mark done only a proofread assigned to them", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    if (!project.teamId) {
+      throw new Error("expected project team");
+    }
+    const headers = await createFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const createResponse = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: {
+          type: "file",
+          title: "Proofread assignee mark done",
+          kind: "proofread",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as { job: { id: string } };
+
+    const translator = createFixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    const translatorHeaders = await createFixture.authHeadersFor(translator);
+    const translatorAuth = globalThis.__testApiAuthContext;
+    if (!translatorAuth) {
+      throw new Error("expected translator auth context");
+    }
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: project.teamId,
+      userId: translatorAuth.user.localUserId,
+      role: "member",
+    });
+
+    const markDoneAsTranslator = () =>
+      createClient.api.orgs[":organizationSlug"].jobs[":jobId"]["mark-done"].$post(
+        { param: { organizationSlug, jobId: created.job.id } },
+        { headers: translatorHeaders },
+      );
+
+    expect((await markDoneAsTranslator()).status).toBe(403);
+
+    await db
+      .update(schema.jobs)
+      .set({ ownerUserId: translatorAuth.user.localUserId, assigneeType: "user" })
+      .where(eq(schema.jobs.id, created.job.id));
+
+    const assignedResponse = await markDoneAsTranslator();
+    expect(assignedResponse.status).toBe(200);
+    const assigned = (await assignedResponse.json()) as { job: { status: string } };
+    expect(assigned.job.status).toBe("succeeded");
+  });
+
   it("cancels native proofread jobs stuck in waiting_for_review", async () => {
     const { identity, organization, project } = await createFixture.createStoredProjectFixture();
     const headers = await createFixture.authHeadersFor(identity);

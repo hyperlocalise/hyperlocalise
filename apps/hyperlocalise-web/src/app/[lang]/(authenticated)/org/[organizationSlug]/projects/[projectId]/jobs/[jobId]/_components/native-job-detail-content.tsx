@@ -111,7 +111,7 @@ export function NativeJobDetailContent({
   organizationSlug: string;
   projectId: string;
   canEditJobFields?: boolean;
-  /** Reviewers and managers may finish any task for people; others only their own. */
+  /** Reviewers and managers may finish any proofread task; others only their own. */
   canMarkAnyTaskDone?: boolean;
   currentUserId?: string;
   reportsEnabled?: boolean;

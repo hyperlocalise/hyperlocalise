@@ -139,8 +139,8 @@ export const nativeJobDetailContentMessages = defineMessages({
   },
   markTaskDone: {
     defaultMessage: "Mark done",
-    id: "2EZOEE657y",
-    description: "Button that marks a proofread, post-edit or translation task for people as done",
+    id: "pMZzEwjsIu",
+    description: "Button that marks a proofread task for people as done",
   },
   markTaskDoneTitle: {
     defaultMessage: "Mark this task done?",

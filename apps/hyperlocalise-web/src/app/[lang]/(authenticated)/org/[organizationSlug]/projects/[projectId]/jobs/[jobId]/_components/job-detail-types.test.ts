@@ -87,13 +87,33 @@ describe("canCancelJob / canMarkJobFailed", () => {
 });
 
 describe("canMarkTaskDone", () => {
-  it("offers mark done on open proofread and translation tasks for people", () => {
+  it("offers mark done on open proofread tasks for people", () => {
     expect(canMarkTaskDone(createJob({ assigneeType: "user" }))).toBe(true);
     expect(canMarkTaskDone(createJob({ assigneeType: null }))).toBe(true);
-    expect(canMarkTaskDone(createJob({ kind: "translation", assigneeType: "user" }))).toBe(true);
+    expect(
+      canMarkTaskDone(
+        createJob({
+          inputPayload: {
+            sourceFileId: "file_1",
+            metadata: { workflowTaskStep: "proofread" },
+          },
+        }),
+      ),
+    ).toBe(true);
   });
 
-  it("does not offer it for agents, AI reviews, provider tasks or finished tasks", () => {
+  it("does not offer it for post-edit, translation, agents, AI reviews, provider tasks or finished tasks", () => {
+    expect(
+      canMarkTaskDone(
+        createJob({
+          inputPayload: {
+            sourceFileId: "file_1",
+            metadata: { workflowTaskStep: "edit" },
+          },
+        }),
+      ),
+    ).toBe(false);
+    expect(canMarkTaskDone(createJob({ kind: "translation", assigneeType: "user" }))).toBe(false);
     expect(canMarkTaskDone(createJob({ assigneeType: "agent" }))).toBe(false);
     expect(canMarkTaskDone(createJob({ kind: "review" }))).toBe(false);
     expect(
