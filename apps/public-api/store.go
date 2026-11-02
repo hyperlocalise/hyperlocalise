@@ -108,6 +108,7 @@ type resourceStore interface {
 	upsertStrings(context.Context, principal, string, []stringUpsert) (stringBatchResult, error)
 	exportMemoryEntries(context.Context, principal, string, memoryExportQuery) (interchangeFile, error)
 	importMemoryEntries(context.Context, principal, string, memoryImportInput) (memoryImportResult, error)
+	exportGlossary(context.Context, principal, string, string) (interchangeFile, error)
 }
 
 type postgresStore struct{ pool *pgxpool.Pool }

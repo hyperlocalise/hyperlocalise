@@ -842,6 +842,34 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/glossaries/{glossaryId}/export:
+    parameters:
+      - $ref: "#/components/parameters/GlossaryId"
+    get:
+      operationId: exportGlossary
+      tags: [Glossaries]
+      summary: Export a glossary
+      description: >-
+        Requires `glossaries:read`. Returns the glossary's concepts and terms, forbidden terms
+        included, as TBX-Basic (TBX 3) by default, or as CSV or XLSX. The files match the web
+        app's glossary export. Live provider glossaries return `409`.
+      parameters:
+        - name: format
+          in: query
+          schema: { type: string, enum: [tbx, csv, xlsx], default: tbx }
+      responses:
+        "200":
+          description: The export, sent as an attachment.
+          content:
+            application/xml: { schema: { type: string } }
+            text/csv: { schema: { type: string } }
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: { schema: { type: string, format: binary } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/translation-memories:
     get:
       operationId: listTranslationMemories
@@ -1340,7 +1368,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: The project is not native, the key already exists, the segment is locked, or the job is provider-backed.
+      description: The project is not native, the key already exists, the segment is locked, or the job, memory, or glossary is managed elsewhere or archived.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }

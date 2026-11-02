@@ -12,9 +12,10 @@ import (
 )
 
 type fakeMemoryInterchangeStore struct {
-	memoryErr    error
-	memoryQuery  memoryExportQuery
-	memoryImport memoryImportInput
+	glossaryFormat string
+	memoryErr      error
+	memoryQuery    memoryExportQuery
+	memoryImport   memoryImportInput
 }
 
 func (s *fakeMemoryInterchangeStore) exportMemoryEntries(_ context.Context, _ principal, _ string, query memoryExportQuery) (interchangeFile, error) {
@@ -25,6 +26,33 @@ func (s *fakeMemoryInterchangeStore) exportMemoryEntries(_ context.Context, _ pr
 func (s *fakeMemoryInterchangeStore) importMemoryEntries(_ context.Context, _ principal, _ string, input memoryImportInput) (memoryImportResult, error) {
 	s.memoryImport = input
 	return memoryImportResult{Created: 1, Issues: []memoryImportIssue{}}, s.memoryErr
+}
+
+func (s *fakeMemoryInterchangeStore) exportGlossary(_ context.Context, _ principal, _ string, format string) (interchangeFile, error) {
+	s.glossaryFormat = format
+	return interchangeFile{ContentType: "application/xml; charset=utf-8", Filename: "terms.tbx", Body: []byte("<tbx/>")}, s.memoryErr
+}
+
+func TestGlossaryExportRoute(t *testing.T) {
+	store := &fakeResourceStore{}
+	w := sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/glossaries/gl-1/export", "")
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "tbx", store.glossaryFormat)
+	require.Equal(t, "attachment; filename*=UTF-8''terms.tbx", w.Header().Get("Content-Disposition"))
+
+	w = sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/glossaries/gl-1/export?format=XLSX", "")
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "xlsx", store.glossaryFormat)
+
+	w = sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/glossaries/gl-1/export?format=tmx", "")
+	require.Equal(t, http.StatusBadRequest, w.Code)
+
+	store.memoryErr = errGlossaryNotNative
+	w = sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/glossaries/gl-1/export", "")
+	require.Equal(t, http.StatusConflict, w.Code)
+	store.memoryErr = errGlossaryNotFound
+	w = sendResource(t, resourcePrincipal(readScopes...), store, http.MethodGet, "/v1/glossaries/gl-1/export", "")
+	require.Equal(t, http.StatusNotFound, w.Code)
 }
 
 var (
