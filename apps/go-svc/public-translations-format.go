@@ -220,13 +220,47 @@ func publicTranslationFilename(sourcePath, locale string) string {
 	return suffix + ".json"
 }
 
+// encodeURIComponentUnreserved marks characters unreserved by JavaScript's encodeURIComponent:
+// A-Z, a-z, 0-9, and - _ . ! ~ * ' ( )
+var encodeURIComponentUnreserved = func() [256]bool {
+	var table [256]bool
+	for c := 'a'; c <= 'z'; c++ {
+		table[c] = true
+	}
+	for c := 'A'; c <= 'Z'; c++ {
+		table[c] = true
+	}
+	for c := '0'; c <= '9'; c++ {
+		table[c] = true
+	}
+	for _, c := range []byte("-_.!~*'()") {
+		table[c] = true
+	}
+	return table
+}()
+
+// encodeURIComponent escapes a URI component matching JavaScript's encodeURIComponent semantics.
+// Performance optimizations:
+// 1. Table-based O(1) unreserved character lookup instead of multiple range checks and linear scans.
+// 2. Fast-path check: returns input string directly with 0 allocations if no characters need escaping.
+// 3. Pre-allocates strings.Builder capacity with b.Grow(len(value) + escapeCount*2) to prevent reallocations.
 func encodeURIComponent(value string) string {
+	escapeCount := 0
+	for i := 0; i < len(value); i++ {
+		if !encodeURIComponentUnreserved[value[i]] {
+			escapeCount++
+		}
+	}
+	if escapeCount == 0 {
+		return value
+	}
+
 	const hex = "0123456789ABCDEF"
 	var b strings.Builder
+	b.Grow(len(value) + escapeCount*2)
 	for i := 0; i < len(value); i++ {
 		c := value[i]
-		if c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' ||
-			strings.IndexByte("-_.!~*'()", c) >= 0 {
+		if encodeURIComponentUnreserved[c] {
 			b.WriteByte(c)
 			continue
 		}
