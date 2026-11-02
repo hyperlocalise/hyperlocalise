@@ -1191,6 +1191,13 @@
       "when": 1793555480594,
       "tag": "0169_brave_james_howlett",
       "breakpoints": true
+    },
+    {
+      "idx": 170,
+      "version": "7",
+      "when": 1793585540341,
+      "tag": "0170_silky_thunderbolts",
+      "breakpoints": true
     }
   ]
 }
