@@ -30,7 +30,7 @@ Reports (behind the `workspace-reports` flag, no customer users yet) records wor
 - `refreshSummaryDays` rebuilds a project's marked days from the raw records in one statement per table, under an advisory lock that is skipped when busy (or waited for a few seconds when asked), and clears a mark only if its generation did not change meanwhile.
 - The summary refreshes at the end of each capture cron run: capture starts no new work after three minutes, and the refresh uses the time left up to four. A write never refreshes the summary itself.
 - `ensureSummaryBuilt` queues every day of a workspace whose `reporting_workspaces.summary_version` is not `SUMMARY_VERSION`, for the first build and any later rebuild. `vp run reporting:summary rebuild` and `time` do the same locally.
-- `reporting_workspaces.started_at` is each workspace's own Reports start, replacing `reporting_rollout` in the web app, set the first time Reports records anything for the workspace (and, since [the AI usage tab](./2026-10-27-reports-ai-usage-tab-design.md), at its first AI token row). Dates on the page start there. The `reporting_rollout` table was dropped with the Hono routes ([Reports reads and writes in go-svc](./2026-10-29-reports-go-svc-design.md)).
+- `reporting_workspaces.started_at` is each workspace's own Reports start, replacing `reporting_rollout` in the web app, set the first time Reports records anything for the workspace (and, since [the AI usage tab](./2026-10-27-reports-ai-usage-tab-design.md), at its first AI token row). Dates on the page start there. The `reporting_rollout` table stays, unused, marked deprecated ([Reports reads and writes in go-svc](./2026-10-29-reports-go-svc-design.md)).
 - Each analysis stores characters with and without spaces (grapheme clusters, from `countSourceCharacters`). Rows from before have none and show as "not counted".
 
 ### Reading
@@ -76,7 +76,7 @@ Reports (behind the `workspace-reports` flag, no customer users yet) records wor
 - Cancelling or failing a task takes its unfinished strings out of Progress at the next refresh of their days; deleting one does so at the next rebuild of those days, since deletion marks nothing.
 - A change to a project budget's rate card applies to work not yet finished, as the estimate already shows it.
 - A billed AI call that records no project counts only as AI outside any project.
-- `reporting_task_rates.rate_id`, the old single rate line, and `reporting_analyses.rate_id`, the rate when a string arrived, were no longer read, and were dropped with the Hono routes.
+- `reporting_task_rates.rate_id`, the old single rate line, and `reporting_analyses.rate_id`, the rate when a string arrived, are no longer read. They stay, unused, marked deprecated.
 - go-svc's reporting routes followed the Reports API from before this rework; [Reports reads and writes in go-svc](./2026-10-29-reports-go-svc-design.md) replaces them with a port of this design, section by section.
 - Local databases that applied the rework's interim migrations are brought in line with `bin/mark-migration-applied.sh` in hl-env, which rewrites Drizzle's bookkeeping only.
 

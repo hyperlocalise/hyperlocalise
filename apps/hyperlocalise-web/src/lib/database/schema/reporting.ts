@@ -69,6 +69,15 @@ export const reportingWorkspaces = pgTable("reporting_workspaces", {
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   summaryVersion: integer("summary_version"),
 });
+/**
+ * @deprecated Unused. Each workspace's Reports start is `reporting_workspaces.started_at`.
+ * One Reports start for every workspace, from before each workspace had its own. Kept so
+ * existing rows stay; nothing reads or writes it.
+ */
+export const reportingRollout = pgTable("reporting_rollout", {
+  id: integer("id").primaryKey().default(1),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+});
 export const reportingRates = pgTable(
   "reporting_rates",
   {
@@ -128,6 +137,11 @@ export const reportingTaskRates = pgTable(
     rateCardName: text("rate_card_name"),
     /** The card's prices are taken as they were at this time, so later edits leave the task. */
     pricedAt: timestamp("priced_at", { withTimezone: true }),
+    /**
+     * @deprecated Unused. A task is priced by `rateCardName`, a time estimate or a fixed fee.
+     * The task's one rate line for every language, before it had a card. Kept so existing rows stay.
+     */
+    rateId: uuid("rate_id").references(() => reportingRates.id),
     estimatedMinutes: integer("estimated_minutes"),
     overrideUsd: amount("override_usd"),
     createdAt: createdAt(),
@@ -161,6 +175,11 @@ export const reportingAnalyses = pgTable(
     matchScore: integer("match_score"),
     bucket: text("bucket").$type<MatchBucket>().notNull(),
     algorithmVersion: integer("algorithm_version").notNull().default(1),
+    /**
+     * @deprecated Unused. Pricing is on `reporting_costs` when work finishes, not on the analysis.
+     * The rate when a string arrived. Kept so existing rows stay.
+     */
+    rateId: uuid("rate_id").references(() => reportingRates.id),
     createdAt: createdAt(),
   },
   (t) => [
