@@ -135,6 +135,10 @@ function ActionRow({
       icon = <WarningCircleIcon className="size-4" />;
       message = <FormattedMessage {...messages.jobMarkedFailed} values={{ name: strong }} />;
       break;
+    case "job_marked_done":
+      icon = <CheckCircleIcon className="size-4" />;
+      message = <FormattedMessage {...messages.jobMarkedDone} values={{ name: strong }} />;
+      break;
     default:
       assertNever(action.type);
   }
@@ -332,6 +336,7 @@ function stepMessage(step: JobEventRecord): ReactNode | null {
     case "job_cancelled":
     case "job_retried":
     case "job_marked_failed":
+    case "job_marked_done":
       return null;
     default:
       return assertNever(step);

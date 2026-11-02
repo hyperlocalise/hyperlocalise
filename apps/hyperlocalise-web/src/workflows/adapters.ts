@@ -26,6 +26,7 @@ import type {
   EmailAgentTaskQueue,
   JobQueue,
   IssueNotificationEmailQueue,
+  EngineSetupQueue,
   LocalisationAuditQueue,
   LocalisationAuditReportEmailQueue,
   TranslationQaScanQueue,
@@ -212,6 +213,16 @@ export function createLocalisationAuditQueue(): LocalisationAuditQueue {
     async enqueue(event) {
       const { localisationAuditWorkflow } = await import("@/workflows/localisation-audit");
       const run = await start(localisationAuditWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createEngineSetupQueue(): EngineSetupQueue {
+  return {
+    async enqueue(event) {
+      const { engineSetupWorkflow } = await import("@/workflows/engine-setup");
+      const run = await start(engineSetupWorkflow, [event]);
       return { ids: [run.runId] };
     },
   };

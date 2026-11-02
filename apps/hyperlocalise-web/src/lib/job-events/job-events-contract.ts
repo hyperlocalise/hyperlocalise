@@ -33,6 +33,7 @@ export type JobEventPayloads = {
   job_cancelled: Record<string, never>;
   job_retried: Record<string, never>;
   job_marked_failed: Record<string, never>;
+  job_marked_done: Record<string, never>;
 };
 
 export type JobEventType = keyof JobEventPayloads;
@@ -51,6 +52,7 @@ export const JOB_EVENT_TYPES = [
   "job_cancelled",
   "job_retried",
   "job_marked_failed",
+  "job_marked_done",
 ] as const satisfies readonly JobEventType[];
 
 export type JobEventInput = {

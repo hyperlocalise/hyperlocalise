@@ -55,6 +55,11 @@ export const jobActivityViewMessages = defineMessages({
     id: "RWcK8ZIk5R",
     description: "Job activity row when a user marks the job as failed",
   },
+  jobMarkedDone: {
+    defaultMessage: "{name} marked the task as done",
+    id: "zLb2OYI9oM",
+    description: "Job activity row when a user marks a task for people as done",
+  },
   agentName: {
     defaultMessage: "Hyperlocalise agent",
     id: "dQxtOIUn2A",
