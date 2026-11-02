@@ -29,10 +29,7 @@ export type HubspotLibrary = {
   warnings: string[];
 };
 
-type LibraryClient = Pick<
-  HubspotContentClient,
-  "listEmails" | "listForms" | "listBlogPosts" | "listLandingPages" | "listWebsitePages"
->;
+type LibraryClient = Pick<HubspotContentClient, "listBlogPosts">;
 
 function libraryItem(item: {
   id: string;
@@ -57,10 +54,10 @@ function libraryItems(
 }
 
 export async function listHubspotLibrary(client: LibraryClient): Promise<HubspotLibrary> {
-  const [emails, blogPosts] = await Promise.all([client.listEmails(), client.listBlogPosts()]);
+  const blogPosts = await client.listBlogPosts();
 
   return {
-    emails: libraryItems(emails),
+    emails: [],
     forms: [],
     blogPosts: libraryItems(blogPosts),
     landingPages: [],

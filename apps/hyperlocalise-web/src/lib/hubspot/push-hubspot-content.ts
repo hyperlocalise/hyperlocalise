@@ -24,25 +24,15 @@ import { applyHtmlIngestTranslations } from "@/lib/projects/files/html-ingest-en
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 import type { HubspotContentClient } from "./client";
-import type { HubspotResourceKind } from "./constants";
+import { isHubspotSupportedResourceKind, type HubspotResourceKind } from "./constants";
 import { loadHubspotAutomationClient } from "./credentials";
 import {
   applyBlogContentDocument,
-  applyEmailDocument,
-  applyFormDocument,
-  applyPageDocument,
   buildBlogContentDocument,
-  buildEmailDocument,
-  buildEmailHtmlDocument,
-  buildFormDocument,
-  buildPageDocument,
-  extractEmailStyleSettings,
   hashHubspotContent,
   mergeHubspotTranslations,
   readBlogDocument,
-  readEmailHtmlDocument,
   readHubspotStringTree,
-  readMessageTemplateDocument,
   serializeHubspotDocument,
 } from "./document";
 import {
@@ -62,7 +52,6 @@ import {
   loadHubspotBlogPostHtml,
 } from "./blog-post-bundle";
 import { parseHubspotBlogFolderPath } from "./source-path";
-import { formDefinitionForWrite } from "./form-write";
 import {
   assignHubspotLocales,
   findBlogLanguageVariation,
@@ -161,38 +150,15 @@ async function isHubspotRemoteCopyEmpty(input: {
   blogPostHtml?: string | null;
 }): Promise<boolean> {
   try {
-    if (input.kind === "blog" && input.blogPostHtml) {
+    if (input.blogPostHtml) {
       const sourceHash = hashHubspotBlogPostHtml(input.blogPostHtml);
       const copyHash = await hashRemoteBlogPostHtml(input.client, input.copyId);
       return sourceHash === copyHash;
     }
-    if (input.kind === "email") {
-      const copy = await input.client.getEmail(input.copyId);
-      const document = buildEmailDocument({ subject: copy.subject, widgets: copy.widgets });
-      const copyContent = input.sourceJson
-        ? serializeHubspotDocument(document)
-        : buildEmailHtmlDocument(document, { styleSettings: copy.styleSettings });
-      return hashHubspotContent(copyContent) === hashHubspotContent(input.sourceText);
-    }
-    if (input.kind === "form") {
-      const copy = await input.client.getForm(input.copyId);
-      const copyContent = serializeHubspotDocument(buildFormDocument(copy.definition));
-      return hashHubspotContent(copyContent) === hashHubspotContent(input.sourceText);
-    }
     if (input.sourceJson) {
-      if (input.kind === "blog") {
-        const copy = await input.client.getBlogPost(input.copyId);
-        const copyContent = serializeHubspotDocument(buildBlogContentDocument(copy));
-        return hashHubspotContent(copyContent) === hashHubspotContent(input.sourceText);
-      }
-      if (input.kind === "landing-page" || input.kind === "website-page") {
-        const copy =
-          input.kind === "landing-page"
-            ? await input.client.getLandingPage(input.copyId)
-            : await input.client.getWebsitePage(input.copyId);
-        const copyContent = serializeHubspotDocument(buildPageDocument(copy));
-        return hashHubspotContent(copyContent) === hashHubspotContent(input.sourceText);
-      }
+      const copy = await input.client.getBlogPost(input.copyId);
+      const copyContent = serializeHubspotDocument(buildBlogContentDocument(copy));
+      return hashHubspotContent(copyContent) === hashHubspotContent(input.sourceText);
     }
     return false;
   } catch {
@@ -216,26 +182,6 @@ async function findNamedCopy(input: {
   kind: HubspotResourceKind;
   copyName: string;
 }): Promise<string | null> {
-  if (input.kind === "email") {
-    const emails = await input.client.listEmails();
-    return emails.find((item) => item.name === input.copyName)?.id ?? null;
-  }
-  if (input.kind === "form") {
-    const forms = await input.client.listForms();
-    return forms.find((item) => item.name === input.copyName)?.id ?? null;
-  }
-  if (input.kind === "landing-page") {
-    const pages = await input.client.listLandingPages();
-    return pages.find((item) => item.name === input.copyName)?.id ?? null;
-  }
-  if (input.kind === "website-page") {
-    const pages = await input.client.listWebsitePages();
-    return pages.find((item) => item.name === input.copyName)?.id ?? null;
-  }
-  if (input.kind === "message-template") {
-    const templates = await input.client.listMessageTemplates();
-    return templates.find((item) => item.name === input.copyName)?.id ?? null;
-  }
   const posts = await input.client.listBlogPosts();
   return posts.find((item) => item.name === input.copyName)?.id ?? null;
 }
@@ -250,13 +196,7 @@ async function loadCopyUpdatedAt(
   copyId: string,
 ): Promise<string | null> {
   try {
-    if (kind === "email") {
-      return (await client.getEmail(copyId)).updatedAt;
-    }
-    if (kind === "blog") {
-      return (await client.getBlogPost(copyId)).updatedAt;
-    }
-    return null;
+    return (await client.getBlogPost(copyId)).updatedAt;
   } catch {
     return null;
   }
@@ -342,16 +282,12 @@ export async function runPushHubspotContent(input: {
   const policy = isHubspotExistingTranslationPolicy(hubspot.existingTranslationPolicy)
     ? hubspot.existingTranslationPolicy
     : DEFAULT_HUBSPOT_EXISTING_TRANSLATION_POLICY;
-  const assignments = {
-    email: assignHubspotLocales(locales, "email"),
-    form: assignHubspotLocales(locales, "form"),
-    blog: assignHubspotLocales(locales, "blog"),
-    "landing-page": assignHubspotLocales(locales, "landing-page"),
-    "website-page": assignHubspotLocales(locales, "website-page"),
-    "message-template": assignHubspotLocales(locales, "message-template"),
-  };
+  const assignment = assignHubspotLocales(locales, "blog");
 
   for (const mapping of mappings) {
+    if (!isHubspotSupportedResourceKind(mapping.resourceKind)) {
+      continue;
+    }
     const label = mapping.sourceName || mapping.sourcePath;
     const blogPostId =
       mapping.resourceKind === "blog" && isHubspotBlogBundleSourcePath(mapping.sourcePath)
@@ -382,10 +318,9 @@ export async function runPushHubspotContent(input: {
       pushWarning(`${label}: no imported source file`);
       continue;
     }
-    const assignment = assignments[mapping.resourceKind];
     const localeCopyIds = { ...mapping.localeCopyIds };
     const pushHashes = { ...mapping.lastPushContentHash };
-    const blogSummaries = mapping.resourceKind === "blog" ? await client.listBlogPosts() : null;
+    const blogSummaries = await client.listBlogPosts();
 
     for (const { locale, code } of assignment.mapped) {
       try {
@@ -454,191 +389,78 @@ export async function runPushHubspotContent(input: {
           continue;
         }
 
-        if (mapping.resourceKind === "email") {
-          const translatedHtml = sourceJson
-            ? null
-            : applyHtmlIngestTranslations(sourceFileContent, approved.prefilled);
-          const translated = sourceJson
-            ? mergeHubspotTranslations(readHubspotStringTree(sourceJson), approved.prefilled)
-            : readEmailHtmlDocument(translatedHtml ?? sourceFileContent);
-          const styleSettings =
-            translatedHtml == null ? undefined : extractEmailStyleSettings(translatedHtml);
-          const live = await client.getEmail(mapping.sourceId);
-          const applied = applyEmailDocument(live.widgets, translated);
-          const targetId =
-            copyId ??
-            (
-              await client.cloneEmail({
-                id: mapping.sourceId,
-                cloneName: copyName,
-              })
-            ).id;
-          await client.updateEmailDraft({
-            id: targetId,
-            name: copyName,
-            language: hubspotCode,
-            subject: applied.subject || live.subject,
-            widgets: applied.widgets,
-            ...(styleSettings !== undefined ? { styleSettings } : {}),
-          });
-          copyId = targetId;
-        } else if (mapping.resourceKind === "form") {
-          const sourceDocument = readHubspotStringTree(
-            readHubspotDocumentJson(sourceFileContent) ?? {},
-          );
-          const translated = mergeHubspotTranslations(sourceDocument, approved.prefilled);
-          const live = await client.getForm(mapping.sourceId);
-          const applied = applyFormDocument(live.definition, translated);
-          const definition = formDefinitionForWrite(applied, {
-            name: copyName,
-            language: hubspotCode,
-            id: copyId ?? undefined,
-          });
-          if (copyId) {
-            await client.replaceForm(copyId, definition);
-          } else {
-            copyId = (await client.createForm(definition)).id;
-          }
-        } else if (mapping.resourceKind === "message-template") {
-          const translatedHtml = applyHtmlIngestTranslations(sourceFileContent, approved.prefilled);
-          const read = readMessageTemplateDocument(translatedHtml);
-          const live = await client.getMessageTemplate(mapping.sourceId);
-          const subject = read.foundSubject ? read.subject : live.subject;
-          const body = read.foundBody ? read.body : live.body;
-          const existingCopyId = copyId && copyId !== mapping.sourceId ? copyId : null;
-          if (existingCopyId) {
-            await client.updateMessageTemplate({
-              id: existingCopyId,
+        if (!copyId) {
+          copyId = (
+            await client.createBlogPostLanguageDraft({
+              id: mapping.sourceId,
+              language: hubspotCode,
               name: copyName,
-              subject,
-              body,
-            });
-            copyId = existingCopyId;
-          } else {
-            copyId = (
-              await client.createMessageTemplate({
-                name: copyName,
-                subject,
-                body,
-                folderId: live.folderId,
-              })
-            ).id;
-          }
-        } else if (mapping.resourceKind === "blog") {
-          if (!copyId) {
-            copyId = (
-              await client.createBlogPostLanguageDraft({
-                id: mapping.sourceId,
-                language: hubspotCode,
-                name: copyName,
-              })
-            ).id;
-          }
-          if (blogPostId && blogPostHtml) {
-            const live = await client.getBlogPost(mapping.sourceId);
-            const applied = blogDraftFieldsFromPostHtml({
-              live,
-              sourceHtml: blogPostHtml,
-              prefilled: approved.prefilled,
-            });
-            await client.updateBlogDraft({
-              id: copyId,
-              name: blogPostPushName({
-                sourceName: mapping.sourceName,
-                translatedName: applied.name,
-                translatedHtmlTitle: applied.htmlTitle,
-              }),
-              htmlTitle: applied.htmlTitle,
-              metaDescription: applied.metaDescription,
-              featuredImageAltText: applied.featuredImageAltText,
-              postBody: applied.postBody,
-              postSummary: applied.postSummary,
-              rssBody: applied.rssBody || undefined,
-              rssSummary: applied.rssSummary,
-              widgets: applied.widgets,
-              layoutSections: applied.layoutSections,
-              widgetContainers: applied.widgetContainers,
-            });
-          } else if (sourceJson) {
-            const translated = mergeHubspotTranslations(
-              readHubspotStringTree(sourceJson),
-              approved.prefilled,
-            );
-            const live = await client.getBlogPost(mapping.sourceId);
-            const applied = applyBlogContentDocument(live, translated);
-            await client.updateBlogDraft({
-              id: copyId,
-              name: blogPostPushName({
-                sourceName: mapping.sourceName,
-                translatedName: applied.name,
-                translatedHtmlTitle: applied.htmlTitle,
-              }),
-              htmlTitle: applied.htmlTitle,
-              metaDescription: applied.metaDescription,
-              featuredImageAltText: applied.featuredImageAltText,
-              postBody: applied.postBody,
-              postSummary: applied.postSummary,
-              rssBody: applied.rssBody || undefined,
-              rssSummary: applied.rssSummary,
-              widgets: applied.widgets,
-              layoutSections: applied.layoutSections,
-              widgetContainers: applied.widgetContainers,
-            });
-          } else {
-            const translatedHtml = applyHtmlIngestTranslations(
-              sourceFileContent,
-              approved.prefilled,
-            );
-            const blog = readBlogDocument(translatedHtml);
-            await client.updateBlogDraft({
-              id: copyId,
-              name: blogPostPushName({
-                sourceName: mapping.sourceName,
-                translatedHtmlTitle: blog.htmlTitle,
-              }),
-              htmlTitle: blog.htmlTitle,
-              metaDescription: blog.metaDescription,
-              postBody: blog.postBody,
-            });
-          }
-        } else {
-          const sourceDocument = readHubspotStringTree(
-            readHubspotDocumentJson(sourceFileContent) ?? {},
-          );
-          const translated = mergeHubspotTranslations(sourceDocument, approved.prefilled);
-          const live =
-            mapping.resourceKind === "landing-page"
-              ? await client.getLandingPage(mapping.sourceId)
-              : await client.getWebsitePage(mapping.sourceId);
-          const applied = applyPageDocument(live, translated);
-          const createVariation =
-            mapping.resourceKind === "landing-page"
-              ? client.createLandingPageLanguageVariation.bind(client)
-              : client.createWebsitePageLanguageVariation.bind(client);
-          const updateDraft =
-            mapping.resourceKind === "landing-page"
-              ? client.updateLandingPageDraft.bind(client)
-              : client.updateWebsitePageDraft.bind(client);
-          const targetId =
-            copyId ??
-            (
-              await createVariation({
-                id: mapping.sourceId,
-                language: hubspotCode,
-              })
-            ).id;
-          await updateDraft({
-            id: targetId,
-            name: copyName,
-            language: hubspotCode,
+            })
+          ).id;
+        }
+        if (blogPostId && blogPostHtml) {
+          const live = await client.getBlogPost(mapping.sourceId);
+          const applied = blogDraftFieldsFromPostHtml({
+            live,
+            sourceHtml: blogPostHtml,
+            prefilled: approved.prefilled,
+          });
+          await client.updateBlogDraft({
+            id: copyId,
+            name: blogPostPushName({
+              sourceName: mapping.sourceName,
+              translatedName: applied.name,
+              translatedHtmlTitle: applied.htmlTitle,
+            }),
             htmlTitle: applied.htmlTitle,
             metaDescription: applied.metaDescription,
             featuredImageAltText: applied.featuredImageAltText,
+            postBody: applied.postBody,
+            postSummary: applied.postSummary,
+            rssBody: applied.rssBody || undefined,
+            rssSummary: applied.rssSummary,
             widgets: applied.widgets,
             layoutSections: applied.layoutSections,
             widgetContainers: applied.widgetContainers,
           });
-          copyId = targetId;
+        } else if (sourceJson) {
+          const translated = mergeHubspotTranslations(
+            readHubspotStringTree(sourceJson),
+            approved.prefilled,
+          );
+          const live = await client.getBlogPost(mapping.sourceId);
+          const applied = applyBlogContentDocument(live, translated);
+          await client.updateBlogDraft({
+            id: copyId,
+            name: blogPostPushName({
+              sourceName: mapping.sourceName,
+              translatedName: applied.name,
+              translatedHtmlTitle: applied.htmlTitle,
+            }),
+            htmlTitle: applied.htmlTitle,
+            metaDescription: applied.metaDescription,
+            featuredImageAltText: applied.featuredImageAltText,
+            postBody: applied.postBody,
+            postSummary: applied.postSummary,
+            rssBody: applied.rssBody || undefined,
+            rssSummary: applied.rssSummary,
+            widgets: applied.widgets,
+            layoutSections: applied.layoutSections,
+            widgetContainers: applied.widgetContainers,
+          });
+        } else {
+          const translatedHtml = applyHtmlIngestTranslations(sourceFileContent, approved.prefilled);
+          const blog = readBlogDocument(translatedHtml);
+          await client.updateBlogDraft({
+            id: copyId,
+            name: blogPostPushName({
+              sourceName: mapping.sourceName,
+              translatedHtmlTitle: blog.htmlTitle,
+            }),
+            htmlTitle: blog.htmlTitle,
+            metaDescription: blog.metaDescription,
+            postBody: blog.postBody,
+          });
         }
 
         localeCopyIds[locale] = copyId;

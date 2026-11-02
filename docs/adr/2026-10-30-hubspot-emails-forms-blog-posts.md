@@ -3,8 +3,10 @@
 ## Status
 
 Accepted. Import, push, and **Translate HubSpot content** are
-implemented. Connect is WorkOS Pipes OAuth on the existing `hubspot`
-slug, from a custom Integrations pane.
+implemented. The shipped automation currently supports blog posts
+only. Emails, forms, landing pages, and website pages stay in the
+client for later work. Connect is WorkOS Pipes OAuth on the existing
+`hubspot` slug, from a custom Integrations pane.
 
 Tracking lives in Linear project
 [HubSpot Integration](https://linear.app/hyperlocalise/project/hubspot-integration-4fd159902d9b)

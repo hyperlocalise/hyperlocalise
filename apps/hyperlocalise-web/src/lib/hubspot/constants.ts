@@ -26,4 +26,15 @@ export const HUBSPOT_RESOURCE_KINDS = [
 ] as const;
 export type HubspotResourceKind = (typeof HUBSPOT_RESOURCE_KINDS)[number];
 
+/** Surfaces the Translate HubSpot content automation imports and pushes. */
+export const HUBSPOT_SUPPORTED_RESOURCE_KINDS = [
+  "blog",
+] as const satisfies readonly HubspotResourceKind[];
+
+export function isHubspotSupportedResourceKind(
+  kind: string,
+): kind is (typeof HUBSPOT_SUPPORTED_RESOURCE_KINDS)[number] {
+  return (HUBSPOT_SUPPORTED_RESOURCE_KINDS as readonly string[]).includes(kind);
+}
+
 export const HUBSPOT_LIST_PAGE_SIZE = 100;

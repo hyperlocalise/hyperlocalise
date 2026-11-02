@@ -33,10 +33,7 @@ const GROUPS: Array<{
   kind: HubspotResourceKind;
   label: string;
   itemsKey: keyof Omit<HubspotLibrary, "warnings">;
-}> = [
-  { kind: "email", label: "Emails", itemsKey: "emails" },
-  { kind: "blog", label: "Blog posts", itemsKey: "blogPosts" },
-];
+}> = [{ kind: "blog", label: "Blog posts", itemsKey: "blogPosts" }];
 
 export const HUBSPOT_TREE_FIELDS: Record<
   HubspotResourceKind,

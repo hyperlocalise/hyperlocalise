@@ -2703,6 +2703,10 @@
     "defaultMessage": "{count, number} characters extracted",
     "description": "Extracted text size for a knowledge file"
   },
+  "24KJbvrklx": {
+    "defaultMessage": "Choose which mapped blog posts to update with approved translations. This creates unpublished locale drafts and never changes or publishes the source.",
+    "description": "Description of the HubSpot item picker dialog"
+  },
   "24tcVtmHO9": {
     "defaultMessage": "No localized video yet",
     "description": "Empty state when the CAT target video has not been created"
