@@ -100,6 +100,51 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateProject
+      tags: [Projects]
+      summary: Update a native project's settings
+      description: >-
+        Requires `projects:write`, which `files:write` grants to admins, localization managers,
+        and developers. Native projects only. `targetLocales` replaces the target list: tags are
+        canonicalized (`pt-br` becomes `pt-BR`), duplicates are dropped, at most 50 are kept, and
+        the source locale is rejected.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                name: { type: string, minLength: 1, maxLength: 200 }
+                description: { type: string, maxLength: 10000 }
+                translationContext: { type: string, maxLength: 20000 }
+                targetLocales:
+                  type: array
+                  minItems: 1
+                  items: { type: string, maxLength: 64 }
+      responses:
+        "200":
+          description: Updated project.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project]
+                properties:
+                  project: { $ref: "#/components/schemas/Project" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/queries:
     get:
       operationId: listQueries
@@ -216,6 +261,15 @@ paths:
           in: query
           description: Case-insensitive match on key or source text.
           schema: { type: string, maxLength: 200 }
+        - name: key
+          in: query
+          description: Exact keys to find. Repeat for up to 100 keys.
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 100
+            items: { type: string, maxLength: 1000 }
         - name: filePath
           in: query
           description: Only strings from this source file.
@@ -278,6 +332,66 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/StringResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/strings/batch:
+    post:
+      operationId: upsertStrings
+      tags: [Strings]
+      summary: Create or update strings in bulk
+      description: >-
+        Requires `strings:write`. Native projects only. Each item matches a string by `key` and
+        `filePath` (no `filePath` means a string in no file). A match is updated with the fields
+        the item sets; otherwise a string is created and `sourceText` is required. The batch runs
+        in one transaction: if an item fails, nothing is saved and the `X-Failed-Item` header
+        holds its index. Changing the source text of a locked string returns `409`.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [strings]
+              properties:
+                strings:
+                  type: array
+                  minItems: 1
+                  maxItems: 500
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [key]
+                    properties:
+                      key: { type: string, minLength: 1, maxLength: 1000 }
+                      filePath: { type: [string, "null"], maxLength: 2048 }
+                      sourceText: { type: string, minLength: 1, maxLength: 100000 }
+                      context: { type: [string, "null"], maxLength: 10000 }
+                      type: { type: [string, "null"], maxLength: 64 }
+                      maxLength: { type: [integer, "null"], minimum: 1, maximum: 100000 }
+                      hidden: { type: boolean }
+      responses:
+        "200":
+          description: Saved strings, in request order.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [created, updated, strings]
+                properties:
+                  created: { type: integer, minimum: 0 }
+                  updated: { type: integer, minimum: 0 }
+                  strings:
+                    type: array
+                    items: { $ref: "#/components/schemas/String" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -1126,7 +1240,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     PayloadTooLarge:
-      description: The request body exceeds 256 KiB, or 25 MiB for a bilingual file.
+      description: The request body exceeds 256 KiB (16 MiB for a strings batch, 25 MiB for a bilingual file).
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }

@@ -71,6 +71,7 @@ type projectLocales struct {
 }
 
 type stringFilters struct {
+	Keys          []string
 	Search        string
 	FilePath      string
 	IncludeHidden bool
@@ -240,6 +241,9 @@ func (s *postgresStore) listStrings(ctx context.Context, actor principal, projec
 	}
 	if filters.Search != "" {
 		where.add("(k.key ILIKE ? OR k.source_text ILIKE ?)", "%"+filters.Search+"%")
+	}
+	if len(filters.Keys) > 0 {
+		where.add("k.key = ANY(?::text[])", filters.Keys)
 	}
 	var total int
 	if err := s.pool.QueryRow(ctx, `SELECT count(*) `+stringFrom+` WHERE `+where.sql(), where.args...).Scan(&total); err != nil {

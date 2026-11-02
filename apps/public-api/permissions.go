@@ -46,6 +46,10 @@ func effectivePermissions(stored []string, role string) []string {
 	}
 	if _, ok := seen["files:write"]; ok {
 		add("strings:write")
+		// Project settings follow the web app's projects:write capability.
+		if role == "admin" || role == "localization_manager" || role == "developer" {
+			add("projects:write")
+		}
 	}
 	return out
 }

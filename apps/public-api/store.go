@@ -104,6 +104,8 @@ type resourceStore interface {
 	listJobs(context.Context, principal, jobFilters) ([]job, int, error)
 	getJob(context.Context, principal, string) (job, error)
 	updateJob(context.Context, principal, string, jobPatch) (job, error)
+	updateProject(context.Context, principal, string, projectPatch) (project, error)
+	upsertStrings(context.Context, principal, string, []stringUpsert) (stringBatchResult, error)
 }
 
 type postgresStore struct{ pool *pgxpool.Pool }
