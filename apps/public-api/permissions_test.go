@@ -16,7 +16,7 @@ func TestEffectivePermissions(t *testing.T) {
 
 	t.Run("developer keeps write scopes", func(t *testing.T) {
 		perms := effectivePermissions([]string{"jobs:read", "files:read", "jobs:write", "files:write"}, "developer")
-		require.Equal(t, []string{"jobs:read", "files:read", "jobs:write", "files:write", "projects:read", "queries:read", "strings:read", "glossaries:read", "translation-memories:read", "strings:write"}, perms)
+		require.Equal(t, []string{"jobs:read", "files:read", "jobs:write", "files:write", "projects:read", "queries:read", "strings:read", "glossaries:read", "translation-memories:read", "strings:write", "projects:write"}, perms)
 	})
 
 	t.Run("member files write does not expand strings write", func(t *testing.T) {

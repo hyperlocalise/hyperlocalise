@@ -54,6 +54,7 @@ export const V1_ACTIVITY_EVENT_TYPES = [
   "project_created",
   "project_deleted",
   "project_settings_changed",
+  "project_strings_updated",
   "glossary_created",
   "glossary_deleted",
   "glossary_imported",
@@ -81,6 +82,7 @@ export const LATER_ACTIVITY_EVENT_TYPES = [
   "job_created",
   "job_cancelled",
   "job_failed",
+  "job_updated",
   "automation_created",
   "automation_deleted",
   "automation_run_started",
@@ -294,6 +296,13 @@ export type ActivityPayloadByEventType = {
     previousVisibility?: string;
     projectId: string;
   };
+  /** Strings created or updated in bulk through the public API. */
+  project_strings_updated: {
+    created: number;
+    itemCount: number;
+    projectId: string;
+    updated: number;
+  };
   glossary_created: SafeResourcePayload;
   glossary_deleted: SafeResourcePayload;
   glossary_imported: ImportExportPayload;
@@ -329,6 +338,12 @@ export type ActivityPayloadByEventType = {
     kind: string;
     projectId?: string;
     status: "failed";
+  };
+  job_updated: {
+    changedFields: readonly ("title" | "description" | "dueAt" | "owner")[];
+    jobId: string;
+    kind: string;
+    projectId?: string;
   };
   automation_created: {
     automationId: string;
@@ -499,6 +514,7 @@ export type ActivityTargetKindByEventType = {
   project_created: "project";
   project_deleted: "project";
   project_settings_changed: "project";
+  project_strings_updated: "project";
   glossary_created: "glossary";
   glossary_deleted: "glossary";
   glossary_imported: "glossary";
@@ -515,6 +531,7 @@ export type ActivityTargetKindByEventType = {
   job_created: "job";
   job_cancelled: "job";
   job_failed: "job";
+  job_updated: "job";
   automation_created: "automation";
   automation_deleted: "automation";
   automation_run_started: "automation";

@@ -68,6 +68,7 @@ describe("activity log contract", () => {
       "job_created",
       "job_cancelled",
       "job_failed",
+      "job_updated",
       "automation_created",
       "automation_deleted",
       "automation_run_started",

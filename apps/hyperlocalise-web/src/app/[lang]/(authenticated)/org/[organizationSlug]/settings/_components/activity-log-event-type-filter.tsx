@@ -105,7 +105,12 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
   {
     icon: FoldersIcon,
     label: messages.projectEventGroup,
-    eventTypes: ["project_created", "project_deleted", "project_settings_changed"],
+    eventTypes: [
+      "project_created",
+      "project_deleted",
+      "project_settings_changed",
+      "project_strings_updated",
+    ],
   },
   {
     icon: BookOpenTextIcon,
@@ -135,7 +140,7 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
   {
     icon: DatabaseIcon,
     label: messages.jobEventGroup,
-    eventTypes: ["job_created", "job_cancelled", "job_failed"],
+    eventTypes: ["job_created", "job_cancelled", "job_failed", "job_updated"],
   },
   {
     icon: PuzzlePieceIcon,
@@ -229,6 +234,7 @@ const eventTypeLabels = {
   project_created: messages.projectCreatedEventType,
   project_deleted: messages.projectDeletedEventType,
   project_settings_changed: messages.projectSettingsChangedEventType,
+  project_strings_updated: messages.projectStringsUpdatedEventType,
   glossary_created: messages.glossaryCreatedEventType,
   glossary_deleted: messages.glossaryDeletedEventType,
   glossary_imported: messages.glossaryImportedEventType,
@@ -245,6 +251,7 @@ const eventTypeLabels = {
   job_created: messages.jobCreatedEventType,
   job_cancelled: messages.jobCancelledEventType,
   job_failed: messages.jobFailedEventType,
+  job_updated: messages.jobUpdatedEventType,
   automation_created: messages.automationCreatedEventType,
   automation_deleted: messages.automationDeletedEventType,
   automation_run_started: messages.automationRunStartedEventType,

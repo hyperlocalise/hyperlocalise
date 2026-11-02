@@ -3,8 +3,9 @@ info:
   title: Hyperlocalise Public API
   version: 1.0.0
   description: >-
-    Read projects, Queries, glossaries, and translation memories from a Hyperlocalise workspace,
-    and manage the strings and translations of native projects.
+    Read projects, Queries, jobs, glossaries, and translation memories from a Hyperlocalise
+    workspace; manage the strings, translations, and settings of native projects; round-trip
+    bilingual files; update jobs; and import and export glossaries and translation memories.
 servers:
   - url: https://api.hyperlocalise.com
 security:
@@ -13,8 +14,10 @@ tags:
   - name: Identity
   - name: Projects
   - name: Queries
+  - name: Jobs
   - name: Strings
   - name: Translations
+  - name: Bilingual files
   - name: Glossaries
   - name: Translation memories
 paths:
@@ -97,6 +100,51 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateProject
+      tags: [Projects]
+      summary: Update a native project's settings
+      description: >-
+        Requires `projects:write`, which `files:write` grants to admins, localization managers,
+        and developers. Native projects only. `targetLocales` replaces the target list: tags are
+        canonicalized (`pt-br` becomes `pt-BR`), duplicates are dropped, at most 50 are kept, and
+        the source locale is rejected.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                name: { type: string, minLength: 1, maxLength: 200 }
+                description: { type: string, maxLength: 10000 }
+                translationContext: { type: string, maxLength: 20000 }
+                targetLocales:
+                  type: array
+                  minItems: 1
+                  items: { type: string, maxLength: 64 }
+      responses:
+        "200":
+          description: Updated project.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project]
+                properties:
+                  project: { $ref: "#/components/schemas/Project" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "503": { $ref: "#/components/responses/Unavailable" }
   /v1/queries:
     get:
@@ -214,6 +262,15 @@ paths:
           in: query
           description: Case-insensitive match on key or source text.
           schema: { type: string, maxLength: 200 }
+        - name: key
+          in: query
+          description: Exact keys to find. Repeat for up to 100 keys.
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 100
+            items: { type: string, maxLength: 1000 }
         - name: filePath
           in: query
           description: Only strings from this source file.
@@ -276,6 +333,66 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/StringResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/strings/batch:
+    post:
+      operationId: upsertStrings
+      tags: [Strings]
+      summary: Create or update strings in bulk
+      description: >-
+        Requires `strings:write`. Native projects only. Each item matches a string by `key` and
+        `filePath` (no `filePath` means a string in no file). A match is updated with the fields
+        the item sets; otherwise a string is created and `sourceText` is required. The batch runs
+        in one transaction: if an item fails, nothing is saved and the `X-Failed-Item` header
+        holds its index. Changing the source text of a locked string returns `409`.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [strings]
+              properties:
+                strings:
+                  type: array
+                  minItems: 1
+                  maxItems: 500
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [key]
+                    properties:
+                      key: { type: string, minLength: 1, maxLength: 1000 }
+                      filePath: { type: [string, "null"], maxLength: 2048 }
+                      sourceText: { type: string, minLength: 1, maxLength: 100000 }
+                      context: { type: [string, "null"], maxLength: 10000 }
+                      type: { type: [string, "null"], maxLength: 64 }
+                      maxLength: { type: [integer, "null"], minimum: 1, maximum: 100000 }
+                      hidden: { type: boolean }
+      responses:
+        "200":
+          description: Saved strings, in request order.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [created, updated, strings]
+                properties:
+                  created: { type: integer, minimum: 0 }
+                  updated: { type: integer, minimum: 0 }
+                  strings:
+                    type: array
+                    items: { $ref: "#/components/schemas/String" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -475,6 +592,174 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/bilingual-file:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: exportBilingualFile
+      tags: [Bilingual files]
+      summary: Export a bilingual file
+      description: >-
+        Requires `strings:read`. Returns the project's strings with their translations in one
+        target locale, in the same CSV, TMX, XLF, XLIFF, or XLSX layout as the Content Editor's
+        bilingual export. Use `filePath` to export one file. A file holds at most 5,000 strings.
+      parameters:
+        - name: locale
+          in: query
+          required: true
+          description: A target locale of the project.
+          schema: { type: string, maxLength: 64 }
+        - name: format
+          in: query
+          schema: { type: string, enum: [csv, tmx, xlf, xliff, xlsx], default: xliff }
+        - name: filePath
+          in: query
+          schema: { type: string, maxLength: 2048 }
+        - name: includeHidden
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: The bilingual file, sent as an attachment.
+          content:
+            text/csv: { schema: { type: string } }
+            application/x-tmx+xml: { schema: { type: string } }
+            application/x-xliff+xml: { schema: { type: string } }
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: { schema: { type: string, format: binary } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: importBilingualFile
+      tags: [Bilingual files]
+      summary: Re-import a bilingual file
+      description: >-
+        Requires `strings:write`. Native projects only. Saves each row's target text as an
+        approved, imported translation of the string with the same key and file. Rows without a
+        key or target text, for another locale, for an unknown string, for a locked segment, or
+        longer than the string's `maxLength` are skipped. With `filePath`, rows that name no file
+        belong to it and rows that name another file are skipped. The format comes from the file
+        name unless `format` is set.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, locale]
+              properties:
+                file: { type: string, format: binary, description: At most 25 MiB and 5,000 rows. }
+                locale: { type: string, maxLength: 64 }
+                filePath: { type: string, maxLength: 2048 }
+                format: { type: string, enum: [csv, tmx, xlf, xliff, xlsx] }
+      responses:
+        "200":
+          description: Import counts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [import]
+                properties:
+                  import: { $ref: "#/components/schemas/BilingualImportCounts" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/jobs:
+    get:
+      operationId: listJobs
+      tags: [Jobs]
+      summary: List accessible jobs
+      description: Requires `jobs:read`. Newest first. Operators see every workspace job; others see jobs of projects their teams can access.
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: string, maxLength: 128 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [queued, running, succeeded, failed, waiting_for_review, cancelled] }
+        - name: kind
+          in: query
+          schema: { type: string, enum: [translation, research, review, proofread, sync, asset_management] }
+        - $ref: "#/components/parameters/Limit25"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Jobs.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [jobs, pagination]
+                properties:
+                  jobs:
+                    type: array
+                    items: { $ref: "#/components/schemas/Job" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/jobs/{jobId}:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    get:
+      operationId: getJob
+      tags: [Jobs]
+      summary: Get an accessible job
+      description: Requires `jobs:read`.
+      responses:
+        "200":
+          description: Job detail.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateJob
+      tags: [Jobs]
+      summary: Update a job's title, description, due date, or owner
+      description: >-
+        Requires `jobs:write`. Send at least one field; `null` clears `description`, `dueAt`, or
+        `ownerEmail`. The owner must be an active workspace member who can access the job's
+        project. Provider-backed jobs return `409`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                title: { type: string, minLength: 1, maxLength: 256 }
+                description: { type: [string, "null"], maxLength: 2048 }
+                dueAt: { type: [string, "null"], format: date-time }
+                ownerEmail: { type: [string, "null"], format: email, maxLength: 320 }
+      responses:
+        "200":
+          description: Updated job.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/glossaries:
     get:
       operationId: listGlossaries
@@ -554,6 +839,104 @@ paths:
                     items: { $ref: "#/components/schemas/GlossaryTerm" }
                   pagination: { $ref: "#/components/schemas/Pagination" }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/glossaries/{glossaryId}/export:
+    parameters:
+      - $ref: "#/components/parameters/GlossaryId"
+    get:
+      operationId: exportGlossary
+      tags: [Glossaries]
+      summary: Export a glossary
+      description: >-
+        Requires `glossaries:read`. Returns the glossary's concepts and terms, forbidden terms
+        included, as TBX-Basic (TBX 3) by default, or as CSV or XLSX. The files match the web
+        app's glossary export. Live provider glossaries return `409`.
+      parameters:
+        - name: format
+          in: query
+          schema: { type: string, enum: [tbx, csv, xlsx], default: tbx }
+      responses:
+        "200":
+          description: The export, sent as an attachment.
+          content:
+            application/xml: { schema: { type: string } }
+            text/csv: { schema: { type: string } }
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: { schema: { type: string, format: binary } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/glossaries/{glossaryId}/import:
+    parameters:
+      - $ref: "#/components/parameters/GlossaryId"
+    post:
+      operationId: importGlossary
+      tags: [Glossaries]
+      summary: Import a TBX, CSV, or XLSX file into a glossary
+      description: >-
+        Requires `glossaries:write`, which `files:write` grants to admins, localization managers,
+        and translators. Translators can import only into team-controlled glossaries of their
+        teams. Native glossaries only. The file is processed by the same importer as the web app
+        (TBX 2 and TBX 3, forbidden terms included), so the request returns `202` with a run to
+        poll at `.../import-reports/{reportId}`. `mode` defaults to `merge`; `preview` reports
+        changes without applying them. At most 25 MB.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                format: { type: string, enum: [tbx, csv, xlsx], description: Defaults to the file extension. }
+                mode: { type: string, enum: [preview, create, update, merge, replace], default: merge }
+                strictLocale: { type: boolean, default: true, description: Skip concepts without a term in the glossary source locale. }
+      responses:
+        "202":
+          description: The queued import.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [import]
+                properties:
+                  import: { $ref: "#/components/schemas/GlossaryImportReport" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/glossaries/{glossaryId}/import-reports/{reportId}:
+    parameters:
+      - $ref: "#/components/parameters/GlossaryId"
+      - name: reportId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getGlossaryImportReport
+      tags: [Glossaries]
+      summary: Get a glossary import's status and diagnostics
+      description: Requires `glossaries:read`. Poll until `status` is `completed` or `failed`.
+      responses:
+        "200":
+          description: The import run.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [import]
+                properties:
+                  import: { $ref: "#/components/schemas/GlossaryImportReport" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -644,6 +1027,88 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/translation-memories/{memoryId}/export:
+    parameters:
+      - $ref: "#/components/parameters/MemoryId"
+    get:
+      operationId: exportTranslationMemory
+      tags: [Translation memories]
+      summary: Export translation memory entries
+      description: >-
+        Requires `translation-memories:read`. Returns TMX 1.4 by default, or the Hyperlocalise
+        CSV layout with `format=csv`. `sourceLocale` and `targetLocale` narrow the export to
+        one language pair.
+      parameters:
+        - name: format
+          in: query
+          schema: { type: string, enum: [tmx, csv], default: tmx }
+        - name: sourceLocale
+          in: query
+          schema: { type: string, maxLength: 64 }
+        - name: targetLocale
+          in: query
+          schema: { type: string, maxLength: 64 }
+      responses:
+        "200":
+          description: The export, sent as an attachment.
+          content:
+            application/x-tmx+xml: { schema: { type: string } }
+            text/csv: { schema: { type: string } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/translation-memories/{memoryId}/import:
+    parameters:
+      - $ref: "#/components/parameters/MemoryId"
+    post:
+      operationId: importTranslationMemory
+      tags: [Translation memories]
+      summary: Import TMX or CSV into a translation memory
+      description: >-
+        Requires `translation-memories:write`, which the `memories:write` token scope grants to
+        admins and localization managers. Native, non-archived memories only. Each unit updates
+        the entry with the same TMX `tuid`, or the same locale pair and source text, and creates
+        one otherwise. At most 10,000 units and 25 MiB. The run appears in the memory's import
+        history.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [format, content]
+              properties:
+                format: { type: string, enum: [tmx, csv] }
+                content: { type: string }
+                sourceFilename: { type: string, maxLength: 512 }
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                format: { type: string, enum: [tmx, csv], description: Defaults to the file extension. }
+      responses:
+        "201":
+          description: Import result.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [import]
+                properties:
+                  import: { $ref: "#/components/schemas/MemoryImportResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
 components:
   securitySchemes:
     personalAccessToken:
@@ -678,6 +1143,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema: { type: string, maxLength: 128 }
     MemoryId:
       name: memoryId
       in: path
@@ -873,6 +1343,99 @@ components:
         reviewStatus: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    Job:
+      type: object
+      required: [id, projectId, kind, type, status, createdAt, updatedAt, completedAt, lastError, title, description, dueAt, ownerEmail, outputFiles]
+      properties:
+        id: { type: string }
+        projectId: { type: [string, "null"] }
+        kind: { type: string, enum: [translation, research, review, proofread, sync, asset_management] }
+        type: { type: [string, "null"], enum: [string, file, null] }
+        status: { type: string, enum: [queued, running, succeeded, failed, waiting_for_review, cancelled] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+        lastError: { type: [string, "null"] }
+        title: { type: [string, "null"] }
+        description: { type: [string, "null"] }
+        dueAt: { type: [string, "null"], format: date-time }
+        ownerEmail: { type: [string, "null"] }
+        outputFiles:
+          type: [array, "null"]
+          description: Translated files of a finished file job.
+          items:
+            type: object
+            required: [fileId, locale, filename]
+            properties:
+              fileId: { type: string }
+              locale: { type: string }
+              filename: { type: string }
+    JobResponse:
+      type: object
+      required: [job]
+      properties:
+        job: { $ref: "#/components/schemas/Job" }
+    GlossaryImportReport:
+      type: object
+      required: [id, glossaryId, format, mode, status, counts, errorCode, errorMessage, createdAt, completedAt, diagnostics]
+      properties:
+        id: { type: string, format: uuid }
+        glossaryId: { type: string, format: uuid }
+        format: { type: string, enum: [tbx, csv, xlsx] }
+        mode: { type: string, enum: [preview, create, update, merge, replace] }
+        status: { type: string, description: "queued, processing, completed, or failed" }
+        counts:
+          type: object
+          additionalProperties: { type: integer }
+          description: Concepts and terms read, and terms created, updated, and merged.
+        errorCode: { type: [string, "null"] }
+        errorMessage: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+        diagnostics:
+          type: array
+          description: Up to 500 validation messages.
+          items:
+            type: object
+            required: [severity, code, message, conceptId, termId, field]
+            properties:
+              severity: { type: string, enum: [warning, error] }
+              code: { type: string }
+              message: { type: string }
+              conceptId: { type: [string, "null"] }
+              termId: { type: [string, "null"] }
+              field: { type: [string, "null"] }
+    MemoryImportResult:
+      type: object
+      required: [importAttemptId, importBatchId, totalRead, created, updated, warned, failed, headerSrclang, issues]
+      properties:
+        importAttemptId: { type: string, format: uuid }
+        importBatchId: { type: string, format: uuid }
+        totalRead: { type: integer, minimum: 0 }
+        created: { type: integer, minimum: 0 }
+        updated: { type: integer, minimum: 0 }
+        warned: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+        headerSrclang: { type: [string, "null"] }
+        issues:
+          type: array
+          items:
+            type: object
+            required: [severity, code, message]
+            properties:
+              severity: { type: string, enum: [warning, error] }
+              code: { type: string }
+              message: { type: string }
+              unitIndex: { type: integer }
+              tuid: { type: string }
+    BilingualImportCounts:
+      type: object
+      required: [matched, imported, skipped, files]
+      properties:
+        matched: { type: integer, minimum: 0, description: Strings found for the file's rows. }
+        imported: { type: integer, minimum: 0, description: Translations saved or already up to date. }
+        skipped: { type: integer, minimum: 0 }
+        files: { type: integer, minimum: 0 }
     Error:
       type: object
       required: [error, message]
@@ -906,17 +1469,17 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: The project is not native, the key already exists, or the segment is locked.
+      description: The project is not native, the key already exists, the segment is locked, or the job, memory, or glossary is managed elsewhere or archived.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     PayloadTooLarge:
-      description: The request body exceeds 256 KiB.
+      description: The request body exceeds 256 KiB (16 MiB for a strings batch, 25 MiB for a bilingual file or a memory or glossary import).
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     UnsupportedMediaType:
-      description: The request body is not `application/json`.
+      description: The request body has an unsupported media type.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }

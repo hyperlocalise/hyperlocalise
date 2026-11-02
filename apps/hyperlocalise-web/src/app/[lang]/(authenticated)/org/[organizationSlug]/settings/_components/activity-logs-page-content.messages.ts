@@ -170,6 +170,11 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "6swneZPw1x",
     description: "Activity log event type label for project settings changes",
   },
+  projectStringsUpdatedEventType: {
+    defaultMessage: "Project Strings Updated",
+    id: "l1G7XLzm4n",
+    description: "Activity log event type label for strings created or updated in bulk",
+  },
   glossaryCreatedEventType: {
     defaultMessage: "Glossary Created",
     id: "niVQ/efJm6",
@@ -249,6 +254,11 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "Job Failed",
     id: "dnuXZ5sBJ3",
     description: "Activity log event type label for job failure",
+  },
+  jobUpdatedEventType: {
+    defaultMessage: "Job Updated",
+    id: "knAumzrJwC",
+    description: "Activity log event type label for job detail changes",
   },
   automationRunStartedEventType: {
     defaultMessage: "Automation Run Started",
@@ -795,6 +805,11 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "ZJQEqdYVdl",
     description: "Action for a project settings activity",
   },
+  projectStringsUpdatedAction: {
+    defaultMessage: "updated project strings",
+    id: "LCEhMig6eV",
+    description: "Action for strings created or updated in bulk",
+  },
   glossaryCreatedAction: {
     defaultMessage: "created a glossary",
     id: "e0taRiVgjL",
@@ -874,6 +889,11 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "recorded a failed job",
     id: "xOg2DDTtXl",
     description: "Action for job failure",
+  },
+  jobUpdatedAction: {
+    defaultMessage: "updated a job",
+    id: "Nwo7t+Ovaq",
+    description: "Action for job detail changes",
   },
   automationRunStartedAction: {
     defaultMessage: "started an automation run",

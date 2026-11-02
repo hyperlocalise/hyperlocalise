@@ -390,7 +390,7 @@ func (api *glossaryAPI) getGlossary(ctx context.Context, actor glossaryActor, g 
 	}
 	g.ProjectCount = count
 	if g.Source == "native" {
-		termCount, termErr := api.cachedGlossaryTermCount(ctx, actor, g.ID)
+		termCount, termErr := api.cachedGlossaryTermCount(ctx, actor, g)
 		if termErr != nil {
 			return nil, 0, termErr
 		}

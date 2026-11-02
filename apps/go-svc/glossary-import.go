@@ -422,7 +422,9 @@ func refreshGlossaryLocaleCoverage(ctx context.Context, tx dictionaryDB, glossar
 			     and lower(locale) <> lower($2)
 			 ) locales),
 			'[]'::jsonb
-		)
+		),
+		-- Writers that cannot bump go-svc's Valkey revision rely on updated_at to invalidate cached reads.
+		updated_at = now()
 		where g.id = $1`, glossaryID, sourceLocale)
 	return err
 }

@@ -57,6 +57,13 @@ func glossaryCacheKey(organizationID, glossaryID string, rev int64, parts ...str
 	return b.String()
 }
 
+// glossaryVersionedCacheKey includes the glossary row's updated_at so writers outside
+// go-svc can invalidate cached reads without bumping the Valkey revision.
+func glossaryVersionedCacheKey(organizationID, glossaryID string, rev int64, g glossaryRecord, parts ...string) string {
+	keyParts := append([]string{glossaryContentVersion(g)}, parts...)
+	return glossaryCacheKey(organizationID, glossaryID, rev, keyParts...)
+}
+
 func glossaryQueryDigest(parts ...string) string {
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
 	return hex.EncodeToString(sum[:16])
@@ -185,20 +192,28 @@ func (api *glossaryAPI) cachedJSON(ctx context.Context, key string, ttl time.Dur
 	return value, status, nil
 }
 
-func (api *glossaryAPI) cachedGlossaryJSON(ctx context.Context, actor glossaryActor, glossaryID string, ttl time.Duration, parts []string, load func() (any, int, error)) (any, int, error) {
-	rev, ok := api.glossaryRevision(ctx, actor.organizationID, glossaryID)
+// glossaryContentVersion keys cached reads to the glossary row's updated_at as well as the
+// Valkey revision. Writers outside go-svc (the interchange lambda and the public API) cannot bump
+// the revision, so they bump updated_at instead and the next read misses the stale entries.
+func glossaryContentVersion(g glossaryRecord) string {
+	return "u" + g.UpdatedAt
+}
+
+func (api *glossaryAPI) cachedGlossaryJSON(ctx context.Context, actor glossaryActor, g glossaryRecord, ttl time.Duration, parts []string, load func() (any, int, error)) (any, int, error) {
+	rev, ok := api.glossaryRevision(ctx, actor.organizationID, g.ID)
 	if !ok {
 		return load()
 	}
-	return api.cachedJSON(ctx, glossaryCacheKey(actor.organizationID, glossaryID, rev, parts...), ttl, load)
+	return api.cachedJSON(ctx, glossaryVersionedCacheKey(actor.organizationID, g.ID, rev, g, parts...), ttl, load)
 }
 
-func (api *glossaryAPI) cachedGlossaryTermCount(ctx context.Context, actor glossaryActor, glossaryID string) (int, error) {
+func (api *glossaryAPI) cachedGlossaryTermCount(ctx context.Context, actor glossaryActor, g glossaryRecord) (int, error) {
+	glossaryID := g.ID
 	rev, ok := api.glossaryRevision(ctx, actor.organizationID, glossaryID)
 	if !ok {
 		return api.glossaryTermCount(ctx, glossaryID)
 	}
-	key := glossaryCacheKey(actor.organizationID, glossaryID, rev, "term-count")
+	key := glossaryVersionedCacheKey(actor.organizationID, glossaryID, rev, g, "term-count")
 	if raw, found := api.cacheGet(ctx, key); found {
 		var count int
 		if json.Unmarshal([]byte(raw), &count) == nil && count >= 0 {
