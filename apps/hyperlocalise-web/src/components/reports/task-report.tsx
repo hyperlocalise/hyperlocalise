@@ -50,7 +50,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { reportsPageMessages as pageMessages } from "./reports-page.messages";
 import {
   reportsQueryKey,
-  taskReportDownloadUrl,
+  useReportCsv,
   useReportSettings,
   useTaskAnalysis,
   useTaskReport,
@@ -122,6 +122,7 @@ export function TaskReport({
   defaultStep?: ReportStep;
 }) {
   const intl = useIntl();
+  const csv = useReportCsv(organizationSlug);
   const settings = useReportSettings(organizationSlug);
   const [unit, setUnit] = useState<ReportUnit>("words");
   const [step, setStep] = useState<ReportStep>(defaultStep);
@@ -156,13 +157,17 @@ export function TaskReport({
     previousStatus.current = status;
   }, [status, queryClient, organizationSlug, jobId]);
   // Until settings load the report waits, which TanStack Query counts as pending too.
-  const loading = !settings.isError && (settings.isPending || report.isPending);
+  const loading = settings.data ? report.isPending : settings.isPending;
   const query = {
     data:
       settings.data && report.data ? { settings: settings.data, report: report.data } : undefined,
     isPending: loading,
     isError: settings.isError || report.isError,
-    refetch: () => (settings.isError ? settings.refetch() : report.refetch()),
+    error: report.error ?? settings.error,
+    refetch: () => {
+      if (settings.isError) void settings.refetch();
+      if (report.isError) void report.refetch();
+    },
   };
   return (
     <ReportSectionState query={query} skeletonHeight={420}>
@@ -202,11 +207,7 @@ export function TaskReport({
                     />
                     <UnitSwitch value={unit} onChange={setUnit} />
                     <DownloadCsvButton
-                      href={taskReportDownloadUrl(organizationSlug, jobId, {
-                        unit,
-                        step,
-                        rateCard,
-                      })}
+                      download={() => csv.taskReport(jobId, { unit, step, rateCard })}
                     />
                   </>
                 }
@@ -215,9 +216,15 @@ export function TaskReport({
               </ReportSection>
             </>
           ) : null}
-          <TimeSection organizationSlug={organizationSlug} settings={loaded} data={data} />
+          <TimeSection
+            organizationSlug={organizationSlug}
+            settings={loaded}
+            data={data}
+            reloading={report.isFetching || report.isError}
+          />
           {data.pricing ? (
             <PricingSection
+              reloading={report.isFetching || report.isError}
               organizationSlug={organizationSlug}
               jobId={jobId}
               pricing={data.pricing}
@@ -538,10 +545,13 @@ function TimeSection({
   organizationSlug,
   settings,
   data,
+  reloading,
 }: {
   organizationSlug: string;
   settings: ReportSettings;
   data: TaskReportData;
+  /** Figures are being read again or failed to, so a form opened now would start from old ones. */
+  reloading: boolean;
 }) {
   const intl = useIntl();
   const [logging, setLogging] = useState(false);
@@ -600,6 +610,7 @@ function TimeSection({
                       aria-label={intl.formatMessage(messages.editTimeLabel, {
                         day: utcDay(intl, entry.workDate),
                       })}
+                      disabled={reloading}
                       onClick={() => setEditing(entry)}
                     >
                       {intl.formatMessage(messages.edit)}
@@ -647,6 +658,7 @@ function PricingSection({
   canEdit,
   ended,
   rateCardNames,
+  reloading,
 }: {
   organizationSlug: string;
   jobId: string;
@@ -655,6 +667,8 @@ function PricingSection({
   /** The task has ended, so nothing about its pricing can change. */
   ended: boolean;
   rateCardNames: string[];
+  /** Figures are being read again or failed to, so a form opened now would start from old ones. */
+  reloading: boolean;
 }) {
   const intl = useIntl();
   const [editing, setEditing] = useState<StepPricing | null>(null);
@@ -708,6 +722,7 @@ function PricingSection({
                     aria-label={intl.formatMessage(messages.setPricingLabel, {
                       step: stepLabel(intl, row.step),
                     })}
+                    disabled={reloading}
                     onClick={() => setEditing(row)}
                   >
                     {intl.formatMessage(messages.setPricing)}

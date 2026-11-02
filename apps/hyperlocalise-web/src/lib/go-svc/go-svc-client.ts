@@ -23,6 +23,7 @@ import { GoSvcInboxApi } from "./go-svc-inbox-api";
 import { GoSvcJobApi } from "./go-svc-job-api";
 import { GoSvcMemoryApi } from "./go-svc-memory-api";
 import { GoSvcQaReportApi } from "./go-svc-qa-report-api";
+import { GoSvcReportsApi } from "./go-svc-reports-api";
 import {
   DEFAULT_GO_SVC_BASE_URL,
   GoSvcClientError,
@@ -63,6 +64,7 @@ export class GoSvcClient {
   readonly plaintext: GoSvcPlaintextApi;
   readonly project: GoSvcProjectApi;
   readonly qaReport: GoSvcQaReportApi;
+  readonly reports: GoSvcReportsApi;
   readonly team: GoSvcTeamApi;
 
   constructor(options: GoSvcClientOptions) {
@@ -88,6 +90,7 @@ export class GoSvcClient {
     this.plaintext = new GoSvcPlaintextApi(request);
     this.project = new GoSvcProjectApi(request);
     this.qaReport = new GoSvcQaReportApi(request);
+    this.reports = new GoSvcReportsApi(request);
     this.team = new GoSvcTeamApi(request);
   }
 }

@@ -128,7 +128,7 @@ export const loggedTimeQuerySchema = z
 export const costsQuerySchema = z
   .object({ ...dates, projectId: id.optional(), targetLocale: scope.targetLocale, format })
   .refine(datesInOrder, { message: "Invalid date range" });
-/** The public `GET /reports` and the MCP tool: one of the page's reports, with its own query. */
+/** The MCP tool: one of the page's reports, with its own query. */
 export const reportKindSchema = z.enum(REPORT_KINDS);
 export const REPORT_QUERY_SCHEMAS = {
   activity: activityQuerySchema,

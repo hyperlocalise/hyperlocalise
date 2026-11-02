@@ -10,6 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+// The reads are used only by the Hono Reports routes, kept for one release after the page and the
+// MCP tool moved to go-svc (`apps/go-svc/reporting*.go`): change Reports' reads in go-svc.
+// `REPORT_KINDS` is still the MCP `get_report` tool's list of reports, and must outlive them.
 import { sql } from "drizzle-orm";
 
 import { db } from "@/lib/database/client";
@@ -41,9 +44,8 @@ import {
 } from "./word-queries";
 
 /**
- * The reads behind the Reports page's tabs, shared by the page's endpoints, the public
- * `GET /reports` and the MCP `get_report` tool, so every reader gets the same figures from the
- * same summary.
+ * The reads behind the web Reports routes, kept with them for one release after the page and
+ * the MCP `get_report` tool moved to go-svc.
  */
 
 export const REPORT_KINDS = ["activity", "words", "time", "ai", "costs"] as const;

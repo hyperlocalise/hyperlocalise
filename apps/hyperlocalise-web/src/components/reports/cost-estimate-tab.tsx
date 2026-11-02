@@ -32,7 +32,7 @@ import { DownloadCsvButton, ReportEmpty, ReportSectionState } from "./report-sec
 import { ReportStatCard, ReportStatCards } from "./report-stat-card";
 import {
   costEstimateQuery,
-  reportDownloadUrl,
+  useReportCsv,
   useCostEstimate,
   type SectionInput,
 } from "./reports-queries";
@@ -112,6 +112,7 @@ export function CostEstimateTab({
   onChange: (change: Partial<ReportsUrlState>) => void;
 }) {
   const intl = useIntl();
+  const csv = useReportCsv(input.organizationSlug);
   const estimateInput = { ...input, state: { ...input.state, rateCard: rateCardName } };
   const estimate = useCostEstimate(estimateInput);
   const wholeProject = input.state.jobIds.length === 0 && Boolean(input.state.projectId);
@@ -132,11 +133,7 @@ export function CostEstimateTab({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <UnitSwitch value={input.state.unit} onChange={(unit) => onChange({ unit })} />
         <DownloadCsvButton
-          href={reportDownloadUrl(
-            input.organizationSlug,
-            "cost-estimate",
-            costEstimateQuery(estimateInput),
-          )}
+          download={() => csv.section("cost-estimate", costEstimateQuery(estimateInput))}
         />
       </div>
       <ReportSectionState query={estimate} skeletonHeight={360}>

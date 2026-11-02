@@ -13,15 +13,21 @@
 "use client";
 
 import { WarningCircleIcon } from "@phosphor-icons/react";
+import { useState } from "react";
 import { FormattedMessage } from "react-intl";
+import { toast } from "sonner";
 
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { ApiResponseError } from "@/lib/api-error";
+import type { GoSvcDownload } from "@/lib/go-svc/go-svc-client.types";
 import { cn } from "@/lib/primitives/cn";
 
 import { reportsPageMessages as messages } from "./reports-page.messages";
+import { isRefusedRead } from "./reports-queries";
 
 /** A panel of the Reports page: a title, an optional note, actions, and its content. */
 export function ReportSection({
@@ -60,36 +66,77 @@ export function ReportSection({
   );
 }
 
-/** A section's loading, failed and empty states, or its content once loaded. */
+function failureMessage(error: unknown, kept: boolean) {
+  if (kept) return messages.refreshFailed;
+  const code = error instanceof ApiResponseError ? error.code : null;
+  if (code === "reports_busy") return messages.reportsBusy;
+  if (code === "report_timed_out") return messages.reportTooSlow;
+  return messages.loadFailed;
+}
+
+/** A failed read, with a way to try again. `kept` says figures from earlier are on screen. */
+export function ReportLoadFailed({
+  error,
+  kept = false,
+  retry,
+}: {
+  error?: unknown;
+  kept?: boolean;
+  retry: () => unknown;
+}) {
+  return (
+    <Alert variant="destructive">
+      <WarningCircleIcon />
+      <AlertDescription>
+        <FormattedMessage {...failureMessage(error, kept)} />
+      </AlertDescription>
+      <AlertAction>
+        <Button size="sm" variant="outline" onClick={() => void retry()}>
+          <FormattedMessage {...messages.retry} />
+        </Button>
+      </AlertAction>
+    </Alert>
+  );
+}
+
+/**
+ * A section's loading, failed and empty states, or its content once loaded. A reload that fails
+ * keeps what was loaded under the failure, so a slow moment after a save takes nothing away,
+ * unless go-svc refused it.
+ */
 export function ReportSectionState<T>({
   query,
   isEmpty,
   skeletonHeight = 160,
+  showFailure = true,
   children,
 }: {
-  query: { data: T | undefined; isPending: boolean; isError: boolean; refetch: () => unknown };
+  query: {
+    data: T | undefined;
+    isPending: boolean;
+    isError: boolean;
+    error?: unknown;
+    refetch: () => unknown;
+  };
   isEmpty?: (data: T) => boolean;
   skeletonHeight?: number;
+  /**
+   * Whether this wrapper says the query failed. Several wrappers of one query leave it to the
+   * first, so a failed reload does not stack the same warning.
+   */
+  showFailure?: boolean;
   children: (data: T) => React.ReactNode;
 }) {
   if (query.isPending && query.data === undefined)
     return <Skeleton className="w-full rounded-xl" style={{ height: skeletonHeight }} />;
-  if (query.isError || query.data === undefined)
-    return (
-      <Alert variant="destructive">
-        <WarningCircleIcon />
-        <AlertDescription>
-          <FormattedMessage {...messages.loadFailed} />
-        </AlertDescription>
-        <AlertAction>
-          <Button size="sm" variant="outline" onClick={() => void query.refetch()}>
-            <FormattedMessage {...messages.retry} />
-          </Button>
-        </AlertAction>
-      </Alert>
-    );
-  if (isEmpty?.(query.data)) return <ReportEmpty />;
-  return <>{children(query.data)}</>;
+  if (query.data === undefined || (query.isError && isRefusedRead(query.error)))
+    return showFailure ? <ReportLoadFailed error={query.error} retry={query.refetch} /> : null;
+  return (
+    <>
+      {showFailure && query.isError ? <ReportLoadFailed kept retry={query.refetch} /> : null}
+      {isEmpty?.(query.data) ? <ReportEmpty /> : children(query.data)}
+    </>
+  );
 }
 
 export function ReportEmpty({ title, description }: { title?: string; description?: string }) {
@@ -142,11 +189,41 @@ export function ReportPager({
   );
 }
 
-/** A link that downloads a table as CSV, styled as a button. */
-export function DownloadCsvButton({ href }: { href: string }) {
+const DOWNLOAD_RELEASE_MS = 40_000;
+
+/**
+ * A button that downloads a table as CSV. The file is fetched with the viewer's sign-in and
+ * then saved, so a report that go-svc refuses or cannot finish in time says so instead.
+ */
+export function DownloadCsvButton({ download }: { download: () => Promise<GoSvcDownload> }) {
+  const [pending, setPending] = useState(false);
+  const run = async () => {
+    setPending(true);
+    try {
+      saveReportDownload(await download());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setPending(false);
+    }
+  };
   return (
-    <Button variant="outline" size="sm" nativeButton={false} render={<a href={href} download />}>
+    <Button variant="outline" size="sm" disabled={pending} onClick={() => void run()}>
+      {pending ? <Spinner data-icon="inline-start" aria-hidden className="size-3.5" /> : null}
       <FormattedMessage {...messages.downloadCsv} />
     </Button>
   );
+}
+
+function saveReportDownload(file: GoSvcDownload) {
+  const url = URL.createObjectURL(file.blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = file.filename ?? "report.csv";
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  // Released well after the click: some browsers cancel a download whose file goes too soon.
+  setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_RELEASE_MS);
 }

@@ -20,7 +20,7 @@ import {
 } from "./reports-msw-handlers";
 
 const server = setupServer(...reportsMswHandlers);
-const base = "http://localhost/api/orgs/acme/reports";
+const base = "http://localhost/v1/orgs/acme/reports";
 
 beforeAll(() => {
   server.listen({ onUnhandledFrame: "error" });

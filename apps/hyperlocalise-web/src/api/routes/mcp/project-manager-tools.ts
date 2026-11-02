@@ -19,7 +19,6 @@ import { hasCapability } from "@/api/auth/policy";
 import {
   buildAccessibleJobsWhere,
   canAccessProject,
-  getAccessibleProjectIds,
   ownedProjectWhere,
 } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
@@ -35,8 +34,11 @@ import {
   openJobStatusValues,
 } from "@/api/routes/project/job.schema";
 import { REPORT_QUERY_SCHEMAS } from "@/api/routes/reports/reports.schema";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
+import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
 import { db, schema } from "@/lib/database/client";
 import { workspaceReportsFlag } from "@/lib/flags/workspace-flags";
+import { createLogger } from "@/lib/log";
 import { formatMemberDisplayName } from "@/lib/members/member-management";
 import { isErr } from "@/lib/primitives/result/results";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
@@ -50,23 +52,32 @@ import {
   AI_USAGE_DIMENSIONS,
   AI_USAGE_MEASURES,
 } from "@/lib/reporting/ai-usage-origins";
-import {
-  REPORT_KINDS,
-  readActivity,
-  readAi,
-  readCosts,
-  readTime,
-  readWordReport,
-  summaryFreshness,
-  type ReportReadContext,
-} from "@/lib/reporting/report-reads";
+import { REPORT_KINDS } from "@/lib/reporting/report-reads";
 import {
   REPORT_STEPS,
   REPORT_UNITS,
   WORD_COUNT_INTERVALS,
   WORD_COUNT_SPLITS,
 } from "@/lib/reporting/report-units";
-import { getReportingStart } from "@/lib/reporting/reporting-start";
+
+const logger = createLogger("mcp-project-manager-tools");
+
+/** Just past go-svc's own 30 s limit, so a stalled call answers instead of hanging. */
+const GET_REPORT_TIME_LIMIT_MS = 35_000;
+
+/**
+ * go-svc's answers to `get_report` that are about the member's request, passed on as they are.
+ * Anything else (go-svc unreachable, an internal error, the server call refused) is ours to fix.
+ * The tool checks the flag itself first, so go-svc's `feature_unavailable` means its own lookup
+ * failed or is a minute behind: not passed on as "not enabled".
+ */
+const REPORT_REFUSAL_CODES = new Set([
+  "organization_access_denied",
+  "report_forbidden",
+  "invalid_report_query",
+  "reports_busy",
+  "report_timed_out",
+]);
 
 /** A provider job's due date, or a native job's own. Needs externalJobDetails left-joined. */
 const jobDueDateSql =
@@ -508,7 +519,7 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
         "Get one of the Reports page's reports for accessible projects, with the same fields the page shows: activity (words arrived and finished, by where the text came from), words (word counts by match band), time (logged and automated time), ai (AI calls, tokens and billing's charge) or costs (what was spent). Days are UTC. Figures can lag the latest work by up to about 15 minutes; stillUpdating is true while recent work is still being counted. ai reads billing's records directly, so stillUpdating does not apply to it; calls whose charge billing has not recorded are counted in unrecordedCharges. Needs billing access.",
       inputSchema: mcpGetReportInputSchema,
     },
-    async (input) => {
+    async (input, extra) => {
       if (!(await isWorkspaceFeatureFlagEnabled(workspaceReportsFlag, apiAuth))) {
         return mcpToolError("feature_unavailable", "Reports is not enabled for this workspace");
       }
@@ -525,56 +536,40 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
         });
       }
 
-      const startedAt = await getReportingStart(organizationId);
-      const context: ReportReadContext = {
-        organizationId,
-        projectIds: await getAccessibleProjectIds(apiAuth),
-        startedDay: startedAt ? startedAt.toISOString().slice(0, 10) : null,
-        today: new Date().toISOString().slice(0, 10),
-        financial: true,
-        userId: apiAuth.user.localUserId,
-      };
-      const summary = await summaryFreshness(organizationId);
-      const shared = { kind, summary, stillUpdating: summary.pendingDays > 0 };
-      switch (kind) {
-        case "activity":
-          return mcpToolJson({
-            ...shared,
-            activity: await readActivity(
-              context,
-              parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.activity>,
-            ),
-          });
-        case "words":
-          return mcpToolJson({
-            ...shared,
-            wordCounts: await readWordReport(
-              context,
-              parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.words>,
-            ),
-          });
-        case "time":
-          return mcpToolJson({
-            ...shared,
-            time: await readTime(context, parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.time>),
-          });
-        case "ai":
-          return mcpToolJson({
-            ...shared,
-            stillUpdating: false,
-            aiUsage: await readAi(context, {
-              ...(parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.ai>),
-              all: false,
-            }),
-          });
-        default:
-          return mcpToolJson({
-            ...shared,
-            costs: await readCosts(
-              context,
-              parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.costs>,
-            ),
-          });
+      // go-svc reads the report as the member, with the member's own project access.
+      const { format: _format, ...reportQuery } = parsed.data as Record<string, unknown>;
+      const limit = AbortSignal.timeout(GET_REPORT_TIME_LIMIT_MS);
+      try {
+        return mcpToolJson(
+          await createGoSvcServerClient().reports.internal(
+            kind,
+            {
+              organizationId,
+              userId: apiAuth.user.localUserId,
+              query: reportQuery as Record<string, string | number | boolean | undefined>,
+            },
+            {
+              signal: extra.signal ? AbortSignal.any([extra.signal, limit]) : limit,
+            },
+          ),
+        );
+      } catch (error) {
+        if (error instanceof GoSvcClientError && REPORT_REFUSAL_CODES.has(error.code))
+          return mcpToolError(error.code, error.message);
+        // The host cancelled; leave it to the transport. Our own time limit answers as usual.
+        if (extra.signal?.aborted) throw error;
+        logger.warn(
+          {
+            error: error instanceof Error ? error.message : String(error),
+            code: error instanceof GoSvcClientError ? error.code : null,
+            status: error instanceof GoSvcClientError ? error.status : null,
+          },
+          "get_report could not read go-svc's Reports",
+        );
+        return mcpToolError(
+          "reports_unavailable",
+          "Reports could not be read just now; try again later",
+        );
       }
     },
   );

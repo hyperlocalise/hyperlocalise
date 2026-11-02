@@ -25,7 +25,7 @@ import { ReportStatCard, ReportStatCards, ReportStatCardsSkeleton } from "./repo
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
 import {
   loggedTimeQuery,
-  reportDownloadUrl,
+  useReportCsv,
   useLoggedTime,
   type ReportSettings,
   type SectionInput,
@@ -43,6 +43,7 @@ export function TimeTab({
   onChange: (change: Partial<ReportsUrlState>) => void;
 }) {
   const intl = useIntl();
+  const csv = useReportCsv(input.organizationSlug);
   const time = useLoggedTime(input);
   const [logging, setLogging] = useState(false);
   return (
@@ -107,9 +108,7 @@ export function TimeTab({
         ) : (
           <span />
         )}
-        <DownloadCsvButton
-          href={reportDownloadUrl(input.organizationSlug, "time", loggedTimeQuery(input))}
-        />
+        <DownloadCsvButton download={() => csv.section("time", loggedTimeQuery(input))} />
       </div>
       <ReportSectionState query={time}>
         {(data) =>
