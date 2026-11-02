@@ -44,6 +44,7 @@ import {
   serializeHubspotDocument,
   type HubspotJson,
 } from "./document";
+import { isNewEditorForm, newEditorFormImportWarning } from "./form-definition";
 import {
   assignHubspotLocales,
   hubspotLanguageMatchesSource,
@@ -680,6 +681,9 @@ async function importFormBundle(input: {
   formName: string;
 }): Promise<void> {
   const form = await input.client.getForm(input.formId);
+  if (isNewEditorForm(form.definition)) {
+    pushWarning(input.result, newEditorFormImportWarning(input.formName));
+  }
   const tree = buildFormDocument(form.definition);
   if (!hubspotDocumentHasCopy(tree)) {
     noteSkip(input.result, `Form "${input.formName}" has no translatable text`);

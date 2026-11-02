@@ -42,6 +42,7 @@ import {
   readHubspotStringTree,
   serializeHubspotDocument,
 } from "./document";
+import { isNewEditorForm, newEditorFormPushWarning } from "./form-definition";
 import { formDefinitionForWrite } from "./form-write";
 import {
   decideHubspotPushLocaleAction,
@@ -317,6 +318,7 @@ export async function runPushHubspotContent(input: {
   const policy = isHubspotExistingTranslationPolicy(hubspot.existingTranslationPolicy)
     ? hubspot.existingTranslationPolicy
     : DEFAULT_HUBSPOT_EXISTING_TRANSLATION_POLICY;
+  const warnedNewEditorForms = new Set<string>();
   for (const mapping of mappings) {
     if (!isHubspotSupportedResourceKind(mapping.resourceKind)) {
       continue;
@@ -456,6 +458,10 @@ export async function runPushHubspotContent(input: {
             throw new Error("hubspot_form_source_missing");
           }
           const live = await client.getForm(mapping.sourceId);
+          if (isNewEditorForm(live.definition) && !warnedNewEditorForms.has(mapping.sourceId)) {
+            warnedNewEditorForms.add(mapping.sourceId);
+            pushWarning(newEditorFormPushWarning(label));
+          }
           const applied = applyFormDocument(
             live.definition,
             mergeHubspotTranslations(readHubspotStringTree(sourceJson), approved.prefilled),

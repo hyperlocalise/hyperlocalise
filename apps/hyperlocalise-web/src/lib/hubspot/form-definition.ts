@@ -56,10 +56,15 @@ export type HubspotFormPostSubmitAction = {
   value?: string;
 };
 
+export type HubspotFormEmbedType = "V3" | "V4";
+
 export type HubspotFormConfiguration = {
   language?: string;
   postSubmitAction?: HubspotFormPostSubmitAction;
+  embedType?: HubspotFormEmbedType;
 };
+
+export const HUBSPOT_FORM_V3_EMBED_TYPE: HubspotFormEmbedType = "V3";
 
 export type HubspotVisualFormElement = {
   type: string;
@@ -113,6 +118,18 @@ export type HubspotFormDefinition = {
 
 export function asFormDefinition(value: object): HubspotFormDefinition {
   return value as HubspotFormDefinition;
+}
+
+export function isNewEditorForm(definition: HubspotFormDefinition): boolean {
+  return definition.configuration?.embedType === "V4";
+}
+
+export function newEditorFormImportWarning(formName: string): string {
+  return `Form "${formName}" uses HubSpot's new editor. Import has public field labels. Step copy, submit, and thank-you are not in the public definition.`;
+}
+
+export function newEditorFormPushWarning(formName: string): string {
+  return `Form "${formName}": locale copies are legacy-editor forms. HubSpot's public API cannot write the new editor.`;
 }
 
 export function formLanguage(definition: HubspotFormDefinition): string | null {

@@ -36,6 +36,8 @@ Import reads primary blog posts and writes `hubspot/blog-posts/{id}/post.html`, 
 
 Import reads primary forms and writes `hubspot/forms/{id}/{slug}.json`. The file holds labels, placeholders, help text, option labels, group rich text, submit text, thank-you copy, and legal consent text. When the definition includes a visual layout, import also takes step and on-submit rich text. Field names and option values stay locked. Multi-step forms are one definition. Every field group is imported, including queued and progressive groups.
 
+Forms built in HubSpot's new editor (`embedType: V4`) only expose CRM field labels on the public API. Import warns, and it does not invent step copy, submit, or thank-you text that HubSpot omitted.
+
 When a blog post has no saved module edits, import reads that template and included sections. The default copy the editor shows is imported from there. A blog post that already has an article body still picks up section text from its layout or template. Push writes the translation onto the locale draft and leaves the template unchanged.
 
 Import skips posts that are already language variations, and names that already look like locale copies (`Launch [fr-FR]`). Field names, widget ids, URLs, and colors stay locked. Import does not write anything to HubSpot.
@@ -63,7 +65,7 @@ Add the languages on the blog first. In HubSpot, open **Settings → Blog** and 
 
 The HubSpot post title is the translated post name, or the translated HTML title when the name has no translation yet. The draft gets the translated title, meta description, summary, body, section text, and static module fields. The post stays unpublished.
 
-A form push creates a new form named `{source} [{locale}]`, or replaces that copy if it already exists. It sets HubSpot's form language for built-in chrome. It never edits the source form. Creating a form does not swap the embed on a live page. Someone still has to place the locale form in HubSpot.
+A form push creates a new **legacy-editor** form named `{source} [{locale}]`, or replaces that copy if it already exists. The public Forms API cannot write new-editor (V4) forms, so the copy is always `embedType: V3`. It sets HubSpot's form language for built-in chrome. It never edits the source form. Creating a form does not swap the embed on a live page. Someone still has to place the locale form in HubSpot.
 
 HubSpot's own translate actions are not used. Hyperlocalise writes the approved strings onto the copy.
 
