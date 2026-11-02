@@ -80,6 +80,8 @@ func generateElevenLabs(ctx context.Context, client *elevenlabs.Client, req iris
 		err   error
 	)
 	switch req.Model.ID {
+	case "elevenlabs-dubbing":
+		return generateDub(ctx, client, req)
 	case "elevenlabs-music":
 		audio, err = client.ComposeMusic(ctx, elevenlabs.MusicRequest{
 			Prompt:          req.Prompt,
@@ -127,7 +129,7 @@ func generateFal(ctx context.Context, client *fal.Client, fetch irisMediaFetcher
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("fal returned no media")
 	}
-	stem, ext, contentType := falOutputMeta(req.Model.Kind)
+	stem, ext, contentType := falOutputMeta(req.Model)
 	out := make([]irisProviderOutput, 0, len(urls))
 	for i, mediaURL := range urls {
 		raw, fetchedType, err := fetch(ctx, mediaURL)
@@ -188,6 +190,9 @@ func falInput(req irisProviderRequest) map[string]any {
 	if audio, ok := firstInput(req.Inputs, "audio", "media"); ok {
 		input["audio_url"] = irisDataURI(audio, "audio/wav")
 	}
+	if mode := req.Fields.stringField("syncMode"); mode != "" && req.Model.ID == "sync-lipsync-2" {
+		input["sync_mode"] = mode
+	}
 	return input
 }
 
@@ -242,8 +247,11 @@ func falImageSize(resolution, aspect string) string {
 	}
 }
 
-func falOutputMeta(kind irisModelKind) (stem, ext, contentType string) {
-	switch kind {
+func falOutputMeta(model irisModelInfo) (stem, ext, contentType string) {
+	if model.ID == "sync-lipsync-2" {
+		return "lipsync", "mp4", "video/mp4"
+	}
+	switch model.Kind {
 	case irisKindVideo:
 		return "video", "mp4", "video/mp4"
 	case irisKindVoice, irisKindAudio:
@@ -263,4 +271,31 @@ func falFilename(rawURL, stem, ext string, index, total int) string {
 		return stem + "." + ext
 	}
 	return fmt.Sprintf("%s-%d.%s", stem, index+1, ext)
+}
+
+func generateDub(ctx context.Context, client *elevenlabs.Client, req irisProviderRequest) ([]irisProviderOutput, error) {
+	media, ok := firstInput(req.Inputs, "media", "video", "audio")
+	if !ok {
+		return nil, fmt.Errorf("media input is required")
+	}
+	dub, err := client.CreateDub(ctx, elevenlabs.DubRequest{
+		Media:          media.Bytes,
+		ContentType:    media.ContentType,
+		TargetLanguage: req.Fields.stringField("targetLanguage"),
+		SourceLanguage: req.Fields.stringField("sourceLanguage"),
+		Speakers:       req.Fields.intField("speakers"),
+	})
+	if err != nil {
+		return nil, err
+	}
+	ext := "mp3"
+	if strings.HasPrefix(dub.ContentType, "video/") {
+		ext = "mp4"
+	}
+	language := elevenlabs.DubbingLanguage(req.Fields.stringField("targetLanguage"))
+	return []irisProviderOutput{{
+		Bytes:       dub.Bytes,
+		Filename:    "dub-" + language + "." + ext,
+		ContentType: dub.ContentType,
+	}}, nil
 }

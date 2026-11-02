@@ -346,6 +346,71 @@ func TestConversationReadsTeamAccess(t *testing.T) {
 	})
 }
 
+func TestConversationReadsWorkflowApprovalAccess(t *testing.T) {
+	requireVisible := func(t *testing.T, f conversationFixture, conversationID string, visible bool) {
+		t.Helper()
+		if visible {
+			require.Contains(t, conversationListIDs(t, f.get(t, "")), conversationID)
+			require.Equal(t, http.StatusOK, f.get(t, "/"+conversationID).Code)
+			return
+		}
+		require.NotContains(t, conversationListIDs(t, f.get(t, "")), conversationID)
+		requireConversationError(t, f.get(t, "/"+conversationID), http.StatusNotFound, `{"error":"not_found"}`)
+	}
+
+	t.Run("org-wide roles cannot read an approval they are not asked to review", func(t *testing.T) {
+		for _, role := range []string{"admin", "localization_manager"} {
+			t.Run(role, func(t *testing.T) {
+				f := newConversationFixture(t, role)
+				reviewers := f.scope.MustTeam(t, "reviewers", "Reviewers", "")
+				requireVisible(t, f, mustWorkflowApprovalConversation(t, f.scope, "team", reviewers), false)
+			})
+		}
+	})
+
+	t.Run("named user reviewer can read even when reviewer_id is the WorkOS id", func(t *testing.T) {
+		f := newConversationFixture(t, "translator")
+		requireVisible(t, f, mustWorkflowApprovalConversation(t, f.scope, "user", f.scope.UserID), true)
+		requireVisible(t, f, mustWorkflowApprovalConversation(t, f.scope, "user", f.scope.WorkOSUserID), true)
+		other := testenv.Seed(t, testenv.Options{Role: "translator"})
+		requireVisible(t, f, mustWorkflowApprovalConversation(t, f.scope, "user", other.UserID), false)
+	})
+
+	t.Run("team reviewer membership is required", func(t *testing.T) {
+		f := newConversationFixture(t, "translator")
+		reviewers := f.scope.MustTeam(t, "reviewers", "Reviewers", "member")
+		outsiders := f.scope.MustTeam(t, "outsiders", "Outsiders", "")
+		requireVisible(t, f, mustWorkflowApprovalConversation(t, f.scope, "team", reviewers), true)
+		requireVisible(t, f, mustWorkflowApprovalConversation(t, f.scope, "team", outsiders), false)
+	})
+}
+
+func mustWorkflowApprovalConversation(t *testing.T, scope *testenv.Scope, reviewerType, reviewerID string) string {
+	t.Helper()
+	workflowID := uuid.NewString()
+	runID := uuid.NewString()
+	nodeID := "approve-" + uuid.NewString()[:8]
+	_, err := scope.Pool.Exec(t.Context(), `insert into visual_workflows (id, organization_id, name) values ($1, $2, 'Approve')`, workflowID, scope.OrganizationID)
+	require.NoError(t, err)
+	_, err = scope.Pool.Exec(t.Context(), `insert into visual_workflow_runs (id, organization_id, visual_workflow_id, trigger_source, mode) values ($1, $2, $3, 'manual', 'live')`, runID, scope.OrganizationID, workflowID)
+	require.NoError(t, err)
+	var nodeRunID string
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `
+        insert into visual_workflow_node_runs (organization_id, run_id, node_id, node_type, status)
+        values ($1, $2, $3, 'flow.human_approval', 'running')
+        returning id`,
+		scope.OrganizationID, runID, nodeID).Scan(&nodeRunID))
+	conversationID := mustConversation(t, scope, conversationSeed{source: "workflow_approval", title: "Workflow approval required"})
+	_, err = scope.Pool.Exec(t.Context(), `
+        insert into visual_workflow_approval_requests (
+            organization_id, run_id, node_run_id, node_id, reviewer_type, reviewer_id,
+            status, interaction_id, encrypted_context, expires_at
+        ) values ($1, $2, $3, $4, $5, $6, 'pending', $7, '{}'::jsonb, $8)`,
+		scope.OrganizationID, runID, nodeRunID, nodeID, reviewerType, reviewerID, conversationID, conversationTestBase.Add(time.Hour))
+	require.NoError(t, err)
+	return conversationID
+}
+
 func TestConversationListFiltersAndPagination(t *testing.T) {
 	f := newConversationFixture(t, "admin")
 	projectID := f.scope.ProjectID
