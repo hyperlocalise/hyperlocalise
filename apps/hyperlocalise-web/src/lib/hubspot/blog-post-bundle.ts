@@ -15,9 +15,9 @@ import {
   getLatestRepositorySourceFileVersion,
   getStoredFileContent,
 } from "@/lib/file-storage/records";
-import { applyHtmlIngestTranslations } from "@/lib/projects/files/html-ingest-entries";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
+import { applyApprovedHubspotHtmlTranslations } from "./apply-approved-translations";
 import type { HubspotBlogRecord, HubspotContentClient } from "./client";
 import {
   buildBlogPostHtmlDocument,
@@ -95,9 +95,14 @@ export function blogPostPushName(input: {
 export function blogDraftFieldsFromPostHtml(input: {
   live: HubspotBlogRecord;
   sourceHtml: string;
+  remoteHtml?: string | null;
   prefilled: Record<string, string>;
 }): ReturnType<typeof applyBlogContentDocument> {
-  const translatedHtml = applyHtmlIngestTranslations(input.sourceHtml, input.prefilled);
+  const translatedHtml = applyApprovedHubspotHtmlTranslations({
+    storedEnvelopeHtml: input.sourceHtml,
+    remoteEnvelopeHtml: input.remoteHtml,
+    approved: input.prefilled,
+  });
   const translated = readBlogPostHtmlDocument(translatedHtml);
   return applyBlogContentDocument(input.live, translated);
 }
@@ -105,8 +110,13 @@ export function blogDraftFieldsFromPostHtml(input: {
 export function mergeBlogPostHtmlTranslations(
   sourceHtml: string,
   prefilled: Record<string, string>,
+  remoteHtml?: string | null,
 ): HubspotStringTree {
-  const translatedHtml = applyHtmlIngestTranslations(sourceHtml, prefilled);
+  const translatedHtml = applyApprovedHubspotHtmlTranslations({
+    storedEnvelopeHtml: sourceHtml,
+    remoteEnvelopeHtml: remoteHtml,
+    approved: prefilled,
+  });
   return readBlogPostHtmlDocument(translatedHtml);
 }
 

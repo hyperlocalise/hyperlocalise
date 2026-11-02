@@ -104,6 +104,34 @@ describe("blog-post-bundle", () => {
     ).toBe("Titre de lancement");
   });
 
+  it("keeps remote copy for unapproved post.html fields instead of source language", () => {
+    const source = samplePost();
+    const remote = samplePost({
+      htmlTitle: "Titre distant",
+      metaDescription: "Description distante",
+      postBody: "<p>Bonjour le monde</p>",
+      postSummary: "Resume distant",
+    });
+    const sourceHtml = buildBlogPostHtmlDocument(source, "");
+    const remoteHtml = buildBlogPostHtmlDocument(remote, "");
+    const entries = extractHtmlIngestEntries(sourceHtml);
+    const titleKey = Object.entries(entries).find(
+      ([, text]) => text.trim() === "Launch title",
+    )?.[0];
+    expect(titleKey).toBeTruthy();
+    const draft = blogDraftFieldsFromPostHtml({
+      live: remote,
+      sourceHtml,
+      remoteHtml,
+      prefilled: { [titleKey!]: "Titre approuve" },
+    });
+    expect(draft.htmlTitle).toBe("Titre approuve");
+    expect(draft.metaDescription).toBe("Description distante");
+    expect(draft.postBody).toContain("Bonjour le monde");
+    expect(draft.postBody).not.toContain("Hello world");
+    expect(draft.postSummary).toBe("Resume distant");
+  });
+
   it("uses a translated post name instead of the HTML title", () => {
     const post = samplePost();
     const sourceHtml = buildBlogPostHtmlDocument(post, "");
