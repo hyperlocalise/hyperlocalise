@@ -71,8 +71,15 @@ function isHubspotHtmlSourceContent(sourceContent: string): boolean {
   return sourceContent.trimStart().startsWith("<");
 }
 
+function isHubspotHtmlSeedKind(kind: HubspotSeedableKind, sourceContent: string): boolean {
+  if (kind === "email" || kind === "landing-page" || kind === "website-page") {
+    return isHubspotHtmlSourceContent(sourceContent);
+  }
+  return kind === "blog" && isHubspotHtmlSourceContent(sourceContent);
+}
+
 export function hubspotSeedSourceKeys(kind: HubspotSeedableKind, sourceContent: string): string[] {
-  if (kind === "email" || (kind === "blog" && isHubspotHtmlSourceContent(sourceContent))) {
+  if (isHubspotHtmlSeedKind(kind, sourceContent)) {
     return Object.keys(extractHtmlIngestEntries(sourceContent));
   }
   const json = parseStoredJsonObject(sourceContent);
@@ -342,13 +349,11 @@ export async function seedHubspotItemLocales(input: {
   if (sourceKeys.length === 0) {
     return { importedHashes, seededComplete, warnings };
   }
-  const sourceFlat =
-    input.kind === "email" ||
-    (input.kind === "blog" && isHubspotHtmlSourceContent(input.sourceContent))
-      ? flattenHubspotDocument(readEmailHtmlDocument(input.sourceContent))
-      : flattenHubspotDocument(
-          readHubspotStringTree(parseStoredJsonObject(input.sourceContent) ?? {}),
-        );
+  const sourceFlat = isHubspotHtmlSeedKind(input.kind, input.sourceContent)
+    ? flattenHubspotDocument(readEmailHtmlDocument(input.sourceContent))
+    : flattenHubspotDocument(
+        readHubspotStringTree(parseStoredJsonObject(input.sourceContent) ?? {}),
+      );
 
   for (const { locale, code } of assignHubspotLocales(input.targetLocales, input.kind).mapped) {
     try {
@@ -377,10 +382,7 @@ export async function seedHubspotItemLocales(input: {
         continue;
       }
       let entries: Record<string, string>;
-      if (
-        input.kind === "email" ||
-        (input.kind === "blog" && isHubspotHtmlSourceContent(input.sourceContent))
-      ) {
+      if (isHubspotHtmlSeedKind(input.kind, input.sourceContent)) {
         entries = emailSeedEntries(input.sourceContent, localeFlat);
       } else {
         entries = hubspotDifferingEntries(sourceFlat, localeFlat);

@@ -30,13 +30,59 @@ describe("listHubspotLibrary", () => {
         { id: "form-1", name: "Newsletter", language: "en" },
         { id: "form-2", name: "Newsletter [fr-FR]", language: "fr" },
       ],
+      listLandingPages: async () => [
+        {
+          id: "lp-1",
+          name: "Pricing",
+          language: "en",
+          translatedFromId: null,
+          dynamicPageHubDbTableId: null,
+        },
+        {
+          id: "lp-2",
+          name: "Pricing",
+          language: "fr",
+          translatedFromId: "lp-1",
+          dynamicPageHubDbTableId: null,
+        },
+        {
+          id: "lp-3",
+          name: "Pricing [de-DE]",
+          language: "de",
+          translatedFromId: null,
+          dynamicPageHubDbTableId: null,
+        },
+        {
+          id: "lp-4",
+          name: "Catalog",
+          language: "en",
+          translatedFromId: null,
+          dynamicPageHubDbTableId: "table-9",
+        },
+      ],
+      listWebsitePages: async () => [
+        {
+          id: "site-1",
+          name: "About",
+          language: "en",
+          translatedFromId: null,
+          dynamicPageHubDbTableId: null,
+        },
+        {
+          id: "site-2",
+          name: "About [fr-FR]",
+          language: "fr",
+          translatedFromId: null,
+          dynamicPageHubDbTableId: null,
+        },
+      ],
     });
 
     expect(library.emails).toEqual([{ id: "email-1", name: "Welcome" }]);
     expect(library.forms).toEqual([{ id: "form-1", name: "Newsletter" }]);
     expect(library.blogPosts).toEqual([{ id: "post-1", name: "Launch" }]);
-    expect(library.landingPages).toEqual([]);
-    expect(library.websitePages).toEqual([]);
+    expect(library.landingPages).toEqual([{ id: "lp-1", name: "Pricing" }]);
+    expect(library.websitePages).toEqual([{ id: "site-1", name: "About" }]);
     expect(library.messageTemplates).toEqual([]);
     expect(library.warnings).toEqual([]);
   });

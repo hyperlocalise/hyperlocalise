@@ -29,7 +29,7 @@ export type HubspotTreeSelection = Record<HubspotResourceKind, string[]>;
 
 const TREE_ICON_CLASS = "size-4 shrink-0";
 
-const GROUPS: Array<{
+export const HUBSPOT_TREE_GROUPS: Array<{
   kind: HubspotResourceKind;
   label: string;
   itemsKey: keyof Omit<HubspotLibrary, "warnings">;
@@ -37,6 +37,8 @@ const GROUPS: Array<{
   { kind: "email", label: "Emails", itemsKey: "emails" },
   { kind: "blog", label: "Blog posts", itemsKey: "blogPosts" },
   { kind: "form", label: "Forms", itemsKey: "forms" },
+  { kind: "landing-page", label: "Landing pages", itemsKey: "landingPages" },
+  { kind: "website-page", label: "Website pages", itemsKey: "websitePages" },
 ];
 
 export const HUBSPOT_TREE_FIELDS: Record<
@@ -82,7 +84,7 @@ function HubspotTreeGroup({
   disabled,
   onToggle,
 }: {
-  group: (typeof GROUPS)[number];
+  group: (typeof HUBSPOT_TREE_GROUPS)[number];
   items: HubspotLibraryItem[];
   connected: boolean;
   selectedIds: string[];
@@ -197,7 +199,7 @@ export function HubspotResourceTree({
 
   return (
     <div className="max-h-72 overflow-y-auto rounded-lg border bg-canvas py-1">
-      {GROUPS.map((group) => (
+      {HUBSPOT_TREE_GROUPS.map((group) => (
         <div key={group.kind} className="pl-4">
           <HubspotTreeGroup
             group={group}

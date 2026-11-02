@@ -12,7 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { extractHtmlIngestEntries } from "@/lib/projects/files/html-ingest-entries";
+
 import { serializeHubspotDocument } from "./document";
+import { buildPageHtmlDocument } from "./page-files";
 import {
   hubspotDifferingEntries,
   hubspotSeedHash,
@@ -49,5 +52,36 @@ describe("hubspot seed helpers", () => {
     const content = serializeHubspotDocument({ title: "Hello", nested: { body: "World" } });
     expect(hubspotSeedSourceKeys("form", content).toSorted()).toEqual(["nested.body", "title"]);
     expect(hubspotSeedSourceKeys("form", "not json")).toEqual([]);
+  });
+
+  it("lists html ingest keys for landing and website page.html", () => {
+    const html = buildPageHtmlDocument(
+      {
+        id: "lp-1",
+        name: "Pricing",
+        language: "en",
+        translatedFromId: null,
+        htmlTitle: "Pricing title",
+        metaDescription: "Meta",
+        featuredImageAltText: "",
+        widgets: {},
+        layoutSections: {
+          dnd_area: {
+            rows: [{ "0": { params: { html: "<p>Book a consultation</p>" } } }],
+          },
+        },
+        widgetContainers: {},
+        templatePath: null,
+        attachedStylesheets: [],
+        updatedAt: null,
+        dynamicPageHubDbTableId: null,
+      },
+      "",
+    );
+    const keys = hubspotSeedSourceKeys("landing-page", html);
+    const ingestKeys = Object.keys(extractHtmlIngestEntries(html));
+    expect(keys.length).toBeGreaterThan(0);
+    expect(ingestKeys.every((key) => keys.includes(key))).toBe(true);
+    expect(hubspotSeedSourceKeys("website-page", html)).toEqual(keys);
   });
 });

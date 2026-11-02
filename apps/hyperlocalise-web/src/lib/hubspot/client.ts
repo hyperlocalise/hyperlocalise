@@ -94,6 +94,7 @@ export type HubspotPageSummary = {
   name: string;
   language: string | null;
   translatedFromId: string | null;
+  dynamicPageHubDbTableId: string | null;
 };
 
 export type HubspotPageRecord = HubspotPageSummary & {
@@ -103,6 +104,9 @@ export type HubspotPageRecord = HubspotPageSummary & {
   widgets: HubspotJson;
   layoutSections: HubspotJson;
   widgetContainers: HubspotJson;
+  templatePath: string | null;
+  attachedStylesheets: HubspotJson[];
+  updatedAt: string | null;
 };
 
 export type HubspotPageDraft = {
@@ -214,6 +218,10 @@ export type HubspotContentClient = {
     language: string;
   }): Promise<{ id: string }>;
   updateWebsitePageDraft(input: HubspotPageDraft): Promise<void>;
+  collectPageStylesCss(input: {
+    templatePath?: string | null;
+    attachedStylesheets?: HubspotJson[] | null;
+  }): Promise<string>;
   listMessageTemplates(): Promise<HubspotMessageTemplateSummary[]>;
   getMessageTemplate(id: string): Promise<HubspotMessageTemplateRecord>;
   createMessageTemplate(input: HubspotMessageTemplateDraft): Promise<{ id: string }>;
@@ -286,6 +294,10 @@ type PageLike = {
   layoutSections?: HubspotJson;
   widgetContainers?: HubspotJson;
   templatePath?: string;
+  attachedStylesheets?: HubspotJson;
+  updatedAt?: Date | string;
+  updated?: Date | string;
+  dynamicPageHubDbTableId?: string;
 };
 
 type HubspotApiResponse = {
@@ -493,11 +505,13 @@ function mergeBlogBuffers(published: BlogLike, draft: BlogLike): BlogLike {
 }
 
 function pageSummary(page: PageLike): HubspotPageSummary {
+  const hubDbId = page.dynamicPageHubDbTableId?.trim() ? page.dynamicPageHubDbTableId.trim() : null;
   return {
     id: page.id ?? "",
     name: page.name ?? "",
     language: page.language ?? null,
     translatedFromId: page.translatedFromId?.trim() ? page.translatedFromId : null,
+    dynamicPageHubDbTableId: hubDbId,
   };
 }
 
@@ -518,6 +532,7 @@ function parseStructuredField(value: HubspotJson | undefined): HubspotJson {
 }
 
 function pageRecord(page: PageLike, id: string): HubspotPageRecord {
+  const templatePath = page.templatePath?.trim() ? page.templatePath.trim() : null;
   return {
     ...pageSummary(page),
     id: page.id ?? id,
@@ -527,6 +542,9 @@ function pageRecord(page: PageLike, id: string): HubspotPageRecord {
     widgets: parseStructuredField(page.widgets),
     layoutSections: parseStructuredField(page.layoutSections),
     widgetContainers: parseStructuredField(page.widgetContainers),
+    templatePath,
+    attachedStylesheets: parseAttachedStylesheets(page.attachedStylesheets),
+    updatedAt: readTimestamp(page.updatedAt ?? page.updated),
   };
 }
 
@@ -747,21 +765,21 @@ async function blogWithTemplateSections(
   return mergeStaticModuleWidgets(next, staticModuleWidgetsFromTemplateFiles(files, path));
 }
 
-function mergeStaticModuleWidgets(
-  post: HubspotBlogRecord,
+function mergeStaticModuleWidgets<T extends { widgets: HubspotJson }>(
+  record: T,
   staticWidgets: HubspotJson,
-): HubspotBlogRecord {
+): T {
   if (!isHubspotJsonObject(staticWidgets) || Object.keys(staticWidgets).length === 0) {
-    return post;
+    return record;
   }
-  const existing = parseStructuredField(post.widgets);
+  const existing = parseStructuredField(record.widgets);
   const merged: { [key: string]: HubspotJson } = { ...staticWidgets };
   if (isHubspotJsonObject(existing)) {
     for (const [key, value] of Object.entries(existing)) {
       merged[key] = value;
     }
   }
-  return { ...post, widgets: merged };
+  return { ...record, widgets: merged };
 }
 
 async function readRawPage(sdk: HubspotSdk, path: string): Promise<PageLike | null> {
@@ -790,6 +808,9 @@ async function readRawPage(sdk: HubspotSdk, path: string): Promise<PageLike | nu
       layoutSections: parsed.layoutSections,
       widgetContainers: parsed.widgetContainers,
       templatePath: jsonString(parsed, "templatePath"),
+      attachedStylesheets: parsed.attachedStylesheets,
+      updatedAt: jsonString(parsed, "updatedAt") ?? jsonString(parsed, "updated"),
+      dynamicPageHubDbTableId: jsonString(parsed, "dynamicPageHubDbTableId"),
     };
   } catch {
     return null;
@@ -873,16 +894,9 @@ async function loadTemplateFiles(
   return files;
 }
 
-async function layoutSectionsForTemplate(
-  sdk: HubspotSdk,
-  templatePath: string,
-): Promise<HubspotJson | null> {
-  const files = await loadTemplateFiles(sdk, templatePath);
-  if (!files.has(templatePath)) {
-    return null;
-  }
-  const layout = layoutSectionsFromTemplateFiles(files, templatePath);
-  return isHubspotJsonObject(layout) && Object.keys(layout).length > 0 ? layout : null;
+function pageLayoutHasCopy(page: HubspotPageRecord): boolean {
+  const document = buildPageDocument(page);
+  return Boolean(document.layoutSections);
 }
 
 async function pageWithTemplateDefaults(
@@ -890,19 +904,25 @@ async function pageWithTemplateDefaults(
   page: HubspotPageRecord,
   templatePath: string | undefined,
 ): Promise<HubspotPageRecord> {
-  if (hubspotDocumentHasCopy(buildPageDocument(page))) {
-    return page;
-  }
   const path = templatePath?.replace(/^\/+/, "").trim();
   if (!path) {
     return page;
   }
-  const layoutSections = await layoutSectionsForTemplate(sdk, path);
-  if (!layoutSections) {
+  const files = await loadTemplateFiles(sdk, path);
+  if (!files.has(path)) {
     return page;
   }
-  const withTemplate = { ...page, layoutSections };
-  return hubspotDocumentHasCopy(buildPageDocument(withTemplate)) ? withTemplate : page;
+  let next = page;
+  if (!pageLayoutHasCopy(page)) {
+    const layoutSections = layoutSectionsFromTemplateFiles(files, path);
+    if (isHubspotJsonObject(layoutSections) && Object.keys(layoutSections).length > 0) {
+      const withTemplate = { ...page, layoutSections };
+      if (pageLayoutHasCopy(withTemplate)) {
+        next = withTemplate;
+      }
+    }
+  }
+  return mergeStaticModuleWidgets(next, staticModuleWidgetsFromTemplateFiles(files, path));
 }
 
 function withPageContent(base: PageLike, content: PageLike): PageLike {
@@ -914,6 +934,11 @@ function withPageContent(base: PageLike, content: PageLike): PageLike {
     widgets: content.widgets ?? base.widgets,
     layoutSections: content.layoutSections ?? base.layoutSections,
     widgetContainers: content.widgetContainers ?? base.widgetContainers,
+    templatePath: content.templatePath || base.templatePath,
+    attachedStylesheets: Array.isArray(content.attachedStylesheets)
+      ? content.attachedStylesheets
+      : base.attachedStylesheets,
+    updatedAt: content.updatedAt ?? content.updated ?? base.updatedAt ?? base.updated,
   };
 }
 
@@ -923,7 +948,7 @@ function bindCmsPages(
   collectionPath: string,
   sdk: HubspotSdk,
 ) {
-  return {
+  const pages = {
     async list() {
       const results = await listPages((after) =>
         api.getPage(
@@ -958,14 +983,33 @@ function bindCmsPages(
       return pageRecord(await api.getById(id), id);
     },
     async createLanguageVariation(input: { id: string; language: string }) {
-      const request = new ContentLanguageCloneRequestVNext();
-      request.id = input.id;
-      request.language = input.language;
-      const created = await api.createLangVariation(request);
-      if (!created.id) {
-        throw new Error(failureCode);
+      const existing = findBlogLanguageVariation(await pages.list(), input.id, input.language);
+      if (existing) {
+        return { id: existing };
       }
-      return { id: created.id };
+      try {
+        const request = new ContentLanguageCloneRequestVNext();
+        request.id = input.id;
+        request.language = input.language;
+        const created = await api.createLangVariation(request);
+        if (!created.id) {
+          throw new Error(failureCode);
+        }
+        return { id: created.id };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (isLanguageAlreadyTranslatedError(message)) {
+          const existingId = parseExistingBlogLanguageVariationId(message);
+          if (existingId) {
+            return { id: existingId };
+          }
+          const listed = findBlogLanguageVariation(await pages.list(), input.id, input.language);
+          if (listed) {
+            return { id: listed };
+          }
+        }
+        throw error instanceof Error ? error : new Error(failureCode);
+      }
     },
     async updateDraft(input: HubspotPageDraft) {
       const body = {
@@ -992,6 +1036,7 @@ function bindCmsPages(
       }
     },
   };
+  return pages;
 }
 
 const MESSAGE_TEMPLATE_COLLECTION = "/automation/email-templates/2026-09";
@@ -1373,6 +1418,9 @@ export function createHubspotContentClientFromSdk(sdk: HubspotSdk): HubspotConte
     getWebsitePage: (id) => websitePages.get(id),
     createWebsitePageLanguageVariation: (input) => websitePages.createLanguageVariation(input),
     updateWebsitePageDraft: (input) => websitePages.updateDraft(input),
+    async collectPageStylesCss(input) {
+      return collectBlogPostStylesCss(sdk, input);
+    },
     async listMessageTemplates() {
       const results = await listPages((after) =>
         requestMessageTemplate(sdk, {

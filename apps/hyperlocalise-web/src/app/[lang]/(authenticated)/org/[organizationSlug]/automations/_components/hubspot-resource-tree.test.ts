@@ -14,9 +14,25 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { createDefaultWorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 
-import { HUBSPOT_TREE_FIELDS, toggleHubspotTreeSelection } from "./hubspot-resource-tree";
+import {
+  HUBSPOT_TREE_FIELDS,
+  HUBSPOT_TREE_GROUPS,
+  toggleHubspotTreeSelection,
+} from "./hubspot-resource-tree";
 
 describe("toggleHubspotTreeSelection", () => {
+  it("shows landing pages and website pages as groups", () => {
+    expect(HUBSPOT_TREE_GROUPS.map((group) => group.kind)).toEqual([
+      "email",
+      "blog",
+      "form",
+      "landing-page",
+      "website-page",
+    ]);
+    expect(HUBSPOT_TREE_GROUPS.map((group) => group.label)).toContain("Landing pages");
+    expect(HUBSPOT_TREE_GROUPS.map((group) => group.label)).toContain("Website pages");
+  });
+
   it("maps each tree kind to its form field", () => {
     expect(HUBSPOT_TREE_FIELDS).toEqual({
       email: "hubspotEmailIds",

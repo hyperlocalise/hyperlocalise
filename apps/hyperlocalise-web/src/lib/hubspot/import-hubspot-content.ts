@@ -61,6 +61,12 @@ import {
   hubspotBlogSyncSourcePath,
   splitBlogPostIntoImportFiles,
 } from "./blog-post-files";
+import {
+  buildHubspotPageSourcePath,
+  hashHubspotPageHtml,
+  splitPageIntoImportFiles,
+  type HubspotPageKind,
+} from "./page-files";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 const logger = createLogger("import-hubspot-content");
@@ -1030,7 +1036,282 @@ export async function runImportHubspotContent(input: {
     }
   }
 
+  const landingPageIds = selectedIds(hubspot.landingPageIds);
+  const websitePageIds = selectedIds(hubspot.websitePageIds);
+  if (landingPageIds.size > 0) {
+    const assignment = assignHubspotLocales(targetLocales, "landing-page");
+    for (const locale of assignment.unmapped) {
+      pushWarning(result, `landing-page: ${locale} has no HubSpot language code`);
+    }
+    for (const collision of assignment.collisions) {
+      pushWarning(
+        result,
+        `landing-page: ${collision.locale} uses the same HubSpot code as ${collision.keptLocale} (${collision.code})`,
+      );
+    }
+  }
+  if (websitePageIds.size > 0) {
+    const assignment = assignHubspotLocales(targetLocales, "website-page");
+    for (const locale of assignment.unmapped) {
+      pushWarning(result, `website-page: ${locale} has no HubSpot language code`);
+    }
+    for (const collision of assignment.collisions) {
+      pushWarning(
+        result,
+        `website-page: ${collision.locale} uses the same HubSpot code as ${collision.keptLocale} (${collision.code})`,
+      );
+    }
+  }
+
+  const landingPages = landingPageIds.size > 0 ? await client.listLandingPages() : [];
+  for (const summary of landingPages) {
+    if (!landingPageIds.has(summary.id)) {
+      continue;
+    }
+    await importSelectedPage({
+      organizationId: input.organizationId,
+      automation: input.automation,
+      projectId,
+      sourceLocale,
+      targetLocales,
+      workflowRunId: input.workflowRunId,
+      openJobs,
+      result,
+      client,
+      policy,
+      discovery,
+      translationService,
+      kind: "landing-page",
+      pageId: summary.id,
+      pageName: summary.name || summary.id,
+      language: summary.language,
+      translatedFromId: summary.translatedFromId,
+      dynamicPageHubDbTableId: summary.dynamicPageHubDbTableId,
+    });
+  }
+
+  const websitePages = websitePageIds.size > 0 ? await client.listWebsitePages() : [];
+  for (const summary of websitePages) {
+    if (!websitePageIds.has(summary.id)) {
+      continue;
+    }
+    await importSelectedPage({
+      organizationId: input.organizationId,
+      automation: input.automation,
+      projectId,
+      sourceLocale,
+      targetLocales,
+      workflowRunId: input.workflowRunId,
+      openJobs,
+      result,
+      client,
+      policy,
+      discovery,
+      translationService,
+      kind: "website-page",
+      pageId: summary.id,
+      pageName: summary.name || summary.id,
+      language: summary.language,
+      translatedFromId: summary.translatedFromId,
+      dynamicPageHubDbTableId: summary.dynamicPageHubDbTableId,
+    });
+  }
+
   return result;
+}
+
+async function importSelectedPage(input: {
+  organizationId: string;
+  automation: WorkspaceAutomationRecord;
+  projectId: string;
+  sourceLocale: string;
+  targetLocales: string[];
+  workflowRunId?: string | null;
+  openJobs: CoveredJob[];
+  result: ImportHubspotContentResult;
+  client: HubspotContentClient;
+  policy: HubspotExistingTranslationPolicy;
+  discovery: HubspotSeedDiscoveryCache;
+  translationService: ProjectTranslationService;
+  kind: HubspotPageKind;
+  pageId: string;
+  pageName: string;
+  language: string | null;
+  translatedFromId: string | null;
+  dynamicPageHubDbTableId: string | null;
+}): Promise<void> {
+  const label = input.kind === "landing-page" ? "Landing page" : "Website page";
+  if (input.translatedFromId?.trim()) {
+    noteSkip(input.result, `${label} "${input.pageName}" is a language variation`);
+    return;
+  }
+  if (input.dynamicPageHubDbTableId?.trim()) {
+    noteSkip(input.result, `${label} "${input.pageName}" is a HubDB dynamic page`);
+    return;
+  }
+  if (isHubspotLocaleCopyName(input.pageName)) {
+    noteSkip(input.result, `${label} "${input.pageName}" is a locale copy`);
+    return;
+  }
+  if (
+    !hubspotLanguageMatchesSource({
+      objectLanguage: input.language,
+      projectSourceLocale: input.sourceLocale,
+      surface: input.kind,
+    })
+  ) {
+    noteSkip(
+      input.result,
+      `${label} "${input.pageName}" is ${input.language}, which does not match the project source ${input.sourceLocale}`,
+    );
+    return;
+  }
+  try {
+    await importPageBundle({
+      organizationId: input.organizationId,
+      automation: input.automation,
+      projectId: input.projectId,
+      sourceLocale: input.sourceLocale,
+      targetLocales: input.targetLocales,
+      workflowRunId: input.workflowRunId,
+      openJobs: input.openJobs,
+      result: input.result,
+      client: input.client,
+      policy: input.policy,
+      discovery: input.discovery,
+      translationService: input.translationService,
+      kind: input.kind,
+      pageId: input.pageId,
+      pageName: input.pageName,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn({ sourceId: input.pageId, error: message }, "hubspot page import failed");
+    input.result.failed += 1;
+    pushWarning(input.result, `${label} "${input.pageName}": import failed (${message})`);
+  }
+}
+
+async function importPageBundle(input: {
+  organizationId: string;
+  automation: WorkspaceAutomationRecord;
+  projectId: string;
+  sourceLocale: string;
+  targetLocales: string[];
+  workflowRunId?: string | null;
+  openJobs: CoveredJob[];
+  result: ImportHubspotContentResult;
+  client: HubspotContentClient;
+  policy: HubspotExistingTranslationPolicy;
+  discovery: HubspotSeedDiscoveryCache;
+  translationService: ProjectTranslationService;
+  kind: HubspotPageKind;
+  pageId: string;
+  pageName: string;
+}): Promise<void> {
+  const label = input.kind === "landing-page" ? "Landing page" : "Website page";
+  const page =
+    input.kind === "landing-page"
+      ? await input.client.getLandingPage(input.pageId)
+      : await input.client.getWebsitePage(input.pageId);
+  let stylesCss = "";
+  try {
+    stylesCss = await input.client.collectPageStylesCss({
+      templatePath: page.templatePath,
+      attachedStylesheets: page.attachedStylesheets,
+    });
+  } catch (error) {
+    pushWarning(
+      input.result,
+      `${input.pageName}: stylesheet fetch failed (${String(error)}); importing without template CSS`,
+    );
+  }
+  const files = splitPageIntoImportFiles(input.kind, page, stylesCss);
+  if (files.length === 0) {
+    noteSkip(input.result, `${label} "${input.pageName}" has no translatable text`);
+    return;
+  }
+  const file = files[0]!;
+  const contentHash = hashHubspotPageHtml(file.content);
+  const sourcePath = buildHubspotPageSourcePath(input.kind, input.pageId);
+  const previous = await loadPreviousSyncState({
+    organizationId: input.organizationId,
+    automationId: input.automation.id,
+    resourceKind: input.kind,
+    sourceId: input.pageId,
+  });
+  const upserted = await upsertSourceFile({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: file.sourcePath,
+    content: file.content,
+    contentType: file.contentType,
+    hash: hashHubspotContent(file.content),
+    sourceLocale: input.sourceLocale,
+    workflowRunId: input.workflowRunId,
+  });
+  if (!upserted.ok) {
+    input.result.failed += 1;
+    pushWarning(input.result, `${label} "${input.pageName}": ${upserted.reason}`);
+    return;
+  }
+  let importedHashes: Record<string, string> = previous?.importedTranslationHashes
+    ? { ...(previous.importedTranslationHashes as Record<string, string>) }
+    : {};
+  let skipLocales: string[] = [];
+  try {
+    const seed = await seedHubspotItemLocales({
+      client: input.client,
+      discovery: input.discovery,
+      translationService: input.translationService,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      kind: input.kind,
+      sourceId: input.pageId,
+      sourceName: input.pageName,
+      sourcePath,
+      sourceContent: file.content,
+      targetLocales: input.targetLocales,
+      policy: input.policy,
+      previousHashes: importedHashes,
+      previousCopyIds: {},
+    });
+    importedHashes = seed.importedHashes;
+    skipLocales = seed.seededComplete;
+    for (const warning of seed.warnings) {
+      pushWarning(input.result, warning);
+    }
+  } catch (error) {
+    pushWarning(input.result, `${input.pageName}: translation seeding failed (${String(error)})`);
+  }
+  await rememberSyncState({
+    organizationId: input.organizationId,
+    automationId: input.automation.id,
+    projectId: input.projectId,
+    resourceKind: input.kind,
+    sourceId: input.pageId,
+    sourceName: input.pageName,
+    sourcePath,
+    sourceLocale: input.sourceLocale,
+    contentHash,
+    importedHashes,
+  });
+  input.result.imported += 1;
+  const jobId = await maybeCreateJob({
+    organizationId: input.organizationId,
+    automation: input.automation,
+    projectId: input.projectId,
+    sourceFileId: upserted.storedFileId,
+    sourceLocale: input.sourceLocale,
+    targetLocales: input.targetLocales,
+    fileFormat: file.fileFormat,
+    openJobs: input.openJobs,
+    skipLocales,
+  });
+  if (jobId) {
+    input.result.jobsCreated += 1;
+    input.result.jobIds.push(jobId);
+  }
 }
 
 export function readHubspotDocumentJson(content: string): { [key: string]: HubspotJson } | null {

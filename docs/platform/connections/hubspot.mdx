@@ -1,11 +1,9 @@
 ---
 title: "Localize HubSpot"
-description: "Import HubSpot emails, blog posts, and forms, translate them in Jobs, and push unpublished locale copies."
+description: "Import HubSpot emails, blog posts, forms, landing pages, and website pages, translate them in Jobs, and push unpublished locale copies."
 ---
 
-Hyperlocalise translates the copy. HubSpot does not. Import reads primary marketing emails, blog posts, and forms. **Push to HubSpot** writes unpublished locale copies and leaves the source unchanged. Nothing is published.
-
-Landing pages and website pages are temporarily unsupported.
+Hyperlocalise translates the copy. HubSpot does not. Import reads primary marketing emails, blog posts, forms, landing pages, and website pages. **Push to HubSpot** writes unpublished locale copies and leaves the source unchanged. Nothing is published.
 
 ## Prerequisites
 
@@ -24,7 +22,7 @@ Open **Integrations** and choose **Connect** on **HubSpot**. Authorize the HubSp
 
 Add the **Translate HubSpot content** template from **Popular** or **Marketing**. It is mutually exclusive with Braze, Customer.io, and Loops. Choose the native project, then activate the automation.
 
-On the HubSpot tool, tick the emails, blog posts, and forms to translate. Nothing is imported until at least one item is ticked. Locale copies stay out of the tree. Set **Existing HubSpot translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**. **Overwrite HubSpot copies when the remote copy is newer** is on by default. Uncheck it to keep copies that teammates edited after the last push.
+On the HubSpot tool, tick the emails, blog posts, forms, landing pages, and website pages to translate. Nothing is imported until at least one item is ticked. Locale copies stay out of the tree. HubDB dynamic pages stay out of the tree. Set **Existing HubSpot translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**. **Overwrite HubSpot copies when the remote copy is newer** is on by default. Uncheck it to keep copies that teammates edited after the last push.
 
 A scheduled or manual run imports content. It does not push. Push runs only when you choose **Push to HubSpot** in the Content editor.
 
@@ -36,11 +34,13 @@ Import reads primary blog posts and writes `hubspot/blog-posts/{id}/post.html`, 
 
 Import reads primary forms and writes `hubspot/forms/{id}/{slug}.json`. The file holds labels, placeholders, help text, option labels, group rich text, submit text, thank-you copy, and legal consent text. When the definition includes a visual layout, import also takes step and on-submit rich text. Field names and option values stay locked. Multi-step forms are one definition. Every field group is imported, including queued and progressive groups.
 
+Import reads primary landing pages and website pages and writes `hubspot/landing-pages/{id}/page.html` or `hubspot/website-pages/{id}/page.html`. Each file is one HTML envelope with inlined template CSS for preview and email-style sections for the title, meta description, featured-image alt text, widgets, layout sections, and flex-column text. HubDB dynamic pages are skipped.
+
 Forms built in HubSpot's new editor (`embedType: V4`) only expose CRM field labels on the public API. Import warns, and it does not invent step copy, submit, or thank-you text that HubSpot omitted.
 
 When a blog post has no saved module edits, import reads that template and included sections. The default copy the editor shows is imported from there. A blog post that already has an article body still picks up section text from its layout or template. Push writes the translation onto the locale draft and leaves the template unchanged.
 
-Import skips posts that are already language variations, and names that already look like locale copies (`Launch [fr-FR]`). Field names, widget ids, URLs, and colors stay locked. Import does not write anything to HubSpot.
+Import skips posts and pages that are already language variations, and names that already look like locale copies (`Launch [fr-FR]`). Field names, widget ids, URLs, and colors stay locked. Import does not write anything to HubSpot.
 
 A later import still checks mapped target locales when the source has not changed. If HubSpot already has a locale copy or language variation, import can seed that copy as an approved translation. **Only empty locales** never overwrites work already in Hyperlocalise.
 
@@ -57,7 +57,7 @@ When two project locales become the same HubSpot code, the second locale is skip
 ## What push writes
 
 1. Translate and [approve](/platform/cat) the mapped locales you want to write back.
-2. In the Content editor, choose **Push to HubSpot** and select the mapped emails, blog posts, and forms.
+2. In the Content editor, choose **Push to HubSpot** and select the mapped emails, blog posts, forms, landing pages, and website pages.
 
 An email push clones the source, then writes a draft with the target language and the translated subject, preview, and widgets. The source email stays as it was.
 
@@ -66,6 +66,8 @@ Add the languages on the blog first. In HubSpot, open **Settings → Blog** and 
 The HubSpot post title is the translated post name, or the translated HTML title when the name has no translation yet. The draft gets the translated title, meta description, summary, body, section text, and static module fields. The post stays unpublished.
 
 A form push creates a new **legacy-editor** form named `{source} [{locale}]`, or replaces that copy if it already exists. The public Forms API cannot write new-editor (V4) forms, so the copy is always `embedType: V3`. It sets HubSpot's form language for built-in chrome. It never edits the source form. Creating a form does not swap the embed on a live page. Someone still has to place the locale form in HubSpot.
+
+A landing-page or website-page push finds the existing language variation or creates one with HubSpot's language-variation call. It then writes an unpublished draft named `{source} [{locale}]` with the translated title, meta description, alt text, widgets, and layout sections. It never edits the source page and never publishes.
 
 HubSpot's own translate actions are not used. Hyperlocalise writes the approved strings onto the copy.
 
@@ -93,7 +95,6 @@ See [Automation troubleshooting](/platform/help/automations) and [Connection tro
 | Emails | Supported (`hubspot/emails/{id}/{slug}.html`) |
 | Blog posts | Supported (`hubspot/blog-posts/{id}/post.html`) |
 | Forms | Supported (`hubspot/forms/{id}/{slug}.json`) |
-| Landing pages | Temporarily unsupported |
-| Website pages | Temporarily unsupported |
-
-Import skips unsupported content, and it does not appear in **Content to translate**.
+| Landing pages | Supported (`hubspot/landing-pages/{id}/page.html`) |
+| Website pages | Supported (`hubspot/website-pages/{id}/page.html`) |
+| HubDB dynamic pages | Skipped |

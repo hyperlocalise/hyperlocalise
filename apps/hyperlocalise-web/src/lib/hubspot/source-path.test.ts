@@ -31,11 +31,11 @@ describe("hubspot source paths", () => {
     expect(parseHubspotSourcePath(blog)).toEqual({ kind: "blog", id: "post-9" });
 
     const landing = buildHubspotSourcePath({ kind: "landing-page", id: "lp-1", name: "Pricing" });
-    expect(landing).toBe("hubspot/landing-pages/lp-1/pricing.json");
+    expect(landing).toBe("hubspot/landing-pages/lp-1/page.html");
     expect(parseHubspotSourcePath(landing)).toEqual({ kind: "landing-page", id: "lp-1" });
 
     const website = buildHubspotSourcePath({ kind: "website-page", id: "site-2", name: "About" });
-    expect(website).toBe("hubspot/website-pages/site-2/about.json");
+    expect(website).toBe("hubspot/website-pages/site-2/page.html");
     expect(parseHubspotSourcePath(website)).toEqual({ kind: "website-page", id: "site-2" });
 
     const template = buildHubspotSourcePath({

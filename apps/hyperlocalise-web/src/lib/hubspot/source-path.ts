@@ -57,8 +57,11 @@ export function buildHubspotSourcePath(input: {
   name?: string | null;
 }): string {
   const folder = HUBSPOT_FOLDERS[input.kind];
-  const extension = input.kind === "message-template" || input.kind === "email" ? "html" : "json";
   const id = encodeURIComponent(input.id.trim());
+  if (input.kind === "landing-page" || input.kind === "website-page") {
+    return normalizeSourcePath(`hubspot/${folder}/${id}/page.html`);
+  }
+  const extension = input.kind === "message-template" || input.kind === "email" ? "html" : "json";
   const slug = slugifyHubspotPathSegment(input.name ?? "", "item");
   return normalizeSourcePath(`hubspot/${folder}/${id}/${slug}.${extension}`);
 }

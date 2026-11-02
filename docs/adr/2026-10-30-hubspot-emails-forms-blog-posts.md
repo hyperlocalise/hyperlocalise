@@ -3,10 +3,10 @@
 ## Status
 
 Accepted. Import, push, and **Translate HubSpot content** are
-implemented. The stacked automation supports emails, blog posts, and
-forms. Landing pages and website pages stay in the client for later
-work. Connect is WorkOS Pipes OAuth on the existing `hubspot` slug,
-from a custom Integrations pane.
+implemented. The stacked automation supports emails, blog posts,
+forms, landing pages, and website pages. Pages import as one
+`page.html` envelope per object. Connect is WorkOS Pipes OAuth on
+the existing `hubspot` slug, from a custom Integrations pane.
 
 Tracking lives in Linear project
 [HubSpot Integration](https://linear.app/hyperlocalise/project/hubspot-integration-4fd159902d9b)
@@ -61,16 +61,17 @@ when an operator asks. Never edit the source object. Never publish or
 send.
 
 1. Import primary objects only.
-   - Marketing emails at `hubspot/emails/{slug}.json`.
-   - Forms at `hubspot/forms/{slug}.json`. Field names and property
+   - Marketing emails at `hubspot/emails/{id}/{slug}.html`.
+   - Forms at `hubspot/forms/{id}/{slug}.json`. Field names and property
      bindings stay locked.
-   - Blog posts at `hubspot/blog-posts/{id}/{slug}.json`. Skip posts with
+   - Blog posts at `hubspot/blog-posts/{id}/post.html`. Skip posts with
      `translatedFromId` set. Section text in the layout is included with
      the post body.
-   - Landing pages at `hubspot/landing-pages/{id}/{slug}.json` and
-     website pages at `hubspot/website-pages/{id}/{slug}.json`. Skip
-     pages with `translatedFromId` set. Widget ids, URLs, and colors
-     stay locked.
+   - Landing pages at `hubspot/landing-pages/{id}/page.html` and
+     website pages at `hubspot/website-pages/{id}/page.html`. Skip
+     pages with `translatedFromId` set and HubDB dynamic pages.
+     Widget ids, URLs, and colors stay locked. The file is the same
+     HTML envelope as emails and blog posts.
    - Skip names that already look like locale copies
      (`Welcome [fr-FR]`).
 2. Push approved locales as separate copies named

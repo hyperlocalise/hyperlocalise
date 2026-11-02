@@ -31,6 +31,8 @@ export const HUBSPOT_SUPPORTED_RESOURCE_KINDS = [
   "email",
   "blog",
   "form",
+  "landing-page",
+  "website-page",
 ] as const satisfies readonly HubspotResourceKind[];
 
 /** Current Forms API. Do not use legacy `/marketing/v3/forms`. */

@@ -388,6 +388,168 @@ describe("hubspot message templates", () => {
     expect(keptWidgets).not.toContain("Join the newsletter");
   });
 
+  it("keeps the published page title when the draft has richer layout copy", async () => {
+    const client = createHubspotContentClientFromSdk(
+      sdkWith(async (opts) => {
+        if (opts.path === "/cms/v3/pages/landing-pages/lp-1") {
+          return jsonResponse(200, {
+            id: "lp-1",
+            name: "Pricing",
+            language: "en",
+            htmlTitle: "Pricing title from the published page",
+            metaDescription: "Published meta",
+            updatedAt: "2026-11-01T00:00:00.000Z",
+            widgets: {},
+            layoutSections: {},
+            widgetContainers: {},
+          });
+        }
+        if (opts.path === "/cms/v3/pages/landing-pages/lp-1/draft") {
+          return jsonResponse(200, {
+            id: "lp-1",
+            name: "Pricing",
+            widgets: {},
+            layoutSections: {
+              dnd_area: {
+                rows: [
+                  {
+                    "0": {
+                      params: {
+                        html: "<h2>Draft section heading with a lot of text</h2><p>Draft section body.</p>",
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          });
+        }
+        return jsonResponse(404, {});
+      }),
+    );
+    const page = await client.getLandingPage("lp-1");
+    const document = buildPageDocument(page);
+    expect(page.updatedAt).toBe("2026-11-01T00:00:00.000Z");
+    expect(document.htmlTitle).toBe("Pricing title from the published page");
+    expect(JSON.stringify(document)).toContain("Draft section heading with a lot of text");
+  });
+
+  it("merges static module widgets onto a page that already has a title", async () => {
+    const template = `{% module "subscribe" path="../modules/subscribe.module" %}
+      {% module_attribute "heading" %}
+        Join the newsletter
+      {% end_module_attribute %}
+    {% end_module %}
+    {% dnd_area "dnd_area" %}
+      {% module_attribute "html" %}
+        <p>Drag and drop only.</p>
+      {% end_module_attribute %}
+    {% end_dnd_area %}`;
+    const fields = JSON.stringify([
+      { name: "heading", type: "text", default: "Subscribe to the page" },
+      { name: "content", type: "richtext", default: "<p>Weekly notes from the team.</p>" },
+    ]);
+    const page = {
+      id: "lp-1",
+      name: "Pricing",
+      htmlTitle: "Pricing",
+      templatePath: "theme/templates/landing.html",
+      layoutSections: {
+        dnd_area: {
+          rows: [{ 0: { params: { html: "<p>Existing section.</p>" } } }],
+        },
+      },
+    };
+    const source = async (opts: { path: string }) => {
+      if (opts.path.includes("fields.json")) {
+        return { ok: true, status: 200, text: async () => fields };
+      }
+      if (opts.path.includes("/cms/v3/source-code/")) {
+        return { ok: true, status: 200, text: async () => template };
+      }
+      return jsonResponse(200, { ...page, widgets: {} });
+    };
+    const merged = await createHubspotContentClientFromSdk(sdkWith(source)).getLandingPage("lp-1");
+    const mergedWidgets = JSON.stringify(merged.widgets);
+    expect(merged.htmlTitle).toBe("Pricing");
+    expect(mergedWidgets).toContain("Join the newsletter");
+    expect(mergedWidgets).toContain("Weekly notes from the team");
+    expect(mergedWidgets).not.toContain("Subscribe to the page");
+    expect(JSON.stringify(merged.layoutSections)).toContain("Existing section");
+    expect(JSON.stringify(merged.layoutSections)).not.toContain("Drag and drop only");
+
+    const kept = await createHubspotContentClientFromSdk(
+      sdkWith(async (opts) => {
+        if (opts.path.includes("fields.json") || opts.path.includes("/cms/v3/source-code/")) {
+          return source(opts);
+        }
+        return jsonResponse(200, {
+          ...page,
+          widgets: { subscribe: { body: { heading: "Already saved" } } },
+        });
+      }),
+    ).getLandingPage("lp-1");
+    const keptWidgets = JSON.stringify(kept.widgets);
+    expect(keptWidgets).toContain("Already saved");
+    expect(keptWidgets).not.toContain("Join the newsletter");
+  });
+
+  it("reuses an existing page variation before calling createLangVariation", async () => {
+    let created = false;
+    const client = createHubspotContentClientFromSdk({
+      ...sdkWith(async () => jsonResponse(200, {})),
+      cms: {
+        blogs: { blogPosts: {} },
+        pages: {
+          landingPagesApi: {
+            getPage: async () => ({
+              results: [
+                { id: "lp-1", name: "Pricing", language: "en", translatedFromId: "" },
+                { id: "lp-fr", name: "Pricing", language: "fr", translatedFromId: "lp-1" },
+              ],
+            }),
+            createLangVariation: async () => {
+              created = true;
+              return { id: "should-not-create" };
+            },
+            updateDraft: async () => ({}),
+            getById: async () => ({ id: "lp-1" }),
+          },
+          sitePagesApi: {},
+        },
+      },
+    } as unknown as HubspotSdk);
+    await expect(
+      client.createLandingPageLanguageVariation({ id: "lp-1", language: "fr" }),
+    ).resolves.toEqual({ id: "lp-fr" });
+    expect(created).toBe(false);
+  });
+
+  it("reuses an existing page variation when HubSpot reports language_already_translated", async () => {
+    const client = createHubspotContentClientFromSdk({
+      ...sdkWith(async () => jsonResponse(200, {})),
+      cms: {
+        blogs: { blogPosts: {} },
+        pages: {
+          landingPagesApi: {
+            getPage: async () => ({ results: [] }),
+            createLangVariation: async () => {
+              throw new Error(
+                '409 language_already_translated Body: {"errorType":"LANGUAGE_ALREADY_TRANSLATED","message":"There is already an existing fr variation with id: 991122","errorTokens":{"id":["991122"],"language":["fr"]}}',
+              );
+            },
+            updateDraft: async () => ({}),
+            getById: async () => ({ id: "lp-1" }),
+          },
+          sitePagesApi: {},
+        },
+      },
+    } as unknown as HubspotSdk);
+    await expect(
+      client.createLandingPageLanguageVariation({ id: "lp-1", language: "fr" }),
+    ).resolves.toEqual({ id: "991122" });
+  });
+
   it("reads template default copy when the page and its draft have none", async () => {
     const template = `{% dnd_area "dnd_area" %}
       {% dnd_module path="@hubspot/rich_text" %}

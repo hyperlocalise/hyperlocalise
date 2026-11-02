@@ -29,15 +29,24 @@ export type HubspotLibrary = {
   warnings: string[];
 };
 
-type LibraryClient = Pick<HubspotContentClient, "listEmails" | "listBlogPosts" | "listForms">;
+type LibraryClient = Pick<
+  HubspotContentClient,
+  "listEmails" | "listBlogPosts" | "listForms" | "listLandingPages" | "listWebsitePages"
+>;
 
 function libraryItem(item: {
   id: string;
   name: string;
   translatedFromId?: string | null;
+  dynamicPageHubDbTableId?: string | null;
 }): HubspotLibraryItem | null {
   const id = item.id.trim();
-  if (!id || item.translatedFromId?.trim() || isHubspotLocaleCopyName(item.name)) {
+  if (
+    !id ||
+    item.translatedFromId?.trim() ||
+    item.dynamicPageHubDbTableId?.trim() ||
+    isHubspotLocaleCopyName(item.name)
+  ) {
     return null;
   }
   const name = item.name.trim();
@@ -45,7 +54,12 @@ function libraryItem(item: {
 }
 
 function libraryItems(
-  items: Array<{ id: string; name: string; translatedFromId?: string | null }>,
+  items: Array<{
+    id: string;
+    name: string;
+    translatedFromId?: string | null;
+    dynamicPageHubDbTableId?: string | null;
+  }>,
 ): HubspotLibraryItem[] {
   return items.flatMap((item) => {
     const visible = libraryItem(item);
@@ -54,18 +68,20 @@ function libraryItems(
 }
 
 export async function listHubspotLibrary(client: LibraryClient): Promise<HubspotLibrary> {
-  const [emails, blogPosts, forms] = await Promise.all([
+  const [emails, blogPosts, forms, landingPages, websitePages] = await Promise.all([
     client.listEmails(),
     client.listBlogPosts(),
     client.listForms(),
+    client.listLandingPages(),
+    client.listWebsitePages(),
   ]);
 
   return {
     emails: libraryItems(emails),
     forms: libraryItems(forms),
     blogPosts: libraryItems(blogPosts),
-    landingPages: [],
-    websitePages: [],
+    landingPages: libraryItems(landingPages),
+    websitePages: libraryItems(websitePages),
     messageTemplates: [],
     warnings: [],
   };
