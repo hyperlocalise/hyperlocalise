@@ -8,10 +8,9 @@ import (
 	"strings"
 	"time"
 
+	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-
-	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
 )
 
 var errResourceNotFound = errors.New("resource not found")

@@ -3,9 +3,8 @@ package main
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBilingualRoundTripDatabase(t *testing.T) {

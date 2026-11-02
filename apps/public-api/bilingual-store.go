@@ -9,9 +9,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/jackc/pgx/v5"
-
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
+	"github.com/jackc/pgx/v5"
 )
 
 var errTooManyBilingualRows = errors.New("too many strings for one bilingual file")

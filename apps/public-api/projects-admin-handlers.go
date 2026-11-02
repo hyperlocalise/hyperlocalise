@@ -57,7 +57,7 @@ func (s apiServer) projectDetail(w http.ResponseWriter, r *http.Request) {
 	empty := body.Name == nil && body.Description == nil && body.TranslationContext == nil && body.TargetLocales == nil
 	if empty || (body.Name != nil && (*body.Name == "" || len(*body.Name) > 200)) ||
 		!validOptionalText(body.Description, 10_000) || !validOptionalText(body.TranslationContext, 20_000) ||
-		(body.TargetLocales != nil && len(body.TargetLocales) > 200) {
+		len(body.TargetLocales) > 200 {
 		writeError(w, http.StatusBadRequest, "invalid_body", "Provide name, description, translationContext, or targetLocales with valid values")
 		return
 	}

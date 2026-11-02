@@ -8,9 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
+	"github.com/stretchr/testify/require"
 )
 
 type fakeBilingualStore struct {

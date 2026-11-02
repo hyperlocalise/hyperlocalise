@@ -2,10 +2,11 @@
 
 Standalone Go service for external consumers using Hyperlocalise personal access tokens.
 The web frontend continues to use its existing APIs. It does not call this service.
-The API reports the token's effective identity, provides read-only Projects,
-Queries, Glossaries, and Translation memories resources, and manages the strings
-and translations of native projects. Jobs and file uploads continue to use the
-existing platform API.
+The API reports the token's effective identity, reads Projects, Queries, Jobs,
+Glossaries, and Translation memories, manages the strings, translations, and
+settings of native projects, round-trips bilingual files, updates jobs, exports
+glossaries, and imports and exports translation memories. Job creation and file
+uploads continue to use the existing platform API.
 
 ## Run locally
 
@@ -63,7 +64,10 @@ membership role. Effective permissions are the intersection of stored token
 scopes and the owner's role. `files:read` also grants `projects:read`,
 `queries:read`, `strings:read`, `glossaries:read`, and
 `translation-memories:read`. `files:write`, which members cannot hold, also
-grants `strings:write`. Queries additionally require the Queries plan
+grants `strings:write`, and `projects:write` for admins, localization managers,
+and developers. `memories:read` grants `translation-memories:read`, and
+`memories:write` (admins and localization managers) grants
+`translation-memories:write`. Queries additionally require the Queries plan
 entitlement from Autumn when `AUTUMN_API_KEY` is configured. Authentication
 results are not cached. Resource queries apply organization and team access
 rules directly in PostgreSQL.
@@ -86,11 +90,15 @@ filters. Missing and inaccessible records both return `404`.
 
 | Resource | Endpoints | Permission |
 | --- | --- | --- |
+| Project settings | `PATCH /v1/projects/{projectId}` (name, description, translation context, target locales) | `projects:write` |
+| Jobs | `GET /v1/jobs`, `GET, PATCH /v1/jobs/{jobId}` | `jobs:read` / `jobs:write` |
 | Locale progress | `GET /v1/projects/{projectId}/locales` | `strings:read` |
-| Strings | `GET, POST /v1/projects/{projectId}/strings`, `GET, PATCH, DELETE /v1/projects/{projectId}/strings/{stringId}` | `strings:read` / `strings:write` |
+| Strings | `GET, POST /v1/projects/{projectId}/strings`, `POST .../strings/batch`, `GET, PATCH, DELETE /v1/projects/{projectId}/strings/{stringId}` | `strings:read` / `strings:write` |
+| Bilingual files | `GET, POST /v1/projects/{projectId}/bilingual-file` (CSV, TMX, XLF, XLIFF, XLSX) | `strings:read` / `strings:write` |
 | Translations | `GET /v1/projects/{projectId}/translations`, `GET /v1/projects/{projectId}/strings/{stringId}/translations`, `GET, PUT .../translations/{locale}` | `strings:read` / `strings:write` |
-| Glossaries | `GET /v1/glossaries`, `GET /v1/glossaries/{glossaryId}`, `GET /v1/glossaries/{glossaryId}/terms` | `glossaries:read` |
-| Translation memories | `GET /v1/translation-memories`, `GET /v1/translation-memories/{memoryId}`, `GET /v1/translation-memories/{memoryId}/entries` | `translation-memories:read` |
+| Glossaries | `GET /v1/glossaries`, `GET /v1/glossaries/{glossaryId}`, `GET .../terms`, `GET .../export` (TBX, CSV, XLSX) | `glossaries:read` |
+| Translation memories | `GET /v1/translation-memories`, `GET /v1/translation-memories/{memoryId}`, `GET .../entries`, `GET .../export` (TMX, CSV) | `translation-memories:read` |
+| Translation memory import | `POST /v1/translation-memories/{memoryId}/import` (TMX, CSV) | `translation-memories:write` |
 
 Project lists and nested string routes treat unassigned projects as belonging to
 the workspace default team, matching go-svc. String and translation writes apply
@@ -102,6 +110,14 @@ actor kind `api_key`. Translation lists omit hidden strings unless
 `includeHidden=true`. Glossary and memory visibility follows go-svc: operators
 see everything, members see organization libraries plus those their teams'
 projects use.
+
+Bilingual imports, string batches, and memory imports apply in one transaction.
+Bilingual imports save approved translations with provenance `import` and skip
+locked or over-length segments. Job updates port the web app's
+`updateNativeJob`. These writes do not publish activity-log events.
+
+Database-backed tests run when `DATABASE_URL` points at a migrated database
+and are skipped otherwise.
 
 ## Build and test
 

@@ -3,8 +3,9 @@ info:
   title: Hyperlocalise Public API
   version: 1.0.0
   description: >-
-    Read projects, Queries, glossaries, and translation memories from a Hyperlocalise workspace,
-    and manage the strings and translations of native projects.
+    Read projects, Queries, jobs, glossaries, and translation memories from a Hyperlocalise
+    workspace; manage the strings, translations, and settings of native projects; round-trip
+    bilingual files; update jobs; export glossaries; and import and export translation memories.
 servers:
   - url: https://api.hyperlocalise.com
 security:

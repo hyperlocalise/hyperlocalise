@@ -13,10 +13,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/memoryinterchange"
+	"github.com/jackc/pgx/v5"
 )
 
 // maxMemoryImportUnits matches go-svc's inline import cap.
