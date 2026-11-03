@@ -42,14 +42,18 @@ type irisCreditConfig struct {
 type irisOrgScope struct {
 	OrganizationID string
 	UserID         string
+	// Role is the member's workspace role; it decides what of the glossaries
+	// and translation memories the localisation endpoints may read and write.
+	Role string
 }
 
 type irisGenerationAPI struct {
 	objects    *objectstore.Registry
 	provider   irisGenerationProvider
+	text       irisTextModel
 	meter      irisUsageMeter
 	credits    irisCreditConfig
-	pool       dictionaryDB
+	pool       dictionaryPool
 	membership organizationMembershipLookup
 	resolve    func(context.Context, AuthClaims, string) (irisOrgScope, error)
 	now        func() time.Time
@@ -77,6 +81,7 @@ func (api *irisGenerationAPI) register(mux *http.ServeMux, verifier SessionVerif
 	registerAuthenticated(mux, verifier, "GET "+irisGenerationPath+"/models", http.HandlerFunc(api.listModels))
 	registerAuthenticated(mux, verifier, "GET "+irisGenerationPath+"/jobs/{jobId}", http.HandlerFunc(api.getJob))
 	registerAuthenticated(mux, verifier, "POST "+irisGenerationPath+"/jobs/{jobId}/cancel", http.HandlerFunc(api.cancelJob))
+	api.registerLocalise(mux, verifier)
 }
 
 func (api *irisGenerationAPI) claims(r *http.Request) (AuthClaims, bool) {
@@ -117,7 +122,7 @@ func (api *irisGenerationAPI) scope(w http.ResponseWriter, r *http.Request) (iri
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal_error", "message": "Could not resolve the workspace"})
 		return irisOrgScope{}, false
 	}
-	return irisOrgScope{OrganizationID: actor.organizationID, UserID: actor.userID}, true
+	return irisOrgScope{OrganizationID: actor.organizationID, UserID: actor.userID, Role: actor.role}, true
 }
 
 func (api *irisGenerationAPI) autumnEstimate(ctx context.Context, orgID string, estimate irisEstimate) irisEstimate {
@@ -219,13 +224,13 @@ func irisSyntheticCredit(job irisJobRecord, credits irisCreditConfig) (autumn.Tr
 		},
 	}
 	switch {
-	case model.Kind == irisKindVideo || model.ID == "bytedance-upscaler":
+	case model.Kind == irisKindVideo || model.ID == "bytedance-upscaler" || model.ID == "sync-lipsync-2":
 		req.ModelID = credits.VideoModelID
 		req.OutputTokens = irisDurationSeconds(job)
 	case model.Kind == irisKindAudio:
 		req.ModelID = credits.AudioModelID
 		req.OutputTokens = irisDurationSeconds(job)
-	case model.Kind == irisKindVoice || model.ID == "universal-3.5-pro" || model.ID == "qwen3.8-omni-flash":
+	case model.Kind == irisKindVoice || model.ID == "universal-3.5-pro" || model.ID == "qwen3.8-omni-flash" || model.ID == "elevenlabs-dubbing":
 		req.ModelID = credits.AudioModelID
 		req.OutputTokens = irisInputMinutes(job)
 	default:
@@ -636,6 +641,7 @@ func (api *irisGenerationAPI) runJob(job irisJobRecord) {
 		Count:       job.Request.count(),
 		Language:    job.Request.languageCode(),
 		Inputs:      inputs,
+		Fields:      job.Request,
 	})
 	if err != nil {
 		api.failJob(ctx, job, "PROVIDER_ERROR", err.Error())

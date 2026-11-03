@@ -46,14 +46,13 @@ vi.mock("@/lib/billing/agent-runtime-usage", () => ({
   trackStringTranslationTokenUsage: mocks.trackStringTranslationTokenUsage,
 }));
 
-vi.mock("@/lib/log", () => ({
-  createLogger: vi.fn(() => ({
-    warn: mocks.loggerWarn,
-    info: vi.fn(),
-    error: vi.fn(),
-  })),
-  serializeErrorForLog: vi.fn((error: Error) => ({ error })),
-}));
+vi.mock("@/lib/log", async () => {
+  const { createTestLogger } = await import("@/test/create-test-logger");
+  return {
+    createLogger: vi.fn(() => createTestLogger({ warn: mocks.loggerWarn })),
+    serializeErrorForLog: vi.fn((error: Error) => ({ error })),
+  };
+});
 
 vi.mock("@/lib/database/client", () => ({
   db: {

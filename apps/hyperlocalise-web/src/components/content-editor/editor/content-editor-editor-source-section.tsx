@@ -25,12 +25,14 @@ export function ContentEditorEditorSourceSection({
   sourceLocale,
   segmentKey,
   sourcePath,
+  placeholderPatterns,
 }: {
   sourceText: string;
   targetText?: string;
   sourceLocale: string;
   segmentKey: string;
   sourcePath?: string | null;
+  placeholderPatterns?: readonly string[];
 }) {
   return (
     <section className="space-y-3">
@@ -44,7 +46,11 @@ export function ContentEditorEditorSourceSection({
         </h3>
       </div>
       <p className="text-pretty text-base leading-relaxed text-foreground lg:text-lg">
-        <ContentEditorMessagePreview message={sourceText} companionMessage={targetText} />
+        <ContentEditorMessagePreview
+          message={sourceText}
+          companionMessage={targetText}
+          placeholderPatterns={placeholderPatterns}
+        />
       </p>
     </section>
   );

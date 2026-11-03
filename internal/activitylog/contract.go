@@ -62,6 +62,8 @@ var implementedEventTypes = map[string]string{
 	"job_created":                         "job",
 	"job_cancelled":                       "job",
 	"job_failed":                          "job",
+	"job_updated":                         "job",
+	"project_strings_updated":             "project",
 	"automation_created":                  "automation",
 	"automation_deleted":                  "automation",
 	"automation_run_started":              "automation",

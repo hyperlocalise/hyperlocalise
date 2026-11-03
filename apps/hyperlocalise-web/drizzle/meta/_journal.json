@@ -1177,6 +1177,34 @@
       "when": 1793337108929,
       "tag": "0167_mixed_luckman",
       "breakpoints": true
+    },
+    {
+      "idx": 168,
+      "version": "7",
+      "when": 1793507751714,
+      "tag": "0168_foamy_turbo",
+      "breakpoints": true
+    },
+    {
+      "idx": 169,
+      "version": "7",
+      "when": 1793555480594,
+      "tag": "0169_brave_james_howlett",
+      "breakpoints": true
+    },
+    {
+      "idx": 170,
+      "version": "7",
+      "when": 1793584541113,
+      "tag": "0170_condemned_lady_ursula",
+      "breakpoints": true
+    },
+    {
+      "idx": 171,
+      "version": "7",
+      "when": 1793589308059,
+      "tag": "0171_lush_captain_britain",
+      "breakpoints": true
     }
   ]
 }

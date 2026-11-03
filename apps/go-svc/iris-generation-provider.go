@@ -29,6 +29,9 @@ type irisProviderRequest struct {
 	Count       int
 	Language    string
 	Inputs      []irisProviderInput
+	// Fields is the request as the client sent it, for the fields only one
+	// model reads (a dub's target language, an image's translations).
+	Fields irisGenerateRequest
 }
 
 type irisProviderInput struct {
@@ -241,6 +244,19 @@ func (p *irisGatewayProvider) tool(ctx context.Context, req irisProviderRequest)
 	case "bytedance-upscaler":
 		req.Prompt = irisFirstNonEmpty(req.Prompt, "Upscale this video. Preserve subject, motion, and audio.")
 		return p.video(ctx, req)
+	case "image-localise":
+		image, ok := firstInput(req.Inputs, "image")
+		if !ok {
+			return nil, fmt.Errorf("image input is required")
+		}
+		req.Prompt = irisImageLocalisePrompt(req.Fields.stringField("targetLocale"), req.Fields.translations(), req.Prompt)
+		return p.imageEdit(ctx, req, []irisProviderInput{image}, 1)
+	case "image-text":
+		return p.imageText(ctx, req)
+	case "elevenlabs-dubbing":
+		return nil, fmt.Errorf("dubbing needs ELEVENLABS_API_KEY")
+	case "sync-lipsync-2":
+		return nil, fmt.Errorf("lip-sync needs FAL_KEY")
 	default:
 		image, ok := firstInput(req.Inputs, "image")
 		if !ok {

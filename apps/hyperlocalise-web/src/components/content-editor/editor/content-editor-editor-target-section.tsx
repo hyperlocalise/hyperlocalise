@@ -48,8 +48,12 @@ export function ContentEditorEditorTargetSection({
   onClearTarget: () => void;
 }) {
   const sourceMessageAnalysis = useMemo(
-    () => analyzeCatMessageFormat(segment.sourceText, { messageFormat: segment.messageFormat }),
-    [segment.messageFormat, segment.sourceText],
+    () =>
+      analyzeCatMessageFormat(segment.sourceText, {
+        messageFormat: segment.messageFormat,
+        placeholderPatterns: segment.placeholderPatterns,
+      }),
+    [segment.messageFormat, segment.placeholderPatterns, segment.sourceText],
   );
 
   return (
@@ -103,6 +107,7 @@ export function ContentEditorEditorTargetSection({
           value={segment.targetText}
           maxLength={segment.maxLength}
           messageFormat={segment.messageFormat}
+          placeholderPatterns={segment.placeholderPatterns}
           onChange={onTargetChange}
           disabled={!canEditTarget}
         />

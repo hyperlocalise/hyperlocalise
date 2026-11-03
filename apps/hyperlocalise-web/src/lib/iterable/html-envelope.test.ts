@@ -12,6 +12,8 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { extractHtmlIngestEntries } from "@/lib/projects/files/html-ingest-entries";
+
 import {
   SAMPLE_EMAIL_TEMPLATE_GET,
   SAMPLE_INAPP_TEMPLATE_GET,
@@ -20,6 +22,9 @@ import {
   SAMPLE_SNIPPET_GET,
 } from "./client.real-api.fixture";
 import {
+  applyApprovedIterableHtmlTranslations,
+  applyApprovedIterablePushTranslations,
+  applyApprovedIterableSmsTranslations,
   parseIterableEmailEnvelope,
   parseIterableInAppEnvelope,
   parseIterablePushEnvelope,
@@ -28,10 +33,12 @@ import {
   restoreIterableEmailEnvelope,
   restoreIterableSnippetContent,
   serializeIterableEmailEnvelope,
+  serializeIterableEmailRemoteEnvelope,
   serializeIterableInAppEnvelope,
   serializeIterablePushEnvelope,
   serializeIterableSmsEnvelope,
   serializeIterableSnippetHtml,
+  serializeIterableSnippetRemoteEnvelope,
 } from "./html-envelope";
 
 describe("iterable html envelopes", () => {
@@ -88,5 +95,110 @@ describe("iterable html envelopes", () => {
     const { html, tokensByField } = serializeIterableSnippetHtml(content);
     const parsed = parseIterableSnippetHtml(html);
     expect(restoreIterableSnippetContent(parsed, tokensByField.content)).toBe(content);
+  });
+
+  it("keeps remote copy for unapproved HTML nodes instead of source language", () => {
+    const sourceHtml = serializeIterableEmailEnvelope({
+      subject: "Welcome",
+      preheaderText: "Preview",
+      html: "<p>Hello</p><p>World</p>",
+      plainText: "Hello World",
+    }).html;
+    const entries = extractHtmlIngestEntries(sourceHtml);
+    const helloKey = Object.keys(entries).find((key) => entries[key] === "Hello");
+    expect(helloKey).toBeDefined();
+
+    const remoteEnvelope = serializeIterableEmailRemoteEnvelope({
+      storedEnvelopeHtml: sourceHtml,
+      remote: {
+        subject: "Bienvenue",
+        preheaderText: "Aperçu",
+        html: "<p>Bonjour</p><p>Monde</p>",
+        plainText: "Bonjour Monde",
+      },
+    });
+    const merged = parseIterableEmailEnvelope(
+      applyApprovedIterableHtmlTranslations({
+        storedEnvelopeHtml: sourceHtml,
+        remoteEnvelopeHtml: remoteEnvelope.html,
+        approved: { [helloKey!]: "Salut" },
+      }),
+    );
+
+    expect(merged.subject).toBe("Bienvenue");
+    expect(merged.preheaderText).toBe("Aperçu");
+    expect(merged.html).toContain("Salut");
+    expect(merged.html).toContain("Monde");
+    expect(merged.html).not.toContain("World");
+    expect(merged.html).not.toContain("Welcome");
+    expect(merged.plainText).toBe("Bonjour Monde");
+  });
+
+  it("falls back to stored source fields when the remote variant has none", () => {
+    const sourceHtml = serializeIterableEmailEnvelope({
+      subject: "Welcome",
+      html: "<p>Hello</p>",
+    }).html;
+    const entries = extractHtmlIngestEntries(sourceHtml);
+    const helloKey = Object.keys(entries).find((key) => entries[key] === "Hello");
+    expect(helloKey).toBeDefined();
+
+    const merged = parseIterableEmailEnvelope(
+      applyApprovedIterableHtmlTranslations({
+        storedEnvelopeHtml: sourceHtml,
+        approved: { [helloKey!]: "Salut" },
+      }),
+    );
+
+    expect(merged.subject).toBe("Welcome");
+    expect(merged.html).toContain("Salut");
+  });
+
+  it("keeps remote snippet content for unapproved nodes", () => {
+    const stored = serializeIterableSnippetHtml("<p>Hello</p><p>World</p>");
+    const entries = extractHtmlIngestEntries(stored.html);
+    const helloKey = Object.keys(entries).find((key) => entries[key] === "Hello");
+    expect(helloKey).toBeDefined();
+
+    const remote = serializeIterableSnippetRemoteEnvelope({
+      storedEnvelopeHtml: stored.html,
+      remoteContent: "<p>Bonjour</p><p>Monde</p>",
+    });
+    const merged = parseIterableSnippetHtml(
+      applyApprovedIterableHtmlTranslations({
+        storedEnvelopeHtml: stored.html,
+        remoteEnvelopeHtml: remote.html,
+        approved: { [helloKey!]: "Salut" },
+      }),
+    );
+
+    expect(merged).toContain("Salut");
+    expect(merged).toContain("Monde");
+    expect(merged).not.toContain("World");
+  });
+
+  it("merges push and sms json by approved key, then remote, then source", () => {
+    expect(
+      applyApprovedIterablePushTranslations({
+        source: { title: "Welcome", message: "Hello" },
+        remote: { title: "Bienvenue", message: "Bonjour" },
+        approved: { title: "Salut" },
+      }),
+    ).toEqual({ title: "Salut", message: "Bonjour" });
+
+    expect(
+      applyApprovedIterableSmsTranslations({
+        source: { message: "Hello" },
+        remote: { message: "Bonjour" },
+        approved: {},
+      }),
+    ).toEqual({ message: "Bonjour" });
+
+    expect(
+      applyApprovedIterableSmsTranslations({
+        source: { message: "Hello" },
+        approved: { message: "Salut" },
+      }),
+    ).toEqual({ message: "Salut" });
   });
 });

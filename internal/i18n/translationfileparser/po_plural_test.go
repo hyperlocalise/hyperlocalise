@@ -187,6 +187,40 @@ msgstr "Hello"
 	}
 }
 
+func TestMarshalPOFileDropsFuzzyOnlyFlagLine(t *testing.T) {
+	template := []byte(`# translator note
+#, fuzzy
+msgid "hello"
+msgstr "Hello"
+`)
+	out, err := MarshalPOFile(template, map[string]string{"hello": "Bonjour"})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	content := string(out)
+	if strings.Contains(content, "fuzzy") || strings.Contains(content, "#,") {
+		t.Fatalf("expected fuzzy-only flag line dropped, got %q", content)
+	}
+	if !strings.Contains(content, "# translator note") || !strings.Contains(content, `msgstr "Bonjour"`) {
+		t.Fatalf("expected translator note and translation, got %q", content)
+	}
+}
+
+func TestMarshalPOFileKeepsFuzzyWhenUnchanged(t *testing.T) {
+	template := []byte(`#, fuzzy
+msgid "hello"
+msgstr "Hello"
+`)
+	out, err := MarshalPOFile(template, map[string]string{})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	content := string(out)
+	if !strings.Contains(content, "#, fuzzy") || !strings.Contains(content, `msgstr "Hello"`) {
+		t.Fatalf("expected unchanged fuzzy entry, got %q", content)
+	}
+}
+
 func TestMarshalPOFileUsesMsgctxtKey(t *testing.T) {
 	template := []byte(`msgctxt "nav"
 msgid "home"

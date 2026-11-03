@@ -60,6 +60,28 @@ describe("extractHtmlIngestEntries", () => {
     expect(got["html.head.title"]).toBeUndefined();
   });
 
+  it("skips extra excluded tags", () => {
+    const got = extractHtmlIngestEntries(
+      `<html><body><nav>Menu</nav><p>Hello</p><footer>Legal</footer></body></html>`,
+      { excludedElements: ["nav", "footer"] },
+    );
+    expect(got["html.body.p"]).toBe("Hello");
+    expect(Object.values(got)).not.toContain("Menu");
+    expect(Object.values(got)).not.toContain("Legal");
+  });
+
+  it("marks ICU arguments when the HTML ICU sub-filter is on", () => {
+    const got = applyHtmlIngestEntryKeys(
+      "pages/home.html",
+      `<html><body><nav>Menu</nav><p>Hello {name}</p></body></html>`,
+      { leftover: "from cli" },
+      { excludedElements: ["nav"], icuSubfilter: true },
+    );
+    expect(got).toEqual({
+      "html.body.p": { text: "Hello {name}", format: "icu" },
+    });
+  });
+
   it("extracts the formatting fixture with table and list paths", () => {
     const got = extractHtmlIngestEntries(formattingFixture);
     expect(got["html.body.h1"]).toBe("HTML Formatting Test");
@@ -127,6 +149,16 @@ describe("extractHtmlIngestEntries", () => {
       "html.p": "Keep",
       "html.p.2": "After",
     });
+  });
+
+  it("skips entity-only cells so spacer markup is not a segment", () => {
+    const html =
+      "<table><tr><td>&nbsp;</td><td>Hello</td><td>&amp;</td><td>&#160;</td></tr></table>";
+    const got = extractHtmlIngestEntries(html);
+    expect(Object.values(got)).toEqual(["Hello"]);
+    expect(applyHtmlIngestTranslations(html, { [Object.keys(got)[0]!]: "Bonjour" })).toBe(
+      "<table><tr><td>&nbsp;</td><td>Bonjour</td><td>&amp;</td><td>&#160;</td></tr></table>",
+    );
   });
 
   it("treats Design Studio x- components as fold boundaries", () => {

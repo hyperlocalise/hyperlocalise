@@ -65,7 +65,7 @@ Webアプリケーションが次のような構造になっているとしま�
 リポジトリのルートに `i18n.yml` を作成してください:
 
 ```yaml
-version: hyperlocalise@1.13.6
+version: hyperlocalise@1.13.7
 
 locales:
   source: en-US

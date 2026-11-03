@@ -119,16 +119,13 @@ vi.mock("@/lib/flags/workspace-flags", () => ({
   resolveWorkspaceVisualMockFlag: resolveWorkspaceVisualMockFlagMock,
 }));
 
-vi.mock("@/lib/log", () => ({
-  createLogger: vi.fn(() => ({
-    child: vi.fn(() => ({
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-    })),
-  })),
-  serializeErrorForLog: vi.fn((error: unknown) => ({ error })),
-}));
+vi.mock("@/lib/log", async () => {
+  const { createTestLogger } = await import("@/test/create-test-logger");
+  return {
+    createLogger: vi.fn(() => createTestLogger()),
+    serializeErrorForLog: vi.fn((error: unknown) => ({ error })),
+  };
+});
 
 import {
   buildFileTranslationInstructions,

@@ -25,6 +25,7 @@ go_test(
         "export_test_helpers_test.go",
         "filename_test.go",
         "format_test.go",
+        "parse_test.go",
         "tmx_test.go",
         "xliff_test.go",
         "xlsx_test.go",

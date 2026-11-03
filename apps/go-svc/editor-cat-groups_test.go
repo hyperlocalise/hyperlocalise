@@ -257,6 +257,33 @@ func TestEditorCatGroupedSaveHonorsFileMessageFormat(t *testing.T) {
 	require.Zero(t, saved)
 }
 
+func TestEditorCatGroupedSaveHonorsFilePlaceholderPatterns(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	file := mustEditorCatSourceFile(t, scope, "a.json")
+	keyID := mustEditorCatKey(t, scope, file, "token.arg", "Hello [[name]]")
+	_, err := scope.Pool.Exec(t.Context(), `update repository_source_files set placeholder_patterns=$2::jsonb where id=$1`, file, `["\\[\\[\\w+\\]\\]"]`)
+	require.NoError(t, err)
+
+	queue := readGroupedCatQueue(t, api, scope, "sourcePath=a.json")
+	require.Equal(t, []string{`\[\[\w+\]\]`}, queue.PlaceholderPatterns)
+
+	rejected := `{"sourcePath":"a.json","targetLocale":"fr","externalStringId":"` + keyID + `","text":"Bonjour","group":{"sourcePath":"a.json","occurrenceIds":["` + keyID + `"]}}`
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/translations"), rejected)
+	require.Equal(t, http.StatusUnprocessableEntity, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "group_member_validation_failed")
+	require.Contains(t, rec.Body.String(), "[[name]]")
+
+	var saved int
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select count(*) from project_translations where translation_key_id=$1`, keyID).Scan(&saved))
+	require.Zero(t, saved)
+
+	allowed := `{"sourcePath":"a.json","targetLocale":"fr","externalStringId":"` + keyID + `","text":"Bonjour [[name]]","group":{"sourcePath":"a.json","occurrenceIds":["` + keyID + `"]}}`
+	rec = editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/translations"), allowed)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select count(*) from project_translations where translation_key_id=$1 and text='Bonjour [[name]]'`, keyID).Scan(&saved))
+	require.Equal(t, 1, saved)
+}
+
 func TestEditorCatGroupedSaveValidatesEachOccurrenceMaxLength(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "translator")
 	file := mustEditorCatSourceFile(t, scope, "a.json")

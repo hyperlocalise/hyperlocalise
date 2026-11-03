@@ -113,3 +113,18 @@ func TestValidateMessageAcceptsTranslationUpdated(t *testing.T) {
 
 	require.NoError(t, ValidateMessage(message))
 }
+
+func TestPublicAPIEventTypes(t *testing.T) {
+	for eventType, targetKind := range map[string]string{
+		"job_updated":             "job",
+		"project_strings_updated": "project",
+	} {
+		message := validMessage()
+		message.Event.EventType = eventType
+		message.Event.TargetKind = targetKind
+		message.Event.ActorKind = "api_key"
+		require.NoError(t, ValidateMessage(message), eventType)
+		message.Event.TargetKind = "organization"
+		require.Error(t, ValidateMessage(message), eventType)
+	}
+}

@@ -123,7 +123,7 @@ export async function updateRepositorySourceFileSegmentation(input: {
   };
 }
 
-async function requestSourceFileReingest(input: {
+export async function requestSourceFileReingest(input: {
   organizationId: string;
   projectId: string;
   repositorySourceFileId: string;

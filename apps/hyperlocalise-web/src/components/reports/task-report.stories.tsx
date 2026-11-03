@@ -33,7 +33,7 @@ type Story = StoryObj<typeof meta>;
 export const WithCosts: Story = {
   play: async ({ canvas }) => {
     const table = await canvas.findByRole("table", { name: "Task match analysis" });
-    await expect(within(table).getByText("3,605")).toBeInTheDocument();
+    await expect(within(table).getAllByText("3,605").length).toBeGreaterThan(0);
     await expect(canvas.getByText("Work started")).toBeInTheDocument();
   },
 };

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/activitylog"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -40,6 +41,14 @@ type interchangeTerm struct {
 type interchangeImportOptions struct {
 	StrictLocale  *bool             `json:"strictLocale"`
 	LocaleMapping map[string]string `json:"localeMapping"`
+	// Actor names a public API token that started the import. Without it, the run's creator
+	// is recorded as a user.
+	Actor *interchangeImportActor `json:"actor"`
+}
+
+type interchangeImportActor struct {
+	Kind         string `json:"kind"`
+	CredentialID string `json:"credentialId"`
 }
 
 type interchangeImportDiagnostic struct {
@@ -332,6 +341,9 @@ func runImport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 		mutationCounts.TermsMerged += counts.TermsMerged
 	}
 	if err := refreshGlossaryLocaleCoverage(ctx, tx, glossaryID, sourceLocale); err != nil {
+		return err
+	}
+	if err := recordGlossaryImportedActivity(ctx, tx, runID, glossaryID, countTerms(concepts), importOptions.Actor); err != nil {
 		return err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -943,108 +955,6 @@ func applyPresentConceptBool(dst *bool, present *bool, value string, header map[
 	*present = true
 }
 
-func decodeTBX(data []byte) ([]interchangeConcept, []string, error) {
-	type descrip struct {
-		Type string `xml:"type,attr"`
-		Text string `xml:",chardata"`
-	}
-	type term struct {
-		ID       string    `xml:"id,attr"`
-		Text     string    `xml:"term"`
-		Descrips []descrip `xml:"descrip"`
-	}
-	type lang struct {
-		Locale string `xml:"lang,attr"`
-		Terms  []term `xml:"termSec"`
-	}
-	type entry struct {
-		ID       string    `xml:"id,attr"`
-		Descrips []descrip `xml:"descrip"`
-		Langs    []lang    `xml:"langSec"`
-	}
-	var root struct {
-		Entries []entry `xml:"text>body>conceptEntry"`
-	}
-	if err := xml.Unmarshal(data, &root); err != nil {
-		return nil, nil, err
-	}
-	var out []interchangeConcept
-	for _, e := range root.Entries {
-		c := interchangeConcept{ID: strings.TrimPrefix(e.ID, "c-")}
-		for _, d := range e.Descrips {
-			switch d.Type {
-			case "primaryTerm":
-				c.PrimaryTerm = d.Text
-				c.Present.PrimaryTerm = true
-			case "subject":
-				c.Subject = d.Text
-				c.Present.Subject = true
-			case "definition":
-				c.Definition = d.Text
-				c.Present.Definition = true
-			case "note":
-				c.Note = d.Text
-				c.Present.Note = true
-			case "translatable":
-				c.Translatable = strings.EqualFold(d.Text, "true")
-				c.Present.Translatable = true
-			case "url":
-				c.URL = d.Text
-				c.Present.URL = true
-			case "figure":
-				c.Figure = d.Text
-				c.Present.Figure = true
-			case "createdByUserId":
-				c.CreatedByUserID = d.Text
-			}
-		}
-		for _, l := range e.Langs {
-			for _, t := range l.Terms {
-				if c.PrimaryTerm == "" {
-					c.PrimaryTerm = t.Text
-				}
-				term := interchangeTerm{ID: strings.TrimPrefix(t.ID, "t-"), Locale: l.Locale, Term: t.Text, Status: "draft"}
-				for _, d := range t.Descrips {
-					switch d.Type {
-					case "description":
-						term.Description = d.Text
-					case "note":
-						term.Note = d.Text
-					case "partOfSpeech":
-						term.PartOfSpeech = d.Text
-					case "gender":
-						term.Gender = d.Text
-					case "termType":
-						term.TermType = d.Text
-					case "url":
-						term.URL = d.Text
-					case "lemma":
-						term.Lemma = d.Text
-					case "status":
-						term.Status = d.Text
-					case "caseSensitive":
-						term.CaseSensitive = strings.EqualFold(d.Text, "true")
-					case "forbidden":
-						term.Forbidden = strings.EqualFold(d.Text, "true")
-					case "provenance":
-						term.Provenance = d.Text
-					case "reviewStatus":
-						term.ReviewStatus = d.Text
-					case "createdByUserId":
-						term.CreatedByUserID = d.Text
-					}
-				}
-				c.Terms = append(c.Terms, term)
-			}
-		}
-		if c.ID == "" {
-			c.ID = uuid.NewString()
-		}
-		out = append(out, c)
-	}
-	return out, nil, nil
-}
-
 func refreshGlossaryLocaleCoverage(ctx context.Context, tx pgx.Tx, glossaryID, sourceLocale string) error {
 	_, err := tx.Exec(ctx, `
 		update glossaries g
@@ -1059,7 +969,44 @@ func refreshGlossaryLocaleCoverage(ctx context.Context, tx pgx.Tx, glossaryID, s
 			     and lower(locale) <> lower($2)
 			 ) locales),
 			'[]'::jsonb
-		)
+		),
+		-- go-svc keys cached glossary reads to updated_at, so this invalidates them.
+		updated_at = now()
 		where g.id = $1`, glossaryID, sourceLocale)
 	return err
+}
+
+// recordGlossaryImportedActivity records the same glossary_imported event as go-svc's inline
+// import, in the import's transaction.
+func recordGlossaryImportedActivity(ctx context.Context, tx pgx.Tx, runID, glossaryID string, itemCount int, actor *interchangeImportActor) error {
+	var organizationID string
+	var userID *string
+	if err := tx.QueryRow(ctx, `select organization_id::text, created_by_user_id::text from glossary_import_runs where id=$1`, runID).Scan(&organizationID, &userID); err != nil {
+		return fmt.Errorf("load import run actor: %w", err)
+	}
+	payload, err := json.Marshal(map[string]any{"batchId": runID, "itemCount": itemCount, "resourceId": glossaryID})
+	if err != nil {
+		return err
+	}
+	event := activitylog.Event{
+		ActorKind:      "user",
+		ActorUserID:    userID,
+		CreatedAt:      time.Now().UTC().Format(time.RFC3339Nano),
+		EventType:      "glossary_imported",
+		ID:             uuid.NewString(),
+		OrganizationID: organizationID,
+		Payload:        payload,
+		TargetID:       glossaryID,
+		TargetKind:     "glossary",
+	}
+	if actor != nil && actor.Kind == "api_key" && actor.CredentialID != "" {
+		credentialID := actor.CredentialID
+		event.ActorKind = "api_key"
+		event.ActorCredentialID = &credentialID
+	}
+	message := activitylog.Message{Event: event, MessageType: activitylog.MessageType, SchemaVersion: activitylog.SchemaVersion}
+	if err := activitylog.ValidateMessage(message); err != nil {
+		return fmt.Errorf("validate glossary_imported activity: %w", err)
+	}
+	return activitylog.NewStore(tx).Insert(ctx, event)
 }

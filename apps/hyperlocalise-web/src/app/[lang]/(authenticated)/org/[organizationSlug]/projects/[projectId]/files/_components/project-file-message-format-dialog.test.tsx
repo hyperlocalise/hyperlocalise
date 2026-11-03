@@ -107,9 +107,56 @@ describe("ProjectFileMessageFormatDialog", () => {
     await waitFor(() => {
       expect(apiMocks.patch).toHaveBeenCalledWith({
         param: { organizationSlug: "acme", projectId: "project_1" },
-        json: { sourcePath: "locales/en.json", messageFormat: "icu" },
+        json: { sourcePath: "locales/en.json", messageFormat: "icu", placeholderPatterns: [] },
       });
     });
+  });
+
+  it("loads, previews, and saves custom placeholder patterns", async () => {
+    apiMocks.get.mockResolvedValue(
+      jsonResponse({ messageFormat: "auto", placeholderPatterns: ["\\[\\[\\w+\\]\\]"] }),
+    );
+    apiMocks.patch.mockResolvedValue(jsonResponse({ messageFormat: "auto" }));
+
+    renderDialog();
+
+    const field = await screen.findByLabelText("Custom placeholder patterns");
+    expect(field).toHaveValue("\\[\\[\\w+\\]\\]");
+
+    await userEvent.type(field, "\n:\\w+");
+    await userEvent.click(screen.getByLabelText("Test your patterns"));
+    await userEvent.paste("Hi [[name]], see :link");
+    expect(screen.getByText("2 placeholders: [[name]], :link")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(apiMocks.patch).toHaveBeenCalledWith({
+        param: { organizationSlug: "acme", projectId: "project_1" },
+        json: {
+          sourcePath: "locales/en.json",
+          messageFormat: "auto",
+          placeholderPatterns: ["\\[\\[\\w+\\]\\]", ":\\w+"],
+        },
+      });
+    });
+  });
+
+  it("blocks saving invalid placeholder patterns", async () => {
+    apiMocks.get.mockResolvedValue(
+      jsonResponse({ messageFormat: "auto", placeholderPatterns: [] }),
+    );
+
+    renderDialog();
+
+    const field = await screen.findByLabelText("Custom placeholder patterns");
+    await userEvent.type(field, ":\\w+\n(?<=x)y");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Line 2 uses lookaround or a backreference, which is not supported.",
+    );
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(apiMocks.patch).not.toHaveBeenCalled();
   });
 
   it("shows a load error with retry and close instead of a spinner", async () => {

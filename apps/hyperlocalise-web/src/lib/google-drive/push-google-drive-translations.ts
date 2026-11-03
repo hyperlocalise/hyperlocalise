@@ -24,6 +24,7 @@ import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { isErr } from "@/lib/primitives/result/results";
+import { loadProjectHtmlTranslationDownload } from "@/lib/projects/files/html-translation-download";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import { loadProjectOfficeTranslationDownload } from "@/lib/projects/files/office-translation-download";
 import { loadProjectPdfTranslationDownload } from "@/lib/projects/files/pdf-translation-download";
@@ -333,6 +334,32 @@ export async function resolveTranslatedBytes(input: {
       buffer: txt.value.content,
       fileName,
       mimeType: txt.value.contentType,
+    };
+  }
+
+  const isHtmlSource =
+    inferSupportedTranslationFileFormat(input.sourcePath) === "html" ||
+    input.ingestFormat === "html";
+  if (isHtmlSource) {
+    const html = await loadProjectHtmlTranslationDownload({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      targetLocale: input.targetLocale,
+      approvedTranslationsOnly: true,
+    });
+    if (isErr(html)) {
+      return { status: "failed", code: html.error.code };
+    }
+    if (!html.value || !html.value.translatedKeyCount) {
+      return { status: "skipped", reason: "no_approved_translations" };
+    }
+    const fileName = input.sourcePath.split("/").pop() ?? "file";
+    return {
+      status: "ready",
+      buffer: html.value.content,
+      fileName,
+      mimeType: html.value.contentType,
     };
   }
 

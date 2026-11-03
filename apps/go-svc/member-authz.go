@@ -15,33 +15,38 @@ var organizationCapabilityByRole = map[string]map[string]struct{}{
 	"admin": {
 		"workspace:read": {}, "workspace:update": {}, "members:invite": {}, "teams:write": {},
 		"projects:read": {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
+		"memories:read": {}, "memories:write": {},
 		"api_keys:read": {}, "api_keys:write": {},
 		"ai_actions:run": {}, "billing:read": {}, "billing:write": {},
 	},
 	"localization_manager": {
 		"workspace:read": {}, "workspace:update": {}, "members:invite": {}, "teams:write": {},
 		"projects:read": {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
+		"memories:read": {}, "memories:write": {},
 		"api_keys:read": {}, "api_keys:write": {},
 		"ai_actions:run": {}, "billing:read": {},
 	},
 	"developer": {
 		"workspace:read": {},
 		"projects:read":  {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
+		"memories:read":  {},
 		"ai_actions:run": {},
 	},
 	"reviewer": {
 		"workspace:read": {},
 		"projects:read":  {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
+		"memories:read":  {},
 		"ai_actions:run": {},
 	},
 	"translator": {
 		"workspace:read": {},
 		"projects:read":  {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
+		"memories:read":  {},
 		"ai_actions:run": {},
 	},
 	"member": {
 		"workspace:read": {},
-		"projects:read":  {}, "jobs:read": {},
+		"projects:read":  {}, "jobs:read": {}, "memories:read": {},
 	},
 }
 

@@ -20,6 +20,27 @@ func (p JSONCParser) Parse(content []byte) (map[string]string, error) {
 	return values, nil
 }
 
+func (p JSONCParser) ParseIngestEntries(content []byte, opts JSONImportOptions) (map[string]IngestEntry, error) {
+	entries, err := (JSONParser{}).ParseIngestEntries(jsonc.ToJSON(content), opts)
+	if err != nil {
+		return nil, err
+	}
+	commentContext := parseJSONCKeyComments(content)
+	if len(commentContext) == 0 {
+		return entries, nil
+	}
+	out := make(map[string]IngestEntry, len(entries))
+	for key, entry := range entries {
+		if strings.TrimSpace(entry.Context) == "" {
+			if comment := strings.TrimSpace(commentContext[key]); comment != "" {
+				entry.Context = comment
+			}
+		}
+		out[key] = entry
+	}
+	return out, nil
+}
+
 func (p JSONCParser) ParseWithContext(content []byte) (map[string]string, map[string]string, error) {
 	values, contextByKey, err := (JSONParser{}).ParseWithContext(jsonc.ToJSON(content))
 	if err != nil {

@@ -56,6 +56,8 @@ type Segment struct {
 	MaxLength    int    `json:"maxLength,omitempty"`
 	// MessageFormat is auto, icu, or i18next. Empty means auto.
 	MessageFormat string `json:"messageFormat,omitempty"`
+	// PlaceholderPatterns are the file's custom placeholder regular expressions.
+	PlaceholderPatterns []string `json:"placeholderPatterns,omitempty"`
 }
 
 type Finding struct {
@@ -171,7 +173,8 @@ func ValidateBatch(ctx context.Context, segments []Segment, policy Policy) (Repo
 			SourceText: segment.SourceText, TargetText: segment.TargetText,
 			SourcePath: segment.SourcePath, TargetLocale: segment.TargetLocale,
 			MaxLength: segment.MaxLength, Modes: modes,
-			MessageFormat: segmentvalidate.ParseMessageFormat(segment.MessageFormat),
+			MessageFormat:       segmentvalidate.ParseMessageFormat(segment.MessageFormat),
+			PlaceholderPatterns: segment.PlaceholderPatterns,
 		})
 		result := Result{ID: segment.ID, Checks: []Finding{}}
 		for _, check := range checks {

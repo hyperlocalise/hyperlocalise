@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { isMarkableProofreadTask } from "@/lib/projects/jobs/person-task";
 import type { JobProviderActionId } from "@/lib/providers/jobs/job-provider-actions";
 
 export type JobDetailRecord = {
@@ -182,6 +183,11 @@ function isNativeActiveJob(job: JobDetailRecord) {
 
 export function canMarkJobFailed(job: JobDetailRecord) {
   return isNativeActiveJob(job) && job.assigneeType === "agent";
+}
+
+/** An open proofread task waiting on a person, not a post-edit, translation, or agent job. */
+export function canMarkTaskDone(job: JobDetailRecord) {
+  return !isProviderBackedJob(job) && isMarkableProofreadTask(job);
 }
 
 export function canCancelJob(job: JobDetailRecord) {

@@ -14,7 +14,7 @@ import (
 
 // Time people log on tasks: logged, edited and deleted (voided, with the cost it was priced at).
 
-// reportingTimeEntryRow is a time entry as the web app records it in the audit.
+// reportingTimeEntryRow is a time entry as the audit records it.
 type reportingTimeEntryRow struct {
 	ID             string  `json:"id"`
 	OrganizationID string  `json:"organizationId"`
@@ -206,7 +206,7 @@ func (api *reportingAPI) logTime(r *http.Request, actor reportingActor) (any, in
 		if err := reportingAudit(ctx, tx, actor, entry.ID, "time_created", nil, entry); err != nil {
 			return err
 		}
-		// With the entry, so a failure leaves neither: the web starts Reports after its commit.
+		// With the entry, so a failure leaves neither.
 		return reportingStartRecording(ctx, tx, actor.organizationID)
 	})
 	if err != nil {

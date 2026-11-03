@@ -93,6 +93,8 @@ export interface ContentEditorQueueSegment {
   sourcePath?: string;
   /** Placeholder syntax of this row's file; set when the queue spans multiple files. */
   messageFormat?: MessageFormat;
+  /** Custom placeholder regexes of this row's file; set when the queue spans multiple files. */
+  placeholderPatterns?: string[];
   externalResourceId?: string;
   resourceType?: "file" | "key";
   /** Grouped queues: identical source strings this row saves to, including itself. */
@@ -129,6 +131,7 @@ export interface ContentEditorFileContext {
   ingestState?: SourceFileIngestState;
   ingestError?: string | null;
   messageFormat?: MessageFormat;
+  placeholderPatterns?: string[];
 }
 
 export interface ContentEditorSegment {
@@ -141,6 +144,8 @@ export interface ContentEditorSegment {
   sourcePath?: string;
   /** Placeholder syntax used for format checks; defaults to auto. */
   messageFormat?: MessageFormat;
+  /** The file's custom placeholder regular expressions. */
+  placeholderPatterns?: string[];
   sourceLocale: string;
   targetLocale: string;
   contextLabel?: string;

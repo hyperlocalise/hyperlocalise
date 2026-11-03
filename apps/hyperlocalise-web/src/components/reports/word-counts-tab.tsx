@@ -54,7 +54,7 @@ import {
 import { reportsPageMessages as pageMessages } from "./reports-page.messages";
 import {
   reportDates,
-  reportDownloadUrl,
+  useReportCsv,
   useWordCounts,
   useWordSeries,
   wordCountsQuery,
@@ -369,6 +369,7 @@ export function WordCountsTab({
   onChange: (change: Partial<ReportsUrlState>) => void;
 }) {
   const intl = useIntl();
+  const csv = useReportCsv(input.organizationSlug);
   const counts = useWordCounts(input);
   const { state } = input;
   const taskName = (row: WordCountRow) =>
@@ -404,9 +405,7 @@ export function WordCountsTab({
           ]}
           onChange={(groupBy) => onChange({ groupBy })}
         />
-        <DownloadCsvButton
-          href={reportDownloadUrl(input.organizationSlug, "words", wordCountsQuery(input))}
-        />
+        <DownloadCsvButton download={() => csv.section("words", wordCountsQuery(input))} />
       </div>
       <ReportSectionState
         query={counts}

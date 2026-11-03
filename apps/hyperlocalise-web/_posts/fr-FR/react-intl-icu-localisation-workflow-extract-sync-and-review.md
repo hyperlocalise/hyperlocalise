@@ -1,7 +1,7 @@
 ---
 title: "Localisation React Intl et ICU : extraire, synchroniser et réviser avec Hyperlocalise"
 date: 2026-09-24T00:00:00.000Z
-excerpt: "\"Intégrez react-intl et la syntaxe des messages ICU à un flux de travail propre au dépôt : extrayez les catalogues avec la CLI Hyperlocalise, validez les pluriels dans les pull requests, révisez-les dans Hyperlocalise et déployez le JSON traduit en production.\""
+excerpt: "\"\\\\\"Intégrez react-intl et la syntaxe des messages ICU à un flux de travail propre au dépôt : extrayez les catalogues avec la CLI Hyperlocalise, validez les pluriels dans les pull requests, révisez-les dans Hyperlocalise et déployez le JSON traduit en production.\\\\\"\""
 category: Ingénierie
 tags:
   - react-intl
@@ -122,7 +122,7 @@ export function FiltersPage({ savedCount, scope }: { savedCount: number; scope: 
 Créez `i18n.yml` à la racine du dépôt (ou dans votre répertoire d’application si le monorepo conserve la configuration à côté de l’interface utilisateur) :
 
 ```yaml
-version: hyperlocalise@1.13.6
+version: hyperlocalise@1.13.7
 
 locales:
   source: en-US

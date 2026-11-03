@@ -15,6 +15,12 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
 import { type MessageFormat, normalizeMessageFormat } from "@/lib/i18n/message-format";
+import { normalizePlaceholderPatterns } from "@/lib/i18n/placeholder-patterns";
+
+export interface RepositorySourceFilePlaceholderSettings {
+  messageFormat: MessageFormat;
+  placeholderPatterns: string[];
+}
 
 function sourceFileWhere(input: { organizationId: string; projectId: string; sourcePath: string }) {
   return and(
@@ -38,18 +44,57 @@ export async function getRepositorySourceFileMessageFormat(input: {
   return row ? normalizeMessageFormat(row.messageFormat) : null;
 }
 
-/** Validation-only setting: changing it does not re-ingest the file. */
-export async function updateRepositorySourceFileMessageFormat(input: {
+export async function getRepositorySourceFilePlaceholderSettings(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+}): Promise<RepositorySourceFilePlaceholderSettings | null> {
+  const [row] = await db
+    .select({
+      messageFormat: schema.repositorySourceFiles.messageFormat,
+      placeholderPatterns: schema.repositorySourceFiles.placeholderPatterns,
+    })
+    .from(schema.repositorySourceFiles)
+    .where(sourceFileWhere(input))
+    .limit(1);
+
+  return row
+    ? {
+        messageFormat: normalizeMessageFormat(row.messageFormat),
+        placeholderPatterns: normalizePlaceholderPatterns(row.placeholderPatterns),
+      }
+    : null;
+}
+
+/**
+ * Validation-only settings: changing them does not re-ingest the file.
+ * Omitted `placeholderPatterns` keeps the stored patterns.
+ */
+export async function updateRepositorySourceFilePlaceholderSettings(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
   messageFormat: MessageFormat;
-}): Promise<MessageFormat | null> {
+  placeholderPatterns?: string[];
+}): Promise<RepositorySourceFilePlaceholderSettings | null> {
   const [row] = await db
     .update(schema.repositorySourceFiles)
-    .set({ messageFormat: input.messageFormat })
+    .set({
+      messageFormat: input.messageFormat,
+      ...(input.placeholderPatterns
+        ? { placeholderPatterns: normalizePlaceholderPatterns(input.placeholderPatterns) }
+        : {}),
+    })
     .where(sourceFileWhere(input))
-    .returning({ messageFormat: schema.repositorySourceFiles.messageFormat });
+    .returning({
+      messageFormat: schema.repositorySourceFiles.messageFormat,
+      placeholderPatterns: schema.repositorySourceFiles.placeholderPatterns,
+    });
 
-  return row ? normalizeMessageFormat(row.messageFormat) : null;
+  return row
+    ? {
+        messageFormat: normalizeMessageFormat(row.messageFormat),
+        placeholderPatterns: normalizePlaceholderPatterns(row.placeholderPatterns),
+      }
+    : null;
 }

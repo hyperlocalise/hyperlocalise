@@ -25,6 +25,7 @@ import { GitHubIntegrationRow } from "./github-integration-row";
 import { integrationsPageContentMessages } from "./integrations-page-content.messages";
 import { BrazeConnectionPanel } from "./braze-connection-panel";
 import { CustomerIoConnectionPanel } from "./customer-io-connection-panel";
+import { HubspotConnectionPanel } from "./hubspot-connection-panel";
 import { IterableConnectionPanel } from "./iterable-connection-panel";
 import { LoopsConnectionPanel } from "./loops-connection-panel";
 import { IntercomConnectionPanel } from "./intercom-connection-panel";
@@ -204,6 +205,7 @@ export function CustomerEngagementIntegrationsSection({
           <CustomerIoConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
           <IterableConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
           <LoopsConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+          <HubspotConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
           <PipesIntegrationList
             organizationSlug={organizationSlug}
             slugs={workspacePipesCustomerEngagementSlugs.filter(
@@ -212,7 +214,8 @@ export function CustomerEngagementIntegrationsSection({
                 slug !== "braze" &&
                 slug !== "customer-io" &&
                 slug !== "iterable" &&
-                slug !== "loops",
+                slug !== "loops" &&
+                slug !== "hubspot",
             )}
             disabled={!userIsAdmin}
             isLast={comingSoonCustomerEngagementAgents.length === 0}

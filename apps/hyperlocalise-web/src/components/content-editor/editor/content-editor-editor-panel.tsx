@@ -229,6 +229,7 @@ export function ContentEditorEditorPanel({
                 sourceLocale={segment.sourceLocale}
                 segmentKey={segment.key}
                 sourcePath={segment.sourcePath}
+                placeholderPatterns={segment.placeholderPatterns}
               />
             )}
           </ContentEditorSectionErrorBoundary>

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
+	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -81,25 +83,62 @@ type resourceStore interface {
 	getProject(context.Context, principal, string) (project, error)
 	listQueries(context.Context, principal, queryFilters) ([]queryRecord, int, error)
 	getQuery(context.Context, principal, string) (queryRecord, error)
+	getProjectLocales(context.Context, principal, string) (projectLocales, error)
+	listStrings(context.Context, principal, string, stringFilters) ([]translationString, int, error)
+	getString(context.Context, principal, string, string) (translationString, error)
+	createString(context.Context, principal, string, stringCreate) (translationString, error)
+	updateString(context.Context, principal, string, string, stringPatch) (translationString, error)
+	deleteString(context.Context, principal, string, string) error
+	listTranslations(context.Context, principal, string, translationFilters) ([]translationRecord, int, error)
+	listStringTranslations(context.Context, principal, string, string) ([]translationRecord, error)
+	getStringTranslation(context.Context, principal, string, string, string) (translationRecord, error)
+	putTranslation(context.Context, principal, string, string, string, translationWrite) (translationRecord, error)
+	listGlossaries(context.Context, principal, int, int) ([]glossary, int, error)
+	getGlossary(context.Context, principal, string) (glossary, error)
+	listGlossaryTerms(context.Context, principal, string, glossaryTermFilters) ([]glossaryTerm, int, error)
+	listMemories(context.Context, principal, int, int) ([]translationMemory, int, error)
+	getMemory(context.Context, principal, string) (translationMemory, error)
+	listMemoryEntries(context.Context, principal, string, memoryEntryFilters) ([]memoryEntry, int, error)
+	exportBilingualRows(context.Context, principal, string, bilingualExportQuery) ([]editor_export.Row, error)
+	importBilingualRows(context.Context, principal, string, bilingualImportInput) (bilingualImportCounts, error)
+	listJobs(context.Context, principal, jobFilters) ([]job, int, error)
+	getJob(context.Context, principal, string) (job, error)
+	updateJob(context.Context, principal, string, jobPatch) (job, error)
+	updateProject(context.Context, principal, string, projectPatch) (project, error)
+	upsertStrings(context.Context, principal, string, []stringUpsert) (stringBatchResult, error)
+	exportMemoryEntries(context.Context, principal, string, memoryExportQuery) (interchangeFile, error)
+	importMemoryEntries(context.Context, principal, string, memoryImportInput) (memoryImportResult, error)
+	exportGlossary(context.Context, principal, string, string) (interchangeFile, error)
+	queueGlossaryImport(context.Context, principal, string, glossaryImportInput) (glossaryImportReport, error)
+	getGlossaryImportReport(context.Context, principal, string, string) (glossaryImportReport, error)
 }
 
-type postgresStore struct{ pool *pgxpool.Pool }
+type postgresStore struct {
+	pool *pgxpool.Pool
+	// objects and glossaryImports are optional; glossary imports need both.
+	objects         *objectstore.Registry
+	glossaryImports glossaryImportQueue
+}
+
+// workspaceOperatorPredicate matches go-svc's org-wide glossary, memory, and project access roles.
+const workspaceOperatorPredicate = `EXISTS (
+	SELECT 1 FROM organization_memberships om
+	WHERE om.organization_id = $1 AND om.user_id = $2 AND om.role IN ('admin', 'localization_manager')
+)`
+
+// projectTeamMemberPredicate expects a `p` projects alias. Projects without a team belong to
+// the default team, matching go-svc's project, glossary, and memory access rules.
+const projectTeamMemberPredicate = `EXISTS (
+	SELECT 1 FROM team_memberships tm JOIN teams t ON t.id = tm.team_id
+	WHERE tm.user_id = $2 AND t.organization_id = $1
+		AND (t.id = p.team_id OR (p.team_id IS NULL AND t.slug = 'default'))
+)`
 
 const accessibleProjectPredicate = `
 	p.organization_id = $1
 	AND (
-		EXISTS (
-			SELECT 1
-			FROM organization_memberships om
-			WHERE om.organization_id = $1
-				AND om.user_id = $2
-				AND om.role IN ('admin', 'localization_manager')
-		)
-		OR EXISTS (
-			SELECT 1
-			FROM team_memberships tm
-			WHERE tm.user_id = $2 AND tm.team_id = p.team_id
-		)
+		` + workspaceOperatorPredicate + `
+		OR ` + projectTeamMemberPredicate + `
 	)`
 
 const projectColumns = `

@@ -61,6 +61,9 @@ export async function validateScanSegment(
       targetLocale: input.targetLocale,
       maxLength: input.maxLength ?? 0,
       ...(input.messageFormat ? { messageFormat: input.messageFormat } : {}),
+      ...(input.placeholderPatterns?.length
+        ? { placeholderPatterns: [...input.placeholderPatterns] }
+        : {}),
       modes: QA_MODES.filter((mode) => policy[mode].enabled),
       acceptedWords,
     },

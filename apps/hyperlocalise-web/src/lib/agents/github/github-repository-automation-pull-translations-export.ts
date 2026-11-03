@@ -242,6 +242,8 @@ export async function listPullTranslationExportCandidates(input: {
         eq(schema.jobs.organizationId, input.organizationId),
         eq(schema.translationJobDetails.type, "file"),
         eq(schema.jobs.status, "succeeded"),
+        // Only jobs that produced files; a task for people marked done has none.
+        eq(schema.translationJobDetails.outcomeKind, "file_result"),
         inArray(schema.translationJobDetails.sourceFileVersionId, versionIds),
       ),
     )

@@ -23,6 +23,21 @@ function clientWith(fetchMock: ReturnType<typeof vi.fn>, getAccessToken = () => 
 }
 
 describe("GoSvcClient", () => {
+  it("calls the browser's fetch on nothing but window, which refuses anything else", async () => {
+    const receivers: unknown[] = [];
+    vi.stubGlobal("fetch", function (this: unknown) {
+      receivers.push(this);
+      return Promise.resolve(Response.json({ dictionaries: [], total: 0 }));
+    });
+    try {
+      await new GoSvcClient({ getAccessToken: () => "access-token" }).dictionary.list("acme");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(receivers).toHaveLength(1);
+    expect([undefined, globalThis]).toContain(receivers[0]);
+  });
+
   it("uses the AWS origin, Bearer access token, and no cookies", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       Response.json({

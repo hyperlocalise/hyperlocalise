@@ -46,6 +46,8 @@ type validateSegmentRequest struct {
 	TargetLocale  string   `json:"targetLocale,omitempty"`
 	AcceptedWords []string `json:"acceptedWords,omitempty"`
 	MessageFormat string   `json:"messageFormat,omitempty"`
+	// PlaceholderPatterns are the file's custom placeholder regular expressions.
+	PlaceholderPatterns []string `json:"placeholderPatterns,omitempty"`
 }
 
 type validateSegmentResponse struct {
@@ -83,6 +85,7 @@ type handler struct {
 	overview             *overviewAPI
 	publicTranslations   *publicTranslationsAPI
 	publicJobs           *publicJobsAPI
+	publicMemory         *publicMemoryAPI
 	workspace            *workspaceAPI
 	reports              *reportingAPI
 	autumn               *autumn.Client
@@ -168,6 +171,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.publicJobs != nil {
 		h.publicJobs.register(mux)
+	}
+	if h.publicMemory != nil {
+		h.publicMemory.register(mux)
 	}
 	if h.workspace != nil {
 		h.registerDomainResearch(mux, verifier)
@@ -257,6 +263,15 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 		h.applyPlaintext(w, r)
 	})
 	mux.Handle("POST /v1/editor-export/filtered/serialize", editorExport)
+	mux.HandleFunc("POST /internal/editor-export/filtered/parse", func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" || !requireServerCallToken(w, r) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+			}
+			return
+		}
+		h.parseEditorFilteredExport(w, r)
+	})
 	for pattern, route := range map[string]http.HandlerFunc{
 		"PUT /v1/storage/object":         h.putObject,
 		"POST /v1/storage/read":          h.getObject,

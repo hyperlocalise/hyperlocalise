@@ -29,6 +29,8 @@ import {
 } from "@/lib/translation/ooxml/ooxml-paragraph";
 import type { OoxmlError } from "@/lib/translation/ooxml/ooxml-tree";
 import { readPptxEntries } from "@/lib/translation/ooxml/pptx-deck";
+import { getRepositorySourceFileImportSettings } from "@/lib/projects/files/source-file-import-settings";
+import type { ExcelImportSettings } from "@/lib/projects/files/source-file-import-settings-schema";
 import { spreadsheetXlsxContent } from "@/lib/translation/xlsx/xls-workbook";
 import {
   loadXlsxWorkbook,
@@ -94,6 +96,7 @@ async function readWorkbookEntries(
   file: StoredOfficeFile,
   sourceLocale: string | null,
   locale: string,
+  importSettings?: ExcelImportSettings,
 ): Promise<Result<XlsxEntry[], XlsxWorkbookError>> {
   const content = spreadsheetXlsxContent(file.content);
   if (isErr(content)) {
@@ -103,7 +106,7 @@ async function readWorkbookEntries(
   if (isErr(workbook)) {
     return workbook;
   }
-  return ok(readXlsxEntries(workbook.value, sourceLocale, locale));
+  return ok(readXlsxEntries(workbook.value, sourceLocale, locale, importSettings));
 }
 
 function readParagraphEntries(
@@ -125,6 +128,7 @@ export async function loadProjectOfficeSourceEntries(input: {
   projectId: string;
   storedFileId: string;
   sourcePath: string;
+  excelImportSettings?: ExcelImportSettings;
 }): Promise<Result<ProjectSourceStringEntry[], ProjectOfficeEntriesError>> {
   const file = await loadStoredOfficeFile(input);
   if (isErr(file)) {
@@ -141,6 +145,7 @@ export async function loadProjectOfficeSourceEntries(input: {
       file.value,
       sourceLocale.value,
       sourceLocale.value ?? "",
+      input.excelImportSettings,
     );
     if (isErr(entries)) {
       return entries;
@@ -178,6 +183,7 @@ export async function loadProjectOfficeTargetEntries(input: {
   storedFileId: string;
   sourcePath: string;
   targetLocale: string;
+  excelImportSettings?: ExcelImportSettings;
 }): Promise<Result<Record<string, string>, ProjectOfficeEntriesError>> {
   const file = await loadStoredOfficeFile(input);
   if (isErr(file)) {
@@ -189,7 +195,21 @@ export async function loadProjectOfficeTargetEntries(input: {
     if (isErr(sourceLocale)) {
       return sourceLocale;
     }
-    const entries = await readWorkbookEntries(file.value, sourceLocale.value, input.targetLocale);
+    const excelImportSettings =
+      input.excelImportSettings ??
+      (
+        await getRepositorySourceFileImportSettings({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          sourcePath: input.sourcePath,
+        })
+      )?.importSettings.excel;
+    const entries = await readWorkbookEntries(
+      file.value,
+      sourceLocale.value,
+      input.targetLocale,
+      excelImportSettings,
+    );
     if (isErr(entries)) {
       return entries;
     }

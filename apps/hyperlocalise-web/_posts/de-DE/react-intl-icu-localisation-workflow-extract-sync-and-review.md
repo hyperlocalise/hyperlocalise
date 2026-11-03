@@ -1,7 +1,7 @@
 ---
 title: "React Intl und ICU-Lokalisierung: Mit Hyperlocalise extrahieren, synchronisieren und überprüfen"
 date: 2026-09-24T00:00:00.000Z
-excerpt: "\"Integrieren Sie react-intl und die ICU-Nachrichtensyntax in einen repository-nativen Workflow: Extrahieren Sie Kataloge mit der Hyperlocalise-CLI, validieren Sie Pluralformen in Pull Requests, prüfen Sie die Übersetzungen in Hyperlocalise und liefern Sie übersetzte JSON-Dateien in die Produktion aus.\""
+excerpt: "\"\\\\\"Integrieren Sie react-intl und die ICU-Nachrichtensyntax in einen repository-nativen Workflow: Extrahieren Sie Kataloge mit der Hyperlocalise-CLI, validieren Sie Pluralformen in Pull Requests, prüfen Sie die Übersetzungen in Hyperlocalise und liefern Sie übersetzte JSON-Dateien in die Produktion aus.\\\\\"\""
 category: Technik
 tags:
   - react-intl
@@ -122,7 +122,7 @@ Vermeide `--flatten` bei ICU-Nachrichten, die als einzelne react-intl-Einheiten 
 Erstelle `i18n.yml` im Stammverzeichnis des Repositorys (oder in deinem App-Verzeichnis, falls das Monorepo die Konfiguration neben der UI ablegt):
 
 ```yaml
-version: hyperlocalise@1.13.6
+version: hyperlocalise@1.13.7
 
 locales:
   source: en-US

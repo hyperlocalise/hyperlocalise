@@ -114,7 +114,10 @@ export function formatCheckForSegment(
   glossaryTerms: ContentEditorGlossaryTerm[] = [],
 ): ContentEditorFormatCheck[] {
   const checks: ContentEditorFormatCheck[] = [];
-  const formatOptions = { messageFormat: segment.messageFormat };
+  const formatOptions = {
+    messageFormat: segment.messageFormat,
+    placeholderPatterns: segment.placeholderPatterns,
+  };
   const sourceAnalysis = analyzeCatMessageFormat(segment.sourceText, formatOptions);
   const recoveredValue = recoverMarkdownMarkupTokens(segment.sourceText, value) ?? value;
   const targetAnalysis = analyzeCatMessageFormat(recoveredValue, formatOptions);
@@ -268,6 +271,9 @@ function fileContextFor(
     ...(contentEditorFile.ingestState ? { ingestState: contentEditorFile.ingestState } : {}),
     ...(contentEditorFile.ingestError ? { ingestError: contentEditorFile.ingestError } : {}),
     ...(contentEditorFile.messageFormat ? { messageFormat: contentEditorFile.messageFormat } : {}),
+    ...(contentEditorFile.placeholderPatterns?.length
+      ? { placeholderPatterns: contentEditorFile.placeholderPatterns }
+      : {}),
   };
 }
 
@@ -300,6 +306,9 @@ export function projectFileCatToWorkspaceState(
     ...(segment.isLocked ? { isLocked: true } : {}),
     ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
     ...(segment.messageFormat ? { messageFormat: segment.messageFormat } : {}),
+    ...(segment.placeholderPatterns?.length
+      ? { placeholderPatterns: segment.placeholderPatterns }
+      : {}),
     ...(segment.externalResourceId ? { externalResourceId: segment.externalResourceId } : {}),
     ...(segment.resourceType ? { resourceType: segment.resourceType } : {}),
     ...(segment.occurrenceCount ? { occurrenceCount: segment.occurrenceCount } : {}),

@@ -28,6 +28,12 @@ You need source files and at least one target locale. Check the generated files 
 
 Queue exports contain up to **5,000 matching segments** in queue order. Split larger handoffs by source file or narrower search/filter criteria. An empty filter result cannot be exported.
 
+## Re-import a bilingual file
+
+On a native project, open **More actions** → **Import bilingual file…** in the Content Editor and upload the CSV, TMX, XLF, XLIFF, or XLSX file you exported. Matching keys in the current locale are updated. Empty targets are skipped. The import is scoped to the open file, or to every file on the all-files queue, and it uses the same 5,000-string cap.
+
+Use this after you repair inline tags or placeholders in an external tool. Verify the saved strings in the editor before you approve. Provider-backed projects cannot re-import bilingual files.
+
 ## Missing or incorrect output
 
 Check the source path and target locale first. If text is missing, inspect untranslated segments and the generation job. If a queue export has fewer rows than expected, clear filters or check the 5,000-segment limit.

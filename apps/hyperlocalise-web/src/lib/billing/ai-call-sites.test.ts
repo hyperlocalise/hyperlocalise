@@ -51,6 +51,8 @@ const AI_CALL_SITES: Record<string, string> = {
   "lib/agents/slack/image-attachments.ts": "not billed yet (Slack image request reading)",
   "lib/agents/video-generation.ts": "agent run and video units",
   "lib/ai/evaluate.ts": "not billed: no callers",
+  "lib/engine-setup/extract-engine-signals.ts":
+    "not billed yet (engine setup wizard; capped at ENGINE_SETUP_DAILY_RUN_LIMIT runs per org per day)",
   "lib/localisation-audit/company-profile.ts": "not billed: public website audit, no workspace",
   "lib/localisation-audit/credits/luna.ts": "not billed: public website audit, no workspace",
   "lib/projects/files/document-variant-service.ts": "AI credit tokens",

@@ -55,10 +55,13 @@ vi.mock("./source-file-ingest", () => ({
   enqueueSourceFileIngestAfterUpload: enqueueSourceFileIngestAfterUploadMock,
 }));
 
-vi.mock("@/lib/log", () => ({
-  createLogger: vi.fn(() => ({ warn: loggerWarnMock })),
-  serializeErrorForLog: vi.fn((error: Error) => ({ error })),
-}));
+vi.mock("@/lib/log", async () => {
+  const { createTestLogger } = await import("@/test/create-test-logger");
+  return {
+    createLogger: vi.fn(() => createTestLogger({ warn: loggerWarnMock })),
+    serializeErrorForLog: vi.fn((error: Error) => ({ error })),
+  };
+});
 
 import { uploadSourceFile } from "./source-file-upload-service";
 

@@ -75,6 +75,7 @@ go_test(
         "generic_xml_parser_scout_test.go",
         "generic_xml_parser_test.go",
         "html_parser_test.go",
+        "import_options_test.go",
         "ini_benchmark_test.go",
         "ini_parser_test.go",
         "ini_regression_test.go",

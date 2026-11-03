@@ -266,21 +266,27 @@ function createQaHighlightExtension(
   });
 }
 
-function createCatMessageFormatExtension() {
+function createCatMessageFormatExtension(
+  getPlaceholderPatterns: () => readonly string[] | undefined,
+) {
   return Extension.create({
     name: "contentEditorMessageFormatDecorations",
     addProseMirrorPlugins() {
       let previousDocument: unknown;
+      let previousPatterns: readonly string[] | undefined;
       let previousDecorations = DecorationSet.empty;
       return [
         new Plugin({
           key: new PluginKey("contentEditorMessageFormatDecorations"),
           props: {
             decorations(state) {
-              if (state.doc === previousDocument) return previousDecorations;
+              const placeholderPatterns = getPlaceholderPatterns();
+              if (state.doc === previousDocument && placeholderPatterns === previousPatterns) {
+                return previousDecorations;
+              }
               const textRanges = contentEditorTextOffsetRanges(state.doc);
               const text = documentSearchText(state.doc);
-              const analysis = analyzeCatMessageFormat(text);
+              const analysis = analyzeCatMessageFormat(text, { placeholderPatterns });
               const decorations: Decoration[] = [];
 
               analysis.tokens.forEach((token) => {
@@ -316,6 +322,7 @@ function createCatMessageFormatExtension() {
               }
 
               previousDocument = state.doc;
+              previousPatterns = placeholderPatterns;
               previousDecorations = DecorationSet.create(state.doc, decorations);
               return previousDecorations;
             },
@@ -336,7 +343,6 @@ const contentEditorTargetEditorExtensions = [
       HTMLAttributes: { class: "text-primary underline", target: null },
     },
   }),
-  createCatMessageFormatExtension(),
   createOfficeRunKeyboardExtension(() => officeRunKeyboardRef.current()),
 ] as unknown as Extensions;
 
@@ -444,17 +450,19 @@ function renderHighlightedPlainText(
 function ContentEditorMessageFormatParts({
   message,
   companionMessage,
+  placeholderPatterns,
   highlightTokens,
   highlightStatus,
   highlightWholeTerm,
 }: {
   message: string;
   companionMessage?: string;
+  placeholderPatterns?: readonly string[];
   highlightTokens: string[];
   highlightStatus: "warn" | "fail";
   highlightWholeTerm: boolean;
 }) {
-  const analysis = analyzeCatMessageFormat(message);
+  const analysis = analyzeCatMessageFormat(message, { placeholderPatterns });
   const displayMessage = analysis.message;
   const ranges = analysis.tokens
     .filter(
@@ -532,6 +540,7 @@ export function ContentEditorMessagePreview({
   message,
   companionMessage,
   className,
+  placeholderPatterns,
   highlightTokens = [],
   highlightStatus = "warn",
   highlightWholeTerm = false,
@@ -539,6 +548,8 @@ export function ContentEditorMessagePreview({
   message: string;
   companionMessage?: string;
   className?: string;
+  /** The file's custom placeholder regular expressions. */
+  placeholderPatterns?: readonly string[];
   highlightTokens?: string[];
   highlightStatus?: "warn" | "fail";
   highlightWholeTerm?: boolean;
@@ -589,6 +600,7 @@ export function ContentEditorMessagePreview({
               <ContentEditorMessageFormatParts
                 message={span.label}
                 companionMessage={companionMessage}
+                placeholderPatterns={placeholderPatterns}
                 highlightTokens={highlightTokens}
                 highlightStatus={highlightStatus}
                 highlightWholeTerm={highlightWholeTerm}
@@ -599,6 +611,7 @@ export function ContentEditorMessagePreview({
               <ContentEditorMessageFormatParts
                 message={span.text}
                 companionMessage={companionMessage}
+                placeholderPatterns={placeholderPatterns}
                 highlightTokens={highlightTokens}
                 highlightStatus={highlightStatus}
                 highlightWholeTerm={highlightWholeTerm}
@@ -614,6 +627,7 @@ export function ContentEditorMessagePreview({
     <span className={className}>
       <ContentEditorMessageFormatParts
         message={displayMessage}
+        placeholderPatterns={placeholderPatterns}
         highlightTokens={highlightTokens}
         highlightStatus={highlightStatus}
         highlightWholeTerm={highlightWholeTerm}
@@ -688,6 +702,7 @@ export function ContentEditorTargetEditor({
   highlightStatus = "warn",
   highlightWholeTerm = false,
   messageFormat,
+  placeholderPatterns,
   onChange,
 }: {
   sourceText: string;
@@ -695,6 +710,8 @@ export function ContentEditorTargetEditor({
   value: string;
   maxLength?: number;
   messageFormat?: MessageFormat | null;
+  /** The file's custom placeholder regular expressions. */
+  placeholderPatterns?: readonly string[];
   disabled?: boolean;
   compact?: boolean;
   inline?: boolean;
@@ -731,13 +748,15 @@ export function ContentEditorTargetEditor({
     status: highlightStatus,
     wholeTerm: highlightWholeTerm,
   };
+  const placeholderPatternsRef = useRef(placeholderPatterns);
+  placeholderPatternsRef.current = placeholderPatterns;
   const sourceAnalysis = useMemo(
-    () => analyzeCatMessageFormat(sourceText, { messageFormat }),
-    [messageFormat, sourceText],
+    () => analyzeCatMessageFormat(sourceText, { messageFormat, placeholderPatterns }),
+    [messageFormat, placeholderPatterns, sourceText],
   );
   const targetAnalysis = useMemo(
-    () => analyzeCatMessageFormat(value, { messageFormat }),
-    [messageFormat, value],
+    () => analyzeCatMessageFormat(value, { messageFormat, placeholderPatterns }),
+    [messageFormat, placeholderPatterns, value],
   );
   const parityIssues = useMemo(
     () => compareCatMessageFormats(sourceAnalysis, targetAnalysis),
@@ -815,6 +834,7 @@ export function ContentEditorTargetEditor({
   const editor = useEditor({
     extensions: [
       ...contentEditorTargetEditorExtensions,
+      createCatMessageFormatExtension(() => placeholderPatternsRef.current),
       createQaHighlightExtension(() => highlightRef.current),
     ],
     content: editorContentFromValue(),
@@ -872,6 +892,13 @@ export function ContentEditorTargetEditor({
   useEffect(() => {
     if (autoFocus && editor) editor.commands.focus("end");
   }, [autoFocus, editor]);
+
+  useEffect(() => {
+    // Redraw placeholder chips when the file's patterns load or change.
+    if (editor && !editor.isDestroyed) {
+      editor.view.dispatch(editor.state.tr.setMeta("addToHistory", false));
+    }
+  }, [editor, placeholderPatterns]);
 
   useEffect(() => {
     if (!editor || disabled) {

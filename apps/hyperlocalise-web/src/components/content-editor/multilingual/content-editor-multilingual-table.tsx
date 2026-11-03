@@ -204,6 +204,7 @@ const TranslationCell = observer(function TranslationCell({
           value={draft.text}
           maxLength={segment.maxLength}
           messageFormat={segment.messageFormat}
+          placeholderPatterns={segment.placeholderPatterns}
           onChange={(text) => draft.change(text)}
           compact
           inline

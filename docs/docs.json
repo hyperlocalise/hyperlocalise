@@ -214,6 +214,7 @@
                       "platform/connections/customer-io",
                       "platform/connections/iterable",
                       "platform/connections/loops",
+                      "platform/connections/hubspot",
                       "platform/connections/canva",
                       "platform/connections/figma",
                       "platform/connections/design-tools"
@@ -541,6 +542,8 @@
                         "root": "changelog",
                         "directory": "accordion",
                         "pages": [
+                          "changelog/v1-13-8",
+                          "changelog/v1-13-7",
                           "changelog/v1-13-6",
                           "changelog/v1-13-5",
                           "changelog/v1-13-4",

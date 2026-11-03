@@ -58,16 +58,24 @@ describe("loadProjectHtmlTranslationDownload", () => {
     expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
   });
 
-  it("returns null when the file has no translation keys loaded", async () => {
+  it("returns source HTML when the file has no ready translation keys", async () => {
     mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
       prefilled: {},
       loadedKeyCount: 0,
       translatedKeyCount: 0,
     });
+    mocks.getLatestRepositorySourceFileVersion.mockResolvedValue({ storedFileId: "stored_1" });
+    mocks.getStoredFileContent.mockResolvedValue({
+      content: Buffer.from("<td>&nbsp;</td><p>Welcome</p>", "utf-8"),
+    });
 
     const result = await loadProjectHtmlTranslationDownload(INPUT);
-    expect(result).toEqual(ok(null));
-    expect(mocks.getLatestRepositorySourceFileVersion).not.toHaveBeenCalled();
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result) || !result.value) {
+      throw new Error("expected HTML download");
+    }
+    expect(result.value.content.toString("utf-8")).toBe("<td>&nbsp;</td><p>Welcome</p>");
+    expect(result.value.translatedKeyCount).toBe(0);
   });
 
   it("composes translated HTML from ready entries", async () => {

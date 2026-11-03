@@ -60,7 +60,11 @@ import {
   createProviderAgentTranslationQueue,
   createProviderAgentWritebackQueue,
 } from "@/workflows/adapters";
-import type { LocalisationAuditQueue, TranslationQaScanQueue } from "@/lib/workflow/types";
+import type {
+  EngineSetupQueue,
+  LocalisationAuditQueue,
+  TranslationQaScanQueue,
+} from "@/lib/workflow/types";
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
 
 export type CreateAppOptions = {
@@ -76,6 +80,7 @@ export type CreateAppOptions = {
   translationFileImportQueue?: TranslationFileImportQueue;
   localisationAuditQueue?: LocalisationAuditQueue;
   translationQaScanQueue?: TranslationQaScanQueue;
+  engineSetupQueue?: EngineSetupQueue;
 };
 
 export function createApp(options: CreateAppOptions = {}): Hono<EvlogVariables> {

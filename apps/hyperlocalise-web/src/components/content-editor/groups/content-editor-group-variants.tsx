@@ -587,6 +587,7 @@ const VariantEditor = observer(function VariantEditor({
         value={text}
         maxLength={variant.editorMaxLength}
         messageFormat={segment.messageFormat}
+        placeholderPatterns={segment.placeholderPatterns}
         compact
         disabled={!variant.canEdit || variant.pending}
         ariaLabel={occurrencesLabel}

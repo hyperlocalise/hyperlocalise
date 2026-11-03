@@ -15,10 +15,14 @@ import { and, eq, like } from "drizzle-orm";
 import { canPushToGitHubRepository } from "@/lib/agents/repository-write-gate";
 import { db, schema } from "@/lib/database/client";
 import { uploadRepositorySourceFilesFromSandbox } from "@/lib/file-storage/upload-repository-source-files";
-import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
+import {
+  inferSupportedSourceUploadFormat,
+  inferSupportedTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 import { runSandboxCommand } from "@/lib/translation/sandbox";
 import { isSafeRepositoryRelativePath } from "@/lib/i18n/safe-repository-path";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { loadProjectHtmlTranslationDownload } from "@/lib/projects/files/html-translation-download";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import {
   loadProjectOfficeTranslationDownload,
@@ -315,6 +319,29 @@ async function pushGithubTranslations(input: {
               officeDownload.value,
             ),
             content: officeDownload.value.content,
+          });
+        }
+        continue;
+      }
+
+      if (inferSupportedTranslationFileFormat(file.sourcePath) === "html") {
+        const htmlDownload = await loadProjectHtmlTranslationDownload({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          sourcePath: file.sourcePath,
+          targetLocale: locale,
+        });
+        if (isErr(htmlDownload)) {
+          logger.warn(
+            { projectId: input.projectId, errorCode: htmlDownload.error.code },
+            "content sync skipped HTML export",
+          );
+          continue;
+        }
+        if (htmlDownload.value && htmlDownload.value.translatedKeyCount > 0) {
+          candidates.push({
+            targetPath: buildContentSyncLocalePath(providerPath, locale),
+            content: htmlDownload.value.content,
           });
         }
         continue;

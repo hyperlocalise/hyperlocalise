@@ -26,13 +26,18 @@ const {
   resolveGithubPullRequestMergeBaseShaMock: vi.fn(),
 }));
 
-vi.mock("@/lib/log", () => ({
-  createLogger: vi.fn(() => ({
-    error: loggerErrorMock,
-    info: loggerInfoMock,
-  })),
-  serializeErrorForLog: vi.fn((error: Error) => ({ error })),
-}));
+vi.mock("@/lib/log", async () => {
+  const { createTestLogger } = await import("@/test/create-test-logger");
+  return {
+    createLogger: vi.fn(() =>
+      createTestLogger({
+        error: loggerErrorMock,
+        info: loggerInfoMock,
+      }),
+    ),
+    serializeErrorForLog: vi.fn((error: Error) => ({ error })),
+  };
+});
 
 vi.mock("../workspace-automation-dispatcher", () => ({
   dispatchWorkspaceAutomationsForGithubPullRequest:

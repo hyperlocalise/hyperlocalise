@@ -342,7 +342,6 @@ class TranslationJobExecutor {
     await captureJobStatus({
       jobId: claimedJob.id,
       status: "running",
-      operationKey: `status:${claimedJob.workflowRunId}:running`,
     });
 
     if (translateStringJobOverride) {
@@ -476,7 +475,6 @@ class TranslationJobCompletionService {
     await captureJobStatus({
       jobId: input.jobId,
       status: "succeeded",
-      operationKey: `status:${input.workflowRunId}:succeeded`,
     });
 
     const operationKey = `job:${input.jobId}:translation_jobs`;
@@ -573,11 +571,10 @@ class TranslationJobCompletionService {
         `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
       );
     }
-    // Reports saw the job start running; without this it would stay running there for good.
+    // A job that stopped holds its unfinished strings no more, so Reports recounts its days.
     await captureJobStatus({
       jobId: input.jobId,
       status: "failed",
-      operationKey: `status:${input.workflowRunId}:failed`,
     });
 
     serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobFailed, {

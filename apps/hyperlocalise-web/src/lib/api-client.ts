@@ -74,6 +74,7 @@ function createOrgSlugClient(origin: string) {
       "braze",
       "loops",
       "customer-io",
+      "hubspot",
       "iterable",
       "intercom-connections",
       "canva-connections",
@@ -90,7 +91,7 @@ function createOrgSlugClient(origin: string) {
       "intercom",
       "sanity",
     ]),
-    ...pickClientPaths(workspace, ["workspace", "billing", "reports"]),
+    ...pickClientPaths(workspace, ["workspace", "billing"]),
   };
 }
 

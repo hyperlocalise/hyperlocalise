@@ -16,12 +16,14 @@ export type ResolvedTransactionalCopy = {
   copyId: string;
   draftEmailMessageId: string | null;
   expectedRevisionId: string | null;
+  created: boolean;
 };
 
 export type ResolvedCampaignCopy = {
   copyId: string;
   emailMessageId: string | null;
   expectedRevisionId: string | null;
+  created: boolean;
 };
 
 type CopyResolutionInput = {
@@ -93,7 +95,7 @@ export async function resolveTransactionalCopy(
     tried.add(input.storedCopyId);
     const draft = await loadTransactionalDraft(input.client, input.storedCopyId);
     if (draft) {
-      return { copyId: input.storedCopyId, ...draft };
+      return { copyId: input.storedCopyId, created: false, ...draft };
     }
   }
   const listed = await input.client.listTransactionalEmails();
@@ -104,7 +106,7 @@ export async function resolveTransactionalCopy(
     }
     const draft = await loadTransactionalDraft(input.client, match.id);
     if (draft) {
-      return { copyId: match.id, ...draft };
+      return { copyId: match.id, created: false, ...draft };
     }
   } else if (duplicateCount > 0) {
     input.pushWarning(duplicateCopiesWarning(input.copyName, duplicateCount));
@@ -114,6 +116,7 @@ export async function resolveTransactionalCopy(
     copyId: created.id,
     draftEmailMessageId: created.draftEmailMessageId,
     expectedRevisionId: created.draftEmailMessageContentRevisionId,
+    created: true,
   };
 }
 
@@ -131,7 +134,7 @@ export async function resolveCampaignCopy(
     tried.add(input.storedCopyId);
     const loaded = await loadCampaignMessage(input.client, input.storedCopyId);
     if (loaded) {
-      return { copyId: input.storedCopyId, ...loaded };
+      return { copyId: input.storedCopyId, created: false, ...loaded };
     }
   }
   const listed = await input.client.listCampaigns();
@@ -142,7 +145,7 @@ export async function resolveCampaignCopy(
     }
     const loaded = await loadCampaignMessage(input.client, match.id);
     if (loaded) {
-      return { copyId: match.id, ...loaded };
+      return { copyId: match.id, created: false, ...loaded };
     }
     input.pushWarning(
       `${input.copyName}: exists in Loops but its email content is missing; ` +
@@ -158,5 +161,6 @@ export async function resolveCampaignCopy(
     copyId: created.id,
     emailMessageId: created.emailMessageId,
     expectedRevisionId: created.emailMessageContentRevisionId,
+    created: true,
   };
 }

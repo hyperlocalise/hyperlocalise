@@ -19,34 +19,72 @@ func (p JSONParser) Parse(content []byte) (map[string]string, error) {
 }
 
 func (p JSONParser) ParseWithContext(content []byte) (map[string]string, map[string]string, error) {
+	entries, err := p.ParseIngestEntries(content, JSONImportOptions{})
+	if err != nil {
+		return nil, nil, err
+	}
+	values := make(map[string]string, len(entries))
+	var entryContext map[string]string
+	for key, entry := range entries {
+		values[key] = entry.Text
+		if context := strings.TrimSpace(entry.Context); context != "" {
+			if entryContext == nil {
+				entryContext = map[string]string{}
+			}
+			entryContext[key] = context
+		}
+	}
+	return values, entryContext, nil
+}
+
+// ParseIngestEntries flattens JSON and applies optional key-path, sibling-field,
+// and HTML/ICU sub-filters.
+func (p JSONParser) ParseIngestEntries(content []byte, opts JSONImportOptions) (map[string]IngestEntry, error) {
 	var payload map[string]any
 	if err := json.Unmarshal(content, &payload); err != nil {
-		return nil, nil, fmt.Errorf("json decode: %w", err)
+		return nil, fmt.Errorf("json decode: %w", err)
 	}
 
 	if payload == nil {
-		return map[string]string{}, nil, nil
+		return map[string]IngestEntry{}, nil
 	}
 
 	if IsLottiePayload(payload) {
 		values, entryContext := parseLottiePayload(payload)
-		return values, entryContext, nil
+		return applyContextByKey(IngestEntriesFromStringMap(values), entryContext), nil
 	}
 
-	// Single-pass check and extraction for FormatJS catalogs avoids O(N log N)
-	// sorting of all keys and redundant iterations for descriptions.
 	if out, descriptions, isFormatJS, err := parseFormatJS(payload); err != nil {
-		return nil, nil, err
+		return nil, err
 	} else if isFormatJS {
-		return out, descriptions, nil
+		entries := applyContextByKey(IngestEntriesFromStringMap(out), descriptions)
+		return filterJSONIngestEntries(entries, opts), nil
 	}
 
-	out := make(map[string]string, len(payload))
-	if err := flattenJSON(out, "", payload); err != nil {
-		return nil, nil, err
+	collected := jsonCollectState{
+		values:               make(map[string]string, len(payload)),
+		contextByKey:         map[string]string{},
+		maxLengthByKey:       map[string]int{},
+		contextFields:        normalizeFieldNameSet(opts.ContextFields),
+		characterLimitFields: normalizeFieldNameSet(opts.CharacterLimitFields),
+	}
+	if err := flattenJSONWithOptions(&collected, "", payload); err != nil {
+		return nil, err
 	}
 
-	return out, nil, nil
+	entries := applyMaxLengthByKey(
+		applyContextByKey(IngestEntriesFromStringMap(collected.values), collected.contextByKey),
+		collected.maxLengthByKey,
+	)
+	return filterJSONIngestEntries(entries, opts), nil
+}
+
+type jsonCollectState struct {
+	values               map[string]string
+	contextByKey         map[string]string
+	maxLengthByKey       map[string]int
+	contextFields        map[string]struct{}
+	characterLimitFields map[string]struct{}
 }
 
 func parseFormatJS(payload map[string]any) (map[string]string, map[string]string, bool, error) {
@@ -129,9 +167,22 @@ func FlattenJSON(out map[string]string, prefix string, input map[string]any) err
 }
 
 func flattenJSON(out map[string]string, prefix string, input map[string]any) error {
-	// BOLT OPTIMIZATION: Avoid O(N log N) sorting of keys as map[string]string
-	// is unordered and sorting adds unnecessary allocations and CPU overhead.
+	state := jsonCollectState{
+		values:         out,
+		contextByKey:   map[string]string{},
+		maxLengthByKey: map[string]int{},
+	}
+	return flattenJSONWithOptions(&state, prefix, input)
+}
+
+func flattenJSONWithOptions(state *jsonCollectState, prefix string, input map[string]any) error {
+	siblingContext, siblingLimit := siblingJSONMetadata(input, state.contextFields, state.characterLimitFields)
+
 	for key, value := range input {
+		if fieldNameInSet(key, state.contextFields) || fieldNameInSet(key, state.characterLimitFields) {
+			continue
+		}
+
 		nextKey := key
 		if prefix != "" {
 			nextKey = prefix + "." + key
@@ -139,13 +190,19 @@ func flattenJSON(out map[string]string, prefix string, input map[string]any) err
 
 		switch typed := value.(type) {
 		case string:
-			out[nextKey] = typed
+			state.values[nextKey] = typed
+			if siblingContext != "" {
+				state.contextByKey[nextKey] = siblingContext
+			}
+			if siblingLimit > 0 {
+				state.maxLengthByKey[nextKey] = siblingLimit
+			}
 		case []any:
-			if err := flattenJSONArray(out, nextKey, typed); err != nil {
+			if err := flattenJSONArrayWithOptions(state, nextKey, typed); err != nil {
 				return err
 			}
 		case map[string]any:
-			if err := flattenJSON(out, nextKey, typed); err != nil {
+			if err := flattenJSONWithOptions(state, nextKey, typed); err != nil {
 				return err
 			}
 		default:
@@ -156,20 +213,18 @@ func flattenJSON(out map[string]string, prefix string, input map[string]any) err
 	return nil
 }
 
-func flattenJSONArray(out map[string]string, prefix string, input []any) error {
+func flattenJSONArrayWithOptions(state *jsonCollectState, prefix string, input []any) error {
 	for idx, item := range input {
-		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
-		// to reduce allocation and formatting overhead in recursive flattening.
 		itemKey := prefix + "[" + strconv.Itoa(idx) + "]"
 		switch typed := item.(type) {
 		case string:
-			out[itemKey] = typed
+			state.values[itemKey] = typed
 		case map[string]any:
-			if err := flattenJSON(out, itemKey, typed); err != nil {
+			if err := flattenJSONWithOptions(state, itemKey, typed); err != nil {
 				return err
 			}
 		case []any:
-			if err := flattenJSONArray(out, itemKey, typed); err != nil {
+			if err := flattenJSONArrayWithOptions(state, itemKey, typed); err != nil {
 				return err
 			}
 		default:
@@ -178,4 +233,35 @@ func flattenJSONArray(out map[string]string, prefix string, input []any) error {
 	}
 
 	return nil
+}
+
+func siblingJSONMetadata(
+	input map[string]any,
+	contextFields map[string]struct{},
+	characterLimitFields map[string]struct{},
+) (string, int) {
+	var parts []string
+	limit := 0
+	for key, value := range input {
+		if fieldNameInSet(key, contextFields) {
+			if text, ok := value.(string); ok {
+				if trimmed := strings.TrimSpace(text); trimmed != "" {
+					parts = append(parts, trimmed)
+				}
+			}
+			continue
+		}
+		if fieldNameInSet(key, characterLimitFields) && limit <= 0 {
+			if parsed, ok := positiveIntFromJSONValue(value); ok {
+				limit = parsed
+				continue
+			}
+			if text, ok := value.(string); ok {
+				if parsed, ok := positiveIntFromJSONValue(json.Number(strings.TrimSpace(text))); ok {
+					limit = parsed
+				}
+			}
+		}
+	}
+	return joinParserContext(parts...), limit
 }

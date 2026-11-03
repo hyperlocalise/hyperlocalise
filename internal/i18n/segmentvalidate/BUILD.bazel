@@ -3,6 +3,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "segmentvalidate",
     srcs = [
+        "custom_placeholders.go",
         "debug.go",
         "extra_placeholders.go",
         "invariant.go",
@@ -28,6 +29,7 @@ go_library(
 go_test(
     name = "segmentvalidate_test",
     srcs = [
+        "custom_placeholders_test.go",
         "message_format_test.go",
         "plural_test.go",
         "profile_test.go",

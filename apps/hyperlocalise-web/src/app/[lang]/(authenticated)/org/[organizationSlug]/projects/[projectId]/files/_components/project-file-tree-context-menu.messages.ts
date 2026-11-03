@@ -45,4 +45,9 @@ export const projectFileTreeContextMenuMessages = defineMessages({
     id: "wJXdRoVqtA",
     description: "Context menu action to choose the placeholder syntax used to validate a file",
   },
+  importSettings: {
+    defaultMessage: "Import filters",
+    id: "eKC03Z1B9Y",
+    description: "Context menu action to configure HTML, JSON, and Excel import filters",
+  },
 });

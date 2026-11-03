@@ -30,6 +30,17 @@ You can upload a **TMX** or **CSV** file when you create a workspace memory, or 
 2. Select **TMX** or **CSV**.
 3. Either download **all locales** or pick a **source** and **target** locale pair to filter the file.
 
+## Public API
+
+TMX (and CSV) import and export are available with a personal access token on `https://api.hyperlocalise.com/v1`, the same host as job reads.
+
+| Method | Path | Permission |
+| ------ | ---- | ---------- |
+| GET | `/v1/translation-memories/{memoryId}/entries/export?format=tmx` | `memories:read` |
+| POST | `/v1/translation-memories/{memoryId}/entries/import` | `memories:write` |
+
+The import body is JSON with `format` (`tmx` or `csv`) and `content`. See [Files and translation jobs API](/platform/api#translation-memories).
+
 ## External TMS memories
 
 | Asset | Platform export | Platform import |

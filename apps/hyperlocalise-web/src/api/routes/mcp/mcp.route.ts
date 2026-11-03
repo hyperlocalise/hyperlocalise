@@ -2647,7 +2647,7 @@ async function createMcpServerForRequest(
     {
       annotations: MCP_READ_ONLY_TOOL,
       description:
-        "Download a reconstructed target translation file from an accessible Hyperlocalise project. JSON-compatible sources return UTF-8 text. dotLottie, Office, and PDF sources return base64-encoded bytes in `content` with `contentEncoding` set to `base64`. PDF responses may include `overflowKeys` when block text could not fit after wrapping.",
+        "Download a reconstructed target translation file from an accessible Hyperlocalise project. JSON-compatible sources and HTML return UTF-8 text. dotLottie, Office, and PDF sources return base64-encoded bytes in `content` with `contentEncoding` set to `base64`. PDF responses may include `overflowKeys` when block text could not fit after wrapping.",
       inputSchema: mcpDownloadTranslationsInputSchema,
     },
     async ({ projectId, sourcePath, locale }) => {
@@ -2693,6 +2693,12 @@ async function createMcpServerForRequest(
             return mcpToolError(
               "unsupported_binary_download",
               "The reconstructed translation file is not supported as UTF-8 text",
+            );
+
+          case "html_export_failed":
+            return mcpToolError(
+              "html_export_failed",
+              "Could not write translations into the HTML file",
             );
 
           case "lottie_export_failed":

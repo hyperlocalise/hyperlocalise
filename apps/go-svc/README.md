@@ -113,9 +113,9 @@ and reads the result. Neither package exposes an HTTP route.
 
 | Variable | Description |
 |----------|-------------|
-| `ELEVENLABS_API_KEY` | ElevenLabs API key sent as `xi-api-key`. Required for native `elevenlabs-*` Iris models. |
+| `ELEVENLABS_API_KEY` | ElevenLabs API key sent as `xi-api-key`. Required for native `elevenlabs-*` Iris models, including `elevenlabs-dubbing`. |
 | `ELEVENLABS_BASE_URL` | Optional. Defaults to `https://api.elevenlabs.io`. |
-| `FAL_KEY` | fal.ai API key sent as `Authorization: Key ...`. Required for native Flux, Kling, Seedance, Wan, MiniMax, Krea, Seedream, Bria, SeedVR, and ByteDance upscaler Iris models. |
+| `FAL_KEY` | fal.ai API key sent as `Authorization: Key ...`. Required for native Flux, Kling, Seedance, Wan, MiniMax, Krea, Seedream, Bria, SeedVR, ByteDance upscaler, and Sync lipsync Iris models. |
 | `FAL_QUEUE_URL` | Optional. Defaults to `https://queue.fal.run`. |
 
 Example Go usage:
@@ -132,6 +132,29 @@ queue, err := fal.NewClient(fal.Config{
 
 When a native client is unset, Iris falls back to `AI_GATEWAY_API_KEY` for that
 model. If no generation backend is configured, jobs fail with `PROVIDER_ERROR`.
+
+### Iris localisation
+
+The Iris editor localises its projects through these routes, all under
+`/v1/orgs/{organizationSlug}/iris` and authenticated like the generation routes:
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| POST | `/localise/lookup` | Glossary terms found in `texts` (with their `targetLocale` translation, forbidden flag and note), exact translation-memory matches, and the workspace knowledge memory. Reads only what the member's glossary and memory access allows. |
+| POST | `/localise/translate` | Translates up to 200 `messages` (`id`, `text`, `description`): approved memory matches first, then the translation model with the glossary, knowledge memory and `guidance` in the prompt. Results stay in request order. Translations that drop an ICU placeholder are left out. Billed as AI tokens. |
+| POST | `/localise/memory` | Saves approved `entries` (`source`, `target`) into `memoryId`, or the oldest native memory, or a new "Iris" memory. Admins and localization managers only; existing pairs are skipped. |
+
+Localisation models on `/generate`: `elevenlabs-dubbing` (ElevenLabs Dubbing:
+`media`, `targetLanguage`, optional `sourceLanguage` and `speakers`; needs
+`ELEVENLABS_API_KEY`), `sync-lipsync-2` (fal `fal-ai/sync-lipsync/v2`: `video`,
+`audio`, optional `syncMode`; needs `FAL_KEY`), `image-localise` (rewrites an
+`image`'s copy for `targetLocale`, optionally with fixed `translations`) and
+`image-text` (reads an `image`'s copy into `text.json`), both on AI Gateway.
+
+| Variable | Description |
+|----------|-------------|
+| `IRIS_TRANSLATE_MODEL` | Optional. AI Gateway model for `/localise/translate`. Defaults to `openai/gpt-6-luna`, the model go-svc and the agents use by default. |
+| `IRIS_VISION_MODEL` | Optional. AI Gateway model for `image-text`. Defaults to `openai/gpt-6-luna`. |
 
 ### Datadog tracing
 
@@ -296,6 +319,7 @@ For tracing, the ECS task definition sets `DD_TRACE_AGENT_URL`, `DD_TRACE_ENABLE
 | `GET` | `/v1/jobs/latest` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `jobs:read` | Latest succeeded file translation job for a project source path |
 | `GET` | `/v1/jobs/{jobId}` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `jobs:read` | One job with its stored output file metadata |
 | `GET` | `/v1/jobs/{jobId}/status` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `jobs:read` | One job's kind and lifecycle status |
+| `GET` | `/v1/jobs/{jobId}/analysis` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `jobs:read` | One job's units by target locale, step, and translation memory match band |
 | `POST` | `/ofrep/v1/evaluate/flags/{key}` | Publishable `hlk_...` key | Evaluate one Hyperlab flag (OFREP) |
 | `POST` | `/ofrep/v1/evaluate/flags` | Publishable `hlk_...` key | Evaluate all Hyperlab flags (OFREP bulk) |
 
@@ -400,18 +424,22 @@ Read job status and stored result metadata:
 - `GET /v1/jobs/latest?projectId=...&sourcePath=...`
 - `GET /v1/jobs/{jobId}`
 - `GET /v1/jobs/{jobId}/status`
+- `GET /v1/jobs/{jobId}/analysis?unit=words`
 
 These routes replace the former web app reads on `https://hyperlocalise.com/api/v1/jobs/...`. Clients call `https://api.hyperlocalise.com/v1/jobs/...`. Job creation (`POST /api/v1/jobs`) stays on the web app.
 
 All routes require PAT or WorkOS agent authentication with `jobs:read`. Workspace-wide roles can read all jobs in the organization; other roles are limited to projects accessible through their teams.
 
-Responses are wrapped in a `job` object. Timestamps use UTC ISO-8601 with millisecond precision. Job reads return stored PostgreSQL metadata only and never fetch output file contents.
+Responses are wrapped in a `job` object, except `/analysis`, which returns an `analysis` object. Timestamps use UTC ISO-8601 with millisecond precision. Job reads return stored PostgreSQL metadata only and never fetch output file contents.
+
+`/analysis` reads the same Reports rows as the task Report tab (`reporting_daily_by_task` and `reporting_task_analyses`). `unit` is `words` (default), `strings`, `characters`, or `characters_with_spaces`. Every band appears in each locale row, zero when empty. It returns counts only; money stays on the session-authenticated `/v1/orgs/{organizationSlug}/reports/...` routes.
 
 `/v1/jobs/latest` normalizes `sourcePath` and returns the latest successful `file_result` translation job for the newest matching source file version, skipping queued or failed jobs.
 
 | Status | `error` | When |
 |--------|---------|------|
 | 400 | `invalid_job_payload` | Invalid `/latest` query |
+| 400 | `invalid_analysis_query` | Unknown or repeated `unit` on `/analysis` |
 | 401 | `unauthorized` | Missing or invalid credentials |
 | 403 | `forbidden` | Missing `jobs:read` or workspace access |
 | 404 | `job_not_found` | Job is missing, inaccessible, or no latest match exists |
@@ -744,7 +772,7 @@ go test ./apps/go-svc/internal/autumn -run HTTPStatus
 
 ## Reports
 
-The Reports page's reads and writes under `/v1/orgs/{organizationSlug}/reports`, ported from the web app's Hono routes (`apps/hyperlocalise-web/src/api/routes/reports`) one section at a time; the web app keeps recording the work and refreshing the daily summary. Each route answers as the web route does: same query fields, error codes, shapes and permissions, plus a `message` on errors as every go-svc API gives.
+The Reports page's reads and writes under `/v1/orgs/{organizationSlug}/reports`, the only copy of them; the web app keeps recording the work and refreshing the daily summary. Errors carry a `message`, as every go-svc API gives.
 
 Requires workspace authentication, `DATABASE_URL`, and the `workspace-reports` feature flag. A disabled or unavailable flag returns `403 feature_unavailable`.
 
@@ -772,7 +800,7 @@ Requires workspace authentication, `DATABASE_URL`, and the `workspace-reports` f
 | DELETE | `/reports/time-entries/{id}` | Own, or `billing:write` | Void an entry and its cost |
 | POST | `/internal/reports/{kind}` | Service token | The MCP `get_report` tool: `{organizationId, userId, query}` (query values as text, or numbers and booleans) answered as `activity`, `words` (with its chart), `time`, `ai` or `costs` for that member, with `summary` and `stillUpdating` |
 
-**Access control:** `billing:read` (admins and localization managers) sees reports and money; the internal route applies the named member's own access (workspace, flag, billing); writes hold the web app's locks (the task row, and `pg_advisory_xact_lock(hashtext('reporting-rate-card:<workspace>:<name>'))` for a card) and write the same `reporting_audit` rows; `billing:write` (admins) changes rate cards, budgets and pricing; `jobs:write` logs time. Project visibility follows team membership, with organization-wide access for admins and localization managers; a filter for a project the viewer cannot open reads nothing.
+**Access control:** `billing:read` (admins and localization managers) sees reports and money; the internal route applies the named member's own access (workspace, flag, billing); writes hold locks (the task row, and `pg_advisory_xact_lock(hashtext('reporting-rate-card:<workspace>:<name>'))` for a card) and write the same `reporting_audit` rows; `billing:write` (admins) changes rate cards, budgets and pricing; `jobs:write` logs time. Project visibility follows team membership, with organization-wide access for admins and localization managers; a filter for a project the viewer cannot open reads nothing.
 
 **Dates:** UTC calendar days as `YYYY-MM-DD`, from 2000 on, never past today; the default period is the last 28 days and is compared with the period of the same length before it; periods over 45 days are charted by week (Monday start).
 
@@ -886,9 +914,10 @@ also list and revoke other members' tokens through `api_keys:read` and
 - **Storage.** Tokens use the `hl_` prefix with 32 random bytes encoded as
   base64url. Only the SHA-256 digest and 8-character display prefix are stored.
   Plaintext is returned once on creation and is never logged or persisted.
-- **Scopes.** Tokens support `jobs:read`, `jobs:write`, `files:read`, and
-  `files:write`, capped by the owner's role. Omitting `permissions` grants all
-  scopes available to that role.
+- **Scopes.** Tokens support `jobs:read`, `jobs:write`, `files:read`,
+  `files:write`, `memories:read`, and `memories:write`, capped by the owner's
+  role. Omitting `permissions` grants all scopes available to that role.
+  `memories:write` is limited to `admin` and `localization_manager`.
 - **Issuance.** Creation locks the caller's membership row to serialize against
   membership removal. A token is never committed active unless its
   `pat.created` audit record succeeds.
@@ -1049,8 +1078,13 @@ CRUD, project attachments, glossary concepts/terms, memory entries, and
 CSV/TBX/TMX (plus glossary XLSX export) interchange. Glossary import and export
 are asynchronous: GoSvc creates a run, signs the upload or download, publishes
 an SQS message, and exposes the run report while the existing
-`apps/glossary-interchange-lambda` worker processes it. Replace imports retain a
-TBX backup reference in `glossary_import_runs`.
+`apps/glossary-interchange-lambda` worker processes it. The worker (and the
+Go preview parser) import Phrase TBX 2 termbases, including forbidden terms.
+Replace imports retain a TBX backup reference in `glossary_import_runs`.
+Public PAT/agent TMX import and export live on go-svc at
+`/v1/translation-memories/{memoryId}/entries/export` and
+`/v1/translation-memories/{memoryId}/entries/import` (`memories:read` /
+`memories:write`).
 Auth matches dictionary routes: WorkOS session cookie, live membership verification,
 and role checks (`glossaries:write` / `memories:write` for managers; translators may
 contribute to team-controlled native glossaries).

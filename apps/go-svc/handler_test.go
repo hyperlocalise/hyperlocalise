@@ -170,6 +170,71 @@ func TestRegisterRoutesServesNativePaths(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 }
 
+func TestValidateSegmentForwardsPlaceholderPatterns(t *testing.T) {
+	h := &handler{
+		validate: func(req segmentvalidate.Request) []segmentvalidate.Check {
+			require.Equal(t, []string{`\[\[\w+\]\]`}, req.PlaceholderPatterns)
+			return []segmentvalidate.Check{
+				{
+					ID:      "custom-placeholder-parity",
+					Label:   "Custom placeholders",
+					Status:  segmentvalidate.StatusPass,
+					Message: "Target keeps the custom placeholders.",
+				},
+			}
+		},
+		spellChecker: NoopSpellChecker{},
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle(
+		"POST /v1/validate/segment",
+		authMiddleware(mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})(http.HandlerFunc(h.validateSegment)),
+	)
+
+	payload := `{"sourceText":"Hello [[name]]","targetText":"Bonjour [[name]]","sourcePath":"/messages/en.json","placeholderPatterns":["\\[\\[\\w+\\]\\]"]}`
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/validate/segment", bytes.NewBufferString(payload))
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
+	mux.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp validateSegmentResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Checks, 1)
+	require.Equal(t, "custom-placeholder-parity", resp.Checks[0].ID)
+}
+
+func TestValidateSegmentCustomPlaceholderMismatch(t *testing.T) {
+	h := newHandler()
+	mux := http.NewServeMux()
+	mux.Handle(
+		"POST /v1/validate/segment",
+		authMiddleware(mockSessionVerifier{claims: AuthClaims{UserID: "user_123"}})(http.HandlerFunc(h.validateSegment)),
+	)
+
+	payload := `{"sourceText":"Hello [[name]]","targetText":"Bonjour","sourcePath":"/messages/en.json","placeholderPatterns":["\\[\\[\\w+\\]\\]"]}`
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/validate/segment", bytes.NewBufferString(payload))
+	req.AddCookie(&http.Cookie{Name: workOSSessionCookieName, Value: "test-session"})
+	mux.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp validateSegmentResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	found := false
+	for _, check := range resp.Checks {
+		if check.ID == "custom-placeholder-mismatch" {
+			found = true
+			require.Equal(t, segmentvalidate.StatusFail, check.Status)
+			require.Contains(t, check.Message, "[[name]]")
+		}
+	}
+	require.True(t, found, "expected custom-placeholder-mismatch, got %+v", resp.Checks)
+}
+
 func TestValidateSegmentSuccess(t *testing.T) {
 	h := &handler{
 		validate: func(req segmentvalidate.Request) []segmentvalidate.Check {

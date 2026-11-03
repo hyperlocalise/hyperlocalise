@@ -19,7 +19,9 @@ type Request struct {
 	TargetLocale string
 	// MessageFormat is the file's placeholder syntax. Empty means auto.
 	MessageFormat MessageFormat `json:"messageFormat,omitempty"`
-	Modes         []string      `json:"modes,omitempty"`
+	// PlaceholderPatterns are the file's custom placeholder regular expressions.
+	PlaceholderPatterns []string `json:"placeholderPatterns,omitempty"`
+	Modes               []string `json:"modes,omitempty"`
 }
 
 type Check struct {
@@ -91,6 +93,10 @@ func ValidateSegment(req Request) []Check {
 			Message:  message,
 			Category: "placeholder",
 		})
+	}
+
+	if check := customPlaceholderCheck(req.PlaceholderPatterns, req.SourceText, req.TargetText); check != nil {
+		checks = append(checks, *check)
 	}
 
 	return qaChecks(checks, req)

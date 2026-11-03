@@ -65,6 +65,10 @@ export type QaPageSegment = {
   sourcePath: string;
   targetLocale: string;
   maxLength: number;
+  /** auto | icu | i18next; omitted means auto. */
+  messageFormat?: string;
+  /** The file's custom placeholder regular expressions. */
+  placeholderPatterns?: string[];
 };
 
 async function cleanupQaWorkspaceFiles(workspace: {

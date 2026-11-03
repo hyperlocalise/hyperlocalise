@@ -1,0 +1,245 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+
+import { BlogPostLanguageEnum } from "@hubspot/api-client/lib/codegen/cms/blogs/blog_posts/models/BlogPost";
+import { PageLanguageEnum } from "@hubspot/api-client/lib/codegen/cms/pages/models/Page";
+import { EmailUpdateRequestLanguageEnum } from "@hubspot/api-client/lib/codegen/marketing/emails/models/EmailUpdateRequest";
+import { HubSpotFormConfigurationLanguageEnum } from "@hubspot/api-client/lib/codegen/marketing/forms/models/HubSpotFormConfiguration";
+
+import type { HubspotResourceKind } from "./constants";
+
+export type HubspotSurface = HubspotResourceKind;
+
+const ACCEPTED_CODES: Record<HubspotSurface, ReadonlySet<string>> = {
+  email: new Set(Object.values(EmailUpdateRequestLanguageEnum)),
+  form: new Set(Object.values(HubSpotFormConfigurationLanguageEnum)),
+  blog: new Set(Object.values(BlogPostLanguageEnum)),
+  "landing-page": new Set(Object.values(PageLanguageEnum)),
+  "website-page": new Set(Object.values(PageLanguageEnum)),
+  // Message templates have no language field. Each project locale is its own named copy.
+  "message-template": new Set<string>(),
+};
+
+export function normalizeHubspotLocaleTag(locale: string): string {
+  return locale.trim().replace(/_/g, "-").toLowerCase();
+}
+
+function aliasHubspotCode(code: string, accepted: ReadonlySet<string>): string | null {
+  if (code === "zh-hans" || code === "zh-cn") {
+    return accepted.has("zh-cn") ? "zh-cn" : null;
+  }
+  if (code === "zh-hant" || code === "zh-tw") {
+    if (accepted.has("zh-tw")) {
+      return "zh-tw";
+    }
+    return accepted.has("zh-hk") ? "zh-hk" : null;
+  }
+  if (code === "nb" || code === "nn" || code === "no") {
+    return accepted.has("no-no") ? "no-no" : null;
+  }
+  if (code === "he") {
+    return accepted.has("he-il") ? "he-il" : null;
+  }
+  return null;
+}
+
+/**
+ * Map a project locale onto a HubSpot language code for one surface.
+ * Regional tags stay distinct when HubSpot accepts them (`fr-ca` stays `fr-ca`).
+ * Returns null when the surface has no matching code.
+ */
+export function mapProjectLocaleToHubspot(locale: string, surface: HubspotSurface): string | null {
+  const normalized = normalizeHubspotLocaleTag(locale);
+  if (!normalized) {
+    return null;
+  }
+  if (surface === "message-template") {
+    return normalized;
+  }
+  const accepted = ACCEPTED_CODES[surface];
+  if (accepted.has(normalized)) {
+    return normalized;
+  }
+  const aliased = aliasHubspotCode(normalized, accepted);
+  if (aliased) {
+    return aliased;
+  }
+  const primary = normalized.split("-")[0] ?? "";
+  if (primary && primary !== normalized && accepted.has(primary)) {
+    return primary;
+  }
+  return null;
+}
+
+export function hubspotLanguageMatchesSource(input: {
+  objectLanguage: string | null | undefined;
+  projectSourceLocale: string;
+  surface: HubspotSurface;
+}): boolean {
+  const raw = input.objectLanguage?.trim();
+  if (!raw) {
+    return true;
+  }
+  const objectCode = mapProjectLocaleToHubspot(raw, input.surface);
+  const sourceCode = mapProjectLocaleToHubspot(input.projectSourceLocale, input.surface);
+  if (!objectCode || !sourceCode) {
+    return false;
+  }
+  return objectCode === sourceCode;
+}
+
+export type HubspotLocaleAssignment = {
+  mapped: Array<{ locale: string; code: string }>;
+  collisions: Array<{ locale: string; code: string; keptLocale: string }>;
+  unmapped: string[];
+};
+
+/** First project locale wins when two tags collapse to one HubSpot code. */
+export function assignHubspotLocales(
+  locales: readonly string[],
+  surface: HubspotSurface,
+): HubspotLocaleAssignment {
+  const used = new Map<string, string>();
+  const mapped: HubspotLocaleAssignment["mapped"] = [];
+  const collisions: HubspotLocaleAssignment["collisions"] = [];
+  const unmapped: string[] = [];
+  for (const locale of locales) {
+    const code = mapProjectLocaleToHubspot(locale, surface);
+    if (!code) {
+      unmapped.push(locale);
+      continue;
+    }
+    const keptLocale = used.get(code);
+    if (keptLocale) {
+      collisions.push({ locale, code, keptLocale });
+      continue;
+    }
+    used.set(code, locale);
+    mapped.push({ locale, code });
+  }
+  return { mapped, collisions, unmapped };
+}
+
+/** Locale copies keep the full project tag, even when HubSpot stores a shorter code. */
+export function hubspotCopyName(sourceName: string, locale: string): string {
+  const base = sourceName.trim() || "Content";
+  return `${base} [${locale.trim() || "locale"}]`;
+}
+
+export function isHubspotLocaleCopyName(name: string): boolean {
+  return /\[[^\]]+\]\s*$/.test(name.trim());
+}
+
+export type HubspotLanguageVariationSummary = {
+  id: string;
+  language: string | null;
+  translatedFromId: string | null;
+};
+
+export const HUBSPOT_BLOG_LANGUAGE_HINT =
+  "add the language in HubSpot first — Settings → Blog → Add/edit multi-language variations";
+
+export function isMissingBlogLanguageMessage(message: string): boolean {
+  return (
+    message.includes("hubspot_blog_language_missing") ||
+    message.includes("Create multi-language variation") ||
+    message.includes("Add/edit multi-language variations")
+  );
+}
+
+export type HubspotBlogSettingsMember = {
+  id: string;
+  language: string;
+  translatedFromId: string;
+};
+
+function blogSettingsGroupIds(
+  members: readonly HubspotBlogSettingsMember[],
+  contentGroupId: string,
+): Set<string> {
+  const source = members.find((member) => member.id === contentGroupId);
+  const primaryId = source?.translatedFromId || contentGroupId;
+  const ids = new Set<string>([contentGroupId, primaryId]);
+  for (const member of members) {
+    if (
+      member.id === primaryId ||
+      member.translatedFromId === primaryId ||
+      member.translatedFromId === contentGroupId
+    ) {
+      ids.add(member.id);
+    }
+  }
+  return ids;
+}
+
+function hubspotLanguageCompatible(left: string, right: string): boolean {
+  const normalizedLeft = normalizeHubspotLocaleTag(left);
+  const normalizedRight = normalizeHubspotLocaleTag(right);
+  if (!normalizedLeft || !normalizedRight) {
+    return false;
+  }
+  if (normalizedLeft === normalizedRight) {
+    return true;
+  }
+  const leftPrimary = normalizedLeft.split("-")[0] ?? "";
+  const rightPrimary = normalizedRight.split("-")[0] ?? "";
+  return normalizedLeft === rightPrimary || normalizedRight === leftPrimary;
+}
+
+/** The language blog in the same Settings → Blog group, or null when that language is missing. */
+export function findBlogSettingsLanguageId(
+  members: readonly HubspotBlogSettingsMember[],
+  contentGroupId: string,
+  hubspotCode: string,
+): string | null {
+  const groupId = contentGroupId.trim();
+  const code = normalizeHubspotLocaleTag(hubspotCode);
+  if (!groupId || !code) {
+    return null;
+  }
+  const group = blogSettingsGroupIds(members, groupId);
+  const inGroup = members.filter((member) => group.has(member.id));
+  const exact = inGroup.find((member) => normalizeHubspotLocaleTag(member.language) === code);
+  if (exact) {
+    return exact.id;
+  }
+  return inGroup.find((member) => hubspotLanguageCompatible(member.language, code))?.id ?? null;
+}
+
+export function blogSettingsHasLanguage(
+  members: readonly HubspotBlogSettingsMember[],
+  contentGroupId: string,
+  hubspotCode: string,
+): boolean {
+  return findBlogSettingsLanguageId(members, contentGroupId, hubspotCode) != null;
+}
+
+/** Match a HubSpot multi-language post variation to its primary post and language code. */
+export function findBlogLanguageVariation(
+  posts: readonly HubspotLanguageVariationSummary[],
+  sourcePostId: string,
+  hubspotCode: string,
+): string | null {
+  const sourceId = sourcePostId.trim();
+  const code = normalizeHubspotLocaleTag(hubspotCode);
+  if (!sourceId || !code) {
+    return null;
+  }
+  return (
+    posts.find(
+      (post) =>
+        post.translatedFromId === sourceId &&
+        normalizeHubspotLocaleTag(post.language ?? "") === code,
+    )?.id ?? null
+  );
+}

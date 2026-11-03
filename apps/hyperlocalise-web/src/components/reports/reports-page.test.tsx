@@ -31,8 +31,8 @@ import {
   reportsResponseBodies,
   reportsWordCountSeries,
   type ReportsApiCall,
+  type WordCountSeries,
 } from "./reports.fixture";
-import type { WordCountSeries } from "@/lib/reporting/word-queries";
 
 const mocks = vi.hoisted(() => ({
   search: "",
@@ -114,8 +114,8 @@ vi.mock("recharts", () => ({
   YAxis: () => null,
 }));
 
-vi.mock("@/lib/api-client-instance", async () => ({
-  apiClient: (await import("./reports.fixture")).reportsApiClient(mocks),
+vi.mock("@/lib/go-svc/use-go-svc-client", async () => ({
+  useGoSvcClient: (await import("./reports.fixture")).reportsGoSvcClient(mocks),
 }));
 
 function renderPage(projectId?: string) {

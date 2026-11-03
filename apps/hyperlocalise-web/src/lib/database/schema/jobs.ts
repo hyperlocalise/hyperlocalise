@@ -17,6 +17,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -140,6 +141,32 @@ export const translationJobDetails = pgTable(
     index("idx_translation_job_details_type").on(table.type),
     index("idx_translation_job_details_source_file_version").on(table.sourceFileVersionId),
     index("idx_translation_job_details_outcome_kind").on(table.outcomeKind),
+  ],
+);
+
+/**
+ * Remembers the `Idempotency-Key` a public API client sent with `POST /api/v1/jobs`, so a retried request returns the job it already created instead of creating another.
+ */
+export const publicJobIdempotencyKeys = pgTable(
+  "public_job_idempotency_keys",
+  {
+    // Keys are unique per workspace, whichever API key or agent sent them.
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // The client's key, as sent.
+    key: text("key").notNull(),
+    // SHA-256 of the validated request body, so a reused key with a different body is refused.
+    requestHash: text("request_hash").notNull(),
+    // The job the first request created.
+    jobId: text("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.key] }),
+    index("idx_public_job_idempotency_keys_job").on(table.jobId),
   ],
 );
 

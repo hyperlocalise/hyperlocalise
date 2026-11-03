@@ -4,7 +4,7 @@ allowBuilds:
 overrides:
   "undici@^7.0.0": "7.30.1"
   shell-quote: "1.12.0"
-  "postcss@^8.0.0": "8.5.31"
+  "postcss@^8.0.0": "8.5.32"
   vite@*: "catalog:"
   vitest: "catalog:"
 catalog:

@@ -29,6 +29,8 @@ hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--file <
 4. execute remaining tasks,
 5. persist successful tasks to lock state.
 
+A key whose source text is empty or whitespace is skipped. It is not sent to a provider.
+
 For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/cli/reference/lockfile-contract).
 
 ## Supported local file formats
@@ -42,7 +44,7 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/cli
 - `.arb`
 - `.xlf`, `.xlif`, and `.xliff`
 - `.po`
-- `.html`
+- `.html` and `.htm`
 - `.liquid`
 - `.md`
 - `.mdx`
@@ -97,10 +99,11 @@ For Markdown and MDX (`.md`, `.mdx`), `run` translates extracted prose and prese
 - MDX `import` and `export` lines
 - JSX/MDX component tags and attribute values
 
-For HTML (`.html`), `run` translates visible text nodes and keeps tags as structure:
+For HTML (`.html`, `.htm`), `run` translates visible text nodes and keeps tags as structure:
 
 - Keys are dotted tag paths (`html.body.h1`, `html.p`, `html.p.strong`, `html.p.strong.2`)
 - Inline tags (`<strong>`, `<em>`, `<a>`, and others) start a new path segment; the markup stays in the file
+- Punctuation-only text and entity-only cells such as `&nbsp;` are skipped
 - `<script>`, `<style>`, `<pre>`, and `<head>` content is never translated and is preserved verbatim, including `<title>`
 - `<img alt="...">` — the `alt` attribute value is extracted as `html.*.img.alt`; the rest of the tag is preserved verbatim
 - HTML entities (`&amp;`, `&lt;`, etc.) are preserved as-is through the translation round-trip

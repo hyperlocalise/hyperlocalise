@@ -17,6 +17,7 @@ import {
   ClockCounterClockwiseIcon,
   KeyboardIcon,
   DotsThreeIcon,
+  UploadSimpleIcon,
 } from "@phosphor-icons/react";
 import { observer } from "mobx-react-lite";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -39,19 +40,25 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { useIsMac } from "@/hooks/use-is-mac";
+import type { CatBilingualImportCounts } from "@/lib/projects/content-editor/content-editor-bilingual-import";
 import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
 
 import { ContentEditorExportDialog } from "./content-editor-export-dialog";
+import { ContentEditorImportDialog } from "./content-editor-import-dialog";
 import { ContentEditorShortcutsDialog } from "./content-editor-shortcuts-dialog";
 
 export const ContentEditorOverflowMenu = observer(function ContentEditorOverflowMenu({
   filterLabel,
   onDownloadFilteredView,
   isDownloadingFilteredView = false,
+  onImportBilingualFile,
+  isImportingBilingualFile = false,
 }: {
   filterLabel: string;
   onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
   isDownloadingFilteredView?: boolean;
+  onImportBilingualFile?: (file: File) => Promise<CatBilingualImportCounts>;
+  isImportingBilingualFile?: boolean;
 }) {
   const intl = useIntl();
   const isMac = useIsMac();
@@ -97,7 +104,7 @@ export const ContentEditorOverflowMenu = observer(function ContentEditorOverflow
             />
           }
         >
-          {isDownloadingFilteredView ? (
+          {isDownloadingFilteredView || isImportingBilingualFile ? (
             <Spinner className="size-3.5" />
           ) : (
             <DotsThreeIcon className="size-4" aria-hidden />
@@ -105,7 +112,7 @@ export const ContentEditorOverflowMenu = observer(function ContentEditorOverflow
           <ContentEditorShortcutHint shortcut="openShortcuts" placement="below" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-60">
-          {onDownloadFilteredView || activityScope ? (
+          {onDownloadFilteredView || onImportBilingualFile || activityScope ? (
             <>
               <DropdownMenuGroup>
                 {onDownloadFilteredView ? (
@@ -115,6 +122,15 @@ export const ContentEditorOverflowMenu = observer(function ContentEditorOverflow
                   >
                     <DownloadSimpleIcon className="size-4" aria-hidden />
                     <FormattedMessage {...messages.downloadFilteredView} />
+                  </DropdownMenuItem>
+                ) : null}
+                {onImportBilingualFile ? (
+                  <DropdownMenuItem
+                    disabled={isImportingBilingualFile}
+                    onClick={() => ui.openChromeDialog("import")}
+                  >
+                    <UploadSimpleIcon className="size-4" aria-hidden />
+                    <FormattedMessage {...messages.importBilingualFile} />
                   </DropdownMenuItem>
                 ) : null}
                 {activityScope ? (
@@ -148,6 +164,15 @@ export const ContentEditorOverflowMenu = observer(function ContentEditorOverflow
           onFormatChange={(format) => ui.setExportFormat(format)}
           isDownloading={isDownloadingFilteredView}
           onDownload={onDownloadFilteredView}
+        />
+      ) : null}
+      {onImportBilingualFile ? (
+        <ContentEditorImportDialog
+          open={ui.chromeDialog === "import"}
+          onOpenChange={closeDialog}
+          locale={page.targetLocale || store.fileContext.targetLocale}
+          isImporting={isImportingBilingualFile}
+          onImport={onImportBilingualFile}
         />
       ) : null}
       {activityScope ? (
