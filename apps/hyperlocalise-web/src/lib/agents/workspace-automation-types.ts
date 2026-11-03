@@ -1198,7 +1198,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "content_sync_path_template_invalid";
-      message: "The language file paths need {{locale}}, with ** only as a whole folder (twice at most) and at most two * or {{locale}} in a name.";
+      message: "The language file paths need {{locale}}, with ** only as a whole folder (twice at most), at most two * or {{locale}} in a name, and at most eight in all.";
     }
   | {
       code: "content_sync_duplicate";

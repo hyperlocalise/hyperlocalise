@@ -294,7 +294,8 @@ export async function executeGitLabContentSync(input: {
   // A file the run didn't import again may still carry a standing clash, or text to put back.
   const settled: ContentSyncFileReport[] = [];
   for (const version of versions) {
-    if (!version.unchanged) {
+    // A file whose ingest this run queued again was just put through the rule by that ingest.
+    if (!version.unchanged || version.requeued) {
       continue;
     }
     const clashes = await settleUnchangedSourceFile({

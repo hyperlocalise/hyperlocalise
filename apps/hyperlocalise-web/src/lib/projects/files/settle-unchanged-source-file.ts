@@ -65,12 +65,12 @@ export async function settleUnchangedSourceFile(input: {
       eq(schema.projectTranslationKeys.sourceFileVersionId, file.versionId),
       eq(schema.projectTranslationKeys.isHidden, false),
     );
+    // A clash keeps its base, so its file text comes from the report in either mode.
     const fileTextByKey = new Map<string, string>();
-    if (input.sourceTextEditable) {
-      for (const clash of file.syncReport?.clashes ?? []) {
-        fileTextByKey.set(clash.key, clash.fileText);
-      }
-    } else {
+    for (const clash of file.syncReport?.clashes ?? []) {
+      fileTextByKey.set(clash.key, clash.fileText);
+    }
+    if (!input.sourceTextEditable) {
       const drifted = await tx
         .select({
           key: schema.projectTranslationKeys.key,
@@ -85,7 +85,9 @@ export async function settleUnchangedSourceFile(input: {
           ),
         );
       for (const row of drifted) {
-        fileTextByKey.set(row.key, row.importedSourceText ?? "");
+        if (!fileTextByKey.has(row.key)) {
+          fileTextByKey.set(row.key, row.importedSourceText ?? "");
+        }
       }
     }
     if (fileTextByKey.size === 0) {
@@ -100,7 +102,8 @@ export async function settleUnchangedSourceFile(input: {
         maxLength: schema.projectTranslationKeys.maxLength,
       })
       .from(schema.projectTranslationKeys)
-      .where(and(present, inArray(schema.projectTranslationKeys.key, [...fileTextByKey.keys()])));
+      .where(and(present, inArray(schema.projectTranslationKeys.key, [...fileTextByKey.keys()])))
+      .orderBy(schema.projectTranslationKeys.key);
     if (keys.length === 0) {
       return [];
     }

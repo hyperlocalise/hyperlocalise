@@ -56,7 +56,6 @@ export function hasSafeContentSyncTemplateWildcards(template: string): boolean {
  */
 export function compileContentSyncPathTemplate(template: string): {
   match: (relativePath: string) => string | null;
-  usesLocale: boolean;
 } {
   // Runs of wildcards mean the same as one, and nested optional groups backtrack badly.
   const normalized = normalizeContentSyncFolder(template)
@@ -89,7 +88,6 @@ export function compileContentSyncPathTemplate(template: string): {
   }
   const regex = new RegExp(`^${pattern}$`);
   return {
-    usesLocale: localeGroups > 0,
     match: (relativePath) => {
       const found = regex.exec(normalizeRepositoryRelativePath(relativePath));
       if (!found) {

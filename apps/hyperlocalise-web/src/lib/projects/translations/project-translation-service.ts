@@ -418,7 +418,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
           type: sql`excluded.type`,
           maxLength: sql`coalesce(excluded.max_length, ${schema.projectTranslationKeys.maxLength})`,
           sourceFileVersionId: sql`excluded.source_file_version_id`,
-          updatedAt: sql`now()`,
+          // Settling an unchanged file revisits keys without changing them; those keep their time.
+          updatedAt: sql`case when ${schema.projectTranslationKeys.sourceText} is distinct from excluded.source_text or ${schema.projectTranslationKeys.importedSourceText} is distinct from excluded.imported_source_text or ${schema.projectTranslationKeys.context} is distinct from excluded.context or ${schema.projectTranslationKeys.type} is distinct from excluded.type or ${schema.projectTranslationKeys.maxLength} is distinct from coalesce(excluded.max_length, ${schema.projectTranslationKeys.maxLength}) or ${schema.projectTranslationKeys.sourceFileVersionId} is distinct from excluded.source_file_version_id then now() else ${schema.projectTranslationKeys.updatedAt} end`,
         },
       });
     // In chunks: the revision rows of a chunk's translations go into one insert.

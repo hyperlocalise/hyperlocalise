@@ -52,7 +52,7 @@ Clashes (with the file's text) and the keys a run hid are stored on the source f
 - A sync needs a workspace GitLab connection; a member's GitLab.com sign-in is not used, since runs have no user.
 - The sync holds the GitLab project's id as well as its path, and refuses to run when the path on the current server names another project. The step's repository picker lists projects only when the workspace has a connection.
 - The public API refuses source text changes on every project until the setting is turned on, strings outside any file included; this changes a live path and is named as a risk. Nothing in the app itself edits source text yet; the setting's name looks ahead to that.
-- The public API records a created string's text as its last imported text, so a string created in a synced file is simply hidden by the next sync rather than counted as an edit.
+- The public API records a created string's text as its last imported text, so a string created in a synced file is hidden the next time its file is imported rather than counted as an edit.
 - A sync's waits for many files run together with one time limit; a very large folder may need more than one run. Two Content sync steps for the same repository that keep the default project folder write the same files; nothing stops that yet.
 - The migration fills `imported_source_text` for every key in a file in one statement, and the Go services read `source_text_editable` on every project load, so the migration must run before they deploy.
 - A file with a changed source text and translations in the repository is reported and left as is; a manual clean-up of hidden keys is later work.

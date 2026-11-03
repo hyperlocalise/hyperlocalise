@@ -58,7 +58,6 @@ describe("compileContentSyncPathTemplate", () => {
 
   it("names no language without the placeholder, so nothing matches", () => {
     const fixed = compileContentSyncPathTemplate("/source/*.json/");
-    expect(fixed.usesLocale).toBe(false);
     expect(fixed.match("source/app.json")).toBe("");
     expect(fixed.match("source/sub/app.json")).toBeNull();
   });

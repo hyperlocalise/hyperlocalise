@@ -1145,6 +1145,46 @@ describe("settleUnchangedSourceFile", () => {
     expect(stored?.syncReport?.clashes).toEqual([{ key: "stand", fileText: "v2" }]);
   });
 
+  it("takes the file's text for a clash once the setting is turned off", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    await db
+      .update(schema.projects)
+      .set({ sourceTextEditable: true })
+      .where(eq(schema.projects.id, project.id));
+    const first = await importedFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_off_after_1",
+      entries: [{ key: "clash", text: "v1" }],
+    });
+    let keys = await keyRows(first.repositorySourceFileId);
+    await db
+      .update(schema.projectTranslationKeys)
+      .set({ sourceText: "edited here" })
+      .where(eq(schema.projectTranslationKeys.id, keys.get("clash")!.id));
+    await importedFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_off_after_2",
+      entries: [{ key: "clash", text: "v2" }],
+    });
+    await db
+      .update(schema.projects)
+      .set({ sourceTextEditable: false })
+      .where(eq(schema.projects.id, project.id));
+
+    expect(
+      await settleUnchangedSourceFile({
+        organizationId: organization.id,
+        projectId: project.id,
+        sourcePath: SOURCE_PATH,
+        sourceTextEditable: false,
+      }),
+    ).toEqual([]);
+    keys = await keyRows(first.repositorySourceFileId);
+    expect(keys.get("clash")).toMatchObject({ sourceText: "v2", importedSourceText: "v2" });
+  });
+
   it("puts the file's text back while source text is kept to the repository", async () => {
     const { organization, project } = await createStoredProjectFixture();
     const first = await importedFile({
