@@ -18,7 +18,12 @@ import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 // Runs the reuse-branch path against real git: a bare origin and a shallow clone as the sandbox.
-const sandbox = vi.hoisted(() => ({ dir: "", pullHead: "" }));
+const sandbox = vi.hoisted(() => ({
+  dir: "",
+  pullHead: "",
+  // Keeps a developer's own git settings (signing, hooks) out of the test.
+  env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" },
+}));
 
 vi.mock("@/lib/agents/github/app", () => ({
   getInstallationOctokit: async () => ({
@@ -54,7 +59,11 @@ vi.mock("@/lib/agents/github/github-repository-automation-check-run", () => ({
 
 vi.mock("@/lib/translation/sandbox", () => ({
   runSandboxCommand: async (_id: string, command: string, args: string[]) => {
-    const result = spawnSync(command, args, { cwd: sandbox.dir, encoding: "utf8" });
+    const result = spawnSync(command, args, {
+      cwd: sandbox.dir,
+      encoding: "utf8",
+      env: sandbox.env,
+    });
     return { exitCode: result.status ?? 1, output: `${result.stdout}${result.stderr}` };
   },
   writeFilesToSandbox: async (_id: string, files: { path: string; content: Buffer }[]) => {
@@ -76,6 +85,7 @@ function git(cwd: string, ...args: string[]) {
     ["-c", "user.email=t@example.com", "-c", "user.name=t", ...args],
     {
       cwd,
+      env: sandbox.env,
       encoding: "utf8",
     },
   );

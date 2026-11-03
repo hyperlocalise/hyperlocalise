@@ -81,6 +81,7 @@ async function readRemoteBranchHeadSha(
 async function branchHasSameChange(input: {
   sandboxId: string;
   branchName: string;
+  paths: string[];
 }): Promise<boolean> {
   const git = (args: string[]) =>
     runSandboxCommand(input.sandboxId, "git", ["-c", "core.quotePath=false", ...args], {
@@ -96,22 +97,34 @@ async function branchHasSameChange(input: {
       : null;
   };
 
-  const fetch = await git(["fetch", "--depth", "2", "origin", `refs/heads/${input.branchName}`]);
-  if (fetch.exitCode !== 0) {
+  try {
+    const fetch = await git(["fetch", "--depth", "2", "origin", `refs/heads/${input.branchName}`]);
+    if (fetch.exitCode !== 0) {
+      return false;
+    }
+    // This run's commit sits on HEAD~1, the base; git leaves out files that already match it.
+    const ours = await changedFiles("HEAD~1", "HEAD");
+    const theirs = await changedFiles("FETCH_HEAD~1", "FETCH_HEAD");
+    const written = new Set(input.paths);
+    // A name that is not one of this run's files would match nothing below and pass by mistake.
+    if (
+      !ours ||
+      !theirs ||
+      ours.length === 0 ||
+      !ours.every((path) => written.has(path)) ||
+      ours.join("\0") !== theirs.join("\0")
+    ) {
+      return false;
+    }
+    const baseUnchanged = await git(["diff", "--quiet", "FETCH_HEAD~1", "HEAD~1", "--", ...ours]);
+    if (baseUnchanged.exitCode !== 0) {
+      return false;
+    }
+    const sameContent = await git(["diff", "--quiet", "FETCH_HEAD", "HEAD", "--", ...ours]);
+    return sameContent.exitCode === 0;
+  } catch {
     return false;
   }
-  // This run's commit sits on HEAD~1, the base; git leaves out files that already match it.
-  const ours = await changedFiles("HEAD~1", "HEAD");
-  const theirs = await changedFiles("FETCH_HEAD~1", "FETCH_HEAD");
-  if (!ours || !theirs || ours.length === 0 || ours.join("\0") !== theirs.join("\0")) {
-    return false;
-  }
-  const baseUnchanged = await git(["diff", "--quiet", "FETCH_HEAD~1", "HEAD~1", "--", ...ours]);
-  if (baseUnchanged.exitCode !== 0) {
-    return false;
-  }
-  const sameContent = await git(["diff", "--quiet", "FETCH_HEAD", "HEAD", "--", ...ours]);
-  return sameContent.exitCode === 0;
 }
 
 export async function writePullTranslationCandidatesToSandbox(input: {
@@ -228,7 +241,11 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
   if (
     input.reuseBranch &&
     openPull &&
-    (await branchHasSameChange({ sandboxId: input.sandboxId, branchName: input.branchName }))
+    (await branchHasSameChange({
+      sandboxId: input.sandboxId,
+      branchName: input.branchName,
+      paths: input.paths,
+    }))
   ) {
     return {
       pullRequestUrl: openPull.html_url,
