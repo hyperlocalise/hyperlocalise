@@ -54,6 +54,7 @@ import {
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationLoopsTool,
   hasWorkspaceAutomationHubspotTool,
+  hasWorkspaceAutomationMailchimpTool,
   hasWorkspaceAutomationSanityTool,
   hasWorkspaceAutomationWebflowTool,
   type WorkspaceAutomationConfigValidationError,
@@ -71,6 +72,11 @@ import {
   isHubspotPushRunActive,
   type HubspotPushItem,
 } from "@/lib/hubspot/push-eligibility";
+import {
+  getMailchimpPushEligibility,
+  isMailchimpPushRunActive,
+  type MailchimpPushItem,
+} from "@/lib/mailchimp/push-eligibility";
 import {
   getLoopsPushEligibility,
   isLoopsPushRunActive,
@@ -831,6 +837,26 @@ export function createWorkspaceAutomationRoutes(
         };
       }
 
+      let mailchimpPush: {
+        eligibleLocaleCount: number;
+        mappedItemCount: number;
+        pushRunInProgress: boolean;
+        items?: MailchimpPushItem[];
+      } | null = null;
+      if (hasWorkspaceAutomationMailchimpTool(automation.toolConfig)) {
+        const eligibility = await getMailchimpPushEligibility({
+          organizationId,
+          automation,
+          includeLocaleProgress: includePushArticles,
+        });
+        mailchimpPush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedItemCount: eligibility?.mappedItemCount ?? 0,
+          pushRunInProgress: isMailchimpPushRunActive(recentRuns),
+          ...(includePushArticles ? { items: eligibility?.items ?? [] } : {}),
+        };
+      }
+
       return c.json(
         {
           automation,
@@ -844,6 +870,7 @@ export function createWorkspaceAutomationRoutes(
           iterablePush,
           loopsPush,
           hubspotPush,
+          mailchimpPush,
         },
         200,
       );

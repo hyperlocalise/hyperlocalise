@@ -168,6 +168,12 @@ export type WorkspaceAutomationFormState = {
   hubspotMessageTemplateIds: string[];
   hubspotExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   hubspotOverwriteWhenRemoteNewer: boolean;
+  mailchimpEnabled: boolean;
+  mailchimpSourceLocale: string;
+  mailchimpCampaignIds: string[];
+  mailchimpTemplateIds: string[];
+  mailchimpExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  mailchimpOverwriteWhenRemoteNewer: boolean;
   customerIoBroadcastIds: string[];
   customerIoCampaignIds: string[];
   customerIoNewsletterIds: string[];
@@ -222,7 +228,8 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
     form.customerIoEnabled ||
     form.iterableEnabled ||
     form.loopsEnabled ||
-    form.hubspotEnabled
+    form.hubspotEnabled ||
+    form.mailchimpEnabled
   ) {
     return true;
   }
@@ -527,6 +534,12 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     hubspotMessageTemplateIds: [],
     hubspotExistingTranslationPolicy: "seed_empty",
     hubspotOverwriteWhenRemoteNewer: true,
+    mailchimpEnabled: false,
+    mailchimpSourceLocale: "en",
+    mailchimpCampaignIds: [],
+    mailchimpTemplateIds: [],
+    mailchimpExistingTranslationPolicy: "seed_empty",
+    mailchimpOverwriteWhenRemoteNewer: true,
     customerIoBroadcastIds: [],
     customerIoCampaignIds: [],
     customerIoNewsletterIds: [],
@@ -593,6 +606,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const iterable = automation.toolConfig.iterable;
   const loops = automation.toolConfig.loops;
   const hubspot = automation.toolConfig.hubspot;
+  const mailchimp = automation.toolConfig.mailchimp;
   const crowdin = automation.toolConfig.crowdin;
   const webSearch = automation.toolConfig.webSearch;
 
@@ -738,6 +752,16 @@ export function createWorkspaceAutomationFormStateFromRecord(
         ? hubspot.existingTranslationPolicy
         : "seed_empty",
     hubspotOverwriteWhenRemoteNewer: hubspot?.overwriteWhenRemoteNewer !== false,
+    mailchimpEnabled: Boolean(mailchimp?.enabled),
+    mailchimpSourceLocale: mailchimp?.sourceLocale ?? "en",
+    mailchimpCampaignIds: mailchimp?.campaignIds ? [...mailchimp.campaignIds] : [],
+    mailchimpTemplateIds: mailchimp?.templateIds ? [...mailchimp.templateIds] : [],
+    mailchimpExistingTranslationPolicy:
+      mailchimp?.existingTranslationPolicy === "refresh_imported" ||
+      mailchimp?.existingTranslationPolicy === "overwrite_all"
+        ? mailchimp.existingTranslationPolicy
+        : "seed_empty",
+    mailchimpOverwriteWhenRemoteNewer: mailchimp?.overwriteWhenRemoteNewer !== false,
     customerIoBroadcastIds: customerIo?.broadcastIds ? [...customerIo.broadcastIds] : [],
     customerIoCampaignIds: customerIo?.campaignIds ? [...customerIo.campaignIds] : [],
     customerIoNewsletterIds: customerIo?.newsletterIds ? [...customerIo.newsletterIds] : [],
@@ -858,6 +882,10 @@ export function applyWorkspaceAutomationProjectSelection(
 
   if (form.hubspotEnabled && project) {
     next.hubspotSourceLocale = project.sourceLocale ?? form.hubspotSourceLocale;
+  }
+
+  if (form.mailchimpEnabled && project) {
+    next.mailchimpSourceLocale = project.sourceLocale ?? form.mailchimpSourceLocale;
   }
 
   if (form.iterableEnabled && project) {
@@ -1108,6 +1136,17 @@ export function formStateToWorkspaceAutomationPayload(
             messageTemplateIds: form.hubspotMessageTemplateIds,
             existingTranslationPolicy: form.hubspotExistingTranslationPolicy,
             overwriteWhenRemoteNewer: form.hubspotOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
+    ...(form.mailchimpEnabled
+      ? {
+          mailchimp: {
+            enabled: true,
+            campaignIds: form.mailchimpCampaignIds,
+            templateIds: form.mailchimpTemplateIds,
+            existingTranslationPolicy: form.mailchimpExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.mailchimpOverwriteWhenRemoteNewer,
           },
         }
       : {}),
@@ -1754,6 +1793,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.iterableEnabled ||
     form.loopsEnabled ||
     form.hubspotEnabled ||
+    form.mailchimpEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
     form.listIssuesEnabled ||

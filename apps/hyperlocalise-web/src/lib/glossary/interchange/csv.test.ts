@@ -178,6 +178,11 @@ describe("CSV glossary interchange", () => {
               id: "term-6",
               term: "'=SUM(A1:A2)",
             },
+            {
+              ...document.concepts[0]!.terms[1]!,
+              id: "term-7",
+              term: "\tprovider-command",
+            },
           ],
         },
       ],
@@ -187,6 +192,7 @@ describe("CSV glossary interchange", () => {
     expect(csv).toContain(`"__HYPERLOCALISE_CSV_FORMULA__+provider-command"`);
     expect(csv).toContain(`"__HYPERLOCALISE_CSV_FORMULA__-provider-command"`);
     expect(csv).toContain(`"__HYPERLOCALISE_CSV_FORMULA__@provider-command"`);
+    expect(csv).toContain(`"__HYPERLOCALISE_CSV_FORMULA__\tprovider-command"`);
     expect(csv).toContain(`"'=SUM(A1:A2)"`);
     expect(parseCsv(csv).concepts[0]?.terms.map((term) => term.term)).toEqual([
       " =SUM(A1:A2)",
@@ -194,6 +200,7 @@ describe("CSV glossary interchange", () => {
       "-provider-command",
       "@provider-command",
       "'=SUM(A1:A2)",
+      "\tprovider-command",
     ]);
   });
 

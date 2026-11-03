@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "tmsauth",
+    srcs = ["client.go"],
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/tmsauth",
+    visibility = ["//apps/go-svc:__pkg__"],
+)
+
+go_test(
+    name = "tmsauth_test",
+    srcs = ["client_test.go"],
+    embed = [":tmsauth"],
+)

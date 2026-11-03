@@ -215,6 +215,7 @@
                       "platform/connections/iterable",
                       "platform/connections/loops",
                       "platform/connections/hubspot",
+                      "platform/connections/mailchimp",
                       "platform/connections/canva",
                       "platform/connections/figma",
                       "platform/connections/design-tools"

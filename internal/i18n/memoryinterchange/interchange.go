@@ -10,6 +10,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/csvsafe"
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
 	"golang.org/x/text/language"
 	"golang.org/x/text/unicode/norm"
@@ -402,11 +403,7 @@ func SerializeTMX(rows []Candidate) []byte {
 }
 
 func escapeFormula(value string) string {
-	if strings.HasPrefix(value, FormulaEscapePrefix) {
-		return FormulaEscapePrefix + value
-	}
-	trimmed := strings.TrimLeft(value, " \t")
-	if trimmed != "" && strings.ContainsRune("=+-@", rune(trimmed[0])) {
+	if strings.HasPrefix(value, FormulaEscapePrefix) || csvsafe.HasFormulaTrigger(value) {
 		return FormulaEscapePrefix + value
 	}
 	return value
@@ -417,11 +414,7 @@ func unescapeFormula(value string) string {
 		return value
 	}
 	rest := strings.TrimPrefix(value, FormulaEscapePrefix)
-	if strings.HasPrefix(rest, FormulaEscapePrefix) {
-		return rest
-	}
-	trimmed := strings.TrimLeft(rest, " \t")
-	if trimmed != "" && strings.ContainsRune("=+-@", rune(trimmed[0])) {
+	if strings.HasPrefix(rest, FormulaEscapePrefix) || csvsafe.HasFormulaTrigger(rest) {
 		return rest
 	}
 	return value
