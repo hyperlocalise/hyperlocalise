@@ -17,9 +17,7 @@ import { isMailchimpRemoteCopyNewer } from "./existing-translation-policy";
 describe("isMailchimpRemoteCopyNewer", () => {
   it("treats missing timestamps as newer", () => {
     const pushedAt = new Date("2026-10-01T00:00:00.000Z");
-    expect(isMailchimpRemoteCopyNewer({ lastPushedAt: pushedAt, copyUpdatedAt: null })).toBe(
-      true,
-    );
+    expect(isMailchimpRemoteCopyNewer({ lastPushedAt: pushedAt, copyUpdatedAt: null })).toBe(true);
     expect(
       isMailchimpRemoteCopyNewer({
         lastPushedAt: null,

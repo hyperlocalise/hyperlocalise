@@ -71,7 +71,6 @@ export default defineConfig({
   fmt: {
     ignorePatterns: [
       "drizzle/**",
-      ".vendor/**",
       "pnpm-*.yaml",
       "public/mockServiceWorker.js",
       ...localeCatalogIgnorePatterns,
@@ -81,7 +80,6 @@ export default defineConfig({
     // Match tsconfig exclude: browser e2e is local-only (vite.e2e.config.ts).
     ignorePatterns: [
       "drizzle/**",
-      ".vendor/**",
       "pnpm-*.yaml",
       "public/mockServiceWorker.js",
       "src/e2e/**",

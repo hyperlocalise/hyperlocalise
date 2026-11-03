@@ -56,7 +56,7 @@ export function ContentEditorMailchimpIngestButton({
         contentEditorMailchimpIngestQueryKey(organizationSlug, projectId),
         contentEditorMailchimpPushQueryKey(organizationSlug, projectId),
       ]}
-      icon={<IntegrationLogo src="/images/mailchimp-logo.png" className="size-4" />}
+      icon={<IntegrationLogo src="/images/mailchimp-logo.svg" className="size-4" />}
       pageNavigationGuardRef={pageNavigationGuardRef}
     />
   );

@@ -54,8 +54,6 @@ export type MailchimpTemplateDetail = {
 
 export type MailchimpClient = ReturnType<typeof createMailchimpClient>;
 
-const CAMPAIGN_LIST_STATUSES = ["save", "sent", "paused", "schedule"] as const;
-
 /** Marketing API 3.0 client using a Mailchimp OAuth access token and account API endpoint. */
 export function createMailchimpClient(input: {
   accessToken: string;
@@ -73,7 +71,7 @@ export function createMailchimpClient(input: {
   async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const headers = new Headers(init?.headers);
     headers.set("Authorization", authorization);
-    if (!headers.has("Content-Type")) {
+    if (init?.body && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
     }
     const response = await fetchImpl(`${baseUrl}${path}`, {
@@ -92,35 +90,22 @@ export function createMailchimpClient(input: {
     return (await response.json()) as T;
   }
 
-  async function listCampaignPage(
-    status: (typeof CAMPAIGN_LIST_STATUSES)[number],
-    offset: number,
-  ): Promise<MailchimpCampaignSummary[]> {
-    const page = await request<MailchimpListResponse<MailchimpCampaignSummary>>(
-      `/campaigns?type=regular&status=${status}&count=${MAILCHIMP_LIST_PAGE_SIZE}&offset=${offset}`,
-    );
-    return page.campaigns ?? [];
-  }
-
   return {
     async listRegularCampaigns(): Promise<MailchimpCampaignSummary[]> {
-      const byId = new Map<string, MailchimpCampaignSummary>();
-      for (const status of CAMPAIGN_LIST_STATUSES) {
-        let offset = 0;
-        for (;;) {
-          const batch = await listCampaignPage(status, offset);
-          for (const campaign of batch) {
-            if (campaign.id) {
-              byId.set(campaign.id, campaign);
-            }
-          }
-          if (batch.length < MAILCHIMP_LIST_PAGE_SIZE) {
-            break;
-          }
-          offset += batch.length;
+      const out: MailchimpCampaignSummary[] = [];
+      let offset = 0;
+      for (;;) {
+        const page = await request<MailchimpListResponse<MailchimpCampaignSummary>>(
+          `/campaigns?type=regular&count=${MAILCHIMP_LIST_PAGE_SIZE}&offset=${offset}`,
+        );
+        const batch = page.campaigns ?? [];
+        out.push(...batch);
+        if (batch.length < MAILCHIMP_LIST_PAGE_SIZE) {
+          break;
         }
+        offset += batch.length;
       }
-      return [...byId.values()];
+      return out;
     },
 
     async getCampaign(campaignId: string): Promise<MailchimpCampaignSummary> {

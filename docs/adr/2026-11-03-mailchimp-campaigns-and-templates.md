@@ -73,5 +73,5 @@ templates** only (v1).
   `push_approved` run contract as HubSpot and Loops; Content Editor
   actions can attach when product wires the queue helper into the
   header UI.
-- Agent and contributor docs for REST live in
-  `.agents/skills/mailchimp-marketing-api/SKILL.md`.
+- REST client code lives under `apps/hyperlocalise-web/src/lib/mailchimp/`;
+  product docs in `docs/platform/connections/mailchimp.mdx`.

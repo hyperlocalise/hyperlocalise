@@ -1320,6 +1320,10 @@ export function getWorkspaceAutomationTemplateFlow(
     tools.push({ id: "hubspot", label: "HubSpot" });
   }
 
+  if (form.mailchimpEnabled) {
+    tools.push({ id: "mailchimp", label: "Mailchimp" });
+  }
+
   if (form.createNativeTmsJobEnabled) {
     tools.push({ id: "create-job", label: "Create job" });
   }

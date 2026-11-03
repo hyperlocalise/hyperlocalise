@@ -134,7 +134,7 @@ export function ContentEditorMailchimpPushButton({
   const pushIcon = isPending ? (
     <Spinner data-icon="inline-start" />
   ) : (
-    <IntegrationLogo src="/images/mailchimp-logo.png" className="size-4" />
+    <IntegrationLogo src="/images/mailchimp-logo.svg" className="size-4" />
   );
 
   return (

@@ -4,7 +4,7 @@
 
 - Run `make bootstrap` before working if dependencies are not installed yet.
 - For web-related work, also check [`apps/hyperlocalise-web/AGENTS.md`](apps/hyperlocalise-web/AGENTS.md).
-- Mailchimp connects with **OAuth only** (WorkOS Pipes slug `mailchimp`); the web app calls Marketing API 3.0 over REST (`fetch`), not the TypeScript SDK. See [`.agents/skills/mailchimp-marketing-api/SKILL.md`](.agents/skills/mailchimp-marketing-api/SKILL.md) and [Mailchimp developer docs](https://mailchimp.com/developer/llms.txt).
+- Mailchimp connects with **OAuth only** (WorkOS Pipes slug `mailchimp`); the web app calls Marketing API 3.0 over REST (`fetch`), not the TypeScript SDK. See [`docs/platform/connections/mailchimp.mdx`](docs/platform/connections/mailchimp.mdx) and [Mailchimp developer docs](https://mailchimp.com/developer/llms.txt).
 
 ## Commit Messages
 

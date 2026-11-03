@@ -306,6 +306,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     marketing: false,
     workspace: true,
     iconKey: "mailchimp",
+    logoSrc: "/images/mailchimp-logo.svg",
     websiteUrl: "https://mailchimp.com",
   },
   {

@@ -24,6 +24,18 @@ type MailchimpOAuthMetadata = {
   api_endpoint?: string;
 };
 
+/** Mailchimp metadata returns `https://{dc}.api.mailchimp.com`; Marketing API lives under `/3.0`. */
+export function normalizeMailchimpMarketingApiBaseUrl(apiEndpoint: string): string {
+  const trimmed = apiEndpoint.trim().replace(/\/+$/, "");
+  if (!trimmed) {
+    return trimmed;
+  }
+  if (trimmed.endsWith("/3.0")) {
+    return trimmed;
+  }
+  return `${trimmed}/3.0`;
+}
+
 export async function fetchMailchimpOAuthApiBaseUrl(input: {
   accessToken: string;
   fetchImpl?: typeof fetch;
@@ -47,11 +59,11 @@ export async function fetchMailchimpOAuthApiBaseUrl(input: {
       return err(MAILCHIMP_TEMPORARILY_UNAVAILABLE);
     }
     const body = (await response.json()) as MailchimpOAuthMetadata;
-    const apiEndpoint = body.api_endpoint?.trim().replace(/\/$/, "");
-    if (!apiEndpoint) {
+    const rawEndpoint = body.api_endpoint?.trim();
+    if (!rawEndpoint) {
       return err(MAILCHIMP_CREDENTIALS_INVALID);
     }
-    return ok(apiEndpoint);
+    return ok(normalizeMailchimpMarketingApiBaseUrl(rawEndpoint));
   } catch {
     return err(MAILCHIMP_TEMPORARILY_UNAVAILABLE);
   }

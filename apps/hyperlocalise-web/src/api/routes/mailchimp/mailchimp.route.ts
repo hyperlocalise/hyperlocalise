@@ -19,8 +19,10 @@ import {
   forbiddenResponse,
   serviceUnavailableResponse,
 } from "@/api/response.schema";
+import { mailchimpErrorStatusCode } from "@/lib/mailchimp/client";
 import { loadMailchimpAutomationClient } from "@/lib/mailchimp/credentials";
 import { listMailchimpLibrary } from "@/lib/mailchimp/list-library";
+import { MAILCHIMP_CREDENTIALS_INVALID } from "@/lib/mailchimp/ping";
 import type { MailchimpSettingsError } from "@/lib/mailchimp/types";
 import { createLogger } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
@@ -60,10 +62,21 @@ export function createMailchimpRoutes() {
         const library = await listMailchimpLibrary(loaded.value.client);
         return c.json({ library }, 200);
       } catch (error) {
+        const statusCode = mailchimpErrorStatusCode(error);
         logger.warn(
-          { error: error instanceof Error ? error.message : String(error) },
+          {
+            statusCode,
+            error: error instanceof Error ? error.message : String(error),
+          },
           "mailchimp library list failed",
         );
+        if (statusCode === 401 || statusCode === 403) {
+          return badRequestResponse(
+            c,
+            MAILCHIMP_CREDENTIALS_INVALID.code,
+            MAILCHIMP_CREDENTIALS_INVALID.message,
+          );
+        }
         return serviceUnavailableResponse(
           c,
           "mailchimp_temporarily_unavailable",
