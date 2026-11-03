@@ -75,7 +75,6 @@ export type RateBasis = (typeof RATE_BASES)[number];
 export const COMPLETION_SOURCES = ["memory", "ai", "person", "import"] as const;
 export type CompletionSource = (typeof COMPLETION_SOURCES)[number];
 export const SUMMARY_SOURCES = [...COMPLETION_SOURCES, "unknown"] as const;
-export type SummarySource = (typeof SUMMARY_SOURCES)[number];
 
 /** How Word counts groups its table. */
 export const WORD_COUNT_GROUPINGS = ["project", "task", "week", "language", "task_step"] as const;

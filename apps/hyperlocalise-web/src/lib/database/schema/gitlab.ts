@@ -32,7 +32,6 @@ export const gitlabConnections = pgTable(
     }),
     serverUrl: text("server_url").notNull(),
     connectedUsername: text("connected_username").notNull(),
-    lastValidatedAt: timestamp("last_validated_at", { withTimezone: true }).notNull(),
     encryptionAlgorithm: text("encryption_algorithm").notNull(),
     ciphertext: text("ciphertext").notNull(),
     iv: text("iv").notNull(),

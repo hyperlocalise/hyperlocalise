@@ -18,6 +18,7 @@ import {
   readImportBrazeTemplates,
   readImportCustomerIoCampaigns,
   readImportGoogleDriveFiles,
+  readImportHubspotContent,
   readImportIntercomArticles,
   readImportIterableTemplates,
   readImportLoopsEmails,
@@ -27,6 +28,7 @@ import {
   readPushBrazeTemplates,
   readPushCustomerIoCampaigns,
   readPushGoogleDriveTranslations,
+  readPushHubspotContent,
   readPushIntercomTranslations,
   readPushIterableTemplates,
   readPushLoopsEmails,
@@ -616,5 +618,37 @@ describe("readPushCustomerIoCampaigns", () => {
     expect(
       readPushCustomerIoCampaigns({ pushCustomerIoCampaigns: { status: "succeeded" } }, {}),
     ).toBeNull();
+  });
+});
+
+describe("readImportHubspotContent", () => {
+  it("prefers the current step over a persisted summary", () => {
+    expect(
+      readImportHubspotContent(
+        { importHubspotContent: { imported: 4, status: "stale" } },
+        { import_hubspot_content: { imported: 0, failed: 2, status: "partial" } },
+      ),
+    ).toEqual({ imported: 0, failed: 2, status: "partial" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportHubspotContent(
+        { importHubspotContent: { status: "succeeded", failed: 0 } },
+        { import_hubspot_content: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushHubspotContent", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushHubspotContent({}, { push_hubspot_content: { pushedLocales: 0, failedLocales: 0 } }),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(readPushHubspotContent({ pushHubspotContent: { status: "succeeded" } }, {})).toBeNull();
   });
 });

@@ -24,8 +24,6 @@ import { saveNativeProjectContentEditorTranslation } from "@/lib/projects/conten
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
-import { captureAiUsage } from "./ai-cost";
-import { queryBudgets } from "./cost-queries";
 import {
   analysisScopeLockKey,
   captureAnalysis,
@@ -39,7 +37,6 @@ import {
   scoreAgainstMemory,
   sourceSimilarity,
 } from "./capture";
-import { refreshPendingSummary } from "./summary";
 
 const resolveWorkspaceReportsFlagMock = vi.hoisted(() => vi.fn(async () => true));
 /** The project's memories, as the app reads them; one test makes the read fail. */
@@ -773,19 +770,6 @@ describe("reporting capture", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("keeps usage capture from failing the caller", async () => {
-    await expect(
-      captureAiUsage({
-        organizationId: randomUUID(),
-        invocationId: `usage_${randomUUID()}`,
-        provider: "openai",
-        model: "gpt-4o",
-        inputTokens: 10,
-        outputTokens: 4,
-      }),
-    ).resolves.toBeUndefined();
-  });
-
   it("posts a fixed task fee once when the job has succeeded", async () => {
     const { organization, project, user } = await projectFixture.createStoredProjectFixture();
     const [running] = await db
@@ -842,7 +826,6 @@ describe("reporting capture", () => {
     await captureJobStatus({
       jobId: succeeded!.id,
       status: "succeeded",
-      operationKey: `status:${succeeded!.id}:succeeded`,
     });
 
     const costs = await db
@@ -874,7 +857,6 @@ describe("reporting capture", () => {
       captureJobStatus({
         jobId: `job_${randomUUID()}`,
         status: "running",
-        operationKey: `status:test:${randomUUID()}`,
       }),
     ).resolves.toBeUndefined();
 
@@ -894,7 +876,7 @@ describe("reporting capture", () => {
       })
       .returning();
 
-    const insertSpy = vi.spyOn(db, "insert").mockImplementation(() => {
+    const selectSpy = vi.spyOn(db, "select").mockImplementation(() => {
       throw new Error("reporting unavailable");
     });
     try {
@@ -902,11 +884,10 @@ describe("reporting capture", () => {
         captureJobStatus({
           jobId: job.id,
           status: "running",
-          operationKey: `status:${workflowRunId}:running`,
         }),
       ).resolves.toBeUndefined();
     } finally {
-      insertSpy.mockRestore();
+      selectSpy.mockRestore();
     }
   });
 
@@ -1128,35 +1109,6 @@ describe("reporting capture", () => {
     });
   });
 
-  it("records AI tokens without estimating a price", async () => {
-    const { organization, project } = await projectFixture.createStoredProjectFixture();
-    const invocationId = `usage_${randomUUID()}`;
-    await captureAiUsage({
-      organizationId: organization.id,
-      projectId: project.id,
-      invocationId,
-      provider: "openai",
-      model: "gpt-4o",
-      inputTokens: 1200,
-      outputTokens: 300,
-    });
-    const [row] = await db
-      .select({
-        amountUsd: schema.reportingCosts.amountUsd,
-        basis: schema.reportingCosts.basis,
-        inputTokens: schema.reportingCosts.inputTokens,
-        outputTokens: schema.reportingCosts.outputTokens,
-      })
-      .from(schema.reportingCosts)
-      .where(eq(schema.reportingCosts.operationKey, `ai:${invocationId}`));
-    expect(row).toEqual({
-      amountUsd: null,
-      basis: "unpriced",
-      inputTokens: 1200,
-      outputTokens: 300,
-    });
-  });
-
   it("treats a rate line taken off its card as no rate", async () => {
     const { organization, project } = await projectFixture.createStoredProjectFixture();
     await db.insert(schema.reportingBudgets).values({
@@ -1187,69 +1139,5 @@ describe("reporting capture", () => {
       .insert(schema.reportingRates)
       .values({ ...line, retired: true, createdAt: new Date("2026-02-01") });
     expect(await resolveReportingRate(input)).toBeNull();
-  });
-
-  it("forecasts a budget's unfinished per-character work and leaves AI out of its spend", async () => {
-    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
-    await db.insert(schema.reportingBudgets).values({
-      organizationId: organization.id,
-      projectId: project.id,
-      budget: "1000.00000000",
-      rateCardName: "Per character",
-    });
-    await db.insert(schema.reportingRates).values({
-      organizationId: organization.id,
-      name: "Per character",
-      sourceLocale: "en",
-      targetLocale: "ja-JP",
-      step: "translation",
-      basis: "character",
-      rate: "0.05000000",
-      percentages: { new: 100 },
-    });
-    const [job] = await db
-      .insert(schema.jobs)
-      .values({
-        id: `job_${randomUUID()}`,
-        organizationId: organization.id,
-        projectId: project.id,
-        createdByUserId: user.id,
-        kind: "translation",
-        status: "running",
-        workflowRunId: `run_${randomUUID()}`,
-        inputPayload: {},
-      })
-      .returning();
-    await captureAnalysis({
-      organizationId: organization.id,
-      projectId: project.id,
-      jobId: job.id,
-      sourceLocale: "en",
-      targetLocale: "ja-JP",
-      sourceEntries: { greeting: "Hello world" },
-      billable: true,
-    });
-    await captureAiUsage({
-      organizationId: organization.id,
-      projectId: project.id,
-      jobId: job.id,
-      invocationId: `usage_${randomUUID()}`,
-      provider: "openai",
-      model: "gpt-4o",
-      inputTokens: 100,
-      outputTokens: 40,
-    });
-
-    await refreshPendingSummary({ organizationIds: [organization.id] });
-    const [budget] = await queryBudgets({
-      organizationId: organization.id,
-      projectIds: [project.id],
-    });
-    // "Hello world" still to translate: 10 characters at $0.05; the unpriced AI row is not spend.
-    expect(budget).toMatchObject({
-      spentUsd: "0.00000000",
-      stillToComeUsd: "0.50000000",
-      incomplete: false,
-    });
   });
 });

@@ -11,11 +11,12 @@
  * Version 2.0 or later.
  */
 
-import { env } from "@/lib/env";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { assertProviderUrlResolvable } from "@/lib/providers/shared/provider-url-resolve";
 import { normalizeProviderBaseUrl } from "@/lib/providers/shared/provider-url-safety";
 import { normalizeHostname } from "@/lib/security/ssrf-guard";
+
+import { GITLAB_SERVER_REQUEST_TIMEOUT_MS } from "./constants";
 
 const LOCAL_DEV_HOSTNAMES = new Set(["localhost", "127.0.0.1"]);
 
@@ -26,9 +27,28 @@ const INVALID_SERVER_URL = {
 
 export type GitLabServerUrlError = typeof INVALID_SERVER_URL;
 
-/** A GitLab server on the developer's own machine. Allowed only by a development build. */
+/**
+ * A GitLab server on the developer's own machine, allowed only by a development build. Reads
+ * process.env directly because env.NODE_ENV defaults to development when the variable is unset.
+ */
 export function isLocalDevGitLabServer(url: URL): boolean {
-  return env.NODE_ENV === "development" && LOCAL_DEV_HOSTNAMES.has(normalizeHostname(url.hostname));
+  return (
+    process.env.NODE_ENV === "development" &&
+    LOCAL_DEV_HOSTNAMES.has(normalizeHostname(url.hostname))
+  );
+}
+
+/** Stops waiting when the signal fires, for steps such as DNS lookups that can't be cancelled. */
+export function stopWaitingOnAbort<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+    work.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+  });
 }
 
 function normalizeLocalDevServerUrl(value: string): string | null {
@@ -65,7 +85,10 @@ export async function resolveGitLabServerUrl(
     return normalized;
   }
   try {
-    await assertProviderUrlResolvable(normalized.value);
+    await stopWaitingOnAbort(
+      assertProviderUrlResolvable(normalized.value),
+      AbortSignal.timeout(GITLAB_SERVER_REQUEST_TIMEOUT_MS),
+    );
   } catch {
     return err(INVALID_SERVER_URL);
   }

@@ -40,6 +40,3 @@ export function paidPercent(
 export function unitCost(rate: string, units: number, payablePercent = 100): string {
   return usdString((usdUnits(rate) * BigInt(units) * BigInt(payablePercent)) / BigInt(100));
 }
-export function hourlyCost(rate: string, minutes: number): string {
-  return usdString((usdUnits(rate) * BigInt(minutes) + BigInt(30)) / BigInt(60));
-}

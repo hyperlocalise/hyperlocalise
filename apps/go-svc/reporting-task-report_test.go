@@ -246,3 +246,19 @@ func TestReportingInternalReportServesTheMcpToolForAMember(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), "feature_unavailable")
 }
+
+func TestReportingTaskCSVListsAFixedFeeAsARowOfItsOwn(t *testing.T) {
+	f := seedReportingMoney(t)
+	job := f.job("job_fee", f.scope.ProjectID, "running", true, "")
+	f.card("Standard", "2026-03-01T00:00:00Z", line("fr-FR", "0.5"))
+	mustReportingSummary(t, f.scope, []reportingSummaryRow{
+		{jobID: job, targetLocale: "fr-FR", day: "2026-06-01", arrived: 10, arrivedStrings: 2, arrivedDone: 4},
+	})
+	f.taskRate(job, "translation", nil, "", nil, some("25"))
+	lines := reportingReadCSV(t, f.scope, "admin", "/reports/tasks/"+job+"/report?rateCard=Standard&format=csv")
+	require.Equal(t, []string{
+		`"targetLocale","new","total","finished","weighted","costUsd","pricing"`,
+		`"fr-FR","10","10","4","","","fixed"`,
+		`"","","","","","25.00","fixed"`,
+	}, lines)
+}

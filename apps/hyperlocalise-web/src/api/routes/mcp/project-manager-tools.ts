@@ -33,7 +33,7 @@ import {
   overviewTriageJobStatusValues,
   openJobStatusValues,
 } from "@/api/routes/project/job.schema";
-import { REPORT_QUERY_SCHEMAS } from "@/api/routes/reports/reports.schema";
+import { REPORT_KINDS, REPORT_QUERY_SCHEMAS } from "@/api/routes/mcp/report-query-schema";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
 import { db, schema } from "@/lib/database/client";
@@ -52,7 +52,6 @@ import {
   AI_USAGE_DIMENSIONS,
   AI_USAGE_MEASURES,
 } from "@/lib/reporting/ai-usage-origins";
-import { REPORT_KINDS } from "@/lib/reporting/report-reads";
 import {
   REPORT_STEPS,
   REPORT_UNITS,

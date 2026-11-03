@@ -98,7 +98,6 @@ describe("markTaskDone", () => {
     expect(mocks.captureJobStatus).toHaveBeenCalledWith({
       jobId: task.id,
       status: "succeeded",
-      operationKey: `done:${task.id}`,
     });
     expect(mocks.recordJobEvents).toHaveBeenCalledWith({
       jobId: task.id,

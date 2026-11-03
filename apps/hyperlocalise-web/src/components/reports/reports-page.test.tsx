@@ -31,8 +31,8 @@ import {
   reportsResponseBodies,
   reportsWordCountSeries,
   type ReportsApiCall,
+  type WordCountSeries,
 } from "./reports.fixture";
-import type { WordCountSeries } from "@/lib/reporting/word-queries";
 
 const mocks = vi.hoisted(() => ({
   search: "",

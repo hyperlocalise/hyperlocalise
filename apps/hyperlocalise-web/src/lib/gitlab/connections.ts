@@ -40,7 +40,6 @@ function serializeConnection(row: GitLabConnectionRow): GitLabConnectionSummary 
     serverUrl: row.serverUrl,
     connectedUsername: row.connectedUsername,
     maskedTokenSuffix: row.maskedTokenSuffix,
-    lastValidatedAt: row.lastValidatedAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
@@ -72,17 +71,18 @@ function mapCheckError(error: GitLabApiError): GitLabConnectionError {
   };
 }
 
-/** Finds who the token belongs to, then that it can read projects: read_user alone passes the first. */
+/** Finds who the token belongs to, and that it can read projects: read_user alone passes the first. */
 async function checkGitLabServer(input: {
   baseUrl: string;
   accessToken: string;
 }): Promise<Result<string, GitLabConnectionError>> {
-  const username = await getGitLabCurrentUsername(input);
+  const [username, projects] = await Promise.all([
+    getGitLabCurrentUsername(input),
+    checkGitLabProjectAccess(input),
+  ]);
   if (isErr(username)) {
     return err(mapCheckError(username.error));
   }
-
-  const projects = await checkGitLabProjectAccess(input);
   if (isErr(projects)) {
     return err(mapCheckError(projects.error));
   }
@@ -132,7 +132,6 @@ export async function saveGitLabConnection(input: {
     updatedByUserId: input.userId,
     serverUrl: baseUrl.value,
     connectedUsername: username.value,
-    lastValidatedAt: new Date(),
     encryptionAlgorithm: encrypted.algorithm,
     ciphertext: encrypted.ciphertext,
     iv: encrypted.iv,
