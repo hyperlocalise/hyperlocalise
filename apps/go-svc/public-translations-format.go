@@ -220,30 +220,19 @@ func publicTranslationFilename(sourcePath, locale string) string {
 	return suffix + ".json"
 }
 
-// encodeURIComponentUnreserved marks characters unreserved by JavaScript's encodeURIComponent:
-// A-Z, a-z, 0-9, and - _ . ! ~ * ' ( )
+// encodeURIComponentUnreservedChars is the ECMA-262 uriUnescaped set:
+// uriAlpha / DecimalDigit / "-" / "_" / "." / "!" / "~" / "*" / "'" / "(" / ")"
+const encodeURIComponentUnreservedChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~*'()"
+
 var encodeURIComponentUnreserved = func() [256]bool {
 	var table [256]bool
-	for c := 'a'; c <= 'z'; c++ {
-		table[c] = true
-	}
-	for c := 'A'; c <= 'Z'; c++ {
-		table[c] = true
-	}
-	for c := '0'; c <= '9'; c++ {
-		table[c] = true
-	}
-	for _, c := range []byte("-_.!~*'()") {
-		table[c] = true
+	for i := 0; i < len(encodeURIComponentUnreservedChars); i++ {
+		table[encodeURIComponentUnreservedChars[i]] = true
 	}
 	return table
 }()
 
-// encodeURIComponent escapes a URI component matching JavaScript's encodeURIComponent semantics.
-// Performance optimizations:
-// 1. Table-based O(1) unreserved character lookup instead of multiple range checks and linear scans.
-// 2. Fast-path check: returns input string directly with 0 allocations if no characters need escaping.
-// 3. Pre-allocates strings.Builder capacity with b.Grow(len(value) + escapeCount*2) to prevent reallocations.
+// encodeURIComponent percent-encodes using JavaScript encodeURIComponent rules.
 func encodeURIComponent(value string) string {
 	escapeCount := 0
 	for i := 0; i < len(value); i++ {
