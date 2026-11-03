@@ -110,6 +110,9 @@
   "+7Y3hMdLcS": {
     "defaultMessage": "Đã xuất bảng thuật ngữ"
   },
+  "+7oMmGxk5W": {
+    "defaultMessage": "Đánh dấu công việc này là đã hoàn thành?"
+  },
   "+850lhlwsw": {
     "defaultMessage": "{count, plural, one {# lượt quét QA thất bại} other {# lượt quét QA thất bại}}"
   },
@@ -301,6 +304,9 @@
   },
   "+TLsx7a6do": {
     "defaultMessage": "Kết nối GitLab để chọn một dự án"
+  },
+  "+TnElwCqk4": {
+    "defaultMessage": "Giữ lại các bản sao trong HubSpot mà các thành viên trong nhóm đã chỉnh sửa sau lần đẩy gần nhất."
   },
   "+UD+5d3g3H": {
     "defaultMessage": "Yêu cầu kho lưu trữ"
@@ -1837,6 +1843,9 @@
   },
   "15JsK395Aq": {
     "defaultMessage": "Đưa nội dung đến với đối tượng của bạn bằng CMS cùng các hoạt động AEO và SEO tự động."
+  },
+  "15zAdlHpmJ": {
+    "defaultMessage": "HubSpot"
   },
   "16sYDMkqBx": {
     "defaultMessage": "Không. Kết nối trang web bạn đã có. Domains sẽ xuất bản và kiểm tra trang web đó. Bạn cũng có thể xuất bản từ Content Studio."
@@ -4067,6 +4076,9 @@
   "55pv/fQdGW": {
     "defaultMessage": "Số liệu"
   },
+  "55xv+A+K/m": {
+    "defaultMessage": "Chọn tất cả"
+  },
   "576RCOuTLO": {
     "defaultMessage": "Đã cập nhật {updated} vấn đề."
   },
@@ -5435,6 +5447,9 @@
   "7hdb/IRr/l": {
     "defaultMessage": "Chọn tất cả mục hiển thị"
   },
+  "7hm07cqAw8": {
+    "defaultMessage": "Tìm kiếm mục"
+  },
   "7hvZqJJjAI": {
     "defaultMessage": "Ngày"
   },
@@ -6611,6 +6626,9 @@
   "9lmMAv+1UD": {
     "defaultMessage": "Đóng"
   },
+  "9mI5GoWd3Q": {
+    "defaultMessage": "Hiện không thể tải kết nối HubSpot."
+  },
   "9mUgfw4H53": {
     "defaultMessage": "Bản dịch đã được lưu trong lần chỉnh sửa này"
   },
@@ -7196,6 +7214,9 @@
   "AtXAhlt1Vc": {
     "defaultMessage": "Chuỗi trước đó"
   },
+  "Atsclr94+y": {
+    "defaultMessage": "Tìm kiếm mục"
+  },
   "AuCHneqNSE": {
     "defaultMessage": "Lưu tính năng tự động hóa này để nhận URL trò chuyện công khai."
   },
@@ -7309,6 +7330,9 @@
   },
   "B7HJpY5IHI": {
     "defaultMessage": "Thử lại"
+  },
+  "B7iMFgP2e0": {
+    "defaultMessage": "Lần đẩy trước không thành công"
   },
   "B89dpJolat": {
     "defaultMessage": "Kích hoạt: {trigger}"
@@ -7895,6 +7919,9 @@
   "CBECdPWm0s": {
     "defaultMessage": "Đang thử lại…"
   },
+  "CBJCcle41q": {
+    "defaultMessage": "Đã ngắt kết nối HubSpot"
+  },
   "CBccpuuEIS": {
     "defaultMessage": "Đưa các tệp nguồn vào dự án và gửi lại các bản dịch đã hoàn tất."
   },
@@ -8434,6 +8461,9 @@
   },
   "D3VzMQGhqa": {
     "defaultMessage": "Phân công các tác nhân AI để dịch, rà soát và đ��ng bộ nội dung, đồng thời vẫn đặt việc duyệt của con người lên hàng đầu."
+  },
+  "D3kQXWPcCW": {
+    "defaultMessage": "Đã đưa yêu cầu đẩy lên HubSpot vào hàng đợi."
   },
   "D3q/aG4RpR": {
     "defaultMessage": "Tự động hóa các công việc nội dung toàn cầu lặp đi lặp lại để đội ngũ của bạn triển khai đến nhiều thị trường hơn, nhanh hơn."
@@ -11825,6 +11855,9 @@
   "JIHTr+V6i/": {
     "defaultMessage": "What needs context, review, or a fix?"
   },
+  "JIhKGhe8Ry": {
+    "defaultMessage": "Cho phép cửa sổ bật lên để kết nối với HubSpot."
+  },
   "JIuT2aW94P": {
     "defaultMessage": "Đã cập nhật 彩票天天乐"
   },
@@ -12242,6 +12275,9 @@
   "K3dTcxv8UP": {
     "defaultMessage": "Vai trò này có thể kiểm tra các chuỗi nhưng không thể ghi bản dịch trở lại."
   },
+  "K3x5cISuVg": {
+    "defaultMessage": "Đã đánh dấu hoàn thành nhiệm vụ dành cho mọi người."
+  },
   "K4+ynunWBF": {
     "defaultMessage": "GitLab"
   },
@@ -12346,6 +12382,9 @@
   },
   "KKUxl6AuoX": {
     "defaultMessage": "Tệp kết quả"
+  },
+  "KKwJDyo6Qn": {
+    "defaultMessage": "Ghi đè các bản sao trên HubSpot khi bản sao từ xa mới hơn."
   },
   "KL1WoqHBtQ": {
     "defaultMessage": "Nâng cấp gói cước"
@@ -12772,6 +12811,9 @@
   },
   "LCEJpmlHkp": {
     "defaultMessage": "Đã xóa kết nối Canva."
+  },
+  "LCEhMig6eV": {
+    "defaultMessage": "Các chuỗi dự án đã cập nhật"
   },
   "LCZsgeJImu": {
     "defaultMessage": "Name"
@@ -14312,6 +14354,9 @@
   "NwknAq8TGX": {
     "defaultMessage": "Nội dung trên Contentful hoặc Webflow. Thông báo trong Slack. Bài viết trợ giúp trên Intercom. Bản dịch vào Crowdin, Lokalise, Phrase hoặc Smartling nếu bạn vẫn sử dụng chúng."
   },
+  "Nwo7t+Ovaq": {
+    "defaultMessage": "đã cập nhật một công việc"
+  },
   "NwyqQCxTLG": {
     "defaultMessage": "Có. Hyperlocalise không phụ thuộc vào LLM. Sử dụng OpenAI, Anthropic, Gemini hoặc nhà cung cấp bạn ưa thích, và chuyển đổi mô hình mà không cần thay đổi quy trình làm việc."
   },
@@ -14677,6 +14722,9 @@
   },
   "OfQ4bwN572": {
     "defaultMessage": "Length"
+  },
+  "OgcxgmUfpQ": {
+    "defaultMessage": "Tác vụ sẽ được chuyển sang trạng thái hoàn tất và không thể mở lại. Các chuỗi chưa hoàn tất vẫn giữ nguyên, và những chỉnh sửa sau này sẽ không còn được tính vào tác vụ này."
   },
   "OhDSK13yKr": {
     "defaultMessage": "Một thành viên"
@@ -17819,6 +17867,9 @@
   "USrLdmNJAO": {
     "defaultMessage": "Tải lại tự động hóa đã lưu một lần nữa"
   },
+  "UT4djK0Z7P": {
+    "defaultMessage": "HubSpot"
+  },
   "UTeqE+Yq4v": {
     "defaultMessage": "GitLab"
   },
@@ -18244,6 +18295,9 @@
   },
   "VG/iXFDz5w": {
     "defaultMessage": "Lô: {value}"
+  },
+  "VGEYYw48AE": {
+    "defaultMessage": "Không thể tải xuống mục này."
   },
   "VGayu+ZFkL": {
     "defaultMessage": "Phân đoạn trước ({shortcut})"
@@ -19046,6 +19100,9 @@
   "WoJQD0Fykh": {
     "defaultMessage": "Từ nhãn nút đến toàn bộ quy trình"
   },
+  "WoSyZZEH6N": {
+    "defaultMessage": "Quá trình tải mất quá nhiều thời gian. Hãy thử lại hoặc thu hẹp bộ lọc của báo cáo."
+  },
   "WojZwK+028": {
     "defaultMessage": "Mọi mô hình"
   },
@@ -19654,6 +19711,9 @@
   },
   "XxZFsAWbq3": {
     "defaultMessage": "Cuộc trò chuyện"
+  },
+  "XzGaaTP1ZJ": {
+    "defaultMessage": "Không có mục nào được ánh xạ"
   },
   "XzH5GON6Rv": {
     "defaultMessage": "Chưa có nhóm nào"
@@ -21116,6 +21176,9 @@
   "aTqbNUoZhT": {
     "defaultMessage": "\"variant\": \"điều trị\""
   },
+  "aTt1oyDiQ4": {
+    "defaultMessage": "Bạn chỉ có thể đánh dấu hoàn tất các tác vụ được giao cho mình."
+  },
   "aUtNGn1QYX": {
     "defaultMessage": "Nó tham gia vào lớp bộ nhớ, được gắn thẻ theo loại và thị trường"
   },
@@ -21743,6 +21806,12 @@
   "bf/8sd/M64": {
     "defaultMessage": "Lưu"
   },
+  "bf0TtMsCUG": {
+    "defaultMessage": "Không có mục nào khớp."
+  },
+  "bfBd1OoAHf": {
+    "defaultMessage": "Bản địa hóa email, biểu mẫu, bài đăng trên blog, trang đích và trang web trong HubSpot."
+  },
   "bfD0UZF1jK": {
     "defaultMessage": "Máy chủ"
   },
@@ -21865,6 +21934,9 @@
   },
   "bsU0qqr6A2": {
     "defaultMessage": "Tổng quan"
+  },
+  "bsYaITED8a": {
+    "defaultMessage": "Chính sách thông báo đẩy"
   },
   "bsfKEASu14": {
     "defaultMessage": "Giữ nguyên thuật ngữ sản phẩm và nhãn giao diện người dùng"
@@ -23126,6 +23198,9 @@
   "e/sLamxaMH": {
     "defaultMessage": "Thay đổi kích thước bảng điều khiển hàng đợi"
   },
+  "e0CvlXJ4ct": {
+    "defaultMessage": "Rõ ràng"
+  },
   "e0sPtLxq8D": {
     "defaultMessage": "{segments} bản dịch đã được kiểm tra · {errors} lỗi · {warnings} cảnh báo"
   },
@@ -23512,6 +23587,9 @@
   },
   "eeEgKfExfG": {
     "defaultMessage": "Lưu thành bảng giá mới"
+  },
+  "eekYo93LGz": {
+    "defaultMessage": "Đang tải mục"
   },
   "efAi5lrO4s": {
     "defaultMessage": "Lưu và chạy"
@@ -24335,6 +24413,9 @@
   "g4pR2Tnesp": {
     "defaultMessage": "Đừng đoán mò thị trường nào muốn gì."
   },
+  "g5Lt85UaO9": {
+    "defaultMessage": "Đẩy lên HubSpot"
+  },
   "g5OYzJZ1DT": {
     "defaultMessage": "URL trò chuyện"
   },
@@ -24836,6 +24917,9 @@
   "h+UBaWw3mM": {
     "defaultMessage": "Đang chờ tải lên"
   },
+  "h+ie5F1ydq": {
+    "defaultMessage": "Chọn những email, biểu mẫu, bài đăng blog, trang đích và trang web đã được ánh xạ cần cập nhật bằng các bản dịch đã được phê duyệt. Thao tác này tạo bản sao theo ngôn ngữ và không bao giờ thay đổi hoặc xuất bản nội dung nguồn."
+  },
   "h+xR1ab29F": {
     "defaultMessage": "dưới 1%"
   },
@@ -25315,6 +25399,9 @@
   },
   "hptWpEO9CJ": {
     "defaultMessage": "Xong"
+  },
+  "hqDIbv77j2": {
+    "defaultMessage": "Không thể ngắt kết nối HubSpot."
   },
   "hqP31ZL7Z3": {
     "defaultMessage": "Một con số, chẳng hạn như số chuỗi cần thực hiện trong mục Kiểm tra tiến độ."
@@ -27017,6 +27104,9 @@
   "kn7ATogig+": {
     "defaultMessage": "Điều chỉnh toàn bộ các slide cùng lúc. Giữ nguyên bố cục, trau chuốt thông điệp và trình bày bằng bất kỳ ngôn ngữ nào."
   },
+  "knAumzrJwC": {
+    "defaultMessage": "Công việc đã được cập nhật"
+  },
   "knFaGwAEFJ": {
     "defaultMessage": "Kiểm tra bản địa hóa chạy với mọi pull request"
   },
@@ -27085,6 +27175,9 @@
   },
   "ksdqzG4/Xq": {
     "defaultMessage": "Xuất bộ lọc dưới dạng TBX"
+  },
+  "kse6ogMy60": {
+    "defaultMessage": "Hủy"
   },
   "ksrwIvV64s": {
     "defaultMessage": "Cài đặt không gian làm việc"
@@ -27178,6 +27271,9 @@
   },
   "l0dInWPeYD": {
     "defaultMessage": "Tệp kiến thức"
+  },
+  "l1G7XLzm4n": {
+    "defaultMessage": "Đã cập nhật chuỗi dự án"
   },
   "l1mlJzFoj/": {
     "defaultMessage": "Tải thêm"
@@ -27754,6 +27850,9 @@
   },
   "m645TvmZkL": {
     "defaultMessage": "Lần chạy gần nhất"
+  },
+  "m6d0KfiqLJ": {
+    "defaultMessage": "Không thể làm mới các số liệu này, vì vậy chúng có thể đã lỗi thời."
   },
   "m6jiE/qhjy": {
     "defaultMessage": "{count} / {maxLength} ký tự"
@@ -28829,6 +28928,9 @@
   "nwJGCHKaPx": {
     "defaultMessage": "Liên kết cài đặt GitHub đã hết hạn hoặc đã được sử dụng rồi. Nhấp vào Kết nối lại từ trang này."
   },
+  "nx0R7JXLot": {
+    "defaultMessage": "Đang ngắt kết nối"
+  },
   "nxVF3ARuwj": {
     "defaultMessage": "ID lô nhập khẩu"
   },
@@ -29089,6 +29191,9 @@
   },
   "oRgI0X9Pkl": {
     "defaultMessage": "XLS"
+  },
+  "oRrUQMuqOA": {
+    "defaultMessage": "Ngắt kết nối"
   },
   "oS7mysSU95": {
     "defaultMessage": "{kind} · {format}"
@@ -29510,6 +29615,9 @@
   "pAXX9L54+r": {
     "defaultMessage": "Hành vi dịch thuật & CAT"
   },
+  "pBSmD5j3RM": {
+    "defaultMessage": "Đang đánh dấu hoàn thành…"
+  },
   "pCIZGjBgS+": {
     "defaultMessage": "Top {shown} trên tổng số {total}"
   },
@@ -29599,6 +29707,9 @@
   },
   "pMWGh46Ptt": {
     "defaultMessage": "Đối tượng trg."
+  },
+  "pMZzEwjsIu": {
+    "defaultMessage": "Đánh dấu hoàn tất"
   },
   "pMpF//U8ui": {
     "defaultMessage": "Remove"
@@ -30019,6 +30130,9 @@
   },
   "q1SUe75H6g": {
     "defaultMessage": "Major"
+  },
+  "q1Z6cLN3TO": {
+    "defaultMessage": "Automation"
   },
   "q1gTXMRwMD": {
     "defaultMessage": "Giai đoạn đầu, thường có dưới 50 nhân viên hoặc trước vòng gọi vốn Series B"
@@ -31394,6 +31508,9 @@
   "sTY0HjJCgH": {
     "defaultMessage": "Permission"
   },
+  "sTc8os2V6k": {
+    "defaultMessage": "Giữ nguyên trạng thái mở"
+  },
   "sUNtSb7xJe": {
     "defaultMessage": "Các liên kết đầu ra đã thu thập (JSON)"
   },
@@ -31501,6 +31618,9 @@
   },
   "sfhtDmbrI3": {
     "defaultMessage": "Đã sử dụng lại {count} chuỗi"
+  },
+  "sg405N0flU": {
+    "defaultMessage": "Không thể đưa thao tác đẩy lên HubSpot vào hàng đợi."
   },
   "sgGvzPrbqO": {
     "defaultMessage": "Chưa có gì tạo ra kết quả. Hãy thêm một kỹ năng có thể kiểm tra, tóm tắt hoặc nghiên cứu nội dung nào đó, hoặc viết hướng dẫn."
@@ -31858,6 +31978,9 @@
   },
   "tK7acLhoUb": {
     "defaultMessage": "Trạng thái"
+  },
+  "tKEC9A/nAh": {
+    "defaultMessage": "Không thể bắt đầu quá trình ủy quyền HubSpot."
   },
   "tKdwJD/VUy": {
     "defaultMessage": "từ"
@@ -33312,7 +33435,7 @@
     "defaultMessage": "Tác nhân"
   },
   "vxWXD/yiTP": {
-    "defaultMessage": "nav\nfooter"
+    "defaultMessage": "điều hướng\nchân trang"
   },
   "vxm9RJy+2w": {
     "defaultMessage": "Đã bắt đầu quét QA."
@@ -33703,6 +33826,9 @@
   },
   "wc8eM+CF/N": {
     "defaultMessage": "Mật khẩu bí mật ứng dụng OAuth"
+  },
+  "wclN4/dKYj": {
+    "defaultMessage": "Không thể đánh dấu nhiệm vụ là hoàn thành."
   },
   "wcn78AsmsL": {
     "defaultMessage": "Ghi chú bảng thuật ngữ, cảnh báo định dạng và nhận xét hiển thị trước khi phê duyệt, không phải sau khi phát hành."
@@ -34217,6 +34343,9 @@
   "xUdbOFsZxg": {
     "defaultMessage": "Đặt lịch xem xét kiểm tra"
   },
+  "xVjKDBvqPx": {
+    "defaultMessage": "Đẩy {count, plural, one {# mục} other {# mục}}"
+  },
   "xVvlWpH5FH": {
     "defaultMessage": "Tạo lại"
   },
@@ -34363,6 +34492,12 @@
   },
   "xjrZfzDX6N": {
     "defaultMessage": "Tự tin, chu đáo và thân thiện. Sử dụng ngôn ngữ rõ ràng và nói trực tiếp với người đọc."
+  },
+  "xk6Ug/3teq": {
+    "defaultMessage": "Báo cáo đang bận. Vui lòng thử lại sau giây lát."
+  },
+  "xkC+jko3kk": {
+    "defaultMessage": "Nhiệm vụ này đã được hoàn thành hoặc hủy."
   },
   "xkkgs3AOHS": {
     "defaultMessage": "Nhập các chuỗi nguồn từ GitHub vào dự án TMS của bạn."
@@ -34582,6 +34717,9 @@
   },
   "y7TyDgtZHB": {
     "defaultMessage": "https://api.lokalise.com/api2"
+  },
+  "y7wsSxtRQK": {
+    "defaultMessage": "Không thể tải các mục."
   },
   "y8Gkw54qZc": {
     "defaultMessage": "Đang kiểm tra các yêu cầu về mức độ hỗ trợ ngôn ngữ..."
@@ -34855,6 +34993,9 @@
   },
   "ydDpJd3kaY": {
     "defaultMessage": "Thêm quy tắc"
+  },
+  "ydKsI5HS/s": {
+    "defaultMessage": "Đẩy lên HubSpot"
   },
   "yeGOLY++rb": {
     "defaultMessage": "Điều chỉnh hình ảnh này cho {locale}, bao gồm cách diễn đạt, giọng điệu, bối cảnh văn hóa và bố cục."
@@ -35215,6 +35356,9 @@
   },
   "zLa51T7B2l": {
     "defaultMessage": "Đang kiểm tra cấu hình kho lưu trữ"
+  },
+  "zLb2OYI9oM": {
+    "defaultMessage": "{name} đã đánh dấu nhiệm vụ là hoàn thành."
   },
   "zLdcgO8mwD": {
     "defaultMessage": "Cho phép tự động hóa này thêm thông tin vào Memory.md dùng chung của tổ chức. Các thay đổi được ghi lại trong lịch sử sửa đổi và có thể được khôi phục."
