@@ -26,3 +26,12 @@ export async function runProjectContentSyncStep(event: ProjectContentSyncEventDa
 
 // A retry would repeat the pull and the pull request; the run records its own failure instead.
 runProjectContentSyncStep.maxRetries = 0;
+
+/** Closes the run when the sync step itself died, for example by running out of time. */
+export async function failProjectContentSyncStep(event: ProjectContentSyncEventData) {
+  "use step";
+
+  const { failProjectContentSyncRun } =
+    await import("@/lib/projects/content-sync/project-content-sync");
+  await failProjectContentSyncRun({ runId: event.runId });
+}

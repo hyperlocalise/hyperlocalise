@@ -18,7 +18,8 @@ import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const { enqueueActivityLogEventMock, resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  enqueueActivityLogEventMock: vi.fn(async () => ({ ok: true as const, value: {} })),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -35,9 +36,15 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvent: enqueueActivityLogEventMock,
+  enqueueActivityLogEvents: vi.fn(async () => []),
+}));
+
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
+import { contentSyncFingerprintFromConfig } from "@/lib/agents/content-sync/content-sync-config";
 import { db, schema } from "@/lib/database/client";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
@@ -154,6 +161,12 @@ describe("project content sync routes", () => {
       resourceKey: "acme/web",
       providerFolder: "locales",
     });
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "project_settings_changed",
+        payload: { changedFields: ["sync"], projectId: project.id },
+      }),
+    );
 
     const started = await routeFor().runs.$post({ param }, { headers });
     expect(started.status).toBe(202);
@@ -170,6 +183,13 @@ describe("project content sync routes", () => {
       expect.objectContaining({ status: "running", trigger: "manual" }),
     ]);
 
+    const busy = await routeFor().$delete({ param }, { headers });
+    expect(busy.status).toBe(409);
+
+    await db
+      .update(schema.projectContentSyncRuns)
+      .set({ status: "succeeded" })
+      .where(eq(schema.projectContentSyncRuns.projectId, project.id));
     const removed = await routeFor().$delete({ param }, { headers });
     expect(removed.status).toBe(204);
     const runs = await db
@@ -292,6 +312,12 @@ describe("project content sync routes", () => {
     const run = await routeFor().runs.$post({ param: paramFor(admin, project.id) }, { headers });
     expect(run.status).toBe(404);
 
+    const externalRun = await routeFor().runs.$post(
+      { param: paramFor(external.admin, external.project.id) },
+      { headers: await projectFixture.authHeadersFor(external.admin) },
+    );
+    expect(externalRun.status).toBe(400);
+
     const externalHeaders = await projectFixture.authHeadersFor(external.admin);
     const read = await routeFor().$get(
       { param: paramFor(external.admin, external.project.id) },
@@ -299,5 +325,44 @@ describe("project content sync routes", () => {
     );
     expect(read.status).toBe(400);
     expect(await read.json()).toMatchObject({ error: "content_sync_not_supported" });
+  });
+
+  it("refuses a sync that an active content sync automation already covers", async () => {
+    const { admin, organization, project, repository } = await seedWorkspace();
+    const headers = await projectFixture.authHeadersFor(admin);
+    const body = syncBody(repository.id);
+    await db.insert(schema.workspaceAutomations).values({
+      organizationId: organization.id,
+      kind: "content_sync",
+      name: "Sync acme/web",
+      instructions: "",
+      projectId: project.id,
+      syncConfig: { ...body.syncConfig, resourceKey: "acme/web" },
+      syncFingerprint: contentSyncFingerprintFromConfig({
+        ...body.syncConfig,
+        resourceKey: "acme/web",
+      }),
+    });
+
+    const saved = await routeFor().$put(
+      { param: paramFor(admin, project.id), json: body },
+      { headers },
+    );
+
+    expect(saved.status).toBe(409);
+    expect(await saved.json()).toMatchObject({ error: "content_sync_automation_overlap" });
+  });
+
+  it("answers a malformed connection id as a missing repository", async () => {
+    const { admin, project } = await seedWorkspace();
+    const headers = await projectFixture.authHeadersFor(admin);
+
+    const saved = await routeFor().$put(
+      { param: paramFor(admin, project.id), json: syncBody("not-a-uuid") },
+      { headers },
+    );
+
+    expect(saved.status).toBe(400);
+    expect(await saved.json()).toMatchObject({ error: "content_sync_connection_required" });
   });
 });

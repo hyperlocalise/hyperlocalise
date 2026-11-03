@@ -19,7 +19,7 @@ import {
   resolveContentSyncTriggerConfig,
   validateContentSyncConfig,
 } from "./content-sync-config";
-import type { ContentSyncConfig } from "./content-sync-types";
+import { contentSyncConfigSchema, type ContentSyncConfig } from "./content-sync-types";
 
 const githubConfig: ContentSyncConfig = {
   provider: "github",
@@ -66,5 +66,31 @@ describe("content sync config", () => {
       projectFolder: "contentful/space-1",
     });
     expect(isOk(contentful)).toBe(true);
+  });
+
+  it("accepts a path template only when it is a safe relative path with a locale", () => {
+    for (const pathTemplate of ["locales/{{locale}}.json", "{{locale}}/messages.po"]) {
+      expect(isOk(validateContentSyncConfig({ ...githubConfig, pathTemplate }))).toBe(true);
+    }
+    for (const pathTemplate of [
+      "locales/fr.json",
+      "../{{locale}}.json",
+      "/etc/{{locale}}",
+      ".git/{{locale}}",
+    ]) {
+      const result = validateContentSyncConfig({ ...githubConfig, pathTemplate });
+      expect(isErr(result) && result.error.code).toBe("content_sync_path_template_invalid");
+    }
+  });
+
+  it("allows only language-code characters in the language code map", () => {
+    expect(
+      contentSyncConfigSchema.safeParse({ ...githubConfig, localeCodeMap: { "fr-FR": "fr" } })
+        .success,
+    ).toBe(true);
+    expect(
+      contentSyncConfigSchema.safeParse({ ...githubConfig, localeCodeMap: { "fr-FR": "../fr" } })
+        .success,
+    ).toBe(false);
   });
 });

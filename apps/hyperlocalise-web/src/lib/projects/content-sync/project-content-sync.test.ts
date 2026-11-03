@@ -35,7 +35,11 @@ import type { ProjectContentSyncQueue } from "@/lib/workflow/types";
 
 import {
   claimProjectContentSyncRun,
+  deleteProjectContentSync,
   executeProjectContentSyncRun,
+  failProjectContentSyncRun,
+  followingScheduledContentSyncRunAt,
+  listProjectContentSyncRuns,
   runDueProjectContentSyncs,
   saveProjectContentSync,
   STALE_CONTENT_SYNC_RUN_MS,
@@ -222,6 +226,7 @@ describe("executeProjectContentSyncRun", () => {
         providerFolder: "locales",
         projectFolder: "github/acme/web",
       }),
+      pullRequestBranchKey: `sync-${sync.id}`,
     });
     expect(await readRun(runId)).toMatchObject({ status: "succeeded", summary });
   });
@@ -312,7 +317,7 @@ describe("runDueProjectContentSyncs", () => {
       .select({ nextRunAt: schema.projectContentSyncs.nextRunAt })
       .from(schema.projectContentSyncs)
       .where(eq(schema.projectContentSyncs.id, due.sync.id));
-    expect(advanced?.nextRunAt?.getTime()).toBe(now.getTime() + HOUR_MS);
+    expect(advanced?.nextRunAt?.getTime()).toBe(past.getTime() + 3 * HOUR_MS);
 
     const manualRuns = await db
       .select()
@@ -339,6 +344,99 @@ describe("runDueProjectContentSyncs", () => {
       .select({ nextRunAt: schema.projectContentSyncs.nextRunAt })
       .from(schema.projectContentSyncs)
       .where(eq(schema.projectContentSyncs.id, sync.id));
-    expect(advanced?.nextRunAt?.getTime()).toBe(now.getTime() + HOUR_MS);
+    expect(advanced?.nextRunAt?.getTime()).toBe(past.getTime() + 3 * HOUR_MS);
+  });
+});
+
+describe("followingScheduledContentSyncRunAt", () => {
+  it("keeps the schedule on its slots when the cron tick is late or several slots were missed", () => {
+    const dueAt = new Date("2026-11-04T13:00:00.000Z");
+
+    expect(
+      followingScheduledContentSyncRunAt("hourly", dueAt, new Date("2026-11-04T13:14:59.000Z")),
+    ).toEqual(new Date("2026-11-04T14:00:00.000Z"));
+    expect(
+      followingScheduledContentSyncRunAt("hourly", dueAt, new Date("2026-11-04T16:30:00.000Z")),
+    ).toEqual(new Date("2026-11-04T17:00:00.000Z"));
+    expect(
+      followingScheduledContentSyncRunAt("daily", dueAt, new Date("2026-11-04T13:15:00.000Z")),
+    ).toEqual(new Date("2026-11-05T13:00:00.000Z"));
+  });
+});
+
+describe("closing runs", () => {
+  it("does not reopen a run that was already failed as stale", async () => {
+    const { organization, sync } = await createSync();
+    executeContentSyncConfigMock.mockResolvedValue(
+      ok({ pulled: { uploaded: 1, skipped: 0, failed: 0 }, pushed: { written: 0 } }),
+    );
+    const startedAt = new Date(Date.now() - STALE_CONTENT_SYNC_RUN_MS - 60_000);
+    const stale = await claimProjectContentSyncRun({
+      sync,
+      trigger: "manual",
+      userId: null,
+      now: startedAt,
+    });
+    const staleId = stale.ok ? stale.value.id : "";
+    await claimProjectContentSyncRun({ sync, trigger: "manual", userId: null });
+
+    await db
+      .update(schema.projectContentSyncRuns)
+      .set({ status: "running" })
+      .where(eq(schema.projectContentSyncRuns.id, staleId));
+    await db
+      .update(schema.projectContentSyncRuns)
+      .set({ status: "failed", errorCode: "content_sync_stale" })
+      .where(eq(schema.projectContentSyncRuns.id, staleId));
+    await failProjectContentSyncRun({ runId: staleId });
+
+    expect(await readRun(staleId)).toMatchObject({
+      status: "failed",
+      errorCode: "content_sync_stale",
+    });
+    expect(organization.id).toBeTruthy();
+  });
+
+  it("closes a run whose workflow step died", async () => {
+    const { sync } = await createSync();
+    const claimed = await claimProjectContentSyncRun({ sync, trigger: "manual", userId: null });
+    const runId = claimed.ok ? claimed.value.id : "";
+
+    await failProjectContentSyncRun({ runId });
+
+    expect(await readRun(runId)).toMatchObject({
+      status: "failed",
+      errorCode: "content_sync_failed",
+    });
+  });
+
+  it("shows a stale run as failed when the runs are listed", async () => {
+    const { organization, sync } = await createSync();
+    const startedAt = new Date(Date.now() - STALE_CONTENT_SYNC_RUN_MS - 60_000);
+    await claimProjectContentSyncRun({ sync, trigger: "manual", userId: null, now: startedAt });
+
+    const runs = await listProjectContentSyncRuns({
+      organizationId: organization.id,
+      syncId: sync.id,
+      limit: 10,
+    });
+
+    expect(runs[0]).toMatchObject({ status: "failed", errorCode: "content_sync_stale" });
+  });
+});
+
+describe("deleteProjectContentSync", () => {
+  it("refuses while a run is going and deletes once it has finished", async () => {
+    const { organization, project, sync } = await createSync();
+    const claimed = await claimProjectContentSyncRun({ sync, trigger: "manual", userId: null });
+
+    expect(
+      await deleteProjectContentSync({ organizationId: organization.id, projectId: project.id }),
+    ).toEqual({ ok: false, error: { code: "content_sync_in_progress" } });
+
+    await failProjectContentSyncRun({ runId: claimed.ok ? claimed.value.id : "" });
+    expect(
+      await deleteProjectContentSync({ organizationId: organization.id, projectId: project.id }),
+    ).toMatchObject({ ok: true });
   });
 });

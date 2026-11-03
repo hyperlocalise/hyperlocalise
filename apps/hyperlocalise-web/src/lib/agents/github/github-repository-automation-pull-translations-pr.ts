@@ -53,6 +53,26 @@ export async function verifyExpectedBaseBranchHead(input: {
   return { ok: true };
 }
 
+/** The branch's head on GitHub, or undefined when the branch does not exist. */
+async function readRemoteBranchHeadSha(
+  octokit: Awaited<ReturnType<typeof getInstallationOctokit>>,
+  input: { owner: string; repo: string; branch: string },
+): Promise<string | undefined> {
+  try {
+    const ref = await octokit.rest.git.getRef({
+      owner: input.owner,
+      repo: input.repo,
+      ref: `heads/${input.branch}`,
+    });
+    return ref.data.object.sha;
+  } catch (error) {
+    if (error && typeof error === "object" && "status" in error && error.status === 404) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
 export async function writePullTranslationCandidatesToSandbox(input: {
   sandboxId: string;
   candidates: PullTranslationExportCandidate[];
@@ -104,7 +124,10 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
   });
 
   const isUpdatingExistingPull = existingPull.data.length > 0;
-  const remoteBranchHeadSha = isUpdatingExistingPull ? existingPull.data[0]?.head.sha : undefined;
+  // A reused branch can outlive its pull request (merged or closed without deleting the branch).
+  const remoteBranchHeadSha = isUpdatingExistingPull
+    ? existingPull.data[0]?.head.sha
+    : await readRemoteBranchHeadSha(octokit, { owner, repo, branch: input.branchName });
 
   const checkoutArgs = isUpdatingExistingPull
     ? ["checkout", "-f", input.branchName]
@@ -143,16 +166,15 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
     throw new Error(`git commit failed: ${commit.output}`);
   }
 
-  const pushArgs =
-    isUpdatingExistingPull && remoteBranchHeadSha
-      ? [
-          "push",
-          "-u",
-          "origin",
-          input.branchName,
-          `--force-with-lease=refs/heads/${input.branchName}:${remoteBranchHeadSha}`,
-        ]
-      : ["push", "-u", "origin", input.branchName];
+  const pushArgs = remoteBranchHeadSha
+    ? [
+        "push",
+        "-u",
+        "origin",
+        input.branchName,
+        `--force-with-lease=refs/heads/${input.branchName}:${remoteBranchHeadSha}`,
+      ]
+    : ["push", "-u", "origin", input.branchName];
   const push = await runSandboxCommand(input.sandboxId, "git", pushArgs);
   if (push.exitCode !== 0) {
     throw new Error(`git push failed: ${push.output}`);

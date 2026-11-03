@@ -101,12 +101,14 @@ const runs = [
   },
 ];
 
-function renderPanel(input: { canManage?: boolean; sync?: unknown; connections?: unknown[] } = {}) {
+function renderPanel(
+  input: { canManage?: boolean; sync?: unknown; connections?: unknown[]; runs?: unknown[] } = {},
+) {
   api.get.mockResolvedValue(
     jsonResponse(200, {
       contentSync: {
         sync: input.sync === undefined ? savedSync : input.sync,
-        runs: input.sync === null ? [] : runs,
+        runs: input.runs ?? (input.sync === null ? [] : runs),
       },
     }),
   );
@@ -151,8 +153,11 @@ describe("ProjectContentSyncPanel", () => {
       "https://github.com/acme/web/pull/7",
     );
     expect(
-      screen.getByText("Enable this repository in Integrations before syncing."),
+      screen.getByText(
+        "This repository is not enabled in Integrations. Enable it there or choose another one.",
+      ),
     ).toBeInTheDocument();
+    expect(screen.getByText("Started by hand")).toBeInTheDocument();
   });
 
   it("saves edited settings and blocks Sync now until they are saved", async () => {
@@ -208,6 +213,67 @@ describe("ProjectContentSyncPanel", () => {
     expect(screen.getByRole("button", { name: "Open Integrations" })).toHaveAttribute(
       "href",
       "/org/acme/integrations",
+    );
+  });
+
+  it("keeps Save off until a repository and both folders are filled in", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    const folder = await screen.findByDisplayValue("locales");
+
+    await user.clear(folder);
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(screen.getByText("Save your changes before syncing.")).toBeInTheDocument();
+  });
+
+  it("says no sync is set up to people who cannot set one up", async () => {
+    renderPanel({ canManage: false, sync: null });
+
+    expect(await screen.findByText("No sync is set up for this project.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Repository folder")).not.toBeInTheDocument();
+  });
+
+  it("blocks Sync now and Remove while a run is going", async () => {
+    renderPanel({ runs: [{ ...runs[0], status: "running", pulled: null, written: null }] });
+
+    expect(
+      await screen.findByText("A sync is running. You can start another when it finishes."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Sync now/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Remove sync" })).toBeDisabled();
+  });
+
+  it("flags a saved repository that is no longer enabled", async () => {
+    renderPanel({ connections: [] });
+
+    expect(
+      await screen.findAllByText(
+        "This repository is not enabled in Integrations. Enable it there or choose another one.",
+      ),
+    ).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Sync now" })).toBeDisabled();
+  });
+
+  it("shows a translated message for a known save error", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    api.put.mockResolvedValue(
+      jsonResponse(409, {
+        error: "content_sync_automation_overlap",
+        message: "An active content sync automation already syncs this repository folder.",
+      }),
+    );
+    const folder = await screen.findByDisplayValue("locales");
+
+    await user.type(folder, "/web");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const { toast } = await import("sonner");
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "A content sync automation already syncs this repository folder into the project. Pause it on the Automations page first.",
+      ),
     );
   });
 });

@@ -148,13 +148,14 @@ function repository(overrides?: Record<string, unknown>) {
   };
 }
 
-async function runSync(config: ContentSyncConfig = syncConfig) {
+async function runSync(config: ContentSyncConfig = syncConfig, pullRequestBranchKey?: string) {
   return executeGithubContentSync({
     organizationId: ORG_ID,
     projectId: PROJECT_ID,
     automationId: AUTOMATION_ID,
     runId: RUN_ID,
     syncConfig: config,
+    pullRequestBranchKey,
   });
 }
 
@@ -166,6 +167,7 @@ async function pullThenPush(options?: {
   hasDiff?: boolean;
   pullRequestUrl?: string;
   repositoryOverrides?: Record<string, unknown>;
+  pullRequestBranchKey?: string;
 }) {
   mocks.selectLimit
     .mockResolvedValueOnce([repository(options?.repositoryOverrides)])
@@ -189,7 +191,7 @@ async function pullThenPush(options?: {
   mocks.commitPushAndCreatePullTranslationsPullRequest.mockResolvedValue({
     pullRequestUrl: options?.pullRequestUrl ?? "https://github.com/acme/web/pull/9",
   });
-  return runSync();
+  return runSync(syncConfig, options?.pullRequestBranchKey);
 }
 
 describe("executeGithubContentSync", () => {
@@ -298,7 +300,7 @@ describe("executeGithubContentSync", () => {
       2,
       "sbx-1",
       "git",
-      ["ls-files", "--error-unmatch", "locales"],
+      ["ls-files", "--error-unmatch", "--", "locales"],
       { output: "stdout" },
     );
     expect(mocks.stopGithubRepositoryAutomationSandbox).toHaveBeenCalledWith("sbx-1");
@@ -422,6 +424,14 @@ describe("executeGithubContentSync", () => {
       }),
     );
     expect(mocks.stopGithubRepositoryAutomationSandbox).toHaveBeenCalledWith("sbx-1");
+  });
+
+  it("reuses the caller's pull request branch across runs", async () => {
+    await pullThenPush({ pullRequestBranchKey: "sync-1" });
+
+    expect(mocks.commitPushAndCreatePullTranslationsPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ branchName: "content-sync/sync-1" }),
+    );
   });
 
   it("pushes generated Excel workbooks only for locales with ready translations", async () => {

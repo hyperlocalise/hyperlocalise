@@ -157,6 +157,8 @@ export async function executeContentSyncConfig(input: {
   workflowId: string;
   runId: string;
   syncConfig: ContentSyncConfig | null;
+  /** Reuses one pull request branch across runs; defaults to a branch per run. */
+  pullRequestBranchKey?: string;
 }): Promise<Result<ContentSyncSummary, { code: string; message: string }>> {
   return runContentSyncProvider({
     organizationId: input.organizationId,
@@ -164,6 +166,7 @@ export async function executeContentSyncConfig(input: {
     automationId: input.workflowId,
     runId: input.runId,
     syncConfig: input.syncConfig,
+    pullRequestBranchKey: input.pullRequestBranchKey,
   });
 }
 
@@ -173,6 +176,7 @@ async function runContentSyncProvider(input: {
   automationId: string;
   runId: string;
   syncConfig: ContentSyncConfig | null;
+  pullRequestBranchKey?: string;
 }): Promise<Result<ContentSyncSummary, { code: string; message: string }>> {
   if (!input.syncConfig) {
     return err({
@@ -188,6 +192,7 @@ async function runContentSyncProvider(input: {
       automationId: input.automationId,
       runId: input.runId,
       syncConfig: input.syncConfig,
+      pullRequestBranchKey: input.pullRequestBranchKey,
     });
   }
 

@@ -12,10 +12,17 @@
  */
 import type { ProjectContentSyncEventData } from "@/lib/workflow/types";
 
-import { runProjectContentSyncStep } from "./steps/project-content-sync";
+import {
+  failProjectContentSyncStep,
+  runProjectContentSyncStep,
+} from "./steps/project-content-sync";
 
 export async function projectContentSyncWorkflow(event: ProjectContentSyncEventData) {
   "use workflow";
 
-  await runProjectContentSyncStep(event);
+  try {
+    await runProjectContentSyncStep(event);
+  } catch {
+    await failProjectContentSyncStep(event);
+  }
 }

@@ -12,6 +12,7 @@
  */
 import { buildContentSyncFingerprint } from "./content-sync-paths";
 import {
+  CONTENT_SYNC_LOCALE_PLACEHOLDER,
   buildDefaultContentSyncTriggerMode,
   contentSyncNeedsProviderFolder,
   type ContentSyncConfig,
@@ -114,5 +115,24 @@ export function validateContentSyncConfig(
     });
   }
 
+  if (
+    normalized.pathTemplate !== undefined &&
+    !isSafeContentSyncPathTemplate(normalized.pathTemplate)
+  ) {
+    return err({
+      code: "content_sync_path_template_invalid",
+      message: "Use a safe relative file path that contains {{locale}}.",
+    });
+  }
+
   return ok(normalized);
+}
+
+function isSafeContentSyncPathTemplate(template: string): boolean {
+  if (!template.includes(CONTENT_SYNC_LOCALE_PLACEHOLDER)) {
+    return false;
+  }
+  const sample = template.replaceAll(CONTENT_SYNC_LOCALE_PLACEHOLDER, "locale");
+  // Stored as written, so it must already be the plain relative form a provider can use.
+  return normalizeContentSyncFolder(sample) === sample && isSafeContentSyncFolder(sample);
 }

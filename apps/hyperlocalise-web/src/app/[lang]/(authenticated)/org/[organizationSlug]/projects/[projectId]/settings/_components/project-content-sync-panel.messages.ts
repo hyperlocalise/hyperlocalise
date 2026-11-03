@@ -212,8 +212,8 @@ export const projectContentSyncPanelMessages = defineMessages({
     description: "Status of a project sync run that failed",
   },
   runManual: {
-    defaultMessage: "Sync now",
-    id: "GIdSKY7YRg",
+    defaultMessage: "Started by hand",
+    id: "G1iUqTOOGV",
     description: "Shows that a project sync run was started with Sync now",
   },
   runScheduled: {
@@ -223,8 +223,8 @@ export const projectContentSyncPanelMessages = defineMessages({
   },
   runPulled: {
     defaultMessage:
-      "{uploaded, plural, one {# file imported} other {# files imported}}, {skipped} unchanged",
-    id: "SfGrL41D5/",
+      "{uploaded, plural, one {# file imported} other {# files imported}}, {skipped, number} unchanged",
+    id: "sBD3fLEfW2",
     description: "Summary of the source files a project sync run imported",
   },
   runWritten: {
@@ -237,5 +237,74 @@ export const projectContentSyncPanelMessages = defineMessages({
     defaultMessage: "Open pull request",
     id: "3V79KDlgh2",
     description: "Link to the pull request a project sync run opened",
+  },
+  notSetUp: {
+    defaultMessage: "No sync is set up for this project.",
+    id: "stTMDlHaoL",
+    description:
+      "Shown in the project Sync panel to people who cannot change it when no sync is set up",
+  },
+  syncRunning: {
+    defaultMessage: "A sync is running. You can start another when it finishes.",
+    id: "9/rHOO9Hcc",
+    description: "Shown in the project Sync panel while a sync run is going",
+  },
+  providerFolderPlaceholder: {
+    defaultMessage: "locales",
+    id: "YLY+U5/DGl",
+    description:
+      "Example repository folder shown in the empty repository folder field of the project Sync panel",
+  },
+  loadConnectionsError: {
+    defaultMessage: "Unable to load the repositories. Reload the page to try again.",
+    id: "fkrYmhHuuT",
+    description:
+      "Error shown when the list of repositories for the project Sync panel fails to load",
+  },
+  errorFieldsRequired: {
+    defaultMessage: "Choose a repository and fill in both folders.",
+    id: "uyNK3DRlM0",
+    description:
+      "Error shown when the project sync settings are saved with a missing repository or folder",
+  },
+  errorFolderUnsafe: {
+    defaultMessage: "Use a folder path inside the repository, such as locales.",
+    id: "dSbL+8m8KU",
+    description:
+      "Error shown when a folder in the project sync settings is not a safe relative path",
+  },
+  errorRepositoryNotEnabled: {
+    defaultMessage:
+      "This repository is not enabled in Integrations. Enable it there or choose another one.",
+    id: "bTTUPk+i8t",
+    description:
+      "Shown when the repository chosen for the project sync is not enabled in Integrations",
+  },
+  errorAutomationOverlap: {
+    defaultMessage:
+      "A content sync automation already syncs this repository folder into the project. Pause it on the Automations page first.",
+    id: "nouZfHJYX6",
+    description:
+      "Error shown when saving the project sync while an active content sync automation covers the same repository folder",
+  },
+  runFolderMissing: {
+    defaultMessage: "The repository folder was not found or could not be read.",
+    id: "BxGtFLZNTw",
+    description: "Error shown for a project sync run whose repository folder was missing",
+  },
+  runPullFailed: {
+    defaultMessage: "Some source files could not be imported.",
+    id: "zeRvYqj5Gy",
+    description: "Error shown for a project sync run where some source files failed to import",
+  },
+  runStale: {
+    defaultMessage: "The sync did not finish in time.",
+    id: "0ulsI+XIyW",
+    description: "Error shown for a project sync run that stopped responding",
+  },
+  runUnexpected: {
+    defaultMessage: "The sync stopped unexpectedly.",
+    id: "RRTJeJffFC",
+    description: "Error shown for a project sync run that failed for an unexpected reason",
   },
 });

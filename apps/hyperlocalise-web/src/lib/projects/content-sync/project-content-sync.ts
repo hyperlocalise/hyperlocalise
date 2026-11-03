@@ -12,7 +12,10 @@
  */
 import { and, asc, desc, eq, lt, lte, ne, sql } from "drizzle-orm";
 
-import { validateContentSyncConfig } from "@/lib/agents/content-sync/content-sync-config";
+import {
+  contentSyncFingerprintFromConfig,
+  validateContentSyncConfig,
+} from "@/lib/agents/content-sync/content-sync-config";
 import {
   normalizeContentSyncConfig,
   type ContentSyncConfig,
@@ -29,8 +32,11 @@ import type { ProjectContentSyncQueue } from "@/lib/workflow/types";
 
 const logger = createLogger("project-content-sync");
 
-/** A `running` run older than this is treated as dead and no longer holds the sync. */
-export const STALE_CONTENT_SYNC_RUN_MS = 30 * 60 * 1000;
+/**
+ * A `running` run older than this is treated as dead and no longer holds the sync. It sits above
+ * the longest a workflow step may run, so a live run is never taken over.
+ */
+export const STALE_CONTENT_SYNC_RUN_MS = 15 * 60 * 1000;
 
 const SCHEDULE_INTERVAL_MS = {
   hourly: 60 * 60 * 1000,
@@ -58,6 +64,20 @@ export function nextScheduledContentSyncRunAt(
     return null;
   }
   return new Date(from.getTime() + SCHEDULE_INTERVAL_MS[schedule]);
+}
+
+/** Steps a due time forward by whole intervals, so late cron ticks do not push the schedule back. */
+export function followingScheduledContentSyncRunAt(
+  schedule: ProjectContentSyncSchedule,
+  dueAt: Date,
+  now: Date,
+): Date | null {
+  if (schedule === "manual") {
+    return null;
+  }
+  const interval = SCHEDULE_INTERVAL_MS[schedule];
+  const missed = Math.floor((now.getTime() - dueAt.getTime()) / interval);
+  return new Date(dueAt.getTime() + (Math.max(missed, 0) + 1) * interval);
 }
 
 export function contentSyncRunLockKey(syncId: string): string {
@@ -90,12 +110,7 @@ export async function saveProjectContentSync(input: {
   now?: Date;
 }): Promise<ProjectContentSyncRow> {
   const now = input.now ?? new Date();
-  const existing = await getProjectContentSync(input);
-  // Keep the next scheduled time when only the settings change, so saving does not delay a run.
-  const nextRunAt =
-    existing && existing.schedule === input.schedule && existing.nextRunAt
-      ? existing.nextRunAt
-      : nextScheduledContentSyncRunAt(input.schedule, now);
+  const nextRunAt = nextScheduledContentSyncRunAt(input.schedule, now);
 
   const [saved] = await db
     .insert(schema.projectContentSyncs)
@@ -112,7 +127,8 @@ export async function saveProjectContentSync(input: {
       set: {
         syncConfig: input.syncConfig,
         schedule: input.schedule,
-        nextRunAt,
+        // Keep the next scheduled time when only the settings change, so saving does not delay a run.
+        nextRunAt: sql`case when ${schema.projectContentSyncs.schedule} = excluded.schedule then coalesce(${schema.projectContentSyncs.nextRunAt}, excluded.next_run_at) else excluded.next_run_at end`,
         updatedByUserId: input.userId,
         updatedAt: now,
       },
@@ -125,27 +141,64 @@ export async function saveProjectContentSync(input: {
   return saved;
 }
 
+/** An active content-sync automation already moving the same repository folder into this project. */
+export async function findOverlappingContentSyncAutomation(input: {
+  organizationId: string;
+  projectId: string;
+  syncConfig: ContentSyncConfig;
+}): Promise<{ id: string } | null> {
+  const [automation] = await db
+    .select({ id: schema.workspaceAutomations.id })
+    .from(schema.workspaceAutomations)
+    .where(
+      and(
+        eq(schema.workspaceAutomations.organizationId, input.organizationId),
+        eq(schema.workspaceAutomations.projectId, input.projectId),
+        eq(schema.workspaceAutomations.kind, "content_sync"),
+        eq(schema.workspaceAutomations.status, "active"),
+        eq(
+          schema.workspaceAutomations.syncFingerprint,
+          contentSyncFingerprintFromConfig(input.syncConfig),
+        ),
+      ),
+    )
+    .limit(1);
+  return automation ?? null;
+}
+
+/** Deletes the sync and its run history, unless a run is going: that run still holds the repository. */
 export async function deleteProjectContentSync(input: {
   organizationId: string;
   projectId: string;
-}): Promise<boolean> {
-  const deleted = await db
-    .delete(schema.projectContentSyncs)
-    .where(
-      and(
-        eq(schema.projectContentSyncs.organizationId, input.organizationId),
-        eq(schema.projectContentSyncs.projectId, input.projectId),
-      ),
-    )
-    .returning({ id: schema.projectContentSyncs.id });
-  return deleted.length > 0;
+  now?: Date;
+}): Promise<Result<void, { code: "content_sync_not_found" | "content_sync_in_progress" }>> {
+  const sync = await getProjectContentSync(input);
+  if (!sync) {
+    return err({ code: "content_sync_not_found" as const });
+  }
+  return db.transaction(async (tx) => {
+    await lockContentSyncRuns(tx, sync.id);
+    await failStaleContentSyncRuns({ executor: tx, syncId: sync.id, now: input.now ?? new Date() });
+    if (await hasRunningContentSyncRun(tx, sync.id)) {
+      return err({ code: "content_sync_in_progress" as const });
+    }
+    await tx.delete(schema.projectContentSyncs).where(eq(schema.projectContentSyncs.id, sync.id));
+    return ok(undefined);
+  });
 }
 
 export async function listProjectContentSyncRuns(input: {
   organizationId: string;
   syncId: string;
   limit: number;
+  now?: Date;
 }): Promise<ProjectContentSyncRunRow[]> {
+  // A run whose workflow died shows as failed at once instead of holding Sync now until the cron runs.
+  await failStaleContentSyncRuns({
+    executor: db,
+    syncId: input.syncId,
+    now: input.now ?? new Date(),
+  });
   return db
     .select()
     .from(schema.projectContentSyncRuns)
@@ -187,6 +240,26 @@ async function failStaleContentSyncRuns(input: {
   }
 }
 
+async function lockContentSyncRuns(tx: DatabaseTransaction, syncId: string) {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${contentSyncRunLockKey(syncId)}, 0))`,
+  );
+}
+
+async function hasRunningContentSyncRun(tx: DatabaseTransaction, syncId: string) {
+  const [active] = await tx
+    .select({ id: schema.projectContentSyncRuns.id })
+    .from(schema.projectContentSyncRuns)
+    .where(
+      and(
+        eq(schema.projectContentSyncRuns.syncId, syncId),
+        eq(schema.projectContentSyncRuns.status, "running"),
+      ),
+    )
+    .limit(1);
+  return Boolean(active);
+}
+
 /**
  * Claims the sync's one active run. The advisory lock lasts only for this transaction, so
  * two claims cannot both see no running row; the `running` row then holds the sync until it
@@ -200,22 +273,9 @@ export async function claimProjectContentSyncRun(input: {
 }): Promise<Result<ProjectContentSyncRunRow, { code: "content_sync_in_progress" }>> {
   const now = input.now ?? new Date();
   return db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${contentSyncRunLockKey(input.sync.id)}, 0))`,
-    );
+    await lockContentSyncRuns(tx, input.sync.id);
     await failStaleContentSyncRuns({ executor: tx, syncId: input.sync.id, now });
-
-    const [active] = await tx
-      .select({ id: schema.projectContentSyncRuns.id })
-      .from(schema.projectContentSyncRuns)
-      .where(
-        and(
-          eq(schema.projectContentSyncRuns.syncId, input.sync.id),
-          eq(schema.projectContentSyncRuns.status, "running"),
-        ),
-      )
-      .limit(1);
-    if (active) {
+    if (await hasRunningContentSyncRun(tx, input.sync.id)) {
       return err({ code: "content_sync_in_progress" as const });
     }
 
@@ -244,8 +304,8 @@ async function finishProjectContentSyncRun(input: {
     | { status: "succeeded"; summary: Record<string, unknown> }
     | { status: "failed"; error: { code: string; message: string } };
 }) {
-  // No status guard: a run failed as stale that later finishes records what really happened.
-  await db
+  // Only a running run is finished: once failed as stale, another run may already hold the sync.
+  const finished = await db
     .update(schema.projectContentSyncRuns)
     .set(
       input.outcome.status === "succeeded"
@@ -263,7 +323,27 @@ async function finishProjectContentSyncRun(input: {
             completedAt: new Date(),
           },
     )
-    .where(eq(schema.projectContentSyncRuns.id, input.runId));
+    .where(
+      and(
+        eq(schema.projectContentSyncRuns.id, input.runId),
+        eq(schema.projectContentSyncRuns.status, "running"),
+      ),
+    )
+    .returning({ id: schema.projectContentSyncRuns.id });
+  if (finished.length === 0) {
+    logger.warn(
+      { runId: input.runId, outcome: input.outcome.status },
+      "project content sync run finished after it was closed",
+    );
+  }
+}
+
+/** Closes a run whose workflow failed outside the sync itself, such as a step that timed out. */
+export async function failProjectContentSyncRun(input: { runId: string }) {
+  await finishProjectContentSyncRun({
+    runId: input.runId,
+    outcome: { status: "failed", error: UNEXPECTED_RUN_ERROR },
+  });
 }
 
 /** Runs a claimed sync to the end and records the outcome; never throws. */
@@ -313,6 +393,8 @@ export async function executeProjectContentSyncRun(input: {
       workflowId: row.sync.id,
       runId: row.run.id,
       syncConfig: config.value,
+      // One branch per sync, so a scheduled sync keeps updating its open pull request.
+      pullRequestBranchKey: `sync-${row.sync.id}`,
     });
     await finishProjectContentSyncRun({
       runId: input.runId,
@@ -401,14 +483,19 @@ export async function runDueProjectContentSyncs(input: {
   let failed = 0;
   for (const sync of due) {
     try {
+      if (!sync.nextRunAt) {
+        continue;
+      }
       // Moving next_run_at first means an overlapping tick, or a run that fails, waits for the next slot.
       const advanced = await db
         .update(schema.projectContentSyncs)
-        .set({ nextRunAt: nextScheduledContentSyncRunAt(sync.schedule, now) })
+        .set({
+          nextRunAt: followingScheduledContentSyncRunAt(sync.schedule, sync.nextRunAt, now),
+        })
         .where(
           and(
             eq(schema.projectContentSyncs.id, sync.id),
-            sync.nextRunAt ? eq(schema.projectContentSyncs.nextRunAt, sync.nextRunAt) : sql`false`,
+            lte(schema.projectContentSyncs.nextRunAt, now),
           ),
         )
         .returning({ id: schema.projectContentSyncs.id });

@@ -13,11 +13,17 @@
 import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
+import { z } from "zod";
 
 import { isProjectMutationAllowed } from "@/api/auth/capability-guards";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { validationErrorResponse } from "@/api/errors";
-import { badRequestResponse, conflictResponse, notFoundResponse } from "@/api/response.schema";
+import {
+  badRequestResponse,
+  conflictResponse,
+  notFoundResponse,
+  type JsonContext,
+} from "@/api/response.schema";
 import {
   getOwnedProjectRecord,
   projectForbiddenResponse,
@@ -28,10 +34,12 @@ import {
   normalizeContentSyncConfig,
   type ContentSyncConfig,
 } from "@/lib/agents/content-sync/content-sync-types";
+import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { db, schema } from "@/lib/database/client";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import {
   deleteProjectContentSync,
+  findOverlappingContentSyncAutomation,
   getProjectContentSync,
   listProjectContentSyncRuns,
   saveProjectContentSync,
@@ -133,7 +141,18 @@ async function requireNativeProject(auth: AuthVariables["auth"], projectId: stri
   return { kind: "ok" as const, project };
 }
 
+function projectUnavailableResponse(c: JsonContext, kind: "missing" | "unsupported") {
+  return kind === "missing"
+    ? projectNotFoundResponse(c)
+    : badRequestResponse(c, "content_sync_not_supported", "Sync is for native projects");
+}
+
 type SyncConnectionError = { code: string; message: string };
+
+const CONNECTION_REQUIRED_ERROR: SyncConnectionError = {
+  code: "content_sync_connection_required",
+  message: "Choose a repository that is enabled in Integrations.",
+};
 
 /** Checks the connection belongs to the workspace and fills in what the provider owns. */
 async function resolveSyncConnection(input: {
@@ -148,6 +167,9 @@ async function resolveSyncConnection(input: {
 
   switch (config.provider) {
     case "github": {
+      if (!z.string().uuid().safeParse(config.connectionId).success) {
+        return err(CONNECTION_REQUIRED_ERROR);
+      }
       const [repository] = await db
         .select({
           fullName: schema.githubInstallationRepositories.fullName,
@@ -163,10 +185,7 @@ async function resolveSyncConnection(input: {
         )
         .limit(1);
       if (!repository || !repository.enabled || repository.archived) {
-        return err({
-          code: "content_sync_connection_required",
-          message: "Choose a repository that is enabled in Integrations.",
-        });
+        return err(CONNECTION_REQUIRED_ERROR);
       }
       return ok({ ...config, resourceKey: repository.fullName });
     }
@@ -178,6 +197,19 @@ async function resolveSyncConnection(input: {
   }
 }
 
+async function recordSyncSettingsChange(auth: AuthVariables["auth"], projectId: string) {
+  await enqueueActivityLogEvent({
+    actorCredentialId: null,
+    actorKind: "user",
+    actorUserId: auth.user.localUserId,
+    eventType: "project_settings_changed",
+    organizationId: auth.organization.localOrganizationId,
+    payload: { changedFields: ["sync"], projectId },
+    targetId: projectId,
+    targetKind: "project",
+  });
+}
+
 export function createProjectContentSyncRoutes(
   options: { projectContentSyncQueue?: ProjectContentSyncQueue } = {},
 ) {
@@ -187,11 +219,8 @@ export function createProjectContentSyncRoutes(
     .use("*", workosAuthMiddleware)
     .get("/", validateParams, async (c) => {
       const resolved = await requireNativeProject(c.var.auth, c.req.valid("param").projectId);
-      if (resolved.kind === "missing") {
-        return projectNotFoundResponse(c);
-      }
-      if (resolved.kind === "unsupported") {
-        return badRequestResponse(c, "content_sync_not_supported", "Sync is for native projects");
+      if (resolved.kind !== "ok") {
+        return projectUnavailableResponse(c, resolved.kind);
       }
 
       const sync = await getProjectContentSync({
@@ -222,7 +251,7 @@ export function createProjectContentSyncRoutes(
       }
       const resolved = await requireNativeProject(c.var.auth, c.req.valid("param").projectId);
       if (resolved.kind !== "ok") {
-        return projectNotFoundResponse(c);
+        return projectUnavailableResponse(c, resolved.kind);
       }
 
       // GitHub is the only provider whose sync runs today; other providers add their connections here.
@@ -260,11 +289,8 @@ export function createProjectContentSyncRoutes(
         return projectForbiddenResponse(c);
       }
       const resolved = await requireNativeProject(c.var.auth, c.req.valid("param").projectId);
-      if (resolved.kind === "missing") {
-        return projectNotFoundResponse(c);
-      }
-      if (resolved.kind === "unsupported") {
-        return badRequestResponse(c, "content_sync_not_supported", "Sync is for native projects");
+      if (resolved.kind !== "ok") {
+        return projectUnavailableResponse(c, resolved.kind);
       }
 
       const body = c.req.valid("json");
@@ -275,6 +301,19 @@ export function createProjectContentSyncRoutes(
       if (isErr(config)) {
         return badRequestResponse(c, config.error.code, config.error.message);
       }
+      const overlapping = await findOverlappingContentSyncAutomation({
+        organizationId: resolved.project.organizationId,
+        projectId: resolved.project.id,
+        syncConfig: config.value,
+      });
+      if (overlapping) {
+        return conflictResponse(
+          c,
+          "content_sync_automation_overlap",
+          "An active content sync automation already syncs this repository folder. Pause it first.",
+          { automationId: overlapping.id },
+        );
+      }
 
       const sync = await saveProjectContentSync({
         organizationId: resolved.project.organizationId,
@@ -283,6 +322,7 @@ export function createProjectContentSyncRoutes(
         schedule: body.schedule,
         userId: c.var.auth.user.localUserId,
       });
+      await recordSyncSettingsChange(c.var.auth, resolved.project.id);
       return c.json({ sync: serializeSync(sync) }, 200);
     })
     .delete("/", validateParams, async (c) => {
@@ -291,16 +331,19 @@ export function createProjectContentSyncRoutes(
       }
       const resolved = await requireNativeProject(c.var.auth, c.req.valid("param").projectId);
       if (resolved.kind !== "ok") {
-        return projectNotFoundResponse(c);
+        return projectUnavailableResponse(c, resolved.kind);
       }
 
       const deleted = await deleteProjectContentSync({
         organizationId: resolved.project.organizationId,
         projectId: resolved.project.id,
       });
-      if (!deleted) {
-        return notFoundResponse(c, "content_sync_not_found");
+      if (isErr(deleted)) {
+        return deleted.error.code === "content_sync_in_progress"
+          ? conflictResponse(c, deleted.error.code, "Wait for the running sync to finish")
+          : notFoundResponse(c, deleted.error.code);
       }
+      await recordSyncSettingsChange(c.var.auth, resolved.project.id);
       return c.body(null, 204);
     })
     .post("/runs", validateParams, async (c) => {
@@ -309,7 +352,7 @@ export function createProjectContentSyncRoutes(
       }
       const resolved = await requireNativeProject(c.var.auth, c.req.valid("param").projectId);
       if (resolved.kind !== "ok") {
-        return projectNotFoundResponse(c);
+        return projectUnavailableResponse(c, resolved.kind);
       }
 
       const sync = await getProjectContentSync({

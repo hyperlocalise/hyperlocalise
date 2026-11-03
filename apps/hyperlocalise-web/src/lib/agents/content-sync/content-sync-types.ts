@@ -26,6 +26,15 @@ const folderPathSchema = z
   .max(512)
   .regex(/^[^\\:*?"<>|]*$/, "invalid_folder_path");
 
+const localeCodeSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .regex(/^[A-Za-z0-9_-]+$/, "invalid_locale_code");
+
+export const CONTENT_SYNC_LOCALE_PLACEHOLDER = "{{locale}}";
+
 export const contentSyncConfigSchema = z.object({
   provider: contentSyncProviderSchema,
   connectionId: z.string().trim().min(1).max(256),
@@ -37,7 +46,7 @@ export const contentSyncConfigSchema = z.object({
   pathTemplate: folderPathSchema.min(1).optional(),
   // Platform language code to the provider's code, e.g. `{"fr-FR": "fr"}`.
   localeCodeMap: z
-    .record(z.string().trim().min(1).max(64), z.string().trim().min(1).max(64))
+    .record(localeCodeSchema, localeCodeSchema)
     .refine((map) => Object.keys(map).length <= 200, "too_many_locale_codes")
     .optional(),
 });

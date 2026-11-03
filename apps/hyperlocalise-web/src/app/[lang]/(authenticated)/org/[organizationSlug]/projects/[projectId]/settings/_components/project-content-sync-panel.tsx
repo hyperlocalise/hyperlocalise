@@ -15,7 +15,7 @@
 import { ArrowsClockwiseIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
-import { FormattedMessage, useIntl } from "react-intl";
+import { FormattedMessage, type IntlShape, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
@@ -49,6 +49,8 @@ import { projectContentSyncPanelMessages as messages } from "./project-content-s
 import { ProjectSettingsSectionHeading } from "./project-settings-section-heading";
 
 const RUNNING_POLL_MS = 5000;
+// Picks up runs the schedule starts while the page is open.
+const SCHEDULED_POLL_MS = 60_000;
 
 type SyncSchedule = "manual" | "hourly" | "daily";
 
@@ -68,10 +70,44 @@ const scheduleMessages = {
 
 const SCHEDULES: SyncSchedule[] = ["manual", "hourly", "daily"];
 
-async function readApiError(response: Response, fallback: string) {
+const EMPTY_DRAFT: SyncDraft = {
+  connectionId: "",
+  resourceKey: "",
+  providerFolder: "",
+  projectFolder: "",
+  schedule: "manual",
+};
+
+type PanelMessage = typeof messages.saveError;
+
+/** Messages for the error codes a save or Sync now can answer with. */
+const requestErrorMessages: Record<string, PanelMessage> = {
+  invalid_content_sync_payload: messages.errorFieldsRequired,
+  content_sync_config_required: messages.errorFieldsRequired,
+  content_sync_provider_folder_required: messages.errorFieldsRequired,
+  content_sync_folder_invalid: messages.errorFolderUnsafe,
+  content_sync_connection_required: messages.errorRepositoryNotEnabled,
+  content_sync_automation_overlap: messages.errorAutomationOverlap,
+  content_sync_in_progress: messages.syncInProgress,
+};
+
+/** Messages for the error codes a finished run records; others show the stored text. */
+const runErrorMessages: Record<string, PanelMessage> = {
+  content_sync_connection_required: messages.errorRepositoryNotEnabled,
+  content_sync_folder_invalid: messages.runFolderMissing,
+  content_sync_pull_failed: messages.runPullFailed,
+  content_sync_stale: messages.runStale,
+  content_sync_failed: messages.runUnexpected,
+  content_sync_enqueue_failed: messages.runUnexpected,
+};
+
+async function readApiError(response: Response, fallback: string, intl: IntlShape) {
   const body: unknown = await response.json().catch(() => null);
-  if (body && typeof body === "object" && "message" in body && typeof body.message === "string") {
-    return body.message;
+  if (body && typeof body === "object" && "error" in body && typeof body.error === "string") {
+    const known = requestErrorMessages[body.error];
+    if (known) {
+      return intl.formatMessage(known);
+    }
   }
   return fallback;
 }
@@ -91,6 +127,10 @@ function draftsEqual(a: SyncDraft, b: SyncDraft) {
     a.projectFolder.trim() === b.projectFolder.trim() &&
     a.schedule === b.schedule
   );
+}
+
+function defaultProjectFolderFor(resourceKey: string) {
+  return defaultContentSyncProjectFolder({ provider: "github", resourceKey });
 }
 
 export function ProjectContentSyncPanel({
@@ -116,12 +156,18 @@ export function ProjectContentSyncPanel({
     queryFn: async () => {
       const response = await contentSyncRoute().$get({ param });
       if (!response.ok) {
-        throw new Error(await readApiError(response, intl.formatMessage(messages.loadError)));
+        throw new Error(intl.formatMessage(messages.loadError));
       }
       return (await response.json()).contentSync;
     },
-    refetchInterval: (query) =>
-      query.state.data?.runs[0]?.status === "running" ? RUNNING_POLL_MS : false,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (data?.runs[0]?.status === "running") {
+        return RUNNING_POLL_MS;
+      }
+      return data?.sync && data.sync.schedule !== "manual" ? SCHEDULED_POLL_MS : false;
+    },
+    refetchOnWindowFocus: true,
   });
 
   const connectionsQuery = useQuery({
@@ -130,7 +176,7 @@ export function ProjectContentSyncPanel({
     queryFn: async () => {
       const response = await contentSyncRoute().connections.$get({ param });
       if (!response.ok) {
-        throw new Error(await readApiError(response, intl.formatMessage(messages.loadError)));
+        throw new Error(intl.formatMessage(messages.loadConnectionsError));
       }
       return (await response.json()).connections;
     },
@@ -147,15 +193,12 @@ export function ProjectContentSyncPanel({
       }
     : null;
   const connections = connectionsQuery.data ?? [];
-  const values: SyncDraft = edits ??
-    savedDraft ?? {
-      connectionId: "",
-      resourceKey: "",
-      providerFolder: "",
-      projectFolder: "",
-      schedule: "manual",
-    };
-  const dirty = edits !== null && (savedDraft === null || !draftsEqual(edits, savedDraft));
+  const values: SyncDraft = edits ?? savedDraft ?? EMPTY_DRAFT;
+  const dirty = edits !== null && !draftsEqual(edits, savedDraft ?? EMPTY_DRAFT);
+  const complete =
+    Boolean(values.connectionId) &&
+    values.providerFolder.trim().length > 0 &&
+    values.projectFolder.trim().length > 0;
   const runs = syncQuery.data?.runs ?? [];
   const running = runs[0]?.status === "running";
 
@@ -181,7 +224,7 @@ export function ProjectContentSyncPanel({
         },
       });
       if (!response.ok) {
-        throw new Error(await readApiError(response, intl.formatMessage(messages.saveError)));
+        throw new Error(await readApiError(response, intl.formatMessage(messages.saveError), intl));
       }
     },
     onSuccess: async () => {
@@ -195,11 +238,10 @@ export function ProjectContentSyncPanel({
   const syncNowMutation = useMutation({
     mutationFn: async () => {
       const response = await contentSyncRoute().runs.$post({ param });
-      if (response.status === 409) {
-        throw new Error(intl.formatMessage(messages.syncInProgress));
-      }
       if (!response.ok) {
-        throw new Error(await readApiError(response, intl.formatMessage(messages.syncStartError)));
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.syncStartError), intl),
+        );
       }
     },
     onSuccess: () => toast.success(intl.formatMessage(messages.syncStarted)),
@@ -211,7 +253,9 @@ export function ProjectContentSyncPanel({
     mutationFn: async () => {
       const response = await contentSyncRoute().$delete({ param });
       if (!response.ok && response.status !== 404) {
-        throw new Error(await readApiError(response, intl.formatMessage(messages.removeError)));
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.removeError), intl),
+        );
       }
     },
     onSuccess: async () => {
@@ -232,21 +276,23 @@ export function ProjectContentSyncPanel({
     if (!connection) {
       return;
     }
+    const folder = values.projectFolder.trim();
+    // Follow the repository while the folder is still the previous repository's default.
+    const keepsFolder =
+      folder.length > 0 &&
+      !(values.resourceKey && folder === defaultProjectFolderFor(values.resourceKey));
     update({
       connectionId: connection.connectionId,
       resourceKey: connection.resourceKey,
-      projectFolder:
-        values.projectFolder.trim() ||
-        defaultContentSyncProjectFolder({
-          provider: connection.provider,
-          resourceKey: connection.resourceKey,
-        }),
+      projectFolder: keepsFolder
+        ? values.projectFolder
+        : defaultProjectFolderFor(connection.resourceKey),
     });
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canManage || !dirty || saveMutation.isPending) {
+    if (!canManage || !dirty || !complete || saveMutation.isPending) {
       return;
     }
     saveMutation.mutate(values);
@@ -260,7 +306,7 @@ export function ProjectContentSyncPanel({
     );
   }
 
-  if (syncQuery.isError) {
+  if (syncQuery.isError && !syncQuery.data) {
     return (
       <section className="rounded-lg border border-border bg-muted p-4">
         <TypographyP className="text-flame-100" size="small">
@@ -271,6 +317,11 @@ export function ProjectContentSyncPanel({
   }
 
   const busy = saveMutation.isPending || removeMutation.isPending;
+  const repositoryNotEnabled =
+    canManage &&
+    connectionsQuery.isSuccess &&
+    Boolean(values.connectionId) &&
+    !connections.some((connection) => connection.connectionId === values.connectionId);
   const fieldsDisabled = !canManage || busy;
   const repositoryItems = connections.map((connection) => ({
     value: connection.connectionId,
@@ -297,8 +348,9 @@ export function ProjectContentSyncPanel({
                 <Button
                   type="button"
                   size="sm"
-                  disabled={running || dirty || syncNowMutation.isPending || busy}
-                  title={dirty ? intl.formatMessage(messages.saveBeforeSync) : undefined}
+                  disabled={
+                    running || dirty || repositoryNotEnabled || syncNowMutation.isPending || busy
+                  }
                   onClick={() => syncNowMutation.mutate()}
                 >
                   {running || syncNowMutation.isPending ? (
@@ -314,11 +366,21 @@ export function ProjectContentSyncPanel({
 
           {!canManage ? (
             <TypographyP size="small" tone="subtle">
-              <FormattedMessage {...messages.readOnly} />
+              <FormattedMessage {...(saved ? messages.readOnly : messages.notSetUp)} />
+            </TypographyP>
+          ) : null}
+          {saved && canManage && running ? (
+            <TypographyP size="small" tone="subtle">
+              <FormattedMessage {...messages.syncRunning} />
+            </TypographyP>
+          ) : null}
+          {saved && canManage && dirty && !running ? (
+            <TypographyP size="small" tone="subtle">
+              <FormattedMessage {...messages.saveBeforeSync} />
             </TypographyP>
           ) : null}
 
-          {showNoRepositories ? (
+          {!canManage && !saved ? null : showNoRepositories ? (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-background p-3">
               <TypographyP size="small" tone="subtle">
                 <FormattedMessage {...messages.noRepositories} />
@@ -360,6 +422,16 @@ export function ProjectContentSyncPanel({
                     ))}
                   </SelectContent>
                 </Select>
+                {repositoryNotEnabled ? (
+                  <FieldDescription className="text-flame-100">
+                    <FormattedMessage {...messages.errorRepositoryNotEnabled} />
+                  </FieldDescription>
+                ) : null}
+                {connectionsQuery.isError ? (
+                  <FieldDescription className="text-flame-100">
+                    <FormattedMessage {...messages.loadConnectionsError} />
+                  </FieldDescription>
+                ) : null}
               </Field>
               <Field className="gap-1.5">
                 <FieldLabel htmlFor="project-sync-provider-folder">
@@ -368,7 +440,7 @@ export function ProjectContentSyncPanel({
                 <Input
                   id="project-sync-provider-folder"
                   value={values.providerFolder}
-                  placeholder="locales"
+                  placeholder={intl.formatMessage(messages.providerFolderPlaceholder)}
                   disabled={fieldsDisabled}
                   className="font-mono"
                   onChange={(event) => update({ providerFolder: event.target.value })}
@@ -446,7 +518,7 @@ export function ProjectContentSyncPanel({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      disabled={busy}
+                      disabled={busy || running}
                       onClick={() => setConfirmRemove(true)}
                     >
                       <FormattedMessage {...messages.remove} />
@@ -454,7 +526,7 @@ export function ProjectContentSyncPanel({
                   ) : (
                     <span />
                   )}
-                  <Button type="submit" size="sm" disabled={!dirty || !values.connectionId || busy}>
+                  <Button type="submit" size="sm" disabled={!dirty || !complete || busy}>
                     {saveMutation.isPending ? <Spinner /> : <FloppyDiskIcon className="size-4" />}
                     <FormattedMessage
                       {...(saveMutation.isPending ? messages.saving : messages.save)}
@@ -510,6 +582,7 @@ type SyncRun = {
   pulled: { uploaded: number; skipped: number; failed: number } | null;
   written: number | null;
   pullRequestUrl: string | null;
+  errorCode: string | null;
   errorMessage: string | null;
   startedAt: string;
 };
@@ -568,16 +641,16 @@ function ProjectContentSyncRuns({ runs }: { runs: SyncRun[] }) {
                       {...messages.runPulled}
                       values={{ uploaded: run.pulled.uploaded, skipped: run.pulled.skipped }}
                     />
-                    {" · "}
-                    <FormattedMessage
-                      {...messages.runWritten}
-                      values={{ written: run.written ?? 0 }}
-                    />
                   </TypographyP>
                 ) : null}
-                {run.status === "failed" && run.errorMessage ? (
+                {run.status === "succeeded" && run.written !== null ? (
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage {...messages.runWritten} values={{ written: run.written }} />
+                  </TypographyP>
+                ) : null}
+                {run.status === "failed" ? (
                   <TypographyP className="text-flame-100" size="small">
-                    {run.errorMessage}
+                    <RunError run={run} />
                   </TypographyP>
                 ) : null}
                 {pullRequestUrl ? (
@@ -597,4 +670,12 @@ function ProjectContentSyncRuns({ runs }: { runs: SyncRun[] }) {
       )}
     </section>
   );
+}
+
+function RunError({ run }: { run: Pick<SyncRun, "errorCode" | "errorMessage"> }) {
+  const known = run.errorCode ? runErrorMessages[run.errorCode] : undefined;
+  if (known) {
+    return <FormattedMessage {...known} />;
+  }
+  return run.errorMessage ?? <FormattedMessage {...messages.runUnexpected} />;
 }
