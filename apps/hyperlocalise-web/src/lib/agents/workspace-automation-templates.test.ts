@@ -73,6 +73,7 @@ describe("workspace automation templates", () => {
       "translate-iterable-templates",
       "translate-customer-io-campaigns",
       "translate-loops-emails",
+      "translate-mailchimp-content",
       "translate-hubspot-content",
       "translate-contentful-article",
       "summarize-changes-daily",
