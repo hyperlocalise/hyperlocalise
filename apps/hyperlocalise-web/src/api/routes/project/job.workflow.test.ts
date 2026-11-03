@@ -29,6 +29,7 @@ import {
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
 import { isErr } from "@/lib/primitives/result/results";
+import { captureAnalysis } from "@/lib/reporting/capture";
 import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,
@@ -294,12 +295,7 @@ describe("translation job workflow helpers", () => {
     expect(activity.filter((row) => row.kind === "completion")).toEqual([
       { kind: "completion", status: null, targetLocale: "fr-FR" },
     ]);
-    expect(
-      activity
-        .filter((row) => row.kind === "status")
-        .map((row) => row.status ?? "")
-        .sort((a, b) => a.localeCompare(b)),
-    ).toEqual(["running", "succeeded"]);
+    expect(activity.filter((row) => row.kind === "status")).toEqual([]);
   });
 
   it("carries the knowledge memory capability from the event into translation context", async () => {
@@ -428,7 +424,7 @@ describe("translation job workflow helpers", () => {
     ).rejects.toThrow("is not owned by workflow run run_stale");
   });
 
-  it("records a failed job's failure for Reports so it does not stay running there", async () => {
+  it("recounts a failed job's days, so its strings leave Progress", async () => {
     resolveWorkspaceReportsFlagMock.mockResolvedValue(true);
     const { project, user } = await projectFixture.createStoredProjectFixture();
     const job = await insertJob({
@@ -444,6 +440,23 @@ describe("translation job workflow helpers", () => {
         targetLocales: ["fr-FR"],
       },
     });
+    await captureAnalysis({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      jobId: job.id,
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      sourceEntries: { greeting: "Hello world" },
+    });
+    const marks = () =>
+      db
+        .select({ projectId: schema.reportingSummaryQueue.projectId })
+        .from(schema.reportingSummaryQueue)
+        .where(eq(schema.reportingSummaryQueue.organizationId, project.organizationId));
+    await db
+      .delete(schema.reportingSummaryQueue)
+      .where(eq(schema.reportingSummaryQueue.organizationId, project.organizationId));
+    expect(await marks()).toEqual([]);
 
     await failTranslationJob({
       jobId: job.id,
@@ -453,16 +466,7 @@ describe("translation job workflow helpers", () => {
       message: "provider unavailable",
     });
 
-    const statuses = await db
-      .select({ status: schema.reportingActivity.status })
-      .from(schema.reportingActivity)
-      .where(
-        and(
-          eq(schema.reportingActivity.jobId, job.id),
-          eq(schema.reportingActivity.kind, "status"),
-        ),
-      );
-    expect(statuses).toEqual([{ status: "failed" }]);
+    expect(await marks()).toEqual([{ projectId: project.id }]);
   });
 
   it("does not fail a job owned by another workflow run", async () => {

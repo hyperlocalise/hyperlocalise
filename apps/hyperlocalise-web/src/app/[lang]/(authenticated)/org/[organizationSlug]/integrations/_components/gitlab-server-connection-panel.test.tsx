@@ -58,7 +58,6 @@ const savedConnection = {
   serverUrl: "https://git.acme.example",
   connectedUsername: "translations-bot",
   maskedTokenSuffix: "••••abcd",
-  lastValidatedAt: "2026-11-03T00:00:00.000Z",
   updatedAt: "2026-11-03T00:00:00.000Z",
 };
 

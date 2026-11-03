@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createLogger } from "@/lib/log";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 import { withPublicHttpFetch } from "@/lib/security/public-http-fetch";
@@ -21,7 +22,7 @@ import {
   GITLAB_PROJECT_PAGE_SIZE,
   GITLAB_SERVER_REQUEST_TIMEOUT_MS,
 } from "./constants";
-import { isLocalDevGitLabServer } from "./server-url";
+import { isLocalDevGitLabServer, stopWaitingOnAbort } from "./server-url";
 import type {
   GitLabAccess,
   GitLabApiError,
@@ -86,6 +87,17 @@ function parseProject(value: unknown, baseUrl: string | null): GitLabProject | n
   };
 }
 
+const logger = createLogger("gitlab-client");
+
+/** The error's kind only: its message can name the server, which is customer data. */
+function describeRequestFailure(error: unknown) {
+  const cause = error instanceof Error ? (error.cause as { code?: unknown } | undefined) : null;
+  return {
+    errorName: error instanceof Error ? error.name : "unknown",
+    causeCode: typeof cause?.code === "string" ? cause.code : null,
+  };
+}
+
 type GitLabResponse = { ok: boolean; status: number; text: () => Promise<string> };
 
 /**
@@ -102,13 +114,16 @@ async function requestGitLabServer(
   if (isLocalDevGitLabServer(new URL(baseUrl))) {
     return fetch(url, { ...init, signal, redirect: "error" });
   }
-  return withPublicHttpFetch(
-    url.toString(),
-    { ...init, signal, redirect: "error" },
-    async (response) => {
-      const body = await response.text();
-      return { ok: response.ok, status: response.status, text: async () => body };
-    },
+  return stopWaitingOnAbort(
+    withPublicHttpFetch(
+      url.toString(),
+      { ...init, signal, redirect: "error" },
+      async (response) => {
+        const body = await response.text();
+        return { ok: response.ok, status: response.status, text: async () => body };
+      },
+    ),
+    signal,
   );
 }
 
@@ -134,12 +149,16 @@ async function gitlabJson(
     response = input.baseUrl
       ? await requestGitLabServer(url, input.baseUrl, { headers, signal: input.signal })
       : await fetch(url, { headers, signal: input.signal });
-  } catch {
+  } catch (error) {
+    logger.warn(describeRequestFailure(error), "gitlab request failed before an answer");
     return err(requestFailed(0));
   }
 
   if (response.status === 401 || response.status === 403) {
-    return err(UNAUTHORIZED);
+    // A saved address may not be GitLab at all, and GitLab answers these with JSON.
+    return input.baseUrl && isErr(safeJsonParse(await response.text()))
+      ? err(requestFailed(response.status))
+      : err(UNAUTHORIZED);
   }
   if (response.status === 404) {
     return err(NOT_FOUND);

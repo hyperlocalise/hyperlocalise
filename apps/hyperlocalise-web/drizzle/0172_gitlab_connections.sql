@@ -5,7 +5,6 @@ CREATE TABLE "gitlab_connections" (
 	"updated_by_user_id" uuid,
 	"server_url" text NOT NULL,
 	"connected_username" text NOT NULL,
-	"last_validated_at" timestamp with time zone NOT NULL,
 	"encryption_algorithm" text NOT NULL,
 	"ciphertext" text NOT NULL,
 	"iv" text NOT NULL,

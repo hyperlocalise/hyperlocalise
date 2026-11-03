@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestReportingProjectIDsMatchHonoTeamAccess(t *testing.T) {
+func TestReportingProjectIDsFollowTeamAccess(t *testing.T) {
 	t.Run("team member with default team membership", func(t *testing.T) {
 		scope := testenv.Seed(t, testenv.Options{Role: "translator"})
 		other := testenv.Seed(t, testenv.Options{Role: "admin"})

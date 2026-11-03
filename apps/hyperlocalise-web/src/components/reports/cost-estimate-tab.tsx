@@ -14,7 +14,7 @@
 
 import { useIntl } from "react-intl";
 
-import type { PricedBy } from "@/lib/reporting/cost-queries";
+import type { PricedBy } from "@/lib/go-svc/go-svc-reports-api";
 import { REPORT_STEPS, type RateBasis } from "@/lib/reporting/report-units";
 import { MATCH_BUCKETS, type MatchBucket } from "@/lib/reporting/word-analysis";
 

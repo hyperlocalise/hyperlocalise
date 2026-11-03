@@ -17,7 +17,7 @@ import { eq } from "drizzle-orm";
 
 const mocks = vi.hoisted(() => ({
   withPublicHttpFetch: vi.fn(),
-  assertProviderUrlResolvable: vi.fn(),
+  assertProviderUrlResolvable: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/lib/security/public-http-fetch", () => ({

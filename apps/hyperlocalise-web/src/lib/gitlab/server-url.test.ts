@@ -16,11 +16,9 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
 const mocks = vi.hoisted(() => ({
-  env: { NODE_ENV: "production" },
-  assertProviderUrlResolvable: vi.fn(),
+  assertProviderUrlResolvable: vi.fn(async () => undefined),
 }));
 
-vi.mock("@/lib/env", () => ({ env: mocks.env }));
 vi.mock("@/lib/providers/shared/provider-url-resolve", () => ({
   assertProviderUrlResolvable: mocks.assertProviderUrlResolvable,
 }));
@@ -34,8 +32,8 @@ function normalized(value: string) {
 
 describe("normalizeGitLabServerUrl", () => {
   afterEach(() => {
-    mocks.env.NODE_ENV = "production";
-    mocks.assertProviderUrlResolvable.mockReset();
+    vi.unstubAllEnvs();
+    mocks.assertProviderUrlResolvable.mockClear();
   });
 
   it("keeps the path and drops trailing slashes, queries and fragments", () => {
@@ -61,12 +59,19 @@ describe("normalizeGitLabServerUrl", () => {
   });
 
   it("refuses a local server outside development builds", () => {
-    mocks.env.NODE_ENV = "test";
+    vi.stubEnv("NODE_ENV", "production");
+    expect(normalized("http://localhost:8929")).toBeNull();
+    vi.stubEnv("NODE_ENV", "test");
+    expect(normalized("http://localhost:8929")).toBeNull();
+  });
+
+  it("refuses a local server when NODE_ENV is unset", () => {
+    vi.stubEnv("NODE_ENV", undefined);
     expect(normalized("http://localhost:8929")).toBeNull();
   });
 
   it("accepts only this machine's server in a development build", () => {
-    mocks.env.NODE_ENV = "development";
+    vi.stubEnv("NODE_ENV", "development");
     expect(normalized("http://localhost:8929/")).toBe("http://localhost:8929");
     expect(normalized("http://127.0.0.1:8929/gitlab")).toBe("http://127.0.0.1:8929/gitlab");
     expect(normalized("http://10.0.0.5")).toBeNull();
@@ -84,13 +89,13 @@ describe("resolveGitLabServerUrl", () => {
   });
 
   it("does not look up a local development server", async () => {
-    mocks.env.NODE_ENV = "development";
+    vi.stubEnv("NODE_ENV", "development");
     mocks.assertProviderUrlResolvable.mockClear();
 
     const result = await resolveGitLabServerUrl("http://localhost:8929");
 
     expect(isOk(result)).toBe(true);
     expect(mocks.assertProviderUrlResolvable).not.toHaveBeenCalled();
-    mocks.env.NODE_ENV = "production";
+    vi.unstubAllEnvs();
   });
 });
