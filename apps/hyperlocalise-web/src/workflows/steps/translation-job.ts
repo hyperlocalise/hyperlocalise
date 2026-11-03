@@ -628,7 +628,6 @@ export async function completeFileTranslationJobStep(input: {
   await captureJobStatus({
     jobId: input.jobId,
     status: "succeeded",
-    operationKey: `file:${input.workflowRunId}:succeeded`,
   });
   const { completeAndTrackBillableUsage, formatUsageControlError } =
     await import("@/lib/billing/usage-control");

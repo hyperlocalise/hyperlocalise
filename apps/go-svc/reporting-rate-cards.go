@@ -146,7 +146,7 @@ func reportingSamePercentages(left json.RawMessage, right map[string]int) bool {
 }
 
 // reportingLockRateCard holds a card's save lock until the transaction ends, so its lines cannot
-// change meanwhile. The key is the web app's, byte for byte.
+// change meanwhile.
 func reportingLockRateCard(ctx context.Context, tx dictionaryDB, organizationID, name string) error {
 	_, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtext($1))`, "reporting-rate-card:"+organizationID+":"+name)
 	return err
@@ -357,8 +357,7 @@ func (api *reportingAPI) saveRateCard(r *http.Request, actor reportingActor) (an
 	return map[string]any{"rateCard": saved}, http.StatusOK, nil
 }
 
-// reportingAudit records who changed what, with the row before and after as the web app
-// records them.
+// reportingAudit records who changed what, with the row before and after.
 func reportingAudit(ctx context.Context, tx dictionaryDB, actor reportingActor, resourceID, action string, before, after any) error {
 	encode := func(value any) (*string, error) {
 		if value == nil {

@@ -20,7 +20,6 @@ type reportingTaskRate struct {
 	Step             string  `json:"step"`
 	RateCardName     *string `json:"rateCardName"`
 	PricedAt         *string `json:"pricedAt"`
-	RateID           *string `json:"rateId"`
 	EstimatedMinutes *int    `json:"estimatedMinutes"`
 	OverrideUSD      *string `json:"overrideUsd"`
 	CreatedAt        string  `json:"createdAt"`
@@ -80,9 +79,9 @@ func (api *reportingAPI) saveTaskRate(r *http.Request, actor reportingActor) (an
             on conflict (organization_id, job_id, step) do update set
                 rate_card_name = excluded.rate_card_name, estimated_minutes = excluded.estimated_minutes,
                 override_usd = excluded.override_usd, priced_at = excluded.priced_at
-            returning id, organization_id, job_id, step, rate_card_name, priced_at, rate_id, estimated_minutes, override_usd::text, created_at`,
+            returning id, organization_id, job_id, step, rate_card_name, priced_at, estimated_minutes, override_usd::text, created_at`,
 			actor.organizationID, job.ID, step, rateCardName, estimatedMinutes, overrideUSD).
-			Scan(&saved.ID, &saved.OrganizationID, &saved.JobID, &saved.Step, &saved.RateCardName, &pricedAt, &saved.RateID, &saved.EstimatedMinutes, &saved.OverrideUSD, &created); err != nil {
+			Scan(&saved.ID, &saved.OrganizationID, &saved.JobID, &saved.Step, &saved.RateCardName, &pricedAt, &saved.EstimatedMinutes, &saved.OverrideUSD, &created); err != nil {
 			return fmt.Errorf("save task pricing: %w", err)
 		}
 		if pricedAt != nil {

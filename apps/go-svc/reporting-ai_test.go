@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/stretchr/testify/require"
 )
 
@@ -333,4 +334,83 @@ func TestReportingAiUsageRefusesMalformedQueries(t *testing.T) {
 	require.Equal(t, "area", empty["thenBy"])
 	require.Equal(t, float64(0), empty["totals"].(map[string]any)["calls"])
 	require.Nil(t, empty["automationName"])
+}
+
+func TestReportingAiUsagePlacesEachSourceInItsAreaAndChannel(t *testing.T) {
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	area := func(source, agentRunKind string) string {
+		t.Helper()
+		var placed string
+		require.NoError(t, scope.Pool.QueryRow(t.Context(), "select "+reportingAiAreaSQL("$1::text", "$2::text"), source, agentRunKind).Scan(&placed))
+		return placed
+	}
+	channel := func(source string, viaAPIKey bool) string {
+		t.Helper()
+		var placed string
+		require.NoError(t, scope.Pool.QueryRow(t.Context(), "select "+reportingAiChannelSQL("$1::text", "$2::boolean"), source, viaAPIKey).Scan(&placed))
+		return placed
+	}
+	for _, c := range []struct{ source, kind, want string }{
+		{"translation_job_create", "", "translation"},
+		{"email_translation_job_create", "", "translation"},
+		{"agent_run_create", "translate", "translation"},
+		{"agent_run_create", "review", "review_and_qa"},
+		{"agent_run_create", "qa_fix", "review_and_qa"},
+		{"agent_run_create", "glossary_suggestion", "review_and_qa"},
+		{"agent_run_create", "comment_only", "review_and_qa"},
+		{"agent_run_create", "something_new", "other"},
+		{"project_video_variant", "", "images_and_video"},
+		{"project_video_url_translation", "", "images_and_video"},
+		{"project_image_url_translation", "", "images_and_video"},
+		{"slack_image_localization", "", "images_and_video"},
+		{"email_image_localization", "", "images_and_video"},
+		{"contentful_image_localization", "", "images_and_video"},
+		{"project_image_variant", "", "images_and_video"},
+		{"image_text_extraction", "", "images_and_video"},
+		{"slack_agent_turn", "", "assistants_and_chat"},
+		{"chat_agent_turn", "", "assistants_and_chat"},
+		{"web_chat_agent_turn", "", "assistants_and_chat"},
+		{"chat_translate_string", "", "assistants_and_chat"},
+		{"repository_agent_workflow", "", "assistants_and_chat"},
+		{"project_file_string_context_lookup", "", "assistants_and_chat"},
+		{"automation_assistant_turn", "", "building_automations"},
+		{"workspace_github_repository_agent", "", "running_automations"},
+		{"workspace_crowdin_review_suggestion", "", "running_automations"},
+		{"visual_workflow_ai_step", "", "running_automations"},
+		{"github_pull_request_review", "", "review_and_qa"},
+		{"github_repository_commit_review", "", "review_and_qa"},
+		{"content_editor_ai_suggestion", "", "translation"},
+		{"content_editor_document_regenerate", "", "translation"},
+		{"contentful_field_translation", "", "translation"},
+		{"contentful_agent", "", "translation"},
+		{"something_new", "", "other"},
+	} {
+		require.Equal(t, c.want, area(c.source, c.kind), c.source+" "+c.kind)
+	}
+	for _, c := range []struct {
+		source string
+		api    bool
+		want   string
+	}{
+		{"translation_job_create", true, "api"},
+		{"translation_job_create", false, "app"},
+		{"content_editor_ai_suggestion", false, "app"},
+		{"slack_image_localization", false, "slack"},
+		{"email_translation_job_create", false, "email"},
+		{"web_chat_agent_turn", false, "web_chat"},
+		{"agent_run_create", false, "connected_tms"},
+		{"workspace_gitlab_repository_agent", false, "gitlab"},
+		{"workspace_github_repository_agent", false, "github"},
+		{"github_pull_request_review", false, "github"},
+		{"repository_agent_workflow", false, "github"},
+		{"workspace_orchestrator", false, "automation"},
+		{"workspace_crowdin_review_suggestion", false, "automation"},
+		{"visual_workflow_ai_step", false, "automation"},
+		{"contentful_field_translation", false, "contentful"},
+		{"contentful_agent", false, "contentful"},
+		// A named channel wins over the API.
+		{"slack_agent_turn", true, "slack"},
+	} {
+		require.Equal(t, c.want, channel(c.source, c.api), c.source)
+	}
 }

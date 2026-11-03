@@ -16,25 +16,6 @@ import { db, schema } from "@/lib/database/client";
 
 import type { ReportStep, TaskAnalysisStatus } from "./report-units";
 
-/**
- * A pending analysis not updated for this long is read as failed. Each language's step updates
- * the row when it finishes, and a step takes minutes at most, so a longer silence means the
- * workflow stopped without saying so.
- */
-export const TASK_ANALYSIS_STALE_MS = 60 * 60_000;
-
-/** What a task's Report tab is told about one step's analysis. */
-export type TaskAnalysisState = {
-  step: ReportStep;
-  status: TaskAnalysisStatus;
-  /** Some strings have no match band, so the quote is not exact. */
-  incomplete: boolean;
-  /** The task's strings in each language, once a language has been recorded. */
-  strings: number | null;
-  error: string | null;
-  updatedAt: string;
-};
-
 type AnalysisKey = { organizationId: string; jobId: string; step: ReportStep };
 
 /** Sets a step's state whole: pending when the analysis starts, done or failed when it ends. */
@@ -87,36 +68,4 @@ export async function touchTaskAnalysis(input: AnalysisKey & { strings: number }
         eq(schema.reportingTaskAnalyses.step, input.step),
       ),
     );
-}
-
-/**
- * The state of each step's analysis for a task, none for a task never analysed (a string task,
- * an agent's job, or Reports off when it was created). A pending state left alone too long reads
- * as failed.
- */
-export async function readTaskAnalysis(
-  input: { organizationId: string; jobId: string },
-  now = new Date(),
-): Promise<TaskAnalysisState[]> {
-  const rows = await db
-    .select()
-    .from(schema.reportingTaskAnalyses)
-    .where(
-      and(
-        eq(schema.reportingTaskAnalyses.organizationId, input.organizationId),
-        eq(schema.reportingTaskAnalyses.jobId, input.jobId),
-      ),
-    );
-  return rows.map((row) => {
-    const stale =
-      row.status === "pending" && now.getTime() - row.updatedAt.getTime() > TASK_ANALYSIS_STALE_MS;
-    return {
-      step: row.step,
-      status: stale ? "failed" : row.status,
-      incomplete: row.incomplete,
-      strings: row.strings,
-      error: stale ? (row.error ?? "reporting_task_analysis_stopped") : row.error,
-      updatedAt: row.updatedAt.toISOString(),
-    };
-  });
 }
