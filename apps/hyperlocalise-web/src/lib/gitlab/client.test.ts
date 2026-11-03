@@ -23,9 +23,6 @@ import {
   listGitLabMembershipProjects,
 } from "./client";
 
-const mocks = vi.hoisted(() => ({ env: { NODE_ENV: "test" } }));
-
-vi.mock("@/lib/env", () => ({ env: mocks.env }));
 vi.mock("@/lib/security/public-http-fetch", () => ({
   withPublicHttpFetch: vi.fn(),
 }));
@@ -236,18 +233,54 @@ describe("gitlab client", () => {
       });
     });
 
+    it("doesn't blame the token when something other than GitLab refuses", async () => {
+      vi.mocked(withPublicHttpFetch).mockImplementation(async (_url, _init, handler) =>
+        handler(new Response("<html>Blocked</html>", { status: 403 })),
+      );
+
+      const result = await getGitLabCurrentUsername({ accessToken: "token", baseUrl });
+
+      expect(isErr(result) && result.error).toMatchObject({
+        code: "gitlab_request_failed",
+        status: 403,
+      });
+    });
+
+    it("blames the token when GitLab itself refuses", async () => {
+      mockServerResponse(401, { message: "401 Unauthorized" });
+
+      const result = await getGitLabCurrentUsername({ accessToken: "token", baseUrl });
+
+      expect(isErr(result) && result.error.code).toBe("gitlab_unauthorized");
+    });
+
+    it("stops waiting when cancelled, even if the address lookup never finishes", async () => {
+      vi.mocked(withPublicHttpFetch).mockReturnValue(new Promise(() => {}));
+      const controller = new AbortController();
+
+      const pending = getGitLabCurrentUsername({
+        accessToken: "token",
+        baseUrl,
+        signal: controller.signal,
+      });
+      controller.abort();
+      const result = await pending;
+
+      expect(isErr(result) && result.error).toMatchObject({ status: 0 });
+    });
+
     it("treats a local server as a normal request in a development build only", async () => {
       const fetchMock = vi
         .fn()
         .mockResolvedValue(new Response(JSON.stringify({ username: "local-bot" })));
       vi.stubGlobal("fetch", fetchMock);
-      mocks.env.NODE_ENV = "development";
+      vi.stubEnv("NODE_ENV", "development");
 
       const result = await getGitLabCurrentUsername({
         accessToken: "token",
         baseUrl: "http://localhost:8929",
       });
-      mocks.env.NODE_ENV = "test";
+      vi.unstubAllEnvs();
 
       expect(isOk(result) && result.value).toBe("local-bot");
       expect(withPublicHttpFetch).not.toHaveBeenCalled();

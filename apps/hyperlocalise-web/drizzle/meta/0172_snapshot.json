@@ -1,5 +1,5 @@
 {
-  "id": "24800c04-6141-4a34-8536-d8954be8434c",
+  "id": "10c52328-988e-458f-8e94-827340f1361e",
   "prevId": "c1c7237c-fbe3-4332-a4e9-1f9b771d7aa9",
   "version": "7",
   "dialect": "postgresql",
@@ -12695,12 +12695,6 @@
         "connected_username": {
           "name": "connected_username",
           "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "last_validated_at": {
-          "name": "last_validated_at",
-          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },

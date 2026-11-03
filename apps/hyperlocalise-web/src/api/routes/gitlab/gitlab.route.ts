@@ -95,8 +95,10 @@ export function createGitlabRoutes() {
       }
 
       const body = c.req.valid("json");
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const alreadyConnected = (await getGitLabConnection({ organizationId })) !== null;
       const result = await saveGitLabConnection({
-        organizationId: c.var.auth.organization.localOrganizationId,
+        organizationId,
         userId: c.var.auth.user.localUserId,
         serverUrl: body.serverUrl,
         accessToken: body.accessToken,
@@ -105,10 +107,12 @@ export function createGitlabRoutes() {
         return badRequestResponse(c, result.error.code, result.error.message);
       }
 
-      serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected, {
-        status: "created",
-        source: "gitlab",
-      });
+      if (!alreadyConnected) {
+        serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected, {
+          status: "created",
+          source: "gitlab",
+        });
+      }
 
       return c.json({ gitlabConnection: result.value }, 200);
     })

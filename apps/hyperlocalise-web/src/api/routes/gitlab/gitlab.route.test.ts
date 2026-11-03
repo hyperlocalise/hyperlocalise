@@ -24,7 +24,7 @@ const mocks = vi.hoisted(() => ({
   ),
   listAccessibleGitLabProjects: vi.fn(),
   withPublicHttpFetch: vi.fn(),
-  assertProviderUrlResolvable: vi.fn(),
+  assertProviderUrlResolvable: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/lib/security/public-http-fetch", async (importOriginal) => ({
@@ -51,6 +51,8 @@ vi.mock("@/lib/gitlab/repository-context", () => ({
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db } from "@/lib/database/client";
 
 const client = testClient<AppType>(createApp());
@@ -181,7 +183,7 @@ describe("gitlabRoutes", () => {
 
     beforeEach(() => {
       mocks.withPublicHttpFetch.mockReset();
-      mocks.assertProviderUrlResolvable.mockReset();
+      mocks.assertProviderUrlResolvable.mockClear();
     });
 
     it("saves, reads and removes a connection without returning the token", async () => {
@@ -211,6 +213,25 @@ describe("gitlabRoutes", () => {
       expect(removed.status).toBe(200);
       const after = await connection.$get({ param }, { headers });
       expect(await after.json()).toEqual({ gitlabConnection: null });
+    });
+
+    it("counts a new connection once, not each time it is replaced", async () => {
+      mockGitLabServer();
+      const track = vi.spyOn(serverAnalytics, "track");
+      const identity = fixture.createWorkosIdentityWithRole("admin");
+      const headers = await fixture.authHeadersFor(identity);
+      const param = { organizationSlug: identity.organization.slug ?? "missing-slug" };
+      const connection = client.api.orgs[":organizationSlug"].gitlab.connection;
+      const json = { serverUrl, accessToken: "glpat-secret-abcd" };
+
+      await connection.$put({ param, json }, { headers });
+      await connection.$put({ param, json }, { headers });
+
+      const connected = track.mock.calls.filter(
+        ([event]) => event === PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected,
+      );
+      expect(connected).toHaveLength(1);
+      track.mockRestore();
     });
 
     it("explains a rejected token and saves nothing", async () => {

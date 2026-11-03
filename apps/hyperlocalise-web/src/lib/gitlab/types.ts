@@ -47,7 +47,6 @@ export type GitLabConnectionSummary = {
   serverUrl: string;
   connectedUsername: string;
   maskedTokenSuffix: string;
-  lastValidatedAt: string;
   updatedAt: string;
 };
 
