@@ -21,7 +21,7 @@ export type GitLabApiError =
   | { code: "gitlab_connection_decrypt_failed"; message: string }
   | { code: "gitlab_unauthorized"; message: string }
   | { code: "gitlab_not_found"; message: string }
-  | { code: "gitlab_request_failed"; message: string; status: number };
+  | { code: "gitlab_request_failed"; message: string; status: number; timedOut?: boolean };
 
 export type GitLabProject = {
   id: number;
@@ -51,9 +51,15 @@ export type GitLabConnectionSummary = {
   updatedAt: string;
 };
 
+export type GitLabConnectionDecryptError = {
+  code: "gitlab_connection_decrypt_failed";
+  message: string;
+};
+
 export type GitLabConnectionError =
   | { code: "gitlab_server_url_invalid"; message: string }
   | { code: "gitlab_server_unreachable"; message: string }
   | { code: "gitlab_server_not_recognized"; message: string }
   | { code: "gitlab_token_rejected"; message: string }
+  | { code: "gitlab_token_invalid"; message: string }
   | { code: "gitlab_connection_decrypt_failed"; message: string };

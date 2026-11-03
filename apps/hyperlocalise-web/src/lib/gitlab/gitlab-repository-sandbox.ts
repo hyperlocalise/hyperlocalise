@@ -18,7 +18,8 @@ import {
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
 
-import { buildGitLabCloneUrl, resolveGitLabAccess } from "./access";
+import { resolveGitLabAccess } from "./access";
+import { buildGitLabCloneUrl } from "./client";
 import { GITLAB_GIT_OAUTH_USERNAME } from "./constants";
 
 const logger = createLogger("gitlab-repository-sandbox");

@@ -112,26 +112,25 @@ export function createGitlabRoutes() {
       }
 
       const body = c.req.valid("json");
-      const organizationId = c.var.auth.organization.localOrganizationId;
-      const alreadyConnected = (await getGitLabConnection({ organizationId })) !== null;
       const result = await saveGitLabConnection({
-        organizationId,
+        organizationId: c.var.auth.organization.localOrganizationId,
         userId: c.var.auth.user.localUserId,
         serverUrl: body.serverUrl,
         accessToken: body.accessToken,
+        signal: c.req.raw.signal,
       });
       if (isErr(result)) {
         return badRequestResponse(c, result.error.code, result.error.message);
       }
 
-      if (!alreadyConnected) {
+      if (result.value.created) {
         serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected, {
           status: "created",
           source: "gitlab",
         });
       }
 
-      return c.json({ gitlabConnection: result.value }, 200);
+      return c.json({ gitlabConnection: result.value.connection }, 200);
     })
     .delete("/connection", async (c) => {
       if (!canWriteGitLabConnection(c.var.auth.membership.role)) {

@@ -242,21 +242,40 @@ describe("gitlabRoutes", () => {
 
     it("counts a new connection once, not each time it is replaced", async () => {
       mockGitLabServer();
-      const track = vi.spyOn(serverAnalytics, "track");
+      const track = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
       const identity = fixture.createWorkosIdentityWithRole("admin");
       const headers = await fixture.authHeadersFor(identity);
       const param = { organizationSlug: identity.organization.slug ?? "missing-slug" };
       const connection = client.api.orgs[":organizationSlug"].gitlab.connection;
       const json = { serverUrl, accessToken: "glpat-secret-abcd" };
 
-      await connection.$put({ param, json }, { headers });
-      await connection.$put({ param, json }, { headers });
+      const first = await connection.$put({ param, json }, { headers });
+      const second = await connection.$put({ param, json }, { headers });
+      const calls = [...track.mock.calls];
+      track.mockRestore();
 
-      const connected = track.mock.calls.filter(
+      expect([first.status, second.status]).toEqual([200, 200]);
+      const connected = calls.filter(
         ([event]) => event === PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected,
       );
       expect(connected).toHaveLength(1);
-      track.mockRestore();
+    });
+
+    it("refuses a malformed body and a removal with nothing to remove", async () => {
+      const identity = fixture.createWorkosIdentityWithRole("admin");
+      const headers = await fixture.authHeadersFor(identity);
+      const param = { organizationSlug: identity.organization.slug ?? "missing-slug" };
+      const connection = client.api.orgs[":organizationSlug"].gitlab.connection;
+
+      const malformed = await connection.$put(
+        { param, json: { serverUrl: "", accessToken: "" } },
+        { headers },
+      );
+      const removed = await connection.$delete({ param }, { headers });
+
+      expect(malformed.status).toBe(400);
+      expect(await malformed.json()).toMatchObject({ error: "invalid_gitlab_connection_payload" });
+      expect(removed.status).toBe(404);
     });
 
     it("explains a rejected token and saves nothing", async () => {

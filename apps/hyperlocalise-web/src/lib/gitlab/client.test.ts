@@ -23,12 +23,17 @@ import {
   listGitLabMembershipProjects,
 } from "./client";
 
+vi.mock("./constants", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./constants")>()),
+  GITLAB_SERVER_REQUEST_TIMEOUT_MS: 20,
+}));
 vi.mock("@/lib/security/public-http-fetch", () => ({
   withPublicHttpFetch: vi.fn(),
 }));
 
 describe("gitlab client", () => {
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
 
@@ -185,7 +190,7 @@ describe("gitlab client", () => {
       vi.mocked(withPublicHttpFetch).mockReset();
     });
 
-    it("keeps the server's path, pins the address and refuses redirects", async () => {
+    it("keeps the server's path and sends requests through the guarded fetch, redirects refused", async () => {
       const fetchMock = vi.fn();
       vi.stubGlobal("fetch", fetchMock);
       mockServerResponse(200, { username: "translations-bot" });
@@ -280,11 +285,18 @@ describe("gitlab client", () => {
         accessToken: "token",
         baseUrl: "http://localhost:8929",
       });
-      vi.unstubAllEnvs();
 
       expect(isOk(result) && result.value).toBe("local-bot");
       expect(withPublicHttpFetch).not.toHaveBeenCalled();
       expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ redirect: "error" });
+    });
+
+    it("gives up at the timeout and marks the request as timed out", async () => {
+      vi.mocked(withPublicHttpFetch).mockReturnValue(new Promise(() => {}));
+
+      const result = await getGitLabCurrentUsername({ accessToken: "token", baseUrl });
+
+      expect(isErr(result) && result.error).toMatchObject({ status: 0, timedOut: true });
     });
 
     it("sends a local address through the guarded path outside development", async () => {

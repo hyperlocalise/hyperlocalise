@@ -15,7 +15,7 @@ import type { RepositoryAgentGitLabContext } from "@/lib/agent-contracts/gitlab-
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { getGitLabConnection, loadGitLabConnectionCredentials } from "./connections";
-import { GITLAB_API_ORIGIN } from "./constants";
+import { buildGitLabCloneUrl } from "./client";
 import { loadGitLabPipesAccessToken } from "./pipes";
 import type { GitLabAccess, GitLabApiError } from "./types";
 
@@ -66,11 +66,6 @@ export async function resolveGitLabCredentialOwner(input: {
   return connection
     ? `gitlab-connection:${connection.serverUrl}:${connection.updatedAt}`
     : (input.workosUserId ?? null);
-}
-
-/** Built here, not taken from a stored context: an old context may name a previous server. */
-export function buildGitLabCloneUrl(baseUrl: string | null, repositoryFullName: string): string {
-  return `${baseUrl ?? GITLAB_API_ORIGIN}/${repositoryFullName}.git`;
 }
 
 /** A stored chat context names a project on the server it came from, which may have been replaced. */
