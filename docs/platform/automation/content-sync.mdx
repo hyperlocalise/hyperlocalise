@@ -10,13 +10,17 @@ Connecting GitHub gives Platform access to repositories. It does not start a fil
 ## Configure content sync
 
 1. [Connect GitHub](/platform/connections/github) and enable the intended repository.
-2. Open the project’s **Automations** page.
-3. Select **Add content sync**.
-4. Choose the GitHub resource and the source/project folders.
-5. Review the mapping and enable **Sync content**.
-6. Inspect the run and confirm the source paths in **Files**.
+2. Open the project’s **Settings** and select **Sync**.
+3. Choose the repository, the repository folder that holds the source files, and the project folder they should appear in.
+4. Choose a schedule: only when you select **Sync now**, every hour, or every day. Then select **Save**.
+5. Select **Sync now** for the first run.
+6. Check the run under **Recent syncs** and confirm the source paths in **Files**.
 
-Pull brings source content into the project folder. Push sends translations that are already ready back to GitHub through a pull request. Review that pull request before merging it.
+Pull brings source content into the project folder. Push sends translations that are already ready back to GitHub through a pull request; **Recent syncs** links to it. Review that pull request before merging it. Only one sync of a project runs at a time.
+
+Admins, localization managers, and developers can change the sync and start it. Other members with access to the project can see its settings and runs. Sync is available on every plan.
+
+Content sync automations created on the project's **Automations** page before the Sync panel keep running. A visual workflow can also run a **Content sync** step with the same settings when you need more steps around it.
 
 ## Connect the translation step
 

@@ -8,6 +8,8 @@
 
 Accepted
 
+Superseded for new syncs by the built-in [Project Sync panel](./2026-11-04-project-sync-panel-design.md); content-sync automations are no longer the way to add a sync.
+
 ## Context
 
 Workspace automations wrap GitHub and Contentful sync in an LLM orchestrator and require instructions. Integrations only store credentials. Operators need one click to move content between a connected source and a Hyperlocalise project, without a prompt.

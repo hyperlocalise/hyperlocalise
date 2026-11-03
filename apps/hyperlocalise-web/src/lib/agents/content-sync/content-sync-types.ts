@@ -33,6 +33,13 @@ export const contentSyncConfigSchema = z.object({
   providerFolder: folderPathSchema.default(""),
   projectFolder: folderPathSchema.min(1),
   contentTypeIds: z.array(z.string().trim().min(1).max(128)).max(50).optional(),
+  // Provider file path per language, e.g. `locales/{{locale}}.json`. Read by providers that map paths.
+  pathTemplate: folderPathSchema.min(1).optional(),
+  // Platform language code to the provider's code, e.g. `{"fr-FR": "fr"}`.
+  localeCodeMap: z
+    .record(z.string().trim().min(1).max(64), z.string().trim().min(1).max(64))
+    .refine((map) => Object.keys(map).length <= 200, "too_many_locale_codes")
+    .optional(),
 });
 export type ContentSyncConfig = z.infer<typeof contentSyncConfigSchema>;
 

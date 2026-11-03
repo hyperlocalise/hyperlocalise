@@ -22,6 +22,7 @@ import type {
   ProviderAgentWritebackQueue,
   TranslationFileImportQueue,
   TranslationJobEventData,
+  ProjectContentSyncQueue,
   TranslationQaScanQueue,
 } from "@/lib/workflow/types";
 import { createEngineSetupQueue } from "@/workflows/adapters";
@@ -86,6 +87,7 @@ export type OrgScopedRouteOptions = {
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
   translationQaScanQueue?: TranslationQaScanQueue;
+  projectContentSyncQueue?: ProjectContentSyncQueue;
   engineSetupQueue?: EngineSetupQueue;
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
 };
