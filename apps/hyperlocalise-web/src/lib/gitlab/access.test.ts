@@ -31,17 +31,18 @@ import { err, isErr, isOk, ok } from "@/lib/primitives/result/results";
 
 import { buildGitLabCloneUrl } from "./client";
 import {
-  isGitLabContextOnCurrentServer,
+  keepGitLabContextIfCurrent,
   resolveGitLabAccess,
   resolveGitLabCredentialOwner,
 } from "./access";
 
-describe("resolveGitLabAccess", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.loadGitLabConnectionCredentials.mockResolvedValue(ok(null));
-  });
+beforeEach(() => {
+  vi.resetAllMocks();
+  mocks.loadGitLabConnectionCredentials.mockResolvedValue(ok(null));
+  mocks.getGitLabConnection.mockResolvedValue(null);
+});
 
+describe("resolveGitLabAccess", () => {
   it("prefers the workspace's server over a person's GitLab.com account", async () => {
     mocks.loadGitLabConnectionCredentials.mockResolvedValue(
       ok({ baseUrl: "https://git.acme.example", accessToken: "server-token" }),
@@ -108,6 +109,18 @@ describe("resolveGitLabCredentialOwner", () => {
     );
   });
 
+  it("stays the same between saves, so the clone is reused", async () => {
+    mocks.getGitLabConnection.mockResolvedValue({
+      serverUrl: "https://a.example",
+      updatedAt: "2026-11-03T00:00:00.000Z",
+    });
+    const input = { localOrganizationId: "org_1", workosUserId: "user_1" };
+
+    expect(await resolveGitLabCredentialOwner(input)).toBe(
+      await resolveGitLabCredentialOwner(input),
+    );
+  });
+
   it("is the person without a server, and nobody without either", async () => {
     mocks.getGitLabConnection.mockResolvedValue(null);
 
@@ -127,7 +140,7 @@ describe("buildGitLabCloneUrl", () => {
   });
 });
 
-describe("isGitLabContextOnCurrentServer", () => {
+describe("keepGitLabContextIfCurrent", () => {
   const context = {
     repositoryFullName: "acme/web",
     httpUrlToRepo: "https://git.acme.example/acme/web.git",
@@ -136,20 +149,26 @@ describe("isGitLabContextOnCurrentServer", () => {
   it("keeps a context from the saved server", async () => {
     mocks.getGitLabConnection.mockResolvedValue({ serverUrl: "https://git.acme.example" });
 
-    expect(await isGitLabContextOnCurrentServer({ localOrganizationId: "org_1", context })).toBe(
-      true,
+    expect(await keepGitLabContextIfCurrent({ localOrganizationId: "org_1", context })).toBe(
+      context,
     );
   });
 
   it("drops a context once the server is replaced or removed", async () => {
     mocks.getGitLabConnection.mockResolvedValueOnce({ serverUrl: "https://code.acme.example" });
-    mocks.getGitLabConnection.mockResolvedValueOnce(null);
 
-    expect(await isGitLabContextOnCurrentServer({ localOrganizationId: "org_1", context })).toBe(
-      false,
-    );
-    expect(await isGitLabContextOnCurrentServer({ localOrganizationId: "org_1", context })).toBe(
-      false,
-    );
+    expect(await keepGitLabContextIfCurrent({ localOrganizationId: "org_1", context })).toBeNull();
+    expect(await keepGitLabContextIfCurrent({ localOrganizationId: "org_1", context })).toBeNull();
+  });
+
+  it("keeps a GitLab.com context while there is no server", async () => {
+    const gitlabComContext = { ...context, httpUrlToRepo: "https://gitlab.com/acme/web.git" };
+
+    expect(
+      await keepGitLabContextIfCurrent({ localOrganizationId: "org_1", context: gitlabComContext }),
+    ).toBe(gitlabComContext);
+    expect(
+      await keepGitLabContextIfCurrent({ localOrganizationId: "org_1", context: null }),
+    ).toBeNull();
   });
 });

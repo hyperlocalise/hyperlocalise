@@ -28,7 +28,7 @@ import {
   getOrganizationRepositoryConnectorConfig,
   resolveConversationRepositoryGitHubContext,
 } from "@/lib/agents/repository-context";
-import { isGitLabContextOnCurrentServer, resolveGitLabCredentialOwner } from "@/lib/gitlab/access";
+import { keepGitLabContextIfCurrent, resolveGitLabCredentialOwner } from "@/lib/gitlab/access";
 import { createGitlabRepositorySandbox } from "@/lib/gitlab/gitlab-repository-sandbox";
 import { resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
 import {
@@ -178,6 +178,7 @@ type ResolveRepositoryContextInput = {
   workosUserId?: string | null;
   projectId: string | null;
   conversationText: string;
+  currentMessageText?: string;
   classification: ConversationClassification;
   repositorySession: ConversationRepositorySession | null;
   connectorConfig?: Record<string, unknown> | null;
@@ -208,15 +209,10 @@ export async function resolveConversationRepositoryContext(
   input: ResolveRepositoryContextInput,
 ): Promise<ResolvedRepositoryContext> {
   const storedRepositoryContext = input.repositorySession?.repositoryGitHubContext ?? null;
-  const rememberedGitLabContext = input.repositorySession?.repositoryGitLabContext ?? null;
-  const storedGitLabContext =
-    rememberedGitLabContext &&
-    (await isGitLabContextOnCurrentServer({
-      localOrganizationId: input.organizationId,
-      context: rememberedGitLabContext,
-    }))
-      ? rememberedGitLabContext
-      : null;
+  const storedGitLabContext = await keepGitLabContextIfCurrent({
+    localOrganizationId: input.organizationId,
+    context: input.repositorySession?.repositoryGitLabContext,
+  });
   const shouldResolve = shouldAttemptRepositoryContextResolution({
     classification: input.classification,
     storedRepositoryContext: storedRepositoryContext ?? storedGitLabContext,
@@ -283,6 +279,7 @@ export async function resolveConversationRepositoryContext(
     localUserId: input.localUserId,
     workosUserId: input.workosUserId,
     text: input.conversationText,
+    currentText: input.currentMessageText,
   });
 
   if (gitlabContextResolution.status === "resolved") {
@@ -597,7 +594,10 @@ export async function prepareConversationAgentTurn(
   const chatMessages = await loadInteractionModelMessages(input.conversationId);
   const conversationText = getRecentUserConversationText(chatMessages, input.messageText);
   const storedRepositoryContext = input.repositorySession?.repositoryGitHubContext ?? null;
-  const storedGitLabContext = input.repositorySession?.repositoryGitLabContext ?? null;
+  const storedGitLabContext = await keepGitLabContextIfCurrent({
+    localOrganizationId: input.organizationId,
+    context: input.repositorySession?.repositoryGitLabContext,
+  });
   const languageModel =
     input.languageModel ??
     (await resolveHyperlocaliseAgentLanguageModel({
@@ -625,6 +625,7 @@ export async function prepareConversationAgentTurn(
     workosUserId: input.workosUserId,
     projectId: input.projectId,
     conversationText,
+    currentMessageText: input.messageText,
     classification,
     repositorySession: input.repositorySession ?? null,
     connectorConfig: input.connectorConfig,

@@ -31,6 +31,10 @@ export type SlackRepositorySandboxSession = {
   repositoryContextKey: string;
   createdAt: string;
   lastUsedAt: string;
+  /**
+   * Whose credentials made the clone: a WorkOS user id, or `gitlab-connection:<server>:<saved at>`
+   * for a workspace's own GitLab server. The name predates the second form.
+   */
   credentialOwnerWorkosUserId?: string;
 };
 

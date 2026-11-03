@@ -24,6 +24,7 @@ import { err, ok } from "@/lib/primitives/result/results";
 
 const mocks = vi.hoisted(() => ({
   loadGitLabProjectContext: vi.fn(),
+  getGitLabConnection: vi.fn(async (..._args: unknown[]): Promise<unknown> => null),
   createGitlabRepositorySandbox: vi.fn(),
   stopGitlabRepositorySandbox: vi.fn(),
   toolLoopGenerate: vi.fn(),
@@ -33,6 +34,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/database/client", () => ({
   db: {},
+}));
+
+vi.mock("@/lib/gitlab/connections", () => ({
+  getGitLabConnection: (...args: unknown[]) => mocks.getGitLabConnection(...args),
 }));
 
 vi.mock("@/lib/gitlab/repository-context", () => ({
@@ -233,7 +238,7 @@ describe("createUseGitlabRepositoryTool", () => {
     expect(mocks.stopGitlabRepositorySandbox).toHaveBeenCalledWith("sbx-gitlab-1");
   });
 
-  it("explains a connection that stops working instead of a missing project", async () => {
+  it("asks to reconnect when a person's GitLab.com sign-in is refused", async () => {
     mocks.loadGitLabProjectContext.mockResolvedValue(
       err({ code: "gitlab_unauthorized", message: "GitLab rejected the connected account token." }),
     );
@@ -241,6 +246,17 @@ describe("createUseGitlabRepositoryTool", () => {
     await expect(
       createUseGitlabRepositoryTool(session()).execute!({}, toolOptions),
     ).rejects.toThrow("gitlab_not_connected");
+  });
+
+  it("reports a refused token as that, not as a missing project or connection", async () => {
+    mocks.getGitLabConnection.mockResolvedValueOnce({ serverUrl: "https://git.acme.example" });
+    mocks.loadGitLabProjectContext.mockResolvedValue(
+      err({ code: "gitlab_unauthorized", message: "GitLab rejected the connected account token." }),
+    );
+
+    await expect(
+      createUseGitlabRepositoryTool(session()).execute!({}, toolOptions),
+    ).rejects.toThrow("gitlab_token_rejected");
   });
 
   it("reports a server that can't be reached as that, not as a missing connection", async () => {
@@ -253,7 +269,7 @@ describe("createUseGitlabRepositoryTool", () => {
     ).rejects.toThrow("gitlab_request_failed");
   });
 
-  it("rejects when GitLab is not connected", async () => {
+  it("reports not connected when there is no GitLab access", async () => {
     mocks.loadGitLabProjectContext.mockResolvedValue(
       err({ code: "gitlab_not_connected", message: "Connect GitLab in Integrations." }),
     );

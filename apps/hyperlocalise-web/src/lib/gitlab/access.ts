@@ -26,8 +26,8 @@ const GITLAB_NOT_CONNECTED: GitLabApiError = {
 
 /**
  * The token and the server it belongs to, returned together so a token can't be sent elsewhere.
- * A workspace's own server replaces every member's GitLab.com account, so a project path can only
- * ever mean one server.
+ * A workspace's own server replaces every member's GitLab.com account, so a project path means
+ * the workspace's current server.
  */
 export async function resolveGitLabAccess(input: {
   localOrganizationId: string;
@@ -68,15 +68,22 @@ export async function resolveGitLabCredentialOwner(input: {
     : (input.workosUserId ?? null);
 }
 
-/** A stored chat context names a project on the server it came from, which may have been replaced. */
-export async function isGitLabContextOnCurrentServer(input: {
-  localOrganizationId: string;
-  context: Pick<RepositoryAgentGitLabContext, "httpUrlToRepo" | "repositoryFullName">;
-}): Promise<boolean> {
+/**
+ * A stored chat context names a project on the server it came from, which may since have been
+ * replaced or removed. Returns the context only while it still belongs to the current server.
+ */
+export async function keepGitLabContextIfCurrent<
+  T extends Pick<RepositoryAgentGitLabContext, "httpUrlToRepo" | "repositoryFullName">,
+>(input: { localOrganizationId: string; context: T | null | undefined }): Promise<T | null> {
+  if (!input.context) {
+    return null;
+  }
   const connection = await getGitLabConnection({ organizationId: input.localOrganizationId });
   const expected = buildGitLabCloneUrl(
     connection?.serverUrl ?? null,
     input.context.repositoryFullName,
   );
-  return input.context.httpUrlToRepo.toLowerCase() === expected.toLowerCase();
+  return input.context.httpUrlToRepo.toLowerCase() === expected.toLowerCase()
+    ? input.context
+    : null;
 }

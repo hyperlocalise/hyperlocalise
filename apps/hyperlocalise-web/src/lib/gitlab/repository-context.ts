@@ -121,11 +121,31 @@ export async function resolveGitLabProjectContext(
   return isErr(context) ? null : context.value;
 }
 
+/** A broken workspace connection is for an admin to fix, so say that rather than "connect". */
+function gitlabContextFailureFollowUp(
+  error: GitLabApiError,
+  hasServer: boolean,
+  otherwise: string,
+): string {
+  if (!hasServer) {
+    return otherwise;
+  }
+  if (error.code === "gitlab_unauthorized" || error.code === "gitlab_connection_decrypt_failed") {
+    return "This workspace's GitLab connection isn't working: the server refused its token, or the saved token can't be read. An admin or localization manager can check it under Integrations.";
+  }
+  if (error.code === "gitlab_not_found") {
+    return "The workspace's GitLab token can't see that project. Check the link, or ask an admin to give the token access to it.";
+  }
+  return "The workspace's GitLab server couldn't be reached just now. Try again shortly.";
+}
+
 export async function resolveConversationRepositoryGitLabContext(input: {
   organizationId: string;
   localUserId?: string | null;
   workosUserId?: string | null;
   text: string;
+  /** The latest message alone, so an old GitLab.com link doesn't stop every later turn. */
+  currentText?: string;
 }): Promise<GitLabContextResolution> {
   const workosUserId = await resolveGitLabPipesWorkosUserId({
     workosUserId: input.workosUserId,
@@ -148,20 +168,23 @@ export async function resolveConversationRepositoryGitLabContext(input: {
 
   if (mergeRequests.length === 1) {
     const reference = mergeRequests[0]!;
-    const context = await resolveGitLabProjectContext({
+    const context = await loadGitLabProjectContext({
       localOrganizationId: input.organizationId,
       workosUserId,
       pathWithNamespace: reference.pathWithNamespace,
       mergeRequestIid: reference.mergeRequestIid,
     });
-    if (!context) {
+    if (isErr(context)) {
       return {
         status: "unresolved",
-        followUp:
+        followUp: gitlabContextFailureFollowUp(
+          context.error,
+          connection !== null,
           "I found a GitLab merge request, but I can't access that project with the connected GitLab account. Connect GitLab in Integrations and try again.",
+        ),
       };
     }
-    return { status: "resolved", context };
+    return { status: "resolved", context: context.value };
   }
 
   const projectPaths = extractGitLabProjectPathReferences(input.text, serverUrl);
@@ -174,19 +197,33 @@ export async function resolveConversationRepositoryGitLabContext(input: {
   }
 
   if (projectPaths.length === 1) {
-    const context = await resolveGitLabProjectContext({
+    const context = await loadGitLabProjectContext({
       localOrganizationId: input.organizationId,
       workosUserId,
       pathWithNamespace: projectPaths[0]!,
     });
-    if (!context) {
+    if (isErr(context)) {
       return {
         status: "unresolved",
-        followUp:
+        followUp: gitlabContextFailureFollowUp(
+          context.error,
+          connection !== null,
           "I found a GitLab project URL, but I can't access that project with the connected GitLab account. Connect GitLab in Integrations and try again.",
+        ),
       };
     }
-    return { status: "resolved", context };
+    return { status: "resolved", context: context.value };
+  }
+
+  if (
+    connection &&
+    (extractGitLabMergeRequestReferences(input.currentText ?? input.text).length > 0 ||
+      extractGitLabProjectPathReferences(input.currentText ?? input.text).length > 0)
+  ) {
+    return {
+      status: "unresolved",
+      followUp: `This workspace uses its own GitLab server, so GitLab.com links aren't used here. Send a link from ${connection.serverUrl} instead.`,
+    };
   }
 
   return { status: "not_applicable" };

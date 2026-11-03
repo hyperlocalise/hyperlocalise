@@ -22,8 +22,6 @@ export type GitLabMergeRequestReference = GitLabProjectReference & {
 
 const gitlabPathWithNamespacePatternSource = String.raw`(?:(?!-\/)[A-Za-z0-9_.-]+\/)+(?!-\/)[A-Za-z0-9_.-]+`;
 
-export const gitlabMergeRequestUrlPatternSource = String.raw`https?:\/\/(?:www\.)?gitlab\.com\/(${gitlabPathWithNamespacePatternSource})\/-\/merge_requests\/(\d+)(?=[/?#\s>|)\].,;:!?]|$)`;
-
 const gitlabComUrlPrefixSource = String.raw`https?:\/\/(?:www\.)?gitlab\.com`;
 
 /** Links to a workspace's own server, including a server under a path such as /gitlab. */
@@ -33,21 +31,20 @@ function serverUrlPrefixSource(serverUrl: string): string {
   return String.raw`https?:\/\/${hostAndPath.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}`;
 }
 
+function urlPrefixSource(serverUrl?: string): string {
+  return serverUrl ? serverUrlPrefixSource(serverUrl) : gitlabComUrlPrefixSource;
+}
+
 function mergeRequestUrlPattern(serverUrl?: string): RegExp {
   return new RegExp(
-    serverUrl
-      ? gitlabMergeRequestUrlPatternSource.replace(gitlabComUrlPrefixSource, () =>
-          serverUrlPrefixSource(serverUrl),
-        )
-      : gitlabMergeRequestUrlPatternSource,
+    String.raw`${urlPrefixSource(serverUrl)}\/(${gitlabPathWithNamespacePatternSource})\/-\/merge_requests\/(\d+)(?=[/?#\s>|)\].,;:!?]|$)`,
     "gi",
   );
 }
 
 function projectUrlPattern(serverUrl?: string): RegExp {
-  const prefix = serverUrl ? serverUrlPrefixSource(serverUrl) : gitlabComUrlPrefixSource;
   return new RegExp(
-    String.raw`${prefix}\/(${gitlabPathWithNamespacePatternSource})(?=\/-\/|[/?#\s>|)\].,;:!?]|$)`,
+    String.raw`${urlPrefixSource(serverUrl)}\/(${gitlabPathWithNamespacePatternSource})(?=\/-\/|[/?#\s>|)\].,;:!?]|$)`,
     "gi",
   );
 }
