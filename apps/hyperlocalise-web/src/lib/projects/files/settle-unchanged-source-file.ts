@@ -103,7 +103,8 @@ export async function settleUnchangedSourceFile(input: {
       })
       .from(schema.projectTranslationKeys)
       .where(and(present, inArray(schema.projectTranslationKeys.key, [...fileTextByKey.keys()])))
-      .orderBy(schema.projectTranslationKeys.key);
+      .orderBy(schema.projectTranslationKeys.key)
+      .for("update");
     if (keys.length === 0) {
       return [];
     }
