@@ -54,6 +54,11 @@ export const projectTranslationKeys = pgTable(
     key: text("key").notNull(),
     sourceText: text("source_text").notNull(),
     normalizedSourceText: text("normalized_source_text").notNull(),
+    /**
+     * The source text as last imported from a file. Null until an import writes it; then the
+     * three-way rule in `upsertKeysFromEntries` can tell a platform edit from a repository edit.
+     */
+    importedSourceText: text("imported_source_text"),
     context: text("context"),
     type: text("type"),
     maxLength: integer("max_length"),
@@ -62,6 +67,11 @@ export const projectTranslationKeys = pgTable(
      * translation jobs skip it.
      */
     isHidden: boolean("is_hidden").notNull().default(false),
+    /**
+     * Set by a repository sync that found the key missing from the repository, and cleared when
+     * the key returns, so a sync only unhides what a sync hid.
+     */
+    hiddenBySyncAt: timestamp("hidden_by_sync_at", { withTimezone: true }),
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
       .notNull()

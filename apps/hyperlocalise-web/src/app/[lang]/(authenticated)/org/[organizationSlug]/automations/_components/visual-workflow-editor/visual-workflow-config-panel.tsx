@@ -102,6 +102,7 @@ import type { VisualWorkflowV3ValidationIssue } from "@/lib/visual-workflows/val
 
 import {
   contentSyncNeedsProviderFolder,
+  contentSyncNeedsPathTemplate,
   defaultContentSyncProjectFolder,
   type ContentSyncProvider,
 } from "@/lib/agents/content-sync/content-sync-types";
@@ -134,8 +135,8 @@ import { deriveReusableWorkflowContract } from "@/lib/visual-workflows/validatio
 const ANY_PROJECT_VALUE = "__any_project__";
 const UNASSIGNED_VALUE = "__unassigned__";
 const KEEP_ASSIGNEE_VALUE = "__keep_assignee__";
-// Content sync runs for GitHub only; other providers fail at run time.
-const CONTENT_SYNC_PROVIDERS: ContentSyncProvider[] = ["github"];
+// Content sync runs for GitHub and GitLab only; other providers fail at run time.
+const CONTENT_SYNC_PROVIDERS: ContentSyncProvider[] = ["github", "gitlab"];
 
 const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 const ERROR_BEHAVIORS: VisualNodeErrorBehavior[] = ["stop", "continue", "branch"];
@@ -3703,8 +3704,57 @@ function ContentSyncConfigFields({
         value={config.projectFolder}
         onChange={(value) => onChangeConfig({ ...config, projectFolder: value })}
       />
+      {contentSyncNeedsPathTemplate(config.provider) ? (
+        <>
+          <TextField
+            id="vw-content-sync-branch"
+            label={intl.formatMessage(messages.contentSyncBranch)}
+            value={config.branch ?? ""}
+            placeholder={intl.formatMessage(messages.contentSyncBranchPlaceholder)}
+            onChange={(value) => onChangeConfig({ ...config, branch: value })}
+          />
+          <TextField
+            id="vw-content-sync-path-template"
+            label={intl.formatMessage(messages.contentSyncPathTemplate)}
+            value={config.pathTemplate ?? ""}
+            placeholder="{{locale}}.json"
+            description={intl.formatMessage(messages.contentSyncPathTemplateHelp, {
+              placeholder: "{{locale}}",
+            })}
+            onChange={(value) => onChangeConfig({ ...config, pathTemplate: value })}
+          />
+          <TextAreaField
+            id="vw-content-sync-locale-codes"
+            label={intl.formatMessage(messages.contentSyncLocaleCodes)}
+            value={formatContentSyncLocaleCodes(config.localeCodes)}
+            placeholder={"fr-FR = fr\npt-BR = pt"}
+            description={intl.formatMessage(messages.contentSyncLocaleCodesHelp)}
+            onChange={(value) =>
+              onChangeConfig({ ...config, localeCodes: parseContentSyncLocaleCodes(value) })
+            }
+          />
+        </>
+      ) : null}
     </>
   );
+}
+
+/** One `locale = code` pair per line; the order is kept so typing doesn't shuffle lines. */
+function formatContentSyncLocaleCodes(codes: Record<string, string> | undefined): string {
+  return Object.entries(codes ?? {})
+    .map(([locale, code]) => `${locale} = ${code}`)
+    .join("\n");
+}
+
+function parseContentSyncLocaleCodes(value: string): Record<string, string> {
+  const codes: Record<string, string> = {};
+  for (const line of value.split("\n")) {
+    const [locale, code] = line.split("=").map((part) => part.trim());
+    if (locale && code) {
+      codes[locale] = code;
+    }
+  }
+  return codes;
 }
 
 function WebhookTriggerFields({

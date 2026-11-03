@@ -270,10 +270,9 @@ func (api *projectAPI) contentEditorBehaviorHandler(r *http.Request, actor proje
 	if err != nil {
 		return nil, 0, err
 	}
-	var automaticallyGroupIdenticalStrings bool
-	var groupingRevision int
+	var behavior contentEditorBehavior
 	err = api.pool.QueryRow(r.Context(), `
-		select p.automatically_group_identical_strings, p.cat_grouping_revision
+		select p.automatically_group_identical_strings, p.cat_grouping_revision, p.source_text_editable
 		from projects p
 		where p.id = $1 and p.organization_id = $2 and p.source = 'native'
 			and `+formatQaProjectTeamAccessSQL(3, 4, 2),
@@ -281,20 +280,31 @@ func (api *projectAPI) contentEditorBehaviorHandler(r *http.Request, actor proje
 		actor.organizationID,
 		actor.canReadAllTeams(),
 		actor.userID,
-	).Scan(&automaticallyGroupIdenticalStrings, &groupingRevision)
+	).Scan(&behavior.automaticallyGroupIdenticalStrings, &behavior.groupingRevision, &behavior.sourceTextEditable)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, projectNotFound()
 	}
 	if err != nil {
 		return nil, 0, fmt.Errorf("get native project content editor behavior: %w", err)
 	}
+	return behavior.response(actor.canManageContentEditorBehavior()), http.StatusOK, nil
+}
+
+type contentEditorBehavior struct {
+	automaticallyGroupIdenticalStrings bool
+	groupingRevision                   int
+	sourceTextEditable                 bool
+}
+
+func (b contentEditorBehavior) response(canManage bool) map[string]any {
 	return map[string]any{
 		"contentEditorBehavior": map[string]any{
-			"automaticallyGroupIdenticalStrings": automaticallyGroupIdenticalStrings,
-			"groupingRevision":                   groupingRevision,
-			"canManage":                          actor.canManageContentEditorBehavior(),
+			"automaticallyGroupIdenticalStrings": b.automaticallyGroupIdenticalStrings,
+			"groupingRevision":                   b.groupingRevision,
+			"sourceTextEditable":                 b.sourceTextEditable,
+			"canManage":                          canManage,
 		},
-	}, http.StatusOK, nil
+	}
 }
 
 type projectFilesQuery struct {

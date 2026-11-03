@@ -353,6 +353,11 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
       .trim()
       .max(512)
       .regex(/^[^\\:*?"<>|]*$/, "invalid_folder_path"),
+    branch: z.string().trim().max(256).optional(),
+    pathTemplate: z.string().trim().max(512).optional(),
+    localeCodes: z
+      .record(z.string().trim().min(1).max(32), z.string().trim().min(1).max(32))
+      .optional(),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({

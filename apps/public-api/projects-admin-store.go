@@ -265,7 +265,7 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 	set := newSQLFilter("updated_at = now()")
 	sourceChanged := item.SourceText != nil && *item.SourceText != current.SourceText
 	if sourceChanged {
-		if err := rejectIfStringLocked(ctx, tx, actor, scope, existingID, ""); err != nil {
+		if err := rejectSourceTextChange(ctx, tx, actor, scope, existingID); err != nil {
 			return translationString{}, false, err
 		}
 		set.add("source_text = ?", *item.SourceText)

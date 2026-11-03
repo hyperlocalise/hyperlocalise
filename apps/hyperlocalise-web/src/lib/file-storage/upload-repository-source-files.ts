@@ -13,6 +13,7 @@
 import { enqueueFileUploadedActivity } from "@/lib/activity-log/file-segment-events";
 import { db } from "@/lib/database/client";
 import { getFileStorageAdapter } from "./get-file-storage-adapter";
+import type { FileStorageAdapter } from "./types";
 import { createLogger } from "@/lib/log";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
 import {
@@ -96,125 +97,157 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
       continue;
     }
 
-    const sourceHash = await sha256Hex(content);
-
-    if (input.commitSha) {
-      const latestVersion = await getLatestRepositorySourceFileVersion({
+    results.push(
+      await storeRepositorySourceFile({
         organizationId: input.organizationId,
         projectId: input.projectId,
         sourcePath: normalizedPath,
-      });
-
-      if (
-        latestVersion &&
-        latestVersion.commitSha === input.commitSha &&
-        latestVersion.sourceHash === sourceHash
-      ) {
-        results.push({
-          path: normalizedPath,
-          outcome: "skipped",
-          reason: "unchanged_for_commit",
-          sourceFileVersionId: latestVersion.id,
-        });
-        continue;
-      }
-    }
-
-    let uploadedStorageKey: string | null = null;
-
-    try {
-      const { storedFile, version } = await db.transaction(async (tx) => {
-        const storedFile = await createStoredFile({
-          organizationId: input.organizationId,
-          projectId: input.projectId,
-          createdByUserId: null,
-          role: "source",
-          sourceKind: "repository_file",
-          filename: sourceFilename(normalizedPath),
-          contentType: sourceContentType(normalizedPath),
-          content,
-          metadata: {
-            sourcePath: normalizedPath,
-            commitSha: input.commitSha ?? null,
-            workflowRunId: input.workflowRunId ?? null,
-            uploadSurface: input.uploadSurface ?? "github_automation",
-          },
-          adapter,
-          db: tx,
-        });
-        uploadedStorageKey = storedFile.storageKey;
-
-        const version = await createRepositorySourceFileVersion({
-          storedFile,
-          sourcePath: normalizedPath,
-          sourceHash,
-          commitSha: input.commitSha ?? null,
-          workflowRunId: input.workflowRunId ?? null,
-          uploadSurface: input.uploadSurface ?? "github_automation",
-          db: tx,
-        });
-
-        return { storedFile, version };
-      });
-
-      results.push({
-        path: normalizedPath,
-        outcome: "uploaded",
-        fileId: storedFile.id,
-        sourceFileVersionId: version.id,
-      });
-
-      await enqueueFileUploadedActivity({
-        actorCredentialId: null,
-        actorKind: "agent",
-        actorUserId: null,
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        sourcePath: normalizedPath,
-        storedFileId: storedFile.id,
-        versionId: version.id,
-      });
-
-      void enqueueSourceFileIngestAfterUpload({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        storedFileId: storedFile.id,
-        sourceFileVersionId: version.id,
-        sourcePath: normalizedPath,
-        sourceHash,
-      }).catch((error) => {
-        logger.warn(
-          {
-            organizationId: input.organizationId,
-            projectId: input.projectId,
-            sourceFileVersionId: version.id,
-            error: error instanceof Error ? error.message : String(error),
-          },
-          "repository source file ingest enqueue failed",
-        );
-      });
-    } catch (error) {
-      if (uploadedStorageKey) {
-        await adapter.delete({ keyOrUrl: uploadedStorageKey }).catch(() => undefined);
-      }
-
-      logger.error(
-        {
-          organizationId: input.organizationId,
-          projectId: input.projectId,
-          reason: "failed_to_store_source_file",
-          err: error,
-        },
-        "failed to store repository source file",
-      );
-
-      results.push({
-        path: normalizedPath,
-        outcome: "failed",
-        reason: "failed_to_store_source_file",
-      });
-    }
+        content,
+        commitSha: input.commitSha ?? null,
+        workflowRunId: input.workflowRunId ?? null,
+        uploadSurface: input.uploadSurface ?? "github_automation",
+        adapter,
+      }),
+    );
   }
 
   return results;
+}
+
+/**
+ * Stores one repository file as a new source file version and queues its ingest. With a commit,
+ * a file unchanged since that commit's last upload is skipped. The caller has already read the
+ * bytes, so this is the part every repository importer shares.
+ */
+export async function storeRepositorySourceFile(input: {
+  organizationId: string;
+  projectId: string;
+  /** The project path, already normalized. */
+  sourcePath: string;
+  content: Buffer;
+  commitSha: string | null;
+  workflowRunId: string | null;
+  uploadSurface: string;
+  adapter?: FileStorageAdapter;
+}): Promise<UploadRepositorySourceFileResult> {
+  const adapter = input.adapter ?? getFileStorageAdapter();
+  const normalizedPath = input.sourcePath;
+  const content = input.content;
+  const sourceHash = await sha256Hex(content);
+
+  if (input.commitSha) {
+    const latestVersion = await getLatestRepositorySourceFileVersion({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: normalizedPath,
+    });
+
+    if (
+      latestVersion &&
+      latestVersion.commitSha === input.commitSha &&
+      latestVersion.sourceHash === sourceHash
+    ) {
+      return {
+        path: normalizedPath,
+        outcome: "skipped",
+        reason: "unchanged_for_commit",
+        sourceFileVersionId: latestVersion.id,
+      };
+    }
+  }
+
+  let uploadedStorageKey: string | null = null;
+
+  try {
+    const { storedFile, version } = await db.transaction(async (tx) => {
+      const storedFile = await createStoredFile({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        createdByUserId: null,
+        role: "source",
+        sourceKind: "repository_file",
+        filename: sourceFilename(normalizedPath),
+        contentType: sourceContentType(normalizedPath),
+        content,
+        metadata: {
+          sourcePath: normalizedPath,
+          commitSha: input.commitSha,
+          workflowRunId: input.workflowRunId,
+          uploadSurface: input.uploadSurface,
+        },
+        adapter,
+        db: tx,
+      });
+      uploadedStorageKey = storedFile.storageKey;
+
+      const version = await createRepositorySourceFileVersion({
+        storedFile,
+        sourcePath: normalizedPath,
+        sourceHash,
+        commitSha: input.commitSha,
+        workflowRunId: input.workflowRunId,
+        uploadSurface: input.uploadSurface,
+        db: tx,
+      });
+
+      return { storedFile, version };
+    });
+
+    await enqueueFileUploadedActivity({
+      actorCredentialId: null,
+      actorKind: "agent",
+      actorUserId: null,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: normalizedPath,
+      storedFileId: storedFile.id,
+      versionId: version.id,
+    });
+
+    void enqueueSourceFileIngestAfterUpload({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      storedFileId: storedFile.id,
+      sourceFileVersionId: version.id,
+      sourcePath: normalizedPath,
+      sourceHash,
+    }).catch((error) => {
+      logger.warn(
+        {
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          sourceFileVersionId: version.id,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "repository source file ingest enqueue failed",
+      );
+    });
+
+    return {
+      path: normalizedPath,
+      outcome: "uploaded",
+      fileId: storedFile.id,
+      sourceFileVersionId: version.id,
+    };
+  } catch (error) {
+    if (uploadedStorageKey) {
+      await adapter.delete({ keyOrUrl: uploadedStorageKey }).catch(() => undefined);
+    }
+
+    logger.error(
+      {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        reason: "failed_to_store_source_file",
+        err: error,
+      },
+      "failed to store repository source file",
+    );
+
+    return {
+      path: normalizedPath,
+      outcome: "failed",
+      reason: "failed_to_store_source_file",
+    };
+  }
 }

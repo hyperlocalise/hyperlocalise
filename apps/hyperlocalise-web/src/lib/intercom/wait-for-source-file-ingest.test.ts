@@ -51,6 +51,19 @@ describe("waitForSourceFileVersionIngest", () => {
     vi.clearAllMocks();
   });
 
+  it("returns skipped when a newer version took the ingest over", async () => {
+    mockSelectRows([{ ingestState: "skipped" }]);
+
+    await expect(
+      waitForSourceFileVersionIngest({
+        organizationId: "org-1",
+        sourceFileVersionId: "superseded",
+        pollIntervalMs: 1,
+        timeoutMs: 50,
+      }),
+    ).resolves.toBe("skipped");
+  });
+
   it("returns failed when the source file version is missing", async () => {
     mockSelectRows([]);
 

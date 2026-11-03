@@ -109,7 +109,7 @@ export class GoSvcProjectApi {
   updateContentEditorBehavior(
     organizationSlug: string,
     projectId: string,
-    body: { automaticallyGroupIdenticalStrings: boolean },
+    body: { automaticallyGroupIdenticalStrings: boolean } | { sourceTextEditable: boolean },
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.json<{ contentEditorBehavior: ProjectContentEditorBehavior }>(

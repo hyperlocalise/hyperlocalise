@@ -13,6 +13,7 @@
 import { buildContentSyncFingerprint } from "./content-sync-paths";
 import {
   buildDefaultContentSyncTriggerMode,
+  contentSyncNeedsPathTemplate,
   contentSyncNeedsProviderFolder,
   type ContentSyncConfig,
 } from "./content-sync-types";
@@ -25,12 +26,24 @@ import type {
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 export function normalizeStoredContentSyncConfig(config: ContentSyncConfig): ContentSyncConfig {
+  const { branch: rawBranch, pathTemplate: rawPathTemplate, localeCodes: rawLocaleCodes, ...rest } =
+    config;
+  const branch = rawBranch?.trim();
+  const pathTemplate = rawPathTemplate ? normalizeContentSyncFolder(rawPathTemplate) : "";
+  const localeCodes = Object.fromEntries(
+    Object.entries(rawLocaleCodes ?? {})
+      .map(([locale, code]) => [locale.trim(), code.trim()])
+      .filter(([locale, code]) => locale && code),
+  );
   return {
-    ...config,
+    ...rest,
     providerFolder: normalizeContentSyncFolder(config.providerFolder),
     projectFolder: normalizeContentSyncFolder(config.projectFolder),
     resourceKey: config.resourceKey.trim(),
     connectionId: config.connectionId.trim(),
+    ...(branch ? { branch } : {}),
+    ...(pathTemplate ? { pathTemplate } : {}),
+    ...(Object.keys(localeCodes).length > 0 ? { localeCodes } : {}),
   };
 }
 
@@ -112,6 +125,20 @@ export function validateContentSyncConfig(
       code: "content_sync_folder_invalid",
       message: "Choose a safe relative folder path.",
     });
+  }
+  if (contentSyncNeedsPathTemplate(normalized.provider)) {
+    if (!normalized.pathTemplate) {
+      return err({
+        code: "content_sync_path_template_required",
+        message: "Say where each language's files are, for example {{locale}}.json.",
+      });
+    }
+    if (!isSafeContentSyncFolder(normalized.pathTemplate.replace(/[*{}]/g, "x"))) {
+      return err({
+        code: "content_sync_folder_invalid",
+        message: "Choose a safe relative folder path.",
+      });
+    }
   }
 
   return ok(normalized);

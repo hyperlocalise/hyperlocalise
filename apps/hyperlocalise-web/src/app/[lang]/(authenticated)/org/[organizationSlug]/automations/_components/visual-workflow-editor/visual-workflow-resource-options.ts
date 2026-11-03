@@ -51,6 +51,11 @@ export type VisualWorkflowContentfulConnectionOption = {
   spaceId: string;
 };
 
+export type VisualWorkflowGitLabProjectOption = {
+  id: number;
+  pathWithNamespace: string;
+};
+
 export type VisualWorkflowResourceOption = {
   id: string;
   label: string;
@@ -140,6 +145,20 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
     },
   });
 
+  const gitlabQuery = useQuery({
+    queryKey: ["gitlab-projects", organizationSlug, "visual-workflow"],
+    enabled,
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].gitlab.projects.$get({
+        param: { organizationSlug: organizationSlug! },
+      });
+      if (!response.ok) {
+        return [] as VisualWorkflowGitLabProjectOption[];
+      }
+      return ((await response.json()).projects ?? []) as VisualWorkflowGitLabProjectOption[];
+    },
+  });
+
   const workflowsQuery = useQuery({
     queryKey: ["visual-workflows", organizationSlug, "call-options"],
     enabled,
@@ -151,6 +170,7 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
     (repository) => repository.enabled && !repository.archived,
   );
   const contentfulConnections = contentfulQuery.data ?? [];
+  const gitlabProjects = gitlabQuery.data ?? [];
   const projects = projectsQuery.data ?? [];
 
   return {
@@ -176,6 +196,14 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
           id: connection.id,
           label: connection.displayName || connection.spaceId,
           resourceKey: connection.spaceId,
+        }));
+      }
+      if (provider === "gitlab") {
+        // The id proves at run time that the path still names the chosen project.
+        return gitlabProjects.map((project) => ({
+          id: String(project.id),
+          label: project.pathWithNamespace,
+          resourceKey: project.pathWithNamespace,
         }));
       }
       return [];

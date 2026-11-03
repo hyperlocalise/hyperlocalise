@@ -900,8 +900,12 @@ func teamGlossariesAttachedToProject(ctx context.Context, db dictionaryDB, organ
 
 type updateContentEditorBehaviorRequest struct {
 	AutomaticallyGroupIdenticalStrings *bool `json:"automaticallyGroupIdenticalStrings"`
+	SourceTextEditable                 *bool `json:"sourceTextEditable"`
 }
 
+// updateContentEditorBehaviorHandler changes one of the project's editing settings per request.
+// Grouping bumps the grouping revision only when the value changes; source text editing is a
+// plain flag that repository syncs and the public API read.
 func (api *projectAPI) updateContentEditorBehaviorHandler(r *http.Request, actor projectActor) (any, int, error) {
 	if !actor.canManageContentEditorBehavior() {
 		return nil, 0, projectForbidden()
@@ -914,32 +918,43 @@ func (api *projectAPI) updateContentEditorBehaviorHandler(r *http.Request, actor
 	if err := decodeProjectBody(r, &req); err != nil {
 		return nil, 0, err
 	}
-	if req.AutomaticallyGroupIdenticalStrings == nil {
+	if (req.AutomaticallyGroupIdenticalStrings == nil) == (req.SourceTextEditable == nil) {
 		return nil, 0, invalidProjectPayload()
 	}
 
 	ctx := r.Context()
-	var automaticallyGroupIdenticalStrings bool
-	var groupingRevision int
-	err = api.pool.QueryRow(ctx, `
+	var behavior contentEditorBehavior
+	const returning = ` returning p.automatically_group_identical_strings, p.cat_grouping_revision, p.source_text_editable`
+	if req.AutomaticallyGroupIdenticalStrings != nil {
+		err = api.pool.QueryRow(ctx, `
 		update projects p
 		set automatically_group_identical_strings=$3,
 			cat_grouping_revision=cat_grouping_revision+1,
 			updated_by_user_id=$4,
 			updated_at=now()
 		where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(5, 6, 2)+`
-			and p.automatically_group_identical_strings is distinct from $3
-		returning p.automatically_group_identical_strings, p.cat_grouping_revision`,
-		projectID, actor.organizationID, *req.AutomaticallyGroupIdenticalStrings, actor.userID,
-		actor.canReadAllTeams(), actor.userID,
-	).Scan(&automaticallyGroupIdenticalStrings, &groupingRevision)
+			and p.automatically_group_identical_strings is distinct from $3`+returning,
+			projectID, actor.organizationID, *req.AutomaticallyGroupIdenticalStrings, actor.userID,
+			actor.canReadAllTeams(), actor.userID,
+		).Scan(&behavior.automaticallyGroupIdenticalStrings, &behavior.groupingRevision, &behavior.sourceTextEditable)
+	} else {
+		err = api.pool.QueryRow(ctx, `
+		update projects p
+		set source_text_editable=$3,
+			updated_by_user_id=$4,
+			updated_at=now()
+		where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(5, 6, 2)+returning,
+			projectID, actor.organizationID, *req.SourceTextEditable, actor.userID,
+			actor.canReadAllTeams(), actor.userID,
+		).Scan(&behavior.automaticallyGroupIdenticalStrings, &behavior.groupingRevision, &behavior.sourceTextEditable)
+	}
 	if isNoRows(err) {
 		err = api.pool.QueryRow(ctx, `
-			select p.automatically_group_identical_strings, p.cat_grouping_revision
+			select p.automatically_group_identical_strings, p.cat_grouping_revision, p.source_text_editable
 			from projects p
 			where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(3, 4, 2),
 			projectID, actor.organizationID, actor.canReadAllTeams(), actor.userID,
-		).Scan(&automaticallyGroupIdenticalStrings, &groupingRevision)
+		).Scan(&behavior.automaticallyGroupIdenticalStrings, &behavior.groupingRevision, &behavior.sourceTextEditable)
 		if isNoRows(err) {
 			return nil, 0, projectNotFound()
 		}
@@ -948,11 +963,5 @@ func (api *projectAPI) updateContentEditorBehaviorHandler(r *http.Request, actor
 		return nil, 0, err
 	}
 
-	return map[string]any{
-		"contentEditorBehavior": map[string]any{
-			"automaticallyGroupIdenticalStrings": automaticallyGroupIdenticalStrings,
-			"groupingRevision":                   groupingRevision,
-			"canManage":                          true,
-		},
-	}, http.StatusOK, nil
+	return behavior.response(true), http.StatusOK, nil
 }

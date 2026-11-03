@@ -774,6 +774,8 @@ export type ProjectLocaleProgressRow = {
 export type ProjectContentEditorBehavior = {
   automaticallyGroupIdenticalStrings: boolean;
   groupingRevision: number;
+  /** Whether source text may be edited in the platform rather than only in a synced repository. */
+  sourceTextEditable: boolean;
   canManage: boolean;
 };
 

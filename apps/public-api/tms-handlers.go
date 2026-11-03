@@ -38,6 +38,7 @@ var storeErrorResponses = []storeErrorResponse{
 	{errStringKeyConflict, http.StatusConflict, "string_key_conflict", "A string with this key already exists"},
 	{errLocaleNotInProject, http.StatusBadRequest, "invalid_locale", "Locale is not a target locale of the project"},
 	{errSegmentLocked, http.StatusConflict, "segment_locked", "Segment is locked"},
+	{errSourceTextNotEditable, http.StatusConflict, "source_text_not_editable", "Source text is edited in the repository; turn on source text editing in the project's settings to change it here"},
 	{errTranslationTooLong, http.StatusUnprocessableEntity, "translation_too_long", "Translation exceeds the string max length"},
 }
 

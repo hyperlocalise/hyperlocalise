@@ -14,6 +14,7 @@ type contentEditorBehaviorResponseBody struct {
 	ContentEditorBehavior struct {
 		AutomaticallyGroupIdenticalStrings bool `json:"automaticallyGroupIdenticalStrings"`
 		GroupingRevision                   int  `json:"groupingRevision"`
+		SourceTextEditable                 bool `json:"sourceTextEditable"`
 		CanManage                          bool `json:"canManage"`
 	} `json:"contentEditorBehavior"`
 }
@@ -54,6 +55,35 @@ func TestUpdateContentEditorBehaviorHappyPath(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	require.False(t, resp.ContentEditorBehavior.AutomaticallyGroupIdenticalStrings)
 	require.Equal(t, 2, resp.ContentEditorBehavior.GroupingRevision)
+}
+
+func TestUpdateContentEditorBehaviorSourceTextEditable(t *testing.T) {
+	testenv.Require(t)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin", WithProject: true})
+	api := &projectAPI{pool: scope.Pool, membership: scope.Membership("admin")}
+
+	rec := projectMutationRequest(api, scope, http.MethodPatch, scope.OrgPath("/projects/"+scope.ProjectID+"/content-editor-behavior"), map[string]any{
+		"sourceTextEditable": true,
+	})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var resp contentEditorBehaviorResponseBody
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.True(t, resp.ContentEditorBehavior.SourceTextEditable)
+	require.Equal(t, 0, resp.ContentEditorBehavior.GroupingRevision, "source text editing is not a grouping change")
+
+	rec = projectMutationRequest(api, scope, http.MethodPatch, scope.OrgPath("/projects/"+scope.ProjectID+"/content-editor-behavior"), map[string]any{
+		"sourceTextEditable": false,
+	})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.False(t, resp.ContentEditorBehavior.SourceTextEditable)
+
+	// One setting per request.
+	rec = projectMutationRequest(api, scope, http.MethodPatch, scope.OrgPath("/projects/"+scope.ProjectID+"/content-editor-behavior"), map[string]any{
+		"sourceTextEditable":                 true,
+		"automaticallyGroupIdenticalStrings": true,
+	})
+	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
 }
 
 func TestUpdateContentEditorBehaviorNoOpDoesNotIncrementRevision(t *testing.T) {

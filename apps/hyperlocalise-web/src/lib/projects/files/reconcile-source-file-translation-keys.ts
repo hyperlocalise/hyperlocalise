@@ -13,8 +13,11 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 
 import type { ProjectSourceStringEntry } from "@/api/routes/project/project.schema";
+import { uploadSurfaceKeepsMissingKeys } from "@/lib/agents/content-sync/content-sync-types";
 import { db, schema } from "@/lib/database/client";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
+
+import type { SourceFileSyncReport } from "./source-file-sync-report";
 
 export async function reconcileSourceFileTranslationKeys(input: {
   organizationId: string;
@@ -102,23 +105,55 @@ export async function reconcileSourceFileTranslationKeys(input: {
       throw new Error("Source version is not ingesting");
     }
 
-    await new ProjectTranslationService().upsertKeysFromEntries(
+    const [project] = await tx
+      .select({ sourceTextEditable: schema.projects.sourceTextEditable })
+      .from(schema.projects)
+      .where(eq(schema.projects.id, input.projectId))
+      .limit(1);
+    const { clashes } = await new ProjectTranslationService().upsertKeysFromEntries(
       {
         ...input,
         preserveEmptySourceText: true,
+        sourceTextEditable: project?.sourceTextEditable ?? false,
       },
       tx,
     );
-    await tx
-      .delete(schema.projectTranslationKeys)
-      .where(
-        and(
-          eq(schema.projectTranslationKeys.organizationId, input.organizationId),
-          eq(schema.projectTranslationKeys.projectId, input.projectId),
-          eq(schema.projectTranslationKeys.repositorySourceFileId, file.id),
-          sql`${schema.projectTranslationKeys.sourceFileVersionId} IS DISTINCT FROM ${version.id}::uuid`,
-        ),
-      );
+    const missingKeysWhere = and(
+      eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+      eq(schema.projectTranslationKeys.projectId, input.projectId),
+      eq(schema.projectTranslationKeys.repositorySourceFileId, file.id),
+      sql`${schema.projectTranslationKeys.sourceFileVersionId} IS DISTINCT FROM ${version.id}::uuid`,
+    );
+    let syncReport: SourceFileSyncReport | null = null;
+    if (uploadSurfaceKeepsMissingKeys(version.uploadSurface)) {
+      // A repository sync hides what the repository dropped, so nothing is lost if it comes
+      // back, and translation jobs skip hidden keys. Only keys a sync hid are unhidden.
+      const missing = await tx
+        .update(schema.projectTranslationKeys)
+        .set({
+          isHidden: true,
+          hiddenBySyncAt: sql`coalesce(${schema.projectTranslationKeys.hiddenBySyncAt}, case when ${schema.projectTranslationKeys.isHidden} then null else now() end)`,
+          updatedAt: sql`now()`,
+        })
+        .where(missingKeysWhere)
+        .returning({ key: schema.projectTranslationKeys.key });
+      await tx
+        .update(schema.projectTranslationKeys)
+        .set({ isHidden: false, hiddenBySyncAt: null, updatedAt: sql`now()` })
+        .where(
+          and(
+            eq(schema.projectTranslationKeys.repositorySourceFileId, file.id),
+            eq(schema.projectTranslationKeys.sourceFileVersionId, version.id),
+            sql`${schema.projectTranslationKeys.hiddenBySyncAt} IS NOT NULL`,
+          ),
+        );
+      syncReport = {
+        clashes,
+        missingKeys: missing.map((row) => row.key).sort(),
+      };
+    } else {
+      await tx.delete(schema.projectTranslationKeys).where(missingKeysWhere);
+    }
     await tx
       .update(schema.repositorySourceFiles)
       .set({
@@ -131,8 +166,9 @@ export async function reconcileSourceFileTranslationKeys(input: {
         ingestState: "ingested",
         ingestedAt: new Date(),
         ingestError: null,
+        syncReport,
       })
       .where(eq(schema.repositorySourceFileVersions.id, version.id));
-    return { status: "ingested" as const };
+    return { status: "ingested" as const, ...(syncReport ? { syncReport } : {}) };
   });
 }

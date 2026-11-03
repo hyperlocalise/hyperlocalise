@@ -17,15 +17,16 @@ import (
 )
 
 var (
-	errProjectNotFound     = fmt.Errorf("%w: project", errResourceNotFound)
-	errStringNotFound      = fmt.Errorf("%w: string", errResourceNotFound)
-	errTranslationNotFound = fmt.Errorf("%w: translation", errResourceNotFound)
-	errSourceFileNotFound  = errors.New("source file not found")
-	errProjectNotNative    = errors.New("project strings are managed by an external TMS")
-	errStringKeyConflict   = errors.New("string key already exists")
-	errLocaleNotInProject  = errors.New("locale is not a project target locale")
-	errSegmentLocked       = errors.New("segment is locked")
-	errTranslationTooLong  = errors.New("translation exceeds the string max length")
+	errProjectNotFound       = fmt.Errorf("%w: project", errResourceNotFound)
+	errStringNotFound        = fmt.Errorf("%w: string", errResourceNotFound)
+	errTranslationNotFound   = fmt.Errorf("%w: translation", errResourceNotFound)
+	errSourceFileNotFound    = errors.New("source file not found")
+	errProjectNotNative      = errors.New("project strings are managed by an external TMS")
+	errStringKeyConflict     = errors.New("string key already exists")
+	errLocaleNotInProject    = errors.New("locale is not a project target locale")
+	errSegmentLocked         = errors.New("segment is locked")
+	errSourceTextNotEditable = errors.New("source text is not editable in this project")
+	errTranslationTooLong    = errors.New("translation exceeds the string max length")
 )
 
 type translationString struct {
@@ -115,6 +116,9 @@ type projectScope struct {
 	Source        string
 	SourceLocale  *string
 	TargetLocales []string
+	// SourceTextEditable is the project setting that allows source text to change in the
+	// platform; off, a repository sync owns the source text and the API may not edit it.
+	SourceTextEditable bool
 }
 
 type queryRower interface {
@@ -124,11 +128,11 @@ type queryRower interface {
 func loadProjectScope(ctx context.Context, db queryRower, actor principal, projectID string) (projectScope, error) {
 	var scope projectScope
 	var targetLocales []byte
-	err := db.QueryRow(ctx, `SELECT p.id, p.source, p.source_locale, p.target_locales
+	err := db.QueryRow(ctx, `SELECT p.id, p.source, p.source_locale, p.target_locales, p.source_text_editable
 		FROM projects p
 		WHERE `+accessibleProjectPredicate+` AND p.id = $3`,
 		actor.OrganizationID, actor.UserID, projectID,
-	).Scan(&scope.ID, &scope.Source, &scope.SourceLocale, &targetLocales)
+	).Scan(&scope.ID, &scope.Source, &scope.SourceLocale, &targetLocales, &scope.SourceTextEditable)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return projectScope{}, errProjectNotFound
 	}
@@ -379,9 +383,6 @@ func (s *postgresStore) updateString(ctx context.Context, actor principal, proje
 		}
 		sourceChanged := false
 		if patch.SourceText != nil {
-			if err := rejectIfStringLocked(ctx, tx, actor, scope, stringID, ""); err != nil {
-				return err
-			}
 			var current string
 			if err := tx.QueryRow(ctx, `SELECT source_text FROM project_translation_keys
 				WHERE organization_id = $1 AND project_id = $2 AND id = $3`,
@@ -389,6 +390,11 @@ func (s *postgresStore) updateString(ctx context.Context, actor principal, proje
 				return fmt.Errorf("load source text: %w", err)
 			}
 			sourceChanged = current != *patch.SourceText
+		}
+		if sourceChanged {
+			if err := rejectSourceTextChange(ctx, tx, actor, scope, stringID); err != nil {
+				return err
+			}
 		}
 		set := newSQLFilter("updated_at = now()")
 		if patch.SourceText != nil {
@@ -671,6 +677,15 @@ func rejectIfStringLocked(ctx context.Context, tx pgx.Tx, actor principal, scope
 		return errSegmentLocked
 	}
 	return nil
+}
+
+// rejectSourceTextChange refuses a change to a string's source text while the project setting
+// keeps source text to the repository, and while the string is locked in the editor.
+func rejectSourceTextChange(ctx context.Context, tx pgx.Tx, actor principal, scope projectScope, stringID string) error {
+	if !scope.SourceTextEditable {
+		return errSourceTextNotEditable
+	}
+	return rejectIfStringLocked(ctx, tx, actor, scope, stringID, "")
 }
 
 // sendApprovedTranslationsToReview moves a string's approved translations to needs_review after

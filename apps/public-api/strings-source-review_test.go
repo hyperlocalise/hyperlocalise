@@ -81,3 +81,28 @@ func TestSourceChangeSendsApprovedTranslationsToReview(t *testing.T) {
 	status, _, _ = f.translationState(t, footer.ID, "fr")
 	require.Equal(t, "approved", status)
 }
+
+func TestSourceTextChangeNeedsTheProjectSetting(t *testing.T) {
+	f := newDBFixture(t)
+	ctx := t.Context()
+	title := f.createString(t, "", "home.title", "Home", nil)
+	f.exec(t, `UPDATE projects SET source_text_editable = false WHERE id = $1`, f.project)
+
+	// Other fields, and the same source text, are still fine; a new string is too.
+	_, err := f.store.updateString(ctx, f.actor, f.project, title.ID, stringPatch{SourceText: ptr("Home"), Context: optionalString{Set: true, Value: ptr("Header")}})
+	require.NoError(t, err)
+	_, err = f.store.updateString(ctx, f.actor, f.project, title.ID, stringPatch{SourceText: ptr("Home page")})
+	require.ErrorIs(t, err, errSourceTextNotEditable)
+	_, err = f.store.upsertStrings(ctx, f.actor, f.project, []stringUpsert{
+		{Key: "home.new", SourceText: ptr("New")},
+		{Key: "home.title", SourceText: ptr("Home page")},
+	})
+	require.ErrorIs(t, err, errSourceTextNotEditable)
+	var item errStringBatchItem
+	require.ErrorAs(t, err, &item)
+	require.Equal(t, 1, item.index)
+
+	saved, err := f.store.getString(ctx, f.actor, f.project, title.ID)
+	require.NoError(t, err)
+	require.Equal(t, "Home", saved.SourceText)
+}
