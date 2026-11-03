@@ -74,7 +74,6 @@ import { createTmsAgentAutomationRoutes } from "./routes/tms-agent-automation/tm
 import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/tms-dashboard-summary.route";
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { createBillingRoutes } from "./routes/billing/billing.route";
-import { createReportsRoutes } from "./routes/reports/reports.route";
 import { createHumanApprovalRoutes } from "./routes/human-approval/human-approval.route";
 
 export type OrgScopedRouteOptions = {
@@ -214,8 +213,7 @@ export function createOrgAgentsRoutes() {
 export function createOrgWorkspaceRoutes() {
   return new Hono()
     .route("/workspace", createWorkspaceRoutes())
-    .route("/billing", createBillingRoutes())
-    .route("/reports", createReportsRoutes());
+    .route("/billing", createBillingRoutes());
 }
 
 export function createOrgScopedAppRoutes(options: OrgScopedRouteOptions) {

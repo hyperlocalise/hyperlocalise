@@ -41,13 +41,14 @@ var (
 )
 
 // reportingSourceRule places a billing source: the whole name, or a name's start. Rules are
-// tried in order, the same rules as the web app's ai-usage-origins.ts.
+// tried in order.
 type reportingSourceRule struct {
 	exact, prefix, result string
 }
 
 // reportingAiOriginRules place a source other than a connected TMS's agent run, after the media
-// sources: the web app's ORIGIN_BY_SOURCE in its order, then the automations prefix.
+// sources. A new source also goes in the web app's ai-usage-origins.ts, which names its area on
+// the page when it has no label.
 var reportingAiOriginRules = []reportingSourceRule{
 	{exact: "translation_job_create", result: "translation"},
 	{exact: "email_translation_job_create", result: "translation"},

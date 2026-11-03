@@ -235,7 +235,6 @@ export async function completeReviewJob(input: {
   await captureJobStatus({
     jobId: input.jobId,
     status: input.status,
-    operationKey: `review:${input.jobId}:${input.status === "succeeded" ? "succeeded" : "waiting"}`,
   });
   return getStoredReviewJob(input.jobId, input.projectId);
 }
@@ -290,7 +289,6 @@ export async function failReviewJob(input: {
   await captureJobStatus({
     jobId: input.jobId,
     status: "failed",
-    operationKey: `review:${input.jobId}:failed`,
   });
 
   return getStoredReviewJob(input.jobId, input.projectId);
@@ -401,7 +399,6 @@ export async function executeNativeReviewJob(input: {
   await captureJobStatus({
     jobId: input.jobId,
     status: "running",
-    operationKey: `review:${input.jobId}:running`,
   });
 
   const findings: Array<{

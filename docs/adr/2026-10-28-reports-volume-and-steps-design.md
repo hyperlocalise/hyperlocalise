@@ -4,6 +4,8 @@
 
 Builds on [Reports rework](./2026-10-23-reports-rework-design.md) and follows [the AI usage tab](./2026-10-27-reports-ai-usage-tab-design.md). No migration; nothing new is recorded.
 
+The API routes and read modules named here have left the web app, moved to go-svc apart from the combined `GET /reports?report=` route, which was removed: see [Reports reads and writes in go-svc](./2026-10-29-reports-go-svc-design.md).
+
 ## Context
 
 Users asked Reports for "weekly volume per project", more detailed word counts with a graph, and "time spent on each step". Peer platforms (Crowdin, Lokalise, Phrase, Smartling, Transifex) chart words over time, most by month and by day, split by how the words were produced, by language, by match band or by project. After the rework, volume per week was a table only (Word counts grouped by week), the Activity chart stacked finished words by where the text came from rather than by project, and time per step knew two steps, translation and review, so a post-edit task and a proofread task were one "Review" line. Automated run time showed each translation task run as one number from its first event to its last, with nothing about where the time went. The Costs tab also carried "expenses": a US dollar amount typed by hand against a project, from the first Reports (#2244), which no user asked for and no peer platform (Crowdin, Smartling, Lokalise, Phrase) offers.

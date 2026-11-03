@@ -101,16 +101,3 @@ export function matchBucket(score: number | null, repetition = false): MatchBuck
   if (score >= 50) return "50-74";
   return "new";
 }
-
-export function reportingPeriod(date: Date, interval: "day" | "week") {
-  const result = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  if (interval === "week") result.setUTCDate(result.getUTCDate() - ((result.getUTCDay() + 6) % 7));
-  return result.toISOString().slice(0, 10);
-}
-
-export function csvCell(value: string | number | boolean | null | undefined): string {
-  const text = String(value ?? "");
-  // A negative number cannot be a formula, so it stays a number in a spreadsheet.
-  const safe = /^[=+@\-\t\r]/.test(text) && !/^-\d+(\.\d+)?$/.test(text) ? "'" + text : text;
-  return '"' + safe.replaceAll('"', '""') + '"';
-}

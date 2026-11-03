@@ -11,10 +11,8 @@
  * Version 2.0 or later.
  */
 import type { Flag } from "flags/next";
-import { createMiddleware } from "hono/factory";
 
 import type { AuthVariables } from "@/api/auth/workos";
-import { forbiddenResponse } from "@/api/response.schema";
 import type { WorkosFlagEntities } from "@/lib/flags/workos-flag-entities";
 
 export async function isWorkspaceFeatureFlagEnabled(
@@ -33,18 +31,4 @@ export async function isWorkspaceFeatureFlagEnabled(
   } catch {
     return false;
   }
-}
-
-export function createWorkspaceFeatureFlagMiddleware(
-  workspaceFlag: Flag<boolean, WorkosFlagEntities>,
-  message: string,
-) {
-  return createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
-    const enabled = await isWorkspaceFeatureFlagEnabled(workspaceFlag, c.var.auth);
-    if (!enabled) {
-      return forbiddenResponse(c, "feature_unavailable", message);
-    }
-
-    await next();
-  });
 }

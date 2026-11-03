@@ -131,6 +131,10 @@
     "defaultMessage": "Glossary Exported",
     "description": "Activity log event type label for glossary exports"
   },
+  "+7oMmGxk5W": {
+    "defaultMessage": "Mark this task done?",
+    "description": "Title of the confirmation dialog for marking a task for people done"
+  },
   "+850lhlwsw": {
     "defaultMessage": "{count, plural, one {# QA scan failed} other {# QA scans failed}}",
     "description": "Attention card title when the latest QA scan failed in one or more projects"
@@ -330,6 +334,10 @@
   "+TLsx7a6do": {
     "defaultMessage": "Connect GitLab to choose a project",
     "description": "Placeholder when GitLab is not connected so projects cannot be chosen"
+  },
+  "+TnElwCqk4": {
+    "defaultMessage": "Keep HubSpot copies that teammates edited after the last push.",
+    "description": "Explains the selected automation keeps newer HubSpot copies"
   },
   "+UD+5d3g3H": {
     "defaultMessage": "repository required",
@@ -2063,6 +2071,10 @@
     "defaultMessage": "Bring content to your audience with a CMS and automated AEO and SEO operations.",
     "description": "Marketing homepage domainsBody"
   },
+  "15zAdlHpmJ": {
+    "defaultMessage": "HubSpot",
+    "description": "Tool badge when an automation uses HubSpot"
+  },
   "16sYDMkqBx": {
     "defaultMessage": "No. Connect the site you already have. Domains publishes and checks it. You can also publish from Content Studio.",
     "description": "Domains FAQ answer about replacing a website"
@@ -2702,10 +2714,6 @@
   "24Fv+29H+S": {
     "defaultMessage": "{count, number} characters extracted",
     "description": "Extracted text size for a knowledge file"
-  },
-  "24KJbvrklx": {
-    "defaultMessage": "Choose which mapped blog posts to update with approved translations. This creates unpublished locale drafts and never changes or publishes the source.",
-    "description": "Description of the HubSpot item picker dialog"
   },
   "24tcVtmHO9": {
     "defaultMessage": "No localized video yet",
@@ -4563,6 +4571,10 @@
     "defaultMessage": "Numbers",
     "description": "QA review: numbers mismatch"
   },
+  "55xv+A+K/m": {
+    "defaultMessage": "Select all",
+    "description": "Select every mapped HubSpot item in the push dialog"
+  },
   "576RCOuTLO": {
     "defaultMessage": "Updated {updated} issue(s)",
     "description": "Toast after a fully successful issue bulk action"
@@ -6135,6 +6147,10 @@
     "defaultMessage": "Select all visible entries",
     "description": "Accessible label for selecting every visible translation memory entry"
   },
+  "7hm07cqAw8": {
+    "defaultMessage": "Search items",
+    "description": "Placeholder for filtering mapped HubSpot items"
+  },
   "7hvZqJJjAI": {
     "defaultMessage": "Date",
     "description": "Label of the date the work was done"
@@ -7259,6 +7275,10 @@
     "defaultMessage": "It runs in every language",
     "description": "Proof point 2 title for the agents automation product page"
   },
+  "9RWd1cWWqm": {
+    "defaultMessage": "Add/edit multi-language variations first",
+    "description": "Title of the HubSpot push dialog warning for blog post language variants"
+  },
   "9RkSMcYnN2": {
     "defaultMessage": "File context",
     "description": "Accessible label for file-attached context markdown content"
@@ -7466,6 +7486,10 @@
   "9lmMAv+1UD": {
     "defaultMessage": "Close",
     "description": "Close action in the concept editor"
+  },
+  "9mI5GoWd3Q": {
+    "defaultMessage": "Unable to load the HubSpot connection right now.",
+    "description": "HubSpot integration row description when connection status fails to load"
   },
   "9mUgfw4H53": {
     "defaultMessage": "Translation saved in this edit",
@@ -8143,6 +8167,10 @@
     "defaultMessage": "Previous string",
     "description": "Keyboard shortcuts dialog row for moving to the previous string"
   },
+  "Atsclr94+y": {
+    "defaultMessage": "Search items",
+    "description": "Accessible label for the HubSpot item search field"
+  },
   "AuCHneqNSE": {
     "defaultMessage": "Save this automation to get a public chat URL.",
     "description": "Hint shown before a web chat automation has been saved"
@@ -8282,6 +8310,10 @@
   "B7HJpY5IHI": {
     "defaultMessage": "Retry",
     "description": "Multilingual table retry label"
+  },
+  "B7iMFgP2e0": {
+    "defaultMessage": "Last push failed",
+    "description": "Hint that the previous HubSpot push for this item failed"
   },
   "B89dpJolat": {
     "defaultMessage": "Trigger: {trigger}",
@@ -8963,6 +8995,10 @@
     "defaultMessage": "Retrying…",
     "description": "Button label while retrying a localisation audit"
   },
+  "CBJCcle41q": {
+    "defaultMessage": "HubSpot disconnected",
+    "description": "Toast after HubSpot is disconnected"
+  },
   "CBccpuuEIS": {
     "defaultMessage": "Pull source files into a project and push ready translations back.",
     "description": "Catalog description for the content sync action node"
@@ -9558,6 +9594,10 @@
   "D31YyOoRzS": {
     "defaultMessage": "Leave a reply…",
     "description": "Placeholder for the inline reply row on a root comment card"
+  },
+  "D3kQXWPcCW": {
+    "defaultMessage": "HubSpot push queued",
+    "description": "Toast after a HubSpot push automation run is queued"
   },
   "D4SMVMIcIp": {
     "defaultMessage": "changed a string status",
@@ -13363,6 +13403,10 @@
     "defaultMessage": "Delete",
     "description": "Delete Canva connection button"
   },
+  "JIhKGhe8Ry": {
+    "defaultMessage": "Allow pop-ups to connect HubSpot.",
+    "description": "Toast when the HubSpot OAuth window is blocked"
+  },
   "JJS6v4yMLE": {
     "defaultMessage": "Could not load",
     "description": "Home card count when that resource failed to load"
@@ -13807,6 +13851,10 @@
     "defaultMessage": "This role can inspect strings but cannot write translations back.",
     "description": "Reviewer preference note when the user cannot edit translations"
   },
+  "K3x5cISuVg": {
+    "defaultMessage": "Task marked done",
+    "description": "Success toast after marking a task for people done"
+  },
   "K4A2HqIbMM": {
     "defaultMessage": "Support content goes stale the moment it ships in English",
     "description": "Problem section title for the help-center-localisation use case"
@@ -13918,6 +13966,10 @@
   "KKUxl6AuoX": {
     "defaultMessage": "Result file",
     "description": "Glossary export result file label"
+  },
+  "KKwJDyo6Qn": {
+    "defaultMessage": "Overwrite HubSpot copies when the remote copy is newer.",
+    "description": "Explains the selected automation overwrites newer HubSpot copies on push"
   },
   "KL1WoqHBtQ": {
     "defaultMessage": "Upgrade plan",
@@ -15743,10 +15795,6 @@
     "defaultMessage": "Artifact reference (optional)",
     "description": "Human Approval protected artifact reference field"
   },
-  "NCfwtZnJJa": {
-    "defaultMessage": "Localize marketing emails, landing pages, and CRM messages in HubSpot.",
-    "description": "HubSpot integration description on the integrations page"
-  },
   "NDXmA1pbVL": {
     "defaultMessage": "We'll email a short summary — score, top fixes, and a link back to this report — so it's easy to forward.",
     "description": "Body for the email-summary form on a localisation audit result"
@@ -16335,6 +16383,10 @@
     "defaultMessage": "{count, plural, one {# new QA error} other {# new QA errors}} since the previous scan",
     "description": "Inbox notification preview when a QA scan finds more errors than the previous scan"
   },
+  "OBtwmZ+5Ft": {
+    "defaultMessage": "Choose which mapped emails, blog posts, and forms to update with approved translations. Emails become a cloned locale draft. Blog posts become unpublished locale drafts. Forms become a separate locale copy. This never changes or publishes the source.",
+    "description": "Description of the HubSpot item picker dialog"
+  },
   "OBw52VUo2G": {
     "defaultMessage": "{percent}% of the test",
     "description": "Allocation label for a variant"
@@ -16630,6 +16682,10 @@
   "OfQ4bwN572": {
     "defaultMessage": "Length",
     "description": "CAT format check label when the translation exceeds the max length"
+  },
+  "OgcxgmUfpQ": {
+    "defaultMessage": "The task moves to done and can't be reopened. Unfinished strings stay as they are, and later edits no longer count towards this task.",
+    "description": "Body of the confirmation dialog for marking a task for people done"
   },
   "OhDSK13yKr": {
     "defaultMessage": "A member",
@@ -19243,10 +19299,6 @@
     "defaultMessage": "Actions",
     "description": "Column header for member row actions"
   },
-  "T0nIeTVdtm": {
-    "defaultMessage": "The budgets could not be loaded, so this cannot be saved. Close and try again.",
-    "description": "Error in the set budget dialog when the existing budgets fail to load"
-  },
   "T0qDIxKkjq": {
     "defaultMessage": "Delete this locale from the TM?",
     "description": "Confirmation title before deleting one locale from a TM segment"
@@ -20175,6 +20227,10 @@
     "defaultMessage": "Reload the saved automation again",
     "description": "Tooltip of the redo button when the undone step replaced the form with a version saved elsewhere"
   },
+  "UT4djK0Z7P": {
+    "defaultMessage": "HubSpot",
+    "description": "Name of the HubSpot integration in the hint on a skill that needs it connected"
+  },
   "UTeqE+Yq4v": {
     "defaultMessage": "GitLab",
     "description": "Tool badge when an automation uses GitLab"
@@ -20662,6 +20718,10 @@
   "VG/iXFDz5w": {
     "defaultMessage": "Batch: {value}",
     "description": "Chip label for the active import batch filter"
+  },
+  "VGEYYw48AE": {
+    "defaultMessage": "This could not be downloaded.",
+    "description": "Error shown when a CSV download from the Reports page fails"
   },
   "VGayu+ZFkL": {
     "defaultMessage": "Previous segment ({shortcut})",
@@ -21531,6 +21591,10 @@
     "defaultMessage": "From a button label to a whole flow",
     "description": "Supporting line for the Hyperlab flags solution panel"
   },
+  "WoSyZZEH6N": {
+    "defaultMessage": "This took too long to load. Try again, or narrow the report's filters.",
+    "description": "Error shown when a section of the Reports page took too long to read"
+  },
   "WojZwK+028": {
     "defaultMessage": "Every model",
     "description": "Filter that shows the full model list on the pricing page"
@@ -22198,6 +22262,10 @@
   "XxZFsAWbq3": {
     "defaultMessage": "Conversations",
     "description": "Group label for conversation sources in the inbox type filter"
+  },
+  "XzGaaTP1ZJ": {
+    "defaultMessage": "No mapped items",
+    "description": "Empty state when a HubSpot automation has no mapped items"
   },
   "XzH5GON6Rv": {
     "defaultMessage": "No teams yet",
@@ -23819,6 +23887,10 @@
     "defaultMessage": "Share of visitors",
     "description": "Label for rollout percentage"
   },
+  "aTt1oyDiQ4": {
+    "defaultMessage": "You can only mark done a task assigned to you.",
+    "description": "Error toast when someone without review rights marks done a task not assigned to them"
+  },
   "aUtNGn1QYX": {
     "defaultMessage": "It joins the memory layer, tagged by type and market",
     "description": "Knowledge mock UI stage 3 description"
@@ -24551,6 +24623,14 @@
     "defaultMessage": "Save",
     "description": "Save Canva connection button"
   },
+  "bf0TtMsCUG": {
+    "defaultMessage": "No matching items",
+    "description": "Empty state when HubSpot item search matches nothing"
+  },
+  "bfBd1OoAHf": {
+    "defaultMessage": "Localize emails, forms, blog posts, landing pages, and website pages in HubSpot.",
+    "description": "HubSpot integration description on the integrations page"
+  },
   "bfD0UZF1jK": {
     "defaultMessage": "Host",
     "description": "DNS record field"
@@ -24682,6 +24762,10 @@
   "bsU0qqr6A2": {
     "defaultMessage": "Overview",
     "description": "Import report overview heading"
+  },
+  "bsYaITED8a": {
+    "defaultMessage": "Push policy",
+    "description": "Label for the selected automation HubSpot overwrite rule"
   },
   "bsfKEASu14": {
     "defaultMessage": "Preserve product terminology and UI labels",
@@ -26139,6 +26223,10 @@
     "defaultMessage": "Resize queue panel",
     "description": "Accessible name for the horizontal handle that resizes the CAT queue panel"
   },
+  "e0CvlXJ4ct": {
+    "defaultMessage": "Clear",
+    "description": "Clear the HubSpot item selection"
+  },
   "e0taRiVgjL": {
     "defaultMessage": "created a glossary",
     "description": "Action for a glossary creation activity"
@@ -26590,6 +26678,10 @@
   "eeEgKfExfG": {
     "defaultMessage": "Save as new rate card",
     "description": "Button that saves the lines as a new rate card"
+  },
+  "eekYo93LGz": {
+    "defaultMessage": "Loading items",
+    "description": "Shown while mapped HubSpot items load"
   },
   "efAi5lrO4s": {
     "defaultMessage": "Save and run",
@@ -27482,6 +27574,10 @@
   "g4pR2Tnesp": {
     "defaultMessage": "Stop guessing what each market wants.",
     "description": "Bottom CTA headline for the Hyperlab product page"
+  },
+  "g5Lt85UaO9": {
+    "defaultMessage": "Push to HubSpot",
+    "description": "Title of the Content editor dialog for choosing HubSpot items to push"
   },
   "g5OYzJZ1DT": {
     "defaultMessage": "Chat URL",
@@ -28618,6 +28714,10 @@
   "hptWpEO9CJ": {
     "defaultMessage": "Done",
     "description": "Confirm button closing the concept filters dialog"
+  },
+  "hqDIbv77j2": {
+    "defaultMessage": "Could not disconnect HubSpot",
+    "description": "Toast when disconnecting HubSpot fails"
   },
   "hqP31ZL7Z3": {
     "defaultMessage": "A number, such as the strings to do from Check progress.",
@@ -30091,10 +30191,6 @@
     "defaultMessage": "Move up",
     "description": "Button to move an issue column earlier in sort order"
   },
-  "k8nQ2wLm0P": {
-    "defaultMessage": "Add/edit multi-language variations first",
-    "description": "Title of the HubSpot push dialog warning for blog post language variants"
-  },
   "k9j7R6aLei": {
     "defaultMessage": "Could not load messages",
     "description": "Error when mapped Customer.io messages fail to load"
@@ -30562,6 +30658,10 @@
   "ksdqzG4/Xq": {
     "defaultMessage": "Export filtered as TBX",
     "description": "Glossary action to export the current language filter as TBX"
+  },
+  "kse6ogMy60": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel the HubSpot item picker"
   },
   "ktH+IvcapS": {
     "defaultMessage": "Industry",
@@ -31306,6 +31406,10 @@
   "m645TvmZkL": {
     "defaultMessage": "Last run",
     "description": "Project QA last run label"
+  },
+  "m6d0KfiqLJ": {
+    "defaultMessage": "These figures could not be refreshed, so they may be out of date.",
+    "description": "Warning above figures on the Reports page when reloading them fails"
   },
   "m6jiE/qhjy": {
     "defaultMessage": "{count} / {maxLength} characters",
@@ -32519,6 +32623,10 @@
     "defaultMessage": "The GitHub install link expired or was already used. Click Connect again from this page.",
     "description": "GitHub connect error when OAuth state is invalid or expired"
   },
+  "nx0R7JXLot": {
+    "defaultMessage": "Disconnecting",
+    "description": "Shown while HubSpot is disconnecting"
+  },
   "nxVF3ARuwj": {
     "defaultMessage": "Import batch ID",
     "description": "Placeholder for the import batch ID filter"
@@ -32826,6 +32934,10 @@
   "oRgI0X9Pkl": {
     "defaultMessage": "XLS",
     "description": "Menu option to import Queries rows from an XLS file"
+  },
+  "oRrUQMuqOA": {
+    "defaultMessage": "Disconnect",
+    "description": "Disconnect HubSpot"
   },
   "oS7mysSU95": {
     "defaultMessage": "{kind} · {format}",
@@ -33231,10 +33343,6 @@
     "defaultMessage": "Line {line} uses lookaround or a backreference, which is not supported.",
     "description": "Validation error for a custom placeholder pattern that uses unsupported syntax"
   },
-  "p4Rv7tNc2A": {
-    "defaultMessage": "In HubSpot Settings, open Blog and choose Add/edit multi-language variations. When that language is on the blog, push creates an unpublished post draft. It does not add a language to the blog.",
-    "description": "Warning in the HubSpot push dialog that blog posts need a HubSpot language on the blog"
-  },
   "p4xkAKJ/3y": {
     "defaultMessage": "Project",
     "description": "Stepper label"
@@ -33310,6 +33418,10 @@
   "p9ro5GVVLh": {
     "defaultMessage": "Settings",
     "description": "Segment context label for settings strings in the CAT mock"
+  },
+  "pBSmD5j3RM": {
+    "defaultMessage": "Marking done…",
+    "description": "Confirm button label while marking a task done"
   },
   "pCIZGjBgS+": {
     "defaultMessage": "Top {shown} of {total}",
@@ -33414,6 +33526,10 @@
   "pMWGh46Ptt": {
     "defaultMessage": "Audiences",
     "description": "App shell breadcrumb title for the Hyperlab audiences page"
+  },
+  "pMZzEwjsIu": {
+    "defaultMessage": "Mark done",
+    "description": "Button that marks a proofread task for people as done"
   },
   "pMpF//U8ui": {
     "defaultMessage": "Remove",
@@ -33906,6 +34022,10 @@
   "q1SUe75H6g": {
     "defaultMessage": "Major",
     "description": "Package version change badge for a major update"
+  },
+  "q1Z6cLN3TO": {
+    "defaultMessage": "Automation",
+    "description": "Label for choosing which HubSpot automation to push with"
   },
   "q1gTXMRwMD": {
     "defaultMessage": "Early-stage, typically under 50 employees or pre-Series B",
@@ -35439,6 +35559,10 @@
     "defaultMessage": "Permission",
     "description": "Column header for permission names in the role matrix"
   },
+  "sTc8os2V6k": {
+    "defaultMessage": "Keep open",
+    "description": "Dismiss button in the mark task done confirmation dialog"
+  },
   "sUNtSb7xJe": {
     "defaultMessage": "Collected output bindings (JSON)",
     "description": "Visual workflow editor control"
@@ -35554,6 +35678,10 @@
   "sfhtDmbrI3": {
     "defaultMessage": "{count} reused",
     "description": "Per-locale count of strings reused from translation memory or existing translations"
+  },
+  "sg405N0flU": {
+    "defaultMessage": "Could not queue HubSpot push",
+    "description": "Toast when queuing a HubSpot push automation run fails"
   },
   "sgGvzPrbqO": {
     "defaultMessage": "Nothing produces a result yet. Add a skill that checks, summarises or researches something, or write instructions.",
@@ -35946,6 +36074,10 @@
   "tK7acLhoUb": {
     "defaultMessage": "Status",
     "description": "Run history column header for status"
+  },
+  "tKEC9A/nAh": {
+    "defaultMessage": "Could not start HubSpot authorization.",
+    "description": "Toast when HubSpot OAuth URL request fails"
   },
   "tKdwJD/VUy": {
     "defaultMessage": "words",
@@ -38003,6 +38135,10 @@
     "defaultMessage": "OAuth client secret",
     "description": "Label for the OAuth client secret field"
   },
+  "wclN4/dKYj": {
+    "defaultMessage": "Failed to mark the task done",
+    "description": "Toast and error fallback when marking a task done fails"
+  },
   "wcn78AsmsL": {
     "defaultMessage": "Glossary notes, format warnings, and comments surface before approval, not after release.",
     "description": "Proof point 2 body for the next-gen CAT tool product page"
@@ -38603,6 +38739,10 @@
     "defaultMessage": "Book an audit review",
     "description": "CTA to book a localisation audit review with the Hyperlocalise team"
   },
+  "xVjKDBvqPx": {
+    "defaultMessage": "Push {count, plural, one {# item} other {# items}}",
+    "description": "Confirm pushing the selected HubSpot items"
+  },
   "xVvlWpH5FH": {
     "defaultMessage": "Regenerate",
     "description": "Button to regenerate the translated file with the agent in CAT File view"
@@ -38774,6 +38914,14 @@
   "xjrZfzDX6N": {
     "defaultMessage": "Confident, thoughtful, and welcoming. Use clear language and speak directly to your reader.",
     "description": "Marketing homepage voiceBody"
+  },
+  "xk6Ug/3teq": {
+    "defaultMessage": "Reports is busy. Try again in a moment.",
+    "description": "Error shown when a section of the Reports page waited too long for its turn"
+  },
+  "xkC+jko3kk": {
+    "defaultMessage": "This task was already finished or cancelled.",
+    "description": "Error toast when marking a task done after someone else finished or cancelled it"
   },
   "xkkgs3AOHS": {
     "defaultMessage": "Import source strings from GitHub into your TMS project.",
@@ -39046,6 +39194,10 @@
   "y7TyDgtZHB": {
     "defaultMessage": "https://api.lokalise.com/api2",
     "description": "Example placeholder for the Lokalise API base URL field"
+  },
+  "y7wsSxtRQK": {
+    "defaultMessage": "Could not load items",
+    "description": "Error when mapped HubSpot items fail to load"
   },
   "y9Ij/vPLAO": {
     "defaultMessage": "Copy hash",
@@ -39350,6 +39502,10 @@
   "ydDpJd3kaY": {
     "defaultMessage": "Add rule",
     "description": "Add a break rule within a language rule set"
+  },
+  "ydKsI5HS/s": {
+    "defaultMessage": "Push to HubSpot",
+    "description": "Button that opens the dialog to write approved translations to HubSpot"
   },
   "yeGOLY++rb": {
     "defaultMessage": "Adapt this image for {locale}, including its wording, tone, cultural context, and layout.",
@@ -39770,6 +39926,10 @@
   "zLa51T7B2l": {
     "defaultMessage": "Checking repository config",
     "description": "Live explore status when the agent inspects repository localization config"
+  },
+  "zLb2OYI9oM": {
+    "defaultMessage": "{name} marked the task as done",
+    "description": "Job activity row when a user marks a task for people as done"
   },
   "zLdcgO8mwD": {
     "defaultMessage": "Allows this automation to append information to the organization's shared Memory.md. Changes are recorded in revision history and can be restored.",

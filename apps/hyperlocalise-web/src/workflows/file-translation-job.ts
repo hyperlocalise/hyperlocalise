@@ -442,9 +442,7 @@ async function runTranslationStep(
     force?: boolean;
     maxTranslations?: number;
     organizationId?: string;
-    projectId?: string;
     jobId?: string;
-    reportsEnabled?: boolean;
   },
 ) {
   "use step";
@@ -547,26 +545,6 @@ async function runTranslationStep(
     const report = (await readTranslatedFile(sandboxId, reportPath)).toString("utf8");
     const reportPayload = JSON.parse(report) as unknown;
     const progress = fileTranslationReportSchema.parse(reportPayload);
-    if (options?.reportsEnabled && options.organizationId && options.projectId && options.jobId) {
-      try {
-        const { captureSandboxUsage } = await import("@/lib/reporting/sandbox-usage");
-        const { resolveSandboxLlmProfile } = await import("@/lib/translation/sandbox-llm");
-        const { env } = await import("@/lib/env");
-        await captureSandboxUsage({
-          organizationId: options.organizationId,
-          projectId: options.projectId,
-          jobId: options.jobId,
-          invocationId,
-          ...resolveSandboxLlmProfile(env, byok),
-          report,
-        });
-      } catch (error) {
-        console.warn("[file-translation-workflow] usage capture failed", {
-          jobId: options.jobId,
-          error,
-        });
-      }
-    }
     const tokenUsage = await readSandboxCliTokenUsage(sandboxId, reportPath);
     return { ...result, progress, tokenUsage };
   } catch (error) {
@@ -1355,9 +1333,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
             force: runForce,
             maxTranslations,
             organizationId,
-            projectId: claim.job.projectId,
             jobId: claim.job.id,
-            reportsEnabled,
           },
         );
 

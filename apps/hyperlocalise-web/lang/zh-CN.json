@@ -110,6 +110,9 @@
   "+7Y3hMdLcS": {
     "defaultMessage": "词汇表已导出"
   },
+  "+7oMmGxk5W": {
+    "defaultMessage": "将此任务标记为已完成？"
+  },
   "+850lhlwsw": {
     "defaultMessage": "{count, plural, one {# 次 QA 扫描失败} other {# 次 QA 扫描失败}}"
   },
@@ -301,6 +304,9 @@
   },
   "+TLsx7a6do": {
     "defaultMessage": "连接 GitLab 以选择项目"
+  },
+  "+TnElwCqk4": {
+    "defaultMessage": "保留团队成员在上次推送后编辑的 HubSpot 副本。"
   },
   "+UD+5d3g3H": {
     "defaultMessage": "需要存储库"
@@ -1837,6 +1843,9 @@
   },
   "15JsK395Aq": {
     "defaultMessage": "借助 CMS 以及自动化的 AEO 和 SEO 运营，将内容呈现给您的受众。"
+  },
+  "15zAdlHpmJ": {
+    "defaultMessage": "HubSpot"
   },
   "16sYDMkqBx": {
     "defaultMessage": "不可以。连接您已有的网站即可。Domains 会发布并检查该网站。您也可以从 Content Studio 发布。"
@@ -4067,6 +4076,9 @@
   "55pv/fQdGW": {
     "defaultMessage": "数字"
   },
+  "55xv+A+K/m": {
+    "defaultMessage": "全选"
+  },
   "576RCOuTLO": {
     "defaultMessage": "已更新 {updated} 个问题。"
   },
@@ -5435,6 +5447,9 @@
   "7hdb/IRr/l": {
     "defaultMessage": "选择所有可见条目"
   },
+  "7hm07cqAw8": {
+    "defaultMessage": "搜索条目"
+  },
   "7hvZqJJjAI": {
     "defaultMessage": "日期"
   },
@@ -6611,6 +6626,9 @@
   "9lmMAv+1UD": {
     "defaultMessage": "关闭"
   },
+  "9mI5GoWd3Q": {
+    "defaultMessage": "目前无法加载 HubSpot 连接。"
+  },
   "9mUgfw4H53": {
     "defaultMessage": "翻译已在此次编辑中保存"
   },
@@ -7196,6 +7214,9 @@
   "AtXAhlt1Vc": {
     "defaultMessage": "上一条字符串"
   },
+  "Atsclr94+y": {
+    "defaultMessage": "搜索项目"
+  },
   "AuCHneqNSE": {
     "defaultMessage": "保存此自动化后即可获取公开聊天 URL。"
   },
@@ -7309,6 +7330,9 @@
   },
   "B7HJpY5IHI": {
     "defaultMessage": "重试"
+  },
+  "B7iMFgP2e0": {
+    "defaultMessage": "上次推送失败了"
   },
   "B89dpJolat": {
     "defaultMessage": "触发条件：{trigger}"
@@ -7895,6 +7919,9 @@
   "CBECdPWm0s": {
     "defaultMessage": "Retrying…"
   },
+  "CBJCcle41q": {
+    "defaultMessage": "HubSpot 已断开连接"
+  },
   "CBccpuuEIS": {
     "defaultMessage": "将源文件拉取到项目中，并将已完成的翻译推送回去。"
   },
@@ -8434,6 +8461,9 @@
   },
   "D3VzMQGhqa": {
     "defaultMessage": "分配 AI 代理来翻译、审校和同步内容，同时保持人工审校处于首要地位。"
+  },
+  "D3kQXWPcCW": {
+    "defaultMessage": "HubSpot 推送已排队"
   },
   "D3q/aG4RpR": {
     "defaultMessage": "让重复性的全球内容工作自动运行，助力团队更快地将产品推向更多市场。"
@@ -11825,6 +11855,9 @@
   "JIHTr+V6i/": {
     "defaultMessage": "What needs context, review, or a fix?"
   },
+  "JIhKGhe8Ry": {
+    "defaultMessage": "允许弹出窗口以连接到 HubSpot。"
+  },
   "JIuT2aW94P": {
     "defaultMessage": "最新久久久久久"
   },
@@ -12242,6 +12275,9 @@
   "K3dTcxv8UP": {
     "defaultMessage": "此角色可以查看字符串，但无法将翻译写回。"
   },
+  "K3x5cISuVg": {
+    "defaultMessage": "任务已标记为完成。"
+  },
   "K4+ynunWBF": {
     "defaultMessage": "GitLab"
   },
@@ -12346,6 +12382,9 @@
   },
   "KKUxl6AuoX": {
     "defaultMessage": "结果文件"
+  },
+  "KKwJDyo6Qn": {
+    "defaultMessage": "当远程副本较新时，覆盖 HubSpot 副本。"
   },
   "KL1WoqHBtQ": {
     "defaultMessage": "升级套餐"
@@ -12772,6 +12811,9 @@
   },
   "LCEJpmlHkp": {
     "defaultMessage": "Canva 连接已删除。"
+  },
+  "LCEhMig6eV": {
+    "defaultMessage": "已更新的项目字符串"
   },
   "LCZsgeJImu": {
     "defaultMessage": "Name"
@@ -14312,6 +14354,9 @@
   "NwknAq8TGX": {
     "defaultMessage": "内容存在于 Contentful 或 Webflow 中。Slack 里的一条提醒。Intercom 中的帮助文章。如果你仍在使用 Crowdin、Lokalise、Phrase 或 Smartling，翻译内容也会进入这些平台。"
   },
+  "Nwo7t+Ovaq": {
+    "defaultMessage": "更新了一个职位"
+  },
   "NwyqQCxTLG": {
     "defaultMessage": "是的。Hyperlocalise 不受限于特定的大语言模型。您可以使用 OpenAI、Anthropic、Gemini 或您偏好的其他服务提供商，并且无需更改工作流程即可切换模型。"
   },
@@ -14677,6 +14722,9 @@
   },
   "OfQ4bwN572": {
     "defaultMessage": "Length"
+  },
+  "OgcxgmUfpQ": {
+    "defaultMessage": "此任务将移至“已完成”，且无法重新打开。未完成的字符串将保持原样，后续编辑也不再计入此任务。"
   },
   "OhDSK13yKr": {
     "defaultMessage": "一名成员"
@@ -17819,6 +17867,9 @@
   "USrLdmNJAO": {
     "defaultMessage": "再次加载已保存的自动化流程"
   },
+  "UT4djK0Z7P": {
+    "defaultMessage": "HubSpot"
+  },
   "UTeqE+Yq4v": {
     "defaultMessage": "GitLab"
   },
@@ -18244,6 +18295,9 @@
   },
   "VG/iXFDz5w": {
     "defaultMessage": "批次：{value}"
+  },
+  "VGEYYw48AE": {
+    "defaultMessage": "无法下载此内容。"
   },
   "VGayu+ZFkL": {
     "defaultMessage": "上一个片段（{shortcut}）"
@@ -19046,6 +19100,9 @@
   "WoJQD0Fykh": {
     "defaultMessage": "从按钮标签到完整流程"
   },
+  "WoSyZZEH6N": {
+    "defaultMessage": "加载时间过长。请重试，或缩小报告的筛选范围。"
+  },
   "WojZwK+028": {
     "defaultMessage": "所有模型"
   },
@@ -19654,6 +19711,9 @@
   },
   "XxZFsAWbq3": {
     "defaultMessage": "对话"
+  },
+  "XzGaaTP1ZJ": {
+    "defaultMessage": "尚无映射项目"
   },
   "XzH5GON6Rv": {
     "defaultMessage": "还没有团队"
@@ -21116,6 +21176,9 @@
   "aTqbNUoZhT": {
     "defaultMessage": "\"variant\": \"处理组\""
   },
+  "aTt1oyDiQ4": {
+    "defaultMessage": "你只能将分配给自己的任务标记为已完成。"
+  },
   "aUtNGn1QYX": {
     "defaultMessage": "它加入记忆层，并按类型和市场进行标记"
   },
@@ -21743,6 +21806,12 @@
   "bf/8sd/M64": {
     "defaultMessage": "Save"
   },
+  "bf0TtMsCUG": {
+    "defaultMessage": "没有匹配的项目"
+  },
+  "bfBd1OoAHf": {
+    "defaultMessage": "在 HubSpot 中本地化电子邮件、表单、博客文章、落地页和网站页面。"
+  },
   "bfD0UZF1jK": {
     "defaultMessage": "主机"
   },
@@ -21865,6 +21934,9 @@
   },
   "bsU0qqr6A2": {
     "defaultMessage": "概览"
+  },
+  "bsYaITED8a": {
+    "defaultMessage": "推送策略"
   },
   "bsfKEASu14": {
     "defaultMessage": "保留产品术语和 UI 标签"
@@ -23126,6 +23198,9 @@
   "e/sLamxaMH": {
     "defaultMessage": "调整队列面板大小"
   },
+  "e0CvlXJ4ct": {
+    "defaultMessage": "清除"
+  },
   "e0sPtLxq8D": {
     "defaultMessage": "已检查 {segments} 条翻译 · {errors} 个错误 · {warnings} 个警告"
   },
@@ -23512,6 +23587,9 @@
   },
   "eeEgKfExfG": {
     "defaultMessage": "另存为新费率卡"
+  },
+  "eekYo93LGz": {
+    "defaultMessage": "正在加载项目"
   },
   "efAi5lrO4s": {
     "defaultMessage": "保存并运行"
@@ -24335,6 +24413,9 @@
   "g4pR2Tnesp": {
     "defaultMessage": "别再猜测每个市场想要什么。"
   },
+  "g5Lt85UaO9": {
+    "defaultMessage": "推送到 HubSpot"
+  },
   "g5OYzJZ1DT": {
     "defaultMessage": "聊天 URL"
   },
@@ -24836,6 +24917,9 @@
   "h+UBaWw3mM": {
     "defaultMessage": "等待上传"
   },
+  "h+ie5F1ydq": {
+    "defaultMessage": "选择要使用已批准的译文更新哪些已映射的电子邮件、表单、博客文章、落地页和网站页面。这会创建本地化副本，绝不会更改或发布源内容。"
+  },
   "h+xR1ab29F": {
     "defaultMessage": "低于 1%"
   },
@@ -25315,6 +25399,9 @@
   },
   "hptWpEO9CJ": {
     "defaultMessage": "完成"
+  },
+  "hqDIbv77j2": {
+    "defaultMessage": "无法断开与 HubSpot 的连接"
   },
   "hqP31ZL7Z3": {
     "defaultMessage": "一个数字，例如“检查进度”中的待处理字符串数。"
@@ -27017,6 +27104,9 @@
   "kn7ATogig+": {
     "defaultMessage": "一并适配所有幻灯片。保持布局、优化内容，并以任意语言呈现。"
   },
+  "knAumzrJwC": {
+    "defaultMessage": "职位已更新"
+  },
   "knFaGwAEFJ": {
     "defaultMessage": "每个拉取请求都会运行的本地化检查"
   },
@@ -27085,6 +27175,9 @@
   },
   "ksdqzG4/Xq": {
     "defaultMessage": "导出筛选结果为 TBX"
+  },
+  "kse6ogMy60": {
+    "defaultMessage": "取消"
   },
   "ksrwIvV64s": {
     "defaultMessage": "工作区设置"
@@ -27178,6 +27271,9 @@
   },
   "l0dInWPeYD": {
     "defaultMessage": "知识文件"
+  },
+  "l1G7XLzm4n": {
+    "defaultMessage": "项目字符串已更新"
   },
   "l1mlJzFoj/": {
     "defaultMessage": "加载更多"
@@ -27754,6 +27850,9 @@
   },
   "m645TvmZkL": {
     "defaultMessage": "上次运行"
+  },
+  "m6d0KfiqLJ": {
+    "defaultMessage": "无法刷新这些数据，因此可能不是最新的。"
   },
   "m6jiE/qhjy": {
     "defaultMessage": "{count} / {maxLength} 个字符"
@@ -28829,6 +28928,9 @@
   "nwJGCHKaPx": {
     "defaultMessage": "GitHub 安装链接已过期或已被使用。请从此页面再次点击连接。"
   },
+  "nx0R7JXLot": {
+    "defaultMessage": "正在断开连接"
+  },
   "nxVF3ARuwj": {
     "defaultMessage": "导入批次 ID"
   },
@@ -29089,6 +29191,9 @@
   },
   "oRgI0X9Pkl": {
     "defaultMessage": "XLS"
+  },
+  "oRrUQMuqOA": {
+    "defaultMessage": "断开连接"
   },
   "oS7mysSU95": {
     "defaultMessage": "{kind} · {format}"
@@ -29510,6 +29615,9 @@
   "pAXX9L54+r": {
     "defaultMessage": "翻译与 CAT 行为"
   },
+  "pBSmD5j3RM": {
+    "defaultMessage": "正在标记为已完成…"
+  },
   "pCIZGjBgS+": {
     "defaultMessage": "前 {shown} 项（共 {total} 项）"
   },
@@ -29599,6 +29707,9 @@
   },
   "pMWGh46Ptt": {
     "defaultMessage": "受众"
+  },
+  "pMZzEwjsIu": {
+    "defaultMessage": "标记为已完成"
   },
   "pMpF//U8ui": {
     "defaultMessage": "Remove"
@@ -30019,6 +30130,9 @@
   },
   "q1SUe75H6g": {
     "defaultMessage": "Major"
+  },
+  "q1Z6cLN3TO": {
+    "defaultMessage": "Automation"
   },
   "q1gTXMRwMD": {
     "defaultMessage": "早期阶段，通常员工人数少于 50 人或尚未完成 B 轮融资"
@@ -31394,6 +31508,9 @@
   "sTY0HjJCgH": {
     "defaultMessage": "Permission"
   },
+  "sTc8os2V6k": {
+    "defaultMessage": "保持打开"
+  },
   "sUNtSb7xJe": {
     "defaultMessage": "已收集的输出绑定（JSON）"
   },
@@ -31501,6 +31618,9 @@
   },
   "sfhtDmbrI3": {
     "defaultMessage": "已复用 {count} 条"
+  },
+  "sg405N0flU": {
+    "defaultMessage": "无法将 HubSpot 推送加入队列"
   },
   "sgGvzPrbqO": {
     "defaultMessage": "目前还没有任何内容能生成结果。添加一个用于检查、总结或研究内容的技能，或编写指令。"
@@ -31858,6 +31978,9 @@
   },
   "tK7acLhoUb": {
     "defaultMessage": "Status"
+  },
+  "tKEC9A/nAh": {
+    "defaultMessage": "无法启动 HubSpot 授权。"
   },
   "tKdwJD/VUy": {
     "defaultMessage": "词语"
@@ -33704,6 +33827,9 @@
   "wc8eM+CF/N": {
     "defaultMessage": "OAuth 客户端密钥"
   },
+  "wclN4/dKYj": {
+    "defaultMessage": "标记任务完成失败"
+  },
   "wcn78AsmsL": {
     "defaultMessage": "术语表注释、格式警告和评论会在审批前显示，而不是在发布后。"
   },
@@ -34217,6 +34343,9 @@
   "xUdbOFsZxg": {
     "defaultMessage": "预约审核评估"
   },
+  "xVjKDBvqPx": {
+    "defaultMessage": "推送 {count, plural, one {# 个项目} other {# 个项目}}"
+  },
   "xVvlWpH5FH": {
     "defaultMessage": "重新生成"
   },
@@ -34363,6 +34492,12 @@
   },
   "xjrZfzDX6N": {
     "defaultMessage": "自信、周到且热情亲切。使用清晰的语言，直接与读者交流。"
+  },
+  "xk6Ug/3teq": {
+    "defaultMessage": "报告功能正忙，请稍后重试。"
+  },
+  "xkC+jko3kk": {
+    "defaultMessage": "此任务已完成或取消。"
   },
   "xkkgs3AOHS": {
     "defaultMessage": "将源字符串从 GitHub 导入到你的 TMS 项目中。"
@@ -34582,6 +34717,9 @@
   },
   "y7TyDgtZHB": {
     "defaultMessage": "https://api.lokalise.com/api2"
+  },
+  "y7wsSxtRQK": {
+    "defaultMessage": "无法加载项目"
   },
   "y8Gkw54qZc": {
     "defaultMessage": "正在检查语言环境覆盖预期……"
@@ -34855,6 +34993,9 @@
   },
   "ydDpJd3kaY": {
     "defaultMessage": "添加规则"
+  },
+  "ydKsI5HS/s": {
+    "defaultMessage": "推送到 HubSpot"
   },
   "yeGOLY++rb": {
     "defaultMessage": "针对 {locale} 调整此图片，包括其中的文字、语气、文化背景和布局。"
@@ -35215,6 +35356,9 @@
   },
   "zLa51T7B2l": {
     "defaultMessage": "正在检查仓库配置"
+  },
+  "zLb2OYI9oM": {
+    "defaultMessage": "{name}已将任务标记为已完成。"
   },
   "zLdcgO8mwD": {
     "defaultMessage": "允许此自动化向组织的共享 Memory.md 追加信息。更改会记录在修订历史中，并且可以恢复。"

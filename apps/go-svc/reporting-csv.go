@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// CSV downloads, written row by row as the web app writes them: every cell quoted, CRLF between
+// CSV downloads, written row by row: every cell quoted, CRLF between
 // rows, no trailing newline, formulas disarmed.
 
 type reportingCSV struct {

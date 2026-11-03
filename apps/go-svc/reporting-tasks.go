@@ -14,7 +14,7 @@ type reportingTaskOption struct {
 	Title     string  `json:"title"`
 	ProjectID *string `json:"projectId"`
 	Status    string  `json:"status"`
-	// As the database writes it, which is how the web route answers.
+	// As the database writes it.
 	CreatedAt string `json:"createdAt"`
 }
 

@@ -291,7 +291,7 @@ func TestReportingTaskPricingRacingLoggedTimeNeverPricesStartedWork(t *testing.T
 	}
 }
 
-// An edit never clears the void, so the entry ends voided whichever ran first, as on the web.
+// An edit never clears the void, so the entry ends voided whichever ran first.
 func TestReportingAnEditRacingADeleteLeavesTheEntryVoided(t *testing.T) {
 	f := seedReportingMoney(t)
 	job := f.job("job_raced", f.scope.ProjectID, "running", false, "")

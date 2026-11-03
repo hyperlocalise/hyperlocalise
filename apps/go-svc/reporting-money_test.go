@@ -41,7 +41,7 @@ func mustUSD(t *testing.T, value *big.Int, err error) string {
 	return usdString(value)
 }
 
-func TestReportingMoneyMatchesHono(t *testing.T) {
+func TestReportingMoneyStaysExact(t *testing.T) {
 	tenCents, err := usdUnits("0.10")
 	require.NoError(t, err)
 	twentyCents, err := usdUnits("0.20")

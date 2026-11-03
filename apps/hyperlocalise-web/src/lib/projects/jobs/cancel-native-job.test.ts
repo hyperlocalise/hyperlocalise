@@ -79,7 +79,6 @@ describe("cancelNativeJob", () => {
     expect(mocks.captureJobStatus).toHaveBeenCalledWith({
       jobId: task.id,
       status: "cancelled",
-      operationKey: `cancel:${task.id}`,
     });
   });
 });
