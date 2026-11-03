@@ -38,7 +38,7 @@ Mailchimp is not a trigger type. Use a schedule or **Run now** for import. Use *
 - Regular campaigns at `mailchimp/campaigns/{id}/{slug}.html`
 - Code-your-own HTML user templates at `mailchimp/templates/{id}/{slug}.html`
 
-Each file stores the subject line, preview text, from name (when present), and HTML body in field blocks. In the Content Editor they open in HTML File view. Review those files like other [HTML sources](/platform/projects/files).
+Each file stores the subject line, preview text, and from name in `<head>` (`<title>` and `<meta>`), and the email HTML in the body. In the Content Editor they open in HTML File view. Review those files like other [HTML sources](/platform/projects/files).
 
 ### Campaigns (including drag-and-drop designs)
 

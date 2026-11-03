@@ -39,6 +39,26 @@ function fieldBlock(name: string, value: string): string {
   return `<div ${MAILCHIMP_FIELD_ATTR}="${name}">${value}</div>`;
 }
 
+function readTitleField(html: string): string {
+  const marked = new RegExp(
+    `<title[^>]*${MAILCHIMP_FIELD_ATTR}="subject"[^>]*>([\\s\\S]*?)</title>`,
+    "i",
+  ).exec(html);
+  if (marked?.[1] != null) {
+    return marked[1];
+  }
+  return "";
+}
+
+function readMetaField(html: string, field: string): string {
+  const tag = new RegExp(`<meta[^>]*${MAILCHIMP_FIELD_ATTR}="${field}"[^>]*>`, "i").exec(html)?.[0];
+  if (!tag) {
+    return "";
+  }
+  const content = /\scontent\s*=\s*"([^"]*)"/i.exec(tag) ?? /\scontent\s*=\s*'([^']*)'/i.exec(tag);
+  return content?.[1] ?? "";
+}
+
 function readFieldInnerHtml(html: string, field: string): string {
   const open = new RegExp(`<div[^>]*${MAILCHIMP_FIELD_ATTR}="${field}"[^>]*>`, "i");
   const match = open.exec(html);
@@ -85,10 +105,11 @@ export function serializeMailchimpEnvelope(input: {
 
   const document = [
     "<!doctype html>",
-    "<html><body>",
-    fieldBlock("subject", escapeHtml(subjectProtected.text)),
-    fieldBlock("previewText", escapeHtml(previewProtected.text)),
-    fieldBlock("fromName", escapeHtml(fromProtected.text)),
+    "<html><head>",
+    `<title ${MAILCHIMP_FIELD_ATTR}="subject">${escapeHtml(subjectProtected.text)}</title>`,
+    `<meta ${MAILCHIMP_FIELD_ATTR}="previewText" name="description" content="${escapeHtml(previewProtected.text)}">`,
+    `<meta ${MAILCHIMP_FIELD_ATTR}="fromName" name="author" content="${escapeHtml(fromProtected.text)}">`,
+    "</head><body>",
     // Raw HTML (like Braze/Customer.io) so ingest walks the email markup instead of one escaped blob.
     fieldBlock("htmlBody", htmlProtected.text),
     "</body></html>",
@@ -99,9 +120,11 @@ export function serializeMailchimpEnvelope(input: {
 
 export function parseMailchimpEnvelope(html: string): MailchimpContentEnvelope {
   return {
-    subject: decodeHtml(readFieldInnerHtml(html, "subject")),
-    previewText: decodeHtml(readFieldInnerHtml(html, "previewText")),
-    fromName: decodeHtml(readFieldInnerHtml(html, "fromName")),
+    subject: decodeHtml(readFieldInnerHtml(html, "subject") || readTitleField(html)),
+    previewText: decodeHtml(
+      readFieldInnerHtml(html, "previewText") || readMetaField(html, "previewText"),
+    ),
+    fromName: decodeHtml(readFieldInnerHtml(html, "fromName") || readMetaField(html, "fromName")),
     htmlBody: readFieldInnerHtml(html, "htmlBody"),
   };
 }

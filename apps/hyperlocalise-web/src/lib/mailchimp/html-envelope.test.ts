@@ -12,7 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { extractHtmlIngestEntries } from "@/lib/projects/files/html-ingest-entries";
+import {
+  applyHtmlIngestTranslations,
+  extractHtmlIngestEntries,
+} from "@/lib/projects/files/html-ingest-entries";
 
 import {
   parseMailchimpEnvelope,
@@ -46,7 +49,10 @@ describe("mailchimp html envelope", () => {
       html: "<p>Body</p>",
     });
     expect(serialized.html).not.toContain("&lt;p&gt;Body&lt;/p&gt;");
+    expect(serialized.html).toContain("<head>");
+    expect(serialized.html).toContain('<title data-hl-mailchimp-field="subject">S</title>');
     expect(serialized.html).toContain('<div data-hl-mailchimp-field="htmlBody"><p>Body</p></div>');
+    expect(serialized.html).not.toMatch(/<body[^>]*>[\s\S]*data-hl-mailchimp-field="subject"/);
   });
 
   it("extracts translatable strings from inner email markup", () => {
@@ -60,5 +66,35 @@ describe("mailchimp html envelope", () => {
     expect(texts).toContain("Campaign subject");
     expect(texts).toContain("Brand");
     expect(texts).toContain("Shop the sale");
+  });
+
+  it("reads metadata from older body field blocks", () => {
+    const parsed = parseMailchimpEnvelope(
+      '<html><body><div data-hl-mailchimp-field="subject">Old subject</div><div data-hl-mailchimp-field="fromName">Old brand</div><div data-hl-mailchimp-field="htmlBody"><p>Hi</p></div></body></html>',
+    );
+    expect(parsed.subject).toBe("Old subject");
+    expect(parsed.fromName).toBe("Old brand");
+    expect(parsed.htmlBody).toBe("<p>Hi</p>");
+  });
+
+  it("applies translations to head metadata without writing them into the body", () => {
+    const serialized = serializeMailchimpEnvelope({
+      subject: "Campaign subject",
+      previewText: "Preview line",
+      fromName: "Brand",
+      html: "<p>Shop the sale</p>",
+    });
+    const applied = applyHtmlIngestTranslations(serialized.html, {
+      "html.head.title": "Sujet",
+      "html.head.meta.description": "Aperçu",
+      "html.head.meta.author": "Marque",
+      "html.body.div.p": "Achetez la vente",
+    });
+    const parsed = parseMailchimpEnvelope(applied);
+    expect(parsed.subject).toBe("Sujet");
+    expect(parsed.previewText).toBe("Aperçu");
+    expect(parsed.fromName).toBe("Marque");
+    expect(parsed.htmlBody).toContain("Achetez la vente");
+    expect(applied).not.toMatch(/<body[^>]*>[\s\S]*Sujet/);
   });
 });
