@@ -466,7 +466,7 @@ const mailchimpToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
     workosUserId: z.string().trim().min(1).max(128).optional(),
-    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    sourceLocale: z.string().trim().min(1).max(32).optional(),
     campaignIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
     templateIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
     existingTranslationPolicy: z
@@ -476,7 +476,6 @@ const mailchimpToolConfigSchema = z
   })
   .default({
     enabled: false,
-    sourceLocale: "en",
     campaignIds: [],
     templateIds: [],
     existingTranslationPolicy: "seed_empty",

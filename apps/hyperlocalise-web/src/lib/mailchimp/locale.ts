@@ -11,6 +11,11 @@
  * Version 2.0 or later.
  */
 
+/** Mailchimp campaigns and templates have no locale. Use the native project source. */
+export function resolveMailchimpSourceLocale(projectSourceLocale?: string | null): string {
+  return projectSourceLocale?.trim() || "en";
+}
+
 export function mailchimpCopyName(sourceName: string, locale: string): string {
   const base = sourceName.trim() || "Content";
   return `${base} [${locale.trim() || "locale"}]`;

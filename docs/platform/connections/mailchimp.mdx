@@ -9,7 +9,7 @@ Connect Mailchimp once in workspace **Integrations**, then run the **Translate M
 
 | Requirement | Description |
 | --- | --- |
-| Native project | A [native project](/platform/projects/create-project) whose source locale matches the language of the default copy in Mailchimp. Add a project target locale for each language you will push back. |
+| Native project | A [native project](/platform/projects/create-project). Mailchimp campaigns and templates have no locale, so import and jobs use the **project source locale**. Add a project target locale for each language you will push back. |
 | Mailchimp account | Connect Mailchimp from **Integrations** with OAuth through WorkOS Pipes (slug `mailchimp`). The access token is not stored in Hyperlocalise. |
 | Campaign audience | Push creates draft locale **campaigns** and needs a list plus reply-to. Hyperlocalise uses the source campaign's audience when set, otherwise the account's first audience and its **campaign defaults** (from email / from name). If neither works, push skips campaign locales until Mailchimp has an audience with defaults or the source campaign has list and reply-to. |
 
@@ -76,7 +76,7 @@ Disconnect Mailchimp from **Integrations** when this workspace should stop using
 ## If import or push does not run
 
 - Confirm Mailchimp is connected and the automation is **Active**.
-- Confirm the project source locale matches the language of the default copy in Mailchimp.
+- Confirm the project source locale is the language of the default copy in Mailchimp. Campaigns and templates have no locale of their own.
 - Confirm the source campaign still has list and reply-to metadata in Mailchimp if push skips campaign locales.
 - Confirm target locales have **approved** translations before push; push never writes draft copies for locales with nothing approved.
 - If import skips **templates**, confirm they are HTML templates—not drag-and-drop saved layouts. Use **campaigns** for drag-and-drop email instead.

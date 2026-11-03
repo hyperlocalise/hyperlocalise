@@ -38,7 +38,11 @@ import {
   hashMailchimpContent,
   serializeMailchimpEnvelope,
 } from "./html-envelope";
-import { isMailchimpLocaleCopyName, mailchimpCopyName } from "./locale";
+import {
+  isMailchimpLocaleCopyName,
+  mailchimpCopyName,
+  resolveMailchimpSourceLocale,
+} from "./locale";
 import { resolveMailchimpCampaignRecreateForCopy } from "./campaign-recreate";
 import { listMailchimpLibrary } from "./list-library";
 import { resolveCampaignHtml, resolveTemplateHtml } from "./remote-html";
@@ -669,7 +673,7 @@ export async function runImportMailchimpContent(input: {
     throw new Error("mailchimp_project_required");
   }
 
-  const sourceLocale = mailchimp.sourceLocale?.trim() || project.sourceLocale?.trim() || "en";
+  const sourceLocale = resolveMailchimpSourceLocale(project.sourceLocale);
   const targetLocales = resolveTargetLocales({
     automation: input.automation,
     projectTargetLocales: project.targetLocales ?? [],

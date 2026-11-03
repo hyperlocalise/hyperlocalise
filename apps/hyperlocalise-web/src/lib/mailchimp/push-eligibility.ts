@@ -25,6 +25,8 @@ import {
 } from "@/lib/projects/locale-progress/push-translation-progress";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
+import { resolveMailchimpSourceLocale } from "./locale";
+
 export type MailchimpPushItem = {
   sourceId: string;
   sourcePath: string;
@@ -142,7 +144,7 @@ export async function getMailchimpPushEligibility(input: {
   const projectTargetLocales = Array.isArray(project.targetLocales)
     ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
     : [];
-  const sourceLocale = mailchimp.sourceLocale?.trim() || project.sourceLocale?.trim() || "en";
+  const sourceLocale = resolveMailchimpSourceLocale(project.sourceLocale);
   const jobTargetLocales = resolveEligibleTargetLocales({
     automation: input.automation,
     projectTargetLocales,

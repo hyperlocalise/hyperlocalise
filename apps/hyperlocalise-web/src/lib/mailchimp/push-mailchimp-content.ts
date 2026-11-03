@@ -32,7 +32,7 @@ import {
   hashMailchimpContent,
   restoreMailchimpEnvelopeForPush,
 } from "./html-envelope";
-import { mailchimpCopyName } from "./locale";
+import { mailchimpCopyName, resolveMailchimpSourceLocale } from "./locale";
 
 async function readMailchimpCopyUpdatedAt(input: {
   client: MailchimpClient;
@@ -349,7 +349,7 @@ export async function runPushMailchimpContent(input: {
     throw new Error("mailchimp_project_required");
   }
 
-  const sourceLocale = mailchimp.sourceLocale?.trim() || project.sourceLocale?.trim() || "en";
+  const sourceLocale = resolveMailchimpSourceLocale(project.sourceLocale);
   const pushLocales = resolvePushLocales({
     automation: input.automation,
     projectTargetLocales: project.targetLocales ?? [],

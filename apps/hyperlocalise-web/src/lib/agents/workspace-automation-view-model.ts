@@ -1143,7 +1143,6 @@ export function formStateToWorkspaceAutomationPayload(
       ? {
           mailchimp: {
             enabled: true,
-            sourceLocale: form.mailchimpSourceLocale.trim() || "en",
             campaignIds: form.mailchimpCampaignIds,
             templateIds: form.mailchimpTemplateIds,
             existingTranslationPolicy: form.mailchimpExistingTranslationPolicy,

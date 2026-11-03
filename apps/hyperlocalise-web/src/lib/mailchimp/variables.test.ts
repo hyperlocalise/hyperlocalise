@@ -12,7 +12,15 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { resolveMailchimpSourceLocale } from "./locale";
 import { protectMailchimpMergeTags, restoreMailchimpMergeTags } from "./variables";
+
+describe("resolveMailchimpSourceLocale", () => {
+  it("uses the project source locale because Mailchimp items have none", () => {
+    expect(resolveMailchimpSourceLocale("th-TH")).toBe("th-TH");
+    expect(resolveMailchimpSourceLocale("  ")).toBe("en");
+  });
+});
 
 describe("protectMailchimpMergeTags", () => {
   it("does not nest comments around Mailchimp IF/preview wrappers", () => {
