@@ -113,6 +113,8 @@ func main() {
 	h.workspaceSettings = &workspaceSettingsAPI{activityLog: activityLogPublisher}
 	h.sessionOrganizations = &sessionOrganizationsAPI{}
 	h.sessionAccount = &sessionAccountAPI{}
+	h.sessionOnboarding = &sessionOnboardingAPI{}
+	h.providerCredentials = newProviderCredentialAPIFromEnv()
 	h.irisGeneration = &irisGenerationAPI{provider: newIrisGenerationProvider(), text: newIrisTextModel()}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
@@ -149,6 +151,9 @@ func main() {
 			return workosClient.OrganizationMembership().Get(ctx, id)
 		}
 		h.members.workos = newLiveMemberWorkos(key, workosAPIBaseURL())
+		if identity := newLiveMemberWorkos(key, workosAPIBaseURL()); identity != nil {
+			h.sessionOnboarding.workos = identity
+		}
 		if identity := newLiveMemberWorkos(key, workosAPIBaseURL()); identity != nil {
 			h.workspaceSettings.workos = identity
 		}
@@ -194,6 +199,8 @@ func main() {
 		h.workspaceSettings.pool = traced
 		h.sessionOrganizations.pool = traced
 		h.sessionAccount.pool = traced
+		h.sessionOnboarding.pool = traced
+		h.providerCredentials.pool = traced
 		if h.irisGeneration != nil {
 			h.irisGeneration.pool = traced
 		}
@@ -292,6 +299,7 @@ func main() {
 	h.teams.membership = membershipLookup
 	h.members.membership = membershipLookup
 	h.workspaceSettings.membership = membershipLookup
+	h.providerCredentials.membership = membershipLookup
 	h.apiKeys.membership = membershipLookup
 	h.issueSheets.membership = membershipLookup
 	h.notifications.membership = membershipLookup

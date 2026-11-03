@@ -72,6 +72,8 @@ type handler struct {
 	workspaceSettings    *workspaceSettingsAPI
 	sessionOrganizations *sessionOrganizationsAPI
 	sessionAccount       *sessionAccountAPI
+	sessionOnboarding    *sessionOnboardingAPI
+	providerCredentials  *providerCredentialAPI
 	irisGeneration       *irisGenerationAPI
 	apiKeys              *apiKeyAPI
 	issueSheets          *issueSheetAPI
@@ -141,6 +143,12 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.sessionAccount != nil {
 		h.sessionAccount.register(mux, verifier)
+	}
+	if h.sessionOnboarding != nil {
+		h.sessionOnboarding.register(mux, verifier)
+	}
+	if h.providerCredentials != nil {
+		h.providerCredentials.register(mux, verifier)
 	}
 	if h.irisGeneration != nil {
 		h.irisGeneration.register(mux, verifier)

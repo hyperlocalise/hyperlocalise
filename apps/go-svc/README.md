@@ -28,6 +28,7 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `PORT` | `8080` | HTTP listen port. |
 | `HUNSPELL_DICT_DIR` | `/usr/share/hunspell` | Directory containing Hunspell `.aff` / `.dic` files. The container image bundles dictionaries at the default path. |
 | `WORKOS_COOKIE_DOMAIN` | _(unset)_ | Cookie `Domain` attribute when setting a refreshed session cookie. Leave unset for host-only cookies. |
+| `PROVIDER_CREDENTIALS_MASTER_KEY` | _(unset)_ | Same value as the web app: 64 hex characters or base64 of 32 bytes. Without it `PUT /v1/orgs/{organizationSlug}/provider-credential` returns `503 provider_credentials_unavailable`. |
 | `WORKOS_API_HOSTNAME` | `api.workos.com` | WorkOS API host used for session refresh and JWKS (`/sso/jwks/{client_id}`). Point at the WorkOS emulator in local e2e. |
 | `WORKOS_API_HTTPS` | `true` | Set `false` for the local emulator. |
 | `WORKOS_API_PORT` | _(unset)_ | Optional port for a non-default WorkOS API host. |
@@ -730,6 +731,35 @@ Signed-in WorkOS user profile at `/v1/me`. Notification preferences reuse
 | GET | `/v1/me` | Local user row plus notification preferences |
 | PATCH | `/v1/me/notification-preferences` | Replace the caller's email preferences |
 | DELETE | `/v1/me` | Refuse destructive delete (`409`) |
+
+## Account setup
+
+Workspace creation, invitations and profile for clients that sign in with
+WorkOS directly (the Iris desktop app), mirroring the web onboarding
+(`src/lib/onboarding/workspace.ts`, `src/lib/workos/pending-invitations.ts`).
+Each call first mirrors the WorkOS user into `users`, taking over the
+placeholder row an invitation made for the same email. Needs `WORKOS_API_KEY`;
+without it these return `503 workos_server_not_configured`.
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| POST | `/v1/organizations` | `{ name }`: create the WorkOS organization, admin membership, local rows and default team. `201 { organization }`; the client then switches its session to `organization.workosOrganizationId` |
+| PATCH | `/v1/me` | `{ firstName, lastName }`: update the WorkOS user and the local row |
+| GET | `/v1/invitations` | `{ invitations: [{ organizationName, organizationSlug }] }`: workspaces invited to and not joined |
+| POST | `/v1/invitations/{organizationSlug}/accept` | Accept the WorkOS invitation (verified email only) and activate the membership. `{ organization }` |
+
+## Provider credential
+
+The workspace's own AI provider key at `/v1/orgs/{organizationSlug}/provider-credential`,
+stored in `organization_llm_provider_credentials` in the web app's AES-256-GCM
+format (`src/lib/security/provider-credential-crypto.ts`). The model catalog in
+`provider-credential.go` ports `src/lib/providers/shared/catalog.ts`; keep them in step.
+Needs `provider_credentials:read` / `provider_credentials:write` (admin, localization manager).
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/v1/orgs/{organizationSlug}/provider-credential` | `{ credential, providers }`: the masked key, if any, and the provider catalog |
+| PUT | `/v1/orgs/{organizationSlug}/provider-credential` | `{ provider, apiKey, defaultModel }`: check the key with a one-token request, then store it |
 
 ## Billing
 
