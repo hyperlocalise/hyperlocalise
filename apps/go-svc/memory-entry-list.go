@@ -176,24 +176,31 @@ func parseMemoryEntryListFilters(query url.Values) (memoryEntryListFilters, erro
 	if filters.SortDir != "asc" && filters.SortDir != "desc" {
 		return filters, invalidMemory()
 	}
-	if filters.ModifiedFrom != "" {
-		if _, err := time.Parse(time.RFC3339Nano, filters.ModifiedFrom); err != nil {
-			if _, err = time.Parse(time.RFC3339, filters.ModifiedFrom); err != nil {
-				return filters, invalidMemory()
-			}
-		}
+	modifiedFrom, ok := parseMemoryEntryListTime(filters.ModifiedFrom)
+	if !ok {
+		return filters, invalidMemory()
 	}
-	if filters.ModifiedTo != "" {
-		if _, err := time.Parse(time.RFC3339Nano, filters.ModifiedTo); err != nil {
-			if _, err = time.Parse(time.RFC3339, filters.ModifiedTo); err != nil {
-				return filters, invalidMemory()
-			}
-		}
+	modifiedTo, ok := parseMemoryEntryListTime(filters.ModifiedTo)
+	if !ok {
+		return filters, invalidMemory()
 	}
-	if filters.ModifiedFrom != "" && filters.ModifiedTo != "" && filters.ModifiedFrom > filters.ModifiedTo {
+	if !modifiedFrom.IsZero() && !modifiedTo.IsZero() && modifiedFrom.After(modifiedTo) {
 		return filters, invalidMemory()
 	}
 	return filters, nil
+}
+
+// An empty value yields the zero time. RFC3339Nano parsing also accepts
+// timestamps without fractional seconds.
+func parseMemoryEntryListTime(value string) (time.Time, bool) {
+	if value == "" {
+		return time.Time{}, true
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return parsed, true
 }
 
 func memoryEntryListWhere(memoryID string, filters memoryEntryListFilters) (string, []any, error) {
