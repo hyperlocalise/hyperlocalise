@@ -14,10 +14,26 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
-import { getGitLabMergeRequest, getGitLabProject, listGitLabMembershipProjects } from "./client";
+import { withPublicHttpFetch } from "@/lib/security/public-http-fetch";
+
+import {
+  getGitLabCurrentUsername,
+  getGitLabMergeRequest,
+  getGitLabProject,
+  listGitLabMembershipProjects,
+} from "./client";
+
+vi.mock("./constants", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./constants")>()),
+  GITLAB_SERVER_REQUEST_TIMEOUT_MS: 20,
+}));
+vi.mock("@/lib/security/public-http-fetch", () => ({
+  withPublicHttpFetch: vi.fn(),
+}));
 
 describe("gitlab client", () => {
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
 
@@ -47,7 +63,7 @@ describe("gitlab client", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await listGitLabMembershipProjects({ accessToken: "token" });
+    const result = await listGitLabMembershipProjects({ accessToken: "token", baseUrl: null });
 
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) {
@@ -89,6 +105,7 @@ describe("gitlab client", () => {
 
     const result = await getGitLabProject({
       accessToken: "token",
+      baseUrl: null,
       pathWithNamespace: "acme/platform/web",
     });
 
@@ -114,6 +131,7 @@ describe("gitlab client", () => {
 
     const result = await getGitLabMergeRequest({
       accessToken: "token",
+      baseUrl: null,
       pathWithNamespace: "acme/web",
       mergeRequestIid: 7,
     });
@@ -143,6 +161,7 @@ describe("gitlab client", () => {
 
     const result = await getGitLabMergeRequest({
       accessToken: "token",
+      baseUrl: null,
       pathWithNamespace: "acme/web",
       mergeRequestIid: 42,
     });
@@ -155,6 +174,141 @@ describe("gitlab client", () => {
       iid: 42,
       sourceBranch: "fix-copy",
       commitSha: "abc123",
+    });
+  });
+
+  describe("on a workspace's own server", () => {
+    const baseUrl = "https://git.acme.example/gitlab";
+
+    function mockServerResponse(status: number, body: unknown) {
+      vi.mocked(withPublicHttpFetch).mockImplementation(async (_url, _init, handler) =>
+        handler(new Response(JSON.stringify(body), { status })),
+      );
+    }
+
+    afterEach(() => {
+      vi.mocked(withPublicHttpFetch).mockReset();
+    });
+
+    it("keeps the server's path and sends requests through the guarded fetch, redirects refused", async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+      mockServerResponse(200, { username: "translations-bot" });
+
+      const result = await getGitLabCurrentUsername({ accessToken: "token", baseUrl });
+
+      expect(isOk(result) && result.value).toBe("translations-bot");
+      expect(fetchMock).not.toHaveBeenCalled();
+      const [url, init] = vi.mocked(withPublicHttpFetch).mock.calls[0]!;
+      expect(url).toBe("https://git.acme.example/gitlab/api/v4/user");
+      expect(init).toMatchObject({
+        redirect: "error",
+        headers: { Authorization: "Bearer token" },
+      });
+    });
+
+    it("builds the clone address from the server, ignoring what the server reports", async () => {
+      mockServerResponse(200, {
+        id: 11,
+        name: "web",
+        path_with_namespace: "acme/web",
+        http_url_to_repo: "https://elsewhere.example/acme/web.git",
+        default_branch: "main",
+      });
+
+      const result = await getGitLabProject({
+        accessToken: "token",
+        baseUrl,
+        pathWithNamespace: "acme/web",
+      });
+
+      expect(isOk(result) && result.value.httpUrlToRepo).toBe(
+        "https://git.acme.example/gitlab/acme/web.git",
+      );
+    });
+
+    it("reports a failed connection as a request failure", async () => {
+      vi.mocked(withPublicHttpFetch).mockRejectedValue(new Error("redirect refused"));
+
+      const result = await getGitLabCurrentUsername({ accessToken: "token", baseUrl });
+
+      expect(isErr(result) && result.error).toMatchObject({
+        code: "gitlab_request_failed",
+        status: 0,
+      });
+    });
+
+    it("doesn't blame the token when something other than GitLab refuses", async () => {
+      vi.mocked(withPublicHttpFetch).mockImplementation(async (_url, _init, handler) =>
+        handler(new Response("<html>Blocked</html>", { status: 403 })),
+      );
+
+      const result = await getGitLabCurrentUsername({ accessToken: "token", baseUrl });
+
+      expect(isErr(result) && result.error).toMatchObject({
+        code: "gitlab_request_failed",
+        status: 403,
+      });
+    });
+
+    it("blames the token when GitLab itself refuses", async () => {
+      mockServerResponse(401, { message: "401 Unauthorized" });
+
+      const result = await getGitLabCurrentUsername({ accessToken: "token", baseUrl });
+
+      expect(isErr(result) && result.error.code).toBe("gitlab_unauthorized");
+    });
+
+    it("stops waiting when cancelled, even if the address lookup never finishes", async () => {
+      vi.mocked(withPublicHttpFetch).mockReturnValue(new Promise(() => {}));
+      const controller = new AbortController();
+
+      const pending = getGitLabCurrentUsername({
+        accessToken: "token",
+        baseUrl,
+        signal: controller.signal,
+      });
+      controller.abort();
+      const result = await pending;
+
+      expect(isErr(result) && result.error).toMatchObject({ status: 0 });
+    });
+
+    it("treats a local server as a normal request in a development build only", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify({ username: "local-bot" })));
+      vi.stubGlobal("fetch", fetchMock);
+      vi.stubEnv("NODE_ENV", "development");
+
+      const result = await getGitLabCurrentUsername({
+        accessToken: "token",
+        baseUrl: "http://localhost:8929",
+      });
+
+      expect(isOk(result) && result.value).toBe("local-bot");
+      expect(withPublicHttpFetch).not.toHaveBeenCalled();
+      expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ redirect: "error" });
+    });
+
+    it("gives up at the timeout and marks the request as timed out", async () => {
+      vi.mocked(withPublicHttpFetch).mockReturnValue(new Promise(() => {}));
+
+      const result = await getGitLabCurrentUsername({ accessToken: "token", baseUrl });
+
+      expect(isErr(result) && result.error).toMatchObject({ status: 0, timedOut: true });
+    });
+
+    it("sends a local address through the guarded path outside development", async () => {
+      vi.mocked(withPublicHttpFetch).mockRejectedValue(new Error("blocked host"));
+
+      const result = await getGitLabCurrentUsername({
+        accessToken: "token",
+        baseUrl: "http://localhost:8929",
+      });
+
+      expect(isErr(result)).toBe(true);
+      expect(withPublicHttpFetch).toHaveBeenCalled();
     });
   });
 });
