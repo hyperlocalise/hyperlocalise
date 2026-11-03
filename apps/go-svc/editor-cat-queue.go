@@ -539,9 +539,12 @@ func (api *editorCatAPI) sourceFileID(r *http.Request, actor editorCatActor, pro
 	return id, err
 }
 
+// editorCatIlikeReplacer is reused across escapeEditorCatIlike calls to avoid
+// rebuilding the replacer trie and allocating heap memory on every ILIKE escape.
+var editorCatIlikeReplacer = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
 func escapeEditorCatIlike(value string) string {
-	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
-	return replacer.Replace(value)
+	return editorCatIlikeReplacer.Replace(value)
 }
 
 func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project editorCatProject, query editorCatQueueQuery, sourceFileID *string, includeSourcePath bool) ([]editorCatSegment, int, error) {
