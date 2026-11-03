@@ -351,7 +351,10 @@ paths:
         `filePath` (no `filePath` means a string in no file). A match is updated with the fields
         the item sets; otherwise a string is created and `sourceText` is required. The batch runs
         in one transaction: if an item fails, nothing is saved and the `X-Failed-Item` header
-        holds its index. Changing the source text of a locked string returns `409`.
+        holds its index. Changing the source text of a locked string returns `409`. In a project
+        whose "When source text changes" setting is "Needs review", changing a string's source
+        text moves its approved translations back to `needs_review`, unless `keepApproved` is
+        `true`.
       parameters:
         - $ref: "#/components/parameters/ProjectId"
       requestBody:
@@ -363,6 +366,10 @@ paths:
               additionalProperties: false
               required: [strings]
               properties:
+                keepApproved:
+                  type: boolean
+                  default: false
+                  description: Keep approved translations approved for every source text change in this batch, for a typo or punctuation fix.
                 strings:
                   type: array
                   minItems: 1
@@ -424,7 +431,7 @@ paths:
       operationId: updateString
       tags: [Strings]
       summary: Update a string
-      description: Requires `strings:write`. Native projects only. Send `null` to clear `context` or `maxLength`. Changing `sourceText` on a locked segment returns `409`.
+      description: Requires `strings:write`. Native projects only. Send `null` to clear `context` or `maxLength`. Changing `sourceText` on a locked segment returns `409`. In a project whose "When source text changes" setting is "Needs review", changing `sourceText` moves the string's approved translations back to `needs_review`, unless `keepApproved` is `true`.
       requestBody:
         required: true
         content:
@@ -438,6 +445,10 @@ paths:
                 context: { type: [string, "null"], maxLength: 10000 }
                 maxLength: { type: [integer, "null"], minimum: 1, maximum: 100000 }
                 hidden: { type: boolean }
+                keepApproved:
+                  type: boolean
+                  default: false
+                  description: Keep approved translations approved for this source text change, for a typo or punctuation fix. Not a change on its own.
       responses:
         "200":
           description: Updated string.

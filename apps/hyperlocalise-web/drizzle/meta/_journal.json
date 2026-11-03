@@ -1219,6 +1219,13 @@
       "when": 1793699943181,
       "tag": "0173_futuristic_lockheed",
       "breakpoints": true
+    },
+    {
+      "idx": 174,
+      "version": "7",
+      "when": 1793881267189,
+      "tag": "0174_approved_translations_on_source_change",
+      "breakpoints": true
     }
   ]
 }

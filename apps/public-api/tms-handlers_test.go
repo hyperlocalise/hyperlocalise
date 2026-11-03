@@ -265,7 +265,15 @@ func TestStringRoutes(t *testing.T) {
 		require.False(t, store.patch.MaxLength.Set)
 		require.True(t, *store.patch.Hidden)
 
+		require.False(t, store.patch.KeepApproved)
+
+		w = sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodPatch, "/v1/projects/project-1/strings/string-1", `{"sourceText":"Home","keepApproved":true}`)
+		require.Equal(t, http.StatusOK, w.Code)
+		require.True(t, store.patch.KeepApproved)
+
 		w = sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodPatch, "/v1/projects/project-1/strings/string-1", `{}`)
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		w = sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodPatch, "/v1/projects/project-1/strings/string-1", `{"keepApproved":true}`)
 		require.Equal(t, http.StatusBadRequest, w.Code)
 	})
 

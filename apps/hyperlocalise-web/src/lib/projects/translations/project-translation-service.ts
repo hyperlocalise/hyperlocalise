@@ -173,6 +173,82 @@ function translationKeysQueueFilterCondition(input: {
   });
 }
 
+/**
+ * Moves the approved translations of keys whose source text changed back to `needs_review`,
+ * keeping their text, so out-of-date text is not delivered as reviewed. Records a revision for
+ * each. A locked translation stays approved: a lock refuses status changes, so it could not be
+ * approved again without unlocking. Pass the transaction that changed the source.
+ */
+async function sendApprovedTranslationsToReview(
+  database: DatabaseClient,
+  input: { organizationId: string; projectId: string; translationKeyIds: string[] },
+) {
+  const approved: Array<{ id: string; translationKeyId: string; targetLocale: string }> = [];
+  for (const keyIds of chunkItems(input.translationKeyIds, PROJECT_TRANSLATION_WRITE_BATCH_SIZE)) {
+    approved.push(
+      ...(await database
+        .select({
+          id: schema.projectTranslations.id,
+          translationKeyId: schema.projectTranslations.translationKeyId,
+          targetLocale: schema.projectTranslations.targetLocale,
+        })
+        .from(schema.projectTranslations)
+        .where(
+          and(
+            eq(schema.projectTranslations.organizationId, input.organizationId),
+            eq(schema.projectTranslations.projectId, input.projectId),
+            inArray(schema.projectTranslations.translationKeyId, keyIds),
+            eq(schema.projectTranslations.status, "approved"),
+            sql`not exists (
+              select 1 from ${schema.projectContentEditorSegmentLocks} locks
+              where locks.organization_id = ${schema.projectTranslations.organizationId}
+                and locks.project_id = ${schema.projectTranslations.projectId}
+                and locks.target_locale = ${schema.projectTranslations.targetLocale}
+                and locks.external_string_id = ${schema.projectTranslations.translationKeyId}::text
+            )`,
+          ),
+        )
+        // Keeps each batch to few keys, since a batch snapshots its keys in every locale.
+        .orderBy(schema.projectTranslations.translationKeyId)),
+    );
+  }
+  // Batches by translation, not key: one key can have a translation in every target locale.
+  for (const batch of chunkItems(approved, PROJECT_TRANSLATION_WRITE_BATCH_SIZE)) {
+    await writeProjectTranslations(
+      database,
+      {
+        organizationId: input.organizationId,
+        translationKeyIds: batch.map((row) => row.translationKeyId),
+        targetLocales: batch.map((row) => row.targetLocale),
+      },
+      async (tx, before) => {
+        const saved = await tx
+          .update(schema.projectTranslations)
+          .set({ status: "needs_review", reviewedByUserId: null, reviewedAt: null })
+          .where(
+            and(
+              inArray(
+                schema.projectTranslations.id,
+                batch.map((row) => row.id),
+              ),
+              eq(schema.projectTranslations.status, "approved"),
+            ),
+          )
+          .returning(projectTranslationRevisionColumns);
+        await recordProjectTranslationRevisions(tx, {
+          before,
+          saved,
+          actor: { actorKind: "system", actorUserId: null },
+        });
+      },
+    );
+  }
+}
+
+function translationTextKey(row: { translationKeyId: string; targetLocale: string; text: string }) {
+  return JSON.stringify([row.translationKeyId, row.targetLocale, row.text]);
+}
+
 export class ProjectTranslationService extends ProjectServiceBase {
   constructor(database: typeof db = db) {
     super(database, "projects.translations");
@@ -211,6 +287,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
       sourceFileVersionId?: string | null;
       entries: ProjectSourceStringEntry[];
       preserveEmptySourceText?: boolean;
+      /** Move approved translations of keys whose source text changed back to `needs_review`. */
+      sendApprovedToReviewOnSourceChange?: boolean;
     },
     database: DatabaseClient = this.database,
   ) {
@@ -250,9 +328,11 @@ export class ProjectTranslationService extends ProjectServiceBase {
       return { imported: 0, updated: 0 };
     }
 
-    const existing = await database
+    const existingQuery = database
       .select({
+        id: schema.projectTranslationKeys.id,
         key: schema.projectTranslationKeys.key,
+        sourceText: schema.projectTranslationKeys.sourceText,
       })
       .from(schema.projectTranslationKeys)
       .where(
@@ -265,12 +345,25 @@ export class ProjectTranslationService extends ProjectServiceBase {
           ),
         ),
       );
+    // Locked before comparing, so a string edit cannot change the source text between this
+    // comparison and the upsert; id order within each batch, as translation writers lock keys.
+    const existing = input.sendApprovedToReviewOnSourceChange
+      ? await existingQuery.orderBy(schema.projectTranslationKeys.id).for("no key update")
+      : await existingQuery;
 
-    const existingKeys = new Set(existing.map((row) => row.key));
+    const existingByKey = new Map(existing.map((row) => [row.key, row]));
     let updated = 0;
+    const sourceChangedKeyIds: string[] = [];
     for (const entry of entries) {
-      if (existingKeys.has(entry.key)) {
+      const row = existingByKey.get(entry.key);
+      if (row) {
         updated += 1;
+        if (
+          input.sendApprovedToReviewOnSourceChange &&
+          row.sourceText.trim() !== entry.sourceText.trim()
+        ) {
+          sourceChangedKeyIds.push(row.id);
+        }
       }
     }
     const imported = entries.length - updated;
@@ -307,6 +400,11 @@ export class ProjectTranslationService extends ProjectServiceBase {
           updatedAt: sql`now()`,
         },
       });
+    await sendApprovedTranslationsToReview(database, {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      translationKeyIds: sourceChangedKeyIds,
+    });
 
     this.log.info(
       {
@@ -1252,6 +1350,26 @@ export class ProjectTranslationService extends ProjectServiceBase {
       return { matched: 0, imported: 0, skipped: entryKeys.length };
     }
 
+    // An integration import that only brings back a translation's current text has not reviewed
+    // it, so a translation in review stays there (a source change sends approved ones there with
+    // their text kept). An import by a person (a bilingual or translation file) approves.
+    let keepUnchangedInReview = false;
+    if (!input.actorUserId) {
+      const [project] = await this.database
+        .select({
+          approvedTranslationsOnSourceChange: schema.projects.approvedTranslationsOnSourceChange,
+        })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.id, input.projectId),
+            eq(schema.projects.organizationId, input.organizationId),
+          ),
+        )
+        .limit(1);
+      keepUnchangedInReview = project?.approvedTranslationsOnSourceChange === "needs_review";
+    }
+
     const keys: Array<{ id: string; key: string }> = [];
     for (const keyBatch of chunkItems(entryKeys, PROJECT_TRANSLATION_WRITE_BATCH_SIZE)) {
       const rows = await this.database
@@ -1319,9 +1437,20 @@ export class ProjectTranslationService extends ProjectServiceBase {
           targetLocales: [input.targetLocale],
         },
         async (tx, before) => {
+          const unchangedInReview = new Set(
+            [...before.values()]
+              .filter((row) => keepUnchangedInReview && row.status === "needs_review")
+              .map((row) => translationTextKey(row)),
+          );
+          const values = translationBatch.filter(
+            (row) => !unchangedInReview.has(translationTextKey(row)),
+          );
+          // Kept rows still count as imported: the platform holds the remote text, and
+          // integrations read a shortfall as a language left to translate.
+          if (values.length === 0) return;
           const saved = await tx
             .insert(schema.projectTranslations)
-            .values(translationBatch)
+            .values(values)
             .onConflictDoUpdate({
               target: [
                 schema.projectTranslations.translationKeyId,

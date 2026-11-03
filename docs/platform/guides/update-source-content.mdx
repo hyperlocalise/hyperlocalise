@@ -23,9 +23,26 @@ The current source snapshot determines the active keys. Removing a key from the 
 
 ## Recheck approved wording
 
-Generation preserves existing approved translations instead of automatically overwriting them. That protects review work, but it also means you must inspect previously approved wording when the source meaning changes. Do not assume a successful rerun replaced every old target.
+When a string's source text changes, what happens to its approved translations depends on the project setting **When source text changes**, under **Translation & Content Editor behavior** in the project settings. Administrators and localization managers can change it.
+
+- **Stays approved** (the default): approved translations keep their status and their old text. Inspect them yourself whenever the source meaning changes. A successful rerun doesn't replace approved targets.
+- **Needs review**: approved translations of every changed string move to **Needs review**. Their text is kept, so a reviewer can update it to the new source and approve it again. Drafts, translations already in review, rejected translations and locked translations aren't touched, and the translation's history records the change. A locked translation keeps its old text approved, and unlocking it later doesn't send it to review, so recheck it yourself. Through the API, a source change to a string locked in any language is refused instead.
+
+The setting applies to every way source text changes: file uploads, repository syncs, CLI pushes, integration imports and the API. A change to surrounding spaces only doesn't count. An integration import that brings back a translation's current text, unchanged, leaves it in review; new text from the integration is approved as before. Importing a bilingual or translation file yourself approves what it contains, as before.
+
+A translation in review is still delivered by downloads, the CLI pull, GitHub sync and bilingual export, with its old text. Integration pushes send only approved translations: most keep the language's current copy until it is approved again (or send the source text where no copy exists yet), and Sanity and Intercom skip that language. Check the **Needs review** filter in the Content Editor before you deliver files.
 
 For example, changing a button from “Start trial” to “Buy now” needs a fresh review even if its key is still `checkout.action`.
+
+### Skip the review for a small fix
+
+A typo or punctuation fix leaves the translations correct. In a project set to **Needs review**, you can keep approved translations approved for one change:
+
+- When uploading on the **Files** page, tick **Small fix: keep approved translations** before you select **Upload**.
+- When uploading through the [API](/platform/api#upload-a-source-file) (`POST /v1/files`), send the form field `keepApproved=true`.
+- When editing strings through the public API, send `"keepApproved": true` with `PATCH /v1/projects/{projectId}/strings/{stringId}` or `POST /v1/projects/{projectId}/strings/batch`.
+
+The skip covers every string the upload or request changes, so leave it off when any of them changed meaning. The CLI push, chat, MCP, the Slack agent, integration imports and repository syncs don't offer it.
 
 ## Validate delivery
 

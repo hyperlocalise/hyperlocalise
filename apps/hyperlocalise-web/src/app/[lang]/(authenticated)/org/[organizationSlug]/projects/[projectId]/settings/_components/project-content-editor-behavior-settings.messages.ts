@@ -21,8 +21,9 @@ export const projectContentEditorBehaviorMessages = defineMessages({
     description: "Content Editor settings section title",
   },
   description: {
-    defaultMessage: "Control how source strings are organized in the Content Editor.",
-    id: "NCBmUnLeBR",
+    defaultMessage:
+      "Control how source strings are organized in the Content Editor, and what source text changes do to approved translations.",
+    id: "A7wtt7iAbG",
     description: "Content Editor settings section description",
   },
   settingLabel: {
@@ -36,9 +37,31 @@ export const projectContentEditorBehaviorMessages = defineMessages({
     id: "mRVnNMtRYk",
     description: "Identical string merging setting description",
   },
+  sourceChangeLabel: {
+    defaultMessage: "When source text changes",
+    id: "VsdA5eGvzy",
+    description:
+      "Label of the setting for approved translations when a string's source text changes",
+  },
+  sourceChangeDescription: {
+    defaultMessage:
+      "What happens to a string's approved translations when its source text changes through an upload, a repository sync, an integration or the API. Files page uploads and the API can skip this for a small fix.",
+    id: "xZ2hkO2Zvh",
+    description: "Description of the setting for approved translations when source text changes",
+  },
+  sourceChangeStayApproved: {
+    defaultMessage: "Stays approved",
+    id: "Rozd9vYg28",
+    description: "Option: approved translations stay approved when source text changes",
+  },
+  sourceChangeNeedsReview: {
+    defaultMessage: "Needs review",
+    id: "Rss3gdu7jV",
+    description: "Option: approved translations go back to review when source text changes",
+  },
   managerOnly: {
-    defaultMessage: "Only project managers can change this setting.",
-    id: "5h52MoVR2a",
+    defaultMessage: "Only admins and localization managers can change these settings.",
+    id: "uv1LlzZgUw",
     description: "CAT setting permission help",
   },
   enableTitle: {

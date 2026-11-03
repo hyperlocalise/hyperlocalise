@@ -142,13 +142,14 @@ const maxStringBatchSize = 500
 
 // stringUpsert creates the string with Key in FilePath, or updates the fields that are set.
 type stringUpsert struct {
-	Key        string
-	FilePath   *string
-	SourceText *string
-	Context    optionalString
-	Type       optionalString
-	MaxLength  optionalInt
-	Hidden     *bool
+	Key          string
+	FilePath     *string
+	SourceText   *string
+	Context      optionalString
+	Type         optionalString
+	MaxLength    optionalInt
+	Hidden       *bool
+	KeepApproved bool
 }
 
 type stringBatchResult struct {
@@ -255,15 +256,16 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 		return translationString{}, false, fmt.Errorf("find string: %w", err)
 	}
 
+	if _, err := lockString(ctx, tx, actor, scope, existingID); err != nil {
+		return translationString{}, false, err
+	}
 	current, err := loadString(ctx, tx, actor, scope, existingID)
 	if err != nil {
 		return translationString{}, false, err
 	}
-	if _, err := lockString(ctx, tx, actor, scope, existingID); err != nil {
-		return translationString{}, false, err
-	}
 	set := newSQLFilter("updated_at = now()")
-	if item.SourceText != nil && *item.SourceText != current.SourceText {
+	textChanged := item.SourceText != nil && *item.SourceText != current.SourceText
+	if textChanged {
 		if err := rejectIfStringLocked(ctx, tx, actor, scope, existingID, ""); err != nil {
 			return translationString{}, false, err
 		}
@@ -289,6 +291,12 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 			WHERE organization_id = $%d AND project_id = $%d AND id = $%d`,
 			strings.Join(set.conditions, ", "), n+1, n+2, n+3), args...); err != nil {
 			return translationString{}, false, fmt.Errorf("update string: %w", err)
+		}
+	}
+	if textChanged && sourceTextChanged(current.SourceText, *item.SourceText) &&
+		scope.SourceChangeNeedsReview && !item.KeepApproved {
+		if err := sendApprovedTranslationsToReview(ctx, tx, actor, scope, existingID); err != nil {
+			return translationString{}, false, err
 		}
 	}
 	saved, err := loadString(ctx, tx, actor, scope, existingID)
