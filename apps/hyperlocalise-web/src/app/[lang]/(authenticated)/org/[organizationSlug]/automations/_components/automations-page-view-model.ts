@@ -27,6 +27,7 @@ import {
   hasWorkspaceAutomationCrowdinTool,
   hasWorkspaceAutomationCustomerIoTool,
   hasWorkspaceAutomationHubspotTool,
+  hasWorkspaceAutomationMailchimpTool,
   hasWorkspaceAutomationIterableTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
@@ -179,6 +180,7 @@ export const AUTOMATION_LIST_TOOL_IDS = [
   "iterable",
   "customerIo",
   "hubspot",
+  "mailchimp",
   "crowdin",
   "webSearch",
   "semrush",
@@ -297,6 +299,9 @@ export function resolveAutomationTools(
   }
   if (hasWorkspaceAutomationHubspotTool(toolConfig)) {
     addTool(tools, "hubspot", intl.formatMessage(automationsPageViewModelMessages.toolHubspot));
+  }
+  if (hasWorkspaceAutomationMailchimpTool(toolConfig)) {
+    addTool(tools, "mailchimp", intl.formatMessage(automationsPageViewModelMessages.toolMailchimp));
   }
   if (hasWorkspaceAutomationCrowdinTool(toolConfig)) {
     addTool(tools, "crowdin", intl.formatMessage(automationsPageViewModelMessages.toolCrowdin));

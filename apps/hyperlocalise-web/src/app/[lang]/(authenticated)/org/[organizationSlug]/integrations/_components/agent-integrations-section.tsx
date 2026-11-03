@@ -28,6 +28,7 @@ import { CustomerIoConnectionPanel } from "./customer-io-connection-panel";
 import { HubspotConnectionPanel } from "./hubspot-connection-panel";
 import { IterableConnectionPanel } from "./iterable-connection-panel";
 import { LoopsConnectionPanel } from "./loops-connection-panel";
+import { MailchimpConnectionPanel } from "./mailchimp-connection-panel";
 import { IntercomConnectionPanel } from "./intercom-connection-panel";
 import { GoogleDriveConnectionPanel } from "./google-drive-connection-panel";
 import { GitLabServerConnectionPanel } from "./gitlab-server-connection-panel";
@@ -224,6 +225,7 @@ export function CustomerEngagementIntegrationsSection({
           <IterableConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
           <LoopsConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
           <HubspotConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+          <MailchimpConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
           <PipesIntegrationList
             organizationSlug={organizationSlug}
             slugs={workspacePipesCustomerEngagementSlugs.filter(
@@ -233,7 +235,8 @@ export function CustomerEngagementIntegrationsSection({
                 slug !== "customer-io" &&
                 slug !== "iterable" &&
                 slug !== "loops" &&
-                slug !== "hubspot",
+                slug !== "hubspot" &&
+                slug !== "mailchimp",
             )}
             disabled={!userIsAdmin}
             isLast={comingSoonCustomerEngagementAgents.length === 0}

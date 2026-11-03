@@ -92,6 +92,18 @@ func processMemoryInterchangeRun(ctx context.Context, pool *pgxpool.Pool, object
 }
 
 func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Registry, attemptID, mode, format, location, key string, options []byte) error {
+	if mode != "apply" && mode != "preview" {
+		return permanentMemoryInterchangeFailure(fmt.Errorf("memory import mode %q is not supported", mode))
+	}
+	var userID *string
+	var memoryID, memoryStatus, organizationID string
+	if err := pool.QueryRow(ctx, `select a.created_by_user_id::text, a.memory_id::text, m.status, a.organization_id::text from memory_import_attempts a join memories m on m.id=a.memory_id where a.id=$1`, attemptID).Scan(&userID, &memoryID, &memoryStatus, &organizationID); err != nil {
+		return err
+	}
+	if memoryStatus == "archived" {
+		return permanentMemoryInterchangeFailure(fmt.Errorf("translation memory is archived"))
+	}
+
 	store, err := objects.Resolve(location)
 	if err != nil {
 		return err
@@ -100,7 +112,10 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	if err != nil {
 		return err
 	}
-	if info.Size <= 0 || info.Size > MAX_MEMORY_INTERCHANGE_BYTES {
+	if info.Size <= 0 {
+		return permanentMemoryInterchangeFailure(errors.New("memory import object is empty"))
+	}
+	if info.Size > MAX_MEMORY_INTERCHANGE_BYTES {
 		return permanentMemoryInterchangeFailure(fmt.Errorf("memory import object exceeds the 100 MB limit"))
 	}
 	body, _, err := store.Get(ctx, key)
@@ -142,23 +157,14 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	if err := persistMemoryDiagnostics(ctx, pool, attemptID, issues); err != nil {
 		return err
 	}
+	if len(candidates) == 0 && failed > 0 {
+		return permanentMemoryInterchangeFailure(errors.New("memory import contains no importable translation units"))
+	}
 	hash := sha256.Sum256(data)
 	hashHex := hex.EncodeToString(hash[:])
 	headerValue := any(nil)
 	if header != nil {
 		headerValue = *header
-	}
-
-	var userID *string
-	var memoryID, memoryStatus, organizationID string
-	if err := pool.QueryRow(ctx, `select a.created_by_user_id::text, a.memory_id::text, m.status, a.organization_id::text from memory_import_attempts a join memories m on m.id=a.memory_id where a.id=$1`, attemptID).Scan(&userID, &memoryID, &memoryStatus, &organizationID); err != nil {
-		return err
-	}
-	if memoryStatus == "archived" {
-		return permanentMemoryInterchangeFailure(fmt.Errorf("translation memory is archived"))
-	}
-	if mode != "apply" && mode != "preview" {
-		return permanentMemoryInterchangeFailure(fmt.Errorf("memory import mode %q is not supported", mode))
 	}
 
 	tx, err := pool.Begin(ctx)

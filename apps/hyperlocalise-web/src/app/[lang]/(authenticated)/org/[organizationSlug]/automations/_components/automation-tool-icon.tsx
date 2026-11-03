@@ -67,6 +67,8 @@ export function AutomationToolIcon({ toolId }: { toolId: AutomationListToolId })
       return <BrandLogo src="/images/customerio-logo.svg" />;
     case "hubspot":
       return <BrandLogo src="/images/hubspot-logo.svg" />;
+    case "mailchimp":
+      return <BrandLogo src="/images/mailchimp-logo.svg" />;
     case "crowdin":
       return <SimpleBrandIcon icon={siCrowdin} colored data-icon="inline-start" />;
     case "semrush":
