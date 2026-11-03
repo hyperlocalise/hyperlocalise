@@ -258,6 +258,10 @@ export const integrationsLoadingMswHandlers = [
     await delay("infinite");
     return HttpResponse.json({ projects: [] });
   }),
+  http.get("/api/orgs/:organizationSlug/gitlab/connection", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ gitlabConnection: null });
+  }),
   http.get("/api/orgs/:organizationSlug/ahrefs-connections", async () => {
     await delay("infinite");
     return HttpResponse.json({ ahrefsConnections: [] });

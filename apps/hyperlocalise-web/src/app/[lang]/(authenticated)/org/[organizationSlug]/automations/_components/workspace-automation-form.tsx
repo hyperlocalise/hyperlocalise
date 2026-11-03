@@ -742,12 +742,14 @@ function GitlabProjectSelect({
   disabled,
   error,
   form,
+  loadFailed,
   onChange,
   projects,
 }: {
   disabled?: boolean;
   error?: string;
   form: WorkspaceAutomationFormState;
+  loadFailed?: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
   projects: GitlabProjectOption[];
 }) {
@@ -776,7 +778,11 @@ function GitlabProjectSelect({
         <SelectTrigger className="h-8 w-full rounded-lg">
           <span className="truncate">
             {projects.length === 0
-              ? intl.formatMessage(workspaceAutomationFormMessages.connectGitlabForProject)
+              ? intl.formatMessage(
+                  loadFailed
+                    ? workspaceAutomationFormMessages.gitlabProjectsLoadFailed
+                    : workspaceAutomationFormMessages.connectGitlabForProject,
+                )
               : selectedValue
                 ? projects.find((project) => gitlabProjectPickerValue(project) === selectedValue)
                   ? formatGitlabProjectOptionLabel(
@@ -2226,6 +2232,7 @@ function ToolsSettings({
   githubConnected,
   gitlabConnected,
   gitlabProjects,
+  gitlabProjectsFailed,
   knowledgeAvailable,
   mcpServerConnections,
   onChange,
@@ -2260,6 +2267,7 @@ function ToolsSettings({
   githubConnected: boolean;
   gitlabConnected: boolean;
   gitlabProjects: GitlabProjectOption[];
+  gitlabProjectsFailed: boolean;
   knowledgeAvailable: boolean;
   mcpServerConnections: McpServerConnectionOption[];
   onChange: (next: WorkspaceAutomationFormState) => void;
@@ -2447,6 +2455,7 @@ function ToolsSettings({
               disabled={disabled}
               error={errors.gitlabRepository}
               form={form}
+              loadFailed={gitlabProjectsFailed}
               onChange={onChange}
               projects={gitlabProjects}
             />
@@ -4296,7 +4305,7 @@ export function WorkspaceAutomationEditor({
         param: { organizationSlug },
       });
       if (!response.ok) {
-        return [] as GitlabProjectOption[];
+        throw new Error("Failed to load GitLab projects");
       }
       const body = await response.json();
       return body.projects as GitlabProjectOption[];
@@ -4338,6 +4347,7 @@ export function WorkspaceAutomationEditor({
   const gitlabConnected =
     Boolean(gitlabPipesQuery.data?.connected) || Boolean(gitlabServerConnectionQuery.data);
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
+  const gitlabProjectsFailed = gitlabProjectsQuery.isError;
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
   const hasHistory = mode === "detail";
   const skillDefaults: WorkspaceAutomationSkillDefaults = {
@@ -4615,6 +4625,7 @@ export function WorkspaceAutomationEditor({
             githubConnected={githubConnected}
             gitlabConnected={gitlabConnected}
             gitlabProjects={gitlabProjects}
+            gitlabProjectsFailed={gitlabProjectsFailed}
             knowledgeAvailable={knowledgeAvailable}
             mcpServerConnections={mcpServerConnections}
             onChange={onChange}

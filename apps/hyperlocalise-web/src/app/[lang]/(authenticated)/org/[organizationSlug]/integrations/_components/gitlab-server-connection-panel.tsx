@@ -72,10 +72,11 @@ export function GitLabServerConnectionPanel({
     queryKey: checkQueryKey,
     enabled: expanded && connection !== null,
     staleTime: Number.POSITIVE_INFINITY,
-    queryFn: async () => {
-      const response = await api.api.orgs[":organizationSlug"].gitlab.connection.check.$get({
-        param: { organizationSlug },
-      });
+    queryFn: async ({ signal }) => {
+      const response = await api.api.orgs[":organizationSlug"].gitlab.connection.check.$get(
+        { param: { organizationSlug } },
+        { init: { signal } },
+      );
       if (response.status === 404) {
         // Removed elsewhere since this page loaded.
         await queryClient.invalidateQueries({
@@ -95,6 +96,10 @@ export function GitLabServerConnectionPanel({
     setExpanded(open);
     if (!open) {
       setConfirmingDisconnect(false);
+      // Stops a check still waiting on the server; its answer would be thrown away anyway.
+      void queryClient.cancelQueries({
+        queryKey: ["gitlab", organizationSlug, "connection", "check"],
+      });
       queryClient.removeQueries({ queryKey: ["gitlab", organizationSlug, "connection", "check"] });
     }
   };
@@ -140,8 +145,11 @@ export function GitLabServerConnectionPanel({
       const response = await api.api.orgs[":organizationSlug"].gitlab.connection.$delete({
         param: { organizationSlug },
       });
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(messages.disconnectFailed));
+      // Already removed elsewhere since this page loaded: the outcome is the same.
+      if (!response.ok && response.status !== 404) {
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.disconnectFailed)),
+        );
       }
     },
     onSuccess: async () => {

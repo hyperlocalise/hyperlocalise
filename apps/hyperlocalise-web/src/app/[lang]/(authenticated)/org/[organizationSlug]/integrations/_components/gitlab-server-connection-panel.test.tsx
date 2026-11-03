@@ -230,6 +230,64 @@ describe("GitLabServerConnectionPanel", () => {
     await waitFor(() => expect(screen.queryByLabelText("Access token")).toBeNull());
   });
 
+  it("treats a connection already removed elsewhere as disconnected", async () => {
+    let connected = true;
+    mocks.connectionGet.mockImplementation(async () =>
+      Response.json({ gitlabConnection: connected ? savedConnection : null }),
+    );
+    mocks.connectionDelete.mockImplementation(async () => {
+      connected = false;
+      return Response.json({ message: "GitLab connection not found." }, { status: 404 });
+    });
+    renderPanel();
+    await openRow();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Disconnect" }));
+    fireEvent.click(screen.getByRole("button", { name: "Disconnect server" }));
+
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+    expect(mocks.toastError).not.toHaveBeenCalled();
+    expect(await screen.findByRole("button", { name: /^Connect/ })).toBeTruthy();
+  });
+
+  it("shows the server's reason when disconnecting fails", async () => {
+    mocks.connectionGet.mockImplementation(async () =>
+      Response.json({ gitlabConnection: savedConnection }),
+    );
+    mocks.connectionDelete.mockResolvedValue(
+      Response.json({ message: "You can't change this connection." }, { status: 403 }),
+    );
+    renderPanel();
+    await openRow();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Disconnect" }));
+    fireEvent.click(screen.getByRole("button", { name: "Disconnect server" }));
+
+    await waitFor(() =>
+      expect(mocks.toastError).toHaveBeenCalledWith("You can't change this connection."),
+    );
+  });
+
+  it("stops a live check that is still running when the row is closed", async () => {
+    mocks.connectionGet.mockImplementation(async () =>
+      Response.json({ gitlabConnection: savedConnection }),
+    );
+    let checkSignal: AbortSignal | undefined;
+    mocks.checkGet.mockImplementation(
+      (_args: unknown, options?: { init?: { signal?: AbortSignal } }) => {
+        checkSignal = options?.init?.signal;
+        return new Promise<Response>(() => {});
+      },
+    );
+    renderPanel();
+    await openRow();
+    await waitFor(() => expect(checkSignal).toBeDefined());
+
+    fireEvent.click(screen.getByRole("button", { name: /^(Manage|Connect|View)/ }));
+
+    await waitFor(() => expect(checkSignal?.aborted).toBe(true));
+  });
+
   it("shows people who can't manage it the connection, with no form", async () => {
     mocks.connectionGet.mockImplementation(async () =>
       Response.json({ gitlabConnection: savedConnection }),
