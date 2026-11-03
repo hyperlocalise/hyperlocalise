@@ -22,6 +22,7 @@ import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-ed
 import { nativeQueueFilterCondition } from "@/lib/projects/content-editor/native-content-editor-queue-filter";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecycle";
+import type { SourceFileSyncClash } from "@/lib/projects/files/source-file-sync-report";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { translationKeysQueueOrderBy } from "@/lib/projects/translations/project-translation-queue-order";
 import {
@@ -298,11 +299,11 @@ export class ProjectTranslationService extends ProjectServiceBase {
       sourceTextEditable?: boolean;
     },
     database: DatabaseClient = this.database,
-  ): Promise<{ imported: number; updated: number; clashes: string[] }> {
+  ): Promise<{ imported: number; updated: number; clashes: SourceFileSyncClash[] }> {
     if (input.entries.length > PROJECT_TRANSLATION_WRITE_BATCH_SIZE) {
       let imported = 0;
       let updated = 0;
-      const clashes: string[] = [];
+      const clashes: SourceFileSyncClash[] = [];
       for (const entries of chunkItems(input.entries, PROJECT_TRANSLATION_WRITE_BATCH_SIZE)) {
         const result = await this.upsertKeysFromEntries(
           {
@@ -361,7 +362,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     const existingByKey = new Map(existing.map((row) => [row.key, row]));
     let updated = 0;
     const sourceChangedKeyIds: string[] = [];
-    const clashes: string[] = [];
+    const clashes: SourceFileSyncClash[] = [];
     const rows = entries.map((entry) => {
       const row = existingByKey.get(entry.key);
       if (!row) {
@@ -374,7 +375,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
         lastImportedText: row.importedSourceText,
         sourceTextEditable: input.sourceTextEditable ?? false,
       });
-      if (decision.clash) clashes.push(entry.key);
+      if (decision.clash) clashes.push({ key: entry.key, fileText: entry.sourceText });
       if (decision.text !== row.sourceText) sourceChangedKeyIds.push(row.id);
       return {
         ...entry,

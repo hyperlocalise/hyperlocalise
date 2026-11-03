@@ -115,10 +115,13 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
   return results;
 }
 
+/** An ingest still running this long after its upload is taken as dead. */
+const STALE_INGEST_MS = 60 * 60 * 1000;
+
 /**
- * Stores one repository file as a new source file version and queues its ingest. With a commit,
- * a file unchanged since that commit's last upload is skipped. The caller has already read the
- * bytes, so this is the part every repository importer shares.
+ * Stores one repository file as a new source file version and queues its ingest, unless
+ * `skipUnchanged` says the latest version already is this file. The caller has already read
+ * the bytes, so this is the part every repository importer shares.
  */
 export async function storeRepositorySourceFile(input: {
   organizationId: string;
@@ -132,10 +135,10 @@ export async function storeRepositorySourceFile(input: {
   /**
    * `commit` (the default) stores a file again at every new commit; `content` skips it while
    * its bytes are unchanged, whatever the commit, as long as the latest version is the caller's
-   * own and its ingest isn't still running (a dead ingest would otherwise block the file for
-   * good); `never` always stores it.
+   * own and its ingest isn't still running from a recent upload (an ingest still running an
+   * hour on would otherwise block the file for good).
    */
-  skipUnchanged?: "commit" | "content" | "never";
+  skipUnchanged?: "commit" | "content";
   adapter?: FileStorageAdapter;
 }): Promise<UploadRepositorySourceFileResult> {
   const adapter = input.adapter ?? getFileStorageAdapter();
@@ -155,13 +158,14 @@ export async function storeRepositorySourceFile(input: {
       latestVersion.sourceHash === sourceHash &&
       (input.skipUnchanged === "content"
         ? latestVersion.uploadSurface === input.uploadSurface &&
-          latestVersion.ingestState !== "ingesting"
-        : input.skipUnchanged !== "never" && latestVersion.commitSha === input.commitSha);
+          (latestVersion.ingestState !== "ingesting" ||
+            Date.now() - latestVersion.createdAt.getTime() < STALE_INGEST_MS)
+        : latestVersion.commitSha === input.commitSha);
     if (latestVersion && unchanged) {
       return {
         path: normalizedPath,
         outcome: "skipped",
-        reason: "unchanged_for_commit",
+        reason: input.skipUnchanged === "content" ? "unchanged" : "unchanged_for_commit",
         sourceFileVersionId: latestVersion.id,
         storedFileId: latestVersion.storedFileId,
       };

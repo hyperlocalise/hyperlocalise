@@ -13,15 +13,20 @@
 
 /**
  * What a repository sync's ingest could not settle on its own, kept on the source file version
- * so a run summary and, later, a sync panel can show it. Key names only: the texts are on the
- * keys themselves.
+ * so a run summary and, later, a sync panel can show it.
  */
+export type SourceFileSyncClash = {
+  key: string;
+  /** The file's text at the time, kept so the clash can be settled without reading the file again. */
+  fileText: string;
+};
+
 export type SourceFileSyncReport = {
   /**
    * Keys whose repository text and platform text both changed since the last import, and
    * differ from each other. The platform's text was kept.
    */
-  clashes: string[];
+  clashes: SourceFileSyncClash[];
   /** Keys in the project that the imported file no longer has. They were hidden, not deleted. */
   missingKeys: string[];
 };

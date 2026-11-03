@@ -50,6 +50,7 @@ describe("compileContentSyncPathTemplate", () => {
       "*/*/*/*/*/*/*/*/*/{{locale}}.json",
       "{{locale}}-{{locale}}-{{locale}}.json",
       "*-*-{{locale}}.json",
+      "**/a/**/b/**/{{locale}}.json",
     ]) {
       expect(hasSafeContentSyncTemplateWildcards(template)).toBe(false);
     }

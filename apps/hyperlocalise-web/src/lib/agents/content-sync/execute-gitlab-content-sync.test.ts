@@ -11,9 +11,8 @@ const mocks = vi.hoisted(() => ({
   hideKeysMissingFromSync: vi.fn(),
   syncedFileRows: vi.fn(),
   versionRows: vi.fn(),
-  clashRows: vi.fn(),
-  driftRows: vi.fn(),
   unhideKeysSyncHid: vi.fn(),
+  settleUnchangedSourceFile: vi.fn(),
   resolveGitLabAccess: vi.fn(),
   getGitLabProject: vi.fn(),
   createGitLabContentSyncReader: vi.fn(),
@@ -41,13 +40,6 @@ vi.mock("@/lib/database/client", () => {
       sourcePath: "sourcePath",
       reconciledSourceFileVersionId: "reconciledSourceFileVersionId",
     },
-    projectTranslationKeys: {
-      id: "id",
-      key: "key",
-      repositorySourceFileId: "repositorySourceFileId",
-      sourceText: "sourceText",
-      importedSourceText: "importedSourceText",
-    },
   };
   // Each table answers from its own mock: `.limit()` for single rows, awaited for lists.
   const answer = (rows: () => unknown[], single: () => unknown[]) =>
@@ -58,12 +50,6 @@ vi.mock("@/lib/database/client", () => {
     }
     if (table === tables.repositorySourceFileVersions) {
       return { where: () => answer(mocks.reportRows, mocks.versionRows) };
-    }
-    if (table === tables.projectTranslationKeys) {
-      return {
-        where: () => answer(mocks.clashRows, mocks.clashRows),
-        innerJoin: () => ({ where: () => answer(mocks.driftRows, mocks.driftRows) }),
-      };
     }
     return {
       innerJoin: () => ({ where: () => answer(mocks.syncedFileRows, mocks.syncedFileRows) }),
@@ -77,6 +63,9 @@ vi.mock("@/lib/file-storage/upload-repository-source-files", () => ({
 vi.mock("@/lib/projects/files/source-file-ingest", () => ({
   enqueueSourceFileIngestAfterUpload: (...args: unknown[]) =>
     mocks.enqueueSourceFileIngestAfterUpload(...args),
+}));
+vi.mock("@/lib/projects/files/settle-unchanged-source-file", () => ({
+  settleUnchangedSourceFile: (...args: unknown[]) => mocks.settleUnchangedSourceFile(...args),
 }));
 vi.mock("@/lib/projects/files/hide-keys-missing-from-sync", () => ({
   hideKeysMissingFromSync: (...args: unknown[]) => mocks.hideKeysMissingFromSync(...args),
@@ -175,9 +164,8 @@ describe("executeGitLabContentSync", () => {
     mocks.syncedFileRows.mockReturnValue([]);
     mocks.hideKeysMissingFromSync.mockResolvedValue([]);
     mocks.unhideKeysSyncHid.mockResolvedValue(undefined);
+    mocks.settleUnchangedSourceFile.mockResolvedValue([]);
     mocks.versionRows.mockReturnValue([]);
-    mocks.clashRows.mockReturnValue([]);
-    mocks.driftRows.mockReturnValue([]);
     mocks.enqueueSourceFileIngestAfterUpload.mockResolvedValue({ workflowRunIds: ["wf-retry"] });
   });
 
@@ -186,7 +174,7 @@ describe("executeGitLabContentSync", () => {
     mocks.reportRows.mockReturnValue([
       {
         id: "version:gitlab/acme/web/en.json",
-        syncReport: { clashes: ["title"], missingKeys: ["old"] },
+        syncReport: { clashes: [{ key: "title", fileText: "Home" }], missingKeys: ["old"] },
       },
     ]);
 
@@ -228,11 +216,11 @@ describe("executeGitLabContentSync", () => {
     const skipped = {
       path: "gitlab/acme/web/en.json",
       outcome: "skipped",
-      reason: "unchanged_for_commit",
+      reason: "unchanged",
       sourceFileVersionId: "version:old",
       storedFileId: "stored:old",
     };
-    const versionRow = (ingestState: string, ingestWorkflowRunId = "wf-old") => [
+    const versionRow = (ingestState: string, ingestWorkflowRunId: string | null = "wf-old") => [
       { ingestState, ingestWorkflowRunId, repositorySourceFileId: "file:en" },
     ];
     mocks.storeRepositorySourceFile.mockResolvedValueOnce(skipped);
@@ -256,12 +244,12 @@ describe("executeGitLabContentSync", () => {
       sourceFileVersionId: "version:old",
     });
 
-    // A failed ingest is queued again; the waiter runs once the queued run has claimed it.
+    // A failed ingest is queued again; the waiter runs once a run has claimed the version.
     mocks.storeRepositorySourceFile.mockResolvedValueOnce(skipped);
     mocks.versionRows
       .mockReturnValueOnce(versionRow("failed"))
       .mockReturnValueOnce(versionRow("failed"))
-      .mockReturnValueOnce(versionRow("ingesting", "wf-retry"));
+      .mockReturnValueOnce(versionRow("ingesting", "wf-other"));
     const retried = await run(fakeReader());
     expect(isOk(retried)).toBe(true);
     expect(mocks.enqueueSourceFileIngestAfterUpload).toHaveBeenCalledWith({
@@ -276,38 +264,28 @@ describe("executeGitLabContentSync", () => {
     // A queued run that fails at once is seen by its run id, not mistaken for a stall.
     mocks.storeRepositorySourceFile.mockResolvedValueOnce(skipped);
     mocks.versionRows
-      .mockReturnValueOnce(versionRow("pending", ""))
+      .mockReturnValueOnce(versionRow("pending", null))
       .mockReturnValueOnce(versionRow("failed", "wf-retry"));
     mocks.waitForSourceFileVersionIngest.mockResolvedValueOnce("failed");
     const failedFast = await run(fakeReader());
     expect(isErr(failedFast) && failedFast.error.message).toContain("failed. Check the file");
+
+    mocks.storeRepositorySourceFile.mockResolvedValueOnce(skipped);
+    mocks.versionRows.mockReturnValueOnce(versionRow("failed"));
+    mocks.enqueueSourceFileIngestAfterUpload.mockRejectedValueOnce(new Error("queue down"));
+    const notQueued = await run(fakeReader());
+    expect(isErr(notQueued) && notQueued.error.message).toContain("could not be queued");
 
     mocks.waitForSourceFileVersionIngest.mockResolvedValueOnce("skipped");
     const superseded = await run(fakeReader());
     expect(isOk(superseded) && superseded.value.pulled).toMatchObject({ uploaded: 1 });
   });
 
-  it("imports an unchanged file again while source text is kept to the repository and has drifted", async () => {
-    mocks.driftRows.mockReturnValue([{ id: "key:drifted" }]);
-    await run(fakeReader());
-    expect(mocks.storeRepositorySourceFile).toHaveBeenCalledWith(
-      expect.objectContaining({ skipUnchanged: "never" }),
-    );
-
-    mocks.projectRows.mockReturnValue([
-      { sourceLocale: "en-US", targetLocales: ["fr-FR"], sourceTextEditable: true },
-    ]);
-    await run(fakeReader());
-    expect(mocks.storeRepositorySourceFile).toHaveBeenLastCalledWith(
-      expect.objectContaining({ skipUnchanged: "content" }),
-    );
-  });
-
-  it("keeps reporting a clash on an unchanged file while it stands", async () => {
+  it("settles an unchanged file through the import rule and reports what still clashes", async () => {
     mocks.storeRepositorySourceFile.mockResolvedValue({
       path: "gitlab/acme/web/en.json",
       outcome: "skipped",
-      reason: "unchanged_for_commit",
+      reason: "unchanged",
       sourceFileVersionId: "version:old",
       storedFileId: "stored:old",
     });
@@ -317,14 +295,20 @@ describe("executeGitLabContentSync", () => {
     mocks.reportRows.mockReturnValue([
       {
         id: "version:old",
-        repositorySourceFileId: "file:en",
-        syncReport: { clashes: ["title", "settled"], missingKeys: ["old"] },
+        syncReport: { clashes: [{ key: "settled", fileText: "x" }], missingKeys: ["old"] },
       },
     ]);
-    mocks.clashRows.mockReturnValue([{ key: "title" }]);
+    mocks.settleUnchangedSourceFile.mockResolvedValue([{ key: "title", fileText: "Home" }]);
 
     const result = await run(fakeReader());
 
+    expect(mocks.settleUnchangedSourceFile).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      projectId: "project-1",
+      sourcePath: "gitlab/acme/web/en.json",
+      sourceTextEditable: false,
+    });
+    // The stored report is history for a file not imported again; only the settled clash shows.
     expect(isOk(result) && result.value.pulled.files).toEqual([
       { path: "gitlab/acme/web/en.json", clashes: ["title"], missingKeys: [] },
     ]);

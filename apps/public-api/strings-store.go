@@ -357,8 +357,8 @@ func (s *postgresStore) createString(ctx context.Context, actor principal, proje
 		var id string
 		if err := tx.QueryRow(ctx, `INSERT INTO project_translation_keys (
 				organization_id, project_id, repository_source_file_id, key, source_text,
-				normalized_source_text, context, type, max_length, is_hidden
-			) VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10)
+				normalized_source_text, context, type, max_length, is_hidden, imported_source_text
+			) VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $5)
 			RETURNING id`,
 			actor.OrganizationID, scope.ID, fileID, input.Key, input.SourceText,
 			normalizeSourceText(input.SourceText), input.Context, input.Type, input.MaxLength, input.Hidden,

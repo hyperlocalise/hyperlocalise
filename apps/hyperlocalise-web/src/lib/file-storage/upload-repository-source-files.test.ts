@@ -186,9 +186,10 @@ describe("storeRepositorySourceFile", () => {
     commitSha: "old-commit",
     uploadSurface: "gitlab_content_sync",
     ingestState: "ingested",
+    createdAt: new Date(),
     ...overrides,
   });
-  const store = (skipUnchanged?: "commit" | "content" | "never") =>
+  const store = (skipUnchanged?: "commit" | "content") =>
     storeRepositorySourceFile({
       organizationId: "org_1",
       projectId: "proj_1",
@@ -214,13 +215,12 @@ describe("storeRepositorySourceFile", () => {
     expect(await store("content")).toEqual({
       path: "gitlab/acme/web/en.json",
       outcome: "skipped",
-      reason: "unchanged_for_commit",
+      reason: "unchanged",
       sourceFileVersionId: "version_latest",
       storedFileId: "file_latest",
     });
     // By commit, a new commit stores it again, as the GitHub path has always done.
     expect((await store()).outcome).toBe("uploaded");
-    expect((await store("never")).outcome).toBe("uploaded");
 
     getLatestRepositorySourceFileVersionMock.mockResolvedValue(
       await latest({ uploadSurface: "public_api" }),
@@ -229,6 +229,12 @@ describe("storeRepositorySourceFile", () => {
 
     getLatestRepositorySourceFileVersionMock.mockResolvedValue(
       await latest({ ingestState: "ingesting" }),
+    );
+    expect((await store("content")).outcome).toBe("skipped");
+
+    // An ingest still running an hour after its upload is dead, so the file is stored again.
+    getLatestRepositorySourceFileVersionMock.mockResolvedValue(
+      await latest({ ingestState: "ingesting", createdAt: new Date(Date.now() - 2 * 3_600_000) }),
     );
     expect((await store("content")).outcome).toBe("uploaded");
 

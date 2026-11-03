@@ -38,7 +38,7 @@ export type ContentSyncBranchHead = {
 export type ContentSyncRepositoryFile = {
   /** Repository-relative path, `/`-separated, no leading `/`. */
   path: string;
-  /** The provider's id for the file's content, when it gives one; lets a reread be skipped. */
+  /** The provider's id for the file's content, when it gives one. Not used yet. */
   contentId: string | null;
 };
 
@@ -88,6 +88,3 @@ export type ContentSyncRepositoryWriter = {
     description: string;
   }): Promise<Result<ContentSyncReview, ContentSyncProviderError>>;
 };
-
-export type ContentSyncRepositoryProvider = ContentSyncRepositoryReader &
-  Partial<ContentSyncRepositoryWriter>;

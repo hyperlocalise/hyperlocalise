@@ -238,8 +238,8 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 		var id string
 		if err := tx.QueryRow(ctx, `INSERT INTO project_translation_keys (
 				organization_id, project_id, repository_source_file_id, key, source_text,
-				normalized_source_text, context, type, max_length, is_hidden
-			) VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10)
+				normalized_source_text, context, type, max_length, is_hidden, imported_source_text
+			) VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $5)
 			RETURNING id`,
 			actor.OrganizationID, scope.ID, fileID, item.Key, *item.SourceText,
 			normalizeSourceText(*item.SourceText), item.Context.Value, item.Type.Value, item.MaxLength.Value, hidden,
