@@ -22,7 +22,11 @@ import {
 } from "@/components/ui/select";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 
-import { MailchimpResourceTree, toggleMailchimpTreeSelection } from "./mailchimp-resource-tree";
+import {
+  MailchimpResourceTree,
+  pruneMailchimpTreeSelection,
+  toggleMailchimpTreeSelection,
+} from "./mailchimp-resource-tree";
 
 type MailchimpExistingTranslationPolicy = "seed_empty" | "refresh_imported" | "overwrite_all";
 
@@ -49,23 +53,26 @@ export function WorkspaceAutomationMailchimpSettings({
   onChange: (next: WorkspaceAutomationFormState) => void;
 }) {
   return (
-    <div className="space-y-2">
-      <span className="text-sm font-medium">Content to translate (optional)</span>
-      <MailchimpResourceTree
-        organizationSlug={organizationSlug}
-        enabled={form.mailchimpEnabled && mailchimpConnected}
-        connected={mailchimpConnected}
-        disabled={disabled}
-        selection={{
-          campaign: form.mailchimpCampaignIds,
-          template: form.mailchimpTemplateIds,
-        }}
-        onToggle={(kind, id) => onChange(toggleMailchimpTreeSelection(form, kind, id))}
-      />
-      <p className="text-xs text-muted-foreground">
-        Tick campaigns or templates to import. Leave all unchecked to import everything visible.
-        Push writes draft copies only — it never sends or schedules.
-      </p>
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <span className="text-sm font-medium">Content to translate (optional)</span>
+        <MailchimpResourceTree
+          organizationSlug={organizationSlug}
+          enabled={form.mailchimpEnabled && mailchimpConnected}
+          connected={mailchimpConnected}
+          disabled={disabled}
+          selection={{
+            campaign: form.mailchimpCampaignIds,
+            template: form.mailchimpTemplateIds,
+          }}
+          onToggle={(kind, id) => onChange(toggleMailchimpTreeSelection(form, kind, id))}
+          onPruneSelection={(kind, ids) => onChange(pruneMailchimpTreeSelection(form, kind, ids))}
+        />
+        <p className="text-xs text-muted-foreground">
+          Leave all unchecked to import everything listed. Drag-and-drop templates are shown but not
+          importable — use campaigns or HTML templates.
+        </p>
+      </div>
 
       <div className="space-y-2">
         <Label htmlFor="mailchimp-existing-translation-policy">

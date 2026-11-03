@@ -1,6 +1,6 @@
 ---
 title: "Localize Mailchimp"
-description: "Connect Mailchimp, import regular campaigns and user templates as HTML, translate in Jobs, then push approved locales as draft copies."
+description: "Connect Mailchimp, import regular campaigns (and code-your-own HTML templates) as HTML, translate in Jobs, then push approved locales as draft copies."
 ---
 
 Connect Mailchimp once in workspace **Integrations**, then run the **Translate Mailchimp content** automation template on a schedule. Import never changes Mailchimp. **Push to Mailchimp** is a separate action. It creates or updates draft copies named `{source} [{locale}]` and never sends, schedules, or edits the source campaign or template.
@@ -11,7 +11,7 @@ Connect Mailchimp once in workspace **Integrations**, then run the **Translate M
 | --- | --- |
 | Native project | A [native project](/platform/projects/create-project) whose source locale matches the language of the default copy in Mailchimp. Add a project target locale for each language you will push back. |
 | Mailchimp account | Connect Mailchimp from **Integrations** with OAuth through WorkOS Pipes (slug `mailchimp`). The access token is not stored in Hyperlocalise. |
-| Campaign audience | Regular campaigns need a list and reply-to address on the source campaign. Push reuses that metadata when it creates a locale copy. |
+| Campaign audience | Push creates draft locale **campaigns** and needs a list plus reply-to. Hyperlocalise uses the source campaign's audience when set, otherwise the account's first audience and its **campaign defaults** (from email / from name). If neither works, push skips campaign locales until Mailchimp has an audience with defaults or the source campaign has list and reply-to. |
 
 ## Connect Mailchimp
 
@@ -26,7 +26,7 @@ Connect Mailchimp before you add the Mailchimp skill. Automations use the same c
 3. Attach the native project.
 4. Choose a **scheduled** or **manual** trigger. A schedule imports changed campaigns and templates. It does not push copies.
 5. Under **Mailchimp campaigns and templates**, confirm the connection badge shows connected.
-6. Optionally tick campaigns or user templates in **Content to translate**. Leave all unchecked to import everything the library lists.
+6. Optionally tick campaigns or importable templates in **Content to translate**. Leave all unchecked to import every **importable** item the library lists (campaigns plus HTML user templates only).
 7. Save the automation.
 
 Mailchimp is not a trigger type. Use a schedule or **Run now** for import. Use **Push to Mailchimp** for write-back.
@@ -36,13 +36,28 @@ Mailchimp is not a trigger type. Use a schedule or **Run now** for import. Use *
 **Run now** or wait for the schedule. Import writes one HTML source file per item:
 
 - Regular campaigns at `mailchimp/campaigns/{id}/{slug}.html`
-- User templates at `mailchimp/templates/{id}/{slug}.html`
+- Code-your-own HTML user templates at `mailchimp/templates/{id}/{slug}.html`
 
 Each file stores the subject line, preview text, from name (when present), and HTML body in field blocks. In the Content Editor they open in HTML File view. Review those files like other [HTML sources](/platform/projects/files).
 
-Import lists regular campaigns in `save`, `sent`, `paused`, and `schedule` status. It reads user templates only (not Mailchimp stock layouts). Merge tags such as `*|FNAME|*` stay protected so translators do not break personalization. Import skips names that already look like locale copies (`Welcome [fr-FR]`).
+### Campaigns (including drag-and-drop designs)
 
-When **Create native TMS job** is enabled, the run opens a job for mapped locales that still need translation. Import does not write anything to Mailchimp.
+Import lists regular campaigns in `save`, `sent`, `paused`, and `schedule` status. **Campaign content** includes rendered HTML even when the email was built with Mailchimp's drag-and-drop editor. This is the supported path for most marketing emails.
+
+### User templates (HTML only)
+
+Saved **user templates** import when Mailchimp marks them as **code-your-own HTML** (`content_type: html`). The Marketing API often omits the raw HTML on the template itself. Import then reads HTML from a campaign that already uses that template, or briefly creates and deletes a draft campaign so Mailchimp will render the template.
+
+Drag-and-drop saved templates (`content_type: template` or `multichannel`, or `drag_and_drop: true` without `content_type: html`) **do not expose HTML** through the Marketing API. Hyperlocalise cannot import or translate them as template sources. In the automation resource tree they appear as **Not importable (drag-and-drop)** with the reason on hover.
+
+To localise a drag-and-drop saved template:
+
+1. Create or pick a **regular campaign** that uses that layout in Mailchimp, then import the **campaign** in Hyperlocalise, or
+2. Rebuild the design as a **code-your-own HTML** user template in Mailchimp and import that template.
+
+Merge tags such as `*|FNAME|*` stay protected so translators do not break personalization. Import skips names that already look like locale copies (`Welcome [fr-FR]`).
+
+When **Create native TMS job** is enabled, the run opens a job for mapped locales that still need translation. Import does not change source campaigns or templates. A missing template HTML may create a short-lived draft campaign named `HL template preview …` and delete it after the HTML is read.
 
 Inspect **Run History** for imported, skipped, and failed items, plus jobs created.
 
@@ -52,7 +67,7 @@ Inspect **Run History** for imported, skipped, and failed items, plus jobs creat
 2. Enqueue **Push to Mailchimp** as a separate automation run after import. Scheduled import runs do not push.
 3. Confirm Mailchimp shows a new draft campaign or user template named `{source} [{locale}]`, for example `Spring sale [fr-FR]`. The source object stays unchanged. Hyperlocalise never sends or schedules a campaign.
 
-Campaign push creates a new regular campaign in `save` status (or updates content on an existing copy Hyperlocalise already created). Template push creates or updates a user template with the translated HTML.
+Campaign push creates a new regular campaign in `save` status (or updates content on an existing copy Hyperlocalise already created). Template push creates or updates a **code-your-own HTML** user template with the translated HTML (not a drag-and-drop builder layout).
 
 ## Change or remove access
 
@@ -62,8 +77,10 @@ Disconnect Mailchimp from **Integrations** when this workspace should stop using
 
 - Confirm Mailchimp is connected and the automation is **Active**.
 - Confirm the project source locale matches the language of the default copy in Mailchimp.
-- Confirm the source campaign still has list and reply-to metadata if push skips campaign locales.
-- Open **Run History** for the failed campaign, template, or locale.
+- Confirm the source campaign still has list and reply-to metadata in Mailchimp if push skips campaign locales.
+- Confirm target locales have **approved** translations before push; push never writes draft copies for locales with nothing approved.
+- If import skips **templates**, confirm they are HTML templates—not drag-and-drop saved layouts. Use **campaigns** for drag-and-drop email instead.
+- Open **Run History** for the failed campaign, template, or locale. Push runs include **warnings** that explain skipped locales.
 
 See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).
 
@@ -71,9 +88,11 @@ See [Automation troubleshooting](/platform/help/automations) and [Connection tro
 
 | Content | Status |
 | --- | --- |
-| Regular campaigns | Supported (`mailchimp/campaigns/{id}/{slug}.html`) |
-| User templates | Supported (`mailchimp/templates/{id}/{slug}.html`) |
+| Regular campaigns | Supported (`mailchimp/campaigns/{id}/{slug}.html`). Includes HTML for emails built in the drag-and-drop editor. |
+| User templates (`content_type: html`) | Supported (`mailchimp/templates/{id}/{slug}.html`). Code-your-own HTML only. |
+| Saved drag-and-drop templates (`content_type: template` or `multichannel`) | **Not importable.** Mailchimp does not return exportable HTML for these via the Marketing API. Listed in the automation tree as not importable; use campaigns instead. |
+| Mailchimp gallery / base templates | Not supported (not `type: user`). |
 | Automations, journeys, SMS | Not supported in v1 |
 | Send or schedule on push | Never — draft copies only |
 
-Import skips unsupported content, and it does not appear in **Content to translate**.
+Import skips non-importable templates. They are not selectable in **Content to translate**; run history may still note skips when a saved automation references old template IDs.

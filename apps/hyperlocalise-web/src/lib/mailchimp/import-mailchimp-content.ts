@@ -25,7 +25,7 @@ import {
 import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-service";
 import { createTranslationJobEventQueue } from "@/lib/workflow/queues";
 
-import type { MailchimpClient } from "./client";
+import type { MailchimpCampaignSummary, MailchimpClient } from "./client";
 import type { MailchimpResourceKind } from "./constants";
 import { loadMailchimpAutomationClient } from "./credentials";
 import {
@@ -39,9 +39,22 @@ import {
   serializeMailchimpEnvelope,
 } from "./html-envelope";
 import { isMailchimpLocaleCopyName, mailchimpCopyName } from "./locale";
+import { resolveMailchimpCampaignRecreateForCopy } from "./campaign-recreate";
+import { listMailchimpLibrary } from "./list-library";
+import { resolveCampaignHtml, resolveTemplateHtml } from "./remote-html";
 import { seedMailchimpLocaleCopies } from "./seed-mailchimp-locale-copies";
+import {
+  isMailchimpTemplateImportable,
+  mailchimpTemplateSkipReason,
+} from "./template-importability";
 
 const logger = createLogger("import-mailchimp-content");
+
+type ImportItemOutcome = {
+  status: "imported" | "skipped" | "failed";
+  jobId?: string;
+  warning?: string;
+};
 const jobQueue = createTranslationJobEventQueue();
 
 const COVERED_JOB_STATUSES = ["queued", "running", "waiting_for_review", "succeeded"] as const;
@@ -304,10 +317,18 @@ async function maybeCreateJob(input: {
   sourceLocale: string;
   targetLocales: string[];
   openJobs: Array<{ sourceFileId: string | null; targetLocales: readonly string[] }>;
-}): Promise<string | undefined> {
+  resourceLabel: string;
+}): Promise<{ jobId?: string; warning?: string }> {
   const createJob = input.automation.toolConfig.createNativeTmsJob;
-  if (!createJob?.enabled || input.targetLocales.length === 0) {
-    return undefined;
+  if (!createJob?.enabled) {
+    return {
+      warning: `No translation job created for ${input.resourceLabel}: Create native TMS job is disabled on this automation.`,
+    };
+  }
+  if (input.targetLocales.length === 0) {
+    return {
+      warning: `No translation job created for ${input.resourceLabel}: the project has no target locales besides the source locale.`,
+    };
   }
   const uncovered = input.targetLocales.filter(
     (locale) =>
@@ -318,7 +339,9 @@ async function maybeCreateJob(input: {
       ),
   );
   if (uncovered.length === 0) {
-    return undefined;
+    return {
+      warning: `No translation job created for ${input.resourceLabel}: existing jobs already cover all target locales.`,
+    };
   }
   const created = await createFileTranslationJob({
     organizationId: input.organizationId,
@@ -330,7 +353,9 @@ async function maybeCreateJob(input: {
     metadata: { uploadSurface: "mailchimp_automation" },
   });
   if (!created.ok) {
-    return undefined;
+    return {
+      warning: `No translation job created for ${input.resourceLabel}: job creation failed.`,
+    };
   }
   if (input.automation.toolConfig.assignTranslateWithAgent?.enabled) {
     await enqueueExistingFileTranslationJob({
@@ -340,7 +365,7 @@ async function maybeCreateJob(input: {
     });
   }
   input.openJobs.push({ sourceFileId: input.sourceFileId, targetLocales: uncovered });
-  return created.jobId;
+  return { jobId: created.jobId };
 }
 
 async function importCampaign(input: {
@@ -357,17 +382,23 @@ async function importCampaign(input: {
   policy: MailchimpExistingTranslationPolicy;
   campaignByTitle: ReadonlyMap<string, string>;
   templateByName: ReadonlyMap<string, string>;
-}): Promise<{ status: "imported" | "skipped" | "failed"; jobId?: string }> {
+}): Promise<ImportItemOutcome> {
   const campaign = await input.client.getCampaign(input.campaignId);
   const title =
     campaign.settings.title?.trim() || campaign.settings.subject_line?.trim() || input.campaignId;
   if (isMailchimpLocaleCopyName(title)) {
-    return { status: "skipped" };
+    return {
+      status: "skipped",
+      warning: `Skipped campaign "${title}" (${input.campaignId}): name looks like a locale copy.`,
+    };
   }
   const content = await input.client.getCampaignContent(input.campaignId);
-  const html = content.html?.trim() ?? "";
+  const html = resolveCampaignHtml(content);
   if (!html) {
-    return { status: "skipped" };
+    return {
+      status: "skipped",
+      warning: `Skipped campaign "${title}" (${input.campaignId}): Mailchimp returned no HTML content.`,
+    };
   }
   const envelope = serializeMailchimpEnvelope({
     subject: campaign.settings.subject_line ?? "",
@@ -381,12 +412,12 @@ async function importCampaign(input: {
     id: input.campaignId,
     name: title,
   });
-  const listId = campaign.recipients?.list_id?.trim() ?? "";
-  const replyTo = campaign.settings.reply_to?.trim() ?? "";
-  const fromName = campaign.settings.from_name?.trim() ?? "";
-  const fromEmail = campaign.settings.from_email?.trim() || replyTo;
-  if (!listId || !replyTo) {
-    return { status: "skipped" };
+  const campaignRecreate = await resolveMailchimpCampaignRecreateForCopy(input.client, campaign);
+  const importWarnings: string[] = [];
+  if (!campaignRecreate) {
+    importWarnings.push(
+      `Campaign "${title}" (${input.campaignId}): push cannot create locale copies until Mailchimp has an audience with campaign defaults (from email), or the source campaign has a list and reply-to.`,
+    );
   }
 
   const sourceFileId = await upsertSourceFile({
@@ -414,15 +445,10 @@ async function importCampaign(input: {
     contentHash,
     sourceHtml: html,
     htmlMergeTokens: envelope.htmlTokens,
-    campaignRecreate: {
-      listId,
-      replyTo,
-      fromEmail,
-      fromName,
-    },
+    campaignRecreate,
   });
 
-  const jobId = await maybeCreateJob({
+  const jobOutcome = await maybeCreateJob({
     automation: input.automation,
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -430,7 +456,11 @@ async function importCampaign(input: {
     sourceLocale: input.sourceLocale,
     targetLocales: input.targetLocales,
     openJobs: input.openJobs,
+    resourceLabel: `campaign "${title}"`,
   });
+  if (jobOutcome.warning) {
+    importWarnings.push(jobOutcome.warning);
+  }
 
   const seed = await seedMailchimpLocaleCopies({
     client: input.client,
@@ -453,7 +483,11 @@ async function importCampaign(input: {
     localeCopyIds: seed.localeCopyIds,
   });
 
-  return { status: "imported", jobId };
+  return {
+    status: "imported",
+    jobId: jobOutcome.jobId,
+    warning: importWarnings.length > 0 ? importWarnings.join(" ") : undefined,
+  };
 }
 
 async function importTemplate(input: {
@@ -470,15 +504,36 @@ async function importTemplate(input: {
   policy: MailchimpExistingTranslationPolicy;
   campaignByTitle: ReadonlyMap<string, string>;
   templateByName: ReadonlyMap<string, string>;
-}): Promise<{ status: "imported" | "skipped" | "failed"; jobId?: string }> {
+  campaigns: MailchimpCampaignSummary[];
+}): Promise<ImportItemOutcome> {
   const template = await input.client.getTemplate(input.templateId);
   const name = template.name?.trim() || input.templateId;
-  if (isMailchimpLocaleCopyName(name)) {
-    return { status: "skipped" };
+  const templateSkipReason = mailchimpTemplateSkipReason({
+    id: template.id,
+    name,
+    type: template.type ?? "user",
+    content_type: template.content_type,
+    drag_and_drop: template.drag_and_drop,
+    active: template.active,
+  });
+  if (templateSkipReason) {
+    return {
+      status: "skipped",
+      warning: `Skipped "${name}": ${templateSkipReason}.`,
+    };
   }
-  const html = template.html?.trim() ?? "";
+  if (isMailchimpLocaleCopyName(name)) {
+    return {
+      status: "skipped",
+      warning: `Skipped template "${name}" (${input.templateId}): name looks like a locale copy.`,
+    };
+  }
+  const html = await resolveTemplateHtml(input.client, input.templateId, template, input.campaigns);
   if (!html) {
-    return { status: "skipped" };
+    return {
+      status: "skipped",
+      warning: `Skipped template "${name}" (${input.templateId}): Mailchimp does not expose this template's HTML. Import a campaign that uses it instead.`,
+    };
   }
   const envelope = serializeMailchimpEnvelope({
     subject: name,
@@ -521,7 +576,8 @@ async function importTemplate(input: {
     campaignRecreate: null,
   });
 
-  const jobId = await maybeCreateJob({
+  const importWarnings: string[] = [];
+  const jobOutcome = await maybeCreateJob({
     automation: input.automation,
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -529,7 +585,11 @@ async function importTemplate(input: {
     sourceLocale: input.sourceLocale,
     targetLocales: input.targetLocales,
     openJobs: input.openJobs,
+    resourceLabel: `template "${name}"`,
   });
+  if (jobOutcome.warning) {
+    importWarnings.push(jobOutcome.warning);
+  }
 
   const seed = await seedMailchimpLocaleCopies({
     client: input.client,
@@ -552,7 +612,11 @@ async function importTemplate(input: {
     localeCopyIds: seed.localeCopyIds,
   });
 
-  return { status: "imported", jobId };
+  return {
+    status: "imported",
+    jobId: jobOutcome.jobId,
+    warning: importWarnings.length > 0 ? importWarnings.join(" ") : undefined,
+  };
 }
 
 export async function runImportMailchimpContent(input: {
@@ -619,6 +683,8 @@ export async function runImportMailchimpContent(input: {
   const policy = isMailchimpExistingTranslationPolicy(mailchimp.existingTranslationPolicy)
     ? mailchimp.existingTranslationPolicy
     : DEFAULT_MAILCHIMP_EXISTING_TRANSLATION_POLICY;
+  const library = await listMailchimpLibrary(loaded.value.client);
+  result.warnings.push(...library.warnings);
 
   const campaigns = await loaded.value.client.listRegularCampaigns();
   const templates = await loaded.value.client.listUserTemplates();
@@ -659,6 +725,9 @@ export async function runImportMailchimpContent(input: {
         templateByName,
       });
       result[outcome.status] += 1;
+      if (outcome.warning) {
+        result.warnings.push(outcome.warning);
+      }
       if (outcome.jobId) {
         result.jobsCreated += 1;
         result.jobIds.push(outcome.jobId);
@@ -672,6 +741,15 @@ export async function runImportMailchimpContent(input: {
   for (const item of templates) {
     const id = String(item.id);
     if (selectedTemplates.size > 0 && !selectedTemplates.has(id)) {
+      continue;
+    }
+    if (!isMailchimpTemplateImportable(item)) {
+      result.skipped += 1;
+      const name = item.name?.trim() || id;
+      const reason = mailchimpTemplateSkipReason(item);
+      if (selectedTemplates.has(id) && reason) {
+        result.warnings.push(`Skipped "${name}": ${reason}.`);
+      }
       continue;
     }
     try {
@@ -689,8 +767,12 @@ export async function runImportMailchimpContent(input: {
         policy,
         campaignByTitle,
         templateByName,
+        campaigns,
       });
       result[outcome.status] += 1;
+      if (outcome.warning) {
+        result.warnings.push(outcome.warning);
+      }
       if (outcome.jobId) {
         result.jobsCreated += 1;
         result.jobIds.push(outcome.jobId);

@@ -60,7 +60,7 @@ export function createPushMailchimpContentTool(session: WorkspaceOrchestratorSes
 
       if (result.failedLocales > 0 && result.pushedLocales === 0) {
         session.terminalStatus = "failed";
-        session.terminalError = "mailchimp_push_failed";
+        session.terminalError = result.warnings[0] || "mailchimp_push_failed";
       }
 
       session.stepResults.push_mailchimp_content = output;

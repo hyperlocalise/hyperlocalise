@@ -367,11 +367,12 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     extraCategories: ["marketing"],
     name: "Translate Mailchimp content",
     description:
-      "Import Mailchimp campaigns and user templates as HTML, localise in Jobs, then push approved locales as draft copies.",
+      "Import Mailchimp campaigns (including drag-and-drop designs) and HTML user templates, localise in Jobs, then push approved locales as draft copies.",
     instructions: formatWorkspaceAutomationTemplateInstructions({
       role: "a Mailchimp localisation connector",
       capabilities: [
-        "Import regular campaigns and user templates as HTML source files in the attached project",
+        "Import regular campaigns as HTML source files (rendered HTML even for drag-and-drop campaign designs)",
+        "Import code-your-own HTML user templates only; saved drag-and-drop template layouts are not importable via the Mailchimp API",
         "Open native translation jobs for mapped target locales after ingest",
         "Never push translations automatically on import — operators enqueue Push to Mailchimp separately",
       ],

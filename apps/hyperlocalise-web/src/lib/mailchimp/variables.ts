@@ -27,6 +27,6 @@ export function protectMailchimpMergeTags(value: string): { text: string; tokens
 export function restoreMailchimpMergeTags(text: string, tokens: string[]): string {
   return text.replace(MAILCHIMP_MERGE_PLACEHOLDER, (_match, index) => {
     const token = tokens[Number(index)];
-    return token ?? "";
+    return token !== undefined ? token : _match;
   });
 }

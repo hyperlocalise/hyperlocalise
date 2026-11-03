@@ -89,30 +89,31 @@ export function serializeMailchimpEnvelope(input: {
     fieldBlock("subject", escapeHtml(subjectProtected.text)),
     fieldBlock("previewText", escapeHtml(previewProtected.text)),
     fieldBlock("fromName", escapeHtml(fromProtected.text)),
-    fieldBlock("htmlBody", escapeHtml(htmlProtected.text)),
+    // Raw HTML (like Braze/Customer.io) so ingest walks the email markup instead of one escaped blob.
+    fieldBlock("htmlBody", htmlProtected.text),
     "</body></html>",
   ].join("");
 
   return { html: document, htmlTokens: htmlProtected.tokens };
 }
 
-function readProtectedField(html: string, field: string): { raw: string; tokens: string[] } {
-  const raw = decodeHtml(readFieldInnerHtml(html, field));
-  const protectedField = protectMailchimpMergeTags(raw);
-  return { raw, tokens: protectedField.tokens };
+export function parseMailchimpEnvelope(html: string): MailchimpContentEnvelope {
+  return {
+    subject: decodeHtml(readFieldInnerHtml(html, "subject")),
+    previewText: decodeHtml(readFieldInnerHtml(html, "previewText")),
+    fromName: decodeHtml(readFieldInnerHtml(html, "fromName")),
+    htmlBody: readFieldInnerHtml(html, "htmlBody"),
+  };
 }
 
-export function parseMailchimpEnvelope(html: string): MailchimpContentEnvelope {
-  const subjectField = readProtectedField(html, "subject");
-  const previewField = readProtectedField(html, "previewText");
-  const fromField = readProtectedField(html, "fromName");
-  const bodyField = readProtectedField(html, "htmlBody");
-
+/** Restore Mailchimp merge tags on push using tokens captured at import. */
+export function restoreMailchimpEnvelopeForPush(
+  envelope: MailchimpContentEnvelope,
+  htmlMergeTokens: readonly string[],
+): MailchimpContentEnvelope {
   return {
-    subject: restoreMailchimpMergeTags(subjectField.raw, subjectField.tokens),
-    previewText: restoreMailchimpMergeTags(previewField.raw, previewField.tokens),
-    fromName: restoreMailchimpMergeTags(fromField.raw, fromField.tokens),
-    htmlBody: restoreMailchimpMergeTags(bodyField.raw, bodyField.tokens),
+    ...envelope,
+    htmlBody: restoreMailchimpMergeTags(envelope.htmlBody, [...htmlMergeTokens]),
   };
 }
 

@@ -25,6 +25,7 @@ import {
   type MailchimpExistingTranslationPolicy,
 } from "./existing-translation-policy";
 import { hashMailchimpContent, serializeMailchimpEnvelope } from "./html-envelope";
+import { resolveCampaignHtml } from "./remote-html";
 import { mailchimpCopyName } from "./locale";
 
 const logger = createLogger("seed-mailchimp-locale-copies");
@@ -83,7 +84,7 @@ async function loadCopyEnvelopeHtml(input: {
       input.client.getCampaign(input.copyId),
       input.client.getCampaignContent(input.copyId),
     ]);
-    const html = content.html?.trim() ?? "";
+    const html = resolveCampaignHtml(content);
     if (!html) {
       return null;
     }

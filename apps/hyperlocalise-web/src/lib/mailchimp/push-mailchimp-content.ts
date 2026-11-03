@@ -22,10 +22,16 @@ import { createLogger } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
-import type { MailchimpClient } from "./client";
+import { formatMailchimpApiError, type MailchimpClient } from "./client";
+import { resolveMailchimpCampaignRecreateForCopy } from "./campaign-recreate";
 import { loadMailchimpAutomationClient } from "./credentials";
 import { isMailchimpRemoteCopyNewer } from "./existing-translation-policy";
-import { applyApprovedMailchimpEnvelope, hashMailchimpContent } from "./html-envelope";
+import type { MailchimpCampaignRecreateFields } from "./types";
+import {
+  applyApprovedMailchimpEnvelope,
+  hashMailchimpContent,
+  restoreMailchimpEnvelopeForPush,
+} from "./html-envelope";
 import { mailchimpCopyName } from "./locale";
 
 async function readMailchimpCopyUpdatedAt(input: {
@@ -35,7 +41,13 @@ async function readMailchimpCopyUpdatedAt(input: {
 }): Promise<string | null> {
   if (input.resourceKind === "template") {
     const template = await input.client.getTemplate(input.copyId);
-    return template.edited_on?.trim() || template.created_on?.trim() || null;
+    return (
+      template.date_edited?.trim() ||
+      template.edited_on?.trim() ||
+      template.date_created?.trim() ||
+      template.created_on?.trim() ||
+      null
+    );
   }
   const campaign = await input.client.getCampaign(input.copyId);
   return campaign.create_time?.trim() || null;
@@ -116,6 +128,44 @@ async function persistCopySuccess(
     .where(eq(schema.mailchimpContentSyncStates.id, mapping.id));
 }
 
+function pushSkipLabel(
+  mapping: { sourceName: string; sourcePath: string },
+  locale: string,
+): string {
+  const name = mapping.sourceName?.trim() || mapping.sourcePath;
+  return `${name} [${locale}]`;
+}
+
+async function resolveCampaignRecreateForPush(input: {
+  client: MailchimpClient;
+  mapping: typeof schema.mailchimpContentSyncStates.$inferSelect;
+}): Promise<MailchimpCampaignRecreateFields | null> {
+  const stored = input.mapping.campaignRecreate;
+  if (stored?.listId?.trim() && stored?.replyTo?.trim()) {
+    return stored;
+  }
+  if (input.mapping.resourceKind !== "campaign") {
+    return null;
+  }
+  try {
+    const campaign = await input.client.getCampaign(input.mapping.sourceId);
+    const resolved = await resolveMailchimpCampaignRecreateForCopy(input.client, campaign);
+    if (resolved) {
+      await db
+        .update(schema.mailchimpContentSyncStates)
+        .set({ campaignRecreate: resolved, updatedAt: new Date() })
+        .where(eq(schema.mailchimpContentSyncStates.id, input.mapping.id));
+    }
+    return resolved;
+  } catch (error) {
+    logger.warn(
+      { sourceId: input.mapping.sourceId, error: String(error) },
+      "mailchimp campaign recreate resolve failed",
+    );
+    return stored?.listId && stored?.replyTo ? stored : null;
+  }
+}
+
 async function markPushFailed(id: string, message: string): Promise<void> {
   await db
     .update(schema.mailchimpContentSyncStates)
@@ -134,18 +184,29 @@ async function pushCampaignLocale(input: {
   storedEnvelopeHtml: string;
   approved: Record<string, string>;
   overwriteWhenRemoteNewer: boolean;
+  campaignRecreate: MailchimpCampaignRecreateFields | null;
+  pushWarning: (message: string) => void;
 }): Promise<"pushed" | "skipped"> {
-  const recreate = input.mapping.campaignRecreate;
+  const recreate = input.campaignRecreate;
   if (!recreate?.listId || !recreate.replyTo) {
+    input.pushWarning(
+      `${pushSkipLabel(input.mapping, input.locale)}: could not resolve audience list and reply-to for a new Mailchimp campaign — add an audience with campaign defaults in Mailchimp, set list/reply-to on the source campaign, re-import, then push again.`,
+    );
     return "skipped";
   }
   const copyName = mailchimpCopyName(input.mapping.sourceName, input.locale);
-  const envelope = applyApprovedMailchimpEnvelope(input.storedEnvelopeHtml, input.approved);
+  const envelope = restoreMailchimpEnvelopeForPush(
+    applyApprovedMailchimpEnvelope(input.storedEnvelopeHtml, input.approved),
+    input.mapping.htmlMergeTokens ?? [],
+  );
   const contentHash = hashMailchimpContent(
     `${envelope.subject}\n${envelope.previewText}\n${envelope.htmlBody}`,
   );
   const lastHash = input.mapping.lastPushContentHash?.[input.locale];
   if (lastHash && lastHash === contentHash) {
+    input.pushWarning(
+      `${pushSkipLabel(input.mapping, input.locale)}: already pushed this content (no translation changes since the last push).`,
+    );
     return "skipped";
   }
 
@@ -162,6 +223,9 @@ async function pushCampaignLocale(input: {
         copyUpdatedAt,
       })
     ) {
+      input.pushWarning(
+        `${pushSkipLabel(input.mapping, input.locale)}: Mailchimp copy was edited after the last Hyperlocalise push — turn on overwrite when remote is newer, or edit only in Hyperlocalise.`,
+      );
       return "skipped";
     }
   }
@@ -191,12 +255,19 @@ async function pushTemplateLocale(input: {
   storedEnvelopeHtml: string;
   approved: Record<string, string>;
   overwriteWhenRemoteNewer: boolean;
+  pushWarning: (message: string) => void;
 }): Promise<"pushed" | "skipped"> {
   const copyName = mailchimpCopyName(input.mapping.sourceName, input.locale);
-  const envelope = applyApprovedMailchimpEnvelope(input.storedEnvelopeHtml, input.approved);
+  const envelope = restoreMailchimpEnvelopeForPush(
+    applyApprovedMailchimpEnvelope(input.storedEnvelopeHtml, input.approved),
+    input.mapping.htmlMergeTokens ?? [],
+  );
   const contentHash = hashMailchimpContent(envelope.htmlBody);
   const lastHash = input.mapping.lastPushContentHash?.[input.locale];
   if (lastHash && lastHash === contentHash) {
+    input.pushWarning(
+      `${pushSkipLabel(input.mapping, input.locale)}: already pushed this content (no translation changes since the last push).`,
+    );
     return "skipped";
   }
 
@@ -213,6 +284,9 @@ async function pushTemplateLocale(input: {
         copyUpdatedAt,
       })
     ) {
+      input.pushWarning(
+        `${pushSkipLabel(input.mapping, input.locale)}: Mailchimp copy was edited after the last Hyperlocalise push — turn on overwrite when remote is newer, or edit only in Hyperlocalise.`,
+      );
       return "skipped";
     }
   }
@@ -304,6 +378,11 @@ export async function runPushMailchimpContent(input: {
     itemsProcessed: 0,
     warnings: [],
   };
+  const pushWarning = (message: string) => {
+    if (result.warnings.length < 20 && !result.warnings.includes(message)) {
+      result.warnings.push(message);
+    }
+  };
 
   for (const mapping of mappings) {
     if (pathFilter && !pathFilter.has(mapping.sourcePath)) {
@@ -317,8 +396,19 @@ export async function runPushMailchimpContent(input: {
     });
     if (!storedEnvelopeHtml) {
       result.skippedLocales += pushLocales.length;
+      pushWarning(
+        `${mapping.sourceName || mapping.sourcePath}: skipped ${pushLocales.length} locale(s) (no imported source file in the project).`,
+      );
       continue;
     }
+
+    const campaignRecreate =
+      mapping.resourceKind === "campaign"
+        ? await resolveCampaignRecreateForPush({
+            client: loaded.value.client,
+            mapping,
+          })
+        : null;
 
     for (const locale of pushLocales) {
       const approved = await translationService.loadAsPrefilledEntries({
@@ -331,6 +421,9 @@ export async function runPushMailchimpContent(input: {
       });
       if (approved.translatedKeyCount === 0 || approved.loadedKeyCount === 0) {
         result.skippedLocales += 1;
+        pushWarning(
+          `${pushSkipLabel(mapping, locale)}: no approved translations ready to push (translate in Jobs and approve strings first).`,
+        );
         continue;
       }
 
@@ -344,6 +437,8 @@ export async function runPushMailchimpContent(input: {
                 storedEnvelopeHtml,
                 approved: approved.prefilled,
                 overwriteWhenRemoteNewer,
+                campaignRecreate,
+                pushWarning,
               })
             : await pushTemplateLocale({
                 client: loaded.value.client,
@@ -352,6 +447,7 @@ export async function runPushMailchimpContent(input: {
                 storedEnvelopeHtml,
                 approved: approved.prefilled,
                 overwriteWhenRemoteNewer,
+                pushWarning,
               });
         if (outcome === "pushed") {
           result.pushedLocales += 1;
@@ -359,12 +455,14 @@ export async function runPushMailchimpContent(input: {
           result.skippedLocales += 1;
         }
       } catch (error) {
+        const message = formatMailchimpApiError(error);
         logger.warn(
-          { sourcePath: mapping.sourcePath, locale, error: String(error) },
+          { sourcePath: mapping.sourcePath, locale, error: message },
           "mailchimp push locale failed",
         );
-        await markPushFailed(mapping.id, String(error));
+        await markPushFailed(mapping.id, message);
         result.failedLocales += 1;
+        pushWarning(`${pushSkipLabel(mapping, locale)}: ${message}`);
       }
     }
   }

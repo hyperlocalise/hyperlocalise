@@ -372,9 +372,9 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     name: "Translate Mailchimp content",
     category: "translate",
     description:
-      "Import Mailchimp campaigns and user templates as HTML, then push approved locales as draft copies.",
+      "Import Mailchimp campaigns and HTML user templates, then push approved locales as draft copies.",
     grants:
-      "Reads Mailchimp campaigns and templates through Pipes, writes HTML source files and native jobs. Push creates draft campaigns or templates named with the locale suffix and never sends or schedules.",
+      "Reads Mailchimp campaigns and importable HTML templates through Pipes, writes HTML source files and native jobs. Drag-and-drop saved templates are skipped (use campaign import). Push creates draft campaigns or HTML templates named with the locale suffix and never sends or schedules.",
     tools: ["import_mailchimp_content", "push_mailchimp_content"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],

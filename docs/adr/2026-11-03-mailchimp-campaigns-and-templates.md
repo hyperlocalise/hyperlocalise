@@ -25,7 +25,10 @@ documented for agents at
 
 Implement one workspace skill, **Translate Mailchimp content**
 (`translate-mailchimp-content`), for **regular campaigns** and **user
-templates** only (v1).
+HTML templates** only (v1). Saved drag-and-drop user templates
+(`content_type: template` or `multichannel`) are out of scope because
+the Marketing API does not expose exportable HTML for them; operators
+localise those emails via **campaign** import instead.
 
 1. Import as HTML source files at `mailchimp/campaigns/` and
    `mailchimp/templates/`. Wrap subject, preview text, from name, and
@@ -75,3 +78,6 @@ templates** only (v1).
   header UI.
 - REST client code lives under `apps/hyperlocalise-web/src/lib/mailchimp/`;
   product docs in `docs/platform/connections/mailchimp.mdx`.
+- Template importability is gated on Mailchimp `content_type: html` and
+  API HTML availability; non-importable templates surface in the library
+  API and automation tree but cannot be selected for import.

@@ -13,15 +13,24 @@
 
 import type { MailchimpClient } from "./client";
 import { isMailchimpLocaleCopyName } from "./locale";
+import {
+  mailchimpTemplateSkipReason,
+  summarizeMailchimpUnsupportedTemplates,
+} from "./template-importability";
 
 export type MailchimpLibraryItem = {
   id: string;
   name: string;
 };
 
+export type MailchimpLibraryUnsupportedItem = MailchimpLibraryItem & {
+  reason: string;
+};
+
 export type MailchimpLibrary = {
   campaigns: MailchimpLibraryItem[];
   templates: MailchimpLibraryItem[];
+  unsupportedTemplates: MailchimpLibraryUnsupportedItem[];
   warnings: string[];
 };
 
@@ -40,16 +49,36 @@ export async function listMailchimpLibrary(client: MailchimpClient): Promise<Mai
     client.listUserTemplates(),
   ]);
 
+  const unsupportedTemplates: MailchimpLibraryUnsupportedItem[] = [];
+  const importableTemplates: MailchimpLibraryItem[] = [];
+
+  for (const template of templates) {
+    const name = template.name?.trim() || String(template.id);
+    const reason = mailchimpTemplateSkipReason(template);
+    if (reason) {
+      const item = visibleItem(String(template.id), name);
+      if (item) {
+        unsupportedTemplates.push({ ...item, reason });
+      }
+      continue;
+    }
+    const item = visibleItem(String(template.id), name);
+    if (item) {
+      importableTemplates.push(item);
+    }
+  }
+
   return {
     campaigns: campaigns.flatMap((campaign) => {
       const title = campaign.settings.title?.trim() || campaign.settings.subject_line?.trim() || "";
       const item = visibleItem(campaign.id, title);
       return item ? [item] : [];
     }),
-    templates: templates.flatMap((template) => {
-      const item = visibleItem(String(template.id), template.name);
-      return item ? [item] : [];
-    }),
-    warnings: [],
+    templates: importableTemplates,
+    unsupportedTemplates,
+    warnings: (() => {
+      const summary = summarizeMailchimpUnsupportedTemplates(unsupportedTemplates);
+      return summary ? [summary] : [];
+    })(),
   };
 }
