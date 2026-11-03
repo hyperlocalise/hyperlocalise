@@ -24,8 +24,8 @@ import {
   mailchimpTranslationPresence,
   type MailchimpExistingTranslationPolicy,
 } from "./existing-translation-policy";
-import { hashMailchimpContent, serializeMailchimpEnvelope } from "./html-envelope";
-import { resolveCampaignHtml } from "./remote-html";
+import { hashMailchimpContent, serializeMailchimpRemoteEnvelope } from "./html-envelope";
+import { loadMailchimpCopyRemoteFields } from "./remote-html";
 import { mailchimpCopyName } from "./locale";
 
 const logger = createLogger("seed-mailchimp-locale-copies");
@@ -78,34 +78,16 @@ async function loadCopyEnvelopeHtml(input: {
   client: MailchimpClient;
   resourceKind: MailchimpResourceKind;
   copyId: string;
+  storedEnvelopeHtml?: string;
 }): Promise<string | null> {
-  if (input.resourceKind === "campaign") {
-    const [campaign, content] = await Promise.all([
-      input.client.getCampaign(input.copyId),
-      input.client.getCampaignContent(input.copyId),
-    ]);
-    const html = resolveCampaignHtml(content);
-    if (!html) {
-      return null;
-    }
-    const envelope = serializeMailchimpEnvelope({
-      subject: campaign.settings.subject_line ?? "",
-      previewText: campaign.settings.preview_text,
-      fromName: campaign.settings.from_name,
-      html,
-    });
-    return envelope.html;
-  }
-  const template = await input.client.getTemplate(input.copyId);
-  const html = template.html?.trim() ?? "";
-  if (!html) {
+  const remote = await loadMailchimpCopyRemoteFields(input);
+  if (!remote) {
     return null;
   }
-  const envelope = serializeMailchimpEnvelope({
-    subject: template.name,
-    html,
-  });
-  return envelope.html;
+  return serializeMailchimpRemoteEnvelope({
+    storedEnvelopeHtml: input.storedEnvelopeHtml ?? "",
+    remote,
+  }).html;
 }
 
 export async function seedMailchimpLocaleCopies(input: {
