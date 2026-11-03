@@ -208,7 +208,7 @@ export async function listProjectContentSyncRuns(input: {
         eq(schema.projectContentSyncRuns.syncId, input.syncId),
       ),
     )
-    .orderBy(desc(schema.projectContentSyncRuns.startedAt))
+    .orderBy(desc(schema.projectContentSyncRuns.createdAt))
     .limit(input.limit);
 }
 

@@ -112,12 +112,59 @@ describe("commitPushAndCreatePullTranslationsPullRequest", () => {
     expect(gitCall("push")).toEqual(["push", "-u", "origin", BRANCH]);
   });
 
-  it("rebuilds the open pull request's branch from the base when its files change", async () => {
-    mocks.pullsList.mockResolvedValue({ data: [openPull] });
+  function gitAnswers(answers: {
+    fetch?: number;
+    names?: string;
+    base?: number;
+    content?: number;
+  }) {
     mocks.runSandboxCommand.mockImplementation(
-      async (_sandbox: string, _cmd: string, args: string[]) =>
-        args[0] === "diff" ? { exitCode: 1, output: "" } : { exitCode: 0, output: "" },
+      async (_sandbox: string, _cmd: string, args: string[]) => {
+        if (args[0] === "fetch") {
+          return { exitCode: answers.fetch ?? 0, output: "" };
+        }
+        if (args[0] === "diff" && args[1] === "--name-only") {
+          return { exitCode: 0, output: answers.names ?? "locales/fr.json\n" };
+        }
+        if (args[0] === "diff" && args[3] === "HEAD~1") {
+          return { exitCode: answers.base ?? 0, output: "" };
+        }
+        if (args[0] === "diff") {
+          return { exitCode: answers.content ?? 0, output: "" };
+        }
+        return { exitCode: 0, output: "" };
+      },
     );
+  }
+
+  it("leaves the open pull request alone when it already makes this change", async () => {
+    mocks.pullsList.mockResolvedValue({ data: [openPull] });
+    gitAnswers({});
+
+    const result = await commitPushAndCreatePullTranslationsPullRequest(pushInput());
+
+    expect(gitCall("fetch")).toEqual(["fetch", "--depth", "2", "origin", `refs/heads/${BRANCH}`]);
+    expect(gitCall("push")).toBeUndefined();
+    expect(mocks.pullsUpdate).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      pullRequestUrl: "https://github.com/acme/web/pull/5",
+      pullRequestNumber: 5,
+      updated: false,
+      pushed: false,
+    });
+  });
+
+  it.each([
+    ["its files changed", { content: 1 }],
+    [
+      "it still carries a file this run no longer writes",
+      { names: "locales/fr.json\nlocales/de.json\n" },
+    ],
+    ["the base moved under a synced file", { base: 1 }],
+    ["its branch could not be fetched", { fetch: 1 }],
+  ])("rebuilds the open pull request's branch from the base when %s", async (_case, answers) => {
+    mocks.pullsList.mockResolvedValue({ data: [openPull] });
+    gitAnswers(answers);
 
     const result = await commitPushAndCreatePullTranslationsPullRequest(pushInput());
 
@@ -129,28 +176,15 @@ describe("commitPushAndCreatePullTranslationsPullRequest", () => {
     expect(result).toMatchObject({ pullRequestNumber: 5, updated: true, pushed: true });
   });
 
-  it("leaves the open pull request alone when its synced files would not change", async () => {
+  it("updates an open pull request in place for callers that do not reuse branches", async () => {
     mocks.pullsList.mockResolvedValue({ data: [openPull] });
 
-    const result = await commitPushAndCreatePullTranslationsPullRequest(pushInput());
+    await commitPushAndCreatePullTranslationsPullRequest(pushInput({ reuseBranch: false }));
 
-    expect(gitCall("fetch")).toEqual(["fetch", "--depth", "1", "origin", `refs/heads/${BRANCH}`]);
-    expect(gitCall("diff")).toEqual([
-      "diff",
-      "--quiet",
-      "FETCH_HEAD",
-      "HEAD",
-      "--",
-      "locales/fr.json",
-    ]);
-    expect(gitCall("push")).toBeUndefined();
-    expect(mocks.pullsUpdate).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      pullRequestUrl: "https://github.com/acme/web/pull/5",
-      pullRequestNumber: 5,
-      updated: false,
-      pushed: false,
-    });
+    expect(gitCall("fetch")).toBeUndefined();
+    expect(gitCall("checkout")).toEqual(["checkout", "-f", BRANCH]);
+    expect(gitCall("reset")).toEqual(["reset", "--hard", "base-sha"]);
+    expect(gitCall("push")).toContain(`--force-with-lease=refs/heads/${BRANCH}:pr-head`);
   });
 
   it("keeps a branch per job for callers that do not reuse branches", async () => {
@@ -161,6 +195,5 @@ describe("commitPushAndCreatePullTranslationsPullRequest", () => {
     expect(mocks.getRef).not.toHaveBeenCalled();
     expect(gitCall("checkout")).toEqual(["checkout", "-b", BRANCH]);
     expect(gitCall("push")).toEqual(["push", "-u", "origin", BRANCH]);
-    expect(gitCall("fetch")).toBeUndefined();
   });
 });

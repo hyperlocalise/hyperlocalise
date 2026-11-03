@@ -16,7 +16,7 @@ Connecting GitHub gives Platform access to repositories. It does not start a fil
 5. Select **Sync now** for the first run.
 6. Check the run under **Recent syncs** and confirm the source paths in **Files**.
 
-Pull brings source content into the project folder. Push sends translations that are already ready back to GitHub through a pull request; **Recent syncs** links to it. Review that pull request before merging it. Only one sync of a project runs at a time.
+Pull brings source content into the project folder. Push sends translations that are already ready back to GitHub through a pull request; **Recent syncs** links to it. Review that pull request before merging it. Each sync keeps one pull request open and updates it on later runs, replacing any commits pushed to it, so make translation fixes in Platform rather than in the pull request. Only one sync of a project runs at a time.
 
 Admins, localization managers, and developers can change the sync and start it. Other members with access to the project can see its settings and runs. Sync is available on every plan.
 

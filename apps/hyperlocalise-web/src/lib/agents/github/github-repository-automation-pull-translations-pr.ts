@@ -73,31 +73,47 @@ async function readRemoteBranchHeadSha(
   }
 }
 
-/** Whether the open pull request's branch already has these files exactly as the new commit has them. */
-async function branchHasSameFiles(input: {
+/**
+ * Whether the open pull request already makes exactly this change: its one commit touches the same
+ * files with the same content, on a base whose copy of those files has not moved since.
+ */
+async function branchHasSameChange(input: {
   sandboxId: string;
   branchName: string;
   paths: string[];
 }): Promise<boolean> {
-  const fetch = await runSandboxCommand(input.sandboxId, "git", [
-    "fetch",
-    "--depth",
-    "1",
-    "origin",
-    `refs/heads/${input.branchName}`,
-  ]);
+  const git = (args: string[]) =>
+    runSandboxCommand(input.sandboxId, "git", args, { output: "stdout" });
+
+  const fetch = await git(["fetch", "--depth", "2", "origin", `refs/heads/${input.branchName}`]);
   if (fetch.exitCode !== 0) {
     return false;
   }
-  const diff = await runSandboxCommand(input.sandboxId, "git", [
+  const changed = await git(["diff", "--name-only", "FETCH_HEAD~1", "FETCH_HEAD"]);
+  if (changed.exitCode !== 0) {
+    return false;
+  }
+  const changedPaths = new Set(changed.output.split("\n").filter((path) => path.length > 0));
+  if (
+    changedPaths.size !== input.paths.length ||
+    !input.paths.every((path) => changedPaths.has(path))
+  ) {
+    return false;
+  }
+  // HEAD~1 is the base this run built on.
+  const baseUnchanged = await git([
     "diff",
     "--quiet",
-    "FETCH_HEAD",
-    "HEAD",
+    "FETCH_HEAD~1",
+    "HEAD~1",
     "--",
     ...input.paths,
   ]);
-  return diff.exitCode === 0;
+  if (baseUnchanged.exitCode !== 0) {
+    return false;
+  }
+  const sameContent = await git(["diff", "--quiet", "FETCH_HEAD", "HEAD", "--", ...input.paths]);
+  return sameContent.exitCode === 0;
 }
 
 export async function writePullTranslationCandidatesToSandbox(input: {
@@ -210,11 +226,11 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
   }
 
   const openPull = existingPull.data[0];
-  // Only the synced files count: the branch is rebuilt on the latest base, which moves on its own.
+  // Unrelated commits on the base do not count; the pull request still merges cleanly.
   if (
     input.reuseBranch &&
     openPull &&
-    (await branchHasSameFiles({
+    (await branchHasSameChange({
       sandboxId: input.sandboxId,
       branchName: input.branchName,
       paths: input.paths,
