@@ -50,6 +50,8 @@ Use **Use GitLab repo** in a manual or scheduled automation for repository analy
 An admin or localization manager can connect the workspace to its own GitLab server under **Integrations → Self-hosted GitLab**, with the server's `https` address and an access token. Hyperlocalise checks both before saving, and checks again whenever you open the row.
 
 - While connected, the server replaces GitLab.com for everyone in the workspace, and they can reach whatever the token can reach. Use a token from a non-admin user, with the `api` scope, or `read_api` and `read_repository` for reading only.
+- The GitLab.com row stays on the page, marked as not in use, so people can still see or disconnect their own accounts. They come back into use if the server is removed.
+- Disconnecting asks you to confirm, because it affects the whole workspace.
 - Paste links from your server into chat. While a server is connected, GitLab.com links get a reply saying they aren't used.
 - Automations name a project by its path, so replacing or removing the connection points them at the new server, or back at GitLab.com. Chats stop using projects from the old server.
 - The server must be reachable from the internet. Fixed outgoing addresses for an allow-list aren't available yet.

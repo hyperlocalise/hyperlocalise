@@ -97,7 +97,11 @@ export function createGitlabRoutes() {
 
       const result = await checkSavedGitLabConnection({
         organizationId: c.var.auth.organization.localOrganizationId,
+        signal: c.req.raw.signal,
       });
+      if (!isErr(result) && result.value === "not_connected") {
+        return notFoundResponse(c, "gitlab_connection_not_found");
+      }
 
       return c.json(
         isErr(result)

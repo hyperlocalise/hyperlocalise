@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { createApiClient } from "@/lib/api-client";
+import { readApiError } from "@/lib/api-error";
 
 import { gitlabServerConnectionPanelMessages as messages } from "./gitlab-server-connection-panel.messages";
 import { CollapsibleIntegrationRow } from "./integration-row";
@@ -30,11 +31,6 @@ import { SimpleBrandIcon } from "./simple-brand-icon";
 import { useGitLabServerConnection } from "./use-gitlab-server-connection";
 
 const api = createApiClient();
-
-async function readErrorMessage(response: Response): Promise<string | null> {
-  const body = (await response.json().catch(() => null)) as { message?: unknown } | null;
-  return typeof body?.message === "string" && body.message.trim() ? body.message : null;
-}
 
 export function GitLabServerConnectionPanel({
   organizationSlug,
@@ -53,10 +49,15 @@ export function GitLabServerConnectionPanel({
   const [serverUrl, setServerUrl] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState("");
   const [showToken, setShowToken] = useState(false);
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
   const userCanManage = !disabled;
+  // Exact, so an open row's live check isn't run again under the connection's old save time.
   const refreshGitLabQueries = () =>
     Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["gitlab", organizationSlug] }),
+      queryClient.invalidateQueries({
+        queryKey: ["gitlab", organizationSlug, "connection"],
+        exact: true,
+      }),
       queryClient.invalidateQueries({ queryKey: ["gitlab-projects", organizationSlug] }),
       queryClient.invalidateQueries({ queryKey: ["chat-repositories", organizationSlug] }),
     ]);
@@ -74,7 +75,7 @@ export function GitLabServerConnectionPanel({
         param: { organizationSlug },
       });
       if (!response.ok) {
-        throw new Error(intl.formatMessage(messages.loadError));
+        throw new Error("gitlab_connection_check_failed");
       }
       return response.json();
     },
@@ -93,13 +94,20 @@ export function GitLabServerConnectionPanel({
         json,
       });
       if (!response.ok) {
-        throw new Error(
-          (await readErrorMessage(response)) ?? intl.formatMessage(messages.saveFailed),
+        throw new Error(await readApiError(response, intl.formatMessage(messages.saveFailed)));
+      }
+      const body = await response.json();
+      return "gitlabConnection" in body ? body.gitlabConnection : null;
+    },
+    onSuccess: async (saved) => {
+      clearForm();
+      // Saving has just checked the connection, so the open row needn't check it again.
+      if (saved) {
+        queryClient.setQueryData(
+          ["gitlab", organizationSlug, "connection", "check", saved.updatedAt],
+          { working: true },
         );
       }
-    },
-    onSuccess: async () => {
-      clearForm();
       await refreshGitLabQueries();
       toast.success(intl.formatMessage(messages.saved));
     },
@@ -119,6 +127,7 @@ export function GitLabServerConnectionPanel({
     },
     onSuccess: async () => {
       clearForm();
+      setConfirmingDisconnect(false);
       setExpanded(false);
       await refreshGitLabQueries();
       toast.success(intl.formatMessage(messages.disconnected));
@@ -237,16 +246,38 @@ export function GitLabServerConnectionPanel({
               </p>
             ) : null}
             <div className="flex flex-wrap justify-end gap-2">
-              {connection ? (
+              {connection && confirmingDisconnect ? (
+                <>
+                  <p className="basis-full text-end text-xs text-muted-foreground">
+                    <FormattedMessage {...messages.disconnectConfirm} />
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => setConfirmingDisconnect(false)}
+                  >
+                    <FormattedMessage {...messages.cancel} />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={busy}
+                    onClick={() => disconnect.mutate()}
+                  >
+                    <FormattedMessage
+                      {...(disconnect.isPending ? messages.disconnecting : messages.disconnectNow)}
+                    />
+                  </Button>
+                </>
+              ) : connection ? (
                 <Button
                   type="button"
                   variant="ghost"
                   disabled={busy}
-                  onClick={() => disconnect.mutate()}
+                  onClick={() => setConfirmingDisconnect(true)}
                 >
-                  <FormattedMessage
-                    {...(disconnect.isPending ? messages.disconnecting : messages.disconnect)}
-                  />
+                  <FormattedMessage {...messages.disconnect} />
                 </Button>
               ) : null}
               <Button

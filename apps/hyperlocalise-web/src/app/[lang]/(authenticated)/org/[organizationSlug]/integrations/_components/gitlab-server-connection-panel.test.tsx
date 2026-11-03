@@ -93,12 +93,16 @@ describe("GitLabServerConnectionPanel", () => {
     const save = await screen.findByRole("button", { name: "Check and save" });
     expect(save).toHaveProperty("disabled", true);
 
+    const token = screen.getByLabelText("Access token");
+    fireEvent.change(token, { target: { value: "glpat-secret" } });
+    expect(save).toHaveProperty("disabled", true);
+    fireEvent.change(token, { target: { value: "" } });
+
     fireEvent.change(screen.getByLabelText("Server address"), {
       target: { value: "https://git.acme.example" },
     });
     expect(save).toHaveProperty("disabled", true);
 
-    const token = screen.getByLabelText("Access token");
     fireEvent.change(token, { target: { value: "glpat-secret" } });
     fireEvent.click(save);
 
@@ -164,7 +168,7 @@ describe("GitLabServerConnectionPanel", () => {
     expect(await screen.findByText(/The server refused this token/)).toBeTruthy();
   });
 
-  it("disconnects", async () => {
+  it("asks before disconnecting the whole workspace, and can be cancelled", async () => {
     mocks.connectionGet.mockImplementation(async () =>
       Response.json({ gitlabConnection: savedConnection }),
     );
@@ -172,9 +176,16 @@ describe("GitLabServerConnectionPanel", () => {
     await openRow();
 
     fireEvent.click(await screen.findByRole("button", { name: "Disconnect" }));
+    expect(screen.getByText(/Disconnect for the whole workspace/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(mocks.connectionDelete).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Disconnect" }));
+    fireEvent.click(screen.getByRole("button", { name: "Disconnect server" }));
 
     await waitFor(() => expect(mocks.connectionDelete).toHaveBeenCalled());
     await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByLabelText("Access token")).toBeNull());
   });
 
   it("shows people who can't manage it the connection, with no form", async () => {

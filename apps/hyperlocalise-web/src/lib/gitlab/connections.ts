@@ -234,15 +234,16 @@ export async function loadGitLabConnectionCredentials(input: {
 /** Runs the save check again on the stored token, which can stop working at any time. */
 export async function checkSavedGitLabConnection(input: {
   organizationId: string;
-}): Promise<Result<void, GitLabConnectionError>> {
+  signal?: AbortSignal;
+}): Promise<Result<"working" | "not_connected", GitLabConnectionError>> {
   const credentials = await loadGitLabConnectionCredentials(input);
   if (isErr(credentials)) {
     return credentials;
   }
   if (!credentials.value) {
-    return ok(undefined);
+    return ok("not_connected");
   }
 
-  const username = await checkGitLabServer(credentials.value);
-  return isErr(username) ? username : ok(undefined);
+  const username = await checkGitLabServer({ ...credentials.value, signal: input.signal });
+  return isErr(username) ? username : ok("working");
 }

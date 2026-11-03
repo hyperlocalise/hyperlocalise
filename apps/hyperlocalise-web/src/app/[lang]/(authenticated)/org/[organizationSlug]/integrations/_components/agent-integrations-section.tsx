@@ -31,6 +31,7 @@ import { LoopsConnectionPanel } from "./loops-connection-panel";
 import { IntercomConnectionPanel } from "./intercom-connection-panel";
 import { GoogleDriveConnectionPanel } from "./google-drive-connection-panel";
 import { GitLabServerConnectionPanel } from "./gitlab-server-connection-panel";
+import { gitlabServerConnectionPanelMessages } from "./gitlab-server-connection-panel.messages";
 import { useGitLabServerConnection } from "./use-gitlab-server-connection";
 import { PipesConnectionPanel } from "./pipes-connection-panel";
 import { SlackIntegrationRow } from "./slack-integration-row";
@@ -83,11 +84,13 @@ function PipesIntegrationList({
   slugs,
   disabled,
   isLast,
+  description,
 }: {
   organizationSlug: string;
   slugs: readonly PipesProviderSlug[];
   disabled?: boolean;
   isLast?: boolean;
+  description?: string;
 }) {
   return (
     <>
@@ -98,6 +101,7 @@ function PipesIntegrationList({
           provider={slug}
           disabled={disabled}
           isLast={Boolean(isLast) && index === slugs.length - 1}
+          description={description}
         />
       ))}
     </>
@@ -115,18 +119,22 @@ export function SourceControlIntegrationsSection({
   userCanManage,
   userIsAdmin,
 }: AgentIntegrationsSectionProps & { userIsAdmin: boolean }) {
+  const intl = useIntl();
   const gitlabServerConnection = useGitLabServerConnection(organizationSlug);
 
   return (
     <>
       <GitHubIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
-      {gitlabServerConnection.data ? null : (
-        <PipesIntegrationList
-          organizationSlug={organizationSlug}
-          slugs={workspacePipesSourceControlSlugs}
-          disabled={!userIsAdmin}
-        />
-      )}
+      <PipesIntegrationList
+        organizationSlug={organizationSlug}
+        slugs={workspacePipesSourceControlSlugs}
+        disabled={!userIsAdmin}
+        description={
+          gitlabServerConnection.data
+            ? intl.formatMessage(gitlabServerConnectionPanelMessages.gitlabComNotUsed)
+            : undefined
+        }
+      />
       <GitLabServerConnectionPanel
         organizationSlug={organizationSlug}
         disabled={!userIsAdmin}

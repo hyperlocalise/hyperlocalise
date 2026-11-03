@@ -215,6 +215,27 @@ describe("gitlabRoutes", () => {
       expect(await after.json()).toEqual({ gitlabConnection: null });
     });
 
+    it("lets developers run the live check, refuses members, and reports a missing connection", async () => {
+      const member = fixture.createWorkosIdentityWithRole("member");
+      const memberHeaders = await fixture.authHeadersFor(member);
+      const developer = fixture.createWorkosIdentityWithRole("developer");
+      const developerHeaders = await fixture.authHeadersFor(developer);
+      const check = client.api.orgs[":organizationSlug"].gitlab.connection.check;
+
+      const refused = await check.$get(
+        { param: { organizationSlug: member.organization.slug ?? "missing-slug" } },
+        { headers: memberHeaders },
+      );
+      const missing = await check.$get(
+        { param: { organizationSlug: developer.organization.slug ?? "missing-slug" } },
+        { headers: developerHeaders },
+      );
+
+      expect(refused.status).toBe(403);
+      expect(missing.status).toBe(404);
+      expect(mocks.withPublicHttpFetch).not.toHaveBeenCalled();
+    });
+
     it("checks the saved token live and reports when it stops working", async () => {
       mockGitLabServer();
       const identity = fixture.createWorkosIdentityWithRole("admin");

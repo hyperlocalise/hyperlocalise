@@ -121,6 +121,28 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
     id: "mm8ESSKJcB",
     description: "Button that removes the GitLab server connection",
   },
+  disconnectConfirm: {
+    defaultMessage:
+      "Disconnect for the whole workspace? Automations go back to GitLab.com and chats stop using this server's projects.",
+    id: "TS8IDVeEcm",
+    description: "Question shown before removing the GitLab server connection",
+  },
+  disconnectNow: {
+    defaultMessage: "Disconnect server",
+    id: "MbHpGGZQUr",
+    description: "Button that confirms removing the GitLab server connection",
+  },
+  cancel: {
+    defaultMessage: "Cancel",
+    id: "McapxvtDwd",
+    description: "Button that keeps the GitLab server connection",
+  },
+  gitlabComNotUsed: {
+    defaultMessage:
+      "Not used while this workspace is connected to its own GitLab server. You can still disconnect your account here.",
+    id: "NicQRpFZUr",
+    description: "GitLab.com row description while a self-hosted GitLab server is connected",
+  },
   disconnecting: {
     defaultMessage: "Disconnecting…",
     id: "omW67FLa2e",
