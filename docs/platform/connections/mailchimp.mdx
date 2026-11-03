@@ -1,0 +1,79 @@
+---
+title: "Localize Mailchimp"
+description: "Connect Mailchimp, import regular campaigns and user templates as HTML, translate in Jobs, then push approved locales as draft copies."
+---
+
+Connect Mailchimp once in workspace **Integrations**, then run the **Translate Mailchimp content** automation template on a schedule. Import never changes Mailchimp. **Push to Mailchimp** is a separate action. It creates or updates draft copies named `{source} [{locale}]` and never sends, schedules, or edits the source campaign or template.
+
+## Prerequisites
+
+| Requirement | Description |
+| --- | --- |
+| Native project | A [native project](/platform/projects/create-project) whose source locale matches the language of the default copy in Mailchimp. Add a project target locale for each language you will push back. |
+| Mailchimp account | Connect Mailchimp from **Integrations** with OAuth through WorkOS Pipes (slug `mailchimp`). The access token is not stored in Hyperlocalise. |
+| Campaign audience | Regular campaigns need a list and reply-to address on the source campaign. Push reuses that metadata when it creates a locale copy. |
+
+## Connect Mailchimp
+
+Open **Integrations** and choose **Connect** on **Mailchimp**. Authorize the Mailchimp account in the window that opens. The connection uses the WorkOS Pipes `mailchimp` provider.
+
+Connect Mailchimp before you add the Mailchimp skill. Automations use the same connection.
+
+## Create the automation
+
+1. Open workspace **Automations** and select **New Automation**.
+2. Apply the **Translate Mailchimp content** template, or add the **Translate Mailchimp content** skill from **Add Skill**. Do not attach HubSpot, Braze, Customer.io, Iterable, or Loops tools to the same automation.
+3. Attach the native project.
+4. Choose a **scheduled** or **manual** trigger. A schedule imports changed campaigns and templates. It does not push copies.
+5. Under **Mailchimp campaigns and templates**, confirm the connection badge shows connected.
+6. Optionally tick campaigns or user templates in **Content to translate**. Leave all unchecked to import everything the library lists.
+7. Save the automation.
+
+Mailchimp is not a trigger type. Use a schedule or **Run now** for import. Use **Push to Mailchimp** for write-back.
+
+## Import campaigns and templates
+
+**Run now** or wait for the schedule. Import writes one HTML source file per item:
+
+- Regular campaigns at `mailchimp/campaigns/{id}/{slug}.html`
+- User templates at `mailchimp/templates/{id}/{slug}.html`
+
+Each file stores the subject line, preview text, from name (when present), and HTML body in field blocks. In the Content Editor they open in HTML File view. Review those files like other [HTML sources](/platform/projects/files).
+
+Import lists regular campaigns in `save`, `sent`, `paused`, and `schedule` status. It reads user templates only (not Mailchimp stock layouts). Merge tags such as `*|FNAME|*` stay protected so translators do not break personalization. Import skips names that already look like locale copies (`Welcome [fr-FR]`).
+
+When **Create native TMS job** is enabled, the run opens a job for mapped locales that still need translation. Import does not write anything to Mailchimp.
+
+Inspect **Run History** for imported, skipped, and failed items, plus jobs created.
+
+## Review and push locale copies
+
+1. Translate and [approve](/platform/cat) the mapped locales you want to write back.
+2. Enqueue **Push to Mailchimp** as a separate automation run after import. Scheduled import runs do not push.
+3. Confirm Mailchimp shows a new draft campaign or user template named `{source} [{locale}]`, for example `Spring sale [fr-FR]`. The source object stays unchanged. Hyperlocalise never sends or schedules a campaign.
+
+Campaign push creates a new regular campaign in `save` status (or updates content on an existing copy Hyperlocalise already created). Template push creates or updates a user template with the translated HTML.
+
+## Change or remove access
+
+Disconnect Mailchimp from **Integrations** when this workspace should stop using that Mailchimp account. Inspect automations that depend on the connection before you disconnect.
+
+## If import or push does not run
+
+- Confirm Mailchimp is connected and the automation is **Active**.
+- Confirm the project source locale matches the language of the default copy in Mailchimp.
+- Confirm the source campaign still has list and reply-to metadata if push skips campaign locales.
+- Open **Run History** for the failed campaign, template, or locale.
+
+See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).
+
+## Known limitations
+
+| Content | Status |
+| --- | --- |
+| Regular campaigns | Supported (`mailchimp/campaigns/{id}/{slug}.html`) |
+| User templates | Supported (`mailchimp/templates/{id}/{slug}.html`) |
+| Automations, journeys, SMS | Not supported in v1 |
+| Send or schedule on push | Never — draft copies only |
+
+Import skips unsupported content, and it does not appear in **Content to translate**.

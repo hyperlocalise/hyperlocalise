@@ -362,6 +362,35 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "translate-mailchimp-content",
+    category: "popular",
+    extraCategories: ["marketing"],
+    name: "Translate Mailchimp content",
+    description:
+      "Import Mailchimp campaigns and user templates as HTML, localise in Jobs, then push approved locales as draft copies.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Mailchimp localisation connector",
+      capabilities: [
+        "Import regular campaigns and user templates as HTML source files in the attached project",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push translations automatically on import — operators enqueue Push to Mailchimp separately",
+      ],
+      goal: "Write approved locales as Mailchimp draft copies without sending or scheduling.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-mailchimp-content"],
+      name: "Translate Mailchimp content",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      mailchimpEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-hubspot-content",
     category: "popular",
     extraCategories: ["marketing"],

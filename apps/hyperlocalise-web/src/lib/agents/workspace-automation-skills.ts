@@ -42,6 +42,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOLS = [
   "push_loops_emails",
   "import_hubspot_content",
   "push_hubspot_content",
+  "import_mailchimp_content",
+  "push_mailchimp_content",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -366,6 +368,22 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     },
   },
   {
+    id: "translate-mailchimp-content",
+    name: "Translate Mailchimp content",
+    category: "translate",
+    description:
+      "Import Mailchimp campaigns and user templates as HTML, then push approved locales as draft copies.",
+    grants:
+      "Reads Mailchimp campaigns and templates through Pipes, writes HTML source files and native jobs. Push creates draft campaigns or templates named with the locale suffix and never sends or schedules.",
+    tools: ["import_mailchimp_content", "push_mailchimp_content"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["mailchimp", "mailchimp campaign", "mailchimp template"],
+      weak: ["email", "newsletter", "import", "translate"],
+    },
+  },
+  {
     id: "translate-hubspot-content",
     name: "Translate HubSpot content",
     category: "translate",
@@ -489,6 +507,7 @@ export const CMS_TRANSLATION_SKILL_IDS = [
   "translate-customer-io-campaigns",
   "translate-iterable-templates",
   "translate-hubspot-content",
+  "translate-mailchimp-content",
   "translate-loops-emails",
   "translate-contentful-entries",
 ] as const;
@@ -538,6 +557,7 @@ export type WorkspaceAutomationSkillIntegration =
   | "iterable"
   | "loops"
   | "hubspot"
+  | "mailchimp"
   | "slack"
   | "email";
 
@@ -569,6 +589,8 @@ const SKILL_TOOL_INTEGRATIONS: Record<
   push_loops_emails: "loops",
   import_hubspot_content: "hubspot",
   push_hubspot_content: "hubspot",
+  import_mailchimp_content: "mailchimp",
+  push_mailchimp_content: "mailchimp",
   create_native_tms_job: null,
   assign_translate_with_agent: null,
   list_issues: null,
@@ -702,6 +724,9 @@ export function workspaceAutomationSkillToolEnabled(
     case "import_hubspot_content":
     case "push_hubspot_content":
       return Boolean(toolConfig.hubspot?.enabled);
+    case "import_mailchimp_content":
+    case "push_mailchimp_content":
+      return Boolean(toolConfig.mailchimp?.enabled);
     case "create_native_tms_job":
       return Boolean(toolConfig.createNativeTmsJob?.enabled);
     case "assign_translate_with_agent":

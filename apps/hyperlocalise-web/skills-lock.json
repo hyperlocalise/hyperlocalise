@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "mailchimp-marketing-api": {
+      "source": "../../.agents/skills/mailchimp-marketing-api",
+      "sourceType": "local",
+      "computedHash": "dc1ede31171ed3ca1b77d0d8f9582819bae4d6b904e86cca1e16aa6a26507efa"
+    }
+  }
+}

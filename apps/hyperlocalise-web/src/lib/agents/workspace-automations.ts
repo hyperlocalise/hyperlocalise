@@ -28,6 +28,10 @@ import {
   resolveIterablePipesWorkosUserId,
 } from "@/lib/iterable/pipes";
 import { getLoopsPipesConnectionStatus, resolveLoopsPipesWorkosUserId } from "@/lib/loops/pipes";
+import {
+  getMailchimpPipesConnectionStatus,
+  resolveMailchimpPipesWorkosUserId,
+} from "@/lib/mailchimp/pipes";
 import { loadBrazeRestEndpoint } from "@/lib/braze/settings";
 import { areBrazeSourceLocalesCompatible } from "@/lib/braze/locale";
 import {
@@ -96,6 +100,7 @@ import {
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationLoopsTool,
   hasWorkspaceAutomationHubspotTool,
+  hasWorkspaceAutomationMailchimpTool,
   hasWorkspaceAutomationIterableTool,
   hasWorkspaceAutomationCustomerIoTool,
   hasWorkspaceAutomationIntercomTool,
@@ -157,6 +162,7 @@ export function workspaceAutomationNeedsProject(input: {
     hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig) ||
     hasWorkspaceAutomationLoopsTool(input.toolConfig) ||
     hasWorkspaceAutomationHubspotTool(input.toolConfig) ||
+    hasWorkspaceAutomationMailchimpTool(input.toolConfig) ||
     hasWorkspaceAutomationIterableTool(input.toolConfig)
   ) {
     return true;
@@ -1181,6 +1187,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig),
     hasWorkspaceAutomationLoopsTool(input.toolConfig),
     hasWorkspaceAutomationHubspotTool(input.toolConfig),
+    hasWorkspaceAutomationMailchimpTool(input.toolConfig),
     hasWorkspaceAutomationIterableTool(input.toolConfig),
     hasWorkspaceAutomationContentfulWorkflow(input.toolConfig),
   ].filter(Boolean).length;
@@ -1193,6 +1200,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       !hasWorkspaceAutomationWebflowTool(input.toolConfig) &&
       !hasWorkspaceAutomationLoopsTool(input.toolConfig) &&
       !hasWorkspaceAutomationHubspotTool(input.toolConfig) &&
+      !hasWorkspaceAutomationMailchimpTool(input.toolConfig) &&
       !hasWorkspaceAutomationIterableTool(input.toolConfig) &&
       !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig);
     if (!brazePairOnly) {
@@ -1480,6 +1488,42 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       return err({
         code: "hubspot_not_connected",
         message: "Connect HubSpot in Integrations before using it.",
+      });
+    }
+  }
+
+  if (input.toolConfig.mailchimp?.enabled) {
+    const mailchimp = input.toolConfig.mailchimp;
+    const workosUserId = mailchimp.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "mailchimp_not_connected",
+        message: "Connect Mailchimp in Integrations before using it.",
+      });
+    }
+
+    const status = await getMailchimpPipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "mailchimp_pipes_unavailable",
+        message: "WorkOS is not configured, so Mailchimp cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "mailchimp_pipes_needs_reauthorization",
+        message: "Reconnect Mailchimp in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "mailchimp_not_connected",
+        message: "Connect Mailchimp in Integrations before using it.",
       });
     }
   }
@@ -1858,6 +1902,22 @@ async function stampPipesUsersOnToolConfig(input: {
       ...toolConfig,
       hubspot: {
         ...toolConfig.hubspot,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.mailchimp?.enabled) {
+    const workosUserId = await resolveMailchimpPipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      mailchimp: {
+        ...toolConfig.mailchimp,
         enabled: true,
         ...(workosUserId ? { workosUserId } : {}),
       },

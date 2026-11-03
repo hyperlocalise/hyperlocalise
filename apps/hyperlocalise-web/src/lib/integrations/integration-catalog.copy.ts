@@ -1019,7 +1019,7 @@ export const integrationCatalogCopy = {
       description: "Mailchimp integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Localize audiences, campaigns, and automations in Mailchimp.",
+      defaultMessage: "Localize Mailchimp campaigns and user templates.",
       id: "uzxy3XOTGJ",
       description: "Mailchimp integration description on the integrations page",
     },
