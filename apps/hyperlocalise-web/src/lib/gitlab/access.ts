@@ -68,22 +68,43 @@ export async function resolveGitLabCredentialOwner(input: {
     : (input.workosUserId ?? null);
 }
 
+export type StoredGitLabContextCheck<T> = {
+  context: T | null;
+  /** Why a stored context was set aside, so the chat can say so rather than go quiet. */
+  dropped: "server_changed" | "token_unreadable" | null;
+};
+
 /**
  * A stored chat context names a project on the server it came from, which may since have been
- * replaced or removed. Returns the context only while it still belongs to the current server.
+ * replaced or removed, or whose saved token can no longer be read. Returns the context only
+ * while it can still be used with the current connection.
  */
-export async function keepGitLabContextIfCurrent<
+export async function checkStoredGitLabContext<
   T extends Pick<RepositoryAgentGitLabContext, "httpUrlToRepo" | "repositoryFullName">,
->(input: { localOrganizationId: string; context: T | null | undefined }): Promise<T | null> {
+>(input: {
+  localOrganizationId: string;
+  context: T | null | undefined;
+}): Promise<StoredGitLabContextCheck<T>> {
   if (!input.context) {
-    return null;
+    return { context: null, dropped: null };
   }
-  const connection = await getGitLabConnection({ organizationId: input.localOrganizationId });
+  const connection = await loadGitLabConnectionCredentials({
+    organizationId: input.localOrganizationId,
+  });
+  if (isErr(connection)) {
+    return { context: null, dropped: "token_unreadable" };
+  }
   const expected = buildGitLabCloneUrl(
-    connection?.serverUrl ?? null,
+    connection.value?.baseUrl ?? null,
     input.context.repositoryFullName,
   );
   return input.context.httpUrlToRepo.toLowerCase() === expected.toLowerCase()
-    ? input.context
-    : null;
+    ? { context: input.context, dropped: null }
+    : { context: null, dropped: "server_changed" };
+}
+
+export async function keepGitLabContextIfCurrent<
+  T extends Pick<RepositoryAgentGitLabContext, "httpUrlToRepo" | "repositoryFullName">,
+>(input: { localOrganizationId: string; context: T | null | undefined }): Promise<T | null> {
+  return (await checkStoredGitLabContext(input)).context;
 }

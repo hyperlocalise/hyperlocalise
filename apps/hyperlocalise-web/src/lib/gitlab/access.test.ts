@@ -31,6 +31,7 @@ import { err, isErr, isOk, ok } from "@/lib/primitives/result/results";
 
 import { buildGitLabCloneUrl } from "./client";
 import {
+  checkStoredGitLabContext,
   keepGitLabContextIfCurrent,
   resolveGitLabAccess,
   resolveGitLabCredentialOwner,
@@ -145,9 +146,13 @@ describe("keepGitLabContextIfCurrent", () => {
     repositoryFullName: "acme/web",
     httpUrlToRepo: "https://git.acme.example/acme/web.git",
   };
+  const savedServer = (baseUrl: string) =>
+    mocks.loadGitLabConnectionCredentials.mockResolvedValue(
+      ok({ baseUrl, accessToken: "glpat-saved" }),
+    );
 
   it("keeps a context from the saved server", async () => {
-    mocks.getGitLabConnection.mockResolvedValue({ serverUrl: "https://git.acme.example" });
+    savedServer("https://git.acme.example");
 
     expect(await keepGitLabContextIfCurrent({ localOrganizationId: "org_1", context })).toBe(
       context,
@@ -155,10 +160,28 @@ describe("keepGitLabContextIfCurrent", () => {
   });
 
   it("drops a context once the server is replaced or removed", async () => {
-    mocks.getGitLabConnection.mockResolvedValueOnce({ serverUrl: "https://code.acme.example" });
+    savedServer("https://code.acme.example");
+    expect(await checkStoredGitLabContext({ localOrganizationId: "org_1", context })).toEqual({
+      context: null,
+      dropped: "server_changed",
+    });
 
-    expect(await keepGitLabContextIfCurrent({ localOrganizationId: "org_1", context })).toBeNull();
-    expect(await keepGitLabContextIfCurrent({ localOrganizationId: "org_1", context })).toBeNull();
+    mocks.loadGitLabConnectionCredentials.mockResolvedValue(ok(null));
+    expect(await checkStoredGitLabContext({ localOrganizationId: "org_1", context })).toEqual({
+      context: null,
+      dropped: "server_changed",
+    });
+  });
+
+  it("drops a context when the saved token can't be read", async () => {
+    mocks.loadGitLabConnectionCredentials.mockResolvedValue(
+      err({ code: "gitlab_connection_decrypt_failed", message: "Unable to read" }),
+    );
+
+    expect(await checkStoredGitLabContext({ localOrganizationId: "org_1", context })).toEqual({
+      context: null,
+      dropped: "token_unreadable",
+    });
   });
 
   it("keeps a GitLab.com context while there is no server", async () => {
@@ -167,8 +190,8 @@ describe("keepGitLabContextIfCurrent", () => {
     expect(
       await keepGitLabContextIfCurrent({ localOrganizationId: "org_1", context: gitlabComContext }),
     ).toBe(gitlabComContext);
-    expect(
-      await keepGitLabContextIfCurrent({ localOrganizationId: "org_1", context: null }),
-    ).toBeNull();
+    expect(await checkStoredGitLabContext({ localOrganizationId: "org_1", context: null })).toEqual(
+      { context: null, dropped: null },
+    );
   });
 });

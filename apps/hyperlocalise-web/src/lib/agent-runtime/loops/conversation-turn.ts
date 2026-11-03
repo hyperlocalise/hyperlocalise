@@ -28,7 +28,12 @@ import {
   getOrganizationRepositoryConnectorConfig,
   resolveConversationRepositoryGitHubContext,
 } from "@/lib/agents/repository-context";
-import { keepGitLabContextIfCurrent, resolveGitLabCredentialOwner } from "@/lib/gitlab/access";
+import {
+  checkStoredGitLabContext,
+  keepGitLabContextIfCurrent,
+  resolveGitLabCredentialOwner,
+  type StoredGitLabContextCheck,
+} from "@/lib/gitlab/access";
 import { createGitlabRepositorySandbox } from "@/lib/gitlab/gitlab-repository-sandbox";
 import { resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
 import {
@@ -205,14 +210,52 @@ function emptyRepositoryResolution(
   };
 }
 
+const DROPPED_GITLAB_CONTEXT_INSTRUCTIONS: Record<
+  NonNullable<StoredGitLabContextCheck<unknown>["dropped"]>,
+  string
+> = {
+  server_changed:
+    "The GitLab project used earlier in this conversation can't be used any more, because this workspace's GitLab connection has changed since. If the user asks about that repository, ask them to send a project link from the workspace's current GitLab server.",
+  token_unreadable:
+    "The GitLab project used earlier in this conversation can't be opened, because this workspace's saved GitLab token can't be read. If the user asks about that repository, tell them an admin or localization manager can check the GitLab connection under Integrations.",
+};
+
 export async function resolveConversationRepositoryContext(
   input: ResolveRepositoryContextInput,
 ): Promise<ResolvedRepositoryContext> {
-  const storedRepositoryContext = input.repositorySession?.repositoryGitHubContext ?? null;
-  const storedGitLabContext = await keepGitLabContextIfCurrent({
+  const storedGitLab = await checkStoredGitLabContext({
     localOrganizationId: input.organizationId,
     context: input.repositorySession?.repositoryGitLabContext,
   });
+  const resolution = await resolveRepositoryContextWithStoredGitLab(input, storedGitLab.context);
+  if (!storedGitLab.dropped) {
+    return resolution;
+  }
+
+  // Forget the unusable project so later turns don't carry it, and explain once why it's gone.
+  const staleContext = input.repositorySession?.repositoryGitLabContext;
+  const updatedSession =
+    resolution.updatedSession?.repositoryGitLabContext === staleContext
+      ? { ...resolution.updatedSession, repositoryGitLabContext: undefined }
+      : resolution.updatedSession;
+  if (resolution.context || resolution.gitlabContext) {
+    return { ...resolution, updatedSession };
+  }
+  const droppedNote = DROPPED_GITLAB_CONTEXT_INSTRUCTIONS[storedGitLab.dropped];
+  return {
+    ...resolution,
+    instructions: resolution.instructions
+      ? `${resolution.instructions}\n\n${droppedNote}`
+      : droppedNote,
+    updatedSession,
+  };
+}
+
+async function resolveRepositoryContextWithStoredGitLab(
+  input: ResolveRepositoryContextInput,
+  storedGitLabContext: RepositoryAgentGitLabContext | null,
+): Promise<ResolvedRepositoryContext> {
+  const storedRepositoryContext = input.repositorySession?.repositoryGitHubContext ?? null;
   const shouldResolve = shouldAttemptRepositoryContextResolution({
     classification: input.classification,
     storedRepositoryContext: storedRepositoryContext ?? storedGitLabContext,

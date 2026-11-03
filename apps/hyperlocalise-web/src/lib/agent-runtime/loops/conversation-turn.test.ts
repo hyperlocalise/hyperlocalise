@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const {
   classifyConversationMock,
@@ -27,6 +27,7 @@ const {
   resolveHyperlocaliseAgentLanguageModelMock,
   resolveGitLabPipesWorkosUserIdMock,
   getGitLabConnectionMock,
+  loadGitLabConnectionCredentialsMock,
 } = vi.hoisted(() => ({
   classifyConversationMock: vi.fn(),
   createConversationToolLoopAgentMock: vi.fn(() => ({ stream: vi.fn() })),
@@ -48,6 +49,7 @@ const {
   })),
   resolveGitLabPipesWorkosUserIdMock: vi.fn(async () => "user_workos"),
   getGitLabConnectionMock: vi.fn(async (..._args: unknown[]): Promise<unknown> => null),
+  loadGitLabConnectionCredentialsMock: vi.fn(async (..._args: unknown[]): Promise<unknown> => null),
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -105,7 +107,8 @@ vi.mock("@/lib/gitlab/gitlab-repository-sandbox", () => ({
 
 vi.mock("@/lib/gitlab/connections", () => ({
   getGitLabConnection: (...args: unknown[]) => getGitLabConnectionMock(...args),
-  loadGitLabConnectionCredentials: vi.fn(),
+  loadGitLabConnectionCredentials: (...args: unknown[]) =>
+    loadGitLabConnectionCredentialsMock(...args),
 }));
 
 vi.mock("@/lib/gitlab/pipes", () => ({
@@ -143,6 +146,9 @@ import {
   resolveConversationRepositoryContext,
   resolveVirtualAttachedProjectContext,
 } from "./conversation-turn";
+import { err, ok } from "@/lib/primitives/result/results";
+
+loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(null));
 
 const baseClassification = {
   needsRepositoryTools: false,
@@ -879,5 +885,74 @@ describe("conversation turn preparation", () => {
       }),
     );
     expect(result.updatedRepositorySession?.repositoryGitLabContext).toEqual(gitlabContext);
+  });
+});
+
+describe("a remembered GitLab project that can't be used any more", () => {
+  const oldServerContext = {
+    resolved: true as const,
+    provider: "gitlab" as const,
+    projectId: 11,
+    repositoryFullName: "acme/web",
+    httpUrlToRepo: "https://git.old.example/acme/web.git",
+  };
+  const resolveFollowUp = () =>
+    resolveConversationRepositoryContext({
+      surface: "web",
+      organizationId: "org_123",
+      projectId: null,
+      conversationText: "and where is the footer copy?",
+      currentMessageText: "and where is the footer copy?",
+      classification: {
+        ...baseClassification,
+        needsRepositoryTools: true,
+        continuesRepositoryThread: true,
+      },
+      repositorySession: { repositoryGitLabContext: oldServerContext },
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resolveConversationRepositoryGitHubContextMock.mockResolvedValue({ status: "not_applicable" });
+    resolveConversationRepositoryGitLabContextMock.mockResolvedValue({ status: "not_applicable" });
+  });
+
+  afterEach(() => {
+    loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(null));
+  });
+
+  it("isn't reused after the server changes, and the agent is told to ask for a new link", async () => {
+    loadGitLabConnectionCredentialsMock.mockResolvedValue(
+      ok({ baseUrl: "https://git.new.example", accessToken: "glpat-new" }),
+    );
+
+    const result = await resolveFollowUp();
+
+    expect(result.gitlabContext).toBeNull();
+    expect(result.instructions).toContain("current GitLab server");
+    expect(result.updatedSession?.repositoryGitLabContext).toBeUndefined();
+  });
+
+  it("isn't reused when the saved token can't be read, and the agent says who can fix it", async () => {
+    loadGitLabConnectionCredentialsMock.mockResolvedValue(
+      err({ code: "gitlab_connection_decrypt_failed", message: "Unable to read" }),
+    );
+
+    const result = await resolveFollowUp();
+
+    expect(result.gitlabContext).toBeNull();
+    expect(result.instructions).toContain("under Integrations");
+    expect(result.updatedSession?.repositoryGitLabContext).toBeUndefined();
+  });
+
+  it("is still reused while the server is unchanged", async () => {
+    loadGitLabConnectionCredentialsMock.mockResolvedValue(
+      ok({ baseUrl: "https://git.old.example", accessToken: "glpat-old" }),
+    );
+
+    const result = await resolveFollowUp();
+
+    expect(result.gitlabContext).toEqual(oldServerContext);
+    expect(result.updatedSession?.repositoryGitLabContext).toEqual(oldServerContext);
   });
 });
