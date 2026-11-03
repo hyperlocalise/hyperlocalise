@@ -83,7 +83,7 @@ describe("GitLabServerConnectionPanel", () => {
     mocks.connectionGet.mockImplementation(async () => Response.json({ gitlabConnection: null }));
     mocks.checkGet.mockImplementation(async () => Response.json({ working: true }));
     mocks.connectionPut.mockResolvedValue(Response.json({ gitlabConnection: savedConnection }));
-    mocks.connectionDelete.mockResolvedValue(Response.json({ deleted: true }));
+    mocks.connectionDelete.mockResolvedValue(new Response(null, { status: 204 }));
   });
 
   it("saves only once both the address and token are filled in, then clears the token", async () => {
