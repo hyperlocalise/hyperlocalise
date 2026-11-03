@@ -19,6 +19,7 @@ GitLab access goes through WorkOS Pipes, which holds each person's GitLab.com si
 ## Consequences
 
 - Everyone in the workspace who can use GitLab features acts through one token, so an admin decides what they can reach by choosing that token's access. This matches how a GitHub App installation works.
+- Chats remember a project together with its server, and stop using it once the server is replaced or removed. While a server is connected, GitLab.com links pasted in chat get a reply saying they aren't used.
 - Saved automations hold a project path, not a server. Replacing or removing a connection points those paths at the new server, or back at GitLab.com, so the panel warns before either.
 - Fixed outgoing addresses are a separate concern for any integration, and are not part of this connection. A server that only accepts allow-listed addresses can't be reached until they exist.
 - Agents still clone through a Vercel Sandbox with the token, so a server on a developer's machine works for everything except clones. Syncing files and opening merge requests are separate later work.

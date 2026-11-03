@@ -28,7 +28,7 @@ import {
   getOrganizationRepositoryConnectorConfig,
   resolveConversationRepositoryGitHubContext,
 } from "@/lib/agents/repository-context";
-import { isGitLabContextOnCurrentServer, resolveGitLabCredentialOwner } from "@/lib/gitlab/access";
+import { keepGitLabContextIfCurrent, resolveGitLabCredentialOwner } from "@/lib/gitlab/access";
 import { createGitlabRepositorySandbox } from "@/lib/gitlab/gitlab-repository-sandbox";
 import { resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
 import {
@@ -208,15 +208,10 @@ export async function resolveConversationRepositoryContext(
   input: ResolveRepositoryContextInput,
 ): Promise<ResolvedRepositoryContext> {
   const storedRepositoryContext = input.repositorySession?.repositoryGitHubContext ?? null;
-  const rememberedGitLabContext = input.repositorySession?.repositoryGitLabContext ?? null;
-  const storedGitLabContext =
-    rememberedGitLabContext &&
-    (await isGitLabContextOnCurrentServer({
-      localOrganizationId: input.organizationId,
-      context: rememberedGitLabContext,
-    }))
-      ? rememberedGitLabContext
-      : null;
+  const storedGitLabContext = await keepGitLabContextIfCurrent({
+    localOrganizationId: input.organizationId,
+    context: input.repositorySession?.repositoryGitLabContext,
+  });
   const shouldResolve = shouldAttemptRepositoryContextResolution({
     classification: input.classification,
     storedRepositoryContext: storedRepositoryContext ?? storedGitLabContext,
@@ -597,7 +592,10 @@ export async function prepareConversationAgentTurn(
   const chatMessages = await loadInteractionModelMessages(input.conversationId);
   const conversationText = getRecentUserConversationText(chatMessages, input.messageText);
   const storedRepositoryContext = input.repositorySession?.repositoryGitHubContext ?? null;
-  const storedGitLabContext = input.repositorySession?.repositoryGitLabContext ?? null;
+  const storedGitLabContext = await keepGitLabContextIfCurrent({
+    localOrganizationId: input.organizationId,
+    context: input.repositorySession?.repositoryGitLabContext,
+  });
   const languageModel =
     input.languageModel ??
     (await resolveHyperlocaliseAgentLanguageModel({

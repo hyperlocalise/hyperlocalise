@@ -26,6 +26,7 @@ const {
   getOrganizationRepositoryConnectorConfigMock,
   resolveHyperlocaliseAgentLanguageModelMock,
   resolveGitLabPipesWorkosUserIdMock,
+  getGitLabConnectionMock,
 } = vi.hoisted(() => ({
   classifyConversationMock: vi.fn(),
   createConversationToolLoopAgentMock: vi.fn(() => ({ stream: vi.fn() })),
@@ -46,6 +47,7 @@ const {
     modelId: "openai/gpt-6-luna",
   })),
   resolveGitLabPipesWorkosUserIdMock: vi.fn(async () => "user_workos"),
+  getGitLabConnectionMock: vi.fn(async (..._args: unknown[]): Promise<unknown> => null),
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -102,7 +104,7 @@ vi.mock("@/lib/gitlab/gitlab-repository-sandbox", () => ({
 }));
 
 vi.mock("@/lib/gitlab/connections", () => ({
-  getGitLabConnection: vi.fn(async () => null),
+  getGitLabConnection: (...args: unknown[]) => getGitLabConnectionMock(...args),
   loadGitLabConnectionCredentials: vi.fn(),
 }));
 
@@ -266,6 +268,60 @@ describe("conversation gitlab repository sandbox reuse", () => {
     vi.clearAllMocks();
     isRepositorySandboxAvailableMock.mockResolvedValue(true);
     resolveGitLabPipesWorkosUserIdMock.mockResolvedValue("user_workos");
+    getGitLabConnectionMock.mockResolvedValue(null);
+  });
+
+  describe("with a workspace's own server", () => {
+    const serverOwner = "gitlab-connection:https://git.acme.example:2026-11-03T00:00:00.000Z";
+    const serverSession = {
+      ...repositorySession,
+      repositorySandboxSession: {
+        ...repositorySession.repositorySandboxSession,
+        credentialOwnerWorkosUserId: serverOwner,
+      },
+    };
+    const run = () =>
+      getOrCreateConversationGitlabRepositorySandbox({
+        conversationId: "conv_123",
+        surface: "web",
+        gitlabContext,
+        repositorySession: serverSession,
+        organizationId: "org_123",
+        localUserId: "user_123",
+      });
+
+    it("reuses the clone while the connection is unchanged", async () => {
+      getGitLabConnectionMock.mockResolvedValue({
+        serverUrl: "https://git.acme.example",
+        updatedAt: "2026-11-03T00:00:00.000Z",
+      });
+
+      const result = await run();
+
+      expect(createGitlabRepositorySandboxMock).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ sandboxId: "sandbox_gitlab_stored", sandboxCreated: false });
+    });
+
+    it("clones again once the connection is saved again", async () => {
+      getGitLabConnectionMock.mockResolvedValue({
+        serverUrl: "https://git.acme.example",
+        updatedAt: "2026-11-03T00:05:00.000Z",
+      });
+      createGitlabRepositorySandboxMock.mockResolvedValueOnce("sandbox_gitlab_new");
+
+      const result = await run();
+
+      expect(result).toMatchObject({
+        sandboxId: "sandbox_gitlab_new",
+        sandboxCreated: true,
+        updatedSession: {
+          repositorySandboxSession: {
+            credentialOwnerWorkosUserId:
+              "gitlab-connection:https://git.acme.example:2026-11-03T00:05:00.000Z",
+          },
+        },
+      });
+    });
   });
 
   it("reuses a matching stored gitlab sandbox after the availability probe", async () => {

@@ -233,14 +233,14 @@ describe("createUseGitlabRepositoryTool", () => {
     expect(mocks.stopGitlabRepositorySandbox).toHaveBeenCalledWith("sbx-gitlab-1");
   });
 
-  it("explains a connection that stops working instead of a missing project", async () => {
+  it("reports a refused token as that, not as a missing project or connection", async () => {
     mocks.loadGitLabProjectContext.mockResolvedValue(
       err({ code: "gitlab_unauthorized", message: "GitLab rejected the connected account token." }),
     );
 
     await expect(
       createUseGitlabRepositoryTool(session()).execute!({}, toolOptions),
-    ).rejects.toThrow("gitlab_not_connected");
+    ).rejects.toThrow("gitlab_token_rejected");
   });
 
   it("reports a server that can't be reached as that, not as a missing connection", async () => {
@@ -253,7 +253,7 @@ describe("createUseGitlabRepositoryTool", () => {
     ).rejects.toThrow("gitlab_request_failed");
   });
 
-  it("rejects when GitLab is not connected", async () => {
+  it("reports not connected when there is no GitLab access", async () => {
     mocks.loadGitLabProjectContext.mockResolvedValue(
       err({ code: "gitlab_not_connected", message: "Connect GitLab in Integrations." }),
     );

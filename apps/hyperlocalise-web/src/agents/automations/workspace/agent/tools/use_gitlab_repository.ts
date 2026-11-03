@@ -59,6 +59,9 @@ export async function startGitlabRepositoryAgent(
     if (code === "gitlab_not_found") {
       throw new Error("gitlab_repository_not_found");
     }
+    if (code === "gitlab_unauthorized" || code === "gitlab_connection_decrypt_failed") {
+      throw new Error("gitlab_token_rejected");
+    }
     throw new Error(code === "gitlab_request_failed" ? code : "gitlab_not_connected");
   }
   const gitlabContext = contextResult.value;

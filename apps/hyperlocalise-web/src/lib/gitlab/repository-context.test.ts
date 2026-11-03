@@ -196,15 +196,37 @@ describe("resolveConversationRepositoryGitLabContext", () => {
       expect(loadGitLabPipesAccessTokenMock).not.toHaveBeenCalled();
     });
 
-    it("ignores GitLab.com links, which would name a different project", async () => {
+    it("explains that GitLab.com links aren't used, without looking them up", async () => {
       const result = await resolveConversationRepositoryGitLabContext({
         organizationId: "org_1",
         workosUserId: "user_1",
         text: "Check https://gitlab.com/acme/web please",
       });
 
-      expect(result).toEqual({ status: "not_applicable" });
+      expect(result).toMatchObject({
+        status: "unresolved",
+        followUp: expect.stringContaining("https://git.acme.example"),
+      });
       expect(getGitLabProjectMock).not.toHaveBeenCalled();
+    });
+
+    it("tells people a broken connection needs an admin, not a new connection", async () => {
+      getGitLabProjectMock.mockResolvedValue(
+        err({
+          code: "gitlab_unauthorized",
+          message: "GitLab rejected the connected account token.",
+        }),
+      );
+
+      const result = await resolveConversationRepositoryGitLabContext({
+        organizationId: "org_1",
+        text: "Check https://git.acme.example/acme/web please",
+      });
+
+      expect(result).toMatchObject({
+        status: "unresolved",
+        followUp: expect.stringContaining("An admin or localization manager"),
+      });
     });
   });
 });
