@@ -731,6 +731,22 @@ Signed-in WorkOS user profile at `/v1/me`. Notification preferences reuse
 | PATCH | `/v1/me/notification-preferences` | Replace the caller's email preferences |
 | DELETE | `/v1/me` | Refuse destructive delete (`409`) |
 
+## Account setup
+
+Workspace creation, invitations and profile for clients that sign in with
+WorkOS directly (the Iris desktop app), mirroring the web onboarding
+(`src/lib/onboarding/workspace.ts`, `src/lib/workos/pending-invitations.ts`).
+Each call first mirrors the WorkOS user into `users`, taking over the
+placeholder row an invitation made for the same email. Needs `WORKOS_API_KEY`;
+without it these return `503 workos_server_not_configured`.
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| POST | `/v1/organizations` | `{ name }`: create the WorkOS organization, admin membership, local rows and default team. `201 { organization }`; the client then switches its session to `organization.workosOrganizationId` |
+| PATCH | `/v1/me` | `{ firstName, lastName }`: update the WorkOS user and the local row |
+| GET | `/v1/invitations` | `{ invitations: [{ organizationName, organizationSlug }] }`: workspaces invited to and not joined |
+| POST | `/v1/invitations/{organizationSlug}/accept` | Accept the WorkOS invitation (verified email only) and activate the membership. `{ organization }` |
+
 ## Billing
 
 Workspace Autumn customer snapshot, checkout, portal, invoices, and

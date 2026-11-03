@@ -13,6 +13,8 @@
 
 import { loadFirstAudienceDefaults } from "./campaign-recreate";
 import type { MailchimpCampaignSummary, MailchimpClient, MailchimpTemplateDetail } from "./client";
+import type { MailchimpResourceKind } from "./constants";
+import type { MailchimpRemoteCopyFields } from "./html-envelope";
 
 export type MailchimpCampaignContentPayload = {
   html?: string;
@@ -168,6 +170,40 @@ async function htmlFromTemporaryCampaign(
   } finally {
     await client.deleteCampaign(created.id).catch(() => undefined);
   }
+}
+
+/** Live locale-copy fields used as the push merge base. */
+export async function loadMailchimpCopyRemoteFields(input: {
+  client: MailchimpClient;
+  resourceKind: MailchimpResourceKind;
+  copyId: string;
+}): Promise<MailchimpRemoteCopyFields | null> {
+  if (input.resourceKind === "campaign") {
+    const [campaign, content] = await Promise.all([
+      input.client.getCampaign(input.copyId),
+      input.client.getCampaignContent(input.copyId),
+    ]);
+    const html = resolveCampaignHtml(content);
+    if (!html) {
+      return null;
+    }
+    return {
+      subject: campaign.settings.subject_line ?? "",
+      previewText: campaign.settings.preview_text,
+      fromName: campaign.settings.from_name,
+      html,
+    };
+  }
+
+  const template = await input.client.getTemplate(input.copyId);
+  const html = template.html?.trim() ?? "";
+  if (!html) {
+    return null;
+  }
+  return {
+    subject: template.name,
+    html,
+  };
 }
 
 export async function resolveTemplateHtml(

@@ -12,7 +12,12 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { htmlFromTemplateSections, resolveCampaignHtml, resolveTemplateHtml } from "./remote-html";
+import {
+  htmlFromTemplateSections,
+  loadMailchimpCopyRemoteFields,
+  resolveCampaignHtml,
+  resolveTemplateHtml,
+} from "./remote-html";
 import type { MailchimpClient } from "./client";
 
 describe("resolveCampaignHtml", () => {
@@ -115,5 +120,49 @@ describe("resolveTemplateHtml", () => {
 
     await expect(resolveTemplateHtml(client, "10000144")).resolves.toBe("<p>Rendered</p>");
     expect(deleted).toEqual(["draft-1"]);
+  });
+});
+
+describe("loadMailchimpCopyRemoteFields", () => {
+  it("reads campaign settings and html for an existing locale copy", async () => {
+    const client = {
+      getCampaign: async () => ({
+        id: "camp-fr",
+        type: "regular",
+        settings: {
+          subject_line: "Bienvenue",
+          preview_text: "Aperçu",
+          from_name: "Marque",
+        },
+      }),
+      getCampaignContent: async () => ({ html: "<p>Bonjour</p>" }),
+    } as unknown as MailchimpClient;
+
+    await expect(
+      loadMailchimpCopyRemoteFields({
+        client,
+        resourceKind: "campaign",
+        copyId: "camp-fr",
+      }),
+    ).resolves.toEqual({
+      subject: "Bienvenue",
+      previewText: "Aperçu",
+      fromName: "Marque",
+      html: "<p>Bonjour</p>",
+    });
+  });
+
+  it("returns null when a template copy has no html", async () => {
+    const client = {
+      getTemplate: async () => ({ id: 44, name: "Sale [fr-FR]" }),
+    } as unknown as MailchimpClient;
+
+    await expect(
+      loadMailchimpCopyRemoteFields({
+        client,
+        resourceKind: "template",
+        copyId: "44",
+      }),
+    ).resolves.toBeNull();
   });
 });
