@@ -35,6 +35,8 @@ import { createImportWebflowItemsTool } from "./tools/import_webflow_items";
 import { createImportGoogleDriveFilesTool } from "./tools/import_google_drive_files";
 import { createPushBrazeCampaignsTool } from "./tools/push_braze_campaigns";
 import { createPushHubspotContentTool } from "./tools/push_hubspot_content";
+import { createImportMailchimpContentTool } from "./tools/import_mailchimp_content";
+import { createPushMailchimpContentTool } from "./tools/push_mailchimp_content";
 import { createPushLoopsEmailsTool } from "./tools/push_loops_emails";
 import { createPushCustomerIoCampaignsTool } from "./tools/push_customer_io_campaigns";
 import { createPushBrazeTemplatesTool } from "./tools/push_braze_templates";
@@ -81,6 +83,8 @@ const TOOL_BUILDERS: Record<
   push_loops_emails: createPushLoopsEmailsTool,
   import_hubspot_content: createImportHubspotContentTool,
   push_hubspot_content: createPushHubspotContentTool,
+  import_mailchimp_content: createImportMailchimpContentTool,
+  push_mailchimp_content: createPushMailchimpContentTool,
   create_native_tms_job: createNativeTmsJobTool,
   assign_translate_with_agent: createAssignTranslateWithAgentTool,
   list_issues: createListIssuesTool,

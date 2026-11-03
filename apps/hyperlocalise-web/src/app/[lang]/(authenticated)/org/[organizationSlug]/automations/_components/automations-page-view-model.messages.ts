@@ -120,6 +120,11 @@ export const automationsPageViewModelMessages = defineMessages({
     id: "15zAdlHpmJ",
     description: "Tool badge when an automation uses HubSpot",
   },
+  toolMailchimp: {
+    defaultMessage: "Mailchimp",
+    id: "m+3SVatJRr",
+    description: "Tool badge when an automation uses Mailchimp",
+  },
   toolCrowdin: {
     defaultMessage: "Crowdin",
     id: "Qw/ZLtBjN0",

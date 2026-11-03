@@ -362,6 +362,36 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "translate-mailchimp-content",
+    category: "popular",
+    extraCategories: ["marketing"],
+    name: "Translate Mailchimp content",
+    description:
+      "Import Mailchimp campaigns (including drag-and-drop designs) and HTML user templates, localise in Jobs, then push approved locales as draft copies.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Mailchimp localisation connector",
+      capabilities: [
+        "Import regular campaigns as HTML source files (rendered HTML even for drag-and-drop campaign designs)",
+        "Import code-your-own HTML user templates only; saved drag-and-drop template layouts are not importable via the Mailchimp API",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push translations automatically on import — operators enqueue Push to Mailchimp separately",
+      ],
+      goal: "Write approved locales as Mailchimp draft copies without sending or scheduling.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-mailchimp-content"],
+      name: "Translate Mailchimp content",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      mailchimpEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-hubspot-content",
     category: "popular",
     extraCategories: ["marketing"],
@@ -1289,6 +1319,10 @@ export function getWorkspaceAutomationTemplateFlow(
 
   if (form.hubspotEnabled) {
     tools.push({ id: "hubspot", label: "HubSpot" });
+  }
+
+  if (form.mailchimpEnabled) {
+    tools.push({ id: "mailchimp", label: "Mailchimp" });
   }
 
   if (form.createNativeTmsJobEnabled) {

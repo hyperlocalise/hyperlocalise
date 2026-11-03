@@ -50,6 +50,7 @@ type IconBucket =
   | "customer-io"
   | "loops"
   | "hubspot"
+  | "mailchimp"
   | "web-search"
   | "web-chat"
   | "upload"
@@ -68,6 +69,7 @@ const BRAND_TOOL_IDS = new Set([
   "customer-io",
   "loops",
   "hubspot",
+  "mailchimp",
 ]);
 
 function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucket {
@@ -107,6 +109,8 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
       return "loops";
     case "hubspot":
       return "hubspot";
+    case "mailchimp":
+      return "mailchimp";
     case "web-search":
       return "web-search";
     case "web-chat":
@@ -207,6 +211,16 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
       return (
         <Image
           src="/images/hubspot-logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className={iconClassName}
+        />
+      );
+    case "mailchimp":
+      return (
+        <Image
+          src="/images/mailchimp-logo.svg"
           alt=""
           width={16}
           height={16}

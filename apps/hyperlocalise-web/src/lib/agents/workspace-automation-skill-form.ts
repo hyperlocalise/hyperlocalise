@@ -92,6 +92,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS: Record<
   push_loops_emails: ["projectId"],
   import_hubspot_content: ["projectId"],
   push_hubspot_content: ["projectId"],
+  import_mailchimp_content: ["projectId"],
+  push_mailchimp_content: ["projectId"],
 };
 
 /** Ids of the given skills whose tools own the field, in the order given. */
@@ -190,6 +192,7 @@ function enableSkillTool(
         iterableEnabled: false,
         loopsEnabled: false,
         hubspotEnabled: false,
+        mailchimpEnabled: false,
       };
     case "import_braze_campaigns":
     case "push_braze_campaigns":
@@ -201,6 +204,7 @@ function enableSkillTool(
         iterableEnabled: false,
         loopsEnabled: false,
         hubspotEnabled: false,
+        mailchimpEnabled: false,
       };
     case "import_customer_io_campaigns":
     case "push_customer_io_campaigns":
@@ -212,6 +216,7 @@ function enableSkillTool(
         iterableEnabled: false,
         loopsEnabled: false,
         hubspotEnabled: false,
+        mailchimpEnabled: false,
       };
     case "import_iterable_templates":
     case "push_iterable_templates":
@@ -223,6 +228,7 @@ function enableSkillTool(
         brazeCampaignsEnabled: false,
         customerIoEnabled: false,
         hubspotEnabled: false,
+        mailchimpEnabled: false,
       };
     case "import_loops_emails":
     case "push_loops_emails":
@@ -234,12 +240,26 @@ function enableSkillTool(
         brazeCampaignsEnabled: false,
         customerIoEnabled: false,
         hubspotEnabled: false,
+        mailchimpEnabled: false,
       };
     case "import_hubspot_content":
     case "push_hubspot_content":
       return {
         ...form,
         hubspotEnabled: true,
+        mailchimpEnabled: false,
+        brazeEnabled: false,
+        brazeCampaignsEnabled: false,
+        customerIoEnabled: false,
+        iterableEnabled: false,
+        loopsEnabled: false,
+      };
+    case "import_mailchimp_content":
+    case "push_mailchimp_content":
+      return {
+        ...form,
+        mailchimpEnabled: true,
+        hubspotEnabled: false,
         brazeEnabled: false,
         brazeCampaignsEnabled: false,
         customerIoEnabled: false,
@@ -325,6 +345,9 @@ function disableSkillTool(
     case "import_hubspot_content":
     case "push_hubspot_content":
       return { ...form, hubspotEnabled: false };
+    case "import_mailchimp_content":
+    case "push_mailchimp_content":
+      return { ...form, mailchimpEnabled: false };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: false };
     case "assign_translate_with_agent":

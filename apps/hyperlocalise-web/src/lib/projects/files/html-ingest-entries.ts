@@ -349,7 +349,68 @@ export function extractHtmlIngestEntriesInOrder(
       entries.push({ key, text });
     },
   });
+  return [...extractMarkedHeadEntries(html), ...entries];
+}
+
+const MAILCHIMP_HEAD_TITLE =
+  /<title\b[^>]*data-hl-mailchimp-field="[^"]+"[^>]*>([\s\S]*?)<\/title>/i;
+const MAILCHIMP_HEAD_META = /<meta\b[^>]*data-hl-mailchimp-field="[^"]+"[^>]*>/gi;
+
+function extractMarkedHeadEntries(html: string): HtmlIngestEntry[] {
+  const entries: HtmlIngestEntry[] = [];
+  const title = MAILCHIMP_HEAD_TITLE.exec(html);
+  if (title?.[1] != null) {
+    const text = unescapeHtml(title[1]);
+    if (isTranslatableChunk(text)) {
+      entries.push({ key: "html.head.title", text });
+    }
+  }
+  for (const match of html.matchAll(MAILCHIMP_HEAD_META)) {
+    const tag = match[0] ?? "";
+    const name = /(?:\sname|\sproperty)\s*=\s*"([^"]+)"/i.exec(tag)?.[1]?.trim();
+    const content = /\scontent\s*=\s*"([^"]*)"/i.exec(tag)?.[1] ?? "";
+    const text = unescapeHtml(content);
+    if (name && isTranslatableChunk(text)) {
+      entries.push({ key: `html.head.meta.${name}`, text });
+    }
+  }
   return entries;
+}
+
+function applyMarkedHeadTranslations(html: string, translations: Record<string, string>): string {
+  let out = html;
+  const titleNext = translations["html.head.title"];
+  if (titleNext !== undefined) {
+    out = out.replace(
+      /(<title\b[^>]*data-hl-mailchimp-field="[^"]+"[^>]*>)[\s\S]*?(<\/title>)/i,
+      (_, open: string, close: string) => `${open}${escapeHtmlText(titleNext)}${close}`,
+    );
+  }
+  return out.replace(/<meta\b[^>]*data-hl-mailchimp-field="[^"]+"[^>]*>/gi, (tag) => {
+    const name = /(?:\sname|\sproperty)\s*=\s*"([^"]+)"/i.exec(tag)?.[1]?.trim();
+    if (!name) {
+      return tag;
+    }
+    const next = translations[`html.head.meta.${name}`];
+    if (next === undefined) {
+      return tag;
+    }
+    if (/\scontent\s*=\s*"/i.test(tag)) {
+      return tag.replace(/\scontent\s*=\s*"[^"]*"/i, ` content="${escapeHtmlText(next)}"`);
+    }
+    if (/\scontent\s*=\s*'/i.test(tag)) {
+      return tag.replace(/\scontent\s*=\s*'[^']*'/i, ` content='${escapeHtmlText(next)}'`);
+    }
+    return tag;
+  });
+}
+
+function escapeHtmlText(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 function extractFoldedHtmlUnits(html: string): FoldedHtmlUnit[] {
@@ -397,7 +458,7 @@ export function applyHtmlIngestTranslations(
   html: string,
   translations: Record<string, string>,
 ): string {
-  return rewriteHtmlIngestTexts(html, translations);
+  return applyMarkedHeadTranslations(rewriteHtmlIngestTexts(html, translations), translations);
 }
 
 function rewriteHtmlIngestTexts(html: string, translations: Record<string, string>): string {

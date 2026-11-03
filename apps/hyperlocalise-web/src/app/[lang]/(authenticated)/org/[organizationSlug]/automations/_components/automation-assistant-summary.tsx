@@ -42,6 +42,7 @@ export const AUTOMATION_ASSISTANT_INTEGRATION_LABELS: Record<
   iterable: workspaceAutomationFormMessages.skillIntegrationIterable,
   loops: workspaceAutomationFormMessages.skillIntegrationLoops,
   hubspot: workspaceAutomationFormMessages.skillIntegrationHubspot,
+  mailchimp: workspaceAutomationFormMessages.skillIntegrationMailchimp,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
 };
