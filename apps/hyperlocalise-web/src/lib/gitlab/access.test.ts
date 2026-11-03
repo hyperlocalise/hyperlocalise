@@ -29,8 +29,8 @@ vi.mock("./pipes", () => ({
 
 import { err, isErr, isOk, ok } from "@/lib/primitives/result/results";
 
+import { buildGitLabCloneUrl } from "./client";
 import {
-  buildGitLabCloneUrl,
   isGitLabContextOnCurrentServer,
   resolveGitLabAccess,
   resolveGitLabCredentialOwner,

@@ -16,7 +16,7 @@ Keep GitLab.com on Pipes. Add `use_gitlab_repository` as a read-only workspace o
 
 Chat listing, picker keys, and pasted URLs stay on GitLab.com (`gitlab:<path>`).
 
-Do not add self-hosted GitLab connections, GitLab webhooks, merge-request comment tools, or sync workflows.
+Do not add GitLab webhooks, merge-request comment tools, or sync workflows. Self-hosted GitLab servers were added later; see `2026-11-03-self-hosted-gitlab-connection-design.md`.
 
 ## Consequences
 
