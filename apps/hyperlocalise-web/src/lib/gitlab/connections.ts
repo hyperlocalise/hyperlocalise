@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 
-import { eq } from "drizzle-orm";
+import { eq, getTableColumns, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -24,7 +24,12 @@ import {
 
 import { checkGitLabProjectAccess, getGitLabCurrentUsername } from "./client";
 import { resolveGitLabServerUrl } from "./server-url";
-import type { GitLabApiError, GitLabConnectionError, GitLabConnectionSummary } from "./types";
+import type {
+  GitLabApiError,
+  GitLabConnectionDecryptError,
+  GitLabConnectionError,
+  GitLabConnectionSummary,
+} from "./types";
 
 type GitLabConnectionRow = typeof schema.gitlabConnections.$inferSelect;
 
@@ -58,6 +63,13 @@ function mapCheckError(error: GitLabApiError): GitLabConnectionError {
   if (error.code === "gitlab_request_failed" && error.status >= 200 && error.status < 300) {
     return GITLAB_NOT_RECOGNIZED;
   }
+  if (error.code === "gitlab_request_failed" && error.timedOut) {
+    return {
+      code: "gitlab_server_unreachable",
+      message:
+        "This address didn't answer in time. Check it's correct and reachable from the internet.",
+    };
+  }
   if (error.code === "gitlab_request_failed" && error.status > 0) {
     return {
       code: "gitlab_server_unreachable",
@@ -75,10 +87,23 @@ function mapCheckError(error: GitLabApiError): GitLabConnectionError {
 async function checkGitLabServer(input: {
   baseUrl: string;
   accessToken: string;
+  signal?: AbortSignal;
 }): Promise<Result<string, GitLabConnectionError>> {
+  // The first failure decides the answer, so it also stops the other request.
+  const controller = new AbortController();
+  const signal = input.signal
+    ? AbortSignal.any([input.signal, controller.signal])
+    : controller.signal;
+  const stopOnFailure = <T extends Result<unknown, GitLabApiError>>(result: T): T => {
+    if (isErr(result)) {
+      controller.abort();
+    }
+    return result;
+  };
+  const access = { baseUrl: input.baseUrl, accessToken: input.accessToken, signal };
   const [username, projects] = await Promise.all([
-    getGitLabCurrentUsername(input),
-    checkGitLabProjectAccess(input),
+    getGitLabCurrentUsername(access).then(stopOnFailure),
+    checkGitLabProjectAccess(access).then(stopOnFailure),
   ]);
   if (isErr(username)) {
     return err(mapCheckError(username.error));
@@ -102,13 +127,19 @@ export async function getGitLabConnection(input: {
   return row ? serializeConnection(row) : null;
 }
 
-/** The token is required on every save, so a stored one can't be pointed at a new address. */
+/**
+ * The token is required on every save, so a stored one can't be pointed at a new address.
+ * `created` is true when the workspace had no connection before.
+ */
 export async function saveGitLabConnection(input: {
   organizationId: string;
   userId: string;
   serverUrl: string;
   accessToken: string;
-}): Promise<Result<GitLabConnectionSummary, GitLabConnectionError>> {
+  signal?: AbortSignal;
+}): Promise<
+  Result<{ connection: GitLabConnectionSummary; created: boolean }, GitLabConnectionError>
+> {
   const baseUrl = await resolveGitLabServerUrl(input.serverUrl);
   if (isErr(baseUrl)) {
     return baseUrl;
@@ -117,12 +148,16 @@ export async function saveGitLabConnection(input: {
   const accessToken = input.accessToken.trim();
   if (!TOKEN_CHARACTERS.test(accessToken)) {
     return err({
-      code: "gitlab_token_rejected",
+      code: "gitlab_token_invalid",
       message: "This doesn't look like an access token. Copy it again without spaces.",
     });
   }
 
-  const username = await checkGitLabServer({ baseUrl: baseUrl.value, accessToken });
+  const username = await checkGitLabServer({
+    baseUrl: baseUrl.value,
+    accessToken,
+    signal: input.signal,
+  });
   if (isErr(username)) {
     return username;
   }
@@ -144,13 +179,17 @@ export async function saveGitLabConnection(input: {
     .insert(schema.gitlabConnections)
     .values({ ...fields, organizationId: input.organizationId, createdByUserId: input.userId })
     .onConflictDoUpdate({ target: schema.gitlabConnections.organizationId, set: fields })
-    .returning();
+    // Postgres leaves xmax at 0 on a row this statement inserted rather than updated.
+    .returning({
+      ...getTableColumns(schema.gitlabConnections),
+      created: sql<boolean>`(xmax = 0)`,
+    });
 
   if (!row) {
     throw new Error("gitlab_connection_save_failed");
   }
 
-  return ok(serializeConnection(row));
+  return ok({ connection: serializeConnection(row), created: row.created });
 }
 
 export async function deleteGitLabConnection(input: { organizationId: string }): Promise<boolean> {
@@ -164,7 +203,7 @@ export async function deleteGitLabConnection(input: { organizationId: string }):
 
 export async function loadGitLabConnectionCredentials(input: {
   organizationId: string;
-}): Promise<Result<{ baseUrl: string; accessToken: string } | null, GitLabConnectionError>> {
+}): Promise<Result<{ baseUrl: string; accessToken: string } | null, GitLabConnectionDecryptError>> {
   const [row] = await db
     .select()
     .from(schema.gitlabConnections)

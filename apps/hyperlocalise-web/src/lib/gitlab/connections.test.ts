@@ -81,7 +81,7 @@ describe("gitlab connections", () => {
       accessToken: " glpat-secret-abcd ",
     });
 
-    expect(isOk(saved) && saved.value).toMatchObject({
+    expect(isOk(saved) && saved.value.connection).toMatchObject({
       serverUrl: "https://git.acme.example/gitlab",
       connectedUsername: "translations-bot",
     });
@@ -224,8 +224,58 @@ describe("gitlab connections", () => {
       accessToken: "glpat one\ntwo",
     });
 
-    expect(isErr(result) && result.error.code).toBe("gitlab_token_rejected");
+    expect(isErr(result) && result.error.code).toBe("gitlab_token_invalid");
     expect(mocks.withPublicHttpFetch).not.toHaveBeenCalled();
+  });
+
+  it("says whether a save made the connection or replaced it, and keeps who made it", async () => {
+    mockServer(healthyServer());
+    const scope = await seedScope();
+    const input = { ...scope, serverUrl: "https://git.acme.example", accessToken: "glpat-good" };
+
+    const first = await saveGitLabConnection(input);
+    const second = await saveGitLabConnection({ ...input, userId: scope.userId });
+
+    expect(isOk(first) && first.value.created).toBe(true);
+    expect(isOk(second) && second.value.created).toBe(false);
+    const [row] = await db
+      .select({ createdBy: schema.gitlabConnections.createdByUserId })
+      .from(schema.gitlabConnections)
+      .where(eq(schema.gitlabConnections.organizationId, scope.organizationId));
+    expect(row?.createdBy).toBe(scope.userId);
+  });
+
+  it("explains a server that doesn't answer in time", async () => {
+    mocks.withPublicHttpFetch.mockRejectedValue(
+      new DOMException("The operation was aborted due to timeout", "TimeoutError"),
+    );
+    const scope = await seedScope();
+
+    const result = await saveGitLabConnection({
+      ...scope,
+      serverUrl: "https://git.acme.example",
+      accessToken: "glpat-good",
+    });
+
+    expect(isErr(result) && result.error.message).toContain("didn't answer in time");
+  });
+
+  it("reports a saved token that can no longer be read, without falling back", async () => {
+    mockServer(healthyServer());
+    const scope = await seedScope();
+    await saveGitLabConnection({
+      ...scope,
+      serverUrl: "https://git.acme.example",
+      accessToken: "glpat-good",
+    });
+    await db
+      .update(schema.gitlabConnections)
+      .set({ authTag: "AAAAAAAAAAAAAAAAAAAAAA==" })
+      .where(eq(schema.gitlabConnections.organizationId, scope.organizationId));
+
+    const loaded = await loadGitLabConnectionCredentials({ organizationId: scope.organizationId });
+
+    expect(isErr(loaded) && loaded.error.code).toBe("gitlab_connection_decrypt_failed");
   });
 
   it("reports no credentials once the connection is removed", async () => {

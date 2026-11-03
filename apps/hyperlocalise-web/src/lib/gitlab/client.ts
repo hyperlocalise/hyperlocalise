@@ -12,6 +12,7 @@
  */
 import { createLogger } from "@/lib/log";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { stopWaitingOnAbort } from "@/lib/primitives/abort/stop-waiting-on-abort";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 import { withPublicHttpFetch } from "@/lib/security/public-http-fetch";
 
@@ -22,7 +23,7 @@ import {
   GITLAB_PROJECT_PAGE_SIZE,
   GITLAB_SERVER_REQUEST_TIMEOUT_MS,
 } from "./constants";
-import { isLocalDevGitLabServer, stopWaitingOnAbort } from "./server-url";
+import { isLocalDevGitLabServer } from "./server-url";
 import type {
   GitLabAccess,
   GitLabApiError,
@@ -40,12 +41,18 @@ const NOT_FOUND: GitLabApiError = {
   message: "GitLab could not find that project.",
 };
 
-function requestFailed(status: number): GitLabApiError {
+function requestFailed(status: number, timedOut = false): GitLabApiError {
   return {
     code: "gitlab_request_failed",
     message: "GitLab request failed.",
     status,
+    ...(timedOut ? { timedOut } : {}),
   };
+}
+
+/** Clones send the token to this address, so for a saved server it's built from that server. */
+export function buildGitLabCloneUrl(baseUrl: string | null, pathWithNamespace: string): string {
+  return `${baseUrl ?? GITLAB_API_ORIGIN}/${pathWithNamespace}.git`;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -80,8 +87,8 @@ function parseProject(value: unknown, baseUrl: string | null): GitLabProject | n
     id,
     name,
     pathWithNamespace,
-    // A server chooses what it reports here, and clones send the token to this address.
-    httpUrlToRepo: baseUrl ? `${baseUrl}/${pathWithNamespace}.git` : httpUrlToRepo,
+    // A server chooses what it reports here.
+    httpUrlToRepo: baseUrl ? buildGitLabCloneUrl(baseUrl, pathWithNamespace) : httpUrlToRepo,
     defaultBranch: asString(record.default_branch),
     archived: record.archived === true,
   };
@@ -112,7 +119,9 @@ async function requestGitLabServer(
   const timeout = AbortSignal.timeout(GITLAB_SERVER_REQUEST_TIMEOUT_MS);
   const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
   if (isLocalDevGitLabServer(new URL(baseUrl))) {
-    return fetch(url, { ...init, signal, redirect: "error" });
+    const response = await fetch(url, { ...init, signal, redirect: "error" });
+    const body = await response.text();
+    return { ok: response.ok, status: response.status, text: async () => body };
   }
   return stopWaitingOnAbort(
     withPublicHttpFetch(
@@ -151,7 +160,7 @@ async function gitlabJson(
       : await fetch(url, { headers, signal: input.signal });
   } catch (error) {
     logger.warn(describeRequestFailure(error), "gitlab request failed before an answer");
-    return err(requestFailed(0));
+    return err(requestFailed(0, error instanceof Error && error.name === "TimeoutError"));
   }
 
   if (response.status === 401 || response.status === 403) {

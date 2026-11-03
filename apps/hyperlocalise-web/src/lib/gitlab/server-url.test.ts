@@ -80,6 +80,10 @@ describe("normalizeGitLabServerUrl", () => {
 });
 
 describe("resolveGitLabServerUrl", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("refuses a public name that resolves to a private address", async () => {
     mocks.assertProviderUrlResolvable.mockRejectedValueOnce(new Error("blocked"));
 
@@ -96,6 +100,5 @@ describe("resolveGitLabServerUrl", () => {
 
     expect(isOk(result)).toBe(true);
     expect(mocks.assertProviderUrlResolvable).not.toHaveBeenCalled();
-    vi.unstubAllEnvs();
   });
 });

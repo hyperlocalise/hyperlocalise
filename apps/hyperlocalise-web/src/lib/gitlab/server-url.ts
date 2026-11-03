@@ -14,6 +14,7 @@
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { assertProviderUrlResolvable } from "@/lib/providers/shared/provider-url-resolve";
 import { normalizeProviderBaseUrl } from "@/lib/providers/shared/provider-url-safety";
+import { stopWaitingOnAbort } from "@/lib/primitives/abort/stop-waiting-on-abort";
 import { normalizeHostname } from "@/lib/security/ssrf-guard";
 
 import { GITLAB_SERVER_REQUEST_TIMEOUT_MS } from "./constants";
@@ -36,19 +37,6 @@ export function isLocalDevGitLabServer(url: URL): boolean {
     process.env.NODE_ENV === "development" &&
     LOCAL_DEV_HOSTNAMES.has(normalizeHostname(url.hostname))
   );
-}
-
-/** Stops waiting when the signal fires, for steps such as DNS lookups that can't be cancelled. */
-export function stopWaitingOnAbort<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(signal.reason);
-    if (signal.aborted) {
-      onAbort();
-      return;
-    }
-    signal.addEventListener("abort", onAbort, { once: true });
-    work.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
-  });
 }
 
 function normalizeLocalDevServerUrl(value: string): string | null {

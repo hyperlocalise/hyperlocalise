@@ -29,6 +29,7 @@ vi.mock("@/lib/security/public-http-fetch", () => ({
 
 describe("gitlab client", () => {
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
 
@@ -185,7 +186,7 @@ describe("gitlab client", () => {
       vi.mocked(withPublicHttpFetch).mockReset();
     });
 
-    it("keeps the server's path, pins the address and refuses redirects", async () => {
+    it("keeps the server's path and sends requests through the guarded fetch, redirects refused", async () => {
       const fetchMock = vi.fn();
       vi.stubGlobal("fetch", fetchMock);
       mockServerResponse(200, { username: "translations-bot" });
@@ -280,11 +281,20 @@ describe("gitlab client", () => {
         accessToken: "token",
         baseUrl: "http://localhost:8929",
       });
-      vi.unstubAllEnvs();
 
       expect(isOk(result) && result.value).toBe("local-bot");
       expect(withPublicHttpFetch).not.toHaveBeenCalled();
       expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ redirect: "error" });
+    });
+
+    it("marks a request that ran out of time", async () => {
+      vi.mocked(withPublicHttpFetch).mockRejectedValue(
+        new DOMException("The operation was aborted due to timeout", "TimeoutError"),
+      );
+
+      const result = await getGitLabCurrentUsername({ accessToken: "token", baseUrl });
+
+      expect(isErr(result) && result.error).toMatchObject({ status: 0, timedOut: true });
     });
 
     it("sends a local address through the guarded path outside development", async () => {
