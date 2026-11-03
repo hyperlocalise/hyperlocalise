@@ -61,8 +61,8 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
   },
   replaceWarning: {
     defaultMessage:
-      "Automations and chats name a project by its path. Replacing or removing this connection points those paths at the new server, or back at GitLab.com.",
-    id: "uxvPg/82lf",
+      "Automations name a project by its path, so replacing or removing this connection points them at the new server, or back at GitLab.com. Chats stop using projects from the old server.",
+    id: "VdrqJKSKUW",
     description: "Warning shown before replacing or removing a GitLab server connection",
   },
   serverUrlLabel: {
