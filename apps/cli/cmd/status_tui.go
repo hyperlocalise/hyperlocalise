@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -230,30 +232,18 @@ func (m statusDashboardModel) View() tea.View {
 }
 
 func (m *statusDashboardModel) sortRows() {
-	sort.SliceStable(m.summary.ByLocale, func(i, j int) bool {
-		li := m.summary.ByLocale[i]
-		lj := m.summary.ByLocale[j]
-		var less bool
+	slices.SortStableFunc(m.summary.ByLocale, func(left, right localeSummary) int {
+		if m.reverse {
+			left, right = right, left
+		}
+		var order int
 		switch m.sortMode {
 		case sortByUntranslated:
-			if li.Untranslated == lj.Untranslated {
-				less = li.Locale < lj.Locale
-			} else {
-				less = li.Untranslated > lj.Untranslated
-			}
+			order = cmp.Compare(right.Untranslated, left.Untranslated)
 		case sortByTranslated:
-			if li.Translated == lj.Translated {
-				less = li.Locale < lj.Locale
-			} else {
-				less = li.Translated > lj.Translated
-			}
-		default:
-			less = li.Locale < lj.Locale
+			order = cmp.Compare(right.Translated, left.Translated)
 		}
-		if m.reverse {
-			return !less
-		}
-		return less
+		return cmp.Or(order, cmp.Compare(left.Locale, right.Locale))
 	})
 
 	rows := make([]table.Row, 0, len(m.summary.ByLocale))
