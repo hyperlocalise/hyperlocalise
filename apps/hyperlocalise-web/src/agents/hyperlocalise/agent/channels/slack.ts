@@ -349,6 +349,7 @@ async function processSlackMessage(
       localUserId: membership.localUserId,
       projectId,
       conversationText,
+      currentMessageText: message.text,
       classification,
       repositorySession: threadState,
       connectorConfig,

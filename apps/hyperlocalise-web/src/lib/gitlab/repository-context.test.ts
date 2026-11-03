@@ -210,6 +210,37 @@ describe("resolveConversationRepositoryGitLabContext", () => {
       expect(getGitLabProjectMock).not.toHaveBeenCalled();
     });
 
+    it("only replies about a GitLab.com link in the latest message", async () => {
+      const result = await resolveConversationRepositoryGitLabContext({
+        organizationId: "org_1",
+        text: "Earlier: https://gitlab.com/acme/web\nNow: it's acme/web on our server",
+        currentText: "it's acme/web on our server",
+      });
+
+      expect(result).toEqual({ status: "not_applicable" });
+    });
+
+    it.each([
+      [
+        "gitlab_connection_decrypt_failed",
+        "Unable to read the saved GitLab token.",
+        "An admin or localization manager",
+      ],
+      ["gitlab_not_found", "GitLab could not find that project.", "can't see that project"],
+    ])("explains %s in the workspace's terms", async (code, message, reply) => {
+      getGitLabProjectMock.mockResolvedValue(err({ code, message }));
+
+      const result = await resolveConversationRepositoryGitLabContext({
+        organizationId: "org_1",
+        text: "Check https://git.acme.example/acme/web please",
+      });
+
+      expect(result).toMatchObject({
+        status: "unresolved",
+        followUp: expect.stringContaining(reply),
+      });
+    });
+
     it("tells people a broken connection needs an admin, not a new connection", async () => {
       getGitLabProjectMock.mockResolvedValue(
         err({

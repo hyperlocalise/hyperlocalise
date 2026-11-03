@@ -127,13 +127,16 @@ function gitlabContextFailureFollowUp(
   hasServer: boolean,
   otherwise: string,
 ): string {
-  if (
-    hasServer &&
-    (error.code === "gitlab_unauthorized" || error.code === "gitlab_connection_decrypt_failed")
-  ) {
+  if (!hasServer) {
+    return otherwise;
+  }
+  if (error.code === "gitlab_unauthorized" || error.code === "gitlab_connection_decrypt_failed") {
     return "This workspace's GitLab connection isn't working: the server refused its token, or the saved token can't be read. An admin or localization manager can check it under Integrations.";
   }
-  return otherwise;
+  if (error.code === "gitlab_not_found") {
+    return "The workspace's GitLab token can't see that project. Check the link, or ask an admin to give the token access to it.";
+  }
+  return "The workspace's GitLab server couldn't be reached just now. Try again shortly.";
 }
 
 export async function resolveConversationRepositoryGitLabContext(input: {
@@ -141,6 +144,8 @@ export async function resolveConversationRepositoryGitLabContext(input: {
   localUserId?: string | null;
   workosUserId?: string | null;
   text: string;
+  /** The latest message alone, so an old GitLab.com link doesn't stop every later turn. */
+  currentText?: string;
 }): Promise<GitLabContextResolution> {
   const workosUserId = await resolveGitLabPipesWorkosUserId({
     workosUserId: input.workosUserId,
@@ -212,8 +217,8 @@ export async function resolveConversationRepositoryGitLabContext(input: {
 
   if (
     connection &&
-    (extractGitLabMergeRequestReferences(input.text).length > 0 ||
-      extractGitLabProjectPathReferences(input.text).length > 0)
+    (extractGitLabMergeRequestReferences(input.currentText ?? input.text).length > 0 ||
+      extractGitLabProjectPathReferences(input.currentText ?? input.text).length > 0)
   ) {
     return {
       status: "unresolved",

@@ -178,6 +178,7 @@ type ResolveRepositoryContextInput = {
   workosUserId?: string | null;
   projectId: string | null;
   conversationText: string;
+  currentMessageText?: string;
   classification: ConversationClassification;
   repositorySession: ConversationRepositorySession | null;
   connectorConfig?: Record<string, unknown> | null;
@@ -278,6 +279,7 @@ export async function resolveConversationRepositoryContext(
     localUserId: input.localUserId,
     workosUserId: input.workosUserId,
     text: input.conversationText,
+    currentText: input.currentMessageText,
   });
 
   if (gitlabContextResolution.status === "resolved") {
@@ -623,6 +625,7 @@ export async function prepareConversationAgentTurn(
     workosUserId: input.workosUserId,
     projectId: input.projectId,
     conversationText,
+    currentMessageText: input.messageText,
     classification,
     repositorySession: input.repositorySession ?? null,
     connectorConfig: input.connectorConfig,

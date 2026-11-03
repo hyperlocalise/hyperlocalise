@@ -19,6 +19,7 @@ import {
   createGitlabRepositorySandbox,
   stopGitlabRepositorySandbox,
 } from "@/lib/gitlab/gitlab-repository-sandbox";
+import { getGitLabConnection } from "@/lib/gitlab/connections";
 import { loadGitLabProjectContext } from "@/lib/gitlab/repository-context";
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -59,7 +60,11 @@ export async function startGitlabRepositoryAgent(
     if (code === "gitlab_not_found") {
       throw new Error("gitlab_repository_not_found");
     }
-    if (code === "gitlab_unauthorized" || code === "gitlab_connection_decrypt_failed") {
+    // A refused GitLab.com sign-in is fixed by reconnecting; a refused workspace token by an admin.
+    const workspaceServer =
+      code === "gitlab_unauthorized" &&
+      (await getGitLabConnection({ organizationId: session.organizationId })) !== null;
+    if (code === "gitlab_connection_decrypt_failed" || workspaceServer) {
       throw new Error("gitlab_token_rejected");
     }
     throw new Error(code === "gitlab_request_failed" ? code : "gitlab_not_connected");
