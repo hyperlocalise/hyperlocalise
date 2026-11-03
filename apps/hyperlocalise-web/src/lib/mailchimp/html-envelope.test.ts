@@ -18,9 +18,12 @@ import {
 } from "@/lib/projects/files/html-ingest-entries";
 
 import {
+  applyApprovedMailchimpEnvelope,
+  buildMailchimpPushEnvelope,
   parseMailchimpEnvelope,
   restoreMailchimpEnvelopeForPush,
   serializeMailchimpEnvelope,
+  serializeMailchimpRemoteEnvelope,
 } from "./html-envelope";
 
 describe("mailchimp html envelope", () => {
@@ -114,5 +117,120 @@ describe("mailchimp html envelope", () => {
     expect(parsed.fromName).toBe("Marque");
     expect(parsed.htmlBody).toContain("Achetez la vente");
     expect(applied).not.toMatch(/<body[^>]*>[\s\S]*Sujet/);
+  });
+
+  it("keeps remote body when only the subject is approved", () => {
+    const stored = serializeMailchimpEnvelope({
+      subject: "Spring Sale",
+      previewText: "Preview",
+      fromName: "Brand",
+      html: "<p>Shop the sale</p><p>Ends Friday</p>",
+    });
+    const remote = serializeMailchimpRemoteEnvelope({
+      storedEnvelopeHtml: stored.html,
+      remote: {
+        subject: "Soldes de printemps",
+        previewText: "Aperçu",
+        fromName: "Marque",
+        html: "<p>Profitez des soldes</p><p>Jusqu'à vendredi</p>",
+      },
+    });
+    const merged = applyApprovedMailchimpEnvelope({
+      storedEnvelopeHtml: stored.html,
+      remoteEnvelopeHtml: remote.html,
+      approved: { "html.head.title": "Soldes" },
+    });
+
+    expect(merged.subject).toBe("Soldes");
+    expect(merged.previewText).toBe("Aperçu");
+    expect(merged.fromName).toBe("Marque");
+    expect(merged.htmlBody).toContain("Profitez des soldes");
+    expect(merged.htmlBody).toContain("Jusqu'à vendredi");
+    expect(merged.htmlBody).not.toContain("Shop the sale");
+    expect(merged.htmlBody).not.toContain("Ends Friday");
+  });
+
+  it("keeps remote copy text for unapproved nodes instead of source language", () => {
+    const stored = serializeMailchimpEnvelope({
+      subject: "Welcome",
+      previewText: "Preview",
+      fromName: "Brand",
+      html: "<p>Hello</p><p>World</p>",
+    });
+    const entries = extractHtmlIngestEntries(stored.html);
+    const helloKey = Object.keys(entries).find((key) => entries[key] === "Hello");
+    expect(helloKey).toBeDefined();
+
+    const remote = serializeMailchimpRemoteEnvelope({
+      storedEnvelopeHtml: stored.html,
+      remote: {
+        subject: "Bienvenue",
+        previewText: "Aperçu",
+        fromName: "Marque",
+        html: "<p>Bonjour</p><p>Monde</p>",
+      },
+    });
+    const merged = applyApprovedMailchimpEnvelope({
+      storedEnvelopeHtml: stored.html,
+      remoteEnvelopeHtml: remote.html,
+      approved: { [helloKey!]: "Salut" },
+    });
+
+    expect(merged.subject).toBe("Bienvenue");
+    expect(merged.previewText).toBe("Aperçu");
+    expect(merged.fromName).toBe("Marque");
+    expect(merged.htmlBody).toContain("Salut");
+    expect(merged.htmlBody).toContain("Monde");
+    expect(merged.htmlBody).not.toContain("World");
+    expect(merged.htmlBody).not.toContain("Hello");
+  });
+
+  it("falls back to stored source fields when the remote copy has none", () => {
+    const stored = serializeMailchimpEnvelope({
+      subject: "Welcome",
+      html: "<p>Hello</p>",
+    });
+    const entries = extractHtmlIngestEntries(stored.html);
+    const helloKey = Object.keys(entries).find((key) => entries[key] === "Hello");
+    expect(helloKey).toBeDefined();
+
+    const merged = applyApprovedMailchimpEnvelope({
+      storedEnvelopeHtml: stored.html,
+      approved: { [helloKey!]: "Salut" },
+    });
+
+    expect(merged.subject).toBe("Welcome");
+    expect(merged.htmlBody).toContain("Salut");
+  });
+
+  it("restores source merge tags in approved text when writing onto a remote copy", () => {
+    const stored = serializeMailchimpEnvelope({
+      subject: "Hello *|FNAME|*",
+      html: "<p>Shop *|LIST:NAME|*</p><p>World</p>",
+    });
+    const entries = extractHtmlIngestEntries(stored.html);
+    const subjectKey = Object.keys(entries).find((key) => entries[key].includes("Hello"));
+    expect(subjectKey).toBeDefined();
+
+    const remote = serializeMailchimpRemoteEnvelope({
+      storedEnvelopeHtml: stored.html,
+      remote: {
+        subject: "Bonjour *|FNAME|*",
+        html: "<p>Achetez *|LIST:NAME|*</p><p>Monde</p>",
+      },
+    });
+    const merged = buildMailchimpPushEnvelope({
+      storedEnvelopeHtml: stored.html,
+      remoteEnvelope: remote,
+      approved: { [subjectKey!]: entries[subjectKey!]!.replace("Hello", "Salut") },
+      sourceMergeTokens: stored.htmlTokens,
+    });
+
+    expect(merged.subject).toBe("Salut *|FNAME|*");
+    expect(merged.htmlBody).toContain("*|LIST:NAME|*");
+    expect(merged.htmlBody).toContain("Monde");
+    expect(merged.htmlBody).not.toContain("World");
+    expect(merged.subject).not.toContain("<!--HL_MC_VAR_");
+    expect(merged.htmlBody).not.toContain("<!--HL_MC_VAR_");
   });
 });
