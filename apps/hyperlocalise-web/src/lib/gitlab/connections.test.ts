@@ -270,6 +270,15 @@ describe("gitlab connections", () => {
       .from(schema.gitlabConnections)
       .where(eq(schema.gitlabConnections.organizationId, scope.organizationId));
     expect(row?.createdBy).toBe(scope.userId);
+
+    await db
+      .update(schema.gitlabConnections)
+      .set({ updatedAt: new Date("2020-01-01T00:00:00.000Z") })
+      .where(eq(schema.gitlabConnections.organizationId, scope.organizationId));
+    const third = await saveGitLabConnection({ ...input, userId: otherUserId });
+    expect(isOk(third) && new Date(third.value.connection.updatedAt).getTime()).toBeGreaterThan(
+      Date.parse("2020-01-01T00:00:00.000Z"),
+    );
   });
 
   it("explains a server that doesn't answer in time", async () => {

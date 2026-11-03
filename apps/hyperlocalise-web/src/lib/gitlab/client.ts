@@ -143,11 +143,6 @@ async function gitlabJson(
     signal?: AbortSignal;
   },
 ): Promise<Result<unknown, GitLabApiError>> {
-  const url = new URL(`${input.baseUrl ?? GITLAB_API_ORIGIN}${input.path}`);
-  if (input.query) {
-    url.search = input.query.toString();
-  }
-
   const headers = {
     Authorization: `Bearer ${input.accessToken}`,
     Accept: "application/json",
@@ -155,6 +150,10 @@ async function gitlabJson(
 
   let response: GitLabResponse;
   try {
+    const url = new URL(`${input.baseUrl ?? GITLAB_API_ORIGIN}${input.path}`);
+    if (input.query) {
+      url.search = input.query.toString();
+    }
     response = input.baseUrl
       ? await requestGitLabServer(url, input.baseUrl, { headers, signal: input.signal })
       : await fetch(url, { headers, signal: input.signal });
