@@ -111,6 +111,7 @@ import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
 import { BRAZE_PIPES_SLUG } from "@/lib/braze/constants";
 import { CUSTOMER_IO_PIPES_SLUG } from "@/lib/customer-io/constants";
 import { HUBSPOT_PIPES_SLUG } from "@/lib/hubspot/constants";
+import { MAILCHIMP_PIPES_SLUG } from "@/lib/mailchimp/constants";
 import { ITERABLE_PIPES_SLUG } from "@/lib/iterable/constants";
 import { LOOPS_PIPES_SLUG } from "@/lib/loops/constants";
 import { INTERCOM_PIPES_SLUG } from "@/lib/intercom/constants";
@@ -194,6 +195,7 @@ import { WorkspaceAutomationBrazeCampaignsSettings } from "./workspace-automatio
 import { WorkspaceAutomationCustomerIoSettings } from "./workspace-automation-customer-io-settings";
 import { WorkspaceAutomationBrazeSettings } from "./workspace-automation-braze-settings";
 import { WorkspaceAutomationHubspotSettings } from "./workspace-automation-hubspot-settings";
+import { WorkspaceAutomationMailchimpSettings } from "./workspace-automation-mailchimp-settings";
 import { WorkspaceAutomationIterableSettings } from "./workspace-automation-iterable-settings";
 import { WorkspaceAutomationIntercomSettings } from "./workspace-automation-intercom-settings";
 import { WorkspaceAutomationSanitySettings } from "./workspace-automation-sanity-settings";
@@ -324,6 +326,12 @@ function LoopsToolIcon({ className }: { className?: string }) {
 function HubspotToolIcon({ className }: { className?: string }) {
   return (
     <IntegrationLogo src="/images/hubspot-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
+  );
+}
+
+function MailchimpToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/mailchimp-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
   );
 }
 
@@ -993,6 +1001,7 @@ function AddToolMenu({
   iterableConnected,
   loopsConnected,
   hubspotConnected,
+  mailchimpConnected,
   projectSourceLocale,
   semrushConnected,
   zernioConnected,
@@ -1020,6 +1029,7 @@ function AddToolMenu({
   iterableConnected: boolean;
   loopsConnected: boolean;
   hubspotConnected: boolean;
+  mailchimpConnected: boolean;
   projectSourceLocale?: string | null;
   semrushConnected: boolean;
   zernioConnected: boolean;
@@ -1517,6 +1527,7 @@ function AddToolMenu({
             <DropdownMenuItem
               disabled={
                 form.hubspotEnabled ||
+                form.mailchimpEnabled ||
                 form.brazeEnabled ||
                 form.brazeCampaignsEnabled ||
                 form.customerIoEnabled ||
@@ -1527,6 +1538,7 @@ function AddToolMenu({
                 onChange({
                   ...form,
                   hubspotEnabled: true,
+                  mailchimpEnabled: false,
                   brazeEnabled: false,
                   brazeCampaignsEnabled: false,
                   customerIoEnabled: false,
@@ -1547,6 +1559,50 @@ function AddToolMenu({
               ) : form.brazeEnabled ||
                 form.brazeCampaignsEnabled ||
                 form.customerIoEnabled ||
+                form.loopsEnabled ||
+                form.mailchimpEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.mailchimpEnabled ||
+                form.hubspotEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.iterableEnabled ||
+                form.loopsEnabled ||
+                !mailchimpConnected
+              }
+              onClick={() =>
+                onChange({
+                  ...form,
+                  mailchimpEnabled: true,
+                  hubspotEnabled: false,
+                  brazeEnabled: false,
+                  brazeCampaignsEnabled: false,
+                  customerIoEnabled: false,
+                  iterableEnabled: false,
+                  loopsEnabled: false,
+                })
+              }
+            >
+              <MailchimpToolIcon />
+              Mailchimp campaigns and templates
+              {form.mailchimpEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !mailchimpConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.hubspotEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.iterableEnabled ||
                 form.loopsEnabled ? (
                 <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
               ) : null}
@@ -1853,6 +1909,7 @@ const SKILL_INTEGRATION_LABELS: Record<WorkspaceAutomationSkillIntegration, Mess
   iterable: workspaceAutomationFormMessages.skillIntegrationIterable,
   loops: workspaceAutomationFormMessages.skillIntegrationLoops,
   hubspot: workspaceAutomationFormMessages.skillIntegrationHubspot,
+  mailchimp: workspaceAutomationFormMessages.skillIntegrationMailchimp,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
 };
@@ -1931,6 +1988,9 @@ function SkillIcon({ className, skill }: { className?: string; skill: WorkspaceA
   }
   if (tool === "import_hubspot_content" || tool === "push_hubspot_content") {
     return <HubspotToolIcon className={className} />;
+  }
+  if (tool === "import_mailchimp_content" || tool === "push_mailchimp_content") {
+    return <MailchimpToolIcon className={className} />;
   }
   if (tool === "notify_slack") {
     return <SlackToolIcon className={className} />;
@@ -2245,6 +2305,7 @@ function ToolsSettings({
   slackConnected,
   loopsConnected,
   hubspotConnected,
+  mailchimpConnected,
 }: {
   automationId?: string;
   canUpdateKnowledgeMemory: boolean;
@@ -2276,6 +2337,7 @@ function ToolsSettings({
   iterableConnected: boolean;
   loopsConnected: boolean;
   hubspotConnected: boolean;
+  mailchimpConnected: boolean;
   semrushConnections: SemrushConnectionOption[];
   zernioConnections: ZernioConnectionOption[];
   slackConnected: boolean;
@@ -3288,6 +3350,40 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.mailchimpEnabled ? (
+          <EditorRow
+            icon={<MailchimpToolIcon />}
+            tone="external"
+            title={
+              <>
+                <span>Mailchimp campaigns and templates</span>
+                {!mailchimpConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import Mailchimp campaigns and user templates, translate in Jobs, then push approved locales as draft copies."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_mailchimp_content")}
+                label="Remove Mailchimp"
+                onClick={() => onChange({ ...form, mailchimpEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationMailchimpSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              mailchimpConnected={mailchimpConnected}
+              disabled={disabled}
+              onChange={onChange}
+            />
+          </EditorRow>
+        ) : null}
+
         {form.crowdinEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siCrowdin} />}
@@ -3824,6 +3920,7 @@ function ToolsSettings({
           iterableConnected={iterableConnected}
           loopsConnected={loopsConnected}
           hubspotConnected={hubspotConnected}
+          mailchimpConnected={mailchimpConnected}
           projectSourceLocale={selectedProject?.sourceLocale}
           semrushConnected={semrushConnected}
           zernioConnected={zernioConnected}
@@ -4198,6 +4295,23 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const mailchimpPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, MAILCHIMP_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: MAILCHIMP_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Mailchimp connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
   const intercomPipesQuery = useQuery({
     queryKey: ["pipes", organizationSlug, INTERCOM_PIPES_SLUG],
     queryFn: async () => {
@@ -4333,6 +4447,7 @@ export function WorkspaceAutomationEditor({
   const iterableConnected = Boolean(iterablePipesQuery.data?.connected);
   const loopsConnected = Boolean(loopsPipesQuery.data?.connected);
   const hubspotConnected = Boolean(hubspotPipesQuery.data?.connected);
+  const mailchimpConnected = Boolean(mailchimpPipesQuery.data?.connected);
   const gitlabConnected = Boolean(gitlabPipesQuery.data?.connected);
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
@@ -4367,6 +4482,7 @@ export function WorkspaceAutomationEditor({
     iterable: iterablePipesQuery.isSuccess ? iterableConnected : undefined,
     loops: loopsPipesQuery.isSuccess ? loopsConnected : undefined,
     hubspot: hubspotPipesQuery.isSuccess ? hubspotConnected : undefined,
+    mailchimp: mailchimpPipesQuery.isSuccess ? mailchimpConnected : undefined,
     slack: slackQuery.isSuccess ? slackConnected : undefined,
     email: emailConnected
       ? true
@@ -4629,6 +4745,7 @@ export function WorkspaceAutomationEditor({
             iterableConnected={iterableConnected}
             loopsConnected={loopsConnected}
             hubspotConnected={hubspotConnected}
+            mailchimpConnected={mailchimpConnected}
             semrushConnections={semrushConnections}
             zernioConnections={zernioConnections}
             slackConnected={slackConnected}

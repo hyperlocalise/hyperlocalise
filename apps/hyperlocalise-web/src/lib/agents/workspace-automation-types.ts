@@ -462,6 +462,26 @@ const loopsToolConfigSchema = z
     overwriteWhenRemoteNewer: true,
   });
 
+const mailchimpToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).optional(),
+    campaignIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    templateIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+    overwriteWhenRemoteNewer: z.boolean().default(true),
+  })
+  .default({
+    enabled: false,
+    campaignIds: [],
+    templateIds: [],
+    existingTranslationPolicy: "seed_empty",
+    overwriteWhenRemoteNewer: true,
+  });
+
 const sanityDocumentTypeModeSchema = z.enum(["document", "field"]);
 
 const sanityDocumentTypeModesSchema = z
@@ -702,6 +722,7 @@ const toolConfigObjectSchema = z
     iterable: iterableToolConfigSchema.optional(),
     loops: loopsToolConfigSchema.optional(),
     hubspot: hubspotToolConfigSchema.optional(),
+    mailchimp: mailchimpToolConfigSchema.optional(),
     crowdin: crowdinToolConfigSchema.optional(),
     webSearch: webSearchToolConfigSchema.optional(),
   })
@@ -774,6 +795,7 @@ export type WorkspaceAutomationCustomerIoToolConfig = z.infer<typeof customerIoT
 export type WorkspaceAutomationIterableToolConfig = z.infer<typeof iterableToolConfigSchema>;
 export type WorkspaceAutomationLoopsToolConfig = z.infer<typeof loopsToolConfigSchema>;
 export type WorkspaceAutomationHubspotToolConfig = z.infer<typeof hubspotToolConfigSchema>;
+export type WorkspaceAutomationMailchimpToolConfig = z.infer<typeof mailchimpToolConfigSchema>;
 export type WorkspaceAutomationCrowdinToolConfig = z.infer<typeof crowdinToolConfigSchema>;
 export type WorkspaceAutomationWebSearchProvider = z.infer<
   typeof workspaceAutomationWebSearchProviderSchema
@@ -969,6 +991,18 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "hubspot_pipes_unavailable";
       message: "WorkOS is not configured, so HubSpot cannot connect through Pipes.";
+    }
+  | {
+      code: "mailchimp_not_connected";
+      message: "Connect Mailchimp in Integrations before using it.";
+    }
+  | {
+      code: "mailchimp_pipes_needs_reauthorization";
+      message: "Reconnect Mailchimp in Integrations, then try again.";
+    }
+  | {
+      code: "mailchimp_pipes_unavailable";
+      message: "WorkOS is not configured, so Mailchimp cannot connect through Pipes.";
     }
   | {
       code: "iterable_not_connected";
@@ -1278,6 +1312,10 @@ export function hasWorkspaceAutomationLoopsTool(toolConfig: WorkspaceAutomationT
 
 export function hasWorkspaceAutomationHubspotTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.hubspot?.enabled);
+}
+
+export function hasWorkspaceAutomationMailchimpTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.mailchimp?.enabled);
 }
 
 export function hasWorkspaceAutomationCrowdinTool(toolConfig: WorkspaceAutomationToolConfig) {

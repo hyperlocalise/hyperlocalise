@@ -414,6 +414,62 @@ export function readImportHubspotContent(
   return null;
 }
 
+export function readImportMailchimpContent(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.import_mailchimp_content;
+  if (fromCurrentStep && typeof fromCurrentStep.imported === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.importMailchimpContent;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.imported === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "import_mailchimp_content",
+  );
+  if (fromPriorStep && typeof fromPriorStep.imported === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
+export function readPushMailchimpContent(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.push_mailchimp_content;
+  if (fromCurrentStep && typeof fromCurrentStep.pushedLocales === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.pushMailchimpContent;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.pushedLocales === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "push_mailchimp_content",
+  );
+  if (fromPriorStep && typeof fromPriorStep.pushedLocales === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
 export function readPushHubspotContent(
   outputSummary: Record<string, unknown>,
   stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,

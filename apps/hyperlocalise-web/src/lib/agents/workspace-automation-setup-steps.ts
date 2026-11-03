@@ -60,6 +60,7 @@ export const WORKSPACE_AUTOMATION_INTEGRATION_NAMES: Record<
   iterable: "Iterable",
   loops: "Loops",
   hubspot: "HubSpot",
+  mailchimp: "Mailchimp",
   slack: "Slack",
   email: "an email provider (Resend or SendGrid)",
 };

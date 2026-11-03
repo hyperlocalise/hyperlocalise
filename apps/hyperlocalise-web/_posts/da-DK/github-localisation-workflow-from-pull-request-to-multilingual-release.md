@@ -65,7 +65,7 @@ Brug et GitHub-miljø som `localisation` til produktionsadgangsoplysninger, hvis
 Opret `i18n.yml` i roden af repositoryet:
 
 ```yaml
-version: hyperlocalise@1.13.7
+version: hyperlocalise@1.13.8
 
 locales:
   source: en-US

@@ -347,6 +347,10 @@
     "defaultMessage": "Description",
     "description": "Label for the dictionary description field"
   },
+  "+VUamUeb+A": {
+    "defaultMessage": "Search items",
+    "description": "Accessible label for the Mailchimp item search field"
+  },
   "+VZ90aAk+9": {
     "defaultMessage": "Row {row}: {message}",
     "description": "Import warning or error line with a CSV row number"
@@ -914,6 +918,10 @@
   "/GmJUPyDf/": {
     "defaultMessage": "Request a Demo",
     "description": "Product page bottom call-to-action to request a demo"
+  },
+  "/HLvk6zVvS": {
+    "defaultMessage": "Mailchimp push queued",
+    "description": "Toast after a Mailchimp push automation run is queued"
   },
   "/HYQsZiVvN": {
     "defaultMessage": "Plan usage",
@@ -1594,6 +1602,10 @@
   "0MjCwM2JVC": {
     "defaultMessage": "Portuguese (Brazil)",
     "description": "Display name for BCP-47 locale pt-BR"
+  },
+  "0MlVUFY5rP": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel the Mailchimp item picker"
   },
   "0NzbW+DFmc": {
     "defaultMessage": "Visual Workflow Approval Decided",
@@ -3663,6 +3675,10 @@
     "defaultMessage": "Cancel intentionally",
     "description": "Cancelled Stop outcome"
   },
+  "3iL4qh0106": {
+    "defaultMessage": "Keep Mailchimp copies that teammates edited after the last push.",
+    "description": "Explains the selected automation keeps newer Mailchimp copies"
+  },
   "3iZn32bnuU": {
     "defaultMessage": "Team members",
     "description": "Accessible label for the team members section"
@@ -3878,6 +3894,10 @@
   "3zOQAJ9ZJz": {
     "defaultMessage": "Stop workflow",
     "description": "Catalog title for the terminal workflow stop node"
+  },
+  "3zToCXkiyk": {
+    "defaultMessage": "Last push failed",
+    "description": "Hint that the previous Mailchimp push for this item failed"
   },
   "3zVs9fHVPp": {
     "defaultMessage": "Search",
@@ -5162,6 +5182,10 @@
   "6/4F992ZiW": {
     "defaultMessage": "Unable to remove project",
     "description": "Fallback error when removing a project from a translation memory fails"
+  },
+  "6/Rw622IOT": {
+    "defaultMessage": "Could not load items",
+    "description": "Error when mapped Mailchimp items fail to load"
   },
   "6/WZRSBILe": {
     "defaultMessage": "Market",
@@ -6659,6 +6683,10 @@
     "defaultMessage": "{count, plural, one {Show # page} other {Show all # pages}}",
     "description": "Control to expand the sampled pages list on a localisation audit result"
   },
+  "8T9ADmB57c": {
+    "defaultMessage": "Mailchimp",
+    "description": "Name of the Mailchimp integration in the hint on a skill that needs it connected"
+  },
   "8TEiv4VOyd": {
     "defaultMessage": "This video could not be played. Try reloading the preview.",
     "description": "Video refinement workspace: mediaError"
@@ -7742,6 +7770,10 @@
   "A9V2j23Vmp": {
     "defaultMessage": "Load more",
     "description": "Button to load more rows in a grouped workspace table"
+  },
+  "A9wBlxBz/7": {
+    "defaultMessage": "No mapped items",
+    "description": "Empty state when a Mailchimp automation has no mapped items"
   },
   "AA0EuR+/cx": {
     "defaultMessage": "TMS",
@@ -9871,6 +9903,10 @@
     "defaultMessage": "Save this automation to upload knowledge files.",
     "description": "Hint shown before knowledge files can be uploaded"
   },
+  "DTdpbMkjDX": {
+    "defaultMessage": "Search items",
+    "description": "Placeholder for filtering mapped Mailchimp items"
+  },
   "DU3T9+E0+x": {
     "defaultMessage": "With comments",
     "description": "CAT queue filter option for Crowdin strings that have comments"
@@ -10331,6 +10367,10 @@
     "defaultMessage": "See full pricing details",
     "description": "Marketing homepage pricingLink"
   },
+  "EIzyJsuyBD": {
+    "defaultMessage": "Unable to load the Mailchimp connection right now.",
+    "description": "Mailchimp integration row description when connection status fails to load"
+  },
   "EJHq4HC1h1": {
     "defaultMessage": "Security review assistance",
     "description": "Pricing matrix row label for security review assistance"
@@ -10510,6 +10550,10 @@
   "EXZ7+kRFEu": {
     "defaultMessage": "This step has a fixed fee of {amount} for the whole task, counted in the total.",
     "description": "Note under the match analysis when the step is priced at a fixed fee"
+  },
+  "EY3bu6oe+F": {
+    "defaultMessage": "Push policy",
+    "description": "Label for the selected automation Mailchimp overwrite rule"
   },
   "EY7508Falv": {
     "defaultMessage": "Saving…",
@@ -12826,6 +12870,10 @@
   "IJZ5NzBvzc": {
     "defaultMessage": "Filter by event type",
     "description": "Title for the activity log event type picker popover"
+  },
+  "IKd49tYfPp": {
+    "defaultMessage": "Could not queue Mailchimp push",
+    "description": "Toast when queuing a Mailchimp push automation run fails"
   },
   "IKexpxBOZ5": {
     "defaultMessage": "Untranslatable",
@@ -16159,6 +16207,10 @@
     "defaultMessage": "Send to rank tracking",
     "description": "Send selected keywords to rank tracking"
   },
+  "NmW6XEmB83": {
+    "defaultMessage": "Mailchimp disconnected.",
+    "description": "Toast when Mailchimp disconnect succeeds"
+  },
   "Nn/7mjMs3f": {
     "defaultMessage": "Take one product release and turn it into market-ready announcements, documentation, assets, and supporting content across every language.",
     "description": "Capability carousel card 01 body"
@@ -16838,6 +16890,10 @@
   "P+9nP38ODj": {
     "defaultMessage": "Connecting...",
     "description": "Pending label while a TMS OAuth connection is starting"
+  },
+  "P+L9qIX8Rd": {
+    "defaultMessage": "Clear",
+    "description": "Clear the Mailchimp item selection"
   },
   "P+MaWGCLAB": {
     "defaultMessage": "Scheduled and GitHub-triggered agent playbooks (not the visual workflow editor).",
@@ -19535,6 +19591,10 @@
     "defaultMessage": "No active plan",
     "description": "Fallback plan name when the workspace has no active subscription"
   },
+  "TPurI7fr5b": {
+    "defaultMessage": "Select all",
+    "description": "Select every mapped Mailchimp item in the push dialog"
+  },
   "TQ/NrGLhGw": {
     "defaultMessage": "Files",
     "description": "Tab label for the job source files panel"
@@ -21322,6 +21382,10 @@
   "WKx3yZHQjo": {
     "defaultMessage": "Loading intelligence",
     "description": "Accessible label while the CAT intelligence panel skeleton is shown"
+  },
+  "WLGzcjbMSX": {
+    "defaultMessage": "Push {count, plural, one {# item} other {# items}}",
+    "description": "Confirm pushing the selected Mailchimp items"
   },
   "WLVv78wgsr": {
     "defaultMessage": "Projects",
@@ -23414,6 +23478,10 @@
   "Zo2B+NCYIa": {
     "defaultMessage": "Accept",
     "description": "Document editor: accepts one AI suggestion"
+  },
+  "ZoFvC2Y6/K": {
+    "defaultMessage": "Automation",
+    "description": "Label for choosing which Mailchimp automation to push with"
   },
   "Zol/03gW7r": {
     "defaultMessage": "Acme · Web launch · Editor",
@@ -26039,6 +26107,10 @@
     "defaultMessage": "Guidelines is the connected file layer. Content Studio applies it while you create and review. Automation Workflow uses it when agents run repeatable jobs.",
     "description": "Guidelines FAQ answer about product fit"
   },
+  "doi1CJtNyr": {
+    "defaultMessage": "Push to Mailchimp",
+    "description": "Button that opens the dialog to write approved translations to Mailchimp"
+  },
   "doxAnr+fKa": {
     "defaultMessage": "Add a version",
     "description": "Dialog title for adding a variant"
@@ -26518,6 +26590,10 @@
   "eQIxzTUwry": {
     "defaultMessage": "Ahrefs",
     "description": "Ahrefs tool chip in content ops terminal mock"
+  },
+  "eR+n3IPBGs": {
+    "defaultMessage": "Loading items",
+    "description": "Shown while mapped Mailchimp items load"
   },
   "eRLGmAlreB": {
     "defaultMessage": "Projects",
@@ -27535,6 +27611,10 @@
     "defaultMessage": "Queries · this string",
     "description": "Title on the editor mock Queries overlay"
   },
+  "g2K+bD6CxQ": {
+    "defaultMessage": "Could not start Mailchimp authorization.",
+    "description": "Toast when Mailchimp OAuth URL request fails"
+  },
   "g2W3opbod8": {
     "defaultMessage": "Choose a Hyperlocalise project for push source.",
     "description": "Validation error when push source workflow has no project selected"
@@ -28306,6 +28386,10 @@
   "hAjH8+r2iy": {
     "defaultMessage": "Remove member",
     "description": "Tooltip and dialog action to remove a workspace member"
+  },
+  "hB5ZTWFDwg": {
+    "defaultMessage": "Overwrite Mailchimp copies when the remote copy is newer.",
+    "description": "Explains the selected automation overwrites newer Mailchimp copies on push"
   },
   "hBN2q81ova": {
     "defaultMessage": "Loading glossary and translation memory, then reading the file.",
@@ -30511,6 +30595,10 @@
     "defaultMessage": "Members",
     "description": "Heading above the team members list"
   },
+  "kezpjBwZx/": {
+    "defaultMessage": "Push to Mailchimp",
+    "description": "Title of the Content editor dialog for choosing Mailchimp items to push"
+  },
   "kf0aB8NC11": {
     "defaultMessage": "Create team",
     "description": "Button to open the create team dialog"
@@ -31323,6 +31411,10 @@
     "defaultMessage": "Guessing is expensive. A small market test is not.",
     "description": "Details section headline for the Hyperlab product page"
   },
+  "m+3SVatJRr": {
+    "defaultMessage": "Mailchimp",
+    "description": "Tool badge when an automation uses Mailchimp"
+  },
   "m+nKGIs3Va": {
     "defaultMessage": "String context lookup",
     "description": "AI feature: looking up a string's context in a repository"
@@ -31354,6 +31446,10 @@
   "m2f+ZwkyAI": {
     "defaultMessage": "Asset",
     "description": "Filter option for asset source strings"
+  },
+  "m2hcMIjCyS": {
+    "defaultMessage": "Disconnect",
+    "description": "Disconnect Mailchimp"
   },
   "m34LPH+M7Z": {
     "defaultMessage": "Comment on pull requests with localisation status",
@@ -34019,6 +34115,10 @@
     "defaultMessage": "No files match this search.",
     "description": "Empty state when the create job file tree search has no matches"
   },
+  "q15/6hsAKH": {
+    "defaultMessage": "Could not disconnect Mailchimp.",
+    "description": "Toast when Mailchimp disconnect fails"
+  },
   "q1SUe75H6g": {
     "defaultMessage": "Major",
     "description": "Package version change badge for a major update"
@@ -35670,6 +35770,10 @@
   "seugisaDUz": {
     "defaultMessage": "Issue ID copied",
     "description": "Toast after copying the human-readable issue ID"
+  },
+  "sfV9GS+qiL": {
+    "defaultMessage": "Disconnecting…",
+    "description": "Disconnect Mailchimp in progress"
   },
   "sfaBsHFrP0": {
     "defaultMessage": "Strings updated:",
@@ -37594,6 +37698,10 @@
   "vlvGY6fhsb": {
     "defaultMessage": "Role",
     "description": "Label for the team role select in the change role dialog"
+  },
+  "vmE0N0SGD3": {
+    "defaultMessage": "Choose which mapped campaigns or templates to update with approved translations. This creates or updates draft locale copies — it never sends, schedules, or edits the source.",
+    "description": "Description of the Mailchimp item picker dialog"
   },
   "vmnQBcZ7YW": {
     "defaultMessage": "Nothing here yet",
@@ -40318,6 +40426,10 @@
   "zyDpy3oZz4": {
     "defaultMessage": "Inspect provenance, variants, and change history before editing.",
     "description": "Description of the translation memory entry detail sheet"
+  },
+  "zyVutWQ0it": {
+    "defaultMessage": "Allow pop-ups to connect Mailchimp.",
+    "description": "Toast when the Mailchimp OAuth window is blocked"
   },
   "zyXPWyhbra": {
     "defaultMessage": "No change to show",

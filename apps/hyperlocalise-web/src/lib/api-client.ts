@@ -75,6 +75,7 @@ function createOrgSlugClient(origin: string) {
       "loops",
       "customer-io",
       "hubspot",
+      "mailchimp",
       "iterable",
       "intercom-connections",
       "canva-connections",

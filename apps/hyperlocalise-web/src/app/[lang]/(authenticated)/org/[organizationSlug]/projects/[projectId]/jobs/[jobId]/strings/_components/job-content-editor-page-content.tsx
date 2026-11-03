@@ -56,6 +56,8 @@ import { ContentEditorIntercomIngestButton } from "@/components/content-editor/p
 import { ContentEditorIntercomPushButton } from "@/components/content-editor/page/content-editor-intercom-push-button";
 import { ContentEditorHubspotIngestButton } from "@/components/content-editor/page/content-editor-hubspot-ingest-button";
 import { ContentEditorHubspotPushButton } from "@/components/content-editor/page/content-editor-hubspot-push-button";
+import { ContentEditorMailchimpIngestButton } from "@/components/content-editor/page/content-editor-mailchimp-ingest-button";
+import { ContentEditorMailchimpPushButton } from "@/components/content-editor/page/content-editor-mailchimp-push-button";
 import { ContentEditorLoopsIngestButton } from "@/components/content-editor/page/content-editor-loops-ingest-button";
 import { ContentEditorLoopsPushButton } from "@/components/content-editor/page/content-editor-loops-push-button";
 import { ContentEditorSanityIngestButton } from "@/components/content-editor/page/content-editor-sanity-ingest-button";
@@ -348,6 +350,20 @@ export function JobContentEditorPageContent({
         pageNavigationGuardRef={pageNavigationGuardRef}
       />
       <ContentEditorHubspotPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorMailchimpIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorMailchimpPushButton
         organizationSlug={organizationSlug}
         projectId={projectId}
         canManageAutomations={canManageAutomations}
