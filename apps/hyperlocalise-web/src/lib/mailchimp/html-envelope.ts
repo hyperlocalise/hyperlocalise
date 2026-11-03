@@ -99,9 +99,12 @@ export function serializeMailchimpEnvelope(input: {
   html: string;
 }): { html: string; htmlTokens: string[] } {
   const subjectProtected = protectMailchimpMergeTags(input.subject);
-  const previewProtected = protectMailchimpMergeTags(input.previewText ?? "");
-  const fromProtected = protectMailchimpMergeTags(input.fromName ?? "");
-  const htmlProtected = protectMailchimpMergeTags(input.html);
+  const previewProtected = protectMailchimpMergeTags(
+    input.previewText ?? "",
+    subjectProtected.tokens,
+  );
+  const fromProtected = protectMailchimpMergeTags(input.fromName ?? "", previewProtected.tokens);
+  const htmlProtected = protectMailchimpMergeTags(input.html, fromProtected.tokens);
 
   const document = [
     "<!doctype html>",
@@ -134,9 +137,12 @@ export function restoreMailchimpEnvelopeForPush(
   envelope: MailchimpContentEnvelope,
   htmlMergeTokens: readonly string[],
 ): MailchimpContentEnvelope {
+  const tokens = [...htmlMergeTokens];
   return {
-    ...envelope,
-    htmlBody: restoreMailchimpMergeTags(envelope.htmlBody, [...htmlMergeTokens]),
+    subject: restoreMailchimpMergeTags(envelope.subject, tokens),
+    previewText: restoreMailchimpMergeTags(envelope.previewText, tokens),
+    fromName: restoreMailchimpMergeTags(envelope.fromName, tokens),
+    htmlBody: restoreMailchimpMergeTags(envelope.htmlBody, tokens),
   };
 }
 

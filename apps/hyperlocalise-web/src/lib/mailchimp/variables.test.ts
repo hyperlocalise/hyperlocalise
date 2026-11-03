@@ -39,4 +39,12 @@ describe("protectMailchimpMergeTags", () => {
     expect(protectedText.tokens).toEqual(["*|MC_PREVIEW_TEXT|*", "*|FNAME|*"]);
     expect(restoreMailchimpMergeTags(protectedText.text, protectedText.tokens)).toBe(html);
   });
+
+  it("continues token indexes when protecting another field", () => {
+    const subject = protectMailchimpMergeTags("Hi *|FNAME|*");
+    const preview = protectMailchimpMergeTags("For *|EMAIL|*", subject.tokens);
+    expect(preview.tokens).toEqual(["*|FNAME|*", "*|EMAIL|*"]);
+    expect(restoreMailchimpMergeTags(subject.text, preview.tokens)).toBe("Hi *|FNAME|*");
+    expect(restoreMailchimpMergeTags(preview.text, preview.tokens)).toBe("For *|EMAIL|*");
+  });
 });

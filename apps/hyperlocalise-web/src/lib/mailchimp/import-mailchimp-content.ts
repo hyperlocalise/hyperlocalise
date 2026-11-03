@@ -44,6 +44,7 @@ import {
   resolveMailchimpSourceLocale,
 } from "./locale";
 import { resolveMailchimpCampaignRecreateForCopy } from "./campaign-recreate";
+import { selectedMailchimpResourceIds, shouldImportMailchimpResource } from "./import-scope";
 import { listMailchimpLibrary } from "./list-library";
 import { resolveCampaignHtml, resolveTemplateHtml } from "./remote-html";
 import { seedMailchimpLocaleCopies } from "./seed-mailchimp-locale-copies";
@@ -690,8 +691,8 @@ export async function runImportMailchimpContent(input: {
     warnings: [],
   };
 
-  const selectedCampaigns = new Set(mailchimp.campaignIds ?? []);
-  const selectedTemplates = new Set(mailchimp.templateIds ?? []);
+  const selectedCampaigns = selectedMailchimpResourceIds(mailchimp.campaignIds);
+  const selectedTemplates = selectedMailchimpResourceIds(mailchimp.templateIds);
   const policy = isMailchimpExistingTranslationPolicy(mailchimp.existingTranslationPolicy)
     ? mailchimp.existingTranslationPolicy
     : DEFAULT_MAILCHIMP_EXISTING_TRANSLATION_POLICY;
@@ -717,7 +718,13 @@ export async function runImportMailchimpContent(input: {
   }
 
   for (const item of campaigns) {
-    if (selectedCampaigns.size > 0 && !selectedCampaigns.has(item.id)) {
+    if (
+      !shouldImportMailchimpResource({
+        resourceId: item.id,
+        selectedIds: selectedCampaigns,
+        selectedOtherIds: selectedTemplates,
+      })
+    ) {
       continue;
     }
     try {
@@ -752,7 +759,13 @@ export async function runImportMailchimpContent(input: {
 
   for (const item of templates) {
     const id = String(item.id);
-    if (selectedTemplates.size > 0 && !selectedTemplates.has(id)) {
+    if (
+      !shouldImportMailchimpResource({
+        resourceId: id,
+        selectedIds: selectedTemplates,
+        selectedOtherIds: selectedCampaigns,
+      })
+    ) {
       continue;
     }
     if (!isMailchimpTemplateImportable(item)) {

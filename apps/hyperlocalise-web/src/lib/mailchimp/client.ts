@@ -88,6 +88,8 @@ export type MailchimpTemplateDetail = {
 
 export type MailchimpClient = ReturnType<typeof createMailchimpClient>;
 
+const DEFAULT_MAILCHIMP_FROM_NAME = "Newsletter";
+
 /** Marketing API 3.0 client using a Mailchimp OAuth access token and account API endpoint. */
 export function createMailchimpClient(input: {
   accessToken: string;
@@ -200,6 +202,29 @@ export function createMailchimpClient(input: {
       });
     },
 
+    async updateCampaignSettings(
+      campaignId: string,
+      input: {
+        title: string;
+        subjectLine: string;
+        previewText?: string;
+        fromName: string;
+      },
+    ): Promise<MailchimpCampaignSummary> {
+      const title = input.title.trim() || "Untitled";
+      return request<MailchimpCampaignSummary>(`/campaigns/${encodeURIComponent(campaignId)}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          settings: {
+            title,
+            subject_line: input.subjectLine.trim() || title,
+            preview_text: input.previewText?.trim() ?? "",
+            from_name: input.fromName.trim() || title || DEFAULT_MAILCHIMP_FROM_NAME,
+          },
+        }),
+      });
+    },
+
     async setCampaignContent(campaignId: string, html: string): Promise<void> {
       await request(`/campaigns/${encodeURIComponent(campaignId)}/content`, {
         method: "PUT",
@@ -273,8 +298,6 @@ export function createMailchimpClient(input: {
 }
 
 export type MailchimpHttpError = Error & { statusCode?: number };
-
-const DEFAULT_MAILCHIMP_FROM_NAME = "Newsletter";
 
 export function mailchimpCampaignCreateSettings(input: {
   listId: string;

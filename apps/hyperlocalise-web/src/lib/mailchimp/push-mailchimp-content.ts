@@ -22,7 +22,11 @@ import { createLogger } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
-import { formatMailchimpApiError, type MailchimpClient } from "./client";
+import {
+  formatMailchimpApiError,
+  mailchimpCampaignCreateSettings,
+  type MailchimpClient,
+} from "./client";
 import { resolveMailchimpCampaignRecreateForCopy } from "./campaign-recreate";
 import { loadMailchimpAutomationClient } from "./credentials";
 import { isMailchimpRemoteCopyNewer } from "./existing-translation-policy";
@@ -49,8 +53,8 @@ async function readMailchimpCopyUpdatedAt(input: {
       null
     );
   }
-  const campaign = await input.client.getCampaign(input.copyId);
-  return campaign.create_time?.trim() || null;
+  // Campaigns only expose create_time, which is not an edit signal.
+  return null;
 }
 
 const logger = createLogger("push-mailchimp-content");
@@ -199,8 +203,16 @@ async function pushCampaignLocale(input: {
     applyApprovedMailchimpEnvelope(input.storedEnvelopeHtml, input.approved),
     input.mapping.htmlMergeTokens ?? [],
   );
+  const settings = mailchimpCampaignCreateSettings({
+    listId: recreate.listId,
+    title: copyName,
+    subjectLine: envelope.subject,
+    previewText: envelope.previewText,
+    fromName: envelope.fromName || recreate.fromName,
+    replyTo: recreate.replyTo,
+  });
   const contentHash = hashMailchimpContent(
-    `${envelope.subject}\n${envelope.previewText}\n${envelope.htmlBody}`,
+    `${envelope.subject}\n${envelope.previewText}\n${envelope.fromName}\n${envelope.htmlBody}`,
   );
   const lastHash = input.mapping.lastPushContentHash?.[input.locale];
   if (lastHash && lastHash === contentHash) {
@@ -231,18 +243,23 @@ async function pushCampaignLocale(input: {
   }
   if (!copyId) {
     const created = await input.client.createCampaign({
-      listId: recreate.listId,
-      title: copyName,
-      subjectLine: envelope.subject,
-      previewText: envelope.previewText,
-      fromName: envelope.fromName || recreate.fromName,
-      replyTo: recreate.replyTo,
+      listId: settings.listId,
+      title: settings.title,
+      subjectLine: settings.subjectLine,
+      previewText: settings.previewText,
+      fromName: settings.fromName,
+      replyTo: settings.replyTo,
     });
     copyId = created.id;
-    await input.client.setCampaignContent(copyId, envelope.htmlBody);
   } else {
-    await input.client.setCampaignContent(copyId, envelope.htmlBody);
+    await input.client.updateCampaignSettings(copyId, {
+      title: settings.title,
+      subjectLine: settings.subjectLine,
+      previewText: settings.previewText,
+      fromName: settings.fromName,
+    });
   }
+  await input.client.setCampaignContent(copyId, envelope.htmlBody);
 
   await persistCopySuccess(input.mapping, input.locale, copyId, copyName, contentHash);
   return "pushed";

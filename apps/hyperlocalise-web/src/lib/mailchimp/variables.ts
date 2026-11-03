@@ -23,8 +23,11 @@ function nextCommentRange(value: string, from: number): { start: number; end: nu
   return { start, end: close === -1 ? value.length : close + 3 };
 }
 
-export function protectMailchimpMergeTags(value: string): { text: string; tokens: string[] } {
-  const tokens: string[] = [];
+export function protectMailchimpMergeTags(
+  value: string,
+  existingTokens: readonly string[] = [],
+): { text: string; tokens: string[] } {
+  const tokens = [...existingTokens];
   let out = "";
   let cursor = 0;
 

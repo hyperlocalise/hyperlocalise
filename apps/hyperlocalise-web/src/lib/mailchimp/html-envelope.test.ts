@@ -38,9 +38,27 @@ describe("mailchimp html envelope", () => {
     expect(parsed.htmlBody).toContain('<div class="mceColumn">');
     expect(parsed.htmlBody).toContain("<!--HL_MC_VAR_");
     expect(parsed.subject).toContain("<!--HL_MC_VAR_");
-    expect(restoreMailchimpEnvelopeForPush(parsed, serialized.htmlTokens).htmlBody).toContain(
-      "*|FNAME|*",
+    const restored = restoreMailchimpEnvelopeForPush(parsed, serialized.htmlTokens);
+    expect(restored.subject).toBe("Subject *|LNAME|*");
+    expect(restored.htmlBody).toContain("*|FNAME|*");
+    expect(restored.subject).not.toContain("<!--HL_MC_VAR_");
+    expect(restored.htmlBody).not.toContain("<!--HL_MC_VAR_");
+  });
+
+  it("restores merge tags in subject, preview text, and from name", () => {
+    const serialized = serializeMailchimpEnvelope({
+      subject: "Hello *|FNAME|*",
+      previewText: "Just for *|EMAIL|*",
+      fromName: "*|LIST:COMPANY|*",
+      html: "<p>Body</p>",
+    });
+    const restored = restoreMailchimpEnvelopeForPush(
+      parseMailchimpEnvelope(serialized.html),
+      serialized.htmlTokens,
     );
+    expect(restored.subject).toBe("Hello *|FNAME|*");
+    expect(restored.previewText).toBe("Just for *|EMAIL|*");
+    expect(restored.fromName).toBe("*|LIST:COMPANY|*");
   });
 
   it("does not store htmlBody as escaped text", () => {
