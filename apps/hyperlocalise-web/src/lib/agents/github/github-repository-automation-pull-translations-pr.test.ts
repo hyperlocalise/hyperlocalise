@@ -66,9 +66,16 @@ function pushInput(overrides: { reuseBranch?: boolean } = {}) {
   };
 }
 
+/** Git arguments without leading `-c key=value` options. */
+function gitArgs(args: string[]) {
+  return args[0] === "-c" ? args.slice(2) : args;
+}
+
 function gitCall(subcommand: string) {
-  const call = mocks.runSandboxCommand.mock.calls.find((args) => args[2]?.[0] === subcommand);
-  return call?.[2] as string[] | undefined;
+  const call = mocks.runSandboxCommand.mock.calls.find(
+    (args) => gitArgs(args[2] ?? [])[0] === subcommand,
+  );
+  return call ? gitArgs(call[2] as string[]) : undefined;
 }
 
 const openPull = {
@@ -114,17 +121,22 @@ describe("commitPushAndCreatePullTranslationsPullRequest", () => {
 
   function gitAnswers(answers: {
     fetch?: number;
-    names?: string;
+    theirs?: string;
     base?: number;
     content?: number;
   }) {
     mocks.runSandboxCommand.mockImplementation(
-      async (_sandbox: string, _cmd: string, args: string[]) => {
+      async (_sandbox: string, _cmd: string, rawArgs: string[]) => {
+        const args = gitArgs(rawArgs);
         if (args[0] === "fetch") {
           return { exitCode: answers.fetch ?? 0, output: "" };
         }
         if (args[0] === "diff" && args[1] === "--name-only") {
-          return { exitCode: 0, output: answers.names ?? "locales/fr.json\n" };
+          const theirs = args[3] === "FETCH_HEAD~1";
+          return {
+            exitCode: 0,
+            output: theirs ? (answers.theirs ?? "locales/fr.json\0") : "locales/fr.json\0",
+          };
         }
         if (args[0] === "diff" && args[3] === "HEAD~1") {
           return { exitCode: answers.base ?? 0, output: "" };
@@ -158,7 +170,7 @@ describe("commitPushAndCreatePullTranslationsPullRequest", () => {
     ["its files changed", { content: 1 }],
     [
       "it still carries a file this run no longer writes",
-      { names: "locales/fr.json\nlocales/de.json\n" },
+      { theirs: "locales/fr.json\0locales/de.json\0" },
     ],
     ["the base moved under a synced file", { base: 1 }],
     ["its branch could not be fetched", { fetch: 1 }],

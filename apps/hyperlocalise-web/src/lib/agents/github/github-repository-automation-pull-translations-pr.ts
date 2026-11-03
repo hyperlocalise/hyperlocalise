@@ -75,44 +75,42 @@ async function readRemoteBranchHeadSha(
 
 /**
  * Whether the open pull request already makes exactly this change: its one commit touches the same
- * files with the same content, on a base whose copy of those files has not moved since.
+ * files with the same content as this run's commit, on a base whose copy of those files has not
+ * moved since. Any git failure answers false, so the run pushes.
  */
 async function branchHasSameChange(input: {
   sandboxId: string;
   branchName: string;
-  paths: string[];
 }): Promise<boolean> {
   const git = (args: string[]) =>
-    runSandboxCommand(input.sandboxId, "git", args, { output: "stdout" });
+    runSandboxCommand(input.sandboxId, "git", ["-c", "core.quotePath=false", ...args], {
+      output: "stdout",
+    });
+  const changedFiles = async (from: string, to: string) => {
+    const result = await git(["diff", "--name-only", "-z", from, to]);
+    return result.exitCode === 0
+      ? result.output
+          .split("\0")
+          .filter((path) => path.length > 0)
+          .sort()
+      : null;
+  };
 
   const fetch = await git(["fetch", "--depth", "2", "origin", `refs/heads/${input.branchName}`]);
   if (fetch.exitCode !== 0) {
     return false;
   }
-  const changed = await git(["diff", "--name-only", "FETCH_HEAD~1", "FETCH_HEAD"]);
-  if (changed.exitCode !== 0) {
+  // This run's commit sits on HEAD~1, the base; git leaves out files that already match it.
+  const ours = await changedFiles("HEAD~1", "HEAD");
+  const theirs = await changedFiles("FETCH_HEAD~1", "FETCH_HEAD");
+  if (!ours || !theirs || ours.length === 0 || ours.join("\0") !== theirs.join("\0")) {
     return false;
   }
-  const changedPaths = new Set(changed.output.split("\n").filter((path) => path.length > 0));
-  if (
-    changedPaths.size !== input.paths.length ||
-    !input.paths.every((path) => changedPaths.has(path))
-  ) {
-    return false;
-  }
-  // HEAD~1 is the base this run built on.
-  const baseUnchanged = await git([
-    "diff",
-    "--quiet",
-    "FETCH_HEAD~1",
-    "HEAD~1",
-    "--",
-    ...input.paths,
-  ]);
+  const baseUnchanged = await git(["diff", "--quiet", "FETCH_HEAD~1", "HEAD~1", "--", ...ours]);
   if (baseUnchanged.exitCode !== 0) {
     return false;
   }
-  const sameContent = await git(["diff", "--quiet", "FETCH_HEAD", "HEAD", "--", ...input.paths]);
+  const sameContent = await git(["diff", "--quiet", "FETCH_HEAD", "HEAD", "--", ...ours]);
   return sameContent.exitCode === 0;
 }
 
@@ -230,11 +228,7 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
   if (
     input.reuseBranch &&
     openPull &&
-    (await branchHasSameChange({
-      sandboxId: input.sandboxId,
-      branchName: input.branchName,
-      paths: input.paths,
-    }))
+    (await branchHasSameChange({ sandboxId: input.sandboxId, branchName: input.branchName }))
   ) {
     return {
       pullRequestUrl: openPull.html_url,
