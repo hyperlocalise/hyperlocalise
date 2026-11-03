@@ -82,6 +82,10 @@ describe("content sync config", () => {
 
     const unsafe = validateContentSyncConfig({ ...gitlab, pathTemplate: "../{{locale}}.json" });
     expect(isErr(unsafe) && unsafe.error.code).toBe("content_sync_folder_invalid");
+    for (const pathTemplate of ["*.json", "{locale}.json", "*/*/*/*/*/*/*/*/*/{{locale}}.json"]) {
+      const invalid = validateContentSyncConfig({ ...gitlab, pathTemplate });
+      expect(isErr(invalid) && invalid.error.code).toBe("content_sync_path_template_invalid");
+    }
 
     const valid = validateContentSyncConfig({
       ...gitlab,

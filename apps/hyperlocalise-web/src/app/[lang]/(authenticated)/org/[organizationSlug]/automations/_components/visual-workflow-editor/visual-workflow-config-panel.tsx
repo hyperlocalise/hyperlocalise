@@ -3717,21 +3717,17 @@ function ContentSyncConfigFields({
             id="vw-content-sync-path-template"
             label={intl.formatMessage(messages.contentSyncPathTemplate)}
             value={config.pathTemplate ?? ""}
-            placeholder="{{locale}}.json"
+            placeholder={intl.formatMessage(messages.contentSyncPathTemplatePlaceholder, {
+              example: "{{locale}}.json",
+            })}
             description={intl.formatMessage(messages.contentSyncPathTemplateHelp, {
               placeholder: "{{locale}}",
             })}
             onChange={(value) => onChangeConfig({ ...config, pathTemplate: value })}
           />
-          <TextAreaField
-            id="vw-content-sync-locale-codes"
-            label={intl.formatMessage(messages.contentSyncLocaleCodes)}
-            value={formatContentSyncLocaleCodes(config.localeCodes)}
-            placeholder={"fr-FR = fr\npt-BR = pt"}
-            description={intl.formatMessage(messages.contentSyncLocaleCodesHelp)}
-            onChange={(value) =>
-              onChangeConfig({ ...config, localeCodes: parseContentSyncLocaleCodes(value) })
-            }
+          <ContentSyncLocaleCodesField
+            localeCodes={config.localeCodes}
+            onChange={(localeCodes) => onChangeConfig({ ...config, localeCodes })}
           />
         </>
       ) : null}
@@ -3739,7 +3735,35 @@ function ContentSyncConfigFields({
   );
 }
 
-/** One `locale = code` pair per line; the order is kept so typing doesn't shuffle lines. */
+/**
+ * The text is kept as typed: a half-typed line parses to nothing, and writing the parsed map
+ * back would wipe it with every keystroke.
+ */
+function ContentSyncLocaleCodesField({
+  localeCodes,
+  onChange,
+}: {
+  localeCodes: Record<string, string> | undefined;
+  onChange: (localeCodes: Record<string, string>) => void;
+}) {
+  const intl = useIntl();
+  const [text, setText] = useState(() => formatContentSyncLocaleCodes(localeCodes));
+  return (
+    <TextAreaField
+      id="vw-content-sync-locale-codes"
+      label={intl.formatMessage(messages.contentSyncLocaleCodes)}
+      value={text}
+      placeholder={"fr-FR = fr\npt-BR = pt"}
+      description={intl.formatMessage(messages.contentSyncLocaleCodesHelp)}
+      onChange={(value) => {
+        setText(value);
+        onChange(parseContentSyncLocaleCodes(value));
+      }}
+    />
+  );
+}
+
+/** One `locale = code` pair per line. */
 function formatContentSyncLocaleCodes(codes: Record<string, string> | undefined): string {
   return Object.entries(codes ?? {})
     .map(([locale, code]) => `${locale} = ${code}`)

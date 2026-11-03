@@ -145,9 +145,25 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
     },
   });
 
+  // Runs use the workspace's own GitLab server, never a member's GitLab.com sign-in, so the
+  // picker only lists projects that server has.
+  const gitlabConnectionQuery = useQuery({
+    queryKey: ["gitlab-connection", organizationSlug],
+    enabled,
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].gitlab.connection.$get({
+        param: { organizationSlug: organizationSlug! },
+      });
+      if (!response.ok) {
+        return null;
+      }
+      return (await response.json()).gitlabConnection as { serverUrl: string } | null;
+    },
+  });
+
   const gitlabQuery = useQuery({
     queryKey: ["gitlab-projects", organizationSlug, "visual-workflow"],
-    enabled,
+    enabled: enabled && Boolean(gitlabConnectionQuery.data),
     queryFn: async () => {
       const response = await api.api.orgs[":organizationSlug"].gitlab.projects.$get({
         param: { organizationSlug: organizationSlug! },

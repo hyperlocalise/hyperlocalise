@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   classifyContentSyncPath,
   compileContentSyncPathTemplate,
+  countContentSyncTemplateWildcards,
   resolveContentSyncLocale,
 } from "./content-sync-locale-paths";
 
@@ -27,7 +28,20 @@ describe("compileContentSyncPathTemplate", () => {
     expect(twice.match("fr/de.json")).toBeNull();
   });
 
-  it("treats a template without the placeholder as naming source files only", () => {
+  it("collapses runs of wildcards so a long template still matches quickly", () => {
+    const repeated = compileContentSyncPathTemplate(
+      "**/**/**/**/**/**/**/**/**/**/{{locale}}.json",
+    );
+    const deep = `${"a/".repeat(30)}x.txt`;
+    const started = Date.now();
+    expect(repeated.match(deep)).toBeNull();
+    expect(repeated.match("a/b/fr.json")).toBe("fr");
+    expect(Date.now() - started).toBeLessThan(200);
+    expect(compileContentSyncPathTemplate("***/{{locale}}.json").match("a/b/en.json")).toBe("en");
+    expect(countContentSyncTemplateWildcards("{{locale}}/**/*.html")).toBe(2);
+  });
+
+  it("names no language without the placeholder, so nothing matches", () => {
     const fixed = compileContentSyncPathTemplate("/source/*.json/");
     expect(fixed.usesLocale).toBe(false);
     expect(fixed.match("source/app.json")).toBe("");
@@ -45,6 +59,9 @@ describe("resolveContentSyncLocale", () => {
   it("goes through the configured codes before the locale itself, ignoring case", () => {
     const locales = ["en-US", "fr-FR", "pt-BR"];
     expect(resolveContentSyncLocale({ code: "fr", locales, localeCodes: { "fr-FR": "fr" } })).toBe(
+      "fr-FR",
+    );
+    expect(resolveContentSyncLocale({ code: "FR", locales, localeCodes: { "fr-fr": "fr" } })).toBe(
       "fr-FR",
     );
     expect(resolveContentSyncLocale({ code: "pt-br", locales })).toBe("pt-BR");
@@ -79,13 +96,13 @@ describe("classifyContentSyncPath", () => {
     });
   });
 
-  it("imports every match of a template without the placeholder as source", () => {
+  it("never imports a file whose template names no language", () => {
     expect(
       classifyContentSyncPath({
         ...base,
         template: compileContentSyncPathTemplate("source/*.json"),
         relativePath: "source/fr.json",
       }),
-    ).toEqual({ kind: "source", locale: "en-US" });
+    ).toEqual({ kind: "unmatched" });
   });
 });

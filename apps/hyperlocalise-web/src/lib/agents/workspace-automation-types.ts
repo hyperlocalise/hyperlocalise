@@ -1163,6 +1163,10 @@ export type WorkspaceAutomationConfigValidationError =
       message: "Say where each language's files are, for example {{locale}}.json.";
     }
   | {
+      code: "content_sync_path_template_invalid";
+      message: "The language file paths need {{locale}} once, and at most 8 wildcards.";
+    }
+  | {
       code: "content_sync_duplicate";
       message: "This project already syncs that source folder.";
     }

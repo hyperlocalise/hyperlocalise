@@ -41,6 +41,7 @@ export type UploadRepositorySourceFileResult =
       outcome: "skipped";
       reason: string;
       sourceFileVersionId?: string;
+      storedFileId?: string;
     }
   | {
       path: string;
@@ -152,6 +153,7 @@ export async function storeRepositorySourceFile(input: {
         outcome: "skipped",
         reason: "unchanged_for_commit",
         sourceFileVersionId: latestVersion.id,
+        storedFileId: latestVersion.storedFileId,
       };
     }
   }

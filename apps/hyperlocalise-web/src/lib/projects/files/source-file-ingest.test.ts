@@ -771,11 +771,12 @@ describe("reconcileSourceFileTranslationKeys for a GitLab sync", () => {
       runId: "run_sync_2",
       entries: [{ key: "keep", text: "Keep" }],
     });
+    // Only keys this sync hid are listed: "manual" was hidden by hand before it.
     expect(second.result).toEqual({
       status: "ingested",
-      syncReport: { clashes: [], missingKeys: ["dropped", "manual"] },
+      syncReport: { clashes: [], missingKeys: ["dropped"] },
     });
-    expect(second.storedReport).toEqual({ clashes: [], missingKeys: ["dropped", "manual"] });
+    expect(second.storedReport).toEqual({ clashes: [], missingKeys: ["dropped"] });
     let keys = await keysByName(first.fileId);
     expect(keys.get("dropped")).toMatchObject({ isHidden: true });
     expect(keys.get("dropped")?.hiddenBySyncAt).not.toBeNull();
@@ -897,9 +898,10 @@ describe("reconcileSourceFileTranslationKeys for a GitLab sync", () => {
       sourceText: "Repo v2",
       importedSourceText: "Repo v2",
     });
+    // A clash keeps its base, so the next import reports it again until one side gives way.
     expect(after.get("both")).toMatchObject({
       sourceText: "Both edited here",
-      importedSourceText: "Both edited in the repo",
+      importedSourceText: "Both v1",
     });
     expect(after.get("agreed")).toMatchObject({
       sourceText: "Agreed v2",
@@ -924,5 +926,66 @@ describe("reconcileSourceFileTranslationKeys for a GitLab sync", () => {
     for (const key of ["platform", "both", "agreed", "same"]) {
       expect(statusByKey.get(key)).toBe("approved");
     }
+
+    const third = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_on_3",
+      entries: [
+        { key: "platform", text: "Platform v1" },
+        { key: "repo", text: "Repo v2" },
+        { key: "both", text: "Both edited in the repo" },
+        { key: "agreed", text: "Agreed v2" },
+        { key: "same", text: "Same" },
+      ],
+    });
+    expect(third.result).toEqual({
+      status: "ingested",
+      syncReport: { clashes: ["both"], missingKeys: [] },
+    });
+  });
+
+  it("keeps clashes from any upload, and a hand upload still deletes what it lacks", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    await db
+      .update(schema.projects)
+      .set({ sourceTextEditable: true })
+      .where(eq(schema.projects.id, project.id));
+    const first = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_mixed_1",
+      entries: [
+        { key: "clash", text: "v1" },
+        { key: "gone", text: "Gone" },
+      ],
+    });
+    const keys = await keysByName(first.fileId);
+    await db
+      .update(schema.projectTranslationKeys)
+      .set({ sourceText: "edited here" })
+      .where(eq(schema.projectTranslationKeys.id, keys.get("clash")!.id));
+
+    const version = await createSourceVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      ingestState: "ingesting",
+      ingestWorkflowRunId: "run_mixed_2",
+    });
+    const result = await reconcileSourceFileTranslationKeys({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: version.repositorySourceFileId,
+      sourceFileVersionId: version.id,
+      workflowRunId: "run_mixed_2",
+      entries: [{ key: "clash", text: "v2", context: null }],
+    });
+    expect(result).toEqual({
+      status: "ingested",
+      syncReport: { clashes: ["clash"], missingKeys: [] },
+    });
+    const after = await keysByName(first.fileId);
+    expect(after.get("gone")).toBeUndefined();
+    expect(after.get("clash")).toMatchObject({ sourceText: "edited here" });
   });
 });

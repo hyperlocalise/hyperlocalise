@@ -87,7 +87,15 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     ],
     outputs: [output("pulled", "object"), output("pushed", "object")],
     mock: {
-      pulled: { uploaded: 1, skipped: 0, failed: 0 },
+      pulled: {
+        uploaded: 1,
+        skipped: 0,
+        failed: 0,
+        unmatched: 0,
+        translationFiles: 0,
+        commitSha: "mock-commit",
+        files: [],
+      },
       pushed: { written: 1 },
     },
   },

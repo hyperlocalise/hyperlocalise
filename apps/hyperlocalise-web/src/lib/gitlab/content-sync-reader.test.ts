@@ -80,6 +80,27 @@ describe("createGitLabContentSyncReader", () => {
 
     const missing = await reader().listFiles({ commitSha: "abc", folder: "nope" });
     expect(isOk(missing) && missing.value).toEqual([]);
+
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation(async (url: URL) =>
+          String(url).includes("page=2") ? new Response("{}", { status: 404 }) : page(firstPage),
+        ),
+    );
+    const lostAccess = await reader().listFiles({ commitSha: "abc", folder: "locales" });
+    expect(isErr(lostAccess) && lostAccess.error.code).toBe("content_sync_repository_not_found");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async () => page(firstPage)),
+    );
+    const endless = await reader().listFiles({ commitSha: "abc", folder: "locales" });
+    expect(isErr(endless) && endless.error).toMatchObject({
+      code: "content_sync_provider_failed",
+      message: expect.stringContaining("more than 10000 entries"),
+    });
   });
 
   it("reads a file's raw bytes at the commit", async () => {

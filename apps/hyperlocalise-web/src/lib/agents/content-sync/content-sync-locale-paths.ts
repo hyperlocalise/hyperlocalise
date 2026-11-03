@@ -15,6 +15,13 @@ import { normalizeRepositoryRelativePath } from "@/lib/i18n/safe-repository-path
 import { normalizeContentSyncFolder } from "./content-sync-paths";
 import { CONTENT_SYNC_LOCALE_PLACEHOLDER } from "./content-sync-types";
 
+/** How many `*` and `**` a template may hold; enough for any locale layout, few enough to match fast. */
+export const CONTENT_SYNC_TEMPLATE_MAX_WILDCARDS = 8;
+
+export function countContentSyncTemplateWildcards(template: string): number {
+  return (template.match(/\*+/g) ?? []).length;
+}
+
 /**
  * Turns a path template such as `{{locale}}.json` or `{{locale}}/pages/*.html` into a matcher.
  * `*` matches within one path segment, `**` across segments, and `{{locale}}` one language
@@ -24,7 +31,11 @@ export function compileContentSyncPathTemplate(template: string): {
   match: (relativePath: string) => string | null;
   usesLocale: boolean;
 } {
-  const normalized = normalizeContentSyncFolder(template);
+  // Runs of wildcards mean the same as one, and nested optional groups backtrack badly.
+  const normalized = normalizeContentSyncFolder(template)
+    .replace(/(\*\*\/)+/g, "**/")
+    .replace(/\*{3,}/g, "**")
+    .replace(/(\*\*\/)+\*\*/g, "**");
   const placeholder = CONTENT_SYNC_LOCALE_PLACEHOLDER;
   let pattern = "";
   let localeGroups = 0;
@@ -76,8 +87,11 @@ export function resolveContentSyncLocale(input: {
   localeCodes?: Record<string, string>;
 }): string | null {
   const wanted = input.code.toLowerCase();
+  const codes = new Map(
+    Object.entries(input.localeCodes ?? {}).map(([locale, code]) => [locale.toLowerCase(), code]),
+  );
   for (const locale of input.locales) {
-    const code = input.localeCodes?.[locale] ?? locale;
+    const code = codes.get(locale.toLowerCase()) ?? locale;
     if (code.toLowerCase() === wanted) {
       return locale;
     }
@@ -103,12 +117,9 @@ export function classifyContentSyncPath(input: {
   localeCodes?: Record<string, string>;
 }): ContentSyncPathClassification {
   const code = input.template.match(input.relativePath);
-  if (code === null) {
+  if (!code) {
+    // Without the placeholder nothing says which language a file is, so nothing is imported.
     return { kind: "unmatched" };
-  }
-  if (code === "") {
-    // A template without the placeholder names source files only.
-    return { kind: "source", locale: input.sourceLocale };
   }
   const locale = resolveContentSyncLocale({
     code,

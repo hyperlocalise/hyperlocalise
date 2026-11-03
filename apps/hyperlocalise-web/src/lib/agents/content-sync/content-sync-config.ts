@@ -10,9 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import {
+  CONTENT_SYNC_TEMPLATE_MAX_WILDCARDS,
+  countContentSyncTemplateWildcards,
+} from "./content-sync-locale-paths";
 import { buildContentSyncFingerprint } from "./content-sync-paths";
 import {
   buildDefaultContentSyncTriggerMode,
+  CONTENT_SYNC_LOCALE_PLACEHOLDER,
   contentSyncNeedsPathTemplate,
   contentSyncNeedsProviderFolder,
   type ContentSyncConfig,
@@ -26,8 +31,12 @@ import type {
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 export function normalizeStoredContentSyncConfig(config: ContentSyncConfig): ContentSyncConfig {
-  const { branch: rawBranch, pathTemplate: rawPathTemplate, localeCodes: rawLocaleCodes, ...rest } =
-    config;
+  const {
+    branch: rawBranch,
+    pathTemplate: rawPathTemplate,
+    localeCodes: rawLocaleCodes,
+    ...rest
+  } = config;
   const branch = rawBranch?.trim();
   const pathTemplate = rawPathTemplate ? normalizeContentSyncFolder(rawPathTemplate) : "";
   const localeCodes = Object.fromEntries(
@@ -137,6 +146,16 @@ export function validateContentSyncConfig(
       return err({
         code: "content_sync_folder_invalid",
         message: "Choose a safe relative folder path.",
+      });
+    }
+    if (
+      !normalized.pathTemplate.includes(CONTENT_SYNC_LOCALE_PLACEHOLDER) ||
+      countContentSyncTemplateWildcards(normalized.pathTemplate) >
+        CONTENT_SYNC_TEMPLATE_MAX_WILDCARDS
+    ) {
+      return err({
+        code: "content_sync_path_template_invalid",
+        message: "The language file paths need {{locale}} once, and at most 8 wildcards.",
       });
     }
   }

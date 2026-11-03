@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { storeRepositorySourceFile } from "@/lib/file-storage/upload-repository-source-files";
@@ -22,6 +22,8 @@ import { isSafeRepositoryRelativePath } from "@/lib/i18n/safe-repository-path";
 import { waitForSourceFileVersionIngest } from "@/lib/intercom/wait-for-source-file-ingest";
 import { createLogger } from "@/lib/log";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { hideKeysMissingFromSync } from "@/lib/projects/files/hide-keys-missing-from-sync";
+import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
 import type { SourceFileSyncReport } from "@/lib/projects/files/source-file-sync-report";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 
@@ -191,8 +193,16 @@ export async function executeGitLabContentSync(input: {
     sourceFiles.push({ repositoryPath: file.path, projectPath: normalizeSourcePath(projectPath) });
   }
 
+  if (sourceFiles.length === 0) {
+    return err({
+      code: "content_sync_no_source_files",
+      message: `No file under ${input.syncConfig.providerFolder} matches ${pathTemplate} for the source language ${sourceLocale}. Check the language file paths and codes.`,
+    });
+  }
+
   const pulled = { uploaded: 0, skipped: 0, failed: 0 };
-  const uploadedVersions: { path: string; sourceFileVersionId: string }[] = [];
+  const failedPaths: string[] = [];
+  const versions: SyncedVersion[] = [];
   for (const file of sourceFiles) {
     const content = await reader.readFile({
       commitSha: head.value.commitSha,
@@ -204,6 +214,7 @@ export async function executeGitLabContentSync(input: {
         "content sync could not read a source file",
       );
       pulled.failed += 1;
+      failedPaths.push(file.repositoryPath);
       continue;
     }
     const stored = await storeRepositorySourceFile({
@@ -217,40 +228,60 @@ export async function executeGitLabContentSync(input: {
     });
     if (stored.outcome === "uploaded") {
       pulled.uploaded += 1;
-      uploadedVersions.push({ path: stored.path, sourceFileVersionId: stored.sourceFileVersionId });
+      versions.push({ path: stored.path, sourceFileVersionId: stored.sourceFileVersionId });
     } else if (stored.outcome === "failed") {
       pulled.failed += 1;
+      failedPaths.push(file.repositoryPath);
     } else {
       pulled.skipped += 1;
+      // Unchanged since the last run, but that run's ingest may have failed or still be going.
+      if (stored.sourceFileVersionId && stored.storedFileId) {
+        versions.push({
+          path: stored.path,
+          sourceFileVersionId: stored.sourceFileVersionId,
+          retry: { storedFileId: stored.storedFileId },
+        });
+      }
     }
   }
 
   if (pulled.failed > 0) {
     return err({
       code: "content_sync_pull_failed",
-      message: "Some source files failed to import.",
+      message: `These files could not be imported: ${failedPaths.join(", ")}. A file over 5 MB can't be read.`,
     });
   }
 
   // Delivery reads the keys ingest wrote, so the run isn't done until every file is parsed.
-  for (const version of uploadedVersions) {
-    const outcome = await waitForSourceFileVersionIngest({
-      organizationId: input.organizationId,
-      sourceFileVersionId: version.sourceFileVersionId,
-      timeoutMs: INGEST_WAIT_TIMEOUT_MS,
+  const outcomes = await Promise.all(
+    versions.map(async (version) => ({
+      version,
+      outcome: await waitForIngest(
+        { organizationId: input.organizationId, projectId: input.projectId },
+        version,
+      ),
+    })),
+  );
+  const unfinished = outcomes.find(({ outcome }) => outcome === "failed" || outcome === "timeout");
+  if (unfinished) {
+    return err({
+      code: "content_sync_pull_failed",
+      message:
+        unfinished.outcome === "timeout"
+          ? `Importing ${unfinished.version.path} is taking too long. Check the file in Files and run the sync again.`
+          : `Importing ${unfinished.version.path} failed. Check the file in Files.`,
     });
-    if (outcome === "failed" || outcome === "timeout") {
-      return err({
-        code: "content_sync_pull_failed",
-        message:
-          outcome === "timeout"
-            ? `Importing ${version.path} is taking too long. Check the file in Files and run the sync again.`
-            : `Importing ${version.path} failed. Check the file in Files.`,
-      });
-    }
   }
 
-  const files = await loadSyncReports(uploadedVersions);
+  const files = [
+    ...(await loadSyncReports(versions)),
+    ...(await hideFilesMissingFromRepository({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      projectFolder: input.syncConfig.projectFolder,
+      presentPaths: sourceFiles.map((file) => file.projectPath),
+    })),
+  ];
 
   logger.info(
     {
@@ -276,9 +307,89 @@ export async function executeGitLabContentSync(input: {
   });
 }
 
-async function loadSyncReports(
-  versions: { path: string; sourceFileVersionId: string }[],
-): Promise<ContentSyncFileReport[]> {
+type SyncedVersion = {
+  path: string;
+  sourceFileVersionId: string;
+  /** Set for a file this run didn't store again; its ingest is queued once more if it failed. */
+  retry?: { storedFileId: string };
+};
+
+async function waitForIngest(
+  scope: { organizationId: string; projectId: string },
+  version: SyncedVersion,
+): Promise<"ingested" | "skipped" | "failed" | "timeout"> {
+  const outcome = await waitForSourceFileVersionIngest({
+    organizationId: scope.organizationId,
+    sourceFileVersionId: version.sourceFileVersionId,
+    timeoutMs: INGEST_WAIT_TIMEOUT_MS,
+  });
+  if (outcome !== "failed" || !version.retry) {
+    return outcome;
+  }
+  await enqueueSourceFileIngestAfterUpload({
+    organizationId: scope.organizationId,
+    projectId: scope.projectId,
+    storedFileId: version.retry.storedFileId,
+    sourceFileVersionId: version.sourceFileVersionId,
+    sourcePath: version.path,
+  });
+  return waitForSourceFileVersionIngest({
+    organizationId: scope.organizationId,
+    sourceFileVersionId: version.sourceFileVersionId,
+    timeoutMs: INGEST_WAIT_TIMEOUT_MS,
+  });
+}
+
+/**
+ * A file the repository dropped, or that the template no longer names, is a file of missing
+ * keys: they are hidden the same way, and shown again when the file returns and is imported.
+ */
+async function hideFilesMissingFromRepository(input: {
+  organizationId: string;
+  projectId: string;
+  projectFolder: string;
+  presentPaths: string[];
+}): Promise<ContentSyncFileReport[]> {
+  const present = new Set(input.presentPaths);
+  const synced = await db
+    .select({
+      id: schema.repositorySourceFiles.id,
+      sourcePath: schema.repositorySourceFiles.sourcePath,
+    })
+    .from(schema.repositorySourceFiles)
+    .innerJoin(
+      schema.repositorySourceFileVersions,
+      eq(
+        schema.repositorySourceFileVersions.id,
+        schema.repositorySourceFiles.reconciledSourceFileVersionId,
+      ),
+    )
+    .where(
+      and(
+        eq(schema.repositorySourceFiles.organizationId, input.organizationId),
+        eq(schema.repositorySourceFiles.projectId, input.projectId),
+        like(schema.repositorySourceFiles.sourcePath, `${input.projectFolder}/%`),
+        eq(schema.repositorySourceFileVersions.uploadSurface, GITLAB_CONTENT_SYNC_UPLOAD_SURFACE),
+      ),
+    );
+  const reports: ContentSyncFileReport[] = [];
+  for (const file of synced) {
+    if (present.has(file.sourcePath)) {
+      continue;
+    }
+    const missingKeys = await hideKeysMissingFromSync(db, {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      repositorySourceFileId: file.id,
+    });
+    if (missingKeys.length > 0) {
+      reports.push({ path: file.sourcePath, clashes: [], missingKeys });
+    }
+  }
+  return reports;
+}
+
+async function loadSyncReports(versions: SyncedVersion[]): Promise<ContentSyncFileReport[]> {
   if (versions.length === 0) {
     return [];
   }

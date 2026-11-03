@@ -223,6 +223,9 @@ async function sendApprovedTranslationsToReview(
  * ancestor; with none recorded (keys from before it was kept) the platform's text stands in, so
  * the first import under the rule takes the file's text unless it is unchanged.
  */
+/** Keys per approval-reset call; with up to 50 locales each, the insert stays well under Postgres's parameter limit. */
+const REVIEW_RESET_KEY_CHUNK = 100;
+
 export function decideImportedSourceText(input: {
   fileText: string;
   platformText: string;
@@ -372,7 +375,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
       if (decision.text !== row.sourceText) sourceChangedKeyIds.push(row.id);
       return {
         ...entry,
-        importedSourceText: entry.sourceText,
+        // A clash keeps its base, so it is reported on every import until one side gives way.
+        importedSourceText: decision.clash ? row.importedSourceText : entry.sourceText,
         sourceText: decision.text,
         normalizedSourceText: normalizeTranslationMemorySourceText(decision.text),
       };
@@ -413,11 +417,14 @@ export class ProjectTranslationService extends ProjectServiceBase {
           updatedAt: sql`now()`,
         },
       });
-    await sendApprovedTranslationsToReview(database, {
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      translationKeyIds: sourceChangedKeyIds,
-    });
+    // In chunks: the revision rows of a chunk's translations go into one insert.
+    for (const translationKeyIds of chunkItems(sourceChangedKeyIds, REVIEW_RESET_KEY_CHUNK)) {
+      await sendApprovedTranslationsToReview(database, {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        translationKeyIds,
+      });
+    }
 
     this.log.info(
       {
@@ -485,6 +492,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
       .update(schema.projectTranslationKeys)
       .set({
         isHidden: input.isHidden,
+        // A person's choice, so a sync no longer owns the hidden state.
+        hiddenBySyncAt: null,
         updatedAt: new Date(),
       })
       .where(

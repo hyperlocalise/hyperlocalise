@@ -17,6 +17,7 @@ import { uploadSurfaceKeepsMissingKeys } from "@/lib/agents/content-sync/content
 import { db, schema } from "@/lib/database/client";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
+import { hideKeysMissingFromSync } from "./hide-keys-missing-from-sync";
 import type { SourceFileSyncReport } from "./source-file-sync-report";
 
 export async function reconcileSourceFileTranslationKeys(input: {
@@ -118,25 +119,16 @@ export async function reconcileSourceFileTranslationKeys(input: {
       },
       tx,
     );
-    const missingKeysWhere = and(
-      eq(schema.projectTranslationKeys.organizationId, input.organizationId),
-      eq(schema.projectTranslationKeys.projectId, input.projectId),
-      eq(schema.projectTranslationKeys.repositorySourceFileId, file.id),
-      sql`${schema.projectTranslationKeys.sourceFileVersionId} IS DISTINCT FROM ${version.id}::uuid`,
-    );
-    let syncReport: SourceFileSyncReport | null = null;
+    let missingKeys: string[] = [];
     if (uploadSurfaceKeepsMissingKeys(version.uploadSurface)) {
       // A repository sync hides what the repository dropped, so nothing is lost if it comes
       // back, and translation jobs skip hidden keys. Only keys a sync hid are unhidden.
-      const missing = await tx
-        .update(schema.projectTranslationKeys)
-        .set({
-          isHidden: true,
-          hiddenBySyncAt: sql`coalesce(${schema.projectTranslationKeys.hiddenBySyncAt}, case when ${schema.projectTranslationKeys.isHidden} then null else now() end)`,
-          updatedAt: sql`now()`,
-        })
-        .where(missingKeysWhere)
-        .returning({ key: schema.projectTranslationKeys.key });
+      missingKeys = await hideKeysMissingFromSync(tx, {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        repositorySourceFileId: file.id,
+        keepVersionId: version.id,
+      });
       await tx
         .update(schema.projectTranslationKeys)
         .set({ isHidden: false, hiddenBySyncAt: null, updatedAt: sql`now()` })
@@ -147,13 +139,23 @@ export async function reconcileSourceFileTranslationKeys(input: {
             sql`${schema.projectTranslationKeys.hiddenBySyncAt} IS NOT NULL`,
           ),
         );
-      syncReport = {
-        clashes,
-        missingKeys: missing.map((row) => row.key).sort(),
-      };
     } else {
-      await tx.delete(schema.projectTranslationKeys).where(missingKeysWhere);
+      await tx
+        .delete(schema.projectTranslationKeys)
+        .where(
+          and(
+            eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+            eq(schema.projectTranslationKeys.projectId, input.projectId),
+            eq(schema.projectTranslationKeys.repositorySourceFileId, file.id),
+            sql`${schema.projectTranslationKeys.sourceFileVersionId} IS DISTINCT FROM ${version.id}::uuid`,
+          ),
+        );
     }
+    // Clashes are worth keeping whatever brought the file in; missing keys only where hidden.
+    const syncReport: SourceFileSyncReport | null =
+      uploadSurfaceKeepsMissingKeys(version.uploadSurface) || clashes.length > 0
+        ? { clashes, missingKeys }
+        : null;
     await tx
       .update(schema.repositorySourceFiles)
       .set({

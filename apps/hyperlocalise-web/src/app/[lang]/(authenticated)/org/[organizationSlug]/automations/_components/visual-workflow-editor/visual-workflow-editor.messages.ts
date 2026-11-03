@@ -2070,6 +2070,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "UwEjMjlBD5",
     description: "Path template setting on the content sync action",
   },
+  contentSyncPathTemplatePlaceholder: {
+    defaultMessage: "for example {example}",
+    id: "PsfScgqwTN",
+    description: "Placeholder of the path template setting, showing an example value",
+  },
   contentSyncPathTemplateHelp: {
     defaultMessage:
       "Where each language's files sit under the provider folder, with {placeholder} for the language code. The source language's files are imported; * matches within a folder and ** across folders.",

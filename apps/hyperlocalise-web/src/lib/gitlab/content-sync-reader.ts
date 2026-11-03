@@ -132,7 +132,7 @@ export function createGitLabContentSyncReader(input: {
       });
       if (isErr(result)) {
         // A folder the branch doesn't have is an empty listing, which the caller reports.
-        if (result.error.code === "gitlab_not_found") {
+        if (result.error.code === "gitlab_not_found" && page === 1) {
           return ok(files);
         }
         return err(providerError(result.error));
@@ -151,10 +151,13 @@ export function createGitLabContentSyncReader(input: {
         files.push({ path: entry.path, contentId: typeof entry.id === "string" ? entry.id : null });
       }
       if (result.value.length < TREE_PAGE_SIZE) {
-        break;
+        return ok(files);
       }
     }
-    return ok(files);
+    return err({
+      code: "content_sync_provider_failed",
+      message: `The provider folder holds more than ${TREE_PAGE_SIZE * TREE_MAX_PAGES} entries. Choose a smaller folder.`,
+    });
   }
 
   async function readFile(options: {

@@ -409,6 +409,7 @@ func (s *postgresStore) updateString(ctx context.Context, actor principal, proje
 		}
 		if patch.Hidden != nil {
 			set.add("is_hidden = ?", *patch.Hidden)
+			set.add("hidden_by_sync_at = ?", nil)
 		}
 		args := append(set.args, actor.OrganizationID, scope.ID, stringID)
 		n := len(set.args)

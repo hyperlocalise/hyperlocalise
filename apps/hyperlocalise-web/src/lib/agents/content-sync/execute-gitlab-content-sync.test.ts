@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
   reportRows: vi.fn(),
   storeRepositorySourceFile: vi.fn(),
   waitForSourceFileVersionIngest: vi.fn(),
+  enqueueSourceFileIngestAfterUpload: vi.fn(),
+  hideKeysMissingFromSync: vi.fn(),
+  syncedFileRows: vi.fn(),
   resolveGitLabAccess: vi.fn(),
   getGitLabProject: vi.fn(),
   createGitLabContentSyncReader: vi.fn(),
@@ -16,21 +19,41 @@ vi.mock("@/lib/database/client", () => ({
   db: {
     select: vi.fn(() => ({
       from: vi.fn(() => ({
-        // One query ends in `.limit()` (the project), the other is awaited as is (the reports).
+        // The project query ends in `.limit()`, the reports query is awaited as is, and the
+        // synced-files query joins first.
         where: () =>
           Object.assign(Promise.resolve(mocks.reportRows()), {
             limit: () => Promise.resolve(mocks.projectRows()),
           }),
+        innerJoin: () => ({ where: () => Promise.resolve(mocks.syncedFileRows()) }),
       })),
     })),
   },
   schema: {
     projects: { id: "id", organizationId: "organizationId" },
-    repositorySourceFileVersions: { id: "id", syncReport: "syncReport" },
+    repositorySourceFileVersions: {
+      id: "id",
+      syncReport: "syncReport",
+      uploadSurface: "uploadSurface",
+    },
+    repositorySourceFiles: {
+      id: "id",
+      organizationId: "organizationId",
+      projectId: "projectId",
+      sourcePath: "sourcePath",
+      reconciledSourceFileVersionId: "reconciledSourceFileVersionId",
+    },
   },
 }));
 vi.mock("@/lib/file-storage/upload-repository-source-files", () => ({
   storeRepositorySourceFile: (...args: unknown[]) => mocks.storeRepositorySourceFile(...args),
+}));
+vi.mock("@/lib/projects/files/source-file-ingest", () => ({
+  enqueueSourceFileIngestAfterUpload: (...args: unknown[]) =>
+    mocks.enqueueSourceFileIngestAfterUpload(...args),
+}));
+vi.mock("@/lib/projects/files/hide-keys-missing-from-sync", () => ({
+  hideKeysMissingFromSync: (...args: unknown[]) => mocks.hideKeysMissingFromSync(...args),
 }));
 vi.mock("@/lib/intercom/wait-for-source-file-ingest", () => ({
   waitForSourceFileVersionIngest: (...args: unknown[]) =>
@@ -120,6 +143,8 @@ describe("executeGitLabContentSync", () => {
       sourceFileVersionId: `version:${input.sourcePath}`,
     }));
     mocks.waitForSourceFileVersionIngest.mockResolvedValue("ingested");
+    mocks.syncedFileRows.mockReturnValue([]);
+    mocks.hideKeysMissingFromSync.mockResolvedValue([]);
   });
 
   it("imports only the source locale's matching files and waits for their ingest", async () => {
@@ -164,19 +189,59 @@ describe("executeGitLabContentSync", () => {
     });
   });
 
-  it("counts an unchanged file as skipped and a superseded ingest as finished", async () => {
-    mocks.storeRepositorySourceFile.mockResolvedValueOnce({
+  it("waits for an unchanged file's earlier ingest too, queueing it again when it failed", async () => {
+    const skipped = {
       path: "gitlab/acme/web/en.json",
       outcome: "skipped",
       reason: "unchanged_for_commit",
+      sourceFileVersionId: "version:old",
+      storedFileId: "stored:old",
+    };
+    mocks.storeRepositorySourceFile.mockResolvedValueOnce(skipped);
+    const unchanged = await run(fakeReader());
+    expect(isOk(unchanged) && unchanged.value.pulled).toMatchObject({ uploaded: 0, skipped: 1 });
+    expect(mocks.waitForSourceFileVersionIngest).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceFileVersionId: "version:old" }),
+    );
+    expect(mocks.enqueueSourceFileIngestAfterUpload).not.toHaveBeenCalled();
+
+    mocks.storeRepositorySourceFile.mockResolvedValueOnce(skipped);
+    mocks.waitForSourceFileVersionIngest
+      .mockResolvedValueOnce("failed")
+      .mockResolvedValueOnce("ingested");
+    const retried = await run(fakeReader());
+    expect(isOk(retried)).toBe(true);
+    expect(mocks.enqueueSourceFileIngestAfterUpload).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      projectId: "project-1",
+      storedFileId: "stored:old",
+      sourceFileVersionId: "version:old",
+      sourcePath: "gitlab/acme/web/en.json",
     });
-    const skipped = await run(fakeReader());
-    expect(isOk(skipped) && skipped.value.pulled).toMatchObject({ uploaded: 0, skipped: 1 });
-    expect(mocks.waitForSourceFileVersionIngest).not.toHaveBeenCalled();
 
     mocks.waitForSourceFileVersionIngest.mockResolvedValueOnce("skipped");
     const superseded = await run(fakeReader());
     expect(isOk(superseded) && superseded.value.pulled).toMatchObject({ uploaded: 1 });
+  });
+
+  it("hides the keys of synced files the repository no longer has", async () => {
+    mocks.syncedFileRows.mockReturnValue([
+      { id: "file:en", sourcePath: "gitlab/acme/web/en.json" },
+      { id: "file:old", sourcePath: "gitlab/acme/web/old.json" },
+    ]);
+    mocks.hideKeysMissingFromSync.mockResolvedValue(["a", "b"]);
+
+    const result = await run(fakeReader());
+
+    expect(mocks.hideKeysMissingFromSync).toHaveBeenCalledTimes(1);
+    expect(mocks.hideKeysMissingFromSync).toHaveBeenCalledWith(expect.anything(), {
+      organizationId: "org-1",
+      projectId: "project-1",
+      repositorySourceFileId: "file:old",
+    });
+    expect(isOk(result) && result.value.pulled.files).toEqual([
+      { path: "gitlab/acme/web/old.json", clashes: [], missingKeys: ["a", "b"] },
+    ]);
   });
 
   it("fails the run when a file can't be read, stored or parsed", async () => {
@@ -185,7 +250,10 @@ describe("executeGitLabContentSync", () => {
         readFile: async () => err({ code: "content_sync_provider_failed", message: "down" }),
       }),
     );
-    expect(isErr(unreadable) && unreadable.error.code).toBe("content_sync_pull_failed");
+    expect(isErr(unreadable) && unreadable.error).toMatchObject({
+      code: "content_sync_pull_failed",
+      message: expect.stringContaining("locales/en.json"),
+    });
 
     mocks.waitForSourceFileVersionIngest.mockResolvedValueOnce("failed");
     const unparsed = await run(fakeReader());
@@ -201,6 +269,12 @@ describe("executeGitLabContentSync", () => {
 
     const noTemplate = await run(fakeReader(), { ...syncConfig, pathTemplate: "" });
     expect(isErr(noTemplate) && noTemplate.error.code).toBe("content_sync_path_template_required");
+
+    const noMatch = await run(fakeReader(), { ...syncConfig, localeCodes: {} });
+    expect(isErr(noMatch) && noMatch.error).toMatchObject({
+      code: "content_sync_no_source_files",
+      message: expect.stringContaining("en-US"),
+    });
 
     mocks.projectRows.mockReturnValue([{ sourceLocale: null, targetLocales: [] }]);
     const noLocale = await run(fakeReader());

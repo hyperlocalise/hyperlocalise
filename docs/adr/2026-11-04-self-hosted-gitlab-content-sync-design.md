@@ -24,9 +24,9 @@ The platform is where source text and translations are edited, so a repeat sync 
 
 ### What a pull imports
 
-- The sync settings name **where each language's files sit**: a path template under the provider folder with `{{locale}}` for the language code (`{{locale}}.json`, `{{locale}}/pages/*.html`), and an optional map from a project locale to the code the repository uses (`fr-FR` → `fr`). The source locale's files are imported as source files. A file whose code is a target locale is a translation file, left for delivery. A file that matches neither is skipped. Nothing is guessed, so a translated file is never read as English.
+- The sync settings name **where each language's files sit**: a path template under the provider folder with `{{locale}}` for the language code (`{{locale}}.json`, `{{locale}}/pages/*.html`), and an optional map from a project locale to the code the repository uses (`fr-FR` → `fr`). The placeholder is required and at most eight wildcards are allowed. The source locale's files are imported as source files. A file whose code is a target locale is a translation file, left for delivery. A file that matches neither is skipped. Nothing is guessed, so a translated file is never read as English, and a run that finds no source file fails rather than succeeding with nothing.
 - The settings live in the existing sync configuration (`ContentSyncConfig`: `branch`, `pathTemplate`, `localeCodes`). GitLab is offered in the visual workflow **Content sync** step, which runs the same `executeContentSyncConfig`; a built-in project sync page is separate work.
-- The run waits for every imported file's ingest to finish, so delivery can rely on the keys being there. A version a newer upload superseded counts as finished.
+- The run waits for every imported file's ingest to finish, so delivery can rely on the keys being there. A file unchanged since the last run is not stored again, but its last ingest is waited for too, and queued again if it failed. A version a newer upload superseded counts as finished.
 
 ### Source text edits, on both sides
 
@@ -35,21 +35,22 @@ The platform is where source text and translations are edited, so a repeat sync 
   - only the file changed: take it;
   - both changed to the same text: keep it;
   - both changed differently: a **clash**; keep the platform's and report the key.
-  Every import records the file's text as the last imported text. Texts are compared exactly.
+  Every import records the file's text as the last imported text, except on a clash, which keeps its base so it is reported on every run until one side gives way (delivery writes the platform's text back when the setting is on). Texts are compared exactly. The migration records each existing key's text as its base, so edits made after it are protected from the start. The rule keys on exact strings, so position-keyed formats (HTML, Markdown segments) can clash on a shifted slot when a paragraph is inserted; that is a known limit.
 - The public API refuses a source text change with `409 source_text_not_editable` while the setting is off. Turning the setting off warns that edits not yet in the repository will be replaced by the next sync.
 - Approved translations go back to review only for keys whose source text was actually written.
 
 ### Keys the repository dropped
 
-A GitLab sync hides them with the existing hidden flag, which translation jobs skip, instead of deleting them, and records that a sync hid them (`hidden_by_sync_at`). A key that comes back is unhidden only if a sync hid it. Every other upload path keeps today's delete.
+A GitLab sync hides them with the existing hidden flag, which translation jobs skip, instead of deleting them, and records that a sync hid them (`hidden_by_sync_at`). A key that comes back is unhidden only if a sync hid it; hiding or unhiding by hand clears the record. A file the repository dropped, or that the template no longer names, has all its keys hidden the same way. Every other upload path keeps today's delete, so a hand upload of a synced file removes the keys the sync had hidden.
 
 ### Reporting
 
-Clashes and missing keys are stored on the source file version (`sync_report`) and returned in the run summary, per file. They are never written to key metadata, which several services rewrite without locking.
+Clashes and the keys a run hid are stored on the source file version (`sync_report`) and returned in the run summary, per file. Clashes are kept for every kind of upload when the setting is on. They are never written to key metadata, which several services rewrite without locking.
 
 ## Consequences
 
 - A sync needs a workspace GitLab connection; a member's GitLab.com sign-in is not used, since runs have no user.
-- The sync holds the GitLab project's id as well as its path, and refuses to run when the path on the current server names another project.
+- The sync holds the GitLab project's id as well as its path, and refuses to run when the path on the current server names another project. The step's repository picker lists projects only when the workspace has a connection.
+- The public API refuses source text changes on every project until the setting is turned on, strings outside any file included; this changes a live path and is named as a risk.
 - A file with a changed source text and translations in the repository is reported and left as is; a manual clean-up of hidden keys is later work.
 - The GitHub content sync still clones, delivers unreviewed text and hard-deletes missing keys. Moving it onto the interface is a separate change with its owner.
