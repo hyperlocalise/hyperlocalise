@@ -58,6 +58,13 @@ describe("InboxList filters", () => {
     expect(screen.getByText("Translate homepage hero copy")).toBeInTheDocument();
     expect(screen.getByText("Checkout CTA tone feels off")).toBeInTheDocument();
 
+    const unreadItem = screen.getByRole("link", { name: /Otto Klein assigned you/i });
+    const readItem = screen.getByRole("link", { name: /Glossary term mismatch/i });
+    expect(unreadItem).toHaveAttribute("data-unread", "true");
+    expect(unreadItem.className).toMatch(/(?:^|\s)bg-subtle(?:\s|$)/);
+    expect(readItem).not.toHaveAttribute("data-unread");
+    expect(readItem.className).not.toMatch(/(?:^|\s)bg-subtle(?:\s|$)/);
+
     await user.click(screen.getByRole("button", { name: "Unread" }));
 
     expect(screen.queryByText("Translate homepage hero copy")).not.toBeInTheDocument();

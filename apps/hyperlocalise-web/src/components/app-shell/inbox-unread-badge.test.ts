@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { formatInboxUnreadBadgeLabel } from "./inbox-unread-badge";
+import { formatInboxUnreadBadgeLabel, inboxUnreadBadgeClassName } from "./inbox-unread-badge";
 
 describe("formatInboxUnreadBadgeLabel", () => {
   it("hides the badge when there are no unread items", () => {
@@ -28,5 +28,12 @@ describe("formatInboxUnreadBadgeLabel", () => {
   it("caps counts above 9 as 9+", () => {
     expect(formatInboxUnreadBadgeLabel(10)).toBe("9+");
     expect(formatInboxUnreadBadgeLabel(99)).toBe("9+");
+  });
+});
+
+describe("inboxUnreadBadgeClassName", () => {
+  it("uses a neutral count treatment instead of destructive red", () => {
+    expect(inboxUnreadBadgeClassName).toContain("bg-foreground");
+    expect(inboxUnreadBadgeClassName).not.toContain("destructive");
   });
 });
