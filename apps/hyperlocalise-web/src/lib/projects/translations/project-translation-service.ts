@@ -173,6 +173,51 @@ function translationKeysQueueFilterCondition(input: {
   });
 }
 
+/**
+ * Moves the approved translations of keys whose source text changed back to `needs_review`,
+ * keeping their text, so out-of-date text is not delivered as reviewed. Records a revision for
+ * each. Pass the transaction that changed the source, so both commit together.
+ */
+async function sendApprovedTranslationsToReview(
+  database: DatabaseClient,
+  input: { organizationId: string; projectId: string; translationKeyIds: string[] },
+) {
+  if (input.translationKeyIds.length === 0) return;
+  await database.transaction(async (tx) => {
+    const approved = await tx
+      .select({
+        ...projectTranslationRevisionColumns,
+        updatedAt: schema.projectTranslations.updatedAt,
+      })
+      .from(schema.projectTranslations)
+      .where(
+        and(
+          eq(schema.projectTranslations.organizationId, input.organizationId),
+          eq(schema.projectTranslations.projectId, input.projectId),
+          inArray(schema.projectTranslations.translationKeyId, input.translationKeyIds),
+          eq(schema.projectTranslations.status, "approved"),
+        ),
+      )
+      .for("update");
+    if (approved.length === 0) return;
+    const saved = await tx
+      .update(schema.projectTranslations)
+      .set({ status: "needs_review", reviewedByUserId: null, reviewedAt: null })
+      .where(
+        inArray(
+          schema.projectTranslations.id,
+          approved.map((row) => row.id),
+        ),
+      )
+      .returning(projectTranslationRevisionColumns);
+    await recordProjectTranslationRevisions(tx, {
+      before: new Map(approved.map((row) => [row.id, row])),
+      saved,
+      actor: { actorKind: "system", actorUserId: null },
+    });
+  });
+}
+
 export class ProjectTranslationService extends ProjectServiceBase {
   constructor(database: typeof db = db) {
     super(database, "projects.translations");
@@ -252,7 +297,9 @@ export class ProjectTranslationService extends ProjectServiceBase {
 
     const existing = await database
       .select({
+        id: schema.projectTranslationKeys.id,
         key: schema.projectTranslationKeys.key,
+        sourceText: schema.projectTranslationKeys.sourceText,
       })
       .from(schema.projectTranslationKeys)
       .where(
@@ -266,11 +313,14 @@ export class ProjectTranslationService extends ProjectServiceBase {
         ),
       );
 
-    const existingKeys = new Set(existing.map((row) => row.key));
+    const existingByKey = new Map(existing.map((row) => [row.key, row]));
     let updated = 0;
+    const sourceChangedKeyIds: string[] = [];
     for (const entry of entries) {
-      if (existingKeys.has(entry.key)) {
+      const row = existingByKey.get(entry.key);
+      if (row) {
         updated += 1;
+        if (row.sourceText !== entry.sourceText) sourceChangedKeyIds.push(row.id);
       }
     }
     const imported = entries.length - updated;
@@ -307,6 +357,11 @@ export class ProjectTranslationService extends ProjectServiceBase {
           updatedAt: sql`now()`,
         },
       });
+    await sendApprovedTranslationsToReview(database, {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      translationKeyIds: sourceChangedKeyIds,
+    });
 
     this.log.info(
       {
