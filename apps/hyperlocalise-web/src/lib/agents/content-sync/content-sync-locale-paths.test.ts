@@ -41,17 +41,15 @@ describe("compileContentSyncPathTemplate", () => {
   });
 
   it("allows only wildcards that match quickly", () => {
-    for (const template of [
-      "{{locale}}/**/*.html",
-      "**/{{locale}}.*.json",
-      "*-*-{{locale}}.json",
-    ]) {
+    for (const template of ["{{locale}}/**/*.html", "**/{{locale}}.*.json", "*-{{locale}}.json"]) {
       expect(hasSafeContentSyncTemplateWildcards(template)).toBe(true);
     }
     for (const template of [
       "*a*a*{{locale}}.json",
       "{{locale}}**x**y",
       "*/*/*/*/*/*/*/*/*/{{locale}}.json",
+      "{{locale}}-{{locale}}-{{locale}}.json",
+      "*-*-{{locale}}.json",
     ]) {
       expect(hasSafeContentSyncTemplateWildcards(template)).toBe(false);
     }

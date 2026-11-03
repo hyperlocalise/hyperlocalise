@@ -151,11 +151,11 @@ export function createGitLabContentSyncReader(input: {
         }
         files.push({ path: entry.path, contentId: typeof entry.id === "string" ? entry.id : null });
       }
+      if (page > TREE_MAX_PAGES && result.value.length > 0) {
+        break;
+      }
       if (result.value.length < TREE_PAGE_SIZE) {
         return ok(files);
-      }
-      if (page > TREE_MAX_PAGES) {
-        break;
       }
     }
     return err({

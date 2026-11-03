@@ -131,9 +131,11 @@ export async function storeRepositorySourceFile(input: {
   uploadSurface: string;
   /**
    * `commit` (the default) stores a file again at every new commit; `content` skips it while
-   * its bytes are unchanged, whatever the commit.
+   * its bytes are unchanged, whatever the commit, as long as the latest version is the caller's
+   * own and its ingest isn't still running (a dead ingest would otherwise block the file for
+   * good); `never` always stores it.
    */
-  skipUnchanged?: "commit" | "content";
+  skipUnchanged?: "commit" | "content" | "never";
   adapter?: FileStorageAdapter;
 }): Promise<UploadRepositorySourceFileResult> {
   const adapter = input.adapter ?? getFileStorageAdapter();
@@ -148,11 +150,14 @@ export async function storeRepositorySourceFile(input: {
       sourcePath: normalizedPath,
     });
 
-    if (
-      latestVersion &&
+    const unchanged =
+      latestVersion !== null &&
       latestVersion.sourceHash === sourceHash &&
-      (input.skipUnchanged === "content" || latestVersion.commitSha === input.commitSha)
-    ) {
+      (input.skipUnchanged === "content"
+        ? latestVersion.uploadSurface === input.uploadSurface &&
+          latestVersion.ingestState !== "ingesting"
+        : input.skipUnchanged !== "never" && latestVersion.commitSha === input.commitSha);
+    if (latestVersion && unchanged) {
       return {
         path: normalizedPath,
         outcome: "skipped",

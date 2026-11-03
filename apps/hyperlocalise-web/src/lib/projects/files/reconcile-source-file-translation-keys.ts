@@ -134,6 +134,11 @@ export async function reconcileSourceFileTranslationKeys(input: {
         sourceFileVersionId: version.id,
       });
     } else {
+      // A hand upload that brings a key back shows it again too; only a sync hides.
+      await unhideKeysSyncHid(tx, {
+        repositorySourceFileId: file.id,
+        sourceFileVersionId: version.id,
+      });
       await tx
         .delete(schema.projectTranslationKeys)
         .where(

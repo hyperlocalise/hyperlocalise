@@ -17,8 +17,8 @@ import { CONTENT_SYNC_LOCALE_PLACEHOLDER } from "./content-sync-types";
 
 /**
  * Whether a template's wildcards are ones that match quickly: `**` only as a whole folder
- * segment, at most two `*` in any one segment, and at most eight wildcards in all. Anything
- * looser can make the compiled pattern backtrack for seconds on a long path.
+ * segment, at most two `*` or `{{locale}}` in any one segment, and at most eight in all.
+ * Anything looser can make the compiled pattern backtrack for seconds on a long path.
  */
 export function hasSafeContentSyncTemplateWildcards(template: string): boolean {
   const segments = template.split("/");
@@ -31,11 +31,14 @@ export function hasSafeContentSyncTemplateWildcards(template: string): boolean {
     if (segment.includes("**")) {
       return false;
     }
-    const stars = (segment.match(/\*/g) ?? []).length;
-    if (stars > 2) {
+    const open =
+      (segment.match(/\*/g) ?? []).length +
+      segment.split(CONTENT_SYNC_LOCALE_PLACEHOLDER).length -
+      1;
+    if (open > 2) {
       return false;
     }
-    wildcards += stars;
+    wildcards += open;
   }
   return wildcards <= 8;
 }

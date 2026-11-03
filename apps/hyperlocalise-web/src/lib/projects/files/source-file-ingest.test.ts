@@ -988,4 +988,40 @@ describe("reconcileSourceFileTranslationKeys for a GitLab sync", () => {
     expect(after.get("gone")).toBeUndefined();
     expect(after.get("clash")).toMatchObject({ sourceText: "edited here" });
   });
+
+  it("shows keys a sync hid again when a hand upload brings them back", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const first = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_hand_1",
+      entries: [{ key: "back", text: "Back" }],
+    });
+    await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_hand_2",
+      entries: [],
+    });
+    expect((await keysByName(first.fileId)).get("back")).toMatchObject({ isHidden: true });
+
+    const version = await createSourceVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      ingestState: "ingesting",
+      ingestWorkflowRunId: "run_hand_3",
+    });
+    await reconcileSourceFileTranslationKeys({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: version.repositorySourceFileId,
+      sourceFileVersionId: version.id,
+      workflowRunId: "run_hand_3",
+      entries: [{ key: "back", text: "Back", context: null }],
+    });
+    expect((await keysByName(first.fileId)).get("back")).toMatchObject({
+      isHidden: false,
+      hiddenBySyncAt: null,
+    });
+  });
 });

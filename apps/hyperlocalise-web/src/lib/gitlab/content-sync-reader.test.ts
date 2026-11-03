@@ -92,6 +92,26 @@ describe("createGitLabContentSyncReader", () => {
     const lostAccess = await reader().listFiles({ commitSha: "abc", folder: "locales" });
     expect(isErr(lostAccess) && lostAccess.error.code).toBe("content_sync_repository_not_found");
 
+    let served = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async () => (served++ < 100 ? page(firstPage) : page([]))),
+    );
+    const exactlyTheCap = await reader().listFiles({ commitSha: "abc", folder: "locales" });
+    expect(isOk(exactlyTheCap) && exactlyTheCap.value).toHaveLength(10_000);
+
+    served = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation(async () =>
+          served++ < 100 ? page(firstPage) : page([blob("locales/one-more.json")]),
+        ),
+    );
+    const oneOver = await reader().listFiles({ commitSha: "abc", folder: "locales" });
+    expect(isErr(oneOver) && oneOver.error.code).toBe("content_sync_provider_failed");
+
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation(async () => page(firstPage)),

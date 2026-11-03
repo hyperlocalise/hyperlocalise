@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray, like } from "drizzle-orm";
+import { and, eq, inArray, like, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { storeRepositorySourceFile } from "@/lib/file-storage/upload-repository-source-files";
@@ -80,6 +80,7 @@ export async function executeGitLabContentSync(input: {
     .select({
       sourceLocale: schema.projects.sourceLocale,
       targetLocales: schema.projects.targetLocales,
+      sourceTextEditable: schema.projects.sourceTextEditable,
     })
     .from(schema.projects)
     .where(
@@ -124,7 +125,9 @@ export async function executeGitLabContentSync(input: {
         message:
           gitlabProject.error.code === "gitlab_not_found"
             ? "The workspace's GitLab token can't see this repository. Check the connection in Integrations."
-            : "The workspace's GitLab server couldn't be reached. Check the connection in Integrations.",
+            : gitlabProject.error.code === "gitlab_unauthorized"
+              ? "The workspace's GitLab token was refused. Check the connection in Integrations."
+              : "The workspace's GitLab server couldn't be reached. Check the connection in Integrations.",
       });
     }
     if (String(gitlabProject.value.id) !== input.syncConfig.connectionId) {
@@ -228,7 +231,17 @@ export async function executeGitLabContentSync(input: {
       commitSha: head.value.commitSha,
       workflowRunId: input.runId,
       uploadSurface: GITLAB_CONTENT_SYNC_UPLOAD_SURFACE,
-      skipUnchanged: "content",
+      // With source text kept to the repository, a platform text that drifted from the file
+      // (edits made while the setting was on) is put back by importing the file again.
+      skipUnchanged:
+        !project.sourceTextEditable &&
+        (await fileHasSourceTextDrift({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          sourcePath: file.projectPath,
+        }))
+          ? "never"
+          : "content",
     });
     if (stored.outcome === "uploaded") {
       pulled.uploaded += 1;
@@ -279,7 +292,7 @@ export async function executeGitLabContentSync(input: {
   }
 
   const files = [
-    ...(await loadSyncReports(versions.filter((version) => !version.unchanged))),
+    ...(await loadSyncReports(versions)),
     ...(await hideFilesMissingFromRepository({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -314,8 +327,6 @@ export async function executeGitLabContentSync(input: {
     pushed: { written: 0 },
   });
 }
-
-type IngestState = (typeof schema.repositorySourceFileVersions.$inferSelect)["ingestState"];
 
 type SyncedVersion = {
   path: string;
@@ -356,28 +367,47 @@ async function waitForIngest(
     return "failed";
   }
   if (row.ingestState === "pending" || row.ingestState === "failed") {
-    await enqueueSourceFileIngestAfterUpload({
-      organizationId: scope.organizationId,
-      projectId: scope.projectId,
-      storedFileId: version.unchanged.storedFileId,
-      sourceFileVersionId: version.sourceFileVersionId,
-      sourcePath: version.path,
-    });
-    // The queued ingest flips the state when it claims the version; until then it still reads
-    // as failed, which the waiter would take as the answer.
+    let queued: { workflowRunIds: string[] };
+    try {
+      queued = await enqueueSourceFileIngestAfterUpload({
+        organizationId: scope.organizationId,
+        projectId: scope.projectId,
+        storedFileId: version.unchanged.storedFileId,
+        sourceFileVersionId: version.sourceFileVersionId,
+        sourcePath: version.path,
+      });
+    } catch (error) {
+      logger.warn(
+        { sourceFileVersionId: version.sourceFileVersionId, err: error },
+        "content sync could not queue an ingest again",
+      );
+      return "failed";
+    }
+    // Until the queued ingest claims the version it still reads as failed, which the waiter
+    // would take as the answer. The claim records the run id, and a fast failure keeps it.
     const pickupDeadline = Date.now() + INGEST_PICKUP_TIMEOUT_MS;
-    let state: IngestState = row.ingestState;
-    while (state === "pending" || state === "failed") {
-      if (Date.now() > pickupDeadline) {
-        return "timeout";
-      }
+    for (;;) {
       await new Promise((resolve) => setTimeout(resolve, INGEST_PICKUP_POLL_MS));
       const [latest] = await db
-        .select({ ingestState: schema.repositorySourceFileVersions.ingestState })
+        .select({
+          ingestState: schema.repositorySourceFileVersions.ingestState,
+          ingestWorkflowRunId: schema.repositorySourceFileVersions.ingestWorkflowRunId,
+        })
         .from(schema.repositorySourceFileVersions)
         .where(eq(schema.repositorySourceFileVersions.id, version.sourceFileVersionId))
         .limit(1);
-      state = latest?.ingestState ?? "failed";
+      if (
+        !latest ||
+        (latest.ingestWorkflowRunId &&
+          queued.workflowRunIds.includes(latest.ingestWorkflowRunId)) ||
+        latest.ingestState === "ingested" ||
+        latest.ingestState === "skipped"
+      ) {
+        break;
+      }
+      if (Date.now() > pickupDeadline) {
+        return "timeout";
+      }
     }
   }
   const outcome = await waitForSourceFileVersionIngest({
@@ -392,6 +422,31 @@ async function waitForIngest(
     });
   }
   return outcome;
+}
+
+/** Whether any key of the file carries a source text other than the one last imported. */
+async function fileHasSourceTextDrift(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+}): Promise<boolean> {
+  const [drifted] = await db
+    .select({ id: schema.projectTranslationKeys.id })
+    .from(schema.projectTranslationKeys)
+    .innerJoin(
+      schema.repositorySourceFiles,
+      eq(schema.repositorySourceFiles.id, schema.projectTranslationKeys.repositorySourceFileId),
+    )
+    .where(
+      and(
+        eq(schema.repositorySourceFiles.organizationId, input.organizationId),
+        eq(schema.repositorySourceFiles.projectId, input.projectId),
+        eq(schema.repositorySourceFiles.sourcePath, input.sourcePath),
+        sql`${schema.projectTranslationKeys.sourceText} IS DISTINCT FROM ${schema.projectTranslationKeys.importedSourceText}`,
+      ),
+    )
+    .limit(1);
+  return drifted !== undefined;
 }
 
 function escapeLikePattern(value: string): string {
@@ -475,6 +530,7 @@ async function loadSyncReports(versions: SyncedVersion[]): Promise<ContentSyncFi
   const rows = await db
     .select({
       id: schema.repositorySourceFileVersions.id,
+      repositorySourceFileId: schema.repositorySourceFileVersions.repositorySourceFileId,
       syncReport: schema.repositorySourceFileVersions.syncReport,
     })
     .from(schema.repositorySourceFileVersions)
@@ -484,13 +540,42 @@ async function loadSyncReports(versions: SyncedVersion[]): Promise<ContentSyncFi
         versions.map((version) => version.sourceFileVersionId),
       ),
     );
-  const reportById = new Map(rows.map((row) => [row.id, row.syncReport]));
-  return versions
-    .map((version) => {
-      const report = reportById.get(version.sourceFileVersionId);
-      return report && (report.clashes.length > 0 || report.missingKeys.length > 0)
-        ? { path: version.path, ...report }
-        : null;
-    })
-    .filter((report): report is ContentSyncFileReport => report !== null);
+  const reportById = new Map(rows.map((row) => [row.id, row]));
+  const reports: ContentSyncFileReport[] = [];
+  for (const version of versions) {
+    const row = reportById.get(version.sourceFileVersionId);
+    if (!row?.syncReport) {
+      continue;
+    }
+    let report = row.syncReport;
+    if (version.unchanged) {
+      // The file wasn't imported again, so its last report is history, except for a clash that
+      // still stands: that is reported on every run until one side gives way.
+      report = {
+        clashes: await standingClashes(row.repositorySourceFileId, report.clashes),
+        missingKeys: [],
+      };
+    }
+    if (report.clashes.length > 0 || report.missingKeys.length > 0) {
+      reports.push({ path: version.path, ...report });
+    }
+  }
+  return reports;
+}
+
+async function standingClashes(repositorySourceFileId: string, keys: string[]): Promise<string[]> {
+  if (keys.length === 0) {
+    return [];
+  }
+  const rows = await db
+    .select({ key: schema.projectTranslationKeys.key })
+    .from(schema.projectTranslationKeys)
+    .where(
+      and(
+        eq(schema.projectTranslationKeys.repositorySourceFileId, repositorySourceFileId),
+        inArray(schema.projectTranslationKeys.key, keys),
+        sql`${schema.projectTranslationKeys.sourceText} IS DISTINCT FROM ${schema.projectTranslationKeys.importedSourceText}`,
+      ),
+    );
+  return rows.map((row) => row.key).sort();
 }
