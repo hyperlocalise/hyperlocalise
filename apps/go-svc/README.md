@@ -28,7 +28,6 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `PORT` | `8080` | HTTP listen port. |
 | `HUNSPELL_DICT_DIR` | `/usr/share/hunspell` | Directory containing Hunspell `.aff` / `.dic` files. The container image bundles dictionaries at the default path. |
 | `WORKOS_COOKIE_DOMAIN` | _(unset)_ | Cookie `Domain` attribute when setting a refreshed session cookie. Leave unset for host-only cookies. |
-| `PROVIDER_CREDENTIALS_MASTER_KEY` | _(unset)_ | Same value as the web app: 64 hex characters or base64 of 32 bytes. Without it `PUT /v1/orgs/{organizationSlug}/provider-credential` returns `503 provider_credentials_unavailable`. |
 | `WORKOS_API_HOSTNAME` | `api.workos.com` | WorkOS API host used for session refresh and JWKS (`/sso/jwks/{client_id}`). Point at the WorkOS emulator in local e2e. |
 | `WORKOS_API_HTTPS` | `true` | Set `false` for the local emulator. |
 | `WORKOS_API_PORT` | _(unset)_ | Optional port for a non-default WorkOS API host. |
@@ -747,19 +746,6 @@ without it these return `503 workos_server_not_configured`.
 | PATCH | `/v1/me` | `{ firstName, lastName }`: update the WorkOS user and the local row |
 | GET | `/v1/invitations` | `{ invitations: [{ organizationName, organizationSlug }] }`: workspaces invited to and not joined |
 | POST | `/v1/invitations/{organizationSlug}/accept` | Accept the WorkOS invitation (verified email only) and activate the membership. `{ organization }` |
-
-## Provider credential
-
-The workspace's own AI provider key at `/v1/orgs/{organizationSlug}/provider-credential`,
-stored in `organization_llm_provider_credentials` in the web app's AES-256-GCM
-format (`src/lib/security/provider-credential-crypto.ts`). The model catalog in
-`provider-credential.go` ports `src/lib/providers/shared/catalog.ts`; keep them in step.
-Needs `provider_credentials:read` / `provider_credentials:write` (admin, localization manager).
-
-| Method | Path | Operation |
-|--------|------|-----------|
-| GET | `/v1/orgs/{organizationSlug}/provider-credential` | `{ credential, providers }`: the masked key, if any, and the provider catalog |
-| PUT | `/v1/orgs/{organizationSlug}/provider-credential` | `{ provider, apiKey, defaultModel }`: check the key with a one-token request, then store it |
 
 ## Billing
 

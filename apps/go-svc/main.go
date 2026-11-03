@@ -114,7 +114,6 @@ func main() {
 	h.sessionOrganizations = &sessionOrganizationsAPI{}
 	h.sessionAccount = &sessionAccountAPI{}
 	h.sessionOnboarding = &sessionOnboardingAPI{}
-	h.providerCredentials = newProviderCredentialAPIFromEnv()
 	h.irisGeneration = &irisGenerationAPI{provider: newIrisGenerationProvider(), text: newIrisTextModel()}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
@@ -200,7 +199,6 @@ func main() {
 		h.sessionOrganizations.pool = traced
 		h.sessionAccount.pool = traced
 		h.sessionOnboarding.pool = traced
-		h.providerCredentials.pool = traced
 		if h.irisGeneration != nil {
 			h.irisGeneration.pool = traced
 		}
@@ -299,7 +297,6 @@ func main() {
 	h.teams.membership = membershipLookup
 	h.members.membership = membershipLookup
 	h.workspaceSettings.membership = membershipLookup
-	h.providerCredentials.membership = membershipLookup
 	h.apiKeys.membership = membershipLookup
 	h.issueSheets.membership = membershipLookup
 	h.notifications.membership = membershipLookup

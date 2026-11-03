@@ -18,7 +18,6 @@ var organizationCapabilityByRole = map[string]map[string]struct{}{
 		"memories:read": {}, "memories:write": {},
 		"api_keys:read": {}, "api_keys:write": {},
 		"ai_actions:run": {}, "billing:read": {}, "billing:write": {},
-		"provider_credentials:read": {}, "provider_credentials:write": {},
 	},
 	"localization_manager": {
 		"workspace:read": {}, "workspace:update": {}, "members:invite": {}, "teams:write": {},
@@ -26,7 +25,6 @@ var organizationCapabilityByRole = map[string]map[string]struct{}{
 		"memories:read": {}, "memories:write": {},
 		"api_keys:read": {}, "api_keys:write": {},
 		"ai_actions:run": {}, "billing:read": {},
-		"provider_credentials:read": {}, "provider_credentials:write": {},
 	},
 	"developer": {
 		"workspace:read": {},
