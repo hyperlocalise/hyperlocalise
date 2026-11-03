@@ -377,6 +377,16 @@ export async function executeProjectContentSyncRun(input: {
       );
       return;
     }
+    // The lease counts from when the work starts, not from when the run was queued.
+    await db
+      .update(schema.projectContentSyncRuns)
+      .set({ startedAt: new Date() })
+      .where(
+        and(
+          eq(schema.projectContentSyncRuns.id, row.run.id),
+          eq(schema.projectContentSyncRuns.status, "running"),
+        ),
+      );
 
     const config = validateContentSyncConfig(normalizeContentSyncConfig(row.sync.syncConfig));
     if (isErr(config)) {

@@ -26,12 +26,10 @@ const folderPathSchema = z
   .max(512)
   .regex(/^[^\\:*?"<>|]*$/, "invalid_folder_path");
 
-const localeCodeSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(64)
-  .regex(/^[A-Za-z0-9_-]+$/, "invalid_locale_code");
+const localeCodeSchema = z.string().trim().min(1).max(64);
+
+/** Characters a language code may use once it reaches a file path; checked when settings are saved. */
+export const CONTENT_SYNC_LOCALE_CODE_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 export const CONTENT_SYNC_LOCALE_PLACEHOLDER = "{{locale}}";
 

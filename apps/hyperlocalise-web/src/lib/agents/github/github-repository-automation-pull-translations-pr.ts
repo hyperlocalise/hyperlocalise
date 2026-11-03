@@ -73,6 +73,25 @@ async function readRemoteBranchHeadSha(
   }
 }
 
+/** Whether the sandbox's new commit has exactly the files of a commit on GitHub. */
+async function hasSameTreeAsCommit(
+  octokit: Awaited<ReturnType<typeof getInstallationOctokit>>,
+  input: { owner: string; repo: string; sandboxId: string; commitSha: string },
+): Promise<boolean> {
+  const local = await runSandboxCommand(input.sandboxId, "git", ["rev-parse", "HEAD^{tree}"], {
+    output: "stdout",
+  });
+  if (local.exitCode !== 0) {
+    return false;
+  }
+  const remote = await octokit.rest.git.getCommit({
+    owner: input.owner,
+    repo: input.repo,
+    commit_sha: input.commitSha,
+  });
+  return remote.data.tree.sha === local.output.trim();
+}
+
 export async function writePullTranslationCandidatesToSandbox(input: {
   sandboxId: string;
   candidates: PullTranslationExportCandidate[];
@@ -105,6 +124,11 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
   paths: string[];
   candidates: PullTranslationExportCandidate[];
   linkedTranslationJobIds: string[];
+  /**
+   * The branch is reused across runs: start it from the base, overwrite a branch left by a merged or
+   * closed pull request, and leave an open pull request alone when its files would not change.
+   */
+  reuseBranch?: boolean;
 }): Promise<{ pullRequestUrl: string; pullRequestNumber: number; updated: boolean }> {
   const { owner, repo } = parseRepositoryOwnerRepo(input.repositoryFullName);
   const octokit = await getInstallationOctokit(input.installationId);
@@ -124,20 +148,26 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
   });
 
   const isUpdatingExistingPull = existingPull.data.length > 0;
+  const existingPullHeadSha = existingPull.data[0]?.head.sha;
   // A reused branch can outlive its pull request (merged or closed without deleting the branch).
   const remoteBranchHeadSha = isUpdatingExistingPull
-    ? existingPull.data[0]?.head.sha
-    : await readRemoteBranchHeadSha(octokit, { owner, repo, branch: input.branchName });
+    ? existingPullHeadSha
+    : input.reuseBranch
+      ? await readRemoteBranchHeadSha(octokit, { owner, repo, branch: input.branchName })
+      : undefined;
 
-  const checkoutArgs = isUpdatingExistingPull
-    ? ["checkout", "-f", input.branchName]
-    : ["checkout", "-b", input.branchName];
+  // The sandbox is a shallow clone of the base, so a reused branch is rebuilt from it.
+  const checkoutArgs = input.reuseBranch
+    ? ["checkout", "-B", input.branchName, input.baseSha]
+    : isUpdatingExistingPull
+      ? ["checkout", "-f", input.branchName]
+      : ["checkout", "-b", input.branchName];
   const checkout = await runSandboxCommand(input.sandboxId, "git", checkoutArgs);
   if (checkout.exitCode !== 0) {
     throw new Error(`git checkout failed: ${checkout.output}`);
   }
 
-  if (isUpdatingExistingPull) {
+  if (isUpdatingExistingPull && !input.reuseBranch) {
     const reset = await runSandboxCommand(input.sandboxId, "git", [
       "reset",
       "--hard",
@@ -164,6 +194,23 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
   const commit = await runSandboxCommand(input.sandboxId, "git", ["commit", "-m", commitMessage]);
   if (commit.exitCode !== 0) {
     throw new Error(`git commit failed: ${commit.output}`);
+  }
+
+  const openPull = existingPull.data[0];
+  if (input.reuseBranch && openPull && existingPullHeadSha) {
+    const unchanged = await hasSameTreeAsCommit(octokit, {
+      owner,
+      repo,
+      sandboxId: input.sandboxId,
+      commitSha: existingPullHeadSha,
+    });
+    if (unchanged) {
+      return {
+        pullRequestUrl: openPull.html_url,
+        pullRequestNumber: openPull.number,
+        updated: false,
+      };
+    }
   }
 
   const pushArgs = remoteBranchHeadSha

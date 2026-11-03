@@ -22,7 +22,8 @@ export async function projectContentSyncWorkflow(event: ProjectContentSyncEventD
 
   try {
     await runProjectContentSyncStep(event);
-  } catch {
+  } catch (error) {
     await failProjectContentSyncStep(event);
+    throw error;
   }
 }

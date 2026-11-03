@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -41,6 +41,10 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
+import {
+  isSafeContentSyncFolder,
+  normalizeContentSyncFolder,
+} from "@/lib/agents/content-sync/content-sync-paths";
 import { defaultContentSyncProjectFolder } from "@/lib/agents/content-sync/content-sync-types";
 import { apiClient } from "@/lib/api-client-instance";
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
@@ -82,13 +86,14 @@ type PanelMessage = typeof messages.saveError;
 
 /** Messages for the error codes a save or Sync now can answer with. */
 const requestErrorMessages: Record<string, PanelMessage> = {
-  invalid_content_sync_payload: messages.errorFieldsRequired,
+  invalid_content_sync_payload: messages.errorFolderUnsafe,
   content_sync_config_required: messages.errorFieldsRequired,
   content_sync_provider_folder_required: messages.errorFieldsRequired,
   content_sync_folder_invalid: messages.errorFolderUnsafe,
   content_sync_connection_required: messages.errorRepositoryNotEnabled,
   content_sync_automation_overlap: messages.errorAutomationOverlap,
   content_sync_in_progress: messages.syncInProgress,
+  content_sync_not_found: messages.errorSyncRemoved,
 };
 
 /** Messages for the error codes a finished run records; others show the stored text. */
@@ -129,6 +134,22 @@ function draftsEqual(a: SyncDraft, b: SyncDraft) {
   );
 }
 
+const UNSAFE_FOLDER_CHARACTERS = /[\\:*?"<>|]/;
+
+/** Whether the server would refuse this folder; an empty folder is only "not filled in". */
+function folderIsUnsafe(folder: string) {
+  const trimmed = folder.trim();
+  if (!trimmed) {
+    return false;
+  }
+  return (
+    UNSAFE_FOLDER_CHARACTERS.test(trimmed) ||
+    trimmed.length > 512 ||
+    !normalizeContentSyncFolder(trimmed) ||
+    !isSafeContentSyncFolder(trimmed)
+  );
+}
+
 function defaultProjectFolderFor(resourceKey: string) {
   return defaultContentSyncProjectFolder({ provider: "github", resourceKey });
 }
@@ -137,11 +158,14 @@ export function ProjectContentSyncPanel({
   organizationSlug,
   projectId,
   canManage,
+  active = true,
   onDirtyChange,
 }: {
   organizationSlug: string;
   projectId: string;
   canManage: boolean;
+  /** Whether the section is on screen; a hidden panel keeps its edits but stops polling. */
+  active?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const intl = useIntl();
@@ -161,13 +185,16 @@ export function ProjectContentSyncPanel({
       return (await response.json()).contentSync;
     },
     refetchInterval: (query) => {
+      if (!active) {
+        return false;
+      }
       const data = query.state.data;
       if (data?.runs[0]?.status === "running") {
         return RUNNING_POLL_MS;
       }
       return data?.sync && data.sync.schedule !== "manual" ? SCHEDULED_POLL_MS : false;
     },
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: active,
   });
 
   const connectionsQuery = useQuery({
@@ -180,6 +207,8 @@ export function ProjectContentSyncPanel({
       }
       return (await response.json()).connections;
     },
+    // Picks up a repository enabled in Integrations in another tab.
+    refetchOnWindowFocus: active,
   });
 
   const saved = syncQuery.data?.sync ?? null;
@@ -195,10 +224,14 @@ export function ProjectContentSyncPanel({
   const connections = connectionsQuery.data ?? [];
   const values: SyncDraft = edits ?? savedDraft ?? EMPTY_DRAFT;
   const dirty = edits !== null && !draftsEqual(edits, savedDraft ?? EMPTY_DRAFT);
+  const providerFolderUnsafe = folderIsUnsafe(values.providerFolder);
+  const projectFolderUnsafe = folderIsUnsafe(values.projectFolder);
   const complete =
     Boolean(values.connectionId) &&
     values.providerFolder.trim().length > 0 &&
-    values.projectFolder.trim().length > 0;
+    values.projectFolder.trim().length > 0 &&
+    !providerFolderUnsafe &&
+    !projectFolderUnsafe;
   const runs = syncQuery.data?.runs ?? [];
   const running = runs[0]?.status === "running";
 
@@ -252,6 +285,9 @@ export function ProjectContentSyncPanel({
   const removeMutation = useMutation({
     mutationFn: async () => {
       const response = await contentSyncRoute().$delete({ param });
+      if (response.status === 409) {
+        throw new Error(intl.formatMessage(messages.removeInProgress));
+      }
       if (!response.ok && response.status !== 404) {
         throw new Error(
           await readApiError(response, intl.formatMessage(messages.removeError), intl),
@@ -272,7 +308,12 @@ export function ProjectContentSyncPanel({
   }
 
   function chooseRepository(connectionId: string) {
-    const connection = connections.find((entry) => entry.connectionId === connectionId);
+    // The saved repository can be picked again after switching away, even if it is no longer enabled.
+    const connection =
+      connections.find((entry) => entry.connectionId === connectionId) ??
+      (savedDraft?.connectionId === connectionId
+        ? { provider: "github" as const, connectionId, resourceKey: savedDraft.resourceKey }
+        : undefined);
     if (!connection) {
       return;
     }
@@ -331,6 +372,12 @@ export function ProjectContentSyncPanel({
   if (values.connectionId && !repositoryItems.some((item) => item.value === values.connectionId)) {
     repositoryItems.unshift({ value: values.connectionId, label: values.resourceKey });
   }
+  const syncNowHint = running ? messages.syncRunning : dirty ? messages.saveBeforeSync : null;
+  const syncNowDescribedBy = syncNowHint
+    ? "project-sync-now-hint"
+    : repositoryNotEnabled
+      ? "project-sync-repository-error"
+      : undefined;
   const showNoRepositories =
     canManage && connectionsQuery.isSuccess && connections.length === 0 && !saved;
 
@@ -351,6 +398,7 @@ export function ProjectContentSyncPanel({
                   disabled={
                     running || dirty || repositoryNotEnabled || syncNowMutation.isPending || busy
                   }
+                  aria-describedby={syncNowDescribedBy}
                   onClick={() => syncNowMutation.mutate()}
                 >
                   {running || syncNowMutation.isPending ? (
@@ -369,14 +417,9 @@ export function ProjectContentSyncPanel({
               <FormattedMessage {...(saved ? messages.readOnly : messages.notSetUp)} />
             </TypographyP>
           ) : null}
-          {saved && canManage && running ? (
-            <TypographyP size="small" tone="subtle">
-              <FormattedMessage {...messages.syncRunning} />
-            </TypographyP>
-          ) : null}
-          {saved && canManage && dirty && !running ? (
-            <TypographyP size="small" tone="subtle">
-              <FormattedMessage {...messages.saveBeforeSync} />
+          {saved && canManage && syncNowHint ? (
+            <TypographyP id="project-sync-now-hint" size="small" tone="subtle">
+              <FormattedMessage {...syncNowHint} />
             </TypographyP>
           ) : null}
 
@@ -411,7 +454,16 @@ export function ProjectContentSyncPanel({
                     }
                   }}
                 >
-                  <SelectTrigger id="project-sync-repository" className="w-full md:w-[360px]">
+                  <SelectTrigger
+                    id="project-sync-repository"
+                    className="w-full md:w-[360px]"
+                    aria-invalid={repositoryNotEnabled || undefined}
+                    aria-describedby={
+                      repositoryNotEnabled || connectionsQuery.isError
+                        ? "project-sync-repository-error"
+                        : undefined
+                    }
+                  >
                     <SelectValue placeholder={intl.formatMessage(messages.repositoryPlaceholder)} />
                   </SelectTrigger>
                   <SelectContent>
@@ -423,14 +475,14 @@ export function ProjectContentSyncPanel({
                   </SelectContent>
                 </Select>
                 {repositoryNotEnabled ? (
-                  <FieldDescription className="text-flame-100">
+                  <FieldError id="project-sync-repository-error">
                     <FormattedMessage {...messages.errorRepositoryNotEnabled} />
-                  </FieldDescription>
+                  </FieldError>
                 ) : null}
-                {connectionsQuery.isError ? (
-                  <FieldDescription className="text-flame-100">
+                {connectionsQuery.isError && !repositoryNotEnabled ? (
+                  <FieldError id="project-sync-repository-error">
                     <FormattedMessage {...messages.loadConnectionsError} />
-                  </FieldDescription>
+                  </FieldError>
                 ) : null}
               </Field>
               <Field className="gap-1.5">
@@ -443,8 +495,14 @@ export function ProjectContentSyncPanel({
                   placeholder={intl.formatMessage(messages.providerFolderPlaceholder)}
                   disabled={fieldsDisabled}
                   className="font-mono"
+                  aria-invalid={providerFolderUnsafe || undefined}
                   onChange={(event) => update({ providerFolder: event.target.value })}
                 />
+                {providerFolderUnsafe ? (
+                  <FieldError>
+                    <FormattedMessage {...messages.errorFolderUnsafe} />
+                  </FieldError>
+                ) : null}
                 <FieldDescription>
                   <FormattedMessage {...messages.providerFolderHelp} />
                 </FieldDescription>
@@ -458,8 +516,14 @@ export function ProjectContentSyncPanel({
                   value={values.projectFolder}
                   disabled={fieldsDisabled}
                   className="font-mono"
+                  aria-invalid={projectFolderUnsafe || undefined}
                   onChange={(event) => update({ projectFolder: event.target.value })}
                 />
+                {projectFolderUnsafe ? (
+                  <FieldError>
+                    <FormattedMessage {...messages.errorFolderUnsafe} />
+                  </FieldError>
+                ) : null}
                 <FieldDescription>
                   <FormattedMessage {...messages.projectFolderHelp} />
                 </FieldDescription>

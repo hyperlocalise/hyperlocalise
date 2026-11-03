@@ -247,11 +247,13 @@ describe("ProjectContentSyncPanel", () => {
   it("flags a saved repository that is no longer enabled", async () => {
     renderPanel({ connections: [] });
 
-    expect(
-      await screen.findAllByText(
-        "This repository is not enabled in Integrations. Enable it there or choose another one.",
-      ),
-    ).toHaveLength(2);
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(
+          "This repository is not enabled in Integrations. Enable it there or choose another one.",
+        ),
+      ).toHaveLength(2),
+    );
     expect(screen.getByRole("button", { name: "Sync now" })).toBeDisabled();
   });
 
@@ -273,6 +275,81 @@ describe("ProjectContentSyncPanel", () => {
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
         "A content sync automation already syncs this repository folder into the project. Pause it on the Automations page first.",
+      ),
+    );
+  });
+
+  it("flags an unsafe folder before saving", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    const folder = await screen.findByDisplayValue("locales");
+
+    await user.clear(folder);
+    await user.type(folder, "locales\\en");
+
+    expect(
+      screen.getByText("Use a folder path inside the repository, such as locales."),
+    ).toBeInTheDocument();
+    expect(folder).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
+  it("follows the chosen repository's default project folder until the folder is edited", async () => {
+    const user = userEvent.setup();
+    renderPanel({
+      sync: null,
+      connections: [
+        { provider: "github", connectionId: "repo_1", resourceKey: "acme/web" },
+        { provider: "github", connectionId: "repo_2", resourceKey: "acme/docs" },
+      ],
+    });
+    const projectFolder = await screen.findByLabelText("Project folder");
+
+    await user.click(screen.getByRole("combobox", { name: "Repository" }));
+    await user.click(await screen.findByRole("option", { name: "acme/web" }));
+    expect(projectFolder).toHaveValue("github/acme/web");
+
+    await user.click(screen.getByRole("combobox", { name: "Repository" }));
+    await user.click(await screen.findByRole("option", { name: "acme/docs" }));
+    expect(projectFolder).toHaveValue("github/acme/docs");
+
+    await user.clear(projectFolder);
+    await user.type(projectFolder, "docs");
+    await user.click(screen.getByRole("combobox", { name: "Repository" }));
+    await user.click(await screen.findByRole("option", { name: "acme/web" }));
+    expect(projectFolder).toHaveValue("docs");
+  });
+
+  it("shows the stored text for a run error it has no message for", async () => {
+    renderPanel({
+      runs: [
+        {
+          ...runs[1],
+          errorCode: "content_sync_provider_not_ready",
+          errorMessage: "Content sync for gitlab is not available yet.",
+        },
+        { ...runs[1], id: "run_0", errorCode: "something_new", errorMessage: null },
+      ],
+    });
+
+    expect(
+      await screen.findByText("Content sync for gitlab is not available yet."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("The sync stopped unexpectedly.")).toBeInTheDocument();
+  });
+
+  it("explains a refused removal while a run is going", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    api.delete.mockResolvedValue(jsonResponse(409, { error: "content_sync_in_progress" }));
+
+    await user.click(await screen.findByRole("button", { name: "Remove sync" }));
+    await user.click(await screen.findByRole("button", { name: "Remove" }));
+
+    const { toast } = await import("sonner");
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "A sync is running. Remove the sync once it finishes.",
       ),
     );
   });

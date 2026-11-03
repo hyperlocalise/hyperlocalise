@@ -452,6 +452,7 @@ async function pushGithubTranslations(input: {
     paths: targetPaths,
     candidates: exportCandidates,
     linkedTranslationJobIds: [],
+    reuseBranch: input.pullRequestBranchKey !== undefined,
   });
 
   return ok({

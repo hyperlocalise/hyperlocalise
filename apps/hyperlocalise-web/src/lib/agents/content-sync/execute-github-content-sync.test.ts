@@ -430,7 +430,7 @@ describe("executeGithubContentSync", () => {
     await pullThenPush({ pullRequestBranchKey: "sync-1" });
 
     expect(mocks.commitPushAndCreatePullTranslationsPullRequest).toHaveBeenCalledWith(
-      expect.objectContaining({ branchName: "content-sync/sync-1" }),
+      expect.objectContaining({ branchName: "content-sync/sync-1", reuseBranch: true }),
     );
   });
 

@@ -365,11 +365,8 @@ describe("followingScheduledContentSyncRunAt", () => {
 });
 
 describe("closing runs", () => {
-  it("does not reopen a run that was already failed as stale", async () => {
+  it("does not reopen or rerun a run that was already failed as stale", async () => {
     const { organization, sync } = await createSync();
-    executeContentSyncConfigMock.mockResolvedValue(
-      ok({ pulled: { uploaded: 1, skipped: 0, failed: 0 }, pushed: { written: 0 } }),
-    );
     const startedAt = new Date(Date.now() - STALE_CONTENT_SYNC_RUN_MS - 60_000);
     const stale = await claimProjectContentSyncRun({
       sync,
@@ -378,23 +375,17 @@ describe("closing runs", () => {
       now: startedAt,
     });
     const staleId = stale.ok ? stale.value.id : "";
-    await claimProjectContentSyncRun({ sync, trigger: "manual", userId: null });
+    const fresh = await claimProjectContentSyncRun({ sync, trigger: "manual", userId: null });
+    expect(fresh.ok).toBe(true);
 
-    await db
-      .update(schema.projectContentSyncRuns)
-      .set({ status: "running" })
-      .where(eq(schema.projectContentSyncRuns.id, staleId));
-    await db
-      .update(schema.projectContentSyncRuns)
-      .set({ status: "failed", errorCode: "content_sync_stale" })
-      .where(eq(schema.projectContentSyncRuns.id, staleId));
     await failProjectContentSyncRun({ runId: staleId });
+    await executeProjectContentSyncRun({ organizationId: organization.id, runId: staleId });
 
+    expect(executeContentSyncConfigMock).not.toHaveBeenCalled();
     expect(await readRun(staleId)).toMatchObject({
       status: "failed",
       errorCode: "content_sync_stale",
     });
-    expect(organization.id).toBeTruthy();
   });
 
   it("closes a run whose workflow step died", async () => {

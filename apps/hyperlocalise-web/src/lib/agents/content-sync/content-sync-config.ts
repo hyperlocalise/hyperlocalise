@@ -12,6 +12,7 @@
  */
 import { buildContentSyncFingerprint } from "./content-sync-paths";
 import {
+  CONTENT_SYNC_LOCALE_CODE_PATTERN,
   CONTENT_SYNC_LOCALE_PLACEHOLDER,
   buildDefaultContentSyncTriggerMode,
   contentSyncNeedsProviderFolder,
@@ -122,6 +123,18 @@ export function validateContentSyncConfig(
     return err({
       code: "content_sync_path_template_invalid",
       message: "Use a safe relative file path that contains {{locale}}.",
+    });
+  }
+  if (
+    normalized.localeCodeMap &&
+    Object.entries(normalized.localeCodeMap).some(
+      ([from, to]) =>
+        !CONTENT_SYNC_LOCALE_CODE_PATTERN.test(from) || !CONTENT_SYNC_LOCALE_CODE_PATTERN.test(to),
+    )
+  ) {
+    return err({
+      code: "content_sync_locale_code_invalid",
+      message: "Use only letters, digits, - and _ in language codes.",
     });
   }
 

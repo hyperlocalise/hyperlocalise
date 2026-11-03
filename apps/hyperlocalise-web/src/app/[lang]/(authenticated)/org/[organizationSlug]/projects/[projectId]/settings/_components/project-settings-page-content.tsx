@@ -765,6 +765,7 @@ export function ProjectSettingsPageContent({
                 organizationSlug={organizationSlug}
                 projectId={projectId}
                 canManage={canManageSync}
+                active={activeNavItem === "sync"}
                 onDirtyChange={setSyncDirty}
               />
             </div>

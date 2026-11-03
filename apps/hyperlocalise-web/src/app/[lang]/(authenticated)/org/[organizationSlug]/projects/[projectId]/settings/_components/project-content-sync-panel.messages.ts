@@ -307,4 +307,15 @@ export const projectContentSyncPanelMessages = defineMessages({
     id: "RRTJeJffFC",
     description: "Error shown for a project sync run that failed for an unexpected reason",
   },
+  removeInProgress: {
+    defaultMessage: "A sync is running. Remove the sync once it finishes.",
+    id: "Yj1IVsPHUq",
+    description: "Error shown when removing the project sync while a sync run is going",
+  },
+  errorSyncRemoved: {
+    defaultMessage: "This sync was removed. Reload the page to set it up again.",
+    id: "/FxKqT7rxo",
+    description:
+      "Error shown when Sync now is clicked for a project sync that someone else removed",
+  },
 });

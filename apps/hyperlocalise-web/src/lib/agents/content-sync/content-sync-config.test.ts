@@ -85,12 +85,17 @@ describe("content sync config", () => {
 
   it("allows only language-code characters in the language code map", () => {
     expect(
-      contentSyncConfigSchema.safeParse({ ...githubConfig, localeCodeMap: { "fr-FR": "fr" } })
+      isOk(validateContentSyncConfig({ ...githubConfig, localeCodeMap: { "fr-FR": "fr" } })),
+    ).toBe(true);
+    const unsafe = validateContentSyncConfig({
+      ...githubConfig,
+      localeCodeMap: { "fr-FR": "../fr" },
+    });
+    expect(isErr(unsafe) && unsafe.error.code).toBe("content_sync_locale_code_invalid");
+    // Stored settings still parse, so a saved sync is never silently dropped.
+    expect(
+      contentSyncConfigSchema.safeParse({ ...githubConfig, localeCodeMap: { "sr@latin": "sr" } })
         .success,
     ).toBe(true);
-    expect(
-      contentSyncConfigSchema.safeParse({ ...githubConfig, localeCodeMap: { "fr-FR": "../fr" } })
-        .success,
-    ).toBe(false);
   });
 });
