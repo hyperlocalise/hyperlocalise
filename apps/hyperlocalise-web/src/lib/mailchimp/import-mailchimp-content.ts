@@ -353,8 +353,16 @@ async function maybeCreateJob(input: {
     metadata: { uploadSurface: "mailchimp_automation" },
   });
   if (!created.ok) {
+    logger.warn(
+      {
+        resourceLabel: input.resourceLabel,
+        code: created.code,
+        message: created.message,
+      },
+      "mailchimp translation job create failed",
+    );
     return {
-      warning: `No translation job created for ${input.resourceLabel}: job creation failed.`,
+      warning: `No translation job created for ${input.resourceLabel}: ${created.message}`,
     };
   }
   if (input.automation.toolConfig.assignTranslateWithAgent?.enabled) {
