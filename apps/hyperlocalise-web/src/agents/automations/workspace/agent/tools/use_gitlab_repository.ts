@@ -19,7 +19,9 @@ import {
   createGitlabRepositorySandbox,
   stopGitlabRepositorySandbox,
 } from "@/lib/gitlab/gitlab-repository-sandbox";
-import { resolveGitLabProjectContext } from "@/lib/gitlab/repository-context";
+import { getGitLabConnection } from "@/lib/gitlab/connections";
+import { loadGitLabProjectContext } from "@/lib/gitlab/repository-context";
+import { isErr } from "@/lib/primitives/result/results";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import {
@@ -47,18 +49,27 @@ export async function startGitlabRepositoryAgent(
   }
 
   const workosUserId = session.automation.toolConfig.gitlab?.workosUserId;
-  if (!workosUserId) {
-    throw new Error("gitlab_not_connected");
-  }
 
-  const gitlabContext = await resolveGitLabProjectContext({
+  const contextResult = await loadGitLabProjectContext({
     localOrganizationId: session.organizationId,
     workosUserId,
     pathWithNamespace: repositoryTarget.gitlabPathWithNamespace,
   });
-  if (!gitlabContext) {
-    throw new Error("gitlab_repository_not_found");
+  if (isErr(contextResult)) {
+    const { code } = contextResult.error;
+    if (code === "gitlab_not_found") {
+      throw new Error("gitlab_repository_not_found");
+    }
+    // A refused GitLab.com sign-in is fixed by reconnecting; a refused workspace token by an admin.
+    const workspaceServer =
+      code === "gitlab_unauthorized" &&
+      (await getGitLabConnection({ organizationId: session.organizationId })) !== null;
+    if (code === "gitlab_connection_decrypt_failed" || workspaceServer) {
+      throw new Error("gitlab_token_rejected");
+    }
+    throw new Error(code === "gitlab_request_failed" ? code : "gitlab_not_connected");
   }
+  const gitlabContext = contextResult.value;
 
   const lookbackHours = resolveGithubRepoLookbackHours({
     automation: session.automation,
