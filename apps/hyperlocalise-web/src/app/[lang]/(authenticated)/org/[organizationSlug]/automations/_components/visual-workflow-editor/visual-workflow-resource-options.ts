@@ -161,9 +161,10 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
     },
   });
 
+  const gitlabServerUrl = gitlabConnectionQuery.data?.serverUrl ?? null;
   const gitlabQuery = useQuery({
-    queryKey: ["gitlab-projects", organizationSlug, "visual-workflow"],
-    enabled: enabled && Boolean(gitlabConnectionQuery.data),
+    queryKey: ["gitlab-projects", organizationSlug, "visual-workflow", gitlabServerUrl],
+    enabled: enabled && gitlabServerUrl !== null,
     queryFn: async () => {
       const response = await api.api.orgs[":organizationSlug"].gitlab.projects.$get({
         param: { organizationSlug: organizationSlug! },
@@ -186,7 +187,8 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
     (repository) => repository.enabled && !repository.archived,
   );
   const contentfulConnections = contentfulQuery.data ?? [];
-  const gitlabProjects = gitlabQuery.data ?? [];
+  // A cached list from a removed server would otherwise linger.
+  const gitlabProjects = gitlabServerUrl !== null ? (gitlabQuery.data ?? []) : [];
   const projects = projectsQuery.data ?? [];
 
   return {

@@ -1198,7 +1198,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "content_sync_path_template_invalid";
-      message: "The language file paths need {{locale}} once, and at most 8 wildcards.";
+      message: "The language file paths need {{locale}}, with ** only as a whole folder and at most two * in a name.";
     }
   | {
       code: "content_sync_duplicate";

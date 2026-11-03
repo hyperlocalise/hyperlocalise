@@ -86,16 +86,10 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       field("projectFolder"),
     ],
     outputs: [output("pulled", "object"), output("pushed", "object")],
+    // The fields every provider returns; GitLab adds `unmatched`, `translationFiles`,
+    // `commitSha` and per-file `files` with `clashes` and `missingKeys`.
     mock: {
-      pulled: {
-        uploaded: 1,
-        skipped: 0,
-        failed: 0,
-        unmatched: 0,
-        translationFiles: 0,
-        commitSha: "mock-commit",
-        files: [],
-      },
+      pulled: { uploaded: 1, skipped: 0, failed: 0 },
       pushed: { written: 1 },
     },
   },

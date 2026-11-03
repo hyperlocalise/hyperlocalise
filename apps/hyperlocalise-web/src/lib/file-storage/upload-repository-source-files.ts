@@ -129,6 +129,11 @@ export async function storeRepositorySourceFile(input: {
   commitSha: string | null;
   workflowRunId: string | null;
   uploadSurface: string;
+  /**
+   * `commit` (the default) stores a file again at every new commit; `content` skips it while
+   * its bytes are unchanged, whatever the commit.
+   */
+  skipUnchanged?: "commit" | "content";
   adapter?: FileStorageAdapter;
 }): Promise<UploadRepositorySourceFileResult> {
   const adapter = input.adapter ?? getFileStorageAdapter();
@@ -145,8 +150,8 @@ export async function storeRepositorySourceFile(input: {
 
     if (
       latestVersion &&
-      latestVersion.commitSha === input.commitSha &&
-      latestVersion.sourceHash === sourceHash
+      latestVersion.sourceHash === sourceHash &&
+      (input.skipUnchanged === "content" || latestVersion.commitSha === input.commitSha)
     ) {
       return {
         path: normalizedPath,

@@ -96,8 +96,8 @@ export const projectContentEditorBehaviorMessages = defineMessages({
   },
   sourceTextEditableDescription: {
     defaultMessage:
-      "Let source text change here and through the API. A repository sync then keeps edits made here and reports a key when both sides changed it. Off, the repository's text replaces edits made here on the next sync.",
-    id: "IzB/R5bf6e",
+      "Allow source text changes through the API. A repository sync then keeps changes made in Hyperlocalise and reports a key when both sides changed it. Off, the repository's text replaces changes made here on the next sync.",
+    id: "gnbqlBo/sZ",
     description: "Source text editing setting description",
   },
   sourceTextEditableDisableTitle: {

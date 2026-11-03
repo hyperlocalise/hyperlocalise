@@ -219,13 +219,16 @@ async function sendApprovedTranslationsToReview(
 }
 
 /**
+ * Keys per approval-reset call. Each approved translation becomes two revision rows of about a
+ * dozen parameters, so 25 keys with 50 locales stays far below Postgres's 65,535 parameters.
+ */
+const REVIEW_RESET_KEY_CHUNK = 25;
+
+/**
  * Which source text an import leaves on an existing key. The last imported text is the common
  * ancestor; with none recorded (keys from before it was kept) the platform's text stands in, so
  * the first import under the rule takes the file's text unless it is unchanged.
  */
-/** Keys per approval-reset call; with up to 50 locales each, the insert stays well under Postgres's parameter limit. */
-const REVIEW_RESET_KEY_CHUNK = 100;
-
 export function decideImportedSourceText(input: {
   fileText: string;
   platformText: string;

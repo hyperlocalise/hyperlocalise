@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   enqueueSourceFileIngestAfterUpload: vi.fn(),
   hideKeysMissingFromSync: vi.fn(),
   syncedFileRows: vi.fn(),
+  limitRows: vi.fn(),
+  unhideKeysSyncHid: vi.fn(),
   resolveGitLabAccess: vi.fn(),
   getGitLabProject: vi.fn(),
   createGitLabContentSyncReader: vi.fn(),
@@ -23,7 +25,7 @@ vi.mock("@/lib/database/client", () => ({
         // synced-files query joins first.
         where: () =>
           Object.assign(Promise.resolve(mocks.reportRows()), {
-            limit: () => Promise.resolve(mocks.projectRows()),
+            limit: () => Promise.resolve(mocks.limitRows()),
           }),
         innerJoin: () => ({ where: () => Promise.resolve(mocks.syncedFileRows()) }),
       })),
@@ -54,6 +56,7 @@ vi.mock("@/lib/projects/files/source-file-ingest", () => ({
 }));
 vi.mock("@/lib/projects/files/hide-keys-missing-from-sync", () => ({
   hideKeysMissingFromSync: (...args: unknown[]) => mocks.hideKeysMissingFromSync(...args),
+  unhideKeysSyncHid: (...args: unknown[]) => mocks.unhideKeysSyncHid(...args),
 }));
 vi.mock("@/lib/intercom/wait-for-source-file-ingest", () => ({
   waitForSourceFileVersionIngest: (...args: unknown[]) =>
@@ -145,6 +148,9 @@ describe("executeGitLabContentSync", () => {
     mocks.waitForSourceFileVersionIngest.mockResolvedValue("ingested");
     mocks.syncedFileRows.mockReturnValue([]);
     mocks.hideKeysMissingFromSync.mockResolvedValue([]);
+    mocks.unhideKeysSyncHid.mockResolvedValue(undefined);
+    // `.limit()` queries: the project first, then a version's ingest state when asked.
+    mocks.limitRows.mockImplementation(() => mocks.projectRows());
   });
 
   it("imports only the source locale's matching files and waits for their ingest", async () => {
@@ -181,6 +187,7 @@ describe("executeGitLabContentSync", () => {
       commitSha: "abc",
       workflowRunId: "run-1",
       uploadSurface: "gitlab_content_sync",
+      skipUnchanged: "content",
     });
     expect(mocks.waitForSourceFileVersionIngest).toHaveBeenCalledWith({
       organizationId: "org-1",
@@ -189,7 +196,7 @@ describe("executeGitLabContentSync", () => {
     });
   });
 
-  it("waits for an unchanged file's earlier ingest too, queueing it again when it failed", async () => {
+  it("waits for an unchanged file's earlier ingest too, queueing it again when it stalled", async () => {
     const skipped = {
       path: "gitlab/acme/web/en.json",
       outcome: "skipped",
@@ -197,18 +204,38 @@ describe("executeGitLabContentSync", () => {
       sourceFileVersionId: "version:old",
       storedFileId: "stored:old",
     };
+    const versionRow = (ingestState: string) => [
+      { ingestState, repositorySourceFileId: "file:en" },
+    ];
     mocks.storeRepositorySourceFile.mockResolvedValueOnce(skipped);
+    mocks.limitRows
+      .mockReturnValueOnce(mocks.projectRows())
+      .mockReturnValueOnce(versionRow("ingested"));
     const unchanged = await run(fakeReader());
-    expect(isOk(unchanged) && unchanged.value.pulled).toMatchObject({ uploaded: 0, skipped: 1 });
+    expect(isOk(unchanged) && unchanged.value.pulled).toMatchObject({
+      uploaded: 0,
+      skipped: 1,
+      files: [],
+    });
+    expect(mocks.storeRepositorySourceFile).toHaveBeenCalledWith(
+      expect.objectContaining({ skipUnchanged: "content" }),
+    );
     expect(mocks.waitForSourceFileVersionIngest).toHaveBeenCalledWith(
       expect.objectContaining({ sourceFileVersionId: "version:old" }),
     );
     expect(mocks.enqueueSourceFileIngestAfterUpload).not.toHaveBeenCalled();
+    // Keys an earlier run hid while the repository lacked the file come back without an ingest.
+    expect(mocks.unhideKeysSyncHid).toHaveBeenCalledWith(expect.anything(), {
+      repositorySourceFileId: "file:en",
+      sourceFileVersionId: "version:old",
+    });
 
     mocks.storeRepositorySourceFile.mockResolvedValueOnce(skipped);
-    mocks.waitForSourceFileVersionIngest
-      .mockResolvedValueOnce("failed")
-      .mockResolvedValueOnce("ingested");
+    mocks.limitRows
+      .mockReturnValueOnce(mocks.projectRows())
+      .mockReturnValueOnce(versionRow("failed"))
+      .mockReturnValueOnce(versionRow("failed"))
+      .mockReturnValueOnce(versionRow("ingesting"));
     const retried = await run(fakeReader());
     expect(isOk(retried)).toBe(true);
     expect(mocks.enqueueSourceFileIngestAfterUpload).toHaveBeenCalledWith({
@@ -218,20 +245,31 @@ describe("executeGitLabContentSync", () => {
       sourceFileVersionId: "version:old",
       sourcePath: "gitlab/acme/web/en.json",
     });
+    // The waiter only runs once the queued ingest has claimed the version.
+    expect(mocks.waitForSourceFileVersionIngest).toHaveBeenCalledTimes(2);
 
     mocks.waitForSourceFileVersionIngest.mockResolvedValueOnce("skipped");
     const superseded = await run(fakeReader());
     expect(isOk(superseded) && superseded.value.pulled).toMatchObject({ uploaded: 1 });
   });
 
-  it("hides the keys of synced files the repository no longer has", async () => {
+  it("hides the keys of synced files the repository no longer has, and only this sync's", async () => {
     mocks.syncedFileRows.mockReturnValue([
-      { id: "file:en", sourcePath: "gitlab/acme/web/en.json" },
-      { id: "file:old", sourcePath: "gitlab/acme/web/old.json" },
+      { id: "file:en", sourcePath: "gitlab/acme/web/web-en.json" },
+      { id: "file:old", sourcePath: "gitlab/acme/web/old-en.json" },
+      // Another sync's file under the same project folder, outside this template.
+      { id: "file:other", sourcePath: "gitlab/acme/web/admin/en.json" },
+      // A translation file is delivery's, never hidden.
+      { id: "file:fr", sourcePath: "gitlab/acme/web/old-fr.json" },
     ]);
     mocks.hideKeysMissingFromSync.mockResolvedValue(["a", "b"]);
 
-    const result = await run(fakeReader());
+    const result = await run(
+      fakeReader({
+        listFiles: async () => ok([{ path: "locales/web-en.json", contentId: null }]),
+      }),
+      { ...syncConfig, pathTemplate: "*-{{locale}}.json" },
+    );
 
     expect(mocks.hideKeysMissingFromSync).toHaveBeenCalledTimes(1);
     expect(mocks.hideKeysMissingFromSync).toHaveBeenCalledWith(expect.anything(), {
@@ -240,7 +278,7 @@ describe("executeGitLabContentSync", () => {
       repositorySourceFileId: "file:old",
     });
     expect(isOk(result) && result.value.pulled.files).toEqual([
-      { path: "gitlab/acme/web/old.json", clashes: [], missingKeys: ["a", "b"] },
+      { path: "gitlab/acme/web/old-en.json", clashes: [], missingKeys: ["a", "b"] },
     ]);
   });
 
@@ -252,7 +290,7 @@ describe("executeGitLabContentSync", () => {
     );
     expect(isErr(unreadable) && unreadable.error).toMatchObject({
       code: "content_sync_pull_failed",
-      message: expect.stringContaining("locales/en.json"),
+      message: expect.stringContaining("locales/en.json (could not be read"),
     });
 
     mocks.waitForSourceFileVersionIngest.mockResolvedValueOnce("failed");

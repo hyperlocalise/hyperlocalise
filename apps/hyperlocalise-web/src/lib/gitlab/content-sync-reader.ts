@@ -115,7 +115,8 @@ export function createGitLabContentSyncReader(input: {
   }): Promise<Result<ContentSyncRepositoryFile[], ContentSyncProviderError>> {
     const files: ContentSyncRepositoryFile[] = [];
     const folder = normalizeContentSyncFolder(options.folder);
-    for (let page = 1; page <= TREE_MAX_PAGES; page += 1) {
+    // One page past the cap, so a folder with exactly the cap's entries isn't refused.
+    for (let page = 1; page <= TREE_MAX_PAGES + 1; page += 1) {
       const query = new URLSearchParams({
         ref: options.commitSha,
         recursive: "true",
@@ -152,6 +153,9 @@ export function createGitLabContentSyncReader(input: {
       }
       if (result.value.length < TREE_PAGE_SIZE) {
         return ok(files);
+      }
+      if (page > TREE_MAX_PAGES) {
+        break;
       }
     }
     return err({

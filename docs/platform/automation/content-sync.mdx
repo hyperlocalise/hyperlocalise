@@ -27,7 +27,7 @@ A workspace connected to its own GitLab server can pull a repository's source fi
 3. Set the provider folder, the project folder, and **Language file paths**: where each language's files sit under the provider folder, with `{{locale}}` standing for the language code, for example `{{locale}}.json` or `{{locale}}/pages/*.html`. Only the source language's files are imported. If the repository names a language differently from the project, add it under **Language codes in the repository**, one per line, such as `fr-FR = fr`.
 4. Leave **Branch** empty to read the repository's default branch.
 
-Each run reads the branch's latest commit. A file that hasn't changed since the last run is skipped. Keys the repository no longer has are hidden in the project, not deleted, so their translations stay and translation jobs skip them; a key that comes back is shown again.
+Each run reads the branch's latest commit. A file whose content hasn't changed since the last run is skipped. Keys the repository no longer has, and whole files it dropped, are hidden in the project, not deleted, so their translations stay and translation jobs skip them; a key that comes back is shown again.
 
 By default the repository's source text replaces the project's on every run. To edit source text in Hyperlocalise as well, turn on **Edit source text in Hyperlocalise** in the project's settings. A run then keeps edits made here, takes changes made in the repository, and reports a key as a clash when both sides changed it differently, keeping the project's text. The step's output lists the clashes and the hidden keys per file.
 

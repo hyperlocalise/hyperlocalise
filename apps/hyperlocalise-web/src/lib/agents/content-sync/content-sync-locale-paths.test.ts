@@ -3,7 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   classifyContentSyncPath,
   compileContentSyncPathTemplate,
-  countContentSyncTemplateWildcards,
+  hasSafeContentSyncTemplateWildcards,
   resolveContentSyncLocale,
 } from "./content-sync-locale-paths";
 
@@ -38,7 +38,23 @@ describe("compileContentSyncPathTemplate", () => {
     expect(repeated.match("a/b/fr.json")).toBe("fr");
     expect(Date.now() - started).toBeLessThan(200);
     expect(compileContentSyncPathTemplate("***/{{locale}}.json").match("a/b/en.json")).toBe("en");
-    expect(countContentSyncTemplateWildcards("{{locale}}/**/*.html")).toBe(2);
+  });
+
+  it("allows only wildcards that match quickly", () => {
+    for (const template of [
+      "{{locale}}/**/*.html",
+      "**/{{locale}}.*.json",
+      "*-*-{{locale}}.json",
+    ]) {
+      expect(hasSafeContentSyncTemplateWildcards(template)).toBe(true);
+    }
+    for (const template of [
+      "*a*a*{{locale}}.json",
+      "{{locale}}**x**y",
+      "*/*/*/*/*/*/*/*/*/{{locale}}.json",
+    ]) {
+      expect(hasSafeContentSyncTemplateWildcards(template)).toBe(false);
+    }
   });
 
   it("names no language without the placeholder, so nothing matches", () => {

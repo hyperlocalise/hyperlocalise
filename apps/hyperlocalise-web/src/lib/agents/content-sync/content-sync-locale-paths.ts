@@ -15,11 +15,29 @@ import { normalizeRepositoryRelativePath } from "@/lib/i18n/safe-repository-path
 import { normalizeContentSyncFolder } from "./content-sync-paths";
 import { CONTENT_SYNC_LOCALE_PLACEHOLDER } from "./content-sync-types";
 
-/** How many `*` and `**` a template may hold; enough for any locale layout, few enough to match fast. */
-export const CONTENT_SYNC_TEMPLATE_MAX_WILDCARDS = 8;
-
-export function countContentSyncTemplateWildcards(template: string): number {
-  return (template.match(/\*+/g) ?? []).length;
+/**
+ * Whether a template's wildcards are ones that match quickly: `**` only as a whole folder
+ * segment, at most two `*` in any one segment, and at most eight wildcards in all. Anything
+ * looser can make the compiled pattern backtrack for seconds on a long path.
+ */
+export function hasSafeContentSyncTemplateWildcards(template: string): boolean {
+  const segments = template.split("/");
+  let wildcards = 0;
+  for (const segment of segments) {
+    if (segment === "**") {
+      wildcards += 1;
+      continue;
+    }
+    if (segment.includes("**")) {
+      return false;
+    }
+    const stars = (segment.match(/\*/g) ?? []).length;
+    if (stars > 2) {
+      return false;
+    }
+    wildcards += stars;
+  }
+  return wildcards <= 8;
 }
 
 /**

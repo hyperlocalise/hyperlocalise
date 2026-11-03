@@ -17,7 +17,7 @@ import { uploadSurfaceKeepsMissingKeys } from "@/lib/agents/content-sync/content
 import { db, schema } from "@/lib/database/client";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
-import { hideKeysMissingFromSync } from "./hide-keys-missing-from-sync";
+import { hideKeysMissingFromSync, unhideKeysSyncHid } from "./hide-keys-missing-from-sync";
 import type { SourceFileSyncReport } from "./source-file-sync-report";
 
 export async function reconcileSourceFileTranslationKeys(input: {
@@ -129,16 +129,10 @@ export async function reconcileSourceFileTranslationKeys(input: {
         repositorySourceFileId: file.id,
         keepVersionId: version.id,
       });
-      await tx
-        .update(schema.projectTranslationKeys)
-        .set({ isHidden: false, hiddenBySyncAt: null, updatedAt: sql`now()` })
-        .where(
-          and(
-            eq(schema.projectTranslationKeys.repositorySourceFileId, file.id),
-            eq(schema.projectTranslationKeys.sourceFileVersionId, version.id),
-            sql`${schema.projectTranslationKeys.hiddenBySyncAt} IS NOT NULL`,
-          ),
-        );
+      await unhideKeysSyncHid(tx, {
+        repositorySourceFileId: file.id,
+        sourceFileVersionId: version.id,
+      });
     } else {
       await tx
         .delete(schema.projectTranslationKeys)

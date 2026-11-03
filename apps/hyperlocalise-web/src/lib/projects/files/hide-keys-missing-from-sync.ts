@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { schema, type DatabaseClient } from "@/lib/database/client";
 
@@ -29,9 +29,9 @@ export async function hideKeysMissingFromSync(
     keepVersionId?: string;
   },
 ): Promise<string[]> {
-  const missing = await database
-    .select({ id: schema.projectTranslationKeys.id, key: schema.projectTranslationKeys.key })
-    .from(schema.projectTranslationKeys)
+  const hidden = await database
+    .update(schema.projectTranslationKeys)
+    .set({ isHidden: true, hiddenBySyncAt: sql`now()`, updatedAt: sql`now()` })
     .where(
       and(
         eq(schema.projectTranslationKeys.organizationId, input.organizationId),
@@ -42,18 +42,24 @@ export async function hideKeysMissingFromSync(
           ? sql`${schema.projectTranslationKeys.sourceFileVersionId} IS DISTINCT FROM ${input.keepVersionId}::uuid`
           : undefined,
       ),
-    );
-  if (missing.length === 0) {
-    return [];
-  }
+    )
+    .returning({ key: schema.projectTranslationKeys.key });
+  return hidden.map((row) => row.key).sort();
+}
+
+/** Shows the keys a sync hid again, for a version the repository has back. */
+export async function unhideKeysSyncHid(
+  database: DatabaseClient,
+  input: { repositorySourceFileId: string; sourceFileVersionId: string },
+): Promise<void> {
   await database
     .update(schema.projectTranslationKeys)
-    .set({ isHidden: true, hiddenBySyncAt: sql`now()`, updatedAt: sql`now()` })
+    .set({ isHidden: false, hiddenBySyncAt: null, updatedAt: sql`now()` })
     .where(
-      inArray(
-        schema.projectTranslationKeys.id,
-        missing.map((row) => row.id),
+      and(
+        eq(schema.projectTranslationKeys.repositorySourceFileId, input.repositorySourceFileId),
+        eq(schema.projectTranslationKeys.sourceFileVersionId, input.sourceFileVersionId),
+        sql`${schema.projectTranslationKeys.hiddenBySyncAt} IS NOT NULL`,
       ),
     );
-  return missing.map((row) => row.key).sort();
 }

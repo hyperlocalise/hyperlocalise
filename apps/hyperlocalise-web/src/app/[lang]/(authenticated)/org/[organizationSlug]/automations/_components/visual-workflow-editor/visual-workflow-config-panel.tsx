@@ -2528,6 +2528,7 @@ export function VisualWorkflowConfigPanel({
         ) : null}
         {config.kind === "action.content_sync" ? (
           <ContentSyncConfigFields
+            nodeId={node.id}
             config={config}
             organizationSlug={organizationSlug}
             onChangeConfig={onChangeConfig}
@@ -3558,10 +3559,12 @@ function ErrorBehaviorField({
 }
 
 function ContentSyncConfigFields({
+  nodeId,
   config,
   organizationSlug,
   onChangeConfig,
 }: {
+  nodeId: string;
   config: Extract<VisualNodeConfig, { kind: "action.content_sync" }>;
   organizationSlug?: string;
   onChangeConfig: (config: VisualNodeConfig) => void;
@@ -3726,6 +3729,7 @@ function ContentSyncConfigFields({
             onChange={(value) => onChangeConfig({ ...config, pathTemplate: value })}
           />
           <ContentSyncLocaleCodesField
+            key={nodeId}
             localeCodes={config.localeCodes}
             onChange={(localeCodes) => onChangeConfig({ ...config, localeCodes })}
           />
@@ -3748,11 +3752,15 @@ function ContentSyncLocaleCodesField({
 }) {
   const intl = useIntl();
   const [text, setText] = useState(() => formatContentSyncLocaleCodes(localeCodes));
+  // Undo, or the assistant, can change the saved pairs under the box; then the text follows.
+  const saved = formatContentSyncLocaleCodes(localeCodes);
+  const shown = formatContentSyncLocaleCodes(parseContentSyncLocaleCodes(text));
+  const value = saved === shown ? text : saved;
   return (
     <TextAreaField
       id="vw-content-sync-locale-codes"
       label={intl.formatMessage(messages.contentSyncLocaleCodes)}
-      value={text}
+      value={value}
       placeholder={"fr-FR = fr\npt-BR = pt"}
       description={intl.formatMessage(messages.contentSyncLocaleCodesHelp)}
       onChange={(value) => {
