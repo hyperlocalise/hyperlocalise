@@ -3152,6 +3152,9 @@
   "3RQjQSebWm": {
     "defaultMessage": "Échec du chargement des membres."
   },
+  "3S3afNJApr": {
+    "defaultMessage": "Dans les paramètres de HubSpot, ouvrez Blog et sélectionnez Ajouter/modifier des variantes multilingues. Lorsque cette langue est activée sur le blog, l’envoi crée un brouillon d’article non publié. Il n’ajoute pas de langue au blog."
+  },
   "3SLTb8lWnJ": {
     "defaultMessage": "Paramètres régionaux source"
   },
@@ -6445,6 +6448,9 @@
   },
   "9QrrRor3/1": {
     "defaultMessage": "Il fonctionne dans toutes les langues"
+  },
+  "9RWd1cWWqm": {
+    "defaultMessage": "Ajoutez/modifiez d’abord les variantes multilingues."
   },
   "9RkSMcYnN2": {
     "defaultMessage": "Contexte du fichier"
@@ -14473,6 +14479,9 @@
   },
   "OAZ7oFBkRI": {
     "defaultMessage": "{count, plural, one {# nouvelle erreur de QA} other {# nouvelles erreurs de QA}} depuis l'analyse précédente"
+  },
+  "OBtwmZ+5Ft": {
+    "defaultMessage": "Choisissez les e-mails, articles de blog et formulaires associés à mettre à jour avec les traductions approuvées. Les e-mails deviennent des brouillons clonés dans la langue cible. Les articles de blog deviennent des brouillons non publiés dans la langue cible. Les formulaires deviennent des copies distinctes dans la langue cible. Cela ne modifie ni ne publie jamais le contenu source."
   },
   "OBw52VUo2G": {
     "defaultMessage": "{percent} % du test"
