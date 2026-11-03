@@ -166,6 +166,29 @@ describe("gitlab connections", () => {
     });
   });
 
+  it("reports the refusal, not the stopped request, when the project check fails first", async () => {
+    mocks.withPublicHttpFetch.mockImplementation(
+      async (url: string, init: RequestInit, handler: (response: Response) => unknown) => {
+        if (url.includes("/api/v4/user")) {
+          // Answers only after the other request has failed and stopped this one.
+          await new Promise((_resolve, reject) =>
+            init.signal?.addEventListener("abort", () => reject(init.signal?.reason)),
+          );
+        }
+        return handler(Response.json({ message: "403 Forbidden" }, { status: 403 }));
+      },
+    );
+    const scope = await seedScope();
+
+    const result = await saveGitLabConnection({
+      ...scope,
+      serverUrl: "https://git.acme.example",
+      accessToken: "glpat-read-user-only",
+    });
+
+    expect(isErr(result) && result.error.code).toBe("gitlab_token_rejected");
+  });
+
   it("refuses a token that can identify itself but not read projects", async () => {
     mockServer((url) =>
       url.includes("/api/v4/user")
@@ -234,7 +257,11 @@ describe("gitlab connections", () => {
     const input = { ...scope, serverUrl: "https://git.acme.example", accessToken: "glpat-good" };
 
     const first = await saveGitLabConnection(input);
-    const second = await saveGitLabConnection({ ...input, userId: scope.userId });
+    const otherIdentity = fixture.createWorkosIdentityWithRole("admin");
+    await fixture.authHeadersFor(otherIdentity);
+    const otherUserId = globalThis.__testApiAuthContext!.user.localUserId;
+    expect(otherUserId).not.toBe(scope.userId);
+    const second = await saveGitLabConnection({ ...input, userId: otherUserId });
 
     expect(isOk(first) && first.value.created).toBe(true);
     expect(isOk(second) && second.value.created).toBe(false);

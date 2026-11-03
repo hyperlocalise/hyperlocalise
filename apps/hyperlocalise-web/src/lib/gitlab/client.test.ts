@@ -23,6 +23,10 @@ import {
   listGitLabMembershipProjects,
 } from "./client";
 
+vi.mock("./constants", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./constants")>()),
+  GITLAB_SERVER_REQUEST_TIMEOUT_MS: 20,
+}));
 vi.mock("@/lib/security/public-http-fetch", () => ({
   withPublicHttpFetch: vi.fn(),
 }));
@@ -287,10 +291,8 @@ describe("gitlab client", () => {
       expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ redirect: "error" });
     });
 
-    it("marks a request that ran out of time", async () => {
-      vi.mocked(withPublicHttpFetch).mockRejectedValue(
-        new DOMException("The operation was aborted due to timeout", "TimeoutError"),
-      );
+    it("gives up at the timeout and marks the request as timed out", async () => {
+      vi.mocked(withPublicHttpFetch).mockReturnValue(new Promise(() => {}));
 
       const result = await getGitLabCurrentUsername({ accessToken: "token", baseUrl });
 

@@ -89,30 +89,30 @@ async function checkGitLabServer(input: {
   accessToken: string;
   signal?: AbortSignal;
 }): Promise<Result<string, GitLabConnectionError>> {
-  // The first failure decides the answer, so it also stops the other request.
+  // The first failure is the answer: it stops the other request, whose own failure is then only
+  // that it was stopped.
   const controller = new AbortController();
   const signal = input.signal
     ? AbortSignal.any([input.signal, controller.signal])
     : controller.signal;
+  const first: { error: GitLabApiError | null } = { error: null };
   const stopOnFailure = <T extends Result<unknown, GitLabApiError>>(result: T): T => {
-    if (isErr(result)) {
+    if (isErr(result) && !first.error) {
+      first.error = result.error;
       controller.abort();
     }
     return result;
   };
   const access = { baseUrl: input.baseUrl, accessToken: input.accessToken, signal };
-  const [username, projects] = await Promise.all([
+  const [username] = await Promise.all([
     getGitLabCurrentUsername(access).then(stopOnFailure),
     checkGitLabProjectAccess(access).then(stopOnFailure),
   ]);
-  if (isErr(username)) {
-    return err(mapCheckError(username.error));
-  }
-  if (isErr(projects)) {
-    return err(mapCheckError(projects.error));
+  if (first.error) {
+    return err(mapCheckError(first.error));
   }
 
-  return username;
+  return isErr(username) ? err(mapCheckError(username.error)) : username;
 }
 
 export async function getGitLabConnection(input: {
