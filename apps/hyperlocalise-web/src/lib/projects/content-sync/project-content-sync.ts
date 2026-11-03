@@ -56,7 +56,7 @@ const UNEXPECTED_RUN_ERROR = {
 export type ProjectContentSyncRow = typeof schema.projectContentSyncs.$inferSelect;
 export type ProjectContentSyncRunRow = typeof schema.projectContentSyncRuns.$inferSelect;
 
-export function nextScheduledContentSyncRunAt(
+function nextScheduledContentSyncRunAt(
   schedule: ProjectContentSyncSchedule,
   from: Date,
 ): Date | null {
@@ -80,7 +80,7 @@ export function followingScheduledContentSyncRunAt(
   return new Date(dueAt.getTime() + (Math.max(missed, 0) + 1) * interval);
 }
 
-export function contentSyncRunLockKey(syncId: string): string {
+function contentSyncRunLockKey(syncId: string): string {
   return `project_content_sync:${syncId}`;
 }
 
@@ -377,8 +377,9 @@ export async function executeProjectContentSyncRun(input: {
       );
       return;
     }
-    // The lease counts from when the work starts, not from when the run was queued.
-    await db
+    // The lease counts from when the work starts, not from when the run was queued. A run failed
+    // as stale since it was read no longer holds the sync, so it must not start.
+    const started = await db
       .update(schema.projectContentSyncRuns)
       .set({ startedAt: new Date() })
       .where(
@@ -386,7 +387,12 @@ export async function executeProjectContentSyncRun(input: {
           eq(schema.projectContentSyncRuns.id, row.run.id),
           eq(schema.projectContentSyncRuns.status, "running"),
         ),
-      );
+      )
+      .returning({ id: schema.projectContentSyncRuns.id });
+    if (started.length === 0) {
+      logger.warn({ runId: input.runId }, "project content sync run closed before it started");
+      return;
+    }
 
     const config = validateContentSyncConfig(normalizeContentSyncConfig(row.sync.syncConfig));
     if (isErr(config)) {

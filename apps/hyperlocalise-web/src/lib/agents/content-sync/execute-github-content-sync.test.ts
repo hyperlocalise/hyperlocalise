@@ -190,6 +190,7 @@ async function pullThenPush(options?: {
   mocks.hasDiffAgainstBase.mockResolvedValue(options?.hasDiff ?? true);
   mocks.commitPushAndCreatePullTranslationsPullRequest.mockResolvedValue({
     pullRequestUrl: options?.pullRequestUrl ?? "https://github.com/acme/web/pull/9",
+    pushed: true,
   });
   return runSync(syncConfig, options?.pullRequestBranchKey);
 }
@@ -424,6 +425,32 @@ describe("executeGithubContentSync", () => {
       }),
     );
     expect(mocks.stopGithubRepositoryAutomationSandbox).toHaveBeenCalledWith("sbx-1");
+  });
+
+  it("reports nothing sent when the open pull request already had the files", async () => {
+    mocks.commitPushAndCreatePullTranslationsPullRequest.mockResolvedValue({
+      pullRequestUrl: "https://github.com/acme/web/pull/9",
+      pushed: false,
+    });
+    mocks.selectLimit
+      .mockResolvedValueOnce([repository()])
+      .mockResolvedValueOnce([{ targetLocales: ["fr"] }]);
+    mocks.selectWhere.mockResolvedValue([{ sourcePath: "github/acme/web/en.json" }]);
+    mocks.runSandboxCommand.mockResolvedValue({ exitCode: 0, output: "locales/en.json\0" });
+    mocks.uploadRepositorySourceFilesFromSandbox.mockResolvedValue([{ outcome: "uploaded" }]);
+    mocks.canPushToGitHubRepository.mockResolvedValue({ canPush: true });
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      translatedKeyCount: 1,
+      prefilled: { greeting: "Bonjour" },
+    });
+    mocks.hasDiffAgainstBase.mockResolvedValue(true);
+
+    const result = await runSync(syncConfig, "sync-1");
+
+    expect(isOk(result) && result.value.pushed).toEqual({
+      written: 0,
+      pullRequestUrl: "https://github.com/acme/web/pull/9",
+    });
   });
 
   it("reuses the caller's pull request branch across runs", async () => {

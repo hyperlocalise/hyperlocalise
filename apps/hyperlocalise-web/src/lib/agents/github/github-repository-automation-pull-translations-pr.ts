@@ -73,23 +73,31 @@ async function readRemoteBranchHeadSha(
   }
 }
 
-/** Whether the sandbox's new commit has exactly the files of a commit on GitHub. */
-async function hasSameTreeAsCommit(
-  octokit: Awaited<ReturnType<typeof getInstallationOctokit>>,
-  input: { owner: string; repo: string; sandboxId: string; commitSha: string },
-): Promise<boolean> {
-  const local = await runSandboxCommand(input.sandboxId, "git", ["rev-parse", "HEAD^{tree}"], {
-    output: "stdout",
-  });
-  if (local.exitCode !== 0) {
+/** Whether the open pull request's branch already has these files exactly as the new commit has them. */
+async function branchHasSameFiles(input: {
+  sandboxId: string;
+  branchName: string;
+  paths: string[];
+}): Promise<boolean> {
+  const fetch = await runSandboxCommand(input.sandboxId, "git", [
+    "fetch",
+    "--depth",
+    "1",
+    "origin",
+    `refs/heads/${input.branchName}`,
+  ]);
+  if (fetch.exitCode !== 0) {
     return false;
   }
-  const remote = await octokit.rest.git.getCommit({
-    owner: input.owner,
-    repo: input.repo,
-    commit_sha: input.commitSha,
-  });
-  return remote.data.tree.sha === local.output.trim();
+  const diff = await runSandboxCommand(input.sandboxId, "git", [
+    "diff",
+    "--quiet",
+    "FETCH_HEAD",
+    "HEAD",
+    "--",
+    ...input.paths,
+  ]);
+  return diff.exitCode === 0;
 }
 
 export async function writePullTranslationCandidatesToSandbox(input: {
@@ -129,7 +137,13 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
    * closed pull request, and leave an open pull request alone when its files would not change.
    */
   reuseBranch?: boolean;
-}): Promise<{ pullRequestUrl: string; pullRequestNumber: number; updated: boolean }> {
+}): Promise<{
+  pullRequestUrl: string;
+  pullRequestNumber: number;
+  updated: boolean;
+  /** False when an open pull request already had these files and nothing was pushed. */
+  pushed: boolean;
+}> {
   const { owner, repo } = parseRepositoryOwnerRepo(input.repositoryFullName);
   const octokit = await getInstallationOctokit(input.installationId);
 
@@ -148,10 +162,9 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
   });
 
   const isUpdatingExistingPull = existingPull.data.length > 0;
-  const existingPullHeadSha = existingPull.data[0]?.head.sha;
   // A reused branch can outlive its pull request (merged or closed without deleting the branch).
   const remoteBranchHeadSha = isUpdatingExistingPull
-    ? existingPullHeadSha
+    ? existingPull.data[0]?.head.sha
     : input.reuseBranch
       ? await readRemoteBranchHeadSha(octokit, { owner, repo, branch: input.branchName })
       : undefined;
@@ -197,20 +210,22 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
   }
 
   const openPull = existingPull.data[0];
-  if (input.reuseBranch && openPull && existingPullHeadSha) {
-    const unchanged = await hasSameTreeAsCommit(octokit, {
-      owner,
-      repo,
+  // Only the synced files count: the branch is rebuilt on the latest base, which moves on its own.
+  if (
+    input.reuseBranch &&
+    openPull &&
+    (await branchHasSameFiles({
       sandboxId: input.sandboxId,
-      commitSha: existingPullHeadSha,
-    });
-    if (unchanged) {
-      return {
-        pullRequestUrl: openPull.html_url,
-        pullRequestNumber: openPull.number,
-        updated: false,
-      };
-    }
+      branchName: input.branchName,
+      paths: input.paths,
+    }))
+  ) {
+    return {
+      pullRequestUrl: openPull.html_url,
+      pullRequestNumber: openPull.number,
+      updated: false,
+      pushed: false,
+    };
   }
 
   const pushArgs = remoteBranchHeadSha
@@ -262,6 +277,7 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
       pullRequestUrl: pullRequest.html_url,
       pullRequestNumber: pullRequest.number,
       updated: true,
+      pushed: true,
     };
   }
 
@@ -278,6 +294,7 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
     pullRequestUrl: pullRequest.html_url,
     pullRequestNumber: pullRequest.number,
     updated: false,
+    pushed: true,
   };
 }
 

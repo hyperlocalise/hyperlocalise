@@ -14,7 +14,7 @@
  */
 import { ArrowsClockwiseIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { FormattedMessage, type IntlShape, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -121,7 +121,7 @@ function contentSyncRoute() {
   return apiClient.api.orgs[":organizationSlug"].projects[":projectId"]["content-sync"];
 }
 
-export function projectContentSyncQueryKey(organizationSlug: string, projectId: string) {
+function projectContentSyncQueryKey(organizationSlug: string, projectId: string) {
   return ["project-content-sync", organizationSlug, projectId];
 }
 
@@ -238,6 +238,22 @@ export function ProjectContentSyncPanel({
   useEffect(() => {
     onDirtyChange?.(dirty);
   }, [dirty, onDirtyChange]);
+
+  const refetchSync = syncQuery.refetch;
+  const refetchConnections = connectionsQuery.refetch;
+  const wasActive = useRef(active);
+  // Opening the section shows current runs and repositories, not what was loaded while it was hidden.
+  useEffect(() => {
+    const opened = active && !wasActive.current;
+    wasActive.current = active;
+    if (!opened) {
+      return;
+    }
+    void refetchSync();
+    if (canManage) {
+      void refetchConnections();
+    }
+  }, [active, canManage, refetchConnections, refetchSync]);
 
   const saveMutation = useMutation({
     mutationFn: async (draft: SyncDraft) => {
@@ -496,10 +512,13 @@ export function ProjectContentSyncPanel({
                   disabled={fieldsDisabled}
                   className="font-mono"
                   aria-invalid={providerFolderUnsafe || undefined}
+                  aria-describedby={
+                    providerFolderUnsafe ? "project-sync-provider-folder-error" : undefined
+                  }
                   onChange={(event) => update({ providerFolder: event.target.value })}
                 />
                 {providerFolderUnsafe ? (
-                  <FieldError>
+                  <FieldError id="project-sync-provider-folder-error">
                     <FormattedMessage {...messages.errorFolderUnsafe} />
                   </FieldError>
                 ) : null}
@@ -517,10 +536,13 @@ export function ProjectContentSyncPanel({
                   disabled={fieldsDisabled}
                   className="font-mono"
                   aria-invalid={projectFolderUnsafe || undefined}
+                  aria-describedby={
+                    projectFolderUnsafe ? "project-sync-project-folder-error" : undefined
+                  }
                   onChange={(event) => update({ projectFolder: event.target.value })}
                 />
                 {projectFolderUnsafe ? (
-                  <FieldError>
+                  <FieldError id="project-sync-project-folder-error">
                     <FormattedMessage {...messages.errorFolderUnsafe} />
                   </FieldError>
                 ) : null}

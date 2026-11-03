@@ -15,7 +15,7 @@ import { z } from "zod";
 import { contentSyncConfigSchema } from "@/lib/agents/content-sync/content-sync-types";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
 
-export const projectContentSyncScheduleSchema = z.enum(["manual", "hourly", "daily"]);
+const projectContentSyncScheduleSchema = z.enum(["manual", "hourly", "daily"]);
 
 export const projectContentSyncParamsSchema = z.object({
   projectId: projectIdSchema,
@@ -25,4 +25,3 @@ export const saveProjectContentSyncBodySchema = z.object({
   syncConfig: contentSyncConfigSchema,
   schedule: projectContentSyncScheduleSchema,
 });
-export type SaveProjectContentSyncBody = z.infer<typeof saveProjectContentSyncBodySchema>;

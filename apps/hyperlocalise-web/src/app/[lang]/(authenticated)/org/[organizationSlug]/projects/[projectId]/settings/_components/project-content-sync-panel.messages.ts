@@ -229,8 +229,8 @@ export const projectContentSyncPanelMessages = defineMessages({
   },
   runWritten: {
     defaultMessage:
-      "{written, plural, =0 {No translations to send} one {# translated file sent} other {# translated files sent}}",
-    id: "AHUOLfre6+",
+      "{written, plural, =0 {No new translations to send} one {# translated file sent} other {# translated files sent}}",
+    id: "ObksDhMzPR",
     description: "Summary of the translated files a project sync run sent back to the repository",
   },
   openPullRequest: {

@@ -456,7 +456,8 @@ async function pushGithubTranslations(input: {
   });
 
   return ok({
-    written: candidates.length,
+    // An open pull request that already has these files is left alone, so nothing was sent.
+    written: pr.pushed ? candidates.length : 0,
     pullRequestUrl: pr.pullRequestUrl,
   });
 }
