@@ -351,7 +351,8 @@ paths:
         `filePath` (no `filePath` means a string in no file). A match is updated with the fields
         the item sets; otherwise a string is created and `sourceText` is required. The batch runs
         in one transaction: if an item fails, nothing is saved and the `X-Failed-Item` header
-        holds its index. Changing the source text of a locked string returns `409`.
+        holds its index. Changing the source text of a locked string returns `409`. Changing a
+        string's source text moves its approved translations back to `needs_review`.
       parameters:
         - $ref: "#/components/parameters/ProjectId"
       requestBody:
@@ -424,7 +425,7 @@ paths:
       operationId: updateString
       tags: [Strings]
       summary: Update a string
-      description: Requires `strings:write`. Native projects only. Send `null` to clear `context` or `maxLength`. Changing `sourceText` on a locked segment returns `409`.
+      description: Requires `strings:write`. Native projects only. Send `null` to clear `context` or `maxLength`. Changing `sourceText` on a locked segment returns `409`. Changing `sourceText` moves the string's approved translations back to `needs_review`.
       requestBody:
         required: true
         content:
