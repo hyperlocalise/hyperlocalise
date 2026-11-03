@@ -12,8 +12,52 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { isMailchimpPushRunActive } from "./push-eligibility";
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
+
+import { getMailchimpPushEligibility, isMailchimpPushRunActive } from "./push-eligibility";
 import { readMailchimpPushSourcePaths } from "./push-mailchimp-content";
+
+function mailchimpConfig(
+  overrides: Partial<NonNullable<WorkspaceAutomationRecord["toolConfig"]["mailchimp"]>> = {},
+) {
+  return {
+    enabled: true,
+    sourceLocale: "en",
+    campaignIds: ["campaign-1"],
+    templateIds: [],
+    existingTranslationPolicy: "seed_empty" as const,
+    overwriteWhenRemoteNewer: true,
+    ...overrides,
+  };
+}
+
+function automation(
+  overrides: Partial<WorkspaceAutomationRecord> & {
+    toolConfig?: WorkspaceAutomationRecord["toolConfig"];
+  } = {},
+): WorkspaceAutomationRecord {
+  return {
+    id: "automation-1",
+    organizationId: "org-1",
+    authorUserId: "user-1",
+    status: "active",
+    name: "Mailchimp content",
+    instructions: "",
+    projectId: "project-1",
+    triggerConfig: {
+      mode: "scheduled",
+      schedule: { cadence: "daily", hourUtc: 9, timezone: "UTC" },
+    },
+    repositoryTarget: { kind: "none" },
+    toolConfig: overrides.toolConfig ?? { mailchimp: mailchimpConfig() },
+    model: "openai/gpt-6-luna",
+    configVersion: 1,
+    nextRunAt: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
 
 describe("isMailchimpPushRunActive", () => {
   it("is true only for queued or running push_approved runs", () => {
@@ -51,5 +95,33 @@ describe("readMailchimpPushSourcePaths", () => {
         sourcePaths: ["mailchimp/campaigns/1/a.html", "", "  "],
       }),
     ).toEqual(["mailchimp/campaigns/1/a.html"]);
+  });
+});
+
+describe("getMailchimpPushEligibility", () => {
+  it("returns null when Mailchimp is not enabled", async () => {
+    await expect(
+      getMailchimpPushEligibility({
+        organizationId: "org-1",
+        automation: automation({
+          toolConfig: { mailchimp: mailchimpConfig({ enabled: false }) },
+        }),
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it("returns null when the automation has no project", async () => {
+    await expect(
+      getMailchimpPushEligibility({
+        organizationId: "org-1",
+        automation: automation({ projectId: null }),
+      }),
+    ).resolves.toBeNull();
+    await expect(
+      getMailchimpPushEligibility({
+        organizationId: "org-1",
+        automation: automation({ projectId: "   " }),
+      }),
+    ).resolves.toBeNull();
   });
 });
