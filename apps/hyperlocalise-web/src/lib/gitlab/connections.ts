@@ -173,6 +173,8 @@ export async function saveGitLabConnection(input: {
     authTag: encrypted.authTag,
     keyVersion: encrypted.keyVersion,
     maskedTokenSuffix: maskProviderCredentialSuffix(accessToken),
+    // onConflictDoUpdate does not run $onUpdateFn, so a replace would keep the first save's time.
+    updatedAt: new Date(),
   };
 
   const [row] = await db

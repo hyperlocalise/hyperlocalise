@@ -93,8 +93,8 @@ function listItemClassName(isSelected: boolean, isUnread = false) {
     "grid w-full grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-md px-2 py-2.5 text-left transition-colors",
     isSelected
       ? "bg-accent text-foreground"
-      : "text-foreground hover:bg-muted hover:text-foreground",
-    isUnread && !isSelected && "bg-muted/40",
+      : "text-foreground hover:bg-subtle hover:text-foreground",
+    isUnread && !isSelected && "bg-subtle",
   );
 }
 

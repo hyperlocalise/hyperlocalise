@@ -210,7 +210,8 @@ describe("gitlabRoutes", () => {
       expect(body).not.toContain("glpat-secret");
 
       const removed = await connection.$delete({ param }, { headers });
-      expect(removed.status).toBe(200);
+      expect(removed.status).toBe(204);
+      expect(await removed.text()).toBe("");
       const after = await connection.$get({ param }, { headers });
       expect(await after.json()).toEqual({ gitlabConnection: null });
     });

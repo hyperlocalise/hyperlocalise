@@ -220,13 +220,36 @@ func publicTranslationFilename(sourcePath, locale string) string {
 	return suffix + ".json"
 }
 
+// encodeURIComponentUnreservedChars is the ECMA-262 uriUnescaped set:
+// uriAlpha / DecimalDigit / "-" / "_" / "." / "!" / "~" / "*" / "'" / "(" / ")"
+const encodeURIComponentUnreservedChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~*'()"
+
+var encodeURIComponentUnreserved = func() [256]bool {
+	var table [256]bool
+	for i := 0; i < len(encodeURIComponentUnreservedChars); i++ {
+		table[encodeURIComponentUnreservedChars[i]] = true
+	}
+	return table
+}()
+
+// encodeURIComponent percent-encodes using JavaScript encodeURIComponent rules.
 func encodeURIComponent(value string) string {
+	escapeCount := 0
+	for i := 0; i < len(value); i++ {
+		if !encodeURIComponentUnreserved[value[i]] {
+			escapeCount++
+		}
+	}
+	if escapeCount == 0 {
+		return value
+	}
+
 	const hex = "0123456789ABCDEF"
 	var b strings.Builder
+	b.Grow(len(value) + escapeCount*2)
 	for i := 0; i < len(value); i++ {
 		c := value[i]
-		if c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' ||
-			strings.IndexByte("-_.!~*'()", c) >= 0 {
+		if encodeURIComponentUnreserved[c] {
 			b.WriteByte(c)
 			continue
 		}

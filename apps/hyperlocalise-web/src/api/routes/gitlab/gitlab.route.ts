@@ -148,6 +148,6 @@ export function createGitlabRoutes() {
         return notFoundResponse(c, "gitlab_connection_not_found");
       }
 
-      return c.json({ deleted: true }, 200);
+      return c.body(null, 204);
     });
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -56,6 +57,7 @@ func TestPublicTranslationFilenameLocaleSuffix(t *testing.T) {
 
 func TestEncodeURIComponentMatchesJavaScript(t *testing.T) {
 	for input, want := range map[string]string{
+		"":                     "",
 		"en-fr.json":           "en-fr.json",
 		"a b.json":             "a%20b.json",
 		"café-fr.json":         "caf%C3%A9-fr.json",
@@ -64,10 +66,61 @@ func TestEncodeURIComponentMatchesJavaScript(t *testing.T) {
 		"😀.json":               "%F0%9F%98%80.json",
 		"%2F-fr.json":          "%252F-fr.json",
 		"a+b&c#d?e.json":       "a%2Bb%26c%23d%3Fe.json",
+		"/:@":                  "%2F%3A%40",
+		"\r\n\t":               "%0D%0A%09",
+		string([]byte{0x80}):   "%80",
 	} {
 		require.Equal(t, want, encodeURIComponent(input), input)
+		require.Equal(t, jsEncodeURIComponentRef(input), encodeURIComponent(input), input)
 	}
 	require.Equal(t, "attachment; filename*=UTF-8''caf%C3%A9-fr.json", publicTranslationContentDisposition("café-fr.json"))
+	require.Equal(t, "attachment; filename*=UTF-8''%22evil%0D%0AHidden%3A%201%22.json", publicTranslationContentDisposition("\"evil\r\nHidden: 1\".json"))
+}
+
+func TestEncodeURIComponentUnreservedSet(t *testing.T) {
+	require.Equal(t, 71, len(encodeURIComponentUnreservedChars))
+
+	unreserved := 0
+	for i := 0; i < 256; i++ {
+		c := byte(i)
+		got := encodeURIComponentUnreserved[c]
+		want := jsEncodeURIComponentUnreserved(c)
+		require.Equal(t, want, got, "byte 0x%02x", c)
+		if got {
+			unreserved++
+		}
+
+		input := string([]byte{c})
+		require.Equal(t, jsEncodeURIComponentRef(input), encodeURIComponent(input), input)
+	}
+	require.Equal(t, 71, unreserved)
+}
+
+func jsEncodeURIComponentUnreserved(c byte) bool {
+	switch {
+	case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		return true
+	case c == '-' || c == '_' || c == '.' || c == '!' || c == '~' || c == '*' || c == '\'' || c == '(' || c == ')':
+		return true
+	default:
+		return false
+	}
+}
+
+func jsEncodeURIComponentRef(value string) string {
+	const hex = "0123456789ABCDEF"
+	var b strings.Builder
+	for i := 0; i < len(value); i++ {
+		c := value[i]
+		if jsEncodeURIComponentUnreserved(c) {
+			b.WriteByte(c)
+			continue
+		}
+		b.WriteByte('%')
+		b.WriteByte(hex[c>>4])
+		b.WriteByte(hex[c&0xf])
+	}
+	return b.String()
 }
 
 func TestPublicTranslationObjectMatchesJSONStringify(t *testing.T) {
