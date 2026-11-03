@@ -168,6 +168,48 @@ describe("GitLabServerConnectionPanel", () => {
     expect(await screen.findByText(/The server refused this token/)).toBeTruthy();
   });
 
+  it("doesn't check again right after a save, only when the row is opened again", async () => {
+    mocks.connectionGet.mockImplementation(async () =>
+      Response.json({ gitlabConnection: savedConnection }),
+    );
+    renderPanel();
+    await openRow();
+    await screen.findByText(/The connection is working/);
+    expect(mocks.checkGet).toHaveBeenCalledTimes(1);
+
+    const resaved = { ...savedConnection, updatedAt: "2026-11-03T00:05:00.000Z" };
+    mocks.connectionPut.mockImplementation(async () =>
+      Response.json({ gitlabConnection: resaved }),
+    );
+    mocks.connectionGet.mockImplementation(async () =>
+      Response.json({ gitlabConnection: resaved }),
+    );
+    fireEvent.change(screen.getByLabelText("Access token"), { target: { value: "glpat-new" } });
+    fireEvent.click(screen.getByRole("button", { name: "Check and save" }));
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+    await screen.findByText(/The connection is working/);
+    expect(mocks.checkGet).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /^(Manage|Connect|View)/ }));
+    await openRow();
+    await waitFor(() => expect(mocks.checkGet).toHaveBeenCalledTimes(2));
+  });
+
+  it("forgets a started disconnect when the row is closed", async () => {
+    mocks.connectionGet.mockImplementation(async () =>
+      Response.json({ gitlabConnection: savedConnection }),
+    );
+    renderPanel();
+    await openRow();
+    fireEvent.click(await screen.findByRole("button", { name: "Disconnect" }));
+
+    fireEvent.click(screen.getByRole("button", { name: /^(Manage|Connect|View)/ }));
+    await openRow();
+
+    expect(await screen.findByRole("button", { name: "Disconnect" })).toBeTruthy();
+    expect(screen.queryByText(/Disconnect for the whole workspace/)).toBeNull();
+  });
+
   it("asks before disconnecting the whole workspace, and can be cancelled", async () => {
     mocks.connectionGet.mockImplementation(async () =>
       Response.json({ gitlabConnection: savedConnection }),

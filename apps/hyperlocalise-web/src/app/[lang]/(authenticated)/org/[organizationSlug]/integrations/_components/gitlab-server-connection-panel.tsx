@@ -65,21 +65,39 @@ export function GitLabServerConnectionPanel({
   const connectionQuery = useGitLabServerConnection(organizationSlug);
   const connection = connectionQuery.data ?? null;
 
-  // Asked only when the row is open: a token can stop working at any time after it was saved.
+  // Asked when the row opens, because a token can stop working at any time after it was saved.
+  // The answer is kept while the row stays open and dropped when it closes.
+  const checkQueryKey = ["gitlab", organizationSlug, "connection", "check", connection?.updatedAt];
   const checkQuery = useQuery({
-    queryKey: ["gitlab", organizationSlug, "connection", "check", connection?.updatedAt],
+    queryKey: checkQueryKey,
     enabled: expanded && connection !== null,
-    staleTime: 0,
+    staleTime: Number.POSITIVE_INFINITY,
     queryFn: async () => {
       const response = await api.api.orgs[":organizationSlug"].gitlab.connection.check.$get({
         param: { organizationSlug },
       });
+      if (response.status === 404) {
+        // Removed elsewhere since this page loaded.
+        await queryClient.invalidateQueries({
+          queryKey: ["gitlab", organizationSlug, "connection"],
+          exact: true,
+        });
+        return null;
+      }
       if (!response.ok) {
         throw new Error("gitlab_connection_check_failed");
       }
       return response.json();
     },
   });
+
+  const changeExpanded = (open: boolean) => {
+    setExpanded(open);
+    if (!open) {
+      setConfirmingDisconnect(false);
+      queryClient.removeQueries({ queryKey: ["gitlab", organizationSlug, "connection", "check"] });
+    }
+  };
 
   const clearForm = () => {
     setServerUrl(null);
@@ -101,6 +119,7 @@ export function GitLabServerConnectionPanel({
     },
     onSuccess: async (saved) => {
       clearForm();
+      setConfirmingDisconnect(false);
       // Saving has just checked the connection, so the open row needn't check it again.
       if (saved) {
         queryClient.setQueryData(
@@ -127,8 +146,7 @@ export function GitLabServerConnectionPanel({
     },
     onSuccess: async () => {
       clearForm();
-      setConfirmingDisconnect(false);
-      setExpanded(false);
+      changeExpanded(false);
       await refreshGitLabQueries();
       toast.success(intl.formatMessage(messages.disconnected));
     },
@@ -164,7 +182,7 @@ export function GitLabServerConnectionPanel({
       isConnected={connection !== null}
       userIsAdmin={userCanManage}
       expanded={expanded}
-      onExpandedChange={setExpanded}
+      onExpandedChange={changeExpanded}
       isLoading={connectionQuery.isLoading}
       isLast={isLast}
     >

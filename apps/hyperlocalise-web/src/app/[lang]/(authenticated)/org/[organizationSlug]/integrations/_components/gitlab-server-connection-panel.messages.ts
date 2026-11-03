@@ -138,9 +138,8 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
     description: "Button that keeps the GitLab server connection",
   },
   gitlabComNotUsed: {
-    defaultMessage:
-      "Not used while this workspace is connected to its own GitLab server. You can still disconnect your account here.",
-    id: "NicQRpFZUr",
+    defaultMessage: "Not used while this workspace is connected to its own GitLab server.",
+    id: "vjX9EcsHlB",
     description: "GitLab.com row description while a self-hosted GitLab server is connected",
   },
   disconnecting: {
