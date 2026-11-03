@@ -10,16 +10,26 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createLogger } from "@/lib/log";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { stopWaitingOnAbort } from "@/lib/primitives/abort/stop-waiting-on-abort";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
+import { withPublicHttpFetch } from "@/lib/security/public-http-fetch";
 
 import {
   GITLAB_API_ORIGIN,
   GITLAB_CLONE_MIN_ACCESS_LEVEL,
   GITLAB_PROJECT_MAX_PAGES,
   GITLAB_PROJECT_PAGE_SIZE,
+  GITLAB_SERVER_REQUEST_TIMEOUT_MS,
 } from "./constants";
-import type { GitLabApiError, GitLabMergeRequestDetails, GitLabProject } from "./types";
+import { isLocalDevGitLabServer } from "./server-url";
+import type {
+  GitLabAccess,
+  GitLabApiError,
+  GitLabMergeRequestDetails,
+  GitLabProject,
+} from "./types";
 
 const UNAUTHORIZED: GitLabApiError = {
   code: "gitlab_unauthorized",
@@ -31,12 +41,18 @@ const NOT_FOUND: GitLabApiError = {
   message: "GitLab could not find that project.",
 };
 
-function requestFailed(status: number): GitLabApiError {
+function requestFailed(status: number, timedOut = false): GitLabApiError {
   return {
     code: "gitlab_request_failed",
     message: "GitLab request failed.",
     status,
+    ...(timedOut ? { timedOut } : {}),
   };
+}
+
+/** Clones send the token to this address, so for a saved server it's built from that server. */
+export function buildGitLabCloneUrl(baseUrl: string | null, pathWithNamespace: string): string {
+  return `${baseUrl ?? GITLAB_API_ORIGIN}/${pathWithNamespace}.git`;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -53,7 +69,7 @@ function asNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function parseProject(value: unknown): GitLabProject | null {
+function parseProject(value: unknown, baseUrl: string | null): GitLabProject | null {
   const record = asRecord(value);
   if (!record) {
     return null;
@@ -71,38 +87,86 @@ function parseProject(value: unknown): GitLabProject | null {
     id,
     name,
     pathWithNamespace,
-    httpUrlToRepo,
+    // A server chooses what it reports here.
+    httpUrlToRepo: baseUrl ? buildGitLabCloneUrl(baseUrl, pathWithNamespace) : httpUrlToRepo,
     defaultBranch: asString(record.default_branch),
     archived: record.archived === true,
   };
 }
 
-async function gitlabJson(input: {
-  accessToken: string;
-  path: string;
-  query?: URLSearchParams;
-  signal?: AbortSignal;
-}): Promise<Result<unknown, GitLabApiError>> {
-  const url = new URL(input.path, `${GITLAB_API_ORIGIN}/`);
-  if (input.query) {
-    url.search = input.query.toString();
-  }
+const logger = createLogger("gitlab-client");
 
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${input.accessToken}`,
-        Accept: "application/json",
+/** The error's kind only: its message can name the server, which is customer data. */
+function describeRequestFailure(error: unknown) {
+  const cause = error instanceof Error ? (error.cause as { code?: unknown } | undefined) : null;
+  return {
+    errorName: error instanceof Error ? error.name : "unknown",
+    causeCode: typeof cause?.code === "string" ? cause.code : null,
+  };
+}
+
+type GitLabResponse = { ok: boolean; status: number; text: () => Promise<string> };
+
+/**
+ * A workspace's own server is an address someone typed, so each request pins the checked address
+ * and refuses redirects, which could otherwise lead the token somewhere else.
+ */
+async function requestGitLabServer(
+  url: URL,
+  baseUrl: string,
+  init: { headers: Record<string, string>; signal?: AbortSignal },
+): Promise<GitLabResponse> {
+  const timeout = AbortSignal.timeout(GITLAB_SERVER_REQUEST_TIMEOUT_MS);
+  const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+  if (isLocalDevGitLabServer(new URL(baseUrl))) {
+    const response = await fetch(url, { ...init, signal, redirect: "error" });
+    const body = await response.text();
+    return { ok: response.ok, status: response.status, text: async () => body };
+  }
+  return stopWaitingOnAbort(
+    withPublicHttpFetch(
+      url.toString(),
+      { ...init, signal, redirect: "error" },
+      async (response) => {
+        const body = await response.text();
+        return { ok: response.ok, status: response.status, text: async () => body };
       },
-      signal: input.signal,
-    });
-  } catch {
-    return err(requestFailed(0));
+    ),
+    signal,
+  );
+}
+
+async function gitlabJson(
+  input: GitLabAccess & {
+    path: string;
+    query?: URLSearchParams;
+    signal?: AbortSignal;
+  },
+): Promise<Result<unknown, GitLabApiError>> {
+  const headers = {
+    Authorization: `Bearer ${input.accessToken}`,
+    Accept: "application/json",
+  };
+
+  let response: GitLabResponse;
+  try {
+    const url = new URL(`${input.baseUrl ?? GITLAB_API_ORIGIN}${input.path}`);
+    if (input.query) {
+      url.search = input.query.toString();
+    }
+    response = input.baseUrl
+      ? await requestGitLabServer(url, input.baseUrl, { headers, signal: input.signal })
+      : await fetch(url, { headers, signal: input.signal });
+  } catch (error) {
+    logger.warn(describeRequestFailure(error), "gitlab request failed before an answer");
+    return err(requestFailed(0, error instanceof Error && error.name === "TimeoutError"));
   }
 
   if (response.status === 401 || response.status === 403) {
-    return err(UNAUTHORIZED);
+    // A saved address may not be GitLab at all, and GitLab answers these with JSON.
+    return input.baseUrl && isErr(safeJsonParse(await response.text()))
+      ? err(requestFailed(response.status))
+      : err(UNAUTHORIZED);
   }
   if (response.status === 404) {
     return err(NOT_FOUND);
@@ -120,10 +184,36 @@ async function gitlabJson(input: {
   return ok(parsed.value);
 }
 
-export async function listGitLabMembershipProjects(input: {
-  accessToken: string;
-  signal?: AbortSignal;
-}): Promise<Result<GitLabProject[], GitLabApiError>> {
+export async function getGitLabCurrentUsername(
+  input: GitLabAccess & { signal?: AbortSignal },
+): Promise<Result<string, GitLabApiError>> {
+  const result = await gitlabJson({ ...input, path: "/api/v4/user" });
+  if (isErr(result)) {
+    return result;
+  }
+
+  const username = asString(asRecord(result.value)?.username);
+  return username ? ok(username) : err(requestFailed(200));
+}
+
+/** Proves the token can read projects, without fetching them all. */
+export async function checkGitLabProjectAccess(
+  input: GitLabAccess & { signal?: AbortSignal },
+): Promise<Result<void, GitLabApiError>> {
+  const result = await gitlabJson({
+    ...input,
+    path: "/api/v4/projects",
+    query: new URLSearchParams({ membership: "true", simple: "true", per_page: "1" }),
+  });
+  if (isErr(result)) {
+    return result;
+  }
+  return Array.isArray(result.value) ? ok(undefined) : err(requestFailed(200));
+}
+
+export async function listGitLabMembershipProjects(
+  input: GitLabAccess & { signal?: AbortSignal },
+): Promise<Result<GitLabProject[], GitLabApiError>> {
   const projects: GitLabProject[] = [];
 
   for (let page = 1; page <= GITLAB_PROJECT_MAX_PAGES; page += 1) {
@@ -138,6 +228,7 @@ export async function listGitLabMembershipProjects(input: {
 
     const result = await gitlabJson({
       accessToken: input.accessToken,
+      baseUrl: input.baseUrl,
       path: "/api/v4/projects",
       query,
       signal: input.signal,
@@ -151,7 +242,7 @@ export async function listGitLabMembershipProjects(input: {
     }
 
     for (const item of result.value) {
-      const project = parseProject(item);
+      const project = parseProject(item, input.baseUrl);
       if (project && !project.archived) {
         projects.push(project);
       }
@@ -165,14 +256,16 @@ export async function listGitLabMembershipProjects(input: {
   return ok(projects);
 }
 
-export async function getGitLabProject(input: {
-  accessToken: string;
-  pathWithNamespace: string;
-  signal?: AbortSignal;
-}): Promise<Result<GitLabProject, GitLabApiError>> {
+export async function getGitLabProject(
+  input: GitLabAccess & {
+    pathWithNamespace: string;
+    signal?: AbortSignal;
+  },
+): Promise<Result<GitLabProject, GitLabApiError>> {
   const encodedPath = encodeURIComponent(input.pathWithNamespace);
   const result = await gitlabJson({
     accessToken: input.accessToken,
+    baseUrl: input.baseUrl,
     path: `/api/v4/projects/${encodedPath}`,
     signal: input.signal,
   });
@@ -180,7 +273,7 @@ export async function getGitLabProject(input: {
     return result;
   }
 
-  const project = parseProject(result.value);
+  const project = parseProject(result.value, input.baseUrl);
   if (!project) {
     return err(NOT_FOUND);
   }
@@ -188,15 +281,17 @@ export async function getGitLabProject(input: {
   return ok(project);
 }
 
-export async function getGitLabMergeRequest(input: {
-  accessToken: string;
-  pathWithNamespace: string;
-  mergeRequestIid: number;
-  signal?: AbortSignal;
-}): Promise<Result<GitLabMergeRequestDetails, GitLabApiError>> {
+export async function getGitLabMergeRequest(
+  input: GitLabAccess & {
+    pathWithNamespace: string;
+    mergeRequestIid: number;
+    signal?: AbortSignal;
+  },
+): Promise<Result<GitLabMergeRequestDetails, GitLabApiError>> {
   const encodedPath = encodeURIComponent(input.pathWithNamespace);
   const result = await gitlabJson({
     accessToken: input.accessToken,
+    baseUrl: input.baseUrl,
     path: `/api/v4/projects/${encodedPath}/merge_requests/${input.mergeRequestIid}`,
     signal: input.signal,
   });

@@ -45,6 +45,7 @@ export async function listAccessibleGitLabProjects(input: {
 
   const projectsResult = await listGitLabMembershipProjects({
     accessToken: tokenResult.value,
+    baseUrl: null,
     signal: input.signal,
   });
   if (isErr(projectsResult)) {
@@ -76,6 +77,7 @@ export async function resolveGitLabProjectContext(input: {
 
   const projectResult = await getGitLabProject({
     accessToken: tokenResult.value,
+    baseUrl: null,
     pathWithNamespace,
     signal: input.signal,
   });
@@ -97,6 +99,7 @@ export async function resolveGitLabProjectContext(input: {
 
   const mergeRequestResult = await getGitLabMergeRequest({
     accessToken: tokenResult.value,
+    baseUrl: null,
     pathWithNamespace: project.pathWithNamespace,
     mergeRequestIid: input.mergeRequestIid,
     signal: input.signal,
