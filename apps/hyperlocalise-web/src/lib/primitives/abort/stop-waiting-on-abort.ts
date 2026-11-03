@@ -18,11 +18,13 @@
 export function stopWaitingOnAbort<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const onAbort = () => reject(signal.reason);
+    // Always observe `work` first. If the signal has already fired we still reject
+    // immediately, but a later failure must not become an unhandled rejection.
+    work.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
     if (signal.aborted) {
       onAbort();
       return;
     }
     signal.addEventListener("abort", onAbort, { once: true });
-    work.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
   });
 }

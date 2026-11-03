@@ -33,4 +33,23 @@ describe("stopWaitingOnAbort", () => {
   it("rejects at once for a signal that has already fired", async () => {
     await expect(stopWaitingOnAbort(Promise.resolve(1), AbortSignal.abort())).rejects.toThrow();
   });
+
+  it("does not leave a rejected work unhandled when the signal has already fired", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      await expect(
+        stopWaitingOnAbort(Promise.reject(new Error("late")), AbortSignal.abort()),
+      ).rejects.toBeTruthy();
+      await new Promise<void>((resolve) => {
+        setImmediate(resolve);
+      });
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
 });
