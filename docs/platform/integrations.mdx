@@ -51,7 +51,7 @@ An admin or localization manager connects the workspace to GitLab under **Integr
 - While connected, everyone in the workspace uses that token's projects, in chat, automations and syncs, and can reach whatever the token can reach. GitLab has no per-project switch like GitHub's, so choose the token with care: on GitLab.com, a project or group access token, or a dedicated account that belongs only to the projects to sync; on your own server, a token from a non-admin user. Give it the `api` scope to send merge requests; with `read_api` and `read_repository` only, syncs pull and each run says translations weren't sent. Set an expiry.
 - Disconnecting asks you to confirm, because it affects the whole workspace.
 - Paste links from the connected GitLab into chat; links from another GitLab server get a reply saying they aren't used.
-- Automations name a project by its path, so replacing or removing the connection points them at the new connection, or back at their authors' own GitLab.com sign-ins. When the server address changes, chats stop using projects from the old one.
+- Automations name a project by its path, so replacing or removing the connection points them at the new connection, or back at their authors' own GitLab.com sign-ins. Project syncs and visual workflow Content sync steps also remember the project's id and refuse to run when the path on the new connection names another project. When the server address changes, chats stop using projects from the old one.
 - A company server must be reachable from the internet. Fixed outgoing addresses for an allow-list aren't available yet.
 
 ### Your own GitLab.com sign-in

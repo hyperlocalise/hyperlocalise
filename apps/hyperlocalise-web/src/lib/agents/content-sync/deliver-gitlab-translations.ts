@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createHash } from "node:crypto";
+
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
@@ -43,12 +45,16 @@ export type GitLabDeliverySummary = {
   written: number;
   /** The open merge request, whether or not this run changed it. */
   pullRequestUrl?: string;
-  /** Language files, or lists in them, that wait until every segment is approved. */
+  /** Language files (pages) that wait until every segment is approved. */
   heldBack: number;
+  /** Lists inside sent files that wait until every item is approved. */
+  listsHeldBack: number;
   /** Source files in a format a GitLab sync can't write back (YAML, PO, Lottie…). */
   unsupported: number;
-  /** Files skipped because the repository's copy, or the source, couldn't be read, or two source files name the same language file. */
+  /** Language files skipped because the repository's copy, or the source, couldn't be read. */
   unreadable: number;
+  /** Language files two source files would both write; neither is sent. */
+  conflicts: number;
   /** Why nothing was sent, when GitLab refused the write; the pull has still landed. */
   error?: { code: string; message: string };
 };
@@ -61,14 +67,7 @@ export type GitLabDeliverySourceFile = {
   content: Buffer;
 };
 
-/**
- * Sends approved translations back as one merge request per sync: one language file per source
- * file and target locale, built from the source file's own shape, on one branch rebuilt from the
- * target each run and updated in place. A file whose content wouldn't change is left out; when
- * nothing changes the open merge request is left as it is and linked. A refused write is reported
- * on the run, not thrown: the pull has already landed.
- */
-export async function deliverGitLabTranslations(input: {
+export type GitLabDeliveryInput = {
   organizationId: string;
   projectId: string;
   runId: string;
@@ -85,13 +84,32 @@ export async function deliverGitLabTranslations(input: {
   repositoryPaths: Set<string>;
   sourceFiles: GitLabDeliverySourceFile[];
   branchName: string;
-}): Promise<GitLabDeliverySummary> {
-  const summary: GitLabDeliverySummary = { written: 0, heldBack: 0, unsupported: 0, unreadable: 0 };
+};
+
+/**
+ * Sends approved translations back as one merge request per sync: one language file per source
+ * file and target locale, built from the source file's own shape against the target commit, on
+ * one branch rebuilt from that commit each run. A file whose content wouldn't change is left out;
+ * when nothing changes the open merge request is linked, or closed when it still carries text
+ * that is no longer approved. A refused write is reported on the run, not thrown: the pull has
+ * already landed.
+ */
+export async function deliverGitLabTranslations(
+  input: GitLabDeliveryInput,
+): Promise<GitLabDeliverySummary> {
+  const summary: GitLabDeliverySummary = {
+    written: 0,
+    heldBack: 0,
+    listsHeldBack: 0,
+    unsupported: 0,
+    unreadable: 0,
+    conflicts: 0,
+  };
   if (input.sourceFiles.length === 0 || input.targetLocales.length === 0) {
     return summary;
   }
 
-  type Candidate = { file: GitLabDeliverySourceFile; locale: string; path: string };
+  type Candidate = { file: GitLabDeliverySourceFile; locale: string; code: string; path: string };
   const candidates: Candidate[] = [];
   const sourcesByPath = new Map<string, number>();
   const formats = new Map<GitLabDeliverySourceFile, "json" | "html">();
@@ -107,16 +125,14 @@ export async function deliverGitLabTranslations(input: {
     }
     formats.set(file, format);
     for (const locale of input.targetLocales) {
-      const relativePath = input.template.rewriteLocale(
-        file.relativePath,
-        codeFor(locale, input.localeCodes),
-      );
+      const code = codeFor(locale, input.localeCodes, input.targetLocales);
+      const relativePath = input.template.rewriteLocale(file.relativePath, code);
       if (!relativePath || relativePath === file.relativePath) {
         continue;
       }
       const path = joinContentSyncPath(input.syncConfig.providerFolder, relativePath);
       sourcesByPath.set(path, (sourcesByPath.get(path) ?? 0) + 1);
-      candidates.push({ file, locale, path });
+      candidates.push({ file, locale, code, path });
     }
   }
 
@@ -139,12 +155,12 @@ export async function deliverGitLabTranslations(input: {
     existing.set(read.path, read.result.value);
   }
 
-  const changes: ContentSyncFileChange[] = [];
+  const changes: (ContentSyncFileChange & { content: Buffer })[] = [];
   const keysByFile = new Map<GitLabDeliverySourceFile, FileKeys>();
   for (const candidate of candidates) {
     if ((sourcesByPath.get(candidate.path) ?? 0) > 1) {
       // Two source files would write the same language file; neither can be right.
-      summary.unreadable += 1;
+      summary.conflicts += 1;
       continue;
     }
     let keys = keysByFile.get(candidate.file);
@@ -158,6 +174,7 @@ export async function deliverGitLabTranslations(input: {
       file: candidate.file,
       format: formats.get(candidate.file)!,
       locale: candidate.locale,
+      code: candidate.code,
       keys,
       existing: current,
     });
@@ -168,28 +185,54 @@ export async function deliverGitLabTranslations(input: {
     } else if (built.kind === "unsupported") {
       summary.unsupported += 1;
     } else if (built.kind === "file") {
-      summary.heldBack += built.listsHeldBack;
+      summary.listsHeldBack += built.listsHeldBack;
       if (!current || !current.equals(built.content)) {
         changes.push({ path: candidate.path, content: built.content, exists: current !== null });
       }
     }
   }
 
-  if (changes.length === 0) {
-    const open = await input.writer.findOpenReview(input.branchName);
-    if (isErr(open)) {
-      return withError(summary, open.error);
-    }
-    return open.value ? { ...summary, pullRequestUrl: open.value.url } : summary;
+  const branch = await inspectSyncBranch(input);
+  if (isErr(branch)) {
+    return withError(summary, branch.error);
   }
 
-  // The branch is rebuilt on the target each run, but not when it already holds exactly this.
-  const alreadyThere = await branchHoldsChanges(input, changes);
-  if (isErr(alreadyThere)) {
-    return withError(summary, alreadyThere.error);
+  if (changes.length === 0) {
+    // Nothing approved differs from the target. A branch that still differs carries text that
+    // is no longer approved, so its merge request is closed rather than linked.
+    const review = await input.writer.findReview({
+      sourceBranch: input.branchName,
+      targetBranch: input.head.branch,
+    });
+    if (isErr(review)) {
+      return withError(summary, review.error);
+    }
+    if (review.value?.state !== "open") {
+      return summary;
+    }
+    if (branch.value && branch.value.changedPaths.length > 0) {
+      const closed = await input.writer.closeReview(review.value.id);
+      return isErr(closed) ? withError(summary, closed.error) : summary;
+    }
+    return { ...summary, pullRequestUrl: review.value.url };
   }
+
   const shortRun = input.runId.slice(0, 8);
-  if (!alreadyThere.value) {
+  const alreadyThere = branch.value !== null && branchHolds(branch.value, input.head, changes);
+  if (alreadyThere) {
+    // The branch is right as it is. A merge request a reviewer closed stays closed; one that
+    // is open is kept current; a commit that landed without one gets one.
+    const review = await input.writer.findReview({
+      sourceBranch: input.branchName,
+      targetBranch: input.head.branch,
+    });
+    if (isErr(review)) {
+      return withError(summary, review.error);
+    }
+    if (review.value?.state === "closed") {
+      return summary;
+    }
+  } else {
     const commit = await input.writer.commitFiles({
       branch: input.branchName,
       startFrom: input.head,
@@ -217,12 +260,12 @@ export async function deliverGitLabTranslations(input: {
     return withError(summary, review.error);
   }
   logger.info(
-    { projectId: input.projectId, written: changes.length, heldBack: summary.heldBack },
+    { projectId: input.projectId, written: alreadyThere ? 0 : changes.length },
     "gitlab content sync delivered translations",
   );
   return {
     ...summary,
-    written: alreadyThere.value ? 0 : changes.length,
+    written: alreadyThere ? 0 : changes.length,
     pullRequestUrl: review.value.url,
   };
 }
@@ -236,59 +279,104 @@ function withError(
 
 /**
  * The code a language file is named with: the one the repository already uses for that locale,
- * else the project's tag written the way the repository writes its other codes (`en_US`, `pt-br`).
+ * else the project's tag written the way the repository writes its regional codes (`en_US`,
+ * `pt-br`); where the repository has only bare codes, the bare language when the project has one
+ * locale of it, else the tag as written.
  */
-function codeFor(locale: string, localeCodes: Map<string, string>): string {
+function codeFor(locale: string, localeCodes: Map<string, string>, locales: string[]): string {
   const known = localeCodes.get(locale);
   if (known) {
     return known;
   }
   const samples = [...localeCodes.values()];
+  const regional = samples.filter((sample) => /[-_]/.test(sample));
+  if (regional.length === 0) {
+    const language = locale.split("-")[0]!;
+    const ofLanguage = locales.filter((candidate) => candidate.split("-")[0] === language);
+    return samples.length > 0 && ofLanguage.length === 1 ? language.toLowerCase() : locale;
+  }
   let code = locale;
-  if (samples.some((sample) => sample.includes("_"))) {
+  if (regional.some((sample) => sample.includes("_"))) {
     code = code.replace(/-/g, "_");
   }
-  if (samples.length > 0 && samples.every((sample) => sample === sample.toLowerCase())) {
+  if (regional.every((sample) => sample === sample.toLowerCase())) {
     code = code.toLowerCase();
   }
   return code;
 }
 
-/** Whether the sync branch's copies of these paths already equal what this run would commit. */
-async function branchHoldsChanges(
-  input: { reader: ContentSyncRepositoryReader; branchName: string },
-  changes: ContentSyncFileChange[],
-): Promise<Result<boolean, ContentSyncProviderError>> {
-  const branch = await input.reader.resolveBranchHead({ branch: input.branchName });
-  if (isErr(branch)) {
-    return branch.error.code === "content_sync_branch_not_found" ? ok(false) : err(branch.error);
+type SyncBranch = {
+  head: ContentSyncBranchHead;
+  /** Paths that differ between the target commit and the branch. */
+  changedPaths: string[];
+  /** Blob ids of the branch's files under the provider folder, by path. */
+  blobIds: Map<string, string | null>;
+};
+
+/** What the sync branch holds, or null when it doesn't exist. */
+async function inspectSyncBranch(
+  input: GitLabDeliveryInput,
+): Promise<Result<SyncBranch | null, ContentSyncProviderError>> {
+  const head = await input.reader.resolveBranchHead({ branch: input.branchName });
+  if (isErr(head)) {
+    return head.error.code === "content_sync_branch_not_found" ? ok(null) : err(head.error);
   }
-  for (const change of changes) {
-    if ("delete" in change) {
-      return ok(false);
-    }
-    const copy = await input.reader.readFile({
-      commitSha: branch.value.commitSha,
-      path: change.path,
-    });
-    if (isErr(copy)) {
-      if (copy.error.code === "content_sync_file_not_found") {
-        return ok(false);
-      }
-      return err(copy.error);
-    }
-    if (!copy.value.equals(change.content)) {
-      return ok(false);
-    }
+  const changedPaths = await input.reader.listChangedPaths({
+    fromCommitSha: input.head.commitSha,
+    toCommitSha: head.value.commitSha,
+  });
+  if (isErr(changedPaths)) {
+    return err(changedPaths.error);
   }
-  return ok(true);
+  const files = await input.reader.listFiles({
+    commitSha: head.value.commitSha,
+    folder: input.syncConfig.providerFolder,
+  });
+  if (isErr(files)) {
+    return err(files.error);
+  }
+  return ok({
+    head: head.value,
+    changedPaths: changedPaths.value,
+    blobIds: new Map(files.value.map((file) => [file.path, file.contentId])),
+  });
+}
+
+/** Git's own id for a file's bytes, so a branch's copy is compared without reading it. */
+function gitBlobId(content: Buffer): string {
+  return createHash("sha1").update(`blob ${content.length}\0`).update(content).digest("hex");
+}
+
+/**
+ * Whether the branch is exactly one commit on the target that changes exactly these files to
+ * exactly this content, in which case committing again would only repeat it.
+ */
+function branchHolds(
+  branch: SyncBranch,
+  target: ContentSyncBranchHead,
+  changes: (ContentSyncFileChange & { content: Buffer })[],
+): boolean {
+  const parents = branch.head.parentCommitShas ?? [];
+  if (parents.length !== 1 || parents[0] !== target.commitSha) {
+    return false;
+  }
+  const wanted = new Set(changes.map((change) => change.path));
+  if (
+    branch.changedPaths.length !== wanted.size ||
+    branch.changedPaths.some((path) => !wanted.has(path))
+  ) {
+    return false;
+  }
+  return changes.every((change) => branch.blobIds.get(change.path) === gitBlobId(change.content));
 }
 
 type FileKeys = {
-  /** Every key the importer made of the file, hidden or not. */
+  /** Keys the importer made of the file and still has: what is text to translate. */
   known: Set<string>;
   /** Keys the sync hid because the repository dropped them. */
   dropped: Set<string>;
+  /** Keys someone hid by hand: left as the file or the source has them. */
+  hidden: Set<string>;
 };
 
 async function loadFileKeys(
@@ -298,6 +386,7 @@ async function loadFileKeys(
   const rows = await db
     .select({
       key: schema.projectTranslationKeys.key,
+      isHidden: schema.projectTranslationKeys.isHidden,
       hiddenBySyncAt: schema.projectTranslationKeys.hiddenBySyncAt,
     })
     .from(schema.projectTranslationKeys)
@@ -312,9 +401,13 @@ async function loadFileKeys(
         eq(schema.repositorySourceFiles.sourcePath, projectPath),
       ),
     );
+  const dropped = rows.filter((row) => row.hiddenBySyncAt !== null);
   return {
-    known: new Set(rows.map((row) => row.key)),
-    dropped: new Set(rows.filter((row) => row.hiddenBySyncAt !== null).map((row) => row.key)),
+    known: new Set(rows.filter((row) => row.hiddenBySyncAt === null).map((row) => row.key)),
+    dropped: new Set(dropped.map((row) => row.key)),
+    hidden: new Set(
+      rows.filter((row) => row.isHidden && row.hiddenBySyncAt === null).map((row) => row.key),
+    ),
   };
 }
 
@@ -331,6 +424,7 @@ async function buildLanguageFile(input: {
   file: GitLabDeliverySourceFile;
   format: "json" | "html";
   locale: string;
+  code: string;
   keys: FileKeys;
   existing: Buffer | null;
 }): Promise<BuiltFile> {
@@ -351,11 +445,13 @@ async function buildLanguageFile(input: {
   const approvedCount = Object.keys(approved).length;
 
   if (input.format === "html") {
-    // A page is one document: it goes out whole, once every segment is approved.
+    // A page is one document: it goes out whole, once every segment that is text to translate
+    // is approved; keys hidden on purpose don't count.
     if (approvedCount === 0) {
       return { kind: "unchanged" };
     }
-    if (approvedCount < loaded.loadedKeyCount - input.keys.dropped.size) {
+    const translatable = loaded.loadedKeyCount - input.keys.dropped.size - input.keys.hidden.size;
+    if (approvedCount < translatable) {
       return { kind: "held_back" };
     }
     const download = await loadProjectHtmlTranslationDownload({
@@ -380,5 +476,7 @@ async function buildLanguageFile(input: {
     approved,
     knownKeys: input.keys.known,
     droppedKeys: input.keys.dropped,
+    hiddenKeys: input.keys.hidden,
+    ...(input.file.relativePath.toLowerCase().endsWith(".arb") ? { arbLocale: input.code } : {}),
   });
 }

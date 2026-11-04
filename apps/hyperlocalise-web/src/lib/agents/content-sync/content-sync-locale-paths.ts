@@ -139,10 +139,10 @@ function localeLanguage(key: string): string {
 
 /**
  * Which project locale a repository's language code stands for, matched the way the other
- * integrations match locales: the same tag (case and `_` aside), else, for a code with no
- * region, the one project locale of that language (`fr` for `fr-FR`). A code with a region
- * names only that region: `en-GB` is never `en-US`, nor a bare `en`. Two project locales of
- * the language would be a guess, so neither is taken.
+ * integrations match locales: the same tag (case and `_` aside), else the one project locale
+ * of that language (`fr` for `fr-FR`, `en-US` for `en`). A code with a region never stands
+ * for another region (`en-GB` is not `en-US`, `zh-TW` not `zh-CN`), only for a bare project
+ * locale of its language. Two candidates would be a guess, so neither is taken.
  */
 export function resolveContentSyncLocale(input: {
   code: string;
@@ -153,13 +153,11 @@ export function resolveContentSyncLocale(input: {
   if (exact) {
     return exact;
   }
-  if (wanted.includes("-")) {
-    return null;
-  }
   const language = localeLanguage(wanted);
-  const sameLanguage = input.locales.filter(
-    (locale) => localeLanguage(localeKey(locale)) === language,
-  );
+  const sameLanguage = input.locales.filter((locale) => {
+    const key = localeKey(locale);
+    return localeLanguage(key) === language && (!wanted.includes("-") || !key.includes("-"));
+  });
   return sameLanguage.length === 1 ? sameLanguage[0]! : null;
 }
 

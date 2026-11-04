@@ -16,6 +16,7 @@ import type {
   ContentSyncProviderError,
   ContentSyncRepositoryWriter,
   ContentSyncReview,
+  ContentSyncReviewState,
 } from "@/lib/agents/content-sync/content-sync-provider";
 import { createLogger } from "@/lib/log";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -31,7 +32,9 @@ function writeError(error: GitLabApiError, what: "commit" | "review"): ContentSy
     return {
       code: "content_sync_connection_required",
       message:
-        "The workspace's GitLab token can't write to this repository. To send merge requests it needs the api scope and Developer access; a read-only token pulls only.",
+        what === "commit"
+          ? "GitLab refused the write: the workspace's token can't push here, or the sync branch (hyperlocalise/translations-…) is protected. To send merge requests the token needs the api scope and Developer access; a read-only token pulls only."
+          : "GitLab refused the merge request: the workspace's token needs the api scope and Developer access.",
     };
   }
   if (error.code === "gitlab_not_found") {
@@ -54,7 +57,7 @@ function writeError(error: GitLabApiError, what: "commit" | "review"): ContentSy
   }
   return {
     code: "content_sync_provider_failed",
-    message: "The workspace's GitLab server didn't accept the translations. Try again later.",
+    message: "GitLab didn't accept the translations. Try again later.",
   };
 }
 
@@ -64,16 +67,32 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-type OpenReview = ContentSyncReview & { targetBranch: string | null };
+type Review = ContentSyncReview & {
+  state: ContentSyncReviewState;
+  targetBranch: string | null;
+  /** From a fork, or another project: never the sync's own. */
+  foreign: boolean;
+};
 
-function parseReview(value: unknown): OpenReview | null {
+function parseReview(value: unknown): Review | null {
   const record = asRecord(value);
   const iid = record?.iid;
   const url = record?.web_url;
-  const target = record?.target_branch;
-  return typeof iid === "number" && typeof url === "string" && url
-    ? { id: String(iid), url, targetBranch: typeof target === "string" ? target : null }
-    : null;
+  if (!record || typeof iid !== "number" || typeof url !== "string" || !url) {
+    return null;
+  }
+  const state =
+    record.state === "merged" ? "merged" : record.state === "opened" ? "open" : "closed";
+  return {
+    id: String(iid),
+    url,
+    state,
+    targetBranch: typeof record.target_branch === "string" ? record.target_branch : null,
+    foreign:
+      record.source_project_id !== undefined &&
+      record.target_project_id !== undefined &&
+      record.source_project_id !== record.target_project_id,
+  };
 }
 
 /**
@@ -160,18 +179,47 @@ export function createGitLabContentSyncWriter(input: {
     return ok({ commitSha });
   }
 
-  async function findOpen(
+  /** The branch's own merge requests, newest first; forks' and other projects' are left out. */
+  async function listReviews(
     sourceBranch: string,
-  ): Promise<Result<OpenReview | null, ContentSyncProviderError>> {
-    const open = await gitlabJson({
+  ): Promise<Result<Review[], ContentSyncProviderError>> {
+    const result = await gitlabJson({
       ...request,
       path: `${projectPath}/merge_requests`,
-      query: new URLSearchParams({ source_branch: sourceBranch, state: "opened", per_page: "1" }),
+      query: new URLSearchParams({ source_branch: sourceBranch, per_page: "20" }),
     });
-    if (isErr(open)) {
-      return err(writeError(open.error, "review"));
+    if (isErr(result)) {
+      return err(writeError(result.error, "review"));
     }
-    return ok(Array.isArray(open.value) ? parseReview(open.value[0]) : null);
+    const reviews = Array.isArray(result.value)
+      ? result.value.map(parseReview).filter((review): review is Review => review !== null)
+      : [];
+    return ok(reviews.filter((review) => !review.foreign));
+  }
+
+  /** An open one into the target first, else the oldest open one, else the newest of any state. */
+  function pick(reviews: Review[], targetBranch: string): Review | null {
+    const open = reviews.filter((review) => review.state === "open");
+    return (
+      open.find((review) => review.targetBranch === targetBranch) ??
+      open.at(-1) ??
+      reviews[0] ??
+      null
+    );
+  }
+
+  async function findReview(options: {
+    sourceBranch: string;
+    targetBranch: string;
+  }): Promise<
+    Result<(ContentSyncReview & { state: ContentSyncReviewState }) | null, ContentSyncProviderError>
+  > {
+    const reviews = await listReviews(options.sourceBranch);
+    if (isErr(reviews)) {
+      return err(reviews.error);
+    }
+    const review = pick(reviews.value, options.targetBranch);
+    return ok(review ? { id: review.id, url: review.url, state: review.state } : null);
   }
 
   async function upsertReview(options: {
@@ -180,19 +228,23 @@ export function createGitLabContentSyncWriter(input: {
     title: string;
     description: string;
   }): Promise<Result<ContentSyncReview, ContentSyncProviderError>> {
-    const current = await findOpen(options.sourceBranch);
-    if (isErr(current)) {
-      return err(current.error);
+    const reviews = await listReviews(options.sourceBranch);
+    if (isErr(reviews)) {
+      return err(reviews.error);
     }
+    const current = pick(
+      reviews.value.filter((review) => review.state === "open"),
+      options.targetBranch,
+    );
     // The title is left alone once open, so a reviewer's "Draft:" mark survives the next run.
-    const result = current.value
+    const result = current
       ? await gitlabJson({
           ...request,
           method: "PUT",
-          path: `${projectPath}/merge_requests/${current.value.id}`,
+          path: `${projectPath}/merge_requests/${current.id}`,
           body: {
             description: options.description,
-            ...(current.value.targetBranch !== options.targetBranch
+            ...(current.targetBranch !== options.targetBranch
               ? { target_branch: options.targetBranch }
               : {}),
           },
@@ -221,15 +273,15 @@ export function createGitLabContentSyncWriter(input: {
         });
   }
 
-  async function findOpenReview(
-    sourceBranch: string,
-  ): Promise<Result<ContentSyncReview | null, ContentSyncProviderError>> {
-    const found = await findOpen(sourceBranch);
-    if (isErr(found)) {
-      return found;
-    }
-    return ok(found.value ? { id: found.value.id, url: found.value.url } : null);
+  async function closeReview(id: string): Promise<Result<void, ContentSyncProviderError>> {
+    const result = await gitlabJson({
+      ...request,
+      method: "PUT",
+      path: `${projectPath}/merge_requests/${id}`,
+      body: { state_event: "close" },
+    });
+    return isErr(result) ? err(writeError(result.error, "review")) : ok(undefined);
   }
 
-  return { commitFiles, upsertReview, findOpenReview };
+  return { commitFiles, upsertReview, findReview, closeReview };
 }

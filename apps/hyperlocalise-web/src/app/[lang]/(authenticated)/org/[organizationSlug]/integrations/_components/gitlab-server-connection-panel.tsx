@@ -320,15 +320,17 @@ export function GitLabServerConnectionPanel({
                   {showToken ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                <FormattedMessage
-                  {...(connection && host === savedHost
-                    ? messages.tokenReplaceHint
-                    : host === "server"
-                      ? messages.tokenHint
-                      : messages.tokenHintGitLabCom)}
-                />
-              </p>
+              {host ? (
+                <p className="text-xs text-muted-foreground">
+                  <FormattedMessage
+                    {...(connection && host === savedHost
+                      ? messages.tokenReplaceHint
+                      : host === "server"
+                        ? messages.tokenHint
+                        : messages.tokenHintGitLabCom)}
+                  />
+                </p>
+              ) : null}
             </Field>
             {connection ? (
               <p className="text-xs text-muted-foreground">

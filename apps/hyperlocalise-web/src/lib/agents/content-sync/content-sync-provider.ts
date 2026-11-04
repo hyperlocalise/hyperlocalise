@@ -34,6 +34,8 @@ export type ContentSyncBranchHead = {
   branch: string;
   /** The commit the run reads from; every read in a run uses it, so a push mid-run can't mix files. */
   commitSha: string;
+  /** The commit's parents, when the provider gives them; a sync branch is checked to sit on the target. */
+  parentCommitShas?: string[];
 };
 
 export type ContentSyncRepositoryFile = {
@@ -58,6 +60,11 @@ export type ContentSyncRepositoryReader = {
     commitSha: string;
     path: string;
   }): Promise<Result<Buffer, ContentSyncProviderError>>;
+  /** The paths that differ between two commits (added, changed or removed). */
+  listChangedPaths(input: {
+    fromCommitSha: string;
+    toCommitSha: string;
+  }): Promise<Result<string[], ContentSyncProviderError>>;
 };
 
 export type ContentSyncFileChange =
@@ -74,6 +81,8 @@ export type ContentSyncReview = {
   id: string;
   url: string;
 };
+
+export type ContentSyncReviewState = "open" | "closed" | "merged";
 
 /** The write half, used by merge-request delivery. */
 export type ContentSyncRepositoryWriter = {
@@ -97,8 +106,16 @@ export type ContentSyncRepositoryWriter = {
     title: string;
     description: string;
   }): Promise<Result<ContentSyncReview, ContentSyncProviderError>>;
-  /** The open review from the branch, if any, so a run with nothing new can still link to it. */
-  findOpenReview(
-    sourceBranch: string,
-  ): Promise<Result<ContentSyncReview | null, ContentSyncProviderError>>;
+  /**
+   * The branch's own newest review in any state (an open one first, the one into `targetBranch`
+   * before others), so a run can link it, leave a closed one closed, or open a new one.
+   */
+  findReview(input: {
+    sourceBranch: string;
+    targetBranch: string;
+  }): Promise<
+    Result<(ContentSyncReview & { state: ContentSyncReviewState }) | null, ContentSyncProviderError>
+  >;
+  /** Closes an open review whose content no longer has anything approved behind it. */
+  closeReview(id: string): Promise<Result<void, ContentSyncProviderError>>;
 };

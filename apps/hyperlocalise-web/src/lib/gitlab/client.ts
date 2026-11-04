@@ -22,6 +22,7 @@ import {
   GITLAB_PROJECT_MAX_PAGES,
   GITLAB_PROJECT_PAGE_SIZE,
   GITLAB_SERVER_REQUEST_TIMEOUT_MS,
+  GITLAB_WRITE_REQUEST_TIMEOUT_MS,
 } from "./constants";
 import { isLocalDevGitLabServer } from "./server-url";
 import type {
@@ -128,7 +129,9 @@ async function requestGitLabServer(
   baseUrl: string,
   init: GitLabRequestInit,
 ): Promise<GitLabResponse> {
-  const timeout = AbortSignal.timeout(GITLAB_SERVER_REQUEST_TIMEOUT_MS);
+  const timeout = AbortSignal.timeout(
+    init.method ? GITLAB_WRITE_REQUEST_TIMEOUT_MS : GITLAB_SERVER_REQUEST_TIMEOUT_MS,
+  );
   const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
   if (isLocalDevGitLabServer(new URL(baseUrl))) {
     return readResponse(await fetch(url, { ...init, signal, redirect: "error" }));
@@ -178,7 +181,9 @@ async function gitlabRequest(
       response = await requestGitLabServer(url, input.baseUrl, init);
     } else {
       // GitLab.com gets the same patience as a company server, so a run can't hang on it.
-      const timeout = AbortSignal.timeout(GITLAB_SERVER_REQUEST_TIMEOUT_MS);
+      const timeout = AbortSignal.timeout(
+        init.method ? GITLAB_WRITE_REQUEST_TIMEOUT_MS : GITLAB_SERVER_REQUEST_TIMEOUT_MS,
+      );
       response = await readResponse(
         await fetch(url, {
           ...init,
@@ -261,6 +266,8 @@ export async function listGitLabMembershipProjects(
       membership: "true",
       min_access_level: String(GITLAB_CLONE_MIN_ACCESS_LEVEL),
       simple: "true",
+      // The simple shape carries no archived flag, so archived projects are left out here.
+      archived: "false",
       order_by: "last_activity_at",
       per_page: String(GITLAB_PROJECT_PAGE_SIZE),
       page: String(page),

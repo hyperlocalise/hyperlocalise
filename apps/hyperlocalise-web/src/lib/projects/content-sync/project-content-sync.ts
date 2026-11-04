@@ -357,6 +357,8 @@ export async function executeProjectContentSyncRun(input: {
   organizationId: string;
   runId: string;
 }): Promise<void> {
+  // Known once the settings are read, so a run that throws still records its service.
+  let provider: ContentSyncConfig["provider"] | undefined;
   try {
     const [row] = await db
       .select({ run: schema.projectContentSyncRuns, sync: schema.projectContentSyncs })
@@ -409,6 +411,7 @@ export async function executeProjectContentSyncRun(input: {
       return;
     }
 
+    provider = config.value.provider;
     const result = await executeContentSyncConfig({
       organizationId: row.sync.organizationId,
       projectId: row.sync.projectId,
@@ -439,7 +442,11 @@ export async function executeProjectContentSyncRun(input: {
     );
     await finishProjectContentSyncRun({
       runId: input.runId,
-      outcome: { status: "failed", error: UNEXPECTED_RUN_ERROR },
+      outcome: {
+        status: "failed",
+        error: UNEXPECTED_RUN_ERROR,
+        ...(provider ? { summary: { provider } } : {}),
+      },
     }).catch((finishError: unknown) => {
       logger.error(
         { runId: input.runId, err: serializeErrorForLog(finishError) },

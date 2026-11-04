@@ -39,10 +39,37 @@ describe("createGitLabContentSyncReader", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const head = await reader().resolveBranchHead({ branch: "" });
-    expect(isOk(head) && head.value).toEqual({ branch: "develop", commitSha: "abc" });
+    expect(isOk(head) && head.value).toEqual({
+      branch: "develop",
+      commitSha: "abc",
+      parentCommitShas: [],
+    });
     expect(requestedUrls(fetchMock)).toEqual([
       "https://gitlab.com/api/v4/projects/acme%2Fweb",
       "https://gitlab.com/api/v4/projects/acme%2Fweb/repository/branches/develop",
+    ]);
+  });
+
+  it("lists the paths two commits differ by, added and removed alike", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          diffs: [
+            { old_path: "locales/fr.json", new_path: "locales/fr.json" },
+            { old_path: "locales/old.json", new_path: "locales/new.json" },
+          ],
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const paths = await reader().listChangedPaths({ fromCommitSha: "abc", toCommitSha: "def" });
+    expect(isOk(paths) && paths.value).toEqual([
+      "locales/fr.json",
+      "locales/new.json",
+      "locales/old.json",
+    ]);
+    expect(requestedUrls(fetchMock)).toEqual([
+      "https://gitlab.com/api/v4/projects/acme%2Fweb/repository/compare?from=abc&to=def&straight=true",
     ]);
   });
 

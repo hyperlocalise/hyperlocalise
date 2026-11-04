@@ -350,12 +350,18 @@ export async function executeVisualWorkflowNode(input: {
         };
       }
 
+      const workflowId = input.visualWorkflowId ?? input.organizationId;
       const result = await executeContentSyncConfig({
         organizationId: input.organizationId,
         projectId,
-        workflowId: input.visualWorkflowId ?? input.organizationId,
+        workflowId,
         runId: input.visualWorkflowRunId ?? input.idempotencyKey ?? crypto.randomUUID(),
         syncConfig: syncValidation.value,
+        // A GitLab step keeps one merge request of its own; two steps in a workflow must not
+        // rebuild each other's branch. GitHub steps keep their branch per run.
+        ...(syncValidation.value.provider === "gitlab"
+          ? { pullRequestBranchKey: `workflow-${workflowId}-${node.id}` }
+          : {}),
       });
       if (isErr(result)) {
         return {

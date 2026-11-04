@@ -39,6 +39,8 @@ function build(input: {
   /** Defaults to every string in the source, as the importer would key them. */
   knownKeys?: string[];
   droppedKeys?: string[];
+  hiddenKeys?: string[];
+  arbLocale?: string;
 }): JsonTranslationFileOutcome {
   const sourceText = input.sourceText ?? `${JSON.stringify(input.source, null, 2)}\n`;
   return buildContentSyncJsonTranslationFile({
@@ -52,6 +54,8 @@ function build(input: {
     approved: input.approved,
     knownKeys: new Set(input.knownKeys ?? flatKeys(input.source ?? JSON.parse(sourceText))),
     droppedKeys: new Set(input.droppedKeys ?? []),
+    hiddenKeys: new Set(input.hiddenKeys ?? []),
+    ...(input.arbLocale ? { arbLocale: input.arbLocale } : {}),
   });
 }
 
@@ -60,6 +64,10 @@ function text(outcome: JsonTranslationFileOutcome): string {
     throw new Error(`expected a file, got ${outcome.kind}`);
   }
   return outcome.content.toString("utf8");
+}
+
+function parsed(outcome: JsonTranslationFileOutcome): unknown {
+  return JSON.parse(text(outcome));
 }
 
 describe("buildContentSyncJsonTranslationFile", () => {
@@ -93,7 +101,7 @@ describe("buildContentSyncJsonTranslationFile", () => {
       },
       approved: { title: "Accueil" },
     });
-    expect(JSON.parse(text(outcome))).toEqual({
+    expect(parsed(outcome)).toEqual({
       title: "Accueil",
       intro: "Bienvenue",
       item_one: "x",
@@ -104,17 +112,17 @@ describe("buildContentSyncJsonTranslationFile", () => {
     });
   });
 
-  it("leaves out a key only the language file has when the sync hid it", () => {
+  it("leaves out what the sync hid because the repository dropped it, inside kept sections too", () => {
     const outcome = build({
       source: { title: "Home" },
-      existing: { title: "Vieux", gone: "Parti" },
+      existing: { title: "Vieux", gone: "Parti", legacy: { a: "A", b: "B", keep: "K" } },
       approved: { title: "Accueil" },
-      droppedKeys: ["gone"],
+      droppedKeys: ["gone", "legacy.a", "legacy.b"],
     });
-    expect(JSON.parse(text(outcome))).toEqual({ title: "Accueil" });
+    expect(parsed(outcome)).toEqual({ title: "Accueil", legacy: { keep: "K" } });
   });
 
-  it("is unchanged when every approved text already matches the file, or nothing is approved", () => {
+  it("is unchanged when no approved text lands where the file had something else", () => {
     expect(
       build({
         source: { title: "Home", intro: "Welcome" },
@@ -123,51 +131,100 @@ describe("buildContentSyncJsonTranslationFile", () => {
       }),
     ).toEqual({ kind: "unchanged" });
     expect(build({ source: { a: "x" }, approved: {} })).toEqual({ kind: "unchanged" });
+    // The only approved key sits in a list that waits, so the file would only be reformatted.
+    expect(
+      build({
+        source: { steps: ["One", "Two"] },
+        existingText: '{"steps":["Un","Deux"]}',
+        approved: { "steps[0]": "Premier" },
+        knownKeys: ["steps[0]", "steps[1]"],
+      }).kind,
+    ).toBe("file");
+    expect(
+      build({
+        source: { steps: ["One", "Two", "Three"] },
+        existingText: '{"steps":["Un","Deux"]}',
+        approved: { "steps[0]": "Premier" },
+      }),
+    ).toEqual({ kind: "unchanged" });
   });
 
-  it("copies strings the importer never keyed, such as context fields and empty text", () => {
+  it("copies strings the importer never keyed, and keys hidden by hand, as they are", () => {
     const outcome = build({
-      source: { title: "Home", _context: "Landing page", icon: "", url: "https://x" },
+      source: { title: "Home", _context: "Landing page", icon: "", url: "https://x", code: "SKU" },
+      existing: { code: "REF" },
       approved: { title: "Accueil" },
-      knownKeys: ["title"],
+      knownKeys: ["title", "code"],
+      hiddenKeys: ["code"],
     });
-    expect(JSON.parse(text(outcome))).toEqual({
+    expect(parsed(outcome)).toEqual({
       title: "Accueil",
       _context: "Landing page",
       icon: "",
       url: "https://x",
+      code: "REF",
     });
   });
 
-  it("holds a list back until every item has text, and counts it", () => {
+  it("leaves a list as the file has it until every item has text, and counts it", () => {
     const partial = build({
-      source: { steps: ["One", "Two"], title: "T" },
+      source: { steps: ["One", "Two", "Three"], title: "T" },
+      existing: { steps: ["Un", "Deux"] },
       approved: { "steps[0]": "Un", title: "Titre" },
     });
-    expect(partial.kind).toBe("file");
-    expect(JSON.parse(text(partial))).toEqual({ title: "Titre" });
+    expect(parsed(partial)).toEqual({ steps: ["Un", "Deux"], title: "Titre" });
     expect(partial.kind === "file" && partial.listsHeldBack).toBe(1);
 
     const complete = build({
       source: { steps: ["One", { label: "Two" }] },
       approved: { "steps[0]": "Un", "steps[1].label": "Deux" },
     });
-    expect(JSON.parse(text(complete))).toEqual({ steps: ["Un", { label: "Deux" }] });
+    expect(parsed(complete)).toEqual({ steps: ["Un", { label: "Deux" }] });
   });
 
-  it("swaps defaultMessage in a FormatJS catalog, keeps the other fields and reads a simple language file", () => {
-    const outcome = build({
-      source: {
-        hello: { defaultMessage: "Hello", description: "Greeting" },
-        bye: { defaultMessage: "Bye" },
-      },
+  it("swaps defaultMessage in a FormatJS catalog, keeps the other fields, and keeps a simple language file simple", () => {
+    const source = {
+      hello: { defaultMessage: "Hello", description: "Greeting" },
+      bye: { defaultMessage: "Bye" },
+    };
+    const catalog = build({
+      source,
+      existing: { bye: { defaultMessage: "Au revoir" } },
+      approved: { hello: "Bonjour" },
+      knownKeys: ["hello", "bye"],
+    });
+    expect(parsed(catalog)).toEqual({
+      hello: { defaultMessage: "Bonjour", description: "Greeting" },
+      bye: { defaultMessage: "Au revoir" },
+    });
+    const simple = build({
+      source,
       existing: { bye: "Au revoir" },
       approved: { hello: "Bonjour" },
       knownKeys: ["hello", "bye"],
     });
-    expect(JSON.parse(text(outcome))).toEqual({
-      hello: { defaultMessage: "Bonjour", description: "Greeting" },
-      bye: { defaultMessage: "Au revoir" },
+    expect(parsed(simple)).toEqual({ hello: "Bonjour", bye: "Au revoir" });
+    expect(
+      build({
+        source,
+        existing: { bye: [{ type: 0, value: "Au revoir" }] },
+        approved: { hello: "Bonjour" },
+        knownKeys: ["hello", "bye"],
+      }),
+    ).toEqual({ kind: "unreadable" });
+  });
+
+  it("names a Flutter ARB file's own locale", () => {
+    const outcome = build({
+      source: { "@@locale": "en", title: "Home", "@title": { description: "Page title" } },
+      approved: { title: "Accueil" },
+      knownKeys: ["title"],
+      arbLocale: "fr",
+    });
+    expect(parsed(outcome)).toEqual({
+      "@@locale": "fr",
+      title: "Accueil",
+      "@title": { description: "Page title" },
     });
   });
 

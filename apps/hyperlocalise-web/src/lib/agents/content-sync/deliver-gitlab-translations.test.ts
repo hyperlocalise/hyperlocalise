@@ -10,10 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createHash } from "node:crypto";
+
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
-  keyRows: vi.fn<() => { key: string; hiddenBySyncAt: Date | null }[]>(),
+  keyRows: vi.fn<() => { key: string; isHidden: boolean; hiddenBySyncAt: Date | null }[]>(),
   loadPrefilled: vi.fn(),
   loadHtml: vi.fn(),
 }));
@@ -29,6 +31,7 @@ vi.mock("@/lib/database/client", () => ({
   schema: {
     projectTranslationKeys: {
       key: "key",
+      isHidden: "isHidden",
       hiddenBySyncAt: "hiddenBySyncAt",
       organizationId: "organizationId",
       projectId: "projectId",
@@ -55,6 +58,7 @@ import type {
   ContentSyncProviderError,
   ContentSyncRepositoryReader,
   ContentSyncRepositoryWriter,
+  ContentSyncReviewState,
 } from "./content-sync-provider";
 import type { ContentSyncConfig } from "./content-sync-types";
 import { deliverGitLabTranslations } from "./deliver-gitlab-translations";
@@ -68,12 +72,13 @@ const syncConfig: ContentSyncConfig = {
   pathTemplate: "{{locale}}.json",
 };
 
-const head = { branch: "main", commitSha: "abc" };
+const head = { branch: "main", commitSha: "abc", parentCommitShas: ["aaa"] };
 const sourceEn = {
   relativePath: "en.json",
   projectPath: "gitlab/acme/web/en.json",
   content: Buffer.from('{\n  "title": "Home",\n  "nav": { "about": "About" }\n}\n', "utf8"),
 };
+const review = { id: "7", url: "https://gitlab.com/acme/web/-/merge_requests/7" };
 
 type Reader = {
   [K in keyof ContentSyncRepositoryReader]: ReturnType<
@@ -86,10 +91,17 @@ type Writer = {
   >;
 };
 
-/** Files on the target at `head`, and on the sync branch when it exists. */
+function blobId(text: string) {
+  const bytes = Buffer.from(text, "utf8");
+  return createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+}
+
+/**
+ * Files on the target at `head`, and a sync branch: its files, its parent and the paths it changes.
+ */
 function fakeReader(input: {
   target?: Record<string, string>;
-  syncBranch?: Record<string, string>;
+  syncBranch?: { files: Record<string, string>; parent?: string; changedPaths?: string[] };
 }): Reader {
   const target = input.target ?? {};
   const branch = input.syncBranch;
@@ -106,26 +118,39 @@ function fakeReader(input: {
         name === "main"
           ? ok(head)
           : branch
-            ? ok({ branch: name ?? "", commitSha: "sync-head" })
+            ? ok({
+                branch: name ?? "",
+                commitSha: "sync-head",
+                parentCommitShas: [branch.parent ?? "abc"],
+              })
             : err({ code: "content_sync_branch_not_found", message: "none" }),
     ),
-    listFiles: vi.fn<ContentSyncRepositoryReader["listFiles"]>(async () => ok([])),
+    listFiles: vi.fn<ContentSyncRepositoryReader["listFiles"]>(async ({ commitSha }) =>
+      ok(
+        commitSha === "sync-head" && branch
+          ? Object.entries(branch.files).map(([path, text]) => ({ path, contentId: blobId(text) }))
+          : [],
+      ),
+    ),
     readFile: vi.fn<ContentSyncRepositoryReader["readFile"]>(async ({ commitSha, path }) =>
-      commitSha === "sync-head" ? read(branch ?? {}, path) : read(target, path),
+      commitSha === "sync-head" ? read(branch?.files ?? {}, path) : read(target, path),
+    ),
+    listChangedPaths: vi.fn<ContentSyncRepositoryReader["listChangedPaths"]>(async () =>
+      ok(branch?.changedPaths ?? Object.keys(branch?.files ?? {})),
     ),
   };
 }
 
-function fakeWriter(openReview = false): Writer {
-  const review = { id: "7", url: "https://gitlab.com/acme/web/-/merge_requests/7" };
+function fakeWriter(existing: { state: ContentSyncReviewState } | null = null): Writer {
   return {
     commitFiles: vi.fn<ContentSyncRepositoryWriter["commitFiles"]>(async () =>
       ok({ commitSha: "def" }),
     ),
     upsertReview: vi.fn<ContentSyncRepositoryWriter["upsertReview"]>(async () => ok(review)),
-    findOpenReview: vi.fn<ContentSyncRepositoryWriter["findOpenReview"]>(async () =>
-      ok(openReview ? review : null),
+    findReview: vi.fn<ContentSyncRepositoryWriter["findReview"]>(async () =>
+      ok(existing ? { ...review, state: existing.state } : null),
     ),
+    closeReview: vi.fn<ContentSyncRepositoryWriter["closeReview"]>(async () => ok(undefined)),
   };
 }
 
@@ -184,12 +209,21 @@ function committedChanges(writer: Writer) {
   }));
 }
 
+const nothing = {
+  written: 0,
+  heldBack: 0,
+  listsHeldBack: 0,
+  unsupported: 0,
+  unreadable: 0,
+  conflicts: 0,
+};
+
 describe("deliverGitLabTranslations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.keyRows.mockReturnValue([
-      { key: "title", hiddenBySyncAt: null },
-      { key: "nav.about", hiddenBySyncAt: null },
+      { key: "title", isHidden: false, hiddenBySyncAt: null },
+      { key: "nav.about", isHidden: false, hiddenBySyncAt: null },
     ]);
   });
 
@@ -199,13 +233,7 @@ describe("deliverGitLabTranslations", () => {
 
     const result = await deliver({ reader: fakeReader({}), writer });
 
-    expect(result).toEqual({
-      written: 1,
-      pullRequestUrl: "https://gitlab.com/acme/web/-/merge_requests/7",
-      heldBack: 0,
-      unsupported: 0,
-      unreadable: 0,
-    });
+    expect(result).toEqual({ ...nothing, written: 1, pullRequestUrl: review.url });
     expect(writer.commitFiles).toHaveBeenCalledWith(
       expect.objectContaining({
         branch: "hyperlocalise/translations-sync-1",
@@ -224,25 +252,30 @@ describe("deliverGitLabTranslations", () => {
     );
   });
 
-  it("names a locale with no file yet the way the repository names its codes", async () => {
+  it("names a locale with no file yet the way the repository names its regional codes, or by the bare language", async () => {
     prefilled({ "de-DE": { title: "Start" } });
-    const writer = fakeWriter();
-
+    const underscores = fakeWriter();
     await deliver({
       reader: fakeReader({}),
-      writer,
+      writer: underscores,
       localeCodes: new Map([
-        ["en-US", "en_us"],
-        ["fr-FR", "fr_fr"],
+        ["en-US", "en_US"],
+        ["fr-FR", "fr_FR"],
       ]),
     });
+    expect(committedChanges(underscores).map((change) => change.path)).toEqual([
+      "locales/de_DE.json",
+    ]);
 
-    expect(committedChanges(writer).map((change) => change.path)).toEqual(["locales/de_de.json"]);
+    const bare = fakeWriter();
+    await deliver({ reader: fakeReader({}), writer: bare });
+    // Only bare codes in the repository and one German locale: `de`, not `de-de`.
+    expect(committedChanges(bare).map((change) => change.path)).toEqual(["locales/de.json"]);
   });
 
   it("reads only language files the listing has, compares with the target, and links the open merge request when nothing changes", async () => {
     prefilled({ "fr-FR": { title: "Accueil" } });
-    const writer = fakeWriter(true);
+    const writer = fakeWriter({ state: "open" });
     const reader = fakeReader({ target: { "locales/fr.json": '{\n  "title": "Accueil"\n}\n' } });
 
     const result = await deliver({
@@ -251,13 +284,7 @@ describe("deliverGitLabTranslations", () => {
       repositoryPaths: ["locales/en.json", "locales/fr.json"],
     });
 
-    expect(result).toEqual({
-      written: 0,
-      pullRequestUrl: "https://gitlab.com/acme/web/-/merge_requests/7",
-      heldBack: 0,
-      unsupported: 0,
-      unreadable: 0,
-    });
+    expect(result).toEqual({ ...nothing, pullRequestUrl: review.url });
     const { readFile } = reader;
     expect(readFile).toHaveBeenCalledTimes(1);
     expect(readFile).toHaveBeenCalledWith({ commitSha: "abc", path: "locales/fr.json" });
@@ -265,12 +292,12 @@ describe("deliverGitLabTranslations", () => {
     expect(writer.upsertReview).not.toHaveBeenCalled();
   });
 
-  it("leaves the branch alone when it already holds exactly this change, but still makes sure a merge request is open", async () => {
+  it("closes the open merge request when nothing approved differs any more but the branch still does", async () => {
     prefilled({ "fr-FR": { title: "Accueil" } });
-    const writer = fakeWriter();
+    const writer = fakeWriter({ state: "open" });
     const reader = fakeReader({
-      target: { "locales/fr.json": '{\n  "title": "Vieux"\n}\n' },
-      syncBranch: { "locales/fr.json": '{\n  "title": "Accueil"\n}\n' },
+      target: { "locales/fr.json": '{\n  "title": "Accueil"\n}\n' },
+      syncBranch: { files: { "locales/fr.json": '{\n  "title": "Vieux approuvé"\n}\n' } },
     });
 
     const result = await deliver({
@@ -279,10 +306,78 @@ describe("deliverGitLabTranslations", () => {
       repositoryPaths: ["locales/en.json", "locales/fr.json"],
     });
 
-    expect(result.written).toBe(0);
-    expect(result.pullRequestUrl).toBe("https://gitlab.com/acme/web/-/merge_requests/7");
-    expect(writer.commitFiles).not.toHaveBeenCalled();
-    expect(writer.upsertReview).toHaveBeenCalledTimes(1);
+    expect(result).toEqual(nothing);
+    expect(writer.closeReview).toHaveBeenCalledWith("7");
+  });
+
+  it("leaves the branch alone when it is one commit on the target holding exactly this change", async () => {
+    prefilled({ "fr-FR": { title: "Accueil" } });
+    const built = '{\n  "title": "Accueil"\n}\n';
+    const reader = fakeReader({
+      target: { "locales/fr.json": '{\n  "title": "Vieux"\n}\n' },
+      syncBranch: { files: { "locales/fr.json": built }, parent: "abc" },
+    });
+
+    const open = fakeWriter({ state: "open" });
+    const kept = await deliver({
+      reader,
+      writer: open,
+      repositoryPaths: ["locales/en.json", "locales/fr.json"],
+    });
+    expect(kept).toEqual({ ...nothing, pullRequestUrl: review.url });
+    expect(open.commitFiles).not.toHaveBeenCalled();
+    expect(open.upsertReview).toHaveBeenCalledTimes(1);
+
+    // A merge request a reviewer closed stays closed; none at all gets one.
+    const closed = fakeWriter({ state: "closed" });
+    const left = await deliver({
+      reader,
+      writer: closed,
+      repositoryPaths: ["locales/en.json", "locales/fr.json"],
+    });
+    expect(left).toEqual(nothing);
+    expect(closed.upsertReview).not.toHaveBeenCalled();
+
+    const none = fakeWriter();
+    const opened = await deliver({
+      reader,
+      writer: none,
+      repositoryPaths: ["locales/en.json", "locales/fr.json"],
+    });
+    expect(opened.pullRequestUrl).toBe(review.url);
+    expect(none.commitFiles).not.toHaveBeenCalled();
+    expect(none.upsertReview).toHaveBeenCalledTimes(1);
+  });
+
+  it("rebuilds the branch when it sits on an older target or changes other files too", async () => {
+    prefilled({ "fr-FR": { title: "Accueil" } });
+    const built = '{\n  "title": "Accueil"\n}\n';
+    const paths = ["locales/en.json", "locales/fr.json"];
+
+    const stale = fakeWriter({ state: "open" });
+    await deliver({
+      reader: fakeReader({
+        target: { "locales/fr.json": '{\n  "title": "Vieux"\n}\n' },
+        syncBranch: { files: { "locales/fr.json": built }, parent: "older" },
+      }),
+      writer: stale,
+      repositoryPaths: paths,
+    });
+    expect(stale.commitFiles).toHaveBeenCalledTimes(1);
+
+    const extra = fakeWriter({ state: "open" });
+    await deliver({
+      reader: fakeReader({
+        target: { "locales/fr.json": '{\n  "title": "Vieux"\n}\n' },
+        syncBranch: {
+          files: { "locales/fr.json": built, "locales/de.json": "{}" },
+          changedPaths: ["locales/fr.json", "locales/de.json"],
+        },
+      }),
+      writer: extra,
+      repositoryPaths: paths,
+    });
+    expect(extra.commitFiles).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the repository's text for a key that is back in review, and updates an existing file", async () => {
@@ -302,8 +397,8 @@ describe("deliverGitLabTranslations", () => {
   it("leaves out keys the sync hid because the repository dropped them, even when approved", async () => {
     prefilled({ "fr-FR": { title: "Accueil", "nav.about": "À propos" } });
     mocks.keyRows.mockReturnValue([
-      { key: "title", hiddenBySyncAt: null },
-      { key: "nav.about", hiddenBySyncAt: new Date() },
+      { key: "title", isHidden: false, hiddenBySyncAt: null },
+      { key: "nav.about", isHidden: true, hiddenBySyncAt: new Date() },
     ]);
     const writer = fakeWriter();
 
@@ -312,30 +407,30 @@ describe("deliverGitLabTranslations", () => {
     expect(JSON.parse(committedChanges(writer)[0]!.content!)).toEqual({ title: "Accueil" });
   });
 
-  it("sends a page whole once every segment is approved, and holds it back before that", async () => {
+  it("sends a page whole once every segment that is text to translate is approved", async () => {
     const page = {
       relativePath: "en/pricing.html",
       projectPath: "gitlab/acme/web/en/pricing.html",
       content: Buffer.from("<p>Hi</p>"),
     };
     mocks.keyRows.mockReturnValue([
-      { key: "s1", hiddenBySyncAt: null },
-      { key: "s2", hiddenBySyncAt: null },
+      { key: "s1", isHidden: false, hiddenBySyncAt: null },
+      { key: "s2", isHidden: false, hiddenBySyncAt: null },
+      { key: "s3", isHidden: true, hiddenBySyncAt: null },
     ]);
-    prefilled({ "fr-FR": { s1: "Salut" } }, 2);
-    const writer = fakeWriter();
-    const held = await deliver({
-      reader: fakeReader({}),
-      writer,
+    const pageInput = {
       sourceFiles: [page],
       template: "{{locale}}/*.html",
       targetLocales: ["fr-FR"],
       repositoryPaths: ["locales/en/pricing.html"],
-    });
-    expect(held).toEqual({ written: 0, heldBack: 1, unsupported: 0, unreadable: 0 });
+    };
+    prefilled({ "fr-FR": { s1: "Salut" } }, 3);
+    const held = await deliver({ reader: fakeReader({}), writer: fakeWriter(), ...pageInput });
+    expect(held).toEqual({ ...nothing, heldBack: 1 });
     expect(mocks.loadHtml).not.toHaveBeenCalled();
 
-    prefilled({ "fr-FR": { s1: "Salut", s2: "Prix" } }, 2);
+    // Two of three approved, the third hidden by hand: nothing more to wait for.
+    prefilled({ "fr-FR": { s1: "Salut", s2: "Prix" } }, 3);
     mocks.loadHtml.mockResolvedValue(
       ok({
         content: Buffer.from("<p>Salut</p>"),
@@ -344,14 +439,8 @@ describe("deliverGitLabTranslations", () => {
         translatedKeyCount: 2,
       }),
     );
-    const sent = await deliver({
-      reader: fakeReader({}),
-      writer,
-      sourceFiles: [page],
-      template: "{{locale}}/*.html",
-      targetLocales: ["fr-FR"],
-      repositoryPaths: ["locales/en/pricing.html"],
-    });
+    const writer = fakeWriter();
+    const sent = await deliver({ reader: fakeReader({}), writer, ...pageInput });
     expect(sent.written).toBe(1);
     expect(committedChanges(writer)[0]!.path).toBe("locales/fr/pricing.html");
   });
@@ -371,8 +460,8 @@ describe("deliverGitLabTranslations", () => {
       repositoryPaths: ["locales/en.json", "locales/fr.json"],
       template: "{{locale}}.*",
     });
-    // en.po: unsupported; en.json and en-US.json both name fr.json: two unreadable.
-    expect(result).toEqual({ written: 0, heldBack: 0, unsupported: 1, unreadable: 2 });
+    // en.po: unsupported; en.json and en-US.json both name fr.json: two conflicts.
+    expect(result).toEqual({ ...nothing, unsupported: 1, conflicts: 2 });
     expect(writer.commitFiles).not.toHaveBeenCalled();
   });
 
@@ -386,10 +475,7 @@ describe("deliverGitLabTranslations", () => {
     const result = await deliver({ reader: fakeReader({}), writer });
 
     expect(result).toEqual({
-      written: 0,
-      heldBack: 0,
-      unsupported: 0,
-      unreadable: 0,
+      ...nothing,
       error: { code: "content_sync_connection_required", message: "no write access" },
     });
   });

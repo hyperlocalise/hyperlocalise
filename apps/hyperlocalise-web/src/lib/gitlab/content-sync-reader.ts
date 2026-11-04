@@ -42,7 +42,7 @@ function providerError(error: GitLabApiError): ContentSyncProviderError {
     default:
       return {
         code: "content_sync_provider_failed",
-        message: "The GitLab server couldn't be reached just now.",
+        message: "GitLab couldn't be reached just now.",
       };
   }
 }
@@ -99,14 +99,18 @@ export function createGitLabContentSyncReader(input: {
           : providerError(result.error),
       );
     }
-    const commitSha = asRecord(asRecord(result.value)?.commit)?.id;
+    const commit = asRecord(asRecord(result.value)?.commit);
+    const commitSha = commit?.id;
     if (typeof commitSha !== "string" || !commitSha) {
       return err({
         code: "content_sync_provider_failed",
         message: "GitLab answered without the branch's commit.",
       });
     }
-    return ok({ branch, commitSha });
+    const parents = Array.isArray(commit?.parent_ids)
+      ? commit.parent_ids.filter((id): id is string => typeof id === "string")
+      : [];
+    return ok({ branch, commitSha, parentCommitShas: parents });
   }
 
   async function listFiles(options: {
@@ -187,5 +191,40 @@ export function createGitLabContentSyncReader(input: {
     return result;
   }
 
-  return { resolveBranchHead, listFiles, readFile };
+  async function listChangedPaths(options: {
+    fromCommitSha: string;
+    toCommitSha: string;
+  }): Promise<Result<string[], ContentSyncProviderError>> {
+    const result = await gitlabJson({
+      ...request,
+      path: `${projectPath}/repository/compare`,
+      query: new URLSearchParams({
+        from: options.fromCommitSha,
+        to: options.toCommitSha,
+        straight: "true",
+      }),
+    });
+    if (isErr(result)) {
+      return err(providerError(result.error));
+    }
+    const diffs = asRecord(result.value)?.diffs;
+    if (!Array.isArray(diffs)) {
+      return err({
+        code: "content_sync_provider_failed",
+        message: "GitLab answered the comparison in an unexpected shape.",
+      });
+    }
+    const paths = new Set<string>();
+    for (const diff of diffs) {
+      const entry = asRecord(diff);
+      for (const path of [entry?.new_path, entry?.old_path]) {
+        if (typeof path === "string" && path) {
+          paths.add(path);
+        }
+      }
+    }
+    return ok([...paths]);
+  }
+
+  return { resolveBranchHead, listFiles, readFile, listChangedPaths };
 }

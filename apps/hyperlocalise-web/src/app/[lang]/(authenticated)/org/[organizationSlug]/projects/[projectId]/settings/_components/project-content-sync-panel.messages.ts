@@ -247,6 +247,20 @@ export const projectContentSyncPanelMessages = defineMessages({
     id: "YvKNfbM9SW",
     description: "Count of source files a GitLab sync run couldn't write a language file for",
   },
+  runListsHeldBack: {
+    defaultMessage:
+      "{count, plural, one {# list was left as the repository has it} other {# lists were left as the repository has them}} until every item in it is approved",
+    id: "gLwbnoGaiP",
+    description:
+      "Count of JSON lists a GitLab sync run left unchanged because an item had no approved text",
+  },
+  runConflicts: {
+    defaultMessage:
+      "{count, plural, one {# language file wasn't sent because two source files would write it} other {# language files weren't sent because two source files would write them}}",
+    id: "zyZLiFVz+9",
+    description:
+      "Count of language files a GitLab sync run skipped because two source files map to the same file",
+  },
   runPushError: {
     defaultMessage: "Translations weren't sent: {reason}",
     id: "UOMRfGQ0jp",
@@ -422,8 +436,8 @@ export const projectContentSyncPanelMessages = defineMessages({
   },
   pathTemplateHelp: {
     defaultMessage:
-      "Where each language's files sit under the repository folder, with {placeholder} for the language code (fr and fr-FR both name French). The source language's files are imported; * matches within a folder and ** across folders.",
-    id: "9/6n17rWzl",
+      "Where each language's files sit under the repository folder, with {placeholder} for the language code: fr names your one French language, fr-FR names only fr-FR. The source language's files are imported; * matches within a folder and ** across folders.",
+    id: "jP0KlytPO/",
     description: "Help text under the language file paths field in the project Sync panel",
   },
   errorPathTemplateRequired: {

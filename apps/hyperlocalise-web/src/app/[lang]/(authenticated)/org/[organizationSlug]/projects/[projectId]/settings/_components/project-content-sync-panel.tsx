@@ -243,9 +243,15 @@ export function ProjectContentSyncPanel({
     refetchOnWindowFocus: active,
   });
 
+  // The repositories are asked for once the section has been shown: every project Settings
+  // visit mounts this panel hidden, and listing GitLab projects costs the customer's server.
+  const [shown, setShown] = useState(active);
+  if (active && !shown) {
+    setShown(true);
+  }
   const connectionsQuery = useQuery({
     queryKey: [...queryKey, "connections"],
-    enabled: canManage,
+    enabled: canManage && shown,
     queryFn: async () => {
       const response = await contentSyncRoute().connections.$get({ param });
       if (!response.ok) {
@@ -905,8 +911,12 @@ type SyncRun = {
   pulled: { uploaded: number; skipped: number; failed: number; unmatched: number } | null;
   hiddenKeys: { path: string; keys: string[]; keyCount: number }[];
   written: number | null;
-  /** Language files that wait until every segment is approved (GitLab pages and lists). */
+  /** Language files (pages) that wait until every segment is approved. */
   heldBack: number | null;
+  /** Lists inside sent files that wait until every item is approved. */
+  listsHeldBack: number | null;
+  /** Language files two source files would both write; neither is sent. */
+  conflicts: number | null;
   /** Source files a GitLab sync can't write back, or whose repository copy couldn't be read. */
   notSent: number | null;
   /** Why a GitLab run sent nothing: GitLab refused the write. */
@@ -984,7 +994,7 @@ function ProjectContentSyncRuns({ runs }: { runs: SyncRun[] }) {
                 {run.status === "succeeded" && run.hiddenKeys.length > 0 ? (
                   <RunHiddenKeys hiddenKeys={run.hiddenKeys} />
                 ) : null}
-                {run.status === "succeeded" && run.written !== null ? (
+                {run.status === "succeeded" && run.written !== null && !run.pushError ? (
                   <TypographyP size="small" tone="subtle">
                     <FormattedMessage {...messages.runWritten} values={{ written: run.written }} />
                   </TypographyP>
@@ -992,6 +1002,22 @@ function ProjectContentSyncRuns({ runs }: { runs: SyncRun[] }) {
                 {run.status === "succeeded" && run.heldBack ? (
                   <TypographyP size="small" tone="subtle">
                     <FormattedMessage {...messages.runHeldBack} values={{ held: run.heldBack }} />
+                  </TypographyP>
+                ) : null}
+                {run.status === "succeeded" && run.listsHeldBack ? (
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage
+                      {...messages.runListsHeldBack}
+                      values={{ count: run.listsHeldBack }}
+                    />
+                  </TypographyP>
+                ) : null}
+                {run.status === "succeeded" && run.conflicts ? (
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage
+                      {...messages.runConflicts}
+                      values={{ count: run.conflicts }}
+                    />
                   </TypographyP>
                 ) : null}
                 {run.status === "succeeded" && run.notSent ? (

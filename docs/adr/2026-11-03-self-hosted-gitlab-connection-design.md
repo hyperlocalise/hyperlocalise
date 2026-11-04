@@ -10,7 +10,7 @@ GitLab access goes through WorkOS Pipes, which holds each person's GitLab.com si
 
 ## Decision
 
-- **One connection per workspace.** Someone with `provider_credentials:write` (admins and localization managers) saves a server address and an access token in `gitlab_connections`. The token is encrypted the same way as other provider credentials and never returned. While a connection exists it replaces Pipes for all GitLab work in that workspace, so a project reference can't resolve against the wrong server.
+- **One connection per workspace.** Someone with `provider_credentials:write` (admins and localization managers) saves a server address and an access token in `gitlab_connections`. The token is encrypted the same way as other provider credentials and never returned. While a connection exists it replaces Pipes for all GitLab work in that workspace, so a project reference can't resolve against the wrong server. (A project sync or workflow Content sync step also keeps the project's id and refuses to run when the path on the current connection names another project.)
 - **The token is required on every save.** A stored token can't be pointed at a new address.
 - **Saving checks first.** The app asks the server who the token belongs to and lists one project. A failed check saves nothing and leaves any existing connection alone.
 - **Addresses must be safe.** `https` only, no credentials in the address, and no name that resolves to a private address. Each request pins the checked address and refuses redirects. Clone addresses are built from the saved address, not from what the server reports, because a clone sends the token there.

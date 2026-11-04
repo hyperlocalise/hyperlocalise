@@ -44,6 +44,10 @@ export function buildContentSyncJsonTranslationFile(input: {
   knownKeys: Set<string>;
   /** Flattened keys the sync hid because the repository dropped them; never written back. */
   droppedKeys: Set<string>;
+  /** Flattened keys someone hid by hand: not text to translate, so they keep the file's or the source's value. */
+  hiddenKeys: Set<string>;
+  /** For a Flutter ARB file, the code the file is named with, written to `@@locale`. */
+  arbLocale?: string;
 }): JsonTranslationFileOutcome {
   const sourceText = stripBom(input.source.toString("utf8"));
   const source = parseObject(sourceText.text);
@@ -60,17 +64,29 @@ export function buildContentSyncJsonTranslationFile(input: {
   }
 
   const catalog = isFormatJsCatalog(source);
-  const existingFlat = existing ? flatten(existing, catalog) : {};
-  const differs = Object.entries(input.approved).some(([key, text]) => existingFlat[key] !== text);
-  if (!differs) {
-    return { kind: "unchanged" };
+  if (existing && catalog && Object.values(existing).some((value) => Array.isArray(value))) {
+    // A compiled catalog (message ASTs) can't be rebuilt from text.
+    return { kind: "unreadable" };
   }
+  const existingFlat = existing ? flatten(existing, catalog) : {};
 
   const held = { lists: 0 };
   const tree = catalog
     ? buildCatalog(source, existing, input)
     : buildObject(source, existing, "", input, held);
   if (tree === undefined) {
+    return { kind: "unchanged" };
+  }
+  if (input.arbLocale !== undefined && "@@locale" in tree) {
+    tree["@@locale"] = input.arbLocale;
+  }
+  // A file goes only when an approved text lands in it where the file had something else; a
+  // reformat alone, or approved text that a waiting list keeps out, is never sent.
+  const builtFlat = flatten(tree, catalog);
+  const differs = Object.entries(input.approved).some(
+    ([key, text]) => builtFlat[key] === text && existingFlat[key] !== text,
+  );
+  if (!differs) {
     return { kind: "unchanged" };
   }
   const layout = existingText ?? sourceText;
@@ -163,6 +179,7 @@ type BuildInput = {
   approved: Record<string, string>;
   knownKeys: Set<string>;
   droppedKeys: Set<string>;
+  hiddenKeys: Set<string>;
 };
 
 function buildCatalog(
@@ -170,17 +187,22 @@ function buildCatalog(
   existing: JsonObject | null,
   input: BuildInput,
 ): JsonObject | undefined {
+  // A language file kept as `{ id: text }` stays in that shape; a catalog stays a catalog.
+  const simple =
+    existing !== null && Object.values(existing).every((value) => typeof value === "string");
   const out: JsonObject = {};
   for (const [key, value] of Object.entries(source)) {
     const message = value as JsonObject;
     const text =
       input.approved[key] ??
       catalogMessage(existing?.[key]) ??
-      (input.knownKeys.has(key) ? undefined : (message.defaultMessage as string));
+      (input.knownKeys.has(key) && !input.hiddenKeys.has(key)
+        ? undefined
+        : (message.defaultMessage as string));
     if (text === undefined) {
       continue;
     }
-    out[key] = { ...message, defaultMessage: text };
+    out[key] = simple ? text : { ...message, defaultMessage: text };
   }
   for (const [key, value] of Object.entries(existing ?? {})) {
     if (!(key in source) && !input.droppedKeys.has(key)) {
@@ -188,6 +210,28 @@ function buildCatalog(
     }
   }
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** An existing-only value with any key the sync hid taken out; `undefined` when nothing is left. */
+function withoutDropped(value: unknown, flatKey: string, dropped: Set<string>): unknown {
+  if (dropped.has(flatKey)) {
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    // One index taken out would shift the rest, so a list goes whole or not at all.
+    return value.some((_item, index) => dropped.has(`${flatKey}[${index}]`)) ? undefined : value;
+  }
+  if (value && typeof value === "object") {
+    const out: JsonObject = {};
+    for (const [key, child] of Object.entries(value as JsonObject)) {
+      const kept = withoutDropped(child, flatKey ? `${flatKey}.${key}` : key, dropped);
+      if (kept !== undefined) {
+        out[key] = kept;
+      }
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  }
+  return value;
 }
 
 function buildObject(
@@ -209,11 +253,15 @@ function buildObject(
       out[key] = built;
     }
   }
-  // What only the language file has, such as a locale's extra plural forms, is theirs to keep.
+  // What only the language file has, such as a locale's extra plural forms, is theirs to keep,
+  // less anything the sync hid because the repository dropped it.
   for (const [key, value] of Object.entries(existingObject ?? {})) {
     const flatKey = prefix ? `${prefix}.${key}` : key;
-    if (!(key in source) && !input.droppedKeys.has(flatKey)) {
-      out[key] = value;
+    if (!(key in source)) {
+      const kept = withoutDropped(value, flatKey, input.droppedKeys);
+      if (kept !== undefined) {
+        out[key] = kept;
+      }
     }
   }
   return Object.keys(out).length > 0 ? out : undefined;
@@ -231,9 +279,9 @@ function buildArray(
   for (const [index, item] of source.entries()) {
     const built = buildValue(item, existingArray?.[index], `${prefix}[${index}]`, input, held);
     if (built === undefined) {
-      // One missing item would shift the rest, so the whole list waits.
+      // One missing item would shift the rest, so the whole list waits, as the file has it.
       held.lists += 1;
-      return undefined;
+      return existingArray ?? undefined;
     }
     out.push(built);
   }
@@ -248,6 +296,9 @@ function buildValue(
   held: { lists: number },
 ): unknown {
   if (typeof value === "string") {
+    if (input.droppedKeys.has(flatKey)) {
+      return undefined;
+    }
     const translated = input.approved[flatKey];
     if (translated !== undefined) {
       return translated;
@@ -255,9 +306,9 @@ function buildValue(
     if (typeof existing === "string") {
       return existing;
     }
-    // The importer made no key of it (a context field, an excluded path, an empty string),
-    // so it is not text to translate and travels as it is.
-    return input.knownKeys.has(flatKey) ? undefined : value;
+    // The importer made no key of it (a context field, an excluded path, an empty string), or
+    // someone hid it on purpose: not text to translate, so it travels as it is.
+    return input.knownKeys.has(flatKey) && !input.hiddenKeys.has(flatKey) ? undefined : value;
   }
   if (Array.isArray(value)) {
     return buildArray(value, existing, flatKey, input, held);

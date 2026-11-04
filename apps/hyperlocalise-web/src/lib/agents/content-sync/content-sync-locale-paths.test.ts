@@ -100,8 +100,8 @@ describe("resolveContentSyncLocale", () => {
 
   it("falls back to the one project locale of the same language, never to one of two", () => {
     expect(resolveContentSyncLocale({ code: "fr", locales: ["en-US", "fr-FR"] })).toBe("fr-FR");
-    // A regional code names that region only, never a bare locale or another region.
-    expect(resolveContentSyncLocale({ code: "en-US", locales: ["en", "fr-FR"] })).toBeNull();
+    // A regional code may stand for a bare project locale of its language, never another region.
+    expect(resolveContentSyncLocale({ code: "en-US", locales: ["en", "fr-FR"] })).toBe("en");
     expect(resolveContentSyncLocale({ code: "en-GB", locales: ["en-US", "fr-FR"] })).toBeNull();
     expect(resolveContentSyncLocale({ code: "zh-TW", locales: ["zh-CN"] })).toBeNull();
     expect(resolveContentSyncLocale({ code: "en", locales: ["en-US", "en-GB"] })).toBeNull();
@@ -132,7 +132,7 @@ describe("classifyContentSyncPath", () => {
     });
     expect(
       classifyContentSyncPath({ ...base, sourceLocale: "en", relativePath: "en-US.json" }),
-    ).toEqual({ kind: "unmatched" });
+    ).toEqual({ kind: "source", locale: "en" });
     expect(classifyContentSyncPath({ ...base, relativePath: "fr-CA.json" })).toEqual({
       kind: "unmatched",
     });

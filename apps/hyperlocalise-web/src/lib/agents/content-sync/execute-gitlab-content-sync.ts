@@ -66,7 +66,12 @@ export type ContentSyncFileReport = {
 /** The GitHub summary's shape, plus what a GitLab pull hid or left aside. */
 export type GitLabContentSyncSummary = ContentSyncSummary & {
   pushed: ContentSyncSummary["pushed"] &
-    Partial<Pick<GitLabDeliverySummary, "heldBack" | "unsupported" | "unreadable" | "error">>;
+    Partial<
+      Pick<
+        GitLabDeliverySummary,
+        "heldBack" | "listsHeldBack" | "unsupported" | "unreadable" | "conflicts" | "error"
+      >
+    >;
   pulled: ContentSyncSummary["pulled"] & {
     /** Files under the provider folder that the path template or the locales didn't match. */
     unmatched: number;
@@ -232,6 +237,28 @@ export async function executeGitLabContentSync(input: {
     });
   }
 
+  // Two files that differ only by their code (`en.json` and `en-US.json` on an `en` project)
+  // can't both be the source: the exact code wins; with no exact one, neither is imported.
+  const skeletons = new Map<string, typeof sourceFiles>();
+  for (const file of sourceFiles) {
+    const skeleton = template.rewriteLocale(file.relativePath, "*") ?? file.relativePath;
+    skeletons.set(skeleton, [...(skeletons.get(skeleton) ?? []), file]);
+  }
+  for (const [, group] of skeletons) {
+    if (group.length < 2) {
+      continue;
+    }
+    const exact = group.filter((file) =>
+      isExactContentSyncLocale(template.match(file.relativePath) ?? "", sourceLocale),
+    );
+    for (const file of group) {
+      if (!exact.includes(file)) {
+        sourceFiles.splice(sourceFiles.indexOf(file), 1);
+        unmatched += 1;
+      }
+    }
+  }
+
   if (sourceFiles.length === 0) {
     return err({
       code: "content_sync_no_source_files",
@@ -370,6 +397,20 @@ export async function executeGitLabContentSync(input: {
       branchName: buildPullTranslationsBranchName(
         input.pullRequestBranchKey ?? `workflow-${input.automationId}`,
       ),
+    }).catch((error: unknown) => {
+      logger.error({ projectId: input.projectId, error }, "gitlab content sync delivery failed");
+      return {
+        written: 0,
+        heldBack: 0,
+        listsHeldBack: 0,
+        unsupported: 0,
+        unreadable: 0,
+        conflicts: 0,
+        error: {
+          code: "content_sync_push_failed",
+          message: "Sending the translations stopped unexpectedly. Run the sync again.",
+        },
+      };
     });
   }
 

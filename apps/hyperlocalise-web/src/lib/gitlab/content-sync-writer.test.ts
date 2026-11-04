@@ -27,6 +27,9 @@ const mergeRequest = {
   iid: 7,
   web_url: "https://gitlab.com/acme/web/-/merge_requests/7",
   target_branch: "main",
+  state: "opened",
+  source_project_id: 3,
+  target_project_id: 3,
 };
 
 function writer() {
@@ -103,7 +106,7 @@ describe("createGitLabContentSyncWriter", () => {
     });
   });
 
-  it("says what a refused write means: no write access, or the project's rules", async () => {
+  it("says what a refused write means: no push access or a protected branch, or the project's rules", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json({ message: "403 Forbidden" }, 403)));
     const refused = await writer().commitFiles({
       branch: "b",
@@ -113,6 +116,7 @@ describe("createGitLabContentSyncWriter", () => {
     });
     expect(isErr(refused) && refused.error.code).toBe("content_sync_connection_required");
     expect(isErr(refused) && refused.error.message).toMatch(/api scope/);
+    expect(isErr(refused) && refused.error.message).toMatch(/protected/);
 
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json({ message: "rule" }, 400)));
     const rules = await writer().commitFiles({
@@ -124,10 +128,10 @@ describe("createGitLabContentSyncWriter", () => {
     expect(isErr(rules) && rules.error.message).toMatch(/project's rules/);
   });
 
-  it("opens a merge request when the branch has none", async () => {
+  it("opens a merge request when the branch has none open", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(json([]))
+      .mockResolvedValueOnce(json([{ ...mergeRequest, iid: 2, state: "closed" }]))
       .mockResolvedValueOnce(json(mergeRequest));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -144,7 +148,7 @@ describe("createGitLabContentSyncWriter", () => {
     });
     const [lookup, create] = calls(fetchMock);
     expect(lookup!.url).toBe(
-      "https://gitlab.com/api/v4/projects/acme%2Fweb/merge_requests?source_branch=hyperlocalise%2Ftranslations-sync-1&state=opened&per_page=1",
+      "https://gitlab.com/api/v4/projects/acme%2Fweb/merge_requests?source_branch=hyperlocalise%2Ftranslations-sync-1&per_page=20",
     );
     expect(create).toEqual({
       url: "https://gitlab.com/api/v4/projects/acme%2Fweb/merge_requests",
@@ -159,16 +163,22 @@ describe("createGitLabContentSyncWriter", () => {
     });
   });
 
-  it("updates an open merge request's description, and its target when that moved, never its title", async () => {
+  it("updates the open merge request into the target, never its title, and ignores forks' and other targets'", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(json([mergeRequest]))
-      .mockResolvedValueOnce(json({ ...mergeRequest, target_branch: "develop" }));
+      .mockResolvedValueOnce(
+        json([
+          { ...mergeRequest, iid: 9, source_project_id: 8 }, // from a fork
+          { ...mergeRequest, iid: 8, target_branch: "release" },
+          mergeRequest,
+        ]),
+      )
+      .mockResolvedValueOnce(json(mergeRequest));
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await writer().upsertReview({
       sourceBranch: "b",
-      targetBranch: "develop",
+      targetBranch: "main",
       title: "Translations",
       description: "Body 2",
     });
@@ -178,20 +188,70 @@ describe("createGitLabContentSyncWriter", () => {
     expect(update).toEqual({
       url: "https://gitlab.com/api/v4/projects/acme%2Fweb/merge_requests/7",
       method: "PUT",
-      body: { description: "Body 2", target_branch: "develop" },
+      body: { description: "Body 2" },
     });
   });
 
-  it("finds the open merge request for a branch, or none", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json([mergeRequest])));
-    const found = await writer().findOpenReview("b");
+  it("moves an open merge request to a changed target", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json([mergeRequest]))
+      .mockResolvedValueOnce(json({ ...mergeRequest, target_branch: "develop" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await writer().upsertReview({
+      sourceBranch: "b",
+      targetBranch: "develop",
+      title: "T",
+      description: "D",
+    });
+
+    expect(calls(fetchMock)[1]!.body).toEqual({ description: "D", target_branch: "develop" });
+  });
+
+  it("finds the branch's review in any state, preferring an open one into the target", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          json([
+            { ...mergeRequest, iid: 11, state: "closed" },
+            { ...mergeRequest, iid: 10, target_branch: "release" },
+            mergeRequest,
+          ]),
+        ),
+    );
+    const found = await writer().findReview({ sourceBranch: "b", targetBranch: "main" });
     expect(isOk(found) && found.value).toEqual({
       id: "7",
       url: "https://gitlab.com/acme/web/-/merge_requests/7",
+      state: "open",
     });
 
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(json([{ ...mergeRequest, iid: 11, state: "closed" }])),
+    );
+    const closed = await writer().findReview({ sourceBranch: "b", targetBranch: "main" });
+    expect(isOk(closed) && closed.value?.state).toBe("closed");
+
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json([])));
-    const none = await writer().findOpenReview("b");
+    const none = await writer().findReview({ sourceBranch: "b", targetBranch: "main" });
     expect(isOk(none) && none.value).toBeNull();
+  });
+
+  it("closes a merge request", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(json({ ...mergeRequest, state: "closed" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await writer().closeReview("7");
+
+    expect(isOk(result)).toBe(true);
+    expect(calls(fetchMock)[0]).toEqual({
+      url: "https://gitlab.com/api/v4/projects/acme%2Fweb/merge_requests/7",
+      method: "PUT",
+      body: { state_event: "close" },
+    });
   });
 });

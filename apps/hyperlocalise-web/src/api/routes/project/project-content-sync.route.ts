@@ -182,9 +182,11 @@ function serializeRun(run: ProjectContentSyncRunRow, syncProvider: "github" | "g
     hiddenKeys: readHiddenKeys(pulled).slice(0, HIDDEN_KEY_FILE_LIMIT),
     written: pushed ? readSummaryCount(pushed, "written") : null,
     heldBack: pushed ? readSummaryCount(pushed, "heldBack") : null,
+    listsHeldBack: pushed ? readSummaryCount(pushed, "listsHeldBack") : null,
     notSent: pushed
       ? readSummaryCount(pushed, "unsupported") + readSummaryCount(pushed, "unreadable")
       : null,
+    conflicts: pushed ? readSummaryCount(pushed, "conflicts") : null,
     pushError: readPushError(pushed),
     pullRequestUrl: typeof pullRequestUrl === "string" ? pullRequestUrl : null,
     errorCode: run.errorCode,

@@ -153,8 +153,8 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
   },
   disconnectConfirm: {
     defaultMessage:
-      "Disconnect for the whole workspace? Automations go back to their authors' own GitLab.com sign-ins and chats stop using this connection's projects.",
-    id: "qxChZDhPuT",
+      "Disconnect for the whole workspace? Project syncs from GitLab stop, automations go back to their authors' own GitLab.com sign-ins, and chats stop using this connection's projects.",
+    id: "+Ix60XIwcI",
     description: "Question shown before removing the GitLab server connection",
   },
   disconnectNow: {

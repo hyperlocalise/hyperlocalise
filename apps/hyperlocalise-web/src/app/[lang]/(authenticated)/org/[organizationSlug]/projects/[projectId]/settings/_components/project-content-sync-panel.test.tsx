@@ -84,6 +84,8 @@ const runs = [
     hiddenKeys: [],
     written: 2,
     heldBack: null,
+    listsHeldBack: null,
+    conflicts: null,
     notSent: null,
     pushError: null,
     pullRequestUrl: "https://github.com/acme/web/pull/7",
@@ -101,6 +103,8 @@ const runs = [
     hiddenKeys: [],
     written: null,
     heldBack: null,
+    listsHeldBack: null,
+    conflicts: null,
     notSent: null,
     pushError: null,
     pullRequestUrl: null,
@@ -537,6 +541,8 @@ describe("ProjectContentSyncPanel", () => {
             pullRequestUrl: null,
             written: 0,
             heldBack: 2,
+            listsHeldBack: 1,
+            conflicts: 1,
             notSent: 1,
             pushError: {
               code: "content_sync_connection_required",
@@ -564,8 +570,13 @@ describe("ProjectContentSyncPanel", () => {
       );
       expect(screen.getByText("home.title, home.body")).toBeInTheDocument();
       expect(screen.getByText(/and 20 more/)).toBeInTheDocument();
-      expect(screen.getByText("No new translations to send")).toBeInTheDocument();
+      // A refused write explains itself instead of "no new translations".
+      expect(screen.queryByText("No new translations to send")).not.toBeInTheDocument();
       expect(screen.getByText(/2 language files wait until every translation/)).toBeInTheDocument();
+      expect(screen.getByText(/1 list was left as the repository has it/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/1 language file wasn't sent because two source files/),
+      ).toBeInTheDocument();
       expect(screen.getByText(/1 file wasn't sent back/)).toBeInTheDocument();
       expect(
         screen.getByText("Translations weren't sent: The token can't write."),

@@ -137,6 +137,7 @@ function fakeReader(overrides: Partial<ContentSyncRepositoryReader> = {}): Reade
     readFile: vi.fn<ContentSyncRepositoryReader["readFile"]>(async ({ path }) =>
       ok(Buffer.from(files.get(path) ?? "", "utf8")),
     ),
+    listChangedPaths: vi.fn<ContentSyncRepositoryReader["listChangedPaths"]>(async () => ok([])),
   };
   for (const [name, override] of Object.entries(overrides)) {
     reader[name as keyof Reader].mockImplementation(override as never);
@@ -291,10 +292,17 @@ describe("executeGitLabContentSync", () => {
       written: 1,
       pullRequestUrl: "https://gitlab.com/acme/web/-/merge_requests/3",
       heldBack: 0,
+      listsHeldBack: 0,
       unsupported: 0,
       unreadable: 0,
+      conflicts: 0,
     });
-    const writer = { commitFiles: vi.fn(), upsertReview: vi.fn(), findOpenReview: vi.fn() };
+    const writer = {
+      commitFiles: vi.fn(),
+      upsertReview: vi.fn(),
+      findReview: vi.fn(),
+      closeReview: vi.fn(),
+    };
 
     const result = await executeGitLabContentSync({
       organizationId: "org-1",
@@ -311,8 +319,10 @@ describe("executeGitLabContentSync", () => {
       written: 1,
       pullRequestUrl: "https://gitlab.com/acme/web/-/merge_requests/3",
       heldBack: 0,
+      listsHeldBack: 0,
       unsupported: 0,
       unreadable: 0,
+      conflicts: 0,
     });
     expect(mocks.deliverGitLabTranslations).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -341,8 +351,10 @@ describe("executeGitLabContentSync", () => {
     mocks.deliverGitLabTranslations.mockResolvedValue({
       written: 0,
       heldBack: 0,
+      listsHeldBack: 0,
       unsupported: 0,
       unreadable: 0,
+      conflicts: 0,
       error: { code: "content_sync_connection_required", message: "refused" },
     });
     const result = await executeGitLabContentSync({
@@ -352,13 +364,52 @@ describe("executeGitLabContentSync", () => {
       runId: "run-1",
       syncConfig,
       reader: fakeReader(),
-      writer: { commitFiles: vi.fn(), upsertReview: vi.fn(), findOpenReview: vi.fn() },
+      writer: {
+        commitFiles: vi.fn(),
+        upsertReview: vi.fn(),
+        findReview: vi.fn(),
+        closeReview: vi.fn(),
+      },
     });
     expect(isOk(result) && result.value.pulled.uploaded).toBe(1);
     expect(isOk(result) && result.value.pushed.error).toEqual({
       code: "content_sync_connection_required",
       message: "refused",
     });
+  });
+
+  it("keeps a run whose delivery threw, with a generic reason", async () => {
+    mocks.deliverGitLabTranslations.mockRejectedValue(new Error("database gone"));
+    const result = await executeGitLabContentSync({
+      organizationId: "org-1",
+      projectId: "project-1",
+      automationId: "workflow-1",
+      runId: "run-1",
+      syncConfig,
+      reader: fakeReader(),
+      writer: {
+        commitFiles: vi.fn(),
+        upsertReview: vi.fn(),
+        findReview: vi.fn(),
+        closeReview: vi.fn(),
+      },
+    });
+    expect(isOk(result) && result.value.pushed.error?.code).toBe("content_sync_push_failed");
+  });
+
+  it("imports only the exact-code file when two source files differ only by their code", async () => {
+    files.set("locales/en-US.json", '{"title":"Home US"}');
+    try {
+      const result = await run(fakeReader());
+      // README.md, en.txt and es.json were unmatched already; en.json joins them.
+      expect(isOk(result) && result.value.pulled).toMatchObject({ uploaded: 1, unmatched: 4 });
+      expect(mocks.storeRepositorySourceFile).toHaveBeenCalledTimes(1);
+      expect(mocks.storeRepositorySourceFile).toHaveBeenCalledWith(
+        expect.objectContaining({ sourcePath: "gitlab/acme/web/en-US.json" }),
+      );
+    } finally {
+      files.delete("locales/en-US.json");
+    }
   });
 
   it("does not repeat the stored report of an unchanged file it skipped", async () => {
