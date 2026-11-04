@@ -311,7 +311,18 @@ describe("deliverGitLabTranslations", () => {
     expect(writer.upsertReview).not.toHaveBeenCalled();
   });
 
-  it("closes the open merge request when nothing approved differs any more but the branch still does", async () => {
+  it("rebuilds a branch whose commit touches more files than can be listed", async () => {
+    prefilled({ "fr-FR": { title: "Accueil" } });
+    const writer = fakeWriter({ state: "open" });
+    const reader = fakeReader({ syncBranch: { files: { "locales/fr.json": "{}" } } });
+    reader.listCommitPaths.mockResolvedValue(ok(null));
+
+    await deliver({ reader, writer });
+
+    expect(writer.commitFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes the open merge request when nothing approved differs any more but the branch still exists", async () => {
     prefilled({ "fr-FR": { title: "Accueil" } });
     const writer = fakeWriter({ state: "open" });
     const reader = fakeReader({
@@ -516,6 +527,10 @@ describe("deliverGitLabTranslations", () => {
     const sent = await deliver({ reader: fakeReader({}), writer, ...pageInput });
     expect(sent.written).toBe(1);
     expect(committedChanges(writer)[0]!.path).toBe("locales/fr/pricing.html");
+    // The hidden segment is left as the source has it, approved text or not.
+    expect(mocks.loadHtml).toHaveBeenCalledWith(
+      expect.objectContaining({ approvedTranslationsOnly: true, omitKeys: new Set(["s3"]) }),
+    );
   });
 
   it("counts what it can't send: unsupported formats, unreadable files and two sources naming one file", async () => {

@@ -233,13 +233,16 @@ function withoutDropped(value: unknown, flatKey: string, dropped: Set<string>): 
   }
   if (value && typeof value === "object") {
     const out: JsonObject = {};
+    let changed = false;
     for (const [key, child] of Object.entries(value as JsonObject)) {
       const kept = withoutDropped(child, flatKey ? `${flatKey}.${key}` : key, dropped);
+      changed ||= kept !== child;
       if (kept !== undefined) {
         out[key] = kept;
       }
     }
-    return Object.keys(out).length > 0 ? out : undefined;
+    // The same object back when nothing in it was dropped, so a list holding it stays whole.
+    return !changed ? value : Object.keys(out).length > 0 ? out : undefined;
   }
   return value;
 }

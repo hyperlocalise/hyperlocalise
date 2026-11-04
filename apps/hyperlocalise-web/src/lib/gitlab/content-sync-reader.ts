@@ -23,9 +23,9 @@ import { getGitLabProject, gitlabBytes, gitlabJson } from "./client";
 import type { GitLabAccess, GitLabApiError } from "./types";
 
 const TREE_PAGE_SIZE = 100;
-/** 10,000 files under one folder is well past any locale folder. */
-/** A sync's own commit touches at most this many pages of files. */
+/** A sync's own commit touches at most this many pages of files; past that it is rebuilt. */
 const COMMIT_DIFF_MAX_PAGES = 20;
+/** 10,000 files under one folder is well past any locale folder. */
 const TREE_MAX_PAGES = 100;
 
 function providerError(error: GitLabApiError): ContentSyncProviderError {
@@ -195,7 +195,7 @@ export function createGitLabContentSyncReader(input: {
 
   async function listCommitPaths(options: {
     commitSha: string;
-  }): Promise<Result<string[], ContentSyncProviderError>> {
+  }): Promise<Result<string[] | null, ContentSyncProviderError>> {
     const paths = new Set<string>();
     for (let page = 1; page <= COMMIT_DIFF_MAX_PAGES; page += 1) {
       const result = await gitlabJson({
@@ -224,10 +224,7 @@ export function createGitLabContentSyncReader(input: {
         return ok([...paths]);
       }
     }
-    return err({
-      code: "content_sync_provider_failed",
-      message: "The sync branch's commit changes more files than can be checked.",
-    });
+    return ok(null);
   }
 
   return { resolveBranchHead, listFiles, readFile, listCommitPaths };

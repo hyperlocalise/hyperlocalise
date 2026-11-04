@@ -69,6 +69,15 @@ describe("createGitLabContentSyncReader", () => {
     expect(requestedUrls(fetchMock)).toEqual([
       "https://gitlab.com/api/v4/projects/acme%2Fweb/repository/commits/def/diff?per_page=100&page=1",
     ]);
+
+    // More pages than are read: the commit's paths are unknown rather than an error.
+    const page = Array.from({ length: 100 }, (_, i) => ({ old_path: `f${i}`, new_path: `f${i}` }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(page))),
+    );
+    const tooMany = await reader().listCommitPaths({ commitSha: "def" });
+    expect(isOk(tooMany) && tooMany.value).toBeNull();
   });
 
   it("reports a branch the repository doesn't have", async () => {

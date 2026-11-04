@@ -347,7 +347,8 @@ type SyncBranch = {
   /** Whether the branch is one commit on the target commit. */
   onTarget: boolean;
   /** The paths the branch's commit adds, changes or removes; empty unless on the target. */
-  commitPaths: string[];
+  /** `null` when the commit touches more files than can be listed: it never counts as holding. */
+  commitPaths: string[] | null;
   /** Blob ids of the branch's files under the provider folder, by path. */
   blobIds: Map<string, string | null>;
 };
@@ -404,6 +405,7 @@ function branchHolds(
   }
   const wanted = new Set(changes.map((change) => change.path));
   if (
+    !branch.commitPaths ||
     branch.commitPaths.length !== wanted.size ||
     branch.commitPaths.some((path) => !wanted.has(path))
   ) {
@@ -510,6 +512,7 @@ async function buildLanguageFile(input: {
       sourcePath: input.file.projectPath,
       targetLocale: input.locale,
       approvedTranslationsOnly: true,
+      omitKeys: input.keys.hidden,
     });
     if (isErr(download) || !download.value) {
       return { kind: "unreadable" };

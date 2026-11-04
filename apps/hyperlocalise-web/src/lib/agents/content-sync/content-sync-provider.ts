@@ -60,10 +60,13 @@ export type ContentSyncRepositoryReader = {
     commitSha: string;
     path: string;
   }): Promise<Result<Buffer, ContentSyncProviderError>>;
-  /** The paths one commit adds, changes or removes against its parent. */
+  /**
+   * The paths one commit adds, changes or removes against its parent; `null` when there are
+   * more than can be listed.
+   */
   listCommitPaths(input: {
     commitSha: string;
-  }): Promise<Result<string[], ContentSyncProviderError>>;
+  }): Promise<Result<string[] | null, ContentSyncProviderError>>;
 };
 
 export type ContentSyncFileChange =

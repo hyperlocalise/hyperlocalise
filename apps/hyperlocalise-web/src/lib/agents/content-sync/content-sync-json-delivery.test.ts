@@ -120,6 +120,19 @@ describe("buildContentSyncJsonTranslationFile", () => {
       droppedKeys: ["gone", "legacy.a", "legacy.b"],
     });
     expect(parsed(outcome)).toEqual({ title: "Accueil", legacy: { keep: "K" } });
+
+    // A list of objects only the language file has stays whole; one with a dropped item goes.
+    const lists = build({
+      source: { title: "Home" },
+      existing: {
+        title: "Vieux",
+        quotes: [{ name: "A", text: "Un" }],
+        old: [{ name: "B", text: "Deux" }],
+      },
+      approved: { title: "Accueil" },
+      droppedKeys: ["old[0].text"],
+    });
+    expect(parsed(lists)).toEqual({ title: "Accueil", quotes: [{ name: "A", text: "Un" }] });
   });
 
   it("is unchanged when no approved text lands where the file had something else", () => {
