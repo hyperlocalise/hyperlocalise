@@ -3674,6 +3674,11 @@ function ContentSyncConfigFields({
         label={intl.formatMessage(messages.contentSyncResource)}
         value={selectedResource?.id ?? ""}
         placeholder={intl.formatMessage(messages.selectResource)}
+        description={
+          config.provider === "gitlab" && !resources.gitlabConnected
+            ? intl.formatMessage(messages.contentSyncGitLabNotConnected)
+            : undefined
+        }
         items={resourceOptions.map((option) => ({
           value: option.id,
           label: option.label,

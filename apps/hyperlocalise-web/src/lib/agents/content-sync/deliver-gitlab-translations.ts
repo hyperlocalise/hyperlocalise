@@ -221,8 +221,9 @@ export async function deliverGitLabTranslations(
   }
 
   if (changes.length === 0) {
-    // Nothing approved differs from the target. A branch that still exists carries text that is
-    // no longer approved, so its merge request is closed, with the reason, and the branch dropped.
+    // Nothing can be sent: nothing approved differs from the target, or what differs waits, can't
+    // be read or clashes. A branch that still exists carries text the run would not send now, so
+    // its merge request is closed, with the reason, and the branch dropped.
     if (review.value?.state !== "open") {
       return summary;
     }
@@ -232,10 +233,13 @@ export async function deliverGitLabTranslations(
         ? { ...summary, pullRequestUrl: review.value.url }
         : withError(summary, branch.error);
     }
+    const waiting =
+      summary.heldBack + summary.listsHeldBack + summary.unreadable + summary.conflicts > 0;
     const closed = await input.writer.closeReview({
       id: review.value.id,
-      reason:
-        "Closed by Hyperlocalise: nothing approved differs from the target branch any more, so these translations are not to be merged. A later run opens a new merge request when there is something to send.",
+      reason: waiting
+        ? "Closed by Hyperlocalise: nothing approved can be sent right now (the sync run lists language files waiting for approval, files that can't be read and paths that clash), so these translations are not to be merged. A later run opens a new merge request when there is something to send."
+        : "Closed by Hyperlocalise: nothing approved differs from the target branch any more, so these translations are not to be merged. A later run opens a new merge request when there is something to send.",
     });
     if (isErr(closed)) {
       return withError(summary, closed.error);
@@ -260,6 +264,10 @@ export async function deliverGitLabTranslations(
     return withError(summary, branch.error);
   }
   const alreadyThere = branch.value !== null && branchHolds(branch.value, input.head, changes);
+  if (alreadyThere && review.value?.state === "open" && review.value.fingerprint === fingerprint) {
+    // The branch and its merge request already say all this: an edit would only add a note.
+    return { ...summary, pullRequestUrl: review.value.url };
+  }
   if (!alreadyThere) {
     const commit = await input.writer.commitFiles({
       branch: input.branchName,

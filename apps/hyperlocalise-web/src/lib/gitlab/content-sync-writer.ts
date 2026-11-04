@@ -68,6 +68,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 type Review = ContentSyncReviewDetails & {
+  description: string;
   targetBranch: string | null;
   /** From a fork, or another project: never the sync's own. */
   foreign: boolean;
@@ -95,6 +96,7 @@ function parseReview(value: unknown): Review | null {
     id: String(iid),
     url,
     state,
+    description,
     fingerprint: FINGERPRINT_MARK.exec(description)?.[1] ?? null,
     closedBySync: description.includes(CLOSED_MARK),
     targetBranch: typeof record.target_branch === "string" ? record.target_branch : null,
@@ -297,13 +299,26 @@ export function createGitLabContentSyncWriter(input: {
     id: string;
     reason: string;
   }): Promise<Result<void, ContentSyncProviderError>> {
-    // The reason and the mark go in with the close, so a later run knows the sync closed it.
+    // The reason and the mark go in with the close, so a later run knows the sync closed it; what
+    // the description said before, a reviewer's notes included, stays underneath.
+    const current = await gitlabJson({
+      ...request,
+      path: `${projectPath}/merge_requests/${options.id}`,
+    });
+    if (isErr(current)) {
+      return err(writeError(current.error, "review"));
+    }
+    const previous = (parseReview(current.value)?.description ?? "")
+      .replace(FINGERPRINT_MARK, "")
+      .trim();
     const result = await gitlabJson({
       ...request,
       method: "PUT",
       path: `${projectPath}/merge_requests/${options.id}`,
       body: {
-        description: `${options.reason}\n\n${CLOSED_MARK}`,
+        description: [`${options.reason}\n\n${CLOSED_MARK}`, previous]
+          .filter(Boolean)
+          .join("\n\n---\n\n"),
         state_event: "close",
       },
     });

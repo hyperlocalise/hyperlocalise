@@ -41,7 +41,7 @@ export type ContentSyncBranchHead = {
 export type ContentSyncRepositoryFile = {
   /** Repository-relative path, `/`-separated, no leading `/`. */
   path: string;
-  /** The provider's id for the file's content, when it gives one. Not used yet. */
+  /** The provider's id for the file's content (git's blob id), when it gives one. */
   contentId: string | null;
 };
 

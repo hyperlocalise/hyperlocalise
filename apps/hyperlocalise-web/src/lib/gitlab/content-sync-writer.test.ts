@@ -272,18 +272,28 @@ describe("createGitLabContentSyncWriter", () => {
     expect(isOk(await writer().deleteBranch("gone"))).toBe(true);
   });
 
-  it("closes a merge request with the reason and the sync's mark", async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(json({ ...mergeRequest, state: "closed" }));
+  it("closes a merge request with the reason and the sync's mark, keeping what it said before", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        json({
+          ...mergeRequest,
+          description:
+            "Body\n\nReviewer: hold for legal.\n\n<!-- hyperlocalise-sync:fingerprint=abc -->",
+        }),
+      )
+      .mockResolvedValueOnce(json({ ...mergeRequest, state: "closed" }));
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await writer().closeReview({ id: "7", reason: "Nothing left to send." });
 
     expect(isOk(result)).toBe(true);
-    expect(calls(fetchMock)[0]).toEqual({
+    expect(calls(fetchMock)[1]).toEqual({
       url: "https://gitlab.com/api/v4/projects/acme%2Fweb/merge_requests/7",
       method: "PUT",
       body: {
-        description: "Nothing left to send.\n\n<!-- hyperlocalise-sync:closed -->",
+        description:
+          "Nothing left to send.\n\n<!-- hyperlocalise-sync:closed -->\n\n---\n\nBody\n\nReviewer: hold for legal.",
         state_event: "close",
       },
     });

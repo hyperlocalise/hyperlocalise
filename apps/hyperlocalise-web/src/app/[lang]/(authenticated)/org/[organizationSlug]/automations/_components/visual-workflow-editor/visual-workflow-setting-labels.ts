@@ -45,6 +45,8 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     resourceKey: messages.contentSyncResource,
     providerFolder: messages.contentSyncProviderFolder,
     projectFolder: messages.contentSyncProjectFolder,
+    branch: messages.contentSyncBranch,
+    pathTemplate: messages.contentSyncPathTemplate,
     ...ON_ERROR,
   },
   "action.machine_translate": {

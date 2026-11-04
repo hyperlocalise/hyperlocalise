@@ -2055,6 +2055,13 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "8R777UILAL",
     description: "Folder inside the Hyperlocalise project for content sync",
   },
+  contentSyncGitLabNotConnected: {
+    defaultMessage:
+      "The workspace has no GitLab connection yet. An admin connects one under Integrations; a member's own GitLab.com sign-in is not used for syncs.",
+    id: "V1PaomMYKB",
+    description:
+      "Hint under the GitLab project picker of the Content sync step when the workspace has no GitLab connection",
+  },
   contentSyncBranch: {
     defaultMessage: "Branch",
     id: "48BU/b+yFc",

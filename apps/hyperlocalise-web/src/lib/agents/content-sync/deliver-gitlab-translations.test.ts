@@ -362,10 +362,22 @@ describe("deliverGitLabTranslations", () => {
     expect(open.commitFiles).not.toHaveBeenCalled();
     expect(open.upsertReview).toHaveBeenCalledTimes(1);
 
-    // A merge request a reviewer closed on exactly this content stays closed, whatever the branch;
-    // one closed on other content, or by the sync itself, does not hold the next one back.
+    // Once the merge request carries this content's fingerprint, a run with nothing new leaves
+    // it untouched: no edit, no note, just the link.
     const fingerprint = (open.upsertReview.mock.calls[0]![0] as { fingerprint: string })
       .fingerprint;
+    const current = fakeWriter({ state: "open", fingerprint });
+    const untouched = await deliver({
+      reader,
+      writer: current,
+      repositoryPaths: ["locales/en.json", "locales/fr.json"],
+    });
+    expect(untouched).toEqual({ ...nothing, pullRequestUrl: review.url });
+    expect(current.commitFiles).not.toHaveBeenCalled();
+    expect(current.upsertReview).not.toHaveBeenCalled();
+
+    // A merge request a reviewer closed on exactly this content stays closed, whatever the branch;
+    // one closed on other content, or by the sync itself, does not hold the next one back.
     const closed = fakeWriter({ state: "closed", fingerprint });
     const left = await deliver({
       reader: fakeReader({ target: { "locales/fr.json": '{\n  "title": "Vieux"\n}\n' } }),
@@ -512,6 +524,18 @@ describe("deliverGitLabTranslations", () => {
     const held = await deliver({ reader: fakeReader({}), writer: fakeWriter(), ...pageInput });
     expect(held).toEqual({ ...nothing, heldBack: 1 });
     expect(mocks.loadHtml).not.toHaveBeenCalled();
+
+    // An open merge request from an earlier run is closed with the reason the page waits now.
+    const stale = fakeWriter({ state: "open" });
+    await deliver({
+      reader: fakeReader({ syncBranch: { files: { "locales/fr/pricing.html": "<p>Salut</p>" } } }),
+      writer: stale,
+      ...pageInput,
+    });
+    expect(stale.closeReview).toHaveBeenCalledWith({
+      id: "7",
+      reason: expect.stringMatching(/waiting for approval/),
+    });
 
     // Two of three approved, the third hidden by hand: nothing more to wait for.
     prefilled({ "fr-FR": { s1: "Salut", s2: "Prix" } }, 3);
