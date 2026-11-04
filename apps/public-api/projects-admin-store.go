@@ -263,8 +263,7 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 		return translationString{}, false, err
 	}
 	set := newSQLFilter("updated_at = now()")
-	sourceChanged := item.SourceText != nil && *item.SourceText != current.SourceText
-	if sourceChanged {
+	if item.SourceText != nil && *item.SourceText != current.SourceText {
 		if err := rejectIfStringLocked(ctx, tx, actor, scope, existingID, ""); err != nil {
 			return translationString{}, false, err
 		}
@@ -291,11 +290,6 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 			WHERE organization_id = $%d AND project_id = $%d AND id = $%d`,
 			strings.Join(set.conditions, ", "), n+1, n+2, n+3), args...); err != nil {
 			return translationString{}, false, fmt.Errorf("update string: %w", err)
-		}
-	}
-	if sourceChanged {
-		if err := sendApprovedTranslationsToReview(ctx, tx, actor, scope, existingID); err != nil {
-			return translationString{}, false, err
 		}
 	}
 	saved, err := loadString(ctx, tx, actor, scope, existingID)

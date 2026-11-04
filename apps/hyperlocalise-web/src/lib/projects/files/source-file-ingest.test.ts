@@ -556,69 +556,6 @@ describe("reconcileSourceFileTranslationKeys", () => {
     ).toHaveLength(1);
   });
 
-  it("sends approved translations of changed source text back to review", async () => {
-    const { organization, project } = await createStoredProjectFixture();
-    await snapshot(organization.id, project.id, [
-      { key: "changed", text: "Save" },
-      { key: "same", text: "Cancel" },
-    ]);
-    const keys = await db
-      .select()
-      .from(schema.projectTranslationKeys)
-      .where(eq(schema.projectTranslationKeys.projectId, project.id));
-    const keyId = (key: string) => keys.find((row) => row.key === key)!.id;
-    const reviewedAt = new Date("2026-01-01T00:00:00Z");
-    await db.insert(schema.projectTranslations).values(
-      [
-        { key: "changed", targetLocale: "fr", status: "approved" as const },
-        { key: "changed", targetLocale: "de", status: "draft" as const },
-        { key: "same", targetLocale: "fr", status: "approved" as const },
-      ].map((row) => ({
-        organizationId: organization.id,
-        projectId: project.id,
-        translationKeyId: keyId(row.key),
-        targetLocale: row.targetLocale,
-        text: `${row.key} ${row.targetLocale}`,
-        status: row.status,
-        provenance: "import" as const,
-        reviewedAt: row.status === "approved" ? reviewedAt : null,
-      })),
-    );
-
-    await snapshot(organization.id, project.id, [
-      { key: "changed", text: "Save changes" },
-      { key: "same", text: "Cancel" },
-    ]);
-
-    const translations = await db
-      .select()
-      .from(schema.projectTranslations)
-      .where(eq(schema.projectTranslations.projectId, project.id));
-    const state = (key: string, locale: string) =>
-      translations.find(
-        (row) => row.translationKeyId === keyId(key) && row.targetLocale === locale,
-      );
-    expect(state("changed", "fr")).toMatchObject({
-      status: "needs_review",
-      text: "changed fr",
-      reviewedAt: null,
-    });
-    expect(state("changed", "de")).toMatchObject({ status: "draft" });
-    expect(state("same", "fr")).toMatchObject({ status: "approved", reviewedAt });
-    const revisions = await db
-      .select()
-      .from(schema.projectTranslationRevisions)
-      .where(eq(schema.projectTranslationRevisions.projectId, project.id));
-    expect(
-      revisions
-        .toSorted((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
-        .map((row) => [row.translationId, row.status, row.actorKind]),
-    ).toEqual([
-      [state("changed", "fr")!.id, "approved", "system"],
-      [state("changed", "fr")!.id, "needs_review", "system"],
-    ]);
-  });
-
   it("reconciles empty files and does not let an older workflow restore deleted keys", async () => {
     const { organization, project } = await createStoredProjectFixture();
     const old = await createSourceVersion({

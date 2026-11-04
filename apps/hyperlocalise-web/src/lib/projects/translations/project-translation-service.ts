@@ -173,57 +173,6 @@ function translationKeysQueueFilterCondition(input: {
   });
 }
 
-/**
- * Moves the approved translations of keys whose source text changed back to `needs_review`,
- * keeping their text, so out-of-date text is not delivered as reviewed. Records a revision for
- * each. Pass the transaction that changed the source, so both commit together.
- */
-async function sendApprovedTranslationsToReview(
-  database: DatabaseClient,
-  input: { organizationId: string; projectId: string; translationKeyIds: string[] },
-) {
-  if (input.translationKeyIds.length === 0) return;
-  await database.transaction(async (tx) => {
-    const approved = await tx
-      .select({
-        ...projectTranslationRevisionColumns,
-        updatedAt: schema.projectTranslations.updatedAt,
-      })
-      .from(schema.projectTranslations)
-      .where(
-        and(
-          eq(schema.projectTranslations.organizationId, input.organizationId),
-          eq(schema.projectTranslations.projectId, input.projectId),
-          inArray(schema.projectTranslations.translationKeyId, input.translationKeyIds),
-          eq(schema.projectTranslations.status, "approved"),
-        ),
-      )
-      .for("update");
-    if (approved.length === 0) return;
-    const saved = await tx
-      .update(schema.projectTranslations)
-      .set({ status: "needs_review", reviewedByUserId: null, reviewedAt: null })
-      .where(
-        inArray(
-          schema.projectTranslations.id,
-          approved.map((row) => row.id),
-        ),
-      )
-      .returning(projectTranslationRevisionColumns);
-    await recordProjectTranslationRevisions(tx, {
-      before: new Map(approved.map((row) => [row.id, row])),
-      saved,
-      actor: { actorKind: "system", actorUserId: null },
-    });
-  });
-}
-
-/**
- * Keys per approval-reset call. Each approved translation becomes two revision rows of about a
- * dozen parameters, so 25 keys with 50 locales stays far below Postgres's 65,535 parameters.
- */
-const REVIEW_RESET_KEY_CHUNK = 25;
-
 export class ProjectTranslationService extends ProjectServiceBase {
   constructor(database: typeof db = db) {
     super(database, "projects.translations");
@@ -254,10 +203,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     return row ?? null;
   }
 
-  /**
-   * Writes a file's keys. The file's text replaces the platform's source text, as every upload
-   * does; approved translations of keys whose source text changed go back to review.
-   */
+  /** Writes a file's keys. The file's text replaces the platform's source text, as every upload does. */
   async upsertKeysFromEntries(
     input: {
       organizationId: string;
@@ -307,9 +253,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
 
     const existing = await database
       .select({
-        id: schema.projectTranslationKeys.id,
         key: schema.projectTranslationKeys.key,
-        sourceText: schema.projectTranslationKeys.sourceText,
       })
       .from(schema.projectTranslationKeys)
       .where(
@@ -323,14 +267,11 @@ export class ProjectTranslationService extends ProjectServiceBase {
         ),
       );
 
-    const existingByKey = new Map(existing.map((row) => [row.key, row]));
+    const existingKeys = new Set(existing.map((row) => row.key));
     let updated = 0;
-    const sourceChangedKeyIds: string[] = [];
     for (const entry of entries) {
-      const row = existingByKey.get(entry.key);
-      if (row) {
+      if (existingKeys.has(entry.key)) {
         updated += 1;
-        if (row.sourceText !== entry.sourceText) sourceChangedKeyIds.push(row.id);
       }
     }
     const imported = entries.length - updated;
@@ -367,14 +308,6 @@ export class ProjectTranslationService extends ProjectServiceBase {
           updatedAt: sql`now()`,
         },
       });
-    // In chunks: the revision rows of a chunk's translations go into one insert.
-    for (const translationKeyIds of chunkItems(sourceChangedKeyIds, REVIEW_RESET_KEY_CHUNK)) {
-      await sendApprovedTranslationsToReview(database, {
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        translationKeyIds,
-      });
-    }
 
     this.log.info(
       {
