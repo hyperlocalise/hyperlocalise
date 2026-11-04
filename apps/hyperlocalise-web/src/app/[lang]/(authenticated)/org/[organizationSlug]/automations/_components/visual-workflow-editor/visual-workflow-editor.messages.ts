@@ -720,6 +720,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "UBB7DkzFVO",
     description: "Catalog description for the for-each node",
   },
+  nodeArrayTransform: {
+    defaultMessage: "Array transform",
+    id: "ZkImYkaYlt",
+    description: "Catalog title for the array transform node",
+  },
+  nodeArrayTransformHint: {
+    defaultMessage: "Filter, map, reduce, or find values in an ordered collection.",
+    id: "5VQvCOhS8Q",
+    description: "Catalog description for the array transform node",
+  },
   nodeScheduledTrigger: {
     defaultMessage: "Schedule",
     id: "Q6fTrZjDFK",
@@ -1864,6 +1874,26 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Collection expression",
     id: "TSLfOgCp9k",
     description: "Label for for-each collection expression field",
+  },
+  arrayTransformOperation: {
+    defaultMessage: "Operation",
+    id: "4zBhSf3vTo",
+    description: "Array transform operation field",
+  },
+  arrayTransformItemType: {
+    defaultMessage: "Item type",
+    id: "HmWwCwYFtV",
+    description: "Array transform item type field",
+  },
+  arrayTransformResultType: {
+    defaultMessage: "Result type",
+    id: "cFRjw0ewOm",
+    description: "Array transform result type field",
+  },
+  arrayTransformInitialValue: {
+    defaultMessage: "Initial value",
+    id: "LgF4rByVBa",
+    description: "Array reduce initial value field",
   },
   slackChannelId: {
     defaultMessage: "Slack channel ID",

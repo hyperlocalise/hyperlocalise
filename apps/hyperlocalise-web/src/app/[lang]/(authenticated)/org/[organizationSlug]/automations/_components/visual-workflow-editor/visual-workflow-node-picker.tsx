@@ -197,6 +197,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeAi;
     case "logic.for_each":
       return messages.nodeLoop;
+    case "logic.array_transform":
+      return messages.nodeArrayTransform;
     case "logic.retry":
       return messages.nodeRetry;
     case "flow.human_approval":
@@ -280,6 +282,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeAiHint;
     case "logic.for_each":
       return messages.nodeLoopHint;
+    case "logic.array_transform":
+      return messages.nodeArrayTransformHint;
     case "logic.retry":
       return messages.nodeRetryHint;
     case "flow.human_approval":

@@ -136,7 +136,7 @@ function forEachBodyIdsEqual(left: readonly string[], right: readonly string[]):
 function reconcileBodyMembershipForType(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
-  catalogType: "logic.for_each" | "logic.retry" | "logic.try_catch",
+  catalogType: "logic.for_each" | "logic.array_transform" | "logic.retry" | "logic.try_catch",
   compute: (ownerId: string, edges: readonly VisualWorkflowRfEdge[]) => string[],
 ): VisualWorkflowRfNode[] {
   let changed = false;
@@ -221,6 +221,18 @@ export function reconcileForEachBodyMembership(
   return reconcileBodyMembershipForType(nodes, edges, "logic.for_each", computeForEachBodyNodeIds);
 }
 
+export function reconcileArrayTransformBodyMembership(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+): VisualWorkflowRfNode[] {
+  return reconcileBodyMembershipForType(
+    nodes,
+    edges,
+    "logic.array_transform",
+    computeForEachBodyNodeIds,
+  );
+}
+
 export function reconcileRetryBodyMembership(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
@@ -245,7 +257,10 @@ export function reconcileFlowBodyMembership(
   edges: readonly VisualWorkflowRfEdge[],
 ): VisualWorkflowRfNode[] {
   return reconcileTryCatchBodyMembership(
-    reconcileRetryBodyMembership(reconcileForEachBodyMembership(nodes, edges), edges),
+    reconcileRetryBodyMembership(
+      reconcileArrayTransformBodyMembership(reconcileForEachBodyMembership(nodes, edges), edges),
+      edges,
+    ),
     edges,
   );
 }
@@ -331,6 +346,17 @@ export function applyNodeConfigUpdate(
         nodeId,
         collectRemovedObjectPortIds(current.data.config.operands, nextConfig.operands),
       ),
+    };
+  }
+  if (
+    current?.data.config.kind === "logic.array_transform" &&
+    nextConfig.kind === "logic.array_transform" &&
+    current.data.config.operation === "reduce" &&
+    nextConfig.operation !== "reduce"
+  ) {
+    return {
+      nodes: nextNodes,
+      edges: edges.filter((edge) => edge.target !== nodeId || edge.targetHandle !== "initialValue"),
     };
   }
   return { nodes: nextNodes, edges: [...edges] };

@@ -47,6 +47,7 @@ export type VisualCatalogType =
   | "logic.compare"
   | "ai.agent"
   | "logic.for_each"
+  | "logic.array_transform"
   | "logic.retry"
   | "flow.human_approval"
   | "flow.wait"
@@ -84,6 +85,8 @@ export type VisualComparisonOperand = {
   name: string;
   type: WorkflowValueType;
 };
+
+export type VisualArrayTransformOperation = "filter" | "map" | "reduce" | "find";
 
 /**
  * How Pick assignee chooses among the people of the matched rule: the first one listed, each in
@@ -389,6 +392,14 @@ export type VisualNodeConfig =
     }
   | { kind: "ai.agent"; prompt: string; onError?: VisualNodeErrorBehavior }
   | { kind: "logic.for_each"; collection: string }
+  | {
+      kind: "logic.array_transform";
+      operation: VisualArrayTransformOperation;
+      collection: string;
+      itemType: WorkflowValueType;
+      resultType: WorkflowValueType;
+      initialValue?: unknown;
+    }
   | {
       kind: "logic.retry";
       maxAttempts?: number;

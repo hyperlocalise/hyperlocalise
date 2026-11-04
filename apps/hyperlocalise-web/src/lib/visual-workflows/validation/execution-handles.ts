@@ -29,7 +29,7 @@ export function getAllowedExecutionSourceHandles(
   if (node.config.kind === "logic.switch") {
     return ["default", ...node.config.cases.map((entry) => entry.id)];
   }
-  if (node.type === "logic.for_each") {
+  if (["logic.for_each", "logic.array_transform"].includes(node.type)) {
     return ["each", "done"];
   }
   if (node.type === "logic.retry") {
@@ -64,7 +64,7 @@ export function getPrimaryExecutionSourceHandle(node: VisualWorkflowHandleSource
   if (node.config.kind === "logic.switch") {
     return node.config.cases[0]?.id ?? "default";
   }
-  if (node.type === "logic.for_each") {
+  if (["logic.for_each", "logic.array_transform"].includes(node.type)) {
     return "each";
   }
   if (node.type === "logic.retry") {

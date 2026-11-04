@@ -164,6 +164,17 @@ export function executeLogicVisualWorkflowNode(input: {
         },
       };
     }
+    case "logic.array_transform": {
+      const items = resolveVisualWorkflowCollection(node.config.collection, context);
+      return {
+        ok: true,
+        output: {
+          items,
+          count: items.length,
+          initialValue: node.config.initialValue,
+        },
+      };
+    }
     case "logic.retry":
       return {
         ok: true,

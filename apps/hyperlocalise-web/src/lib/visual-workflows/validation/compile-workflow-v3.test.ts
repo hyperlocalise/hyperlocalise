@@ -12,6 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { createDefaultConfig } from "../catalog/node-catalog";
 import {
   compileVisualWorkflowV3Definition,
   toVisualWorkflowExecutionDefinition,
@@ -694,6 +695,76 @@ it("derives For Each execution membership from v3 execution edges", () => {
 
   expect(executionDefinition.nodes.find((node) => node.id === "loop")?.bodyNodeIds).toEqual([
     "body",
+  ]);
+});
+
+it("derives Array Transform body membership from each and done execution edges", () => {
+  const definition: VisualWorkflowV3Definition = {
+    schemaVersion: 3,
+    name: "Graph-derived array transform",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.manual",
+        config: { kind: "trigger.manual" },
+      },
+      {
+        id: "transform",
+        type: "logic.array_transform",
+        config: {
+          kind: "logic.array_transform",
+          operation: "filter",
+          collection: "[]",
+          itemType: "object",
+          resultType: "object",
+        },
+        bodyNodeIds: ["stale"],
+      },
+      {
+        id: "predicate",
+        type: "logic.compare",
+        config: createDefaultConfig("logic.compare"),
+      },
+      {
+        id: "after",
+        type: "logic.set",
+        config: { kind: "logic.set", assignments: [] },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-transform",
+        kind: "execution",
+        source: "trigger",
+        target: "transform",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "transform-predicate",
+        kind: "execution",
+        source: "transform",
+        target: "predicate",
+        sourcePortId: "each",
+        targetPortId: "input",
+      },
+      {
+        id: "transform-after",
+        kind: "execution",
+        source: "transform",
+        target: "after",
+        sourcePortId: "done",
+        targetPortId: "input",
+      },
+    ],
+    editor: { positions: {} },
+  };
+
+  const compiled = compileVisualWorkflowV3Definition(definition);
+  const executionDefinition = toVisualWorkflowExecutionDefinition(compiled);
+
+  expect(executionDefinition.nodes.find((node) => node.id === "transform")?.bodyNodeIds).toEqual([
+    "predicate",
   ]);
 });
 

@@ -134,7 +134,7 @@ function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> 
     return new Set(["default", ...node.config.cases.map((caseEntry) => caseEntry.id)]);
   }
 
-  if (node.type === "logic.for_each") {
+  if (["logic.for_each", "logic.array_transform"].includes(node.type)) {
     return new Set(["each", "done"]);
   }
 
@@ -582,7 +582,7 @@ export function toVisualWorkflowExecutionDefinition(
     schemaVersion: 2,
     name: compiled.definition.name,
     nodes: compiled.definition.nodes.map((node) =>
-      node.type === "logic.for_each"
+      ["logic.for_each", "logic.array_transform"].includes(node.type)
         ? {
             ...node,
             bodyNodeIds: computeForEachBodyNodeIdsFromV3Edges(node.id, compiled.definition.edges),

@@ -401,7 +401,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         },
       ];
     }
-    if (data.catalogType === "logic.for_each") {
+    if (["logic.for_each", "logic.array_transform"].includes(data.catalogType)) {
       return [
         {
           id: "each",

@@ -82,10 +82,11 @@ export function WorkflowDataPanel({
     delete inputs[name];
     onChange({ inputs });
   };
-  const forEachBodyNodeIds =
-    node.data.catalogType === "logic.for_each" ? computeForEachBodyNodeIds(node.id, edges) : [];
-  const hasBody =
-    node.data.catalogType === "logic.for_each" || node.data.catalogType === "logic.retry";
+  const isCollectionRegion = ["logic.for_each", "logic.array_transform"].includes(
+    node.data.catalogType,
+  );
+  const forEachBodyNodeIds = isCollectionRegion ? computeForEachBodyNodeIds(node.id, edges) : [];
+  const hasBody = isCollectionRegion || node.data.catalogType === "logic.retry";
   const hasSecretField = node.data.catalogType === "action.http" && Boolean(organizationSlug);
   if (section === "settings") {
     if (!hasSecretField && !hasBody) return null;
@@ -155,7 +156,7 @@ export function WorkflowDataPanel({
             ) : null}
           </Field>
         ) : null}
-        {node.data.catalogType === "logic.for_each" ? (
+        {isCollectionRegion ? (
           <Field>
             <FieldLabel>
               {intl.formatMessage({

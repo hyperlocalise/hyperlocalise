@@ -350,6 +350,19 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     ],
     mock: {},
   },
+  "logic.array_transform": {
+    inputs: [field("collection", "array"), field("initialValue", "unknown", false)],
+    outputs: [
+      output("item", "unknown"),
+      output("index", "number"),
+      output("count", "number"),
+      output("accumulator", "unknown", true),
+      output("items", "array", true),
+      output("value", "unknown", true),
+      output("found", "boolean", true),
+    ],
+    mock: {},
+  },
   "logic.retry": {
     inputs: [
       field("maxAttempts", "number", false),

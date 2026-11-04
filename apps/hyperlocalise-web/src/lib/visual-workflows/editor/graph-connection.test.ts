@@ -428,6 +428,44 @@ describe("removeVisualWorkflowNode", () => {
 });
 
 describe("applyNodeConfigUpdate", () => {
+  it("prunes a stale Reduce initial-value edge when changing operation", () => {
+    const transform = node("transform", "logic.array_transform", {
+      config: {
+        kind: "logic.array_transform",
+        operation: "reduce",
+        collection: "[]",
+        itemType: "number",
+        resultType: "number",
+        initialValue: 0,
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "initial-value",
+        source: "source",
+        target: "transform",
+        sourceHandle: "value",
+        targetHandle: "initialValue",
+        data: { kind: "data" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [node("source", "logic.set"), transform],
+      edges,
+      "transform",
+      {
+        kind: "logic.array_transform",
+        operation: "find",
+        collection: "[]",
+        itemType: "number",
+        resultType: "number",
+      },
+    );
+
+    expect(result.edges).toEqual([]);
+  });
+
   it("removes edges for deleted Switch cases and keeps other branches", () => {
     const switchNode = node("sw", "logic.switch", {
       config: {

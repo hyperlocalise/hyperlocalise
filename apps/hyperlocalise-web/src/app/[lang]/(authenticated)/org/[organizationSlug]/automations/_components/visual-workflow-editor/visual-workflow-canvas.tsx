@@ -101,7 +101,7 @@ export function presentVisualWorkflowEdges(
   edges: readonly VisualWorkflowRfEdge[],
 ): VisualWorkflowCanvasEdge[] {
   const regions: ForEachPresentedRegion[] = nodes
-    .filter((node) => node.data.catalogType === "logic.for_each")
+    .filter((node) => ["logic.for_each", "logic.array_transform"].includes(node.data.catalogType))
     .map((node) => {
       const region = deriveForEachLoopRegion(node.id, edges);
 
