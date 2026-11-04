@@ -1226,6 +1226,13 @@
       "when": 1793769079596,
       "tag": "0174_gitlab_content_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 175,
+      "version": "7",
+      "when": 1793769332079,
+      "tag": "0175_project_content_syncs",
+      "breakpoints": true
     }
   ]
 }

@@ -31,6 +31,7 @@ import {
 } from "@/api/response.schema";
 import { createProjectKnowledgeMemoryRoutes } from "@/api/routes/knowledge-memory/project-knowledge-memory.route";
 import { createProjectQaReportScanRoutes } from "@/api/routes/project/qa-report-scan.route";
+import { createProjectContentSyncRoutes } from "@/api/routes/project/project-content-sync.route";
 import {
   deleteProjectWithTeamGlossaryGuard,
   glossaryTeamProjectRequiredResponse,
@@ -208,6 +209,7 @@ import type {
   JobQueue,
   TranslationFileImportQueue,
   TranslationJobEventData,
+  ProjectContentSyncQueue,
   TranslationQaScanQueue,
 } from "@/lib/workflow/types";
 import {
@@ -1088,6 +1090,7 @@ type CreateProjectRoutesOptions = {
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
   translationQaScanQueue?: TranslationQaScanQueue;
+  projectContentSyncQueue?: ProjectContentSyncQueue;
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
 };
 
@@ -1333,6 +1336,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     .route("/:projectId/issue-sheet", createIssueSheetRoutes())
     .route("/:projectId/knowledge-memory", createProjectKnowledgeMemoryRoutes())
     .route("/:projectId/qa-reports", createProjectQaReportScanRoutes({ translationQaScanQueue }))
+    .route(
+      "/:projectId/content-sync",
+      createProjectContentSyncRoutes({ projectContentSyncQueue: options.projectContentSyncQueue }),
+    )
     .route(
       "/:projectId/assets",
       createProjectAssetRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
