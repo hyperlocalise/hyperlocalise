@@ -23,6 +23,10 @@ type Credentials struct {
 	BaseURL     string
 	HeaderName  string
 	HeaderValue string
+	// AccountID scopes account-level resources (Smartling's account UID).
+	AccountID string
+	// ProjectID is a synced project, used to discover AccountID when it's empty.
+	ProjectID string
 }
 
 // Resource is one glossary or translation memory in the TMS.
@@ -53,7 +57,12 @@ type Provider interface {
 
 // Supported reports whether New can build a Provider for providerKind.
 func Supported(providerKind string) bool {
-	return strings.EqualFold(providerKind, "crowdin")
+	switch strings.ToLower(providerKind) {
+	case "crowdin", "smartling":
+		return true
+	default:
+		return false
+	}
 }
 
 // New returns the Provider for providerKind, or ErrUnsupported.
@@ -64,6 +73,8 @@ func New(providerKind string, credentials Credentials, httpClient HTTPDoer) (Pro
 	switch strings.ToLower(providerKind) {
 	case "crowdin":
 		return newCrowdin(credentials, httpClient), nil
+	case "smartling":
+		return newSmartling(credentials, httpClient), nil
 	default:
 		return nil, ErrUnsupported
 	}

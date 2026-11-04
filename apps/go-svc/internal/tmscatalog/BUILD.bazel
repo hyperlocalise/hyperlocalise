@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "catalog.go",
         "crowdin.go",
+        "smartling.go",
     ],
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/tmscatalog",
     visibility = ["//apps/go-svc:__pkg__"],

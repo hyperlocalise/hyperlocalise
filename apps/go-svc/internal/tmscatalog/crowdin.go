@@ -164,7 +164,7 @@ func (c *crowdin) export(ctx context.Context, exportsPath, format string, maxByt
 		return nil, err
 	}
 	if int64(len(content)) > maxBytes {
-		return nil, &ProviderError{Status: http.StatusRequestEntityTooLarge, Message: fmt.Sprintf("The Crowdin export is larger than %d MB", maxBytes>>20)}
+		return nil, tooLarge("Crowdin", maxBytes)
 	}
 	return content, nil
 }

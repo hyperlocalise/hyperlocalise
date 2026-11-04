@@ -93,7 +93,7 @@ func activeTMSConnection(ctx context.Context, db dictionaryDB, organizationID st
 
 // provider mints a token as the acting user (Crowdin can hold per-user
 // connections) and returns the catalog for the connected TMS.
-func (t *tmsImports) provider(ctx context.Context, conn tmsConnection, organizationID, userID string) (tmscatalog.Provider, error) {
+func (t *tmsImports) provider(ctx context.Context, db dictionaryDB, conn tmsConnection, organizationID, userID string) (tmscatalog.Provider, error) {
 	if t == nil {
 		return nil, &tmsFailure{http.StatusServiceUnavailable, "tms_unavailable", "TMS imports are unavailable on this server"}
 	}
@@ -109,11 +109,32 @@ func (t *tmsImports) provider(ctx context.Context, conn tmsConnection, organizat
 	if err != nil {
 		return nil, tmsTokenFailure(conn, err)
 	}
-	return tmscatalog.New(conn.ProviderKind, tmscatalog.Credentials{
+	credentials := tmscatalog.Credentials{
 		BaseURL:     token.BaseURL,
 		HeaderName:  token.HeaderName,
 		HeaderValue: token.HeaderValue,
-	}, t.http)
+	}
+	if token.AccountID != nil {
+		credentials.AccountID = strings.TrimSpace(*token.AccountID)
+	}
+	if strings.EqualFold(conn.ProviderKind, "smartling") && credentials.AccountID == "" {
+		credentials.AccountID, credentials.ProjectID, err = smartlingProjectAccount(ctx, db, organizationID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return tmscatalog.New(conn.ProviderKind, credentials, t.http)
+}
+
+// smartlingProjectAccount reads a synced Smartling project, as the web app does
+// when the credential has no account UID: its cached accountUid, or its project
+// ID for Smartling to resolve.
+func smartlingProjectAccount(ctx context.Context, db dictionaryDB, organizationID string) (accountID, projectID string, err error) {
+	err = db.QueryRow(ctx, `select coalesce(provider_metadata->>'accountUid', ''), coalesce(external_project_id, '') from projects where organization_id=$1 and external_provider_kind='smartling' order by (provider_metadata->>'accountUid' is null), created_at desc limit 1`, organizationID).Scan(&accountID, &projectID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", nil
+	}
+	return accountID, projectID, err
 }
 
 func tmsTokenFailure(conn tmsConnection, err error) error {
@@ -132,6 +153,9 @@ func tmsTokenFailure(conn tmsConnection, err error) error {
 // tmsProviderFailure keeps the TMS's own message when it refused us, and hides
 // transport details otherwise.
 func tmsProviderFailure(conn tmsConnection, err error) error {
+	if errors.Is(err, tmscatalog.ErrAccountRequired) {
+		return &tmsFailure{http.StatusConflict, "tms_account_required", fmt.Sprintf("Add your account UID to the %s connection in Integrations, then try again", conn.DisplayName)}
+	}
 	var providerErr *tmscatalog.ProviderError
 	if errors.As(err, &providerErr) {
 		status := http.StatusBadGateway
@@ -217,7 +241,7 @@ func (api *glossaryAPI) listTMSGlossariesHandler(r *http.Request, actor glossary
 	if conn == nil {
 		return map[string]any{"connection": nil, "glossaries": []tmsResourceResponse{}}, http.StatusOK, nil
 	}
-	provider, err := api.tms.provider(r.Context(), *conn, actor.organizationID, actor.userID)
+	provider, err := api.tms.provider(r.Context(), api.pool, *conn, actor.organizationID, actor.userID)
 	if err != nil {
 		return nil, 0, asGlossaryFailure(err)
 	}
@@ -248,7 +272,7 @@ func (api *glossaryAPI) importGlossaryFromTMSHandler(r *http.Request, actor glos
 		return nil, 0, asGlossaryFailure(err)
 	}
 	// Mint now, so a disconnected or unsupported TMS fails the request rather than the run.
-	provider, err := api.tms.provider(r.Context(), conn, actor.organizationID, actor.userID)
+	provider, err := api.tms.provider(r.Context(), api.pool, conn, actor.organizationID, actor.userID)
 	if err != nil {
 		return nil, 0, asGlossaryFailure(err)
 	}
@@ -309,7 +333,7 @@ func (api *memoryAPI) listTMSMemoriesHandler(r *http.Request, actor memoryActor)
 	if conn == nil {
 		return map[string]any{"connection": nil, "memories": []tmsResourceResponse{}}, http.StatusOK, nil
 	}
-	provider, err := api.tms.provider(r.Context(), *conn, actor.organizationID, actor.userID)
+	provider, err := api.tms.provider(r.Context(), api.pool, *conn, actor.organizationID, actor.userID)
 	if err != nil {
 		return nil, 0, asMemoryFailure(err)
 	}
@@ -339,7 +363,7 @@ func (api *memoryAPI) importMemoryFromTMSHandler(r *http.Request, actor memoryAc
 	if err != nil {
 		return nil, 0, asMemoryFailure(err)
 	}
-	provider, err := api.tms.provider(r.Context(), conn, actor.organizationID, actor.userID)
+	provider, err := api.tms.provider(r.Context(), api.pool, conn, actor.organizationID, actor.userID)
 	if err != nil {
 		return nil, 0, asMemoryFailure(err)
 	}
