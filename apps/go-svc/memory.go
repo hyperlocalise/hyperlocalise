@@ -382,7 +382,7 @@ func readMemoryBody(r *http.Request, allowed []string, target any) error {
 	selected := map[string]json.RawMessage{}
 	for _, key := range allowed {
 		if value, ok := fields[key]; ok {
-			if string(value) == "null" && key != "description" && key != "metadata" {
+			if string(value) == "null" && key != "description" {
 				return invalidMemory()
 			}
 			selected[key] = value

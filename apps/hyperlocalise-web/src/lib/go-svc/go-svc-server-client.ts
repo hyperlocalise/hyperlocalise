@@ -10,9 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createHmac } from "node:crypto";
 import { env } from "@/lib/env";
 import { GoSvcClient } from "./go-svc-client";
+import { mintGoSvcServiceToken } from "./go-svc-service-token";
 
 /** Background workflows cannot use a browser session. Keep signing in this server module. */
 export function createGoSvcServerClient() {
@@ -20,6 +20,6 @@ export function createGoSvcServerClient() {
   if (!secret) throw new Error("Go service authentication is not configured");
   return new GoSvcClient({
     baseUrl: env.GO_SVC_URL,
-    getServiceToken: () => createHmac("sha256", secret).update("go-svc-research").digest("hex"),
+    getServiceToken: () => mintGoSvcServiceToken(secret),
   });
 }

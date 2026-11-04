@@ -313,6 +313,12 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "+TLsx7a6do",
     description: "Placeholder when GitLab is not connected so projects cannot be chosen",
   },
+  gitlabProjectsLoadFailed: {
+    defaultMessage: "Couldn't load projects from GitLab",
+    id: "uyHddFItti",
+    description:
+      "Placeholder when the GitLab project list failed to load, for example because the workspace's GitLab token was refused",
+  },
   selectGitlabProject: {
     defaultMessage: "Select a GitLab project",
     id: "aD9snRqB1l",

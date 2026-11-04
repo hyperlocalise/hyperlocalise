@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/csvsafe"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -59,19 +60,10 @@ var CSVHeaders = []string{
 const CSVFormulaEscapePrefix = "__HYPERLOCALISE_CSV_FORMULA__"
 
 func EscapeCSVFormula(value string) string {
-	if strings.HasPrefix(value, CSVFormulaEscapePrefix) {
+	if strings.HasPrefix(value, CSVFormulaEscapePrefix) || csvsafe.HasFormulaTrigger(value) {
 		return CSVFormulaEscapePrefix + value
 	}
-	trimmed := strings.TrimLeft(value, " \t")
-	if trimmed == "" {
-		return value
-	}
-	switch trimmed[0] {
-	case '=', '+', '-', '@':
-		return CSVFormulaEscapePrefix + value
-	default:
-		return value
-	}
+	return value
 }
 
 func UnescapeCSVFormula(value string) string {
@@ -79,15 +71,8 @@ func UnescapeCSVFormula(value string) string {
 		return value
 	}
 	escaped := strings.TrimPrefix(value, CSVFormulaEscapePrefix)
-	if strings.HasPrefix(value, CSVFormulaEscapePrefix+CSVFormulaEscapePrefix) {
+	if strings.HasPrefix(escaped, CSVFormulaEscapePrefix) || csvsafe.HasFormulaTrigger(escaped) {
 		return escaped
-	}
-	trimmed := strings.TrimLeft(escaped, " \t")
-	if trimmed != "" {
-		switch trimmed[0] {
-		case '=', '+', '-', '@':
-			return escaped
-		}
 	}
 	return value
 }

@@ -26,7 +26,8 @@ export const CSV_MIME_TYPE = "text/csv; charset=utf-8";
 const MAX_CSV_BYTES = 10_000_000;
 const MAX_CSV_ROWS = 250_000;
 const CSV_FORMULA_ESCAPE_PREFIX = "__HYPERLOCALISE_CSV_FORMULA__";
-const spreadsheetFormulaPattern = /^[\t ]*[=+\-@]/u;
+// Must match csvsafe.HasFormulaTrigger in internal/csvsafe/csvsafe.go.
+const spreadsheetFormulaPattern = /^ *[=+\-@\t\r\n]/u;
 
 const csvHeaders = [
   "conceptId",
