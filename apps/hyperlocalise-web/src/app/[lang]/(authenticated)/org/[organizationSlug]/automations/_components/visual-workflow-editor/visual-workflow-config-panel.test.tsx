@@ -390,11 +390,11 @@ describe("VisualWorkflowConfigPanel", () => {
     expect(screen.queryByLabelText("Project ID (optional)")).not.toBeInTheDocument();
   });
 
-  it("keeps the GitLab language codes as typed while storing the parsed pairs", async () => {
+  it("shows the GitLab branch and language file path fields", async () => {
     const user = userEvent.setup();
     const onChangeConfig = vi.fn();
     const base = triggerNode("action.content_sync");
-    const initial = {
+    const gitlabNode = {
       ...base,
       data: {
         ...base.data,
@@ -407,74 +407,25 @@ describe("VisualWorkflowConfigPanel", () => {
         },
       },
     };
-    // The editor saves each change into the node, which the panel then shows again.
-    function StatefulPanel() {
-      const [node, setNode] = useState<VisualWorkflowRfNode>(initial);
-      return (
-        <VisualWorkflowConfigPanel
-          node={node}
-          organizationSlug="acme"
-          issues={[]}
-          onBack={vi.fn()}
-          onChangeConfig={(config) => {
-            onChangeConfig(config);
-            setNode((current) => ({ ...current, data: { ...current.data, config } }));
-          }}
-          onChangeNodeType={vi.fn()}
-          onDeleteNode={vi.fn()}
-        />
-      );
-    }
-    renderPanel(<StatefulPanel />);
-
-    const codes = screen.getByLabelText("Language codes in the repository (optional)");
-    await user.type(codes, "fr-FR = fr{enter}pt");
-
-    expect(codes).toHaveValue("fr-FR = fr\npt");
-    expect(onChangeConfig.mock.calls.at(-1)?.[0].localeCodes).toEqual({ "fr-FR": "fr" });
-    expect(screen.getByLabelText("Language file paths")).toHaveAttribute(
-      "placeholder",
-      "for example {{locale}}.json",
-    );
-  });
-
-  it("shows each Content sync step's own language codes, and follows outside changes", () => {
-    const base = triggerNode("action.content_sync");
-    const gitlabNode = (id: string, localeCodes: Record<string, string>) => ({
-      ...base,
-      id,
-      data: {
-        ...base.data,
-        config: {
-          ...(base.data.config as Extract<
-            VisualWorkflowRfNode["data"]["config"],
-            { kind: "action.content_sync" }
-          >),
-          provider: "gitlab" as const,
-          localeCodes,
-        },
-      },
-    });
-    const panel = (node: VisualWorkflowRfNode) => (
+    renderPanel(
       <VisualWorkflowConfigPanel
-        node={node}
+        node={gitlabNode}
         organizationSlug="acme"
         issues={[]}
         onBack={vi.fn()}
-        onChangeConfig={vi.fn()}
+        onChangeConfig={onChangeConfig}
         onChangeNodeType={vi.fn()}
         onDeleteNode={vi.fn()}
-      />
+      />,
     );
-    const { rerender } = renderPanel(panel(gitlabNode("a", { "fr-FR": "fr" })));
-    const codes = () => screen.getByLabelText("Language codes in the repository (optional)");
-    expect(codes()).toHaveValue("fr-FR = fr");
 
-    rerender(panel(gitlabNode("b", {})));
-    expect(codes()).toHaveValue("");
+    expect(screen.getByLabelText("Branch")).toHaveAttribute("placeholder", "Default branch");
+    const paths = screen.getByLabelText("Language file paths");
+    expect(paths).toHaveAttribute("placeholder", "for example {{locale}}.json");
+    expect(screen.queryByLabelText(/language codes/i)).not.toBeInTheDocument();
 
-    rerender(panel(gitlabNode("b", { "de-DE": "de" })));
-    expect(codes()).toHaveValue("de-DE = de");
+    await user.type(paths, "x");
+    expect(onChangeConfig.mock.calls.at(-1)?.[0].pathTemplate).toBe("x");
   });
 
   it("configures a Wait node and changes its mode", async () => {

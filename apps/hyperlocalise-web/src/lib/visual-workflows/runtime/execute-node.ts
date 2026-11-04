@@ -319,7 +319,6 @@ export async function executeVisualWorkflowNode(input: {
         projectFolder,
         branch: text(node.config.branch ?? "").trim(),
         pathTemplate: text(node.config.pathTemplate ?? "").trim(),
-        localeCodes: node.config.localeCodes,
       });
       if (isErr(syncValidation)) {
         return {

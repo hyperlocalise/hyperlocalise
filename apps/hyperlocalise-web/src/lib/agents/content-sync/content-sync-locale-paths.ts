@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { normalizeRepositoryRelativePath } from "@/lib/i18n/safe-repository-path";
 
 import { normalizeContentSyncFolder } from "./content-sync-paths";
@@ -102,26 +103,36 @@ export function compileContentSyncPathTemplate(template: string): {
   };
 }
 
+/** `pt_br`, `pt-br` and `pt-BR` are one tag. */
+function localeKey(value: string): string {
+  const tag = value.trim().replace(/_/g, "-");
+  return (canonicalizeLocale(tag) ?? tag).toLowerCase();
+}
+
+function localeLanguage(key: string): string {
+  return key.split("-")[0] ?? key;
+}
+
 /**
- * Which project locale a repository's language code stands for, through the configured codes
- * first and the locale itself otherwise. Case-insensitive, since `pt-br` and `pt-BR` are one.
+ * Which project locale a repository's language code stands for, matched the way the other
+ * integrations match locales: the same tag (case and `_` aside), else the one project locale
+ * of that language (`fr` for `fr-FR`, `en-US` for `en`). Two of the language would be a guess,
+ * so neither is taken.
  */
 export function resolveContentSyncLocale(input: {
   code: string;
   locales: string[];
-  localeCodes?: Record<string, string>;
 }): string | null {
-  const wanted = input.code.toLowerCase();
-  const codes = new Map(
-    Object.entries(input.localeCodes ?? {}).map(([locale, code]) => [locale.toLowerCase(), code]),
-  );
-  for (const locale of input.locales) {
-    const code = codes.get(locale.toLowerCase()) ?? locale;
-    if (code.toLowerCase() === wanted) {
-      return locale;
-    }
+  const wanted = localeKey(input.code);
+  const exact = input.locales.find((locale) => localeKey(locale) === wanted);
+  if (exact) {
+    return exact;
   }
-  return null;
+  const language = localeLanguage(wanted);
+  const sameLanguage = input.locales.filter(
+    (locale) => localeLanguage(localeKey(locale)) === language,
+  );
+  return sameLanguage.length === 1 ? sameLanguage[0]! : null;
 }
 
 export type ContentSyncPathClassification =
@@ -139,7 +150,6 @@ export function classifyContentSyncPath(input: {
   template: ReturnType<typeof compileContentSyncPathTemplate>;
   sourceLocale: string;
   targetLocales: string[];
-  localeCodes?: Record<string, string>;
 }): ContentSyncPathClassification {
   const code = input.template.match(input.relativePath);
   if (!code) {
@@ -149,7 +159,6 @@ export function classifyContentSyncPath(input: {
   const locale = resolveContentSyncLocale({
     code,
     locales: [input.sourceLocale, ...input.targetLocales],
-    localeCodes: input.localeCodes,
   });
   if (locale === null) {
     return { kind: "unmatched" };

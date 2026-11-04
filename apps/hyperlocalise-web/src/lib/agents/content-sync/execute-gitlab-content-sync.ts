@@ -183,7 +183,6 @@ export async function executeGitLabContentSync(input: {
       template,
       sourceLocale,
       targetLocales,
-      localeCodes: input.syncConfig.localeCodes,
     });
     if (classified.kind === "translation") {
       translationFiles += 1;
@@ -510,7 +509,6 @@ async function hideFilesMissingFromRepository(input: {
             template: input.template,
             sourceLocale: input.sourceLocale,
             targetLocales: input.targetLocales,
-            localeCodes: input.syncConfig.localeCodes,
           });
     if (classified?.kind !== "source") {
       continue;

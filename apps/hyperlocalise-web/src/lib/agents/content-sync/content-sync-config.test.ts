@@ -91,16 +91,14 @@ describe("content sync config", () => {
       ...gitlab,
       branch: " main ",
       pathTemplate: "/{{locale}}/pages/*.html/",
-      localeCodes: { " fr-FR ": "fr ", "": "x", "de-DE": " " },
     });
     expect(isOk(valid) && valid.value).toEqual({
       ...gitlab,
       providerFolder: "locales",
       branch: "main",
       pathTemplate: "{{locale}}/pages/*.html",
-      localeCodes: { "fr-FR": "fr" },
     });
-    expect(normalizeStoredContentSyncConfig({ ...gitlab, branch: "", localeCodes: {} })).toEqual({
+    expect(normalizeStoredContentSyncConfig({ ...gitlab, branch: "" })).toEqual({
       ...gitlab,
       providerFolder: "locales",
     });

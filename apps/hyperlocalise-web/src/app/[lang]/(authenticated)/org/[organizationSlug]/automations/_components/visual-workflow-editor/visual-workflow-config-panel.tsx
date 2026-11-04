@@ -2528,7 +2528,6 @@ export function VisualWorkflowConfigPanel({
         ) : null}
         {config.kind === "action.content_sync" ? (
           <ContentSyncConfigFields
-            nodeId={node.id}
             config={config}
             organizationSlug={organizationSlug}
             onChangeConfig={onChangeConfig}
@@ -3559,12 +3558,10 @@ function ErrorBehaviorField({
 }
 
 function ContentSyncConfigFields({
-  nodeId,
   config,
   organizationSlug,
   onChangeConfig,
 }: {
-  nodeId: string;
   config: Extract<VisualNodeConfig, { kind: "action.content_sync" }>;
   organizationSlug?: string;
   onChangeConfig: (config: VisualNodeConfig) => void;
@@ -3728,65 +3725,10 @@ function ContentSyncConfigFields({
             })}
             onChange={(value) => onChangeConfig({ ...config, pathTemplate: value })}
           />
-          <ContentSyncLocaleCodesField
-            key={nodeId}
-            localeCodes={config.localeCodes}
-            onChange={(localeCodes) => onChangeConfig({ ...config, localeCodes })}
-          />
         </>
       ) : null}
     </>
   );
-}
-
-/**
- * The text is kept as typed: a half-typed line parses to nothing, and writing the parsed map
- * back would wipe it with every keystroke.
- */
-function ContentSyncLocaleCodesField({
-  localeCodes,
-  onChange,
-}: {
-  localeCodes: Record<string, string> | undefined;
-  onChange: (localeCodes: Record<string, string>) => void;
-}) {
-  const intl = useIntl();
-  const [text, setText] = useState(() => formatContentSyncLocaleCodes(localeCodes));
-  // Undo, or the assistant, can change the saved pairs under the box; then the text follows.
-  const saved = formatContentSyncLocaleCodes(localeCodes);
-  const shown = formatContentSyncLocaleCodes(parseContentSyncLocaleCodes(text));
-  const value = saved === shown ? text : saved;
-  return (
-    <TextAreaField
-      id="vw-content-sync-locale-codes"
-      label={intl.formatMessage(messages.contentSyncLocaleCodes)}
-      value={value}
-      placeholder={"fr-FR = fr\npt-BR = pt"}
-      description={intl.formatMessage(messages.contentSyncLocaleCodesHelp)}
-      onChange={(value) => {
-        setText(value);
-        onChange(parseContentSyncLocaleCodes(value));
-      }}
-    />
-  );
-}
-
-/** One `locale = code` pair per line. */
-function formatContentSyncLocaleCodes(codes: Record<string, string> | undefined): string {
-  return Object.entries(codes ?? {})
-    .map(([locale, code]) => `${locale} = ${code}`)
-    .join("\n");
-}
-
-function parseContentSyncLocaleCodes(value: string): Record<string, string> {
-  const codes: Record<string, string> = {};
-  for (const line of value.split("\n")) {
-    const [locale, code] = line.split("=").map((part) => part.trim());
-    if (locale && code) {
-      codes[locale] = code;
-    }
-  }
-  return codes;
 }
 
 function WebhookTriggerFields({

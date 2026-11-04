@@ -2077,20 +2077,9 @@ export const visualWorkflowEditorMessages = defineMessages({
   },
   contentSyncPathTemplateHelp: {
     defaultMessage:
-      "Where each language's files sit under the provider folder, with {placeholder} for the language code. The source language's files are imported; * matches within a folder and ** across folders.",
-    id: "X+ESnG1wzj",
+      "Where each language's files sit under the provider folder, with {placeholder} for the language code (fr and fr-FR both name French). The source language's files are imported; * matches within a folder and ** across folders.",
+    id: "ZYorTcTqi5",
     description: "Help text under the path template setting",
-  },
-  contentSyncLocaleCodes: {
-    defaultMessage: "Language codes in the repository (optional)",
-    id: "DifYu18M2t",
-    description: "Locale code map setting on the content sync action",
-  },
-  contentSyncLocaleCodesHelp: {
-    defaultMessage:
-      "One per line, project language = repository code, for languages the repository names differently.",
-    id: "tiNHg2yrZK",
-    description: "Help text under the locale code map setting",
   },
   localizationProjectId: {
     defaultMessage: "Project ID",

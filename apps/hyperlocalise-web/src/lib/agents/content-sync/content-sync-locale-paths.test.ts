@@ -70,16 +70,18 @@ describe("compileContentSyncPathTemplate", () => {
 });
 
 describe("resolveContentSyncLocale", () => {
-  it("goes through the configured codes before the locale itself, ignoring case", () => {
+  it("takes the same tag whatever its case or separator", () => {
     const locales = ["en-US", "fr-FR", "pt-BR"];
-    expect(resolveContentSyncLocale({ code: "fr", locales, localeCodes: { "fr-FR": "fr" } })).toBe(
-      "fr-FR",
-    );
-    expect(resolveContentSyncLocale({ code: "FR", locales, localeCodes: { "fr-fr": "fr" } })).toBe(
-      "fr-FR",
-    );
     expect(resolveContentSyncLocale({ code: "pt-br", locales })).toBe("pt-BR");
-    expect(resolveContentSyncLocale({ code: "fr", locales })).toBeNull();
+    expect(resolveContentSyncLocale({ code: "pt_BR", locales })).toBe("pt-BR");
+    expect(resolveContentSyncLocale({ code: "FR-fr", locales })).toBe("fr-FR");
+  });
+
+  it("falls back to the one project locale of the same language, never to one of two", () => {
+    expect(resolveContentSyncLocale({ code: "fr", locales: ["en-US", "fr-FR"] })).toBe("fr-FR");
+    expect(resolveContentSyncLocale({ code: "en-US", locales: ["en", "fr-FR"] })).toBe("en");
+    expect(resolveContentSyncLocale({ code: "en", locales: ["en-US", "en-GB"] })).toBeNull();
+    expect(resolveContentSyncLocale({ code: "es", locales: ["en-US", "fr-FR"] })).toBeNull();
   });
 });
 
@@ -88,24 +90,23 @@ describe("classifyContentSyncPath", () => {
   const base = { template, sourceLocale: "en-US", targetLocales: ["fr-FR", "de-DE"] };
 
   it("tells source files from translation files and leaves unknown codes alone", () => {
-    const localeCodes = { "en-US": "en", "fr-FR": "fr" };
-    expect(classifyContentSyncPath({ ...base, relativePath: "en.json", localeCodes })).toEqual({
+    expect(classifyContentSyncPath({ ...base, relativePath: "en.json" })).toEqual({
       kind: "source",
       locale: "en-US",
     });
-    expect(classifyContentSyncPath({ ...base, relativePath: "fr.json", localeCodes })).toEqual({
+    expect(classifyContentSyncPath({ ...base, relativePath: "fr.json" })).toEqual({
       kind: "translation",
       locale: "fr-FR",
     });
-    expect(classifyContentSyncPath({ ...base, relativePath: "de-DE.json", localeCodes })).toEqual({
+    expect(classifyContentSyncPath({ ...base, relativePath: "de-DE.json" })).toEqual({
       kind: "translation",
       locale: "de-DE",
     });
-    // No code for Spanish, so its file is neither source nor a known translation.
-    expect(classifyContentSyncPath({ ...base, relativePath: "es.json", localeCodes })).toEqual({
+    // The project has no Spanish, so its file is neither source nor a known translation.
+    expect(classifyContentSyncPath({ ...base, relativePath: "es.json" })).toEqual({
       kind: "unmatched",
     });
-    expect(classifyContentSyncPath({ ...base, relativePath: "README.md", localeCodes })).toEqual({
+    expect(classifyContentSyncPath({ ...base, relativePath: "README.md" })).toEqual({
       kind: "unmatched",
     });
   });

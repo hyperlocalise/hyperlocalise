@@ -28,19 +28,9 @@ import type {
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 export function normalizeStoredContentSyncConfig(config: ContentSyncConfig): ContentSyncConfig {
-  const {
-    branch: rawBranch,
-    pathTemplate: rawPathTemplate,
-    localeCodes: rawLocaleCodes,
-    ...rest
-  } = config;
+  const { branch: rawBranch, pathTemplate: rawPathTemplate, ...rest } = config;
   const branch = rawBranch?.trim();
   const pathTemplate = rawPathTemplate ? normalizeContentSyncFolder(rawPathTemplate) : "";
-  const localeCodes = Object.fromEntries(
-    Object.entries(rawLocaleCodes ?? {})
-      .map(([locale, code]) => [locale.trim(), code.trim()])
-      .filter(([locale, code]) => locale && code),
-  );
   return {
     ...rest,
     providerFolder: normalizeContentSyncFolder(config.providerFolder),
@@ -49,7 +39,6 @@ export function normalizeStoredContentSyncConfig(config: ContentSyncConfig): Con
     connectionId: config.connectionId.trim(),
     ...(branch ? { branch } : {}),
     ...(pathTemplate ? { pathTemplate } : {}),
-    ...(Object.keys(localeCodes).length > 0 ? { localeCodes } : {}),
   };
 }
 

@@ -33,8 +33,6 @@ export function uploadSurfaceKeepsMissingKeys(uploadSurface: string | null): boo
 /** `{{locale}}` marks where a file's language code sits in its path. */
 export const CONTENT_SYNC_LOCALE_PLACEHOLDER = "{{locale}}";
 
-const localeCodeSchema = z.string().trim().min(1).max(32);
-
 const folderPathSchema = z
   .string()
   .trim()
@@ -53,11 +51,10 @@ export const contentSyncConfigSchema = z.object({
   /**
    * Git providers: where each language's files sit under the provider folder, with
    * `{{locale}}` for the language code, e.g. `{{locale}}.json` or `{{locale}}/pages/*.html`.
-   * The source locale's files are the source files; nothing else is imported as source.
+   * The source locale's files are the source files; nothing else is imported as source. A
+   * code names a project locale the way the other integrations match them (`fr` for `fr-FR`).
    */
   pathTemplate: z.string().trim().max(512).optional(),
-  /** Project locale to the code the repository uses when they differ, e.g. `{"fr-FR": "fr"}`. */
-  localeCodes: z.record(localeCodeSchema, localeCodeSchema).optional(),
 });
 export type ContentSyncConfig = z.infer<typeof contentSyncConfigSchema>;
 

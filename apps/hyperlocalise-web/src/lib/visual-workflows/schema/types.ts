@@ -208,8 +208,6 @@ export type VisualNodeConfig =
       branch?: string;
       /** Git providers: where each language's files sit, with `{{locale}}` for the code. */
       pathTemplate?: string;
-      /** Project locale to the code the repository uses, where they differ. */
-      localeCodes?: Record<string, string>;
       onError?: VisualNodeErrorBehavior;
     }
   | {

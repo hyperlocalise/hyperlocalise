@@ -101,7 +101,6 @@ const syncConfig: ContentSyncConfig = {
   providerFolder: "locales",
   projectFolder: "gitlab/acme/web",
   pathTemplate: "{{locale}}.json",
-  localeCodes: { "en-US": "en", "fr-FR": "fr" },
 };
 
 const files = new Map<string, string>([
@@ -369,7 +368,7 @@ describe("executeGitLabContentSync", () => {
     const noTemplate = await run(fakeReader(), { ...syncConfig, pathTemplate: "" });
     expect(isErr(noTemplate) && noTemplate.error.code).toBe("content_sync_path_template_required");
 
-    const noMatch = await run(fakeReader(), { ...syncConfig, localeCodes: {} });
+    const noMatch = await run(fakeReader(), { ...syncConfig, pathTemplate: "app-{{locale}}.json" });
     expect(isErr(noMatch) && noMatch.error).toMatchObject({
       code: "content_sync_no_source_files",
       message: expect.stringContaining("en-US"),
