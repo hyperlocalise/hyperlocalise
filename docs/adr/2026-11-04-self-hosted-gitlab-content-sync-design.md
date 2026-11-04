@@ -43,5 +43,5 @@ The keys a run hid are stored on the source file version (`sync_report`); the ru
 - A sync needs a workspace GitLab connection; a member's GitLab.com sign-in is not used, since runs have no user.
 - The sync holds the GitLab project's id as well as its path, and refuses to run when the path on the current server names another project. The step's repository picker lists projects only when the workspace has a connection.
 - A sync's waits for many files run together with one time limit; a very large folder may need more than one run. Two Content sync steps for the same repository that keep the default project folder write the same files; nothing stops that yet.
-- A file with a changed source text and translations in the repository is reported and left as is; a manual clean-up of hidden keys is later work.
+- A translation file in the repository is counted and left as it is until delivery; a manual clean-up of hidden keys is later work.
 - The GitHub content sync still clones, delivers unreviewed text and hard-deletes missing keys. Moving it onto the interface is a separate change with its owner.
