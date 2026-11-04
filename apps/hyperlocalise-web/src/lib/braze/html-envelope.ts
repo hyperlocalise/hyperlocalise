@@ -13,6 +13,7 @@
 import { createHash } from "node:crypto";
 
 import { normalizeSourcePath } from "@/lib/file-storage/records";
+import { applyHtmlIngestTranslations } from "@/lib/projects/files/html-ingest-entries";
 
 import { protectBrazeLiquidFields, restoreBrazeLiquidFields } from "./liquid";
 import { slugifyBrazePathSegment } from "./names";
@@ -151,6 +152,67 @@ export function restoreBrazeContentBlockEnvelope(
   tokensByField: Partial<Record<keyof BrazeContentBlockEnvelope, string[]>>,
 ): BrazeContentBlockEnvelope {
   return restoreBrazeLiquidFields(fields, tokensByField);
+}
+
+export type BrazeRemoteEmailFields = {
+  subject?: string;
+  preheader?: string;
+  body?: string;
+  plaintext_body?: string;
+};
+
+/**
+ * Rebuild the stored envelope shape from a live Braze locale copy so
+ * HTML ingest keys stay stable when applying a partial approval.
+ */
+export function serializeBrazeEmailRemoteEnvelope(input: {
+  storedEnvelopeHtml: string;
+  remote: BrazeRemoteEmailFields;
+}): ReturnType<typeof serializeBrazeEmailEnvelope> {
+  const stored = parseBrazeEmailEnvelope(input.storedEnvelopeHtml);
+  return serializeBrazeEmailEnvelope({
+    subject: input.remote.subject ?? stored.subject,
+    preheader: input.remote.preheader ?? stored.preheader,
+    body: input.remote.body?.trim() ? input.remote.body : stored.body,
+    plaintext_body: input.remote.plaintext_body ?? stored.plaintext_body,
+  });
+}
+
+export function serializeBrazeContentBlockRemoteEnvelope(input: {
+  storedEnvelopeHtml: string;
+  remoteContent?: string | null;
+}): ReturnType<typeof serializeBrazeContentBlockEnvelope> {
+  const stored = parseBrazeContentBlockEnvelope(input.storedEnvelopeHtml);
+  return serializeBrazeContentBlockEnvelope({
+    content: input.remoteContent?.trim() ? input.remoteContent : stored.content,
+  });
+}
+
+/**
+ * Apply approved HTML ingest keys onto the remote locale copy when present.
+ * Unapproved nodes then keep the existing Braze copy instead of falling
+ * back to source language and overwriting it.
+ *
+ * New copies use the stored source envelope.
+ */
+export function applyApprovedBrazeEmailEnvelope(input: {
+  storedEnvelopeHtml: string;
+  remoteEnvelopeHtml?: string | null;
+  approved: Record<string, string>;
+}): BrazeEmailEnvelope {
+  const remoteEnvelopeHtml = input.remoteEnvelopeHtml?.trim() ? input.remoteEnvelopeHtml : null;
+  const envelopeHtml = remoteEnvelopeHtml ?? input.storedEnvelopeHtml;
+  return parseBrazeEmailEnvelope(applyHtmlIngestTranslations(envelopeHtml, input.approved));
+}
+
+export function applyApprovedBrazeContentBlockEnvelope(input: {
+  storedEnvelopeHtml: string;
+  remoteEnvelopeHtml?: string | null;
+  approved: Record<string, string>;
+}): BrazeContentBlockEnvelope {
+  const remoteEnvelopeHtml = input.remoteEnvelopeHtml?.trim() ? input.remoteEnvelopeHtml : null;
+  const envelopeHtml = remoteEnvelopeHtml ?? input.storedEnvelopeHtml;
+  return parseBrazeContentBlockEnvelope(applyHtmlIngestTranslations(envelopeHtml, input.approved));
 }
 
 export function hashBrazeContent(value: string): string {
