@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 )
 
 type memoryEntryListFilters struct {
@@ -269,30 +270,87 @@ func memoryEntrySearchWhere(search string, argOffset int) (string, []any) {
 	return strings.Join(clauses, " or "), args
 }
 
-func buildMemoryEntryTsQuery(input string) string {
-	cleaned := strings.Map(func(r rune) rune {
-		switch r {
-		case '&', '|', '!', '(', ')', ':', '*', '<', '>', '\'', '"', '-':
-			return ' '
-		default:
-			if unicode.IsSpace(r) {
-				return ' '
-			}
-			return r
-		}
-	}, input)
-	parts := strings.Fields(cleaned)
-	if len(parts) > 50 {
-		parts = parts[:50]
+func isMemoryEntryTsDelimiter(c byte) bool {
+	switch c {
+	case '&', '|', '!', '(', ')', ':', '*', '<', '>', '\'', '"', '-', ' ', '\t', '\n', '\r', '\v', '\f':
+		return true
+	default:
+		return false
 	}
-	if len(parts) == 0 {
+}
+
+// BOLT OPTIMIZATION: buildMemoryEntryTsQuery was optimized to extract up to 50
+// tokens in a single pass without intermediate string conversions (strings.Map),
+// slice allocations (strings.Fields), or per-token string concatenations.
+// Tokens are written directly into a pre-allocated strings.Builder.
+func buildMemoryEntryTsQuery(input string) string {
+	type tokenSpan struct {
+		start int
+		end   int
+	}
+	var spans [50]tokenSpan
+	count := 0
+	totalBytes := 0
+	start := -1
+
+	for i := 0; i < len(input); {
+		c := input[i]
+		if c < 0x80 {
+			if isMemoryEntryTsDelimiter(c) {
+				if start != -1 {
+					spans[count] = tokenSpan{start: start, end: i}
+					totalBytes += i - start
+					count++
+					if count == 50 {
+						start = -1
+						break
+					}
+					start = -1
+				}
+			} else if start == -1 {
+				start = i
+			}
+			i++
+		} else {
+			r, size := utf8.DecodeRuneInString(input[i:])
+			if unicode.IsSpace(r) {
+				if start != -1 {
+					spans[count] = tokenSpan{start: start, end: i}
+					totalBytes += i - start
+					count++
+					if count == 50 {
+						start = -1
+						break
+					}
+					start = -1
+				}
+			} else if start == -1 {
+				start = i
+			}
+			i += size
+		}
+	}
+	if start != -1 && count < 50 {
+		spans[count] = tokenSpan{start: start, end: len(input)}
+		totalBytes += len(input) - start
+		count++
+	}
+
+	if count == 0 {
 		return ""
 	}
-	prefixed := make([]string, 0, len(parts))
-	for _, part := range parts {
-		prefixed = append(prefixed, part+":*")
+
+	// Each token has ":*" (2 bytes), and each separator " & " is 3 bytes (count-1 separators).
+	var b strings.Builder
+	b.Grow(totalBytes + count*2 + (count-1)*3)
+	for i := 0; i < count; i++ {
+		if i > 0 {
+			b.WriteString(" & ")
+		}
+		b.WriteString(input[spans[i].start:spans[i].end])
+		b.WriteString(":*")
 	}
-	return strings.Join(prefixed, " & ")
+	return b.String()
 }
 
 func memoryEntryListSortColumn(sort string) string {
