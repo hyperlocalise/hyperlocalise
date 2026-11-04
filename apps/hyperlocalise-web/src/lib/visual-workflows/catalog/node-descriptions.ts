@@ -36,7 +36,8 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
   "action.http": { title: "HTTP Request", purpose: "Call an HTTP endpoint." },
   "action.content_sync": {
     title: "Content sync",
-    purpose: "Pull source files into a project and push ready translations back.",
+    purpose:
+      "Pull source files into a project and send translations back: ready ones to GitHub, approved ones to GitLab.",
   },
   "action.notify_slack": { title: "Notify Slack", purpose: "Send a Slack message to a channel." },
   "action.notify_email": {

@@ -13,15 +13,26 @@
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 import { isErr } from "@/lib/primitives/result/results";
 
+export type JsonTranslationFileOutcome =
+  | { kind: "file"; content: Buffer; listsHeldBack: number }
+  /** Nothing approved differs from what the repository has, or there is nothing to send. */
+  | { kind: "unchanged" }
+  /** The source or the existing language file can't be read as JSON, or is a Lottie animation. */
+  | { kind: "unreadable" }
+  | { kind: "unsupported" };
+
 /**
  * A language file built from the source file's own shape: the source JSON is walked the way
- * the JSON importer flattens it (`a.b` for objects, `a[0]` for arrays), each string leaf takes
- * its approved translation, keeps what the repository's language file already had, or is left
- * out. Containers left empty are dropped. Indentation follows the source file.
- *
- * An array with a leaf that has neither is held back whole, because leaving one item out
- * would shift the others' keys on the next import. A FormatJS catalog (`{ key: { defaultMessage } }`)
- * keeps each message's other fields and swaps `defaultMessage`.
+ * the JSON importer flattens it (`a.b` for objects, `a[0]` for arrays). Each string leaf takes
+ * its approved translation, else what the repository's language file has, else, for a string
+ * the importer never made a key of (a context field, an excluded path, an empty string), the
+ * source value, else it is left out. Keys only the language file has (extra plural forms, say)
+ * stay unless the sync hid them; numbers, booleans and nulls keep the language file's value.
+ * Containers left empty are dropped. A list with a missing item waits whole, since leaving one
+ * out would shift the others' keys. Indentation, byte-order mark and final newline follow the
+ * existing file, else the source. A FormatJS catalog (`{ key: { defaultMessage } }`) keeps each
+ * message's other fields and swaps `defaultMessage`; a simple `{ key: text }` language file is
+ * read for its text.
  */
 export function buildContentSyncJsonTranslationFile(input: {
   source: Buffer;
@@ -29,31 +40,71 @@ export function buildContentSyncJsonTranslationFile(input: {
   existing: Buffer | null;
   /** Flattened key to approved translation. */
   approved: Record<string, string>;
-}): Buffer | null {
-  const source = parseObject(input.source);
+  /** Flattened keys the importer made of this file; a source string outside them is copied. */
+  knownKeys: Set<string>;
+  /** Flattened keys the sync hid because the repository dropped them; never written back. */
+  droppedKeys: Set<string>;
+}): JsonTranslationFileOutcome {
+  const sourceText = stripBom(input.source.toString("utf8"));
+  const source = parseObject(sourceText.text);
   if (!source) {
-    return null;
+    return { kind: "unreadable" };
   }
-  const existing = input.existing ? parseObject(input.existing) : null;
-  const tree = isFormatJsCatalog(source)
-    ? buildCatalog(source, existing, input.approved)
-    : buildObject(source, existing, "", input.approved);
+  if (isLottie(source)) {
+    return { kind: "unsupported" };
+  }
+  const existingText = input.existing ? stripBom(input.existing.toString("utf8")) : null;
+  const existing = existingText ? parseObject(existingText.text) : null;
+  if (existingText && !existing) {
+    return { kind: "unreadable" };
+  }
+
+  const catalog = isFormatJsCatalog(source);
+  const existingFlat = existing ? flatten(existing, catalog) : {};
+  const differs = Object.entries(input.approved).some(([key, text]) => existingFlat[key] !== text);
+  if (!differs) {
+    return { kind: "unchanged" };
+  }
+
+  const held = { lists: 0 };
+  const tree = catalog
+    ? buildCatalog(source, existing, input)
+    : buildObject(source, existing, "", input, held);
   if (tree === undefined) {
-    return null;
+    return { kind: "unchanged" };
   }
-  const indent = detectIndent(input.source.toString("utf8"));
-  return Buffer.from(`${JSON.stringify(tree, null, indent)}\n`, "utf8");
+  const layout = existingText ?? sourceText;
+  const text = `${JSON.stringify(tree, null, detectIndent(layout.text))}${layout.finalNewline ? "\n" : ""}`;
+  return {
+    kind: "file",
+    content: Buffer.from(`${layout.bom ? "﻿" : ""}${text}`, "utf8"),
+    listsHeldBack: held.lists,
+  };
 }
 
 type JsonObject = Record<string, unknown>;
 
-function parseObject(bytes: Buffer): JsonObject | null {
-  const parsed = safeJsonParse(bytes.toString("utf8"));
+function stripBom(text: string): { text: string; bom: boolean; finalNewline: boolean } {
+  const bom = text.charCodeAt(0) === 0xfeff;
+  return {
+    text: bom ? text.slice(1) : text,
+    bom,
+    finalNewline: text.endsWith("\n"),
+  };
+}
+
+function parseObject(text: string): JsonObject | null {
+  const parsed = safeJsonParse(text);
   if (isErr(parsed)) {
     return null;
   }
   const value: unknown = parsed.value;
   return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : null;
+}
+
+/** A Lottie animation is JSON too, but its strings are layer text the importer keys apart. */
+function isLottie(payload: JsonObject): boolean {
+  return "v" in payload && Array.isArray(payload.layers);
 }
 
 function isFormatJsCatalog(payload: JsonObject): boolean {
@@ -70,25 +121,37 @@ function isFormatJsCatalog(payload: JsonObject): boolean {
   );
 }
 
-function buildCatalog(
-  source: JsonObject,
-  existing: JsonObject | null,
-  approved: Record<string, string>,
-): JsonObject | undefined {
-  const out: JsonObject = {};
-  for (const [key, value] of Object.entries(source)) {
-    const message = value as JsonObject;
-    const text = approved[key] ?? existingCatalogMessage(existing, key);
-    if (text === undefined) {
-      continue;
+/** The same walk as the importer's, so keys match what it stored. */
+function flatten(payload: JsonObject, catalog: boolean): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (catalog) {
+    for (const [key, value] of Object.entries(payload)) {
+      const text = catalogMessage(value);
+      if (text !== undefined) {
+        out[key] = text;
+      }
     }
-    out[key] = { ...message, defaultMessage: text };
+    return out;
   }
-  return Object.keys(out).length > 0 ? out : undefined;
+  const walk = (value: unknown, prefix: string) => {
+    if (typeof value === "string") {
+      out[prefix] = value;
+    } else if (Array.isArray(value)) {
+      value.forEach((item, index) => walk(item, `${prefix}[${index}]`));
+    } else if (value && typeof value === "object") {
+      for (const [key, child] of Object.entries(value as JsonObject)) {
+        walk(child, prefix ? `${prefix}.${key}` : key);
+      }
+    }
+  };
+  walk(payload, "");
+  return out;
 }
 
-function existingCatalogMessage(existing: JsonObject | null, key: string): string | undefined {
-  const entry = existing?.[key];
+function catalogMessage(entry: unknown): string | undefined {
+  if (typeof entry === "string") {
+    return entry;
+  }
   const text =
     entry && typeof entry === "object" && !Array.isArray(entry)
       ? (entry as { defaultMessage?: unknown }).defaultMessage
@@ -96,11 +159,43 @@ function existingCatalogMessage(existing: JsonObject | null, key: string): strin
   return typeof text === "string" ? text : undefined;
 }
 
+type BuildInput = {
+  approved: Record<string, string>;
+  knownKeys: Set<string>;
+  droppedKeys: Set<string>;
+};
+
+function buildCatalog(
+  source: JsonObject,
+  existing: JsonObject | null,
+  input: BuildInput,
+): JsonObject | undefined {
+  const out: JsonObject = {};
+  for (const [key, value] of Object.entries(source)) {
+    const message = value as JsonObject;
+    const text =
+      input.approved[key] ??
+      catalogMessage(existing?.[key]) ??
+      (input.knownKeys.has(key) ? undefined : (message.defaultMessage as string));
+    if (text === undefined) {
+      continue;
+    }
+    out[key] = { ...message, defaultMessage: text };
+  }
+  for (const [key, value] of Object.entries(existing ?? {})) {
+    if (!(key in source) && !input.droppedKeys.has(key)) {
+      out[key] = value;
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 function buildObject(
   source: JsonObject,
   existing: unknown,
   prefix: string,
-  approved: Record<string, string>,
+  input: BuildInput,
+  held: { lists: number },
 ): JsonObject | undefined {
   const existingObject =
     existing && typeof existing === "object" && !Array.isArray(existing)
@@ -109,9 +204,16 @@ function buildObject(
   const out: JsonObject = {};
   for (const [key, value] of Object.entries(source)) {
     const flatKey = prefix ? `${prefix}.${key}` : key;
-    const built = buildValue(value, existingObject?.[key], flatKey, approved);
+    const built = buildValue(value, existingObject?.[key], flatKey, input, held);
     if (built !== undefined) {
       out[key] = built;
+    }
+  }
+  // What only the language file has, such as a locale's extra plural forms, is theirs to keep.
+  for (const [key, value] of Object.entries(existingObject ?? {})) {
+    const flatKey = prefix ? `${prefix}.${key}` : key;
+    if (!(key in source) && !input.droppedKeys.has(flatKey)) {
+      out[key] = value;
     }
   }
   return Object.keys(out).length > 0 ? out : undefined;
@@ -121,14 +223,16 @@ function buildArray(
   source: unknown[],
   existing: unknown,
   prefix: string,
-  approved: Record<string, string>,
+  input: BuildInput,
+  held: { lists: number },
 ): unknown[] | undefined {
   const existingArray = Array.isArray(existing) ? existing : null;
   const out: unknown[] = [];
   for (const [index, item] of source.entries()) {
-    const built = buildValue(item, existingArray?.[index], `${prefix}[${index}]`, approved);
+    const built = buildValue(item, existingArray?.[index], `${prefix}[${index}]`, input, held);
     if (built === undefined) {
       // One missing item would shift the rest, so the whole list waits.
+      held.lists += 1;
       return undefined;
     }
     out.push(built);
@@ -140,23 +244,31 @@ function buildValue(
   value: unknown,
   existing: unknown,
   flatKey: string,
-  approved: Record<string, string>,
+  input: BuildInput,
+  held: { lists: number },
 ): unknown {
   if (typeof value === "string") {
-    const translated = approved[flatKey];
+    const translated = input.approved[flatKey];
     if (translated !== undefined) {
       return translated;
     }
-    return typeof existing === "string" ? existing : undefined;
+    if (typeof existing === "string") {
+      return existing;
+    }
+    // The importer made no key of it (a context field, an excluded path, an empty string),
+    // so it is not text to translate and travels as it is.
+    return input.knownKeys.has(flatKey) ? undefined : value;
   }
   if (Array.isArray(value)) {
-    return buildArray(value, existing, flatKey, approved);
+    return buildArray(value, existing, flatKey, input, held);
   }
   if (value && typeof value === "object") {
-    return buildObject(value as JsonObject, existing, flatKey, approved);
+    return buildObject(value as JsonObject, existing, flatKey, input, held);
   }
-  // Numbers, booleans and null are not text; they travel with the structure.
-  return value;
+  // Numbers, booleans and null are settings, not text; the language file's own value stays.
+  return existing !== undefined && typeof existing === typeof value && existing !== null
+    ? existing
+    : value;
 }
 
 function detectIndent(text: string): string | number {

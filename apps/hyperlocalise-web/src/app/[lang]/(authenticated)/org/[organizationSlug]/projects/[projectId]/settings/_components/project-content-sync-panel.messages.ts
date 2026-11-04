@@ -236,10 +236,22 @@ export const projectContentSyncPanelMessages = defineMessages({
   },
   runHeldBack: {
     defaultMessage:
-      "{held, plural, one {# page waits} other {# pages wait}} until every translation in it is approved",
-    id: "ZuNORcOr/u",
+      "{held, plural, one {# language file waits} other {# language files wait}} until every translation in it is approved",
+    id: "e4UP1KeoEn",
     description:
       "Count of language files a GitLab sync run held back because a page is sent whole, once fully approved",
+  },
+  runNotSent: {
+    defaultMessage:
+      "{count, plural, one {# file wasn't sent back} other {# files weren't sent back}}: the format isn't supported yet, or the repository's copy couldn't be read",
+    id: "YvKNfbM9SW",
+    description: "Count of source files a GitLab sync run couldn't write a language file for",
+  },
+  runPushError: {
+    defaultMessage: "Translations weren't sent: {reason}",
+    id: "UOMRfGQ0jp",
+    description:
+      "Shown on a GitLab sync run whose pull succeeded but whose write GitLab refused; the reason is GitLab's",
   },
   openPullRequest: {
     defaultMessage: "Open pull request",

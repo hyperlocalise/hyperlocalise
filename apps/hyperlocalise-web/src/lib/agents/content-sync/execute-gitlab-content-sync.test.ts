@@ -287,15 +287,14 @@ describe("executeGitLabContentSync", () => {
   });
 
   it("delivers approved translations after the pull, on one branch per sync", async () => {
-    mocks.deliverGitLabTranslations.mockResolvedValue(
-      ok({
-        written: 1,
-        pullRequestUrl: "https://gitlab.com/acme/web/-/merge_requests/3",
-        heldBack: 0,
-        unsupported: 0,
-      }),
-    );
-    const writer = { commitFiles: vi.fn(), upsertReview: vi.fn() };
+    mocks.deliverGitLabTranslations.mockResolvedValue({
+      written: 1,
+      pullRequestUrl: "https://gitlab.com/acme/web/-/merge_requests/3",
+      heldBack: 0,
+      unsupported: 0,
+      unreadable: 0,
+    });
+    const writer = { commitFiles: vi.fn(), upsertReview: vi.fn(), findOpenReview: vi.fn() };
 
     const result = await executeGitLabContentSync({
       organizationId: "org-1",
@@ -313,6 +312,7 @@ describe("executeGitLabContentSync", () => {
       pullRequestUrl: "https://gitlab.com/acme/web/-/merge_requests/3",
       heldBack: 0,
       unsupported: 0,
+      unreadable: 0,
     });
     expect(mocks.deliverGitLabTranslations).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -320,7 +320,12 @@ describe("executeGitLabContentSync", () => {
         branchName: "hyperlocalise/translations-sync-9",
         head: { branch: "main", commitSha: "abc" },
         targetLocales: ["fr-FR"],
-        localeCodes: new Map([["fr-FR", "fr"]]),
+        // The source's own code is remembered too, for naming new files.
+        localeCodes: new Map([
+          ["fr-FR", "fr"],
+          ["en-US", "en"],
+        ]),
+        repositoryPaths: new Set(files.keys()),
         sourceFiles: [
           {
             relativePath: "en.json",
@@ -332,10 +337,14 @@ describe("executeGitLabContentSync", () => {
     );
   });
 
-  it("fails the run when delivery fails, after the pull has landed", async () => {
-    mocks.deliverGitLabTranslations.mockResolvedValue(
-      err({ code: "content_sync_push_failed", message: "refused" }),
-    );
+  it("keeps a run whose delivery was refused, with the pull's report and the reason", async () => {
+    mocks.deliverGitLabTranslations.mockResolvedValue({
+      written: 0,
+      heldBack: 0,
+      unsupported: 0,
+      unreadable: 0,
+      error: { code: "content_sync_connection_required", message: "refused" },
+    });
     const result = await executeGitLabContentSync({
       organizationId: "org-1",
       projectId: "project-1",
@@ -343,10 +352,13 @@ describe("executeGitLabContentSync", () => {
       runId: "run-1",
       syncConfig,
       reader: fakeReader(),
-      writer: { commitFiles: vi.fn(), upsertReview: vi.fn() },
+      writer: { commitFiles: vi.fn(), upsertReview: vi.fn(), findOpenReview: vi.fn() },
     });
-    expect(isErr(result) && result.error.code).toBe("content_sync_push_failed");
-    expect(mocks.storeRepositorySourceFile).toHaveBeenCalled();
+    expect(isOk(result) && result.value.pulled.uploaded).toBe(1);
+    expect(isOk(result) && result.value.pushed.error).toEqual({
+      code: "content_sync_connection_required",
+      message: "refused",
+    });
   });
 
   it("does not repeat the stored report of an unchanged file it skipped", async () => {

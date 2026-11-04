@@ -100,7 +100,10 @@ describe("resolveContentSyncLocale", () => {
 
   it("falls back to the one project locale of the same language, never to one of two", () => {
     expect(resolveContentSyncLocale({ code: "fr", locales: ["en-US", "fr-FR"] })).toBe("fr-FR");
-    expect(resolveContentSyncLocale({ code: "en-US", locales: ["en", "fr-FR"] })).toBe("en");
+    // A regional code names that region only, never a bare locale or another region.
+    expect(resolveContentSyncLocale({ code: "en-US", locales: ["en", "fr-FR"] })).toBeNull();
+    expect(resolveContentSyncLocale({ code: "en-GB", locales: ["en-US", "fr-FR"] })).toBeNull();
+    expect(resolveContentSyncLocale({ code: "zh-TW", locales: ["zh-CN"] })).toBeNull();
     expect(resolveContentSyncLocale({ code: "en", locales: ["en-US", "en-GB"] })).toBeNull();
     expect(resolveContentSyncLocale({ code: "es", locales: ["en-US", "fr-FR"] })).toBeNull();
   });
@@ -122,6 +125,16 @@ describe("classifyContentSyncPath", () => {
     expect(classifyContentSyncPath({ ...base, relativePath: "de-DE.json" })).toEqual({
       kind: "translation",
       locale: "de-DE",
+    });
+    // Only the exact code is source text: a British file beside the American one is neither.
+    expect(classifyContentSyncPath({ ...base, relativePath: "en-GB.json" })).toEqual({
+      kind: "unmatched",
+    });
+    expect(
+      classifyContentSyncPath({ ...base, sourceLocale: "en", relativePath: "en-US.json" }),
+    ).toEqual({ kind: "unmatched" });
+    expect(classifyContentSyncPath({ ...base, relativePath: "fr-CA.json" })).toEqual({
+      kind: "unmatched",
     });
     // The project has no Spanish, so its file is neither source nor a known translation.
     expect(classifyContentSyncPath({ ...base, relativePath: "es.json" })).toEqual({

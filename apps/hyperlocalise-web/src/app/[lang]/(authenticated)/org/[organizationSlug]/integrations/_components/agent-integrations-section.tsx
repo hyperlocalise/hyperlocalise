@@ -141,7 +141,9 @@ export function SourceControlIntegrationsSection({
   );
   const showGitLabComSignIn =
     userIsAdmin &&
-    (workspaceUnconnected || (workspaceConnected && ownSignIn.data?.connected === true));
+    (workspaceUnconnected ||
+      (workspaceConnected &&
+        (ownSignIn.data?.connected === true || ownSignIn.data?.needsReauthorization === true)));
 
   return (
     <>

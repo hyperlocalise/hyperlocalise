@@ -107,6 +107,16 @@ function readSummaryCount(value: unknown, key: string): number {
   return 0;
 }
 
+/** Why a GitLab run sent nothing back, when GitLab refused the write. */
+function readPushError(pushed: unknown): { code: string; message: string } | null {
+  const error = pushed && typeof pushed === "object" && "error" in pushed ? pushed.error : null;
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+  const { code, message } = error as { code?: unknown; message?: unknown };
+  return typeof code === "string" && typeof message === "string" ? { code, message } : null;
+}
+
 /** Per file, the keys a GitLab run hid because the repository no longer has them. */
 function readHiddenKeys(pulled: unknown) {
   const files =
@@ -136,10 +146,14 @@ function syncProvider(sync: { syncConfig: Record<string, unknown> } | null): "gi
   return sync?.syncConfig.provider === "gitlab" ? "gitlab" : "github";
 }
 
-/** The saved GitLab project's path, so the connections list can include it even past the cap. */
-function savedGitLabResourceKey(sync: { syncConfig: Record<string, unknown> } | null) {
-  const { provider, resourceKey } = sync?.syncConfig ?? {};
-  return provider === "gitlab" && typeof resourceKey === "string" ? resourceKey : undefined;
+/** The saved GitLab project, so the connections list can include it even past the listing's cap. */
+function savedGitLabProject(sync: { syncConfig: Record<string, unknown> } | null) {
+  const { provider, resourceKey, connectionId } = sync?.syncConfig ?? {};
+  return provider === "gitlab" &&
+    typeof resourceKey === "string" &&
+    typeof connectionId === "string"
+    ? { connectionId, resourceKey }
+    : undefined;
 }
 
 function serializeRun(run: ProjectContentSyncRunRow, syncProvider: "github" | "gitlab") {
@@ -156,7 +170,8 @@ function serializeRun(run: ProjectContentSyncRunRow, syncProvider: "github" | "g
     provider: provider === "github" || provider === "gitlab" ? provider : syncProvider,
     trigger: run.trigger,
     status: run.status,
-    pulled: run.summary
+    // A failed run may carry only the service it ran with.
+    pulled: pulled
       ? {
           uploaded: readSummaryCount(pulled, "uploaded"),
           skipped: readSummaryCount(pulled, "skipped"),
@@ -165,8 +180,12 @@ function serializeRun(run: ProjectContentSyncRunRow, syncProvider: "github" | "g
         }
       : null,
     hiddenKeys: readHiddenKeys(pulled).slice(0, HIDDEN_KEY_FILE_LIMIT),
-    written: run.summary ? readSummaryCount(pushed, "written") : null,
-    heldBack: run.summary ? readSummaryCount(pushed, "heldBack") : null,
+    written: pushed ? readSummaryCount(pushed, "written") : null,
+    heldBack: pushed ? readSummaryCount(pushed, "heldBack") : null,
+    notSent: pushed
+      ? readSummaryCount(pushed, "unsupported") + readSummaryCount(pushed, "unreadable")
+      : null,
+    pushError: readPushError(pushed),
     pullRequestUrl: typeof pullRequestUrl === "string" ? pullRequestUrl : null,
     errorCode: run.errorCode,
     // Stored messages are the provider's own user-facing text; thrown errors are stored generically.
@@ -236,7 +255,7 @@ type SyncConnectionOption = {
  */
 async function listGitLabSyncConnections(
   organizationId: string,
-  savedResourceKey?: string,
+  saved?: { connectionId: string; resourceKey: string },
 ): Promise<{ connected: boolean; available: boolean; connections: SyncConnectionOption[] }> {
   const access = await loadGitLabConnectionCredentials({ organizationId });
   if (isErr(access)) {
@@ -250,18 +269,16 @@ async function listGitLabSyncConnections(
     return { connected: true, available: false, connections: [] };
   }
   const listed = projects.value;
-  if (
-    savedResourceKey &&
-    !listed.some(
-      (project) => project.pathWithNamespace.toLowerCase() === savedResourceKey.toLowerCase(),
-    )
-  ) {
-    const saved = await getGitLabProject({
-      ...access.value,
-      pathWithNamespace: savedResourceKey,
-    });
-    if (!isErr(saved)) {
-      listed.push(saved.value);
+  if (saved && !listed.some((project) => String(project.id) === saved.connectionId)) {
+    const found = await getGitLabProject({ ...access.value, pathWithNamespace: saved.resourceKey });
+    if (isErr(found)) {
+      if (found.error.code !== "gitlab_not_found") {
+        // A slow or failing lookup must not call the saved project missing.
+        return { connected: true, available: false, connections: [] };
+      }
+    } else if (String(found.value.id) === saved.connectionId && !found.value.archived) {
+      // The same project, outside the most recently active ones the listing stops at.
+      listed.push(found.value);
     }
   }
   return {
@@ -434,7 +451,7 @@ export function createProjectContentSyncRoutes(
       });
       const gitlab = await listGitLabSyncConnections(
         resolved.project.organizationId,
-        savedGitLabResourceKey(saved),
+        savedGitLabProject(saved),
       );
 
       const connections: SyncConnectionOption[] = [

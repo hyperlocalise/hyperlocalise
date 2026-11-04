@@ -174,9 +174,18 @@ async function gitlabRequest(
     if (input.query) {
       url.search = input.query.toString();
     }
-    response = input.baseUrl
-      ? await requestGitLabServer(url, input.baseUrl, init)
-      : await readResponse(await fetch(url, init));
+    if (input.baseUrl) {
+      response = await requestGitLabServer(url, input.baseUrl, init);
+    } else {
+      // GitLab.com gets the same patience as a company server, so a run can't hang on it.
+      const timeout = AbortSignal.timeout(GITLAB_SERVER_REQUEST_TIMEOUT_MS);
+      response = await readResponse(
+        await fetch(url, {
+          ...init,
+          signal: init.signal ? AbortSignal.any([init.signal, timeout]) : timeout,
+        }),
+      );
+    }
   } catch (error) {
     logger.warn(describeRequestFailure(error), "gitlab request failed before an answer");
     return err(requestFailed(0, error instanceof Error && error.name === "TimeoutError"));

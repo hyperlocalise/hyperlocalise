@@ -29,11 +29,13 @@ import {
   unhideKeysSyncHid,
 } from "@/lib/projects/files/hide-keys-missing-from-sync";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
+import { SYNC_REPORT_KEY_LIMIT } from "@/lib/projects/files/source-file-sync-report";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 
 import {
   classifyContentSyncPath,
   compileContentSyncPathTemplate,
+  isExactContentSyncLocale,
 } from "./content-sync-locale-paths";
 import { relativizeContentSyncPath, rewriteContentSyncSourcePath } from "./content-sync-paths";
 import type {
@@ -64,7 +66,7 @@ export type ContentSyncFileReport = {
 /** The GitHub summary's shape, plus what a GitLab pull hid or left aside. */
 export type GitLabContentSyncSummary = ContentSyncSummary & {
   pushed: ContentSyncSummary["pushed"] &
-    Partial<Pick<GitLabDeliverySummary, "heldBack" | "unsupported">>;
+    Partial<Pick<GitLabDeliverySummary, "heldBack" | "unsupported" | "unreadable" | "error">>;
   pulled: ContentSyncSummary["pulled"] & {
     /** Files under the provider folder that the path template or the locales didn't match. */
     unmatched: number;
@@ -130,7 +132,7 @@ export async function executeGitLabContentSync(input: {
         message:
           access.error.code === "gitlab_connection_decrypt_failed"
             ? "The workspace's saved GitLab token can't be read. Save the connection again in Integrations."
-            : "Connect the workspace's GitLab server in Integrations before syncing.",
+            : "Connect GitLab in Integrations before syncing.",
       });
     }
     // The saved path is looked up on the workspace's current server; the id proves it's still
@@ -147,7 +149,7 @@ export async function executeGitLabContentSync(input: {
             ? "The workspace's GitLab token can't see this repository. Check the connection in Integrations."
             : gitlabProject.error.code === "gitlab_unauthorized"
               ? "The workspace's GitLab token was refused. Check the connection in Integrations."
-              : "The workspace's GitLab server couldn't be reached. Check the connection in Integrations.",
+              : "GitLab couldn't be reached. Check the connection in Integrations.",
       });
     }
     if (String(gitlabProject.value.id) !== input.syncConfig.connectionId) {
@@ -206,10 +208,7 @@ export async function executeGitLabContentSync(input: {
     });
     if (classified.kind === "translation") {
       translationFiles += 1;
-      const code = template.match(relativePath);
-      if (code && !localeCodes.has(classified.locale)) {
-        localeCodes.set(classified.locale, code);
-      }
+      rememberLocaleCode(localeCodes, classified.locale, template.match(relativePath));
       continue;
     }
     if (classified.kind === "unmatched" || !inferSupportedSourceUploadFormat(file.path)) {
@@ -225,6 +224,7 @@ export async function executeGitLabContentSync(input: {
       unmatched += 1;
       continue;
     }
+    rememberLocaleCode(localeCodes, sourceLocale, template.match(relativePath));
     sourceFiles.push({
       repositoryPath: file.path,
       relativePath,
@@ -351,14 +351,10 @@ export async function executeGitLabContentSync(input: {
     "gitlab content sync pulled",
   );
 
-  await markSyncReportsShown(
-    reports.map((report) => report.versionId),
-    input.runId,
-  );
-
   let pushed: GitLabContentSyncSummary["pushed"] = { written: 0 };
   if (writer) {
-    const delivered = await deliverGitLabTranslations({
+    // A refused write is reported on the run, not thrown: the pull above has landed.
+    pushed = await deliverGitLabTranslations({
       organizationId: input.organizationId,
       projectId: input.projectId,
       runId: input.runId,
@@ -369,16 +365,19 @@ export async function executeGitLabContentSync(input: {
       template,
       targetLocales,
       localeCodes,
+      repositoryPaths: new Set(listing.value.map((file) => file.path)),
       sourceFiles: deliverable,
       branchName: buildPullTranslationsBranchName(
         input.pullRequestBranchKey ?? `workflow-${input.automationId}`,
       ),
     });
-    if (isErr(delivered)) {
-      return err(delivered.error);
-    }
-    pushed = delivered.value;
   }
+
+  // Marked last, so a run that dies before its record is written shows the report next time.
+  await markSyncReportsShown(
+    reports.map((report) => report.versionId),
+    input.runId,
+  );
 
   return ok({
     pulled: {
@@ -403,6 +402,20 @@ async function markSyncReportsShown(versionIds: string[], runId: string): Promis
       syncReport: sql`coalesce(${schema.repositorySourceFileVersions.syncReport}, '{}'::jsonb) || ${JSON.stringify({ reportedRunId: runId })}::jsonb`,
     })
     .where(inArray(schema.repositorySourceFileVersions.id, versionIds));
+}
+
+/** The code a locale's files use; an exact code (`fr-FR`) beats a bare language (`fr`). */
+function rememberLocaleCode(codes: Map<string, string>, locale: string, code: string | null) {
+  if (!code) {
+    return;
+  }
+  const current = codes.get(locale);
+  if (
+    !current ||
+    (!isExactContentSyncLocale(current, locale) && isExactContentSyncLocale(code, locale))
+  ) {
+    codes.set(locale, code);
+  }
 }
 
 type SyncedVersion = {
@@ -572,7 +585,13 @@ async function hideFilesMissingFromRepository(input: {
       repositorySourceFileId: file.id,
     });
     if (missingKeys.length > 0) {
-      reports.push({ path: file.sourcePath, missingKeys });
+      reports.push({
+        path: file.sourcePath,
+        missingKeys: missingKeys.slice(0, SYNC_REPORT_KEY_LIMIT),
+        ...(missingKeys.length > SYNC_REPORT_KEY_LIMIT
+          ? { missingKeyCount: missingKeys.length }
+          : {}),
+      });
     }
   }
   return reports;

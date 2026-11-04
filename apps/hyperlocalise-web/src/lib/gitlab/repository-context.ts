@@ -131,12 +131,12 @@ function gitlabContextFailureFollowUp(
     return otherwise;
   }
   if (error.code === "gitlab_unauthorized" || error.code === "gitlab_connection_decrypt_failed") {
-    return "This workspace's GitLab connection isn't working: the server refused its token, or the saved token can't be read. An admin or localization manager can check it under Integrations.";
+    return "This workspace's GitLab connection isn't working: GitLab refused its token, or the saved token can't be read. An admin or localization manager can check it under Integrations.";
   }
   if (error.code === "gitlab_not_found") {
     return "The workspace's GitLab token can't see that project. Check the link, or ask an admin to give the token access to it.";
   }
-  return "The workspace's GitLab server couldn't be reached just now. Try again shortly.";
+  return "The workspace's GitLab couldn't be reached just now. Try again shortly.";
 }
 
 export async function resolveConversationRepositoryGitLabContext(input: {

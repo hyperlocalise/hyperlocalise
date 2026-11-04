@@ -18,7 +18,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
   connectionGet: vi.fn(),
-  ownSignIn: vi.fn<() => { connected: boolean } | undefined>(),
+  ownSignIn: vi.fn<() => { connected: boolean; needsReauthorization?: boolean } | undefined>(),
 }));
 
 vi.mock("@/lib/api-client", () => ({
@@ -110,6 +110,16 @@ describe("SourceControlIntegrationsSection", () => {
   it("keeps the row, marked as not in use, for someone whose own sign-in is still stored", async () => {
     mocks.connectionGet.mockResolvedValue(Response.json(connected));
     mocks.ownSignIn.mockReturnValue({ connected: true });
+    renderSection();
+
+    expect(
+      await screen.findByText(/GitLab.com sign-in: Not used while GitLab is connected/),
+    ).toBeTruthy();
+  });
+
+  it("keeps the row for a sign-in that has expired, which is still stored", async () => {
+    mocks.connectionGet.mockResolvedValue(Response.json(connected));
+    mocks.ownSignIn.mockReturnValue({ connected: false, needsReauthorization: true });
     renderSection();
 
     expect(

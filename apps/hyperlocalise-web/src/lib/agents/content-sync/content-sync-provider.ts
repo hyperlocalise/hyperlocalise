@@ -78,8 +78,8 @@ export type ContentSyncReview = {
 /** The write half, used by merge-request delivery. */
 export type ContentSyncRepositoryWriter = {
   /**
-   * Commits the changes to the branch as one commit, creating the branch from `startFrom`
-   * when it doesn't exist.
+   * Commits the changes as one commit on `startFrom`, creating the branch there or rebuilding
+   * an existing one on it, so the branch is always one commit on the current target.
    */
   commitFiles(input: {
     branch: string;
@@ -87,11 +87,18 @@ export type ContentSyncRepositoryWriter = {
     message: string;
     changes: ContentSyncFileChange[];
   }): Promise<Result<{ commitSha: string }, ContentSyncProviderError>>;
-  /** Opens a review from the branch, or returns the open one for it, with its text updated. */
+  /**
+   * Opens a review from the branch, or updates the open one's description (and target, when
+   * it changed); an open review's title is left as it is.
+   */
   upsertReview(input: {
     sourceBranch: string;
     targetBranch: string;
     title: string;
     description: string;
   }): Promise<Result<ContentSyncReview, ContentSyncProviderError>>;
+  /** The open review from the branch, if any, so a run with nothing new can still link to it. */
+  findOpenReview(
+    sourceBranch: string,
+  ): Promise<Result<ContentSyncReview | null, ContentSyncProviderError>>;
 };

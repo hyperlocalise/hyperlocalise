@@ -94,13 +94,16 @@ describe("GitLabServerConnectionPanel", () => {
 
     const save = await screen.findByRole("button", { name: "Check and save" });
     expect(save).toHaveProperty("disabled", true);
-    // GitLab.com is the first choice, so no address is asked for.
-    expect(screen.queryByLabelText("Server address")).toBeNull();
-    expect(screen.getByText(/project or group access token/)).toBeTruthy();
-
+    // Nothing is assumed: a token typed before the choice is sent nowhere.
     const token = screen.getByLabelText("Access token");
     fireEvent.change(token, { target: { value: "glpat-secret" } });
+    expect(save).toHaveProperty("disabled", true);
+    expect(screen.queryByLabelText("Server address")).toBeNull();
+
+    await user.click(screen.getByRole("combobox", { name: "Connect to" }));
+    await user.click(await screen.findByRole("option", { name: "GitLab.com" }));
     expect(save).toHaveProperty("disabled", false);
+    expect(screen.getByText(/project or group access token/)).toBeTruthy();
 
     // A company server needs its address before anything is sent anywhere.
     await user.click(screen.getByRole("combobox", { name: "Connect to" }));
@@ -122,10 +125,13 @@ describe("GitLabServerConnectionPanel", () => {
   });
 
   it("saves GitLab.com without an address field", async () => {
+    const user = userEvent.setup();
     renderPanel();
     await openRow();
 
-    fireEvent.change(await screen.findByLabelText("Access token"), {
+    await user.click(await screen.findByRole("combobox", { name: "Connect to" }));
+    await user.click(await screen.findByRole("option", { name: "GitLab.com" }));
+    fireEvent.change(screen.getByLabelText("Access token"), {
       target: { value: "glpat-secret" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Check and save" }));
@@ -141,10 +147,13 @@ describe("GitLabServerConnectionPanel", () => {
     mocks.connectionPut.mockResolvedValue(
       Response.json({ message: "The server refused this token." }, { status: 400 }),
     );
+    const user = userEvent.setup();
     renderPanel();
     await openRow();
 
-    const token = await screen.findByLabelText("Access token");
+    await user.click(await screen.findByRole("combobox", { name: "Connect to" }));
+    await user.click(await screen.findByRole("option", { name: "GitLab.com" }));
+    const token = screen.getByLabelText("Access token");
     fireEvent.change(token, { target: { value: "glpat-bad" } });
     fireEvent.click(screen.getByRole("button", { name: "Check and save" }));
 

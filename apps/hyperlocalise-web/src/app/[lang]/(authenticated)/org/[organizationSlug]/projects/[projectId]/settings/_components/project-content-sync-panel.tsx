@@ -905,8 +905,12 @@ type SyncRun = {
   pulled: { uploaded: number; skipped: number; failed: number; unmatched: number } | null;
   hiddenKeys: { path: string; keys: string[]; keyCount: number }[];
   written: number | null;
-  /** Language files that wait until every segment is approved (GitLab pages). */
+  /** Language files that wait until every segment is approved (GitLab pages and lists). */
   heldBack: number | null;
+  /** Source files a GitLab sync can't write back, or whose repository copy couldn't be read. */
+  notSent: number | null;
+  /** Why a GitLab run sent nothing: GitLab refused the write. */
+  pushError: { code: string; message: string } | null;
   pullRequestUrl: string | null;
   errorCode: string | null;
   errorMessage: string | null;
@@ -988,6 +992,19 @@ function ProjectContentSyncRuns({ runs }: { runs: SyncRun[] }) {
                 {run.status === "succeeded" && run.heldBack ? (
                   <TypographyP size="small" tone="subtle">
                     <FormattedMessage {...messages.runHeldBack} values={{ held: run.heldBack }} />
+                  </TypographyP>
+                ) : null}
+                {run.status === "succeeded" && run.notSent ? (
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage {...messages.runNotSent} values={{ count: run.notSent }} />
+                  </TypographyP>
+                ) : null}
+                {run.status === "succeeded" && run.pushError ? (
+                  <TypographyP className="text-flame-100" size="small">
+                    <FormattedMessage
+                      {...messages.runPushError}
+                      values={{ reason: run.pushError.message }}
+                    />
                   </TypographyP>
                 ) : null}
                 {run.status === "failed" ? (

@@ -74,6 +74,11 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
     id: "DGiD4orSjR",
     description: "Label for the choice between GitLab.com and a company's own GitLab server",
   },
+  hostPlaceholder: {
+    defaultMessage: "Choose…",
+    id: "29x/gSNhzG",
+    description: "Placeholder of the GitLab.com or company server choice before one is made",
+  },
   hostGitLabCom: {
     defaultMessage: "GitLab.com",
     id: "O2+CxE1DPu",
@@ -96,14 +101,14 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
   },
   tokenHint: {
     defaultMessage:
-      "Use a token from a non-admin user, with the api scope to send merge requests, or read_api and read_repository for reading only. Set an expiry.",
-    id: "gzrexlkMrv",
+      "Use a token from a non-admin user, with the api scope to send merge requests; with read_api and read_repository only, syncs pull and say translations weren't sent. Set an expiry.",
+    id: "uRNHIi1M/k",
     description: "Hint describing which access token to create on a company's own GitLab server",
   },
   tokenHintGitLabCom: {
     defaultMessage:
-      "Use a project or group access token, or a dedicated account that belongs only to the projects to sync: everyone here reaches what the token reaches. Scopes: api to send merge requests, or read_api and read_repository for reading only. Set an expiry.",
-    id: "vJ9wvqlqyr",
+      "Use a project or group access token, or a dedicated account that belongs only to the projects to sync: everyone here reaches what the token reaches. Scopes: api to send merge requests; with read_api and read_repository only, syncs pull and say translations weren't sent. Set an expiry.",
+    id: "LZe2ex/5iP",
     description: "Hint describing which access token to create on GitLab.com",
   },
   tokenReplaceHint: {

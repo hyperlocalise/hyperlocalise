@@ -302,7 +302,12 @@ async function finishProjectContentSyncRun(input: {
   runId: string;
   outcome:
     | { status: "succeeded"; summary: Record<string, unknown> }
-    | { status: "failed"; error: { code: string; message: string } };
+    | {
+        status: "failed";
+        error: { code: string; message: string };
+        /** What is known of the run, such as the service it ran with. */
+        summary?: Record<string, unknown>;
+      };
 }) {
   // Only a running run is finished: once failed as stale, another run may already hold the sync.
   const finished = await db
@@ -318,6 +323,7 @@ async function finishProjectContentSyncRun(input: {
           }
         : {
             status: "failed",
+            summary: input.outcome.summary ?? null,
             errorCode: input.outcome.error.code,
             errorMessage: input.outcome.error.message,
             completedAt: new Date(),
@@ -415,7 +421,11 @@ export async function executeProjectContentSyncRun(input: {
     await finishProjectContentSyncRun({
       runId: input.runId,
       outcome: isErr(result)
-        ? { status: "failed", error: result.error }
+        ? {
+            status: "failed",
+            error: result.error,
+            summary: { provider: config.value.provider },
+          }
         : { status: "succeeded", summary: { ...result.value, provider: config.value.provider } },
     });
     logger.info(

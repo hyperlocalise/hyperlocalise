@@ -144,6 +144,8 @@ export function GitLabServerConnectionPanel({
       return "gitlabConnection" in body ? body.gitlabConnection : null;
     },
     onSuccess: async (saved) => {
+      // The row shows the saved connection at once, rather than an empty form for a request.
+      queryClient.setQueryData(["gitlab", organizationSlug, "connection"], saved ?? null);
       clearForm();
       setConfirmingDisconnect(false);
       // Saving has just checked the connection, so the open row needn't check it again.
@@ -188,11 +190,14 @@ export function GitLabServerConnectionPanel({
 
   // GitLab.com or a company's own server is an explicit choice, so a company token is never
   // sent to GitLab.com because an address was left as it was.
-  const host = hostChoice ?? hostOf(connection?.serverUrl);
+  // No host is assumed for a new connection: a token typed before the choice goes nowhere.
+  const savedHost = connection ? hostOf(connection.serverUrl) : null;
+  const host = hostChoice ?? savedHost;
   const savedServerUrl =
     connection && hostOf(connection.serverUrl) === "server" ? connection.serverUrl : "";
   const serverUrlValue = serverUrl ?? savedServerUrl;
-  const serverUrlToSave = host === "gitlab.com" ? GITLAB_COM_SERVER_URL : serverUrlValue.trim();
+  const serverUrlToSave =
+    host === "gitlab.com" ? GITLAB_COM_SERVER_URL : host === "server" ? serverUrlValue.trim() : "";
   const busy = save.isPending || disconnect.isPending;
   // A failed load can't say whether a connection exists, so saving could overwrite one unwarned.
   const showForm = userCanManage && !connectionQuery.isError;
@@ -252,7 +257,7 @@ export function GitLabServerConnectionPanel({
                 <FormattedMessage {...messages.hostLabel} />
               </FieldLabel>
               <Select
-                value={host}
+                value={host ?? null}
                 items={hostItems}
                 disabled={busy}
                 onValueChange={(value) => {
@@ -262,7 +267,7 @@ export function GitLabServerConnectionPanel({
                 }}
               >
                 <SelectTrigger id={hostFieldId}>
-                  <SelectValue />
+                  <SelectValue placeholder={intl.formatMessage(messages.hostPlaceholder)} />
                 </SelectTrigger>
                 <SelectContent>
                   {hostItems.map((item) => (
@@ -317,11 +322,11 @@ export function GitLabServerConnectionPanel({
               </div>
               <p className="text-xs text-muted-foreground">
                 <FormattedMessage
-                  {...(connection
+                  {...(connection && host === savedHost
                     ? messages.tokenReplaceHint
-                    : host === "gitlab.com"
-                      ? messages.tokenHintGitLabCom
-                      : messages.tokenHint)}
+                    : host === "server"
+                      ? messages.tokenHint
+                      : messages.tokenHintGitLabCom)}
                 />
               </p>
             </Field>

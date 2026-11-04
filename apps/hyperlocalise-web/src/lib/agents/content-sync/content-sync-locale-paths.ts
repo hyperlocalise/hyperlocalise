@@ -122,6 +122,11 @@ export function compileContentSyncPathTemplate(template: string): {
   };
 }
 
+/** Whether a repository code names exactly this project locale (`pt_br` is `pt-BR`; `pt` is not). */
+export function isExactContentSyncLocale(code: string, locale: string): boolean {
+  return localeKey(code) === localeKey(locale);
+}
+
 /** `pt_br`, `pt-br` and `pt-BR` are one tag. */
 function localeKey(value: string): string {
   const tag = value.trim().replace(/_/g, "-");
@@ -134,9 +139,10 @@ function localeLanguage(key: string): string {
 
 /**
  * Which project locale a repository's language code stands for, matched the way the other
- * integrations match locales: the same tag (case and `_` aside), else the one project locale
- * of that language (`fr` for `fr-FR`, `en-US` for `en`). Two of the language would be a guess,
- * so neither is taken.
+ * integrations match locales: the same tag (case and `_` aside), else, for a code with no
+ * region, the one project locale of that language (`fr` for `fr-FR`). A code with a region
+ * names only that region: `en-GB` is never `en-US`, nor a bare `en`. Two project locales of
+ * the language would be a guess, so neither is taken.
  */
 export function resolveContentSyncLocale(input: {
   code: string;
@@ -146,6 +152,9 @@ export function resolveContentSyncLocale(input: {
   const exact = input.locales.find((locale) => localeKey(locale) === wanted);
   if (exact) {
     return exact;
+  }
+  if (wanted.includes("-")) {
+    return null;
   }
   const language = localeLanguage(wanted);
   const sameLanguage = input.locales.filter(
@@ -162,7 +171,8 @@ export type ContentSyncPathClassification =
 /**
  * Sorts a repository path under the provider folder into the source locale's file, a
  * translation file, or neither. A file whose language code matches no project locale is
- * never imported, so a translated file can't be taken for source text.
+ * never imported, so a translated file can't be taken for source text, and a regional file
+ * (`en-GB.json` beside `en.json` on an `en-US` project) is neither source nor translation.
  */
 export function classifyContentSyncPath(input: {
   relativePath: string;
