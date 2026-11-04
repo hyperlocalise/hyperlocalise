@@ -46,7 +46,7 @@ func newTMSImportsFromEnv() *tmsImports {
 		slog.Warn("tms_imports_disabled", "reason", err.Error())
 		return nil
 	}
-	return &tmsImports{tokens: client, http: &http.Client{Timeout: 2 * time.Minute}}
+	return &tmsImports{tokens: client, http: &http.Client{Timeout: tmsImportTimeout}}
 }
 
 type tmsConnection struct {
@@ -180,8 +180,8 @@ func tmsExportMessage(conn tmsConnection, err error) string {
 
 // requireTMSConnection checks the request names the workspace's active TMS.
 func requireTMSConnection(ctx context.Context, db dictionaryDB, organizationID string, payload tmsImportRequest) (tmsConnection, error) {
-	if strings.TrimSpace(payload.ExternalID) == "" {
-		return tmsConnection{}, &tmsFailure{http.StatusBadRequest, "invalid_request", "externalId is required"}
+	if strings.TrimSpace(payload.CredentialID) == "" || strings.TrimSpace(payload.ExternalID) == "" {
+		return tmsConnection{}, &tmsFailure{http.StatusBadRequest, "invalid_request", "credentialId and externalId are required"}
 	}
 	conn, err := activeTMSConnection(ctx, db, organizationID)
 	if err != nil {
@@ -207,6 +207,13 @@ func asMemoryFailure(err error) error {
 		return memoryFailure(failure.status, failure.code, failure.message)
 	}
 	return err
+}
+
+func requireTMSExportContent(export tmscatalog.Export, conn tmsConnection) error {
+	if len(bytes.TrimSpace(export.Content)) == 0 {
+		return &tmsFailure{http.StatusUnprocessableEntity, "tms_export_empty", fmt.Sprintf("The %s export was empty", conn.DisplayName)}
+	}
+	return nil
 }
 
 func tmsResources(resources []tmscatalog.Resource, countAsTerms bool) []tmsResourceResponse {
@@ -302,6 +309,10 @@ func (api *glossaryAPI) runGlossaryTMSImport(ctx context.Context, conn tmsConnec
 		fail("tms_export_failed", tmsExportMessage(conn, err))
 		return
 	}
+	if err := requireTMSExportContent(export, conn); err != nil {
+		fail("tms_export_failed", tmsExportMessage(conn, err))
+		return
+	}
 	if _, _, err := api.objects.Put(ctx, objectstore.PutInput{
 		Key:         key,
 		Body:        bytes.NewReader(export.Content),
@@ -390,6 +401,10 @@ func (api *memoryAPI) runMemoryTMSImport(ctx context.Context, conn tmsConnection
 	}
 	export, err := provider.ExportMemory(ctx, externalID, MEMORY_INTERCHANGE_MAX_BYTES)
 	if err != nil {
+		fail("tms_export_failed", tmsExportMessage(conn, err))
+		return
+	}
+	if err := requireTMSExportContent(export, conn); err != nil {
 		fail("tms_export_failed", tmsExportMessage(conn, err))
 		return
 	}

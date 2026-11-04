@@ -151,12 +151,9 @@ func (s *smartling) ExportGlossary(ctx context.Context, externalID string, maxBy
 		return Export{}, err
 	}
 	defer func() { _ = res.Body.Close() }()
-	content, err := io.ReadAll(io.LimitReader(res.Body, maxBytes+1))
+	content, err := readExportFile(res, "Smartling", maxBytes)
 	if err != nil {
 		return Export{}, err
-	}
-	if int64(len(content)) > maxBytes {
-		return Export{}, tooLarge("Smartling", maxBytes)
 	}
 	return Export{Format: "tbx", Content: content}, nil
 }

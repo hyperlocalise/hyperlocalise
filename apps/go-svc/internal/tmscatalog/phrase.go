@@ -42,6 +42,16 @@ type phraseClient struct {
 }
 
 func (c phraseClient) do(ctx context.Context, method, path string, body any) (*http.Response, error) {
+	return c.request(ctx, method, path, body, "application/json")
+}
+
+// doDownload fetches a TBX/TMX file. Do not send Accept: application/json —
+// Phrase then answers 406 or wraps the file in JSON.
+func (c phraseClient) doDownload(ctx context.Context, path string) (*http.Response, error) {
+	return c.request(ctx, http.MethodGet, path, nil, "")
+}
+
+func (c phraseClient) request(ctx context.Context, method, path string, body any, accept string) (*http.Response, error) {
 	var reader io.Reader
 	if body != nil {
 		raw, err := json.Marshal(body)
@@ -55,7 +65,9 @@ func (c phraseClient) do(ctx context.Context, method, path string, body any) (*h
 		return nil, err
 	}
 	req.Header.Set(c.credentials.HeaderName, c.credentials.HeaderValue)
-	req.Header.Set("Accept", "application/json")
+	if accept != "" {
+		req.Header.Set("Accept", accept)
+	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -88,17 +100,6 @@ func phraseError(res *http.Response) error {
 		message = "Phrase: " + message
 	}
 	return &ProviderError{Status: res.StatusCode, Message: message}
-}
-
-func readCapped(r io.Reader, maxBytes int64) ([]byte, error) {
-	content, err := io.ReadAll(io.LimitReader(r, maxBytes+1))
-	if err != nil {
-		return nil, err
-	}
-	if int64(len(content)) > maxBytes {
-		return nil, tooLarge("Phrase", maxBytes)
-	}
-	return content, nil
 }
 
 // phraseTMS reads Phrase TMS (api2), whose BaseURL is the …/web origin.
@@ -186,7 +187,7 @@ func (p *phraseTMS) ListMemories(ctx context.Context) ([]Resource, error) {
 }
 
 func (p *phraseTMS) ExportGlossary(ctx context.Context, externalID string, maxBytes int64) (Export, error) {
-	res, err := p.client.do(ctx, http.MethodGet, "/api2/v1/termBases/"+url.PathEscape(externalID)+"/export?format=Tbx", nil)
+	res, err := p.client.doDownload(ctx, "/api2/v1/termBases/"+url.PathEscape(externalID)+"/export?format=Tbx")
 	if err != nil {
 		return Export{}, err
 	}
@@ -194,7 +195,7 @@ func (p *phraseTMS) ExportGlossary(ctx context.Context, externalID string, maxBy
 	if res.StatusCode != http.StatusOK {
 		return Export{}, phraseError(res)
 	}
-	content, err := readCapped(res.Body, maxBytes)
+	content, err := readExportFile(res, "Phrase", maxBytes)
 	return Export{Format: "tbx", Content: content}, err
 }
 
@@ -221,13 +222,13 @@ func (p *phraseTMS) ExportMemory(ctx context.Context, externalID string, maxByte
 	}
 	downloadPath := "/api2/v1/transMemories/downloadExport/" + url.PathEscape(started.AsyncRequest.ID) + "?format=TMX"
 	for {
-		res, err := p.client.do(ctx, http.MethodGet, downloadPath, nil)
+		res, err := p.client.doDownload(ctx, downloadPath)
 		if err != nil {
 			return Export{}, err
 		}
 		switch res.StatusCode {
 		case http.StatusOK:
-			content, err := readCapped(res.Body, maxBytes)
+			content, err := readExportFile(res, "Phrase", maxBytes)
 			_ = res.Body.Close()
 			return Export{Format: "tmx", Content: content}, err
 		case http.StatusAccepted, http.StatusRequestTimeout, http.StatusTooManyRequests:

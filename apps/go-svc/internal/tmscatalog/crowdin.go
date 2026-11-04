@@ -147,7 +147,11 @@ func (c *crowdin) export(ctx context.Context, exportsPath, format string, maxByt
 	if err := c.doJSON(ctx, http.MethodGet, statusPath+"/download", nil, &download); err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, download.Data.URL, nil)
+	downloadURL, err := exportDownloadURL(download.Data.URL)
+	if err != nil {
+		return nil, fmt.Errorf("crowdin: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -159,14 +163,7 @@ func (c *crowdin) export(ctx context.Context, exportsPath, format string, maxByt
 	if res.StatusCode != http.StatusOK {
 		return nil, &ProviderError{Status: res.StatusCode, Message: "Could not download the Crowdin export"}
 	}
-	content, err := io.ReadAll(io.LimitReader(res.Body, maxBytes+1))
-	if err != nil {
-		return nil, err
-	}
-	if int64(len(content)) > maxBytes {
-		return nil, tooLarge("Crowdin", maxBytes)
-	}
-	return content, nil
+	return readExportFile(res, "Crowdin", maxBytes)
 }
 
 func (c *crowdin) doJSON(ctx context.Context, method, path string, body any, out any) error {
