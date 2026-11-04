@@ -21,9 +21,9 @@ Add a **Sync** panel to project settings. It stores one sync per project in its 
 ### Product
 
 - Settings → Sync on every native project. External TMS projects sync through their TMS and do not show it.
-- Fields: repository (a GitHub repository enabled in Integrations), repository folder, project folder, schedule (only Sync now, every hour, every day).
+- Fields: repository service (GitHub or GitLab), repository (a GitHub repository enabled in Integrations, or a project on the workspace's own GitLab server), repository folder, project folder, schedule (only Sync now, every hour, every day). GitLab adds the branch (empty reads the default branch) and the language file paths (`pathTemplate`), as the visual workflow step has them.
 - **Sync now** starts a run with the saved settings. It is disabled while the form has unsaved edits, the saved repository is no longer enabled, or a run is going.
-- Recent runs show status, when and how they started, files imported, translated files sent, the error, and a link to the pull request.
+- Recent runs show status, when and how they started, files imported, translated files sent, the error, and a link to the pull request. GitLab runs also show the files whose path matched no language and, per file, the keys the run hid because the repository no longer has them (at most 20 files and 20 keys per file are sent to the panel).
 - Remove sync deletes the settings and the run history; files already imported stay. It is refused while a run is going, because that run still writes to the repository.
 - Saving is refused while an active content-sync automation moves the same repository folder into the project (same fingerprint as the automation's own duplicate check). The automation side does not check the panel, so resuming a paused automation afterwards can still run both.
 - Saving and removing log `project_settings_changed` with `changedFields: ["sync"]`.
@@ -46,6 +46,8 @@ Add a **Sync** panel to project settings. It stores one sync per project in its 
 ### Extending to another provider
 
 A provider adds its connection check in the panel route's `resolveSyncConnection`, its connections in `GET …/content-sync/connections`, and its executor in `executeContentSyncConfig`. The panel's lock, schedule and run records need no change.
+
+GitLab ([self-hosted GitLab content sync](./2026-11-04-self-hosted-gitlab-content-sync-design.md)) is added that way. Syncs use only the workspace's own server connection, never a member's GitLab.com sign-in, so the connections list shows GitLab projects only when the workspace has one, and says when the server can't be read so the panel does not call a saved project missing. Saving looks the project up by its path on the current server and requires the id chosen in the panel, the same check each run makes, and stores the server's spelling of the path. GitLab has no delivery yet, so its runs have no merge request link; the merge request writer should keep one merge request per sync, as `pullRequestBranchKey` does for GitHub.
 
 ### Out of scope
 

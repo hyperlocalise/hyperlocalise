@@ -24,16 +24,16 @@ Content sync automations created on the project's **Automations** page before th
 
 ## Pull from a self-hosted GitLab server
 
-A workspace connected to its own GitLab server can pull a repository's source files into a project with the visual workflow **Content sync** step. Delivering translations back as a merge request is coming next.
+A workspace connected to its own GitLab server can pull a repository's source files into a project from the project's **Sync** settings or with the visual workflow **Content sync** step. Delivering translations back as a merge request is coming next.
 
 1. Connect the server under **Integrations**. Runs use the workspace's connection, not a member's GitLab.com sign-in.
-2. In a visual workflow, add a **Content sync** step, choose **GitLab** as the source and pick the repository.
-3. Set the provider folder, the project folder, and **Language file paths**: where each language's files sit under the provider folder, with `{{locale}}` standing for the language code, for example `{{locale}}.json` or `{{locale}}/pages/*.html`. Only the source language's files are imported. A code in the repository names a project language the same way as in other integrations: the same tag whatever its case (`pt-br` is `pt-BR`), or the one project language of that family (`fr` for `fr-FR`); where the project has two, such as `en-US` and `en-GB`, a plain `en` file is skipped.
+2. Open the project's **Settings**, select **Sync** and choose **GitLab** as the repository service; or, in a visual workflow, add a **Content sync** step and choose **GitLab** as the source. Then pick the repository.
+3. Set the repository folder, the project folder, and **Language file paths**: where each language's files sit under the provider folder, with `{{locale}}` standing for the language code, for example `{{locale}}.json` or `{{locale}}/pages/*.html`. Only the source language's files are imported. A code in the repository names a project language the same way as in other integrations: the same tag whatever its case (`pt-br` is `pt-BR`), or the one project language of that family (`fr` for `fr-FR`); where the project has two, such as `en-US` and `en-GB`, a plain `en` file is skipped.
 4. Leave **Branch** empty to read the repository's default branch.
 
 Each run reads the branch's latest commit. A file whose content hasn't changed since the last run isn't imported again. Keys the repository no longer has, and whole files it dropped, are hidden in the project, not deleted, so their translations stay and translation jobs skip them; a key that comes back is shown again.
 
-The repository's source text replaces the project's on every run. The step's output lists the hidden keys per file.
+The repository's source text replaces the project's on every run. **Recent syncs** in the Sync settings, or the step's output in a visual workflow, lists the hidden keys per file and counts the files whose path matched no language.
 
 ## Connect the translation step
 

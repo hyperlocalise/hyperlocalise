@@ -45,7 +45,10 @@ import {
   isSafeContentSyncFolder,
   normalizeContentSyncFolder,
 } from "@/lib/agents/content-sync/content-sync-paths";
-import { defaultContentSyncProjectFolder } from "@/lib/agents/content-sync/content-sync-types";
+import {
+  CONTENT_SYNC_LOCALE_PLACEHOLDER,
+  defaultContentSyncProjectFolder,
+} from "@/lib/agents/content-sync/content-sync-types";
 import { apiClient } from "@/lib/api-client-instance";
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 
@@ -58,11 +61,32 @@ const SCHEDULED_POLL_MS = 60_000;
 
 type SyncSchedule = "manual" | "hourly" | "daily";
 
+type SyncProvider = "github" | "gitlab";
+
+// Brand names, not translated.
+const PROVIDERS: { value: SyncProvider; label: string }[] = [
+  { value: "github", label: "GitHub" },
+  { value: "gitlab", label: "GitLab" },
+];
+
+const PATH_TEMPLATE_EXAMPLE = `${CONTENT_SYNC_LOCALE_PLACEHOLDER}.json`;
+
+/** Values every panel message may use; a message ignores the ones it does not name. */
+const MESSAGE_VALUES = {
+  example: PATH_TEMPLATE_EXAMPLE,
+  placeholder: CONTENT_SYNC_LOCALE_PLACEHOLDER,
+};
+
 type SyncDraft = {
+  provider: SyncProvider;
   connectionId: string;
   resourceKey: string;
   providerFolder: string;
   projectFolder: string;
+  /** GitLab only; empty reads the default branch. */
+  branch: string;
+  /** GitLab only. */
+  pathTemplate: string;
   schedule: SyncSchedule;
 };
 
@@ -75,10 +99,13 @@ const scheduleMessages = {
 const SCHEDULES: SyncSchedule[] = ["manual", "hourly", "daily"];
 
 const EMPTY_DRAFT: SyncDraft = {
+  provider: "github",
   connectionId: "",
   resourceKey: "",
   providerFolder: "",
   projectFolder: "",
+  branch: "",
+  pathTemplate: "",
   schedule: "manual",
 };
 
@@ -94,11 +121,17 @@ const requestErrorMessages: Record<string, PanelMessage> = {
   content_sync_automation_overlap: messages.errorAutomationOverlap,
   content_sync_in_progress: messages.syncInProgress,
   content_sync_not_found: messages.errorSyncRemoved,
+  content_sync_path_template_required: messages.errorPathTemplateRequired,
+  content_sync_path_template_invalid: messages.errorPathTemplateInvalid,
+  content_sync_gitlab_not_connected: messages.errorGitLabNotConnected,
+  content_sync_gitlab_token_unreadable: messages.errorGitLabTokenUnreadable,
+  content_sync_gitlab_project_not_found: messages.errorGitLabProjectNotFound,
+  content_sync_gitlab_unavailable: messages.errorGitLabUnavailable,
 };
 
 /** Messages for the error codes a finished run records; others show the stored text. */
 const runErrorMessages: Record<string, PanelMessage> = {
-  content_sync_connection_required: messages.errorRepositoryNotEnabled,
+  content_sync_path_template_required: messages.errorPathTemplateRequired,
   content_sync_folder_invalid: messages.runFolderMissing,
   content_sync_pull_failed: messages.runPullFailed,
   content_sync_stale: messages.runStale,
@@ -106,12 +139,17 @@ const runErrorMessages: Record<string, PanelMessage> = {
   content_sync_enqueue_failed: messages.runUnexpected,
 };
 
+/** GitLab runs store their own reason for a connection problem, so only GitHub's is replaced. */
+const githubRunErrorMessages: Record<string, PanelMessage> = {
+  content_sync_connection_required: messages.errorRepositoryNotEnabled,
+};
+
 async function readApiError(response: Response, fallback: string, intl: IntlShape) {
   const body: unknown = await response.json().catch(() => null);
   if (body && typeof body === "object" && "error" in body && typeof body.error === "string") {
     const known = requestErrorMessages[body.error];
     if (known) {
-      return intl.formatMessage(known);
+      return intl.formatMessage(known, MESSAGE_VALUES);
     }
   }
   return fallback;
@@ -127,7 +165,10 @@ function projectContentSyncQueryKey(organizationSlug: string, projectId: string)
 
 function draftsEqual(a: SyncDraft, b: SyncDraft) {
   return (
+    a.provider === b.provider &&
     a.connectionId === b.connectionId &&
+    a.branch.trim() === b.branch.trim() &&
+    a.pathTemplate.trim() === b.pathTemplate.trim() &&
     a.providerFolder.trim() === b.providerFolder.trim() &&
     a.projectFolder.trim() === b.projectFolder.trim() &&
     a.schedule === b.schedule
@@ -150,8 +191,12 @@ function folderIsUnsafe(folder: string) {
   );
 }
 
-function defaultProjectFolderFor(resourceKey: string) {
-  return defaultContentSyncProjectFolder({ provider: "github", resourceKey });
+function defaultProjectFolderFor(provider: SyncProvider, resourceKey: string) {
+  return defaultContentSyncProjectFolder({ provider, resourceKey });
+}
+
+function isSyncProvider(value: unknown): value is SyncProvider {
+  return value === "github" || value === "gitlab";
 }
 
 export function ProjectContentSyncPanel({
@@ -205,7 +250,7 @@ export function ProjectContentSyncPanel({
       if (!response.ok) {
         throw new Error(intl.formatMessage(messages.loadConnectionsError));
       }
-      return (await response.json()).connections;
+      return await response.json();
     },
     // Picks up a repository enabled in Integrations in another tab.
     refetchOnWindowFocus: active,
@@ -214,16 +259,39 @@ export function ProjectContentSyncPanel({
   const saved = syncQuery.data?.sync ?? null;
   const savedDraft: SyncDraft | null = saved?.syncConfig
     ? {
+        provider: isSyncProvider(saved.syncConfig.provider) ? saved.syncConfig.provider : "github",
         connectionId: saved.syncConfig.connectionId,
         resourceKey: saved.syncConfig.resourceKey,
         providerFolder: saved.syncConfig.providerFolder,
         projectFolder: saved.syncConfig.projectFolder,
+        branch: saved.syncConfig.branch ?? "",
+        pathTemplate: saved.syncConfig.pathTemplate ?? "",
         schedule: saved.schedule,
       }
     : null;
-  const connections = connectionsQuery.data ?? [];
-  const values: SyncDraft = edits ?? savedDraft ?? EMPTY_DRAFT;
-  const dirty = edits !== null && !draftsEqual(edits, savedDraft ?? EMPTY_DRAFT);
+  const connections = connectionsQuery.data?.connections ?? [];
+  const gitlab = connectionsQuery.data?.gitlab ?? { connected: false, available: false };
+  // A new sync starts on the service the workspace has repositories on.
+  const startingDraft: SyncDraft = {
+    ...EMPTY_DRAFT,
+    provider:
+      connections.some((connection) => connection.provider === "github") || !gitlab.connected
+        ? "github"
+        : "gitlab",
+  };
+  const baseDraft = savedDraft ?? startingDraft;
+  const values: SyncDraft = edits ?? baseDraft;
+  const dirty = edits !== null && !draftsEqual(edits, baseDraft);
+  const isGitLab = values.provider === "gitlab";
+  const providerConnections = connections.filter(
+    (connection) => connection.provider === values.provider,
+  );
+  // GitLab's list can be missing because the server is down, which says nothing about the project.
+  const providerListed = !isGitLab || gitlab.available;
+  const pathTemplateInvalid =
+    isGitLab &&
+    values.pathTemplate.trim().length > 0 &&
+    !values.pathTemplate.includes(CONTENT_SYNC_LOCALE_PLACEHOLDER);
   const providerFolderUnsafe = folderIsUnsafe(values.providerFolder);
   const projectFolderUnsafe = folderIsUnsafe(values.projectFolder);
   const complete =
@@ -231,7 +299,8 @@ export function ProjectContentSyncPanel({
     values.providerFolder.trim().length > 0 &&
     values.projectFolder.trim().length > 0 &&
     !providerFolderUnsafe &&
-    !projectFolderUnsafe;
+    !projectFolderUnsafe &&
+    (!isGitLab || (values.pathTemplate.trim().length > 0 && !pathTemplateInvalid));
   const runs = syncQuery.data?.runs ?? [];
   const running = runs[0]?.status === "running";
 
@@ -262,11 +331,17 @@ export function ProjectContentSyncPanel({
         json: {
           schedule: draft.schedule,
           syncConfig: {
-            provider: "github",
+            provider: draft.provider,
             connectionId: draft.connectionId,
             resourceKey: draft.resourceKey,
             providerFolder: draft.providerFolder.trim(),
             projectFolder: draft.projectFolder.trim(),
+            ...(draft.provider === "gitlab"
+              ? {
+                  ...(draft.branch.trim() ? { branch: draft.branch.trim() } : {}),
+                  pathTemplate: draft.pathTemplate.trim(),
+                }
+              : {}),
           },
         },
       });
@@ -324,24 +399,44 @@ export function ProjectContentSyncPanel({
   function chooseRepository(connectionId: string) {
     // The saved repository can be picked again after switching away, even if it is no longer enabled.
     const connection =
-      connections.find((entry) => entry.connectionId === connectionId) ??
-      (savedDraft?.connectionId === connectionId
-        ? { provider: "github" as const, connectionId, resourceKey: savedDraft.resourceKey }
+      providerConnections.find((entry) => entry.connectionId === connectionId) ??
+      (savedDraft?.provider === values.provider && savedDraft.connectionId === connectionId
+        ? { connectionId, resourceKey: savedDraft.resourceKey }
         : undefined);
     if (!connection) {
       return;
     }
-    const folder = values.projectFolder.trim();
     // Follow the repository while the folder is still the previous repository's default.
-    const keepsFolder =
-      folder.length > 0 &&
-      !(values.resourceKey && folder === defaultProjectFolderFor(values.resourceKey));
     update({
       connectionId: connection.connectionId,
       resourceKey: connection.resourceKey,
-      projectFolder: keepsFolder
+      projectFolder: keepsProjectFolder()
         ? values.projectFolder
-        : defaultProjectFolderFor(connection.resourceKey),
+        : defaultProjectFolderFor(values.provider, connection.resourceKey),
+    });
+  }
+
+  /** Whether the project folder was typed, rather than the previous repository's default. */
+  function keepsProjectFolder() {
+    const folder = values.projectFolder.trim();
+    return (
+      folder.length > 0 &&
+      !(
+        values.resourceKey &&
+        folder === defaultProjectFolderFor(values.provider, values.resourceKey)
+      )
+    );
+  }
+
+  function chooseProvider(provider: SyncProvider) {
+    if (provider === values.provider) {
+      return;
+    }
+    update({
+      provider,
+      connectionId: "",
+      resourceKey: "",
+      projectFolder: keepsProjectFolder() ? values.projectFolder : "",
     });
   }
 
@@ -375,10 +470,11 @@ export function ProjectContentSyncPanel({
   const repositoryNotEnabled =
     canManage &&
     connectionsQuery.isSuccess &&
+    providerListed &&
     Boolean(values.connectionId) &&
-    !connections.some((connection) => connection.connectionId === values.connectionId);
+    !providerConnections.some((connection) => connection.connectionId === values.connectionId);
   const fieldsDisabled = !canManage || busy;
-  const repositoryItems = connections.map((connection) => ({
+  const repositoryItems = providerConnections.map((connection) => ({
     value: connection.connectionId,
     label: connection.resourceKey,
   }));
@@ -393,7 +489,22 @@ export function ProjectContentSyncPanel({
       ? "project-sync-repository-error"
       : undefined;
   const showNoRepositories =
-    canManage && connectionsQuery.isSuccess && connections.length === 0 && !saved;
+    canManage &&
+    connectionsQuery.isSuccess &&
+    connections.length === 0 &&
+    !gitlab.connected &&
+    !saved;
+  // Why the repository list is empty for the chosen service, when it is.
+  const emptyRepositoriesHint =
+    !canManage || !connectionsQuery.isSuccess || providerConnections.length > 0
+      ? null
+      : !isGitLab
+        ? messages.noGitHubRepositories
+        : !gitlab.connected
+          ? messages.noGitLabConnection
+          : !gitlab.available
+            ? messages.gitlabUnavailable
+            : messages.noGitLabRepositories;
 
   return (
     <div className="grid gap-5">
@@ -455,6 +566,36 @@ export function ProjectContentSyncPanel({
           ) : (
             <>
               <Field className="gap-1.5">
+                <FieldLabel htmlFor="project-sync-provider">
+                  <FormattedMessage {...messages.providerLabel} />
+                </FieldLabel>
+                <Select
+                  value={values.provider}
+                  items={PROVIDERS}
+                  disabled={fieldsDisabled}
+                  onValueChange={(value) => {
+                    if (isSyncProvider(value)) {
+                      chooseProvider(value);
+                    }
+                  }}
+                >
+                  <SelectTrigger id="project-sync-provider" className="w-full md:w-[360px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROVIDERS.map((provider) => (
+                      <SelectItem
+                        key={provider.value}
+                        value={provider.value}
+                        label={provider.label}
+                      >
+                        {provider.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field className="gap-1.5">
                 <FieldLabel htmlFor="project-sync-repository">
                   <FormattedMessage {...messages.repositoryLabel} />
                 </FieldLabel>
@@ -490,8 +631,23 @@ export function ProjectContentSyncPanel({
                 </Select>
                 {repositoryNotEnabled ? (
                   <FieldError id="project-sync-repository-error">
-                    <FormattedMessage {...messages.errorRepositoryNotEnabled} />
+                    <FormattedMessage
+                      {...(isGitLab
+                        ? messages.errorGitLabProjectNotFound
+                        : messages.errorRepositoryNotEnabled)}
+                    />
                   </FieldError>
+                ) : null}
+                {emptyRepositoriesHint ? (
+                  <FieldDescription>
+                    <FormattedMessage {...emptyRepositoriesHint} />{" "}
+                    <OrgNavLink
+                      href={`/org/${organizationSlug}/integrations`}
+                      className="text-primary underline-offset-4 hover:underline"
+                    >
+                      <FormattedMessage {...messages.openIntegrations} />
+                    </OrgNavLink>
+                  </FieldDescription>
                 ) : null}
                 {connectionsQuery.isError && !repositoryNotEnabled ? (
                   <FieldError id="project-sync-repository-error">
@@ -524,6 +680,57 @@ export function ProjectContentSyncPanel({
                   <FormattedMessage {...messages.providerFolderHelp} />
                 </FieldDescription>
               </Field>
+              {isGitLab ? (
+                <>
+                  <Field className="gap-1.5">
+                    <FieldLabel htmlFor="project-sync-branch">
+                      <FormattedMessage {...messages.branchLabel} />
+                    </FieldLabel>
+                    <Input
+                      id="project-sync-branch"
+                      value={values.branch}
+                      placeholder={intl.formatMessage(messages.branchPlaceholder)}
+                      disabled={fieldsDisabled}
+                      className="font-mono"
+                      onChange={(event) => update({ branch: event.target.value })}
+                    />
+                    <FieldDescription>
+                      <FormattedMessage {...messages.branchHelp} />
+                    </FieldDescription>
+                  </Field>
+                  <Field className="gap-1.5">
+                    <FieldLabel htmlFor="project-sync-path-template">
+                      <FormattedMessage {...messages.pathTemplateLabel} />
+                    </FieldLabel>
+                    <Input
+                      id="project-sync-path-template"
+                      value={values.pathTemplate}
+                      placeholder={intl.formatMessage(
+                        messages.pathTemplatePlaceholder,
+                        MESSAGE_VALUES,
+                      )}
+                      disabled={fieldsDisabled}
+                      className="font-mono"
+                      aria-invalid={pathTemplateInvalid || undefined}
+                      aria-describedby={
+                        pathTemplateInvalid ? "project-sync-path-template-error" : undefined
+                      }
+                      onChange={(event) => update({ pathTemplate: event.target.value })}
+                    />
+                    {pathTemplateInvalid ? (
+                      <FieldError id="project-sync-path-template-error">
+                        <FormattedMessage
+                          {...messages.errorPathTemplateInvalid}
+                          values={MESSAGE_VALUES}
+                        />
+                      </FieldError>
+                    ) : null}
+                    <FieldDescription>
+                      <FormattedMessage {...messages.pathTemplateHelp} values={MESSAGE_VALUES} />
+                    </FieldDescription>
+                  </Field>
+                </>
+              ) : null}
               <Field className="gap-1.5">
                 <FieldLabel htmlFor="project-sync-project-folder">
                   <FormattedMessage {...messages.projectFolderLabel} />
@@ -623,7 +830,9 @@ export function ProjectContentSyncPanel({
         </form>
       </section>
 
-      {saved ? <ProjectContentSyncRuns runs={runs} /> : null}
+      {saved && savedDraft ? (
+        <ProjectContentSyncRuns runs={runs} provider={savedDraft.provider} />
+      ) : null}
 
       <AlertDialog
         open={confirmRemove}
@@ -663,7 +872,8 @@ type SyncRun = {
   id: string;
   trigger: "manual" | "scheduled";
   status: "running" | "succeeded" | "failed";
-  pulled: { uploaded: number; skipped: number; failed: number } | null;
+  pulled: { uploaded: number; skipped: number; failed: number; unmatched: number } | null;
+  hiddenKeys: { path: string; keys: string[]; keyCount: number }[];
   written: number | null;
   pullRequestUrl: string | null;
   errorCode: string | null;
@@ -683,7 +893,7 @@ const runStatusBadges = {
   failed: "destructive",
 } as const;
 
-function ProjectContentSyncRuns({ runs }: { runs: SyncRun[] }) {
+function ProjectContentSyncRuns({ runs, provider }: { runs: SyncRun[]; provider: SyncProvider }) {
   const intl = useIntl();
 
   return (
@@ -727,14 +937,26 @@ function ProjectContentSyncRuns({ runs }: { runs: SyncRun[] }) {
                     />
                   </TypographyP>
                 ) : null}
-                {run.status === "succeeded" && run.written !== null ? (
+                {run.status === "succeeded" && run.pulled && run.pulled.unmatched > 0 ? (
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage
+                      {...messages.runUnmatched}
+                      values={{ unmatched: run.pulled.unmatched }}
+                    />
+                  </TypographyP>
+                ) : null}
+                {run.status === "succeeded" && run.hiddenKeys.length > 0 ? (
+                  <RunHiddenKeys hiddenKeys={run.hiddenKeys} />
+                ) : null}
+                {/* GitLab sends nothing back yet, so "nothing to send" would mislead. */}
+                {run.status === "succeeded" && run.written !== null && provider === "github" ? (
                   <TypographyP size="small" tone="subtle">
                     <FormattedMessage {...messages.runWritten} values={{ written: run.written }} />
                   </TypographyP>
                 ) : null}
                 {run.status === "failed" ? (
                   <TypographyP className="text-flame-100" size="small">
-                    <RunError run={run} />
+                    <RunError run={run} provider={provider} />
                   </TypographyP>
                 ) : null}
                 {pullRequestUrl ? (
@@ -756,10 +978,47 @@ function ProjectContentSyncRuns({ runs }: { runs: SyncRun[] }) {
   );
 }
 
-function RunError({ run }: { run: Pick<SyncRun, "errorCode" | "errorMessage"> }) {
-  const known = run.errorCode ? runErrorMessages[run.errorCode] : undefined;
+function RunHiddenKeys({ hiddenKeys }: { hiddenKeys: SyncRun["hiddenKeys"] }) {
+  const count = hiddenKeys.reduce((total, file) => total + file.keyCount, 0);
+  return (
+    <details className="text-sm text-muted-foreground">
+      <summary className="cursor-pointer">
+        <FormattedMessage {...messages.runHiddenKeys} values={{ count }} />
+      </summary>
+      <ul className="mt-1 grid gap-1">
+        {hiddenKeys.map((file) => (
+          <li key={file.path}>
+            <span className="font-mono">{file.path}</span>:{" "}
+            <span className="font-mono">{file.keys.join(", ")}</span>
+            {file.keyCount > file.keys.length ? (
+              <>
+                {" "}
+                <FormattedMessage
+                  {...messages.runHiddenKeysMore}
+                  values={{ more: file.keyCount - file.keys.length }}
+                />
+              </>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function RunError({
+  run,
+  provider,
+}: {
+  run: Pick<SyncRun, "errorCode" | "errorMessage">;
+  provider: SyncProvider;
+}) {
+  const known = run.errorCode
+    ? ((provider === "github" ? githubRunErrorMessages[run.errorCode] : undefined) ??
+      runErrorMessages[run.errorCode])
+    : undefined;
   if (known) {
-    return <FormattedMessage {...known} />;
+    return <FormattedMessage {...known} values={MESSAGE_VALUES} />;
   }
   return run.errorMessage ?? <FormattedMessage {...messages.runUnexpected} />;
 }

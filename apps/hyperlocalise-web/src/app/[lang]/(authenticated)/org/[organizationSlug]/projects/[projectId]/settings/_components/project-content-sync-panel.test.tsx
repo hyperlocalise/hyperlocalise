@@ -79,7 +79,8 @@ const runs = [
     id: "run_2",
     trigger: "manual",
     status: "succeeded",
-    pulled: { uploaded: 3, skipped: 1, failed: 0 },
+    pulled: { uploaded: 3, skipped: 1, failed: 0, unmatched: 0 },
+    hiddenKeys: [],
     written: 2,
     pullRequestUrl: "https://github.com/acme/web/pull/7",
     errorCode: null,
@@ -92,6 +93,7 @@ const runs = [
     trigger: "scheduled",
     status: "failed",
     pulled: null,
+    hiddenKeys: [],
     written: null,
     pullRequestUrl: null,
     errorCode: "content_sync_connection_required",
@@ -101,8 +103,29 @@ const runs = [
   },
 ];
 
+const gitlabSync = {
+  ...savedSync,
+  syncConfig: {
+    provider: "gitlab",
+    connectionId: "42",
+    resourceKey: "acme/app",
+    providerFolder: "locales",
+    projectFolder: "gitlab/acme/app",
+    branch: "release",
+    pathTemplate: "{{locale}}.json",
+  },
+};
+
+const gitlabConnected = { connected: true, available: true };
+
 function renderPanel(
-  input: { canManage?: boolean; sync?: unknown; connections?: unknown[]; runs?: unknown[] } = {},
+  input: {
+    canManage?: boolean;
+    sync?: unknown;
+    connections?: unknown[];
+    gitlab?: { connected: boolean; available: boolean };
+    runs?: unknown[];
+  } = {},
 ) {
   api.get.mockResolvedValue(
     jsonResponse(200, {
@@ -117,6 +140,7 @@ function renderPanel(
       connections: input.connections ?? [
         { provider: "github", connectionId: "repo_1", resourceKey: "acme/web" },
       ],
+      gitlab: input.gitlab ?? { connected: false, available: false },
     }),
   );
   api.put.mockResolvedValue(jsonResponse(200, { sync: savedSync }));
@@ -208,7 +232,9 @@ describe("ProjectContentSyncPanel", () => {
     renderPanel({ sync: null, connections: [] });
 
     expect(
-      await screen.findByText("Connect a GitHub repository in Integrations to sync this project."),
+      await screen.findByText(
+        "Connect a GitHub repository or the workspace's GitLab server in Integrations to sync this project.",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open Integrations" })).toHaveAttribute(
       "href",
@@ -352,5 +378,154 @@ describe("ProjectContentSyncPanel", () => {
         "A sync is running. Remove the sync once it finishes.",
       ),
     );
+  });
+
+  describe("GitLab", () => {
+    it("shows a saved GitLab sync and saves its branch and language file paths", async () => {
+      const user = userEvent.setup();
+      renderPanel({
+        sync: gitlabSync,
+        runs: [],
+        connections: [{ provider: "gitlab", connectionId: "42", resourceKey: "acme/app" }],
+        gitlab: gitlabConnected,
+      });
+      const branch = await screen.findByLabelText("Branch");
+      expect(branch).toHaveValue("release");
+      expect(screen.getByLabelText("Language file paths")).toHaveValue("{{locale}}.json");
+
+      await user.clear(branch);
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1));
+      expect(api.put).toHaveBeenCalledWith({
+        param: { organizationSlug: "acme", projectId: "project_1" },
+        json: {
+          schedule: "hourly",
+          syncConfig: {
+            provider: "gitlab",
+            connectionId: "42",
+            resourceKey: "acme/app",
+            providerFolder: "locales",
+            projectFolder: "gitlab/acme/app",
+            pathTemplate: "{{locale}}.json",
+          },
+        },
+      });
+    });
+
+    it("sets up a GitLab sync once the language file paths name the language", async () => {
+      const user = userEvent.setup();
+      renderPanel({
+        sync: null,
+        connections: [
+          { provider: "github", connectionId: "repo_1", resourceKey: "acme/web" },
+          { provider: "gitlab", connectionId: "42", resourceKey: "acme/app" },
+        ],
+        gitlab: gitlabConnected,
+      });
+
+      await user.click(await screen.findByRole("combobox", { name: "Repository service" }));
+      await user.click(await screen.findByRole("option", { name: "GitLab" }));
+      await user.click(screen.getByRole("combobox", { name: "Repository" }));
+      expect(screen.queryByRole("option", { name: "acme/web" })).not.toBeInTheDocument();
+      await user.click(await screen.findByRole("option", { name: "acme/app" }));
+      expect(screen.getByLabelText("Project folder")).toHaveValue("gitlab/acme/app");
+      await user.type(screen.getByLabelText("Repository folder"), "locales");
+
+      const paths = screen.getByLabelText("Language file paths");
+      await user.type(paths, "messages.json");
+      expect(paths).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+
+      await user.clear(paths);
+      // userEvent reads { as a key descriptor, so it is typed doubled.
+      await user.type(paths, "{{{{locale}}.json");
+      expect(paths).toHaveValue("{{locale}}.json");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1));
+      expect(api.put.mock.calls[0]![0].json.syncConfig).toEqual({
+        provider: "gitlab",
+        connectionId: "42",
+        resourceKey: "acme/app",
+        providerFolder: "locales",
+        projectFolder: "gitlab/acme/app",
+        pathTemplate: "{{locale}}.json",
+      });
+    });
+
+    it("says why there are no GitLab repositories to choose", async () => {
+      const user = userEvent.setup();
+      renderPanel({ sync: null });
+
+      await user.click(await screen.findByRole("combobox", { name: "Repository service" }));
+      await user.click(await screen.findByRole("option", { name: "GitLab" }));
+
+      expect(
+        screen.getByText(
+          "Connect the workspace's GitLab server in Integrations to sync from GitLab.",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it("does not call a saved GitLab repository missing while the server can't be read", async () => {
+      renderPanel({
+        sync: gitlabSync,
+        connections: [],
+        gitlab: { connected: true, available: false },
+      });
+
+      expect(
+        await screen.findByText(
+          "Unable to list the GitLab server's repositories. Check the connection in Integrations.",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(
+          "The workspace's GitLab token can't see this repository. Choose it again.",
+        ),
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Sync now" })).toBeEnabled();
+    });
+
+    it("shows files left out and keys a run hid, and a GitLab run's own error text", async () => {
+      const user = userEvent.setup();
+      renderPanel({
+        sync: gitlabSync,
+        connections: [{ provider: "gitlab", connectionId: "42", resourceKey: "acme/app" }],
+        gitlab: gitlabConnected,
+        runs: [
+          {
+            ...runs[0],
+            pullRequestUrl: null,
+            written: 0,
+            pulled: { uploaded: 1, skipped: 0, failed: 0, unmatched: 2 },
+            hiddenKeys: [
+              { path: "gitlab/acme/app/en.json", keys: ["home.title", "home.body"], keyCount: 22 },
+            ],
+          },
+          {
+            ...runs[1],
+            errorMessage:
+              "The workspace's GitLab token was refused. Check the connection in Integrations.",
+          },
+        ],
+      });
+
+      expect(
+        await screen.findByText("2 files in the folder didn't match the language file paths"),
+      ).toBeInTheDocument();
+      await user.click(
+        screen.getByText("22 keys were hidden because the repository no longer has them"),
+      );
+      expect(screen.getByText("home.title, home.body")).toBeInTheDocument();
+      expect(screen.getByText(/and 20 more/)).toBeInTheDocument();
+      expect(screen.queryByText("No new translations to send")).not.toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "The workspace's GitLab token was refused. Check the connection in Integrations.",
+        ),
+      ).toBeInTheDocument();
+    });
   });
 });

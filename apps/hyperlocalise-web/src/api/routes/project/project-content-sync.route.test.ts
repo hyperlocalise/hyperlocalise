@@ -16,10 +16,19 @@ import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { enqueueActivityLogEventMock, resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const {
+  enqueueActivityLogEventMock,
+  getGitLabProjectMock,
+  listGitLabMembershipProjectsMock,
+  loadGitLabConnectionCredentialsMock,
+  resolveApiAuthContextFromSessionMock,
+} = vi.hoisted(() => ({
   enqueueActivityLogEventMock: vi.fn(async () => ({ ok: true as const, value: {} })),
+  getGitLabProjectMock: vi.fn(),
+  listGitLabMembershipProjectsMock: vi.fn(),
+  loadGitLabConnectionCredentialsMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -36,6 +45,17 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/gitlab/connections", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/gitlab/connections")>()),
+  loadGitLabConnectionCredentials: loadGitLabConnectionCredentialsMock,
+}));
+
+vi.mock("@/lib/gitlab/client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/gitlab/client")>()),
+  getGitLabProject: getGitLabProjectMock,
+  listGitLabMembershipProjects: listGitLabMembershipProjectsMock,
+}));
+
 vi.mock("@/lib/activity-log/activity-log-writer", () => ({
   enqueueActivityLogEvent: enqueueActivityLogEventMock,
   enqueueActivityLogEvents: vi.fn(async () => []),
@@ -46,6 +66,8 @@ import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { contentSyncFingerprintFromConfig } from "@/lib/agents/content-sync/content-sync-config";
 import { db, schema } from "@/lib/database/client";
+import type { GitLabProject } from "@/lib/gitlab/types";
+import { err, ok } from "@/lib/primitives/result/results";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
@@ -57,6 +79,10 @@ const projectFixture = createProjectTestFixture(client);
 
 beforeAll(async () => {
   await db.$client.query("select 1");
+});
+
+beforeEach(() => {
+  loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(null));
 });
 
 afterEach(async () => {
@@ -152,6 +178,7 @@ describe("project content sync routes", () => {
     const connections = await routeFor().connections.$get({ param }, { headers });
     expect(await connections.json()).toEqual({
       connections: [{ provider: "github", connectionId: repository.id, resourceKey: "acme/web" }],
+      gitlab: { connected: false, available: false },
     });
 
     const saved = await routeFor().$put({ param, json: syncBody(repository.id) }, { headers });
@@ -251,18 +278,18 @@ describe("project content sync routes", () => {
     const disabled = await routeFor().$put({ param, json: syncBody(repository.id) }, { headers });
     expect(disabled.status).toBe(400);
 
-    const gitlab = await routeFor().$put(
+    const contentful = await routeFor().$put(
       {
         param,
         json: {
           ...syncBody(repository.id),
-          syncConfig: { ...syncBody(repository.id).syncConfig, provider: "gitlab" },
+          syncConfig: { ...syncBody(repository.id).syncConfig, provider: "contentful" },
         },
       },
       { headers },
     );
-    expect(gitlab.status).toBe(400);
-    expect(await gitlab.json()).toMatchObject({ error: "content_sync_provider_not_ready" });
+    expect(contentful.status).toBe(400);
+    expect(await contentful.json()).toMatchObject({ error: "content_sync_provider_not_ready" });
 
     const noFolder = await routeFor().$put(
       {
@@ -338,5 +365,179 @@ describe("project content sync routes", () => {
 
     expect(saved.status).toBe(400);
     expect(await saved.json()).toMatchObject({ error: "content_sync_connection_required" });
+  });
+
+  describe("GitLab", () => {
+    const access = { accessToken: "glpat-test", baseUrl: "https://gitlab.example.test" };
+
+    function gitlabProject(overrides: Partial<GitLabProject> = {}): GitLabProject {
+      return {
+        id: 42,
+        name: "App",
+        pathWithNamespace: "Acme/App",
+        defaultBranch: "main",
+        httpUrlToRepo: "https://gitlab.example.test/Acme/App.git",
+        archived: false,
+        ...overrides,
+      };
+    }
+
+    function gitlabBody(overrides: Record<string, unknown> = {}) {
+      return {
+        schedule: "manual" as const,
+        syncConfig: {
+          provider: "gitlab" as const,
+          connectionId: "42",
+          resourceKey: "acme/app",
+          providerFolder: "locales",
+          projectFolder: "gitlab/acme/app",
+          branch: "release",
+          pathTemplate: "{{locale}}.json",
+          ...overrides,
+        },
+      };
+    }
+
+    it("lists the workspace server's projects and saves a GitLab sync", async () => {
+      const { admin, project, repository } = await seedWorkspace();
+      const headers = await projectFixture.authHeadersFor(admin);
+      const param = paramFor(admin, project.id);
+      loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(access));
+      listGitLabMembershipProjectsMock.mockResolvedValue(
+        ok([gitlabProject({ id: 7, pathWithNamespace: "acme/zeta" }), gitlabProject()]),
+      );
+      getGitLabProjectMock.mockResolvedValue(ok(gitlabProject()));
+
+      const connections = await routeFor().connections.$get({ param }, { headers });
+      expect(await connections.json()).toEqual({
+        connections: [
+          { provider: "github", connectionId: repository.id, resourceKey: "acme/web" },
+          { provider: "gitlab", connectionId: "42", resourceKey: "Acme/App" },
+          { provider: "gitlab", connectionId: "7", resourceKey: "acme/zeta" },
+        ],
+        gitlab: { connected: true, available: true },
+      });
+
+      const saved = await routeFor().$put({ param, json: gitlabBody() }, { headers });
+      expect(saved.status).toBe(200);
+      expect(
+        ((await saved.json()) as { sync: { syncConfig: unknown } }).sync.syncConfig,
+      ).toMatchObject({
+        provider: "gitlab",
+        connectionId: "42",
+        // The server's own spelling of the path, which runs look up.
+        resourceKey: "Acme/App",
+        branch: "release",
+        pathTemplate: "{{locale}}.json",
+      });
+      expect(getGitLabProjectMock).toHaveBeenCalledWith({
+        ...access,
+        pathWithNamespace: "acme/app",
+      });
+    });
+
+    it("says when the GitLab server's projects can't be listed", async () => {
+      const { admin, project } = await seedWorkspace();
+      const headers = await projectFixture.authHeadersFor(admin);
+      loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(access));
+      listGitLabMembershipProjectsMock.mockResolvedValue(
+        err({ code: "gitlab_request_failed", message: "down", status: 502 }),
+      );
+
+      const connections = await routeFor().connections.$get(
+        { param: paramFor(admin, project.id) },
+        { headers },
+      );
+      expect(await connections.json()).toMatchObject({
+        gitlab: { connected: true, available: false },
+      });
+    });
+
+    it("refuses a GitLab sync the workspace server can't confirm", async () => {
+      const { admin, project } = await seedWorkspace();
+      const headers = await projectFixture.authHeadersFor(admin);
+      const param = paramFor(admin, project.id);
+      const save = async (body = gitlabBody()) => {
+        const response = await routeFor().$put({ param, json: body }, { headers });
+        expect(response.status).toBe(400);
+        return ((await response.json()) as { error: string }).error;
+      };
+
+      expect(await save(gitlabBody({ pathTemplate: undefined }))).toBe(
+        "content_sync_path_template_required",
+      );
+      expect(await save(gitlabBody({ pathTemplate: "messages.json" }))).toBe(
+        "content_sync_path_template_invalid",
+      );
+
+      expect(await save()).toBe("content_sync_gitlab_not_connected");
+
+      loadGitLabConnectionCredentialsMock.mockResolvedValue(
+        err({ code: "gitlab_connection_decrypt_failed", message: "unreadable" }),
+      );
+      expect(await save()).toBe("content_sync_gitlab_token_unreadable");
+
+      loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(access));
+      getGitLabProjectMock.mockResolvedValue(err({ code: "gitlab_not_found", message: "gone" }));
+      expect(await save()).toBe("content_sync_gitlab_project_not_found");
+
+      getGitLabProjectMock.mockResolvedValue(
+        err({ code: "gitlab_request_failed", message: "down", status: 502 }),
+      );
+      expect(await save()).toBe("content_sync_gitlab_unavailable");
+
+      // Another project now sits at the saved path, for example on a replaced server.
+      getGitLabProjectMock.mockResolvedValue(ok(gitlabProject({ id: 99 })));
+      expect(await save()).toBe("content_sync_gitlab_project_not_found");
+
+      getGitLabProjectMock.mockResolvedValue(ok(gitlabProject({ archived: true })));
+      expect(await save()).toBe("content_sync_gitlab_project_not_found");
+    });
+
+    it("shows unmatched files and the keys a run hid", async () => {
+      const { admin, project } = await seedWorkspace();
+      const headers = await projectFixture.authHeadersFor(admin);
+      const param = paramFor(admin, project.id);
+      loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(access));
+      getGitLabProjectMock.mockResolvedValue(ok(gitlabProject()));
+      const saved = await routeFor().$put({ param, json: gitlabBody() }, { headers });
+      const { sync } = (await saved.json()) as { sync: { id: string } };
+      const manyKeys = Array.from({ length: 25 }, (_, index) => `key.${index}`);
+      await db.insert(schema.projectContentSyncRuns).values({
+        syncId: sync.id,
+        organizationId: project.organizationId,
+        projectId: project.id,
+        trigger: "manual",
+        status: "succeeded",
+        summary: {
+          pulled: {
+            uploaded: 1,
+            skipped: 0,
+            failed: 0,
+            unmatched: 3,
+            translationFiles: 1,
+            commitSha: "abc",
+            files: [
+              { path: "gitlab/acme/app/en.json", missingKeys: manyKeys },
+              { path: "gitlab/acme/app/empty.json", missingKeys: [] },
+            ],
+          },
+          pushed: { written: 0, pullRequestUrl: null },
+        },
+        completedAt: new Date(),
+      });
+
+      const listed = await routeFor().$get({ param }, { headers });
+      const body = (await listed.json()) as {
+        contentSync: { runs: Array<Record<string, unknown>> };
+      };
+      expect(body.contentSync.runs[0]).toMatchObject({
+        pulled: { uploaded: 1, skipped: 0, failed: 0, unmatched: 3 },
+        hiddenKeys: [
+          { path: "gitlab/acme/app/en.json", keys: manyKeys.slice(0, 20), keyCount: 25 },
+        ],
+        pullRequestUrl: null,
+      });
+    });
   });
 });

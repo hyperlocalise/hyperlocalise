@@ -52,10 +52,11 @@ export const projectContentSyncPanelMessages = defineMessages({
     description: "Placeholder for the repository picker in the project Sync panel",
   },
   noRepositories: {
-    defaultMessage: "Connect a GitHub repository in Integrations to sync this project.",
-    id: "8Fi7Cx7vnM",
+    defaultMessage:
+      "Connect a GitHub repository or the workspace's GitLab server in Integrations to sync this project.",
+    id: "0aQsyOU42O",
     description:
-      "Shown in the project Sync panel when the workspace has no enabled GitHub repositories",
+      "Shown in the project Sync panel when the workspace has no enabled GitHub repositories and no GitLab server",
   },
   openIntegrations: {
     defaultMessage: "Open Integrations",
@@ -317,5 +318,118 @@ export const projectContentSyncPanelMessages = defineMessages({
     id: "/FxKqT7rxo",
     description:
       "Error shown when Sync now is clicked for a project sync that someone else removed",
+  },
+  providerLabel: {
+    defaultMessage: "Repository service",
+    id: "TX+fYK8q8U",
+    description: "Label for the picker of the service (GitHub or GitLab) the project syncs with",
+  },
+  noGitHubRepositories: {
+    defaultMessage: "Enable a GitHub repository in Integrations to sync from GitHub.",
+    id: "sUzlcXbcY3",
+    description:
+      "Shown in the project Sync panel when GitHub is chosen and no repository is enabled",
+  },
+  noGitLabConnection: {
+    defaultMessage: "Connect the workspace's GitLab server in Integrations to sync from GitLab.",
+    id: "76Czc30nyM",
+    description:
+      "Shown in the project Sync panel when GitLab is chosen and no GitLab server is connected",
+  },
+  noGitLabRepositories: {
+    defaultMessage: "The workspace's GitLab token can't see any repositories.",
+    id: "dt0et79zY8",
+    description: "Shown in the project Sync panel when the GitLab server lists no repositories",
+  },
+  gitlabUnavailable: {
+    defaultMessage:
+      "Unable to list the GitLab server's repositories. Check the connection in Integrations.",
+    id: "vWQ8Mhtngp",
+    description:
+      "Shown in the project Sync panel when the GitLab server's repositories can't be read",
+  },
+  branchLabel: {
+    defaultMessage: "Branch",
+    id: "llq1zCo/D6",
+    description: "Label for the repository branch field in the project Sync panel",
+  },
+  branchPlaceholder: {
+    defaultMessage: "Default branch",
+    id: "gRXUWrsLcF",
+    description: "Placeholder of the branch field when the repository's default branch is used",
+  },
+  branchHelp: {
+    defaultMessage: "Leave empty to read the repository's default branch.",
+    id: "uPwlCtMJAb",
+    description: "Help text for the branch field in the project Sync panel",
+  },
+  pathTemplateLabel: {
+    defaultMessage: "Language file paths",
+    id: "3yWat7D9eo",
+    description: "Label for the field that says where each language's files are in the repository",
+  },
+  pathTemplatePlaceholder: {
+    defaultMessage: "for example {example}",
+    id: "MnS30u+aA3",
+    description: "Placeholder of the language file paths field, showing an example value",
+  },
+  pathTemplateHelp: {
+    defaultMessage:
+      "Where each language's files sit under the repository folder, with {placeholder} for the language code (fr and fr-FR both name French). The source language's files are imported; * matches within a folder and ** across folders.",
+    id: "9/6n17rWzl",
+    description: "Help text under the language file paths field in the project Sync panel",
+  },
+  errorPathTemplateRequired: {
+    defaultMessage: "Say where each language's files are, for example {example}.",
+    id: "t1rHIpUc1L",
+    description: "Error shown when GitLab sync settings are saved without language file paths",
+  },
+  errorPathTemplateInvalid: {
+    defaultMessage:
+      "Put {placeholder} where the language code goes. Use ** only as a whole folder, at most twice, and no more than two * or {placeholder} in one name or eight in all.",
+    id: "rIj4p1pD6H",
+    description: "Error shown when the language file paths of a project sync can't be used",
+  },
+  errorGitLabNotConnected: {
+    defaultMessage: "Connect the workspace's GitLab server in Integrations first.",
+    id: "oJ/BNGyK4k",
+    description: "Error shown when a GitLab project sync is saved with no GitLab server connected",
+  },
+  errorGitLabTokenUnreadable: {
+    defaultMessage:
+      "The workspace's saved GitLab token can't be read. Save the connection again in Integrations.",
+    id: "IRQWT9S62n",
+    description: "Error shown when the workspace's stored GitLab token can't be decrypted",
+  },
+  errorGitLabProjectNotFound: {
+    defaultMessage: "The workspace's GitLab token can't see this repository. Choose it again.",
+    id: "jItb0aNazj",
+    description: "Error shown when the GitLab repository chosen for the project sync is not found",
+  },
+  errorGitLabUnavailable: {
+    defaultMessage:
+      "The workspace's GitLab server couldn't be reached. Try again or check Integrations.",
+    id: "0OPFUFwEc5",
+    description:
+      "Error shown when the GitLab server can't be reached while saving the project sync",
+  },
+  runUnmatched: {
+    defaultMessage:
+      "{unmatched, plural, one {# file} other {# files}} in the folder didn't match the language file paths",
+    id: "dIAjQ/dX+w",
+    description:
+      "Summary of the repository files a project sync run left out because their path matched no language",
+  },
+  runHiddenKeys: {
+    defaultMessage:
+      "{count, plural, one {# key was} other {# keys were}} hidden because the repository no longer has them",
+    id: "Bs57lrRswl",
+    description:
+      "Summary of the keys a project sync run hid because they were removed from the repository files",
+  },
+  runHiddenKeysMore: {
+    defaultMessage: "and {more, number} more",
+    id: "RJLxYJk50b",
+    description: "Follows a shortened list of hidden keys in a project sync run",
   },
 });

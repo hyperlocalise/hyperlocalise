@@ -36,6 +36,8 @@ import {
 } from "@/lib/agents/content-sync/content-sync-types";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { db, schema } from "@/lib/database/client";
+import { getGitLabProject, listGitLabMembershipProjects } from "@/lib/gitlab/client";
+import { loadGitLabConnectionCredentials } from "@/lib/gitlab/connections";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import {
   deleteProjectContentSync,
@@ -56,6 +58,9 @@ import {
 } from "./project-content-sync.schema";
 
 const RECENT_RUN_LIMIT = 10;
+/** Enough to say which keys went, without sending a whole repository's report per run. */
+const HIDDEN_KEY_FILE_LIMIT = 20;
+const HIDDEN_KEY_LIMIT = 20;
 
 const validateParams = validator("param", (value, c) => {
   const parsed = projectContentSyncParamsSchema.safeParse(value);
@@ -102,6 +107,27 @@ function readSummaryCount(value: unknown, key: string): number {
   return 0;
 }
 
+/** Per file, the keys a GitLab run hid because the repository no longer has them. */
+function readHiddenKeys(pulled: unknown) {
+  const files =
+    pulled && typeof pulled === "object" && "files" in pulled && Array.isArray(pulled.files)
+      ? (pulled.files as unknown[])
+      : [];
+  return files.flatMap((file) => {
+    if (!file || typeof file !== "object") {
+      return [];
+    }
+    const { path, missingKeys } = file as { path?: unknown; missingKeys?: unknown };
+    if (typeof path !== "string" || !Array.isArray(missingKeys)) {
+      return [];
+    }
+    const keys = missingKeys.filter((key): key is string => typeof key === "string");
+    return keys.length > 0
+      ? [{ path, keys: keys.slice(0, HIDDEN_KEY_LIMIT), keyCount: keys.length }]
+      : [];
+  });
+}
+
 function serializeRun(run: ProjectContentSyncRunRow) {
   const pulled = run.summary?.pulled;
   const pushed = run.summary?.pushed;
@@ -118,8 +144,10 @@ function serializeRun(run: ProjectContentSyncRunRow) {
           uploaded: readSummaryCount(pulled, "uploaded"),
           skipped: readSummaryCount(pulled, "skipped"),
           failed: readSummaryCount(pulled, "failed"),
+          unmatched: readSummaryCount(pulled, "unmatched"),
         }
       : null,
+    hiddenKeys: readHiddenKeys(pulled).slice(0, HIDDEN_KEY_FILE_LIMIT),
     written: run.summary ? readSummaryCount(pushed, "written") : null,
     pullRequestUrl: typeof pullRequestUrl === "string" ? pullRequestUrl : null,
     errorCode: run.errorCode,
@@ -153,6 +181,61 @@ const CONNECTION_REQUIRED_ERROR: SyncConnectionError = {
   code: "content_sync_connection_required",
   message: "Choose a repository that is enabled in Integrations.",
 };
+
+const GITLAB_NOT_CONNECTED_ERROR: SyncConnectionError = {
+  code: "content_sync_gitlab_not_connected",
+  message: "Connect the workspace's GitLab server in Integrations first.",
+};
+
+const GITLAB_TOKEN_UNREADABLE_ERROR: SyncConnectionError = {
+  code: "content_sync_gitlab_token_unreadable",
+  message:
+    "The workspace's saved GitLab token can't be read. Save the connection again in Integrations.",
+};
+
+const GITLAB_PROJECT_NOT_FOUND_ERROR: SyncConnectionError = {
+  code: "content_sync_gitlab_project_not_found",
+  message: "The workspace's GitLab token can't see this repository. Choose it again.",
+};
+
+const GITLAB_UNREACHABLE_ERROR: SyncConnectionError = {
+  code: "content_sync_gitlab_unavailable",
+  message: "The workspace's GitLab server couldn't be reached. Try again or check Integrations.",
+};
+
+type SyncConnectionOption = {
+  provider: "github" | "gitlab";
+  connectionId: string;
+  resourceKey: string;
+};
+
+/** The workspace server's projects; `available` is false when the server can't be read. */
+async function listGitLabSyncConnections(
+  organizationId: string,
+): Promise<{ connected: boolean; available: boolean; connections: SyncConnectionOption[] }> {
+  const access = await loadGitLabConnectionCredentials({ organizationId });
+  if (isErr(access)) {
+    return { connected: true, available: false, connections: [] };
+  }
+  if (!access.value) {
+    return { connected: false, available: false, connections: [] };
+  }
+  const projects = await listGitLabMembershipProjects(access.value);
+  if (isErr(projects)) {
+    return { connected: true, available: false, connections: [] };
+  }
+  return {
+    connected: true,
+    available: true,
+    connections: projects.value
+      .map((project) => ({
+        provider: "gitlab" as const,
+        connectionId: String(project.id),
+        resourceKey: project.pathWithNamespace,
+      }))
+      .sort((left, right) => left.resourceKey.localeCompare(right.resourceKey)),
+  };
+}
 
 /** Checks the connection belongs to the workspace and fills in what the provider owns. */
 async function resolveSyncConnection(input: {
@@ -188,6 +271,34 @@ async function resolveSyncConnection(input: {
         return err(CONNECTION_REQUIRED_ERROR);
       }
       return ok({ ...config, resourceKey: repository.fullName });
+    }
+    case "gitlab": {
+      // Syncs run with the workspace's own GitLab server, never a member's GitLab.com sign-in.
+      const access = await loadGitLabConnectionCredentials({
+        organizationId: input.organizationId,
+      });
+      if (isErr(access)) {
+        return err(GITLAB_TOKEN_UNREADABLE_ERROR);
+      }
+      if (!access.value) {
+        return err(GITLAB_NOT_CONNECTED_ERROR);
+      }
+      // The path is what runs look up; the id proves it still names the project that was chosen.
+      const project = await getGitLabProject({
+        ...access.value,
+        pathWithNamespace: config.resourceKey,
+      });
+      if (isErr(project)) {
+        return err(
+          project.error.code === "gitlab_not_found"
+            ? GITLAB_PROJECT_NOT_FOUND_ERROR
+            : GITLAB_UNREACHABLE_ERROR,
+        );
+      }
+      if (String(project.value.id) !== config.connectionId || project.value.archived) {
+        return err(GITLAB_PROJECT_NOT_FOUND_ERROR);
+      }
+      return ok({ ...config, resourceKey: project.value.pathWithNamespace });
     }
     default:
       return err({
@@ -254,7 +365,6 @@ export function createProjectContentSyncRoutes(
         return projectUnavailableResponse(c, resolved.kind);
       }
 
-      // GitHub is the only provider whose sync runs today; other providers add their connections here.
       const repositories = await db
         .select({
           id: schema.githubInstallationRepositories.id,
@@ -272,14 +382,20 @@ export function createProjectContentSyncRoutes(
           ),
         )
         .orderBy(asc(schema.githubInstallationRepositories.fullName));
+      const gitlab = await listGitLabSyncConnections(resolved.project.organizationId);
 
+      const connections: SyncConnectionOption[] = [
+        ...repositories.map((repository) => ({
+          provider: "github" as const,
+          connectionId: repository.id,
+          resourceKey: repository.fullName,
+        })),
+        ...gitlab.connections,
+      ];
       return c.json(
         {
-          connections: repositories.map((repository) => ({
-            provider: "github" as const,
-            connectionId: repository.id,
-            resourceKey: repository.fullName,
-          })),
+          connections,
+          gitlab: { connected: gitlab.connected, available: gitlab.available },
         },
         200,
       );
