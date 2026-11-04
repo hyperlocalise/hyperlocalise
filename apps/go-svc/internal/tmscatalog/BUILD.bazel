@@ -1,0 +1,11 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "tmscatalog",
+    srcs = [
+        "catalog.go",
+        "crowdin.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/tmscatalog",
+    visibility = ["//apps/go-svc:__pkg__"],
+)

@@ -98,11 +98,13 @@ func main() {
 	}
 	h.spellChecker = spellChecker
 	h.dictionaries = &dictionaryAPI{activityLog: activityLogPublisher}
-	h.glossaries = &glossaryAPI{activityLog: activityLogPublisher, interchange: interchangePublisher}
+	tms := newTMSImportsFromEnv()
+	h.glossaries = &glossaryAPI{activityLog: activityLogPublisher, interchange: interchangePublisher, tms: tms}
 	h.memories = &memoryAPI{
 		activityLog: activityLogPublisher,
 		interchange: memoryInterchangePublisher,
 		analytics:   newGAProductUsageTrackerFromEnv(),
+		tms:         tms,
 	}
 	h.qaReports = &qaReportAPI{activityLog: activityLogPublisher}
 	h.teams = &teamAPI{}

@@ -34,6 +34,7 @@ type memoryAPI struct {
 	interchange memoryInterchangePublisher
 	activityLog activityLogPublisher
 	analytics   memberProductUsageTracker
+	tms         *tmsImports
 }
 
 type memoryActor struct{ userID, organizationID, role string }
@@ -136,6 +137,8 @@ func (api *memoryAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+m+"/{memoryId}/entries/export", owned((*memoryAPI).exportMemoryEntriesHandler))
 	route("POST "+m+"/{memoryId}/entries/export", owned((*memoryAPI).createMemoryExportHandler))
 	route("POST "+m+"/{memoryId}/entries/import/uploads", owned((*memoryAPI).createMemoryImportUploadHandler))
+	route("POST "+m+"/{memoryId}/entries/import/from-tms", owned((*memoryAPI).importMemoryFromTMSHandler))
+	route("GET "+orgRoutePrefix+"/tms/translation-memories", bindActor(api, (*memoryAPI).listTMSMemoriesHandler))
 	route("POST "+m+"/{memoryId}/entries/import", owned((*memoryAPI).importMemoryEntriesHandler))
 	route("POST "+m+"/{memoryId}/entries/promote-from-project", owned((*memoryAPI).promoteMemoryFromProjectHandler))
 	route("GET "+m+"/{memoryId}/entries/{entryId}", owned((*memoryAPI).getMemoryEntryHandler))
