@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/require"
 )
@@ -139,6 +141,8 @@ func TestBuildMemoryEntryTsQuery(t *testing.T) {
 		"it's (new) <b>\"quoted\"</b>": "it:* & s:* & new:* & b:* & quoted:* & /b:*",
 		"co-op & re:use":               "co:* & op:* & re:* & use:*",
 		"café 東京":                      "café:* & 東京:*",
+		"a\u00a0b\u3000c\u0085d":       "a:* & b:* & c:* & d:*",
+		"ab\xffcd \xc3":                "ab\uFFFDcd:* & \uFFFD:*",
 	} {
 		require.Equal(t, want, buildMemoryEntryTsQuery(input), input)
 	}
@@ -150,6 +154,39 @@ func TestBuildMemoryEntryTsQuery(t *testing.T) {
 	query := buildMemoryEntryTsQuery(strings.Join(words, " "))
 	require.Len(t, strings.Split(query, " & "), 50)
 	require.True(t, strings.HasSuffix(query, "w49:*"))
+	require.Equal(t, query, buildMemoryEntryTsQuery(strings.Join(words[:50], " ")+" "))
+}
+
+func referenceMemoryEntryTsQuery(input string) string {
+	cleaned := strings.Map(func(r rune) rune {
+		switch r {
+		case '&', '|', '!', '(', ')', ':', '*', '<', '>', '\'', '"', '-':
+			return ' '
+		}
+		if unicode.IsSpace(r) {
+			return ' '
+		}
+		return r
+	}, input)
+	parts := strings.Fields(cleaned)
+	if len(parts) > 50 {
+		parts = parts[:50]
+	}
+	for i, part := range parts {
+		parts[i] = part + ":*"
+	}
+	return strings.Join(parts, " & ")
+}
+
+func FuzzBuildMemoryEntryTsQuery(f *testing.F) {
+	for _, seed := range []string{"", "hello world", "it's (new)", "café\u00a0東京", "ab\xffcd", strings.Repeat("w ", 60)} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, input string) {
+		got := buildMemoryEntryTsQuery(input)
+		require.Equal(t, referenceMemoryEntryTsQuery(input), got)
+		require.True(t, utf8.ValidString(got))
+	})
 }
 
 func TestMemoryEntryListSortColumn(t *testing.T) {
