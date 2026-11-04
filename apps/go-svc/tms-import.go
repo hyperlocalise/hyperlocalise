@@ -113,6 +113,7 @@ func (t *tmsImports) provider(ctx context.Context, db dictionaryDB, conn tmsConn
 		BaseURL:     token.BaseURL,
 		HeaderName:  token.HeaderName,
 		HeaderValue: token.HeaderValue,
+		AuthMode:    token.AuthMode,
 	}
 	if token.AccountID != nil {
 		credentials.AccountID = strings.TrimSpace(*token.AccountID)

@@ -27,6 +27,9 @@ type Credentials struct {
 	AccountID string
 	// ProjectID is a synced project, used to discover AccountID when it's empty.
 	ProjectID string
+	// AuthMode is how the credential authenticates; for Phrase it picks TMS
+	// (oauth) or Strings (api_token).
+	AuthMode string
 }
 
 // Resource is one glossary or translation memory in the TMS.
@@ -58,7 +61,7 @@ type Provider interface {
 // Supported reports whether New can build a Provider for providerKind.
 func Supported(providerKind string) bool {
 	switch strings.ToLower(providerKind) {
-	case "crowdin", "smartling":
+	case "crowdin", "phrase", "smartling":
 		return true
 	default:
 		return false
@@ -73,6 +76,8 @@ func New(providerKind string, credentials Credentials, httpClient HTTPDoer) (Pro
 	switch strings.ToLower(providerKind) {
 	case "crowdin":
 		return newCrowdin(credentials, httpClient), nil
+	case "phrase":
+		return newPhrase(credentials, httpClient), nil
 	case "smartling":
 		return newSmartling(credentials, httpClient), nil
 	default:
