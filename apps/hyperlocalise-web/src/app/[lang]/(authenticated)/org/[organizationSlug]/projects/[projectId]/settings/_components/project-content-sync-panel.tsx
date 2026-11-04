@@ -474,6 +474,9 @@ export function ProjectContentSyncPanel({
     Boolean(values.connectionId) &&
     !providerConnections.some((connection) => connection.connectionId === values.connectionId);
   const fieldsDisabled = !canManage || busy;
+  const selectedConnection =
+    providerConnections.find((connection) => connection.connectionId === values.connectionId) ??
+    null;
   const repositoryItems = providerConnections.map((connection) => ({
     value: connection.connectionId,
     label: connection.resourceKey,
@@ -594,6 +597,11 @@ export function ProjectContentSyncPanel({
                     ))}
                   </SelectContent>
                 </Select>
+                <FieldDescription>
+                  <FormattedMessage
+                    {...(isGitLab ? messages.gitlabBehaviour : messages.githubBehaviour)}
+                  />
+                </FieldDescription>
               </Field>
               <Field className="gap-1.5">
                 <FieldLabel htmlFor="project-sync-repository">
@@ -677,59 +685,75 @@ export function ProjectContentSyncPanel({
                   </FieldError>
                 ) : null}
                 <FieldDescription>
-                  <FormattedMessage {...messages.providerFolderHelp} />
+                  <FormattedMessage
+                    {...(isGitLab
+                      ? messages.providerFolderHelp
+                      : messages.providerFolderHelpGithub)}
+                  />
+                </FieldDescription>
+              </Field>
+              <Field className="gap-1.5">
+                <FieldLabel htmlFor="project-sync-branch">
+                  <FormattedMessage {...messages.branchLabel} />
+                </FieldLabel>
+                {isGitLab ? (
+                  <Input
+                    id="project-sync-branch"
+                    value={values.branch}
+                    placeholder={intl.formatMessage(messages.branchPlaceholder)}
+                    disabled={fieldsDisabled}
+                    className="font-mono"
+                    onChange={(event) => update({ branch: event.target.value })}
+                  />
+                ) : (
+                  // A GitHub sync reads the branch the repository was enabled with in Integrations.
+                  <Input
+                    id="project-sync-branch"
+                    value={selectedConnection?.branch ?? ""}
+                    placeholder={intl.formatMessage(messages.branchPlaceholder)}
+                    readOnly
+                    disabled={fieldsDisabled}
+                    className="font-mono"
+                  />
+                )}
+                <FieldDescription>
+                  <FormattedMessage
+                    {...(isGitLab ? messages.branchHelp : messages.branchFromIntegrations)}
+                  />
                 </FieldDescription>
               </Field>
               {isGitLab ? (
-                <>
-                  <Field className="gap-1.5">
-                    <FieldLabel htmlFor="project-sync-branch">
-                      <FormattedMessage {...messages.branchLabel} />
-                    </FieldLabel>
-                    <Input
-                      id="project-sync-branch"
-                      value={values.branch}
-                      placeholder={intl.formatMessage(messages.branchPlaceholder)}
-                      disabled={fieldsDisabled}
-                      className="font-mono"
-                      onChange={(event) => update({ branch: event.target.value })}
-                    />
-                    <FieldDescription>
-                      <FormattedMessage {...messages.branchHelp} />
-                    </FieldDescription>
-                  </Field>
-                  <Field className="gap-1.5">
-                    <FieldLabel htmlFor="project-sync-path-template">
-                      <FormattedMessage {...messages.pathTemplateLabel} />
-                    </FieldLabel>
-                    <Input
-                      id="project-sync-path-template"
-                      value={values.pathTemplate}
-                      placeholder={intl.formatMessage(
-                        messages.pathTemplatePlaceholder,
-                        MESSAGE_VALUES,
-                      )}
-                      disabled={fieldsDisabled}
-                      className="font-mono"
-                      aria-invalid={pathTemplateInvalid || undefined}
-                      aria-describedby={
-                        pathTemplateInvalid ? "project-sync-path-template-error" : undefined
-                      }
-                      onChange={(event) => update({ pathTemplate: event.target.value })}
-                    />
-                    {pathTemplateInvalid ? (
-                      <FieldError id="project-sync-path-template-error">
-                        <FormattedMessage
-                          {...messages.errorPathTemplateInvalid}
-                          values={MESSAGE_VALUES}
-                        />
-                      </FieldError>
-                    ) : null}
-                    <FieldDescription>
-                      <FormattedMessage {...messages.pathTemplateHelp} values={MESSAGE_VALUES} />
-                    </FieldDescription>
-                  </Field>
-                </>
+                <Field className="gap-1.5">
+                  <FieldLabel htmlFor="project-sync-path-template">
+                    <FormattedMessage {...messages.pathTemplateLabel} />
+                  </FieldLabel>
+                  <Input
+                    id="project-sync-path-template"
+                    value={values.pathTemplate}
+                    placeholder={intl.formatMessage(
+                      messages.pathTemplatePlaceholder,
+                      MESSAGE_VALUES,
+                    )}
+                    disabled={fieldsDisabled}
+                    className="font-mono"
+                    aria-invalid={pathTemplateInvalid || undefined}
+                    aria-describedby={
+                      pathTemplateInvalid ? "project-sync-path-template-error" : undefined
+                    }
+                    onChange={(event) => update({ pathTemplate: event.target.value })}
+                  />
+                  {pathTemplateInvalid ? (
+                    <FieldError id="project-sync-path-template-error">
+                      <FormattedMessage
+                        {...messages.errorPathTemplateInvalid}
+                        values={MESSAGE_VALUES}
+                      />
+                    </FieldError>
+                  ) : null}
+                  <FieldDescription>
+                    <FormattedMessage {...messages.pathTemplateHelp} values={MESSAGE_VALUES} />
+                  </FieldDescription>
+                </Field>
               ) : null}
               <Field className="gap-1.5">
                 <FieldLabel htmlFor="project-sync-project-folder">
@@ -966,7 +990,11 @@ function ProjectContentSyncRuns({ runs, provider }: { runs: SyncRun[]; provider:
                     rel="noopener noreferrer"
                     className="text-sm text-primary underline-offset-4 hover:underline"
                   >
-                    <FormattedMessage {...messages.openPullRequest} />
+                    <FormattedMessage
+                      {...(provider === "github"
+                        ? messages.openPullRequest
+                        : messages.openMergeRequest)}
+                    />
                   </a>
                 ) : null}
               </li>

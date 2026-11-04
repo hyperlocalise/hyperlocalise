@@ -239,6 +239,36 @@ export const projectContentSyncPanelMessages = defineMessages({
     id: "3V79KDlgh2",
     description: "Link to the pull request a project sync run opened",
   },
+  openMergeRequest: {
+    defaultMessage: "Open merge request",
+    id: "NRQuibW48k",
+    description: "Link to the merge request a GitLab project sync run opened",
+  },
+  githubBehaviour: {
+    defaultMessage:
+      "A GitHub sync clones the repository, deletes keys the repository dropped, and sends every translation back in a pull request, reviewed or not.",
+    id: "/hulRaJxQv",
+    description:
+      "Note under the repository service picker while GitHub is chosen, saying what a GitHub sync does",
+  },
+  gitlabBehaviour: {
+    defaultMessage:
+      "A GitLab sync reads the repository through its API, hides keys the repository dropped, and sends approved translations back in a merge request.",
+    id: "VDeyA5c96f",
+    description:
+      "Note under the repository service picker while GitLab is chosen, saying what a GitLab sync does",
+  },
+  branchFromIntegrations: {
+    defaultMessage: "Chosen in Integrations when the repository was enabled.",
+    id: "r5okLp4i2K",
+    description: "Help text under the read-only branch field of a GitHub project sync",
+  },
+  providerFolderHelpGithub: {
+    defaultMessage:
+      "The folder in the repository that holds the source files, for example locales. Every supported file in it is imported.",
+    id: "tz78TaaqjA",
+    description: "Help text for the repository folder field of a GitHub project sync",
+  },
   notSetUp: {
     defaultMessage: "No sync is set up for this project.",
     id: "stTMDlHaoL",

@@ -177,7 +177,14 @@ describe("project content sync routes", () => {
 
     const connections = await routeFor().connections.$get({ param }, { headers });
     expect(await connections.json()).toEqual({
-      connections: [{ provider: "github", connectionId: repository.id, resourceKey: "acme/web" }],
+      connections: [
+        {
+          provider: "github",
+          connectionId: repository.id,
+          resourceKey: "acme/web",
+          branch: "main",
+        },
+      ],
       gitlab: { connected: false, available: false },
     });
 
@@ -411,9 +418,14 @@ describe("project content sync routes", () => {
       const connections = await routeFor().connections.$get({ param }, { headers });
       expect(await connections.json()).toEqual({
         connections: [
-          { provider: "github", connectionId: repository.id, resourceKey: "acme/web" },
-          { provider: "gitlab", connectionId: "42", resourceKey: "Acme/App" },
-          { provider: "gitlab", connectionId: "7", resourceKey: "acme/zeta" },
+          {
+            provider: "github",
+            connectionId: repository.id,
+            resourceKey: "acme/web",
+            branch: "main",
+          },
+          { provider: "gitlab", connectionId: "42", resourceKey: "Acme/App", branch: null },
+          { provider: "gitlab", connectionId: "7", resourceKey: "acme/zeta", branch: null },
         ],
         gitlab: { connected: true, available: true },
       });

@@ -138,7 +138,7 @@ function renderPanel(
   api.getConnections.mockResolvedValue(
     jsonResponse(200, {
       connections: input.connections ?? [
-        { provider: "github", connectionId: "repo_1", resourceKey: "acme/web" },
+        { provider: "github", connectionId: "repo_1", resourceKey: "acme/web", branch: "main" },
       ],
       gitlab: input.gitlab ?? { connected: false, available: false },
     }),
@@ -176,6 +176,11 @@ describe("ProjectContentSyncPanel", () => {
       "href",
       "https://github.com/acme/web/pull/7",
     );
+    // The branch comes from Integrations, so it is shown but not edited here.
+    const branch = screen.getByLabelText("Branch");
+    expect(branch).toHaveValue("main");
+    expect(branch).toHaveAttribute("readonly");
+    expect(screen.getByText(/A GitHub sync clones the repository/)).toBeInTheDocument();
     expect(
       screen.getByText(
         "This repository is not enabled in Integrations. Enable it there or choose another one.",
@@ -411,6 +416,23 @@ describe("ProjectContentSyncPanel", () => {
           },
         },
       });
+    });
+
+    it("labels a GitLab run's review link as a merge request", async () => {
+      renderPanel({
+        sync: gitlabSync,
+        runs: [
+          { ...runs[0], pullRequestUrl: "https://gitlab.example/acme/app/-/merge_requests/3" },
+        ],
+        connections: [{ provider: "gitlab", connectionId: "42", resourceKey: "acme/app" }],
+        gitlab: gitlabConnected,
+      });
+
+      expect(await screen.findByRole("link", { name: "Open merge request" })).toHaveAttribute(
+        "href",
+        "https://gitlab.example/acme/app/-/merge_requests/3",
+      );
+      expect(screen.getByText(/A GitLab sync reads the repository/)).toBeInTheDocument();
     });
 
     it("sets up a GitLab sync once the language file paths name the language", async () => {

@@ -207,6 +207,8 @@ type SyncConnectionOption = {
   provider: "github" | "gitlab";
   connectionId: string;
   resourceKey: string;
+  /** The branch a GitHub repository was enabled with; a GitLab sync names its own. */
+  branch: string | null;
 };
 
 /** The workspace server's projects; `available` is false when the server can't be read. */
@@ -232,6 +234,7 @@ async function listGitLabSyncConnections(
         provider: "gitlab" as const,
         connectionId: String(project.id),
         resourceKey: project.pathWithNamespace,
+        branch: null,
       }))
       .sort((left, right) => left.resourceKey.localeCompare(right.resourceKey)),
   };
@@ -369,6 +372,7 @@ export function createProjectContentSyncRoutes(
         .select({
           id: schema.githubInstallationRepositories.id,
           fullName: schema.githubInstallationRepositories.fullName,
+          defaultBranch: schema.githubInstallationRepositories.defaultBranch,
         })
         .from(schema.githubInstallationRepositories)
         .where(
@@ -389,6 +393,7 @@ export function createProjectContentSyncRoutes(
           provider: "github" as const,
           connectionId: repository.id,
           resourceKey: repository.fullName,
+          branch: repository.defaultBranch,
         })),
         ...gitlab.connections,
       ];
