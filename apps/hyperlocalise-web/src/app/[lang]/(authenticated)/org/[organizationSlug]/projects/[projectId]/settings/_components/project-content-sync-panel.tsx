@@ -133,7 +133,6 @@ const requestErrorMessages: Record<string, PanelMessage> = {
 const runErrorMessages: Record<string, PanelMessage> = {
   content_sync_path_template_required: messages.errorPathTemplateRequired,
   content_sync_folder_invalid: messages.runFolderMissing,
-  content_sync_pull_failed: messages.runPullFailed,
   content_sync_stale: messages.runStale,
   content_sync_failed: messages.runUnexpected,
   content_sync_enqueue_failed: messages.runUnexpected,
@@ -142,6 +141,8 @@ const runErrorMessages: Record<string, PanelMessage> = {
 /** GitLab runs store their own reason for a connection problem, so only GitHub's is replaced. */
 const githubRunErrorMessages: Record<string, PanelMessage> = {
   content_sync_connection_required: messages.errorRepositoryNotEnabled,
+  // A GitLab run names the file and what to do; GitHub's message is generic.
+  content_sync_pull_failed: messages.runPullFailed,
 };
 
 async function readApiError(response: Response, fallback: string, intl: IntlShape) {
@@ -368,7 +369,8 @@ export function ProjectContentSyncPanel({
     },
     onSuccess: () => toast.success(intl.formatMessage(messages.syncStarted)),
     onError: (error) => toast.error(error.message),
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+    // The repositories haven't changed, so the GitLab project list isn't asked for again.
+    onSettled: () => queryClient.invalidateQueries({ queryKey, exact: true }),
   });
 
   const removeMutation = useMutation({
@@ -386,7 +388,7 @@ export function ProjectContentSyncPanel({
     onSuccess: async () => {
       setConfirmRemove(false);
       setEdits(null);
-      await queryClient.invalidateQueries({ queryKey });
+      await queryClient.invalidateQueries({ queryKey, exact: true });
       toast.success(intl.formatMessage(messages.removed));
     },
     onError: (error) => toast.error(error.message),
@@ -700,9 +702,12 @@ export function ProjectContentSyncPanel({
                   <Input
                     id="project-sync-branch"
                     value={values.branch}
-                    placeholder={intl.formatMessage(messages.branchPlaceholder)}
+                    placeholder={
+                      selectedConnection?.branch ?? intl.formatMessage(messages.branchPlaceholder)
+                    }
                     disabled={fieldsDisabled}
                     className="font-mono"
+                    aria-describedby="project-sync-branch-help"
                     onChange={(event) => update({ branch: event.target.value })}
                   />
                 ) : (
@@ -713,10 +718,11 @@ export function ProjectContentSyncPanel({
                     placeholder={intl.formatMessage(messages.branchPlaceholder)}
                     readOnly
                     disabled={fieldsDisabled}
-                    className="font-mono"
+                    className="font-mono read-only:bg-muted read-only:text-muted-foreground"
+                    aria-describedby="project-sync-branch-help"
                   />
                 )}
-                <FieldDescription>
+                <FieldDescription id="project-sync-branch-help">
                   <FormattedMessage
                     {...(isGitLab ? messages.branchHelp : messages.branchFromIntegrations)}
                   />
@@ -854,9 +860,7 @@ export function ProjectContentSyncPanel({
         </form>
       </section>
 
-      {saved && savedDraft ? (
-        <ProjectContentSyncRuns runs={runs} provider={savedDraft.provider} />
-      ) : null}
+      {saved && savedDraft ? <ProjectContentSyncRuns runs={runs} /> : null}
 
       <AlertDialog
         open={confirmRemove}
@@ -894,6 +898,8 @@ export function ProjectContentSyncPanel({
 
 type SyncRun = {
   id: string;
+  /** The service the run used, which may differ from the sync's current one. */
+  provider: SyncProvider;
   trigger: "manual" | "scheduled";
   status: "running" | "succeeded" | "failed";
   pulled: { uploaded: number; skipped: number; failed: number; unmatched: number } | null;
@@ -917,7 +923,7 @@ const runStatusBadges = {
   failed: "destructive",
 } as const;
 
-function ProjectContentSyncRuns({ runs, provider }: { runs: SyncRun[]; provider: SyncProvider }) {
+function ProjectContentSyncRuns({ runs }: { runs: SyncRun[] }) {
   const intl = useIntl();
 
   return (
@@ -973,14 +979,14 @@ function ProjectContentSyncRuns({ runs, provider }: { runs: SyncRun[]; provider:
                   <RunHiddenKeys hiddenKeys={run.hiddenKeys} />
                 ) : null}
                 {/* GitLab sends nothing back yet, so "nothing to send" would mislead. */}
-                {run.status === "succeeded" && run.written !== null && provider === "github" ? (
+                {run.status === "succeeded" && run.written !== null && run.provider === "github" ? (
                   <TypographyP size="small" tone="subtle">
                     <FormattedMessage {...messages.runWritten} values={{ written: run.written }} />
                   </TypographyP>
                 ) : null}
                 {run.status === "failed" ? (
                   <TypographyP className="text-flame-100" size="small">
-                    <RunError run={run} provider={provider} />
+                    <RunError run={run} provider={run.provider} />
                   </TypographyP>
                 ) : null}
                 {pullRequestUrl ? (
@@ -991,7 +997,7 @@ function ProjectContentSyncRuns({ runs, provider }: { runs: SyncRun[]; provider:
                     className="text-sm text-primary underline-offset-4 hover:underline"
                   >
                     <FormattedMessage
-                      {...(provider === "github"
+                      {...(run.provider === "github"
                         ? messages.openPullRequest
                         : messages.openMergeRequest)}
                     />

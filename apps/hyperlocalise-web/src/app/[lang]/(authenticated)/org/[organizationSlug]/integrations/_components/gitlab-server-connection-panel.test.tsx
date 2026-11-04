@@ -14,6 +14,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -86,22 +87,29 @@ describe("GitLabServerConnectionPanel", () => {
     mocks.connectionDelete.mockResolvedValue(new Response(null, { status: 204 }));
   });
 
-  it("starts on GitLab.com, saves once a token is typed, and takes a company server instead", async () => {
+  it("connects to GitLab.com with just a token, or to a company server with its address", async () => {
+    const user = userEvent.setup();
     renderPanel();
     await openRow();
 
     const save = await screen.findByRole("button", { name: "Check and save" });
     expect(save).toHaveProperty("disabled", true);
+    // GitLab.com is the first choice, so no address is asked for.
+    expect(screen.queryByLabelText("Server address")).toBeNull();
+    expect(screen.getByText(/project or group access token/)).toBeTruthy();
 
-    const address = screen.getByLabelText("Server address");
-    expect(address).toHaveProperty("value", "https://gitlab.com");
     const token = screen.getByLabelText("Access token");
     fireEvent.change(token, { target: { value: "glpat-secret" } });
     expect(save).toHaveProperty("disabled", false);
 
-    fireEvent.change(address, { target: { value: "" } });
+    // A company server needs its address before anything is sent anywhere.
+    await user.click(screen.getByRole("combobox", { name: "Connect to" }));
+    await user.click(await screen.findByRole("option", { name: "Your company's GitLab server" }));
     expect(save).toHaveProperty("disabled", true);
-    fireEvent.change(address, { target: { value: "https://git.acme.example" } });
+    expect(screen.getByText(/token from a non-admin user/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Server address"), {
+      target: { value: "https://git.acme.example" },
+    });
     expect(save).toHaveProperty("disabled", false);
     fireEvent.click(save);
 
@@ -113,6 +121,22 @@ describe("GitLabServerConnectionPanel", () => {
     expect(token).toHaveProperty("value", "");
   });
 
+  it("saves GitLab.com without an address field", async () => {
+    renderPanel();
+    await openRow();
+
+    fireEvent.change(await screen.findByLabelText("Access token"), {
+      target: { value: "glpat-secret" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Check and save" }));
+
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+    expect(mocks.connectionPut).toHaveBeenCalledWith({
+      param: { organizationSlug: "acme" },
+      json: { serverUrl: "https://gitlab.com", accessToken: "glpat-secret" },
+    });
+  });
+
   it("shows the server's reason when saving fails, and keeps what was typed", async () => {
     mocks.connectionPut.mockResolvedValue(
       Response.json({ message: "The server refused this token." }, { status: 400 }),
@@ -120,10 +144,7 @@ describe("GitLabServerConnectionPanel", () => {
     renderPanel();
     await openRow();
 
-    fireEvent.change(await screen.findByLabelText("Server address"), {
-      target: { value: "https://git.acme.example" },
-    });
-    const token = screen.getByLabelText("Access token");
+    const token = await screen.findByLabelText("Access token");
     fireEvent.change(token, { target: { value: "glpat-bad" } });
     fireEvent.click(screen.getByRole("button", { name: "Check and save" }));
 
@@ -222,7 +243,7 @@ describe("GitLabServerConnectionPanel", () => {
     expect(mocks.connectionDelete).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Disconnect" }));
-    fireEvent.click(screen.getByRole("button", { name: "Disconnect server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Disconnect GitLab" }));
 
     await waitFor(() => expect(mocks.connectionDelete).toHaveBeenCalled());
     await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
@@ -242,7 +263,7 @@ describe("GitLabServerConnectionPanel", () => {
     await openRow();
 
     fireEvent.click(await screen.findByRole("button", { name: "Disconnect" }));
-    fireEvent.click(screen.getByRole("button", { name: "Disconnect server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Disconnect GitLab" }));
 
     await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
     expect(mocks.toastError).not.toHaveBeenCalled();
@@ -260,7 +281,7 @@ describe("GitLabServerConnectionPanel", () => {
     await openRow();
 
     fireEvent.click(await screen.findByRole("button", { name: "Disconnect" }));
-    fireEvent.click(screen.getByRole("button", { name: "Disconnect server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Disconnect GitLab" }));
 
     await waitFor(() =>
       expect(mocks.toastError).toHaveBeenCalledWith("You can't change this connection."),

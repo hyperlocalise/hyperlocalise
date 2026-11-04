@@ -42,20 +42,21 @@ Hyperlocalise supports two Sanity workflows:
 
 ## GitLab
 
-An administrator can connect GitLab from **Integrations** through the authorization flow. Connected GitLab.com projects that you can clone with Reporter access or higher can be used as repository context in chat. Select a project or provide its project or merge-request URL.
-
-Use **Use GitLab repo** in a manual or scheduled automation for repository analysis. Merge-request comment tools and GitLab content sync are not available in this workflow.
+Connected GitLab projects can be used as repository context in chat: select a project or paste its project or merge-request address. **Use GitLab repo** in a manual or scheduled automation runs repository analysis. Syncing files with GitLab is described under [Sync content with a repository](/platform/automation/content-sync).
 
 ### Connect GitLab for the workspace
 
-An admin can connect the workspace to GitLab under **Integrations → GitLab**, with an access token and the server address: `https://gitlab.com`, filled in already, or your company's own GitLab server. Hyperlocalise checks both before saving, and checks again whenever you open the row. Syncing files with GitLab needs this connection.
+An admin or localization manager connects the workspace to GitLab under **Integrations → GitLab**: choose **GitLab.com** or **Your company's GitLab server** (with its `https` address), and enter an access token. Hyperlocalise checks the address and the token before saving, and checks again whenever you open the row. Syncing files with GitLab needs this connection.
 
-- While connected, everyone in the workspace uses that server's projects, in chat, automations and syncs, and can reach whatever the token can reach. Use a token from a non-admin user, with the `api` scope, or `read_api` and `read_repository` for reading only.
-- The per-member GitLab.com sign-in row above is shown only while the workspace has no connection; it serves chat only. Members' own sign-ins come back into use if the connection is removed.
+- While connected, everyone in the workspace uses that token's projects, in chat, automations and syncs, and can reach whatever the token can reach. GitLab has no per-project switch like GitHub's, so choose the token with care: on GitLab.com, a project or group access token, or a dedicated account that belongs only to the projects to sync; on your own server, a token from a non-admin user. Give it the `api` scope to send merge requests, or `read_api` and `read_repository` for reading only, and set an expiry.
 - Disconnecting asks you to confirm, because it affects the whole workspace.
-- Paste links from your server into chat. While a server is connected, GitLab.com links get a reply saying they aren't used.
-- Automations name a project by its path, so replacing or removing the connection points them at the new server, or back at GitLab.com. Chats stop using projects from the old server.
-- The server must be reachable from the internet. Fixed outgoing addresses for an allow-list aren't available yet.
+- Paste links from the connected GitLab into chat; links from another GitLab server get a reply saying they aren't used.
+- Automations name a project by its path, so replacing or removing the connection points them at the new connection, or back at their authors' own GitLab.com sign-ins. When the server address changes, chats stop using projects from the old one.
+- A company server must be reachable from the internet. Fixed outgoing addresses for an allow-list aren't available yet.
+
+### Your own GitLab.com sign-in
+
+While the workspace has no GitLab connection, an admin or localization manager can sign in with their own GitLab.com account from the **GitLab.com sign-in** row below the GitLab row. It serves chat and the automations that person creates; it can't sync files. Once the workspace connects GitLab, the row stays only for people whose own sign-in is stored, marked as not in use, so they can remove it; their sign-ins come back into use if the workspace connection is removed.
 
 ## Intercom
 

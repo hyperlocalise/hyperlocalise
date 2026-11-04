@@ -222,7 +222,7 @@ export async function resolveConversationRepositoryGitLabContext(input: {
   ) {
     return {
       status: "unresolved",
-      followUp: `This workspace uses its own GitLab server, so GitLab.com links aren't used here. Send a link from ${connection.serverUrl} instead.`,
+      followUp: `This workspace is connected to GitLab at ${connection.serverUrl}, so links from elsewhere aren't used here. Send a link from ${connection.serverUrl} instead.`,
     };
   }
 

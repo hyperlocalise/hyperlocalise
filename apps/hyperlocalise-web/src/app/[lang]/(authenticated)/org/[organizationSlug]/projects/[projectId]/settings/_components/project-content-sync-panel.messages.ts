@@ -22,8 +22,8 @@ export const projectContentSyncPanelMessages = defineMessages({
   },
   description: {
     defaultMessage:
-      "Bring source files in from a repository and send finished translations back as a pull request.",
-    id: "1BNPaIQzGU",
+      "Bring source files in from a repository and send finished translations back as a pull request or merge request.",
+    id: "bSZGRrVpZH",
     description: "Description of the project Sync panel",
   },
   loadError: {
@@ -53,10 +53,10 @@ export const projectContentSyncPanelMessages = defineMessages({
   },
   noRepositories: {
     defaultMessage:
-      "Connect a GitHub repository or the workspace's GitLab server in Integrations to sync this project.",
-    id: "0aQsyOU42O",
+      "Enable a GitHub repository or connect GitLab in Integrations to sync this project.",
+    id: "5s/m8jJWkg",
     description:
-      "Shown in the project Sync panel when the workspace has no enabled GitHub repositories and no GitLab server",
+      "Shown in the project Sync panel when the workspace has no enabled GitHub repositories and no GitLab connection",
   },
   openIntegrations: {
     defaultMessage: "Open Integrations",
@@ -246,8 +246,8 @@ export const projectContentSyncPanelMessages = defineMessages({
   },
   githubBehaviour: {
     defaultMessage:
-      "A GitHub sync clones the repository, deletes keys the repository dropped, and sends every translation back in a pull request, reviewed or not.",
-    id: "/hulRaJxQv",
+      "A GitHub sync clones the repository, deletes keys the repository dropped, and sends every translation except rejected ones back in a pull request, reviewed or not.",
+    id: "4JyzfnXrai",
     description:
       "Note under the repository service picker while GitHub is chosen, saying what a GitHub sync does",
   },
@@ -259,8 +259,8 @@ export const projectContentSyncPanelMessages = defineMessages({
       "Note under the repository service picker while GitLab is chosen, saying what a GitLab sync does",
   },
   branchFromIntegrations: {
-    defaultMessage: "Chosen in Integrations when the repository was enabled.",
-    id: "r5okLp4i2K",
+    defaultMessage: "The repository's default branch on GitHub. A GitHub sync always reads it.",
+    id: "plPoWuOVzN",
     description: "Help text under the read-only branch field of a GitHub project sync",
   },
   providerFolderHelpGithub: {
@@ -361,22 +361,20 @@ export const projectContentSyncPanelMessages = defineMessages({
       "Shown in the project Sync panel when GitHub is chosen and no repository is enabled",
   },
   noGitLabConnection: {
-    defaultMessage: "Connect the workspace's GitLab server in Integrations to sync from GitLab.",
-    id: "76Czc30nyM",
+    defaultMessage: "Connect GitLab in Integrations to sync from GitLab.",
+    id: "Diw4K6SV2n",
     description:
-      "Shown in the project Sync panel when GitLab is chosen and no GitLab server is connected",
+      "Shown in the project Sync panel when GitLab is chosen and the workspace has no GitLab connection",
   },
   noGitLabRepositories: {
     defaultMessage: "The workspace's GitLab token can't see any repositories.",
-    id: "dt0et79zY8",
-    description: "Shown in the project Sync panel when the GitLab server lists no repositories",
+    id: "mYbmbB/GF/",
+    description: "Shown in the project Sync panel when the GitLab connection lists no repositories",
   },
   gitlabUnavailable: {
-    defaultMessage:
-      "Unable to list the GitLab server's repositories. Check the connection in Integrations.",
-    id: "vWQ8Mhtngp",
-    description:
-      "Shown in the project Sync panel when the GitLab server's repositories can't be read",
+    defaultMessage: "Unable to list the GitLab repositories. Check the connection in Integrations.",
+    id: "wfI6r/Q+hm",
+    description: "Shown in the project Sync panel when the GitLab repositories can't be read",
   },
   branchLabel: {
     defaultMessage: "Branch",
@@ -421,9 +419,10 @@ export const projectContentSyncPanelMessages = defineMessages({
     description: "Error shown when the language file paths of a project sync can't be used",
   },
   errorGitLabNotConnected: {
-    defaultMessage: "Connect the workspace's GitLab server in Integrations first.",
-    id: "oJ/BNGyK4k",
-    description: "Error shown when a GitLab project sync is saved with no GitLab server connected",
+    defaultMessage: "Connect GitLab in Integrations first.",
+    id: "gNGTIO7J5R",
+    description:
+      "Error shown when a GitLab project sync is saved while the workspace has no GitLab connection",
   },
   errorGitLabTokenUnreadable: {
     defaultMessage:
@@ -438,10 +437,9 @@ export const projectContentSyncPanelMessages = defineMessages({
   },
   errorGitLabUnavailable: {
     defaultMessage:
-      "The workspace's GitLab server couldn't be reached. Try again or check Integrations.",
-    id: "0OPFUFwEc5",
-    description:
-      "Error shown when the GitLab server can't be reached while saving the project sync",
+      "GitLab couldn't be reached. Try again or check the connection in Integrations.",
+    id: "vLmy8LFeIy",
+    description: "Error shown when GitLab can't be reached while saving the project sync",
   },
   runUnmatched: {
     defaultMessage:

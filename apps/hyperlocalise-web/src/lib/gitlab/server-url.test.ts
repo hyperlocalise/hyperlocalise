@@ -36,6 +36,13 @@ describe("normalizeGitLabServerUrl", () => {
     mocks.assertProviderUrlResolvable.mockClear();
   });
 
+  it("treats www.gitlab.com as gitlab.com, which www redirects to", () => {
+    expect(normalized("https://www.gitlab.com/")).toBe("https://gitlab.com");
+    expect(normalized("https://www.gitlab.company.example")).toBe(
+      "https://www.gitlab.company.example",
+    );
+  });
+
   it("keeps the path and drops trailing slashes, queries and fragments", () => {
     expect(normalized(" https://git.acme.example/ ")).toBe("https://git.acme.example");
     expect(normalized("https://git.acme.example:8443/gitlab/?a=1#b")).toBe(

@@ -22,6 +22,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createApiClient } from "@/lib/api-client";
 import { readApiError } from "@/lib/api-error";
 
@@ -32,6 +39,12 @@ import { useGitLabServerConnection } from "./use-gitlab-server-connection";
 
 const api = createApiClient();
 const GITLAB_COM_SERVER_URL = "https://gitlab.com";
+
+type GitLabHost = "gitlab.com" | "server";
+
+function hostOf(serverUrl: string | null | undefined): GitLabHost {
+  return !serverUrl || serverUrl === GITLAB_COM_SERVER_URL ? "gitlab.com" : "server";
+}
 
 export function GitLabServerConnectionPanel({
   organizationSlug,
@@ -44,9 +57,11 @@ export function GitLabServerConnectionPanel({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const hostFieldId = useId();
   const serverUrlFieldId = useId();
   const tokenFieldId = useId();
   const [expanded, setExpanded] = useState(false);
+  const [hostChoice, setHostChoice] = useState<GitLabHost | null>(null);
   const [serverUrl, setServerUrl] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState("");
   const [showToken, setShowToken] = useState(false);
@@ -65,6 +80,10 @@ export function GitLabServerConnectionPanel({
 
   const connectionQuery = useGitLabServerConnection(organizationSlug);
   const connection = connectionQuery.data ?? null;
+  const hostItems: { value: GitLabHost; label: string }[] = [
+    { value: "gitlab.com", label: intl.formatMessage(messages.hostGitLabCom) },
+    { value: "server", label: intl.formatMessage(messages.hostServer) },
+  ];
 
   // Asked when the row opens, because a token can stop working at any time after it was saved.
   // The answer is kept while the row stays open and dropped when it closes.
@@ -106,6 +125,7 @@ export function GitLabServerConnectionPanel({
   };
 
   const clearForm = () => {
+    setHostChoice(null);
     setServerUrl(null);
     setAccessToken("");
     setShowToken(false);
@@ -166,13 +186,18 @@ export function GitLabServerConnectionPanel({
     },
   });
 
-  // GitLab.com is the usual answer; a company's own server is typed over it.
-  const serverUrlValue = serverUrl ?? connection?.serverUrl ?? GITLAB_COM_SERVER_URL;
+  // GitLab.com or a company's own server is an explicit choice, so a company token is never
+  // sent to GitLab.com because an address was left as it was.
+  const host = hostChoice ?? hostOf(connection?.serverUrl);
+  const savedServerUrl =
+    connection && hostOf(connection.serverUrl) === "server" ? connection.serverUrl : "";
+  const serverUrlValue = serverUrl ?? savedServerUrl;
+  const serverUrlToSave = host === "gitlab.com" ? GITLAB_COM_SERVER_URL : serverUrlValue.trim();
   const busy = save.isPending || disconnect.isPending;
   // A failed load can't say whether a connection exists, so saving could overwrite one unwarned.
   const showForm = userCanManage && !connectionQuery.isError;
   const canSave =
-    userCanManage && !busy && serverUrlValue.trim().length > 0 && accessToken.trim().length > 0;
+    userCanManage && !busy && serverUrlToSave.length > 0 && accessToken.trim().length > 0;
   const checkResult = checkQuery.data;
 
   return (
@@ -223,19 +248,47 @@ export function GitLabServerConnectionPanel({
         {showForm ? (
           <>
             <Field>
-              <FieldLabel htmlFor={serverUrlFieldId}>
-                <FormattedMessage {...messages.serverUrlLabel} />
+              <FieldLabel htmlFor={hostFieldId}>
+                <FormattedMessage {...messages.hostLabel} />
               </FieldLabel>
-              <Input
-                id={serverUrlFieldId}
-                type="url"
-                autoComplete="off"
-                placeholder="https://gitlab.example.com"
-                value={serverUrlValue}
+              <Select
+                value={host}
+                items={hostItems}
                 disabled={busy}
-                onChange={(event) => setServerUrl(event.target.value)}
-              />
+                onValueChange={(value) => {
+                  if (value === "gitlab.com" || value === "server") {
+                    setHostChoice(value);
+                  }
+                }}
+              >
+                <SelectTrigger id={hostFieldId}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {hostItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value} label={item.label}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
+            {host === "server" ? (
+              <Field>
+                <FieldLabel htmlFor={serverUrlFieldId}>
+                  <FormattedMessage {...messages.serverUrlLabel} />
+                </FieldLabel>
+                <Input
+                  id={serverUrlFieldId}
+                  type="url"
+                  autoComplete="off"
+                  placeholder="https://gitlab.example.com"
+                  value={serverUrlValue}
+                  disabled={busy}
+                  onChange={(event) => setServerUrl(event.target.value)}
+                />
+              </Field>
+            ) : null}
             <Field>
               <FieldLabel htmlFor={tokenFieldId}>
                 <FormattedMessage {...messages.tokenLabel} />
@@ -264,7 +317,11 @@ export function GitLabServerConnectionPanel({
               </div>
               <p className="text-xs text-muted-foreground">
                 <FormattedMessage
-                  {...(connection ? messages.tokenReplaceHint : messages.tokenHint)}
+                  {...(connection
+                    ? messages.tokenReplaceHint
+                    : host === "gitlab.com"
+                      ? messages.tokenHintGitLabCom
+                      : messages.tokenHint)}
                 />
               </p>
             </Field>
@@ -311,7 +368,7 @@ export function GitLabServerConnectionPanel({
               <Button
                 type="button"
                 disabled={!canSave}
-                onClick={() => save.mutate({ serverUrl: serverUrlValue, accessToken })}
+                onClick={() => save.mutate({ serverUrl: serverUrlToSave, accessToken })}
               >
                 <FloppyDiskIcon />
                 <FormattedMessage {...(save.isPending ? messages.saving : messages.save)} />

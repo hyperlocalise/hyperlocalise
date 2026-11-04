@@ -424,8 +424,8 @@ describe("project content sync routes", () => {
             resourceKey: "acme/web",
             branch: "main",
           },
-          { provider: "gitlab", connectionId: "42", resourceKey: "Acme/App", branch: null },
-          { provider: "gitlab", connectionId: "7", resourceKey: "acme/zeta", branch: null },
+          { provider: "gitlab", connectionId: "42", resourceKey: "Acme/App", branch: "main" },
+          { provider: "gitlab", connectionId: "7", resourceKey: "acme/zeta", branch: "main" },
         ],
         gitlab: { connected: true, available: true },
       });

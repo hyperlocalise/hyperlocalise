@@ -117,26 +117,43 @@ function readHiddenKeys(pulled: unknown) {
     if (!file || typeof file !== "object") {
       return [];
     }
-    const { path, missingKeys } = file as { path?: unknown; missingKeys?: unknown };
+    const { path, missingKeys, missingKeyCount } = file as {
+      path?: unknown;
+      missingKeys?: unknown;
+      missingKeyCount?: unknown;
+    };
     if (typeof path !== "string" || !Array.isArray(missingKeys)) {
       return [];
     }
     const keys = missingKeys.filter((key): key is string => typeof key === "string");
-    return keys.length > 0
-      ? [{ path, keys: keys.slice(0, HIDDEN_KEY_LIMIT), keyCount: keys.length }]
-      : [];
+    // The stored list is capped; the count says how many there really were.
+    const keyCount = typeof missingKeyCount === "number" ? missingKeyCount : keys.length;
+    return keys.length > 0 ? [{ path, keys: keys.slice(0, HIDDEN_KEY_LIMIT), keyCount }] : [];
   });
 }
 
-function serializeRun(run: ProjectContentSyncRunRow) {
+function syncProvider(sync: { syncConfig: Record<string, unknown> } | null): "github" | "gitlab" {
+  return sync?.syncConfig.provider === "gitlab" ? "gitlab" : "github";
+}
+
+/** The saved GitLab project's path, so the connections list can include it even past the cap. */
+function savedGitLabResourceKey(sync: { syncConfig: Record<string, unknown> } | null) {
+  const { provider, resourceKey } = sync?.syncConfig ?? {};
+  return provider === "gitlab" && typeof resourceKey === "string" ? resourceKey : undefined;
+}
+
+function serializeRun(run: ProjectContentSyncRunRow, syncProvider: "github" | "gitlab") {
   const pulled = run.summary?.pulled;
   const pushed = run.summary?.pushed;
+  // Recorded with the run since the sync can move between services; older runs follow the sync.
+  const provider = run.summary?.provider;
   const pullRequestUrl =
     pushed && typeof pushed === "object" && "pullRequestUrl" in pushed
       ? pushed.pullRequestUrl
       : null;
   return {
     id: run.id,
+    provider: provider === "github" || provider === "gitlab" ? provider : syncProvider,
     trigger: run.trigger,
     status: run.status,
     pulled: run.summary
@@ -211,9 +228,14 @@ type SyncConnectionOption = {
   branch: string | null;
 };
 
-/** The workspace server's projects; `available` is false when the server can't be read. */
+/**
+ * The workspace's GitLab projects; `available` is false when GitLab can't be read. The listing
+ * stops at the most recently active few hundred, so a saved project outside them is looked up
+ * by its path and added, rather than being called missing.
+ */
 async function listGitLabSyncConnections(
   organizationId: string,
+  savedResourceKey?: string,
 ): Promise<{ connected: boolean; available: boolean; connections: SyncConnectionOption[] }> {
   const access = await loadGitLabConnectionCredentials({ organizationId });
   if (isErr(access)) {
@@ -226,15 +248,31 @@ async function listGitLabSyncConnections(
   if (isErr(projects)) {
     return { connected: true, available: false, connections: [] };
   }
+  const listed = projects.value;
+  if (
+    savedResourceKey &&
+    !listed.some(
+      (project) => project.pathWithNamespace.toLowerCase() === savedResourceKey.toLowerCase(),
+    )
+  ) {
+    const saved = await getGitLabProject({
+      ...access.value,
+      pathWithNamespace: savedResourceKey,
+    });
+    if (!isErr(saved)) {
+      listed.push(saved.value);
+    }
+  }
   return {
     connected: true,
     available: true,
-    connections: projects.value
+    connections: listed
       .map((project) => ({
         provider: "gitlab" as const,
         connectionId: String(project.id),
         resourceKey: project.pathWithNamespace,
-        branch: null,
+        // What an empty branch field reads; shown as its placeholder.
+        branch: project.defaultBranch,
       }))
       .sort((left, right) => left.resourceKey.localeCompare(right.resourceKey)),
   };
@@ -273,7 +311,10 @@ async function resolveSyncConnection(input: {
       if (!repository || !repository.enabled || repository.archived) {
         return err(CONNECTION_REQUIRED_ERROR);
       }
-      return ok({ ...config, resourceKey: repository.fullName });
+      // A GitHub sync reads the repository's default branch and every file in the folder, so
+      // a branch or language file paths sent for it would only mislead the panel.
+      const { branch: _branch, pathTemplate: _pathTemplate, ...github } = config;
+      return ok({ ...github, resourceKey: repository.fullName });
     }
     case "gitlab": {
       // Syncs run with the workspace's own GitLab server, never a member's GitLab.com sign-in.
@@ -353,7 +394,7 @@ export function createProjectContentSyncRoutes(
         {
           contentSync: {
             sync: sync ? serializeSync(sync) : null,
-            runs: runs.map(serializeRun),
+            runs: runs.map((run) => serializeRun(run, syncProvider(sync))),
           },
         },
         200,
@@ -386,7 +427,14 @@ export function createProjectContentSyncRoutes(
           ),
         )
         .orderBy(asc(schema.githubInstallationRepositories.fullName));
-      const gitlab = await listGitLabSyncConnections(resolved.project.organizationId);
+      const saved = await getProjectContentSync({
+        organizationId: resolved.project.organizationId,
+        projectId: resolved.project.id,
+      });
+      const gitlab = await listGitLabSyncConnections(
+        resolved.project.organizationId,
+        savedGitLabResourceKey(saved),
+      );
 
       const connections: SyncConnectionOption[] = [
         ...repositories.map((repository) => ({
@@ -493,6 +541,6 @@ export function createProjectContentSyncRoutes(
       if (isErr(result)) {
         return conflictResponse(c, result.error.code, "A sync is already running");
       }
-      return c.json({ run: serializeRun(result.value) }, 202);
+      return c.json({ run: serializeRun(result.value, syncProvider(sync)) }, 202);
     });
 }

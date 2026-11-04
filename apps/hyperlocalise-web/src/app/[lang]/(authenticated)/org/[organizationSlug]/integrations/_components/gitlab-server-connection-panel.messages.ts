@@ -33,8 +33,8 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
     description: "Integration row description once a GitLab server is connected",
   },
   loadError: {
-    defaultMessage: "Unable to load the GitLab server connection right now.",
-    id: "2ge8oszx7T",
+    defaultMessage: "Unable to load the GitLab connection right now.",
+    id: "e1JYqjH071",
     description: "Integration row description when the connection fails to load",
   },
   checkFailed: {
@@ -59,15 +59,30 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
   },
   intro: {
     defaultMessage:
-      "While connected, everyone in this workspace uses this server's projects, in chat, automations and syncs, and can reach whatever this token can reach.",
-    id: "jgN2YCnTn+",
+      "While connected, everyone in this workspace uses this token's projects, in chat, automations and syncs, and can reach whatever it can reach. Members' own GitLab.com sign-ins are not used.",
+    id: "3pYg4s3MFm",
     description: "Explains the effect of connecting GitLab for the workspace",
   },
   replaceWarning: {
     defaultMessage:
-      "Automations name a project by its path, so replacing or removing this connection points them at the new server, or back at GitLab.com. Chats stop using projects from the old server.",
-    id: "VdrqJKSKUW",
+      "Automations name a project by its path, so replacing or removing this connection points them at the new connection, or back at members' own GitLab.com sign-ins. Chats stop using projects from the old one.",
+    id: "apW26rROTz",
     description: "Warning shown before replacing or removing a GitLab server connection",
+  },
+  hostLabel: {
+    defaultMessage: "Connect to",
+    id: "DGiD4orSjR",
+    description: "Label for the choice between GitLab.com and a company's own GitLab server",
+  },
+  hostGitLabCom: {
+    defaultMessage: "GitLab.com",
+    id: "O2+CxE1DPu",
+    description: "Choice: the public GitLab.com service",
+  },
+  hostServer: {
+    defaultMessage: "Your company's GitLab server",
+    id: "P1sxklxMwY",
+    description: "Choice: a GitLab server the customer runs",
   },
   serverUrlLabel: {
     defaultMessage: "Server address",
@@ -81,9 +96,15 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
   },
   tokenHint: {
     defaultMessage:
-      "Use a token from a non-admin user, with the api scope, or read_api and read_repository for reading only.",
-    id: "NIXB2viMhz",
-    description: "Hint describing which GitLab access token to create",
+      "Use a token from a non-admin user, with the api scope to send merge requests, or read_api and read_repository for reading only. Set an expiry.",
+    id: "gzrexlkMrv",
+    description: "Hint describing which access token to create on a company's own GitLab server",
+  },
+  tokenHintGitLabCom: {
+    defaultMessage:
+      "Use a project or group access token, or a dedicated account that belongs only to the projects to sync: everyone here reaches what the token reaches. Scopes: api to send merge requests, or read_api and read_repository for reading only. Set an expiry.",
+    id: "vJ9wvqlqyr",
+    description: "Hint describing which access token to create on GitLab.com",
   },
   tokenReplaceHint: {
     defaultMessage: "Enter the token again to change anything here.",
@@ -111,13 +132,13 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
     description: "Button label while a GitLab server connection is being checked",
   },
   saved: {
-    defaultMessage: "GitLab server connected.",
-    id: "UDr0hZGNG/",
+    defaultMessage: "GitLab connected.",
+    id: "VfYe3A3WWH",
     description: "Toast after a GitLab server connection is saved",
   },
   saveFailed: {
-    defaultMessage: "Unable to save the GitLab server connection.",
-    id: "vXav6npaND",
+    defaultMessage: "Unable to save the GitLab connection.",
+    id: "Gz+qUGue0p",
     description: "Toast when saving a GitLab server connection fails without a reason",
   },
   disconnect: {
@@ -127,13 +148,13 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
   },
   disconnectConfirm: {
     defaultMessage:
-      "Disconnect for the whole workspace? Automations go back to GitLab.com and chats stop using this server's projects.",
-    id: "TS8IDVeEcm",
+      "Disconnect for the whole workspace? Automations go back to their authors' own GitLab.com sign-ins and chats stop using this connection's projects.",
+    id: "qxChZDhPuT",
     description: "Question shown before removing the GitLab server connection",
   },
   disconnectNow: {
-    defaultMessage: "Disconnect server",
-    id: "MbHpGGZQUr",
+    defaultMessage: "Disconnect GitLab",
+    id: "u3tN+F7OTN",
     description: "Button that confirms removing the GitLab server connection",
   },
   cancel: {
@@ -141,12 +162,24 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
     id: "McapxvtDwd",
     description: "Button that keeps the GitLab server connection",
   },
-  gitlabComChatOnly: {
+  gitlabComSignInName: {
+    defaultMessage: "GitLab.com sign-in",
+    id: "VoQIrWE/6m",
+    description: "Name of the per-member GitLab.com sign-in row on the integrations page",
+  },
+  gitlabComSignIn: {
     defaultMessage:
-      "Sign in with your own GitLab.com account to use its projects in chat. To sync files, connect GitLab above.",
-    id: "JRyoDqK8aF",
+      "Your own GitLab.com account, for chat and for automations you create. To sync files, connect GitLab for the workspace above.",
+    id: "r0YvO5Z1tm",
     description:
       "Description of the per-member GitLab.com sign-in row, shown while the workspace has no GitLab connection",
+  },
+  gitlabComNotUsed: {
+    defaultMessage:
+      "Not used while GitLab is connected for the workspace. Disconnect it here to remove your sign-in.",
+    id: "nqiSfq5i+m",
+    description:
+      "Description of a member's own GitLab.com sign-in row while the workspace has a GitLab connection",
   },
   disconnecting: {
     defaultMessage: "Disconnecting…",
@@ -154,13 +187,13 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
     description: "Button label while the GitLab server connection is being removed",
   },
   disconnected: {
-    defaultMessage: "GitLab server disconnected.",
-    id: "IiTUi5qzJ2",
+    defaultMessage: "GitLab disconnected.",
+    id: "xlwTptAKyK",
     description: "Toast after the GitLab server connection is removed",
   },
   disconnectFailed: {
-    defaultMessage: "Unable to disconnect the GitLab server.",
-    id: "jwOzDgWMEq",
+    defaultMessage: "Unable to disconnect GitLab.",
+    id: "wq3dtDLYEw",
     description: "Toast when removing the GitLab server connection fails",
   },
 });

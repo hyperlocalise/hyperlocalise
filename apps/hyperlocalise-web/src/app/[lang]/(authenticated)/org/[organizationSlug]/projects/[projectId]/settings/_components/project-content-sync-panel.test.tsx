@@ -77,6 +77,7 @@ const savedSync = {
 const runs = [
   {
     id: "run_2",
+    provider: "github",
     trigger: "manual",
     status: "succeeded",
     pulled: { uploaded: 3, skipped: 1, failed: 0, unmatched: 0 },
@@ -90,6 +91,7 @@ const runs = [
   },
   {
     id: "run_1",
+    provider: "github",
     trigger: "scheduled",
     status: "failed",
     pulled: null,
@@ -177,8 +179,8 @@ describe("ProjectContentSyncPanel", () => {
       "https://github.com/acme/web/pull/7",
     );
     // The branch comes from Integrations, so it is shown but not edited here.
-    const branch = screen.getByLabelText("Branch");
-    expect(branch).toHaveValue("main");
+    const branch = await screen.findByDisplayValue("main");
+    expect(branch).toHaveAccessibleName("Branch");
     expect(branch).toHaveAttribute("readonly");
     expect(screen.getByText(/A GitHub sync clones the repository/)).toBeInTheDocument();
     expect(
@@ -238,7 +240,7 @@ describe("ProjectContentSyncPanel", () => {
 
     expect(
       await screen.findByText(
-        "Connect a GitHub repository or the workspace's GitLab server in Integrations to sync this project.",
+        "Enable a GitHub repository or connect GitLab in Integrations to sync this project.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open Integrations" })).toHaveAttribute(
@@ -422,9 +424,15 @@ describe("ProjectContentSyncPanel", () => {
       renderPanel({
         sync: gitlabSync,
         runs: [
-          { ...runs[0], pullRequestUrl: "https://gitlab.example/acme/app/-/merge_requests/3" },
+          {
+            ...runs[0],
+            provider: "gitlab",
+            pullRequestUrl: "https://gitlab.example/acme/app/-/merge_requests/3",
+          },
         ],
-        connections: [{ provider: "gitlab", connectionId: "42", resourceKey: "acme/app" }],
+        connections: [
+          { provider: "gitlab", connectionId: "42", resourceKey: "acme/app", branch: null },
+        ],
         gitlab: gitlabConnected,
       });
 
@@ -484,9 +492,7 @@ describe("ProjectContentSyncPanel", () => {
       await user.click(await screen.findByRole("option", { name: "GitLab" }));
 
       expect(
-        screen.getByText(
-          "Connect the workspace's GitLab server in Integrations to sync from GitLab.",
-        ),
+        screen.getByText("Connect GitLab in Integrations to sync from GitLab."),
       ).toBeInTheDocument();
     });
 
@@ -499,7 +505,7 @@ describe("ProjectContentSyncPanel", () => {
 
       expect(
         await screen.findByText(
-          "Unable to list the GitLab server's repositories. Check the connection in Integrations.",
+          "Unable to list the GitLab repositories. Check the connection in Integrations.",
         ),
       ).toBeInTheDocument();
       expect(
@@ -514,11 +520,14 @@ describe("ProjectContentSyncPanel", () => {
       const user = userEvent.setup();
       renderPanel({
         sync: gitlabSync,
-        connections: [{ provider: "gitlab", connectionId: "42", resourceKey: "acme/app" }],
+        connections: [
+          { provider: "gitlab", connectionId: "42", resourceKey: "acme/app", branch: null },
+        ],
         gitlab: gitlabConnected,
         runs: [
           {
             ...runs[0],
+            provider: "gitlab",
             pullRequestUrl: null,
             written: 0,
             pulled: { uploaded: 1, skipped: 0, failed: 0, unmatched: 2 },
@@ -528,6 +537,7 @@ describe("ProjectContentSyncPanel", () => {
           },
           {
             ...runs[1],
+            provider: "gitlab",
             errorMessage:
               "The workspace's GitLab token was refused. Check the connection in Integrations.",
           },

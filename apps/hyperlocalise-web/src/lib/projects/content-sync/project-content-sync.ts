@@ -416,7 +416,7 @@ export async function executeProjectContentSyncRun(input: {
       runId: input.runId,
       outcome: isErr(result)
         ? { status: "failed", error: result.error }
-        : { status: "succeeded", summary: result.value },
+        : { status: "succeeded", summary: { ...result.value, provider: config.value.provider } },
     });
     logger.info(
       { runId: input.runId, syncId: row.sync.id, ok: !isErr(result) },

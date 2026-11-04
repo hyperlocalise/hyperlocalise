@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray, like } from "drizzle-orm";
+import { and, eq, inArray, like, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { storeRepositorySourceFile } from "@/lib/file-storage/upload-repository-source-files";
@@ -44,6 +44,8 @@ const logger = createLogger("content-sync-gitlab");
 const INGEST_WAIT_TIMEOUT_MS = 120_000;
 
 export type ContentSyncFileReport = {
+  /** How many keys were hidden, when more than `missingKeys` lists. */
+  missingKeyCount?: number;
   path: string;
   /** Keys this run hid because the repository no longer has them. */
   missingKeys: string[];
@@ -217,7 +219,7 @@ export async function executeGitLabContentSync(input: {
     });
     if (isErr(content)) {
       logger.warn(
-        { projectId: input.projectId, path: file.repositoryPath, code: content.error.code },
+        { projectId: input.projectId, code: content.error.code },
         "content sync could not read a source file",
       );
       pulled.failed += 1;
@@ -286,11 +288,11 @@ export async function executeGitLabContentSync(input: {
     });
   }
 
-  // An unchanged file was skipped, so only the files this run imported have a fresh report.
+  // A file imported by this run has a fresh report; an unchanged file's report counts only if no
+  // run has shown it yet (its run may have failed on another file after this one was ingested).
+  const reports = await loadSyncReports(versions);
   const files = [
-    ...(await loadSyncReports(
-      versions.filter((version) => !version.unchanged || version.requeued),
-    )),
+    ...reports.map(({ versionId: _versionId, ...report }) => report),
     ...(await hideFilesMissingFromRepository({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -313,6 +315,11 @@ export async function executeGitLabContentSync(input: {
     "gitlab content sync pulled",
   );
 
+  await markSyncReportsShown(
+    reports.map((report) => report.versionId),
+    input.runId,
+  );
+
   return ok({
     pulled: {
       ...pulled,
@@ -323,6 +330,19 @@ export async function executeGitLabContentSync(input: {
     },
     pushed: { written: 0 },
   });
+}
+
+/** Remembers which run showed a report, so an unchanged file's report isn't repeated. */
+async function markSyncReportsShown(versionIds: string[], runId: string): Promise<void> {
+  if (versionIds.length === 0) {
+    return;
+  }
+  await db
+    .update(schema.repositorySourceFileVersions)
+    .set({
+      syncReport: sql`coalesce(${schema.repositorySourceFileVersions.syncReport}, '{}'::jsonb) || ${JSON.stringify({ reportedRunId: runId })}::jsonb`,
+    })
+    .where(inArray(schema.repositorySourceFileVersions.id, versionIds));
 }
 
 type SyncedVersion = {
@@ -498,7 +518,9 @@ async function hideFilesMissingFromRepository(input: {
   return reports;
 }
 
-async function loadSyncReports(versions: SyncedVersion[]): Promise<ContentSyncFileReport[]> {
+async function loadSyncReports(
+  versions: SyncedVersion[],
+): Promise<(ContentSyncFileReport & { versionId: string })[]> {
   if (versions.length === 0) {
     return [];
   }
@@ -518,9 +540,18 @@ async function loadSyncReports(versions: SyncedVersion[]): Promise<ContentSyncFi
   return versions
     .map((version) => {
       const report = reportById.get(version.sourceFileVersionId);
-      return report && report.missingKeys.length > 0
-        ? { path: version.path, missingKeys: report.missingKeys }
-        : null;
+      if (!report || report.missingKeys.length === 0) {
+        return null;
+      }
+      if (version.unchanged && !version.requeued && report.reportedRunId) {
+        return null;
+      }
+      return {
+        versionId: version.sourceFileVersionId,
+        path: version.path,
+        missingKeys: report.missingKeys,
+        ...(report.missingKeyCount ? { missingKeyCount: report.missingKeyCount } : {}),
+      };
     })
-    .filter((report): report is ContentSyncFileReport => report !== null);
+    .filter((report) => report !== null);
 }

@@ -18,4 +18,11 @@
 export type SourceFileSyncReport = {
   /** Keys in the project that the imported file no longer has. They were hidden, not deleted. */
   missingKeys: string[];
+  /** How many there were, when more than the stored list holds. */
+  missingKeyCount?: number;
+  /** The sync run that showed this report, so a later run doesn't show it again. */
+  reportedRunId?: string;
 };
+
+/** Enough to act on; a dropped file with thousands of keys doesn't bloat every run row. */
+export const SYNC_REPORT_KEY_LIMIT = 200;

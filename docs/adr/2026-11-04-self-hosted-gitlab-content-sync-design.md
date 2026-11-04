@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 
-Ships as two stacked pull requests: pull files from GitLab into a project, then deliver translations as one merge request. Builds on the [self-hosted GitLab connection](./2026-11-03-self-hosted-gitlab-connection-design.md) and changes one line of the [project content sync](./2026-09-11-project-content-sync-design.md) record: GitLab does not reuse the sandbox clone.
+Ships as one pull request with the [project Sync panel](./2026-11-04-project-sync-panel-design.md): pull files from GitLab into a project, and deliver translations as one merge request. Builds on the [self-hosted GitLab connection](./2026-11-03-self-hosted-gitlab-connection-design.md) and changes one line of the [project content sync](./2026-09-11-project-content-sync-design.md) record: GitLab does not reuse the sandbox clone.
 
 ## Context
 
@@ -25,7 +25,7 @@ Translations are edited here, so a repeat sync must not throw them away when the
 ### What a pull imports
 
 - The sync settings name **where each language's files sit**: a path template under the provider folder with `{{locale}}` for the language code (`{{locale}}.json`, `{{locale}}/pages/*.html`). A code names a project locale the way the Contentful, Intercom, Webflow and HubSpot integrations match locales: the same tag (case and `_` aside), else the one project locale of that language (`fr` for `fr-FR`, `en-US` for `en`); two of the language would be a guess, so neither is taken. There is no per-sync code map, so the rule is the same everywhere. The placeholder is required; `**` is allowed only as a whole folder and at most twice, a name may hold at most two `*` or `{{locale}}`, and at most eight wildcards in all, so matching stays fast. The source locale's files are imported as source files. A file whose code is a target locale is a translation file, left for delivery. A file that matches neither is skipped. Nothing is guessed, so a translated file is never read as English, and a run that finds no source file fails rather than succeeding with nothing.
-- The settings live in the existing sync configuration (`ContentSyncConfig`: `branch`, `pathTemplate`). GitLab is offered in the visual workflow **Content sync** step, which runs the same `executeContentSyncConfig`; a built-in project sync page is separate work.
+- The settings live in the existing sync configuration (`ContentSyncConfig`: `branch`, `pathTemplate`). GitLab is offered in the visual workflow **Content sync** step and in the project Sync panel, which run the same `executeContentSyncConfig`.
 - The run waits for every imported file's ingest to finish, so delivery can rely on the keys being there. A file whose bytes are unchanged since the last run is not stored again, whatever the commit, as long as the last version is the sync's own and its ingest isn't still running from the last hour; its last ingest is waited for, and queued again if it never ran or failed. No parse and no source-upload automation runs for that. A version a newer upload superseded counts as finished.
 
 - An import replaces the platform's source text with the file's, as every upload does; editing source text in the platform is a separate, later design.

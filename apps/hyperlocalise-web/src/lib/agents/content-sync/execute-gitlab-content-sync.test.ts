@@ -5,6 +5,7 @@ import { err, isErr, isOk, ok } from "@/lib/primitives/result/results";
 const mocks = vi.hoisted(() => ({
   projectRows: vi.fn(),
   reportRows: vi.fn(),
+  markReportsShown: vi.fn(async (_condition: unknown) => undefined),
   storeRepositorySourceFile: vi.fn(),
   waitForSourceFileVersionIngest: vi.fn(),
   enqueueSourceFileIngestAfterUpload: vi.fn(),
@@ -53,7 +54,11 @@ vi.mock("@/lib/database/client", () => {
       innerJoin: () => ({ where: () => answer(mocks.syncedFileRows, mocks.syncedFileRows) }),
     };
   };
-  return { db: { select: () => ({ from }) }, schema: tables };
+  // The only write is the "report shown" marker; the test reads which versions it marked.
+  const update = () => ({
+    set: () => ({ where: (condition: unknown) => mocks.markReportsShown(condition) }),
+  });
+  return { db: { select: () => ({ from }), update }, schema: tables };
 });
 vi.mock("@/lib/file-storage/upload-repository-source-files", () => ({
   storeRepositorySourceFile: (...args: unknown[]) => mocks.storeRepositorySourceFile(...args),
@@ -283,12 +288,37 @@ describe("executeGitLabContentSync", () => {
     mocks.versionRows.mockReturnValue([
       { ingestState: "ingested", ingestWorkflowRunId: "wf-old", repositorySourceFileId: "file:en" },
     ]);
+    mocks.reportRows.mockReturnValue([
+      { id: "version:old", syncReport: { missingKeys: ["old"], reportedRunId: "run-0" } },
+    ]);
+
+    const result = await run(fakeReader());
+
+    // The stored report was shown by the run that imported the file.
+    expect(isOk(result) && result.value.pulled.files).toEqual([]);
+    expect(mocks.markReportsShown).not.toHaveBeenCalled();
+  });
+
+  it("shows an unchanged file's report once when the run that imported it never showed it", async () => {
+    mocks.storeRepositorySourceFile.mockResolvedValue({
+      path: "gitlab/acme/web/en.json",
+      outcome: "skipped",
+      reason: "unchanged",
+      sourceFileVersionId: "version:old",
+      storedFileId: "stored:old",
+    });
+    mocks.versionRows.mockReturnValue([
+      { ingestState: "ingested", ingestWorkflowRunId: "wf-old", repositorySourceFileId: "file:en" },
+    ]);
+    // No reportedRunId: the earlier run failed on another file after this one was ingested.
     mocks.reportRows.mockReturnValue([{ id: "version:old", syncReport: { missingKeys: ["old"] } }]);
 
     const result = await run(fakeReader());
 
-    // The stored report is history for a file not imported again.
-    expect(isOk(result) && result.value.pulled.files).toEqual([]);
+    expect(isOk(result) && result.value.pulled.files).toEqual([
+      { path: "gitlab/acme/web/en.json", missingKeys: ["old"] },
+    ]);
+    expect(mocks.markReportsShown).toHaveBeenCalledTimes(1);
   });
 
   it("hides the keys of synced files the repository no longer has, and only this sync's", async () => {

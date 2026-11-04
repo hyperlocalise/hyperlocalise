@@ -18,7 +18,7 @@ import { db, schema } from "@/lib/database/client";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 import { hideKeysMissingFromSync, unhideKeysSyncHid } from "./hide-keys-missing-from-sync";
-import type { SourceFileSyncReport } from "./source-file-sync-report";
+import { SYNC_REPORT_KEY_LIMIT, type SourceFileSyncReport } from "./source-file-sync-report";
 
 export async function reconcileSourceFileTranslationKeys(input: {
   organizationId: string;
@@ -147,7 +147,12 @@ export async function reconcileSourceFileTranslationKeys(input: {
     const syncReport: SourceFileSyncReport | null = uploadSurfaceKeepsMissingKeys(
       version.uploadSurface,
     )
-      ? { missingKeys }
+      ? {
+          missingKeys: missingKeys.slice(0, SYNC_REPORT_KEY_LIMIT),
+          ...(missingKeys.length > SYNC_REPORT_KEY_LIMIT
+            ? { missingKeyCount: missingKeys.length }
+            : {}),
+        }
       : null;
     await tx
       .update(schema.repositorySourceFiles)
