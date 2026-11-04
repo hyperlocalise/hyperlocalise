@@ -360,7 +360,9 @@ export async function executeVisualWorkflowNode(input: {
         // A GitLab step keeps one merge request of its own; two steps in a workflow must not
         // rebuild each other's branch. GitHub steps keep their branch per run.
         ...(syncValidation.value.provider === "gitlab"
-          ? { pullRequestBranchKey: `workflow-${workflowId}-${node.id}` }
+          ? {
+              pullRequestBranchKey: `workflow-${workflowId}-${node.id.replace(/[^A-Za-z0-9_-]/g, "-")}`,
+            }
           : {}),
       });
       if (isErr(result)) {

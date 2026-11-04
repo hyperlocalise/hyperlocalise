@@ -90,7 +90,8 @@ export function buildContentSyncJsonTranslationFile(input: {
     return { kind: "unchanged" };
   }
   const layout = existingText ?? sourceText;
-  const text = `${JSON.stringify(tree, null, detectIndent(layout.text))}${layout.finalNewline ? "\n" : ""}`;
+  const newline = layout.text.includes("\r\n") ? "\r\n" : "\n";
+  const text = `${JSON.stringify(tree, null, detectIndent(layout.text)).replace(/\n/g, newline)}${layout.finalNewline ? newline : ""}`;
   return {
     kind: "file",
     content: Buffer.from(`${layout.bom ? "﻿" : ""}${text}`, "utf8"),
@@ -121,6 +122,12 @@ function parseObject(text: string): JsonObject | null {
 /** A Lottie animation is JSON too, but its strings are layer text the importer keys apart. */
 function isLottie(payload: JsonObject): boolean {
   return "v" in payload && Array.isArray(payload.layers);
+}
+
+/** Whether a source file's bytes are a Lottie animation rather than a language file. */
+export function isContentSyncLottieFile(source: Buffer): boolean {
+  const payload = parseObject(stripBom(source.toString("utf8")).text);
+  return payload !== null && isLottie(payload);
 }
 
 function isFormatJsCatalog(payload: JsonObject): boolean {
@@ -189,7 +196,9 @@ function buildCatalog(
 ): JsonObject | undefined {
   // A language file kept as `{ id: text }` stays in that shape; a catalog stays a catalog.
   const simple =
-    existing !== null && Object.values(existing).every((value) => typeof value === "string");
+    existing !== null &&
+    Object.keys(existing).length > 0 &&
+    Object.values(existing).every((value) => typeof value === "string");
   const out: JsonObject = {};
   for (const [key, value] of Object.entries(source)) {
     const message = value as JsonObject;
@@ -218,8 +227,9 @@ function withoutDropped(value: unknown, flatKey: string, dropped: Set<string>): 
     return undefined;
   }
   if (Array.isArray(value)) {
-    // One index taken out would shift the rest, so a list goes whole or not at all.
-    return value.some((_item, index) => dropped.has(`${flatKey}[${index}]`)) ? undefined : value;
+    // One item taken out, or trimmed, would shift the rest, so a list goes whole or not at all.
+    const kept = value.map((item, index) => withoutDropped(item, `${flatKey}[${index}]`, dropped));
+    return kept.every((item, index) => item === value[index]) ? value : undefined;
   }
   if (value && typeof value === "object") {
     const out: JsonObject = {};

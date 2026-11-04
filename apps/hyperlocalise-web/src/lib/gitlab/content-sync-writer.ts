@@ -16,7 +16,7 @@ import type {
   ContentSyncProviderError,
   ContentSyncRepositoryWriter,
   ContentSyncReview,
-  ContentSyncReviewState,
+  ContentSyncReviewDetails,
 } from "@/lib/agents/content-sync/content-sync-provider";
 import { createLogger } from "@/lib/log";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -67,12 +67,19 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-type Review = ContentSyncReview & {
-  state: ContentSyncReviewState;
+type Review = ContentSyncReviewDetails & {
   targetBranch: string | null;
   /** From a fork, or another project: never the sync's own. */
   foreign: boolean;
 };
+
+/** Hidden in the description: what content the merge request holds, and whether the sync closed it. */
+const FINGERPRINT_MARK = /<!-- hyperlocalise-sync:fingerprint=([0-9a-f]+) -->/;
+const CLOSED_MARK = "<!-- hyperlocalise-sync:closed -->";
+
+function fingerprintLine(fingerprint: string): string {
+  return `<!-- hyperlocalise-sync:fingerprint=${fingerprint} -->`;
+}
 
 function parseReview(value: unknown): Review | null {
   const record = asRecord(value);
@@ -83,10 +90,13 @@ function parseReview(value: unknown): Review | null {
   }
   const state =
     record.state === "merged" ? "merged" : record.state === "opened" ? "open" : "closed";
+  const description = typeof record.description === "string" ? record.description : "";
   return {
     id: String(iid),
     url,
     state,
+    fingerprint: FINGERPRINT_MARK.exec(description)?.[1] ?? null,
+    closedBySync: description.includes(CLOSED_MARK),
     targetBranch: typeof record.target_branch === "string" ? record.target_branch : null,
     foreign:
       record.source_project_id !== undefined &&
@@ -211,15 +221,23 @@ export function createGitLabContentSyncWriter(input: {
   async function findReview(options: {
     sourceBranch: string;
     targetBranch: string;
-  }): Promise<
-    Result<(ContentSyncReview & { state: ContentSyncReviewState }) | null, ContentSyncProviderError>
-  > {
+  }): Promise<Result<ContentSyncReviewDetails | null, ContentSyncProviderError>> {
     const reviews = await listReviews(options.sourceBranch);
     if (isErr(reviews)) {
       return err(reviews.error);
     }
     const review = pick(reviews.value, options.targetBranch);
-    return ok(review ? { id: review.id, url: review.url, state: review.state } : null);
+    return ok(
+      review
+        ? {
+            id: review.id,
+            url: review.url,
+            state: review.state,
+            fingerprint: review.fingerprint,
+            closedBySync: review.closedBySync,
+          }
+        : null,
+    );
   }
 
   async function upsertReview(options: {
@@ -227,7 +245,9 @@ export function createGitLabContentSyncWriter(input: {
     targetBranch: string;
     title: string;
     description: string;
+    fingerprint: string;
   }): Promise<Result<ContentSyncReview, ContentSyncProviderError>> {
+    const description = `${options.description}\n\n${fingerprintLine(options.fingerprint)}`;
     const reviews = await listReviews(options.sourceBranch);
     if (isErr(reviews)) {
       return err(reviews.error);
@@ -243,7 +263,7 @@ export function createGitLabContentSyncWriter(input: {
           method: "PUT",
           path: `${projectPath}/merge_requests/${current.id}`,
           body: {
-            description: options.description,
+            description,
             ...(current.targetBranch !== options.targetBranch
               ? { target_branch: options.targetBranch }
               : {}),
@@ -257,7 +277,7 @@ export function createGitLabContentSyncWriter(input: {
             source_branch: options.sourceBranch,
             target_branch: options.targetBranch,
             title: options.title,
-            description: options.description,
+            description,
             remove_source_branch: true,
           },
         });
@@ -273,12 +293,19 @@ export function createGitLabContentSyncWriter(input: {
         });
   }
 
-  async function closeReview(id: string): Promise<Result<void, ContentSyncProviderError>> {
+  async function closeReview(options: {
+    id: string;
+    reason: string;
+  }): Promise<Result<void, ContentSyncProviderError>> {
+    // The reason and the mark go in with the close, so a later run knows the sync closed it.
     const result = await gitlabJson({
       ...request,
       method: "PUT",
-      path: `${projectPath}/merge_requests/${id}`,
-      body: { state_event: "close" },
+      path: `${projectPath}/merge_requests/${options.id}`,
+      body: {
+        description: `${options.reason}\n\n${CLOSED_MARK}`,
+        state_event: "close",
+      },
     });
     return isErr(result) ? err(writeError(result.error, "review")) : ok(undefined);
   }

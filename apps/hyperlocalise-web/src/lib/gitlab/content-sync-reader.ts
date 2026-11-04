@@ -24,6 +24,8 @@ import type { GitLabAccess, GitLabApiError } from "./types";
 
 const TREE_PAGE_SIZE = 100;
 /** 10,000 files under one folder is well past any locale folder. */
+/** A sync's own commit touches at most this many pages of files. */
+const COMMIT_DIFF_MAX_PAGES = 20;
 const TREE_MAX_PAGES = 100;
 
 function providerError(error: GitLabApiError): ContentSyncProviderError {
@@ -191,40 +193,42 @@ export function createGitLabContentSyncReader(input: {
     return result;
   }
 
-  async function listChangedPaths(options: {
-    fromCommitSha: string;
-    toCommitSha: string;
+  async function listCommitPaths(options: {
+    commitSha: string;
   }): Promise<Result<string[], ContentSyncProviderError>> {
-    const result = await gitlabJson({
-      ...request,
-      path: `${projectPath}/repository/compare`,
-      query: new URLSearchParams({
-        from: options.fromCommitSha,
-        to: options.toCommitSha,
-        straight: "true",
-      }),
-    });
-    if (isErr(result)) {
-      return err(providerError(result.error));
-    }
-    const diffs = asRecord(result.value)?.diffs;
-    if (!Array.isArray(diffs)) {
-      return err({
-        code: "content_sync_provider_failed",
-        message: "GitLab answered the comparison in an unexpected shape.",
-      });
-    }
     const paths = new Set<string>();
-    for (const diff of diffs) {
-      const entry = asRecord(diff);
-      for (const path of [entry?.new_path, entry?.old_path]) {
-        if (typeof path === "string" && path) {
-          paths.add(path);
+    for (let page = 1; page <= COMMIT_DIFF_MAX_PAGES; page += 1) {
+      const result = await gitlabJson({
+        ...request,
+        path: `${projectPath}/repository/commits/${encodeURIComponent(options.commitSha)}/diff`,
+        query: new URLSearchParams({ per_page: String(TREE_PAGE_SIZE), page: String(page) }),
+      });
+      if (isErr(result)) {
+        return err(providerError(result.error));
+      }
+      if (!Array.isArray(result.value)) {
+        return err({
+          code: "content_sync_provider_failed",
+          message: "GitLab answered the commit's changes in an unexpected shape.",
+        });
+      }
+      for (const diff of result.value) {
+        const entry = asRecord(diff);
+        for (const path of [entry?.new_path, entry?.old_path]) {
+          if (typeof path === "string" && path) {
+            paths.add(path);
+          }
         }
       }
+      if (result.value.length < TREE_PAGE_SIZE) {
+        return ok([...paths]);
+      }
     }
-    return ok([...paths]);
+    return err({
+      code: "content_sync_provider_failed",
+      message: "The sync branch's commit changes more files than can be checked.",
+    });
   }
 
-  return { resolveBranchHead, listFiles, readFile, listChangedPaths };
+  return { resolveBranchHead, listFiles, readFile, listCommitPaths };
 }

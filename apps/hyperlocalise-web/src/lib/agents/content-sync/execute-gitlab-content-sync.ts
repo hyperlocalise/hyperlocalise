@@ -23,6 +23,7 @@ import { buildPullTranslationsBranchName } from "@/lib/agents/github/github-repo
 import { isSafeRepositoryRelativePath } from "@/lib/i18n/safe-repository-path";
 import { waitForSourceFileVersionIngest } from "@/lib/intercom/wait-for-source-file-ingest";
 import { createLogger } from "@/lib/log";
+import { serializeErrorForLog } from "@/lib/serialize-error-for-log";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import {
   hideKeysMissingFromSync,
@@ -240,6 +241,8 @@ export async function executeGitLabContentSync(input: {
   // Two files that differ only by their code (`en.json` and `en-US.json` on an `en` project)
   // can't both be the source: the exact code wins; with no exact one, neither is imported.
   const skeletons = new Map<string, typeof sourceFiles>();
+  // A file left out for its code is still in the repository, so its keys are never hidden.
+  const duplicatePaths: string[] = [];
   for (const file of sourceFiles) {
     const skeleton = template.rewriteLocale(file.relativePath, "*") ?? file.relativePath;
     skeletons.set(skeleton, [...(skeletons.get(skeleton) ?? []), file]);
@@ -254,6 +257,7 @@ export async function executeGitLabContentSync(input: {
     for (const file of group) {
       if (!exact.includes(file)) {
         sourceFiles.splice(sourceFiles.indexOf(file), 1);
+        duplicatePaths.push(file.projectPath);
         unmatched += 1;
       }
     }
@@ -363,7 +367,7 @@ export async function executeGitLabContentSync(input: {
       template,
       sourceLocale,
       targetLocales,
-      presentPaths: sourceFiles.map((file) => file.projectPath),
+      presentPaths: [...sourceFiles.map((file) => file.projectPath), ...duplicatePaths],
     })),
   ];
 
@@ -394,11 +398,15 @@ export async function executeGitLabContentSync(input: {
       localeCodes,
       repositoryPaths: new Set(listing.value.map((file) => file.path)),
       sourceFiles: deliverable,
+      sourceLocale,
       branchName: buildPullTranslationsBranchName(
         input.pullRequestBranchKey ?? `workflow-${input.automationId}`,
       ),
     }).catch((error: unknown) => {
-      logger.error({ projectId: input.projectId, error }, "gitlab content sync delivery failed");
+      logger.error(
+        { projectId: input.projectId, err: serializeErrorForLog(error) },
+        "gitlab content sync delivery failed",
+      );
       return {
         written: 0,
         heldBack: 0,

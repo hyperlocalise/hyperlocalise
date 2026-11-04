@@ -140,6 +140,7 @@ describe("createGitLabContentSyncWriter", () => {
       targetBranch: "main",
       title: "Translations",
       description: "Body",
+      fingerprint: "fp1",
     });
 
     expect(isOk(result) && result.value).toEqual({
@@ -157,7 +158,7 @@ describe("createGitLabContentSyncWriter", () => {
         source_branch: "hyperlocalise/translations-sync-1",
         target_branch: "main",
         title: "Translations",
-        description: "Body",
+        description: "Body\n\n<!-- hyperlocalise-sync:fingerprint=fp1 -->",
         remove_source_branch: true,
       },
     });
@@ -181,6 +182,7 @@ describe("createGitLabContentSyncWriter", () => {
       targetBranch: "main",
       title: "Translations",
       description: "Body 2",
+      fingerprint: "fp2",
     });
 
     expect(isOk(result) && result.value.id).toBe("7");
@@ -188,7 +190,7 @@ describe("createGitLabContentSyncWriter", () => {
     expect(update).toEqual({
       url: "https://gitlab.com/api/v4/projects/acme%2Fweb/merge_requests/7",
       method: "PUT",
-      body: { description: "Body 2" },
+      body: { description: "Body 2\n\n<!-- hyperlocalise-sync:fingerprint=fp2 -->" },
     });
   });
 
@@ -204,37 +206,53 @@ describe("createGitLabContentSyncWriter", () => {
       targetBranch: "develop",
       title: "T",
       description: "D",
+      fingerprint: "fp3",
     });
 
-    expect(calls(fetchMock)[1]!.body).toEqual({ description: "D", target_branch: "develop" });
+    expect(calls(fetchMock)[1]!.body).toEqual({
+      description: "D\n\n<!-- hyperlocalise-sync:fingerprint=fp3 -->",
+      target_branch: "develop",
+    });
   });
 
-  it("finds the branch's review in any state, preferring an open one into the target", async () => {
+  it("finds the branch's review in any state, preferring an open one into the target, with its marks", async () => {
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValueOnce(
-          json([
-            { ...mergeRequest, iid: 11, state: "closed" },
-            { ...mergeRequest, iid: 10, target_branch: "release" },
-            mergeRequest,
-          ]),
-        ),
+      vi.fn().mockResolvedValueOnce(
+        json([
+          { ...mergeRequest, iid: 11, state: "closed" },
+          { ...mergeRequest, iid: 10, target_branch: "release" },
+          {
+            ...mergeRequest,
+            description: "Body\n\n<!-- hyperlocalise-sync:fingerprint=abc123 -->",
+          },
+        ]),
+      ),
     );
     const found = await writer().findReview({ sourceBranch: "b", targetBranch: "main" });
     expect(isOk(found) && found.value).toEqual({
       id: "7",
       url: "https://gitlab.com/acme/web/-/merge_requests/7",
       state: "open",
+      fingerprint: "abc123",
+      closedBySync: false,
     });
 
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValueOnce(json([{ ...mergeRequest, iid: 11, state: "closed" }])),
+      vi.fn().mockResolvedValueOnce(
+        json([
+          {
+            ...mergeRequest,
+            iid: 11,
+            state: "closed",
+            description: "Closed by Hyperlocalise.\n\n<!-- hyperlocalise-sync:closed -->",
+          },
+        ]),
+      ),
     );
     const closed = await writer().findReview({ sourceBranch: "b", targetBranch: "main" });
-    expect(isOk(closed) && closed.value?.state).toBe("closed");
+    expect(isOk(closed) && closed.value).toMatchObject({ state: "closed", closedBySync: true });
 
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json([])));
     const none = await writer().findReview({ sourceBranch: "b", targetBranch: "main" });
@@ -254,17 +272,20 @@ describe("createGitLabContentSyncWriter", () => {
     expect(isOk(await writer().deleteBranch("gone"))).toBe(true);
   });
 
-  it("closes a merge request", async () => {
+  it("closes a merge request with the reason and the sync's mark", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(json({ ...mergeRequest, state: "closed" }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await writer().closeReview("7");
+    const result = await writer().closeReview({ id: "7", reason: "Nothing left to send." });
 
     expect(isOk(result)).toBe(true);
     expect(calls(fetchMock)[0]).toEqual({
       url: "https://gitlab.com/api/v4/projects/acme%2Fweb/merge_requests/7",
       method: "PUT",
-      body: { state_event: "close" },
+      body: {
+        description: "Nothing left to send.\n\n<!-- hyperlocalise-sync:closed -->",
+        state_event: "close",
+      },
     });
   });
 });

@@ -216,7 +216,7 @@ export async function gitlabJson(input: GitLabRequest): Promise<Result<unknown, 
   if (isErr(response)) {
     return response;
   }
-  if (response.value.body.length === 0) {
+  if (input.method === "DELETE" && response.value.body.length === 0) {
     // A delete answers with no body.
     return ok(null);
   }

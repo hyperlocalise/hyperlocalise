@@ -60,10 +60,9 @@ export type ContentSyncRepositoryReader = {
     commitSha: string;
     path: string;
   }): Promise<Result<Buffer, ContentSyncProviderError>>;
-  /** The paths that differ between two commits (added, changed or removed). */
-  listChangedPaths(input: {
-    fromCommitSha: string;
-    toCommitSha: string;
+  /** The paths one commit adds, changes or removes against its parent. */
+  listCommitPaths(input: {
+    commitSha: string;
   }): Promise<Result<string[], ContentSyncProviderError>>;
 };
 
@@ -84,6 +83,14 @@ export type ContentSyncReview = {
 
 export type ContentSyncReviewState = "open" | "closed" | "merged";
 
+export type ContentSyncReviewDetails = ContentSyncReview & {
+  state: ContentSyncReviewState;
+  /** The content fingerprint the sync wrote into it, when it did. */
+  fingerprint: string | null;
+  /** Whether the sync itself closed it; a reviewer's close is respected, the sync's own is not. */
+  closedBySync: boolean;
+};
+
 /** The write half, used by merge-request delivery. */
 export type ContentSyncRepositoryWriter = {
   /**
@@ -98,13 +105,14 @@ export type ContentSyncRepositoryWriter = {
   }): Promise<Result<{ commitSha: string }, ContentSyncProviderError>>;
   /**
    * Opens a review from the branch, or updates the open one's description (and target, when
-   * it changed); an open review's title is left as it is.
+   * it changed); an open review's title is left as it is. The fingerprint names the content.
    */
   upsertReview(input: {
     sourceBranch: string;
     targetBranch: string;
     title: string;
     description: string;
+    fingerprint: string;
   }): Promise<Result<ContentSyncReview, ContentSyncProviderError>>;
   /**
    * The branch's own newest review in any state (an open one first, the one into `targetBranch`
@@ -113,11 +121,12 @@ export type ContentSyncRepositoryWriter = {
   findReview(input: {
     sourceBranch: string;
     targetBranch: string;
-  }): Promise<
-    Result<(ContentSyncReview & { state: ContentSyncReviewState }) | null, ContentSyncProviderError>
-  >;
-  /** Closes an open review whose content no longer has anything approved behind it. */
-  closeReview(id: string): Promise<Result<void, ContentSyncProviderError>>;
+  }): Promise<Result<ContentSyncReviewDetails | null, ContentSyncProviderError>>;
+  /** Closes an open review, saying why in it, so a later run knows the sync closed it. */
+  closeReview(input: {
+    id: string;
+    reason: string;
+  }): Promise<Result<void, ContentSyncProviderError>>;
   /** Removes the sync's branch, so the next run with something to send starts afresh. */
   deleteBranch(branch: string): Promise<Result<void, ContentSyncProviderError>>;
 };

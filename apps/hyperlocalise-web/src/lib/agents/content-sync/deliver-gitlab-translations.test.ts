@@ -58,7 +58,7 @@ import type {
   ContentSyncProviderError,
   ContentSyncRepositoryReader,
   ContentSyncRepositoryWriter,
-  ContentSyncReviewState,
+  ContentSyncReviewDetails,
 } from "./content-sync-provider";
 import type { ContentSyncConfig } from "./content-sync-types";
 import { deliverGitLabTranslations } from "./deliver-gitlab-translations";
@@ -97,11 +97,12 @@ function blobId(text: string) {
 }
 
 /**
- * Files on the target at `head`, and a sync branch: its files, its parent and the paths it changes.
+ * Files on the target at `head`, and a sync branch: its files, its parent and the paths its
+ * commit touches.
  */
 function fakeReader(input: {
   target?: Record<string, string>;
-  syncBranch?: { files: Record<string, string>; parent?: string; changedPaths?: string[] };
+  syncBranch?: { files: Record<string, string>; parent?: string; commitPaths?: string[] };
 }): Reader {
   const target = input.target ?? {};
   const branch = input.syncBranch;
@@ -135,20 +136,35 @@ function fakeReader(input: {
     readFile: vi.fn<ContentSyncRepositoryReader["readFile"]>(async ({ commitSha, path }) =>
       commitSha === "sync-head" ? read(branch?.files ?? {}, path) : read(target, path),
     ),
-    listChangedPaths: vi.fn<ContentSyncRepositoryReader["listChangedPaths"]>(async () =>
-      ok(branch?.changedPaths ?? Object.keys(branch?.files ?? {})),
+    listCommitPaths: vi.fn<ContentSyncRepositoryReader["listCommitPaths"]>(async () =>
+      ok(branch?.commitPaths ?? Object.keys(branch?.files ?? {})),
     ),
   };
 }
 
-function fakeWriter(existing: { state: ContentSyncReviewState } | null = null): Writer {
+function fakeWriter(
+  existing:
+    | (Partial<Pick<ContentSyncReviewDetails, "fingerprint" | "closedBySync">> & {
+        state: ContentSyncReviewDetails["state"];
+      })
+    | null = null,
+): Writer {
   return {
     commitFiles: vi.fn<ContentSyncRepositoryWriter["commitFiles"]>(async () =>
       ok({ commitSha: "def" }),
     ),
     upsertReview: vi.fn<ContentSyncRepositoryWriter["upsertReview"]>(async () => ok(review)),
     findReview: vi.fn<ContentSyncRepositoryWriter["findReview"]>(async () =>
-      ok(existing ? { ...review, state: existing.state } : null),
+      ok(
+        existing
+          ? {
+              ...review,
+              state: existing.state,
+              fingerprint: existing.fingerprint ?? null,
+              closedBySync: existing.closedBySync ?? false,
+            }
+          : null,
+      ),
     ),
     closeReview: vi.fn<ContentSyncRepositoryWriter["closeReview"]>(async () => ok(undefined)),
     deleteBranch: vi.fn<ContentSyncRepositoryWriter["deleteBranch"]>(async () => ok(undefined)),
@@ -172,6 +188,7 @@ function prefilled(byLocale: Record<string, Record<string, string>>, loadedKeyCo
 function deliver(input: {
   reader: Reader;
   writer: Writer;
+  sourceLocale?: string;
   targetLocales?: string[];
   localeCodes?: Map<string, string>;
   repositoryPaths?: string[];
@@ -188,6 +205,7 @@ function deliver(input: {
     writer: input.writer,
     head,
     template: compileContentSyncPathTemplate(template),
+    sourceLocale: input.sourceLocale ?? "en-US",
     targetLocales: input.targetLocales ?? ["fr-FR", "de-DE"],
     localeCodes:
       input.localeCodes ??
@@ -308,7 +326,10 @@ describe("deliverGitLabTranslations", () => {
     });
 
     expect(result).toEqual(nothing);
-    expect(writer.closeReview).toHaveBeenCalledWith("7");
+    expect(writer.closeReview).toHaveBeenCalledWith({
+      id: "7",
+      reason: expect.stringMatching(/Closed by Hyperlocalise/),
+    });
     expect(writer.deleteBranch).toHaveBeenCalledWith("hyperlocalise/translations-sync-1");
   });
 
@@ -330,15 +351,35 @@ describe("deliverGitLabTranslations", () => {
     expect(open.commitFiles).not.toHaveBeenCalled();
     expect(open.upsertReview).toHaveBeenCalledTimes(1);
 
-    // A merge request a reviewer closed stays closed; none at all gets one.
-    const closed = fakeWriter({ state: "closed" });
+    // A merge request a reviewer closed on exactly this content stays closed, whatever the branch;
+    // one closed on other content, or by the sync itself, does not hold the next one back.
+    const fingerprint = (open.upsertReview.mock.calls[0]![0] as { fingerprint: string })
+      .fingerprint;
+    const closed = fakeWriter({ state: "closed", fingerprint });
     const left = await deliver({
-      reader,
+      reader: fakeReader({ target: { "locales/fr.json": '{\n  "title": "Vieux"\n}\n' } }),
       writer: closed,
       repositoryPaths: ["locales/en.json", "locales/fr.json"],
     });
     expect(left).toEqual(nothing);
+    expect(closed.commitFiles).not.toHaveBeenCalled();
     expect(closed.upsertReview).not.toHaveBeenCalled();
+
+    const otherContent = fakeWriter({ state: "closed", fingerprint: "other" });
+    await deliver({
+      reader,
+      writer: otherContent,
+      repositoryPaths: ["locales/en.json", "locales/fr.json"],
+    });
+    expect(otherContent.upsertReview).toHaveBeenCalledTimes(1);
+
+    const bySync = fakeWriter({ state: "closed", fingerprint, closedBySync: true });
+    await deliver({
+      reader,
+      writer: bySync,
+      repositoryPaths: ["locales/en.json", "locales/fr.json"],
+    });
+    expect(bySync.upsertReview).toHaveBeenCalledTimes(1);
 
     const none = fakeWriter();
     const opened = await deliver({
@@ -373,7 +414,7 @@ describe("deliverGitLabTranslations", () => {
         target: { "locales/fr.json": '{\n  "title": "Vieux"\n}\n' },
         syncBranch: {
           files: { "locales/fr.json": built, "locales/de.json": "{}" },
-          changedPaths: ["locales/fr.json", "locales/de.json"],
+          commitPaths: ["locales/fr.json", "locales/de.json"],
         },
       }),
       writer: extra,
@@ -407,6 +448,36 @@ describe("deliverGitLabTranslations", () => {
     await deliver({ reader: fakeReader({}), writer });
 
     expect(JSON.parse(committedChanges(writer)[0]!.content!)).toEqual({ title: "Accueil" });
+  });
+
+  it("never sends the approved text of a key hidden by hand, and counts a same-language target that would overwrite the source", async () => {
+    prefilled({ "fr-FR": { title: "Accueil", "nav.about": "À propos" } });
+    mocks.keyRows.mockReturnValue([
+      { key: "title", isHidden: false, hiddenBySyncAt: null },
+      { key: "nav.about", isHidden: true, hiddenBySyncAt: null },
+    ]);
+    const writer = fakeWriter();
+    await deliver({ reader: fakeReader({}), writer, targetLocales: ["fr-FR"] });
+    expect(JSON.parse(committedChanges(writer)[0]!.content!)).toEqual({
+      title: "Accueil",
+      nav: { about: "About" },
+    });
+
+    prefilled({ "en-GB": { title: "Home (UK)" } });
+    const conflict = fakeWriter();
+    const result = await deliver({
+      reader: fakeReader({}),
+      writer: conflict,
+      sourceLocale: "en",
+      targetLocales: ["en-GB"],
+      // The repository names both as `en`, so the target's file is the source file.
+      localeCodes: new Map([
+        ["en", "en"],
+        ["en-GB", "en"],
+      ]),
+    });
+    expect(result).toEqual({ ...nothing, conflicts: 1 });
+    expect(conflict.commitFiles).not.toHaveBeenCalled();
   });
 
   it("sends a page whole once every segment that is text to translate is approved", async () => {

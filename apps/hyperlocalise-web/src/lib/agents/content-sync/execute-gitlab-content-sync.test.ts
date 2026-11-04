@@ -137,7 +137,7 @@ function fakeReader(overrides: Partial<ContentSyncRepositoryReader> = {}): Reade
     readFile: vi.fn<ContentSyncRepositoryReader["readFile"]>(async ({ path }) =>
       ok(Buffer.from(files.get(path) ?? "", "utf8")),
     ),
-    listChangedPaths: vi.fn<ContentSyncRepositoryReader["listChangedPaths"]>(async () => ok([])),
+    listCommitPaths: vi.fn<ContentSyncRepositoryReader["listCommitPaths"]>(async () => ok([])),
   };
   for (const [name, override] of Object.entries(overrides)) {
     reader[name as keyof Reader].mockImplementation(override as never);
@@ -370,6 +370,7 @@ describe("executeGitLabContentSync", () => {
         upsertReview: vi.fn(),
         findReview: vi.fn(),
         closeReview: vi.fn(),
+        deleteBranch: vi.fn(),
       },
     });
     expect(isOk(result) && result.value.pulled.uploaded).toBe(1);
@@ -393,6 +394,7 @@ describe("executeGitLabContentSync", () => {
         upsertReview: vi.fn(),
         findReview: vi.fn(),
         closeReview: vi.fn(),
+        deleteBranch: vi.fn(),
       },
     });
     expect(isOk(result) && result.value.pushed.error?.code).toBe("content_sync_push_failed");

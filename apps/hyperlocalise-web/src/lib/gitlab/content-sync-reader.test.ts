@@ -50,26 +50,24 @@ describe("createGitLabContentSyncReader", () => {
     ]);
   });
 
-  it("lists the paths two commits differ by, added and removed alike", async () => {
+  it("lists the paths a commit touches, added and removed alike", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       new Response(
-        JSON.stringify({
-          diffs: [
-            { old_path: "locales/fr.json", new_path: "locales/fr.json" },
-            { old_path: "locales/old.json", new_path: "locales/new.json" },
-          ],
-        }),
+        JSON.stringify([
+          { old_path: "locales/fr.json", new_path: "locales/fr.json" },
+          { old_path: "locales/old.json", new_path: "locales/new.json" },
+        ]),
       ),
     );
     vi.stubGlobal("fetch", fetchMock);
-    const paths = await reader().listChangedPaths({ fromCommitSha: "abc", toCommitSha: "def" });
+    const paths = await reader().listCommitPaths({ commitSha: "def" });
     expect(isOk(paths) && paths.value).toEqual([
       "locales/fr.json",
       "locales/new.json",
       "locales/old.json",
     ]);
     expect(requestedUrls(fetchMock)).toEqual([
-      "https://gitlab.com/api/v4/projects/acme%2Fweb/repository/compare?from=abc&to=def&straight=true",
+      "https://gitlab.com/api/v4/projects/acme%2Fweb/repository/commits/def/diff?per_page=100&page=1",
     ]);
   });
 
