@@ -66,7 +66,7 @@ func (h *glossaryInterchangeHandler) Handle(ctx context.Context, event events.SQ
 	failed := make([]batchItemFailure, 0)
 	for _, record := range event.Records {
 		var message interchangeMessage
-		if err := json.Unmarshal([]byte(record.Body), &message); err != nil || message.RunID == "" || (message.Operation != "import" && message.Operation != "export") {
+		if err := decodeInterchangeMessage(record.Body, &message); err != nil {
 			h.logger.ErrorContext(ctx, "glossary_interchange_message_rejected", "message_id", record.MessageId, "error", err)
 			failed = append(failed, batchItemFailure{ItemIdentifier: record.MessageId})
 			continue
@@ -75,11 +75,24 @@ func (h *glossaryInterchangeHandler) Handle(ctx context.Context, event events.SQ
 		err = processRun(runCtx, pool, h.objects, message)
 		cancel()
 		if err != nil {
-			h.logger.ErrorContext(ctx, "glossary_interchange_run_failed", "run_id", message.RunID, "operation", message.Operation, "error", err)
-			failed = append(failed, batchItemFailure{ItemIdentifier: record.MessageId})
+			h.logger.ErrorContext(ctx, "glossary_interchange_run_failed", "run_id", message.RunID, "operation", message.Operation, "permanent", isPermanentGlossaryInterchangeFailure(err), "error", err)
+			// Permanent failures are already recorded on the run; redelivery cannot change the outcome.
+			if !isPermanentGlossaryInterchangeFailure(err) {
+				failed = append(failed, batchItemFailure{ItemIdentifier: record.MessageId})
+			}
 		}
 	}
 	return batchResponse{BatchItemFailures: failed}, nil
+}
+
+func decodeInterchangeMessage(body string, message *interchangeMessage) error {
+	if err := json.Unmarshal([]byte(body), message); err != nil {
+		return errors.New("invalid glossary interchange message")
+	}
+	if message.SchemaVersion != 1 || message.RunID == "" || (message.Operation != "import" && message.Operation != "export") {
+		return errors.New("unsupported glossary interchange message")
+	}
+	return nil
 }
 
 func (h *glossaryInterchangeHandler) currentPool(ctx context.Context) (*pgxpool.Pool, error) {

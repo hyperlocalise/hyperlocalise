@@ -113,6 +113,7 @@ func main() {
 	h.workspaceSettings = &workspaceSettingsAPI{activityLog: activityLogPublisher}
 	h.sessionOrganizations = &sessionOrganizationsAPI{}
 	h.sessionAccount = &sessionAccountAPI{}
+	h.sessionOnboarding = &sessionOnboardingAPI{}
 	h.irisGeneration = &irisGenerationAPI{provider: newIrisGenerationProvider(), text: newIrisTextModel()}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
@@ -149,6 +150,9 @@ func main() {
 			return workosClient.OrganizationMembership().Get(ctx, id)
 		}
 		h.members.workos = newLiveMemberWorkos(key, workosAPIBaseURL())
+		if identity := newLiveMemberWorkos(key, workosAPIBaseURL()); identity != nil {
+			h.sessionOnboarding.workos = identity
+		}
 		if identity := newLiveMemberWorkos(key, workosAPIBaseURL()); identity != nil {
 			h.workspaceSettings.workos = identity
 		}
@@ -194,6 +198,7 @@ func main() {
 		h.workspaceSettings.pool = traced
 		h.sessionOrganizations.pool = traced
 		h.sessionAccount.pool = traced
+		h.sessionOnboarding.pool = traced
 		if h.irisGeneration != nil {
 			h.irisGeneration.pool = traced
 		}

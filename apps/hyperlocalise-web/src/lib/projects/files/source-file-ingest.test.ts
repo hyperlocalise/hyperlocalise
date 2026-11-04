@@ -36,6 +36,8 @@ import { db, schema } from "@/lib/database/client";
 import { createRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import type { SourceFileIngestQueue } from "@/lib/workflow/types";
 
+import { GITLAB_CONTENT_SYNC_UPLOAD_SURFACE } from "@/lib/agents/content-sync/content-sync-types";
+
 import { reconcileSourceFileTranslationKeys } from "./reconcile-source-file-translation-keys";
 
 import {
@@ -73,6 +75,7 @@ async function createSourceVersion(input: {
   ingestState?: (typeof schema.repositorySourceFileVersions.$inferSelect)["ingestState"];
   ingestWorkflowRunId?: string | null;
   filename?: string;
+  uploadSurface?: string;
 }) {
   const storedFile = await insertStoredSourceFile({
     organizationId: input.organizationId,
@@ -89,7 +92,7 @@ async function createSourceVersion(input: {
     storedFile,
     sourcePath: input.sourcePath ?? SOURCE_PATH,
     sourceHash: input.sourceHash === undefined ? SOURCE_HASH : input.sourceHash,
-    uploadSurface: "test",
+    uploadSurface: input.uploadSurface ?? "test",
   });
 
   if (input.ingestState || input.ingestWorkflowRunId !== undefined) {
@@ -553,6 +556,69 @@ describe("reconcileSourceFileTranslationKeys", () => {
     ).toHaveLength(1);
   });
 
+  it("sends approved translations of changed source text back to review", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    await snapshot(organization.id, project.id, [
+      { key: "changed", text: "Save" },
+      { key: "same", text: "Cancel" },
+    ]);
+    const keys = await db
+      .select()
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.projectId, project.id));
+    const keyId = (key: string) => keys.find((row) => row.key === key)!.id;
+    const reviewedAt = new Date("2026-01-01T00:00:00Z");
+    await db.insert(schema.projectTranslations).values(
+      [
+        { key: "changed", targetLocale: "fr", status: "approved" as const },
+        { key: "changed", targetLocale: "de", status: "draft" as const },
+        { key: "same", targetLocale: "fr", status: "approved" as const },
+      ].map((row) => ({
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: keyId(row.key),
+        targetLocale: row.targetLocale,
+        text: `${row.key} ${row.targetLocale}`,
+        status: row.status,
+        provenance: "import" as const,
+        reviewedAt: row.status === "approved" ? reviewedAt : null,
+      })),
+    );
+
+    await snapshot(organization.id, project.id, [
+      { key: "changed", text: "Save changes" },
+      { key: "same", text: "Cancel" },
+    ]);
+
+    const translations = await db
+      .select()
+      .from(schema.projectTranslations)
+      .where(eq(schema.projectTranslations.projectId, project.id));
+    const state = (key: string, locale: string) =>
+      translations.find(
+        (row) => row.translationKeyId === keyId(key) && row.targetLocale === locale,
+      );
+    expect(state("changed", "fr")).toMatchObject({
+      status: "needs_review",
+      text: "changed fr",
+      reviewedAt: null,
+    });
+    expect(state("changed", "de")).toMatchObject({ status: "draft" });
+    expect(state("same", "fr")).toMatchObject({ status: "approved", reviewedAt });
+    const revisions = await db
+      .select()
+      .from(schema.projectTranslationRevisions)
+      .where(eq(schema.projectTranslationRevisions.projectId, project.id));
+    expect(
+      revisions
+        .toSorted((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .map((row) => [row.translationId, row.status, row.actorKind]),
+    ).toEqual([
+      [state("changed", "fr")!.id, "approved", "system"],
+      [state("changed", "fr")!.id, "needs_review", "system"],
+    ]);
+  });
+
   it("reconciles empty files and does not let an older workflow restore deleted keys", async () => {
     const { organization, project } = await createStoredProjectFixture();
     const old = await createSourceVersion({
@@ -630,5 +696,203 @@ describe("reconcileSourceFileTranslationKeys", () => {
       .from(schema.repositorySourceFiles)
       .where(eq(schema.repositorySourceFiles.id, first.repositorySourceFileId));
     expect(file.reconciledSourceFileVersionId).toBe(first.sourceFileVersionId);
+  });
+});
+
+describe("reconcileSourceFileTranslationKeys for a GitLab sync", () => {
+  async function syncSnapshot(input: {
+    organizationId: string;
+    projectId: string;
+    entries: { key: string; text: string }[];
+    runId: string;
+  }) {
+    const version = await createSourceVersion({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      ingestState: "ingesting",
+      ingestWorkflowRunId: input.runId,
+      uploadSurface: GITLAB_CONTENT_SYNC_UPLOAD_SURFACE,
+    });
+    const result = await reconcileSourceFileTranslationKeys({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      repositorySourceFileId: version.repositorySourceFileId,
+      sourceFileVersionId: version.id,
+      workflowRunId: input.runId,
+      entries: input.entries.map((entry) => ({ ...entry, context: null })),
+    });
+    const [stored] = await db
+      .select({ syncReport: schema.repositorySourceFileVersions.syncReport })
+      .from(schema.repositorySourceFileVersions)
+      .where(eq(schema.repositorySourceFileVersions.id, version.id));
+    return { result, storedReport: stored?.syncReport, fileId: version.repositorySourceFileId };
+  }
+
+  async function keysByName(fileId: string) {
+    const rows = await db
+      .select({
+        key: schema.projectTranslationKeys.key,
+        sourceText: schema.projectTranslationKeys.sourceText,
+        isHidden: schema.projectTranslationKeys.isHidden,
+        hiddenBySyncAt: schema.projectTranslationKeys.hiddenBySyncAt,
+        id: schema.projectTranslationKeys.id,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, fileId));
+    return new Map(rows.map((row) => [row.key, row]));
+  }
+
+  it("hides keys the repository dropped and unhides only the ones a sync hid", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const first = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_sync_1",
+      entries: [
+        { key: "keep", text: "Keep" },
+        { key: "dropped", text: "Dropped" },
+        { key: "manual", text: "Manual" },
+      ],
+    });
+    expect(first.result).toEqual({
+      status: "ingested",
+      syncReport: { missingKeys: [] },
+    });
+    const manual = (await keysByName(first.fileId)).get("manual")!;
+    await db
+      .update(schema.projectTranslationKeys)
+      .set({ isHidden: true })
+      .where(eq(schema.projectTranslationKeys.id, manual.id));
+
+    const second = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_sync_2",
+      entries: [{ key: "keep", text: "Keep" }],
+    });
+    // Only keys this sync hid are listed: "manual" was hidden by hand before it.
+    expect(second.result).toEqual({
+      status: "ingested",
+      syncReport: { missingKeys: ["dropped"] },
+    });
+    expect(second.storedReport).toEqual({ missingKeys: ["dropped"] });
+    let keys = await keysByName(first.fileId);
+    expect(keys.get("dropped")).toMatchObject({ isHidden: true });
+    expect(keys.get("dropped")?.hiddenBySyncAt).not.toBeNull();
+    // Hidden by hand before the sync, so the sync doesn't claim it.
+    expect(keys.get("manual")).toMatchObject({ isHidden: true, hiddenBySyncAt: null });
+
+    const third = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_sync_3",
+      entries: [
+        { key: "keep", text: "Keep" },
+        { key: "dropped", text: "Dropped" },
+        { key: "manual", text: "Manual" },
+      ],
+    });
+    expect(third.result).toEqual({
+      status: "ingested",
+      syncReport: { missingKeys: [] },
+    });
+    keys = await keysByName(first.fileId);
+    expect(keys.get("dropped")).toMatchObject({ isHidden: false, hiddenBySyncAt: null });
+    expect(keys.get("manual")).toMatchObject({ isHidden: true, hiddenBySyncAt: null });
+  });
+
+  it("replaces source text edited in the platform with the file's, as every upload does", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const first = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_off_1",
+      entries: [{ key: "title", text: "Home" }],
+    });
+    const title = (await keysByName(first.fileId)).get("title")!;
+    await db
+      .update(schema.projectTranslationKeys)
+      .set({ sourceText: "Home (edited here)" })
+      .where(eq(schema.projectTranslationKeys.id, title.id));
+
+    const second = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_off_2",
+      entries: [{ key: "title", text: "Home" }],
+    });
+    expect(second.result).toEqual({
+      status: "ingested",
+      syncReport: { missingKeys: [] },
+    });
+    expect((await keysByName(first.fileId)).get("title")).toMatchObject({ sourceText: "Home" });
+  });
+
+  it("stores no report for a hand upload, which still deletes what it lacks", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const first = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_mixed_1",
+      entries: [
+        { key: "kept", text: "v1" },
+        { key: "gone", text: "Gone" },
+      ],
+    });
+
+    const version = await createSourceVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      ingestState: "ingesting",
+      ingestWorkflowRunId: "run_mixed_2",
+    });
+    const result = await reconcileSourceFileTranslationKeys({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: version.repositorySourceFileId,
+      sourceFileVersionId: version.id,
+      workflowRunId: "run_mixed_2",
+      entries: [{ key: "kept", text: "v2", context: null }],
+    });
+    expect(result).toEqual({ status: "ingested" });
+    const after = await keysByName(first.fileId);
+    expect(after.get("gone")).toBeUndefined();
+    expect(after.get("kept")).toMatchObject({ sourceText: "v2" });
+  });
+
+  it("shows keys a sync hid again when a hand upload brings them back", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const first = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_hand_1",
+      entries: [{ key: "back", text: "Back" }],
+    });
+    await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_hand_2",
+      entries: [],
+    });
+    expect((await keysByName(first.fileId)).get("back")).toMatchObject({ isHidden: true });
+
+    const version = await createSourceVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      ingestState: "ingesting",
+      ingestWorkflowRunId: "run_hand_3",
+    });
+    await reconcileSourceFileTranslationKeys({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: version.repositorySourceFileId,
+      sourceFileVersionId: version.id,
+      workflowRunId: "run_hand_3",
+      entries: [{ key: "back", text: "Back", context: null }],
+    });
+    expect((await keysByName(first.fileId)).get("back")).toMatchObject({
+      isHidden: false,
+      hiddenBySyncAt: null,
+    });
   });
 });

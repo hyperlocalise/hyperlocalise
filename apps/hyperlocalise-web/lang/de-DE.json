@@ -3152,6 +3152,9 @@
   "3RQjQSebWm": {
     "defaultMessage": "Mitglieder konnten nicht geladen werden."
   },
+  "3S3afNJApr": {
+    "defaultMessage": "Öffne in den HubSpot-Einstellungen „Blog“ und wähle „Mehrsprachige Varianten hinzufügen/bearbeiten“. Wenn diese Sprache im Blog aktiviert ist, erstellt Push einen unveröffentlichten Beitragsentwurf. Dadurch wird dem Blog keine Sprache hinzugefügt."
+  },
   "3SLTb8lWnJ": {
     "defaultMessage": "Quellgebiet"
   },
@@ -6445,6 +6448,9 @@
   },
   "9QrrRor3/1": {
     "defaultMessage": "Es läuft in jeder Sprache"
+  },
+  "9RWd1cWWqm": {
+    "defaultMessage": "Fügen Sie zuerst mehrsprachige Varianten hinzu oder bearbeiten Sie diese."
   },
   "9RkSMcYnN2": {
     "defaultMessage": "Dateikontext"
@@ -14473,6 +14479,9 @@
   },
   "OAZ7oFBkRI": {
     "defaultMessage": "{count, plural, one {# neuer QA-Fehler} other {# neue QA-Fehler}} seit dem vorherigen Scan"
+  },
+  "OBtwmZ+5Ft": {
+    "defaultMessage": "Wählen Sie aus, welche zugeordneten E-Mails, Blogbeiträge und Formulare mit freigegebenen Übersetzungen aktualisiert werden sollen. E-Mails werden zu duplizierten lokalisierten Entwürfen. Blogbeiträge werden zu unveröffentlichten lokalisierten Entwürfen. Formulare werden als separate lokalisierte Kopien angelegt. Die Quelle wird dabei weder geändert noch veröffentlicht."
   },
   "OBw52VUo2G": {
     "defaultMessage": "{percent}% des Tests"

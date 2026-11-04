@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 )
 
@@ -321,4 +323,84 @@ func TestMemberRevokeClearsItsMarkWhenTheRemovalFails(t *testing.T) {
 	err = scope.Pool.QueryRow(t.Context(), `select m.workos_membership_id from organization_memberships m join users u on u.id=m.user_id where u.workos_user_id=$1`, workosUserID).Scan(&membershipID)
 	require.NoError(t, err)
 	require.Nil(t, membershipID)
+}
+
+func TestMemberLeaveScripted(t *testing.T) {
+	actor := memberUnitActor("member")
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+
+	pool := &scriptPool{steps: []dbStep{{op: opQueryRow, err: pgx.ErrNoRows}}}
+	_, _, err := (&memberAPI{pool: pool}).leaveWorkspaceHandler(req, actor)
+	requireMemberFailure(t, err, http.StatusNotFound, "member_not_found")
+
+	pool = &scriptPool{steps: append([]dbStep{memberUnitMemberRow("member", nil)}, revokeUnitDeleteSteps()...)}
+	pool.steps = append(pool.steps, dbStep{op: opQuery}, dbStep{op: opExec})
+	_, status, err := (&memberAPI{pool: pool, workos: &stubMemberWorkos{}}).leaveWorkspaceHandler(req, actor)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusNoContent, status)
+	requireScriptDone(t, pool)
+
+	workos := &stubMemberWorkos{deleteErr: errors.New("workos down")}
+	pool = &scriptPool{steps: []dbStep{memberUnitMemberRow("member", "om_target"), {op: opBegin}, {op: opExec}, {op: opQueryRow, scan: []any{"member"}}}}
+	_, err = (&memberAPI{pool: pool, workos: workos}).leaveWorkspace(t.Context(), actor)
+	requireMemberFailure(t, err, http.StatusInternalServerError, "member_sync_failed")
+	require.Equal(t, "om_target", workos.deleteID)
+	requireScriptDone(t, pool)
+}
+
+func TestMemberLeavePreviewScripted(t *testing.T) {
+	actor := memberUnitActor("admin")
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	boom := errors.New("boom")
+
+	pool := &scriptPool{steps: []dbStep{{op: opQueryRow, err: pgx.ErrNoRows}}}
+	_, _, err := (&memberAPI{pool: pool}).leaveWorkspacePreviewHandler(req, actor)
+	requireMemberFailure(t, err, http.StatusNotFound, "member_not_found")
+
+	pool = &scriptPool{steps: []dbStep{
+		memberUnitMemberRow("admin", "om_target"),
+		{op: opQueryRow, scan: []any{0}},
+		{op: opQuery, table: [][]any{{"CI", "hl_abc", 51}}},
+		{op: opQuery, table: [][]any{{"auto_1", "Nightly sync", 2}, {"auto_2", "Weekly", 2}}},
+	}}
+	value, status, err := (&memberAPI{pool: pool, workos: &stubMemberWorkos{}}).leaveWorkspacePreviewHandler(req, actor)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, status)
+	preview := value.(leaveWorkspacePreview)
+	require.Equal(t, "last_admin", *preview.BlockedReason)
+	require.Equal(t, []leaveWorkspaceAPIKey{{Name: "CI", KeyPrefix: "hl_abc"}}, preview.APIKeys)
+	require.Equal(t, 51, preview.APIKeyTotal)
+	require.Len(t, preview.Automations, 2)
+	require.Equal(t, 2, preview.AutomationTotal)
+	requireScriptDone(t, pool)
+
+	pool = &scriptPool{steps: []dbStep{
+		memberUnitMemberRow("member", "om_target"),
+		{op: opQuery},
+		{op: opQuery},
+	}}
+	value, _, err = (&memberAPI{pool: pool}).leaveWorkspacePreview(t.Context(), actor)
+	require.NoError(t, err)
+	preview = value.(leaveWorkspacePreview)
+	require.Nil(t, preview.BlockedReason)
+	require.Equal(t, []leaveWorkspaceAPIKey{}, preview.APIKeys)
+	require.Equal(t, []leaveWorkspaceAutomation{}, preview.Automations)
+	requireScriptDone(t, pool)
+
+	for name, steps := range map[string][]dbStep{
+		"admin count":     {{op: opQueryRow, err: boom}},
+		"key query":       {{op: opQueryRow, scan: []any{1}}, {op: opQuery, err: boom}},
+		"key scan":        {{op: opQueryRow, scan: []any{1}}, {op: opQuery, table: [][]any{{"CI"}}}},
+		"key rows":        {{op: opQueryRow, scan: []any{1}}, {op: opQuery, rowsErr: boom}},
+		"automation":      {{op: opQueryRow, scan: []any{1}}, {op: opQuery}, {op: opQuery, err: boom}},
+		"automation scan": {{op: opQueryRow, scan: []any{1}}, {op: opQuery}, {op: opQuery, table: [][]any{{"auto_1"}}}},
+		"automation rows": {{op: opQueryRow, scan: []any{1}}, {op: opQuery}, {op: opQuery, rowsErr: boom}},
+	} {
+		t.Run(name+" fails", func(t *testing.T) {
+			pool := &scriptPool{steps: append([]dbStep{memberUnitMemberRow("admin", "om_target")}, steps...)}
+			_, _, err := (&memberAPI{pool: pool}).leaveWorkspacePreview(t.Context(), actor)
+			require.Error(t, err)
+			requireScriptDone(t, pool)
+		})
+	}
 }

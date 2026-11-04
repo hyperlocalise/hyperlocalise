@@ -317,6 +317,8 @@ export async function executeVisualWorkflowNode(input: {
         resourceKey,
         providerFolder: text(node.config.providerFolder).trim(),
         projectFolder,
+        branch: text(node.config.branch ?? "").trim(),
+        pathTemplate: text(node.config.pathTemplate ?? "").trim(),
       });
       if (isErr(syncValidation)) {
         return {

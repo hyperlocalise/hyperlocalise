@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/csvsafe"
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/memoryinterchange"
 	"github.com/jackc/pgx/v5"
@@ -88,19 +89,10 @@ func memoryExportSlug(name string) string {
 // escapeMemoryCSVFormula follows go-svc's escapeGlossaryCSVFormula, which memoryinterchange's
 // CSV parser reverses on import.
 func escapeMemoryCSVFormula(value string) string {
-	if strings.HasPrefix(value, memoryinterchange.FormulaEscapePrefix) {
+	if strings.HasPrefix(value, memoryinterchange.FormulaEscapePrefix) || csvsafe.HasFormulaTrigger(value) {
 		return memoryinterchange.FormulaEscapePrefix + value
 	}
-	trimmed := strings.TrimLeft(value, " \t")
-	if trimmed == "" {
-		return value
-	}
-	switch trimmed[0] {
-	case '=', '+', '-', '@':
-		return memoryinterchange.FormulaEscapePrefix + value
-	default:
-		return value
-	}
+	return value
 }
 
 // exportMemoryEntries ports go-svc's exportMemoryEntries: TMX 1.4 keyed by external key, or

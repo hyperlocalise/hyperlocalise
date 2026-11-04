@@ -38,6 +38,7 @@ import { jobs } from "./jobs";
 import { organizationApiKeys } from "./integrations";
 import type { RepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
 import type { RepositorySourceFileImportSettings } from "@/lib/projects/files/source-file-import-settings-schema";
+import type { SourceFileSyncReport } from "@/lib/projects/files/source-file-sync-report";
 import type { MessageFormat } from "@/lib/i18n/message-format";
 
 export type { RepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
@@ -196,6 +197,8 @@ export const repositorySourceFileVersions = pgTable(
     ingestError: text("ingest_error"),
     ingestedAt: timestamp("ingested_at", { withTimezone: true }),
     ingestWorkflowRunId: text("ingest_workflow_run_id"),
+    /** What a repository sync's ingest could not settle on its own: see `SourceFileSyncReport`. */
+    syncReport: jsonb("sync_report").$type<SourceFileSyncReport>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

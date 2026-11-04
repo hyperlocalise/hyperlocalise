@@ -36,6 +36,7 @@ import {
   createProviderAgentWritebackQueue,
 } from "@/workflows/adapters";
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
+import { createInternalTmsRoutes } from "./routes/internal-tms/internal-tms.route";
 import type { CreateAppOptions } from "./app";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
@@ -117,6 +118,7 @@ export type AppType = ReturnType<typeof createTypedApp>;
 function createInternalRoutes(options: CreateAppOptions = {}) {
   return new Hono()
     .route("/health", healthRoutes)
+    .route("/internal/tms", createInternalTmsRoutes())
     .route(
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),

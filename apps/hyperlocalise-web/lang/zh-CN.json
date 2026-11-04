@@ -3152,6 +3152,9 @@
   "3RQjQSebWm": {
     "defaultMessage": "成员加载失败。"
   },
+  "3S3afNJApr": {
+    "defaultMessage": "在 HubSpot 设置中，打开“博客”，然后选择“添加/编辑多语言版本”。当博客中包含该语言时，推送操作会创建一篇未发布的帖子草稿。此操作不会为博客添加语言。"
+  },
   "3SLTb8lWnJ": {
     "defaultMessage": "源语言"
   },
@@ -6445,6 +6448,9 @@
   },
   "9QrrRor3/1": {
     "defaultMessage": "它支持所有语言"
+  },
+  "9RWd1cWWqm": {
+    "defaultMessage": "请先添加/编辑多语言版本"
   },
   "9RkSMcYnN2": {
     "defaultMessage": "文件上下文"
@@ -14473,6 +14479,9 @@
   },
   "OAZ7oFBkRI": {
     "defaultMessage": "{count, plural, one {自上次扫描以来新增 # 个 QA 错误} other {自上次扫描以来新增 # 个 QA 错误}}"
+  },
+  "OBtwmZ+5Ft": {
+    "defaultMessage": "选择要使用已批准的翻译进行更新的已映射电子邮件、博客文章和表单。电子邮件将克隆为本地化草稿。博客文章将成为未发布的本地化草稿。表单将成为单独的本地化副本。此操作绝不会更改或发布源内容。"
   },
   "OBw52VUo2G": {
     "defaultMessage": "{percent}% 的测试"

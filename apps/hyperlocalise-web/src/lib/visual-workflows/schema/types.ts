@@ -204,6 +204,10 @@ export type VisualNodeConfig =
       resourceKey: string;
       providerFolder: string;
       projectFolder: string;
+      /** Git providers: the branch to read; the default branch when empty. */
+      branch?: string;
+      /** Git providers: where each language's files sit, with `{{locale}}` for the code. */
+      pathTemplate?: string;
       onError?: VisualNodeErrorBehavior;
     }
   | {

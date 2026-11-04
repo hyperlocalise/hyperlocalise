@@ -68,6 +68,7 @@ import type {
   TranslationQaScanQueue,
 } from "@/lib/workflow/types";
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
+import { createInternalTmsRoutes } from "./routes/internal-tms/internal-tms.route";
 
 export type CreateAppOptions = {
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
@@ -146,6 +147,7 @@ export const app = createApp();
 function createInternalRoutes(options: CreateAppOptions = {}) {
   return new Hono()
     .route("/health", healthRoutes)
+    .route("/internal/tms", createInternalTmsRoutes())
     .route(
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),

@@ -105,7 +105,12 @@ function describeRequestFailure(error: unknown) {
   };
 }
 
-type GitLabResponse = { ok: boolean; status: number; text: () => Promise<string> };
+type GitLabResponse = { ok: boolean; status: number; body: Buffer };
+
+async function readResponse(response: Response): Promise<GitLabResponse> {
+  const body = Buffer.from(await response.arrayBuffer());
+  return { ok: response.ok, status: response.status, body };
+}
 
 /**
  * A workspace's own server is an address someone typed, so each request pins the checked address
@@ -119,33 +124,30 @@ async function requestGitLabServer(
   const timeout = AbortSignal.timeout(GITLAB_SERVER_REQUEST_TIMEOUT_MS);
   const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
   if (isLocalDevGitLabServer(new URL(baseUrl))) {
-    const response = await fetch(url, { ...init, signal, redirect: "error" });
-    const body = await response.text();
-    return { ok: response.ok, status: response.status, text: async () => body };
+    return readResponse(await fetch(url, { ...init, signal, redirect: "error" }));
   }
   return stopWaitingOnAbort(
-    withPublicHttpFetch(
-      url.toString(),
-      { ...init, signal, redirect: "error" },
-      async (response) => {
-        const body = await response.text();
-        return { ok: response.ok, status: response.status, text: async () => body };
-      },
-    ),
+    withPublicHttpFetch(url.toString(), { ...init, signal, redirect: "error" }, readResponse),
     signal,
   );
 }
 
-async function gitlabJson(
-  input: GitLabAccess & {
-    path: string;
-    query?: URLSearchParams;
-    signal?: AbortSignal;
-  },
-): Promise<Result<unknown, GitLabApiError>> {
+export type GitLabRequest = GitLabAccess & {
+  path: string;
+  query?: URLSearchParams;
+  signal?: AbortSignal;
+};
+
+/**
+ * One GitLab request with the token, answering the body as bytes. Every GitLab call goes
+ * through here, so a relay or a fixed outgoing address would be added in one place.
+ */
+async function gitlabRequest(
+  input: GitLabRequest & { accept: string },
+): Promise<Result<GitLabResponse, GitLabApiError>> {
   const headers = {
     Authorization: `Bearer ${input.accessToken}`,
-    Accept: "application/json",
+    Accept: input.accept,
   };
 
   let response: GitLabResponse;
@@ -156,7 +158,7 @@ async function gitlabJson(
     }
     response = input.baseUrl
       ? await requestGitLabServer(url, input.baseUrl, { headers, signal: input.signal })
-      : await fetch(url, { headers, signal: input.signal });
+      : await readResponse(await fetch(url, { headers, signal: input.signal }));
   } catch (error) {
     logger.warn(describeRequestFailure(error), "gitlab request failed before an answer");
     return err(requestFailed(0, error instanceof Error && error.name === "TimeoutError"));
@@ -164,7 +166,7 @@ async function gitlabJson(
 
   if (response.status === 401 || response.status === 403) {
     // A saved address may not be GitLab at all, and GitLab answers these with JSON.
-    return input.baseUrl && isErr(safeJsonParse(await response.text()))
+    return input.baseUrl && isErr(safeJsonParse(response.body.toString("utf8")))
       ? err(requestFailed(response.status))
       : err(UNAUTHORIZED);
   }
@@ -174,14 +176,25 @@ async function gitlabJson(
   if (!response.ok) {
     return err(requestFailed(response.status));
   }
+  return ok(response);
+}
 
-  const body = await response.text();
-  const parsed = safeJsonParse(body);
-  if (isErr(parsed)) {
-    return err(requestFailed(response.status));
+export async function gitlabJson(input: GitLabRequest): Promise<Result<unknown, GitLabApiError>> {
+  const response = await gitlabRequest({ ...input, accept: "application/json" });
+  if (isErr(response)) {
+    return response;
   }
-
+  const parsed = safeJsonParse(response.value.body.toString("utf8"));
+  if (isErr(parsed)) {
+    return err(requestFailed(response.value.status));
+  }
   return ok(parsed.value);
+}
+
+/** A raw file endpoint's bytes, untouched, so a file in any encoding comes back as stored. */
+export async function gitlabBytes(input: GitLabRequest): Promise<Result<Buffer, GitLabApiError>> {
+  const response = await gitlabRequest({ ...input, accept: "*/*" });
+  return isErr(response) ? response : ok(response.value.body);
 }
 
 export async function getGitLabCurrentUsername(

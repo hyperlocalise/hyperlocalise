@@ -3152,6 +3152,9 @@
   "3RQjQSebWm": {
     "defaultMessage": "Không thể tải danh sách thành viên."
   },
+  "3S3afNJApr": {
+    "defaultMessage": "Trong Cài đặt HubSpot, mở Blog rồi chọn Thêm/chỉnh sửa các phiên bản đa ngôn ngữ. Khi blog có ngôn ngữ đó, thao tác đẩy sẽ tạo bản nháp bài đăng chưa xuất bản. Thao tác này không thêm ngôn ngữ vào blog."
+  },
   "3SLTb8lWnJ": {
     "defaultMessage": "Ngôn ngữ nguồn"
   },
@@ -6445,6 +6448,9 @@
   },
   "9QrrRor3/1": {
     "defaultMessage": "Nó hoạt động với mọi ngôn ngữ"
+  },
+  "9RWd1cWWqm": {
+    "defaultMessage": "Thêm/chỉnh sửa các phiên bản đa ngôn ngữ trước tiên"
   },
   "9RkSMcYnN2": {
     "defaultMessage": "Ngữ cảnh tệp"
@@ -14473,6 +14479,9 @@
   },
   "OAZ7oFBkRI": {
     "defaultMessage": "{count, plural, one {# lỗi QA mới} other {# lỗi QA mới}} kể từ lần quét trước"
+  },
+  "OBtwmZ+5Ft": {
+    "defaultMessage": "Chọn email, bài đăng blog và biểu mẫu đã được ánh xạ để cập nhật bằng các bản dịch đã được phê duyệt. Email sẽ trở thành bản nháp theo ngôn ngữ được sao chép. Bài đăng blog sẽ trở thành bản nháp theo ngôn ngữ chưa xuất bản. Biểu mẫu sẽ trở thành một bản sao riêng theo ngôn ngữ. Thao tác này không bao giờ thay đổi hoặc xuất bản nội dung nguồn."
   },
   "OBw52VUo2G": {
     "defaultMessage": "{percent}% bài kiểm thử"

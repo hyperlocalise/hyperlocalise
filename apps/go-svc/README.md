@@ -33,7 +33,8 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `WORKOS_API_PORT` | _(unset)_ | Optional port for a non-default WorkOS API host. |
 | `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary, glossary, translation-memory, team, member, issue-sheet, public translation download, public job read, and Hyperlab OFREP evaluate routes. |
 | `WORKOS_AUTHKIT_DOMAIN` | _(unset)_ | AuthKit domain without a scheme (for example `your-app.authkit.app`). Sets the Agent Registration JWT issuer (`https://{domain}`) and JWKS (`https://{domain}/.well-known/jwks.json`) for the public translation download and job reads. When unset, agent bearer tokens are rejected with 401; `X-API-Key` tokens still work. |
-| `HYPERLOCALISE_PUBLIC_APP_URL` | _(unset)_ | Public web app URL (for example `https://hyperlocalise.com`). Its origin adds `{origin}/api/v1` and `{origin}/mcp` to the accepted Agent Registration JWT audiences (alongside `WORKOS_CLIENT_ID`) and is used in the `WWW-Authenticate` resource-metadata URL. When unset, the challenge falls back to the request origin. |
+| `HYPERLOCALISE_PUBLIC_APP_URL` | _(unset)_ | Public web app URL (for example `https://hyperlocalise.com`). Its origin adds `{origin}/api/v1` and `{origin}/mcp` to the accepted Agent Registration JWT audiences (alongside `WORKOS_CLIENT_ID`) and is used in the `WWW-Authenticate` resource-metadata URL. When unset, the challenge falls back to the request origin. `internal/tmsauth` uses it to mint TMS tokens when `HYPERLOCALISE_WEB_INTERNAL_URL` is unset. |
+| `HYPERLOCALISE_WEB_INTERNAL_URL` | `HYPERLOCALISE_PUBLIC_APP_URL` | Web app origin for `POST /api/internal/tms/access-token`. go-svc sends `X-Go-Svc-Research-Token` (HMAC of `go-svc-research` keyed by `WORKOS_COOKIE_PASSWORD`) and receives a short-lived TMS header. |
 | `VALKEY_ENDPOINT` | _(unset)_ | Valkey hostname. When set without `VALKEY_URL`, go-svc builds a URL from this endpoint, `VALKEY_PORT`, and `VALKEY_TLS`. |
 | `VALKEY_PORT` | `6379` | Valkey port used with `VALKEY_ENDPOINT`. |
 | `VALKEY_TLS` | _(unset)_ | Set to `required`, `true`, or `enabled` to use `rediss://` with `VALKEY_ENDPOINT`; other values use `redis://`. |
@@ -246,6 +247,7 @@ GLOSSARY_INTERCHANGE_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../glossary
 # Accept Agent Registration JWTs on the public translation download.
 WORKOS_AUTHKIT_DOMAIN='your-app.authkit.app'
 HYPERLOCALISE_PUBLIC_APP_URL='http://localhost:3000'
+HYPERLOCALISE_WEB_INTERNAL_URL='http://localhost:3000'  # TMS token mint
 DATAFORSEO_API_KEY='...'   # Domains research routes
 ```
 
@@ -554,6 +556,27 @@ These return `501` with a stable error code. Browser clients keep calling Hono.
 
 Authenticated CAT requests use the same WorkOS session cookie or Bearer access token as dictionary routes. They do not need `X-Go-Svc-Research-Token`.
 
+### TMS access tokens
+
+Connected TMS CAT still stays on Hono (`provider_cat_deferred`). go-svc can call a TMS API directly by minting a short-lived credential from the web app, which remains the vault:
+
+```go
+client, err := tmsauth.NewClient(tmsauth.Config{
+    BaseURL:        tmsauth.BaseURLFromEnv(),
+    CookiePassword: os.Getenv("WORKOS_COOKIE_PASSWORD"),
+})
+token, err := client.Mint(ctx, tmsauth.MintRequest{
+    OrganizationID: orgID,
+    ProviderKind:   "crowdin",
+    ActorUserID:    userID, // required for Crowdin, Phrase OAuth, and Lokalise OAuth
+})
+req.Header.Set(token.HeaderName, token.HeaderValue)
+```
+
+`Check` mints and then GETs `probeUrl` when the web app supplies one. Smartling mint already authenticates, so `probeUrl` is empty. The mint response never includes refresh tokens, client secrets, or Smartling user secrets.
+
+The web route is `POST /api/internal/tms/access-token`. It accepts the same service token as go-svc `/internal/*` routes. Browser health checks stay on Hono.
+
 Authenticated requests must include either the `wos-session` cookie from a signed-in Hyperlocalise user or `Authorization: Bearer` with that session's WorkOS access-token JWT. go-svc verifies Bearer tokens against the WorkOS JWKS for `WORKOS_CLIENT_ID` (`sub` is the user, `sid` is required). Agent JWTs are not accepted. If both a cookie and a Bearer token are present, the cookie wins. Server-call routes also require `X-Go-Svc-Research-Token`, an HMAC-SHA256 hex digest of `go-svc-research` keyed by `WORKOS_COOKIE_PASSWORD`. The browser cannot mint that header; only the web app should call these endpoints via `GO_SVC_URL`.
 
 Browser callers from `https://hyperlocalise.com` and `https://hyperlocalize.com` (and `www`) may call session-auth `/v1` routes on `https://api.hyperlocalise.com`. Those origins receive CORS headers; mutating requests from other origins are rejected. Same-host `/api/go-svc` rewrites still pass the origin guard. Extra origins can be listed in `GO_SVC_CORS_ORIGINS`. CORS does not allow credentials: the web `GoSvcClient` sends a Bearer token and omits cookies.
@@ -707,6 +730,22 @@ Signed-in WorkOS user profile at `/v1/me`. Notification preferences reuse
 | GET | `/v1/me` | Local user row plus notification preferences |
 | PATCH | `/v1/me/notification-preferences` | Replace the caller's email preferences |
 | DELETE | `/v1/me` | Refuse destructive delete (`409`) |
+
+## Account setup
+
+Workspace creation, invitations and profile for clients that sign in with
+WorkOS directly (the Iris desktop app), mirroring the web onboarding
+(`src/lib/onboarding/workspace.ts`, `src/lib/workos/pending-invitations.ts`).
+Each call first mirrors the WorkOS user into `users`, taking over the
+placeholder row an invitation made for the same email. Needs `WORKOS_API_KEY`;
+without it these return `503 workos_server_not_configured`.
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| POST | `/v1/organizations` | `{ name }`: create the WorkOS organization, admin membership, local rows and default team. `201 { organization }`; the client then switches its session to `organization.workosOrganizationId` |
+| PATCH | `/v1/me` | `{ firstName, lastName }`: update the WorkOS user and the local row |
+| GET | `/v1/invitations` | `{ invitations: [{ organizationName, organizationSlug }] }`: workspaces invited to and not joined |
+| POST | `/v1/invitations/{organizationSlug}/accept` | Accept the WorkOS invitation (verified email only) and activate the membership. `{ organization }` |
 
 ## Billing
 

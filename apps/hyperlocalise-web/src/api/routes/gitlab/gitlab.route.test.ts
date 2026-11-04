@@ -216,6 +216,52 @@ describe("gitlabRoutes", () => {
       expect(await after.json()).toEqual({ gitlabConnection: null });
     });
 
+    it("lets developers run the live check, refuses members, and reports a missing connection", async () => {
+      const member = fixture.createWorkosIdentityWithRole("member");
+      const memberHeaders = await fixture.authHeadersFor(member);
+      const developer = fixture.createWorkosIdentityWithRole("developer");
+      const developerHeaders = await fixture.authHeadersFor(developer);
+      const check = client.api.orgs[":organizationSlug"].gitlab.connection.check;
+
+      const refused = await check.$get(
+        { param: { organizationSlug: member.organization.slug ?? "missing-slug" } },
+        { headers: memberHeaders },
+      );
+      const missing = await check.$get(
+        { param: { organizationSlug: developer.organization.slug ?? "missing-slug" } },
+        { headers: developerHeaders },
+      );
+
+      expect(refused.status).toBe(403);
+      expect(missing.status).toBe(404);
+      expect(mocks.withPublicHttpFetch).not.toHaveBeenCalled();
+    });
+
+    it("checks the saved token live and reports when it stops working", async () => {
+      mockGitLabServer();
+      const identity = fixture.createWorkosIdentityWithRole("admin");
+      const headers = await fixture.authHeadersFor(identity);
+      const param = { organizationSlug: identity.organization.slug ?? "missing-slug" };
+      const connection = client.api.orgs[":organizationSlug"].gitlab.connection;
+      await connection.$put(
+        { param, json: { serverUrl, accessToken: "glpat-secret-abcd" } },
+        { headers },
+      );
+
+      const working = await connection.check.$get({ param }, { headers });
+      expect(await working.json()).toEqual({ working: true });
+
+      mocks.withPublicHttpFetch.mockImplementation(
+        async (_url: string, _init: unknown, handler: (response: Response) => unknown) =>
+          handler(new Response("{}", { status: 401 })),
+      );
+      const stopped = await connection.check.$get({ param }, { headers });
+      expect(await stopped.json()).toMatchObject({
+        working: false,
+        code: "gitlab_token_rejected",
+      });
+    });
+
     it("counts a new connection once, not each time it is replaced", async () => {
       mockGitLabServer();
       const track = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});

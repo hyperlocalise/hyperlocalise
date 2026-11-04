@@ -38,10 +38,8 @@ describe("gitlab client", () => {
   });
 
   it("lists membership projects and skips archived rows", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      text: async () =>
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
         JSON.stringify([
           {
             id: 11,
@@ -60,7 +58,9 @@ describe("gitlab client", () => {
             archived: true,
           },
         ]),
-    });
+        { status: 200 },
+      ),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await listGitLabMembershipProjects({ accessToken: "token", baseUrl: null });
@@ -88,10 +88,8 @@ describe("gitlab client", () => {
   });
 
   it("loads a project by path_with_namespace", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      text: async () =>
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
         JSON.stringify({
           id: 99,
           name: "web",
@@ -100,7 +98,9 @@ describe("gitlab client", () => {
           default_branch: "develop",
           archived: false,
         }),
-    });
+        { status: 200 },
+      ),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await getGitLabProject({
@@ -120,14 +120,7 @@ describe("gitlab client", () => {
   });
 
   it("maps 401 responses to gitlab_unauthorized", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 401,
-        text: async () => "",
-      }),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 401 })));
 
     const result = await getGitLabMergeRequest({
       accessToken: "token",
@@ -146,17 +139,17 @@ describe("gitlab client", () => {
   it("maps merge request source branch and commit sha", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        text: async () =>
+      vi.fn().mockResolvedValue(
+        new Response(
           JSON.stringify({
             iid: 42,
             source_branch: "fix-copy",
             sha: "abc123",
             diff_refs: { head_sha: "def456" },
           }),
-      }),
+          { status: 200 },
+        ),
+      ),
     );
 
     const result = await getGitLabMergeRequest({

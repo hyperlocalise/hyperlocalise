@@ -146,11 +146,82 @@ export function restoreMailchimpEnvelopeForPush(
   };
 }
 
-export function applyApprovedMailchimpEnvelope(
-  storedHtml: string,
+export type MailchimpRemoteCopyFields = {
+  subject?: string;
+  previewText?: string;
+  fromName?: string;
+  html?: string;
+};
+
+/**
+ * Rebuild the stored envelope shape from a live Mailchimp locale copy so
+ * HTML ingest keys stay stable when applying a partial approval.
+ */
+export function serializeMailchimpRemoteEnvelope(input: {
+  storedEnvelopeHtml: string;
+  remote: MailchimpRemoteCopyFields;
+}): { html: string; htmlTokens: string[] } {
+  const stored = parseMailchimpEnvelope(input.storedEnvelopeHtml);
+  return serializeMailchimpEnvelope({
+    subject: input.remote.subject ?? stored.subject,
+    previewText: input.remote.previewText ?? stored.previewText,
+    fromName: input.remote.fromName ?? stored.fromName,
+    html: input.remote.html?.trim() ? input.remote.html : stored.htmlBody,
+  });
+}
+
+function restoreApprovedMailchimpTranslations(
   approved: Record<string, string>,
-): MailchimpContentEnvelope {
-  return parseMailchimpEnvelope(applyHtmlIngestTranslations(storedHtml, approved));
+  sourceMergeTokens: readonly string[],
+): Record<string, string> {
+  if (sourceMergeTokens.length === 0) {
+    return approved;
+  }
+  const tokens = [...sourceMergeTokens];
+  return Object.fromEntries(
+    Object.entries(approved).map(([key, value]) => [key, restoreMailchimpMergeTags(value, tokens)]),
+  );
+}
+
+/**
+ * Apply approved HTML ingest keys onto the remote locale copy when present.
+ * Unapproved nodes then keep the existing Mailchimp copy instead of falling
+ * back to source language and overwriting it.
+ *
+ * New copies use the stored source envelope. Approved values are restored
+ * with source merge tokens before they are applied onto a freshly serialized
+ * remote envelope, so `*|MERGE|*` tags stay stable.
+ */
+export function applyApprovedMailchimpEnvelope(input: {
+  storedEnvelopeHtml: string;
+  remoteEnvelopeHtml?: string | null;
+  approved: Record<string, string>;
+  sourceMergeTokens?: readonly string[];
+}): MailchimpContentEnvelope {
+  const remoteEnvelopeHtml = input.remoteEnvelopeHtml?.trim() ? input.remoteEnvelopeHtml : null;
+  const envelopeHtml = remoteEnvelopeHtml ?? input.storedEnvelopeHtml;
+  const approved = remoteEnvelopeHtml
+    ? restoreApprovedMailchimpTranslations(input.approved, input.sourceMergeTokens ?? [])
+    : input.approved;
+  return parseMailchimpEnvelope(applyHtmlIngestTranslations(envelopeHtml, approved));
+}
+
+/** Merge approved keys then restore merge tags for a Mailchimp write. */
+export function buildMailchimpPushEnvelope(input: {
+  storedEnvelopeHtml: string;
+  remoteEnvelope?: { html: string; htmlTokens: string[] } | null;
+  approved: Record<string, string>;
+  sourceMergeTokens: readonly string[];
+}): MailchimpContentEnvelope {
+  return restoreMailchimpEnvelopeForPush(
+    applyApprovedMailchimpEnvelope({
+      storedEnvelopeHtml: input.storedEnvelopeHtml,
+      remoteEnvelopeHtml: input.remoteEnvelope?.html,
+      approved: input.approved,
+      sourceMergeTokens: input.sourceMergeTokens,
+    }),
+    input.remoteEnvelope?.htmlTokens ?? input.sourceMergeTokens,
+  );
 }
 
 export function slugifyMailchimpPathSegment(value: string, fallback: string): string {

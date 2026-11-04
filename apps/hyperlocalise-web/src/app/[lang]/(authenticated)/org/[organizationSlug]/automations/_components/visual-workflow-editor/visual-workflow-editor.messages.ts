@@ -2055,6 +2055,32 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "8R777UILAL",
     description: "Folder inside the Hyperlocalise project for content sync",
   },
+  contentSyncBranch: {
+    defaultMessage: "Branch",
+    id: "48BU/b+yFc",
+    description: "Repository branch to read on the content sync action",
+  },
+  contentSyncBranchPlaceholder: {
+    defaultMessage: "Default branch",
+    id: "b/d4N94nLn",
+    description: "Placeholder of the branch setting when the repository's default branch is used",
+  },
+  contentSyncPathTemplate: {
+    defaultMessage: "Language file paths",
+    id: "UwEjMjlBD5",
+    description: "Path template setting on the content sync action",
+  },
+  contentSyncPathTemplatePlaceholder: {
+    defaultMessage: "for example {example}",
+    id: "PsfScgqwTN",
+    description: "Placeholder of the path template setting, showing an example value",
+  },
+  contentSyncPathTemplateHelp: {
+    defaultMessage:
+      "Where each language's files sit under the provider folder, with {placeholder} for the language code (fr and fr-FR both name French). The source language's files are imported; * matches within a folder and ** across folders.",
+    id: "ZYorTcTqi5",
+    description: "Help text under the path template setting",
+  },
   localizationProjectId: {
     defaultMessage: "Project ID",
     id: "7qPJACmQFj",

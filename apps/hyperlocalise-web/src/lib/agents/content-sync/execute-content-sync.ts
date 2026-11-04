@@ -24,6 +24,7 @@ import {
 
 import type { ContentSyncConfig } from "./content-sync-types";
 import { executeGithubContentSync, type ContentSyncSummary } from "./execute-github-content-sync";
+import { executeGitLabContentSync } from "./execute-gitlab-content-sync";
 
 const logger = createLogger("content-sync");
 
@@ -193,6 +194,16 @@ async function runContentSyncProvider(input: {
       runId: input.runId,
       syncConfig: input.syncConfig,
       pullRequestBranchKey: input.pullRequestBranchKey,
+    });
+  }
+
+  if (input.syncConfig.provider === "gitlab") {
+    return executeGitLabContentSync({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      automationId: input.automationId,
+      runId: input.runId,
+      syncConfig: input.syncConfig,
     });
   }
 
