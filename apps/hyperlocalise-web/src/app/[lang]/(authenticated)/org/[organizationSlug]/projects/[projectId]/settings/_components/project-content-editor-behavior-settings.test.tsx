@@ -46,7 +46,6 @@ function renderSettings(canManage = true) {
     contentEditorBehavior: {
       automaticallyGroupIdenticalStrings: false,
       groupingRevision: 0,
-      sourceTextEditable: true,
       canManage,
     },
   });
@@ -57,7 +56,6 @@ function renderSettings(canManage = true) {
     contentEditorBehavior: {
       automaticallyGroupIdenticalStrings: true,
       groupingRevision: 1,
-      sourceTextEditable: false,
       canManage: true,
     },
   });
@@ -95,38 +93,12 @@ describe("ProjectContentEditorBehaviorSettings", () => {
     expect(apiMocks.previewContentEditorBehavior).toHaveBeenCalledWith("acme", "project_1");
   });
 
-  it("warns that a sync replaces local edits before turning source text editing off", async () => {
-    const user = userEvent.setup();
-    renderSettings();
-    const setting = await screen.findByRole("switch", {
-      name: "Edit source text in Hyperlocalise",
-    });
-    expect(setting).toHaveAttribute("aria-checked", "true");
-
-    await user.click(setting);
-
-    expect(
-      await screen.findByText(/replaced by the repository's text on the next sync/),
-    ).toBeInTheDocument();
-    expect(apiMocks.updateContentEditorBehavior).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Stop editing here" }));
-    await waitFor(() =>
-      expect(apiMocks.updateContentEditorBehavior).toHaveBeenCalledWith("acme", "project_1", {
-        sourceTextEditable: false,
-      }),
-    );
-    expect(apiMocks.previewContentEditorBehavior).not.toHaveBeenCalled();
-  });
-
   it("keeps the setting read-only for non-managers", async () => {
     renderSettings(false);
     const setting = await screen.findByRole("switch", {
       name: "Automatically merge identical strings",
     });
     await waitFor(() => expect(setting).toHaveAttribute("aria-disabled", "true"));
-    expect(
-      screen.getByRole("switch", { name: "Edit source text in Hyperlocalise" }),
-    ).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByText("Only project managers can change this setting.")).toBeInTheDocument();
   });
 });

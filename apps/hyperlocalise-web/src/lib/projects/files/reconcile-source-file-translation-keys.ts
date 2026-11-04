@@ -106,16 +106,10 @@ export async function reconcileSourceFileTranslationKeys(input: {
       throw new Error("Source version is not ingesting");
     }
 
-    const [project] = await tx
-      .select({ sourceTextEditable: schema.projects.sourceTextEditable })
-      .from(schema.projects)
-      .where(eq(schema.projects.id, input.projectId))
-      .limit(1);
-    const { clashes } = await new ProjectTranslationService().upsertKeysFromEntries(
+    await new ProjectTranslationService().upsertKeysFromEntries(
       {
         ...input,
         preserveEmptySourceText: true,
-        sourceTextEditable: project?.sourceTextEditable ?? false,
       },
       tx,
     );
@@ -150,11 +144,11 @@ export async function reconcileSourceFileTranslationKeys(input: {
           ),
         );
     }
-    // Clashes are worth keeping whatever brought the file in; missing keys only where hidden.
-    const syncReport: SourceFileSyncReport | null =
-      uploadSurfaceKeepsMissingKeys(version.uploadSurface) || clashes.length > 0
-        ? { clashes, missingKeys }
-        : null;
+    const syncReport: SourceFileSyncReport | null = uploadSurfaceKeepsMissingKeys(
+      version.uploadSurface,
+    )
+      ? { missingKeys }
+      : null;
     await tx
       .update(schema.repositorySourceFiles)
       .set({

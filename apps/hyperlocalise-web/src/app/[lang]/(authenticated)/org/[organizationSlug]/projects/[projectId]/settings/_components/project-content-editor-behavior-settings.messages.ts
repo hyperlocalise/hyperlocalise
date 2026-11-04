@@ -89,31 +89,4 @@ export const projectContentEditorBehaviorMessages = defineMessages({
     id: "NzYmU9Xvq7",
     description: "Content Editor behavior update failure",
   },
-  sourceTextEditableLabel: {
-    defaultMessage: "Edit source text in Hyperlocalise",
-    id: "cXMmKKeMKc",
-    description: "Source text editing setting label",
-  },
-  sourceTextEditableDescription: {
-    defaultMessage:
-      "Allow source text changes through the API. A repository sync then keeps changes made in Hyperlocalise and reports a key when both sides changed it. Off, the repository's text replaces changes made here on the next sync.",
-    id: "gnbqlBo/sZ",
-    description: "Source text editing setting description",
-  },
-  sourceTextEditableDisableTitle: {
-    defaultMessage: "Stop editing source text here?",
-    id: "LHGEza5UBX",
-    description: "Disable source text editing confirmation title",
-  },
-  sourceTextEditableDisableDescription: {
-    defaultMessage:
-      "Source text edits made here that haven't reached the repository yet will be replaced by the repository's text on the next sync. The API will refuse source text changes.",
-    id: "MI8ojsRI9m",
-    description: "Disable source text editing confirmation description",
-  },
-  confirmDisableSourceTextEditing: {
-    defaultMessage: "Stop editing here",
-    id: "8hvKYJwbIf",
-    description: "Confirm disabling source text editing",
-  },
 });

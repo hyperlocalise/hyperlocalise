@@ -27,7 +27,6 @@ import {
   unhideKeysSyncHid,
 } from "@/lib/projects/files/hide-keys-missing-from-sync";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
-import { settleUnchangedSourceFile } from "@/lib/projects/files/settle-unchanged-source-file";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 
 import {
@@ -46,13 +45,11 @@ const INGEST_WAIT_TIMEOUT_MS = 120_000;
 
 export type ContentSyncFileReport = {
   path: string;
-  /** Keys whose clash still stands after this run. */
-  clashes: string[];
   /** Keys this run hid because the repository no longer has them. */
   missingKeys: string[];
 };
 
-/** The GitHub summary's shape, plus what a GitLab pull could not settle on its own. */
+/** The GitHub summary's shape, plus what a GitLab pull hid or left aside. */
 export type GitLabContentSyncSummary = ContentSyncSummary & {
   pulled: ContentSyncSummary["pulled"] & {
     /** Files under the provider folder that the path template or the locales didn't match. */
@@ -60,7 +57,7 @@ export type GitLabContentSyncSummary = ContentSyncSummary & {
     /** Translation files seen in the repository; not imported, delivery owns them. */
     translationFiles: number;
     commitSha: string;
-    /** Per file, the keys that clashed and the keys the repository no longer has. */
+    /** Per file, the keys the repository no longer has. */
     files: ContentSyncFileReport[];
   };
 };
@@ -86,7 +83,6 @@ export async function executeGitLabContentSync(input: {
     .select({
       sourceLocale: schema.projects.sourceLocale,
       targetLocales: schema.projects.targetLocales,
-      sourceTextEditable: schema.projects.sourceTextEditable,
     })
     .from(schema.projects)
     .where(
@@ -290,33 +286,11 @@ export async function executeGitLabContentSync(input: {
     });
   }
 
-  // A file the run didn't import again may still carry a standing clash, or text to put back.
-  const settled: ContentSyncFileReport[] = [];
-  for (const version of versions) {
-    // A file whose ingest this run queued again was just put through the rule by that ingest.
-    if (!version.unchanged || version.requeued) {
-      continue;
-    }
-    const clashes = await settleUnchangedSourceFile({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      sourcePath: version.path,
-      sourceTextEditable: project.sourceTextEditable,
-    });
-    if (clashes.length > 0) {
-      settled.push({
-        path: version.path,
-        clashes: clashes.map((clash) => clash.key),
-        missingKeys: [],
-      });
-    }
-  }
-
+  // An unchanged file was skipped, so only the files this run imported have a fresh report.
   const files = [
     ...(await loadSyncReports(
       versions.filter((version) => !version.unchanged || version.requeued),
     )),
-    ...settled,
     ...(await hideFilesMissingFromRepository({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -334,7 +308,6 @@ export async function executeGitLabContentSync(input: {
       pulled,
       unmatched,
       translationFiles,
-      clashes: files.reduce((count, file) => count + file.clashes.length, 0),
       missingKeys: files.reduce((count, file) => count + file.missingKeys.length, 0),
     },
     "gitlab content sync pulled",
@@ -519,7 +492,7 @@ async function hideFilesMissingFromRepository(input: {
       repositorySourceFileId: file.id,
     });
     if (missingKeys.length > 0) {
-      reports.push({ path: file.sourcePath, clashes: [], missingKeys });
+      reports.push({ path: file.sourcePath, missingKeys });
     }
   }
   return reports;
@@ -545,12 +518,8 @@ async function loadSyncReports(versions: SyncedVersion[]): Promise<ContentSyncFi
   return versions
     .map((version) => {
       const report = reportById.get(version.sourceFileVersionId);
-      return report && (report.clashes.length > 0 || report.missingKeys.length > 0)
-        ? {
-            path: version.path,
-            clashes: report.clashes.map((clash) => clash.key),
-            missingKeys: report.missingKeys,
-          }
+      return report && report.missingKeys.length > 0
+        ? { path: version.path, missingKeys: report.missingKeys }
         : null;
     })
     .filter((report): report is ContentSyncFileReport => report !== null);

@@ -117,12 +117,6 @@ export const projects = pgTable(
     automaticallyGroupIdenticalStrings: boolean("automatically_group_identical_strings")
       .notNull()
       .default(false),
-    /**
-     * Whether source text may be edited in the platform. Off, a repository sync replaces the
-     * platform's source text with the repository's; on, a sync keeps platform edits and reports
-     * clashes, and the public API may change source text.
-     */
-    sourceTextEditable: boolean("source_text_editable").notNull().default(false),
     // Changes whenever grouping policy changes so open CAT workspaces can defer a safe refresh.
     contentEditorGroupingRevision: integer("cat_grouping_revision").notNull().default(0),
     /**

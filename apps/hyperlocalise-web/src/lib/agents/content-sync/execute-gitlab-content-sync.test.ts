@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   syncedFileRows: vi.fn(),
   versionRows: vi.fn(),
   unhideKeysSyncHid: vi.fn(),
-  settleUnchangedSourceFile: vi.fn(),
   resolveGitLabAccess: vi.fn(),
   getGitLabProject: vi.fn(),
   createGitLabContentSyncReader: vi.fn(),
@@ -23,7 +22,6 @@ vi.mock("@/lib/database/client", () => {
     projects: {
       id: "id",
       organizationId: "organizationId",
-      sourceTextEditable: "sourceTextEditable",
     },
     repositorySourceFileVersions: {
       id: "id",
@@ -63,9 +61,6 @@ vi.mock("@/lib/file-storage/upload-repository-source-files", () => ({
 vi.mock("@/lib/projects/files/source-file-ingest", () => ({
   enqueueSourceFileIngestAfterUpload: (...args: unknown[]) =>
     mocks.enqueueSourceFileIngestAfterUpload(...args),
-}));
-vi.mock("@/lib/projects/files/settle-unchanged-source-file", () => ({
-  settleUnchangedSourceFile: (...args: unknown[]) => mocks.settleUnchangedSourceFile(...args),
 }));
 vi.mock("@/lib/projects/files/hide-keys-missing-from-sync", () => ({
   hideKeysMissingFromSync: (...args: unknown[]) => mocks.hideKeysMissingFromSync(...args),
@@ -149,9 +144,7 @@ function run(reader: ContentSyncRepositoryReader | undefined, config = syncConfi
 describe("executeGitLabContentSync", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.projectRows.mockReturnValue([
-      { sourceLocale: "en-US", targetLocales: ["fr-FR"], sourceTextEditable: false },
-    ]);
+    mocks.projectRows.mockReturnValue([{ sourceLocale: "en-US", targetLocales: ["fr-FR"] }]);
     mocks.reportRows.mockReturnValue([]);
     mocks.storeRepositorySourceFile.mockImplementation(async (input: { sourcePath: string }) => ({
       path: input.sourcePath,
@@ -163,7 +156,6 @@ describe("executeGitLabContentSync", () => {
     mocks.syncedFileRows.mockReturnValue([]);
     mocks.hideKeysMissingFromSync.mockResolvedValue([]);
     mocks.unhideKeysSyncHid.mockResolvedValue(undefined);
-    mocks.settleUnchangedSourceFile.mockResolvedValue([]);
     mocks.versionRows.mockReturnValue([]);
     mocks.enqueueSourceFileIngestAfterUpload.mockResolvedValue({ workflowRunIds: ["wf-retry"] });
   });
@@ -173,7 +165,7 @@ describe("executeGitLabContentSync", () => {
     mocks.reportRows.mockReturnValue([
       {
         id: "version:gitlab/acme/web/en.json",
-        syncReport: { clashes: [{ key: "title", fileText: "Home" }], missingKeys: ["old"] },
+        syncReport: { missingKeys: ["old"] },
       },
     ]);
 
@@ -187,7 +179,7 @@ describe("executeGitLabContentSync", () => {
         unmatched: 3,
         translationFiles: 1,
         commitSha: "abc",
-        files: [{ path: "gitlab/acme/web/en.json", clashes: ["title"], missingKeys: ["old"] }],
+        files: [{ path: "gitlab/acme/web/en.json", missingKeys: ["old"] }],
       },
       pushed: { written: 0 },
     });
@@ -280,7 +272,7 @@ describe("executeGitLabContentSync", () => {
     expect(isOk(superseded) && superseded.value.pulled).toMatchObject({ uploaded: 1 });
   });
 
-  it("settles an unchanged file through the import rule and reports what still clashes", async () => {
+  it("does not repeat the stored report of an unchanged file it skipped", async () => {
     mocks.storeRepositorySourceFile.mockResolvedValue({
       path: "gitlab/acme/web/en.json",
       outcome: "skipped",
@@ -291,26 +283,12 @@ describe("executeGitLabContentSync", () => {
     mocks.versionRows.mockReturnValue([
       { ingestState: "ingested", ingestWorkflowRunId: "wf-old", repositorySourceFileId: "file:en" },
     ]);
-    mocks.reportRows.mockReturnValue([
-      {
-        id: "version:old",
-        syncReport: { clashes: [{ key: "settled", fileText: "x" }], missingKeys: ["old"] },
-      },
-    ]);
-    mocks.settleUnchangedSourceFile.mockResolvedValue([{ key: "title", fileText: "Home" }]);
+    mocks.reportRows.mockReturnValue([{ id: "version:old", syncReport: { missingKeys: ["old"] } }]);
 
     const result = await run(fakeReader());
 
-    expect(mocks.settleUnchangedSourceFile).toHaveBeenCalledWith({
-      organizationId: "org-1",
-      projectId: "project-1",
-      sourcePath: "gitlab/acme/web/en.json",
-      sourceTextEditable: false,
-    });
-    // The stored report is history for a file not imported again; only the settled clash shows.
-    expect(isOk(result) && result.value.pulled.files).toEqual([
-      { path: "gitlab/acme/web/en.json", clashes: ["title"], missingKeys: [] },
-    ]);
+    // The stored report is history for a file not imported again.
+    expect(isOk(result) && result.value.pulled.files).toEqual([]);
   });
 
   it("hides the keys of synced files the repository no longer has, and only this sync's", async () => {
@@ -338,7 +316,7 @@ describe("executeGitLabContentSync", () => {
       repositorySourceFileId: "file:old",
     });
     expect(isOk(result) && result.value.pulled.files).toEqual([
-      { path: "gitlab/acme/web/old-en.json", clashes: [], missingKeys: ["a", "b"] },
+      { path: "gitlab/acme/web/old-en.json", missingKeys: ["a", "b"] },
     ]);
   });
 

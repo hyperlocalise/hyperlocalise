@@ -27,9 +27,9 @@ A workspace connected to its own GitLab server can pull a repository's source fi
 3. Set the provider folder, the project folder, and **Language file paths**: where each language's files sit under the provider folder, with `{{locale}}` standing for the language code, for example `{{locale}}.json` or `{{locale}}/pages/*.html`. Only the source language's files are imported. A code in the repository names a project language the same way as in other integrations: the same tag whatever its case (`pt-br` is `pt-BR`), or the one project language of that family (`fr` for `fr-FR`); where the project has two, such as `en-US` and `en-GB`, a plain `en` file is skipped.
 4. Leave **Branch** empty to read the repository's default branch.
 
-Each run reads the branch's latest commit. A file whose content hasn't changed since the last run isn't imported again, though its keys are still checked against the text already known. Keys the repository no longer has, and whole files it dropped, are hidden in the project, not deleted, so their translations stay and translation jobs skip them; a key that comes back is shown again.
+Each run reads the branch's latest commit. A file whose content hasn't changed since the last run isn't imported again. Keys the repository no longer has, and whole files it dropped, are hidden in the project, not deleted, so their translations stay and translation jobs skip them; a key that comes back is shown again.
 
-By default the repository's source text replaces the project's on every run. To edit source text in Hyperlocalise as well, turn on **Edit source text in Hyperlocalise** in the project's settings. A run then keeps edits made here, takes changes made in the repository, and reports a key as a clash when both sides changed it differently, keeping the project's text. The step's output lists the clashes and the hidden keys per file.
+The repository's source text replaces the project's on every run. The step's output lists the hidden keys per file.
 
 ## Connect the translation step
 

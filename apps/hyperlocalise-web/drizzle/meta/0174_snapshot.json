@@ -1,5 +1,5 @@
 {
-  "id": "9b84ae15-e2c6-4d9e-9ffb-7fca623fbc97",
+  "id": "fd401f9b-06fb-4375-8a3e-7df4d4306915",
   "prevId": "eecf99f8-01cc-41da-a683-74f069d6b242",
   "version": "7",
   "dialect": "postgresql",
@@ -3952,13 +3952,6 @@
         },
         "automatically_group_identical_strings": {
           "name": "automatically_group_identical_strings",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "source_text_editable": {
-          "name": "source_text_editable",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
@@ -25393,12 +25386,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "imported_source_text": {
-          "name": "imported_source_text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "context": {
           "name": "context",

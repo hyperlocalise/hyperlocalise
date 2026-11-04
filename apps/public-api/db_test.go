@@ -52,8 +52,8 @@ func newDBFixture(t *testing.T) dbFixture {
 		f.actor.OrganizationID, "org_"+suffix, "Acme "+suffix, "org-"+strings.ReplaceAll(suffix[:12], "-", ""))
 	f.exec(t, `INSERT INTO organization_memberships (organization_id, user_id, workos_membership_id, role)
 		VALUES ($1, $2, $3, 'admin')`, f.actor.OrganizationID, f.actor.UserID, "om_"+suffix)
-	f.exec(t, `INSERT INTO projects (id, organization_id, created_by_user_id, name, identifier, source, source_locale, target_locales, source_text_editable)
-		VALUES ($1, $2, $3, 'Project', $4, 'native', 'en', '["fr","de"]'::jsonb, true)`,
+	f.exec(t, `INSERT INTO projects (id, organization_id, created_by_user_id, name, identifier, source, source_locale, target_locales)
+		VALUES ($1, $2, $3, 'Project', $4, 'native', 'en', '["fr","de"]'::jsonb)`,
 		f.project, f.actor.OrganizationID, f.actor.UserID, "P"+strings.ToUpper(strings.ReplaceAll(suffix, "-", "")[:8]))
 	t.Cleanup(func() {
 		cleanup := context.Background()
