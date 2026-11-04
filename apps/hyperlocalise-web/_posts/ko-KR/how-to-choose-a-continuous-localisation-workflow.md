@@ -52,7 +52,7 @@ Hyperlocalise는 이 카테고리에 제품을 판매하기 때문에 이 내용
 
 플랫폼이 문자열을 저장하고 번역을 생성하는 기능만 제공한다면, 그 작업 중 두 가지를 처리합니다. 실제 다국어 릴리스가 실패하는 지점은 나머지 세 가지입니다.
 
-For the product-side pattern, see [GitHub localisation workflow: from pull request to multilingual release](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release). For why fluent output is not enough on its own, see [AI translation is not enough](/blog/ai-translation-is-not-enough-context-aware-localisation).
+제품 측 패턴은 [GitHub 현지화 워크플로: 풀 리퀘스트부터 다국어 릴리스까지](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release)를 참고하세요. 유창한 출력만으로는 충분하지 않은 이유는 [AI 번역만으로는 충분하지 않습니다](/blog/ai-translation-is-not-enough-context-aware-localisation)를 참고하세요.
 
 ## AI 네이티브 로컬라이제이션 플랫폼에서 기대할 수 있는 것
 
@@ -184,7 +184,7 @@ For how this sits alongside an existing TMS rather than replacing it, see [How t
 
 에이전트 기반 계층은 전문 에이전트를 활용해 컨텍스트를 수집하고, 번역 초안을 작성하고, 검토를 배정하고, 시스템을 동기화하고, 품질을 확인합니다. 이 계층은 TMS, 저장소, 검토 환경을 대체하는 것이 아니라 그 전반에 걸쳐 작동하도록 설계되었습니다. Hyperlocalise는 이 범주에 속합니다. 다른 벤더들도 기존 플랫폼에 에이전트와 코파일럿을 추가하고 있습니다. 차이는 에이전트가 단일 제품 내에서 도우미 역할을 하는지, 아니면 이미 사용 중인 기술 스택 전반에서 작동할 수 있는 워크플로인지에 있습니다.
 
-Use this class when coordination is the problem: too much time assembling context, too much review of low-risk copy, too little visibility at release time, and no appetite for a TMS migration. See [Should you build your own localisation agent?](/blog/should-you-build-your-own-localisation-agent) before assuming you should recreate this layer internally.
+조정이 문제라면 이 클래스를 사용하세요. 맥락을 모으는 데 시간이 너무 많이 들고, 위험도가 낮은 문구도 지나치게 많이 검토하며, 출시 시점에 가시성이 부족하고, TMS를 마이그레이션할 생각은 없는 경우에 적합합니다. 내부적으로 이 계층을 다시 구축해야 한다고 단정하기 전에 [자체 로컬라이제이션 에이전트를 구축해야 할까요?](/blog/should-you-build-your-own-localisation-agent)를 확인해 보세요.
 
 로컬라이제이션을 제품 워크플로처럼 운영하고 싶다면 이 클래스를 선택하세요. 여전히 기준 시스템과 시장별 품질을 책임지는 담당자가 필요합니다.
 
@@ -265,7 +265,7 @@ AI 번역은 텍스트를 한 언어에서 다른 언어로 변환합니다. 지
 
 Hyperlocalise는 에이전트 기반 현지화 레이어입니다. 연결된 도구에서 컨텍스트를 수집하고, 사람이 참여하는 번역 및 검토를 진행하며, 기존 TMS와 연동하고, 로캘이 준비되었는지 확인할 수 있도록 설계되었습니다. Crowdin, Phrase, Lokalise, Smartling 또는 맞춤형 스크립트를 대체하거나 순위를 매기는 서비스가 아닙니다.
 
-If that class matches the job you have — product context missing, review overloaded, TMS staying put, releases slipping in some locales — [see how product localisation works on Hyperlocalise](/use-cases/product-localisation) or [request a demo](https://calendar.app.google/gEiRwNvAZ1ERXvT26) with a real upcoming release, not a generic bake-off.
+현재 처한 상황이 이런 유형에 해당한다면 — 제품 맥락은 부족하고, 검토 업무는 과중하며, TMS는 그대로이고, 일부 로캘에서는 출시가 지연되고 있다면 — [Hyperlocalise에서 제품 현지화가 어떻게 이루어지는지 살펴보거나](/use-cases/product-localisation) 또는 [실제 예정된 릴리스로 데모를 요청해 보세요](https://calendar.app.google/gEiRwNvAZ1ERXvT26). 일반적인 비교 평가가 아닙니다.
 
 더 읽어볼 자료:
 
