@@ -211,8 +211,14 @@ export async function deliverGitLabTranslations(
       return summary;
     }
     if (branch.value && branch.value.changedPaths.length > 0) {
+      // The sync closes it, so the branch goes too: a later run with something to send then
+      // starts afresh rather than finding "its" merge request closed and leaving it so.
       const closed = await input.writer.closeReview(review.value.id);
-      return isErr(closed) ? withError(summary, closed.error) : summary;
+      if (isErr(closed)) {
+        return withError(summary, closed.error);
+      }
+      const deleted = await input.writer.deleteBranch(input.branchName);
+      return isErr(deleted) ? withError(summary, deleted.error) : summary;
     }
     return { ...summary, pullRequestUrl: review.value.url };
   }

@@ -302,6 +302,7 @@ describe("executeGitLabContentSync", () => {
       upsertReview: vi.fn(),
       findReview: vi.fn(),
       closeReview: vi.fn(),
+      deleteBranch: vi.fn(),
     };
 
     const result = await executeGitLabContentSync({

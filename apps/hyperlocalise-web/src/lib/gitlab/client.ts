@@ -146,7 +146,7 @@ export type GitLabRequest = GitLabAccess & {
   path: string;
   query?: URLSearchParams;
   /** GET unless given; a body is sent as JSON. */
-  method?: "GET" | "POST" | "PUT";
+  method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;
   signal?: AbortSignal;
 };
@@ -215,6 +215,10 @@ export async function gitlabJson(input: GitLabRequest): Promise<Result<unknown, 
   const response = await gitlabRequest({ ...input, accept: "application/json" });
   if (isErr(response)) {
     return response;
+  }
+  if (response.value.body.length === 0) {
+    // A delete answers with no body.
+    return ok(null);
   }
   const parsed = safeJsonParse(response.value.body.toString("utf8"));
   if (isErr(parsed)) {

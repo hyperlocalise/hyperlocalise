@@ -283,5 +283,17 @@ export function createGitLabContentSyncWriter(input: {
     return isErr(result) ? err(writeError(result.error, "review")) : ok(undefined);
   }
 
-  return { commitFiles, upsertReview, findReview, closeReview };
+  async function deleteBranch(branch: string): Promise<Result<void, ContentSyncProviderError>> {
+    const result = await gitlabJson({
+      ...request,
+      method: "DELETE",
+      path: `${projectPath}/repository/branches/${encodeURIComponent(branch)}`,
+    });
+    if (isErr(result) && result.error.code !== "gitlab_not_found") {
+      return err(writeError(result.error, "commit"));
+    }
+    return ok(undefined);
+  }
+
+  return { commitFiles, upsertReview, findReview, closeReview, deleteBranch };
 }

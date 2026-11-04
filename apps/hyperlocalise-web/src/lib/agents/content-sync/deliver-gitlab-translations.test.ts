@@ -151,6 +151,7 @@ function fakeWriter(existing: { state: ContentSyncReviewState } | null = null): 
       ok(existing ? { ...review, state: existing.state } : null),
     ),
     closeReview: vi.fn<ContentSyncRepositoryWriter["closeReview"]>(async () => ok(undefined)),
+    deleteBranch: vi.fn<ContentSyncRepositoryWriter["deleteBranch"]>(async () => ok(undefined)),
   };
 }
 
@@ -308,6 +309,7 @@ describe("deliverGitLabTranslations", () => {
 
     expect(result).toEqual(nothing);
     expect(writer.closeReview).toHaveBeenCalledWith("7");
+    expect(writer.deleteBranch).toHaveBeenCalledWith("hyperlocalise/translations-sync-1");
   });
 
   it("leaves the branch alone when it is one commit on the target holding exactly this change", async () => {

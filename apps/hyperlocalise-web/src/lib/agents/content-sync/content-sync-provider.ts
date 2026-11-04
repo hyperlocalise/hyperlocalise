@@ -118,4 +118,6 @@ export type ContentSyncRepositoryWriter = {
   >;
   /** Closes an open review whose content no longer has anything approved behind it. */
   closeReview(id: string): Promise<Result<void, ContentSyncProviderError>>;
+  /** Removes the sync's branch, so the next run with something to send starts afresh. */
+  deleteBranch(branch: string): Promise<Result<void, ContentSyncProviderError>>;
 };

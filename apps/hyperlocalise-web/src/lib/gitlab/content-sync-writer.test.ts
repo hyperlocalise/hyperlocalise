@@ -241,6 +241,19 @@ describe("createGitLabContentSyncWriter", () => {
     expect(isOk(none) && none.value).toBeNull();
   });
 
+  it("deletes the sync branch, and treats one already gone as deleted", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(isOk(await writer().deleteBranch("hyperlocalise/translations-sync-1"))).toBe(true);
+    expect(calls(fetchMock)[0]).toMatchObject({
+      url: "https://gitlab.com/api/v4/projects/acme%2Fweb/repository/branches/hyperlocalise%2Ftranslations-sync-1",
+      method: "DELETE",
+    });
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json({}, 404)));
+    expect(isOk(await writer().deleteBranch("gone"))).toBe(true);
+  });
+
   it("closes a merge request", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(json({ ...mergeRequest, state: "closed" }));
     vi.stubGlobal("fetch", fetchMock);
