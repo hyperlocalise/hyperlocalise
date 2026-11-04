@@ -150,7 +150,7 @@ func (s *smartling) ExportGlossary(ctx context.Context, externalID string, maxBy
 	if err != nil {
 		return Export{}, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	content, err := io.ReadAll(io.LimitReader(res.Body, maxBytes+1))
 	if err != nil {
 		return Export{}, err
@@ -256,7 +256,7 @@ func (s *smartling) doData(ctx context.Context, method, path string, body any, o
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	var envelope struct {
 		Response struct {
 			Code string          `json:"code"`
@@ -302,7 +302,7 @@ func (s *smartling) do(ctx context.Context, method, path string, body any) (*htt
 		return nil, err
 	}
 	if res.StatusCode < 200 || res.StatusCode > 299 {
-		defer res.Body.Close()
+		defer func() { _ = res.Body.Close() }()
 		return nil, smartlingError(res)
 	}
 	return res, nil

@@ -67,7 +67,7 @@ func (c phraseClient) doJSON(ctx context.Context, method, path string, body any,
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode < 200 || res.StatusCode > 299 {
 		return phraseError(res)
 	}
@@ -190,7 +190,7 @@ func (p *phraseTMS) ExportGlossary(ctx context.Context, externalID string, maxBy
 	if err != nil {
 		return Export{}, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != http.StatusOK {
 		return Export{}, phraseError(res)
 	}
@@ -228,15 +228,15 @@ func (p *phraseTMS) ExportMemory(ctx context.Context, externalID string, maxByte
 		switch res.StatusCode {
 		case http.StatusOK:
 			content, err := readCapped(res.Body, maxBytes)
-			res.Body.Close()
+			_ = res.Body.Close()
 			return Export{Format: "tmx", Content: content}, err
 		case http.StatusAccepted, http.StatusRequestTimeout, http.StatusTooManyRequests:
 			// Not ready yet.
 			_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, phraseMaxErrorBytes))
-			res.Body.Close()
+			_ = res.Body.Close()
 		default:
 			err := phraseError(res)
-			res.Body.Close()
+			_ = res.Body.Close()
 			return Export{}, err
 		}
 		select {

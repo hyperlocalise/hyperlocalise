@@ -155,7 +155,7 @@ func (c *crowdin) export(ctx context.Context, exportsPath, format string, maxByt
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != http.StatusOK {
 		return nil, &ProviderError{Status: res.StatusCode, Message: "Could not download the Crowdin export"}
 	}
@@ -191,7 +191,7 @@ func (c *crowdin) doJSON(ctx context.Context, method, path string, body any, out
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode < 200 || res.StatusCode > 299 {
 		return crowdinError(res)
 	}
