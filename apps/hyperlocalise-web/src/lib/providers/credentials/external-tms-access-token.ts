@@ -29,6 +29,7 @@ import {
   resolvePhraseTmsBaseUrl,
 } from "@/lib/providers/adapters/phrase/phrase-tms-api";
 import {
+  parseSmartlingCredentials,
   SmartlingApiClient,
   SmartlingApiError,
 } from "@/lib/providers/adapters/smartling/smartling-api";
@@ -51,6 +52,8 @@ export type ExternalTmsAccessToken = {
   headerValue: string;
   expiresAt: string | null;
   probeUrl: string | null;
+  /** The provider account the credential belongs to, when stored with it (Smartling's account UID). */
+  accountId?: string | null;
 };
 
 export class ExternalTmsAccessTokenError extends Error {
@@ -168,6 +171,8 @@ async function mintSmartlingAccessToken(input: {
       headerValue: bearerAuthorization(tokens.accessToken),
       expiresAt: tokens.expiresAt ? new Date(tokens.expiresAt).toISOString() : null,
       probeUrl: null,
+      // go-svc needs it for account-scoped glossaries and translation memories.
+      accountId: parseSmartlingCredentials(secretMaterial).accountUid?.trim() || null,
     };
   } catch (error) {
     if (error instanceof SmartlingApiError) {

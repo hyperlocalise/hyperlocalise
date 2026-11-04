@@ -64,6 +64,9 @@ type AccessToken struct {
 	HeaderValue  string  `json:"headerValue"`
 	ExpiresAt    *string `json:"expiresAt"`
 	ProbeURL     *string `json:"probeUrl"`
+	// AccountID is the provider account the credential belongs to, when stored
+	// with it (Smartling's account UID).
+	AccountID *string `json:"accountId,omitempty"`
 }
 
 type mintResponse struct {
