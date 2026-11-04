@@ -905,6 +905,8 @@ type SyncRun = {
   pulled: { uploaded: number; skipped: number; failed: number; unmatched: number } | null;
   hiddenKeys: { path: string; keys: string[]; keyCount: number }[];
   written: number | null;
+  /** Language files that wait until every segment is approved (GitLab pages). */
+  heldBack: number | null;
   pullRequestUrl: string | null;
   errorCode: string | null;
   errorMessage: string | null;
@@ -978,10 +980,14 @@ function ProjectContentSyncRuns({ runs }: { runs: SyncRun[] }) {
                 {run.status === "succeeded" && run.hiddenKeys.length > 0 ? (
                   <RunHiddenKeys hiddenKeys={run.hiddenKeys} />
                 ) : null}
-                {/* GitLab sends nothing back yet, so "nothing to send" would mislead. */}
-                {run.status === "succeeded" && run.written !== null && run.provider === "github" ? (
+                {run.status === "succeeded" && run.written !== null ? (
                   <TypographyP size="small" tone="subtle">
                     <FormattedMessage {...messages.runWritten} values={{ written: run.written }} />
+                  </TypographyP>
+                ) : null}
+                {run.status === "succeeded" && run.heldBack ? (
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage {...messages.runHeldBack} values={{ held: run.heldBack }} />
                   </TypographyP>
                 ) : null}
                 {run.status === "failed" ? (

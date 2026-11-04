@@ -83,6 +83,7 @@ const runs = [
     pulled: { uploaded: 3, skipped: 1, failed: 0, unmatched: 0 },
     hiddenKeys: [],
     written: 2,
+    heldBack: null,
     pullRequestUrl: "https://github.com/acme/web/pull/7",
     errorCode: null,
     errorMessage: null,
@@ -97,6 +98,7 @@ const runs = [
     pulled: null,
     hiddenKeys: [],
     written: null,
+    heldBack: null,
     pullRequestUrl: null,
     errorCode: "content_sync_connection_required",
     errorMessage: "Enable this repository in Integrations before syncing.",
@@ -530,6 +532,7 @@ describe("ProjectContentSyncPanel", () => {
             provider: "gitlab",
             pullRequestUrl: null,
             written: 0,
+            heldBack: 2,
             pulled: { uploaded: 1, skipped: 0, failed: 0, unmatched: 2 },
             hiddenKeys: [
               { path: "gitlab/acme/app/en.json", keys: ["home.title", "home.body"], keyCount: 22 },
@@ -552,7 +555,8 @@ describe("ProjectContentSyncPanel", () => {
       );
       expect(screen.getByText("home.title, home.body")).toBeInTheDocument();
       expect(screen.getByText(/and 20 more/)).toBeInTheDocument();
-      expect(screen.queryByText("No new translations to send")).not.toBeInTheDocument();
+      expect(screen.getByText("No new translations to send")).toBeInTheDocument();
+      expect(screen.getByText(/2 pages wait until every translation/)).toBeInTheDocument();
       expect(
         screen.getByText(
           "The workspace's GitLab token was refused. Check the connection in Integrations.",

@@ -204,6 +204,7 @@ async function runContentSyncProvider(input: {
       automationId: input.automationId,
       runId: input.runId,
       syncConfig: input.syncConfig,
+      pullRequestBranchKey: input.pullRequestBranchKey,
     });
   }
 

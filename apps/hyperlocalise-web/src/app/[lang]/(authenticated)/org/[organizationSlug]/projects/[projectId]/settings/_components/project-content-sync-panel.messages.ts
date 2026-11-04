@@ -234,6 +234,13 @@ export const projectContentSyncPanelMessages = defineMessages({
     id: "ObksDhMzPR",
     description: "Summary of the translated files a project sync run sent back to the repository",
   },
+  runHeldBack: {
+    defaultMessage:
+      "{held, plural, one {# page waits} other {# pages wait}} until every translation in it is approved",
+    id: "ZuNORcOr/u",
+    description:
+      "Count of language files a GitLab sync run held back because a page is sent whole, once fully approved",
+  },
   openPullRequest: {
     defaultMessage: "Open pull request",
     id: "3V79KDlgh2",

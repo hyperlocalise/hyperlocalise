@@ -25,6 +25,7 @@ export type ContentSyncProviderError = {
     | "content_sync_connection_required"
     | "content_sync_repository_not_found"
     | "content_sync_branch_not_found"
+    | "content_sync_file_not_found"
     | "content_sync_provider_failed";
   message: string;
 };
@@ -52,6 +53,7 @@ export type ContentSyncRepositoryReader = {
     commitSha: string;
     folder: string;
   }): Promise<Result<ContentSyncRepositoryFile[], ContentSyncProviderError>>;
+  /** `content_sync_file_not_found` when the commit has no such file. */
   readFile(input: {
     commitSha: string;
     path: string;
@@ -59,7 +61,12 @@ export type ContentSyncRepositoryReader = {
 };
 
 export type ContentSyncFileChange =
-  | { path: string; content: Buffer }
+  | {
+      path: string;
+      content: Buffer;
+      /** Whether the file is already on the branch, when the caller knows; else the writer asks. */
+      exists?: boolean;
+    }
   | { path: string; delete: true };
 
 export type ContentSyncReview = {
@@ -68,7 +75,7 @@ export type ContentSyncReview = {
   url: string;
 };
 
-/** Not built yet: merge-request delivery is the next pull request. */
+/** The write half, used by merge-request delivery. */
 export type ContentSyncRepositoryWriter = {
   /**
    * Commits the changes to the branch as one commit, creating the branch from `startFrom`

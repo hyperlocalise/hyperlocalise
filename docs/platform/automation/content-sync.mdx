@@ -24,7 +24,7 @@ Content sync automations created on the project's **Automations** page before th
 
 ## Pull from GitLab
 
-A workspace connected to GitLab, GitLab.com or its own server, can pull a repository's source files into a project from the project's **Sync** settings or with the visual workflow **Content sync** step. Delivering translations back as a merge request is coming next.
+A workspace connected to GitLab, GitLab.com or its own server, can pull a repository's source files into a project from the project's **Sync** settings or with the visual workflow **Content sync** step, and send approved translations back as one merge request per sync.
 
 1. Connect GitLab under **Integrations**, with an access token. Runs use the workspace's connection, not a member's GitLab.com sign-in.
 2. Open the project's **Settings**, select **Sync** and choose **GitLab** as the repository service; or, in a visual workflow, add a **Content sync** step and choose **GitLab** as the source. Then pick the repository.
@@ -34,6 +34,10 @@ A workspace connected to GitLab, GitLab.com or its own server, can pull a reposi
 Each run reads the branch's latest commit. A file whose content hasn't changed since the last run isn't imported again. Keys the repository no longer has, and whole files it dropped, are hidden in the project, not deleted, so their translations stay and translation jobs skip them; a key that comes back is shown again.
 
 The repository's source text replaces the project's on every run. **Recent syncs** in the Sync settings, or the step's output in a visual workflow, lists the hidden keys per file and counts the files whose path matched no language.
+
+### What goes back to GitLab
+
+After the pull, each run writes one language file per source file and target language, named the way the repository already names that language (`fr.json` stays `fr.json`; a language with no file yet gets the project's tag, such as `de-DE.json`), to one branch per sync, and opens a merge request from it or updates the open one. Only approved translations go: a key with none is left out, a key that is back in review keeps whatever the repository's language file had, and keys the repository dropped are never written back. JSON files keep the source file's nesting and indentation. An HTML page is sent whole, once every segment in it is approved; until then **Recent syncs** says how many pages wait. Other formats are counted as not sent. A file whose content would not change is left out, and when nothing changes the merge request is left as it is. Make translation fixes in Hyperlocalise rather than in the merge request, which is rewritten on each run.
 
 ## Connect the translation step
 

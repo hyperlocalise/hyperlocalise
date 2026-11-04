@@ -107,6 +107,13 @@ function describeRequestFailure(error: unknown) {
 
 type GitLabResponse = { ok: boolean; status: number; body: Buffer };
 
+type GitLabRequestInit = {
+  headers: Record<string, string>;
+  method?: string;
+  body?: string;
+  signal?: AbortSignal;
+};
+
 async function readResponse(response: Response): Promise<GitLabResponse> {
   const body = Buffer.from(await response.arrayBuffer());
   return { ok: response.ok, status: response.status, body };
@@ -119,7 +126,7 @@ async function readResponse(response: Response): Promise<GitLabResponse> {
 async function requestGitLabServer(
   url: URL,
   baseUrl: string,
-  init: { headers: Record<string, string>; signal?: AbortSignal },
+  init: GitLabRequestInit,
 ): Promise<GitLabResponse> {
   const timeout = AbortSignal.timeout(GITLAB_SERVER_REQUEST_TIMEOUT_MS);
   const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
@@ -135,6 +142,9 @@ async function requestGitLabServer(
 export type GitLabRequest = GitLabAccess & {
   path: string;
   query?: URLSearchParams;
+  /** GET unless given; a body is sent as JSON. */
+  method?: "GET" | "POST" | "PUT";
+  body?: unknown;
   signal?: AbortSignal;
 };
 
@@ -145,10 +155,18 @@ export type GitLabRequest = GitLabAccess & {
 async function gitlabRequest(
   input: GitLabRequest & { accept: string },
 ): Promise<Result<GitLabResponse, GitLabApiError>> {
-  const headers = {
+  const headers: Record<string, string> = {
     Authorization: `Bearer ${input.accessToken}`,
     Accept: input.accept,
   };
+  const init: GitLabRequestInit = { headers, signal: input.signal };
+  if (input.method && input.method !== "GET") {
+    init.method = input.method;
+  }
+  if (input.body !== undefined) {
+    headers["Content-Type"] = "application/json";
+    init.body = JSON.stringify(input.body);
+  }
 
   let response: GitLabResponse;
   try {
@@ -157,8 +175,8 @@ async function gitlabRequest(
       url.search = input.query.toString();
     }
     response = input.baseUrl
-      ? await requestGitLabServer(url, input.baseUrl, { headers, signal: input.signal })
-      : await readResponse(await fetch(url, { headers, signal: input.signal }));
+      ? await requestGitLabServer(url, input.baseUrl, init)
+      : await readResponse(await fetch(url, init));
   } catch (error) {
     logger.warn(describeRequestFailure(error), "gitlab request failed before an answer");
     return err(requestFailed(0, error instanceof Error && error.name === "TimeoutError"));

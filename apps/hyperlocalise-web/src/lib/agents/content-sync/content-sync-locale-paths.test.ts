@@ -56,6 +56,27 @@ describe("compileContentSyncPathTemplate", () => {
     }
   });
 
+  it("rewrites the language code in a path, wherever the placeholder sits", () => {
+    expect(compileContentSyncPathTemplate("{{locale}}.json").rewriteLocale("en.json", "fr")).toBe(
+      "fr.json",
+    );
+    expect(
+      compileContentSyncPathTemplate("{{locale}}/pages/*.html").rewriteLocale(
+        "en/pages/pricing.html",
+        "fr-FR",
+      ),
+    ).toBe("fr-FR/pages/pricing.html");
+    expect(
+      compileContentSyncPathTemplate("{{locale}}/**/{{locale}}.json").rewriteLocale(
+        "en/a/b/en.json",
+        "de",
+      ),
+    ).toBe("de/a/b/de.json");
+    expect(compileContentSyncPathTemplate("{{locale}}.json").rewriteLocale("notes.txt", "fr")).toBe(
+      null,
+    );
+  });
+
   it("names no language without the placeholder, so nothing matches", () => {
     const fixed = compileContentSyncPathTemplate("/source/*.json/");
     expect(fixed.match("source/app.json")).toBe("");

@@ -173,7 +173,18 @@ export function createGitLabContentSyncReader(input: {
       path: `${projectPath}/repository/files/${encodeURIComponent(options.path)}/raw`,
       query: new URLSearchParams({ ref: options.commitSha }),
     });
-    return isErr(result) ? err(providerError(result.error)) : result;
+    if (isErr(result)) {
+      // The project was reached already, so a 404 here is the file, not the repository.
+      return err(
+        result.error.code === "gitlab_not_found"
+          ? {
+              code: "content_sync_file_not_found",
+              message: `The repository has no file ${options.path} at this commit.`,
+            }
+          : providerError(result.error),
+      );
+    }
+    return result;
   }
 
   return { resolveBranchHead, listFiles, readFile };

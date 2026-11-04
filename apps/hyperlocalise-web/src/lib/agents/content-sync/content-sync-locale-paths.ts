@@ -57,6 +57,8 @@ export function hasSafeContentSyncTemplateWildcards(template: string): boolean {
  */
 export function compileContentSyncPathTemplate(template: string): {
   match: (relativePath: string) => string | null;
+  /** The same path with another language code in the placeholder's place, for a delivery. */
+  rewriteLocale: (relativePath: string, code: string) => string | null;
 } {
   // Runs of wildcards mean the same as one, and nested optional groups backtrack badly.
   const normalized = normalizeContentSyncFolder(template)
@@ -87,7 +89,7 @@ export function compileContentSyncPathTemplate(template: string): {
       index += 1;
     }
   }
-  const regex = new RegExp(`^${pattern}$`);
+  const regex = new RegExp(`^${pattern}$`, "d");
   return {
     match: (relativePath) => {
       const found = regex.exec(normalizeRepositoryRelativePath(relativePath));
@@ -99,6 +101,23 @@ export function compileContentSyncPathTemplate(template: string): {
         return "";
       }
       return codes.every((code) => code === codes[0]) ? codes[0]! : null;
+    },
+    rewriteLocale: (relativePath, code) => {
+      const path = normalizeRepositoryRelativePath(relativePath);
+      const found = regex.exec(path);
+      if (!found?.indices || localeGroups === 0) {
+        return null;
+      }
+      // From the end, so earlier spans keep their positions.
+      let rewritten = path;
+      for (let group = localeGroups; group >= 1; group -= 1) {
+        const span = found.indices[group];
+        if (!span) {
+          return null;
+        }
+        rewritten = `${rewritten.slice(0, span[0])}${code}${rewritten.slice(span[1])}`;
+      }
+      return rewritten;
     },
   };
 }

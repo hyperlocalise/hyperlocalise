@@ -166,6 +166,7 @@ function serializeRun(run: ProjectContentSyncRunRow, syncProvider: "github" | "g
       : null,
     hiddenKeys: readHiddenKeys(pulled).slice(0, HIDDEN_KEY_FILE_LIMIT),
     written: run.summary ? readSummaryCount(pushed, "written") : null,
+    heldBack: run.summary ? readSummaryCount(pushed, "heldBack") : null,
     pullRequestUrl: typeof pullRequestUrl === "string" ? pullRequestUrl : null,
     errorCode: run.errorCode,
     // Stored messages are the provider's own user-facing text; thrown errors are stored generically.

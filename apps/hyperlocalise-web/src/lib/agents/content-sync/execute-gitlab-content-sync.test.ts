@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   projectRows: vi.fn(),
   reportRows: vi.fn(),
   markReportsShown: vi.fn(async (_condition: unknown) => undefined),
+  deliverGitLabTranslations: vi.fn(),
+  createGitLabContentSyncWriter: vi.fn(),
   storeRepositorySourceFile: vi.fn(),
   waitForSourceFileVersionIngest: vi.fn(),
   enqueueSourceFileIngestAfterUpload: vi.fn(),
@@ -84,6 +86,13 @@ vi.mock("@/lib/gitlab/client", () => ({
 vi.mock("@/lib/gitlab/content-sync-reader", () => ({
   createGitLabContentSyncReader: (...args: unknown[]) =>
     mocks.createGitLabContentSyncReader(...args),
+}));
+vi.mock("@/lib/gitlab/content-sync-writer", () => ({
+  createGitLabContentSyncWriter: (...args: unknown[]) =>
+    mocks.createGitLabContentSyncWriter(...args),
+}));
+vi.mock("./deliver-gitlab-translations", () => ({
+  deliverGitLabTranslations: (...args: unknown[]) => mocks.deliverGitLabTranslations(...args),
 }));
 vi.mock("@/lib/log", async () => {
   const { createTestLogger } = await import("@/test/create-test-logger");
@@ -275,6 +284,69 @@ describe("executeGitLabContentSync", () => {
     mocks.waitForSourceFileVersionIngest.mockResolvedValueOnce("skipped");
     const superseded = await run(fakeReader());
     expect(isOk(superseded) && superseded.value.pulled).toMatchObject({ uploaded: 1 });
+  });
+
+  it("delivers approved translations after the pull, on one branch per sync", async () => {
+    mocks.deliverGitLabTranslations.mockResolvedValue(
+      ok({
+        written: 1,
+        pullRequestUrl: "https://gitlab.com/acme/web/-/merge_requests/3",
+        heldBack: 0,
+        unsupported: 0,
+      }),
+    );
+    const writer = { commitFiles: vi.fn(), upsertReview: vi.fn() };
+
+    const result = await executeGitLabContentSync({
+      organizationId: "org-1",
+      projectId: "project-1",
+      automationId: "workflow-1",
+      runId: "run-1",
+      syncConfig,
+      pullRequestBranchKey: "sync-9",
+      reader: fakeReader(),
+      writer,
+    });
+
+    expect(isOk(result) && result.value.pushed).toEqual({
+      written: 1,
+      pullRequestUrl: "https://gitlab.com/acme/web/-/merge_requests/3",
+      heldBack: 0,
+      unsupported: 0,
+    });
+    expect(mocks.deliverGitLabTranslations).toHaveBeenCalledWith(
+      expect.objectContaining({
+        writer,
+        branchName: "hyperlocalise/translations-sync-9",
+        head: { branch: "main", commitSha: "abc" },
+        targetLocales: ["fr-FR"],
+        localeCodes: new Map([["fr-FR", "fr"]]),
+        sourceFiles: [
+          {
+            relativePath: "en.json",
+            projectPath: "gitlab/acme/web/en.json",
+            content: Buffer.from('{"title":"Home"}', "utf8"),
+          },
+        ],
+      }),
+    );
+  });
+
+  it("fails the run when delivery fails, after the pull has landed", async () => {
+    mocks.deliverGitLabTranslations.mockResolvedValue(
+      err({ code: "content_sync_push_failed", message: "refused" }),
+    );
+    const result = await executeGitLabContentSync({
+      organizationId: "org-1",
+      projectId: "project-1",
+      automationId: "workflow-1",
+      runId: "run-1",
+      syncConfig,
+      reader: fakeReader(),
+      writer: { commitFiles: vi.fn(), upsertReview: vi.fn() },
+    });
+    expect(isErr(result) && result.error.code).toBe("content_sync_push_failed");
+    expect(mocks.storeRepositorySourceFile).toHaveBeenCalled();
   });
 
   it("does not repeat the stored report of an unchanged file it skipped", async () => {

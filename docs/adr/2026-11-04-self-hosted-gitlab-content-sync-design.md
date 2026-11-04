@@ -17,10 +17,10 @@ Translations are edited here, so a repeat sync must not throw them away when the
 - **Every GitLab call is a REST request**, never a clone. They all go through one request function in `lib/gitlab/client.ts`, so a relay or a fixed outgoing address can be added in one place.
 - **Content sync speaks files and reviews, never a provider's terms.** `lib/agents/content-sync/content-sync-provider.ts` is the whole interface:
   - read side, built: `resolveBranchHead`, `listFiles` (a folder, recursively, at one commit), `readFile` (bytes at that commit);
-  - write side, written down for the next pull request: `commitFiles` (several files as one commit on a branch, created from a start commit when new) and `upsertReview` (open a review from a branch, or update the open one).
+  - write side, built: `commitFiles` (several files as one commit on a branch, created from a start commit when new; a change may say whether the file exists so the writer needn't ask) and `upsertReview` (open a review from a branch, or update the open one).
   - Outside it: connection setup and tokens (`lib/gitlab/access.ts`), and incoming webhooks, which each provider turns into a run.
 - **Checked on paper** that GitHub (contents, git trees, pulls), Bitbucket Cloud (src, commits with multiple files, pullrequests) and Azure DevOps (items, pushes, pull requests) can each do every method. Not built; not tested.
-- The GitLab adapter is `lib/gitlab/content-sync-reader.ts`. Every read in a run uses the commit the run started from.
+- The GitLab adapter is `lib/gitlab/content-sync-reader.ts` and `content-sync-writer.ts`. Every read in a run uses the commit the run started from; a missing file is its own error (`content_sync_file_not_found`), distinct from a missing repository, so delivery can tell "create" from "update".
 
 ### What a pull imports
 
@@ -29,6 +29,10 @@ Translations are edited here, so a repeat sync must not throw them away when the
 - The run waits for every imported file's ingest to finish, so delivery can rely on the keys being there. A file whose bytes are unchanged since the last run is not stored again, whatever the commit, as long as the last version is the sync's own and its ingest isn't still running from the last hour; its last ingest is waited for, and queued again if it never ran or failed. No parse and no source-upload automation runs for that. A version a newer upload superseded counts as finished.
 
 - An import replaces the platform's source text with the file's, as every upload does; editing source text in the platform is a separate, later design.
+
+### What a delivery sends
+
+After the pull, `deliver-gitlab-translations.ts` writes one language file per imported source file and target locale to one branch per sync (`hyperlocalise/translations-<key>`, the panel's sync id or the workflow id) and opens or updates its merge request. The language code is the one the repository already uses for that locale (from the files the listing classified as translations), else the project's tag. Only approved translations go: a key with none is left out, a key back in review keeps the repository's current text, and keys the repository dropped (hidden by the sync) are never written back. A JSON file is rebuilt from the source file's own shape, nesting, arrays and indentation included, so the next import reads the same keys; a list with a missing item waits whole, since leaving one out would shift the others' keys. An HTML page goes out whole once every segment is approved, and counts as held back before that. Other formats count as unsupported. Existing files are read from the sync branch when it exists, else from the commit the run read, and a file whose bytes would not change is left out; when nothing changes, no commit is made and the open merge request is left alone. A refused commit or merge request fails the run as `content_sync_push_failed` after the pull has landed.
 
 ### Keys the repository dropped
 

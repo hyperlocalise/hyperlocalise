@@ -18,6 +18,8 @@ import { normalizeSourcePath } from "@/lib/file-storage/records";
 import { resolveGitLabAccess } from "@/lib/gitlab/access";
 import { getGitLabProject } from "@/lib/gitlab/client";
 import { createGitLabContentSyncReader } from "@/lib/gitlab/content-sync-reader";
+import { createGitLabContentSyncWriter } from "@/lib/gitlab/content-sync-writer";
+import { buildPullTranslationsBranchName } from "@/lib/agents/github/github-repository-automation-pull-translations-branch";
 import { isSafeRepositoryRelativePath } from "@/lib/i18n/safe-repository-path";
 import { waitForSourceFileVersionIngest } from "@/lib/intercom/wait-for-source-file-ingest";
 import { createLogger } from "@/lib/log";
@@ -34,7 +36,15 @@ import {
   compileContentSyncPathTemplate,
 } from "./content-sync-locale-paths";
 import { relativizeContentSyncPath, rewriteContentSyncSourcePath } from "./content-sync-paths";
-import type { ContentSyncRepositoryReader } from "./content-sync-provider";
+import type {
+  ContentSyncRepositoryReader,
+  ContentSyncRepositoryWriter,
+} from "./content-sync-provider";
+import {
+  deliverGitLabTranslations,
+  type GitLabDeliverySourceFile,
+  type GitLabDeliverySummary,
+} from "./deliver-gitlab-translations";
 import { GITLAB_CONTENT_SYNC_UPLOAD_SURFACE, type ContentSyncConfig } from "./content-sync-types";
 import type { ContentSyncError, ContentSyncSummary } from "./execute-github-content-sync";
 
@@ -53,6 +63,8 @@ export type ContentSyncFileReport = {
 
 /** The GitHub summary's shape, plus what a GitLab pull hid or left aside. */
 export type GitLabContentSyncSummary = ContentSyncSummary & {
+  pushed: ContentSyncSummary["pushed"] &
+    Partial<Pick<GitLabDeliverySummary, "heldBack" | "unsupported">>;
   pulled: ContentSyncSummary["pulled"] & {
     /** Files under the provider folder that the path template or the locales didn't match. */
     unmatched: number;
@@ -70,8 +82,11 @@ export async function executeGitLabContentSync(input: {
   automationId: string;
   runId: string;
   syncConfig: ContentSyncConfig;
-  /** Tests inject a reader; the app reads the workspace's GitLab server. */
+  /** One merge request branch per sync when given; else per automation. */
+  pullRequestBranchKey?: string;
+  /** Tests inject a reader (and a writer, or no delivery); the app uses the workspace's connection. */
   reader?: ContentSyncRepositoryReader;
+  writer?: ContentSyncRepositoryWriter;
 }): Promise<Result<GitLabContentSyncSummary, ContentSyncError>> {
   const pathTemplate = input.syncConfig.pathTemplate?.trim() ?? "";
   if (!pathTemplate) {
@@ -106,6 +121,7 @@ export async function executeGitLabContentSync(input: {
   }
 
   let reader = input.reader;
+  let writer = input.writer;
   if (!reader) {
     const access = await resolveGitLabAccess({ localOrganizationId: input.organizationId });
     if (isErr(access)) {
@@ -145,6 +161,10 @@ export async function executeGitLabContentSync(input: {
       access: access.value,
       pathWithNamespace: input.syncConfig.resourceKey,
     });
+    writer ??= createGitLabContentSyncWriter({
+      access: access.value,
+      pathWithNamespace: input.syncConfig.resourceKey,
+    });
   }
 
   const head = await reader.resolveBranchHead({ branch: input.syncConfig.branch });
@@ -167,7 +187,9 @@ export async function executeGitLabContentSync(input: {
 
   const template = compileContentSyncPathTemplate(pathTemplate);
   const targetLocales = Array.isArray(project.targetLocales) ? project.targetLocales : [];
-  const sourceFiles: { repositoryPath: string; projectPath: string }[] = [];
+  const sourceFiles: { repositoryPath: string; relativePath: string; projectPath: string }[] = [];
+  // The code each target locale's existing file uses, so delivery writes to the same name.
+  const localeCodes = new Map<string, string>();
   let translationFiles = 0;
   let unmatched = 0;
   for (const file of listing.value) {
@@ -184,6 +206,10 @@ export async function executeGitLabContentSync(input: {
     });
     if (classified.kind === "translation") {
       translationFiles += 1;
+      const code = template.match(relativePath);
+      if (code && !localeCodes.has(classified.locale)) {
+        localeCodes.set(classified.locale, code);
+      }
       continue;
     }
     if (classified.kind === "unmatched" || !inferSupportedSourceUploadFormat(file.path)) {
@@ -199,7 +225,11 @@ export async function executeGitLabContentSync(input: {
       unmatched += 1;
       continue;
     }
-    sourceFiles.push({ repositoryPath: file.path, projectPath: normalizeSourcePath(projectPath) });
+    sourceFiles.push({
+      repositoryPath: file.path,
+      relativePath,
+      projectPath: normalizeSourcePath(projectPath),
+    });
   }
 
   if (sourceFiles.length === 0) {
@@ -212,6 +242,7 @@ export async function executeGitLabContentSync(input: {
   const pulled = { uploaded: 0, skipped: 0, failed: 0 };
   const failedPaths: string[] = [];
   const versions: SyncedVersion[] = [];
+  const deliverable: GitLabDeliverySourceFile[] = [];
   for (const file of sourceFiles) {
     const content = await reader.readFile({
       commitSha: head.value.commitSha,
@@ -226,6 +257,11 @@ export async function executeGitLabContentSync(input: {
       failedPaths.push(`${file.repositoryPath} (could not be read)`);
       continue;
     }
+    deliverable.push({
+      relativePath: file.relativePath,
+      projectPath: file.projectPath,
+      content: content.value,
+    });
     const stored = await storeRepositorySourceFile({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -320,6 +356,30 @@ export async function executeGitLabContentSync(input: {
     input.runId,
   );
 
+  let pushed: GitLabContentSyncSummary["pushed"] = { written: 0 };
+  if (writer) {
+    const delivered = await deliverGitLabTranslations({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      runId: input.runId,
+      syncConfig: input.syncConfig,
+      reader,
+      writer,
+      head: head.value,
+      template,
+      targetLocales,
+      localeCodes,
+      sourceFiles: deliverable,
+      branchName: buildPullTranslationsBranchName(
+        input.pullRequestBranchKey ?? `workflow-${input.automationId}`,
+      ),
+    });
+    if (isErr(delivered)) {
+      return err(delivered.error);
+    }
+    pushed = delivered.value;
+  }
+
   return ok({
     pulled: {
       ...pulled,
@@ -328,7 +388,7 @@ export async function executeGitLabContentSync(input: {
       commitSha: head.value.commitSha,
       files,
     },
-    pushed: { written: 0 },
+    pushed,
   });
 }
 
