@@ -466,6 +466,77 @@ describe("applyNodeConfigUpdate", () => {
     expect(result.edges).toEqual([]);
   });
 
+  it("prunes stale Array Transform result edges when the operation changes", () => {
+    const transform = node("transform", "logic.array_transform", {
+      config: {
+        kind: "logic.array_transform",
+        operation: "map",
+        collection: "[]",
+        itemType: "number",
+        resultType: "number",
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "items",
+        source: "transform",
+        target: "after",
+        sourceHandle: "items",
+        targetHandle: "value",
+        data: { kind: "data" },
+      },
+      {
+        id: "each",
+        source: "transform",
+        target: "body",
+        sourceHandle: "each",
+        targetHandle: "input",
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [transform, node("body", "logic.set"), node("after", "logic.set")],
+      edges,
+      "transform",
+      {
+        kind: "logic.array_transform",
+        operation: "reduce",
+        collection: "[]",
+        itemType: "number",
+        resultType: "number",
+        initialValue: 0,
+      },
+    );
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["each"]);
+  });
+
+  it("drops a leftover Reduce initial-value binding when leaving Reduce", () => {
+    const transform = node("transform", "logic.array_transform", {
+      config: {
+        kind: "logic.array_transform",
+        operation: "reduce",
+        collection: "[]",
+        itemType: "number",
+        resultType: "number",
+        initialValue: 0,
+      },
+      inputs: {
+        initialValue: { kind: "literal", value: 1 },
+      },
+    });
+
+    const result = applyNodeConfigUpdate([transform], [], "transform", {
+      kind: "logic.array_transform",
+      operation: "find",
+      collection: "[]",
+      itemType: "number",
+      resultType: "number",
+    });
+
+    expect(result.nodes.find((entry) => entry.id === "transform")?.data.inputs).toEqual({});
+  });
+
   it("removes edges for deleted Switch cases and keeps other branches", () => {
     const switchNode = node("sw", "logic.switch", {
       config: {

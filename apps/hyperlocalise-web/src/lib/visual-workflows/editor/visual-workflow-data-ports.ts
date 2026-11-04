@@ -37,15 +37,6 @@ export type VisualWorkflowDataPorts = {
 };
 
 function getInputFields(node: VisualWorkflowRfNode) {
-  if (node.data.config.kind === "logic.array_transform") {
-    return [
-      { name: "collection", type: "array" as const, required: true },
-      ...(node.data.config.operation === "reduce"
-        ? [{ name: "initialValue", type: node.data.config.resultType, required: true }]
-        : []),
-    ];
-  }
-
   if (node.data.config.kind === "logic.merge") {
     return node.data.config.inputs.map((input) => ({
       name: `value.${input.id}`,
@@ -60,7 +51,8 @@ function getInputFields(node: VisualWorkflowRfNode) {
     node.data.config.kind === "logic.create_object" ||
     node.data.config.kind === "logic.merge_objects" ||
     node.data.config.kind === "logic.coalesce" ||
-    node.data.config.kind === "logic.compare"
+    node.data.config.kind === "logic.compare" ||
+    node.data.config.kind === "logic.array_transform"
   ) {
     return getWorkflowInputFields({
       id: node.id,
@@ -90,38 +82,13 @@ function getInputFields(node: VisualWorkflowRfNode) {
 }
 
 function getOutputFields(node: VisualWorkflowRfNode) {
-  if (node.data.config.kind !== "logic.array_transform") {
-    return getWorkflowOutputFields({
-      id: node.id,
-      type: node.data.catalogType,
-      config: node.data.config,
-      inputs: node.data.inputs,
-      outputFields: node.data.outputFields,
-    });
-  }
-
-  const contextFields = [
-    { path: "item", type: node.data.config.itemType, optional: false },
-    { path: "index", type: "number" as const, optional: false },
-    { path: "count", type: "number" as const, optional: false },
-  ];
-  switch (node.data.config.operation) {
-    case "filter":
-    case "map":
-      return [...contextFields, { path: "items", type: "array" as const, optional: false }];
-    case "reduce":
-      return [
-        ...contextFields,
-        { path: "accumulator", type: node.data.config.resultType, optional: false },
-        { path: "value", type: node.data.config.resultType, optional: false },
-      ];
-    case "find":
-      return [
-        ...contextFields,
-        { path: "value", type: node.data.config.itemType, optional: true },
-        { path: "found", type: "boolean" as const, optional: false },
-      ];
-  }
+  return getWorkflowOutputFields({
+    id: node.id,
+    type: node.data.catalogType,
+    config: node.data.config,
+    inputs: node.data.inputs,
+    outputFields: node.data.outputFields,
+  });
 }
 
 function getInputLabel(node: VisualWorkflowRfNode, portId: string): string {

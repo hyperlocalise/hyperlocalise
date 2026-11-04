@@ -168,10 +168,10 @@ export function WorkflowDataPanel({
 
             <FieldDescription>
               {intl.formatMessage({
-                description: "Explanation of graph-derived For Each membership",
-                id: "3OlJR3Fxjp",
+                description: "Explanation of graph-derived collection-region membership",
+                id: "WAMmUgMIAk",
                 defaultMessage:
-                  "Loop membership is derived automatically from connections leaving the Each item port.",
+                  "Membership is derived automatically from connections leaving the Each item port.",
               })}
             </FieldDescription>
 
@@ -184,8 +184,8 @@ export function WorkflowDataPanel({
             ) : (
               <p className="text-muted-foreground text-sm">
                 {intl.formatMessage({
-                  description: "Empty graph-derived For Each body",
-                  id: "yIZkW24JC2",
+                  description: "Empty graph-derived collection-region body",
+                  id: "qAIm+dJ8lo",
                   defaultMessage: "No nodes are connected to the Each item region.",
                 })}
               </p>

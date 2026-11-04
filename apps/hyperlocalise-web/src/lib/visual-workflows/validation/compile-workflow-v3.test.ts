@@ -768,6 +768,169 @@ it("derives Array Transform body membership from each and done execution edges",
   ]);
 });
 
+it("rejects operation-specific Array Transform ports that the selected mode does not expose", () => {
+  const workflow: VisualWorkflowV3Definition = {
+    schemaVersion: 3,
+    name: "Array transform ports",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.manual",
+        config: { kind: "trigger.manual" },
+      },
+      {
+        id: "transform",
+        type: "logic.array_transform",
+        config: {
+          kind: "logic.array_transform",
+          operation: "reduce",
+          collection: "[]",
+          itemType: "number",
+          resultType: "number",
+          initialValue: 0,
+        },
+      },
+      {
+        id: "body",
+        type: "logic.set",
+        config: { kind: "logic.set", assignments: [] },
+      },
+      {
+        id: "after",
+        type: "logic.set",
+        config: { kind: "logic.set", assignments: [] },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-transform",
+        kind: "execution",
+        source: "trigger",
+        target: "transform",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "transform-body",
+        kind: "execution",
+        source: "transform",
+        target: "body",
+        sourcePortId: "each",
+        targetPortId: "input",
+      },
+      {
+        id: "transform-after",
+        kind: "execution",
+        source: "transform",
+        target: "after",
+        sourcePortId: "done",
+        targetPortId: "input",
+      },
+      {
+        id: "items-after",
+        kind: "data",
+        source: "transform",
+        target: "after",
+        sourcePortId: "items",
+        targetPortId: "value",
+      },
+    ],
+    editor: { positions: {} },
+  };
+
+  expect(compileVisualWorkflowV3Definition(workflow).issues).toContainEqual({
+    code: "invalid_source_port",
+    edgeId: "items-after",
+    nodeId: "transform",
+  });
+});
+
+it("keeps Array Transform item ports inside the body and rejects them after Done", () => {
+  const workflow: VisualWorkflowV3Definition = {
+    schemaVersion: 3,
+    name: "Array transform scoped ports",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.manual",
+        config: { kind: "trigger.manual" },
+      },
+      {
+        id: "transform",
+        type: "logic.array_transform",
+        config: {
+          kind: "logic.array_transform",
+          operation: "map",
+          collection: "[]",
+          itemType: "number",
+          resultType: "number",
+        },
+      },
+      {
+        id: "body",
+        type: "logic.set",
+        config: { kind: "logic.set", assignments: [] },
+      },
+      {
+        id: "after",
+        type: "logic.set",
+        config: { kind: "logic.set", assignments: [] },
+      },
+    ],
+    edges: [
+      {
+        id: "trigger-transform",
+        kind: "execution",
+        source: "trigger",
+        target: "transform",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "transform-body",
+        kind: "execution",
+        source: "transform",
+        target: "body",
+        sourcePortId: "each",
+        targetPortId: "input",
+      },
+      {
+        id: "transform-after",
+        kind: "execution",
+        source: "transform",
+        target: "after",
+        sourcePortId: "done",
+        targetPortId: "input",
+      },
+      {
+        id: "item-body",
+        kind: "data",
+        source: "transform",
+        target: "body",
+        sourcePortId: "item",
+        targetPortId: "value",
+      },
+      {
+        id: "item-after",
+        kind: "data",
+        source: "transform",
+        target: "after",
+        sourcePortId: "item",
+        targetPortId: "value",
+      },
+    ],
+    editor: { positions: {} },
+  };
+
+  expect(compileVisualWorkflowV3Definition(workflow).issues).toEqual([
+    {
+      code: "invalid_source_port",
+      edgeId: "item-after",
+      nodeId: "transform",
+    },
+  ]);
+});
+
 it("accepts stable Merge execution target ports", () => {
   const input = definition([
     {

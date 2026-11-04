@@ -214,6 +214,38 @@ describe("Array Transform runtime", () => {
     }
   });
 
+  it("rejects a downstream binding to a result port the operation does not produce", async () => {
+    const definition = transformDefinition("reduce", [1]);
+    definition.nodes.push({
+      id: "reader",
+      type: "logic.set",
+      config: { kind: "logic.set", assignments: [] },
+      inputs: {
+        items: { kind: "reference", nodeId: "transform", path: ["items"] },
+      },
+    });
+    definition.edges.push({
+      id: "after-reader",
+      source: "after",
+      target: "reader",
+      sourceHandle: null,
+      targetHandle: null,
+    });
+
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("invalid_graph");
+      expect(result.error.issues).toContainEqual(
+        expect.objectContaining({ code: "invalid_binding", nodeId: "reader", field: "items" }),
+      );
+    }
+  });
+
   it("requires boolean predicate results for Filter and Find", async () => {
     const result = await runVisualWorkflowInterpreter({
       definition: transformDefinition("filter", [1]),

@@ -86,6 +86,22 @@ function comparisonOperandTypesAreCompatible(
   }
 }
 
+function isScopedCollectionOutputPort(
+  source: CanonicalVisualWorkflowNode,
+  portId: string,
+): boolean {
+  const root = portId.split(".")[0];
+  if (source.type === "logic.for_each") return root === "item" || root === "index";
+  if (source.type !== "logic.array_transform" || source.config.kind !== "logic.array_transform") {
+    return false;
+  }
+  return (
+    root === "item" ||
+    root === "index" ||
+    (root === "accumulator" && source.config.operation === "reduce")
+  );
+}
+
 function hasDataSourcePort(node: CanonicalVisualWorkflowNode, portId: string): boolean {
   const fields = getWorkflowOutputFields(node);
 
@@ -440,6 +456,18 @@ export function compileVisualWorkflowV3Definition(
         nodeId: source.id,
       });
       continue;
+    }
+
+    if (isScopedCollectionOutputPort(source, edge.sourcePortId)) {
+      const bodyNodeIds = new Set(computeForEachBodyNodeIdsFromV3Edges(source.id, executionEdges));
+      if (!bodyNodeIds.has(target.id)) {
+        issues.push({
+          code: "invalid_source_port",
+          edgeId: edge.id,
+          nodeId: source.id,
+        });
+        continue;
+      }
     }
 
     if (!hasDataTargetPort(target, edge.targetPortId)) {

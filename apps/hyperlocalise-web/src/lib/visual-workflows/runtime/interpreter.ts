@@ -861,28 +861,26 @@ export async function runVisualWorkflowInterpreter(input: {
                 },
               };
             }
+            const failTransform = async (error: { code: string; message: string }) => {
+              await emit(node, "failed", iteration, { error });
+              return { nodeId: id, error };
+            };
             const resultBinding = node.collect?.result;
             if (!resultBinding) {
-              return {
-                nodeId: id,
-                error: {
-                  code: "invalid_array_transform_result",
-                  message: "Array Transform requires a collected body result.",
-                },
-              };
+              return failTransform({
+                code: "invalid_array_transform_result",
+                message: "Array Transform requires a collected body result.",
+              });
             }
             let accumulator = execution.output.initialValue;
             if (
               node.config.operation === "reduce" &&
               !matchesWorkflowType(accumulator, node.config.resultType)
             ) {
-              return {
-                nodeId: id,
-                error: {
-                  code: "invalid_array_transform_input",
-                  message: "Reduce initial value does not match the declared result type.",
-                },
-              };
+              return failTransform({
+                code: "invalid_array_transform_input",
+                message: "Reduce initial value does not match the declared result type.",
+              });
             }
             const transformedItems: unknown[] = [];
             let found = false;
@@ -890,13 +888,10 @@ export async function runVisualWorkflowInterpreter(input: {
             for (let index = 0; index < items.length; index += 1) {
               const item = items[index];
               if (!matchesWorkflowType(item, node.config.itemType)) {
-                return {
-                  nodeId: id,
-                  error: {
-                    code: "invalid_array_transform_input",
-                    message: "Collection item does not match the declared item type.",
-                  },
-                };
+                return failTransform({
+                  code: "invalid_array_transform_input",
+                  message: "Collection item does not match the declared item type.",
+                });
               }
               for (const bodyId of node.bodyNodeIds ?? []) {
                 delete context.nodes[bodyId];
@@ -943,13 +938,10 @@ export async function runVisualWorkflowInterpreter(input: {
               }
               if (node.config.operation === "filter" || node.config.operation === "find") {
                 if (typeof bodyResult !== "boolean") {
-                  return {
-                    nodeId: id,
-                    error: {
-                      code: "invalid_array_transform_result",
-                      message: "Filter and Find body results must be boolean.",
-                    },
-                  };
+                  return failTransform({
+                    code: "invalid_array_transform_result",
+                    message: "Filter and Find body results must be boolean.",
+                  });
                 }
                 if (bodyResult && node.config.operation === "filter") transformedItems.push(item);
                 if (bodyResult && node.config.operation === "find") {
@@ -959,13 +951,10 @@ export async function runVisualWorkflowInterpreter(input: {
                 }
               } else {
                 if (!matchesWorkflowType(bodyResult, node.config.resultType)) {
-                  return {
-                    nodeId: id,
-                    error: {
-                      code: "invalid_array_transform_result",
-                      message: "Body result does not match the declared result type.",
-                    },
-                  };
+                  return failTransform({
+                    code: "invalid_array_transform_result",
+                    message: "Body result does not match the declared result type.",
+                  });
                 }
                 if (node.config.operation === "map") transformedItems.push(bodyResult);
                 else accumulator = bodyResult;

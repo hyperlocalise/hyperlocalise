@@ -220,7 +220,7 @@ export function validateVisualWorkflowConnection(input: {
         "loop_boundary",
         normalizedSourcePortId,
         normalizedTargetPortId,
-        `Connection from "${normalizedSourcePortId}" to "${normalizedTargetPortId}" cannot enter a For Each body from outside its loop.`,
+        `Connection from "${normalizedSourcePortId}" to "${normalizedTargetPortId}" cannot enter a collection region from outside its body.`,
       );
     }
 
@@ -229,7 +229,7 @@ export function validateVisualWorkflowConnection(input: {
         "loop_boundary",
         normalizedSourcePortId,
         normalizedTargetPortId,
-        `Connection from "${normalizedSourcePortId}" to "${normalizedTargetPortId}" cannot point back to its owning For Each node.`,
+        `Connection from "${normalizedSourcePortId}" to "${normalizedTargetPortId}" cannot point back to its owning collection region.`,
       );
     }
 

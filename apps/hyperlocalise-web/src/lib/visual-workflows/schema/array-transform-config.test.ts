@@ -13,10 +13,14 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { createDefaultConfig } from "../catalog/node-catalog";
-import { NODE_CONTRACTS } from "../catalog/node-contracts";
+import {
+  getWorkflowInputFields,
+  getWorkflowOutputFields,
+  NODE_CONTRACTS,
+} from "../catalog/node-contracts";
 import { visualNodeConfigSchema } from "./definition-schema";
 import { fromVisualWorkflowV3Definition, toVisualWorkflowV3Definition } from "./serializers";
-import type { VisualWorkflowV3Definition } from "./types";
+import type { CanonicalVisualWorkflowNode, VisualWorkflowV3Definition } from "./types";
 
 describe("Array transform node configuration", () => {
   it("provides a valid map configuration by default", () => {
@@ -64,6 +68,51 @@ describe("Array transform node configuration", () => {
     expect(
       visualNodeConfigSchema.safeParse({ ...config, collection: "x".repeat(2_001) }).success,
     ).toBe(false);
+  });
+
+  it("exposes only the ports that the selected operation can produce", () => {
+    const transform = (
+      operation: "filter" | "map" | "reduce" | "find",
+    ): CanonicalVisualWorkflowNode => ({
+      id: "transform",
+      type: "logic.array_transform",
+      config: {
+        kind: "logic.array_transform",
+        operation,
+        collection: "[]",
+        itemType: "number",
+        resultType: "string",
+        ...(operation === "reduce" ? { initialValue: "" } : {}),
+      },
+    });
+
+    expect(getWorkflowInputFields(transform("map"))).toEqual([
+      { name: "collection", type: "array", required: true },
+    ]);
+    expect(getWorkflowInputFields(transform("reduce"))).toEqual([
+      { name: "collection", type: "array", required: true },
+      { name: "initialValue", type: "string", required: true },
+    ]);
+    expect(getWorkflowOutputFields(transform("map")).map((field) => field.path)).toEqual([
+      "item",
+      "index",
+      "count",
+      "items",
+    ]);
+    expect(getWorkflowOutputFields(transform("reduce")).map((field) => field.path)).toEqual([
+      "item",
+      "index",
+      "count",
+      "accumulator",
+      "value",
+    ]);
+    expect(getWorkflowOutputFields(transform("find"))).toEqual([
+      { path: "item", type: "number", optional: false },
+      { path: "index", type: "number", optional: false },
+      { path: "count", type: "number", optional: false },
+      { path: "value", type: "number", optional: true },
+      { path: "found", type: "boolean", optional: false },
+    ]);
   });
 
   it("declares stable typed collection, item, index, accumulator, and result ports", () => {

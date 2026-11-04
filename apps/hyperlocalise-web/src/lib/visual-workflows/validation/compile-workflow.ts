@@ -252,7 +252,10 @@ export function compileWorkflowIssues(
     const scopedCollectionOutput =
       (source.type === "logic.for_each" && ["item", "index"].includes(String(binding.path[0]))) ||
       (source.type === "logic.array_transform" &&
-        ["item", "index", "accumulator"].includes(String(binding.path[0])));
+        (["item", "index"].includes(String(binding.path[0])) ||
+          (String(binding.path[0]) === "accumulator" &&
+            source.config.kind === "logic.array_transform" &&
+            source.config.operation === "reduce")));
     if (scopedCollectionOutput && owners.get(node.id) !== source.id) return false;
     if (
       source.type === "logic.retry" &&

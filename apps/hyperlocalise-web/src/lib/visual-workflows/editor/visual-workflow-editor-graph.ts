@@ -17,6 +17,7 @@ import {
   getVisualNodeDimensions,
   VISUAL_NODE_CATALOG,
 } from "../catalog/node-catalog";
+import { getWorkflowInputFields, getWorkflowOutputFields } from "../catalog/node-contracts";
 import type {
   VisualCatalogType,
   VisualNodeConfig,
@@ -350,13 +351,36 @@ export function applyNodeConfigUpdate(
   }
   if (
     current?.data.config.kind === "logic.array_transform" &&
-    nextConfig.kind === "logic.array_transform" &&
-    current.data.config.operation === "reduce" &&
-    nextConfig.operation !== "reduce"
+    nextConfig.kind === "logic.array_transform"
   ) {
+    const canonical = {
+      id: nodeId,
+      type: "logic.array_transform" as const,
+      config: nextConfig,
+    };
+    const allowedInputs = new Set(getWorkflowInputFields(canonical).map((field) => field.name));
+    const allowedOutputs = new Set(getWorkflowOutputFields(canonical).map((field) => field.path));
     return {
-      nodes: nextNodes,
-      edges: edges.filter((edge) => edge.target !== nodeId || edge.targetHandle !== "initialValue"),
+      nodes: nextNodes.map((node) => {
+        if (node.id !== nodeId || !node.data.inputs) return node;
+        const nextInputs = Object.fromEntries(
+          Object.entries(node.data.inputs).filter(([name]) => allowedInputs.has(name)),
+        );
+        if (Object.keys(nextInputs).length === Object.keys(node.data.inputs).length) {
+          return node;
+        }
+        return { ...node, data: { ...node.data, inputs: nextInputs } };
+      }),
+      edges: edges.filter((edge) => {
+        if (edge.data?.kind !== "data") return true;
+        if (edge.target === nodeId && edge.targetHandle && !allowedInputs.has(edge.targetHandle)) {
+          return false;
+        }
+        if (edge.source === nodeId && edge.sourceHandle && !allowedOutputs.has(edge.sourceHandle)) {
+          return false;
+        }
+        return true;
+      }),
     };
   }
   return { nodes: nextNodes, edges: [...edges] };

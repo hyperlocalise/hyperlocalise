@@ -2041,22 +2041,24 @@ export function VisualWorkflowConfigPanel({
                 if (isWorkflowValueType(itemType)) onChangeConfig({ ...config, itemType });
               }}
             />
-            <SelectField
-              id="vw-array-transform-result-type"
-              label={intl.formatMessage(messages.arrayTransformResultType)}
-              value={config.resultType}
-              items={WORKFLOW_VALUE_TYPES.map((type) => ({ value: type, label: type }))}
-              onValueChange={(resultType) => {
-                if (!isWorkflowValueType(resultType)) return;
-                onChangeConfig({
-                  ...config,
-                  resultType,
-                  ...(config.operation === "reduce"
-                    ? { initialValue: defaultValueForWorkflowType(resultType) }
-                    : {}),
-                });
-              }}
-            />
+            {config.operation === "map" || config.operation === "reduce" ? (
+              <SelectField
+                id="vw-array-transform-result-type"
+                label={intl.formatMessage(messages.arrayTransformResultType)}
+                value={config.resultType}
+                items={WORKFLOW_VALUE_TYPES.map((type) => ({ value: type, label: type }))}
+                onValueChange={(resultType) => {
+                  if (!isWorkflowValueType(resultType)) return;
+                  onChangeConfig({
+                    ...config,
+                    resultType,
+                    ...(config.operation === "reduce"
+                      ? { initialValue: defaultValueForWorkflowType(resultType) }
+                      : {}),
+                  });
+                }}
+              />
+            ) : null}
             {config.operation === "reduce" ? (
               <TextAreaField
                 id="vw-array-transform-initial-value"
