@@ -16,14 +16,16 @@ import { defineMessages } from "react-intl";
 
 export const gitlabServerConnectionPanelMessages = defineMessages({
   name: {
-    defaultMessage: "Self-hosted GitLab",
-    id: "HtShi6DFMi",
-    description: "Integration row name for a workspace's own GitLab server",
+    defaultMessage: "GitLab",
+    id: "OXAVWnTukA",
+    description:
+      "Integration row name for the workspace's GitLab connection, GitLab.com or its own server",
   },
   description: {
-    defaultMessage: "Use your company's own GitLab server for the whole workspace.",
-    id: "LxPruuLaUX",
-    description: "Integration row description for a workspace's own GitLab server",
+    defaultMessage:
+      "Connect GitLab.com or your company's own GitLab server for the whole workspace.",
+    id: "wkxyIAleHa",
+    description: "Integration row description for the workspace's GitLab connection",
   },
   connectedDescription: {
     defaultMessage: "Connected to {serverUrl} as {username}.",
@@ -57,9 +59,9 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
   },
   intro: {
     defaultMessage:
-      "While connected, this server replaces GitLab.com for everyone in this workspace. They can reach whatever this token can reach.",
-    id: "9OXmD1sseg",
-    description: "Explains the effect of connecting a GitLab server",
+      "While connected, everyone in this workspace uses this server's projects, in chat, automations and syncs, and can reach whatever this token can reach.",
+    id: "jgN2YCnTn+",
+    description: "Explains the effect of connecting GitLab for the workspace",
   },
   replaceWarning: {
     defaultMessage:
@@ -139,10 +141,12 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
     id: "McapxvtDwd",
     description: "Button that keeps the GitLab server connection",
   },
-  gitlabComNotUsed: {
-    defaultMessage: "Not used while this workspace is connected to its own GitLab server.",
-    id: "vjX9EcsHlB",
-    description: "GitLab.com row description while a self-hosted GitLab server is connected",
+  gitlabComChatOnly: {
+    defaultMessage:
+      "Sign in with your own GitLab.com account to use its projects in chat. To sync files, connect GitLab above.",
+    id: "JRyoDqK8aF",
+    description:
+      "Description of the per-member GitLab.com sign-in row, shown while the workspace has no GitLab connection",
   },
   disconnecting: {
     defaultMessage: "Disconnecting…",

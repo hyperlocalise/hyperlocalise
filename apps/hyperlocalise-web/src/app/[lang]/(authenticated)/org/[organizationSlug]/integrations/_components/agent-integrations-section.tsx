@@ -122,25 +122,29 @@ export function SourceControlIntegrationsSection({
 }: AgentIntegrationsSectionProps & { userIsAdmin: boolean }) {
   const intl = useIntl();
   const gitlabServerConnection = useGitLabServerConnection(organizationSlug);
+  // Unknown while loading or after a failed load; the row stays out until the answer is no.
+  const showGitLabComSignIn =
+    gitlabServerConnection.isSuccess && gitlabServerConnection.data === null;
 
   return (
     <>
       <GitHubIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
-      <PipesIntegrationList
-        organizationSlug={organizationSlug}
-        slugs={workspacePipesSourceControlSlugs}
-        disabled={!userIsAdmin}
-        description={
-          gitlabServerConnection.data
-            ? intl.formatMessage(gitlabServerConnectionPanelMessages.gitlabComNotUsed)
-            : undefined
-        }
-      />
       <GitLabServerConnectionPanel
         organizationSlug={organizationSlug}
         disabled={!userIsAdmin}
-        isLast
+        isLast={!showGitLabComSignIn}
       />
+      {showGitLabComSignIn ? (
+        // A member's own GitLab.com sign-in, for chat only. Once the workspace connects GitLab
+        // (GitLab.com included) everything uses that token, so the sign-in row is dropped.
+        <PipesIntegrationList
+          organizationSlug={organizationSlug}
+          slugs={workspacePipesSourceControlSlugs}
+          disabled={!userIsAdmin}
+          description={intl.formatMessage(gitlabServerConnectionPanelMessages.gitlabComChatOnly)}
+          isLast
+        />
+      ) : null}
     </>
   );
 }

@@ -31,6 +31,7 @@ import { SimpleBrandIcon } from "./simple-brand-icon";
 import { useGitLabServerConnection } from "./use-gitlab-server-connection";
 
 const api = createApiClient();
+const GITLAB_COM_SERVER_URL = "https://gitlab.com";
 
 export function GitLabServerConnectionPanel({
   organizationSlug,
@@ -165,7 +166,8 @@ export function GitLabServerConnectionPanel({
     },
   });
 
-  const serverUrlValue = serverUrl ?? connection?.serverUrl ?? "";
+  // GitLab.com is the usual answer; a company's own server is typed over it.
+  const serverUrlValue = serverUrl ?? connection?.serverUrl ?? GITLAB_COM_SERVER_URL;
   const busy = save.isPending || disconnect.isPending;
   // A failed load can't say whether a connection exists, so saving could overwrite one unwarned.
   const showForm = userCanManage && !connectionQuery.isError;

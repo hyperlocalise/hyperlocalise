@@ -86,24 +86,23 @@ describe("GitLabServerConnectionPanel", () => {
     mocks.connectionDelete.mockResolvedValue(new Response(null, { status: 204 }));
   });
 
-  it("saves only once both the address and token are filled in, then clears the token", async () => {
+  it("starts on GitLab.com, saves once a token is typed, and takes a company server instead", async () => {
     renderPanel();
     await openRow();
 
     const save = await screen.findByRole("button", { name: "Check and save" });
     expect(save).toHaveProperty("disabled", true);
 
+    const address = screen.getByLabelText("Server address");
+    expect(address).toHaveProperty("value", "https://gitlab.com");
     const token = screen.getByLabelText("Access token");
     fireEvent.change(token, { target: { value: "glpat-secret" } });
-    expect(save).toHaveProperty("disabled", true);
-    fireEvent.change(token, { target: { value: "" } });
+    expect(save).toHaveProperty("disabled", false);
 
-    fireEvent.change(screen.getByLabelText("Server address"), {
-      target: { value: "https://git.acme.example" },
-    });
+    fireEvent.change(address, { target: { value: "" } });
     expect(save).toHaveProperty("disabled", true);
-
-    fireEvent.change(token, { target: { value: "glpat-secret" } });
+    fireEvent.change(address, { target: { value: "https://git.acme.example" } });
+    expect(save).toHaveProperty("disabled", false);
     fireEvent.click(save);
 
     await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
@@ -304,7 +303,9 @@ describe("GitLabServerConnectionPanel", () => {
     mocks.connectionGet.mockImplementation(async () => new Response("{}", { status: 403 }));
     renderPanel({ disabled: true });
 
-    expect(await screen.findByText(/Use your company's own GitLab server/)).toBeTruthy();
+    expect(
+      await screen.findByText(/Connect GitLab.com or your company's own GitLab server/),
+    ).toBeTruthy();
     expect(screen.queryByText(/Unable to load/)).toBeNull();
   });
 

@@ -46,12 +46,12 @@ An administrator can connect GitLab from **Integrations** through the authorizat
 
 Use **Use GitLab repo** in a manual or scheduled automation for repository analysis. Merge-request comment tools and GitLab content sync are not available in this workflow.
 
-### Self-hosted GitLab
+### Connect GitLab for the workspace
 
-An admin or localization manager can connect the workspace to its own GitLab server under **Integrations → Self-hosted GitLab**, with the server's `https` address and an access token. Hyperlocalise checks both before saving, and checks again whenever you open the row.
+An admin can connect the workspace to GitLab under **Integrations → GitLab**, with an access token and the server address: `https://gitlab.com`, filled in already, or your company's own GitLab server. Hyperlocalise checks both before saving, and checks again whenever you open the row. Syncing files with GitLab needs this connection.
 
-- While connected, the server replaces GitLab.com for everyone in the workspace, and they can reach whatever the token can reach. Use a token from a non-admin user, with the `api` scope, or `read_api` and `read_repository` for reading only.
-- The GitLab.com row stays on the page, marked as not in use, so people can still see or disconnect their own accounts. They come back into use if the server is removed.
+- While connected, everyone in the workspace uses that server's projects, in chat, automations and syncs, and can reach whatever the token can reach. Use a token from a non-admin user, with the `api` scope, or `read_api` and `read_repository` for reading only.
+- The per-member GitLab.com sign-in row above is shown only while the workspace has no connection; it serves chat only. Members' own sign-ins come back into use if the connection is removed.
 - Disconnecting asks you to confirm, because it affects the whole workspace.
 - Paste links from your server into chat. While a server is connected, GitLab.com links get a reply saying they aren't used.
 - Automations name a project by its path, so replacing or removing the connection points them at the new server, or back at GitLab.com. Chats stop using projects from the old server.
