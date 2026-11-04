@@ -12,8 +12,6 @@
  */
 import { buildContentSyncFingerprint } from "./content-sync-paths";
 import {
-  CONTENT_SYNC_LOCALE_CODE_PATTERN,
-  CONTENT_SYNC_LOCALE_PLACEHOLDER,
   buildDefaultContentSyncTriggerMode,
   contentSyncNeedsProviderFolder,
   type ContentSyncConfig,
@@ -116,36 +114,5 @@ export function validateContentSyncConfig(
     });
   }
 
-  if (
-    normalized.pathTemplate !== undefined &&
-    !isSafeContentSyncPathTemplate(normalized.pathTemplate)
-  ) {
-    return err({
-      code: "content_sync_path_template_invalid",
-      message: "Use a safe relative file path that contains {{locale}}.",
-    });
-  }
-  if (
-    normalized.localeCodeMap &&
-    Object.entries(normalized.localeCodeMap).some(
-      ([from, to]) =>
-        !CONTENT_SYNC_LOCALE_CODE_PATTERN.test(from) || !CONTENT_SYNC_LOCALE_CODE_PATTERN.test(to),
-    )
-  ) {
-    return err({
-      code: "content_sync_locale_code_invalid",
-      message: "Use only letters, digits, - and _ in language codes.",
-    });
-  }
-
   return ok(normalized);
-}
-
-function isSafeContentSyncPathTemplate(template: string): boolean {
-  if (!template.includes(CONTENT_SYNC_LOCALE_PLACEHOLDER)) {
-    return false;
-  }
-  const sample = template.replaceAll(CONTENT_SYNC_LOCALE_PLACEHOLDER, "locale");
-  // Stored as written, so it must already be the plain relative form a provider can use.
-  return normalizeContentSyncFolder(sample) === sample && isSafeContentSyncFolder(sample);
 }

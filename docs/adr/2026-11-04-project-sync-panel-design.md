@@ -34,7 +34,6 @@ Add a **Sync** panel to project settings. It stores one sync per project in its 
 - `project_content_syncs`: one row per project (unique on `project_id`). `sync_config` holds a `ContentSyncConfig`, the same shape the visual workflow step and the content-sync automation pass. `schedule` and `next_run_at` drive the timed job.
 - `project_content_sync_runs`: one row per run, with trigger, status, the provider's summary (including the pull request link), error code and message, start and end.
 - `workspace_automation_runs` is not reused: every row there belongs to a workspace automation.
-- `ContentSyncConfig` gains optional `pathTemplate` and `localeCodeMap` for providers that map file paths and language codes. When settings are saved, a path template must be a safe relative path containing `{{locale}}` and code map entries may use letters, digits, `-` and `_`; stored settings are read leniently, so a saved sync is never dropped by a stricter check. The panel keeps them when it saves; GitHub ignores them.
 
 ### Runs
 

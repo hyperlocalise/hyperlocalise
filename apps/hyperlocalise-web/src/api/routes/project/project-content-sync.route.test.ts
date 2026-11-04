@@ -199,32 +199,6 @@ describe("project content sync routes", () => {
     expect(runs).toHaveLength(0);
   });
 
-  it("keeps a path template and language code map for providers that use them", async () => {
-    const { admin, project, repository } = await seedWorkspace();
-    const headers = await projectFixture.authHeadersFor(admin);
-    const body = syncBody(repository.id);
-
-    const saved = await routeFor().$put(
-      {
-        param: paramFor(admin, project.id),
-        json: {
-          ...body,
-          syncConfig: {
-            ...body.syncConfig,
-            pathTemplate: "locales/{{locale}}.json",
-            localeCodeMap: { "fr-FR": "fr" },
-          },
-        },
-      },
-      { headers },
-    );
-
-    expect(saved.status).toBe(200);
-    expect(
-      ((await saved.json()) as { sync: { syncConfig: unknown } }).sync.syncConfig,
-    ).toMatchObject({ pathTemplate: "locales/{{locale}}.json", localeCodeMap: { "fr-FR": "fr" } });
-  });
-
   it("lets members read but not change the sync", async () => {
     const { admin, project, repository } = await seedWorkspace();
     const adminHeaders = await projectFixture.authHeadersFor(admin);

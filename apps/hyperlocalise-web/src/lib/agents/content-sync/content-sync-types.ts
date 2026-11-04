@@ -26,13 +26,6 @@ const folderPathSchema = z
   .max(512)
   .regex(/^[^\\:*?"<>|]*$/, "invalid_folder_path");
 
-const localeCodeSchema = z.string().trim().min(1).max(64);
-
-/** Characters a language code may use once it reaches a file path; checked when settings are saved. */
-export const CONTENT_SYNC_LOCALE_CODE_PATTERN = /^[A-Za-z0-9_-]+$/;
-
-export const CONTENT_SYNC_LOCALE_PLACEHOLDER = "{{locale}}";
-
 export const contentSyncConfigSchema = z.object({
   provider: contentSyncProviderSchema,
   connectionId: z.string().trim().min(1).max(256),
@@ -40,13 +33,6 @@ export const contentSyncConfigSchema = z.object({
   providerFolder: folderPathSchema.default(""),
   projectFolder: folderPathSchema.min(1),
   contentTypeIds: z.array(z.string().trim().min(1).max(128)).max(50).optional(),
-  // Provider file path per language, e.g. `locales/{{locale}}.json`. Read by providers that map paths.
-  pathTemplate: folderPathSchema.min(1).optional(),
-  // Platform language code to the provider's code, e.g. `{"fr-FR": "fr"}`.
-  localeCodeMap: z
-    .record(localeCodeSchema, localeCodeSchema)
-    .refine((map) => Object.keys(map).length <= 200, "too_many_locale_codes")
-    .optional(),
 });
 export type ContentSyncConfig = z.infer<typeof contentSyncConfigSchema>;
 

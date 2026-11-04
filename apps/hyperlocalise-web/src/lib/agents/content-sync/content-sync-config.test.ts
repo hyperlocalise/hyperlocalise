@@ -19,7 +19,7 @@ import {
   resolveContentSyncTriggerConfig,
   validateContentSyncConfig,
 } from "./content-sync-config";
-import { contentSyncConfigSchema, type ContentSyncConfig } from "./content-sync-types";
+import type { ContentSyncConfig } from "./content-sync-types";
 
 const githubConfig: ContentSyncConfig = {
   provider: "github",
@@ -66,36 +66,5 @@ describe("content sync config", () => {
       projectFolder: "contentful/space-1",
     });
     expect(isOk(contentful)).toBe(true);
-  });
-
-  it("accepts a path template only when it is a safe relative path with a locale", () => {
-    for (const pathTemplate of ["locales/{{locale}}.json", "{{locale}}/messages.po"]) {
-      expect(isOk(validateContentSyncConfig({ ...githubConfig, pathTemplate }))).toBe(true);
-    }
-    for (const pathTemplate of [
-      "locales/fr.json",
-      "../{{locale}}.json",
-      "/etc/{{locale}}",
-      ".git/{{locale}}",
-    ]) {
-      const result = validateContentSyncConfig({ ...githubConfig, pathTemplate });
-      expect(isErr(result) && result.error.code).toBe("content_sync_path_template_invalid");
-    }
-  });
-
-  it("allows only language-code characters in the language code map", () => {
-    expect(
-      isOk(validateContentSyncConfig({ ...githubConfig, localeCodeMap: { "fr-FR": "fr" } })),
-    ).toBe(true);
-    const unsafe = validateContentSyncConfig({
-      ...githubConfig,
-      localeCodeMap: { "fr-FR": "../fr" },
-    });
-    expect(isErr(unsafe) && unsafe.error.code).toBe("content_sync_locale_code_invalid");
-    // Stored settings still parse, so a saved sync is never silently dropped.
-    expect(
-      contentSyncConfigSchema.safeParse({ ...githubConfig, localeCodeMap: { "sr@latin": "sr" } })
-        .success,
-    ).toBe(true);
   });
 });

@@ -267,8 +267,6 @@ export function ProjectContentSyncPanel({
             resourceKey: draft.resourceKey,
             providerFolder: draft.providerFolder.trim(),
             projectFolder: draft.projectFolder.trim(),
-            pathTemplate: saved?.syncConfig?.pathTemplate,
-            localeCodeMap: saved?.syncConfig?.localeCodeMap,
           },
         },
       });
