@@ -3091,6 +3091,10 @@
     "defaultMessage": "Job Cancelled",
     "description": "Activity log event type label for job cancellation"
   },
+  "2ge8oszx7T": {
+    "defaultMessage": "Unable to load the GitLab server connection right now.",
+    "description": "Integration row description when the connection fails to load"
+  },
   "2hGlbn4iZa": {
     "defaultMessage": "Create",
     "description": "Button that creates a team glossary from CAT"
@@ -3502,10 +3506,6 @@
   "3OCNlGSX6Y": {
     "defaultMessage": "Scans and the editor use the same format, placeholder, ICU, length, spelling and glossary checks. Warnings flag an issue; errors also block saving and approving in the editor.",
     "description": "QA review: coverageHelp"
-  },
-  "3OlJR3Fxjp": {
-    "defaultMessage": "Membership is derived automatically from connections leaving the Each item port.",
-    "description": "Explanation of graph-derived collection-region membership"
   },
   "3OmQiHHUCs": {
     "defaultMessage": "Drag a screenshot here",
@@ -4503,6 +4503,10 @@
     "defaultMessage": "Text layers have changed. Regenerate the image to apply them before approving.",
     "description": "Image viewer: previewOutdated"
   },
+  "4zBhSf3vTo": {
+    "defaultMessage": "Operation",
+    "description": "Array transform operation field"
+  },
   "4zEqWvETM+": {
     "defaultMessage": "Locale: {value}",
     "description": "Active issue filter chip showing the selected locale"
@@ -4862,6 +4866,10 @@
   "5V5XZ84WTf": {
     "defaultMessage": "Pick assignee",
     "description": "Catalog title for the step that chooses who does a piece of work"
+  },
+  "5VQvCOhS8Q": {
+    "defaultMessage": "Filter, map, reduce, or find values in an ordered collection.",
+    "description": "Catalog description for the array transform node"
   },
   "5Wfh7kerri": {
     "defaultMessage": "Autumn is not configured in this environment. Add a sandbox AUTUMN_API_KEY to enable billing for this workspace.",
@@ -7279,6 +7287,10 @@
     "defaultMessage": "Hourly work on a task with no time estimate is left out of the cost.",
     "description": "Note when an hourly line has no time estimate"
   },
+  "9OXmD1sseg": {
+    "defaultMessage": "While connected, this server replaces GitLab.com for everyone in this workspace. They can reach whatever this token can reach.",
+    "description": "Explains the effect of connecting a GitLab server"
+  },
   "9PKFI8itjo": {
     "defaultMessage": "Could not localise the image. Your instructions are preserved; try again.",
     "description": "Image viewer: generationError"
@@ -7330,6 +7342,10 @@
   "9TekTcXyPW": {
     "defaultMessage": "Localise image",
     "description": "Image viewer: localise"
+  },
+  "9Tey3vfO9H": {
+    "defaultMessage": "The connection is working. Token ending in {suffix}.",
+    "description": "Shown when the saved GitLab server connection passes a live check"
   },
   "9VhQMBmSnO": {
     "defaultMessage": "Unable to load job",
@@ -8986,6 +9002,10 @@
   "C7FCjLc6gc": {
     "defaultMessage": "{displayName} saved. Connect your Phrase account to continue.",
     "description": "Toast after saving Phrase OAuth app when user OAuth is still required"
+  },
+  "C7GU6qexsm": {
+    "defaultMessage": "Check and save",
+    "description": "Button that checks and saves a GitLab server connection"
   },
   "C83IJDnkWP": {
     "defaultMessage": "Built for support and localisation operations",
@@ -12515,6 +12535,10 @@
     "defaultMessage": "Close",
     "description": "Button that closes the rates panel"
   },
+  "HmWwCwYFtV": {
+    "defaultMessage": "Item type",
+    "description": "Array transform item type field"
+  },
   "HmXZYnVvj0": {
     "defaultMessage": "These steps call out for real in this test run. What they do happens and cannot be undone.",
     "description": "In the dialog before a test run with steps that run for real"
@@ -12610,6 +12634,10 @@
   "HtM5Jg2cRQ": {
     "defaultMessage": "Disable merging",
     "description": "Confirm disabling identical string merging"
+  },
+  "HtShi6DFMi": {
+    "defaultMessage": "Self-hosted GitLab",
+    "description": "Integration row name for a workspace's own GitLab server"
   },
   "HtVUcSTMS/": {
     "defaultMessage": "On error is set to Continue, so the test run goes on past this step.",
@@ -13030,6 +13058,10 @@
   "IiGIsIulPY": {
     "defaultMessage": "This string is locked, so it can't be restored.",
     "description": "Toast when a restore is refused because the string is locked"
+  },
+  "IiTUi5qzJ2": {
+    "defaultMessage": "GitLab server disconnected.",
+    "description": "Toast after the GitLab server connection is removed"
   },
   "IiWzWDOWnD": {
     "defaultMessage": "Hyperlocalise Agent",
@@ -14811,6 +14843,10 @@
     "defaultMessage": "AI usage",
     "description": "Reports tab: AI calls, tokens and billing's charge"
   },
+  "LgF4rByVBa": {
+    "defaultMessage": "Initial value",
+    "description": "Array reduce initial value field"
+  },
   "LgOdyUATt4": {
     "defaultMessage": "No AI was used in these dates with these filters.",
     "description": "Shown when there is no AI usage"
@@ -14994,6 +15030,10 @@
   "LxGnP5nmB2": {
     "defaultMessage": "This chat is paused",
     "description": "Title when a public web chat agent is paused"
+  },
+  "LxPruuLaUX": {
+    "defaultMessage": "Use your company's own GitLab server for the whole workspace.",
+    "description": "Integration row description for a workspace's own GitLab server"
   },
   "LxzxKCrG8Q": {
     "defaultMessage": "SharePoint",
@@ -15455,6 +15495,10 @@
     "defaultMessage": "traduction automatique",
     "description": "Add keywords textarea placeholder"
   },
+  "MbHpGGZQUr": {
+    "defaultMessage": "Disconnect server",
+    "description": "Button that confirms removing the GitLab server connection"
+  },
   "MbppXfDsbM": {
     "defaultMessage": "Queries is unavailable for this string.",
     "description": "Shown when the CAT segment cannot link to Queries (missing translation key)"
@@ -15466,6 +15510,10 @@
   "McaXYZeuHm": {
     "defaultMessage": "Target locale",
     "description": "Accessible label for the CAT header target locale select"
+  },
+  "McapxvtDwd": {
+    "defaultMessage": "Cancel",
+    "description": "Button that keeps the GitLab server connection"
   },
   "MdMiqiLHvA": {
     "defaultMessage": "You are a localisation quality automation. Goal: validate source string and translation changes before they reach production. Check changed source strings for missing context, flag missing translations, broken ICU syntax, mismatched placeholders, and unsafe HTML. Treat locale coverage regressions as blocking findings.",
@@ -15906,6 +15954,10 @@
   "NITlc8aQr0": {
     "defaultMessage": "Unable to load task comments.",
     "description": "Error state when task comments fail to load"
+  },
+  "NIXB2viMhz": {
+    "defaultMessage": "Use a token from a non-admin user, with the api scope, or read_api and read_repository for reading only.",
+    "description": "Hint describing which GitLab access token to create"
   },
   "NIhlMUMura": {
     "defaultMessage": "Build your publishing workflow.",
@@ -17626,6 +17678,10 @@
   "QCQEKXAzmZ": {
     "defaultMessage": "Issue not found or you do not have access.",
     "description": "Shown when the issue detail page cannot load the issue"
+  },
+  "QD3uzJ+zZ8": {
+    "defaultMessage": "This connection isn't working: {reason}",
+    "description": "Shown when the saved GitLab server connection fails a live check"
   },
   "QDnUDnYpNK": {
     "defaultMessage": "Meta tag",
@@ -19623,6 +19679,10 @@
     "defaultMessage": "Apply for startup pricing",
     "description": "Primary CTA on the startups page hero and program section"
   },
+  "TS8IDVeEcm": {
+    "defaultMessage": "Disconnect for the whole workspace? Automations go back to GitLab.com and chats stop using this server's projects.",
+    "description": "Question shown before removing the GitLab server connection"
+  },
   "TSLfOgCp9k": {
     "defaultMessage": "Collection expression",
     "description": "Label for for-each collection expression field"
@@ -19686,6 +19746,10 @@
   "TXSZ3cXaZk": {
     "defaultMessage": "All projects",
     "description": "Placeholder for browsing live TMS resources across all projects"
+  },
+  "TYbrzdSaf3": {
+    "defaultMessage": "Connected to {serverUrl} as {username}.",
+    "description": "Integration row description once a GitLab server is connected"
   },
   "TYisbjRrWY": {
     "defaultMessage": "imported translation memory",
@@ -20126,6 +20190,10 @@
   "UDTP3K5J0j": {
     "defaultMessage": "Create a key in Zernio under API keys. Automations authenticate with Authorization: Bearer.",
     "description": "Help text for where to find a Zernio API key"
+  },
+  "UDr0hZGNG/": {
+    "defaultMessage": "GitLab server connected.",
+    "description": "Toast after a GitLab server connection is saved"
   },
   "UE1Umv7eEm": {
     "defaultMessage": "What is wrong (meaning, tone, grammar, or style)",
@@ -20987,6 +21055,10 @@
     "defaultMessage": "Open full-page editor",
     "description": "Link to open repository automation settings on a dedicated page"
   },
+  "VdrqJKSKUW": {
+    "defaultMessage": "Automations name a project by its path, so replacing or removing this connection points them at the new server, or back at GitLab.com. Chats stop using projects from the old server.",
+    "description": "Warning shown before replacing or removing a GitLab server connection"
+  },
   "Ve+0mAQW0d": {
     "defaultMessage": "Pulling search volume for core product terms",
     "description": "Automations mock UI keyword research step 1"
@@ -21287,6 +21359,10 @@
     "defaultMessage": "Refresh the repository list and metadata from GitHub. This does not push or pull translations.",
     "description": "Tooltip for the refresh repository list button"
   },
+  "WAMmUgMIAk": {
+    "defaultMessage": "Membership is derived automatically from connections leaving the Each item port.",
+    "description": "Explanation of graph-derived collection-region membership"
+  },
   "WASARqpuMh": {
     "defaultMessage": "{title} will no longer be used for guideline checks.",
     "description": "Body of the dialog confirming deletion of a guideline document"
@@ -21310,6 +21386,10 @@
   "WBydLHnyW0": {
     "defaultMessage": "Glossary terms used",
     "description": "Heading above detailed glossary matches on an agent proposal"
+  },
+  "WC0JBz+4vU": {
+    "defaultMessage": "Checking…",
+    "description": "Button label while a GitLab server connection is being checked"
   },
   "WCaurzJ1Y5": {
     "defaultMessage": "Project",
@@ -22270,6 +22350,10 @@
   "Xrszg9pweO": {
     "defaultMessage": "Succeeded",
     "description": "Workflow node status"
+  },
+  "Xs0BVKJ7dk": {
+    "defaultMessage": "Access token",
+    "description": "Label for the GitLab access token field"
   },
   "Xs0cc+EY83": {
     "defaultMessage": "Agent Actions",
@@ -23411,6 +23495,10 @@
     "defaultMessage": "Treat as image",
     "description": "Button to treat a URL source string as a localizable image"
   },
+  "ZkImYkaYlt": {
+    "defaultMessage": "Array transform",
+    "description": "Catalog title for the array transform node"
+  },
   "ZkYSjdsJm0": {
     "defaultMessage": "Translate {locale} with agent",
     "description": "Title of the dialog that queues agent translation for one project locale"
@@ -24351,6 +24439,10 @@
     "defaultMessage": "Translations",
     "description": "Knowledge product visual memory node label"
   },
+  "b88FiiRWt1": {
+    "defaultMessage": "Show access token",
+    "description": "Accessible label for the button that reveals the GitLab token"
+  },
   "b8a5Sr5a3d": {
     "defaultMessage": "Choose a task",
     "description": "Placeholder of the task field in the log time dialog"
@@ -25062,6 +25154,10 @@
   "cFLoSPa62D": {
     "defaultMessage": "Visual workflows",
     "description": "Breadcrumb label for the visual workflows list page"
+  },
+  "cFRjw0ewOm": {
+    "defaultMessage": "Result type",
+    "description": "Array transform result type field"
   },
   "cFooypWUsT": {
     "defaultMessage": "Secret value",
@@ -26995,6 +27091,10 @@
     "defaultMessage": "Choose a GitHub repository in the source file picker to look up string context.",
     "description": "Banner prompting the user to pick a repository for CAT context lookup"
   },
+  "f28BtwGbZV": {
+    "defaultMessage": "Couldn't check this connection just now.",
+    "description": "Shown when the live check of a saved GitLab server connection can't run"
+  },
   "f3IEqEzc4J": {
     "defaultMessage": "Image must be 10 MB or smaller.",
     "description": "Toast when an uploaded image exceeds the size limit"
@@ -28843,6 +28943,10 @@
     "defaultMessage": "TMS agnostic",
     "description": "Differentiator point 1 for the github-release-localisation use case"
   },
+  "huT2nYeusR": {
+    "defaultMessage": "Server address",
+    "description": "Label for the GitLab server address field"
+  },
   "hujEaVVQkb": {
     "defaultMessage": "3 flags · clause 3.2",
     "description": "German finding result on the daily compliance audit mock card"
@@ -30126,6 +30230,10 @@
   "jwMRWjUt93": {
     "defaultMessage": "Rate",
     "description": "Column heading: the rate that prices a language's work on the task"
+  },
+  "jwOzDgWMEq": {
+    "defaultMessage": "Unable to disconnect the GitLab server.",
+    "description": "Toast when removing the GitLab server connection fails"
   },
   "jxHawvN/1R": {
     "defaultMessage": "Could not remove the Webflow connection.",
@@ -31955,6 +32063,10 @@
     "defaultMessage": "Instructions",
     "description": "Section label for agent system instructions"
   },
+  "mm8ESSKJcB": {
+    "defaultMessage": "Disconnect",
+    "description": "Button that removes the GitLab server connection"
+  },
   "mmB/r+ohDb": {
     "defaultMessage": "Some segments have unsaved edits. Leave without saving?",
     "description": "Body when leaving the CAT workspace with unsaved target text"
@@ -33243,6 +33355,10 @@
     "defaultMessage": "Format {format}",
     "description": "Shows the provider file format in the file detail panel"
   },
+  "omW67FLa2e": {
+    "defaultMessage": "Disconnecting…",
+    "description": "Button label while the GitLab server connection is being removed"
+  },
   "omiOFhhyA0": {
     "defaultMessage": "Against paying every match band in full",
     "description": "Detail under the memory savings card"
@@ -33650,6 +33766,10 @@
   "pOCBt3fv7m": {
     "defaultMessage": "The program is designed for new Hyperlocalise customers that are early-stage — typically under 50 employees or pre-Series B — and looking at the Growth plan. If you are unsure, apply for a demo and we will confirm fit.",
     "description": "Startups FAQ answer about eligibility"
+  },
+  "pOhsACmi7A": {
+    "defaultMessage": "Enter the token again to change anything here.",
+    "description": "Hint explaining that saving always needs the token"
   },
   "pOmRJ5Mm9Y": {
     "defaultMessage": "String type",
@@ -34226,6 +34346,10 @@
   "qAENVVTQnI": {
     "defaultMessage": "Explore Guidelines",
     "description": "Link from Content Studio to the Guidelines product page"
+  },
+  "qAIm+dJ8lo": {
+    "defaultMessage": "No nodes are connected to the Each item region.",
+    "description": "Empty graph-derived collection-region body"
   },
   "qAQXdmfmq+": {
     "defaultMessage": "Approve string",
@@ -36487,6 +36611,10 @@
     "defaultMessage": "Failed to load jobs",
     "description": "Fallback error when native jobs fail to load"
   },
+  "tuNTrXyvA1": {
+    "defaultMessage": "Checking the connection…",
+    "description": "Shown while the saved GitLab server connection is being checked"
+  },
   "tuvZlDHxtM": {
     "defaultMessage": "Greek (Greece)",
     "description": "Display name for BCP-47 locale el-GR"
@@ -37155,6 +37283,10 @@
     "defaultMessage": "Token starting with {prefix}",
     "description": "Hint showing the stored Canva connection token prefix"
   },
+  "uyHddFItti": {
+    "defaultMessage": "Couldn't load projects from GitLab",
+    "description": "Placeholder when the GitLab project list failed to load, for example because the workspace's GitLab token was refused"
+  },
   "uyOcKxzNqN": {
     "defaultMessage": "Extracting frame…",
     "description": "Video refinement workspace: extracting"
@@ -37547,6 +37679,10 @@
     "defaultMessage": "This file format is not supported for translation jobs.",
     "description": "Validation error when the source file format cannot be translated"
   },
+  "vXav6npaND": {
+    "defaultMessage": "Unable to save the GitLab server connection.",
+    "description": "Toast when saving a GitLab server connection fails without a reason"
+  },
   "vY4jaTW3UF": {
     "defaultMessage": "Workload words",
     "description": "Reports mock UI workload words metric label"
@@ -37666,6 +37802,10 @@
   "vj1b+ydRtP": {
     "defaultMessage": "New workflow",
     "description": "Button that creates a new visual workflow draft"
+  },
+  "vjX9EcsHlB": {
+    "defaultMessage": "Not used while this workspace is connected to its own GitLab server.",
+    "description": "GitLab.com row description while a self-hosted GitLab server is connected"
   },
   "vjXHRG767Q": {
     "defaultMessage": "Created {createdCount} of {totalCount} jobs, then failed: {errorMessage}",
@@ -38815,6 +38955,10 @@
     "defaultMessage": "Go to dashboard",
     "description": "Link from a route error to the workspace dashboard"
   },
+  "xSVItdTlw0": {
+    "defaultMessage": "Hide access token",
+    "description": "Accessible label for the button that hides the GitLab token"
+  },
   "xSmzy2H6ua": {
     "defaultMessage": "Workspace",
     "description": "Workspace page header eyebrow label for jobs"
@@ -39422,10 +39566,6 @@
   "yIJ8L6HdUp": {
     "defaultMessage": "Translate with agent",
     "description": "Context menu action to translate a project file with an agent"
-  },
-  "yIZkW24JC2": {
-    "defaultMessage": "No nodes are connected to the Each item region.",
-    "description": "Empty graph-derived collection-region body"
   },
   "yIwRFz93s7": {
     "defaultMessage": "Italian (Italy)",

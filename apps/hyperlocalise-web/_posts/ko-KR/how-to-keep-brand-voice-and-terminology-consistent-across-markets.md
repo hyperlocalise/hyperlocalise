@@ -100,7 +100,7 @@ tags:
 - 간략서에 PDF 스냅샷을 첨부하는 대신 공급업체가 가이드라인 원본에 실시간으로 접근할 수 있도록 하세요.
 - AI 번역이나 검토를 사용할 때는 프롬프트에 발췌문을 하드코딩하지 말고 요청 시점에 관련 지침을 가져오세요.
 
-For example, Hyperlocalise [Guidelines](/product/guidelines) connects to brand and policy files where they already live — Google Drive, Notion, and SharePoint — or lets teams type guidelines in directly. Agents read the connected file when they translate or review, and the file stays the source of truth: when legal updates the PDF, the next check uses the updated wording. Other teams achieve the same principle with TMS glossary sync, a headless terminology database, or a well-maintained internal wiki that every tool points to.
+예를 들어, Hyperlocalise [Guidelines](/product/guidelines)는 브랜드 및 정책 파일이 기존에 저장된 Google Drive, Notion, SharePoint에 연결하거나, 팀에서 가이드라인을 직접 입력할 수 있도록 합니다. 에이전트는 번역하거나 검토할 때 연결된 파일을 읽으며, 해당 파일은 단일 정보 출처로 유지됩니다. 법무팀에서 PDF를 업데이트하면 다음 검토에는 업데이트된 문구가 사용됩니다. 다른 팀들도 TMS 용어집 동기화, 헤드리스 용어 데이터베이스 또는 모든 도구가 참조하는 잘 관리된 내부 위키를 통해 같은 원칙을 실현합니다.
 
 ## 4단계: 콘텐츠가 작성되는 곳에서 규칙을 적용하고, 마지막에만 적용하지 마세요.
 
@@ -114,7 +114,7 @@ For example, Hyperlocalise [Guidelines](/product/guidelines) connects to brand a
 
 **게시하기 전에.** 금지 용어, 번역 금지 용어 누락, 금지 문구, 필수 고지 등 결정론적 검사를 자동화된 절차로 실행해 검토하면, 사람이 판단이 필요한 부분에 시간을 쓸 수 있습니다.
 
-Citation is what makes this auditable. When a flag points to a specific clause in a specific file, a reviewer can open the source instead of re-explaining the rule, and a compliance team can see exactly why a sentence was changed. Hyperlocalise agents work this way: they cite the clause in the connected guideline file when they flag a line, and in [Content Studio](/product/multilingual-content-studio) the attached file sits beside the draft so reviewers and agents are reading the same document.
+인용이 있어야 감사 가능성이 확보됩니다. 특정 파일의 특정 조항을 가리키는 플래그가 있으면 검토자는 규칙을 다시 설명해 달라고 요청하는 대신 원문을 열어 볼 수 있고, 컴플라이언스 팀은 문장이 변경된 이유를 정확히 확인할 수 있습니다. Hyperlocalise 에이전트는 이런 방식으로 작동합니다. 한 줄에 플래그를 표시할 때 연결된 가이드라인 파일의 조항을 인용하며, [Content Studio](/product/multilingual-content-studio)에서는 첨부 파일이 초안 옆에 표시되어 검토자와 에이전트가 같은 문서를 읽을 수 있습니다.
 
 ## 5단계: 현재 진행 중인 내용을 지속적으로 모니터링하세요
 
@@ -127,7 +127,7 @@ Citation is what makes this auditable. When a flag points to a specific clause i
 
 라이브 콘텐츠는 프로덕션 코드처럼 다루세요. 최신 규정을 기준으로 정기적으로 점검하고, 발견 사항은 수정할 수 있는 담당자에게 전달하세요. 목표는 규정을 준수하지 않는 문구가 독일어 홈페이지에 게시된 다음 날 아침에 이를 찾아내는 것이지, 규제 기관이나 고객이 발견한 뒤에 찾는 것이 아닙니다.
 
-This can be a scheduled crawl with your own scripts, a periodic [localisation audit](/blog/what-is-a-website-localisation-audit), or an automated job. In Hyperlocalise, teams schedule an [Automation](/product/agents-automation) that checks product copy and live pages against the same connected guideline files every day, so flags show up in the morning instead of after a launch.
+자체 스크립트를 사용한 예약 크롤링, 정기적인 [현지화 감사](/blog/what-is-a-website-localisation-audit) 또는 자동화 작업일 수 있습니다. Hyperlocalise에서는 팀이 매일 동일하게 연결된 가이드라인 파일을 기준으로 제품 문구와 라이브 페이지를 확인하는 [자동화](/product/agents-automation)를 예약하므로, 출시 후가 아니라 아침에 문제가 표시됩니다.
 
 ## 6단계: 후속 조치를 완료하세요
 
@@ -148,7 +148,7 @@ This can be a scheduled crawl with your own scripts, a periodic [localisation au
 - **시장별 클레임 규칙.** 주장할 수 있는 내용은 관할권에 따라 다릅니다. 각 클레임 규칙의 적용 범위를 해당 규칙이 적용되는 시장으로 제한하세요.
 - 규제 대상 콘텐츠 유형에 대해 승인자와 지침 버전을 기록하는 **사람에 의한 필수 승인**.
 - **각 게시된 문자열을 검토 기준이 된 규칙 및 결과와 연결하는 감사 추적 기록**
-- **AI transparency obligations.** Where AI generates or translates customer-facing content, check whether disclosure rules apply. We covered one example in [what the EU AI Act Article 50 means for AI translation](/blog/what-the-eu-ai-act-article-50-means-for-ai-translation-and-localisation).
+- **AI 투명성 의무.** AI가 고객에게 제공되는 콘텐츠를 생성하거나 번역하는 경우, 공개 의무가 적용되는지 확인하세요. [AI 번역에 EU AI법 제50조가 의미하는 것](/blog/what-the-eu-ai-act-article-50-means-for-ai-translation-and-localisation)에서 한 가지 사례를 다뤘습니다.
 
 ## 브랜드 및 용어 거버넌스를 위한 도구 평가 방법
 
@@ -162,7 +162,7 @@ TMS, AI 현지화 플랫폼 또는 사내 구축 솔루션을 평가할 때, 다
 6. **실시간 콘텐츠를 모니터링하나요?** 게시 전 검토만 하는 것이 아니라 현재 규칙에 따라 예약된 검사를 수행합니다.
 7. **조사 결과가 규칙을 개선하는 데 도움이 될 수 있나요?** 반복되는 플래그, 재정의, 새로운 용어를 확인할 수 있습니다.
 
-Most mature TMS platforms handle glossary and style-guide enforcement inside their own workflow well. The gaps usually appear at the edges: rules that live outside the TMS, content that never passes through it, and live pages that are never checked again. That is where an intelligence layer around existing tools tends to help — a pattern we described in [how to add AI translation without replacing your TMS](/blog/how-to-add-ai-translation-without-replacing-tms).
+대부분의 성숙한 TMS 플랫폼은 자체 워크플로 내에서 용어집과 스타일 가이드 준수를 잘 처리합니다. 보통 부족한 부분은 경계에서 드러납니다. TMS 외부에 있는 규칙, TMS를 거치지 않는 콘텐츠, 그리고 다시는 검토되지 않는 실시간 페이지가 이에 해당합니다. 기존 도구를 둘러싼 인텔리전스 계층이 도움이 되는 지점이 바로 여기에 있습니다. 이러한 접근 방식은 [TMS를 대체하지 않고 AI 번역을 추가하는 방법](/blog/how-to-add-ai-translation-without-replacing-tms)에서 설명했습니다.
 
 ## 실용적인 출시 계획
 
@@ -206,4 +206,4 @@ Most mature TMS platforms handle glossary and style-guide enforcement inside the
 
 시장 간 일관성은 네 가지에서 비롯됩니다. 명확한 담당자, 시행 가능한 규칙, 참조할 단일 기준 정보, 그리고 게시 전후에 모두 실행되는 점검입니다. 도구는 도움이 되지만, 기존 규칙이 있는 위치를 존중하고 모든 의사결정의 근거를 해당 규칙으로 추적할 수 있게 해줄 때만 그렇습니다.
 
-If your guidelines already live in Google Drive, Notion, or SharePoint, see how [Hyperlocalise Guidelines](/product/guidelines) puts them to work in translation, review, and daily audits — or start with a free [localisation audit](/localisation-audit) to see where terminology and voice are drifting today.
+가이드라인이 이미 Google Drive, Notion 또는 SharePoint에 있다면 [Hyperlocalise Guidelines](/product/guidelines)에서 번역, 검토 및 일일 감사에 이를 활용하는 방법을 확인해 보세요. 또는 무료 [현지화 감사](/localisation-audit)를 시작해 오늘날 용어와 어조가 어디에서 달라지고 있는지 확인해 보세요.
