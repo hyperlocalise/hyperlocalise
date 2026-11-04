@@ -167,7 +167,7 @@ export function validateVisualWorkflowDefinition(
   const graph = buildVisualWorkflowGraphIndex(definition);
   if (graph) {
     for (const node of definition.nodes) {
-      if (node.type !== "logic.for_each") {
+      if (!["logic.for_each", "logic.array_transform"].includes(node.type)) {
         continue;
       }
 
@@ -177,7 +177,7 @@ export function validateVisualWorkflowDefinition(
       });
       for (const bodyNodeId of bodyNodeIds) {
         const bodyNode = graph.nodesById.get(bodyNodeId);
-        if (bodyNode?.type === "logic.for_each") {
+        if (["logic.for_each", "logic.array_transform"].includes(bodyNode?.type ?? "")) {
           issues.push({ code: "nested_for_each", nodeId: bodyNodeId });
         }
         if (bodyNode?.type === "logic.retry") {
@@ -191,7 +191,7 @@ export function validateVisualWorkflowDefinition(
       }
       for (const bodyNodeId of node.bodyNodeIds ?? []) {
         const bodyNode = graph.nodesById.get(bodyNodeId);
-        if (bodyNode?.type === "logic.for_each") {
+        if (["logic.for_each", "logic.array_transform"].includes(bodyNode?.type ?? "")) {
           issues.push({ code: "retry_foreach_nesting", nodeId: bodyNodeId });
         }
       }

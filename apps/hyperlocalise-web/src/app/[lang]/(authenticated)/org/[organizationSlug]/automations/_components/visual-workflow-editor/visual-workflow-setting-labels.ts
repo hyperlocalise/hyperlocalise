@@ -153,6 +153,13 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
   },
   "ai.agent": { prompt: messages.aiPrompt, ...ON_ERROR },
   "logic.for_each": { collection: messages.forEachCollection },
+  "logic.array_transform": {
+    operation: messages.arrayTransformOperation,
+    collection: messages.forEachCollection,
+    itemType: messages.arrayTransformItemType,
+    resultType: messages.arrayTransformResultType,
+    initialValue: messages.arrayTransformInitialValue,
+  },
   "logic.retry": {
     maxAttempts: messages.retryMaxAttempts,
     initialDelayMs: messages.retryInitialDelay,

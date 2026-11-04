@@ -3504,8 +3504,8 @@
     "description": "QA review: coverageHelp"
   },
   "3OlJR3Fxjp": {
-    "defaultMessage": "Loop membership is derived automatically from connections leaving the Each item port.",
-    "description": "Explanation of graph-derived For Each membership"
+    "defaultMessage": "Membership is derived automatically from connections leaving the Each item port.",
+    "description": "Explanation of graph-derived collection-region membership"
   },
   "3OmQiHHUCs": {
     "defaultMessage": "Drag a screenshot here",
@@ -39425,7 +39425,7 @@
   },
   "yIZkW24JC2": {
     "defaultMessage": "No nodes are connected to the Each item region.",
-    "description": "Empty graph-derived For Each body"
+    "description": "Empty graph-derived collection-region body"
   },
   "yIwRFz93s7": {
     "defaultMessage": "Italian (Italy)",
