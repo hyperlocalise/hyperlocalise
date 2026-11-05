@@ -48,6 +48,10 @@ Translators can prepare drafts; approval requires a reviewer, localization manag
 
 When a string's source text changes, from a new file upload, a repository sync, an integration import or the API, its approved translations stay approved unless the project's **When source text changes** setting is **Needs review**. Then they go back to **Needs review** with their text kept, so a reviewer can update it to the new source and approve it again. See [Update source content safely](/platform/guides/update-source-content#recheck-approved-wording).
 
+### Edit source text
+
+In a project with **Edit source text in Hyperlocalise** turned on, administrators, localization managers and developers can change a string's source text from the **Source text** section of the side panel: select the pencil, edit the text, and select **Save source text** (or press ⌘↵). In a project set to send approved translations to review when source text changes, tick **Small fix: keep approved translations** for a typo or punctuation fix. The section appears on strings in JSON, JSONC and ARB files, not on hidden strings or in the merged-strings view; a string locked in any language can't be edited. An upload or repository sync keeps the edit, and a GitLab sync sends it back to the repository; see [Edit source text in Hyperlocalise](/platform/guides/update-source-content#edit-source-text-in-hyperlocalise).
+
 Format checks on the segment include **Placeholders & ICU** and **Length**. Fix those before you approve. Unreal Engine tags in gettext `.po` files appear as chips such as **UE#0**; keep them and translate the words around them. See [Unreal Engine rich text in gettext PO](/cli/reference/formats/gettext#unreal-engine-rich-text).
 
 ## Filter the queue
