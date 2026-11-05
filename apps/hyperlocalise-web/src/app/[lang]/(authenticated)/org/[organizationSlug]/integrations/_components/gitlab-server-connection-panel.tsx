@@ -153,6 +153,9 @@ export function GitLabServerConnectionPanel({
   const connectionsQuery = useGitLabConnections(organizationSlug);
   const connections = connectionsQuery.data ?? [];
   const defaultConnection = connections[0] ?? null;
+  // Which connection chat and automations move to once this one is gone: the oldest remaining.
+  const nextDefaultAfter = (connection: GitLabConnection) =>
+    connections.find((candidate) => candidate.id !== connection.id) ?? null;
   const hostItems: { value: GitLabHost; label: string }[] = [
     { value: "gitlab.com", label: intl.formatMessage(messages.hostGitLabCom) },
     { value: "server", label: intl.formatMessage(messages.hostServer) },
@@ -245,9 +248,10 @@ export function GitLabServerConnectionPanel({
         throw new Error(await readApiError(response, intl.formatMessage(messages.removeFailed)));
       }
     },
-    onSuccess: async () => {
+    onSuccess: async (_removed, connection) => {
       setConfirmingRemove(null);
-      if (editing?.mode === "change") {
+      // A Change form open for another connection keeps what was typed.
+      if (editing?.mode === "change" && editing.connection.id === connection.id) {
         clearForm();
       }
       await refreshGitLabQueries();
@@ -273,12 +277,21 @@ export function GitLabServerConnectionPanel({
   // GitLab.com or a company's own server is an explicit choice, so a company token is never
   // sent to GitLab.com because an address was left as it was.
   // No host is assumed for a new connection: a token typed before the choice goes nowhere.
-  const changing = editing?.mode === "change" ? editing.connection : null;
+  // The live row, so the default-only warning follows a default that moved while the form was open.
+  const changing =
+    editing?.mode === "change"
+      ? (connections.find((candidate) => candidate.id === editing.connection.id) ??
+        editing.connection)
+      : null;
   const savedHost = changing ? hostOf(changing.serverUrl) : null;
   const host = hostChoice ?? savedHost;
   const savedServerUrl = changing && savedHost === "server" ? changing.serverUrl : "";
   const serverUrlValue = serverUrl ?? savedServerUrl;
-  const nameValue = name ?? changing?.name ?? "";
+  // A connection saved before names starts with an empty field, its host as the placeholder,
+  // so the host is never stored as a name that outlives a change of address.
+  const nameValue = name ?? changing?.storedName ?? "";
+  const namePlaceholder =
+    changing && !changing.storedName ? changing.name : intl.formatMessage(messages.namePlaceholder);
   const serverUrlToSave =
     host === "gitlab.com" ? GITLAB_COM_SERVER_URL : host === "server" ? serverUrlValue.trim() : "";
   const busy = save.isPending || makeDefault.isPending || remove.isPending;
@@ -363,7 +376,26 @@ export function GitLabServerConnectionPanel({
                           <FormattedMessage
                             {...messages.removeConfirm}
                             values={{ count: connection.syncCount }}
-                          />
+                          />{" "}
+                          {connection.isDefault ? (
+                            nextDefaultAfter(connection) ? (
+                              <>
+                                <FormattedMessage
+                                  {...messages.removeDefaultNext}
+                                  values={{ name: nextDefaultAfter(connection)?.name }}
+                                />
+                                {nextDefaultAfter(connection)?.serverUrl !==
+                                connection.serverUrl ? (
+                                  <>
+                                    {" "}
+                                    <FormattedMessage {...messages.removeDefaultOtherServer} />
+                                  </>
+                                ) : null}
+                              </>
+                            ) : (
+                              <FormattedMessage {...messages.removeLast} />
+                            )
+                          ) : null}
                         </p>
                         <Button
                           type="button"
@@ -468,7 +500,7 @@ export function GitLabServerConnectionPanel({
                 id={nameFieldId}
                 autoComplete="off"
                 maxLength={80}
-                placeholder={intl.formatMessage(messages.namePlaceholder)}
+                placeholder={namePlaceholder}
                 value={nameValue}
                 disabled={busy}
                 onChange={(event) => setName(event.target.value)}
@@ -560,6 +592,12 @@ export function GitLabServerConnectionPanel({
             {changing ? (
               <p className="text-xs text-muted-foreground">
                 <FormattedMessage {...messages.replaceWarning} />
+                {changing.isDefault ? (
+                  <>
+                    {" "}
+                    <FormattedMessage {...messages.replaceWarningDefault} />
+                  </>
+                ) : null}
               </p>
             ) : null}
             <div className="flex flex-wrap justify-end gap-2">

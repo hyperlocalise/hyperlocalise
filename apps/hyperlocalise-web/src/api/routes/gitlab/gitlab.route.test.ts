@@ -323,7 +323,7 @@ describe("gitlabRoutes", () => {
       });
     });
 
-    it("counts each added connection, not a replacement", async () => {
+    it("counts the workspace as connected once: not again for a replacement or a second connection", async () => {
       mockGitLabServer();
       const track = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
       const identity = fixture.createWorkosIdentityWithRole("admin");
@@ -338,10 +338,14 @@ describe("gitlabRoutes", () => {
         { param: { ...param, connectionId }, json },
         { headers },
       );
+      const third = await gitlab.connections.$post(
+        { param, json: { ...json, name: "Two" } },
+        { headers },
+      );
       const calls = [...track.mock.calls];
       track.mockRestore();
 
-      expect([first.status, second.status]).toEqual([201, 200]);
+      expect([first.status, second.status, third.status]).toEqual([201, 200, 201]);
       const connected = calls.filter(
         ([event]) => event === PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected,
       );
@@ -424,6 +428,10 @@ describe("gitlabRoutes", () => {
         { param, json: { serverUrl, accessToken: "glpat-secret" } },
         { headers },
       );
+      const replaced = await gitlab.connections[":connectionId"].$put(
+        { param: { ...param, connectionId }, json: { serverUrl, accessToken: "glpat-secret" } },
+        { headers },
+      );
       const removed = await gitlab.connections[":connectionId"].$delete(
         { param: { ...param, connectionId } },
         { headers },
@@ -436,7 +444,9 @@ describe("gitlabRoutes", () => {
       const list = await gitlab.connections.$get({ param }, { headers });
 
       expect([read.status, list.status]).toEqual([200, 200]);
-      expect([saved.status, removed.status, marked.status]).toEqual([403, 403, 403]);
+      expect([saved.status, replaced.status, removed.status, marked.status]).toEqual([
+        403, 403, 403, 403,
+      ]);
       expect(mocks.withPublicHttpFetch).not.toHaveBeenCalled();
     });
   });

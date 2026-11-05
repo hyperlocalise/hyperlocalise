@@ -433,6 +433,19 @@ export const projectContentSyncPanelMessages = defineMessages({
     id: "6N5DoenBFR",
     description: "Help under the GitLab connection picker in the project Sync panel",
   },
+  gitlabConnectionDefault: {
+    defaultMessage: "{name} (default)",
+    id: "qkzeYEZkME",
+    description:
+      "Picker entry for the GitLab connection chat and automations use; name is the connection's label",
+  },
+  errorGitLabConnectionRemovedNone: {
+    defaultMessage:
+      "The GitLab connection this sync used was removed in Integrations. Add a connection there, then choose it here.",
+    id: "uBwn2q4h2i",
+    description:
+      "Shown in the project Sync panel when the sync's GitLab connection no longer exists and the workspace has none left",
+  },
   gitlabConnectionRemoved: {
     defaultMessage: "Removed connection",
     id: "/w3K1Pwx24",

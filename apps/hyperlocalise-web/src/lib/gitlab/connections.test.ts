@@ -156,6 +156,14 @@ describe("gitlab connections", () => {
       id: second.value.connection.id,
       isDefault: true,
     });
+    // Marking is not an edit: the save times stay, so neither connection is checked again.
+    const marked = await listGitLabConnections({ organizationId: scope.organizationId });
+    expect(marked.map((connection) => [connection.id, connection.updatedAt])).toEqual(
+      expect.arrayContaining([
+        [first.value.connection.id, first.value.connection.updatedAt],
+        [second.value.connection.id, second.value.connection.updatedAt],
+      ]),
+    );
     expect(
       await findGitLabConnection({
         organizationId: scope.organizationId,

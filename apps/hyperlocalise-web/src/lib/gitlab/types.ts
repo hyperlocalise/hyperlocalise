@@ -49,6 +49,8 @@ export type GitLabConnectionSummary = {
   id: string;
   /** What people call it: the saved name, or the server's host for one saved before names. */
   name: string;
+  /** The saved name alone, so a form can start from it; null shows as the host. */
+  storedName: string | null;
   isDefault: boolean;
   serverUrl: string;
   connectedUsername: string;

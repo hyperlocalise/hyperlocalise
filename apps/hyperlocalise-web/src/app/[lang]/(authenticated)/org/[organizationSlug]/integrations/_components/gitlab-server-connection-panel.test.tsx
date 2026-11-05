@@ -13,7 +13,7 @@
 // @vitest-environment happy-dom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -64,6 +64,7 @@ import { GitLabServerConnectionPanel } from "./gitlab-server-connection-panel";
 const webConnection = {
   id: "11111111-1111-4111-8111-111111111111",
   name: "Website",
+  storedName: "Website",
   isDefault: true,
   serverUrl: "https://git.acme.example",
   connectedUsername: "translations-bot",
@@ -74,6 +75,7 @@ const webConnection = {
 const codeConnection = {
   id: "22222222-2222-4222-8222-222222222222",
   name: "Code",
+  storedName: "Code",
   isDefault: false,
   serverUrl: "https://gitlab.com",
   connectedUsername: "code-bot",
@@ -82,7 +84,9 @@ const codeConnection = {
   syncCount: 2,
 };
 
-function listing(connections: (typeof webConnection)[]) {
+type Connection = Omit<typeof webConnection, "storedName"> & { storedName: string | null };
+
+function listing(connections: Connection[]) {
   mocks.connectionsGet.mockImplementation(async () =>
     Response.json({ gitlabConnections: connections }),
   );
@@ -283,6 +287,73 @@ describe("GitLabServerConnectionPanel", () => {
       json: { name: "Web", serverUrl: "https://git.acme.example", accessToken: "glpat-new" },
     });
     expect(mocks.connectionsPost).not.toHaveBeenCalled();
+  });
+
+  it("starts the Change form of a connection saved before names with an empty name, its host as the hint", async () => {
+    const unnamed = {
+      ...webConnection,
+      name: "git.acme.example",
+      storedName: null,
+      syncCount: 1,
+    };
+    listing([unnamed]);
+    mocks.connectionPut.mockResolvedValue(Response.json({ gitlabConnection: unnamed }));
+    renderPanel();
+    await openRow();
+    const item = await screen.findByRole("listitem", { name: "git.acme.example" });
+    expect(within(item).getByText(/Used by 1 project sync/)).toBeTruthy();
+    fireEvent.click(within(item).getByRole("button", { name: "Change" }));
+
+    const nameField = screen.getByLabelText("Name");
+    expect(nameField).toHaveProperty("value", "");
+    expect(nameField).toHaveProperty("placeholder", "git.acme.example");
+    fireEvent.change(screen.getByLabelText("Access token"), { target: { value: "glpat-new" } });
+    fireEvent.click(screen.getByRole("button", { name: "Check and save" }));
+
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+    // The host is never stored as a name.
+    expect(mocks.connectionPut).toHaveBeenCalledWith({
+      param: { organizationSlug: "acme", connectionId: unnamed.id },
+      json: { name: "", serverUrl: "https://git.acme.example", accessToken: "glpat-new" },
+    });
+  });
+
+  it("says what chat and automations will use once the default is removed, and when nothing is left", async () => {
+    listing([webConnection, codeConnection]);
+    renderPanel();
+    await openRow();
+
+    const website = await screen.findByRole("listitem", { name: "Website" });
+    fireEvent.click(within(website).getByRole("button", { name: "Remove" }));
+    expect(within(website).getByText(/Chat and automations will use Code instead/)).toBeTruthy();
+    fireEvent.click(within(website).getByRole("button", { name: "Cancel" }));
+    const code = screen.getByRole("listitem", { name: "Code" });
+    fireEvent.click(within(code).getByRole("button", { name: "Remove" }));
+    expect(within(code).queryByText(/Chat and automations will use/)).toBeNull();
+    cleanup();
+
+    listing([webConnection]);
+    renderPanel();
+    await openRow();
+    const only = await screen.findByRole("listitem", { name: "Website" });
+    fireEvent.click(within(only).getByRole("button", { name: "Remove" }));
+    expect(within(only).getByText(/go back to members' own GitLab.com sign-ins/)).toBeTruthy();
+  });
+
+  it("keeps a Change form open for another connection when one is removed", async () => {
+    listing([webConnection, codeConnection]);
+    renderPanel();
+    await openRow();
+
+    const website = await screen.findByRole("listitem", { name: "Website" });
+    fireEvent.click(within(website).getByRole("button", { name: "Change" }));
+    fireEvent.change(screen.getByLabelText("Access token"), { target: { value: "glpat-typed" } });
+    const code = screen.getByRole("listitem", { name: "Code" });
+    fireEvent.click(within(code).getByRole("button", { name: "Remove" }));
+    fireEvent.click(within(code).getByRole("button", { name: "Remove connection" }));
+
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+    expect(screen.getByLabelText("Access token")).toHaveProperty("value", "glpat-typed");
   });
 
   it("doesn't check again right after a save, only when the row is opened again", async () => {

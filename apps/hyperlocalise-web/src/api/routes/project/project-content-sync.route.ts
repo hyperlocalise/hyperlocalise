@@ -510,7 +510,8 @@ export function createProjectContentSyncRoutes(
         listGitLabSyncConnections(
           resolved.project.organizationId,
           askedConnectionId,
-          savedGitLabProject(saved),
+          // The saved project is only looked up on the connection it was saved with.
+          askedConnectionId === savedConnectionId ? savedGitLabProject(saved) : undefined,
         ),
         listGitLabConnections({ organizationId: resolved.project.organizationId }),
       ]);

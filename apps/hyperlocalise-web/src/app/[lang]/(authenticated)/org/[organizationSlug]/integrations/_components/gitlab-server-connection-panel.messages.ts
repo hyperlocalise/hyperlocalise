@@ -44,9 +44,37 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
     id: "afHUN4SiZD",
     description: "Placeholder for a GitLab connection's name field",
   },
+  replaceWarningDefault: {
+    defaultMessage:
+      "Chat and automations use this connection. Automations name a project by its path, so pointing it at another server moves them too, and chats stop using projects from the old one.",
+    id: "MHOYy5Rwc3",
+    description:
+      "Added to the change warning when the connection being changed is the workspace's default",
+  },
+  removeDefaultNext: {
+    defaultMessage: "Chat and automations will use {name} instead.",
+    id: "5954s2fe1F",
+    description:
+      "Added to the remove confirmation when the connection is the default and another remains; name is the connection that takes over",
+  },
+  removeDefaultOtherServer: {
+    defaultMessage:
+      "That connection is to another server: automations name a project by its path, so they move to that server too, and chats stop using projects from this one.",
+    id: "1SmOqBo4fU",
+    description:
+      "Added to the remove confirmation when the connection taking over as default points at a different GitLab server",
+  },
+  removeLast: {
+    defaultMessage:
+      "Chat and automations go back to members' own GitLab.com sign-ins until a connection is added again.",
+    id: "TooKILigu3",
+    description:
+      "Added to the remove confirmation when it is the workspace's last GitLab connection",
+  },
   nameHint: {
-    defaultMessage: "Shown wherever a project picks a connection to sync with.",
-    id: "9OjG8oVPqZ",
+    defaultMessage:
+      "Optional. Shown where a project's Sync settings pick a connection; left empty, the server's address is shown.",
+    id: "nrjgwEgszO",
     description: "Hint under a GitLab connection's name field",
   },
   addConnection: {
@@ -128,8 +156,8 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
     description: "Integration row description once a GitLab server is connected",
   },
   loadError: {
-    defaultMessage: "Unable to load the GitLab connection right now.",
-    id: "e1JYqjH071",
+    defaultMessage: "Unable to load the GitLab connections right now.",
+    id: "zHdfx9LT12",
     description: "Integration row description when the connection fails to load",
   },
   checkFailed: {
@@ -154,15 +182,14 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
   },
   intro: {
     defaultMessage:
-      "Everyone in this workspace uses these connections' projects: chat and automations use the default one, and each project's sync picks one. Each reaches whatever its token can reach. Members' own GitLab.com sign-ins are not used while any exist.",
-    id: "8XlU68Tzsj",
+      "Connections you add here are shared by everyone in the workspace: chat and automations use the default one, and each project's Sync settings pick one. Each reaches whatever its token can reach. Once one exists, members' own GitLab.com sign-ins are no longer used.",
+    id: "NSI7HOMKgo",
     description: "Explains the effect of connecting GitLab for the workspace",
   },
   replaceWarning: {
-    defaultMessage:
-      "Project syncs that use this connection follow the change. If this is the default, automations name a project by its path, so pointing it at another server moves them too, and chats stop using projects from the old one.",
-    id: "MUf7zMkumb",
-    description: "Warning shown before replacing or removing a GitLab server connection",
+    defaultMessage: "Project syncs that use this connection follow the change.",
+    id: "i+FQZUhhZw",
+    description: "Warning shown in the form that changes a GitLab connection",
   },
   hostLabel: {
     defaultMessage: "Connect to",

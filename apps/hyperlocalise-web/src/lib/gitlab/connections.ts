@@ -58,12 +58,15 @@ export function gitlabConnectionDisplayName(row: { name: string | null; serverUr
   }
 }
 
-/** The default connection first, then the rest by when they were made. */
-const connectionOrder = [
-  desc(schema.gitlabConnections.isDefault),
-  asc(schema.gitlabConnections.createdAt),
-  asc(schema.gitlabConnections.id),
-];
+/** The default connection first, then the rest by when they were made. Built when asked, so
+ * loading this module never touches the schema (tests replace the database client). */
+function connectionOrder() {
+  return [
+    desc(schema.gitlabConnections.isDefault),
+    asc(schema.gitlabConnections.createdAt),
+    asc(schema.gitlabConnections.id),
+  ];
+}
 
 /**
  * Project syncs whose settings name the connection. Written out in full: inside a subquery the
@@ -82,6 +85,7 @@ function serializeConnection(
   return {
     id: row.id,
     name: gitlabConnectionDisplayName(row),
+    storedName: row.name,
     isDefault: input.isDefault,
     serverUrl: row.serverUrl,
     connectedUsername: row.connectedUsername,
@@ -162,7 +166,7 @@ async function listRows(organizationId: string) {
     .select({ ...getTableColumns(schema.gitlabConnections), syncCount: syncCountSql })
     .from(schema.gitlabConnections)
     .where(eq(schema.gitlabConnections.organizationId, organizationId))
-    .orderBy(...connectionOrder);
+    .orderBy(...connectionOrder());
 }
 
 /**
@@ -186,7 +190,7 @@ export async function getGitLabConnection(input: {
     .select({ ...getTableColumns(schema.gitlabConnections), syncCount: syncCountSql })
     .from(schema.gitlabConnections)
     .where(eq(schema.gitlabConnections.organizationId, input.organizationId))
-    .orderBy(...connectionOrder)
+    .orderBy(...connectionOrder())
     .limit(1);
 
   return row ? serializeConnection(row, { isDefault: true, syncCount: row.syncCount }) : null;
@@ -260,7 +264,7 @@ export async function saveGitLabConnection(input: {
     authTag: encrypted.authTag,
     keyVersion: encrypted.keyVersion,
     maskedTokenSuffix: maskProviderCredentialSuffix(accessToken),
-    // An update does not run $onUpdateFn here, so a replace would keep the first save's time.
+    // Set outright: the live-check and clone-reuse keys read it, so a replace must move it.
     updatedAt: new Date(),
   };
 
@@ -305,28 +309,29 @@ export async function saveGitLabConnection(input: {
   return ok({ connection: saved, created: true });
 }
 
-/** Marks one connection as the workspace's default; false when it isn't the workspace's. */
+/**
+ * Marks one connection as the workspace's default; false when it isn't the workspace's. The
+ * workspace's rows are locked first, so two admins marking at once take turns rather than one
+ * failing on the one-default index. Marking is not an edit: the save time stays, so the
+ * connections aren't checked again and clones made with them are still reused.
+ */
 export async function setDefaultGitLabConnection(input: {
   organizationId: string;
   connectionId: string;
 }): Promise<boolean> {
   return db.transaction(async (tx) => {
-    const [row] = await tx
+    const rows = await tx
       .select({ id: schema.gitlabConnections.id })
       .from(schema.gitlabConnections)
-      .where(
-        and(
-          eq(schema.gitlabConnections.organizationId, input.organizationId),
-          eq(schema.gitlabConnections.id, input.connectionId),
-        ),
-      )
-      .limit(1);
-    if (!row) {
+      .where(eq(schema.gitlabConnections.organizationId, input.organizationId))
+      .for("update");
+    if (!rows.some((row) => row.id === input.connectionId)) {
       return false;
     }
+    const keepUpdatedAt = sql`${schema.gitlabConnections.updatedAt}`;
     await tx
       .update(schema.gitlabConnections)
-      .set({ isDefault: false })
+      .set({ isDefault: false, updatedAt: keepUpdatedAt })
       .where(
         and(
           eq(schema.gitlabConnections.organizationId, input.organizationId),
@@ -335,8 +340,8 @@ export async function setDefaultGitLabConnection(input: {
       );
     await tx
       .update(schema.gitlabConnections)
-      .set({ isDefault: true })
-      .where(eq(schema.gitlabConnections.id, row.id));
+      .set({ isDefault: true, updatedAt: keepUpdatedAt })
+      .where(eq(schema.gitlabConnections.id, input.connectionId));
     return true;
   });
 }
@@ -378,7 +383,7 @@ export async function loadGitLabConnectionCredentials(input: {
         ...(input.connectionId ? [eq(schema.gitlabConnections.id, input.connectionId)] : []),
       ),
     )
-    .orderBy(...connectionOrder)
+    .orderBy(...connectionOrder())
     .limit(1);
 
   if (!row) {

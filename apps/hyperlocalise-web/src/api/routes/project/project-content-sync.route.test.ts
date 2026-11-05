@@ -504,6 +504,58 @@ describe("project content sync routes", () => {
       expect(await toGitHub.json()).toMatchObject({ error: "content_sync_github_in_integrations" });
     });
 
+    it("lists the projects of the connection asked for, and refuses one that isn't an id", async () => {
+      const { admin, project } = await seedWorkspace();
+      const headers = await projectFixture.authHeadersFor(admin);
+      const param = paramFor(admin, project.id);
+      loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(access));
+      listGitLabMembershipProjectsMock.mockResolvedValue(ok([gitlabProject()]));
+
+      const chosen = await routeFor().connections.$get(
+        { param, query: { gitlabConnectionId: access.id } },
+        { headers },
+      );
+      expect(chosen.status).toBe(200);
+      expect(await chosen.json()).toMatchObject({
+        gitlab: { connected: true, available: true, connectionId: access.id },
+      });
+      expect(loadGitLabConnectionCredentialsMock).toHaveBeenLastCalledWith({
+        organizationId: project.organizationId,
+        connectionId: access.id,
+      });
+
+      const malformed = await routeFor().connections.$get(
+        { param, query: { gitlabConnectionId: "nope" } },
+        { headers },
+      );
+      expect(malformed.status).toBe(400);
+
+      // A saved project outside the listing is looked up only on the sync's own connection.
+      getGitLabProjectMock.mockResolvedValue(ok(gitlabProject()));
+      await routeFor().$put(
+        { param, json: gitlabBody({ gitlabConnectionId: access.id }) },
+        { headers },
+      );
+      listGitLabMembershipProjectsMock.mockResolvedValue(
+        ok([gitlabProject({ id: 7, pathWithNamespace: "acme/zeta" })]),
+      );
+      getGitLabProjectMock.mockClear();
+      const other = "44444444-4444-4444-8444-444444444444";
+      await routeFor().connections.$get(
+        { param, query: { gitlabConnectionId: other } },
+        { headers },
+      );
+      expect(getGitLabProjectMock).not.toHaveBeenCalled();
+      await routeFor().connections.$get(
+        { param, query: { gitlabConnectionId: access.id } },
+        { headers },
+      );
+      expect(getGitLabProjectMock).toHaveBeenCalledWith({
+        ...access,
+        pathWithNamespace: "Acme/App",
+      });
+    });
+
     it("says when the GitLab server's projects can't be listed", async () => {
       const { admin, project } = await seedWorkspace();
       const headers = await projectFixture.authHeadersFor(admin);
@@ -553,6 +605,17 @@ describe("project content sync routes", () => {
         err({ code: "gitlab_request_failed", message: "down", status: 502 }),
       );
       expect(await save()).toBe("content_sync_gitlab_unavailable");
+
+      // A chosen connection that no longer exists is reported, never swapped for the default.
+      loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(null));
+      expect(await save(gitlabBody({ gitlabConnectionId: access.id }))).toBe(
+        "content_sync_gitlab_connection_removed",
+      );
+      expect(loadGitLabConnectionCredentialsMock).toHaveBeenLastCalledWith({
+        organizationId: project.organizationId,
+        connectionId: access.id,
+      });
+      loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(access));
 
       // Another project now sits at the saved path, for example on a replaced server.
       getGitLabProjectMock.mockResolvedValue(ok(gitlabProject({ id: 99 })));

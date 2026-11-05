@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { ArrowsClockwiseIcon, FloppyDiskIcon } from "@phosphor-icons/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, Fragment, useEffect, useRef, useState } from "react";
 import { FormattedMessage, type IntlShape, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -306,9 +306,15 @@ export function ProjectContentSyncPanel({
     },
     // Picks up a repository enabled in Integrations in another tab.
     refetchOnWindowFocus: active,
+    // While another connection's projects load, the previous answer keeps the pickers in place.
+    placeholderData: keepPreviousData,
   });
-  const connections = connectionsQuery.data?.connections ?? [];
-  const gitlab = connectionsQuery.data?.gitlab ?? {
+  // The projects shown are only ever the chosen connection's; the connections list is the same
+  // whichever connection answered.
+  const freshConnections = connectionsQuery.isPlaceholderData ? undefined : connectionsQuery.data;
+  const connectionsListed = connectionsQuery.isSuccess && !connectionsQuery.isPlaceholderData;
+  const connections = freshConnections?.connections ?? [];
+  const gitlab = freshConnections?.gitlab ?? {
     connected: false,
     available: false,
     connectionId: null,
@@ -316,12 +322,19 @@ export function ProjectContentSyncPanel({
   const gitlabConnections = connectionsQuery.data?.gitlabConnections ?? [];
   // The connection the listed projects belong to, shown as the picker's value.
   const effectiveGitLabConnectionId = chosenGitLabConnectionId ?? gitlab.connectionId ?? "";
-  const gitlabConnectionItems = gitlabConnections.map((connection) => ({
-    value: connection.id,
-    label: connection.serverUrl.includes("gitlab.com")
-      ? connection.name
-      : `${connection.name} (${serverHost(connection.serverUrl)})`,
-  }));
+  const gitlabConnectionItems = gitlabConnections.map((connection) => {
+    const host = serverHost(connection.serverUrl);
+    const label =
+      host === "gitlab.com" || host === connection.name
+        ? connection.name
+        : `${connection.name} (${host})`;
+    return {
+      value: connection.id,
+      label: connection.isDefault
+        ? intl.formatMessage(messages.gitlabConnectionDefault, { name: label })
+        : label,
+    };
+  });
   // A sync whose connection was removed still names it, so the picker can say so.
   const gitlabConnectionRemoved =
     isGitLab &&
@@ -540,7 +553,7 @@ export function ProjectContentSyncPanel({
   const busy = saveMutation.isPending || removeMutation.isPending;
   const repositoryNotEnabled =
     canManage &&
-    connectionsQuery.isSuccess &&
+    connectionsListed &&
     providerListed &&
     !gitlabConnectionRemoved &&
     Boolean(values.connectionId) &&
@@ -563,13 +576,13 @@ export function ProjectContentSyncPanel({
     : repositoryNotEnabled
       ? "project-sync-repository-error"
       : undefined;
-  const showNoRepositories = canManage && connectionsQuery.isSuccess && !gitlab.connected && !saved;
+  const showNoRepositories = canManage && connectionsListed && !gitlab.connected && !saved;
   // A service that isn't available can't be chosen, unless the sync already uses it. GitHub
   // repositories sync from their Automation settings in Integrations for now, which a GitHub sync
   // here would duplicate.
   const providerAvailable: Record<SyncProvider, boolean> = {
     github: false,
-    gitlab: !connectionsQuery.isSuccess || gitlab.connected,
+    gitlab: !connectionsListed || gitlab.connected,
   };
   const unavailableProviders = PROVIDERS.filter(
     (provider) =>
@@ -579,10 +592,7 @@ export function ProjectContentSyncPanel({
   ).map((provider) => provider.value);
   // Why the repository list is empty for the chosen service, when it is.
   const emptyRepositoriesHint =
-    !canManage ||
-    !connectionsQuery.isSuccess ||
-    providerConnections.length > 0 ||
-    gitlabConnectionRemoved
+    !canManage || !connectionsListed || providerConnections.length > 0 || gitlabConnectionRemoved
       ? null
       : !isGitLab
         ? messages.noGitHubRepositories
@@ -752,7 +762,11 @@ export function ProjectContentSyncPanel({
                   </Select>
                   {gitlabConnectionRemoved ? (
                     <FieldError id="project-sync-gitlab-connection-error">
-                      <FormattedMessage {...messages.errorGitLabConnectionRemoved} />
+                      <FormattedMessage
+                        {...(gitlabConnections.length === 0
+                          ? messages.errorGitLabConnectionRemovedNone
+                          : messages.errorGitLabConnectionRemoved)}
+                      />
                     </FieldError>
                   ) : (
                     <FieldDescription>

@@ -278,7 +278,8 @@ describe("conversation gitlab repository sandbox reuse", () => {
   });
 
   describe("with a workspace's own server", () => {
-    const serverOwner = "gitlab-connection:https://git.acme.example:2026-11-03T00:00:00.000Z";
+    const connectionId = "11111111-1111-4111-8111-111111111111";
+    const serverOwner = `gitlab-connection:${connectionId}:https://git.acme.example:2026-11-03T00:00:00.000Z`;
     const serverSession = {
       ...repositorySession,
       repositorySandboxSession: {
@@ -298,6 +299,7 @@ describe("conversation gitlab repository sandbox reuse", () => {
 
     it("reuses the clone while the connection is unchanged", async () => {
       getGitLabConnectionMock.mockResolvedValue({
+        id: connectionId,
         serverUrl: "https://git.acme.example",
         updatedAt: "2026-11-03T00:00:00.000Z",
       });
@@ -310,6 +312,7 @@ describe("conversation gitlab repository sandbox reuse", () => {
 
     it("clones again once the connection is saved again", async () => {
       getGitLabConnectionMock.mockResolvedValue({
+        id: connectionId,
         serverUrl: "https://git.acme.example",
         updatedAt: "2026-11-03T00:05:00.000Z",
       });
@@ -322,8 +325,7 @@ describe("conversation gitlab repository sandbox reuse", () => {
         sandboxCreated: true,
         updatedSession: {
           repositorySandboxSession: {
-            credentialOwnerWorkosUserId:
-              "gitlab-connection:https://git.acme.example:2026-11-03T00:05:00.000Z",
+            credentialOwnerWorkosUserId: `gitlab-connection:${connectionId}:https://git.acme.example:2026-11-03T00:05:00.000Z`,
           },
         },
       });

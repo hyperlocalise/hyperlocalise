@@ -455,19 +455,17 @@ describe("ProjectContentSyncPanel", () => {
         gitlabConnections: [webConnection, codeConnection],
       });
       const picker = await screen.findByRole("combobox", { name: "GitLab connection" });
-      expect(picker).toHaveTextContent("Website");
+      expect(picker).toHaveTextContent("Website (git.acme.example) (default)");
       expect(api.getConnections).toHaveBeenLastCalledWith({
         param: { organizationSlug: "acme", projectId: "project_1" },
         query: {},
       });
 
-      // Another connection lists other projects, so the repository is chosen again.
-      api.getConnections.mockResolvedValue(
-        jsonResponse(200, {
-          connections: [{ provider: "gitlab", connectionId: "9", resourceKey: "code/site" }],
-          gitlab: { ...gitlabConnected, connectionId: codeConnection.id },
-          gitlabConnections: [webConnection, codeConnection],
-        }),
+      // Another connection lists other projects, so the repository is chosen again. While they
+      // load, the pickers stay in place with the previous answer.
+      let answer: (response: ReturnType<typeof jsonResponse>) => void = () => {};
+      api.getConnections.mockImplementation(
+        () => new Promise<ReturnType<typeof jsonResponse>>((resolve) => (answer = resolve)),
       );
       await user.click(picker);
       await user.click(await screen.findByRole("option", { name: "Code" }));
@@ -475,6 +473,15 @@ describe("ProjectContentSyncPanel", () => {
         expect(api.getConnections).toHaveBeenLastCalledWith({
           param: { organizationSlug: "acme", projectId: "project_1" },
           query: { gitlabConnectionId: codeConnection.id },
+        }),
+      );
+      expect(screen.getByRole("combobox", { name: "GitLab connection" })).toHaveTextContent("Code");
+      expect(screen.getByRole("combobox", { name: "Repository" })).toBeTruthy();
+      answer(
+        jsonResponse(200, {
+          connections: [{ provider: "gitlab", connectionId: "9", resourceKey: "code/site" }],
+          gitlab: { ...gitlabConnected, connectionId: codeConnection.id },
+          gitlabConnections: [webConnection, codeConnection],
         }),
       );
       expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
@@ -519,10 +526,23 @@ describe("ProjectContentSyncPanel", () => {
       });
       const picker = await screen.findByRole("combobox", { name: "GitLab connection" });
       expect(picker).toHaveTextContent("Removed connection");
-      expect(
-        screen.getByText(/The GitLab connection this sync used was removed in Integrations/),
-      ).toBeTruthy();
+      expect(screen.getByText(/removed in Integrations. Choose another connection/)).toBeTruthy();
       expect(screen.getByRole("button", { name: "Sync now" })).toBeDisabled();
+      cleanup();
+
+      // With no connection left, the way out is Integrations, not the picker.
+      renderPanel({
+        sync: {
+          ...gitlabSync,
+          syncConfig: { ...gitlabSync.syncConfig, gitlabConnectionId: codeConnection.id },
+        },
+        runs: [],
+        connections: [],
+        gitlab: { connected: false, available: false, connectionId: codeConnection.id },
+        gitlabConnections: [],
+      });
+      await screen.findByRole("combobox", { name: "GitLab connection" });
+      expect(screen.getByText(/Add a connection there, then choose it here/)).toBeTruthy();
     });
 
     it("labels a GitLab run's review link as a merge request", async () => {

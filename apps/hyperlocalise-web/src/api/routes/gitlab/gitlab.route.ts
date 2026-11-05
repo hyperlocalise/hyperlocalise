@@ -120,8 +120,11 @@ export function createGitlabRoutes() {
         }
 
         const body = c.req.valid("json");
+        const organizationId = c.var.auth.organization.localOrganizationId;
+        // The workspace counts as newly connected once, not with each connection it adds.
+        const firstConnection = (await listGitLabConnections({ organizationId })).length === 0;
         const result = await saveGitLabConnection({
-          organizationId: c.var.auth.organization.localOrganizationId,
+          organizationId,
           userId: c.var.auth.user.localUserId,
           name: body.name,
           serverUrl: body.serverUrl,
@@ -132,10 +135,12 @@ export function createGitlabRoutes() {
           return badRequestResponse(c, result.error.code, result.error.message);
         }
 
-        serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected, {
-          status: "created",
-          source: "gitlab",
-        });
+        if (firstConnection) {
+          serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected, {
+            status: "created",
+            source: "gitlab",
+          });
+        }
 
         return c.json({ gitlabConnection: result.value.connection }, 201);
       })

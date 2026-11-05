@@ -567,4 +567,21 @@ describe("executeGitLabContentSync", () => {
       connectionId: undefined,
     });
   });
+
+  it("runs with the connection the sync names, not the workspace's default", async () => {
+    mocks.resolveGitLabAccess.mockResolvedValue(
+      ok({ accessToken: "t", baseUrl: "http://localhost:8929" }),
+    );
+    mocks.getGitLabProject.mockResolvedValue(ok({ id: 42, pathWithNamespace: "acme/web" }));
+    mocks.createGitLabContentSyncReader.mockReturnValue(fakeReader());
+    const gitlabConnectionId = "33333333-3333-4333-8333-333333333333";
+
+    const result = await run(undefined, { ...syncConfig, gitlabConnectionId });
+
+    expect(isOk(result)).toBe(true);
+    expect(mocks.resolveGitLabAccess).toHaveBeenLastCalledWith({
+      localOrganizationId: expect.any(String),
+      connectionId: gitlabConnectionId,
+    });
+  });
 });
