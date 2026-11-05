@@ -45,6 +45,13 @@ type GitLabHost = "gitlab.com" | "server";
 
 type GitLabConnection = NonNullable<ReturnType<typeof useGitLabConnections>["data"]>[number];
 
+/** A passed live check, as the check route and a save answer it. */
+type GitLabConnectionCheckResult = {
+  working: true;
+  abilities: { scopes: string[]; canSend: boolean; expiresAt: string | null } | null;
+  readsProjects: boolean;
+};
+
 /** The form is open to add a connection, or to change one. */
 type Editing = { mode: "add" } | { mode: "change"; connection: GitLabConnection };
 
@@ -104,12 +111,55 @@ function ConnectionStatus({
       ) : result?.working === false ? (
         <FormattedMessage {...messages.checkFailed} values={{ reason: result.message }} />
       ) : result?.working ? (
-        <FormattedMessage
-          {...messages.checkPassed}
-          values={{ suffix: connection.maskedTokenSuffix }}
-        />
+        <>
+          <FormattedMessage
+            {...messages.checkPassed}
+            values={{ suffix: connection.maskedTokenSuffix }}
+          />{" "}
+          <TokenAbilities check={result} />
+        </>
       ) : null}
     </p>
+  );
+}
+
+/** What the token can do, from the live check: send or pull only, expiry, and whether it reads anything. */
+function TokenAbilities({ check }: { check: GitLabConnectionCheckResult }) {
+  const intl = useIntl();
+  const abilities = check.abilities;
+  return (
+    <>
+      {abilities ? (
+        <FormattedMessage
+          {...(abilities.canSend ? messages.tokenCanSend : messages.tokenReadOnly)}
+        />
+      ) : null}
+      {abilities?.expiresAt ? (
+        <>
+          {" "}
+          <FormattedMessage
+            {...messages.tokenExpires}
+            values={{
+              // A date without a time, shown as GitLab wrote it rather than shifted to the viewer's zone.
+              date: intl.formatDate(abilities.expiresAt, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                timeZone: "UTC",
+              }),
+            }}
+          />
+        </>
+      ) : null}
+      {check.readsProjects === false ? (
+        <>
+          {" "}
+          <span className="text-destructive">
+            <FormattedMessage {...messages.tokenReadsNothing} />
+          </span>
+        </>
+      ) : null}
+    </>
   );
 }
 
@@ -200,14 +250,17 @@ export function GitLabServerConnectionPanel({
         throw new Error(await readApiError(response, intl.formatMessage(messages.saveFailed)));
       }
       const body = await response.json();
-      return "gitlabConnection" in body ? body.gitlabConnection : null;
+      return "gitlabConnection" in body
+        ? { connection: body.gitlabConnection, check: body.check }
+        : null;
     },
     onSuccess: async (saved) => {
       clearForm();
       setConfirmingRemove(null);
       // Saving has just checked the connection, so the open row needn't check it again.
       if (saved) {
-        queryClient.setQueryData(checkQueryKey(organizationSlug, saved), { working: true });
+        const result: GitLabConnectionCheckResult = { working: true, ...saved.check };
+        queryClient.setQueryData(checkQueryKey(organizationSlug, saved.connection), result);
       }
       await refreshGitLabQueries();
       toast.success(intl.formatMessage(messages.saved));

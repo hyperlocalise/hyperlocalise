@@ -26,6 +26,7 @@ import {
 } from "./constants";
 import { isLocalDevGitLabServer } from "./server-url";
 import type {
+  GitLabTokenAbilities,
   GitLabAccess,
   GitLabApiError,
   GitLabMergeRequestDetails,
@@ -92,7 +93,20 @@ function parseProject(value: unknown, baseUrl: string | null): GitLabProject | n
     httpUrlToRepo: baseUrl ? buildGitLabCloneUrl(baseUrl, pathWithNamespace) : httpUrlToRepo,
     defaultBranch: asString(record.default_branch),
     archived: record.archived === true,
+    accessLevel: parseAccessLevel(record.permissions),
   };
+}
+
+/** The higher of the token's project and group roles; null when the answer carries neither. */
+function parseAccessLevel(value: unknown): number | null {
+  const permissions = asRecord(value);
+  if (!permissions) {
+    return null;
+  }
+  const levels = [permissions.project_access, permissions.group_access]
+    .map((entry) => asNumber(asRecord(entry)?.access_level))
+    .filter((level): level is number => level !== null);
+  return levels.length > 0 ? Math.max(...levels) : null;
 }
 
 const logger = createLogger("gitlab-client");
@@ -245,19 +259,74 @@ export async function getGitLabCurrentUsername(
   return username ? ok(username) : err(requestFailed(200));
 }
 
-/** Proves the token can read projects, without fetching them all. */
+/**
+ * Whether the token can list projects at all, and whether it can read at least one: a project
+ * needs the Reporter role or above before its files can be read, so a Guest-only token answers
+ * false here and lists nothing anywhere.
+ */
 export async function checkGitLabProjectAccess(
   input: GitLabAccess & { signal?: AbortSignal },
-): Promise<Result<void, GitLabApiError>> {
+): Promise<Result<{ readsProjects: boolean }, GitLabApiError>> {
   const result = await gitlabJson({
     ...input,
     path: "/api/v4/projects",
-    query: new URLSearchParams({ membership: "true", simple: "true", per_page: "1" }),
+    query: new URLSearchParams({
+      membership: "true",
+      min_access_level: String(GITLAB_CLONE_MIN_ACCESS_LEVEL),
+      simple: "true",
+      archived: "false",
+      per_page: "1",
+    }),
   });
   if (isErr(result)) {
     return result;
   }
-  return Array.isArray(result.value) ? ok(undefined) : err(requestFailed(200));
+  return Array.isArray(result.value)
+    ? ok({ readsProjects: result.value.length > 0 })
+    : err(requestFailed(200));
+}
+
+/**
+ * How GitLab describes the token itself: its scopes and expiry. Null when the server can't or
+ * won't say: an older server (404), a token kind the endpoint refuses (400), or any other
+ * failure, because this is extra information and must never stop a save or a check.
+ */
+export async function getGitLabTokenAbilities(
+  input: GitLabAccess & { signal?: AbortSignal },
+): Promise<Result<GitLabTokenAbilities | null, GitLabApiError>> {
+  const result = await gitlabJson({ ...input, path: "/api/v4/personal_access_tokens/self" });
+  if (isErr(result)) {
+    return ok(null);
+  }
+  const record = asRecord(result.value);
+  const scopes = Array.isArray(record?.scopes)
+    ? record.scopes.filter((scope): scope is string => typeof scope === "string")
+    : null;
+  if (!record || !scopes) {
+    return ok(null);
+  }
+  return ok({ scopes, canSend: scopes.includes("api"), expiresAt: asString(record.expires_at) });
+}
+
+/**
+ * Whether the token can read the project's files: the one check that settles it, since GitLab's
+ * reported role leaves out access through a shared group, and a Guest can read a public or
+ * internal project but not a private one.
+ */
+export async function canReadGitLabRepository(
+  input: GitLabAccess & { projectId: number; signal?: AbortSignal },
+): Promise<Result<boolean, GitLabApiError>> {
+  const result = await gitlabJson({
+    ...input,
+    path: `/api/v4/projects/${input.projectId}/repository/tree`,
+    query: new URLSearchParams({ per_page: "1" }),
+  });
+  if (isErr(result)) {
+    return result.error.code === "gitlab_not_found" || result.error.code === "gitlab_unauthorized"
+      ? ok(false)
+      : result;
+  }
+  return ok(true);
 }
 
 export async function listGitLabMembershipProjects(
@@ -269,8 +338,7 @@ export async function listGitLabMembershipProjects(
     const query = new URLSearchParams({
       membership: "true",
       min_access_level: String(GITLAB_CLONE_MIN_ACCESS_LEVEL),
-      simple: "true",
-      // The simple shape carries no archived flag, so archived projects are left out here.
+      // The full shape, for the token's role on each project; archived ones are left out.
       archived: "false",
       order_by: "last_activity_at",
       per_page: String(GITLAB_PROJECT_PAGE_SIZE),

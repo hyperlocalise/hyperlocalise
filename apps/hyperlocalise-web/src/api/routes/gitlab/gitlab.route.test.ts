@@ -186,7 +186,13 @@ describe("gitlabRoutes", () => {
     function mockGitLabServer(username = "translations-bot") {
       mocks.withPublicHttpFetch.mockImplementation(
         async (url: string, _init: unknown, handler: (response: Response) => unknown) =>
-          handler(Response.json(url.includes("/api/v4/user") ? { username } : [])),
+          handler(
+            url.includes("/api/v4/user")
+              ? Response.json({ username })
+              : url.includes("/personal_access_tokens/self")
+                ? new Response("{}", { status: 404 }) // an older server
+                : Response.json([]),
+          ),
       );
     }
 
@@ -207,7 +213,13 @@ describe("gitlabRoutes", () => {
         { headers },
       );
       expect(first.status).toBe(201);
-      const firstId = await savedId(first);
+      // A save answers with what the token can do, so the row needn't check again.
+      const firstBody = (await first.json()) as {
+        gitlabConnection: { id: string };
+        check: unknown;
+      };
+      const firstId = firstBody.gitlabConnection.id;
+      expect(firstBody.check).toEqual({ abilities: null, readsProjects: false });
       mockGitLabServer("code-bot");
       const second = await gitlab.connections.$post(
         {
@@ -310,7 +322,11 @@ describe("gitlabRoutes", () => {
       const check = gitlab.connections[":connectionId"].check;
 
       const working = await check.$get({ param: { ...param, connectionId } }, { headers });
-      expect(await working.json()).toEqual({ working: true });
+      expect(await working.json()).toEqual({
+        working: true,
+        abilities: null,
+        readsProjects: false,
+      });
 
       mocks.withPublicHttpFetch.mockImplementation(
         async (_url: string, _init: unknown, handler: (response: Response) => unknown) =>

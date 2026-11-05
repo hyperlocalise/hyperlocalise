@@ -142,7 +142,10 @@ export function createGitlabRoutes() {
           });
         }
 
-        return c.json({ gitlabConnection: result.value.connection }, 201);
+        return c.json(
+          { gitlabConnection: result.value.connection, check: result.value.check },
+          201,
+        );
       })
       .get("/connections/:connectionId/check", validateConnectionParams, async (c) => {
         if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
@@ -154,14 +157,22 @@ export function createGitlabRoutes() {
           connectionId: c.req.valid("param").connectionId,
           signal: c.req.raw.signal,
         });
-        if (!isErr(result) && result.value === "not_connected") {
+        if (isErr(result)) {
+          return c.json(
+            { working: false as const, code: result.error.code, message: result.error.message },
+            200,
+          );
+        }
+        if (result.value === "not_connected") {
           return notFoundResponse(c, "gitlab_connection_not_found");
         }
 
         return c.json(
-          isErr(result)
-            ? { working: false as const, code: result.error.code, message: result.error.message }
-            : { working: true as const },
+          {
+            working: true as const,
+            abilities: result.value.abilities,
+            readsProjects: result.value.readsProjects,
+          },
           200,
         );
       })
@@ -190,7 +201,10 @@ export function createGitlabRoutes() {
               : badRequestResponse(c, result.error.code, result.error.message);
           }
 
-          return c.json({ gitlabConnection: result.value.connection }, 200);
+          return c.json(
+            { gitlabConnection: result.value.connection, check: result.value.check },
+            200,
+          );
         },
       )
       .post("/connections/:connectionId/default", validateConnectionParams, async (c) => {

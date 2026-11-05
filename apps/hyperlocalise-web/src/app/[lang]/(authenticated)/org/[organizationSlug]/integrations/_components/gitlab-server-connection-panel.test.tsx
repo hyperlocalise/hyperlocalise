@@ -116,7 +116,9 @@ describe("GitLabServerConnectionPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listing([]);
-    mocks.checkGet.mockImplementation(async () => Response.json({ working: true }));
+    mocks.checkGet.mockImplementation(async () =>
+      Response.json({ working: true, abilities: null, readsProjects: true }),
+    );
     mocks.connectionsPost.mockResolvedValue(
       Response.json({ gitlabConnection: webConnection }, { status: 201 }),
     );
@@ -230,6 +232,34 @@ describe("GitLabServerConnectionPanel", () => {
     expect(within(code).getByText(/Connected to https:\/\/gitlab.com as code-bot/)).toBeTruthy();
     await waitFor(() => expect(mocks.checkGet).toHaveBeenCalledTimes(2));
     expect(screen.queryByLabelText("Access token")).toBeNull();
+  });
+
+  it("says what the token can do: send or pull only, when it expires, and when it reads nothing", async () => {
+    listing([webConnection, codeConnection]);
+    mocks.checkGet.mockImplementation(async (input: { param: { connectionId: string } }) =>
+      Response.json(
+        input.param.connectionId === webConnection.id
+          ? {
+              working: true,
+              abilities: { scopes: ["api"], canSend: true, expiresAt: "2027-11-05" },
+              readsProjects: true,
+            }
+          : {
+              working: true,
+              abilities: { scopes: ["read_api"], canSend: false, expiresAt: null },
+              readsProjects: false,
+            },
+      ),
+    );
+    renderPanel();
+    await openRow();
+
+    const website = await screen.findByRole("listitem", { name: "Website" });
+    expect(await within(website).findByText(/It can pull and send merge requests/)).toBeTruthy();
+    expect(within(website).getByText(/Expires on Nov 5, 2027/)).toBeTruthy();
+    const code = screen.getByRole("listitem", { name: "Code" });
+    expect(await within(code).findByText(/read-only \(no api scope\)/)).toBeTruthy();
+    expect(within(code).getByText(/It can read no projects/)).toBeTruthy();
   });
 
   it("describes one connection the old way", async () => {

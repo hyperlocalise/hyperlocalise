@@ -418,9 +418,43 @@ export const projectContentSyncPanelMessages = defineMessages({
       "Shown in the project Sync panel when GitLab is chosen and the workspace has no GitLab connection",
   },
   noGitLabRepositories: {
-    defaultMessage: "The workspace's GitLab token can't see any repositories.",
-    id: "mYbmbB/GF/",
+    defaultMessage:
+      "This connection's token can read no repositories. A project or group token sees only that project or group, and needs at least the Reporter role to read files and Developer to send merge requests.",
+    id: "t0XKEe4Dhs",
     description: "Shown in the project Sync panel when the GitLab connection lists no repositories",
+  },
+  repositoryPullOnly: {
+    defaultMessage: "{name} (pull only)",
+    id: "EiXxrmIRgk",
+    description:
+      "Repository picker entry for a GitLab project the connection can read but not send merge requests to",
+  },
+  repositoryNoAccess: {
+    defaultMessage: "{name} (no access to files)",
+    id: "jEd2qvOqhD",
+    description:
+      "Repository picker entry for a GitLab project where the connection's role is below Reporter",
+  },
+  gitlabRoleCannotSend: {
+    defaultMessage:
+      "GitLab reports this connection's role on this repository as below Developer, so syncs pull but may not be able to send merge requests. Give its token's user or group the Developer role to send.",
+    id: "GOvSvuh32/",
+    description:
+      "Shown under the repository picker when the GitLab connection's role on the chosen project is below Developer",
+  },
+  gitlabTokenCannotSend: {
+    defaultMessage:
+      "This connection's token is read-only (no api scope), so syncs pull but can't send merge requests.",
+    id: "uhRyrKXNRS",
+    description:
+      "Shown under the repository picker when the GitLab connection's token lacks the api scope",
+  },
+  errorGitLabAccessTooLow: {
+    defaultMessage:
+      "The connection's token can't read this repository's files: its role there is below Reporter. Give it at least the Reporter role, and Developer to send merge requests.",
+    id: "6A1cbaLTLI",
+    description:
+      "Shown in the project Sync panel when the GitLab connection's role on the chosen project is too low to read it",
   },
   gitlabConnectionLabel: {
     defaultMessage: "GitLab connection",

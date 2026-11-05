@@ -139,6 +139,7 @@ const requestErrorMessages: Record<string, PanelMessage> = {
   content_sync_gitlab_project_not_found: messages.errorGitLabProjectNotFound,
   content_sync_gitlab_unavailable: messages.errorGitLabUnavailable,
   content_sync_gitlab_connection_removed: messages.errorGitLabConnectionRemoved,
+  content_sync_gitlab_access_too_low: messages.errorGitLabAccessTooLow,
 };
 
 /** Messages for the error codes a finished run records; others show the stored text. */
@@ -318,6 +319,7 @@ export function ProjectContentSyncPanel({
     connected: false,
     available: false,
     connectionId: null,
+    tokenCanSend: null,
   };
   const gitlabConnections = connectionsQuery.data?.gitlabConnections ?? [];
   // The connection the listed projects belong to, shown as the picker's value.
@@ -564,8 +566,27 @@ export function ProjectContentSyncPanel({
     null;
   const repositoryItems = providerConnections.map((connection) => ({
     value: connection.connectionId,
-    label: connection.resourceKey,
+    // A project the connection can only read, or not even that, is marked, so the choice is
+    // made knowingly.
+    label:
+      connection.canRead === false
+        ? intl.formatMessage(messages.repositoryNoAccess, { name: connection.resourceKey })
+        : connection.canSend === false
+          ? intl.formatMessage(messages.repositoryPullOnly, { name: connection.resourceKey })
+          : connection.resourceKey,
   }));
+  // What limits the chosen repository: the connection's role there, and its token's scope.
+  const sendLimits =
+    !isGitLab || !connectionsListed
+      ? []
+      : [
+          selectedConnection?.canRead === false
+            ? messages.errorGitLabAccessTooLow
+            : selectedConnection?.canSend === false
+              ? messages.gitlabRoleCannotSend
+              : null,
+          gitlab.tokenCanSend === false ? messages.gitlabTokenCannotSend : null,
+        ].filter((limit) => limit !== null);
   // A saved repository that is no longer enabled still shows by name.
   if (values.connectionId && !repositoryItems.some((item) => item.value === values.connectionId)) {
     repositoryItems.unshift({ value: values.connectionId, label: values.resourceKey });
@@ -817,6 +838,15 @@ export function ProjectContentSyncPanel({
                         : messages.errorRepositoryNotEnabled)}
                     />
                   </FieldError>
+                ) : null}
+                {sendLimits.length > 0 ? (
+                  <FieldDescription>
+                    {sendLimits.map((limit) => (
+                      <Fragment key={limit.id}>
+                        <FormattedMessage {...limit} />{" "}
+                      </Fragment>
+                    ))}
+                  </FieldDescription>
                 ) : null}
                 {emptyRepositoriesHint ? (
                   <FieldDescription>

@@ -31,6 +31,26 @@ export type GitLabProject = {
   defaultBranch: string | null;
   httpUrlToRepo: string;
   archived: boolean;
+  /**
+   * The token's highest role on the project (GitLab's numbers: 10 Guest, 20 Reporter, 30
+   * Developer, 40 Maintainer, 50 Owner), or null when the answer didn't say.
+   */
+  accessLevel: number | null;
+};
+
+/** What a token may do, as GitLab describes it; null when GitLab can't describe the token. */
+export type GitLabTokenAbilities = {
+  scopes: string[];
+  /** The api scope: can push branches and open merge requests. */
+  canSend: boolean;
+  expiresAt: string | null;
+};
+
+/** What a live check of a saved connection found. */
+export type GitLabConnectionCheck = {
+  abilities: GitLabTokenAbilities | null;
+  /** Whether the token can read at least one project (the Reporter role or above). */
+  readsProjects: boolean;
 };
 
 export type GitLabMergeRequestDetails = {

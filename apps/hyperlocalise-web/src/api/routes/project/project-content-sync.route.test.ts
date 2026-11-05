@@ -20,13 +20,17 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 const {
   enqueueActivityLogEventMock,
+  canReadGitLabRepositoryMock,
   getGitLabProjectMock,
+  getGitLabTokenAbilitiesMock,
   listGitLabMembershipProjectsMock,
   loadGitLabConnectionCredentialsMock,
   resolveApiAuthContextFromSessionMock,
 } = vi.hoisted(() => ({
   enqueueActivityLogEventMock: vi.fn(async () => ({ ok: true as const, value: {} })),
+  canReadGitLabRepositoryMock: vi.fn(),
   getGitLabProjectMock: vi.fn(),
+  getGitLabTokenAbilitiesMock: vi.fn(),
   listGitLabMembershipProjectsMock: vi.fn(),
   loadGitLabConnectionCredentialsMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -52,7 +56,9 @@ vi.mock("@/lib/gitlab/connections", async (importOriginal) => ({
 
 vi.mock("@/lib/gitlab/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/gitlab/client")>()),
+  canReadGitLabRepository: canReadGitLabRepositoryMock,
   getGitLabProject: getGitLabProjectMock,
+  getGitLabTokenAbilities: getGitLabTokenAbilitiesMock,
   listGitLabMembershipProjects: listGitLabMembershipProjectsMock,
 }));
 
@@ -84,6 +90,10 @@ beforeAll(async () => {
 
 beforeEach(() => {
   loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(null));
+  getGitLabTokenAbilitiesMock.mockReset();
+  getGitLabTokenAbilitiesMock.mockResolvedValue(ok(null));
+  canReadGitLabRepositoryMock.mockReset();
+  canReadGitLabRepositoryMock.mockResolvedValue(ok(true));
 });
 
 afterEach(async () => {
@@ -201,7 +211,7 @@ describe("project content sync routes", () => {
           branch: "main",
         },
       ],
-      gitlab: { connected: false, available: false, connectionId: null },
+      gitlab: { connected: false, available: false, connectionId: null, tokenCanSend: null },
       gitlabConnections: [],
     });
 
@@ -433,6 +443,7 @@ describe("project content sync routes", () => {
         defaultBranch: "main",
         httpUrlToRepo: "https://gitlab.example.test/Acme/App.git",
         archived: false,
+        accessLevel: 40,
         ...overrides,
       };
     }
@@ -472,10 +483,24 @@ describe("project content sync routes", () => {
             resourceKey: "acme/web",
             branch: "main",
           },
-          { provider: "gitlab", connectionId: "42", resourceKey: "Acme/App", branch: "main" },
-          { provider: "gitlab", connectionId: "7", resourceKey: "acme/zeta", branch: "main" },
+          {
+            provider: "gitlab",
+            connectionId: "42",
+            resourceKey: "Acme/App",
+            branch: "main",
+            canSend: true,
+            canRead: true,
+          },
+          {
+            provider: "gitlab",
+            connectionId: "7",
+            resourceKey: "acme/zeta",
+            branch: "main",
+            canSend: true,
+            canRead: true,
+          },
         ],
-        gitlab: { connected: true, available: true, connectionId: access.id },
+        gitlab: { connected: true, available: true, connectionId: access.id, tokenCanSend: null },
         gitlabConnections: [],
       });
 
@@ -502,6 +527,53 @@ describe("project content sync routes", () => {
       const toGitHub = await routeFor().$put({ param, json: syncBody(repository.id) }, { headers });
       expect(toGitHub.status).toBe(400);
       expect(await toGitHub.json()).toMatchObject({ error: "content_sync_github_in_integrations" });
+    });
+
+    it("marks projects the connection can only read, says when the token is read-only, and refuses a project whose files it can't read", async () => {
+      const { admin, project } = await seedWorkspace();
+      const headers = await projectFixture.authHeadersFor(admin);
+      const param = paramFor(admin, project.id);
+      loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(access));
+      getGitLabTokenAbilitiesMock.mockResolvedValue(
+        ok({ scopes: ["read_api", "read_repository"], canSend: false, expiresAt: null }),
+      );
+      listGitLabMembershipProjectsMock.mockResolvedValue(
+        ok([
+          gitlabProject({ accessLevel: 20 }),
+          gitlabProject({ id: 7, pathWithNamespace: "acme/zeta", accessLevel: null }),
+        ]),
+      );
+
+      const connections = await routeFor().connections.$get({ param, query: {} }, { headers });
+      expect(await connections.json()).toMatchObject({
+        connections: [
+          expect.anything(),
+          { provider: "gitlab", connectionId: "42", canSend: false, canRead: true },
+          { provider: "gitlab", connectionId: "7", canSend: null, canRead: null },
+        ],
+        gitlab: { tokenCanSend: false },
+      });
+
+      // Whether the files can be read is settled by reading them, not by the reported role: a
+      // Guest sees a private project but not its tree.
+      getGitLabProjectMock.mockResolvedValue(ok(gitlabProject({ accessLevel: 10 })));
+      canReadGitLabRepositoryMock.mockResolvedValue(ok(false));
+      const refused = await routeFor().$put({ param, json: gitlabBody() }, { headers });
+      expect(refused.status).toBe(400);
+      expect(await refused.json()).toMatchObject({ error: "content_sync_gitlab_access_too_low" });
+      expect(canReadGitLabRepositoryMock).toHaveBeenCalledWith({ ...access, projectId: 42 });
+
+      // A Guest on an internal project, or Developer through a shared group, reads fine.
+      canReadGitLabRepositoryMock.mockResolvedValue(ok(true));
+      const saved = await routeFor().$put({ param, json: gitlabBody() }, { headers });
+      expect(saved.status).toBe(200);
+
+      // A saved project whose role fell below Reporter is listed as having no access.
+      listGitLabMembershipProjectsMock.mockResolvedValue(ok([]));
+      const lowered = await routeFor().connections.$get({ param, query: {} }, { headers });
+      expect(await lowered.json()).toMatchObject({
+        connections: [expect.anything(), { connectionId: "42", canRead: false, canSend: false }],
+      });
     });
 
     it("lists the projects of the connection asked for, and refuses one that isn't an id", async () => {

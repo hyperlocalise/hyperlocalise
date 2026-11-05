@@ -36,7 +36,17 @@ import {
 } from "@/lib/agents/content-sync/content-sync-types";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { db, schema } from "@/lib/database/client";
-import { getGitLabProject, listGitLabMembershipProjects } from "@/lib/gitlab/client";
+import {
+  canReadGitLabRepository,
+  getGitLabProject,
+  getGitLabTokenAbilities,
+  listGitLabMembershipProjects,
+} from "@/lib/gitlab/client";
+import {
+  GITLAB_CLONE_MIN_ACCESS_LEVEL,
+  GITLAB_SEND_MIN_ACCESS_LEVEL,
+} from "@/lib/gitlab/constants";
+import type { GitLabProject } from "@/lib/gitlab/types";
 import { listGitLabConnections, loadGitLabConnectionCredentials } from "@/lib/gitlab/connections";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import {
@@ -257,6 +267,12 @@ const GITLAB_UNREACHABLE_ERROR: SyncConnectionError = {
   message: "The workspace's GitLab server couldn't be reached. Try again or check Integrations.",
 };
 
+const GITLAB_ACCESS_TOO_LOW_ERROR: SyncConnectionError = {
+  code: "content_sync_gitlab_access_too_low",
+  message:
+    "The connection's token can't read this repository's files: its role there is below Reporter. Give it at least the Reporter role, and Developer to send merge requests.",
+};
+
 const GITLAB_CONNECTION_REMOVED_ERROR: SyncConnectionError = {
   code: "content_sync_gitlab_connection_removed",
   message: "The chosen GitLab connection no longer exists. Choose another connection.",
@@ -268,6 +284,14 @@ type SyncConnectionOption = {
   resourceKey: string;
   /** The branch a GitHub repository was enabled with; a GitLab sync names its own. */
   branch: string | null;
+  /**
+   * GitLab: whether the role GitLab reports for the connection on the project lets it push a
+   * branch and open a merge request (Developer or above); null when GitLab didn't say. The
+   * reported role leaves out access through a shared group, so this is a lower bound. GitHub: null.
+   */
+  canSend?: boolean | null;
+  /** GitLab: whether that role lets it read the files at all (Reporter or above); same caveats. */
+  canRead?: boolean | null;
 };
 
 type GitLabSyncListing = {
@@ -277,8 +301,24 @@ type GitLabSyncListing = {
   available: boolean;
   /** The connection the projects belong to: the one asked for, else the default. */
   connectionId: string | null;
+  /** Whether the connection's token has the api scope; null when GitLab couldn't say. */
+  tokenCanSend: boolean | null;
   connections: SyncConnectionOption[];
 };
+
+function syncOptionFromProject(project: GitLabProject): SyncConnectionOption {
+  return {
+    provider: "gitlab",
+    connectionId: String(project.id),
+    resourceKey: project.pathWithNamespace,
+    // What an empty branch field reads; shown as its placeholder.
+    branch: project.defaultBranch,
+    canSend:
+      project.accessLevel === null ? null : project.accessLevel >= GITLAB_SEND_MIN_ACCESS_LEVEL,
+    canRead:
+      project.accessLevel === null ? null : project.accessLevel >= GITLAB_CLONE_MIN_ACCESS_LEVEL,
+  };
+}
 
 /**
  * One GitLab connection's projects; `available` is false when GitLab can't be read. The listing
@@ -294,20 +334,33 @@ async function listGitLabSyncConnections(
     organizationId,
     connectionId: gitlabConnectionId,
   });
+  const unavailable = (connected: boolean): GitLabSyncListing => ({
+    connected,
+    available: false,
+    connectionId: gitlabConnectionId,
+    tokenCanSend: null,
+    connections: [],
+  });
   if (isErr(access)) {
-    return { connected: true, available: false, connectionId: gitlabConnectionId, connections: [] };
+    return unavailable(true);
   }
   if (!access.value) {
     // A removed connection still counts the workspace as connected when another exists.
     const connected = gitlabConnectionId
       ? (await listGitLabConnections({ organizationId })).length > 0
       : false;
-    return { connected, available: false, connectionId: gitlabConnectionId, connections: [] };
+    return unavailable(connected);
   }
   const connectionId = access.value.id;
-  const projects = await listGitLabMembershipProjects(access.value);
+  // What the token itself may do is asked alongside the projects; a server that can't describe
+  // it leaves this unknown.
+  const [abilities, projects] = await Promise.all([
+    getGitLabTokenAbilities(access.value),
+    listGitLabMembershipProjects(access.value),
+  ]);
+  const tokenCanSend = !isErr(abilities) && abilities.value ? abilities.value.canSend : null;
   if (isErr(projects)) {
-    return { connected: true, available: false, connectionId, connections: [] };
+    return { ...unavailable(true), connectionId };
   }
   const listed = projects.value;
   if (saved && !listed.some((project) => String(project.id) === saved.connectionId)) {
@@ -315,7 +368,7 @@ async function listGitLabSyncConnections(
     if (isErr(found)) {
       if (found.error.code !== "gitlab_not_found") {
         // A slow or failing lookup must not call the saved project missing.
-        return { connected: true, available: false, connectionId, connections: [] };
+        return { ...unavailable(true), connectionId };
       }
     } else if (String(found.value.id) === saved.connectionId && !found.value.archived) {
       // The same project, outside the most recently active ones the listing stops at.
@@ -326,14 +379,9 @@ async function listGitLabSyncConnections(
     connected: true,
     available: true,
     connectionId,
+    tokenCanSend,
     connections: listed
-      .map((project) => ({
-        provider: "gitlab" as const,
-        connectionId: String(project.id),
-        resourceKey: project.pathWithNamespace,
-        // What an empty branch field reads; shown as its placeholder.
-        branch: project.defaultBranch,
-      }))
+      .map(syncOptionFromProject)
       .sort((left, right) => left.resourceKey.localeCompare(right.resourceKey)),
   };
 }
@@ -405,6 +453,18 @@ async function resolveSyncConnection(input: {
       }
       if (String(project.value.id) !== config.connectionId || project.value.archived) {
         return err(GITLAB_PROJECT_NOT_FOUND_ERROR);
+      }
+      // A Guest can see a private project but not its files, so the sync would fail on the first
+      // one. Reading the tree is the one check that settles it, whatever role GitLab reports.
+      const readable = await canReadGitLabRepository({
+        ...access.value,
+        projectId: project.value.id,
+      });
+      if (isErr(readable)) {
+        return err(GITLAB_UNREACHABLE_ERROR);
+      }
+      if (!readable.value) {
+        return err(GITLAB_ACCESS_TOO_LOW_ERROR);
       }
       return ok({
         ...config,
@@ -532,6 +592,7 @@ export function createProjectContentSyncRoutes(
             connected: gitlab.connected,
             available: gitlab.available,
             connectionId: gitlab.connectionId,
+            tokenCanSend: gitlab.tokenCanSend,
           },
           gitlabConnections: gitlabConnections.map((connection) => ({
             id: connection.id,

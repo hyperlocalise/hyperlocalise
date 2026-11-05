@@ -180,6 +180,28 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
     id: "9Tey3vfO9H",
     description: "Shown when the saved GitLab server connection passes a live check",
   },
+  tokenCanSend: {
+    defaultMessage: "It can pull and send merge requests.",
+    id: "FqY/BvkEQe",
+    description: "Status line part for a GitLab token with the api scope",
+  },
+  tokenReadOnly: {
+    defaultMessage: "It is read-only (no api scope): syncs pull but can't send merge requests.",
+    id: "EJ9REmTRCU",
+    description: "Status line part for a GitLab token without the api scope",
+  },
+  tokenExpires: {
+    defaultMessage: "Expires on {date}.",
+    id: "WZsGvl//q1",
+    description: "Status line part giving a GitLab token's expiry date",
+  },
+  tokenReadsNothing: {
+    defaultMessage:
+      "It can read no projects: give its user or group at least the Reporter role on the projects to sync, and Developer to send merge requests.",
+    id: "MtgG06vtLX",
+    description:
+      "Warning on a GitLab connection whose token has no project with the Reporter role or above",
+  },
   intro: {
     defaultMessage:
       "Connections you add here are shared by everyone in the workspace: chat and automations use the default one, and each project's Sync settings pick one. Each reaches whatever its token can reach. Once one exists, members' own GitLab.com sign-ins are no longer used.",
@@ -223,14 +245,14 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
   },
   tokenHint: {
     defaultMessage:
-      "Use a token from a non-admin user, with the api scope to send merge requests; with read_api and read_repository only, syncs pull and say translations weren't sent. Set an expiry.",
-    id: "uRNHIi1M/k",
+      "Use a token from a non-admin user with the Developer role on the projects to sync (Reporter can only pull), and the api scope to send merge requests; with read_api and read_repository only, syncs pull and say translations weren't sent. Set an expiry.",
+    id: "WxwypwDXoe",
     description: "Hint describing which access token to create on a company's own GitLab server",
   },
   tokenHintGitLabCom: {
     defaultMessage:
-      "Use a project or group access token, or a dedicated account that belongs only to the projects to sync: everyone here reaches what the token reaches. Scopes: api to send merge requests; with read_api and read_repository only, syncs pull and say translations weren't sent. Set an expiry.",
-    id: "LZe2ex/5iP",
+      "Use a project or group access token, or a dedicated account that belongs only to the projects to sync: everyone here reaches what the token reaches. Role: Developer to send merge requests, Reporter to pull only. Scopes: api to send merge requests; with read_api and read_repository only, syncs pull and say translations weren't sent. Set an expiry.",
+    id: "CCuCNrvni7",
     description: "Hint describing which access token to create on GitLab.com",
   },
   tokenReplaceHint: {

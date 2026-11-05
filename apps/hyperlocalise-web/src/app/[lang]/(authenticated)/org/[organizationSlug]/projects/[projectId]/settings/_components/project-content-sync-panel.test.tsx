@@ -128,7 +128,12 @@ const gitlabSync = {
   },
 };
 
-const gitlabConnected = { connected: true, available: true, connectionId: null };
+const gitlabConnected = {
+  connected: true,
+  available: true,
+  connectionId: null,
+  tokenCanSend: null as boolean | null,
+};
 const webConnection = {
   id: "11111111-1111-4111-8111-111111111111",
   name: "Website",
@@ -147,7 +152,12 @@ function renderPanel(
     canManage?: boolean;
     sync?: unknown;
     connections?: unknown[];
-    gitlab?: { connected: boolean; available: boolean; connectionId?: string | null };
+    gitlab?: {
+      connected: boolean;
+      available: boolean;
+      connectionId?: string | null;
+      tokenCanSend?: boolean | null;
+    };
     gitlabConnections?: unknown[];
     runs?: unknown[];
   } = {},
@@ -543,6 +553,55 @@ describe("ProjectContentSyncPanel", () => {
       });
       await screen.findByRole("combobox", { name: "GitLab connection" });
       expect(screen.getByText(/Add a connection there, then choose it here/)).toBeTruthy();
+    });
+
+    it("marks a repository the connection can only pull from, and says why it can't send", async () => {
+      renderPanel({
+        sync: gitlabSync,
+        runs: [],
+        connections: [
+          { provider: "gitlab", connectionId: "42", resourceKey: "acme/app", canSend: false },
+        ],
+        gitlab: gitlabConnected,
+      });
+      const picker = await screen.findByRole("combobox", { name: "Repository" });
+      expect(picker).toHaveTextContent("acme/app (pull only)");
+      expect(screen.getByText(/role on this repository as below Developer/)).toBeTruthy();
+      cleanup();
+
+      renderPanel({
+        sync: gitlabSync,
+        runs: [],
+        connections: [
+          {
+            provider: "gitlab",
+            connectionId: "42",
+            resourceKey: "acme/app",
+            canSend: false,
+            canRead: false,
+          },
+        ],
+        gitlab: { ...gitlabConnected, tokenCanSend: false },
+      });
+      expect(await screen.findByRole("combobox", { name: "Repository" })).toHaveTextContent(
+        "acme/app (no access to files)",
+      );
+      expect(screen.getByText(/can't read this repository's files/)).toBeTruthy();
+      // Both limits are said at once, so fixing one doesn't reveal the other later.
+      expect(screen.getByText(/token is read-only/)).toBeTruthy();
+      cleanup();
+
+      renderPanel({
+        sync: gitlabSync,
+        runs: [],
+        connections: [
+          { provider: "gitlab", connectionId: "42", resourceKey: "acme/app", canSend: true },
+        ],
+        gitlab: { ...gitlabConnected, tokenCanSend: false },
+      });
+      await screen.findByRole("combobox", { name: "Repository" });
+      expect(screen.getByText(/token is read-only/)).toBeTruthy();
+      expect(screen.queryByText(/pull only/)).toBeNull();
     });
 
     it("labels a GitLab run's review link as a merge request", async () => {

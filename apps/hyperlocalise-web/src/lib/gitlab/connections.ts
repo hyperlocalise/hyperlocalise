@@ -21,10 +21,15 @@ import {
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 
-import { checkGitLabProjectAccess, getGitLabCurrentUsername } from "./client";
+import {
+  checkGitLabProjectAccess,
+  getGitLabCurrentUsername,
+  getGitLabTokenAbilities,
+} from "./client";
 import { resolveGitLabServerUrl } from "./server-url";
 import type {
   GitLabApiError,
+  GitLabConnectionCheck,
   GitLabConnectionDecryptError,
   GitLabConnectionError,
   GitLabConnectionSummary,
@@ -129,12 +134,17 @@ function mapCheckError(error: GitLabApiError): GitLabConnectionError {
   };
 }
 
-/** Finds who the token belongs to, and that it can read projects: read_user alone passes the first. */
+type GitLabServerCheck = GitLabConnectionCheck & { username: string };
+
+/**
+ * Finds who the token belongs to, that it can list projects (read_user alone passes the first),
+ * and what it can do: its scopes and expiry, and whether it reads at least one project.
+ */
 async function checkGitLabServer(input: {
   baseUrl: string;
   accessToken: string;
   signal?: AbortSignal;
-}): Promise<Result<string, GitLabConnectionError>> {
+}): Promise<Result<GitLabServerCheck, GitLabConnectionError>> {
   // The first failure is the answer: it stops the other request, whose own failure is then only
   // that it was stopped.
   const controller = new AbortController();
@@ -150,15 +160,24 @@ async function checkGitLabServer(input: {
     return result;
   };
   const access = { baseUrl: input.baseUrl, accessToken: input.accessToken, signal };
-  const [username] = await Promise.all([
+  // The token's own description is extra: a failure there never fails the check.
+  const [username, projects, abilities] = await Promise.all([
     getGitLabCurrentUsername(access).then(stopOnFailure),
     checkGitLabProjectAccess(access).then(stopOnFailure),
+    getGitLabTokenAbilities(access),
   ]);
   if (first.error) {
     return err(mapCheckError(first.error));
   }
+  if (isErr(username) || isErr(projects)) {
+    throw new Error("gitlab_check_incomplete");
+  }
 
-  return isErr(username) ? err(mapCheckError(username.error)) : username;
+  return ok({
+    username: username.value,
+    abilities: isErr(abilities) ? null : abilities.value,
+    readsProjects: projects.value.readsProjects,
+  });
 }
 
 async function listRows(organizationId: string) {
@@ -228,7 +247,10 @@ export async function saveGitLabConnection(input: {
   accessToken: string;
   signal?: AbortSignal;
 }): Promise<
-  Result<{ connection: GitLabConnectionSummary; created: boolean }, GitLabConnectionError>
+  Result<
+    { connection: GitLabConnectionSummary; created: boolean; check: GitLabConnectionCheck },
+    GitLabConnectionError
+  >
 > {
   const baseUrl = await resolveGitLabServerUrl(input.serverUrl);
   if (isErr(baseUrl)) {
@@ -243,21 +265,25 @@ export async function saveGitLabConnection(input: {
     });
   }
 
-  const username = await checkGitLabServer({
+  const checked = await checkGitLabServer({
     baseUrl: baseUrl.value,
     accessToken,
     signal: input.signal,
   });
-  if (isErr(username)) {
-    return username;
+  if (isErr(checked)) {
+    return checked;
   }
+  const check: GitLabConnectionCheck = {
+    abilities: checked.value.abilities,
+    readsProjects: checked.value.readsProjects,
+  };
 
   const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(accessToken));
   const fields = {
     updatedByUserId: input.userId,
     name: normalizeName(input.name),
     serverUrl: baseUrl.value,
-    connectedUsername: username.value,
+    connectedUsername: checked.value.username,
     encryptionAlgorithm: encrypted.algorithm,
     ciphertext: encrypted.ciphertext,
     iv: encrypted.iv,
@@ -289,7 +315,7 @@ export async function saveGitLabConnection(input: {
     if (!saved) {
       throw new Error("gitlab_connection_save_failed");
     }
-    return ok({ connection: saved, created: false });
+    return ok({ connection: saved, created: false, check });
   }
 
   const [row] = await db
@@ -306,7 +332,7 @@ export async function saveGitLabConnection(input: {
   if (!saved) {
     throw new Error("gitlab_connection_save_failed");
   }
-  return ok({ connection: saved, created: true });
+  return ok({ connection: saved, created: true, check });
 }
 
 /**
@@ -412,7 +438,7 @@ export async function checkSavedGitLabConnection(input: {
   organizationId: string;
   connectionId?: string | null;
   signal?: AbortSignal;
-}): Promise<Result<"working" | "not_connected", GitLabConnectionError>> {
+}): Promise<Result<GitLabConnectionCheck | "not_connected", GitLabConnectionError>> {
   const credentials = await loadGitLabConnectionCredentials(input);
   if (isErr(credentials)) {
     return credentials;
@@ -421,6 +447,8 @@ export async function checkSavedGitLabConnection(input: {
     return ok("not_connected");
   }
 
-  const username = await checkGitLabServer({ ...credentials.value, signal: input.signal });
-  return isErr(username) ? username : ok("working");
+  const checked = await checkGitLabServer({ ...credentials.value, signal: input.signal });
+  return isErr(checked)
+    ? checked
+    : ok({ abilities: checked.value.abilities, readsProjects: checked.value.readsProjects });
 }

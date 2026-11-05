@@ -36,6 +36,7 @@ import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
 import {
+  checkSavedGitLabConnection,
   deleteGitLabConnection,
   findGitLabConnection,
   getGitLabConnection,
@@ -195,6 +196,42 @@ describe("gitlab connections", () => {
       .from(schema.gitlabConnections)
       .where(eq(schema.gitlabConnections.organizationId, scope.organizationId));
     expect(rows).toHaveLength(2);
+  });
+
+  it("reports what the token can do: scopes and expiry from GitLab, and whether it reads any project", async () => {
+    const scope = await seedScope();
+    mockServer((url) =>
+      url.includes("/api/v4/user")
+        ? Response.json({ username: "translations-bot" })
+        : url.includes("/personal_access_tokens/self")
+          ? Response.json({ scopes: ["read_api", "read_repository"], expires_at: "2027-11-05" })
+          : Response.json([{ id: 1 }]),
+    );
+    const saved = await saveGitLabConnection({
+      ...scope,
+      serverUrl: "https://git.acme.example",
+      accessToken: "glpat-read",
+    });
+    expect(isOk(saved) && saved.value.check).toEqual({
+      abilities: {
+        scopes: ["read_api", "read_repository"],
+        canSend: false,
+        expiresAt: "2027-11-05",
+      },
+      readsProjects: true,
+    });
+
+    // A token GitLab can't describe, with the Guest role everywhere, reads nothing; a failing
+    // description call never fails the check.
+    mockServer((url) =>
+      url.includes("/api/v4/user")
+        ? Response.json({ username: "translations-bot" })
+        : url.includes("/personal_access_tokens/self")
+          ? new Response("{}", { status: 500 })
+          : Response.json([]),
+    );
+    const checked = await checkSavedGitLabConnection({ organizationId: scope.organizationId });
+    expect(isOk(checked) && checked.value).toEqual({ abilities: null, readsProjects: false });
   });
 
   it("counts the project syncs that name each connection", async () => {
