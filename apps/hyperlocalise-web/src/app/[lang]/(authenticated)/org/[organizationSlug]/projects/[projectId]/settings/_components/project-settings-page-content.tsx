@@ -68,6 +68,7 @@ import { ProjectIssueTemplatesPanel } from "./project-issue-templates-panel";
 import { ProjectNativeConnectCliPanel } from "./project-native-connect-cli-panel";
 import { ProjectIssueColumnsSettings } from "./project-issue-columns-settings";
 import { ProjectContentEditorBehaviorSettings } from "./project-content-editor-behavior-settings";
+import { ProjectContentSyncPanel } from "./project-content-sync-panel";
 import { ProjectSettingsNav, type ProjectSettingsNavItemId } from "./project-settings-nav";
 import { projectSettingsPageContentMessages } from "./project-settings-page-content.messages";
 import { ProjectSettingsSectionHeading } from "./project-settings-section-heading";
@@ -250,10 +251,12 @@ export function ProjectSettingsPageContent({
   organizationSlug,
   projectId,
   canManageCatBehavior,
+  canManageSync = false,
 }: {
   organizationSlug: string;
   projectId: string;
   canManageCatBehavior: boolean;
+  canManageSync?: boolean;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -272,6 +275,7 @@ export function ProjectSettingsPageContent({
     () => new Set(),
   );
   const [issueTemplatesDirty, setIssueTemplatesDirty] = useState(false);
+  const [syncDirty, setSyncDirty] = useState(false);
   const valuesRef = useRef(values);
   const baselineRef = useRef(baseline);
   const pendingSectionsRef = useRef(pendingSections);
@@ -457,7 +461,7 @@ export function ProjectSettingsPageContent({
     projectSettingsSectionIsDirty("locales", values, baseline);
   // One guard for the page: only one can be active at a time.
   const { leaveGuardDialog } = useUnsavedChangesLeaveGuard(
-    generalDirty || styleGuideDirty || localesDirty || issueTemplatesDirty,
+    generalDirty || styleGuideDirty || localesDirty || issueTemplatesDirty || syncDirty,
   );
 
   if (projectQuery.isLoading || !values || !baseline) {
@@ -492,6 +496,7 @@ export function ProjectSettingsPageContent({
   ]);
   if (metadataEditable) {
     visibleNavItems.add("style-guide");
+    visibleNavItems.add("sync");
     visibleNavItems.add("cli");
   }
   if (hasPersistedProjectRow) {
@@ -503,6 +508,7 @@ export function ProjectSettingsPageContent({
   if (styleGuideDirty) dirtyNavItems.add("style-guide");
   if (localesDirty) dirtyNavItems.add("locales");
   if (issueTemplatesDirty) dirtyNavItems.add("issue-templates");
+  if (syncDirty) dirtyNavItems.add("sync");
   const activeNavItem = [...visibleNavItems].find((item) => item === requestedNavItem) ?? "general";
 
   function selectNavItem(item: ProjectSettingsNavItemId) {
@@ -751,6 +757,18 @@ export function ProjectSettingsPageContent({
               projectId={projectId}
               canManage={canManageCatBehavior}
             />
+          ) : null}
+
+          {metadataEditable ? (
+            <div hidden={activeNavItem !== "sync"}>
+              <ProjectContentSyncPanel
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+                canManage={canManageSync}
+                active={activeNavItem === "sync"}
+                onDirtyChange={setSyncDirty}
+              />
+            </div>
           ) : null}
 
           {activeNavItem === "cli" ? (

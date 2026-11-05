@@ -281,6 +281,7 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 	}
 	if item.Hidden != nil {
 		set.add("is_hidden = ?", *item.Hidden)
+		set.add("hidden_by_sync_at = ?", nil)
 	}
 	if len(set.conditions) > 1 {
 		args := append(set.args, actor.OrganizationID, scope.ID, existingID)

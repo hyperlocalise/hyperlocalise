@@ -91,6 +91,34 @@ describe("resolveGitLabAccess", () => {
 
     expect(isErr(result) && result.error.code).toBe("gitlab_not_connected");
   });
+
+  it("uses the connection asked for, and says when that one was removed rather than falling back", async () => {
+    mocks.loadGitLabConnectionCredentials.mockResolvedValue(
+      ok({ id: "conn_2", baseUrl: "https://code.acme.example", accessToken: "code-token" }),
+    );
+    const chosen = await resolveGitLabAccess({
+      localOrganizationId: "org_1",
+      workosUserId: "user_1",
+      connectionId: "conn_2",
+    });
+    expect(mocks.loadGitLabConnectionCredentials).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      connectionId: "conn_2",
+    });
+    expect(isOk(chosen) && chosen.value).toEqual({
+      baseUrl: "https://code.acme.example",
+      accessToken: "code-token",
+    });
+
+    mocks.loadGitLabConnectionCredentials.mockResolvedValue(ok(null));
+    const removed = await resolveGitLabAccess({
+      localOrganizationId: "org_1",
+      workosUserId: "user_1",
+      connectionId: "conn_2",
+    });
+    expect(isErr(removed) && removed.error.code).toBe("gitlab_connection_removed");
+    expect(mocks.loadGitLabPipesAccessToken).not.toHaveBeenCalled();
+  });
 });
 
 describe("resolveGitLabCredentialOwner", () => {

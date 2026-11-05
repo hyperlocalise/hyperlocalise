@@ -1193,6 +1193,14 @@ export type WorkspaceAutomationConfigValidationError =
       message: "Choose a safe relative folder path.";
     }
   | {
+      code: "content_sync_path_template_required";
+      message: "Say where each language's files are, for example {{locale}}.json.";
+    }
+  | {
+      code: "content_sync_path_template_invalid";
+      message: "The language file paths need {{locale}}, with ** only as a whole folder (twice at most), at most two * or {{locale}} in a name, and at most eight in all.";
+    }
+  | {
       code: "content_sync_duplicate";
       message: "This project already syncs that source folder.";
     }

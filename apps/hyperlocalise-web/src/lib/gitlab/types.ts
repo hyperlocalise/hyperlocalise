@@ -19,6 +19,7 @@ export type GitLabPipesError =
 export type GitLabApiError =
   | GitLabPipesError
   | { code: "gitlab_connection_decrypt_failed"; message: string }
+  | { code: "gitlab_connection_removed"; message: string }
   | { code: "gitlab_unauthorized"; message: string }
   | { code: "gitlab_not_found"; message: string }
   | { code: "gitlab_request_failed"; message: string; status: number; timedOut?: boolean };
@@ -30,6 +31,26 @@ export type GitLabProject = {
   defaultBranch: string | null;
   httpUrlToRepo: string;
   archived: boolean;
+  /**
+   * The token's highest role on the project (GitLab's numbers: 10 Guest, 20 Reporter, 30
+   * Developer, 40 Maintainer, 50 Owner), or null when the answer didn't say.
+   */
+  accessLevel: number | null;
+};
+
+/** What a token may do, as GitLab describes it; null when GitLab can't describe the token. */
+export type GitLabTokenAbilities = {
+  scopes: string[];
+  /** The api scope: can push branches and open merge requests. */
+  canSend: boolean;
+  expiresAt: string | null;
+};
+
+/** What a live check of a saved connection found. */
+export type GitLabConnectionCheck = {
+  abilities: GitLabTokenAbilities | null;
+  /** Whether the token can read at least one project (the Reporter role or above). */
+  readsProjects: boolean;
 };
 
 export type GitLabMergeRequestDetails = {
@@ -45,10 +66,18 @@ export type GitLabAccess = {
 };
 
 export type GitLabConnectionSummary = {
+  id: string;
+  /** What people call it: the saved name, or the server's host for one saved before names. */
+  name: string;
+  /** The saved name alone, so a form can start from it; null shows as the host. */
+  storedName: string | null;
+  isDefault: boolean;
   serverUrl: string;
   connectedUsername: string;
   maskedTokenSuffix: string;
   updatedAt: string;
+  /** Project syncs that name this connection; they stop until repointed if it is removed. */
+  syncCount: number;
 };
 
 export type GitLabConnectionDecryptError = {
@@ -62,4 +91,5 @@ export type GitLabConnectionError =
   | { code: "gitlab_server_not_recognized"; message: string }
   | { code: "gitlab_token_rejected"; message: string }
   | { code: "gitlab_token_invalid"; message: string }
+  | { code: "gitlab_connection_not_found"; message: string }
   | { code: "gitlab_connection_decrypt_failed"; message: string };

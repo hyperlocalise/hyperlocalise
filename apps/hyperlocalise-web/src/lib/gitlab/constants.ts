@@ -24,8 +24,13 @@ export const GITLAB_GIT_OAUTH_USERNAME = "oauth2";
 /** Reporter and above can clone project source. */
 export const GITLAB_CLONE_MIN_ACCESS_LEVEL = 20;
 
+/** The Developer role: the least that can push a branch and open a merge request. */
+export const GITLAB_SEND_MIN_ACCESS_LEVEL = 30;
+
 export const GITLAB_PROJECT_PAGE_SIZE = 100;
 
 export const GITLAB_PROJECT_MAX_PAGES = 3;
 
 export const GITLAB_SERVER_REQUEST_TIMEOUT_MS = 15_000;
+/** A commit of many files takes GitLab longer to apply than a read; the answer is waited for. */
+export const GITLAB_WRITE_REQUEST_TIMEOUT_MS = 60_000;
