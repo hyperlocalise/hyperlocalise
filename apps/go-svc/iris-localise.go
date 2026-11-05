@@ -691,6 +691,11 @@ func (p *irisGatewayProvider) Complete(ctx context.Context, req irisChatRequest)
 			{"role": "user", "content": content},
 		},
 	}
+	// Direct OpenAI rejects non-default temperature on current chat models;
+	// AI Gateway keeps the existing 0.3 sampling used in production.
+	if !isIrisOpenAIBaseURL(p.baseURL) {
+		payload["temperature"] = 0.3
+	}
 	if req.JSON {
 		payload["response_format"] = map[string]string{"type": "json_object"}
 	}

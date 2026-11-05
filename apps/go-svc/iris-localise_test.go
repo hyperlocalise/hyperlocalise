@@ -233,9 +233,49 @@ func TestGatewayCompleteAndImageText(t *testing.T) {
 	require.Equal(t, "text.json", outputs[0].Filename)
 	require.Contains(t, string(outputs[0].Bytes), "50% OFF")
 	require.Equal(t, map[string]any{"type": "json_object"}, payload["response_format"])
-	_, hasTemperature := payload["temperature"]
-	require.False(t, hasTemperature)
+	require.Equal(t, 0.3, payload["temperature"])
 	messages := payload["messages"].([]any)
 	user := messages[1].(map[string]any)["content"].([]any)
 	require.Equal(t, "image_url", user[1].(map[string]any)["type"])
+}
+
+func TestCompleteOmitsTemperatureForDirectOpenAI(t *testing.T) {
+	var payload map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"translations\":{}}"}}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL: defaultIrisOpenAIBaseURL,
+		apiKey:  "sk",
+		httpClient: &http.Client{Transport: rewriteHostRoundTripper{
+			host: server.URL,
+			next: http.DefaultTransport,
+		}},
+	}
+	_, err := provider.Complete(context.Background(), irisChatRequest{
+		Model:  defaultIrisOpenAITranslateModel,
+		System: "sys",
+		User:   "{}",
+		JSON:   true,
+	})
+	require.NoError(t, err)
+	_, hasTemperature := payload["temperature"]
+	require.False(t, hasTemperature)
+	require.Equal(t, defaultIrisOpenAITranslateModel, payload["model"])
+}
+
+type rewriteHostRoundTripper struct {
+	host string
+	next http.RoundTripper
+}
+
+func (r rewriteHostRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	target, err := http.NewRequestWithContext(req.Context(), req.Method, r.host+req.URL.Path, req.Body)
+	if err != nil {
+		return nil, err
+	}
+	target.Header = req.Header
+	return r.next.RoundTrip(target)
 }
