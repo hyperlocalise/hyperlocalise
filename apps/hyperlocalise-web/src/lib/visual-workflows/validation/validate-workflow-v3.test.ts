@@ -74,6 +74,33 @@ function bindingIssues(
 }
 
 describe("validateVisualWorkflowV3Definition data wires", () => {
+  it("accepts explicit success branches between JSON operation nodes", () => {
+    const trigger = step("trigger", "trigger.manual");
+    trigger.outputFields = [{ path: "payload", type: "string" }];
+
+    expect(
+      validateVisualWorkflowV3Definition({
+        schemaVersion: 3,
+        name: "JSON operations",
+        nodes: [
+          trigger,
+          step("parse", "logic.json_parse"),
+          step("validate", "logic.schema_validate"),
+          step("stringify", "logic.json_stringify"),
+        ],
+        edges: [
+          runs("trigger", "parse"),
+          runs("parse", "validate"),
+          runs("validate", "stringify"),
+          wire("trigger", "payload", "parse", "text"),
+          wire("parse", "value", "validate", "value"),
+          wire("validate", "value", "stringify", "value"),
+        ],
+        editor: { positions: {} },
+      }),
+    ).toEqual([]);
+  });
+
   it.each([
     ["an HTTP request's json", "action.http", "json"],
     ["an AI agent's json", "ai.agent", "json"],

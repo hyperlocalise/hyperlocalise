@@ -82,6 +82,25 @@ describe("getAllowedExecutionSourceHandles", () => {
       ),
     ).toEqual([null, "success", "error"]);
   });
+
+  it("exposes JSON success, invalid, and error branches", () => {
+    expect(getAllowedExecutionSourceHandles(canonical("logic.json_parse"))).toEqual([
+      "success",
+      "invalid",
+    ]);
+    expect(getAllowedExecutionSourceHandles(canonical("logic.json_stringify"))).toEqual([
+      "success",
+      "error",
+    ]);
+    expect(getAllowedExecutionSourceHandles(canonical("logic.schema_validate"))).toEqual([
+      "success",
+      "invalid",
+    ]);
+
+    expect(getPrimaryExecutionSourceHandle(canonical("logic.json_parse"))).toBe("success");
+    expect(getPrimaryExecutionSourceHandle(canonical("logic.json_stringify"))).toBe("success");
+    expect(getPrimaryExecutionSourceHandle(canonical("logic.schema_validate"))).toBe("success");
+  });
 });
 
 describe("normalizeExecutionSourceHandle", () => {

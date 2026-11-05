@@ -25,6 +25,7 @@ import {
   computeForEachBodyNodeIdsFromV3Edges,
   computeTryCatchBodyNodeIdsFromV3Edges,
 } from "../editor/for-each-body-membership";
+import { getAllowedExecutionSourceHandles } from "./execution-handles";
 
 export type VisualWorkflowV3CompilationIssue = {
   code:
@@ -600,11 +601,14 @@ export function compileVisualWorkflowV3Definition(
 export function toVisualWorkflowExecutionDefinition(
   compiled: CompiledVisualWorkflowV3Definition,
 ): VisualWorkflowDefinition {
-  const tryCatchNodeIds = new Set(
-    compiled.definition.nodes
-      .filter((node) => node.type === "logic.try_catch")
-      .map((node) => node.id),
-  );
+  const nodesById = new Map(compiled.definition.nodes.map((node) => [node.id, node]));
+  const executionSourceHandle = (
+    edge: Extract<VisualWorkflowV3Edge, { kind: "execution" }>,
+  ): string | null => {
+    if (edge.sourcePortId !== "success") return edge.sourcePortId;
+    const source = nodesById.get(edge.source);
+    return source && getAllowedExecutionSourceHandles(source).includes(null) ? null : "success";
+  };
 
   return {
     schemaVersion: 2,
@@ -629,10 +633,7 @@ export function toVisualWorkflowExecutionDefinition(
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      sourceHandle:
-        edge.sourcePortId === "success" && !tryCatchNodeIds.has(edge.source)
-          ? null
-          : edge.sourcePortId,
+      sourceHandle: executionSourceHandle(edge),
       targetHandle: edge.targetPortId === "input" ? null : edge.targetPortId,
     })),
     editor: compiled.definition.editor,

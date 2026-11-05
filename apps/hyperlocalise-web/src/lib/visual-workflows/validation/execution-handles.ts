@@ -26,6 +26,12 @@ export function getAllowedExecutionSourceHandles(
   if (node.type === "logic.if") {
     return ["true", "false"];
   }
+  if (node.type === "logic.json_parse" || node.type === "logic.schema_validate") {
+    return ["success", "invalid"];
+  }
+  if (node.type === "logic.json_stringify") {
+    return ["success", "error"];
+  }
   if (node.config.kind === "logic.switch") {
     return ["default", ...node.config.cases.map((entry) => entry.id)];
   }
@@ -60,6 +66,13 @@ export function getAllowedExecutionSourceHandles(
 export function getPrimaryExecutionSourceHandle(node: VisualWorkflowHandleSource): string | null {
   if (node.type === "logic.if") {
     return "true";
+  }
+  if (
+    node.type === "logic.json_parse" ||
+    node.type === "logic.json_stringify" ||
+    node.type === "logic.schema_validate"
+  ) {
+    return "success";
   }
   if (node.config.kind === "logic.switch") {
     return node.config.cases[0]?.id ?? "default";

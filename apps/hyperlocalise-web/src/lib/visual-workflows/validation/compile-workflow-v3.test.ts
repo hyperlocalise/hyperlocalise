@@ -51,6 +51,99 @@ function definition(edges: VisualWorkflowV3Definition["edges"]): VisualWorkflowV
 }
 
 describe("compileVisualWorkflowV3Definition", () => {
+  it("binds JSON data ports and rejects incompatible schema bindings", () => {
+    const workflow = definition([]);
+    workflow.nodes[0]!.outputFields = [{ path: "payload", type: "string" }];
+    workflow.nodes.splice(
+      1,
+      1,
+      {
+        id: "parse",
+        type: "logic.json_parse",
+        config: { kind: "logic.json_parse", text: "{}" },
+      },
+      {
+        id: "validate",
+        type: "logic.schema_validate",
+        config: { kind: "logic.schema_validate", value: null, schema: {} },
+      },
+    );
+    workflow.edges.push(
+      {
+        id: "parse-text",
+        kind: "data",
+        source: "trigger",
+        target: "parse",
+        sourcePortId: "payload",
+        targetPortId: "text",
+      },
+      {
+        id: "invalid-schema",
+        kind: "data",
+        source: "trigger",
+        target: "validate",
+        sourcePortId: "payload",
+        targetPortId: "schema",
+      },
+    );
+
+    const result = compileVisualWorkflowV3Definition(workflow);
+
+    expect(result.definition.nodes[1]?.inputs).toEqual({
+      text: { kind: "reference", nodeId: "trigger", path: ["payload"] },
+    });
+    expect(result.issues).toContainEqual({
+      code: "incompatible_data_types",
+      edgeId: "invalid-schema",
+      nodeId: "validate",
+    });
+  });
+
+  it("preserves explicit JSON success handles in the execution definition", () => {
+    const workflow = definition([]);
+    workflow.nodes.splice(
+      1,
+      1,
+      {
+        id: "parse",
+        type: "logic.json_parse",
+        config: { kind: "logic.json_parse", text: "{}" },
+      },
+      {
+        id: "validate",
+        type: "logic.schema_validate",
+        config: { kind: "logic.schema_validate", value: {}, schema: {} },
+      },
+    );
+    workflow.edges.push(
+      {
+        id: "trigger-parse",
+        kind: "execution",
+        source: "trigger",
+        target: "parse",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "parse-validate",
+        kind: "execution",
+        source: "parse",
+        target: "validate",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+    );
+
+    const compiled = compileVisualWorkflowV3Definition(workflow);
+    const execution = toVisualWorkflowExecutionDefinition(compiled);
+
+    expect(compiled.issues).toEqual([]);
+    expect(execution.edges).toEqual([
+      expect.objectContaining({ id: "trigger-parse", sourceHandle: null }),
+      expect.objectContaining({ id: "parse-validate", sourceHandle: "success" }),
+    ]);
+  });
+
   it("compiles a data edge into the existing WorkflowBinding model", () => {
     const result = compileVisualWorkflowV3Definition(
       definition([

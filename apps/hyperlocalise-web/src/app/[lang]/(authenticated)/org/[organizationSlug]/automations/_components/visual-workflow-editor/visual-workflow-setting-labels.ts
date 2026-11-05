@@ -151,6 +151,12 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     missingBehavior: messages.selectPathMissingBehavior,
     defaultValue: messages.selectPathDefaultValue,
   },
+  "logic.json_parse": { text: messages.jsonParseText },
+  "logic.json_stringify": { value: messages.jsonStringifyValue },
+  "logic.schema_validate": {
+    value: messages.schemaValidateValue,
+    schema: messages.schemaValidateSchema,
+  },
   "ai.agent": { prompt: messages.aiPrompt, ...ON_ERROR },
   "logic.for_each": { collection: messages.forEachCollection },
   "logic.array_transform": {
