@@ -84,6 +84,11 @@ func (p *irisCompositeProvider) Generate(ctx context.Context, req irisProviderRe
 }
 
 func irisModelUsesOpenAI(model irisModelInfo) bool {
+	if model.ID == "image-localise" {
+		// Uses Gemini on AI Gateway; falls back to an OpenAI image-edit model
+		// when only OPENAI_API_KEY is configured.
+		return true
+	}
 	return strings.HasPrefix(strings.TrimSpace(model.GatewayID), "openai/")
 }
 

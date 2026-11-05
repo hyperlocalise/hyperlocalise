@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -272,10 +273,14 @@ type rewriteHostRoundTripper struct {
 }
 
 func (r rewriteHostRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	target, err := http.NewRequestWithContext(req.Context(), req.Method, r.host+req.URL.Path, req.Body)
+	u, err := url.Parse(r.host)
 	if err != nil {
 		return nil, err
 	}
-	target.Header = req.Header
-	return r.next.RoundTrip(target)
+	clone := req.Clone(req.Context())
+	clone.URL.Scheme = u.Scheme
+	clone.URL.Host = u.Host
+	clone.Host = u.Host
+	clone.RequestURI = ""
+	return r.next.RoundTrip(clone)
 }

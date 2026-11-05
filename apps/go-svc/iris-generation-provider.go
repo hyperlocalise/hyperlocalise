@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	defaultIrisGatewayBaseURL = "https://ai-gateway.vercel.sh/v1"
-	defaultIrisOpenAIBaseURL  = "https://api.openai.com/v1"
-	irisProviderTimeout       = 9 * time.Minute
+	defaultIrisGatewayBaseURL   = "https://ai-gateway.vercel.sh/v1"
+	defaultIrisOpenAIBaseURL    = "https://api.openai.com/v1"
+	defaultIrisOpenAIImageModel = "openai/gpt-image-2.5-flare"
+	irisProviderTimeout         = 9 * time.Minute
 )
 
 type irisProviderRequest struct {
@@ -277,6 +278,10 @@ func (p *irisGatewayProvider) tool(ctx context.Context, req irisProviderRequest)
 			return nil, fmt.Errorf("image input is required")
 		}
 		req.Prompt = irisImageLocalisePrompt(req.Fields.stringField("targetLocale"), req.Fields.translations(), req.Prompt)
+		if isIrisOpenAIBaseURL(p.baseURL) {
+			// Gemini image edit is Gateway-only; OpenAI path uses GPT Image.
+			req.Model.GatewayID = irisEnvOr("IRIS_OPENAI_IMAGE_MODEL", defaultIrisOpenAIImageModel)
+		}
 		return p.imageEdit(ctx, req, []irisProviderInput{image}, 1)
 	case "image-text":
 		return p.imageText(ctx, req)
