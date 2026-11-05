@@ -193,6 +193,12 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeCoalesce;
     case "logic.compare":
       return messages.nodeCompare;
+    case "logic.json_parse":
+      return messages.nodeJsonParse;
+    case "logic.json_stringify":
+      return messages.nodeJsonStringify;
+    case "logic.schema_validate":
+      return messages.nodeSchemaValidate;
     case "ai.agent":
       return messages.nodeAi;
     case "logic.for_each":
@@ -278,6 +284,12 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeCoalesceHint;
     case "logic.compare":
       return messages.nodeCompareHint;
+    case "logic.json_parse":
+      return messages.nodeJsonParseHint;
+    case "logic.json_stringify":
+      return messages.nodeJsonStringifyHint;
+    case "logic.schema_validate":
+      return messages.nodeSchemaValidateHint;
     case "ai.agent":
       return messages.nodeAiHint;
     case "logic.for_each":

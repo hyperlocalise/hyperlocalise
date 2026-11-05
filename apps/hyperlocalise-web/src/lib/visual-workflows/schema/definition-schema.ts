@@ -88,6 +88,9 @@ export const visualCatalogTypeSchema = z.enum([
   "logic.select_path",
   "logic.coalesce",
   "logic.compare",
+  "logic.json_parse",
+  "logic.json_stringify",
+  "logic.schema_validate",
   "ai.agent",
   "logic.for_each",
   "logic.array_transform",
@@ -612,6 +615,19 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
         });
       }
     }),
+  z.object({
+    kind: z.literal("logic.json_parse"),
+    text: z.string().max(1_000_000),
+  }),
+  z.object({
+    kind: z.literal("logic.json_stringify"),
+    value: z.unknown(),
+  }),
+  z.object({
+    kind: z.literal("logic.schema_validate"),
+    value: z.unknown(),
+    schema: z.record(z.string(), z.unknown()),
+  }),
   z.object({
     kind: z.literal("ai.agent"),
     prompt: z.string().max(20_000),

@@ -1993,6 +1993,50 @@ export function VisualWorkflowConfigPanel({
             ) : null}
           </div>
         ) : null}
+        {config.kind === "logic.json_parse" ? (
+          <TextAreaField
+            id="vw-json-parse-text"
+            label={intl.formatMessage(messages.jsonParseText)}
+            description={intl.formatMessage(messages.jsonParseTextHint)}
+            value={config.text}
+            {...connectedInputProps("text")}
+            onChange={(text) => onChangeConfig({ ...config, text })}
+            placeholder='{"name":"Ada"}'
+          />
+        ) : null}
+        {config.kind === "logic.json_stringify" ? (
+          <JsonBoundField
+            id="vw-json-stringify-value"
+            label={intl.formatMessage(messages.jsonStringifyValue)}
+            value={config.value}
+            {...connectedInputProps("value")}
+            onChange={(value) => onChangeConfig({ ...config, value })}
+          />
+        ) : null}
+        {config.kind === "logic.schema_validate" ? (
+          <div className="grid gap-3">
+            <JsonBoundField
+              id="vw-schema-validate-value"
+              label={intl.formatMessage(messages.schemaValidateValue)}
+              value={config.value}
+              {...connectedInputProps("value")}
+              onChange={(value) => onChangeConfig({ ...config, value })}
+            />
+            <JsonBoundField
+              id="vw-schema-validate-schema"
+              label={intl.formatMessage(messages.schemaValidateSchema)}
+              description={intl.formatMessage(messages.schemaValidateSchemaHint)}
+              value={config.schema}
+              requireObject
+              {...connectedInputProps("schema")}
+              onChange={(schema) => {
+                if (schema !== null && typeof schema === "object" && !Array.isArray(schema)) {
+                  onChangeConfig({ ...config, schema: schema as Record<string, unknown> });
+                }
+              }}
+            />
+          </div>
+        ) : null}
         {config.kind === "logic.for_each" ? (
           <TextAreaField
             id="vw-for-each-collection"
@@ -4409,6 +4453,61 @@ function ObjectDefaultInput({
           onChange(parsed.value);
           setDraft(null);
         }
+      }}
+    />
+  );
+}
+
+function JsonBoundField({
+  id,
+  label,
+  value,
+  onChange,
+  port,
+  invalid = false,
+  description,
+  requireObject = false,
+}: {
+  id: string;
+  label: string;
+  value: unknown;
+  onChange: (value: unknown) => void;
+  port: BoundPort;
+  invalid?: boolean;
+  description?: string;
+  requireObject?: boolean;
+}) {
+  const formatted = JSON.stringify(value, null, 2) ?? "null";
+  const [draft, setDraft] = useState<{ text: string; base: string } | null>(null);
+  const display = draft?.base === formatted ? draft.text : formatted;
+  const parsed = tryParseJson(display);
+  const draftInvalid =
+    !parsed.ok ||
+    (requireObject &&
+      (parsed.value === null || typeof parsed.value !== "object" || Array.isArray(parsed.value)));
+
+  return (
+    <WorkflowBoundField
+      id={id}
+      label={label}
+      value={display}
+      multiline
+      description={description}
+      invalid={invalid || draftInvalid}
+      port={port}
+      onChange={(text) => {
+        const next = tryParseJson(text);
+        if (
+          !next.ok ||
+          (requireObject &&
+            (next.value === null || typeof next.value !== "object" || Array.isArray(next.value)))
+        ) {
+          setDraft({ text, base: formatted });
+          return;
+        }
+        const nextFormatted = JSON.stringify(next.value, null, 2) ?? "null";
+        setDraft({ text, base: nextFormatted });
+        onChange(next.value);
       }}
     />
   );
