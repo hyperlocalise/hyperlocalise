@@ -211,6 +211,110 @@ func TestSessionOnboardingInvitations(t *testing.T) {
 		require.Equal(t, http.StatusForbidden, rec.Code)
 		require.Contains(t, rec.Body.String(), "email_not_verified")
 	})
+
+	t.Run("activates an invitation already accepted in WorkOS", func(t *testing.T) {
+		scope, workosUserID, email := seedInvitation(t)
+		workos := &fakeOnboardingWorkos{
+			user:               workosSessionUser{Email: email, EmailVerified: true},
+			invitations:        []workosInvitation{{ID: "inv_accepted", Email: email, State: "accepted", CreatedAt: "2026-01-01T00:00:00Z"}},
+			activeMembershipID: "om_" + uuid.NewString(),
+		}
+		api := &sessionOnboardingAPI{pool: scope.Pool, workos: workos}
+		rec := onboardingRequest(api, http.MethodPost, "/v1/invitations/"+scope.Slug+"/accept", "", AuthClaims{UserID: workosUserID})
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		require.Empty(t, workos.accepted)
+
+		list := sessionOrganizationsRequest(&sessionOrganizationsAPI{pool: scope.Pool}, AuthClaims{UserID: workosUserID}, true)
+		require.Contains(t, list.Body.String(), scope.Slug)
+	})
+
+	t.Run("returns invitation_not_found for a missing slug or WorkOS invite", func(t *testing.T) {
+		scope, workosUserID, email := seedInvitation(t)
+		workos := &fakeOnboardingWorkos{user: workosSessionUser{Email: email, EmailVerified: true}}
+		api := &sessionOnboardingAPI{pool: scope.Pool, workos: workos}
+
+		missingSlug := onboardingRequest(api, http.MethodPost, "/v1/invitations/not-this-workspace/accept", "", AuthClaims{UserID: workosUserID})
+		require.Equal(t, http.StatusNotFound, missingSlug.Code)
+		require.Contains(t, missingSlug.Body.String(), "invitation_not_found")
+
+		noInvite := onboardingRequest(api, http.MethodPost, "/v1/invitations/"+scope.Slug+"/accept", "", AuthClaims{UserID: workosUserID})
+		require.Equal(t, http.StatusNotFound, noInvite.Code)
+		require.Contains(t, noInvite.Body.String(), "invitation_not_found")
+	})
+
+	t.Run("returns membership_not_activated when WorkOS has no membership yet", func(t *testing.T) {
+		scope, workosUserID, email := seedInvitation(t)
+		workos := &fakeOnboardingWorkos{
+			user:        workosSessionUser{Email: email, EmailVerified: true},
+			invitations: []workosInvitation{{ID: "inv_pending", Email: email, State: "pending", CreatedAt: "2026-01-01T00:00:00Z"}},
+		}
+		api := &sessionOnboardingAPI{pool: scope.Pool, workos: workos}
+		rec := onboardingRequest(api, http.MethodPost, "/v1/invitations/"+scope.Slug+"/accept", "", AuthClaims{UserID: workosUserID})
+		require.Equal(t, http.StatusConflict, rec.Code)
+		require.Contains(t, rec.Body.String(), "membership_not_activated")
+		require.Equal(t, []string{"inv_pending"}, workos.accepted)
+	})
+
+	t.Run("returns invitation_not_found when the membership is already activated", func(t *testing.T) {
+		scope, workosUserID, email := seedInvitation(t)
+		workos := &fakeOnboardingWorkos{
+			user:               workosSessionUser{Email: email, EmailVerified: true},
+			invitations:        []workosInvitation{{ID: "inv_1", Email: email, State: "pending", CreatedAt: "2026-01-01T00:00:00Z"}},
+			activeMembershipID: "om_" + uuid.NewString(),
+		}
+		api := &sessionOnboardingAPI{pool: scope.Pool, workos: workos}
+		first := onboardingRequest(api, http.MethodPost, "/v1/invitations/"+scope.Slug+"/accept", "", AuthClaims{UserID: workosUserID})
+		require.Equal(t, http.StatusOK, first.Code, first.Body.String())
+
+		second := onboardingRequest(api, http.MethodPost, "/v1/invitations/"+scope.Slug+"/accept", "", AuthClaims{UserID: workosUserID})
+		require.Equal(t, http.StatusNotFound, second.Code)
+		require.Contains(t, second.Body.String(), "invitation_not_found")
+	})
+}
+
+func TestSessionOnboardingUniqueWorkspaceSlug(t *testing.T) {
+	t.Run("suffixes a taken slug", func(t *testing.T) {
+		scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+		name := "Atlas " + uuid.NewString()[:8]
+		base := slugifyWorkspaceName(name)
+		slug, err := uniqueWorkspaceSlug(t.Context(), scope.Pool, name)
+		require.NoError(t, err)
+		require.Equal(t, base, slug)
+
+		_, err = scope.Pool.Exec(t.Context(), `update organizations set slug=$1 where id=$2`, base, scope.OrganizationID)
+		require.NoError(t, err)
+
+		next, err := uniqueWorkspaceSlug(t.Context(), scope.Pool, name)
+		require.NoError(t, err)
+		require.Equal(t, base+"-2", next)
+	})
+
+	t.Run("creates a second workspace with the same name on a new slug", func(t *testing.T) {
+		scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+		firstUser := "user_" + uuid.NewString()
+		secondUser := "user_" + uuid.NewString()
+		name := "Nimbus " + uuid.NewString()[:8]
+		base := slugifyWorkspaceName(name)
+		workos := &fakeOnboardingWorkos{user: workosSessionUser{Email: firstUser + "@example.com", EmailVerified: true}}
+		api := &sessionOnboardingAPI{pool: scope.Pool, workos: workos}
+
+		first := onboardingRequest(api, http.MethodPost, "/v1/organizations", `{"name":"`+name+`"}`, AuthClaims{UserID: firstUser})
+		require.Equal(t, http.StatusCreated, first.Code, first.Body.String())
+		require.Contains(t, first.Body.String(), `"slug":"`+base+`"`)
+		t.Cleanup(func() {
+			_, _ = scope.Pool.Exec(context.Background(), `delete from organizations where workos_organization_id=$1`, workos.createdOrgs[0])
+			_, _ = scope.Pool.Exec(context.Background(), `delete from users where workos_user_id=$1`, firstUser)
+		})
+
+		workos.user = workosSessionUser{Email: secondUser + "@example.com", EmailVerified: true}
+		second := onboardingRequest(api, http.MethodPost, "/v1/organizations", `{"name":"`+name+`"}`, AuthClaims{UserID: secondUser})
+		require.Equal(t, http.StatusCreated, second.Code, second.Body.String())
+		require.Contains(t, second.Body.String(), `"slug":"`+base+`-2"`)
+		t.Cleanup(func() {
+			_, _ = scope.Pool.Exec(context.Background(), `delete from organizations where workos_organization_id=$1`, workos.createdOrgs[1])
+			_, _ = scope.Pool.Exec(context.Background(), `delete from users where workos_user_id=$1`, secondUser)
+		})
+	})
 }
 
 func TestSessionOnboardingUpdateProfile(t *testing.T) {
