@@ -538,6 +538,7 @@ export const projectFileUploadBodySchema = z.object({
   sourceHash: z.string().trim().min(1).max(256).optional(),
   commitSha: z.string().trim().min(1).max(256).optional(),
   workflowRunId: z.string().trim().min(1).max(256).optional(),
+  keepApproved: z.enum(["true", "false"]).optional(),
 });
 
 export const projectFileTranslationImportBodySchema = z.object({

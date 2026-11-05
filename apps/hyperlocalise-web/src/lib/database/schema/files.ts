@@ -13,6 +13,7 @@
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
+  boolean,
   index,
   integer,
   jsonb,
@@ -193,6 +194,8 @@ export const repositorySourceFileVersions = pgTable(
       onDelete: "set null",
     }),
     uploadSurface: text("upload_surface"),
+    // The uploader asked to keep approved translations approved for this version's source changes.
+    keepApprovedTranslations: boolean("keep_approved_translations").notNull().default(false),
     ingestState: repositorySourceFileIngestStateEnum("ingest_state").notNull().default("pending"),
     ingestError: text("ingest_error"),
     ingestedAt: timestamp("ingested_at", { withTimezone: true }),

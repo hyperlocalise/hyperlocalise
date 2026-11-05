@@ -45,6 +45,9 @@ export type VisualCatalogType =
   | "logic.select_path"
   | "logic.coalesce"
   | "logic.compare"
+  | "logic.json_parse"
+  | "logic.json_stringify"
+  | "logic.schema_validate"
   | "ai.agent"
   | "logic.for_each"
   | "logic.array_transform"
@@ -394,6 +397,9 @@ export type VisualNodeConfig =
       locale?: string;
       sensitivity?: "base" | "accent" | "case" | "variant";
     }
+  | { kind: "logic.json_parse"; text: string }
+  | { kind: "logic.json_stringify"; value: unknown }
+  | { kind: "logic.schema_validate"; value: unknown; schema: Record<string, unknown> }
   | { kind: "ai.agent"; prompt: string; onError?: VisualNodeErrorBehavior }
   | { kind: "logic.for_each"; collection: string }
   | {

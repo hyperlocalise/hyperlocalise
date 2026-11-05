@@ -4390,6 +4390,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           sourceHash: asString(body.sourceHash),
           commitSha: asString(body.commitSha),
           workflowRunId: asString(body.workflowRunId),
+          keepApproved: asString(body.keepApproved),
         });
 
         if (!parsed.success) {
@@ -4438,6 +4439,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               workflowRunId: parsed.data.workflowRunId,
               uploadedByUserId: c.var.auth.user.localUserId,
               uploadSurface: "files_page",
+              keepApprovedTranslations: parsed.data.keepApproved === "true",
               db: tx,
             });
 

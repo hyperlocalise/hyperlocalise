@@ -270,31 +270,49 @@ func (api *projectAPI) contentEditorBehaviorHandler(r *http.Request, actor proje
 	if err != nil {
 		return nil, 0, err
 	}
-	var automaticallyGroupIdenticalStrings bool
-	var groupingRevision int
-	err = api.pool.QueryRow(r.Context(), `
-		select p.automatically_group_identical_strings, p.cat_grouping_revision
-		from projects p
-		where p.id = $1 and p.organization_id = $2 and p.source = 'native'
-			and `+formatQaProjectTeamAccessSQL(3, 4, 2),
-		projectID,
-		actor.organizationID,
-		actor.canReadAllTeams(),
-		actor.userID,
-	).Scan(&automaticallyGroupIdenticalStrings, &groupingRevision)
+	behavior, err := loadContentEditorBehavior(r.Context(), api.pool, projectID, actor)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, projectNotFound()
 	}
 	if err != nil {
 		return nil, 0, fmt.Errorf("get native project content editor behavior: %w", err)
 	}
+	return behavior.response(actor.canManageContentEditorBehavior()), http.StatusOK, nil
+}
+
+type contentEditorBehavior struct {
+	automaticallyGroupIdenticalStrings bool
+	groupingRevision                   int
+	approvedTranslationsOnSourceChange string
+}
+
+func loadContentEditorBehavior(ctx context.Context, db interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, projectID string, actor projectActor,
+) (contentEditorBehavior, error) {
+	var behavior contentEditorBehavior
+	err := db.QueryRow(ctx, `
+		select p.automatically_group_identical_strings, p.cat_grouping_revision,
+			p.approved_translations_on_source_change
+		from projects p
+		where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(3, 4, 2),
+		projectID,
+		actor.organizationID,
+		actor.canReadAllTeams(),
+		actor.userID,
+	).Scan(&behavior.automaticallyGroupIdenticalStrings, &behavior.groupingRevision, &behavior.approvedTranslationsOnSourceChange)
+	return behavior, err
+}
+
+func (b contentEditorBehavior) response(canManage bool) map[string]any {
 	return map[string]any{
 		"contentEditorBehavior": map[string]any{
-			"automaticallyGroupIdenticalStrings": automaticallyGroupIdenticalStrings,
-			"groupingRevision":                   groupingRevision,
-			"canManage":                          actor.canManageContentEditorBehavior(),
+			"automaticallyGroupIdenticalStrings": b.automaticallyGroupIdenticalStrings,
+			"groupingRevision":                   b.groupingRevision,
+			"approvedTranslationsOnSourceChange": b.approvedTranslationsOnSourceChange,
+			"canManage":                          canManage,
 		},
-	}, http.StatusOK, nil
+	}
 }
 
 type projectFilesQuery struct {

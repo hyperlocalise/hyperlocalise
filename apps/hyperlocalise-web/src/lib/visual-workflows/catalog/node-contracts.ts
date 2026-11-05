@@ -343,6 +343,25 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     outputs: [output("result", "boolean")],
     mock: { result: true },
   },
+  "logic.json_parse": {
+    inputs: [field("text", "string")],
+    outputs: [output("value", "unknown", true), output("error", "object", true)],
+    mock: { value: null },
+  },
+  "logic.json_stringify": {
+    inputs: [field("value", "unknown")],
+    outputs: [output("text", "string", true), output("error", "object", true)],
+    mock: { text: "null" },
+  },
+  "logic.schema_validate": {
+    inputs: [field("value", "unknown"), field("schema", "object")],
+    outputs: [
+      output("value", "unknown"),
+      output("valid", "boolean"),
+      output("errors", "array", true),
+    ],
+    mock: { value: null, valid: true, errors: [] },
+  },
   "logic.for_each": {
     inputs: [field("collection", "array")],
     outputs: [

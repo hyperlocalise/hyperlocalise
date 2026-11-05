@@ -1596,6 +1596,124 @@ describe("VisualWorkflowConfigPanel", () => {
     expect(screen.getByRole("textbox", { name: "Value 3 name" })).toHaveValue("Condition 3");
   });
 
+  it("configures Parse JSON text through its typed input", () => {
+    const onChangeConfig = vi.fn();
+    const node: VisualWorkflowRfNode = {
+      id: "parse-json",
+      type: "logic.json_parse",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.json_parse"),
+      data: {
+        catalogType: "logic.json_parse",
+        config: { kind: "logic.json_parse", text: "{}" },
+        runStatus: "idle",
+      },
+    };
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    const text = screen.getByRole("textbox", { name: "JSON text" });
+    replaceText(text, '{"name":"Ada"}');
+    expect(onChangeConfig).toHaveBeenLastCalledWith({
+      kind: "logic.json_parse",
+      text: '{"name":"Ada"}',
+    });
+    expect(screen.getByText(/connect a string output/i)).toBeInTheDocument();
+  });
+
+  it("keeps invalid Stringify JSON drafts without replacing the stored value", () => {
+    const onChangeConfig = vi.fn();
+
+    function StatefulStringifyPanel() {
+      const [config, setConfig] = useState<
+        Extract<VisualNodeConfig, { kind: "logic.json_stringify" }>
+      >({ kind: "logic.json_stringify", value: { name: "Ada" } });
+      return (
+        <VisualWorkflowConfigPanel
+          node={{
+            id: "stringify-json",
+            type: "logic.json_stringify",
+            position: { x: 0, y: 0 },
+            ...getVisualNodeDimensions("logic.json_stringify"),
+            data: { catalogType: "logic.json_stringify", config, runStatus: "idle" },
+          }}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={(next) => {
+            onChangeConfig(next);
+            if (next.kind === "logic.json_stringify") setConfig(next);
+          }}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+        />
+      );
+    }
+
+    renderPanel(<StatefulStringifyPanel />);
+    const value = screen.getByRole("textbox", { name: "Value" });
+    replaceText(value, "{");
+    expect(value).toHaveAttribute("aria-invalid", "true");
+    expect(onChangeConfig).not.toHaveBeenCalled();
+
+    replaceText(value, '["en","de"]');
+    expect(onChangeConfig).toHaveBeenLastCalledWith({
+      kind: "logic.json_stringify",
+      value: ["en", "de"],
+    });
+  });
+
+  it("requires an object in the Schema Validate schema editor", () => {
+    const onChangeConfig = vi.fn();
+
+    function StatefulSchemaPanel() {
+      const [config, setConfig] = useState<
+        Extract<VisualNodeConfig, { kind: "logic.schema_validate" }>
+      >({ kind: "logic.schema_validate", value: { name: "Ada" }, schema: {} });
+      return (
+        <VisualWorkflowConfigPanel
+          node={{
+            id: "schema-validate",
+            type: "logic.schema_validate",
+            position: { x: 0, y: 0 },
+            ...getVisualNodeDimensions("logic.schema_validate"),
+            data: { catalogType: "logic.schema_validate", config, runStatus: "idle" },
+          }}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={(next) => {
+            onChangeConfig(next);
+            if (next.kind === "logic.schema_validate") setConfig(next);
+          }}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+        />
+      );
+    }
+
+    renderPanel(<StatefulSchemaPanel />);
+    const schema = screen.getByRole("textbox", { name: "Schema" });
+    replaceText(schema, "[]");
+    expect(schema).toHaveAttribute("aria-invalid", "true");
+    expect(onChangeConfig).not.toHaveBeenCalled();
+
+    replaceText(schema, '{"type":"object"}');
+    expect(onChangeConfig).toHaveBeenLastCalledWith({
+      kind: "logic.schema_validate",
+      value: { name: "Ada" },
+      schema: { type: "object" },
+    });
+    expect(screen.getByText(/remote references are not supported/i)).toBeInTheDocument();
+  });
+
   it("resets Crowdin people IDs when the saved value or selected step changes", () => {
     const first = pickAssigneeCrowdinNode("pick-a", ["12", "14"]);
     const { rerender } = renderPanel(

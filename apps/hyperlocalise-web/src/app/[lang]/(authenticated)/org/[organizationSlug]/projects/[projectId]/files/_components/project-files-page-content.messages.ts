@@ -25,6 +25,18 @@ export const projectFilesPageContentMessages = defineMessages({
     id: "Zh1+GZ3Hje",
     description: "Button to choose source files for upload",
   },
+  keepApprovedTranslations: {
+    defaultMessage: "Small fix: keep approved translations",
+    id: "/RhIpnbmJS",
+    description:
+      "Upload checkbox that keeps approved translations approved when source text changes",
+  },
+  keepApprovedTranslationsHelp: {
+    defaultMessage:
+      "For typo or punctuation fixes. Leave it off when the meaning changed, so changed strings go back to review.",
+    id: "awzg52dTuv",
+    description: "Help text under the upload checkbox that keeps approved translations approved",
+  },
   readyToUpload: {
     defaultMessage: "Ready to upload",
     id: "DPeiBFpfQD",

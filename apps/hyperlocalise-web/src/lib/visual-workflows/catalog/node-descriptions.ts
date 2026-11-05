@@ -115,6 +115,18 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     title: "Compare",
     purpose: "Compare typed values or combine boolean predicates without implicit coercion.",
   },
+  "logic.json_parse": {
+    title: "Parse JSON",
+    purpose: "Parse JSON text into a structured value.",
+  },
+  "logic.json_stringify": {
+    title: "Stringify JSON",
+    purpose: "Serialize a structured value as JSON text.",
+  },
+  "logic.schema_validate": {
+    title: "Validate schema",
+    purpose: "Validate a value against a bounded structured schema.",
+  },
   "ai.agent": { title: "AI Agent", purpose: "Placeholder agent step with tools." },
   "logic.for_each": { title: "Loop", purpose: "Iterate over a collection sequentially." },
   "logic.array_transform": {

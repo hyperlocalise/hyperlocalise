@@ -106,10 +106,24 @@ export async function reconcileSourceFileTranslationKeys(input: {
       throw new Error("Source version is not ingesting");
     }
 
+    const [project] = await tx
+      .select({
+        approvedTranslationsOnSourceChange: schema.projects.approvedTranslationsOnSourceChange,
+      })
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.id, input.projectId),
+          eq(schema.projects.organizationId, input.organizationId),
+        ),
+      );
     await new ProjectTranslationService().upsertKeysFromEntries(
       {
         ...input,
         preserveEmptySourceText: true,
+        sendApprovedToReviewOnSourceChange:
+          project?.approvedTranslationsOnSourceChange === "needs_review" &&
+          !version.keepApprovedTranslations,
       },
       tx,
     );

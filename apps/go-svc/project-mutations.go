@@ -899,7 +899,8 @@ func teamGlossariesAttachedToProject(ctx context.Context, db dictionaryDB, organ
 }
 
 type updateContentEditorBehaviorRequest struct {
-	AutomaticallyGroupIdenticalStrings *bool `json:"automaticallyGroupIdenticalStrings"`
+	AutomaticallyGroupIdenticalStrings *bool   `json:"automaticallyGroupIdenticalStrings"`
+	ApprovedTranslationsOnSourceChange *string `json:"approvedTranslationsOnSourceChange"`
 }
 
 func (api *projectAPI) updateContentEditorBehaviorHandler(r *http.Request, actor projectActor) (any, int, error) {
@@ -914,45 +915,58 @@ func (api *projectAPI) updateContentEditorBehaviorHandler(r *http.Request, actor
 	if err := decodeProjectBody(r, &req); err != nil {
 		return nil, 0, err
 	}
-	if req.AutomaticallyGroupIdenticalStrings == nil {
+	if req.AutomaticallyGroupIdenticalStrings == nil && req.ApprovedTranslationsOnSourceChange == nil {
+		return nil, 0, invalidProjectPayload()
+	}
+	if value := req.ApprovedTranslationsOnSourceChange; value != nil && *value != "stay_approved" && *value != "needs_review" {
 		return nil, 0, invalidProjectPayload()
 	}
 
 	ctx := r.Context()
-	var automaticallyGroupIdenticalStrings bool
-	var groupingRevision int
-	err = api.pool.QueryRow(ctx, `
-		update projects p
-		set automatically_group_identical_strings=$3,
-			cat_grouping_revision=cat_grouping_revision+1,
-			updated_by_user_id=$4,
-			updated_at=now()
-		where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(5, 6, 2)+`
-			and p.automatically_group_identical_strings is distinct from $3
-		returning p.automatically_group_identical_strings, p.cat_grouping_revision`,
-		projectID, actor.organizationID, *req.AutomaticallyGroupIdenticalStrings, actor.userID,
-		actor.canReadAllTeams(), actor.userID,
-	).Scan(&automaticallyGroupIdenticalStrings, &groupingRevision)
-	if isNoRows(err) {
-		err = api.pool.QueryRow(ctx, `
-			select p.automatically_group_identical_strings, p.cat_grouping_revision
-			from projects p
-			where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(3, 4, 2),
-			projectID, actor.organizationID, actor.canReadAllTeams(), actor.userID,
-		).Scan(&automaticallyGroupIdenticalStrings, &groupingRevision)
-		if isNoRows(err) {
-			return nil, 0, projectNotFound()
+	tx, err := api.pool.Begin(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	// Only a grouping change bumps the grouping revision, so open content editors refresh only then.
+	if req.AutomaticallyGroupIdenticalStrings != nil {
+		if _, err := tx.Exec(ctx, `
+			update projects p
+			set automatically_group_identical_strings=$3,
+				cat_grouping_revision=cat_grouping_revision+1,
+				updated_by_user_id=$4,
+				updated_at=now()
+			where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(5, 6, 2)+`
+				and p.automatically_group_identical_strings is distinct from $3`,
+			projectID, actor.organizationID, *req.AutomaticallyGroupIdenticalStrings, actor.userID,
+			actor.canReadAllTeams(), actor.userID,
+		); err != nil {
+			return nil, 0, err
 		}
+	}
+	if req.ApprovedTranslationsOnSourceChange != nil {
+		if _, err := tx.Exec(ctx, `
+			update projects p
+			set approved_translations_on_source_change=$3,
+				updated_by_user_id=$4,
+				updated_at=now()
+			where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(5, 6, 2)+`
+				and p.approved_translations_on_source_change is distinct from $3`,
+			projectID, actor.organizationID, *req.ApprovedTranslationsOnSourceChange, actor.userID,
+			actor.canReadAllTeams(), actor.userID,
+		); err != nil {
+			return nil, 0, err
+		}
+	}
+	behavior, err := loadContentEditorBehavior(ctx, tx, projectID, actor)
+	if isNoRows(err) {
+		return nil, 0, projectNotFound()
 	}
 	if err != nil {
 		return nil, 0, err
 	}
-
-	return map[string]any{
-		"contentEditorBehavior": map[string]any{
-			"automaticallyGroupIdenticalStrings": automaticallyGroupIdenticalStrings,
-			"groupingRevision":                   groupingRevision,
-			"canManage":                          true,
-		},
-	}, http.StatusOK, nil
+	if err := tx.Commit(ctx); err != nil {
+		return nil, 0, err
+	}
+	return behavior.response(true), http.StatusOK, nil
 }

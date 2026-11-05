@@ -13,6 +13,7 @@
 import type {
   CreateProjectBody,
   GoSvcRequestOptions,
+  ApprovedTranslationsOnSourceChange,
   ProjectContentEditorBehavior,
   ProjectContentEditorBehaviorPreview,
   ProjectFileRecord,
@@ -109,7 +110,10 @@ export class GoSvcProjectApi {
   updateContentEditorBehavior(
     organizationSlug: string,
     projectId: string,
-    body: { automaticallyGroupIdenticalStrings: boolean },
+    body: {
+      automaticallyGroupIdenticalStrings?: boolean;
+      approvedTranslationsOnSourceChange?: ApprovedTranslationsOnSourceChange;
+    },
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.json<{ contentEditorBehavior: ProjectContentEditorBehavior }>(
