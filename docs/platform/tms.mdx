@@ -56,6 +56,14 @@ If a project or action is missing, check [connection troubleshooting](/platform/
 and [workspace roles](/platform/workspace/roles). Credentials that can list projects
 may not have permission to change translations.
 
+## Copy glossaries and memories into Platform
+
+For **Crowdin**, **Phrase Strings**, and **Smartling**, you can copy a provider glossary or translation memory into a native workspace resource without manual file export. Hyperlocalise mints a short-lived token for the acting user, lists resources on the active TMS connection, exports TBX or TMX, and queues the standard interchange import (merge mode for glossaries).
+
+Use this when you want Platform-side review, automations, or agent search on terminology and segments you already maintain in the TMS. It does not replace live provider projects or write back to the TMS automatically.
+
+See [Glossary import and export](/platform/glossary-import-export#import-from-a-connected-tms) and [Translation memory import and export](/platform/translation-memory-import-export#import-from-a-connected-tms) for API paths and constraints.
+
 ## One CLI for your TMS workflows
 
 The [all-in-one Hyperlocalise CLI](/cli) brings provider file commands, local AI

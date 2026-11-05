@@ -8,7 +8,7 @@ Visual workflows compose fixed automation steps on a canvas. Open **Automations 
 ## Build and connect data
 
 1. Choose a manual, scheduled, GitHub, source-upload, or **Webhook** trigger.
-2. Add HTTP, AI, Slack, email, condition, switch, Set, For each, Array transform, Sequence, Retry, or **Call workflow** nodes.
+2. Add HTTP, AI, Slack, email, condition, switch, Set, object and JSON steps, For each, Array transform, Sequence, Retry, or **Call workflow** nodes.
 3. Connect execution order on the canvas.
 4. Select a node. Its settings open on the **Configuration** tab. A setting that can take its value from an earlier step shows a port mark beside its name: type a value, insert fields from earlier steps by typing `{{` or with the braces button beside the box, or wire the port on the canvas. An inserted field shows as a pill naming its step and field; a red pill names a step that does not run before this one. Backspace removes a pill whole. On the canvas, each pill draws a thin dashed line from the field it reads to the setting's port; it cannot be selected or moved. Data wires are thin solid lines, and the connections that decide the order steps run in are thicker. A wired setting shows which step feeds it.
 5. Review the **Outputs** tab for expected fields. Test results show actual redacted values.
@@ -32,6 +32,34 @@ Retry bodies cannot nest another **Retry** or **For each**. When the body calls 
 Conditions use true/false connections. Switches use case/default connections. Action failures can stop, continue with a visible handled error, or select an error branch. A merge waits for all incoming connections to settle and runs if any is selected.
 
 **Compare** evaluates typed values and outputs a boolean `result` you can wire into **If**, **Wait**, or other steps. Operators include equality and ordering on strings and numbers (`equal`, `not_equal`, `greater_than`, `less_than`, and related), string checks (`contains`, `starts_with`, `ends_with`), and boolean combinators (`and`, `or`, `not`). Wire `value.left` and `value.right` (or a single operand for `not`) on the canvas; values are compared without implicit type coercion. Deep equality works on plain objects and arrays within documented depth and size limits. Locale-aware string checks use an optional locale when you configure one.
+
+## Build and read structured values
+
+Use these steps when an HTTP or webhook payload needs shaping before Slack, email, or **Call workflow** inputs.
+
+| Step | Purpose |
+| --- | --- |
+| **Set fields** | Assign named outputs from wired values or templates. |
+| **Create object** | Build an object from declared fields with optional defaults. |
+| **Merge objects** | Combine multiple objects with a conflict policy (`prefer_first`, `prefer_last`, or shallow merge). |
+| **Get field** | Read a value at a safe path (property names and array indexes). Outputs `value` and `found`. |
+| **Default value** | Return the first non-empty value from an ordered list of wired inputs. |
+
+**Get field** rejects unsafe keys such as `__proto__` and stops at a maximum path depth so arbitrary user data cannot escape the workflow sandbox.
+
+## Parse, serialize, and validate JSON
+
+These steps share the same size and depth limits as webhook bodies (256 KiB of text, depth 32, up to 10,000 object entries). Values must be JSON-compatible (finite numbers, no `undefined`).
+
+| Step | Inputs | Branches | Outputs |
+| --- | --- | --- | --- |
+| **Parse JSON** | JSON text | **Success** / **Invalid** | Parsed `value`, or `error` with code and path on **Invalid** |
+| **Stringify JSON** | Any JSON-compatible value | **Success** / **Error** | `text`, or `error` when the value cannot be serialized |
+| **Validate schema** | Value and a JSON Schema object | **Success** / **Invalid** | `valid`, `errors` (up to 50), and the bounded `value` |
+
+**Validate schema** accepts a bounded subset of JSON Schema: `type`, `properties`, `required`, `items`, `enum`, `const`, numeric and length limits, and boolean or nested `additionalProperties`. `$ref` and other open-ended keywords are not supported. Wire **Invalid** into an error branch or a **Fail** step when upstream systems send unexpected shapes.
+
+Typical pattern after a **Webhook** trigger: **Parse JSON** on `body` text → **Validate schema** → **Get field** for nested IDs → **Set fields** or **HTTP Request** for downstream calls.
 
 ## End the run on purpose
 
