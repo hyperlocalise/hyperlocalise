@@ -100,6 +100,18 @@ func (p *irisGatewayProvider) Generate(ctx context.Context, req irisProviderRequ
 	}
 }
 
+// modelID maps a Gateway model id for this client's base URL. Direct OpenAI
+// rejects the `openai/` provider prefix that AI Gateway expects.
+func (p *irisGatewayProvider) modelID(gatewayID string) string {
+	id := strings.TrimSpace(gatewayID)
+	if p != nil && isIrisOpenAIBaseURL(p.baseURL) {
+		if native, ok := strings.CutPrefix(id, "openai/"); ok && native != "" {
+			return native
+		}
+	}
+	return id
+}
+
 func (p *irisGatewayProvider) image(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
 	count := req.Count
 	if count < 1 {
@@ -109,7 +121,7 @@ func (p *irisGatewayProvider) image(ctx context.Context, req irisProviderRequest
 		return p.imageEdit(ctx, req, refs, count)
 	}
 	payload := map[string]any{
-		"model":  req.Model.GatewayID,
+		"model":  p.modelID(req.Model.GatewayID),
 		"prompt": req.Prompt,
 		"n":      count,
 		"size":   imageSize(req.Resolution, req.AspectRatio),
@@ -127,7 +139,7 @@ func (p *irisGatewayProvider) imageEdit(ctx context.Context, req irisProviderReq
 	}
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
-	_ = writer.WriteField("model", req.Model.GatewayID)
+	_ = writer.WriteField("model", p.modelID(req.Model.GatewayID))
 	_ = writer.WriteField("prompt", req.Prompt)
 	_ = writer.WriteField("n", fmt.Sprintf("%d", count))
 	for i, image := range images {
@@ -161,7 +173,7 @@ func (p *irisGatewayProvider) imageEdit(ctx context.Context, req irisProviderReq
 
 func (p *irisGatewayProvider) speech(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
 	payload := map[string]any{
-		"model": req.Model.GatewayID,
+		"model": p.modelID(req.Model.GatewayID),
 		"input": req.Prompt,
 		"voice": req.Voice,
 	}
@@ -203,7 +215,7 @@ func (p *irisGatewayProvider) video(ctx context.Context, req irisProviderRequest
 		duration = 6
 	}
 	payload := map[string]any{
-		"model":        req.Model.GatewayID,
+		"model":        p.modelID(req.Model.GatewayID),
 		"prompt":       req.Prompt,
 		"duration":     duration,
 		"aspect_ratio": req.AspectRatio,
@@ -293,7 +305,7 @@ func (p *irisGatewayProvider) transcribe(ctx context.Context, req irisProviderRe
 	}
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
-	_ = writer.WriteField("model", req.Model.GatewayID)
+	_ = writer.WriteField("model", p.modelID(req.Model.GatewayID))
 	if req.Language != "" {
 		_ = writer.WriteField("language", req.Language)
 	}

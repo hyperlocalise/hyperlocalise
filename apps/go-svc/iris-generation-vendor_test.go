@@ -273,6 +273,7 @@ func TestFalInputOmitsEmptyPrompt(t *testing.T) {
 
 func TestNewIrisGenerationProviderReadsEnv(t *testing.T) {
 	t.Setenv("AI_GATEWAY_API_KEY", "")
+	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("ELEVENLABS_API_KEY", "")
 	t.Setenv("FAL_KEY", "")
 	empty, ok := newIrisGenerationProvider().(*irisCompositeProvider)
@@ -284,7 +285,25 @@ func TestNewIrisGenerationProviderReadsEnv(t *testing.T) {
 		Model: irisModelInfo{ID: "image-text", Kind: irisKindTool, Provider: irisProviderGateway},
 	})
 	require.ErrorContains(t, err, "generation provider is not configured")
+	require.ErrorContains(t, err, "OPENAI_API_KEY")
 
+	t.Setenv("OPENAI_API_KEY", "sk-test")
+	withOpenAI := newIrisGenerationProvider().(*irisCompositeProvider)
+	require.NotNil(t, withOpenAI.gateway)
+	openai, ok := withOpenAI.gateway.(*irisGatewayProvider)
+	require.True(t, ok)
+	require.Equal(t, defaultIrisOpenAIBaseURL, openai.baseURL)
+	require.Equal(t, "sk-test", openai.apiKey)
+
+	t.Setenv("AI_GATEWAY_API_KEY", "gw-test")
+	withGateway := newIrisGenerationProvider().(*irisCompositeProvider)
+	gateway, ok := withGateway.gateway.(*irisGatewayProvider)
+	require.True(t, ok)
+	require.Equal(t, defaultIrisGatewayBaseURL, gateway.baseURL)
+	require.Equal(t, "gw-test", gateway.apiKey)
+
+	t.Setenv("AI_GATEWAY_API_KEY", "")
+	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("ELEVENLABS_API_KEY", "xi")
 	provider := newIrisGenerationProvider()
 	composite, ok := provider.(*irisCompositeProvider)

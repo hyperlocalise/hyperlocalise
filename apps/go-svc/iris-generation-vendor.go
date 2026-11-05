@@ -33,6 +33,9 @@ func newIrisGenerationProvider() irisGenerationProvider {
 	}
 	if gateway := newIrisGatewayProvider(); gateway != nil {
 		provider.gateway = gateway
+	} else if openai := newIrisOpenAIProvider(); openai != nil {
+		// Same chat/image HTTP client as AI Gateway, pointed at api.openai.com.
+		provider.gateway = openai
 	}
 	if key := strings.TrimSpace(os.Getenv("ELEVENLABS_API_KEY")); key != "" {
 		if client, err := elevenlabs.NewClient(elevenlabs.Config{
@@ -68,7 +71,7 @@ func (p *irisCompositeProvider) Generate(ctx context.Context, req irisProviderRe
 	if p.gateway != nil {
 		return p.gateway.Generate(ctx, req)
 	}
-	return nil, fmt.Errorf("generation provider is not configured (set AI_GATEWAY_API_KEY, ELEVENLABS_API_KEY, or FAL_KEY)")
+	return nil, fmt.Errorf("generation provider is not configured (set AI_GATEWAY_API_KEY, OPENAI_API_KEY, ELEVENLABS_API_KEY, or FAL_KEY)")
 }
 
 func (p *irisCompositeProvider) fetcher() irisMediaFetcher {

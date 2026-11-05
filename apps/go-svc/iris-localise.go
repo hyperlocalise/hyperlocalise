@@ -685,7 +685,7 @@ func (p *irisGatewayProvider) Complete(ctx context.Context, req irisChatRequest)
 		})
 	}
 	payload := map[string]any{
-		"model": req.Model,
+		"model": p.modelID(req.Model),
 		"messages": []map[string]any{
 			{"role": "system", "content": req.System},
 			{"role": "user", "content": content},
