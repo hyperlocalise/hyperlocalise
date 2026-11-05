@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
 	"strings"
 	"time"
@@ -144,15 +145,7 @@ func (p *irisGatewayProvider) imageEdit(ctx context.Context, req irisProviderReq
 	_ = writer.WriteField("prompt", req.Prompt)
 	_ = writer.WriteField("n", fmt.Sprintf("%d", count))
 	for i, image := range images {
-		name := "input.png"
-		if len(images) > 1 {
-			name = fmt.Sprintf("input-%d.png", i+1)
-		}
-		part, err := writer.CreateFormFile("image", name)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := part.Write(image.Bytes); err != nil {
+		if err := writeIrisImageFormFile(writer, "image", image, i, len(images)); err != nil {
 			return nil, err
 		}
 	}
@@ -489,6 +482,51 @@ func defaultType(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+// writeIrisImageFormFile writes an image part with an image/* Content-Type.
+// multipart.Writer.CreateFormFile always uses application/octet-stream, which
+// OpenAI image edits reject.
+func writeIrisImageFormFile(writer *multipart.Writer, field string, image irisProviderInput, index, total int) error {
+	contentType, ext := irisImageFormMIME(image)
+	name := "input." + ext
+	if total > 1 {
+		name = fmt.Sprintf("input-%d.%s", index+1, ext)
+	}
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, field, name))
+	header.Set("Content-Type", contentType)
+	part, err := writer.CreatePart(header)
+	if err != nil {
+		return err
+	}
+	_, err = part.Write(image.Bytes)
+	return err
+}
+
+func irisImageFormMIME(image irisProviderInput) (contentType, ext string) {
+	ct := strings.ToLower(strings.TrimSpace(image.ContentType))
+	if i := strings.IndexByte(ct, ';'); i >= 0 {
+		ct = strings.TrimSpace(ct[:i])
+	}
+	switch ct {
+	case "image/jpeg", "image/jpg":
+		return "image/jpeg", "jpg"
+	case "image/webp":
+		return "image/webp", "webp"
+	case "image/png":
+		return "image/png", "png"
+	}
+	detected := http.DetectContentType(image.Bytes)
+	switch {
+	case strings.HasPrefix(detected, "image/jpeg"):
+		return "image/jpeg", "jpg"
+	case strings.HasPrefix(detected, "image/webp"):
+		return "image/webp", "webp"
+	case strings.HasPrefix(detected, "image/png"):
+		return "image/png", "png"
+	}
+	return "image/png", "png"
 }
 
 func irisFirstNonEmpty(values ...string) string {

@@ -331,11 +331,14 @@ func TestNewIrisGenerationProviderReadsEnv(t *testing.T) {
 }
 
 func TestImageLocaliseUsesOpenAIImageModelOnDirectOpenAI(t *testing.T) {
-	var gotModel string
+	var gotModel, gotImageType string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, "/v1/images/edits", r.URL.Path)
 		require.NoError(t, r.ParseMultipartForm(1<<20))
 		gotModel = r.FormValue("model")
+		_, header, err := r.FormFile("image")
+		require.NoError(t, err)
+		gotImageType = header.Header.Get("Content-Type")
 		_, _ = w.Write([]byte(`{"data":[{"b64_json":"aGVsbG8="}]}`))
 	}))
 	t.Cleanup(server.Close)
@@ -352,12 +355,25 @@ func TestImageLocaliseUsesOpenAIImageModelOnDirectOpenAI(t *testing.T) {
 	require.Equal(t, "google/gemini-3-pro-image", model.GatewayID)
 	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
 		Model:  model,
-		Inputs: []irisProviderInput{{Role: "image", Bytes: []byte("png"), ContentType: "image/png"}},
+		Inputs: []irisProviderInput{{Role: "image", Bytes: []byte("png"), ContentType: "application/octet-stream"}},
 		Fields: irisGenerateRequest{"targetLocale": "fr-FR"},
 	})
 	require.NoError(t, err)
 	require.Len(t, outputs, 1)
 	require.Equal(t, "gpt-image-2.5-flare", gotModel)
+	require.Equal(t, "image/png", gotImageType)
+}
+
+func TestIrisImageFormMIME(t *testing.T) {
+	ct, ext := irisImageFormMIME(irisProviderInput{ContentType: "application/octet-stream", Bytes: []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}})
+	require.Equal(t, "image/png", ct)
+	require.Equal(t, "png", ext)
+	ct, ext = irisImageFormMIME(irisProviderInput{ContentType: "image/jpeg"})
+	require.Equal(t, "image/jpeg", ct)
+	require.Equal(t, "jpg", ext)
+	ct, ext = irisImageFormMIME(irisProviderInput{ContentType: "image/webp"})
+	require.Equal(t, "image/webp", ct)
+	require.Equal(t, "webp", ext)
 }
 
 func TestGenerateElevenLabsMusicUsesNativeClient(t *testing.T) {
