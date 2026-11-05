@@ -483,6 +483,21 @@ export function createProjectContentSyncRoutes(
       }
 
       const body = c.req.valid("json");
+      // GitHub repositories sync from their Automation settings in Integrations for now, which a
+      // new GitHub sync here would duplicate; one saved before then can still be changed.
+      if (body.syncConfig.provider === "github") {
+        const existing = await getProjectContentSync({
+          organizationId: resolved.project.organizationId,
+          projectId: resolved.project.id,
+        });
+        if (!existing || syncProvider(existing) !== "github") {
+          return badRequestResponse(
+            c,
+            "content_sync_github_in_integrations",
+            "Sync a GitHub repository from its Automation settings in Integrations.",
+          );
+        }
+      }
       const config = await resolveSyncConnection({
         organizationId: resolved.project.organizationId,
         syncConfig: body.syncConfig,

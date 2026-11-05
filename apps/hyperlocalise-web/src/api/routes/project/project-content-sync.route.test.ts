@@ -68,6 +68,7 @@ import { contentSyncFingerprintFromConfig } from "@/lib/agents/content-sync/cont
 import { db, schema } from "@/lib/database/client";
 import type { GitLabProject } from "@/lib/gitlab/types";
 import { err, ok } from "@/lib/primitives/result/results";
+import { saveProjectContentSync } from "@/lib/projects/content-sync/project-content-sync";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
@@ -143,6 +144,21 @@ async function seedWorkspace(options: { source?: "native" | "external_tms" } = {
   return { admin, organization, project: project!, repository: repository! };
 }
 
+/** A GitHub sync saved before new ones moved to Integrations; it can still be changed. */
+async function seedGitHubSync(input: {
+  organizationId: string;
+  projectId: string;
+  repositoryId: string;
+}) {
+  await saveProjectContentSync({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    syncConfig: { ...syncBody(input.repositoryId).syncConfig, resourceKey: "acme/web" },
+    schedule: "manual",
+    userId: null,
+  });
+}
+
 function routeFor() {
   return client.api.orgs[":organizationSlug"].projects[":projectId"]["content-sync"];
 }
@@ -188,6 +204,15 @@ describe("project content sync routes", () => {
       gitlab: { connected: false, available: false },
     });
 
+    const refused = await routeFor().$put({ param, json: syncBody(repository.id) }, { headers });
+    expect(refused.status).toBe(400);
+    expect(await refused.json()).toMatchObject({ error: "content_sync_github_in_integrations" });
+
+    await seedGitHubSync({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      repositoryId: repository.id,
+    });
     const saved = await routeFor().$put({ param, json: syncBody(repository.id) }, { headers });
     expect(saved.status).toBe(200);
     const savedBody = (await saved.json()) as { sync: { syncConfig: Record<string, unknown> } };
@@ -235,11 +260,11 @@ describe("project content sync routes", () => {
 
   it("lets members read but not change the sync", async () => {
     const { admin, project, repository } = await seedWorkspace();
-    const adminHeaders = await projectFixture.authHeadersFor(admin);
-    await routeFor().$put(
-      { param: paramFor(admin, project.id), json: syncBody(repository.id) },
-      { headers: adminHeaders },
-    );
+    await seedGitHubSync({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      repositoryId: repository.id,
+    });
 
     const member = projectFixture.createWorkosIdentityForOrganization(admin.organization, "member");
     const memberHeaders = await projectFixture.authHeadersFor(member);
@@ -268,6 +293,11 @@ describe("project content sync routes", () => {
   it("refuses another workspace's repository, a disabled one and other providers", async () => {
     const { admin, project, repository } = await seedWorkspace();
     const other = await seedWorkspace();
+    await seedGitHubSync({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      repositoryId: repository.id,
+    });
     const headers = await projectFixture.authHeadersFor(admin);
     const param = paramFor(admin, project.id);
 
@@ -337,6 +367,11 @@ describe("project content sync routes", () => {
 
   it("refuses a sync that an active content sync automation already covers", async () => {
     const { admin, organization, project, repository } = await seedWorkspace();
+    await seedGitHubSync({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      repositoryId: repository.id,
+    });
     const headers = await projectFixture.authHeadersFor(admin);
     const body = syncBody(repository.id);
     await db.insert(schema.workspaceAutomations).values({
@@ -362,7 +397,12 @@ describe("project content sync routes", () => {
   });
 
   it("answers a malformed connection id as a missing repository", async () => {
-    const { admin, project } = await seedWorkspace();
+    const { admin, project, repository } = await seedWorkspace();
+    await seedGitHubSync({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      repositoryId: repository.id,
+    });
     const headers = await projectFixture.authHeadersFor(admin);
 
     const saved = await routeFor().$put(
@@ -446,6 +486,11 @@ describe("project content sync routes", () => {
         ...access,
         pathWithNamespace: "acme/app",
       });
+
+      // Only a sync that is already a GitHub one can be saved as one.
+      const toGitHub = await routeFor().$put({ param, json: syncBody(repository.id) }, { headers });
+      expect(toGitHub.status).toBe(400);
+      expect(await toGitHub.json()).toMatchObject({ error: "content_sync_github_in_integrations" });
     });
 
     it("says when the GitLab server's projects can't be listed", async () => {

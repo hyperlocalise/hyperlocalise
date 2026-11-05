@@ -250,7 +250,7 @@ describe("ProjectContentSyncPanel", () => {
 
     expect(
       await screen.findByText(
-        "Enable a GitHub repository or connect GitLab in Integrations to sync this project.",
+        "Connect GitLab in Integrations to sync this project. A GitHub repository syncs from its Automation settings there.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open Integrations" })).toHaveAttribute(
@@ -342,24 +342,25 @@ describe("ProjectContentSyncPanel", () => {
     renderPanel({
       sync: null,
       connections: [
-        { provider: "github", connectionId: "repo_1", resourceKey: "acme/web" },
-        { provider: "github", connectionId: "repo_2", resourceKey: "acme/docs" },
+        { provider: "gitlab", connectionId: "42", resourceKey: "acme/app" },
+        { provider: "gitlab", connectionId: "43", resourceKey: "acme/docs" },
       ],
+      gitlab: gitlabConnected,
     });
     const projectFolder = await screen.findByLabelText("Project folder");
 
     await user.click(screen.getByRole("combobox", { name: "Repository" }));
-    await user.click(await screen.findByRole("option", { name: "acme/web" }));
-    expect(projectFolder).toHaveValue("github/acme/web");
+    await user.click(await screen.findByRole("option", { name: "acme/app" }));
+    expect(projectFolder).toHaveValue("gitlab/acme/app");
 
     await user.click(screen.getByRole("combobox", { name: "Repository" }));
     await user.click(await screen.findByRole("option", { name: "acme/docs" }));
-    expect(projectFolder).toHaveValue("github/acme/docs");
+    expect(projectFolder).toHaveValue("gitlab/acme/docs");
 
     await user.clear(projectFolder);
     await user.type(projectFolder, "docs");
     await user.click(screen.getByRole("combobox", { name: "Repository" }));
-    await user.click(await screen.findByRole("option", { name: "acme/web" }));
+    await user.click(await screen.findByRole("option", { name: "acme/app" }));
     expect(projectFolder).toHaveValue("docs");
   });
 
@@ -464,9 +465,8 @@ describe("ProjectContentSyncPanel", () => {
         gitlab: gitlabConnected,
       });
 
-      await user.click(await screen.findByRole("combobox", { name: "Repository service" }));
-      await user.click(await screen.findByRole("option", { name: "GitLab" }));
-      await user.click(screen.getByRole("combobox", { name: "Repository" }));
+      // A new sync starts on GitLab and lists only its repositories.
+      await user.click(await screen.findByRole("combobox", { name: "Repository" }));
       expect(screen.queryByRole("option", { name: "acme/web" })).not.toBeInTheDocument();
       await user.click(await screen.findByRole("option", { name: "acme/app" }));
       expect(screen.getByLabelText("Project folder")).toHaveValue("gitlab/acme/app");
@@ -494,34 +494,19 @@ describe("ProjectContentSyncPanel", () => {
       });
     });
 
-    it("can't choose GitLab until it is connected in Integrations", async () => {
-      const user = userEvent.setup();
-      renderPanel({ sync: null });
-
-      await user.click(await screen.findByRole("combobox", { name: "Repository service" }));
-      expect(await screen.findByRole("option", { name: "GitLab Not set up" })).toHaveAttribute(
-        "aria-disabled",
-        "true",
-      );
-      expect(screen.getByRole("option", { name: "GitHub" })).not.toHaveAttribute(
-        "aria-disabled",
-        "true",
-      );
-      expect(
-        screen.getByText("Connect GitLab in Integrations to sync from GitLab."),
-      ).toBeInTheDocument();
-    });
-
-    it("can't choose GitHub until a repository is enabled in Integrations", async () => {
+    it("can't choose GitHub for a new sync, which is set up in Integrations", async () => {
       const user = userEvent.setup();
       renderPanel({
         sync: null,
-        connections: [{ provider: "gitlab", connectionId: "42", resourceKey: "acme/app" }],
+        connections: [
+          { provider: "github", connectionId: "repo_1", resourceKey: "acme/web" },
+          { provider: "gitlab", connectionId: "42", resourceKey: "acme/app" },
+        ],
         gitlab: gitlabConnected,
       });
 
       await user.click(await screen.findByRole("combobox", { name: "Repository service" }));
-      expect(await screen.findByRole("option", { name: "GitHub Not set up" })).toHaveAttribute(
+      expect(await screen.findByRole("option", { name: "GitHub Not available" })).toHaveAttribute(
         "aria-disabled",
         "true",
       );
@@ -529,6 +514,27 @@ describe("ProjectContentSyncPanel", () => {
         "aria-disabled",
         "true",
       );
+      expect(
+        screen.getByText("Sync a GitHub repository from its Automation settings in Integrations."),
+      ).toBeInTheDocument();
+    });
+
+    it("keeps a saved GitHub sync's service and can't switch it to an unconnected GitLab", async () => {
+      const user = userEvent.setup();
+      renderPanel();
+
+      await user.click(await screen.findByRole("combobox", { name: "Repository service" }));
+      expect(await screen.findByRole("option", { name: "GitHub" })).not.toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+      expect(screen.getByRole("option", { name: "GitLab Not set up" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+      expect(
+        screen.getByText("Connect GitLab in Integrations to sync from GitLab."),
+      ).toBeInTheDocument();
     });
 
     it("keeps a saved GitLab sync's service after GitLab is disconnected", async () => {
@@ -540,7 +546,7 @@ describe("ProjectContentSyncPanel", () => {
         "aria-disabled",
         "true",
       );
-      expect(screen.getByRole("option", { name: "GitHub Not set up" })).toHaveAttribute(
+      expect(screen.getByRole("option", { name: "GitHub Not available" })).toHaveAttribute(
         "aria-disabled",
         "true",
       );

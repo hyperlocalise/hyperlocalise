@@ -69,6 +69,12 @@ const PROVIDERS: { value: SyncProvider; label: string }[] = [
   { value: "gitlab", label: "GitLab" },
 ];
 
+/** What the service picker says about a service that can't be chosen. */
+const UNAVAILABLE_PROVIDER_TEXT = {
+  github: { label: messages.providerNotAvailable, hint: messages.githubInIntegrations },
+  gitlab: { label: messages.providerNotSetUp, hint: messages.noGitLabConnection },
+} satisfies Record<SyncProvider, unknown>;
+
 const PATH_TEMPLATE_EXAMPLE = `${CONTENT_SYNC_LOCALE_PLACEHOLDER}.json`;
 
 /** Values every panel message may use; a message ignores the ones it does not name. */
@@ -98,8 +104,9 @@ const scheduleMessages = {
 
 const SCHEDULES: SyncSchedule[] = ["manual", "hourly", "daily"];
 
+// A new sync is a GitLab one: GitHub syncs are set up in Integrations for now.
 const EMPTY_DRAFT: SyncDraft = {
-  provider: "github",
+  provider: "gitlab",
   connectionId: "",
   resourceKey: "",
   providerFolder: "",
@@ -118,6 +125,7 @@ const requestErrorMessages: Record<string, PanelMessage> = {
   content_sync_provider_folder_required: messages.errorFieldsRequired,
   content_sync_folder_invalid: messages.errorFolderUnsafe,
   content_sync_connection_required: messages.errorRepositoryNotEnabled,
+  content_sync_github_in_integrations: messages.githubInIntegrations,
   content_sync_automation_overlap: messages.errorAutomationOverlap,
   content_sync_in_progress: messages.syncInProgress,
   content_sync_not_found: messages.errorSyncRemoved,
@@ -278,15 +286,7 @@ export function ProjectContentSyncPanel({
     : null;
   const connections = connectionsQuery.data?.connections ?? [];
   const gitlab = connectionsQuery.data?.gitlab ?? { connected: false, available: false };
-  // A new sync starts on the service the workspace has repositories on.
-  const startingDraft: SyncDraft = {
-    ...EMPTY_DRAFT,
-    provider:
-      connections.some((connection) => connection.provider === "github") || !gitlab.connected
-        ? "github"
-        : "gitlab",
-  };
-  const baseDraft = savedDraft ?? startingDraft;
+  const baseDraft = savedDraft ?? EMPTY_DRAFT;
   const values: SyncDraft = edits ?? baseDraft;
   const dirty = edits !== null && !draftsEqual(edits, baseDraft);
   const isGitLab = values.provider === "gitlab";
@@ -499,25 +499,20 @@ export function ProjectContentSyncPanel({
     : repositoryNotEnabled
       ? "project-sync-repository-error"
       : undefined;
-  const showNoRepositories =
-    canManage &&
-    connectionsQuery.isSuccess &&
-    connections.length === 0 &&
-    !gitlab.connected &&
-    !saved;
-  // A service that isn't set up in Integrations can't be chosen, unless the sync already uses it.
-  const providerSetUp: Record<SyncProvider, boolean> = {
-    github: connections.some((connection) => connection.provider === "github"),
-    gitlab: gitlab.connected,
+  const showNoRepositories = canManage && connectionsQuery.isSuccess && !gitlab.connected && !saved;
+  // A service that isn't available can't be chosen, unless the sync already uses it. GitHub
+  // repositories sync from their Automation settings in Integrations for now, which a GitHub sync
+  // here would duplicate.
+  const providerAvailable: Record<SyncProvider, boolean> = {
+    github: false,
+    gitlab: !connectionsQuery.isSuccess || gitlab.connected,
   };
-  const providersNotSetUp = connectionsQuery.isSuccess
-    ? PROVIDERS.filter(
-        (provider) =>
-          !providerSetUp[provider.value] &&
-          provider.value !== values.provider &&
-          provider.value !== savedDraft?.provider,
-      ).map((provider) => provider.value)
-    : [];
+  const unavailableProviders = PROVIDERS.filter(
+    (provider) =>
+      !providerAvailable[provider.value] &&
+      provider.value !== values.provider &&
+      provider.value !== savedDraft?.provider,
+  ).map((provider) => provider.value);
   // Why the repository list is empty for the chosen service, when it is.
   const emptyRepositoriesHint =
     !canManage || !connectionsQuery.isSuccess || providerConnections.length > 0
@@ -612,14 +607,16 @@ export function ProjectContentSyncPanel({
                         key={provider.value}
                         value={provider.value}
                         label={provider.label}
-                        disabled={providersNotSetUp.includes(provider.value)}
+                        disabled={unavailableProviders.includes(provider.value)}
                       >
                         {provider.label}
-                        {providersNotSetUp.includes(provider.value) ? (
+                        {unavailableProviders.includes(provider.value) ? (
                           <>
                             {" "}
                             <span className="text-muted-foreground">
-                              <FormattedMessage {...messages.providerNotSetUp} />
+                              <FormattedMessage
+                                {...UNAVAILABLE_PROVIDER_TEXT[provider.value].label}
+                              />
                             </span>
                           </>
                         ) : null}
@@ -632,15 +629,11 @@ export function ProjectContentSyncPanel({
                     {...(isGitLab ? messages.gitlabBehaviour : messages.githubBehaviour)}
                   />
                 </FieldDescription>
-                {providersNotSetUp.length > 0 ? (
+                {unavailableProviders.length > 0 ? (
                   <FieldDescription>
-                    {providersNotSetUp.map((provider) => (
+                    {unavailableProviders.map((provider) => (
                       <Fragment key={provider}>
-                        <FormattedMessage
-                          {...(provider === "gitlab"
-                            ? messages.noGitLabConnection
-                            : messages.noGitHubRepositories)}
-                        />{" "}
+                        <FormattedMessage {...UNAVAILABLE_PROVIDER_TEXT[provider].hint} />{" "}
                       </Fragment>
                     ))}
                     <OrgNavLink

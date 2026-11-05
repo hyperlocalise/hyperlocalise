@@ -53,10 +53,10 @@ export const projectContentSyncPanelMessages = defineMessages({
   },
   noRepositories: {
     defaultMessage:
-      "Enable a GitHub repository or connect GitLab in Integrations to sync this project.",
-    id: "5s/m8jJWkg",
+      "Connect GitLab in Integrations to sync this project. A GitHub repository syncs from its Automation settings there.",
+    id: "BL4Aw/xqvM",
     description:
-      "Shown in the project Sync panel when the workspace has no enabled GitHub repositories and no GitLab connection",
+      "Shown in the project Sync panel when the workspace has no GitLab connection and the project has no sync",
   },
   openIntegrations: {
     defaultMessage: "Open Integrations",
@@ -392,6 +392,18 @@ export const projectContentSyncPanelMessages = defineMessages({
     id: "O9WSf08ndF",
     description:
       "Shown next to GitHub or GitLab in the project Sync panel's service picker when that service isn't set up in Integrations",
+  },
+  providerNotAvailable: {
+    defaultMessage: "Not available",
+    id: "hZbM3bN0LI",
+    description:
+      "Shown next to GitHub in the project Sync panel's service picker, where GitHub can't be chosen for now",
+  },
+  githubInIntegrations: {
+    defaultMessage: "Sync a GitHub repository from its Automation settings in Integrations.",
+    id: "XGVaZ97qQ9",
+    description:
+      "Says where GitHub syncs are set up, in place of the project Sync panel; shown under its service picker and when a GitHub sync is refused",
   },
   noGitHubRepositories: {
     defaultMessage: "Enable a GitHub repository in Integrations to sync from GitHub.",

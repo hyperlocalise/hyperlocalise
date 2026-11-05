@@ -3,24 +3,24 @@ title: "Sync content with a repository"
 description: "Move source files into Platform from a GitHub or GitLab repository and return translations."
 ---
 
-Content sync moves files between a connected repository and a native project. GitHub and GitLab are supported; the two behave differently in what they send back and how they treat keys the repository dropped, and the Sync settings say so under the service picker.
+Content sync moves files between a connected repository and a native project. A project's **Sync** settings sync with GitLab. To sync a GitHub repository, use its **Automation** settings under **Integrations → GitHub**, or a visual workflow **Content sync** step.
 
-Connecting GitHub gives Platform access to repositories. It does not start a file sync or generate translations.
+Connecting GitHub or GitLab gives Platform access to repositories. It does not start a file sync or generate translations.
 
 ## Configure content sync
 
-1. [Connect GitHub](/platform/connections/github) and enable the intended repository.
+1. [Connect GitLab](/platform/integrations#connect-gitlab-for-the-workspace) under **Integrations**.
 2. Open the project’s **Settings** and select **Sync**.
-3. Choose the repository, the repository folder that holds the source files, and the project folder they should appear in.
+3. Choose the repository, the repository folder that holds the source files, the project folder they should appear in, and the language file paths described [below](#pull-from-gitlab).
 4. Choose a schedule: only when you select **Sync now**, every hour, or every day. Then select **Save**.
 5. Select **Sync now** for the first run.
 6. Check the run under **Recent syncs** and confirm the source paths in **Files**.
 
-Pull brings source content into the project folder. Push sends translations that are already ready back to GitHub through a pull request; **Recent syncs** links to it. Review that pull request before merging it. Each sync keeps one pull request open and updates it on later runs, replacing any commits pushed to it, so make translation fixes in Platform rather than in the pull request. Only one sync of a project runs at a time.
+Only one sync of a project runs at a time. **GitHub** shows in the Sync settings' service picker but can't be chosen there for now.
 
 Admins, localization managers, and developers can change the sync and start it. Other members with access to the project can see its settings and runs. Sync is available on every plan.
 
-Content sync automations created on the project's **Automations** page before the Sync panel keep running. A visual workflow can also run a **Content sync** step with the same settings when you need more steps around it.
+Content sync automations created on the project's **Automations** page before the Sync panel keep running. A visual workflow can also run a **Content sync** step, for GitHub or GitLab, when you need more steps around it. A GitHub step sends translations that are already ready back through a pull request; review it before merging.
 
 ## Pull from GitLab
 

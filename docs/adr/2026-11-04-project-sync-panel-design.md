@@ -49,6 +49,14 @@ A provider adds its connection check in the panel route's `resolveSyncConnection
 
 GitLab ([self-hosted GitLab content sync](./2026-11-04-self-hosted-gitlab-content-sync-design.md)) is added that way. Syncs use only the workspace's own server connection, never a member's GitLab.com sign-in, so the connections list shows GitLab projects only when the workspace has one, and says when the server can't be read so the panel does not call a saved project missing. Saving looks the project up by its path on the current server and requires the id chosen in the panel, the same check each run makes, and stores the server's spelling of the path. GitLab delivery keeps one merge request per sync through the same `pullRequestBranchKey`, and every run that sends, or finds it open, links to it (a merged one, or one a reviewer closed, is not linked); held-back language files, files not sent and a refused write are recorded on the run. Each run also records the service it ran with, failed runs included.
 
+### GitHub held back (2026-11-05)
+
+A GitHub sync in the panel would duplicate each repository's Automation settings in Integrations (push source, pull translations), and the two do not check each other, so both could open pull requests for the same repository and project. Until that automation is retired, the panel offers GitLab only:
+
+- The service picker still lists GitHub, disabled, with a line pointing to the repository's Automation settings in Integrations. GitLab is disabled the same way while the workspace has no GitLab connection. A service the saved sync already uses stays selectable, so it can still be changed or removed.
+- Saving refuses a GitHub sync (`content_sync_github_in_integrations`) unless the project's saved sync is already a GitHub one. The GitHub code paths (connection check, runs, one pull request per sync) are unchanged, so turning GitHub back on is removing these two checks.
+- A new sync starts on GitLab; the Integrations prompt shows while the workspace has no GitLab connection.
+
 ### Out of scope
 
 - Converting existing content-sync automations into project syncs.
