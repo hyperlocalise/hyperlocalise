@@ -202,7 +202,23 @@ function matchesType(value: unknown, type: unknown): boolean {
 }
 
 function sameJsonValue(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  if (left === right) return true;
+  if (left === null || right === null || typeof left !== "object" || typeof right !== "object")
+    return false;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+    return left.every((entry, index) => sameJsonValue(entry, right[index]));
+  }
+  const leftKeys = Object.keys(left);
+  if (leftKeys.length !== Object.keys(right).length) return false;
+  return leftKeys.every(
+    (key) =>
+      Object.hasOwn(right, key) &&
+      sameJsonValue(
+        (left as Record<string, unknown>)[key],
+        (right as Record<string, unknown>)[key],
+      ),
+  );
 }
 
 function validateSchemaShape(schema: unknown): BoundedValueResult {
@@ -304,9 +320,10 @@ function validateValue(
     add("schema_enum_mismatch", "Value is not one of the allowed values.");
 
   if (typeof value === "string") {
-    if (typeof schema.minLength === "number" && value.length < schema.minLength)
+    const length = Array.from(value).length;
+    if (typeof schema.minLength === "number" && length < schema.minLength)
       add("schema_min_length", "String is shorter than the allowed minimum.");
-    if (typeof schema.maxLength === "number" && value.length > schema.maxLength)
+    if (typeof schema.maxLength === "number" && length > schema.maxLength)
       add("schema_max_length", "String exceeds the allowed maximum length.");
   }
   if (typeof value === "number") {
@@ -342,10 +359,17 @@ function validateValue(
         if (errors.length >= JSON_NODE_LIMITS.maxErrors) return;
       }
     }
+    const additionalSchema =
+      schema.additionalProperties &&
+      typeof schema.additionalProperties === "object" &&
+      !Array.isArray(schema.additionalProperties)
+        ? (schema.additionalProperties as Record<string, unknown>)
+        : null;
     for (const [key, entry] of Object.entries(object)) {
-      const propertySchema = properties[key];
+      const propertySchema = Object.hasOwn(properties, key) ? properties[key] : undefined;
       if (propertySchema && typeof propertySchema === "object" && !Array.isArray(propertySchema))
         validateValue(entry, propertySchema as Record<string, unknown>, `${path}.${key}`, errors);
+      else if (additionalSchema) validateValue(entry, additionalSchema, `${path}.${key}`, errors);
       else if (schema.additionalProperties === false)
         errors.push(
           detail(

@@ -94,6 +94,41 @@ describe("JSON workflow nodes", () => {
     });
   });
 
+  it("applies additionalProperties schemas to undeclared properties", () => {
+    const schema = {
+      type: "object",
+      properties: { name: { type: "string" } },
+      additionalProperties: { type: "number" },
+    };
+
+    expect(executeSchemaValidate({ name: "Ada", age: 36 }, schema)).toMatchObject({
+      output: { valid: true },
+      switchCase: "success",
+    });
+    expect(executeSchemaValidate({ name: "Ada", age: "36" }, schema)).toMatchObject({
+      output: { valid: false, errors: [{ code: "schema_type_mismatch", path: "$.age" }] },
+      switchCase: "invalid",
+    });
+  });
+
+  it("compares const and enum objects regardless of key order", () => {
+    expect(executeSchemaValidate({ b: 2, a: 1 }, { const: { a: 1, b: 2 } })).toMatchObject({
+      output: { valid: true },
+    });
+    expect(executeSchemaValidate({ b: 2, a: 1 }, { enum: [{ a: 1, b: 2 }] })).toMatchObject({
+      output: { valid: true },
+    });
+    expect(executeSchemaValidate({ a: 1 }, { const: { a: 1, b: 2 } })).toMatchObject({
+      output: { valid: false, errors: [{ code: "schema_const_mismatch" }] },
+    });
+  });
+
+  it("counts string length in code points", () => {
+    expect(executeSchemaValidate("😀😀", { type: "string", maxLength: 2 })).toMatchObject({
+      output: { valid: true },
+    });
+  });
+
   it("refuses schema references and unsupported executable-style keywords", () => {
     expect(executeSchemaValidate({}, { $ref: "https://example.test/schema.json" })).toMatchObject({
       ok: true,
