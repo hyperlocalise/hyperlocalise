@@ -8,7 +8,7 @@ Visual workflows compose fixed automation steps on a canvas. Open **Automations 
 ## Build and connect data
 
 1. Choose a manual, scheduled, GitHub, source-upload, or **Webhook** trigger.
-2. Add HTTP, AI, Slack, email, condition, switch, Set, For each, Sequence, Retry, or **Call workflow** nodes.
+2. Add HTTP, AI, Slack, email, condition, switch, Set, object and JSON steps, For each, Array transform, Sequence, Retry, or **Call workflow** nodes.
 3. Connect execution order on the canvas.
 4. Select a node. Its settings open on the **Configuration** tab. A setting that can take its value from an earlier step shows a port mark beside its name: type a value, insert fields from earlier steps by typing `{{` or with the braces button beside the box, or wire the port on the canvas. An inserted field shows as a pill naming its step and field; a red pill names a step that does not run before this one. Backspace removes a pill whole. On the canvas, each pill draws a thin dashed line from the field it reads to the setting's port; it cannot be selected or moved. Data wires are thin solid lines, and the connections that decide the order steps run in are thicker. A wired setting shows which step feeds it.
 5. Review the **Outputs** tab for expected fields. Test results show actual redacted values.
@@ -21,6 +21,8 @@ HTTP JSON responses have an unknown shape until you declare output fields such a
 
 **For each** requires an array. Connect **Each item** to the body, select the body nodes in the inspector, and connect **Done** to the next step. Body nodes can read the loop's `item` and `index`. Configure collected output bindings to expose `iterationOutputs` after the loop. Items run sequentially; an empty array follows Done with an empty result. Nested loops are not supported.
 
+**Array transform** applies **Filter**, **Map**, **Reduce**, or **Find** to an ordered collection. Connect **Each item** to the body and **Done** to the next step, then collect a `result` binding from the body. Filter and Find require a boolean body result. Map and Reduce use the declared result type. Reduce also needs an initial value. Body nodes can read `item` and `index`, plus `accumulator` during Reduce. After **Done**, Filter and Map expose `items`, Reduce exposes `value`, and Find exposes `found` with an optional `value`. Collections are limited to 100 items, and nested collection regions are not supported.
+
 **Sequence** runs multiple downstream paths in a fixed order. Add named outputs on the node, connect one path to each output handle, and list the outputs in the order they should run. The workflow finishes the first path completely before starting the next. Use it when later steps must wait for earlier paths to finish, for example sending Slack before email.
 
 **Retry** wraps steps that may fail with transient errors. Connect **Attempt** to the body (same body-selection pattern as **For each**). Connect **Succeeded** when the body finishes without a retryable failure, or **Exhausted** when all attempts are used. Defaults are 3 attempts, a 1 second initial delay, 2× backoff, and jitter; the cap is 10 attempts. Only configured error codes retry (defaults include HTTP and node execution failures). Delays between attempts use durable backoff so runs survive restarts.
@@ -30,6 +32,34 @@ Retry bodies cannot nest another **Retry** or **For each**. When the body calls 
 Conditions use true/false connections. Switches use case/default connections. Action failures can stop, continue with a visible handled error, or select an error branch. A merge waits for all incoming connections to settle and runs if any is selected.
 
 **Compare** evaluates typed values and outputs a boolean `result` you can wire into **If**, **Wait**, or other steps. Operators include equality and ordering on strings and numbers (`equal`, `not_equal`, `greater_than`, `less_than`, and related), string checks (`contains`, `starts_with`, `ends_with`), and boolean combinators (`and`, `or`, `not`). Wire `value.left` and `value.right` (or a single operand for `not`) on the canvas; values are compared without implicit type coercion. Deep equality works on plain objects and arrays within documented depth and size limits. Locale-aware string checks use an optional locale when you configure one.
+
+## Build and read structured values
+
+Use these steps when an HTTP or webhook payload needs shaping before Slack, email, or **Call workflow** inputs.
+
+| Step | Purpose |
+| --- | --- |
+| **Set fields** | Assign named outputs from wired values or templates. |
+| **Create object** | Build an object from declared fields with optional defaults. |
+| **Merge objects** | Combine multiple objects with a conflict policy (`prefer_first`, `prefer_last`, or shallow merge). |
+| **Get field** | Read a value at a safe path (property names and array indexes). Outputs `value` and `found`. |
+| **Default value** | Return the first non-empty value from an ordered list of wired inputs. |
+
+**Get field** rejects unsafe keys such as `__proto__` and stops at a maximum path depth so arbitrary user data cannot escape the workflow sandbox.
+
+## Parse, serialize, and validate JSON
+
+These steps share the same size and depth limits as webhook bodies (256 KiB of text, depth 32, up to 10,000 object entries). Values must be JSON-compatible (finite numbers, no `undefined`).
+
+| Step | Inputs | Branches | Outputs |
+| --- | --- | --- | --- |
+| **Parse JSON** | JSON text | **Success** / **Invalid** | Parsed `value`, or `error` with code and path on **Invalid** |
+| **Stringify JSON** | Any JSON-compatible value | **Success** / **Error** | `text`, or `error` when the value cannot be serialized |
+| **Validate schema** | Value and a JSON Schema object | **Success** / **Invalid** | `valid`, `errors` (up to 50), and the bounded `value` |
+
+**Validate schema** accepts a bounded subset of JSON Schema: `type`, `properties`, `required`, `items`, `enum`, `const`, numeric and length limits, and boolean or nested `additionalProperties`. `$ref` and other open-ended keywords are not supported. Wire **Invalid** into an error branch or a **Fail** step when upstream systems send unexpected shapes.
+
+Typical pattern after a **Webhook** trigger: **Parse JSON** on `body` text → **Validate schema** → **Get field** for nested IDs → **Set fields** or **HTTP Request** for downstream calls.
 
 ## End the run on purpose
 

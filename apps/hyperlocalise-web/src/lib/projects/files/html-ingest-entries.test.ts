@@ -60,6 +60,19 @@ describe("extractHtmlIngestEntries", () => {
     expect(got["html.head.title"]).toBeUndefined();
   });
 
+  it("extracts Mailchimp envelope metadata from head", () => {
+    const got = extractHtmlIngestEntries(`<!doctype html><html><head>
+<title data-hl-mailchimp-field="subject">Campaign subject</title>
+<meta data-hl-mailchimp-field="previewText" name="description" content="Preview line">
+<meta data-hl-mailchimp-field="fromName" name="author" content="Brand">
+</head><body><div data-hl-mailchimp-field="htmlBody"><p>Shop the sale</p></div></body></html>`);
+
+    expect(got["html.head.title"]).toBe("Campaign subject");
+    expect(got["html.head.meta.description"]).toBe("Preview line");
+    expect(got["html.head.meta.author"]).toBe("Brand");
+    expect(got["html.body.div.p"]).toBe("Shop the sale");
+  });
+
   it("skips extra excluded tags", () => {
     const got = extractHtmlIngestEntries(
       `<html><body><nav>Menu</nav><p>Hello</p><footer>Legal</footer></body></html>`,

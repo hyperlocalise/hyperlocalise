@@ -56,6 +56,9 @@ describe("getNotificationListItemVisual", () => {
     expect(getNotificationListItemVisual("qa_errors_increased", intl).typeIconLabel).toBe(
       "QA errors",
     );
+    expect(getNotificationListItemVisual("qa_errors_increased", intl).badgeClassName).toBe(
+      "text-amber-900 dark:text-amber-700",
+    );
     expect(getNotificationListItemVisual("qa_scan_failed", intl).typeIconLabel).toBe(
       "QA scan failed",
     );

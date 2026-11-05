@@ -390,6 +390,44 @@ describe("VisualWorkflowConfigPanel", () => {
     expect(screen.queryByLabelText("Project ID (optional)")).not.toBeInTheDocument();
   });
 
+  it("shows the GitLab branch and language file path fields", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+    const base = triggerNode("action.content_sync");
+    const gitlabNode = {
+      ...base,
+      data: {
+        ...base.data,
+        config: {
+          ...(base.data.config as Extract<
+            VisualWorkflowRfNode["data"]["config"],
+            { kind: "action.content_sync" }
+          >),
+          provider: "gitlab" as const,
+        },
+      },
+    };
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={gitlabNode}
+        organizationSlug="acme"
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Branch")).toHaveAttribute("placeholder", "Default branch");
+    const paths = screen.getByLabelText("Language file paths");
+    expect(paths).toHaveAttribute("placeholder", "for example {{locale}}.json");
+    expect(screen.queryByLabelText(/language codes/i)).not.toBeInTheDocument();
+
+    await user.type(paths, "x");
+    expect(onChangeConfig.mock.calls.at(-1)?.[0].pathTemplate).toBe("x");
+  });
+
   it("configures a Wait node and changes its mode", async () => {
     const user = userEvent.setup();
     const onChangeConfig = vi.fn();
@@ -1556,6 +1594,124 @@ describe("VisualWorkflowConfigPanel", () => {
     );
     await user.click(screen.getByRole("button", { name: "Add condition" }));
     expect(screen.getByRole("textbox", { name: "Value 3 name" })).toHaveValue("Condition 3");
+  });
+
+  it("configures Parse JSON text through its typed input", () => {
+    const onChangeConfig = vi.fn();
+    const node: VisualWorkflowRfNode = {
+      id: "parse-json",
+      type: "logic.json_parse",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.json_parse"),
+      data: {
+        catalogType: "logic.json_parse",
+        config: { kind: "logic.json_parse", text: "{}" },
+        runStatus: "idle",
+      },
+    };
+
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    const text = screen.getByRole("textbox", { name: "JSON text" });
+    replaceText(text, '{"name":"Ada"}');
+    expect(onChangeConfig).toHaveBeenLastCalledWith({
+      kind: "logic.json_parse",
+      text: '{"name":"Ada"}',
+    });
+    expect(screen.getByText(/connect a string output/i)).toBeInTheDocument();
+  });
+
+  it("keeps invalid Stringify JSON drafts without replacing the stored value", () => {
+    const onChangeConfig = vi.fn();
+
+    function StatefulStringifyPanel() {
+      const [config, setConfig] = useState<
+        Extract<VisualNodeConfig, { kind: "logic.json_stringify" }>
+      >({ kind: "logic.json_stringify", value: { name: "Ada" } });
+      return (
+        <VisualWorkflowConfigPanel
+          node={{
+            id: "stringify-json",
+            type: "logic.json_stringify",
+            position: { x: 0, y: 0 },
+            ...getVisualNodeDimensions("logic.json_stringify"),
+            data: { catalogType: "logic.json_stringify", config, runStatus: "idle" },
+          }}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={(next) => {
+            onChangeConfig(next);
+            if (next.kind === "logic.json_stringify") setConfig(next);
+          }}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+        />
+      );
+    }
+
+    renderPanel(<StatefulStringifyPanel />);
+    const value = screen.getByRole("textbox", { name: "Value" });
+    replaceText(value, "{");
+    expect(value).toHaveAttribute("aria-invalid", "true");
+    expect(onChangeConfig).not.toHaveBeenCalled();
+
+    replaceText(value, '["en","de"]');
+    expect(onChangeConfig).toHaveBeenLastCalledWith({
+      kind: "logic.json_stringify",
+      value: ["en", "de"],
+    });
+  });
+
+  it("requires an object in the Schema Validate schema editor", () => {
+    const onChangeConfig = vi.fn();
+
+    function StatefulSchemaPanel() {
+      const [config, setConfig] = useState<
+        Extract<VisualNodeConfig, { kind: "logic.schema_validate" }>
+      >({ kind: "logic.schema_validate", value: { name: "Ada" }, schema: {} });
+      return (
+        <VisualWorkflowConfigPanel
+          node={{
+            id: "schema-validate",
+            type: "logic.schema_validate",
+            position: { x: 0, y: 0 },
+            ...getVisualNodeDimensions("logic.schema_validate"),
+            data: { catalogType: "logic.schema_validate", config, runStatus: "idle" },
+          }}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={(next) => {
+            onChangeConfig(next);
+            if (next.kind === "logic.schema_validate") setConfig(next);
+          }}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+        />
+      );
+    }
+
+    renderPanel(<StatefulSchemaPanel />);
+    const schema = screen.getByRole("textbox", { name: "Schema" });
+    replaceText(schema, "[]");
+    expect(schema).toHaveAttribute("aria-invalid", "true");
+    expect(onChangeConfig).not.toHaveBeenCalled();
+
+    replaceText(schema, '{"type":"object"}');
+    expect(onChangeConfig).toHaveBeenLastCalledWith({
+      kind: "logic.schema_validate",
+      value: { name: "Ada" },
+      schema: { type: "object" },
+    });
+    expect(screen.getByText(/remote references are not supported/i)).toBeInTheDocument();
   });
 
   it("resets Crowdin people IDs when the saved value or selected step changes", () => {

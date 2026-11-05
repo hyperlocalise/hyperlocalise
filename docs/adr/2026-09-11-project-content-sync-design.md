@@ -8,6 +8,8 @@
 
 Accepted
 
+Superseded for new syncs by the built-in [Project Sync panel](./2026-11-04-project-sync-panel-design.md); content-sync automations are no longer the way to add a sync.
+
 ## Context
 
 Workspace automations wrap GitHub and Contentful sync in an LLM orchestrator and require instructions. Integrations only store credentials. Operators need one click to move content between a connected source and a Hyperlocalise project, without a prompt.
@@ -39,7 +41,7 @@ Add a workspace automation `kind: "content_sync"`. It lives on the Automations p
 
 Content-sync runs use the same run table and enqueue path. Execution skips the orchestrator. Pull and push are separate steps in one run. A failed push leaves imported sources in place.
 
-GitHub reuses the sandbox clone, source upload, and translation PR helpers, filtered by the configured folders. Contentful, GitLab, and Intercom share the same config contract; their executors ship after GitHub.
+GitHub reuses the sandbox clone, source upload, and translation PR helpers, filtered by the configured folders. Contentful, GitLab, and Intercom share the same config contract; their executors ship after GitHub. GitLab reads over REST instead of a clone, through a narrow provider interface: see [`2026-11-04-self-hosted-gitlab-content-sync-design.md`](./2026-11-04-self-hosted-gitlab-content-sync-design.md).
 
 Help Center article localisation later shipped as the **Translate Intercom Help
 Center articles** workspace skill (markdown sources and a separate **Push to

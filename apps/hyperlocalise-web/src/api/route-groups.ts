@@ -22,6 +22,7 @@ import type {
   ProviderAgentWritebackQueue,
   TranslationFileImportQueue,
   TranslationJobEventData,
+  ProjectContentSyncQueue,
   TranslationQaScanQueue,
 } from "@/lib/workflow/types";
 import { createEngineSetupQueue } from "@/workflows/adapters";
@@ -43,6 +44,7 @@ import { createBrazeRoutes } from "./routes/braze/braze.route";
 import { createLoopsRoutes } from "./routes/loops/loops.route";
 import { createCustomerIoRoutes } from "./routes/customer-io/customer-io.route";
 import { createHubspotRoutes } from "./routes/hubspot/hubspot.route";
+import { createMailchimpRoutes } from "./routes/mailchimp/mailchimp.route";
 import { createIterableRoutes } from "./routes/iterable/iterable.route";
 import { createPipesRoutes } from "./routes/pipes/pipes.route";
 import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
@@ -85,6 +87,7 @@ export type OrgScopedRouteOptions = {
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
   translationQaScanQueue?: TranslationQaScanQueue;
+  projectContentSyncQueue?: ProjectContentSyncQueue;
   engineSetupQueue?: EngineSetupQueue;
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
 };
@@ -191,6 +194,7 @@ export function createOrgIntegrationsRoutes() {
     .route("/loops", createLoopsRoutes())
     .route("/customer-io", createCustomerIoRoutes())
     .route("/hubspot", createHubspotRoutes())
+    .route("/mailchimp", createMailchimpRoutes())
     .route("/iterable", createIterableRoutes())
     .route("/intercom-connections", createIntercomConnectionRoutes())
     .route("/canva-connections", createCanvaConnectionRoutes())

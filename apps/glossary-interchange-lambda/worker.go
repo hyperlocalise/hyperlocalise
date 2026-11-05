@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/internal/activitylog"
+	"github.com/hyperlocalise/hyperlocalise/internal/csvsafe"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -80,11 +82,7 @@ var headers = []string{"conceptId", "termId", "locale", "term", "primaryTerm", "
 const csvFormulaEscapePrefix = "__HYPERLOCALISE_CSV_FORMULA__"
 
 func escapeCSVFormula(value string) string {
-	if strings.HasPrefix(value, csvFormulaEscapePrefix) {
-		return csvFormulaEscapePrefix + value
-	}
-	trimmed := strings.TrimLeft(value, " \t")
-	if trimmed != "" && strings.ContainsRune("=+-@", rune(trimmed[0])) {
+	if strings.HasPrefix(value, csvFormulaEscapePrefix) || csvsafe.HasFormulaTrigger(value) {
 		return csvFormulaEscapePrefix + value
 	}
 	return value
@@ -95,14 +93,27 @@ func unescapeCSVFormula(value string) string {
 		return value
 	}
 	rest := strings.TrimPrefix(value, csvFormulaEscapePrefix)
-	if strings.HasPrefix(rest, csvFormulaEscapePrefix) {
-		return rest
-	}
-	trimmed := strings.TrimLeft(rest, " \t")
-	if trimmed != "" && strings.ContainsRune("=+-@", rune(trimmed[0])) {
+	if strings.HasPrefix(rest, csvFormulaEscapePrefix) || csvsafe.HasFormulaTrigger(rest) {
 		return rest
 	}
 	return value
+}
+
+type permanentGlossaryInterchangeError struct {
+	cause error
+}
+
+func (e permanentGlossaryInterchangeError) Error() string { return e.cause.Error() }
+
+func (e permanentGlossaryInterchangeError) Unwrap() error { return e.cause }
+
+func permanentGlossaryInterchangeFailure(err error) error {
+	return permanentGlossaryInterchangeError{cause: err}
+}
+
+func isPermanentGlossaryInterchangeFailure(err error) bool {
+	var permanent permanentGlossaryInterchangeError
+	return errors.As(err, &permanent)
 }
 
 func processRun(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Registry, message interchangeMessage) error {
@@ -121,21 +132,36 @@ func processRun(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Re
 	} else {
 		runErr = runImport(ctx, pool, objects, message.RunID, format, mode, sourceLocation, sourceKey, options)
 	}
-	if runErr != nil {
-		if ctx.Err() != nil {
-			return runErr
-		}
-		failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_, _ = pool.Exec(failureCtx, `update glossary_import_runs set status='failed', processing_started_at=null, error_code='glossary_interchange_failed', error_message=$2, completed_at=now() where id=$1`, message.RunID, runErr.Error())
-		return runErr
+	if runErr == nil {
+		return nil
 	}
-	return nil
+	if ctx.Err() != nil {
+		// The run stays claimed until the stale-claim window, so SQS must redeliver.
+		return fmt.Errorf("glossary interchange run interrupted: %w (%v)", ctx.Err(), runErr)
+	}
+	failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	status := "queued"
+	errorCode := "glossary_interchange_retryable"
+	if isPermanentGlossaryInterchangeFailure(runErr) {
+		status = "failed"
+		errorCode = "glossary_interchange_failed"
+	}
+	_, _ = pool.Exec(failureCtx, `update glossary_import_runs set status=$2, processing_started_at=null, error_code=$3, error_message=$4, completed_at=case when $2='failed' then now() else null end where id=$1 and status='running'`, message.RunID, status, errorCode, safeFailureMessage(runErr))
+	return runErr
+}
+
+func safeFailureMessage(err error) string {
+	message := strings.TrimSpace(err.Error())
+	if len(message) > 500 {
+		message = message[:500]
+	}
+	return message
 }
 
 func runExport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Registry, runID, format string, options []byte) error {
-	var glossaryID, location string
-	if err := pool.QueryRow(ctx, `select glossary_id, organization_id from glossary_import_runs where id=$1`, runID).Scan(&glossaryID, &location); err != nil {
+	var glossaryID, organizationID string
+	if err := pool.QueryRow(ctx, `select glossary_id, organization_id from glossary_import_runs where id=$1`, runID).Scan(&glossaryID, &organizationID); err != nil {
 		return err
 	}
 	concepts, err := loadConcepts(ctx, pool, glossaryID)
@@ -144,12 +170,12 @@ func runExport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 	}
 	var exportOptions interchangeExportOptions
 	if err := json.Unmarshal(options, &exportOptions); err != nil {
-		return fmt.Errorf("decode export options: %w", err)
+		return permanentGlossaryInterchangeFailure(fmt.Errorf("decode export options: %w", err))
 	}
 	if exportOptions.ModifiedFrom != "" {
 		exportOptions.ModifiedAfter, err = time.Parse(time.RFC3339, exportOptions.ModifiedFrom)
 		if err != nil {
-			return fmt.Errorf("decode modifiedFrom: %w", err)
+			return permanentGlossaryInterchangeFailure(fmt.Errorf("decode modifiedFrom: %w", err))
 		}
 	}
 	concepts = filterExportConcepts(concepts, exportOptions)
@@ -157,7 +183,7 @@ func runExport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 	if err != nil {
 		return err
 	}
-	key := fmt.Sprintf("glossary-interchange/%s/%s/export/%s.%s", location, glossaryID, runID, ext)
+	key := fmt.Sprintf("glossary-interchange/%s/%s/export/%s.%s", organizationID, glossaryID, runID, ext)
 	_, _, err = objects.Put(ctx, objectstore.PutInput{Key: key, Body: bytes.NewReader(body), Size: int64(len(body)), ContentType: contentType})
 	if err != nil {
 		return err
@@ -176,8 +202,11 @@ func runImport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 	if err != nil {
 		return err
 	}
-	if info.Size <= 0 || info.Size > maxGlossaryInterchangeBytes {
-		return fmt.Errorf("glossary import object size %d exceeds the 25 MB limit", info.Size)
+	if info.Size <= 0 {
+		return permanentGlossaryInterchangeFailure(errors.New("glossary import object is empty"))
+	}
+	if info.Size > maxGlossaryInterchangeBytes {
+		return permanentGlossaryInterchangeFailure(fmt.Errorf("glossary import object size %d exceeds the 25 MB limit", info.Size))
 	}
 	body, _, err := store.Get(ctx, key)
 	if err != nil {
@@ -190,14 +219,14 @@ func runImport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 	}
 	concepts, diagnostics, err := decodeDocument(format, data)
 	if err != nil {
-		return err
+		return permanentGlossaryInterchangeFailure(err)
 	}
 	if len(diagnostics) > 0 {
-		return fmt.Errorf("%s", diagnostics[0])
+		return permanentGlossaryInterchangeFailure(errors.New(diagnostics[0]))
 	}
 	var importOptions interchangeImportOptions
 	if err := json.Unmarshal(options, &importOptions); err != nil {
-		return fmt.Errorf("decode import options: %w", err)
+		return permanentGlossaryInterchangeFailure(fmt.Errorf("decode import options: %w", err))
 	}
 	var sourceLocale string
 	var localeCoverage []string
@@ -346,17 +375,17 @@ func runImport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 	if err := recordGlossaryImportedActivity(ctx, tx, runID, glossaryID, countTerms(concepts), importOptions.Actor); err != nil {
 		return err
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return err
-	}
 	countsJSON, _ := json.Marshal(map[string]int{
 		"concepts": len(concepts), "terms": countTerms(concepts),
 		"created": mutationCounts.TermsCreated, "updated": mutationCounts.TermsUpdated, "merged": mutationCounts.TermsMerged,
 		"conceptsCreated": mutationCounts.ConceptsCreated, "conceptsUpdated": mutationCounts.ConceptsUpdated, "conceptsMerged": mutationCounts.ConceptsMerged,
 		"termsCreated": mutationCounts.TermsCreated, "termsUpdated": mutationCounts.TermsUpdated, "termsMerged": mutationCounts.TermsMerged,
 	})
-	_, err = pool.Exec(ctx, `update glossary_import_runs set status='completed', processing_started_at=null, counts=$2::jsonb, completed_at=now() where id=$1`, runID, countsJSON)
-	return err
+	// Completing the run in the import transaction keeps a retry from re-applying committed rows.
+	if _, err := tx.Exec(ctx, `update glossary_import_runs set status='completed', processing_started_at=null, counts=$2::jsonb, completed_at=now() where id=$1`, runID, countsJSON); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func countTerms(concepts []interchangeConcept) int {
@@ -556,7 +585,7 @@ func saveConcept(ctx context.Context, tx pgx.Tx, glossaryID string, c interchang
 					// Match legacy lookupImportGlossaryTerm: refuse moving a term
 					// UUID onto a different concept (silent corruption / data loss).
 					if glossaryTermBelongsToOtherConcept(existingConceptID, conceptID) {
-						return counts, fmt.Errorf("term id %q belongs to another concept in this glossary", stableTermID)
+						return counts, permanentGlossaryInterchangeFailure(fmt.Errorf("term id %q belongs to another concept in this glossary", stableTermID))
 					}
 					if _, err = tx.Exec(ctx, `update glossary_terms set locale=$2,term=$3,source_term=$3,target_term=$3,description=$4,note=$5,part_of_speech=$6,gender=$7,term_type=$8,url=$9,lemma=$10,status=$11,case_sensitive=$12,forbidden=$13,provenance=$14,review_status=$15,updated_at=now() where id=$1`, stableTermID, t.Locale, t.Term, t.Description, t.Note, t.PartOfSpeech, t.Gender, t.TermType, t.URL, t.Lemma, status, t.CaseSensitive, t.Forbidden, provenance, reviewStatus); err != nil {
 						return counts, err
@@ -1006,7 +1035,7 @@ func recordGlossaryImportedActivity(ctx context.Context, tx pgx.Tx, runID, gloss
 	}
 	message := activitylog.Message{Event: event, MessageType: activitylog.MessageType, SchemaVersion: activitylog.SchemaVersion}
 	if err := activitylog.ValidateMessage(message); err != nil {
-		return fmt.Errorf("validate glossary_imported activity: %w", err)
+		return permanentGlossaryInterchangeFailure(fmt.Errorf("validate glossary_imported activity: %w", err))
 	}
 	return activitylog.NewStore(tx).Insert(ctx, event)
 }

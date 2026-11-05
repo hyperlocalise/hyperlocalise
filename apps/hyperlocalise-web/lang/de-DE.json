@@ -314,6 +314,9 @@
   "+UUE3IbCPl": {
     "defaultMessage": "Beschreibung"
   },
+  "+VUamUeb+A": {
+    "defaultMessage": "Elemente suchen"
+  },
   "+VZ90aAk+9": {
     "defaultMessage": "Zeile {row}: {message}"
   },
@@ -790,6 +793,9 @@
   },
   "/GmJUPyDf/": {
     "defaultMessage": "Demo anfordern"
+  },
+  "/HLvk6zVvS": {
+    "defaultMessage": "Mailchimp-Push in die Warteschlange gestellt"
   },
   "/HYQsZiVvN": {
     "defaultMessage": "Tarifnutzung"
@@ -1405,6 +1411,9 @@
   },
   "0MjCwM2JVC": {
     "defaultMessage": "Portugiesisch (Brasilien)"
+  },
+  "0MlVUFY5rP": {
+    "defaultMessage": "Abbrechen"
   },
   "0Ne4Lpi9ew": {
     "defaultMessage": "Ein Lokalisierungsbetriebssystem für das KI-Zeitalter. <muted>Entwickelt für moderne Teams mit Übersetzung, Prüfung, Synchronisierung und Qualitätskontrolle in einem einzigen Workflow.</muted>"
@@ -2732,6 +2741,9 @@
   "2gIxGrBEow": {
     "defaultMessage": "Auftrag storniert"
   },
+  "2ge8oszx7T": {
+    "defaultMessage": "Die Verbindung zum GitLab-Server kann derzeit nicht geladen werden."
+  },
   "2ghn1bUXd2": {
     "defaultMessage": "Übersetzung"
   },
@@ -3152,6 +3164,9 @@
   "3RQjQSebWm": {
     "defaultMessage": "Mitglieder konnten nicht geladen werden."
   },
+  "3S3afNJApr": {
+    "defaultMessage": "Öffne in den HubSpot-Einstellungen „Blog“ und wähle „Mehrsprachige Varianten hinzufügen/bearbeiten“. Wenn diese Sprache im Blog aktiviert ist, erstellt Push einen unveröffentlichten Beitragsentwurf. Dadurch wird dem Blog keine Sprache hinzugefügt."
+  },
   "3SLTb8lWnJ": {
     "defaultMessage": "Quellgebiet"
   },
@@ -3286,6 +3301,9 @@
   },
   "3i6/WZOWss": {
     "defaultMessage": "Ein KI-Team, das wie Ihr Team aus lokalen Experten agiert.<desktopOnly><lineBreak></lineBreak>Es versteht die Feinheiten des Marktes und übersetzt und transkreiert anschließend.</desktopOnly>"
+  },
+  "3iL4qh0106": {
+    "defaultMessage": "Mailchimp-Kopien beibehalten, die Teammitglieder nach dem letzten Push bearbeitet haben."
   },
   "3iZn32bnuU": {
     "defaultMessage": "Teammitglieder"
@@ -3463,6 +3481,9 @@
   },
   "3zOQAJ9ZJz": {
     "defaultMessage": "Workflow stoppen"
+  },
+  "3zToCXkiyk": {
+    "defaultMessage": "Der letzte Push ist fehlgeschlagen."
   },
   "3zVs9fHVPp": {
     "defaultMessage": "Suchen"
@@ -3998,6 +4019,9 @@
   "4z9+RgG2Ms": {
     "defaultMessage": "Die Textebenen wurden geändert. Generieren Sie das Bild neu, um sie anzuwenden, bevor Sie es genehmigen."
   },
+  "4zBhSf3vTo": {
+    "defaultMessage": "Operation"
+  },
   "4zEqWvETM+": {
     "defaultMessage": "Gebietsschema: {value}"
   },
@@ -4181,6 +4205,9 @@
   "5G9CHzXNWL": {
     "defaultMessage": "Privacy"
   },
+  "5GsfnkqQvS": {
+    "defaultMessage": "Einen strukturierten Wert als JSON-Text serialisieren."
+  },
   "5H+UdOBSV9": {
     "defaultMessage": "Kontextübereinstimmung"
   },
@@ -4309,6 +4336,9 @@
   },
   "5V5XZ84WTf": {
     "defaultMessage": "Zuständige Person auswählen"
+  },
+  "5VQvCOhS8Q": {
+    "defaultMessage": "Werte in einer geordneten Sammlung filtern, abbilden, reduzieren oder suchen."
   },
   "5Wfh7kerri": {
     "defaultMessage": "Autumn ist in dieser Umgebung nicht konfiguriert. Fügen Sie einen AUTUMN_API_KEY für die Sandbox hinzu, um die Abrechnung für diesen Arbeitsbereich zu aktivieren."
@@ -4582,6 +4612,9 @@
   },
   "6/4F992ZiW": {
     "defaultMessage": "Projekt konnte nicht entfernt werden"
+  },
+  "6/Rw622IOT": {
+    "defaultMessage": "Elemente konnten nicht geladen werden."
   },
   "6/WZRSBILe": {
     "defaultMessage": "Markt"
@@ -5894,6 +5927,9 @@
   "8SYhKATZ36": {
     "defaultMessage": "{count, plural, one {# Seite anzeigen} other {Alle # Seiten anzeigen}}"
   },
+  "8T9ADmB57c": {
+    "defaultMessage": "Mailchimp"
+  },
   "8TEiv4VOyd": {
     "defaultMessage": "Dieses Video konnte nicht abgespielt werden. Versuche, die Vorschau neu zu laden."
   },
@@ -6428,6 +6464,9 @@
   "9OTiPECmGp": {
     "defaultMessage": "Stündliche Arbeit an einer Aufgabe ohne Zeitschätzung wird nicht in die Kosten einbezogen."
   },
+  "9OXmD1sseg": {
+    "defaultMessage": "Während die Verbindung besteht, ersetzt dieser Server GitLab.com für alle in diesem Workspace. Alle können auf alles zugreifen, worauf dieses Token Zugriff hat."
+  },
   "9PKFI8itjo": {
     "defaultMessage": "Das Bild konnte nicht lokalisiert werden. Ihre Anweisungen wurden beibehalten. Versuchen Sie es erneut."
   },
@@ -6445,6 +6484,9 @@
   },
   "9QrrRor3/1": {
     "defaultMessage": "Es läuft in jeder Sprache"
+  },
+  "9RWd1cWWqm": {
+    "defaultMessage": "Fügen Sie zuerst mehrsprachige Varianten hinzu oder bearbeiten Sie diese."
   },
   "9RkSMcYnN2": {
     "defaultMessage": "Dateikontext"
@@ -6466,6 +6508,9 @@
   },
   "9TekTcXyPW": {
     "defaultMessage": "Bild lokalisieren"
+  },
+  "9Tey3vfO9H": {
+    "defaultMessage": "Die Verbindung funktioniert. Der Token endet auf {suffix}."
   },
   "9UNEz67Z9a": {
     "defaultMessage": "Abgeschlossene Strings"
@@ -6845,6 +6890,9 @@
   "A9V2j23Vmp": {
     "defaultMessage": "Mehr laden"
   },
+  "A9wBlxBz/7": {
+    "defaultMessage": "Keine zugeordneten Elemente"
+  },
   "AA0EuR+/cx": {
     "defaultMessage": "TMS"
   },
@@ -6868,6 +6916,9 @@
   },
   "ACTAy3p5p3": {
     "defaultMessage": "Behoben"
+  },
+  "ACmO8h4/+b": {
+    "defaultMessage": "Schema"
   },
   "ACud1VtN9i": {
     "defaultMessage": "Anzeigename"
@@ -7886,6 +7937,9 @@
   "C7FCjLc6gc": {
     "defaultMessage": "{displayName} gespeichert. Verbinden Sie Ihr Phrase-Konto, um fortzufahren."
   },
+  "C7GU6qexsm": {
+    "defaultMessage": "Überprüfen und speichern"
+  },
   "C83IJDnkWP": {
     "defaultMessage": "Für Support- und Lokalisierungsabläufe entwickelt"
   },
@@ -8708,6 +8762,9 @@
   "DTZnyqDXIb": {
     "defaultMessage": "Speichern Sie diese Automatisierung, um Wissensdateien hochzuladen."
   },
+  "DTdpbMkjDX": {
+    "defaultMessage": "Elemente suchen"
+  },
   "DU3T9+E0+x": {
     "defaultMessage": "Mit Kommentaren"
   },
@@ -9140,6 +9197,9 @@
   "EIFZa0D92d": {
     "defaultMessage": "Alle Preisdetails anzeigen"
   },
+  "EIzyJsuyBD": {
+    "defaultMessage": "Die Mailchimp-Verbindung kann momentan nicht geladen werden."
+  },
   "EJHq4HC1h1": {
     "defaultMessage": "Unterstützung bei der Sicherheitsüberprüfung"
   },
@@ -9295,6 +9355,9 @@
   },
   "EXZ7+kRFEu": {
     "defaultMessage": "Für diesen Schritt fällt für die gesamte Aufgabe eine feste Gebühr von {amount} an, die in der Gesamtsumme berücksichtigt wird."
+  },
+  "EY3bu6oe+F": {
+    "defaultMessage": "Push-Richtlinie"
   },
   "EY7508Falv": {
     "defaultMessage": "Wird gespeichert …"
@@ -11012,6 +11075,9 @@
   "HmM5vdsqD+": {
     "defaultMessage": "Schließen"
   },
+  "HmWwCwYFtV": {
+    "defaultMessage": "Elementtyp"
+  },
   "HmXZYnVvj0": {
     "defaultMessage": "Diese Schritte tätigen in diesem Testlauf echte Anrufe. Die Aktionen werden tatsächlich ausgeführt und können nicht rückgängig gemacht werden."
   },
@@ -11101,6 +11167,9 @@
   },
   "HtM5Jg2cRQ": {
     "defaultMessage": "Zusammenführen deaktivieren"
+  },
+  "HtShi6DFMi": {
+    "defaultMessage": "Selbst gehostetes GitLab"
   },
   "HtVUcSTMS/": {
     "defaultMessage": "Bei „Bei Fehler“ ist „Fortfahren“ eingestellt, daher läuft der Test über diesen Schritt hinaus weiter."
@@ -11345,6 +11414,9 @@
   "IJZ5NzBvzc": {
     "defaultMessage": "Nach Ereignistyp filtern"
   },
+  "IKd49tYfPp": {
+    "defaultMessage": "Mailchimp-Push konnte nicht in die Warteschlange gestellt werden."
+  },
   "IKexpxBOZ5": {
     "defaultMessage": "Nicht übersetzbar"
   },
@@ -11488,6 +11560,9 @@
   },
   "IiGIsIulPY": {
     "defaultMessage": "Diese Zeichenfolge ist gesperrt und kann nicht wiederhergestellt werden."
+  },
+  "IiTUi5qzJ2": {
+    "defaultMessage": "GitLab-Server getrennt."
   },
   "IiWzWDOWnD": {
     "defaultMessage": "Hyperlocalise-Agent"
@@ -12728,6 +12803,9 @@
   "L0gachMRlZ": {
     "defaultMessage": "Terminologiedatenbank"
   },
+  "L13hAmUXIJ": {
+    "defaultMessage": "Validieren Sie einen Wert anhand eines begrenzten strukturierten Schemas."
+  },
   "L14GgyGrCO": {
     "defaultMessage": "Das Neuladen der gespeicherten Automatisierung rückgängig machen"
   },
@@ -13076,6 +13154,9 @@
   "Lfo/HfkA0U": {
     "defaultMessage": "KI-Nutzung"
   },
+  "LgF4rByVBa": {
+    "defaultMessage": "Anfangswert"
+  },
   "LgOdyUATt4": {
     "defaultMessage": "An diesen Daten wurden mit diesen Filtern keine KI-Funktionen verwendet."
   },
@@ -13225,6 +13306,9 @@
   },
   "LxGnP5nmB2": {
     "defaultMessage": "Dieser Chat ist pausiert"
+  },
+  "LxPruuLaUX": {
+    "defaultMessage": "Verwenden Sie für den gesamten Arbeitsbereich den eigenen GitLab-Server Ihres Unternehmens."
   },
   "LxzxKCrG8Q": {
     "defaultMessage": "SharePoint"
@@ -13628,6 +13712,9 @@
   "MbFisZdAiR": {
     "defaultMessage": "automatische Übersetzung"
   },
+  "MbHpGGZQUr": {
+    "defaultMessage": "Serververbindung trennen"
+  },
   "Mbl8Jg/bPv": {
     "defaultMessage": "Arbeitsbereichsebene"
   },
@@ -13639,6 +13726,9 @@
   },
   "McaXYZeuHm": {
     "defaultMessage": "Zielsprache"
+  },
+  "McapxvtDwd": {
+    "defaultMessage": "Abbrechen"
   },
   "MdMiqiLHvA": {
     "defaultMessage": "Du bist eine Automatisierung zur Qualitätssicherung der Lokalisierung. Ziel: Überprüfe Änderungen an Quelltexten und Übersetzungen, bevor sie in die Produktion gelangen. Prüfe geänderte Quelltexte auf fehlenden Kontext, kennzeichne fehlende Übersetzungen, fehlerhafte ICU-Syntax, nicht übereinstimmende Platzhalter und unsicheres HTML. Behandle Rückgänge bei der Sprachabdeckung als blockierende Befunde."
@@ -14018,6 +14108,9 @@
   "NITlc8aQr0": {
     "defaultMessage": "Aufgabenkommentare konnten nicht geladen werden."
   },
+  "NIXB2viMhz": {
+    "defaultMessage": "Verwenden Sie ein Token eines Nicht-Administrators mit dem Bereich api oder für Lesezugriff mit den Bereichen read_api und read_repository."
+  },
   "NIhlMUMura": {
     "defaultMessage": "Bauen Sie Ihren Publishing-Workflow auf."
   },
@@ -14279,6 +14372,9 @@
   "NlEBPcL/uy": {
     "defaultMessage": "An das Rank-Tracking senden"
   },
+  "NmW6XEmB83": {
+    "defaultMessage": "Mailchimp wurde getrennt."
+  },
   "Nn/7mjMs3f": {
     "defaultMessage": "Verwandle eine Produktveröffentlichung in marktreife Ankündigungen, Dokumentationen, Assets und unterstützende Inhalte in allen Sprachen."
   },
@@ -14473,6 +14569,9 @@
   },
   "OAZ7oFBkRI": {
     "defaultMessage": "{count, plural, one {# neuer QA-Fehler} other {# neue QA-Fehler}} seit dem vorherigen Scan"
+  },
+  "OBtwmZ+5Ft": {
+    "defaultMessage": "Wählen Sie aus, welche zugeordneten E-Mails, Blogbeiträge und Formulare mit freigegebenen Übersetzungen aktualisiert werden sollen. E-Mails werden zu duplizierten lokalisierten Entwürfen. Blogbeiträge werden zu unveröffentlichten lokalisierten Entwürfen. Formulare werden als separate lokalisierte Kopien angelegt. Die Quelle wird dabei weder geändert noch veröffentlicht."
   },
   "OBw52VUo2G": {
     "defaultMessage": "{percent}% des Tests"
@@ -14863,6 +14962,9 @@
   },
   "P+9nP38ODj": {
     "defaultMessage": "Connecting..."
+  },
+  "P+L9qIX8Rd": {
+    "defaultMessage": "Klar"
   },
   "P+MaWGCLAB": {
     "defaultMessage": "Zeitgesteuerte und durch GitHub ausgelöste Agent-Playbooks (nicht der visuelle Workflow-Editor)."
@@ -15529,6 +15631,9 @@
   },
   "QCQEKXAzmZ": {
     "defaultMessage": "Problem nicht gefunden oder Sie haben keinen Zugriff darauf."
+  },
+  "QD3uzJ+zZ8": {
+    "defaultMessage": "Diese Verbindung funktioniert nicht: {reason}"
   },
   "QDnUDnYpNK": {
     "defaultMessage": "Meta-Tag"
@@ -16333,6 +16438,9 @@
   },
   "Rgp/V+Ndcw": {
     "defaultMessage": "Fehlerursache"
+  },
+  "RhYn29mibB": {
+    "defaultMessage": "Geben Sie JSON-Text ein oder verbinden Sie eine String-Ausgabe aus einem vorherigen Schritt."
   },
   "RhmMBU70/7": {
     "defaultMessage": "E-Mail zur Einführungskampagne"
@@ -17246,6 +17354,9 @@
   "TPju9eiMWa": {
     "defaultMessage": "Kein aktiver Plan"
   },
+  "TPurI7fr5b": {
+    "defaultMessage": "Alle auswählen"
+  },
   "TQ/NrGLhGw": {
     "defaultMessage": "Dateien"
   },
@@ -17269,6 +17380,9 @@
   },
   "TRlFNEhzfJ": {
     "defaultMessage": "Für Startup-Preise bewerben"
+  },
+  "TS8IDVeEcm": {
+    "defaultMessage": "Verbindung für den gesamten Arbeitsbereich trennen? Automatisierungen wechseln zurück zu GitLab.com, und Chats verwenden die Projekte dieses Servers nicht mehr."
   },
   "TSLfOgCp9k": {
     "defaultMessage": "Sammlungsausdruck"
@@ -17326,6 +17440,9 @@
   },
   "TXSZ3cXaZk": {
     "defaultMessage": "Alle Projekte"
+  },
+  "TYbrzdSaf3": {
+    "defaultMessage": "Verbunden mit {serverUrl} als {username}."
   },
   "TYisbjRrWY": {
     "defaultMessage": "Importierter Übersetzungsspeicher"
@@ -17710,6 +17827,9 @@
   },
   "UDTP3K5J0j": {
     "defaultMessage": "Erstellen Sie unter „API-Schlüssel“ in Zernio einen Schlüssel. Automatisierungen authentifizieren sich mit „Authorization: Bearer“."
+  },
+  "UDr0hZGNG/": {
+    "defaultMessage": "GitLab-Server verbunden."
   },
   "UE1Umv7eEm": {
     "defaultMessage": "Was ist falsch (Bedeutung, Ton, Grammatik oder Stil)"
@@ -18476,6 +18596,9 @@
   "VdjibQd9gV": {
     "defaultMessage": "Vollseiteneditor öffnen"
   },
+  "VdrqJKSKUW": {
+    "defaultMessage": "Automatisierungen identifizieren ein Projekt anhand seines Pfads. Wenn Sie diese Verbindung ersetzen oder entfernen, verweisen sie daher auf den neuen Server oder zurück zu GitLab.com. Chats verwenden dann keine Projekte des alten Servers mehr."
+  },
   "Ve+0mAQW0d": {
     "defaultMessage": "Suchvolumen für zentrale Produktbegriffe wird abgerufen"
   },
@@ -18764,6 +18887,9 @@
   "WA49vhY6w5": {
     "defaultMessage": "Aktualisieren Sie die Repository-Liste und Metadaten von GitHub. Dadurch werden keine Übersetzungen übertragen oder abgerufen."
   },
+  "WAMmUgMIAk": {
+    "defaultMessage": "Die Zugehörigkeit wird automatisch anhand der Verbindungen ermittelt, die vom Port „Jedes Element“ ausgehen."
+  },
   "WAOAGxwy+L": {
     "defaultMessage": "Kundengeschichte"
   },
@@ -18787,6 +18913,9 @@
   },
   "WBydLHnyW0": {
     "defaultMessage": "Verwendete Glossarbegriffe"
+  },
+  "WC0JBz+4vU": {
+    "defaultMessage": "Wird überprüft…"
   },
   "WCaurzJ1Y5": {
     "defaultMessage": "Projekt"
@@ -18850,6 +18979,9 @@
   },
   "WL/j4jcqMB": {
     "defaultMessage": "Due {due} · Synced {synced}"
+  },
+  "WLGzcjbMSX": {
+    "defaultMessage": "{count, plural, one {# Element übertragen} other {# Elemente übertragen}}"
   },
   "WLVv78wgsr": {
     "defaultMessage": "Projekte"
@@ -19637,6 +19769,9 @@
   "XpeTF2YWKH": {
     "defaultMessage": "Standardmodell"
   },
+  "Xpq2AJzIub": {
+    "defaultMessage": "JSON analysieren"
+  },
   "XqZ3cu2irp": {
     "defaultMessage": "Genehmigte Übersetzungen zurückschieben"
   },
@@ -19657,6 +19792,9 @@
   },
   "Xrszg9pweO": {
     "defaultMessage": "Erfolgreich"
+  },
+  "Xs0BVKJ7dk": {
+    "defaultMessage": "Zugriffstoken"
   },
   "Xs0cc+EY83": {
     "defaultMessage": "Agent-Aktionen"
@@ -20153,6 +20291,9 @@
   "YiZ5ttL/m5": {
     "defaultMessage": "Du hast deine Änderungen erneut verworfen."
   },
+  "YjRk5tT6GE": {
+    "defaultMessage": "Verwenden Sie ein eingeschränktes JSON-Schema-Objekt. Remote-Referenzen werden nicht unterstützt."
+  },
   "YjdAJSrtAi": {
     "defaultMessage": "Textelement {index}"
   },
@@ -20206,6 +20347,9 @@
   },
   "Yo96f8fXbJ": {
     "defaultMessage": "Tageslicht"
+  },
+  "YoEqgQgzqb": {
+    "defaultMessage": "Schema validieren"
   },
   "YoNT/y/382": {
     "defaultMessage": "Projekt auswählen"
@@ -20462,6 +20606,9 @@
   "ZIg96oUMGy": {
     "defaultMessage": "Konzepte konnten nicht geladen werden"
   },
+  "ZJ57VYQVaQ": {
+    "defaultMessage": "Wert"
+  },
   "ZJI5SD947D": {
     "defaultMessage": "Zielgruppen"
   },
@@ -20702,6 +20849,9 @@
   "ZkAl1q2it8": {
     "defaultMessage": "Als Bild behandeln"
   },
+  "ZkImYkaYlt": {
+    "defaultMessage": "Array-Transformation"
+  },
   "ZkYSjdsJm0": {
     "defaultMessage": "Übersetze {locale} mithilfe eines Agenten"
   },
@@ -20755,6 +20905,9 @@
   },
   "Zo2B+NCYIa": {
     "defaultMessage": "Annehmen"
+  },
+  "ZoFvC2Y6/K": {
+    "defaultMessage": "Automatisierung"
   },
   "Zol/03gW7r": {
     "defaultMessage": "Acme · Webstart · Editor"
@@ -21515,6 +21668,9 @@
   "b7yQjQkzcS": {
     "defaultMessage": "Übersetzungen"
   },
+  "b88FiiRWt1": {
+    "defaultMessage": "Zugriffstoken anzeigen"
+  },
   "b8a5Sr5a3d": {
     "defaultMessage": "Aufgabe auswählen"
   },
@@ -21619,6 +21775,9 @@
   },
   "bI+YTOZIIO": {
     "defaultMessage": "„{name}“ und seine Versionen werden gelöscht. Dies kann nicht rückgängig gemacht werden."
+  },
+  "bIBIV/XSnS": {
+    "defaultMessage": "Wert"
   },
   "bIhHNqhcPu": {
     "defaultMessage": "Speichern & lokalisieren"
@@ -22135,6 +22294,9 @@
   },
   "cFLoSPa62D": {
     "defaultMessage": "Visuelle Workflows"
+  },
+  "cFRjw0ewOm": {
+    "defaultMessage": "Ergebnistyp"
   },
   "cFooypWUsT": {
     "defaultMessage": "Geheimer Wert"
@@ -23048,6 +23210,9 @@
   "doe6TBv1GS": {
     "defaultMessage": "Guidelines ist die verbundene Dateiebene. Content Studio wendet sie beim Erstellen und Überprüfen an. Automation Workflow nutzt sie, wenn Agenten wiederkehrende Aufgaben ausführen."
   },
+  "doi1CJtNyr": {
+    "defaultMessage": "An Mailchimp senden"
+  },
   "doxAnr+fKa": {
     "defaultMessage": "Version hinzufügen"
   },
@@ -23450,6 +23615,9 @@
   "eQIxzTUwry": {
     "defaultMessage": "Ahrefs"
   },
+  "eR+n3IPBGs": {
+    "defaultMessage": "Elemente werden geladen"
+  },
   "eRLGmAlreB": {
     "defaultMessage": "Projekte"
   },
@@ -23810,6 +23978,9 @@
   "f22yrNzzSr": {
     "defaultMessage": "Wählen Sie im Quelldatei-Auswahldialog ein GitHub-Repository aus, um den String-Kontext abzurufen."
   },
+  "f28BtwGbZV": {
+    "defaultMessage": "Diese Verbindung konnte gerade nicht überprüft werden."
+  },
   "f2cTOkA6mx": {
     "defaultMessage": "Erstelle eine allgemeine Zeile im Issue Sheet. Verknüpfe sie bei Bedarf mit CAT oder einem anderen Issue-Tracker."
   },
@@ -23842,6 +24013,9 @@
   },
   "f5Adx9k+6N": {
     "defaultMessage": "Teilweise genehmigt"
+  },
+  "f5XgyzsBIQ": {
+    "defaultMessage": "JSON-Text"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Nicht gespeicherte Änderungen"
@@ -24373,6 +24547,9 @@
   },
   "g1U3NC/CnC": {
     "defaultMessage": "Abfragen · dieser String"
+  },
+  "g2K+bD6CxQ": {
+    "defaultMessage": "Die Mailchimp-Autorisierung konnte nicht gestartet werden."
   },
   "g2W3opbod8": {
     "defaultMessage": "Wählen Sie ein Hyperlocalise-Projekt für die Push-Quelle aus."
@@ -25049,6 +25226,9 @@
   "hAuB9ZbM0P": {
     "defaultMessage": "Aktivieren"
   },
+  "hB5ZTWFDwg": {
+    "defaultMessage": "Neuere Mailchimp-Kopien beim Push überschreiben."
+  },
   "hBN2q81ova": {
     "defaultMessage": "Glossar und Übersetzungsspeicher werden geladen, dann wird die Datei gelesen."
   },
@@ -25435,6 +25615,9 @@
   },
   "huDfeEPmkj": {
     "defaultMessage": "TMS-agnostisch"
+  },
+  "huT2nYeusR": {
+    "defaultMessage": "Serveradresse"
   },
   "hujEaVVQkb": {
     "defaultMessage": "3 Markierungen · Klausel 3.2"
@@ -26603,6 +26786,9 @@
   "jwMRWjUt93": {
     "defaultMessage": "Vergütungssatz"
   },
+  "jwOzDgWMEq": {
+    "defaultMessage": "Die Verbindung zum GitLab-Server konnte nicht getrennt werden."
+  },
   "jwTdsyTe54": {
     "defaultMessage": "CAT-Tool"
   },
@@ -27037,6 +27223,9 @@
   },
   "ke25Z8UYMw": {
     "defaultMessage": "Mitglieder"
+  },
+  "kezpjBwZx/": {
+    "defaultMessage": "An Mailchimp senden"
   },
   "kf0aB8NC11": {
     "defaultMessage": "Team erstellen"
@@ -27770,6 +27959,9 @@
   "lzHNFV9Hx6": {
     "defaultMessage": "Raten ist teuer. Ein kleiner Markttest nicht."
   },
+  "m+3SVatJRr": {
+    "defaultMessage": "Mailchimp"
+  },
   "m+nKGIs3Va": {
     "defaultMessage": "Kontext einer Zeichenfolge suchen"
   },
@@ -27805,6 +27997,9 @@
   },
   "m2f+ZwkyAI": {
     "defaultMessage": "Asset"
+  },
+  "m2hcMIjCyS": {
+    "defaultMessage": "Trennen"
   },
   "m34LPH+M7Z": {
     "defaultMessage": "Kommentare zu Pull Requests mit Lokalisierungsstatus"
@@ -28240,6 +28435,9 @@
   },
   "mltE2S4MiK": {
     "defaultMessage": "Anweisungen"
+  },
+  "mm8ESSKJcB": {
+    "defaultMessage": "Trennen"
   },
   "mmB/r+ohDb": {
     "defaultMessage": "Einige Segmente enthalten nicht gespeicherte Änderungen. Ohne zu speichern verlassen?"
@@ -29339,6 +29537,9 @@
   "ohFSHTwja2": {
     "defaultMessage": "Aktualisiert"
   },
+  "ohWq8Fp+QJ": {
+    "defaultMessage": "JSON serialisieren"
+  },
   "oiJegD5+SZ": {
     "defaultMessage": "Es konnte nicht überprüft werden, was sich ändert, wenn du den Arbeitsbereich verlässt."
   },
@@ -29398,6 +29599,9 @@
   },
   "omP7hSnBIw": {
     "defaultMessage": "Zeigt das Dateiformat des Anbieters im Dateidetailbereich an\n\nFormat {format}"
+  },
+  "omW67FLa2e": {
+    "defaultMessage": "Trennen…"
   },
   "omiOFhhyA0": {
     "defaultMessage": "Gegen die vollständige Zahlung für jede Matching-Stufe"
@@ -29675,6 +29879,9 @@
   "pHj5D5hJU+": {
     "defaultMessage": "Importieren"
   },
+  "pHz3Uy2BNF": {
+    "defaultMessage": "Erfolg"
+  },
   "pIhCSFb9aQ": {
     "defaultMessage": "Original"
   },
@@ -29728,6 +29935,9 @@
   },
   "pOCBt3fv7m": {
     "defaultMessage": "Das Programm richtet sich an neue Hyperlocalise-Kunden in der Frühphase – typischerweise mit weniger als 50 Mitarbeitenden oder vor der Series-B-Finanzierungsrunde –, die den Growth-Tarif in Betracht ziehen. Wenn Sie unsicher sind, beantragen Sie eine Demo, und wir bestätigen, ob das Programm für Sie geeignet ist."
+  },
+  "pOhsACmi7A": {
+    "defaultMessage": "Geben Sie das Token erneut ein, um hier etwas zu ändern."
   },
   "pOmRJ5Mm9Y": {
     "defaultMessage": "String-Typ"
@@ -30128,6 +30338,9 @@
   "q0vQCpRAVI": {
     "defaultMessage": "Keine Dateien entsprechen dieser Suche."
   },
+  "q15/6hsAKH": {
+    "defaultMessage": "Mailchimp konnte nicht getrennt werden."
+  },
   "q1SUe75H6g": {
     "defaultMessage": "Hauptversion"
   },
@@ -30226,6 +30439,9 @@
   },
   "qAENVVTQnI": {
     "defaultMessage": "Richtlinien entdecken"
+  },
+  "qAIm+dJ8lo": {
+    "defaultMessage": "Mit dem Bereich „Für jedes Element“ sind keine Knoten verbunden."
   },
   "qAQXdmfmq+": {
     "defaultMessage": "String genehmigen"
@@ -31613,6 +31829,9 @@
   "sfQrLcactN": {
     "defaultMessage": "Ausgeblendete Zeichenfolgen können nicht im CAT bearbeitet werden. Blenden Sie die Zeichenfolge zuerst in Crowdin ein."
   },
+  "sfV9GS+qiL": {
+    "defaultMessage": "Trennen…"
+  },
   "sfaBsHFrP0": {
     "defaultMessage": "Strings aktualisiert:"
   },
@@ -32273,6 +32492,9 @@
   "tuH9VcQWRE": {
     "defaultMessage": "Jobs konnten nicht geladen werden"
   },
+  "tuNTrXyvA1": {
+    "defaultMessage": "Verbindung wird überprüft …"
+  },
   "tuvZlDHxtM": {
     "defaultMessage": "Griechisch (Griechenland)"
   },
@@ -32843,6 +33065,9 @@
   "uyA3TF6irL": {
     "defaultMessage": "Token beginnt mit {prefix}"
   },
+  "uyHddFItti": {
+    "defaultMessage": "Projekte konnten nicht von GitLab geladen werden."
+  },
   "uyOcKxzNqN": {
     "defaultMessage": "Frame wird extrahiert …"
   },
@@ -33200,6 +33425,9 @@
   "vX1tuXTEO/": {
     "defaultMessage": "Dieses Dateiformat wird für Übersetzungsaufträge nicht unterstützt."
   },
+  "vXav6npaND": {
+    "defaultMessage": "Die GitLab-Serververbindung konnte nicht gespeichert werden."
+  },
   "vY4jaTW3UF": {
     "defaultMessage": "Arbeitsaufwand in Wörtern"
   },
@@ -33314,6 +33542,9 @@
   "vjPfgNgxUm": {
     "defaultMessage": "CAT-Verhalten aktualisiert"
   },
+  "vjX9EcsHlB": {
+    "defaultMessage": "Wird nicht verwendet, solange dieser Arbeitsbereich mit seinem eigenen GitLab-Server verbunden ist."
+  },
   "vjXHRG767Q": {
     "defaultMessage": "{createdCount} von {totalCount} Jobs erstellt, dann fehlgeschlagen: {errorMessage}"
   },
@@ -33337,6 +33568,9 @@
   },
   "vlvGY6fhsb": {
     "defaultMessage": "Rolle"
+  },
+  "vmE0N0SGD3": {
+    "defaultMessage": "Wählen Sie aus, welche zugeordneten Kampagnen oder Vorlagen mit freigegebenen Übersetzungen aktualisiert werden sollen. Dadurch werden Sprachentwürfe erstellt oder aktualisiert – sie werden niemals versendet oder geplant, und die Quelle wird nicht bearbeitet."
   },
   "vmnQBcZ7YW": {
     "defaultMessage": "Noch nichts hier"
@@ -34112,6 +34346,9 @@
   "x5RsQtpxzS": {
     "defaultMessage": "Reihenfolge"
   },
+  "x5b2BktTkL": {
+    "defaultMessage": "JSON-Text in einen strukturierten Wert umwandeln."
+  },
   "x5jXClnMbS": {
     "defaultMessage": "{actor} hat sich selbst zugewiesen"
   },
@@ -34312,6 +34549,9 @@
   },
   "xSPEc7l3cj": {
     "defaultMessage": "Zum Dashboard gehen"
+  },
+  "xSVItdTlw0": {
+    "defaultMessage": "Zugriffstoken ausblenden"
   },
   "xSmzy2H6ua": {
     "defaultMessage": "Arbeitsbereich"
@@ -35180,6 +35420,9 @@
   "z3bR+/cqxl": {
     "defaultMessage": "In der Datei wurden {count, plural, one {# Zeichenfolge} other {# Zeichenfolgen}} gefunden."
   },
+  "z3fkYQNXlF": {
+    "defaultMessage": "ungültig"
+  },
   "z3hAWnzQKx": {
     "defaultMessage": "Ahrefs-Verbindung konnte nicht geladen werden."
   },
@@ -35698,6 +35941,9 @@
   },
   "zyDpy3oZz4": {
     "defaultMessage": "Überprüfen Sie vor der Bearbeitung die Herkunft, Varianten und Änderungshistorie."
+  },
+  "zyVutWQ0it": {
+    "defaultMessage": "Erlaube Pop-ups, um Mailchimp zu verbinden."
   },
   "zyXPWyhbra": {
     "defaultMessage": "Keine Änderung anzuzeigen"

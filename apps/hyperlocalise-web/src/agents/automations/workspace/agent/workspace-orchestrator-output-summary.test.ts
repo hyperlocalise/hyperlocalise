@@ -22,6 +22,7 @@ import {
   readImportIntercomArticles,
   readImportIterableTemplates,
   readImportLoopsEmails,
+  readImportMailchimpContent,
   readImportSanityDocuments,
   readImportWebflowItems,
   readPushBrazeCampaigns,
@@ -32,6 +33,7 @@ import {
   readPushIntercomTranslations,
   readPushIterableTemplates,
   readPushLoopsEmails,
+  readPushMailchimpContent,
   readPushSanityTranslations,
   readPushWebflowTranslations,
 } from "./workspace-orchestrator-output-summary";
@@ -650,5 +652,55 @@ describe("readPushHubspotContent", () => {
 
   it("rejects a persisted object missing pushedLocales", () => {
     expect(readPushHubspotContent({ pushHubspotContent: { status: "succeeded" } }, {})).toBeNull();
+  });
+});
+
+describe("readImportMailchimpContent", () => {
+  it("prefers the current step over a persisted summary", () => {
+    expect(
+      readImportMailchimpContent(
+        { importMailchimpContent: { imported: 4, status: "stale" } },
+        { import_mailchimp_content: { imported: 0, failed: 2, status: "partial" } },
+      ),
+    ).toEqual({ imported: 0, failed: 2, status: "partial" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportMailchimpContent(
+        { importMailchimpContent: { status: "succeeded", failed: 0 } },
+        { import_mailchimp_content: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+
+  it("falls back to a prior orchestrator step when the current step is empty", () => {
+    expect(
+      readImportMailchimpContent(
+        {
+          orchestratorStepResults: {
+            import_mailchimp_content: { imported: 3, skipped: 1 },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ imported: 3, skipped: 1 });
+  });
+});
+
+describe("readPushMailchimpContent", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushMailchimpContent(
+        {},
+        { push_mailchimp_content: { pushedLocales: 0, failedLocales: 0 } },
+      ),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(
+      readPushMailchimpContent({ pushMailchimpContent: { status: "succeeded" } }, {}),
+    ).toBeNull();
   });
 });

@@ -22,6 +22,7 @@ import {
 } from "./expressions";
 import { executeCreateObject, executeMergeObjects } from "./object-nodes";
 import { executeSelectPath } from "./select-path-node";
+import { executeJsonParse, executeJsonStringify, executeSchemaValidate } from "./json-nodes";
 
 export function executeLogicVisualWorkflowNode(input: {
   node: CanonicalVisualWorkflowNode;
@@ -154,6 +155,12 @@ export function executeLogicVisualWorkflowNode(input: {
         locale: node.config.locale,
         sensitivity: node.config.sensitivity,
       });
+    case "logic.json_parse":
+      return executeJsonParse(node.config.text);
+    case "logic.json_stringify":
+      return executeJsonStringify(node.config.value);
+    case "logic.schema_validate":
+      return executeSchemaValidate(node.config.value, node.config.schema);
     case "logic.for_each": {
       const items = resolveVisualWorkflowCollection(node.config.collection, context);
       return {
@@ -161,6 +168,17 @@ export function executeLogicVisualWorkflowNode(input: {
         output: {
           items,
           count: items.length,
+        },
+      };
+    }
+    case "logic.array_transform": {
+      const items = resolveVisualWorkflowCollection(node.config.collection, context);
+      return {
+        ok: true,
+        output: {
+          items,
+          count: items.length,
+          initialValue: node.config.initialValue,
         },
       };
     }

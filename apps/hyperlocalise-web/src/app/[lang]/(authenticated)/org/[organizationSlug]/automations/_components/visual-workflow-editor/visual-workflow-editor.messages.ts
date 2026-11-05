@@ -400,6 +400,66 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "BWn4lTVOW+",
     description: "Catalog description for the compare and boolean operators node",
   },
+  nodeJsonParse: {
+    defaultMessage: "Parse JSON",
+    id: "Xpq2AJzIub",
+    description: "Catalog title for the JSON parse node",
+  },
+  nodeJsonParseHint: {
+    defaultMessage: "Parse JSON text into a structured value.",
+    id: "x5b2BktTkL",
+    description: "Catalog description for the JSON parse node",
+  },
+  nodeJsonStringify: {
+    defaultMessage: "Stringify JSON",
+    id: "ohWq8Fp+QJ",
+    description: "Catalog title for the JSON stringify node",
+  },
+  nodeJsonStringifyHint: {
+    defaultMessage: "Serialize a structured value as JSON text.",
+    id: "5GsfnkqQvS",
+    description: "Catalog description for the JSON stringify node",
+  },
+  nodeSchemaValidate: {
+    defaultMessage: "Validate schema",
+    id: "YoEqgQgzqb",
+    description: "Catalog title for the schema validation node",
+  },
+  nodeSchemaValidateHint: {
+    defaultMessage: "Validate a value against a bounded structured schema.",
+    id: "L13hAmUXIJ",
+    description: "Catalog description for the schema validation node",
+  },
+  jsonParseText: {
+    defaultMessage: "JSON text",
+    id: "f5XgyzsBIQ",
+    description: "Parse JSON node text input label",
+  },
+  jsonParseTextHint: {
+    defaultMessage: "Enter JSON text or connect a string output from an earlier step.",
+    id: "RhYn29mibB",
+    description: "Parse JSON node text input help",
+  },
+  jsonStringifyValue: {
+    defaultMessage: "Value",
+    id: "bIBIV/XSnS",
+    description: "Stringify JSON node value input label",
+  },
+  schemaValidateValue: {
+    defaultMessage: "Value",
+    id: "ZJ57VYQVaQ",
+    description: "Schema validation node value input label",
+  },
+  schemaValidateSchema: {
+    defaultMessage: "Schema",
+    id: "ACmO8h4/+b",
+    description: "Schema validation node schema input label",
+  },
+  schemaValidateSchemaHint: {
+    defaultMessage: "Use a bounded JSON Schema object. Remote references are not supported.",
+    id: "YjRk5tT6GE",
+    description: "Schema validation node schema input help",
+  },
   compareOperator: {
     defaultMessage: "Operator",
     id: "dCCEY6kz9i",
@@ -719,6 +779,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Iterate over a collection sequentially.",
     id: "UBB7DkzFVO",
     description: "Catalog description for the for-each node",
+  },
+  nodeArrayTransform: {
+    defaultMessage: "Array transform",
+    id: "ZkImYkaYlt",
+    description: "Catalog title for the array transform node",
+  },
+  nodeArrayTransformHint: {
+    defaultMessage: "Filter, map, reduce, or find values in an ordered collection.",
+    id: "5VQvCOhS8Q",
+    description: "Catalog description for the array transform node",
   },
   nodeScheduledTrigger: {
     defaultMessage: "Schedule",
@@ -1117,6 +1187,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "error",
     id: "nYOxYYV5jF",
     description: "Label on error output handle",
+  },
+  jsonSuccessHandle: {
+    defaultMessage: "success",
+    id: "pHz3Uy2BNF",
+    description: "Label on the success output handle of a JSON parse, stringify, or validate node",
+  },
+  invalidHandle: {
+    defaultMessage: "invalid",
+    id: "z3fkYQNXlF",
+    description: "Label on the invalid output handle of a JSON parse or schema validate node",
   },
   eachHandle: {
     defaultMessage: "Each item",
@@ -1865,6 +1945,26 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "TSLfOgCp9k",
     description: "Label for for-each collection expression field",
   },
+  arrayTransformOperation: {
+    defaultMessage: "Operation",
+    id: "4zBhSf3vTo",
+    description: "Array transform operation field",
+  },
+  arrayTransformItemType: {
+    defaultMessage: "Item type",
+    id: "HmWwCwYFtV",
+    description: "Array transform item type field",
+  },
+  arrayTransformResultType: {
+    defaultMessage: "Result type",
+    id: "cFRjw0ewOm",
+    description: "Array transform result type field",
+  },
+  arrayTransformInitialValue: {
+    defaultMessage: "Initial value",
+    id: "LgF4rByVBa",
+    description: "Array reduce initial value field",
+  },
   slackChannelId: {
     defaultMessage: "Slack channel ID",
     id: "ALH+xiJiG8",
@@ -2054,6 +2154,39 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Project folder",
     id: "8R777UILAL",
     description: "Folder inside the Hyperlocalise project for content sync",
+  },
+  contentSyncGitLabNotConnected: {
+    defaultMessage:
+      "The workspace has no GitLab connection yet. An admin connects one under Integrations; a member's own GitLab.com sign-in is not used for syncs.",
+    id: "V1PaomMYKB",
+    description:
+      "Hint under the GitLab project picker of the Content sync step when the workspace has no GitLab connection",
+  },
+  contentSyncBranch: {
+    defaultMessage: "Branch",
+    id: "48BU/b+yFc",
+    description: "Repository branch to read on the content sync action",
+  },
+  contentSyncBranchPlaceholder: {
+    defaultMessage: "Default branch",
+    id: "b/d4N94nLn",
+    description: "Placeholder of the branch setting when the repository's default branch is used",
+  },
+  contentSyncPathTemplate: {
+    defaultMessage: "Language file paths",
+    id: "UwEjMjlBD5",
+    description: "Path template setting on the content sync action",
+  },
+  contentSyncPathTemplatePlaceholder: {
+    defaultMessage: "for example {example}",
+    id: "PsfScgqwTN",
+    description: "Placeholder of the path template setting, showing an example value",
+  },
+  contentSyncPathTemplateHelp: {
+    defaultMessage:
+      "Where each language's files sit under the repository folder, with {placeholder} for the language code: fr names your one French language, fr-FR names only fr-FR. The source language's files are imported; * matches within a folder and ** across folders.",
+    id: "8bfWDHVAiv",
+    description: "Help text under the path template setting",
   },
   localizationProjectId: {
     defaultMessage: "Project ID",

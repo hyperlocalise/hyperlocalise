@@ -51,7 +51,8 @@ function getInputFields(node: VisualWorkflowRfNode) {
     node.data.config.kind === "logic.create_object" ||
     node.data.config.kind === "logic.merge_objects" ||
     node.data.config.kind === "logic.coalesce" ||
-    node.data.config.kind === "logic.compare"
+    node.data.config.kind === "logic.compare" ||
+    node.data.config.kind === "logic.array_transform"
   ) {
     return getWorkflowInputFields({
       id: node.id,
@@ -78,6 +79,16 @@ function getInputFields(node: VisualWorkflowRfNode) {
       type: "unknown" as const,
       required: false,
     }));
+}
+
+function getOutputFields(node: VisualWorkflowRfNode) {
+  return getWorkflowOutputFields({
+    id: node.id,
+    type: node.data.catalogType,
+    config: node.data.config,
+    inputs: node.data.inputs,
+    outputFields: node.data.outputFields,
+  });
 }
 
 function getInputLabel(node: VisualWorkflowRfNode, portId: string): string {
@@ -119,13 +130,7 @@ export function getVisualWorkflowDataPorts({
     ).length,
   }));
 
-  const outputs = getWorkflowOutputFields({
-    id: node.id,
-    type: node.data.catalogType,
-    config: node.data.config,
-    inputs: node.data.inputs,
-    outputFields: node.data.outputFields,
-  })
+  const outputs = getOutputFields(node)
     .filter((field) => field.path.trim().length > 0)
     .map((field) => ({
       id: field.path,

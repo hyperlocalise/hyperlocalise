@@ -314,6 +314,9 @@
   "+UUE3IbCPl": {
     "defaultMessage": "Description"
   },
+  "+VUamUeb+A": {
+    "defaultMessage": "Tìm kiếm mục"
+  },
   "+VZ90aAk+9": {
     "defaultMessage": "Hàng {row}: {message}"
   },
@@ -790,6 +793,9 @@
   },
   "/GmJUPyDf/": {
     "defaultMessage": "Yêu cầu bản demo"
+  },
+  "/HLvk6zVvS": {
+    "defaultMessage": "Đã xếp hàng gửi lên Mailchimp"
   },
   "/HYQsZiVvN": {
     "defaultMessage": "Mức sử dụng gói cước"
@@ -1405,6 +1411,9 @@
   },
   "0MjCwM2JVC": {
     "defaultMessage": "Tiếng Bồ Đào Nha (Brazil)"
+  },
+  "0MlVUFY5rP": {
+    "defaultMessage": "Hủy"
   },
   "0Ne4Lpi9ew": {
     "defaultMessage": "Hệ điều hành bản địa hóa cho kỷ nguyên AI. <muted>Được xây dựng cho các nhóm hiện đại với bản dịch, xét duyệt, đồng bộ hóa và kiểm soát chất lượng trong một quy trình duy nhất.</muted>"
@@ -2732,6 +2741,9 @@
   "2gIxGrBEow": {
     "defaultMessage": "Công việc bị hủy"
   },
+  "2ge8oszx7T": {
+    "defaultMessage": "Hiện không thể tải kết nối máy chủ GitLab."
+  },
   "2ghn1bUXd2": {
     "defaultMessage": "Translation"
   },
@@ -3152,6 +3164,9 @@
   "3RQjQSebWm": {
     "defaultMessage": "Không thể tải danh sách thành viên."
   },
+  "3S3afNJApr": {
+    "defaultMessage": "Trong Cài đặt HubSpot, mở Blog rồi chọn Thêm/chỉnh sửa các phiên bản đa ngôn ngữ. Khi blog có ngôn ngữ đó, thao tác đẩy sẽ tạo bản nháp bài đăng chưa xuất bản. Thao tác này không thêm ngôn ngữ vào blog."
+  },
   "3SLTb8lWnJ": {
     "defaultMessage": "Ngôn ngữ nguồn"
   },
@@ -3286,6 +3301,9 @@
   },
   "3i6/WZOWss": {
     "defaultMessage": "Một lực lượng AI hoạt động như đội ngũ chuyên gia địa phương của bạn.<desktopOnly><lineBreak></lineBreak>Thấu hiểu sắc thái thị trường, sau đó dịch và chuyển ngữ sáng tạo.</desktopOnly>"
+  },
+  "3iL4qh0106": {
+    "defaultMessage": "Giữ lại các bản sao Mailchimp mà đồng đội đã chỉnh sửa sau lần đẩy gần nhất."
   },
   "3iZn32bnuU": {
     "defaultMessage": "Thành viên nhóm"
@@ -3463,6 +3481,9 @@
   },
   "3zOQAJ9ZJz": {
     "defaultMessage": "Dừng quy trình làm việc"
+  },
+  "3zToCXkiyk": {
+    "defaultMessage": "Lần đẩy trước không thành công"
   },
   "3zVs9fHVPp": {
     "defaultMessage": "Search"
@@ -3998,6 +4019,9 @@
   "4z9+RgG2Ms": {
     "defaultMessage": "Các lớp văn bản đã thay đổi. Hãy tạo lại hình ảnh để áp dụng chúng trước khi phê duyệt."
   },
+  "4zBhSf3vTo": {
+    "defaultMessage": "Thao tác"
+  },
   "4zEqWvETM+": {
     "defaultMessage": "Ngôn ngữ: {value}"
   },
@@ -4181,6 +4205,9 @@
   "5G9CHzXNWL": {
     "defaultMessage": "Privacy"
   },
+  "5GsfnkqQvS": {
+    "defaultMessage": "Chuyển đổi một giá trị có cấu trúc thành văn bản JSON."
+  },
   "5H+UdOBSV9": {
     "defaultMessage": "Khớp ngữ cảnh"
   },
@@ -4309,6 +4336,9 @@
   },
   "5V5XZ84WTf": {
     "defaultMessage": "Chọn người được giao việc"
+  },
+  "5VQvCOhS8Q": {
+    "defaultMessage": "Lọc, ánh xạ, rút gọn hoặc tìm giá trị trong một tập hợp có thứ tự."
   },
   "5Wfh7kerri": {
     "defaultMessage": "Autumn chưa được định cấu hình trong môi trường này. Thêm AUTUMN_API_KEY sandbox để bật tính năng thanh toán cho không gian làm việc này."
@@ -4582,6 +4612,9 @@
   },
   "6/4F992ZiW": {
     "defaultMessage": "Không thể xóa dự án"
+  },
+  "6/Rw622IOT": {
+    "defaultMessage": "Không thể tải các mục"
   },
   "6/WZRSBILe": {
     "defaultMessage": "Thị trường"
@@ -5894,6 +5927,9 @@
   "8SYhKATZ36": {
     "defaultMessage": "{count, plural, one {Hiển thị # trang} other {Hiển thị tất cả # trang}}"
   },
+  "8T9ADmB57c": {
+    "defaultMessage": "Mailchimp"
+  },
   "8TEiv4VOyd": {
     "defaultMessage": "Không thể phát video này. Hãy thử tải lại bản xem trước."
   },
@@ -6428,6 +6464,9 @@
   "9OTiPECmGp": {
     "defaultMessage": "Công việc tính theo giờ cho một nhiệm vụ không có ước tính thời gian sẽ không được tính vào chi phí."
   },
+  "9OXmD1sseg": {
+    "defaultMessage": "Khi được kết nối, máy chủ này sẽ thay thế GitLab.com cho tất cả mọi người trong không gian làm việc này. Họ có thể truy cập mọi thứ mà mã thông báo này có thể truy cập."
+  },
   "9PKFI8itjo": {
     "defaultMessage": "Không thể bản địa hóa hình ảnh. Các hướng dẫn của bạn đã được giữ nguyên; hãy thử lại."
   },
@@ -6445,6 +6484,9 @@
   },
   "9QrrRor3/1": {
     "defaultMessage": "Nó hoạt động với mọi ngôn ngữ"
+  },
+  "9RWd1cWWqm": {
+    "defaultMessage": "Thêm/chỉnh sửa các phiên bản đa ngôn ngữ trước tiên"
   },
   "9RkSMcYnN2": {
     "defaultMessage": "Ngữ cảnh tệp"
@@ -6466,6 +6508,9 @@
   },
   "9TekTcXyPW": {
     "defaultMessage": "Bản địa hóa hình ảnh"
+  },
+  "9Tey3vfO9H": {
+    "defaultMessage": "Kết nối đang hoạt động. Mã thông báo kết thúc bằng {suffix}."
   },
   "9UNEz67Z9a": {
     "defaultMessage": "Số chuỗi đã hoàn thành"
@@ -6845,6 +6890,9 @@
   "A9V2j23Vmp": {
     "defaultMessage": "Tải thêm"
   },
+  "A9wBlxBz/7": {
+    "defaultMessage": "Không có mục nào được ánh xạ"
+  },
   "AA0EuR+/cx": {
     "defaultMessage": "TMS"
   },
@@ -6868,6 +6916,9 @@
   },
   "ACTAy3p5p3": {
     "defaultMessage": "Đã khắc phục"
+  },
+  "ACmO8h4/+b": {
+    "defaultMessage": "Lược đồ"
   },
   "ACud1VtN9i": {
     "defaultMessage": "Tên hiển thị"
@@ -7886,6 +7937,9 @@
   "C7FCjLc6gc": {
     "defaultMessage": "{displayName} đã được lưu. Kết nối tài khoản Phrase của bạn để tiếp tục."
   },
+  "C7GU6qexsm": {
+    "defaultMessage": "Kiểm tra và lưu"
+  },
   "C83IJDnkWP": {
     "defaultMessage": "Được xây dựng cho hoạt động hỗ trợ và bản địa hóa"
   },
@@ -8708,6 +8762,9 @@
   "DTZnyqDXIb": {
     "defaultMessage": "Lưu quy trình tự động hóa này để tải tệp kiến thức lên."
   },
+  "DTdpbMkjDX": {
+    "defaultMessage": "Tìm kiếm mục"
+  },
   "DU3T9+E0+x": {
     "defaultMessage": "Có bình luận"
   },
@@ -9140,6 +9197,9 @@
   "EIFZa0D92d": {
     "defaultMessage": "Xem chi tiết đầy đủ về giá"
   },
+  "EIzyJsuyBD": {
+    "defaultMessage": "Hiện không thể tải kết nối Mailchimp."
+  },
   "EJHq4HC1h1": {
     "defaultMessage": "Hỗ trợ đánh giá bảo mật"
   },
@@ -9295,6 +9355,9 @@
   },
   "EXZ7+kRFEu": {
     "defaultMessage": "Bước này có mức phí cố định là {amount} cho toàn bộ tác vụ và được tính vào tổng số tiền."
+  },
+  "EY3bu6oe+F": {
+    "defaultMessage": "Chính sách thông báo đẩy"
   },
   "EY7508Falv": {
     "defaultMessage": "Saving…"
@@ -11012,6 +11075,9 @@
   "HmM5vdsqD+": {
     "defaultMessage": "Close"
   },
+  "HmWwCwYFtV": {
+    "defaultMessage": "Loại mục"
+  },
   "HmXZYnVvj0": {
     "defaultMessage": "Các bước này sẽ được thực hiện thật trong lần chạy thử này. Những gì chúng thực hiện sẽ xảy ra và không thể hoàn tác."
   },
@@ -11101,6 +11167,9 @@
   },
   "HtM5Jg2cRQ": {
     "defaultMessage": "Tắt tính năng gộp chuỗi giống hệt nhau"
+  },
+  "HtShi6DFMi": {
+    "defaultMessage": "GitLab tự lưu trữ"
   },
   "HtVUcSTMS/": {
     "defaultMessage": "On error được đặt thành Continue, vì vậy lượt chạy kiểm tra sẽ tiếp tục sau bước này."
@@ -11345,6 +11414,9 @@
   "IJZ5NzBvzc": {
     "defaultMessage": "Lọc theo loại sự kiện"
   },
+  "IKd49tYfPp": {
+    "defaultMessage": "Không thể đưa tác vụ đẩy Mailchimp vào hàng đợi."
+  },
   "IKexpxBOZ5": {
     "defaultMessage": "Untranslatable"
   },
@@ -11488,6 +11560,9 @@
   },
   "IiGIsIulPY": {
     "defaultMessage": "Chuỗi này đã bị khóa nên không thể khôi phục."
+  },
+  "IiTUi5qzJ2": {
+    "defaultMessage": "Đã ngắt kết nối máy chủ GitLab."
   },
   "IiWzWDOWnD": {
     "defaultMessage": "Tác nhân Hyperlocalise"
@@ -12728,6 +12803,9 @@
   "L0gachMRlZ": {
     "defaultMessage": "Cơ sở thuật ngữ"
   },
+  "L13hAmUXIJ": {
+    "defaultMessage": "Xác thực một giá trị theo một lược đồ có cấu trúc với các giới hạn xác định."
+  },
   "L14GgyGrCO": {
     "defaultMessage": "Hoàn tác việc tải lại quy trình tự động hóa đã lưu"
   },
@@ -13076,6 +13154,9 @@
   "Lfo/HfkA0U": {
     "defaultMessage": "Mức sử dụng AI"
   },
+  "LgF4rByVBa": {
+    "defaultMessage": "Giá trị ban đầu"
+  },
   "LgOdyUATt4": {
     "defaultMessage": "Không có AI nào được sử dụng trong những ngày này với các bộ lọc này."
   },
@@ -13225,6 +13306,9 @@
   },
   "LxGnP5nmB2": {
     "defaultMessage": "Cuộc trò chuyện này đã tạm dừng"
+  },
+  "LxPruuLaUX": {
+    "defaultMessage": "Sử dụng máy chủ GitLab riêng của công ty bạn cho toàn bộ không gian làm việc."
   },
   "LxzxKCrG8Q": {
     "defaultMessage": "SharePoint"
@@ -13628,6 +13712,9 @@
   "MbFisZdAiR": {
     "defaultMessage": "dịch tự động"
   },
+  "MbHpGGZQUr": {
+    "defaultMessage": "Ngắt kết nối máy chủ"
+  },
   "Mbl8Jg/bPv": {
     "defaultMessage": "Cấp độ không gian làm việc"
   },
@@ -13639,6 +13726,9 @@
   },
   "McaXYZeuHm": {
     "defaultMessage": "Ngôn ngữ đích"
+  },
+  "McapxvtDwd": {
+    "defaultMessage": "Hủy"
   },
   "MdMiqiLHvA": {
     "defaultMessage": "Bạn là một hệ thống tự động hóa chất lượng bản địa hóa. Mục tiêu: xác thực các thay đổi đối với chuỗi nguồn và bản dịch trước khi chúng được đưa vào môi trường sản xuất. Kiểm tra các chuỗi nguồn đã thay đổi để phát hiện ngữ cảnh bị thiếu, đánh dấu các bản dịch còn thiếu, cú pháp ICU bị lỗi, placeholder không khớp và HTML không an toàn. Coi các hồi quy về mức độ bao phủ locale là các phát hiện chặn."
@@ -14018,6 +14108,9 @@
   "NITlc8aQr0": {
     "defaultMessage": "Không thể tải bình luận của tác vụ."
   },
+  "NIXB2viMhz": {
+    "defaultMessage": "Sử dụng token truy cập của người dùng không phải quản trị viên, với phạm vi api hoặc read_api và read_repository nếu chỉ cần đọc."
+  },
   "NIhlMUMura": {
     "defaultMessage": "Xây dựng quy trình xuất bản của bạn."
   },
@@ -14279,6 +14372,9 @@
   "NlEBPcL/uy": {
     "defaultMessage": "Gửi đến tính năng theo dõi thứ hạng"
   },
+  "NmW6XEmB83": {
+    "defaultMessage": "Đã ngắt kết nối Mailchimp."
+  },
   "Nn/7mjMs3f": {
     "defaultMessage": "Biến một bản phát hành sản phẩm thành các thông báo, tài liệu, nội dung trực quan và nội dung hỗ trợ sẵn sàng cho thị trường bằng mọi ngôn ngữ."
   },
@@ -14473,6 +14569,9 @@
   },
   "OAZ7oFBkRI": {
     "defaultMessage": "{count, plural, one {# lỗi QA mới} other {# lỗi QA mới}} kể từ lần quét trước"
+  },
+  "OBtwmZ+5Ft": {
+    "defaultMessage": "Chọn email, bài đăng blog và biểu mẫu đã được ánh xạ để cập nhật bằng các bản dịch đã được phê duyệt. Email sẽ trở thành bản nháp theo ngôn ngữ được sao chép. Bài đăng blog sẽ trở thành bản nháp theo ngôn ngữ chưa xuất bản. Biểu mẫu sẽ trở thành một bản sao riêng theo ngôn ngữ. Thao tác này không bao giờ thay đổi hoặc xuất bản nội dung nguồn."
   },
   "OBw52VUo2G": {
     "defaultMessage": "{percent}% bài kiểm thử"
@@ -14863,6 +14962,9 @@
   },
   "P+9nP38ODj": {
     "defaultMessage": "Đang kết nối..."
+  },
+  "P+L9qIX8Rd": {
+    "defaultMessage": "Rõ ràng"
   },
   "P+MaWGCLAB": {
     "defaultMessage": "Các playbook agent được lên lịch và kích hoạt bởi GitHub (không phải trình chỉnh sửa quy trình trực quan)."
@@ -15529,6 +15631,9 @@
   },
   "QCQEKXAzmZ": {
     "defaultMessage": "Không tìm thấy vấn đề hoặc bạn không có quyền truy cập."
+  },
+  "QD3uzJ+zZ8": {
+    "defaultMessage": "Kết nối này không hoạt động: {reason}"
   },
   "QDnUDnYpNK": {
     "defaultMessage": "Thẻ meta"
@@ -16333,6 +16438,9 @@
   },
   "Rgp/V+Ndcw": {
     "defaultMessage": "Lý do thất bại"
+  },
+  "RhYn29mibB": {
+    "defaultMessage": "Nhập văn bản JSON hoặc kết nối đầu ra chuỗi từ bước trước."
   },
   "RhmMBU70/7": {
     "defaultMessage": "Email chiến dịch ra mắt"
@@ -17246,6 +17354,9 @@
   "TPju9eiMWa": {
     "defaultMessage": "Không có gói đăng ký đang hoạt động"
   },
+  "TPurI7fr5b": {
+    "defaultMessage": "Chọn tất cả"
+  },
   "TQ/NrGLhGw": {
     "defaultMessage": "Files"
   },
@@ -17269,6 +17380,9 @@
   },
   "TRlFNEhzfJ": {
     "defaultMessage": "Đăng ký nhận ưu đãi giá dành cho startup"
+  },
+  "TS8IDVeEcm": {
+    "defaultMessage": "Ngắt kết nối trên toàn bộ không gian làm việc? Các quy trình tự động hóa sẽ quay lại GitLab.com và các cuộc trò chuyện sẽ ngừng sử dụng các dự án trên máy chủ này."
   },
   "TSLfOgCp9k": {
     "defaultMessage": "Biểu thức tập hợp"
@@ -17326,6 +17440,9 @@
   },
   "TXSZ3cXaZk": {
     "defaultMessage": "Tất cả dự án"
+  },
+  "TYbrzdSaf3": {
+    "defaultMessage": "Đã kết nối với {serverUrl} bằng tài khoản {username}."
   },
   "TYisbjRrWY": {
     "defaultMessage": "Bộ nhớ dịch đã nhập"
@@ -17710,6 +17827,9 @@
   },
   "UDTP3K5J0j": {
     "defaultMessage": "Tạo một khóa trong Zernio tại mục API keys. Các quy trình tự động xác thực bằng Authorization: Bearer."
+  },
+  "UDr0hZGNG/": {
+    "defaultMessage": "Đã kết nối máy chủ GitLab."
   },
   "UE1Umv7eEm": {
     "defaultMessage": "Có gì không đúng (về ý nghĩa, giọng điệu, ngữ pháp hoặc văn phong)"
@@ -18476,6 +18596,9 @@
   "VdjibQd9gV": {
     "defaultMessage": "Mở trình soạn thảo toàn trang"
   },
+  "VdrqJKSKUW": {
+    "defaultMessage": "Các quy trình tự động hóa xác định dự án bằng đường dẫn, vì vậy việc thay thế hoặc xóa kết nối này sẽ chuyển chúng sang máy chủ mới hoặc quay lại GitLab.com. Các cuộc trò chuyện sẽ ngừng sử dụng các dự án từ máy chủ cũ."
+  },
   "Ve+0mAQW0d": {
     "defaultMessage": "Đang lấy lượng tìm kiếm cho các thuật ngữ sản phẩm cốt lõi"
   },
@@ -18764,6 +18887,9 @@
   "WA49vhY6w5": {
     "defaultMessage": "Làm mới danh sách kho lưu trữ và siêu dữ liệu từ GitHub. Việc này không đẩy lên hoặc tải xuống bản dịch."
   },
+  "WAMmUgMIAk": {
+    "defaultMessage": "Tư cách thành viên được xác định tự động từ các kết nối đi ra từ cổng Each item."
+  },
   "WAOAGxwy+L": {
     "defaultMessage": "Câu chuyện khách hàng"
   },
@@ -18787,6 +18913,9 @@
   },
   "WBydLHnyW0": {
     "defaultMessage": "Các thuật ngữ trong bảng chú giải được sử dụng"
+  },
+  "WC0JBz+4vU": {
+    "defaultMessage": "Đang kiểm tra…"
   },
   "WCaurzJ1Y5": {
     "defaultMessage": "Dự án"
@@ -18850,6 +18979,9 @@
   },
   "WL/j4jcqMB": {
     "defaultMessage": "Due {due} · Synced {synced}"
+  },
+  "WLGzcjbMSX": {
+    "defaultMessage": "Đẩy {count, plural, one {# mục} other {# mục}}"
   },
   "WLVv78wgsr": {
     "defaultMessage": "Projects"
@@ -19637,6 +19769,9 @@
   "XpeTF2YWKH": {
     "defaultMessage": "Mô hình mặc định"
   },
+  "Xpq2AJzIub": {
+    "defaultMessage": "Phân tích cú pháp JSON"
+  },
   "XqZ3cu2irp": {
     "defaultMessage": "Đẩy các bản dịch đã được phê duyệt trở lại"
   },
@@ -19657,6 +19792,9 @@
   },
   "Xrszg9pweO": {
     "defaultMessage": "Succeeded"
+  },
+  "Xs0BVKJ7dk": {
+    "defaultMessage": "Mã thông báo truy cập"
   },
   "Xs0cc+EY83": {
     "defaultMessage": "Thao tác của nhân viên"
@@ -20153,6 +20291,9 @@
   "YiZ5ttL/m5": {
     "defaultMessage": "Đã hủy các thay đổi của bạn một lần nữa."
   },
+  "YjRk5tT6GE": {
+    "defaultMessage": "Sử dụng một đối tượng JSON Schema có giới hạn. Không hỗ trợ tham chiếu từ xa."
+  },
   "YjdAJSrtAi": {
     "defaultMessage": "Phần tử văn bản {index}"
   },
@@ -20206,6 +20347,9 @@
   },
   "Yo96f8fXbJ": {
     "defaultMessage": "Ánh sáng ban ngày"
+  },
+  "YoEqgQgzqb": {
+    "defaultMessage": "Xác thực lược đồ"
   },
   "YoNT/y/382": {
     "defaultMessage": "Chọn một dự án"
@@ -20462,6 +20606,9 @@
   "ZIg96oUMGy": {
     "defaultMessage": "Không thể tải các khái niệm"
   },
+  "ZJ57VYQVaQ": {
+    "defaultMessage": "Giá trị"
+  },
   "ZJI5SD947D": {
     "defaultMessage": "Audiences"
   },
@@ -20702,6 +20849,9 @@
   "ZkAl1q2it8": {
     "defaultMessage": "Xử lý như hình ảnh"
   },
+  "ZkImYkaYlt": {
+    "defaultMessage": "Chuyển đổi mảng"
+  },
   "ZkYSjdsJm0": {
     "defaultMessage": "Dịch {locale} bằng AI"
   },
@@ -20755,6 +20905,9 @@
   },
   "Zo2B+NCYIa": {
     "defaultMessage": "Accept"
+  },
+  "ZoFvC2Y6/K": {
+    "defaultMessage": "Automation"
   },
   "Zol/03gW7r": {
     "defaultMessage": "Acme · Ra mắt web · Trình chỉnh sửa"
@@ -21515,6 +21668,9 @@
   "b7yQjQkzcS": {
     "defaultMessage": "Bản dịch"
   },
+  "b88FiiRWt1": {
+    "defaultMessage": "Hiển thị mã thông báo truy cập"
+  },
   "b8a5Sr5a3d": {
     "defaultMessage": "Chọn một nhiệm vụ"
   },
@@ -21619,6 +21775,9 @@
   },
   "bI+YTOZIIO": {
     "defaultMessage": "“{name}” và các phiên bản của nó sẽ bị xóa. Bạn không thể hoàn tác thao tác này."
+  },
+  "bIBIV/XSnS": {
+    "defaultMessage": "Giá trị"
   },
   "bIhHNqhcPu": {
     "defaultMessage": "Lưu & bản địa hóa"
@@ -22135,6 +22294,9 @@
   },
   "cFLoSPa62D": {
     "defaultMessage": "Quy trình trực quan"
+  },
+  "cFRjw0ewOm": {
+    "defaultMessage": "Loại kết quả"
   },
   "cFooypWUsT": {
     "defaultMessage": "Giá trị bí mật"
@@ -23048,6 +23210,9 @@
   "doe6TBv1GS": {
     "defaultMessage": "Guidelines là lớp tệp được kết nối. Content Studio áp dụng lớp này khi bạn tạo và xem xét nội dung. Automation Workflow sử dụng lớp này khi các tác nhân chạy những công việc lặp lại."
   },
+  "doi1CJtNyr": {
+    "defaultMessage": "Đẩy lên Mailchimp"
+  },
   "doxAnr+fKa": {
     "defaultMessage": "Thêm một phiên bản"
   },
@@ -23450,6 +23615,9 @@
   "eQIxzTUwry": {
     "defaultMessage": "Ahrefs"
   },
+  "eR+n3IPBGs": {
+    "defaultMessage": "Đang tải mục‌ 久久精品国产"
+  },
   "eRLGmAlreB": {
     "defaultMessage": "Dự án"
   },
@@ -23810,6 +23978,9 @@
   "f22yrNzzSr": {
     "defaultMessage": "Chọn một kho lưu trữ GitHub trong trình chọn tệp nguồn để tra cứu ngữ cảnh chuỗi."
   },
+  "f28BtwGbZV": {
+    "defaultMessage": "Hiện không thể kiểm tra kết nối này."
+  },
   "f2cTOkA6mx": {
     "defaultMessage": "Create a generic Issue Sheet row. Link it to CAT or another issue tracker when useful."
   },
@@ -23842,6 +24013,9 @@
   },
   "f5Adx9k+6N": {
     "defaultMessage": "Được phê duyệt một phần"
+  },
+  "f5XgyzsBIQ": {
+    "defaultMessage": "Văn bản JSON"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Thay đổi chưa lưu"
@@ -24373,6 +24547,9 @@
   },
   "g1U3NC/CnC": {
     "defaultMessage": "Truy vấn · chuỗi này"
+  },
+  "g2K+bD6CxQ": {
+    "defaultMessage": "Không thể bắt đầu quá trình ủy quyền Mailchimp."
   },
   "g2W3opbod8": {
     "defaultMessage": "Chọn một dự án Hyperlocalise cho nguồn đẩy."
@@ -25049,6 +25226,9 @@
   "hAuB9ZbM0P": {
     "defaultMessage": "Activate"
   },
+  "hB5ZTWFDwg": {
+    "defaultMessage": "Ghi đè các bản sao trên Mailchimp khi bản sao từ xa mới hơn."
+  },
   "hBN2q81ova": {
     "defaultMessage": "Đang tải bảng thuật ngữ và bộ nhớ dịch, sau đó đọc tệp."
   },
@@ -25435,6 +25615,9 @@
   },
   "huDfeEPmkj": {
     "defaultMessage": "Không phụ thuộc TMS"
+  },
+  "huT2nYeusR": {
+    "defaultMessage": "Địa chỉ máy chủ"
   },
   "hujEaVVQkb": {
     "defaultMessage": "3 cờ · điều khoản 3.2"
@@ -26603,6 +26786,9 @@
   "jwMRWjUt93": {
     "defaultMessage": "Đơn giá"
   },
+  "jwOzDgWMEq": {
+    "defaultMessage": "Không thể ngắt kết nối máy chủ GitLab."
+  },
   "jwTdsyTe54": {
     "defaultMessage": "Công cụ CAT"
   },
@@ -27037,6 +27223,9 @@
   },
   "ke25Z8UYMw": {
     "defaultMessage": "Members"
+  },
+  "kezpjBwZx/": {
+    "defaultMessage": "Đẩy lên Mailchimp"
   },
   "kf0aB8NC11": {
     "defaultMessage": "Tạo nhóm"
@@ -27770,6 +27959,9 @@
   "lzHNFV9Hx6": {
     "defaultMessage": "Đoán mò rất tốn kém. Thử nghiệm thị trường quy mô nhỏ thì không."
   },
+  "m+3SVatJRr": {
+    "defaultMessage": "Mailchimp"
+  },
   "m+nKGIs3Va": {
     "defaultMessage": "Tra cứu ngữ cảnh chuỗi"
   },
@@ -27805,6 +27997,9 @@
   },
   "m2f+ZwkyAI": {
     "defaultMessage": "Tài sản"
+  },
+  "m2hcMIjCyS": {
+    "defaultMessage": "Ngắt kết nối"
   },
   "m34LPH+M7Z": {
     "defaultMessage": "Bình luận trên các pull request với trạng thái bản địa hóa"
@@ -28240,6 +28435,9 @@
   },
   "mltE2S4MiK": {
     "defaultMessage": "Hướng dẫn"
+  },
+  "mm8ESSKJcB": {
+    "defaultMessage": "Ngắt kết nối"
   },
   "mmB/r+ohDb": {
     "defaultMessage": "Một số phân đoạn có chỉnh sửa chưa được lưu. Rời đi mà không lưu?"
@@ -29339,6 +29537,9 @@
   "ohFSHTwja2": {
     "defaultMessage": "Đã cập nhật"
   },
+  "ohWq8Fp+QJ": {
+    "defaultMessage": "Chuyển JSON thành chuỗi"
+  },
   "oiJegD5+SZ": {
     "defaultMessage": "Không thể kiểm tra những gì sẽ thay đổi khi bạn rời đi."
   },
@@ -29398,6 +29599,9 @@
   },
   "omP7hSnBIw": {
     "defaultMessage": "Định dạng {format}"
+  },
+  "omW67FLa2e": {
+    "defaultMessage": "Đang ngắt kết nối…"
   },
   "omiOFhhyA0": {
     "defaultMessage": "Phản đối việc chi trả đầy đủ cho tất cả các mức đối ứng"
@@ -29675,6 +29879,9 @@
   "pHj5D5hJU+": {
     "defaultMessage": "Nhập khẩu"
   },
+  "pHz3Uy2BNF": {
+    "defaultMessage": "thành công"
+  },
   "pIhCSFb9aQ": {
     "defaultMessage": "Bản gốc"
   },
@@ -29728,6 +29935,9 @@
   },
   "pOCBt3fv7m": {
     "defaultMessage": "Chương trình dành cho các khách hàng mới của Hyperlocalise đang ở giai đoạn đầu — thường có dưới 50 nhân viên hoặc chưa gọi vốn Series B — và đang cân nhắc gói Growth. Nếu không chắc chắn, hãy đăng ký nhận bản demo và chúng tôi sẽ xác nhận mức độ phù hợp."
+  },
+  "pOhsACmi7A": {
+    "defaultMessage": "Nhập lại mã thông báo để thay đổi bất kỳ nội dung nào tại đây."
   },
   "pOmRJ5Mm9Y": {
     "defaultMessage": "Loại chuỗi"
@@ -30128,6 +30338,9 @@
   "q0vQCpRAVI": {
     "defaultMessage": "Không có tệp nào khớp với tìm kiếm này."
   },
+  "q15/6hsAKH": {
+    "defaultMessage": "Không thể ngắt kết nối Mailchimp."
+  },
   "q1SUe75H6g": {
     "defaultMessage": "Major"
   },
@@ -30226,6 +30439,9 @@
   },
   "qAENVVTQnI": {
     "defaultMessage": "Khám phá Guidelines"
+  },
+  "qAIm+dJ8lo": {
+    "defaultMessage": "Không có nút nào được kết nối với vùng Mỗi mục."
   },
   "qAQXdmfmq+": {
     "defaultMessage": "Phê duyệt chuỗi"
@@ -31613,6 +31829,9 @@
   "sfQrLcactN": {
     "defaultMessage": "Không thể chỉnh sửa các chuỗi ẩn từ CAT. Trước tiên, hãy bỏ ẩn chuỗi trong Crowdin."
   },
+  "sfV9GS+qiL": {
+    "defaultMessage": "Đang ngắt kết nối…"
+  },
   "sfaBsHFrP0": {
     "defaultMessage": "Các chuỗi được cập nhật:"
   },
@@ -32273,6 +32492,9 @@
   "tuH9VcQWRE": {
     "defaultMessage": "Không thể tải công việc"
   },
+  "tuNTrXyvA1": {
+    "defaultMessage": "Đang kiểm tra kết nối…"
+  },
   "tuvZlDHxtM": {
     "defaultMessage": "Tiếng Hy Lạp (Hy Lạp)"
   },
@@ -32843,6 +33065,9 @@
   "uyA3TF6irL": {
     "defaultMessage": "Mã thông báo bắt đầu bằng {prefix}"
   },
+  "uyHddFItti": {
+    "defaultMessage": "Không thể tải dự án từ GitLab."
+  },
   "uyOcKxzNqN": {
     "defaultMessage": "Đang trích xuất khung hình…"
   },
@@ -33200,6 +33425,9 @@
   "vX1tuXTEO/": {
     "defaultMessage": "Định dạng tệp này không được hỗ trợ cho các tác vụ dịch."
   },
+  "vXav6npaND": {
+    "defaultMessage": "Không thể lưu kết nối máy chủ GitLab."
+  },
   "vY4jaTW3UF": {
     "defaultMessage": "Từ ngữ khối lượng công việc"
   },
@@ -33314,6 +33542,9 @@
   "vjPfgNgxUm": {
     "defaultMessage": "Hành vi CAT đã được cập nhật"
   },
+  "vjX9EcsHlB": {
+    "defaultMessage": "Không được sử dụng khi không gian làm việc này được kết nối với máy chủ GitLab riêng."
+  },
   "vjXHRG767Q": {
     "defaultMessage": "Đã tạo {createdCount} trên tổng số {totalCount} tác vụ, sau đó xảy ra lỗi: {errorMessage}"
   },
@@ -33337,6 +33568,9 @@
   },
   "vlvGY6fhsb": {
     "defaultMessage": "Vai trò"
+  },
+  "vmE0N0SGD3": {
+    "defaultMessage": "Chọn các chiến dịch hoặc mẫu đã được ánh xạ để cập nhật bằng các bản dịch đã được phê duyệt. Thao tác này tạo hoặc cập nhật các bản sao ngôn ngữ ở trạng thái bản nháp — không bao giờ gửi, lên lịch hoặc chỉnh sửa bản gốc."
   },
   "vmnQBcZ7YW": {
     "defaultMessage": "Chưa có gì ở đây unerquicklich"
@@ -34112,6 +34346,9 @@
   "x5RsQtpxzS": {
     "defaultMessage": "Thứ tự"
   },
+  "x5b2BktTkL": {
+    "defaultMessage": "Phân tích cú pháp văn bản JSON thành một giá trị có cấu trúc."
+  },
   "x5jXClnMbS": {
     "defaultMessage": "{actor} đã tự giao việc cho mình"
   },
@@ -34312,6 +34549,9 @@
   },
   "xSPEc7l3cj": {
     "defaultMessage": "Đi đến trang tổng quan"
+  },
+  "xSVItdTlw0": {
+    "defaultMessage": "Ẩn mã thông báo truy cập"
   },
   "xSmzy2H6ua": {
     "defaultMessage": "Không gian làm việc"
@@ -35180,6 +35420,9 @@
   "z3bR+/cqxl": {
     "defaultMessage": "Tìm thấy {count, plural, one {# chuỗi} other {# chuỗi}} trong tệp"
   },
+  "z3fkYQNXlF": {
+    "defaultMessage": "không hợp lệ"
+  },
   "z3hAWnzQKx": {
     "defaultMessage": "Không thể tải kết nối Ahrefs."
   },
@@ -35698,6 +35941,9 @@
   },
   "zyDpy3oZz4": {
     "defaultMessage": "Kiểm tra nguồn gốc, các biến thể và lịch sử thay đổi trước khi chỉnh sửa."
+  },
+  "zyVutWQ0it": {
+    "defaultMessage": "Cho phép cửa sổ bật lên để kết nối với Mailchimp."
   },
   "zyXPWyhbra": {
     "defaultMessage": "Không có thay đổi nào để hiển thị"

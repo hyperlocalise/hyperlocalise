@@ -1691,3 +1691,388 @@ export const CompareNarrow: Story = {
     await expect(canvas.getByText(/true/)).toBeInTheDocument();
   },
 };
+
+const arrayTransformNodes = [
+  {
+    id: "trigger",
+    type: "trigger.manual" as const,
+    position: { x: 80, y: 180 },
+    data: {
+      catalogType: "trigger.manual" as const,
+      config: { kind: "trigger.manual" as const },
+      outputFields: [{ path: "items", type: "array" as const }],
+      runStatus: "succeeded" as const,
+      lastOutput: { items: [1, 2, 3, 4] },
+    },
+  },
+  {
+    id: "transform",
+    type: "logic.array_transform" as const,
+    position: { x: 440, y: 180 },
+    data: {
+      catalogType: "logic.array_transform" as const,
+      config: {
+        kind: "logic.array_transform" as const,
+        operation: "reduce" as const,
+        collection: "{{nodes.trigger.items}}",
+        itemType: "number" as const,
+        resultType: "number" as const,
+        initialValue: 0,
+      },
+      bodyNodeIds: ["body"],
+      collect: {
+        result: { kind: "reference" as const, nodeId: "body", path: ["value"] },
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: { count: 4, value: 10 },
+    },
+  },
+  {
+    id: "body",
+    type: "logic.select_path" as const,
+    position: { x: 800, y: 80 },
+    data: {
+      catalogType: "logic.select_path" as const,
+      config: {
+        kind: "logic.select_path" as const,
+        path: ["value"],
+        outputType: "unknown" as const,
+        missingBehavior: "error" as const,
+      },
+      inputs: {
+        value: { kind: "literal" as const, value: { value: 10 } },
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: { value: 10, found: true },
+    },
+  },
+  {
+    id: "after",
+    type: "logic.set" as const,
+    position: { x: 800, y: 340 },
+    data: {
+      catalogType: "logic.set" as const,
+      config: { kind: "logic.set" as const, assignments: [] },
+      runStatus: "idle" as const,
+    },
+  },
+];
+
+const arrayTransformEdges = [
+  {
+    id: "trigger-transform-execution",
+    source: "trigger",
+    target: "transform",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "trigger-transform-data",
+    source: "trigger",
+    target: "transform",
+    sourceHandle: "items",
+    targetHandle: "collection",
+    data: { kind: "data" as const },
+  },
+  {
+    id: "transform-body",
+    source: "transform",
+    target: "body",
+    sourceHandle: "each",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "transform-after",
+    source: "transform",
+    target: "after",
+    sourceHandle: "done",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+];
+
+export const ArrayTransformConfigured: Story = {
+  name: "Array Transform — configured",
+  args: {
+    initialName: "Reduce ordered values",
+    initialNodes: arrayTransformNodes,
+    initialEdges: arrayTransformEdges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText("Data input: collection, array", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data input: initialValue, number")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: item, number")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: index, number")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: accumulator, number")).toBeInTheDocument();
+    const output = canvas.getByLabelText("Data output: value, number");
+    await userEvent.click(output.closest(".react-flow__node")!);
+    await expect(canvas.getByRole("combobox", { name: "Operation" })).toHaveTextContent("reduce");
+    await expect(canvas.getByRole("combobox", { name: "Item type" })).toHaveTextContent("number");
+    await expect(canvas.getByRole("combobox", { name: "Result type" })).toHaveTextContent("number");
+    await expect(canvas.getByRole("textbox", { name: "Initial value" })).toHaveValue("0");
+  },
+};
+
+export const ArrayTransformValidationError: Story = {
+  name: "Array Transform — validation error",
+  args: {
+    ...ArrayTransformConfigured.args,
+    initialNodes: arrayTransformNodes.map((node) =>
+      node.id === "transform" && node.data.config.kind === "logic.array_transform"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: { ...node.data.config, collection: "x".repeat(2_001) },
+            },
+          }
+        : node,
+    ),
+  },
+};
+
+export const ArrayTransformFind: Story = {
+  name: "Array Transform — find",
+  args: {
+    ...ArrayTransformConfigured.args,
+    initialName: "Find the first matching value",
+    initialNodes: arrayTransformNodes.map((node) =>
+      node.id === "transform" && node.data.config.kind === "logic.array_transform"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: {
+                ...node.data.config,
+                operation: "find" as const,
+                initialValue: undefined,
+              },
+              lastOutput: { count: 4, found: true, value: 2 },
+            },
+          }
+        : node.id === "body"
+          ? {
+              ...node,
+              data: { ...node.data, lastOutput: { value: true, found: true } },
+            }
+          : node,
+    ),
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText("Data output: found, boolean", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: value, number, optional")).toBeInTheDocument();
+    await expect(
+      canvas.queryByLabelText("Data input: initialValue, number"),
+    ).not.toBeInTheDocument();
+  },
+};
+
+export const ArrayTransformNarrow: Story = {
+  name: "Array Transform — narrow",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: { ...ArrayTransformConfigured.args },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByText("Succeeded", {}, { timeout: 10_000 })).toBeInTheDocument();
+    await expect(canvas.getByText(/10/)).toBeInTheDocument();
+  },
+};
+
+const jsonOperationNodes = [
+  {
+    id: "trigger-json",
+    type: "trigger.manual" as const,
+    position: { x: 80, y: 180 },
+    data: {
+      catalogType: "trigger.manual" as const,
+      config: { kind: "trigger.manual" as const },
+      outputFields: [{ path: "payload", type: "string" as const }],
+      runStatus: "succeeded" as const,
+      lastOutput: { payload: '{"name":"Ada","locales":["en","de"]}' },
+    },
+  },
+  {
+    id: "parse-json",
+    type: "logic.json_parse" as const,
+    position: { x: 420, y: 180 },
+    data: {
+      catalogType: "logic.json_parse" as const,
+      config: { kind: "logic.json_parse" as const, text: "{}" },
+      runStatus: "succeeded" as const,
+      lastOutput: { value: { name: "Ada", locales: ["en", "de"] } },
+    },
+  },
+  {
+    id: "validate-json",
+    type: "logic.schema_validate" as const,
+    position: { x: 780, y: 70 },
+    data: {
+      catalogType: "logic.schema_validate" as const,
+      config: {
+        kind: "logic.schema_validate" as const,
+        value: null,
+        schema: {
+          type: "object",
+          required: ["name"],
+          properties: { name: { type: "string" } },
+        },
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: {
+        value: { name: "Ada", locales: ["en", "de"] },
+        valid: true,
+        errors: [],
+      },
+    },
+  },
+  {
+    id: "stringify-json",
+    type: "logic.json_stringify" as const,
+    position: { x: 780, y: 340 },
+    data: {
+      catalogType: "logic.json_stringify" as const,
+      config: { kind: "logic.json_stringify" as const, value: null },
+      runStatus: "succeeded" as const,
+      lastOutput: { text: '{"name":"Ada","locales":["en","de"]}' },
+    },
+  },
+];
+
+const jsonOperationEdges = [
+  {
+    id: "trigger-parse-execution",
+    source: "trigger-json",
+    target: "parse-json",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "trigger-parse-text",
+    source: "trigger-json",
+    target: "parse-json",
+    sourceHandle: "payload",
+    targetHandle: "text",
+    data: { kind: "data" as const },
+  },
+  {
+    id: "parse-validate-execution",
+    source: "parse-json",
+    target: "validate-json",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "parse-validate-value",
+    source: "parse-json",
+    target: "validate-json",
+    sourceHandle: "value",
+    targetHandle: "value",
+    data: { kind: "data" as const },
+  },
+  {
+    id: "validate-stringify-execution",
+    source: "validate-json",
+    target: "stringify-json",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "validate-stringify-value",
+    source: "validate-json",
+    target: "stringify-json",
+    sourceHandle: "value",
+    targetHandle: "value",
+    data: { kind: "data" as const },
+  },
+];
+
+export const JsonOperationsConfigured: Story = {
+  name: "JSON Operations — configured and connected",
+  args: {
+    initialName: "Parse and validate a JSON payload",
+    initialNodes: jsonOperationNodes,
+    initialEdges: jsonOperationEdges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const parseInput = await canvas.findByLabelText(
+      "Data input: text, string",
+      {},
+      { timeout: 10_000 },
+    );
+    await expect(parseInput).toBeInTheDocument();
+    await expect(canvas.getAllByLabelText("Data input: value, unknown")).toHaveLength(2);
+    await expect(canvas.getByLabelText("Data input: schema, object")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: text, string, optional")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: valid, boolean")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: errors, array, optional")).toBeInTheDocument();
+
+    await userEvent.click(parseInput.closest(".react-flow__node")!);
+    await expect(canvas.getByText(/connect a string output/i)).toBeInTheDocument();
+
+    const schemaPort = canvas.getByLabelText("Data input: schema, object");
+    await userEvent.click(schemaPort.closest(".react-flow__node")!);
+    await expect(canvas.getByRole("textbox", { name: "Schema" })).toHaveTextContent(
+      /"type": "object"/,
+    );
+    await expect(canvas.getByText(/remote references are not supported/i)).toBeInTheDocument();
+  },
+};
+
+export const JsonOperationsInvalid: Story = {
+  name: "JSON Operations — invalid JSON preview",
+  args: {
+    ...JsonOperationsConfigured.args,
+    initialName: "Handle an invalid JSON payload",
+    initialNodes: jsonOperationNodes.map((node) =>
+      node.id === "parse-json" && node.data.config.kind === "logic.json_parse"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: { ...node.data.config, text: '{"name":' },
+              lastOutput: {
+                error: {
+                  code: "invalid_json_syntax",
+                  message: "JSON text is not valid.",
+                  path: "$",
+                },
+              },
+            },
+          }
+        : node,
+    ),
+    initialEdges: jsonOperationEdges.filter((edge) => edge.id !== "trigger-parse-text"),
+  },
+  play: async ({ canvas }) => {
+    const parseInput = await canvas.findByLabelText(
+      "Data input: text, string",
+      {},
+      { timeout: 10_000 },
+    );
+    await userEvent.click(parseInput.closest(".react-flow__node")!);
+    await expect(canvas.getByText(/invalid_json_syntax/)).toBeInTheDocument();
+    await expect(canvas.getByText(/JSON text is not valid/)).toBeInTheDocument();
+  },
+};
+
+export const JsonOperationsNarrow: Story = {
+  name: "JSON Operations — narrow",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: { ...JsonOperationsConfigured.args },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findAllByText("Succeeded", {}, { timeout: 10_000 })).toHaveLength(4);
+    await expect(canvas.getAllByText(/Ada/).length).toBeGreaterThan(0);
+  },
+};

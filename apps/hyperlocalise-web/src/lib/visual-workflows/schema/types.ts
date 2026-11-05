@@ -45,8 +45,12 @@ export type VisualCatalogType =
   | "logic.select_path"
   | "logic.coalesce"
   | "logic.compare"
+  | "logic.json_parse"
+  | "logic.json_stringify"
+  | "logic.schema_validate"
   | "ai.agent"
   | "logic.for_each"
+  | "logic.array_transform"
   | "logic.retry"
   | "flow.human_approval"
   | "flow.wait"
@@ -84,6 +88,8 @@ export type VisualComparisonOperand = {
   name: string;
   type: WorkflowValueType;
 };
+
+export type VisualArrayTransformOperation = "filter" | "map" | "reduce" | "find";
 
 /**
  * How Pick assignee chooses among the people of the matched rule: the first one listed, each in
@@ -204,6 +210,10 @@ export type VisualNodeConfig =
       resourceKey: string;
       providerFolder: string;
       projectFolder: string;
+      /** Git providers: the branch to read; the default branch when empty. */
+      branch?: string;
+      /** Git providers: where each language's files sit, with `{{locale}}` for the code. */
+      pathTemplate?: string;
       onError?: VisualNodeErrorBehavior;
     }
   | {
@@ -387,8 +397,19 @@ export type VisualNodeConfig =
       locale?: string;
       sensitivity?: "base" | "accent" | "case" | "variant";
     }
+  | { kind: "logic.json_parse"; text: string }
+  | { kind: "logic.json_stringify"; value: unknown }
+  | { kind: "logic.schema_validate"; value: unknown; schema: Record<string, unknown> }
   | { kind: "ai.agent"; prompt: string; onError?: VisualNodeErrorBehavior }
   | { kind: "logic.for_each"; collection: string }
+  | {
+      kind: "logic.array_transform";
+      operation: VisualArrayTransformOperation;
+      collection: string;
+      itemType: WorkflowValueType;
+      resultType: WorkflowValueType;
+      initialValue?: unknown;
+    }
   | {
       kind: "logic.retry";
       maxAttempts?: number;

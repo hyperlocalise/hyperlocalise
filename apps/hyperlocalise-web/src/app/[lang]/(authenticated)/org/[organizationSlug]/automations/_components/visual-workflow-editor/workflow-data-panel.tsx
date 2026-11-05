@@ -82,10 +82,11 @@ export function WorkflowDataPanel({
     delete inputs[name];
     onChange({ inputs });
   };
-  const forEachBodyNodeIds =
-    node.data.catalogType === "logic.for_each" ? computeForEachBodyNodeIds(node.id, edges) : [];
-  const hasBody =
-    node.data.catalogType === "logic.for_each" || node.data.catalogType === "logic.retry";
+  const isCollectionRegion = ["logic.for_each", "logic.array_transform"].includes(
+    node.data.catalogType,
+  );
+  const forEachBodyNodeIds = isCollectionRegion ? computeForEachBodyNodeIds(node.id, edges) : [];
+  const hasBody = isCollectionRegion || node.data.catalogType === "logic.retry";
   const hasSecretField = node.data.catalogType === "action.http" && Boolean(organizationSlug);
   if (section === "settings") {
     if (!hasSecretField && !hasBody) return null;
@@ -155,7 +156,7 @@ export function WorkflowDataPanel({
             ) : null}
           </Field>
         ) : null}
-        {node.data.catalogType === "logic.for_each" ? (
+        {isCollectionRegion ? (
           <Field>
             <FieldLabel>
               {intl.formatMessage({
@@ -167,10 +168,10 @@ export function WorkflowDataPanel({
 
             <FieldDescription>
               {intl.formatMessage({
-                description: "Explanation of graph-derived For Each membership",
-                id: "3OlJR3Fxjp",
+                description: "Explanation of graph-derived collection-region membership",
+                id: "WAMmUgMIAk",
                 defaultMessage:
-                  "Loop membership is derived automatically from connections leaving the Each item port.",
+                  "Membership is derived automatically from connections leaving the Each item port.",
               })}
             </FieldDescription>
 
@@ -183,8 +184,8 @@ export function WorkflowDataPanel({
             ) : (
               <p className="text-muted-foreground text-sm">
                 {intl.formatMessage({
-                  description: "Empty graph-derived For Each body",
-                  id: "yIZkW24JC2",
+                  description: "Empty graph-derived collection-region body",
+                  id: "qAIm+dJ8lo",
                   defaultMessage: "No nodes are connected to the Each item region.",
                 })}
               </p>

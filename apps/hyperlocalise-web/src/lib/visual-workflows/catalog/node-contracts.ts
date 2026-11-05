@@ -86,6 +86,9 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       field("projectFolder"),
     ],
     outputs: [output("pulled", "object"), output("pushed", "object")],
+    // The fields every provider returns; GitLab adds `unmatched`, `translationFiles`,
+    // `commitSha` and per-file `files` with `missingKeys` to `pulled`, and `heldBack`,
+    // `unsupported`, `unreadable` and `error` to `pushed`.
     mock: {
       pulled: { uploaded: 1, skipped: 0, failed: 0 },
       pushed: { written: 1 },
@@ -340,6 +343,25 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     outputs: [output("result", "boolean")],
     mock: { result: true },
   },
+  "logic.json_parse": {
+    inputs: [field("text", "string")],
+    outputs: [output("value", "unknown", true), output("error", "object", true)],
+    mock: { value: null },
+  },
+  "logic.json_stringify": {
+    inputs: [field("value", "unknown")],
+    outputs: [output("text", "string", true), output("error", "object", true)],
+    mock: { text: "null" },
+  },
+  "logic.schema_validate": {
+    inputs: [field("value", "unknown"), field("schema", "object")],
+    outputs: [
+      output("value", "unknown"),
+      output("valid", "boolean"),
+      output("errors", "array", true),
+    ],
+    mock: { value: null, valid: true, errors: [] },
+  },
   "logic.for_each": {
     inputs: [field("collection", "array")],
     outputs: [
@@ -347,6 +369,19 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       output("index", "number"),
       output("count", "number"),
       output("iterationOutputs", "array"),
+    ],
+    mock: {},
+  },
+  "logic.array_transform": {
+    inputs: [field("collection", "array"), field("initialValue", "unknown", false)],
+    outputs: [
+      output("item", "unknown"),
+      output("index", "number"),
+      output("count", "number"),
+      output("accumulator", "unknown", true),
+      output("items", "array", true),
+      output("value", "unknown", true),
+      output("found", "boolean", true),
     ],
     mock: {},
   },
@@ -506,8 +541,35 @@ function isAvailableCoalesceValue(
   return true;
 }
 
+function arrayTransformOutputFields(
+  config: Extract<CanonicalVisualWorkflowNode["config"], { kind: "logic.array_transform" }>,
+): WorkflowOutputField[] {
+  const contextFields: WorkflowOutputField[] = [
+    output("item", config.itemType),
+    output("index", "number"),
+    output("count", "number"),
+  ];
+  switch (config.operation) {
+    case "filter":
+    case "map":
+      return [...contextFields, output("items", "array")];
+    case "reduce":
+      return [
+        ...contextFields,
+        output("accumulator", config.resultType),
+        output("value", config.resultType),
+      ];
+    case "find":
+      return [...contextFields, output("value", config.itemType, true), output("found", "boolean")];
+  }
+}
+
 export function getWorkflowOutputFields(node: CanonicalVisualWorkflowNode): WorkflowOutputField[] {
   const fields = new Map(NODE_CONTRACTS[node.type].outputs.map((field) => [field.path, field]));
+  if (node.config.kind === "logic.array_transform") {
+    fields.clear();
+    for (const field of arrayTransformOutputFields(node.config)) fields.set(field.path, field);
+  }
   if (node.config.kind === "logic.select_path") {
     const outputType =
       node.config.outputType === "unknown"
@@ -615,6 +677,15 @@ export function getWorkflowInputFields(node: CanonicalVisualWorkflowNode): Workf
       type: inputField.type,
       required: inputField.required !== false,
     }));
+  }
+
+  if (node.config.kind === "logic.array_transform") {
+    return [
+      field("collection", "array"),
+      ...(node.config.operation === "reduce"
+        ? [field("initialValue", node.config.resultType)]
+        : []),
+    ];
   }
 
   return NODE_CONTRACTS[node.type].inputs;

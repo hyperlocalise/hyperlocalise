@@ -347,6 +347,10 @@
     "defaultMessage": "Description",
     "description": "Label for the dictionary description field"
   },
+  "+VUamUeb+A": {
+    "defaultMessage": "Search items",
+    "description": "Accessible label for the Mailchimp item search field"
+  },
   "+VZ90aAk+9": {
     "defaultMessage": "Row {row}: {message}",
     "description": "Import warning or error line with a CSV row number"
@@ -914,6 +918,10 @@
   "/GmJUPyDf/": {
     "defaultMessage": "Request a Demo",
     "description": "Product page bottom call-to-action to request a demo"
+  },
+  "/HLvk6zVvS": {
+    "defaultMessage": "Mailchimp push queued",
+    "description": "Toast after a Mailchimp push automation run is queued"
   },
   "/HYQsZiVvN": {
     "defaultMessage": "Plan usage",
@@ -1594,6 +1602,10 @@
   "0MjCwM2JVC": {
     "defaultMessage": "Portuguese (Brazil)",
     "description": "Display name for BCP-47 locale pt-BR"
+  },
+  "0MlVUFY5rP": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel the Mailchimp item picker"
   },
   "0NzbW+DFmc": {
     "defaultMessage": "Visual Workflow Approval Decided",
@@ -3079,6 +3091,10 @@
     "defaultMessage": "Job Cancelled",
     "description": "Activity log event type label for job cancellation"
   },
+  "2ge8oszx7T": {
+    "defaultMessage": "Unable to load the GitLab server connection right now.",
+    "description": "Integration row description when the connection fails to load"
+  },
   "2hGlbn4iZa": {
     "defaultMessage": "Create",
     "description": "Button that creates a team glossary from CAT"
@@ -3491,10 +3507,6 @@
     "defaultMessage": "Scans and the editor use the same format, placeholder, ICU, length, spelling and glossary checks. Warnings flag an issue; errors also block saving and approving in the editor.",
     "description": "QA review: coverageHelp"
   },
-  "3OlJR3Fxjp": {
-    "defaultMessage": "Loop membership is derived automatically from connections leaving the Each item port.",
-    "description": "Explanation of graph-derived For Each membership"
-  },
   "3OmQiHHUCs": {
     "defaultMessage": "Drag a screenshot here",
     "description": "Idle label for the visual context screenshot dropzone"
@@ -3662,6 +3674,10 @@
   "3hgvf7DCgl": {
     "defaultMessage": "Cancel intentionally",
     "description": "Cancelled Stop outcome"
+  },
+  "3iL4qh0106": {
+    "defaultMessage": "Keep Mailchimp copies that teammates edited after the last push.",
+    "description": "Explains the selected automation keeps newer Mailchimp copies"
   },
   "3iZn32bnuU": {
     "defaultMessage": "Team members",
@@ -3878,6 +3894,10 @@
   "3zOQAJ9ZJz": {
     "defaultMessage": "Stop workflow",
     "description": "Catalog title for the terminal workflow stop node"
+  },
+  "3zToCXkiyk": {
+    "defaultMessage": "Last push failed",
+    "description": "Hint that the previous Mailchimp push for this item failed"
   },
   "3zVs9fHVPp": {
     "defaultMessage": "Search",
@@ -4483,6 +4503,10 @@
     "defaultMessage": "Text layers have changed. Regenerate the image to apply them before approving.",
     "description": "Image viewer: previewOutdated"
   },
+  "4zBhSf3vTo": {
+    "defaultMessage": "Operation",
+    "description": "Array transform operation field"
+  },
   "4zEqWvETM+": {
     "defaultMessage": "Locale: {value}",
     "description": "Active issue filter chip showing the selected locale"
@@ -4699,6 +4723,10 @@
     "defaultMessage": "Privacy",
     "description": "Marketing navbar link to the privacy policy"
   },
+  "5GsfnkqQvS": {
+    "defaultMessage": "Serialize a structured value as JSON text.",
+    "description": "Catalog description for the JSON stringify node"
+  },
   "5H+UdOBSV9": {
     "defaultMessage": "Context match",
     "description": "Badge label for a context translation memory match"
@@ -4842,6 +4870,10 @@
   "5V5XZ84WTf": {
     "defaultMessage": "Pick assignee",
     "description": "Catalog title for the step that chooses who does a piece of work"
+  },
+  "5VQvCOhS8Q": {
+    "defaultMessage": "Filter, map, reduce, or find values in an ordered collection.",
+    "description": "Catalog description for the array transform node"
   },
   "5Wfh7kerri": {
     "defaultMessage": "Autumn is not configured in this environment. Add a sandbox AUTUMN_API_KEY to enable billing for this workspace.",
@@ -5162,6 +5194,10 @@
   "6/4F992ZiW": {
     "defaultMessage": "Unable to remove project",
     "description": "Fallback error when removing a project from a translation memory fails"
+  },
+  "6/Rw622IOT": {
+    "defaultMessage": "Could not load items",
+    "description": "Error when mapped Mailchimp items fail to load"
   },
   "6/WZRSBILe": {
     "defaultMessage": "Market",
@@ -6659,6 +6695,10 @@
     "defaultMessage": "{count, plural, one {Show # page} other {Show all # pages}}",
     "description": "Control to expand the sampled pages list on a localisation audit result"
   },
+  "8T9ADmB57c": {
+    "defaultMessage": "Mailchimp",
+    "description": "Name of the Mailchimp integration in the hint on a skill that needs it connected"
+  },
   "8TEiv4VOyd": {
     "defaultMessage": "This video could not be played. Try reloading the preview.",
     "description": "Video refinement workspace: mediaError"
@@ -7251,6 +7291,10 @@
     "defaultMessage": "Hourly work on a task with no time estimate is left out of the cost.",
     "description": "Note when an hourly line has no time estimate"
   },
+  "9OXmD1sseg": {
+    "defaultMessage": "While connected, this server replaces GitLab.com for everyone in this workspace. They can reach whatever this token can reach.",
+    "description": "Explains the effect of connecting a GitLab server"
+  },
   "9PKFI8itjo": {
     "defaultMessage": "Could not localise the image. Your instructions are preserved; try again.",
     "description": "Image viewer: generationError"
@@ -7302,6 +7346,10 @@
   "9TekTcXyPW": {
     "defaultMessage": "Localise image",
     "description": "Image viewer: localise"
+  },
+  "9Tey3vfO9H": {
+    "defaultMessage": "The connection is working. Token ending in {suffix}.",
+    "description": "Shown when the saved GitLab server connection passes a live check"
   },
   "9VhQMBmSnO": {
     "defaultMessage": "Unable to load job",
@@ -7743,6 +7791,10 @@
     "defaultMessage": "Load more",
     "description": "Button to load more rows in a grouped workspace table"
   },
+  "A9wBlxBz/7": {
+    "defaultMessage": "No mapped items",
+    "description": "Empty state when a Mailchimp automation has no mapped items"
+  },
   "AA0EuR+/cx": {
     "defaultMessage": "TMS",
     "description": "Automation product visual workflow destination name"
@@ -7766,6 +7818,10 @@
   "ACTAy3p5p3": {
     "defaultMessage": "Fixed",
     "description": "QA review: resolved"
+  },
+  "ACmO8h4/+b": {
+    "defaultMessage": "Schema",
+    "description": "Schema validation node schema input label"
   },
   "ACud1VtN9i": {
     "defaultMessage": "Display name",
@@ -8955,6 +9011,10 @@
     "defaultMessage": "{displayName} saved. Connect your Phrase account to continue.",
     "description": "Toast after saving Phrase OAuth app when user OAuth is still required"
   },
+  "C7GU6qexsm": {
+    "defaultMessage": "Check and save",
+    "description": "Button that checks and saves a GitLab server connection"
+  },
   "C83IJDnkWP": {
     "defaultMessage": "Built for support and localisation operations",
     "description": "Differentiator point 5 for the help-center-localisation use case"
@@ -9871,6 +9931,10 @@
     "defaultMessage": "Save this automation to upload knowledge files.",
     "description": "Hint shown before knowledge files can be uploaded"
   },
+  "DTdpbMkjDX": {
+    "defaultMessage": "Search items",
+    "description": "Placeholder for filtering mapped Mailchimp items"
+  },
   "DU3T9+E0+x": {
     "defaultMessage": "With comments",
     "description": "CAT queue filter option for Crowdin strings that have comments"
@@ -10331,6 +10395,10 @@
     "defaultMessage": "See full pricing details",
     "description": "Marketing homepage pricingLink"
   },
+  "EIzyJsuyBD": {
+    "defaultMessage": "Unable to load the Mailchimp connection right now.",
+    "description": "Mailchimp integration row description when connection status fails to load"
+  },
   "EJHq4HC1h1": {
     "defaultMessage": "Security review assistance",
     "description": "Pricing matrix row label for security review assistance"
@@ -10510,6 +10578,10 @@
   "EXZ7+kRFEu": {
     "defaultMessage": "This step has a fixed fee of {amount} for the whole task, counted in the total.",
     "description": "Note under the match analysis when the step is priced at a fixed fee"
+  },
+  "EY3bu6oe+F": {
+    "defaultMessage": "Push policy",
+    "description": "Label for the selected automation Mailchimp overwrite rule"
   },
   "EY7508Falv": {
     "defaultMessage": "Saving…",
@@ -12471,6 +12543,10 @@
     "defaultMessage": "Close",
     "description": "Button that closes the rates panel"
   },
+  "HmWwCwYFtV": {
+    "defaultMessage": "Item type",
+    "description": "Array transform item type field"
+  },
   "HmXZYnVvj0": {
     "defaultMessage": "These steps call out for real in this test run. What they do happens and cannot be undone.",
     "description": "In the dialog before a test run with steps that run for real"
@@ -12566,6 +12642,10 @@
   "HtM5Jg2cRQ": {
     "defaultMessage": "Disable merging",
     "description": "Confirm disabling identical string merging"
+  },
+  "HtShi6DFMi": {
+    "defaultMessage": "Self-hosted GitLab",
+    "description": "Integration row name for a workspace's own GitLab server"
   },
   "HtVUcSTMS/": {
     "defaultMessage": "On error is set to Continue, so the test run goes on past this step.",
@@ -12827,6 +12907,10 @@
     "defaultMessage": "Filter by event type",
     "description": "Title for the activity log event type picker popover"
   },
+  "IKd49tYfPp": {
+    "defaultMessage": "Could not queue Mailchimp push",
+    "description": "Toast when queuing a Mailchimp push automation run fails"
+  },
   "IKexpxBOZ5": {
     "defaultMessage": "Untranslatable",
     "description": "Status badge for a glossary concept marked as untranslatable"
@@ -12982,6 +13066,10 @@
   "IiGIsIulPY": {
     "defaultMessage": "This string is locked, so it can't be restored.",
     "description": "Toast when a restore is refused because the string is locked"
+  },
+  "IiTUi5qzJ2": {
+    "defaultMessage": "GitLab server disconnected.",
+    "description": "Toast after the GitLab server connection is removed"
   },
   "IiWzWDOWnD": {
     "defaultMessage": "Hyperlocalise Agent",
@@ -14355,6 +14443,10 @@
     "defaultMessage": "Context needed: {key}",
     "description": "Default title when creating an issue from a CAT string"
   },
+  "L13hAmUXIJ": {
+    "defaultMessage": "Validate a value against a bounded structured schema.",
+    "description": "Catalog description for the schema validation node"
+  },
   "L14GgyGrCO": {
     "defaultMessage": "Undo the reload of the saved automation",
     "description": "Tooltip of the undo button when the latest step replaced the form with a version saved elsewhere"
@@ -14763,6 +14855,10 @@
     "defaultMessage": "AI usage",
     "description": "Reports tab: AI calls, tokens and billing's charge"
   },
+  "LgF4rByVBa": {
+    "defaultMessage": "Initial value",
+    "description": "Array reduce initial value field"
+  },
   "LgOdyUATt4": {
     "defaultMessage": "No AI was used in these dates with these filters.",
     "description": "Shown when there is no AI usage"
@@ -14946,6 +15042,10 @@
   "LxGnP5nmB2": {
     "defaultMessage": "This chat is paused",
     "description": "Title when a public web chat agent is paused"
+  },
+  "LxPruuLaUX": {
+    "defaultMessage": "Use your company's own GitLab server for the whole workspace.",
+    "description": "Integration row description for a workspace's own GitLab server"
   },
   "LxzxKCrG8Q": {
     "defaultMessage": "SharePoint",
@@ -15407,6 +15507,10 @@
     "defaultMessage": "traduction automatique",
     "description": "Add keywords textarea placeholder"
   },
+  "MbHpGGZQUr": {
+    "defaultMessage": "Disconnect server",
+    "description": "Button that confirms removing the GitLab server connection"
+  },
   "MbppXfDsbM": {
     "defaultMessage": "Queries is unavailable for this string.",
     "description": "Shown when the CAT segment cannot link to Queries (missing translation key)"
@@ -15418,6 +15522,10 @@
   "McaXYZeuHm": {
     "defaultMessage": "Target locale",
     "description": "Accessible label for the CAT header target locale select"
+  },
+  "McapxvtDwd": {
+    "defaultMessage": "Cancel",
+    "description": "Button that keeps the GitLab server connection"
   },
   "MdMiqiLHvA": {
     "defaultMessage": "You are a localisation quality automation. Goal: validate source string and translation changes before they reach production. Check changed source strings for missing context, flag missing translations, broken ICU syntax, mismatched placeholders, and unsafe HTML. Treat locale coverage regressions as blocking findings.",
@@ -15859,6 +15967,10 @@
     "defaultMessage": "Unable to load task comments.",
     "description": "Error state when task comments fail to load"
   },
+  "NIXB2viMhz": {
+    "defaultMessage": "Use a token from a non-admin user, with the api scope, or read_api and read_repository for reading only.",
+    "description": "Hint describing which GitLab access token to create"
+  },
   "NIhlMUMura": {
     "defaultMessage": "Build your publishing workflow.",
     "description": "Supporting note under the Domains bottom CTA"
@@ -16158,6 +16270,10 @@
   "NlEBPcL/uy": {
     "defaultMessage": "Send to rank tracking",
     "description": "Send selected keywords to rank tracking"
+  },
+  "NmW6XEmB83": {
+    "defaultMessage": "Mailchimp disconnected.",
+    "description": "Toast when Mailchimp disconnect succeeds"
   },
   "Nn/7mjMs3f": {
     "defaultMessage": "Take one product release and turn it into market-ready announcements, documentation, assets, and supporting content across every language.",
@@ -16838,6 +16954,10 @@
   "P+9nP38ODj": {
     "defaultMessage": "Connecting...",
     "description": "Pending label while a TMS OAuth connection is starting"
+  },
+  "P+L9qIX8Rd": {
+    "defaultMessage": "Clear",
+    "description": "Clear the Mailchimp item selection"
   },
   "P+MaWGCLAB": {
     "defaultMessage": "Scheduled and GitHub-triggered agent playbooks (not the visual workflow editor).",
@@ -17570,6 +17690,10 @@
   "QCQEKXAzmZ": {
     "defaultMessage": "Issue not found or you do not have access.",
     "description": "Shown when the issue detail page cannot load the issue"
+  },
+  "QD3uzJ+zZ8": {
+    "defaultMessage": "This connection isn't working: {reason}",
+    "description": "Shown when the saved GitLab server connection fails a live check"
   },
   "QDnUDnYpNK": {
     "defaultMessage": "Meta tag",
@@ -18490,6 +18614,10 @@
   "Rgp/V+Ndcw": {
     "defaultMessage": "Failure reason",
     "description": "Label for a recorded translation memory export failure message"
+  },
+  "RhYn29mibB": {
+    "defaultMessage": "Enter JSON text or connect a string output from an earlier step.",
+    "description": "Parse JSON node text input help"
   },
   "RhmMBU70/7": {
     "defaultMessage": "Launch campaign email",
@@ -19535,6 +19663,10 @@
     "defaultMessage": "No active plan",
     "description": "Fallback plan name when the workspace has no active subscription"
   },
+  "TPurI7fr5b": {
+    "defaultMessage": "Select all",
+    "description": "Select every mapped Mailchimp item in the push dialog"
+  },
   "TQ/NrGLhGw": {
     "defaultMessage": "Files",
     "description": "Tab label for the job source files panel"
@@ -19562,6 +19694,10 @@
   "TRlFNEhzfJ": {
     "defaultMessage": "Apply for startup pricing",
     "description": "Primary CTA on the startups page hero and program section"
+  },
+  "TS8IDVeEcm": {
+    "defaultMessage": "Disconnect for the whole workspace? Automations go back to GitLab.com and chats stop using this server's projects.",
+    "description": "Question shown before removing the GitLab server connection"
   },
   "TSLfOgCp9k": {
     "defaultMessage": "Collection expression",
@@ -19626,6 +19762,10 @@
   "TXSZ3cXaZk": {
     "defaultMessage": "All projects",
     "description": "Placeholder for browsing live TMS resources across all projects"
+  },
+  "TYbrzdSaf3": {
+    "defaultMessage": "Connected to {serverUrl} as {username}.",
+    "description": "Integration row description once a GitLab server is connected"
   },
   "TYisbjRrWY": {
     "defaultMessage": "imported translation memory",
@@ -20066,6 +20206,10 @@
   "UDTP3K5J0j": {
     "defaultMessage": "Create a key in Zernio under API keys. Automations authenticate with Authorization: Bearer.",
     "description": "Help text for where to find a Zernio API key"
+  },
+  "UDr0hZGNG/": {
+    "defaultMessage": "GitLab server connected.",
+    "description": "Toast after a GitLab server connection is saved"
   },
   "UE1Umv7eEm": {
     "defaultMessage": "What is wrong (meaning, tone, grammar, or style)",
@@ -20927,6 +21071,10 @@
     "defaultMessage": "Open full-page editor",
     "description": "Link to open repository automation settings on a dedicated page"
   },
+  "VdrqJKSKUW": {
+    "defaultMessage": "Automations name a project by its path, so replacing or removing this connection points them at the new server, or back at GitLab.com. Chats stop using projects from the old server.",
+    "description": "Warning shown before replacing or removing a GitLab server connection"
+  },
   "Ve+0mAQW0d": {
     "defaultMessage": "Pulling search volume for core product terms",
     "description": "Automations mock UI keyword research step 1"
@@ -21227,6 +21375,10 @@
     "defaultMessage": "Refresh the repository list and metadata from GitHub. This does not push or pull translations.",
     "description": "Tooltip for the refresh repository list button"
   },
+  "WAMmUgMIAk": {
+    "defaultMessage": "Membership is derived automatically from connections leaving the Each item port.",
+    "description": "Explanation of graph-derived collection-region membership"
+  },
   "WASARqpuMh": {
     "defaultMessage": "{title} will no longer be used for guideline checks.",
     "description": "Body of the dialog confirming deletion of a guideline document"
@@ -21250,6 +21402,10 @@
   "WBydLHnyW0": {
     "defaultMessage": "Glossary terms used",
     "description": "Heading above detailed glossary matches on an agent proposal"
+  },
+  "WC0JBz+4vU": {
+    "defaultMessage": "Checking…",
+    "description": "Button label while a GitLab server connection is being checked"
   },
   "WCaurzJ1Y5": {
     "defaultMessage": "Project",
@@ -21322,6 +21478,10 @@
   "WKx3yZHQjo": {
     "defaultMessage": "Loading intelligence",
     "description": "Accessible label while the CAT intelligence panel skeleton is shown"
+  },
+  "WLGzcjbMSX": {
+    "defaultMessage": "Push {count, plural, one {# item} other {# items}}",
+    "description": "Confirm pushing the selected Mailchimp items"
   },
   "WLVv78wgsr": {
     "defaultMessage": "Projects",
@@ -22187,6 +22347,10 @@
     "defaultMessage": "Default model",
     "description": "Label for the workspace default model in the summary panel"
   },
+  "Xpq2AJzIub": {
+    "defaultMessage": "Parse JSON",
+    "description": "Catalog title for the JSON parse node"
+  },
   "XqZ3cu2irp": {
     "defaultMessage": "Push approved translations back",
     "description": "Workflow step 5 description for the product-localisation use case"
@@ -22206,6 +22370,10 @@
   "Xrszg9pweO": {
     "defaultMessage": "Succeeded",
     "description": "Workflow node status"
+  },
+  "Xs0BVKJ7dk": {
+    "defaultMessage": "Access token",
+    "description": "Label for the GitLab access token field"
   },
   "Xs0cc+EY83": {
     "defaultMessage": "Agent Actions",
@@ -22763,6 +22931,10 @@
     "defaultMessage": "Discarded your changes again",
     "description": "Notice after an undone discard was put back"
   },
+  "YjRk5tT6GE": {
+    "defaultMessage": "Use a bounded JSON Schema object. Remote references are not supported.",
+    "description": "Schema validation node schema input help"
+  },
   "YjdAJSrtAi": {
     "defaultMessage": "Text element {index}",
     "description": "Video refinement workspace: element"
@@ -22818,6 +22990,10 @@
   "Yo96f8fXbJ": {
     "defaultMessage": "Daylight",
     "description": "Preferred glossary term in editor mock footer panel"
+  },
+  "YoEqgQgzqb": {
+    "defaultMessage": "Validate schema",
+    "description": "Catalog title for the schema validation node"
   },
   "YoNT/y/382": {
     "defaultMessage": "Choose a project",
@@ -23103,6 +23279,10 @@
     "defaultMessage": "Unable to load concepts",
     "description": "Fallback error when glossary concepts fail to load"
   },
+  "ZJ57VYQVaQ": {
+    "defaultMessage": "Value",
+    "description": "Schema validation node value input label"
+  },
   "ZJI5SD947D": {
     "defaultMessage": "Audiences",
     "description": "Hyperlab sub-navigation item for audiences"
@@ -23347,6 +23527,10 @@
     "defaultMessage": "Treat as image",
     "description": "Button to treat a URL source string as a localizable image"
   },
+  "ZkImYkaYlt": {
+    "defaultMessage": "Array transform",
+    "description": "Catalog title for the array transform node"
+  },
   "ZkYSjdsJm0": {
     "defaultMessage": "Translate {locale} with agent",
     "description": "Title of the dialog that queues agent translation for one project locale"
@@ -23414,6 +23598,10 @@
   "Zo2B+NCYIa": {
     "defaultMessage": "Accept",
     "description": "Document editor: accepts one AI suggestion"
+  },
+  "ZoFvC2Y6/K": {
+    "defaultMessage": "Automation",
+    "description": "Label for choosing which Mailchimp automation to push with"
   },
   "Zol/03gW7r": {
     "defaultMessage": "Acme · Web launch · Editor",
@@ -24283,6 +24471,10 @@
     "defaultMessage": "Translations",
     "description": "Knowledge product visual memory node label"
   },
+  "b88FiiRWt1": {
+    "defaultMessage": "Show access token",
+    "description": "Accessible label for the button that reveals the GitLab token"
+  },
   "b8a5Sr5a3d": {
     "defaultMessage": "Choose a task",
     "description": "Placeholder of the task field in the log time dialog"
@@ -24402,6 +24594,10 @@
   "bI+YTOZIIO": {
     "defaultMessage": "“{name}” and its versions will be deleted. This cannot be undone.",
     "description": "Confirm dialog body for deleting an experiment"
+  },
+  "bIBIV/XSnS": {
+    "defaultMessage": "Value",
+    "description": "Stringify JSON node value input label"
   },
   "bIhHNqhcPu": {
     "defaultMessage": "Save & localise",
@@ -24994,6 +25190,10 @@
   "cFLoSPa62D": {
     "defaultMessage": "Visual workflows",
     "description": "Breadcrumb label for the visual workflows list page"
+  },
+  "cFRjw0ewOm": {
+    "defaultMessage": "Result type",
+    "description": "Array transform result type field"
   },
   "cFooypWUsT": {
     "defaultMessage": "Secret value",
@@ -26039,6 +26239,10 @@
     "defaultMessage": "Guidelines is the connected file layer. Content Studio applies it while you create and review. Automation Workflow uses it when agents run repeatable jobs.",
     "description": "Guidelines FAQ answer about product fit"
   },
+  "doi1CJtNyr": {
+    "defaultMessage": "Push to Mailchimp",
+    "description": "Button that opens the dialog to write approved translations to Mailchimp"
+  },
   "doxAnr+fKa": {
     "defaultMessage": "Add a version",
     "description": "Dialog title for adding a variant"
@@ -26519,6 +26723,10 @@
     "defaultMessage": "Ahrefs",
     "description": "Ahrefs tool chip in content ops terminal mock"
   },
+  "eR+n3IPBGs": {
+    "defaultMessage": "Loading items",
+    "description": "Shown while mapped Mailchimp items load"
+  },
   "eRLGmAlreB": {
     "defaultMessage": "Projects",
     "description": "Heading for dictionary project attachments"
@@ -26919,6 +27127,10 @@
     "defaultMessage": "Choose a GitHub repository in the source file picker to look up string context.",
     "description": "Banner prompting the user to pick a repository for CAT context lookup"
   },
+  "f28BtwGbZV": {
+    "defaultMessage": "Couldn't check this connection just now.",
+    "description": "Shown when the live check of a saved GitLab server connection can't run"
+  },
   "f3IEqEzc4J": {
     "defaultMessage": "Image must be 10 MB or smaller.",
     "description": "Toast when an uploaded image exceeds the size limit"
@@ -26954,6 +27166,10 @@
   "f5Adx9k+6N": {
     "defaultMessage": "Partially approved",
     "description": "Filter option for partially approved Crowdin translations"
+  },
+  "f5XgyzsBIQ": {
+    "defaultMessage": "JSON text",
+    "description": "Parse JSON node text input label"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Unsaved changes",
@@ -27534,6 +27750,10 @@
   "g1U3NC/CnC": {
     "defaultMessage": "Queries · this string",
     "description": "Title on the editor mock Queries overlay"
+  },
+  "g2K+bD6CxQ": {
+    "defaultMessage": "Could not start Mailchimp authorization.",
+    "description": "Toast when Mailchimp OAuth URL request fails"
   },
   "g2W3opbod8": {
     "defaultMessage": "Choose a Hyperlocalise project for push source.",
@@ -28307,6 +28527,10 @@
     "defaultMessage": "Remove member",
     "description": "Tooltip and dialog action to remove a workspace member"
   },
+  "hB5ZTWFDwg": {
+    "defaultMessage": "Overwrite Mailchimp copies when the remote copy is newer.",
+    "description": "Explains the selected automation overwrites newer Mailchimp copies on push"
+  },
   "hBN2q81ova": {
     "defaultMessage": "Loading glossary and translation memory, then reading the file.",
     "description": "Run card summary before strings are extracted"
@@ -28758,6 +28982,10 @@
   "huDfeEPmkj": {
     "defaultMessage": "TMS agnostic",
     "description": "Differentiator point 1 for the github-release-localisation use case"
+  },
+  "huT2nYeusR": {
+    "defaultMessage": "Server address",
+    "description": "Label for the GitLab server address field"
   },
   "hujEaVVQkb": {
     "defaultMessage": "3 flags · clause 3.2",
@@ -30043,6 +30271,10 @@
     "defaultMessage": "Rate",
     "description": "Column heading: the rate that prices a language's work on the task"
   },
+  "jwOzDgWMEq": {
+    "defaultMessage": "Unable to disconnect the GitLab server.",
+    "description": "Toast when removing the GitLab server connection fails"
+  },
   "jxHawvN/1R": {
     "defaultMessage": "Could not remove the Webflow connection.",
     "description": "Error toast when removing the Webflow connection fails."
@@ -30510,6 +30742,10 @@
   "ke25Z8UYMw": {
     "defaultMessage": "Members",
     "description": "Heading above the team members list"
+  },
+  "kezpjBwZx/": {
+    "defaultMessage": "Push to Mailchimp",
+    "description": "Title of the Content editor dialog for choosing Mailchimp items to push"
   },
   "kf0aB8NC11": {
     "defaultMessage": "Create team",
@@ -31323,6 +31559,10 @@
     "defaultMessage": "Guessing is expensive. A small market test is not.",
     "description": "Details section headline for the Hyperlab product page"
   },
+  "m+3SVatJRr": {
+    "defaultMessage": "Mailchimp",
+    "description": "Tool badge when an automation uses Mailchimp"
+  },
   "m+nKGIs3Va": {
     "defaultMessage": "String context lookup",
     "description": "AI feature: looking up a string's context in a repository"
@@ -31354,6 +31594,10 @@
   "m2f+ZwkyAI": {
     "defaultMessage": "Asset",
     "description": "Filter option for asset source strings"
+  },
+  "m2hcMIjCyS": {
+    "defaultMessage": "Disconnect",
+    "description": "Disconnect Mailchimp"
   },
   "m34LPH+M7Z": {
     "defaultMessage": "Comment on pull requests with localisation status",
@@ -31858,6 +32102,10 @@
   "mltE2S4MiK": {
     "defaultMessage": "Instructions",
     "description": "Section label for agent system instructions"
+  },
+  "mm8ESSKJcB": {
+    "defaultMessage": "Disconnect",
+    "description": "Button that removes the GitLab server connection"
   },
   "mmB/r+ohDb": {
     "defaultMessage": "Some segments have unsaved edits. Leave without saving?",
@@ -33087,6 +33335,10 @@
     "defaultMessage": "Updated",
     "description": "Metadata label for glossary update time"
   },
+  "ohWq8Fp+QJ": {
+    "defaultMessage": "Stringify JSON",
+    "description": "Catalog title for the JSON stringify node"
+  },
   "oiJegD5+SZ": {
     "defaultMessage": "Could not check what changes when you leave.",
     "description": "Shown when the leave workspace dialog could not load what stops working"
@@ -33146,6 +33398,10 @@
   "omP7hSnBIw": {
     "defaultMessage": "Format {format}",
     "description": "Shows the provider file format in the file detail panel"
+  },
+  "omW67FLa2e": {
+    "defaultMessage": "Disconnecting…",
+    "description": "Button label while the GitLab server connection is being removed"
   },
   "omiOFhhyA0": {
     "defaultMessage": "Against paying every match band in full",
@@ -33491,6 +33747,10 @@
     "defaultMessage": "Import",
     "description": "Button to import dictionary words from a text file"
   },
+  "pHz3Uy2BNF": {
+    "defaultMessage": "success",
+    "description": "Label on the success output handle of a JSON parse, stringify, or validate node"
+  },
   "pIhCSFb9aQ": {
     "defaultMessage": "Original",
     "description": "Badge on the gallery card that shows the source image"
@@ -33554,6 +33814,10 @@
   "pOCBt3fv7m": {
     "defaultMessage": "The program is designed for new Hyperlocalise customers that are early-stage — typically under 50 employees or pre-Series B — and looking at the Growth plan. If you are unsure, apply for a demo and we will confirm fit.",
     "description": "Startups FAQ answer about eligibility"
+  },
+  "pOhsACmi7A": {
+    "defaultMessage": "Enter the token again to change anything here.",
+    "description": "Hint explaining that saving always needs the token"
   },
   "pOmRJ5Mm9Y": {
     "defaultMessage": "String type",
@@ -34019,6 +34283,10 @@
     "defaultMessage": "No files match this search.",
     "description": "Empty state when the create job file tree search has no matches"
   },
+  "q15/6hsAKH": {
+    "defaultMessage": "Could not disconnect Mailchimp.",
+    "description": "Toast when Mailchimp disconnect fails"
+  },
   "q1SUe75H6g": {
     "defaultMessage": "Major",
     "description": "Package version change badge for a major update"
@@ -34126,6 +34394,10 @@
   "qAENVVTQnI": {
     "defaultMessage": "Explore Guidelines",
     "description": "Link from Content Studio to the Guidelines product page"
+  },
+  "qAIm+dJ8lo": {
+    "defaultMessage": "No nodes are connected to the Each item region.",
+    "description": "Empty graph-derived collection-region body"
   },
   "qAQXdmfmq+": {
     "defaultMessage": "Approve string",
@@ -35671,6 +35943,10 @@
     "defaultMessage": "Issue ID copied",
     "description": "Toast after copying the human-readable issue ID"
   },
+  "sfV9GS+qiL": {
+    "defaultMessage": "Disconnecting…",
+    "description": "Disconnect Mailchimp in progress"
+  },
   "sfaBsHFrP0": {
     "defaultMessage": "Strings updated:",
     "description": "Label for the date range when source strings were updated"
@@ -36383,6 +36659,10 @@
     "defaultMessage": "Failed to load jobs",
     "description": "Fallback error when native jobs fail to load"
   },
+  "tuNTrXyvA1": {
+    "defaultMessage": "Checking the connection…",
+    "description": "Shown while the saved GitLab server connection is being checked"
+  },
   "tuvZlDHxtM": {
     "defaultMessage": "Greek (Greece)",
     "description": "Display name for BCP-47 locale el-GR"
@@ -37051,6 +37331,10 @@
     "defaultMessage": "Token starting with {prefix}",
     "description": "Hint showing the stored Canva connection token prefix"
   },
+  "uyHddFItti": {
+    "defaultMessage": "Couldn't load projects from GitLab",
+    "description": "Placeholder when the GitLab project list failed to load, for example because the workspace's GitLab token was refused"
+  },
   "uyOcKxzNqN": {
     "defaultMessage": "Extracting frame…",
     "description": "Video refinement workspace: extracting"
@@ -37443,6 +37727,10 @@
     "defaultMessage": "This file format is not supported for translation jobs.",
     "description": "Validation error when the source file format cannot be translated"
   },
+  "vXav6npaND": {
+    "defaultMessage": "Unable to save the GitLab server connection.",
+    "description": "Toast when saving a GitLab server connection fails without a reason"
+  },
   "vY4jaTW3UF": {
     "defaultMessage": "Workload words",
     "description": "Reports mock UI workload words metric label"
@@ -37563,6 +37851,10 @@
     "defaultMessage": "New workflow",
     "description": "Button that creates a new visual workflow draft"
   },
+  "vjX9EcsHlB": {
+    "defaultMessage": "Not used while this workspace is connected to its own GitLab server.",
+    "description": "GitLab.com row description while a self-hosted GitLab server is connected"
+  },
   "vjXHRG767Q": {
     "defaultMessage": "Created {createdCount} of {totalCount} jobs, then failed: {errorMessage}",
     "description": "Error after some native jobs were created before a later failure"
@@ -37594,6 +37886,10 @@
   "vlvGY6fhsb": {
     "defaultMessage": "Role",
     "description": "Label for the team role select in the change role dialog"
+  },
+  "vmE0N0SGD3": {
+    "defaultMessage": "Choose which mapped campaigns or templates to update with approved translations. This creates or updates draft locale copies — it never sends, schedules, or edits the source.",
+    "description": "Description of the Mailchimp item picker dialog"
   },
   "vmnQBcZ7YW": {
     "defaultMessage": "Nothing here yet",
@@ -38483,6 +38779,10 @@
     "defaultMessage": "Order",
     "description": "Accessible label for the translation memory entry sort direction"
   },
+  "x5b2BktTkL": {
+    "defaultMessage": "Parse JSON text into a structured value.",
+    "description": "Catalog description for the JSON parse node"
+  },
   "x5jXClnMbS": {
     "defaultMessage": "{actor} assigned to themselves",
     "description": "Activity line when an actor assigns an issue to themselves"
@@ -38706,6 +39006,10 @@
   "xSPEc7l3cj": {
     "defaultMessage": "Go to dashboard",
     "description": "Link from a route error to the workspace dashboard"
+  },
+  "xSVItdTlw0": {
+    "defaultMessage": "Hide access token",
+    "description": "Accessible label for the button that hides the GitLab token"
   },
   "xSmzy2H6ua": {
     "defaultMessage": "Workspace",
@@ -39315,10 +39619,6 @@
     "defaultMessage": "Translate with agent",
     "description": "Context menu action to translate a project file with an agent"
   },
-  "yIZkW24JC2": {
-    "defaultMessage": "No nodes are connected to the Each item region.",
-    "description": "Empty graph-derived For Each body"
-  },
   "yIwRFz93s7": {
     "defaultMessage": "Italian (Italy)",
     "description": "Display name for BCP-47 locale it-IT"
@@ -39710,6 +40010,10 @@
   "z3bR+/cqxl": {
     "defaultMessage": "Found {count, plural, one {# string} other {# strings}} in the file",
     "description": "Run step after strings are extracted from the source file"
+  },
+  "z3fkYQNXlF": {
+    "defaultMessage": "invalid",
+    "description": "Label on the invalid output handle of a JSON parse or schema validate node"
   },
   "z3rfJZn/iw": {
     "defaultMessage": "All time",
@@ -40318,6 +40622,10 @@
   "zyDpy3oZz4": {
     "defaultMessage": "Inspect provenance, variants, and change history before editing.",
     "description": "Description of the translation memory entry detail sheet"
+  },
+  "zyVutWQ0it": {
+    "defaultMessage": "Allow pop-ups to connect Mailchimp.",
+    "description": "Toast when the Mailchimp OAuth window is blocked"
   },
   "zyXPWyhbra": {
     "defaultMessage": "No change to show",

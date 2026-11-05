@@ -88,8 +88,12 @@ export const visualCatalogTypeSchema = z.enum([
   "logic.select_path",
   "logic.coalesce",
   "logic.compare",
+  "logic.json_parse",
+  "logic.json_stringify",
+  "logic.schema_validate",
   "ai.agent",
   "logic.for_each",
+  "logic.array_transform",
   "logic.retry",
   "flow.human_approval",
   "flow.wait",
@@ -353,6 +357,8 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
       .trim()
       .max(512)
       .regex(/^[^\\:*?"<>|]*$/, "invalid_folder_path"),
+    branch: z.string().trim().max(256).optional(),
+    pathTemplate: z.string().trim().max(512).optional(),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({
@@ -612,6 +618,19 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
       }
     }),
   z.object({
+    kind: z.literal("logic.json_parse"),
+    text: z.string().max(1_000_000),
+  }),
+  z.object({
+    kind: z.literal("logic.json_stringify"),
+    value: z.unknown(),
+  }),
+  z.object({
+    kind: z.literal("logic.schema_validate"),
+    value: z.unknown(),
+    schema: z.record(z.string(), z.unknown()),
+  }),
+  z.object({
     kind: z.literal("ai.agent"),
     prompt: z.string().max(20_000),
     onError: visualNodeErrorBehaviorSchema.optional(),
@@ -620,6 +639,24 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     kind: z.literal("logic.for_each"),
     collection: z.string().max(2000),
   }),
+  z
+    .object({
+      kind: z.literal("logic.array_transform"),
+      operation: z.enum(["filter", "map", "reduce", "find"]),
+      collection: z.string().max(2000),
+      itemType: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+      resultType: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+      initialValue: z.unknown().optional(),
+    })
+    .superRefine((config, context) => {
+      if (config.operation === "reduce" && config.initialValue === undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["initialValue"],
+          message: "array_reduce_requires_initial_value",
+        });
+      }
+    }),
   z.object({
     kind: z.literal("logic.retry"),
     maxAttempts: z.number().int().min(1).max(10).optional(),

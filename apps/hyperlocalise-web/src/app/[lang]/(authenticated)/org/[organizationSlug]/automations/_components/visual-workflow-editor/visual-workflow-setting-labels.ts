@@ -45,6 +45,8 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     resourceKey: messages.contentSyncResource,
     providerFolder: messages.contentSyncProviderFolder,
     projectFolder: messages.contentSyncProjectFolder,
+    branch: messages.contentSyncBranch,
+    pathTemplate: messages.contentSyncPathTemplate,
     ...ON_ERROR,
   },
   "action.machine_translate": {
@@ -151,8 +153,21 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     missingBehavior: messages.selectPathMissingBehavior,
     defaultValue: messages.selectPathDefaultValue,
   },
+  "logic.json_parse": { text: messages.jsonParseText },
+  "logic.json_stringify": { value: messages.jsonStringifyValue },
+  "logic.schema_validate": {
+    value: messages.schemaValidateValue,
+    schema: messages.schemaValidateSchema,
+  },
   "ai.agent": { prompt: messages.aiPrompt, ...ON_ERROR },
   "logic.for_each": { collection: messages.forEachCollection },
+  "logic.array_transform": {
+    operation: messages.arrayTransformOperation,
+    collection: messages.forEachCollection,
+    itemType: messages.arrayTransformItemType,
+    resultType: messages.arrayTransformResultType,
+    initialValue: messages.arrayTransformInitialValue,
+  },
   "logic.retry": {
     maxAttempts: messages.retryMaxAttempts,
     initialDelayMs: messages.retryInitialDelay,

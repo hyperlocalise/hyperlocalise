@@ -51,6 +51,7 @@ import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notific
 import { createReportingCaptureRoutes } from "./routes/cron/reporting-capture.route";
 import { createTranslationQaScanRoutes } from "./routes/cron/translation-qa-scan.route";
 import { createGuidelineIngestSweepRoutes } from "./routes/cron/guideline-ingest-sweep.route";
+import { createProjectContentSyncCronRoutes } from "./routes/cron/project-content-sync.route";
 import { createLocalisationAuditRoutes } from "./routes/localisation-audit/localisation-audit.route";
 import {
   createLocalisationAuditQueue,
@@ -63,9 +64,11 @@ import {
 import type {
   EngineSetupQueue,
   LocalisationAuditQueue,
+  ProjectContentSyncQueue,
   TranslationQaScanQueue,
 } from "@/lib/workflow/types";
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
+import { createInternalTmsRoutes } from "./routes/internal-tms/internal-tms.route";
 
 export type CreateAppOptions = {
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
@@ -80,6 +83,7 @@ export type CreateAppOptions = {
   translationFileImportQueue?: TranslationFileImportQueue;
   localisationAuditQueue?: LocalisationAuditQueue;
   translationQaScanQueue?: TranslationQaScanQueue;
+  projectContentSyncQueue?: ProjectContentSyncQueue;
   engineSetupQueue?: EngineSetupQueue;
 };
 
@@ -143,6 +147,7 @@ export const app = createApp();
 function createInternalRoutes(options: CreateAppOptions = {}) {
   return new Hono()
     .route("/health", healthRoutes)
+    .route("/internal/tms", createInternalTmsRoutes())
     .route(
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),
@@ -156,6 +161,12 @@ function createInternalRoutes(options: CreateAppOptions = {}) {
       "/cron/translation-qa-scan",
       createTranslationQaScanRoutes({
         translationQaScanQueue: options.translationQaScanQueue ?? createTranslationQaScanQueue(),
+      }),
+    )
+    .route(
+      "/cron/project-content-sync",
+      createProjectContentSyncCronRoutes({
+        projectContentSyncQueue: options.projectContentSyncQueue,
       }),
     );
 }

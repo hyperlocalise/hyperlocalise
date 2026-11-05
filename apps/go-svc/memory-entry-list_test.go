@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
+	"sync"
 	"testing"
 	"time"
 
@@ -188,6 +190,124 @@ func TestMemoryEntryPatchAuditAndReview(t *testing.T) {
 	require.NoError(t, json.Unmarshal(review.Body.Bytes(), &detail))
 	require.Len(t, detail.AuditEvents, 3)
 	require.Equal(t, "reviewed", detail.AuditEvents[2].EventType)
+}
+
+func TestMemoryEntryListModifiedRangeAcrossTimeZones(t *testing.T) {
+	api, scope := memoryTestAPI(t, "admin")
+	memoryID := scope.MustMemory(t, "", "Product TM")
+	early := mustMemoryEntry(t, scope, memoryID, "en-US", "fr-FR", "Early", "Tôt")
+	late := mustMemoryEntry(t, scope, memoryID, "en-US", "fr-FR", "Late", "Tard")
+	for id, at := range map[string]time.Time{
+		early: time.Date(2026, 1, 1, 23, 0, 0, 500000000, time.UTC),
+		late:  time.Date(2026, 1, 2, 4, 0, 0, 0, time.UTC),
+	} {
+		_, err := scope.Pool.Exec(t.Context(), `update memory_entries set updated_at=$2::timestamptz where id=$1`, id, at)
+		require.NoError(t, err)
+	}
+
+	list := func(from, to string) (int, []string) {
+		t.Helper()
+		query := url.Values{"modifiedFrom": {from}, "modifiedTo": {to}}
+		rec := memoryRequest(api, scope, http.MethodGet, scope.OrgPath("/translation-memories/"+memoryID+"/entries?"+query.Encode()), "")
+		var body struct {
+			MemoryEntries []struct {
+				ID string `json:"id"`
+			} `json:"memoryEntries"`
+		}
+		ids := []string{}
+		if rec.Code == http.StatusOK {
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+			for _, entry := range body.MemoryEntries {
+				ids = append(ids, entry.ID)
+			}
+		}
+		return rec.Code, ids
+	}
+
+	// 2026-01-02T01:00:00+02:00 is 2026-01-01T23:00:00Z, before the 23:30Z upper bound.
+	status, ids := list("2026-01-02T01:00:00+02:00", "2026-01-01T23:30:00Z")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, []string{early}, ids)
+
+	// Fractional seconds compare as instants: .4 includes the .5 entry, .6 excludes it.
+	status, ids = list("2026-01-01T23:00:00.4Z", "2026-01-01T23:00:00.5Z")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, []string{early}, ids)
+	status, ids = list("2026-01-01T23:00:00.6Z", "2026-01-01T23:00:01Z")
+	require.Equal(t, http.StatusOK, status)
+	require.Empty(t, ids)
+
+	// 2026-01-01T23:00:00-05:00 is 2026-01-02T04:00:00Z.
+	status, ids = list("2026-01-01T23:00:00-05:00", "2026-01-02T04:00:00Z")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, []string{late}, ids)
+
+	status, _ = list("2026-01-01T23:00:00-05:00", "2026-01-02T01:00:00Z")
+	require.Equal(t, http.StatusBadRequest, status)
+}
+
+func TestMemoryEntryConcurrentCreateConflicts(t *testing.T) {
+	api, scope := memoryTestAPI(t, "admin")
+	memoryID := scope.MustMemory(t, "", "Product TM")
+	path := scope.OrgPath("/translation-memories/" + memoryID + "/entries")
+	body := `{"sourceLocale":"en-US","targetLocale":"fr-FR","sourceText":"Hello","targetText":"Bonjour"}`
+
+	const attempts = 8
+	codes := make([]int, attempts)
+	bodies := make([]string, attempts)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := range attempts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			rec := memoryRequest(api, scope, http.MethodPost, path, body)
+			codes[i], bodies[i] = rec.Code, rec.Body.String()
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	created := 0
+	for i, code := range codes {
+		switch code {
+		case http.StatusCreated:
+			created++
+		case http.StatusConflict:
+			require.Contains(t, bodies[i], "duplicate_memory_entry")
+		default:
+			t.Fatalf("unexpected status %d: %s", code, bodies[i])
+		}
+	}
+	require.Equal(t, 1, created)
+
+	var count int
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select count(*) from memory_entries where memory_id=$1`, memoryID).Scan(&count))
+	require.Equal(t, 1, count)
+}
+
+func TestMemoryEntryPatchRejectsNonObjectMetadata(t *testing.T) {
+	api, scope := memoryTestAPI(t, "admin")
+	memoryID := scope.MustMemory(t, "", "Product TM")
+	entryID := mustMemoryEntry(t, scope, memoryID, "en-US", "fr-FR", "Hello", "Bonjour")
+	path := scope.OrgPath("/translation-memories/" + memoryID + "/entries/" + entryID)
+
+	for _, metadata := range []string{`null`, `[]`, `"context"`, `1`} {
+		rec := memoryRequest(api, scope, http.MethodPatch, path, `{"expectedVersion":1,"metadata":`+metadata+`}`)
+		require.Equal(t, http.StatusBadRequest, rec.Code, metadata)
+		require.Contains(t, rec.Body.String(), "invalid_memory_payload")
+	}
+
+	var stored string
+	var version int
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select metadata::text, version from memory_entries where id=$1`, entryID).Scan(&stored, &version))
+	require.JSONEq(t, `{}`, stored)
+	require.Equal(t, 1, version)
+
+	rec := memoryRequest(api, scope, http.MethodPatch, path, `{"expectedVersion":1,"metadata":{}}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"metadata":{}`)
 }
 
 func TestMemoryEntryPatchDuplicate(t *testing.T) {

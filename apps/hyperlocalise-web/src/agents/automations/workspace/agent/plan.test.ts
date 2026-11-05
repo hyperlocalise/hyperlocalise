@@ -551,6 +551,30 @@ describe("buildWorkspaceOrchestratorPlan", () => {
 
     expect(plan.tools).not.toContain("save_memory");
   });
+
+  it("plans Mailchimp import by default and push when operation is push_approved", () => {
+    const automationConfig = automation({
+      projectId: "project-1",
+      toolConfig: {
+        mailchimp: {
+          enabled: true,
+          workosUserId: "user_workos",
+          sourceLocale: "en",
+          campaignIds: [],
+          templateIds: [],
+          existingTranslationPolicy: "seed_empty",
+          overwriteWhenRemoteNewer: true,
+        },
+      },
+    });
+
+    expect(buildWorkspaceOrchestratorPlan(automationConfig).tools).toEqual([
+      "import_mailchimp_content",
+    ]);
+    expect(
+      buildWorkspaceOrchestratorPlan(automationConfig, { operation: "push_approved" }).tools,
+    ).toEqual(["push_mailchimp_content"]);
+  });
 });
 
 describe("planHasActionableTool", () => {

@@ -710,7 +710,12 @@ export async function runVisualWorkflowInterpreter(input: {
         let retryExitHandle: "succeeded" | "exhausted" | null = null;
         let tryCatchExitHandles: Array<"success" | "catch" | "finally"> | null = null;
         let pendingTryCatchTerminal: TryCatchDeferredResult | null = null;
-        if (execution.ok && node.type !== "logic.for_each" && node.type !== "logic.retry") {
+        if (
+          execution.ok &&
+          node.type !== "logic.for_each" &&
+          node.type !== "logic.array_transform" &&
+          node.type !== "logic.retry"
+        ) {
           for (const field of getWorkflowOutputFields(node)) {
             const value = readWorkflowPath(execution.output, field.path.split("."));
             if (value === undefined && field.optional) continue;
@@ -835,6 +840,143 @@ export async function runVisualWorkflowInterpreter(input: {
             execution = { ok: true, output: { count: items.length, iterationOutputs: outputs } };
             setNodeOutput(context, id, execution.output);
             nodeResults[id] = execution.output;
+          }
+          if (node.type === "logic.array_transform") {
+            if (node.config.kind !== "logic.array_transform") {
+              return {
+                nodeId: id,
+                error: {
+                  code: "invalid_node_config",
+                  message: "Array Transform config is invalid.",
+                },
+              };
+            }
+            const items = execution.output.items;
+            if (!Array.isArray(items) || items.length > WORKFLOW_LIMITS.loopItems) {
+              return {
+                nodeId: id,
+                error: {
+                  code: "loop_limit",
+                  message: "Array Transform requires an array with at most 100 items.",
+                },
+              };
+            }
+            const failTransform = async (error: { code: string; message: string }) => {
+              await emit(node, "failed", iteration, { error });
+              return { nodeId: id, error };
+            };
+            const resultBinding = node.collect?.result;
+            if (!resultBinding) {
+              return failTransform({
+                code: "invalid_array_transform_result",
+                message: "Array Transform requires a collected body result.",
+              });
+            }
+            let accumulator = execution.output.initialValue;
+            if (
+              node.config.operation === "reduce" &&
+              !matchesWorkflowType(accumulator, node.config.resultType)
+            ) {
+              return failTransform({
+                code: "invalid_array_transform_input",
+                message: "Reduce initial value does not match the declared result type.",
+              });
+            }
+            const transformedItems: unknown[] = [];
+            let found = false;
+            let foundValue: unknown;
+            for (let index = 0; index < items.length; index += 1) {
+              const item = items[index];
+              if (!matchesWorkflowType(item, node.config.itemType)) {
+                return failTransform({
+                  code: "invalid_array_transform_input",
+                  message: "Collection item does not match the declared item type.",
+                });
+              }
+              for (const bodyId of node.bodyNodeIds ?? []) {
+                delete context.nodes[bodyId];
+                delete nodeResults[bodyId];
+              }
+              setNodeOutput(context, id, {
+                item,
+                index,
+                count: items.length,
+                ...(node.config.operation === "reduce" ? { accumulator } : {}),
+              });
+              const body = new Set(node.bodyNodeIds ?? []);
+              const starts = new Set(
+                (graph.outgoingByNodeId.get(id) ?? [])
+                  .filter((edge) => edge.sourceHandle === "each")
+                  .map((edge) => edge.target),
+              );
+              const failure = await runScope(body, starts, index);
+              if (failure) {
+                if (
+                  failure.error.code !== "yield_execution" &&
+                  failure.error.code !== "retry_backoff" &&
+                  failure.error.code !== "wait_suspended" &&
+                  failure.error.code !== "merge_suspended" &&
+                  failure.error.code !== "workflow_completed" &&
+                  failure.error.code !== "workflow_returned" &&
+                  failure.error.code !== "cancelled" &&
+                  failure.error.terminal !== true
+                ) {
+                  await emit(node, "failed", iteration, { error: failure.error });
+                }
+                return failure;
+              }
+              let bodyResult: unknown;
+              try {
+                bodyResult = resolveWorkflowBinding(resultBinding, context);
+              } catch {
+                const error = {
+                  code: "invalid_array_transform_result",
+                  message: "The collected Array Transform body result is missing.",
+                };
+                await emit(node, "failed", iteration, { error });
+                return { nodeId: id, error };
+              }
+              if (node.config.operation === "filter" || node.config.operation === "find") {
+                if (typeof bodyResult !== "boolean") {
+                  return failTransform({
+                    code: "invalid_array_transform_result",
+                    message: "Filter and Find body results must be boolean.",
+                  });
+                }
+                if (bodyResult && node.config.operation === "filter") transformedItems.push(item);
+                if (bodyResult && node.config.operation === "find") {
+                  found = true;
+                  foundValue = item;
+                  break;
+                }
+              } else {
+                if (!matchesWorkflowType(bodyResult, node.config.resultType)) {
+                  return failTransform({
+                    code: "invalid_array_transform_result",
+                    message: "Body result does not match the declared result type.",
+                  });
+                }
+                if (node.config.operation === "map") transformedItems.push(bodyResult);
+                else accumulator = bodyResult;
+              }
+            }
+            for (const bodyId of node.bodyNodeIds ?? []) {
+              delete context.nodes[bodyId];
+              delete nodeResults[bodyId];
+            }
+            const output =
+              node.config.operation === "filter" || node.config.operation === "map"
+                ? { count: items.length, items: transformedItems }
+                : node.config.operation === "reduce"
+                  ? { count: items.length, value: accumulator }
+                  : {
+                      count: items.length,
+                      found,
+                      ...(found ? { value: foundValue } : {}),
+                    };
+            execution = { ok: true, output };
+            setNodeOutput(context, id, output);
+            nodeResults[id] = output;
           }
           if (node.type === "logic.retry") {
             const resolvedRetry = resolveWorkflowNodeInputs(node, context);
@@ -983,30 +1125,29 @@ export async function runVisualWorkflowInterpreter(input: {
             return terminalResult;
           }
         }
-        const next =
-          node.type === "logic.for_each"
-            ? outgoing.filter((edge) => edge.sourceHandle === "done")
-            : node.type === "logic.retry" && retryExitHandle
-              ? outgoing.filter((edge) => edge.sourceHandle === retryExitHandle)
-              : node.type === "logic.try_catch" && tryCatchExitHandles
-                ? tryCatchExitHandles.flatMap((handle) =>
-                    outgoing.filter((edge) => edge.sourceHandle === handle),
-                  )
-                : node.type === "logic.merge" && mergeExitHandle
-                  ? outgoing.filter((edge) => edge.sourceHandle === mergeExitHandle)
-                  : node.type === "flow.wait" && waitExitHandle
-                    ? outgoing.filter((edge) => edge.sourceHandle === waitExitHandle)
-                    : selectNextEdges({
-                        nodeType: node.type,
-                        branchResult: execution.ok ? (execution.branchResult ?? null) : null,
-                        switchCase: execution.ok ? (execution.switchCase ?? null) : null,
-                        useErrorBranch: errorBranch,
-                        outgoing,
-                        sequenceOutputIds:
-                          node.config.kind === "logic.sequence"
-                            ? node.config.outputs.map((output) => output.id)
-                            : undefined,
-                      });
+        const next = ["logic.for_each", "logic.array_transform"].includes(node.type)
+          ? outgoing.filter((edge) => edge.sourceHandle === "done")
+          : node.type === "logic.retry" && retryExitHandle
+            ? outgoing.filter((edge) => edge.sourceHandle === retryExitHandle)
+            : node.type === "logic.try_catch" && tryCatchExitHandles
+              ? tryCatchExitHandles.flatMap((handle) =>
+                  outgoing.filter((edge) => edge.sourceHandle === handle),
+                )
+              : node.type === "logic.merge" && mergeExitHandle
+                ? outgoing.filter((edge) => edge.sourceHandle === mergeExitHandle)
+                : node.type === "flow.wait" && waitExitHandle
+                  ? outgoing.filter((edge) => edge.sourceHandle === waitExitHandle)
+                  : selectNextEdges({
+                      nodeType: node.type,
+                      branchResult: execution.ok ? (execution.branchResult ?? null) : null,
+                      switchCase: execution.ok ? (execution.switchCase ?? null) : null,
+                      useErrorBranch: errorBranch,
+                      outgoing,
+                      sequenceOutputIds:
+                        node.config.kind === "logic.sequence"
+                          ? node.config.outputs.map((output) => output.id)
+                          : undefined,
+                    });
         const selectedIds = new Set(next.map((edge) => edge.id));
         const holdsOrderedExits =
           node.config.kind === "logic.sequence" || node.config.kind === "logic.try_catch";

@@ -314,6 +314,9 @@
   "+UUE3IbCPl": {
     "defaultMessage": "Description"
   },
+  "+VUamUeb+A": {
+    "defaultMessage": "搜索商品"
+  },
   "+VZ90aAk+9": {
     "defaultMessage": "行 {row}：{message}"
   },
@@ -790,6 +793,9 @@
   },
   "/GmJUPyDf/": {
     "defaultMessage": "申请演示"
+  },
+  "/HLvk6zVvS": {
+    "defaultMessage": "Mailchimp 推送已排队"
   },
   "/HYQsZiVvN": {
     "defaultMessage": "套餐用量"
@@ -1405,6 +1411,9 @@
   },
   "0MjCwM2JVC": {
     "defaultMessage": "葡萄牙语（巴西）"
+  },
+  "0MlVUFY5rP": {
+    "defaultMessage": "取消"
   },
   "0Ne4Lpi9ew": {
     "defaultMessage": "AI 时代的本地化操作系统。<muted>为现代团队打造，将翻译、审校、同步和质量控制整合到一个工作流程中。</muted>"
@@ -2732,6 +2741,9 @@
   "2gIxGrBEow": {
     "defaultMessage": "作业已取消"
   },
+  "2ge8oszx7T": {
+    "defaultMessage": "目前无法加载 GitLab 服务器连接。"
+  },
   "2ghn1bUXd2": {
     "defaultMessage": "Translation"
   },
@@ -3152,6 +3164,9 @@
   "3RQjQSebWm": {
     "defaultMessage": "成员加载失败。"
   },
+  "3S3afNJApr": {
+    "defaultMessage": "在 HubSpot 设置中，打开“博客”，然后选择“添加/编辑多语言版本”。当博客中包含该语言时，推送操作会创建一篇未发布的帖子草稿。此操作不会为博客添加语言。"
+  },
   "3SLTb8lWnJ": {
     "defaultMessage": "源语言"
   },
@@ -3286,6 +3301,9 @@
   },
   "3i6/WZOWss": {
     "defaultMessage": "一支如同您的本地专家团队般行动的 AI 劳动力。<desktopOnly><lineBreak></lineBreak>它理解市场细微差异，然后进行翻译和创译。</desktopOnly>"
+  },
+  "3iL4qh0106": {
+    "defaultMessage": "保留队友在上次推送后编辑过的 Mailchimp 副本。"
   },
   "3iZn32bnuU": {
     "defaultMessage": "团队成员"
@@ -3463,6 +3481,9 @@
   },
   "3zOQAJ9ZJz": {
     "defaultMessage": "停止工作流"
+  },
+  "3zToCXkiyk": {
+    "defaultMessage": "上次推送失败了"
   },
   "3zVs9fHVPp": {
     "defaultMessage": "Search"
@@ -3998,6 +4019,9 @@
   "4z9+RgG2Ms": {
     "defaultMessage": "文本图层已更改。请重新生成图像以应用更改，然后再批准。"
   },
+  "4zBhSf3vTo": {
+    "defaultMessage": "操作"
+  },
   "4zEqWvETM+": {
     "defaultMessage": "区域：{value}"
   },
@@ -4181,6 +4205,9 @@
   "5G9CHzXNWL": {
     "defaultMessage": "Privacy"
   },
+  "5GsfnkqQvS": {
+    "defaultMessage": "将结构化值序列化为 JSON 文本。"
+  },
   "5H+UdOBSV9": {
     "defaultMessage": "上下文匹配"
   },
@@ -4309,6 +4336,9 @@
   },
   "5V5XZ84WTf": {
     "defaultMessage": "选择负责人"
+  },
+  "5VQvCOhS8Q": {
+    "defaultMessage": "在有序集合中筛选、映射、归约或查找值。"
   },
   "5Wfh7kerri": {
     "defaultMessage": "此环境尚未配置 Autumn。请添加沙盒 AUTUMN_API_KEY，以便为此工作区启用计费。"
@@ -4582,6 +4612,9 @@
   },
   "6/4F992ZiW": {
     "defaultMessage": "无法移除项目"
+  },
+  "6/Rw622IOT": {
+    "defaultMessage": "无法加载项目。"
   },
   "6/WZRSBILe": {
     "defaultMessage": "市场"
@@ -5894,6 +5927,9 @@
   "8SYhKATZ36": {
     "defaultMessage": "{count, plural, one {显示 # 个页面} other {显示全部 # 个页面}}"
   },
+  "8T9ADmB57c": {
+    "defaultMessage": "Mailchimp"
+  },
   "8TEiv4VOyd": {
     "defaultMessage": "无法播放此视频。请尝试重新加载预览。"
   },
@@ -6428,6 +6464,9 @@
   "9OTiPECmGp": {
     "defaultMessage": "任务中没有时间估算的按小时计费工作不计入费用。"
   },
+  "9OXmD1sseg": {
+    "defaultMessage": "连接期间，此服务器将为此工作区中的所有人替代 GitLab.com。他们可以访问此令牌能够访问的所有内容。"
+  },
   "9PKFI8itjo": {
     "defaultMessage": "无法本地化图片。您的指令已保留；请重试。"
   },
@@ -6445,6 +6484,9 @@
   },
   "9QrrRor3/1": {
     "defaultMessage": "它支持所有语言"
+  },
+  "9RWd1cWWqm": {
+    "defaultMessage": "请先添加/编辑多语言版本"
   },
   "9RkSMcYnN2": {
     "defaultMessage": "文件上下文"
@@ -6466,6 +6508,9 @@
   },
   "9TekTcXyPW": {
     "defaultMessage": "本地化图片"
+  },
+  "9Tey3vfO9H": {
+    "defaultMessage": "连接正常。令牌末尾为 {suffix}。"
   },
   "9UNEz67Z9a": {
     "defaultMessage": "已完成的字符串"
@@ -6845,6 +6890,9 @@
   "A9V2j23Vmp": {
     "defaultMessage": "加载更多"
   },
+  "A9wBlxBz/7": {
+    "defaultMessage": "没有已映射的项目"
+  },
   "AA0EuR+/cx": {
     "defaultMessage": "TMS"
   },
@@ -6868,6 +6916,9 @@
   },
   "ACTAy3p5p3": {
     "defaultMessage": "已修复"
+  },
+  "ACmO8h4/+b": {
+    "defaultMessage": "架构"
   },
   "ACud1VtN9i": {
     "defaultMessage": "显示名称"
@@ -7886,6 +7937,9 @@
   "C7FCjLc6gc": {
     "defaultMessage": "{displayName} 已保存。连接你的 Phrase 账户以继续。"
   },
+  "C7GU6qexsm": {
+    "defaultMessage": "检查并保存"
+  },
   "C83IJDnkWP": {
     "defaultMessage": "专为支持和本地化运营而设计"
   },
@@ -8708,6 +8762,9 @@
   "DTZnyqDXIb": {
     "defaultMessage": "保存此自动化以便上传知识文件。"
   },
+  "DTdpbMkjDX": {
+    "defaultMessage": "搜索项目"
+  },
   "DU3T9+E0+x": {
     "defaultMessage": "有评论"
   },
@@ -9140,6 +9197,9 @@
   "EIFZa0D92d": {
     "defaultMessage": "查看完整定价详情"
   },
+  "EIzyJsuyBD": {
+    "defaultMessage": "目前无法加载 Mailchimp 连接。"
+  },
   "EJHq4HC1h1": {
     "defaultMessage": "安全审查协助"
   },
@@ -9295,6 +9355,9 @@
   },
   "EXZ7+kRFEu": {
     "defaultMessage": "此步骤的整个任务固定费用为 {amount}，并计入总额。"
+  },
+  "EY3bu6oe+F": {
+    "defaultMessage": "推送策略"
   },
   "EY7508Falv": {
     "defaultMessage": "Saving…"
@@ -11012,6 +11075,9 @@
   "HmM5vdsqD+": {
     "defaultMessage": "Close"
   },
+  "HmWwCwYFtV": {
+    "defaultMessage": "条目类型"
+  },
   "HmXZYnVvj0": {
     "defaultMessage": "这些步骤将在本次测试运行中实际执行。它们造成的影响会真实发生，且无法撤销。"
   },
@@ -11101,6 +11167,9 @@
   },
   "HtM5Jg2cRQ": {
     "defaultMessage": "禁用合并"
+  },
+  "HtShi6DFMi": {
+    "defaultMessage": "自托管 GitLab"
   },
   "HtVUcSTMS/": {
     "defaultMessage": "“出错时”已设为“继续”，因此测试运行会继续执行此步骤之后的步骤。"
@@ -11345,6 +11414,9 @@
   "IJZ5NzBvzc": {
     "defaultMessage": "按事件类型筛选"
   },
+  "IKd49tYfPp": {
+    "defaultMessage": "无法将 Mailchimp 推送加入队列"
+  },
   "IKexpxBOZ5": {
     "defaultMessage": "Untranslatable"
   },
@@ -11488,6 +11560,9 @@
   },
   "IiGIsIulPY": {
     "defaultMessage": "此字符串已锁定，无法恢复。"
+  },
+  "IiTUi5qzJ2": {
+    "defaultMessage": "GitLab 服务器已断开连接。"
   },
   "IiWzWDOWnD": {
     "defaultMessage": "超本地化代理"
@@ -12728,6 +12803,9 @@
   "L0gachMRlZ": {
     "defaultMessage": "术语库"
   },
+  "L13hAmUXIJ": {
+    "defaultMessage": "验证值是否符合有界结构化模式。"
+  },
   "L14GgyGrCO": {
     "defaultMessage": "撤销已保存自动化的重新加载"
   },
@@ -13076,6 +13154,9 @@
   "Lfo/HfkA0U": {
     "defaultMessage": "AI 使用量"
   },
+  "LgF4rByVBa": {
+    "defaultMessage": "初始值"
+  },
   "LgOdyUATt4": {
     "defaultMessage": "在这些日期和筛选条件下，未使用 AI。"
   },
@@ -13225,6 +13306,9 @@
   },
   "LxGnP5nmB2": {
     "defaultMessage": "此聊天已暂停"
+  },
+  "LxPruuLaUX": {
+    "defaultMessage": "为整个工作区使用贵公司自己的 GitLab 服务器。"
   },
   "LxzxKCrG8Q": {
     "defaultMessage": "SharePoint"
@@ -13628,6 +13712,9 @@
   "MbFisZdAiR": {
     "defaultMessage": "自动翻译"
   },
+  "MbHpGGZQUr": {
+    "defaultMessage": "断开服务器连接"
+  },
   "Mbl8Jg/bPv": {
     "defaultMessage": "工作区级别"
   },
@@ -13639,6 +13726,9 @@
   },
   "McaXYZeuHm": {
     "defaultMessage": "目标语言"
+  },
+  "McapxvtDwd": {
+    "defaultMessage": "取消"
   },
   "MdMiqiLHvA": {
     "defaultMessage": "你是一款本地化质量自动化工具。目标是在源字符串和翻译更改投入生产前对其进行验证。检查已更改的源字符串是否缺少上下文，标记缺失的翻译、损坏的 ICU 语法、占位符不匹配以及不安全的 HTML。将区域设置覆盖率回归视为阻塞性问题。"
@@ -14018,6 +14108,9 @@
   "NITlc8aQr0": {
     "defaultMessage": "无法加载任务评论。"
   },
+  "NIXB2viMhz": {
+    "defaultMessage": "使用非管理员用户的令牌，并授予 api 权限范围；如果仅用于读取，则授予 read_api 和 read_repository 权限范围。"
+  },
   "NIhlMUMura": {
     "defaultMessage": "构建您的发布工作流。"
   },
@@ -14279,6 +14372,9 @@
   "NlEBPcL/uy": {
     "defaultMessage": "发送至排名跟踪"
   },
+  "NmW6XEmB83": {
+    "defaultMessage": "已断开与 Mailchimp 的连接。"
+  },
   "Nn/7mjMs3f": {
     "defaultMessage": "将一次产品发布转化为适用于各个市场的公告、文档、素材和支持内容，并覆盖所有语言。"
   },
@@ -14473,6 +14569,9 @@
   },
   "OAZ7oFBkRI": {
     "defaultMessage": "{count, plural, one {自上次扫描以来新增 # 个 QA 错误} other {自上次扫描以来新增 # 个 QA 错误}}"
+  },
+  "OBtwmZ+5Ft": {
+    "defaultMessage": "选择要使用已批准的翻译进行更新的已映射电子邮件、博客文章和表单。电子邮件将克隆为本地化草稿。博客文章将成为未发布的本地化草稿。表单将成为单独的本地化副本。此操作绝不会更改或发布源内容。"
   },
   "OBw52VUo2G": {
     "defaultMessage": "{percent}% 的测试"
@@ -14863,6 +14962,9 @@
   },
   "P+9nP38ODj": {
     "defaultMessage": "正在连接…"
+  },
+  "P+L9qIX8Rd": {
+    "defaultMessage": "清除"
   },
   "P+MaWGCLAB": {
     "defaultMessage": "定时任务和由 GitHub 触发的代理操作手册（非可视化工作流编辑器）。"
@@ -15529,6 +15631,9 @@
   },
   "QCQEKXAzmZ": {
     "defaultMessage": "未找到问题，或您无权访问。"
+  },
+  "QD3uzJ+zZ8": {
+    "defaultMessage": "此连接无法正常工作：{reason}"
   },
   "QDnUDnYpNK": {
     "defaultMessage": "元标签"
@@ -16333,6 +16438,9 @@
   },
   "Rgp/V+Ndcw": {
     "defaultMessage": "失败原因"
+  },
+  "RhYn29mibB": {
+    "defaultMessage": "输入 JSON 文本，或连接前一步的字符串输出。"
   },
   "RhmMBU70/7": {
     "defaultMessage": "启动营销活动电子邮件"
@@ -17246,6 +17354,9 @@
   "TPju9eiMWa": {
     "defaultMessage": "无有效方案"
   },
+  "TPurI7fr5b": {
+    "defaultMessage": "全选"
+  },
   "TQ/NrGLhGw": {
     "defaultMessage": "Files"
   },
@@ -17269,6 +17380,9 @@
   },
   "TRlFNEhzfJ": {
     "defaultMessage": "申请创业公司定价"
+  },
+  "TS8IDVeEcm": {
+    "defaultMessage": "要断开整个工作区的连接吗？自动化将切换回 GitLab.com，聊天也将停止使用此服务器上的项目。"
   },
   "TSLfOgCp9k": {
     "defaultMessage": "集合表达式"
@@ -17326,6 +17440,9 @@
   },
   "TXSZ3cXaZk": {
     "defaultMessage": "所有项目"
+  },
+  "TYbrzdSaf3": {
+    "defaultMessage": "已作为 {username} 连接到 {serverUrl}。"
   },
   "TYisbjRrWY": {
     "defaultMessage": "已导入翻译记忆"
@@ -17710,6 +17827,9 @@
   },
   "UDTP3K5J0j": {
     "defaultMessage": "在 Zernio 的 API 密钥下创建一个密钥。自动化通过 Authorization: Bearer 进行身份验证。"
+  },
+  "UDr0hZGNG/": {
+    "defaultMessage": "GitLab 服务器已连接。"
   },
   "UE1Umv7eEm": {
     "defaultMessage": "哪里有问题（含义、语气、语法或风格）"
@@ -18476,6 +18596,9 @@
   "VdjibQd9gV": {
     "defaultMessage": "打开整页编辑器"
   },
+  "VdrqJKSKUW": {
+    "defaultMessage": "自动化通过项目路径来指定项目，因此替换或移除此连接会使它们指向新服务器，或重新指向 GitLab.com。聊天将不再使用旧服务器上的项目。"
+  },
   "Ve+0mAQW0d": {
     "defaultMessage": "正在获取核心产品术语的搜索量"
   },
@@ -18764,6 +18887,9 @@
   "WA49vhY6w5": {
     "defaultMessage": "从 GitHub 刷新仓库列表和元数据。这不会推送或拉取翻译。"
   },
+  "WAMmUgMIAk": {
+    "defaultMessage": "成员资格根据从“每个项目”端口发出的连接自动确定。"
+  },
   "WAOAGxwy+L": {
     "defaultMessage": "客户案例"
   },
@@ -18787,6 +18913,9 @@
   },
   "WBydLHnyW0": {
     "defaultMessage": "使用的术语表术语"
+  },
+  "WC0JBz+4vU": {
+    "defaultMessage": "正在检查…"
   },
   "WCaurzJ1Y5": {
     "defaultMessage": "项目"
@@ -18850,6 +18979,9 @@
   },
   "WL/j4jcqMB": {
     "defaultMessage": "Due {due} · Synced {synced}"
+  },
+  "WLGzcjbMSX": {
+    "defaultMessage": "推送 {count, plural, one {# 个项目} other {# 个项目}}"
   },
   "WLVv78wgsr": {
     "defaultMessage": "Projects"
@@ -19637,6 +19769,9 @@
   "XpeTF2YWKH": {
     "defaultMessage": "默认模型"
   },
+  "Xpq2AJzIub": {
+    "defaultMessage": "解析 JSON"
+  },
   "XqZ3cu2irp": {
     "defaultMessage": "将已批准的译文推送回去"
   },
@@ -19657,6 +19792,9 @@
   },
   "Xrszg9pweO": {
     "defaultMessage": "Succeeded"
+  },
+  "Xs0BVKJ7dk": {
+    "defaultMessage": "访问令牌"
   },
   "Xs0cc+EY83": {
     "defaultMessage": "代理操作"
@@ -20153,6 +20291,9 @@
   "YiZ5ttL/m5": {
     "defaultMessage": "再次撤销了您的更改"
   },
+  "YjRk5tT6GE": {
+    "defaultMessage": "使用范围受限的 JSON Schema 对象。不支持远程引用。"
+  },
   "YjdAJSrtAi": {
     "defaultMessage": "文本元素 {index}"
   },
@@ -20206,6 +20347,9 @@
   },
   "Yo96f8fXbJ": {
     "defaultMessage": "日光"
+  },
+  "YoEqgQgzqb": {
+    "defaultMessage": "验证架构文件"
   },
   "YoNT/y/382": {
     "defaultMessage": "选择一个项目"
@@ -20462,6 +20606,9 @@
   "ZIg96oUMGy": {
     "defaultMessage": "无法加载概念"
   },
+  "ZJ57VYQVaQ": {
+    "defaultMessage": "值"
+  },
   "ZJI5SD947D": {
     "defaultMessage": "Audiences"
   },
@@ -20702,6 +20849,9 @@
   "ZkAl1q2it8": {
     "defaultMessage": "作为图片处��"
   },
+  "ZkImYkaYlt": {
+    "defaultMessage": "数组转换"
+  },
   "ZkYSjdsJm0": {
     "defaultMessage": "使用代理翻译 {locale}"
   },
@@ -20755,6 +20905,9 @@
   },
   "Zo2B+NCYIa": {
     "defaultMessage": "Accept"
+  },
+  "ZoFvC2Y6/K": {
+    "defaultMessage": "Automation"
   },
   "Zol/03gW7r": {
     "defaultMessage": "Acme · 网站发布 · 编辑器"
@@ -21515,6 +21668,9 @@
   "b7yQjQkzcS": {
     "defaultMessage": "翻译"
   },
+  "b88FiiRWt1": {
+    "defaultMessage": "显示访问令牌"
+  },
   "b8a5Sr5a3d": {
     "defaultMessage": "选择一项任务"
   },
@@ -21619,6 +21775,9 @@
   },
   "bI+YTOZIIO": {
     "defaultMessage": "“{name}”及其版本将被删除。此操作无法撤销。"
+  },
+  "bIBIV/XSnS": {
+    "defaultMessage": "值"
   },
   "bIhHNqhcPu": {
     "defaultMessage": "保存并本地化"
@@ -22135,6 +22294,9 @@
   },
   "cFLoSPa62D": {
     "defaultMessage": "可视化工作流"
+  },
+  "cFRjw0ewOm": {
+    "defaultMessage": "结果类型"
   },
   "cFooypWUsT": {
     "defaultMessage": "密钥值"
@@ -23048,6 +23210,9 @@
   "doe6TBv1GS": {
     "defaultMessage": "Guidelines 是连接的文件层。Content Studio 会在您创建和审阅内容时应用它。Automation Workflow 会在代理运行可重复作业时使用它。"
   },
+  "doi1CJtNyr": {
+    "defaultMessage": "推送到 Mailchimp"
+  },
   "doxAnr+fKa": {
     "defaultMessage": "添加版本"
   },
@@ -23450,6 +23615,9 @@
   "eQIxzTUwry": {
     "defaultMessage": "Ahrefs"
   },
+  "eR+n3IPBGs": {
+    "defaultMessage": "正在加载项目"
+  },
   "eRLGmAlreB": {
     "defaultMessage": "项目"
   },
@@ -23810,6 +23978,9 @@
   "f22yrNzzSr": {
     "defaultMessage": "在源文件选择器中选择一个 GitHub 仓库，以查找字符串上下文。"
   },
+  "f28BtwGbZV": {
+    "defaultMessage": "暂时无法检查此连接。"
+  },
   "f2cTOkA6mx": {
     "defaultMessage": "Create a generic Issue Sheet row. Link it to CAT or another issue tracker when useful."
   },
@@ -23842,6 +24013,9 @@
   },
   "f5Adx9k+6N": {
     "defaultMessage": "部分已批准"
+  },
+  "f5XgyzsBIQ": {
+    "defaultMessage": "JSON 文本"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "未保存的更改"
@@ -24373,6 +24547,9 @@
   },
   "g1U3NC/CnC": {
     "defaultMessage": "查询 · 此字符串"
+  },
+  "g2K+bD6CxQ": {
+    "defaultMessage": "无法启动 Mailchimp 授权。"
   },
   "g2W3opbod8": {
     "defaultMessage": "为推送源选择一个 Hyperlocalise 项目。"
@@ -25049,6 +25226,9 @@
   "hAuB9ZbM0P": {
     "defaultMessage": "Activate"
   },
+  "hB5ZTWFDwg": {
+    "defaultMessage": "当远程副本较新时，覆盖 Mailchimp 副本。"
+  },
   "hBN2q81ova": {
     "defaultMessage": "正在加载术语表和翻译记忆，然后读取文件。"
   },
@@ -25435,6 +25615,9 @@
   },
   "huDfeEPmkj": {
     "defaultMessage": "与 TMS 无关"
+  },
+  "huT2nYeusR": {
+    "defaultMessage": "服务器地址"
   },
   "hujEaVVQkb": {
     "defaultMessage": "3 个标记 · 条款 3.2"
@@ -26603,6 +26786,9 @@
   "jwMRWjUt93": {
     "defaultMessage": "费率"
   },
+  "jwOzDgWMEq": {
+    "defaultMessage": "无法断开与 GitLab 服务器的连接。"
+  },
   "jwTdsyTe54": {
     "defaultMessage": "CAT Tool"
   },
@@ -27037,6 +27223,9 @@
   },
   "ke25Z8UYMw": {
     "defaultMessage": "Members"
+  },
+  "kezpjBwZx/": {
+    "defaultMessage": "推送到 Mailchimp"
   },
   "kf0aB8NC11": {
     "defaultMessage": "创建团队"
@@ -27770,6 +27959,9 @@
   "lzHNFV9Hx6": {
     "defaultMessage": "猜测代价高昂。小规模市场测试却并非如此。"
   },
+  "m+3SVatJRr": {
+    "defaultMessage": "Mailchimp"
+  },
   "m+nKGIs3Va": {
     "defaultMessage": "字符串上下文查询"
   },
@@ -27805,6 +27997,9 @@
   },
   "m2f+ZwkyAI": {
     "defaultMessage": "资产"
+  },
+  "m2hcMIjCyS": {
+    "defaultMessage": "断开连接"
   },
   "m34LPH+M7Z": {
     "defaultMessage": "在拉取请求上评论本地化状态"
@@ -28240,6 +28435,9 @@
   },
   "mltE2S4MiK": {
     "defaultMessage": "说明"
+  },
+  "mm8ESSKJcB": {
+    "defaultMessage": "断开连接"
   },
   "mmB/r+ohDb": {
     "defaultMessage": "部分片段有未保存的编辑。要不保存就离开吗？"
@@ -29339,6 +29537,9 @@
   "ohFSHTwja2": {
     "defaultMessage": "已更新"
   },
+  "ohWq8Fp+QJ": {
+    "defaultMessage": "将 JSON 字符串化"
+  },
   "oiJegD5+SZ": {
     "defaultMessage": "无法检查离开后会发生哪些变化。"
   },
@@ -29398,6 +29599,9 @@
   },
   "omP7hSnBIw": {
     "defaultMessage": "格式 {format}"
+  },
+  "omW67FLa2e": {
+    "defaultMessage": "正在断开连接…"
   },
   "omiOFhhyA0": {
     "defaultMessage": "无需为每个匹配档位全额付款"
@@ -29675,6 +29879,9 @@
   "pHj5D5hJU+": {
     "defaultMessage": "导入"
   },
+  "pHz3Uy2BNF": {
+    "defaultMessage": "成功"
+  },
   "pIhCSFb9aQ": {
     "defaultMessage": "原始版本"
   },
@@ -29728,6 +29935,9 @@
   },
   "pOCBt3fv7m": {
     "defaultMessage": "该计划面向 Hyperlocalise 的新客户，适合处于早期阶段的企业——通常员工人数少于 50 人或尚未完成 B 轮融资——并有意选择 Growth 计划。如果您不确定是否符合条件，请申请演示，我们会确认是否适合。"
+  },
+  "pOhsACmi7A": {
+    "defaultMessage": "重新输入令牌即可更改此处的任何内容。"
   },
   "pOmRJ5Mm9Y": {
     "defaultMessage": "字符串类型"
@@ -30128,6 +30338,9 @@
   "q0vQCpRAVI": {
     "defaultMessage": "没有文件匹配此搜索。"
   },
+  "q15/6hsAKH": {
+    "defaultMessage": "无法断开与 Mailchimp 的连接。"
+  },
   "q1SUe75H6g": {
     "defaultMessage": "Major"
   },
@@ -30226,6 +30439,9 @@
   },
   "qAENVVTQnI": {
     "defaultMessage": "探索指南"
+  },
+  "qAIm+dJ8lo": {
+    "defaultMessage": "没有节点连接到“每个项目”区域。"
   },
   "qAQXdmfmq+": {
     "defaultMessage": "批准字符串"
@@ -31613,6 +31829,9 @@
   "sfQrLcactN": {
     "defaultMessage": "隐藏字符串无法在 CAT 中编辑。请先在 Crowdin 中取消隐藏该字符串。"
   },
+  "sfV9GS+qiL": {
+    "defaultMessage": "正在断开连接…"
+  },
   "sfaBsHFrP0": {
     "defaultMessage": "字符串更新时间："
   },
@@ -32273,6 +32492,9 @@
   "tuH9VcQWRE": {
     "defaultMessage": "加载职位失败"
   },
+  "tuNTrXyvA1": {
+    "defaultMessage": "正在检查连接…"
+  },
   "tuvZlDHxtM": {
     "defaultMessage": "希腊语（希腊）"
   },
@@ -32843,6 +33065,9 @@
   "uyA3TF6irL": {
     "defaultMessage": "以 {prefix} 开头的令牌"
   },
+  "uyHddFItti": {
+    "defaultMessage": "无法从 GitLab 加载项目。"
+  },
   "uyOcKxzNqN": {
     "defaultMessage": "正在提取帧…"
   },
@@ -33200,6 +33425,9 @@
   "vX1tuXTEO/": {
     "defaultMessage": "此文件格式不支持翻译任务。"
   },
+  "vXav6npaND": {
+    "defaultMessage": "无法保存 GitLab 服务器连接。"
+  },
   "vY4jaTW3UF": {
     "defaultMessage": "工作量词数"
   },
@@ -33314,6 +33542,9 @@
   "vjPfgNgxUm": {
     "defaultMessage": "CAT 行为已更新"
   },
+  "vjX9EcsHlB": {
+    "defaultMessage": "当此工作区连接到自己的 GitLab 服务器时不使用。"
+  },
   "vjXHRG767Q": {
     "defaultMessage": "已创建 {createdCount}/{totalCount} 个任务，随后失败：{errorMessage}"
   },
@@ -33337,6 +33568,9 @@
   },
   "vlvGY6fhsb": {
     "defaultMessage": "角色"
+  },
+  "vmE0N0SGD3": {
+    "defaultMessage": "选择要使用已批准译文进行更新的已映射营销活动或模板。这会创建或更新语言区域草稿副本，但不会发送、安排发送或编辑源内容。"
   },
   "vmnQBcZ7YW": {
     "defaultMessage": "这里还没有内容"
@@ -34112,6 +34346,9 @@
   "x5RsQtpxzS": {
     "defaultMessage": "顺序"
   },
+  "x5b2BktTkL": {
+    "defaultMessage": "将 JSON 文本解析为结构化值。"
+  },
   "x5jXClnMbS": {
     "defaultMessage": "{actor} 将问题分配给了自己"
   },
@@ -34312,6 +34549,9 @@
   },
   "xSPEc7l3cj": {
     "defaultMessage": "前往仪表板"
+  },
+  "xSVItdTlw0": {
+    "defaultMessage": "隐藏访问令牌"
   },
   "xSmzy2H6ua": {
     "defaultMessage": "Workspace"
@@ -35180,6 +35420,9 @@
   "z3bR+/cqxl": {
     "defaultMessage": "在文件中找到 {count, plural, one {# 个字符串} other {# 个字符串}}"
   },
+  "z3fkYQNXlF": {
+    "defaultMessage": "无效"
+  },
   "z3hAWnzQKx": {
     "defaultMessage": "加载 Ahrefs 连接失败。"
   },
@@ -35698,6 +35941,9 @@
   },
   "zyDpy3oZz4": {
     "defaultMessage": "编辑前请检查来源、变体和更改历史记录。"
+  },
+  "zyVutWQ0it": {
+    "defaultMessage": "请允许弹出窗口以连接 Mailchimp。"
   },
   "zyXPWyhbra": {
     "defaultMessage": "暂无变化可显示"

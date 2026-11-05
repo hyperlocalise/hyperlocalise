@@ -36,6 +36,7 @@ import {
   createProviderAgentWritebackQueue,
 } from "@/workflows/adapters";
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
+import { createInternalTmsRoutes } from "./routes/internal-tms/internal-tms.route";
 import type { CreateAppOptions } from "./app";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
@@ -50,6 +51,7 @@ import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notific
 import { createReportingCaptureRoutes } from "./routes/cron/reporting-capture.route";
 import { createTranslationQaScanRoutes } from "./routes/cron/translation-qa-scan.route";
 import { createGuidelineIngestSweepRoutes } from "./routes/cron/guideline-ingest-sweep.route";
+import { createProjectContentSyncCronRoutes } from "./routes/cron/project-content-sync.route";
 
 /**
  * Chained Hono schema for `testClient`. Keep this out of Next's typecheck
@@ -116,6 +118,7 @@ export type AppType = ReturnType<typeof createTypedApp>;
 function createInternalRoutes(options: CreateAppOptions = {}) {
   return new Hono()
     .route("/health", healthRoutes)
+    .route("/internal/tms", createInternalTmsRoutes())
     .route(
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),
@@ -129,6 +132,12 @@ function createInternalRoutes(options: CreateAppOptions = {}) {
       "/cron/translation-qa-scan",
       createTranslationQaScanRoutes({
         translationQaScanQueue: options.translationQaScanQueue ?? createTranslationQaScanQueue(),
+      }),
+    )
+    .route(
+      "/cron/project-content-sync",
+      createProjectContentSyncCronRoutes({
+        projectContentSyncQueue: options.projectContentSyncQueue,
       }),
     );
 }

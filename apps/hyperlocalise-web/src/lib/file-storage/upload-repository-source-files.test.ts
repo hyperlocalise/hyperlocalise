@@ -76,7 +76,10 @@ vi.mock("@/lib/log", async () => {
   };
 });
 
-import { uploadRepositorySourceFilesFromSandbox } from "./upload-repository-source-files";
+import {
+  storeRepositorySourceFile,
+  uploadRepositorySourceFilesFromSandbox,
+} from "./upload-repository-source-files";
 import { sha256Hex } from "./records";
 
 describe("uploadRepositorySourceFilesFromSandbox", () => {
@@ -171,5 +174,73 @@ describe("uploadRepositorySourceFilesFromSandbox", () => {
       storedFileId: "file_utf8",
       versionId: "source_file_version_utf8",
     });
+  });
+});
+
+describe("storeRepositorySourceFile", () => {
+  const content = Buffer.from('{"title":"Home"}', "utf8");
+  const latest = async (overrides: Record<string, unknown>) => ({
+    id: "version_latest",
+    storedFileId: "file_latest",
+    sourceHash: await sha256Hex(content),
+    commitSha: "old-commit",
+    uploadSurface: "gitlab_content_sync",
+    ingestState: "ingested",
+    createdAt: new Date(),
+    ...overrides,
+  });
+  const store = (skipUnchanged?: "commit" | "content") =>
+    storeRepositorySourceFile({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      sourcePath: "gitlab/acme/web/en.json",
+      content,
+      commitSha: "new-commit",
+      workflowRunId: "run_2",
+      uploadSurface: "gitlab_content_sync",
+      skipUnchanged,
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    dbTransactionMock.mockImplementation(async (callback) => callback("tx"));
+    enqueueSourceFileIngestAfterUploadMock.mockResolvedValue(undefined);
+    enqueueFileUploadedActivityMock.mockResolvedValue(undefined);
+    createStoredFileMock.mockResolvedValue({ id: "file_new", storageKey: "k" });
+    createRepositorySourceFileVersionMock.mockResolvedValue({ id: "version_new" });
+  });
+
+  it("skips an unchanged file by content only for its own settled versions", async () => {
+    getLatestRepositorySourceFileVersionMock.mockResolvedValue(await latest({}));
+    expect(await store("content")).toEqual({
+      path: "gitlab/acme/web/en.json",
+      outcome: "skipped",
+      reason: "unchanged",
+      sourceFileVersionId: "version_latest",
+      storedFileId: "file_latest",
+    });
+    // By commit, a new commit stores it again, as the GitHub path has always done.
+    expect((await store()).outcome).toBe("uploaded");
+
+    getLatestRepositorySourceFileVersionMock.mockResolvedValue(
+      await latest({ uploadSurface: "public_api" }),
+    );
+    expect((await store("content")).outcome).toBe("uploaded");
+
+    getLatestRepositorySourceFileVersionMock.mockResolvedValue(
+      await latest({ ingestState: "ingesting" }),
+    );
+    expect((await store("content")).outcome).toBe("skipped");
+
+    // An ingest still running an hour after its upload is dead, so the file is stored again.
+    getLatestRepositorySourceFileVersionMock.mockResolvedValue(
+      await latest({ ingestState: "ingesting", createdAt: new Date(Date.now() - 2 * 3_600_000) }),
+    );
+    expect((await store("content")).outcome).toBe("uploaded");
+
+    getLatestRepositorySourceFileVersionMock.mockResolvedValue(
+      await latest({ ingestState: "failed" }),
+    );
+    expect((await store("content")).outcome).toBe("skipped");
   });
 });

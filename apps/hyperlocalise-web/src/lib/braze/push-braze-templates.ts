@@ -20,17 +20,18 @@ import {
 } from "@/lib/file-storage/records";
 import { createLogger } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
-import { applyHtmlIngestTranslations } from "@/lib/projects/files/html-ingest-entries";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 import { BrazeApiError, listAllBrazeContentBlocks, type BrazeTemplatesClient } from "./client";
 import { loadBrazeAutomationClient } from "./credentials";
 import {
+  applyApprovedBrazeContentBlockEnvelope,
+  applyApprovedBrazeEmailEnvelope,
   hashBrazeContent,
-  parseBrazeContentBlockEnvelope,
-  parseBrazeEmailEnvelope,
   restoreBrazeContentBlockEnvelope,
   restoreBrazeEmailEnvelope,
+  serializeBrazeContentBlockRemoteEnvelope,
+  serializeBrazeEmailRemoteEnvelope,
 } from "./html-envelope";
 import { selectInScopeBrazeMappings } from "./discover-locale-copies";
 import { mapProjectLocalesToBraze } from "./locale";
@@ -273,13 +274,6 @@ export async function runPushBrazeTemplates(input: {
           result.skippedLocales += 1;
           continue;
         }
-        const translatedHtml = applyHtmlIngestTranslations(sourceHtml, approved.prefilled);
-        const contentHash = hashBrazeContent(translatedHtml);
-        const lastHash = (mapping.lastPushContentHash ?? {})[suffix];
-        if (shouldSkipUnchangedBrazePush(lastHash, contentHash) && !overwriteWhenRemoteNewer) {
-          result.skippedLocales += 1;
-          continue;
-        }
 
         const copyResult =
           mapping.resourceKind === "email_template"
@@ -287,18 +281,16 @@ export async function runPushBrazeTemplates(input: {
                 client: loaded.value.client,
                 mapping,
                 suffix,
-                html: translatedHtml,
-                lastHash,
-                contentHash,
+                storedEnvelopeHtml: sourceHtml,
+                approved: approved.prefilled,
                 overwriteWhenRemoteNewer,
               })
             : await pushContentBlockCopy({
                 client: loaded.value.client,
                 mapping,
                 suffix,
-                html: translatedHtml,
-                lastHash,
-                contentHash,
+                storedEnvelopeHtml: sourceHtml,
+                approved: approved.prefilled,
                 overwriteWhenRemoteNewer,
               });
         if (copyResult.status === "skipped") {
@@ -351,40 +343,55 @@ async function pushEmailCopy(input: {
   client: BrazeTemplatesClient;
   mapping: typeof schema.brazeTemplateSyncStates.$inferSelect;
   suffix: string;
-  html: string;
-  lastHash: string | undefined;
-  contentHash: string;
+  storedEnvelopeHtml: string;
+  approved: Record<string, string>;
   overwriteWhenRemoteNewer: boolean;
 }): Promise<BrazePushCopyResult> {
-  const fields = restoreBrazeEmailEnvelope(
-    parseBrazeEmailEnvelope(input.html),
-    input.mapping.liquidTokens ?? {},
-  );
   const copyName = brazeEmailCopyName(input.mapping.sourceName, input.suffix);
   const extra = (input.mapping.extra ?? {}) as {
     shouldInlineCss?: boolean | null;
     tags?: string[];
   };
   let copyId = input.mapping.localeCopyIds?.[input.suffix];
+  let remoteEnvelope: Awaited<ReturnType<typeof loadRemoteEmailEnvelope>> = null;
   if (copyId) {
-    const unchanged = shouldSkipUnchangedBrazePush(input.lastHash, input.contentHash);
-    if (unchanged && !input.overwriteWhenRemoteNewer) {
+    remoteEnvelope = await loadRemoteEmailEnvelope({
+      client: input.client,
+      copyId,
+      storedEnvelopeHtml: input.storedEnvelopeHtml,
+    });
+    if (!remoteEnvelope) {
+      logger.warn(
+        { sourceId: input.mapping.sourceId },
+        "braze push skipped; existing email copy could not be loaded",
+      );
       return { status: "skipped" };
     }
-    if (!input.overwriteWhenRemoteNewer || unchanged) {
-      const remote = await input.client.getEmailTemplate(copyId);
-      if (
-        shouldSkipBrazeLocalePush({
-          lastHash: input.lastHash,
-          contentHash: input.contentHash,
-          overwriteWhenRemoteNewer: input.overwriteWhenRemoteNewer,
-          remoteUpdatedAt: remote.updated_at,
-          lastPushedAt: lastPushedAtForBrazeLocale(input.mapping, input.suffix),
-        })
-      ) {
-        return { status: "skipped" };
-      }
-    }
+  }
+  const fields = restoreBrazeEmailEnvelope(
+    applyApprovedBrazeEmailEnvelope({
+      storedEnvelopeHtml: input.storedEnvelopeHtml,
+      remoteEnvelopeHtml: remoteEnvelope?.html,
+      approved: input.approved,
+    }),
+    remoteEnvelope?.tokensByField ?? input.mapping.liquidTokens ?? {},
+  );
+  const contentHash = hashBrazeContent(
+    `${fields.subject}\n${fields.preheader ?? ""}\n${fields.body}\n${fields.plaintext_body ?? ""}`,
+  );
+  const lastHash = (input.mapping.lastPushContentHash ?? {})[input.suffix];
+  if (
+    shouldSkipBrazeLocalePush({
+      lastHash,
+      contentHash,
+      overwriteWhenRemoteNewer: input.overwriteWhenRemoteNewer,
+      remoteUpdatedAt: remoteEnvelope?.updatedAt,
+      lastPushedAt: lastPushedAtForBrazeLocale(input.mapping, input.suffix),
+    })
+  ) {
+    return { status: "skipped" };
+  }
+  if (copyId) {
     await input.client.updateEmailTemplate({
       email_template_id: copyId,
       subject: fields.subject,
@@ -404,7 +411,6 @@ async function pushEmailCopy(input: {
     });
     copyId = created.email_template_id;
   }
-  const contentHash = hashBrazeContent(input.html);
   rememberCopy(input.mapping, input.suffix, copyId, copyName, contentHash);
   await persistCopySuccess(input.mapping, input.suffix, copyId, copyName, contentHash);
   return { status: "pushed" };
@@ -414,36 +420,49 @@ async function pushContentBlockCopy(input: {
   client: BrazeTemplatesClient;
   mapping: typeof schema.brazeTemplateSyncStates.$inferSelect;
   suffix: string;
-  html: string;
-  lastHash: string | undefined;
-  contentHash: string;
+  storedEnvelopeHtml: string;
+  approved: Record<string, string>;
   overwriteWhenRemoteNewer: boolean;
 }): Promise<BrazePushCopyResult> {
-  const fields = restoreBrazeContentBlockEnvelope(
-    parseBrazeContentBlockEnvelope(input.html),
-    input.mapping.liquidTokens ?? {},
-  );
   const copyName = brazeContentBlockCopyName(input.mapping.sourceName, input.suffix);
   let copyId = input.mapping.localeCopyIds?.[input.suffix];
+  let remoteEnvelope: Awaited<ReturnType<typeof loadRemoteContentBlockEnvelope>> = null;
   if (copyId) {
-    const unchanged = shouldSkipUnchangedBrazePush(input.lastHash, input.contentHash);
-    if (unchanged && !input.overwriteWhenRemoteNewer) {
+    remoteEnvelope = await loadRemoteContentBlockEnvelope({
+      client: input.client,
+      copyId,
+      storedEnvelopeHtml: input.storedEnvelopeHtml,
+    });
+    if (!remoteEnvelope) {
+      logger.warn(
+        { sourceId: input.mapping.sourceId },
+        "braze push skipped; existing content block copy could not be loaded",
+      );
       return { status: "skipped" };
     }
-    if (!input.overwriteWhenRemoteNewer || unchanged) {
-      const remote = await input.client.getContentBlock(copyId);
-      if (
-        shouldSkipBrazeLocalePush({
-          lastHash: input.lastHash,
-          contentHash: input.contentHash,
-          overwriteWhenRemoteNewer: input.overwriteWhenRemoteNewer,
-          remoteUpdatedAt: remote.last_edited,
-          lastPushedAt: lastPushedAtForBrazeLocale(input.mapping, input.suffix),
-        })
-      ) {
-        return { status: "skipped" };
-      }
-    }
+  }
+  const fields = restoreBrazeContentBlockEnvelope(
+    applyApprovedBrazeContentBlockEnvelope({
+      storedEnvelopeHtml: input.storedEnvelopeHtml,
+      remoteEnvelopeHtml: remoteEnvelope?.html,
+      approved: input.approved,
+    }),
+    remoteEnvelope?.tokensByField ?? input.mapping.liquidTokens ?? {},
+  );
+  const contentHash = hashBrazeContent(fields.content);
+  const lastHash = (input.mapping.lastPushContentHash ?? {})[input.suffix];
+  if (
+    shouldSkipBrazeLocalePush({
+      lastHash,
+      contentHash,
+      overwriteWhenRemoteNewer: input.overwriteWhenRemoteNewer,
+      remoteUpdatedAt: remoteEnvelope?.updatedAt,
+      lastPushedAt: lastPushedAtForBrazeLocale(input.mapping, input.suffix),
+    })
+  ) {
+    return { status: "skipped" };
+  }
+  if (copyId) {
     await input.client.updateContentBlock({
       content_block_id: copyId,
       content: fields.content,
@@ -465,16 +484,92 @@ async function pushContentBlockCopy(input: {
         throw error;
       }
       copyId = existing;
+      const existingRemote = await loadRemoteContentBlockEnvelope({
+        client: input.client,
+        copyId,
+        storedEnvelopeHtml: input.storedEnvelopeHtml,
+      });
+      if (!existingRemote) {
+        logger.warn(
+          { sourceId: input.mapping.sourceId },
+          "braze push skipped; existing content block copy could not be loaded",
+        );
+        return { status: "skipped" };
+      }
+      const existingFields = restoreBrazeContentBlockEnvelope(
+        applyApprovedBrazeContentBlockEnvelope({
+          storedEnvelopeHtml: input.storedEnvelopeHtml,
+          remoteEnvelopeHtml: existingRemote.html,
+          approved: input.approved,
+        }),
+        existingRemote.tokensByField,
+      );
       await input.client.updateContentBlock({
         content_block_id: copyId,
-        content: fields.content,
+        content: existingFields.content,
       });
+      const existingHash = hashBrazeContent(existingFields.content);
+      rememberCopy(input.mapping, input.suffix, copyId, copyName, existingHash);
+      await persistCopySuccess(input.mapping, input.suffix, copyId, copyName, existingHash);
+      return { status: "pushed" };
     }
   }
-  const contentHash = hashBrazeContent(input.html);
   rememberCopy(input.mapping, input.suffix, copyId, copyName, contentHash);
   await persistCopySuccess(input.mapping, input.suffix, copyId, copyName, contentHash);
   return { status: "pushed" };
+}
+
+async function loadRemoteEmailEnvelope(input: {
+  client: BrazeTemplatesClient;
+  copyId: string;
+  storedEnvelopeHtml: string;
+}): Promise<
+  (ReturnType<typeof serializeBrazeEmailRemoteEnvelope> & { updatedAt?: string }) | null
+> {
+  try {
+    const remote = await input.client.getEmailTemplate(input.copyId);
+    if (!remote.subject?.trim() && !remote.body?.trim()) {
+      return null;
+    }
+    return {
+      ...serializeBrazeEmailRemoteEnvelope({
+        storedEnvelopeHtml: input.storedEnvelopeHtml,
+        remote: {
+          subject: remote.subject,
+          preheader: remote.preheader,
+          body: remote.body,
+          plaintext_body: remote.plaintext_body,
+        },
+      }),
+      updatedAt: remote.updated_at,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function loadRemoteContentBlockEnvelope(input: {
+  client: BrazeTemplatesClient;
+  copyId: string;
+  storedEnvelopeHtml: string;
+}): Promise<
+  (ReturnType<typeof serializeBrazeContentBlockRemoteEnvelope> & { updatedAt?: string }) | null
+> {
+  try {
+    const remote = await input.client.getContentBlock(input.copyId);
+    if (!remote.content?.trim()) {
+      return null;
+    }
+    return {
+      ...serializeBrazeContentBlockRemoteEnvelope({
+        storedEnvelopeHtml: input.storedEnvelopeHtml,
+        remoteContent: remote.content,
+      }),
+      updatedAt: remote.last_edited,
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function findContentBlockIdByName(client: BrazeTemplatesClient, name: string) {

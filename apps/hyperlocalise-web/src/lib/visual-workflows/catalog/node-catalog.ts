@@ -218,6 +218,24 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: CheckSquareIcon,
   },
   {
+    type: "logic.json_parse",
+    category: "logic",
+    enabled: true,
+    icon: BracketsCurlyIcon,
+  },
+  {
+    type: "logic.json_stringify",
+    category: "logic",
+    enabled: true,
+    icon: BracketsCurlyIcon,
+  },
+  {
+    type: "logic.schema_validate",
+    category: "logic",
+    enabled: true,
+    icon: SealCheckIcon,
+  },
+  {
     type: "ai.agent",
     category: "ai",
     enabled: true,
@@ -228,6 +246,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     category: "flow",
     enabled: true,
     icon: CheckSquareIcon,
+  },
+  {
+    type: "logic.array_transform",
+    category: "flow",
+    enabled: true,
+    icon: BracketsCurlyIcon,
   },
   {
     type: "logic.retry",
@@ -501,10 +525,24 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
           { id: createComparisonOperandId(), name: "Right", type: "unknown" },
         ],
       };
+    case "logic.json_parse":
+      return { kind: "logic.json_parse", text: "{}" };
+    case "logic.json_stringify":
+      return { kind: "logic.json_stringify", value: null };
+    case "logic.schema_validate":
+      return { kind: "logic.schema_validate", value: null, schema: {} };
     case "ai.agent":
       return { kind: "ai.agent", prompt: "", onError: "stop" };
     case "logic.for_each":
       return { kind: "logic.for_each", collection: "[]" };
+    case "logic.array_transform":
+      return {
+        kind: "logic.array_transform",
+        operation: "map",
+        collection: "[]",
+        itemType: "unknown",
+        resultType: "unknown",
+      };
     case "logic.retry":
       return {
         kind: "logic.retry",
@@ -588,6 +626,9 @@ export function getVisualNodeDimensions(
     return { width: 280, height: 140 };
   }
   if (type === "logic.retry") {
+    return { width: 280, height: 140 };
+  }
+  if (type === "logic.array_transform") {
     return { width: 280, height: 140 };
   }
   if (type.startsWith("trigger.")) {
@@ -697,10 +738,18 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return `${config.inputs.length} ordered values`;
     case "logic.compare":
       return config.operator.replaceAll("_", " ");
+    case "logic.json_parse":
+      return "JSON text to value";
+    case "logic.json_stringify":
+      return "Value to JSON text";
+    case "logic.schema_validate":
+      return "Validate JSON value";
     case "ai.agent":
       return "Tools agent";
     case "logic.for_each":
       return "For each item";
+    case "logic.array_transform":
+      return `${config.operation} array`;
     case "logic.retry":
       return config.maxAttempts ? `${config.maxAttempts} attempts` : "Retry policy";
     case "flow.human_approval":

@@ -118,7 +118,9 @@ export function compileWorkflowIssues(
     dominators.set(id, common);
   }
   const owners = new Map<string, string>();
-  for (const node of definition.nodes.filter((node) => node.type === "logic.for_each")) {
+  for (const node of definition.nodes.filter((node) =>
+    ["logic.for_each", "logic.array_transform"].includes(node.type),
+  )) {
     const body = new Set(node.bodyNodeIds ?? []);
     if (!body.size || body.has(node.id) || body.size !== (node.bodyNodeIds ?? []).length)
       add("invalid_loop", node.id);
@@ -126,7 +128,8 @@ export function compileWorkflowIssues(
       if (!nodes.has(id) || owners.has(id) || !workflowAncestors(definition, id).has(node.id))
         add("invalid_loop", id);
       owners.set(id, node.id);
-      if (nodes.get(id)?.type === "logic.for_each") add("nested_for_each", id);
+      if (["logic.for_each", "logic.array_transform"].includes(nodes.get(id)?.type ?? ""))
+        add("nested_for_each", id);
       if (nodes.get(id)?.type === "logic.retry") add("retry_foreach_nesting", id);
     }
     for (const edge of definition.edges) {
@@ -163,7 +166,8 @@ export function compileWorkflowIssues(
       }
       owners.set(id, node.id);
       if (nodes.get(id)?.type === "logic.retry") add("nested_retry", id);
-      if (nodes.get(id)?.type === "logic.for_each") add("retry_foreach_nesting", id);
+      if (["logic.for_each", "logic.array_transform"].includes(nodes.get(id)?.type ?? ""))
+        add("retry_foreach_nesting", id);
     }
     for (const edge of definition.edges) {
       if (edge.source === node.id && (edge.sourceHandle === "attempt") !== body.has(edge.target)) {
@@ -245,12 +249,14 @@ export function compileWorkflowIssues(
     if (!allowed.has(source.id)) return false;
     const owner = owners.get(source.id);
     if (owner && !(collect && owner === node.id) && owner !== owners.get(node.id)) return false;
-    if (
-      source.type === "logic.for_each" &&
-      ["item", "index"].includes(String(binding.path[0])) &&
-      owners.get(node.id) !== source.id
-    )
-      return false;
+    const scopedCollectionOutput =
+      (source.type === "logic.for_each" && ["item", "index"].includes(String(binding.path[0]))) ||
+      (source.type === "logic.array_transform" &&
+        (["item", "index"].includes(String(binding.path[0])) ||
+          (String(binding.path[0]) === "accumulator" &&
+            source.config.kind === "logic.array_transform" &&
+            source.config.operation === "reduce")));
+    if (scopedCollectionOutput && owners.get(node.id) !== source.id) return false;
     if (
       source.type === "logic.retry" &&
       String(binding.path[0]) === "attemptNumber" &&
@@ -294,6 +300,12 @@ export function compileWorkflowIssues(
     for (const [name, value] of Object.entries(config))
       if (!node.inputs?.[name]) checkTemplates(value);
     const inputFields = getWorkflowInputFields(node);
+    if (node.type === "logic.array_transform" && !node.collect?.result) {
+      add("invalid_binding", node.id, undefined, {
+        field: "result",
+        reason: "required",
+      });
+    }
     if (node.config.kind === "logic.create_object") {
       for (const field of node.config.fields) {
         if (["__proto__", "prototype", "constructor"].includes(field.name)) {
@@ -384,6 +396,7 @@ export function compileWorkflowIssues(
         add("invalid_binding", node.id);
     if (
       node.type !== "logic.for_each" &&
+      node.type !== "logic.array_transform" &&
       node.type !== "logic.retry" &&
       node.type !== "logic.try_catch" &&
       (node.bodyNodeIds || node.collect)
