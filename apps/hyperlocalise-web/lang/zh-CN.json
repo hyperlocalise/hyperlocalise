@@ -4019,6 +4019,9 @@
   "4z9+RgG2Ms": {
     "defaultMessage": "文本图层已更改。请重新生成图像以应用更改，然后再批准。"
   },
+  "4zBhSf3vTo": {
+    "defaultMessage": "操作"
+  },
   "4zEqWvETM+": {
     "defaultMessage": "区域：{value}"
   },
@@ -4202,6 +4205,9 @@
   "5G9CHzXNWL": {
     "defaultMessage": "Privacy"
   },
+  "5GsfnkqQvS": {
+    "defaultMessage": "将结构化值序列化为 JSON 文本。"
+  },
   "5H+UdOBSV9": {
     "defaultMessage": "上下文匹配"
   },
@@ -4330,6 +4336,9 @@
   },
   "5V5XZ84WTf": {
     "defaultMessage": "选择负责人"
+  },
+  "5VQvCOhS8Q": {
+    "defaultMessage": "在有序集合中筛选、映射、归约或查找值。"
   },
   "5Wfh7kerri": {
     "defaultMessage": "此环境尚未配置 Autumn。请添加沙盒 AUTUMN_API_KEY，以便为此工作区启用计费。"
@@ -6907,6 +6916,9 @@
   },
   "ACTAy3p5p3": {
     "defaultMessage": "已修复"
+  },
+  "ACmO8h4/+b": {
+    "defaultMessage": "架构"
   },
   "ACud1VtN9i": {
     "defaultMessage": "显示名称"
@@ -11063,6 +11075,9 @@
   "HmM5vdsqD+": {
     "defaultMessage": "Close"
   },
+  "HmWwCwYFtV": {
+    "defaultMessage": "条目类型"
+  },
   "HmXZYnVvj0": {
     "defaultMessage": "这些步骤将在本次测试运行中实际执行。它们造成的影响会真实发生，且无法撤销。"
   },
@@ -12788,6 +12803,9 @@
   "L0gachMRlZ": {
     "defaultMessage": "术语库"
   },
+  "L13hAmUXIJ": {
+    "defaultMessage": "验证值是否符合有界结构化模式。"
+  },
   "L14GgyGrCO": {
     "defaultMessage": "撤销已保存自动化的重新加载"
   },
@@ -13135,6 +13153,9 @@
   },
   "Lfo/HfkA0U": {
     "defaultMessage": "AI 使用量"
+  },
+  "LgF4rByVBa": {
+    "defaultMessage": "初始值"
   },
   "LgOdyUATt4": {
     "defaultMessage": "在这些日期和筛选条件下，未使用 AI。"
@@ -16418,6 +16439,9 @@
   "Rgp/V+Ndcw": {
     "defaultMessage": "失败原因"
   },
+  "RhYn29mibB": {
+    "defaultMessage": "输入 JSON 文本，或连接前一步的字符串输出。"
+  },
   "RhmMBU70/7": {
     "defaultMessage": "启动营销活动电子邮件"
   },
@@ -18863,6 +18887,9 @@
   "WA49vhY6w5": {
     "defaultMessage": "从 GitHub 刷新仓库列表和元数据。这不会推送或拉取翻译。"
   },
+  "WAMmUgMIAk": {
+    "defaultMessage": "成员资格根据从“每个项目”端口发出的连接自动确定。"
+  },
   "WAOAGxwy+L": {
     "defaultMessage": "客户案例"
   },
@@ -19742,6 +19769,9 @@
   "XpeTF2YWKH": {
     "defaultMessage": "默认模型"
   },
+  "Xpq2AJzIub": {
+    "defaultMessage": "解析 JSON"
+  },
   "XqZ3cu2irp": {
     "defaultMessage": "将已批准的译文推送回去"
   },
@@ -20261,6 +20291,9 @@
   "YiZ5ttL/m5": {
     "defaultMessage": "再次撤销了您的更改"
   },
+  "YjRk5tT6GE": {
+    "defaultMessage": "使用范围受限的 JSON Schema 对象。不支持远程引用。"
+  },
   "YjdAJSrtAi": {
     "defaultMessage": "文本元素 {index}"
   },
@@ -20314,6 +20347,9 @@
   },
   "Yo96f8fXbJ": {
     "defaultMessage": "日光"
+  },
+  "YoEqgQgzqb": {
+    "defaultMessage": "验证架构文件"
   },
   "YoNT/y/382": {
     "defaultMessage": "选择一个项目"
@@ -20570,6 +20606,9 @@
   "ZIg96oUMGy": {
     "defaultMessage": "无法加载概念"
   },
+  "ZJ57VYQVaQ": {
+    "defaultMessage": "值"
+  },
   "ZJI5SD947D": {
     "defaultMessage": "Audiences"
   },
@@ -20809,6 +20848,9 @@
   },
   "ZkAl1q2it8": {
     "defaultMessage": "作为图片处��"
+  },
+  "ZkImYkaYlt": {
+    "defaultMessage": "数组转换"
   },
   "ZkYSjdsJm0": {
     "defaultMessage": "使用代理翻译 {locale}"
@@ -21734,6 +21776,9 @@
   "bI+YTOZIIO": {
     "defaultMessage": "“{name}”及其版本将被删除。此操作无法撤销。"
   },
+  "bIBIV/XSnS": {
+    "defaultMessage": "值"
+  },
   "bIhHNqhcPu": {
     "defaultMessage": "保存并本地化"
   },
@@ -22249,6 +22294,9 @@
   },
   "cFLoSPa62D": {
     "defaultMessage": "可视化工作流"
+  },
+  "cFRjw0ewOm": {
+    "defaultMessage": "结果类型"
   },
   "cFooypWUsT": {
     "defaultMessage": "密钥值"
@@ -23965,6 +24013,9 @@
   },
   "f5Adx9k+6N": {
     "defaultMessage": "部分已批准"
+  },
+  "f5XgyzsBIQ": {
+    "defaultMessage": "JSON 文本"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "未保存的更改"
@@ -29486,6 +29537,9 @@
   "ohFSHTwja2": {
     "defaultMessage": "已更新"
   },
+  "ohWq8Fp+QJ": {
+    "defaultMessage": "将 JSON 字符串化"
+  },
   "oiJegD5+SZ": {
     "defaultMessage": "无法检查离开后会发生哪些变化。"
   },
@@ -29824,6 +29878,9 @@
   },
   "pHj5D5hJU+": {
     "defaultMessage": "导入"
+  },
+  "pHz3Uy2BNF": {
+    "defaultMessage": "成功"
   },
   "pIhCSFb9aQ": {
     "defaultMessage": "原始版本"
@@ -30382,6 +30439,9 @@
   },
   "qAENVVTQnI": {
     "defaultMessage": "探索指南"
+  },
+  "qAIm+dJ8lo": {
+    "defaultMessage": "没有节点连接到“每个项目”区域。"
   },
   "qAQXdmfmq+": {
     "defaultMessage": "批准字符串"
@@ -34286,6 +34346,9 @@
   "x5RsQtpxzS": {
     "defaultMessage": "顺序"
   },
+  "x5b2BktTkL": {
+    "defaultMessage": "将 JSON 文本解析为结构化值。"
+  },
   "x5jXClnMbS": {
     "defaultMessage": "{actor} 将问题分配给了自己"
   },
@@ -35356,6 +35419,9 @@
   },
   "z3bR+/cqxl": {
     "defaultMessage": "在文件中找到 {count, plural, one {# 个字符串} other {# 个字符串}}"
+  },
+  "z3fkYQNXlF": {
+    "defaultMessage": "无效"
   },
   "z3hAWnzQKx": {
     "defaultMessage": "加载 Ahrefs 连接失败。"
