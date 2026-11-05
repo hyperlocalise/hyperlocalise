@@ -4019,6 +4019,9 @@
   "4z9+RgG2Ms": {
     "defaultMessage": "Die Textebenen wurden geändert. Generieren Sie das Bild neu, um sie anzuwenden, bevor Sie es genehmigen."
   },
+  "4zBhSf3vTo": {
+    "defaultMessage": "Operation"
+  },
   "4zEqWvETM+": {
     "defaultMessage": "Gebietsschema: {value}"
   },
@@ -4202,6 +4205,9 @@
   "5G9CHzXNWL": {
     "defaultMessage": "Privacy"
   },
+  "5GsfnkqQvS": {
+    "defaultMessage": "Einen strukturierten Wert als JSON-Text serialisieren."
+  },
   "5H+UdOBSV9": {
     "defaultMessage": "Kontextübereinstimmung"
   },
@@ -4330,6 +4336,9 @@
   },
   "5V5XZ84WTf": {
     "defaultMessage": "Zuständige Person auswählen"
+  },
+  "5VQvCOhS8Q": {
+    "defaultMessage": "Werte in einer geordneten Sammlung filtern, abbilden, reduzieren oder suchen."
   },
   "5Wfh7kerri": {
     "defaultMessage": "Autumn ist in dieser Umgebung nicht konfiguriert. Fügen Sie einen AUTUMN_API_KEY für die Sandbox hinzu, um die Abrechnung für diesen Arbeitsbereich zu aktivieren."
@@ -6907,6 +6916,9 @@
   },
   "ACTAy3p5p3": {
     "defaultMessage": "Behoben"
+  },
+  "ACmO8h4/+b": {
+    "defaultMessage": "Schema"
   },
   "ACud1VtN9i": {
     "defaultMessage": "Anzeigename"
@@ -11063,6 +11075,9 @@
   "HmM5vdsqD+": {
     "defaultMessage": "Schließen"
   },
+  "HmWwCwYFtV": {
+    "defaultMessage": "Elementtyp"
+  },
   "HmXZYnVvj0": {
     "defaultMessage": "Diese Schritte tätigen in diesem Testlauf echte Anrufe. Die Aktionen werden tatsächlich ausgeführt und können nicht rückgängig gemacht werden."
   },
@@ -12788,6 +12803,9 @@
   "L0gachMRlZ": {
     "defaultMessage": "Terminologiedatenbank"
   },
+  "L13hAmUXIJ": {
+    "defaultMessage": "Validieren Sie einen Wert anhand eines begrenzten strukturierten Schemas."
+  },
   "L14GgyGrCO": {
     "defaultMessage": "Das Neuladen der gespeicherten Automatisierung rückgängig machen"
   },
@@ -13135,6 +13153,9 @@
   },
   "Lfo/HfkA0U": {
     "defaultMessage": "KI-Nutzung"
+  },
+  "LgF4rByVBa": {
+    "defaultMessage": "Anfangswert"
   },
   "LgOdyUATt4": {
     "defaultMessage": "An diesen Daten wurden mit diesen Filtern keine KI-Funktionen verwendet."
@@ -16418,6 +16439,9 @@
   "Rgp/V+Ndcw": {
     "defaultMessage": "Fehlerursache"
   },
+  "RhYn29mibB": {
+    "defaultMessage": "Geben Sie JSON-Text ein oder verbinden Sie eine String-Ausgabe aus einem vorherigen Schritt."
+  },
   "RhmMBU70/7": {
     "defaultMessage": "E-Mail zur Einführungskampagne"
   },
@@ -18863,6 +18887,9 @@
   "WA49vhY6w5": {
     "defaultMessage": "Aktualisieren Sie die Repository-Liste und Metadaten von GitHub. Dadurch werden keine Übersetzungen übertragen oder abgerufen."
   },
+  "WAMmUgMIAk": {
+    "defaultMessage": "Die Zugehörigkeit wird automatisch anhand der Verbindungen ermittelt, die vom Port „Jedes Element“ ausgehen."
+  },
   "WAOAGxwy+L": {
     "defaultMessage": "Kundengeschichte"
   },
@@ -19742,6 +19769,9 @@
   "XpeTF2YWKH": {
     "defaultMessage": "Standardmodell"
   },
+  "Xpq2AJzIub": {
+    "defaultMessage": "JSON analysieren"
+  },
   "XqZ3cu2irp": {
     "defaultMessage": "Genehmigte Übersetzungen zurückschieben"
   },
@@ -20261,6 +20291,9 @@
   "YiZ5ttL/m5": {
     "defaultMessage": "Du hast deine Änderungen erneut verworfen."
   },
+  "YjRk5tT6GE": {
+    "defaultMessage": "Verwenden Sie ein eingeschränktes JSON-Schema-Objekt. Remote-Referenzen werden nicht unterstützt."
+  },
   "YjdAJSrtAi": {
     "defaultMessage": "Textelement {index}"
   },
@@ -20314,6 +20347,9 @@
   },
   "Yo96f8fXbJ": {
     "defaultMessage": "Tageslicht"
+  },
+  "YoEqgQgzqb": {
+    "defaultMessage": "Schema validieren"
   },
   "YoNT/y/382": {
     "defaultMessage": "Projekt auswählen"
@@ -20570,6 +20606,9 @@
   "ZIg96oUMGy": {
     "defaultMessage": "Konzepte konnten nicht geladen werden"
   },
+  "ZJ57VYQVaQ": {
+    "defaultMessage": "Wert"
+  },
   "ZJI5SD947D": {
     "defaultMessage": "Zielgruppen"
   },
@@ -20809,6 +20848,9 @@
   },
   "ZkAl1q2it8": {
     "defaultMessage": "Als Bild behandeln"
+  },
+  "ZkImYkaYlt": {
+    "defaultMessage": "Array-Transformation"
   },
   "ZkYSjdsJm0": {
     "defaultMessage": "Übersetze {locale} mithilfe eines Agenten"
@@ -21734,6 +21776,9 @@
   "bI+YTOZIIO": {
     "defaultMessage": "„{name}“ und seine Versionen werden gelöscht. Dies kann nicht rückgängig gemacht werden."
   },
+  "bIBIV/XSnS": {
+    "defaultMessage": "Wert"
+  },
   "bIhHNqhcPu": {
     "defaultMessage": "Speichern & lokalisieren"
   },
@@ -22249,6 +22294,9 @@
   },
   "cFLoSPa62D": {
     "defaultMessage": "Visuelle Workflows"
+  },
+  "cFRjw0ewOm": {
+    "defaultMessage": "Ergebnistyp"
   },
   "cFooypWUsT": {
     "defaultMessage": "Geheimer Wert"
@@ -23965,6 +24013,9 @@
   },
   "f5Adx9k+6N": {
     "defaultMessage": "Teilweise genehmigt"
+  },
+  "f5XgyzsBIQ": {
+    "defaultMessage": "JSON-Text"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Nicht gespeicherte Änderungen"
@@ -29486,6 +29537,9 @@
   "ohFSHTwja2": {
     "defaultMessage": "Aktualisiert"
   },
+  "ohWq8Fp+QJ": {
+    "defaultMessage": "JSON serialisieren"
+  },
   "oiJegD5+SZ": {
     "defaultMessage": "Es konnte nicht überprüft werden, was sich ändert, wenn du den Arbeitsbereich verlässt."
   },
@@ -29824,6 +29878,9 @@
   },
   "pHj5D5hJU+": {
     "defaultMessage": "Importieren"
+  },
+  "pHz3Uy2BNF": {
+    "defaultMessage": "Erfolg"
   },
   "pIhCSFb9aQ": {
     "defaultMessage": "Original"
@@ -30382,6 +30439,9 @@
   },
   "qAENVVTQnI": {
     "defaultMessage": "Richtlinien entdecken"
+  },
+  "qAIm+dJ8lo": {
+    "defaultMessage": "Mit dem Bereich „Für jedes Element“ sind keine Knoten verbunden."
   },
   "qAQXdmfmq+": {
     "defaultMessage": "String genehmigen"
@@ -34286,6 +34346,9 @@
   "x5RsQtpxzS": {
     "defaultMessage": "Reihenfolge"
   },
+  "x5b2BktTkL": {
+    "defaultMessage": "JSON-Text in einen strukturierten Wert umwandeln."
+  },
   "x5jXClnMbS": {
     "defaultMessage": "{actor} hat sich selbst zugewiesen"
   },
@@ -35356,6 +35419,9 @@
   },
   "z3bR+/cqxl": {
     "defaultMessage": "In der Datei wurden {count, plural, one {# Zeichenfolge} other {# Zeichenfolgen}} gefunden."
+  },
+  "z3fkYQNXlF": {
+    "defaultMessage": "ungültig"
   },
   "z3hAWnzQKx": {
     "defaultMessage": "Ahrefs-Verbindung konnte nicht geladen werden."

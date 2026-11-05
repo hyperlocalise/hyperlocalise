@@ -4723,6 +4723,10 @@
     "defaultMessage": "Privacy",
     "description": "Marketing navbar link to the privacy policy"
   },
+  "5GsfnkqQvS": {
+    "defaultMessage": "Serialize a structured value as JSON text.",
+    "description": "Catalog description for the JSON stringify node"
+  },
   "5H+UdOBSV9": {
     "defaultMessage": "Context match",
     "description": "Badge label for a context translation memory match"
@@ -7814,6 +7818,10 @@
   "ACTAy3p5p3": {
     "defaultMessage": "Fixed",
     "description": "QA review: resolved"
+  },
+  "ACmO8h4/+b": {
+    "defaultMessage": "Schema",
+    "description": "Schema validation node schema input label"
   },
   "ACud1VtN9i": {
     "defaultMessage": "Display name",
@@ -14435,6 +14443,10 @@
     "defaultMessage": "Context needed: {key}",
     "description": "Default title when creating an issue from a CAT string"
   },
+  "L13hAmUXIJ": {
+    "defaultMessage": "Validate a value against a bounded structured schema.",
+    "description": "Catalog description for the schema validation node"
+  },
   "L14GgyGrCO": {
     "defaultMessage": "Undo the reload of the saved automation",
     "description": "Tooltip of the undo button when the latest step replaced the form with a version saved elsewhere"
@@ -18603,6 +18615,10 @@
     "defaultMessage": "Failure reason",
     "description": "Label for a recorded translation memory export failure message"
   },
+  "RhYn29mibB": {
+    "defaultMessage": "Enter JSON text or connect a string output from an earlier step.",
+    "description": "Parse JSON node text input help"
+  },
   "RhmMBU70/7": {
     "defaultMessage": "Launch campaign email",
     "description": "TM match context for a launch campaign string in the CAT mock"
@@ -22331,6 +22347,10 @@
     "defaultMessage": "Default model",
     "description": "Label for the workspace default model in the summary panel"
   },
+  "Xpq2AJzIub": {
+    "defaultMessage": "Parse JSON",
+    "description": "Catalog title for the JSON parse node"
+  },
   "XqZ3cu2irp": {
     "defaultMessage": "Push approved translations back",
     "description": "Workflow step 5 description for the product-localisation use case"
@@ -22911,6 +22931,10 @@
     "defaultMessage": "Discarded your changes again",
     "description": "Notice after an undone discard was put back"
   },
+  "YjRk5tT6GE": {
+    "defaultMessage": "Use a bounded JSON Schema object. Remote references are not supported.",
+    "description": "Schema validation node schema input help"
+  },
   "YjdAJSrtAi": {
     "defaultMessage": "Text element {index}",
     "description": "Video refinement workspace: element"
@@ -22966,6 +22990,10 @@
   "Yo96f8fXbJ": {
     "defaultMessage": "Daylight",
     "description": "Preferred glossary term in editor mock footer panel"
+  },
+  "YoEqgQgzqb": {
+    "defaultMessage": "Validate schema",
+    "description": "Catalog title for the schema validation node"
   },
   "YoNT/y/382": {
     "defaultMessage": "Choose a project",
@@ -23250,6 +23278,10 @@
   "ZIg96oUMGy": {
     "defaultMessage": "Unable to load concepts",
     "description": "Fallback error when glossary concepts fail to load"
+  },
+  "ZJ57VYQVaQ": {
+    "defaultMessage": "Value",
+    "description": "Schema validation node value input label"
   },
   "ZJI5SD947D": {
     "defaultMessage": "Audiences",
@@ -24562,6 +24594,10 @@
   "bI+YTOZIIO": {
     "defaultMessage": "“{name}” and its versions will be deleted. This cannot be undone.",
     "description": "Confirm dialog body for deleting an experiment"
+  },
+  "bIBIV/XSnS": {
+    "defaultMessage": "Value",
+    "description": "Stringify JSON node value input label"
   },
   "bIhHNqhcPu": {
     "defaultMessage": "Save & localise",
@@ -27130,6 +27166,10 @@
   "f5Adx9k+6N": {
     "defaultMessage": "Partially approved",
     "description": "Filter option for partially approved Crowdin translations"
+  },
+  "f5XgyzsBIQ": {
+    "defaultMessage": "JSON text",
+    "description": "Parse JSON node text input label"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Unsaved changes",
@@ -33295,6 +33335,10 @@
     "defaultMessage": "Updated",
     "description": "Metadata label for glossary update time"
   },
+  "ohWq8Fp+QJ": {
+    "defaultMessage": "Stringify JSON",
+    "description": "Catalog title for the JSON stringify node"
+  },
   "oiJegD5+SZ": {
     "defaultMessage": "Could not check what changes when you leave.",
     "description": "Shown when the leave workspace dialog could not load what stops working"
@@ -33702,6 +33746,10 @@
   "pHj5D5hJU+": {
     "defaultMessage": "Import",
     "description": "Button to import dictionary words from a text file"
+  },
+  "pHz3Uy2BNF": {
+    "defaultMessage": "success",
+    "description": "Label on the success output handle of a JSON parse, stringify, or validate node"
   },
   "pIhCSFb9aQ": {
     "defaultMessage": "Original",
@@ -38731,6 +38779,10 @@
     "defaultMessage": "Order",
     "description": "Accessible label for the translation memory entry sort direction"
   },
+  "x5b2BktTkL": {
+    "defaultMessage": "Parse JSON text into a structured value.",
+    "description": "Catalog description for the JSON parse node"
+  },
   "x5jXClnMbS": {
     "defaultMessage": "{actor} assigned to themselves",
     "description": "Activity line when an actor assigns an issue to themselves"
@@ -39958,6 +40010,10 @@
   "z3bR+/cqxl": {
     "defaultMessage": "Found {count, plural, one {# string} other {# strings}} in the file",
     "description": "Run step after strings are extracted from the source file"
+  },
+  "z3fkYQNXlF": {
+    "defaultMessage": "invalid",
+    "description": "Label on the invalid output handle of a JSON parse or schema validate node"
   },
   "z3rfJZn/iw": {
     "defaultMessage": "All time",
