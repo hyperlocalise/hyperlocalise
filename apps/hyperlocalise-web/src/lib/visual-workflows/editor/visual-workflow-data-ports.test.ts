@@ -450,6 +450,55 @@ describe("getVisualWorkflowDataEdgeBinding", () => {
     expect(binding).toBeUndefined();
   });
 
+  it("exposes mode-specific typed Array Transform ports", () => {
+    const reduce = getVisualWorkflowDataPorts({
+      node: node("transform", "logic.array_transform", {
+        config: {
+          kind: "logic.array_transform",
+          operation: "reduce",
+          collection: "[]",
+          itemType: "object",
+          resultType: "number",
+          initialValue: 0,
+        },
+      }),
+      edges: [],
+    });
+
+    expect(reduce.inputs.map(({ id, type, optional }) => ({ id, type, optional }))).toEqual([
+      { id: "collection", type: "array", optional: false },
+      { id: "initialValue", type: "number", optional: false },
+    ]);
+    expect(reduce.outputs.map(({ id, type, optional }) => ({ id, type, optional }))).toEqual([
+      { id: "item", type: "object", optional: false },
+      { id: "index", type: "number", optional: false },
+      { id: "count", type: "number", optional: false },
+      { id: "accumulator", type: "number", optional: false },
+      { id: "value", type: "number", optional: false },
+    ]);
+
+    const find = getVisualWorkflowDataPorts({
+      node: node("transform", "logic.array_transform", {
+        config: {
+          kind: "logic.array_transform",
+          operation: "find",
+          collection: "[]",
+          itemType: "string",
+          resultType: "string",
+        },
+      }),
+      edges: [],
+    });
+    expect(find.inputs.map((port) => port.id)).toEqual(["collection"]);
+    expect(find.outputs.map(({ id, type, optional }) => ({ id, type, optional }))).toEqual([
+      { id: "item", type: "string", optional: false },
+      { id: "index", type: "number", optional: false },
+      { id: "count", type: "number", optional: false },
+      { id: "value", type: "string", optional: true },
+      { id: "found", type: "boolean", optional: false },
+    ]);
+  });
+
   it("returns undefined after the data edge is removed", () => {
     expect(
       getVisualWorkflowDataEdgeBinding({

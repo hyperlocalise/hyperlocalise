@@ -230,6 +230,7 @@ export async function executeDurableWorkflowSlice(input: {
         const isWaitConditionProbe = waitConditionProbeNodeIds.has(args.node.id);
         if (
           args.node.type !== "logic.for_each" &&
+          args.node.type !== "logic.array_transform" &&
           args.node.type !== "logic.retry" &&
           completed.has(id)
         )
@@ -456,6 +457,7 @@ export async function executeDurableWorkflowSlice(input: {
         if (
           completed.has(id) &&
           update.nodeType !== "logic.for_each" &&
+          update.nodeType !== "logic.array_transform" &&
           update.nodeType !== "logic.retry"
         )
           return;

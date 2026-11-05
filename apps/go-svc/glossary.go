@@ -26,6 +26,7 @@ type glossaryAPI struct {
 	activityLog activityLogPublisher
 	interchange glossaryInterchangePublisher
 	objects     *objectstore.Registry
+	tms         *tmsImports
 }
 
 type glossaryActor struct{ userID, organizationID, role string }
@@ -130,6 +131,8 @@ func (api *glossaryAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+g+"/{glossaryId}/concepts/history", owned((*glossaryAPI).pageGlossaryHistoryHandler))
 	route("POST "+g+"/{glossaryId}/concepts/import", owned((*glossaryAPI).importGlossaryConceptsHandler))
 	route("POST "+g+"/{glossaryId}/concepts/import/uploads", owned((*glossaryAPI).createGlossaryImportUploadHandler))
+	route("POST "+g+"/{glossaryId}/concepts/import/from-tms", owned((*glossaryAPI).importGlossaryFromTMSHandler))
+	route("GET "+orgRoutePrefix+"/tms/glossaries", bindActor(api, (*glossaryAPI).listTMSGlossariesHandler))
 	route("GET "+g+"/{glossaryId}/concepts/{conceptId}", owned((*glossaryAPI).getConceptHandler))
 	route("PATCH "+g+"/{glossaryId}/concepts/{conceptId}", owned((*glossaryAPI).patchConceptHandler))
 	route("DELETE "+g+"/{glossaryId}/concepts/{conceptId}", owned((*glossaryAPI).deleteConceptHandler))

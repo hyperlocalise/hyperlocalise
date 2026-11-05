@@ -90,6 +90,7 @@ export const visualCatalogTypeSchema = z.enum([
   "logic.compare",
   "ai.agent",
   "logic.for_each",
+  "logic.array_transform",
   "logic.retry",
   "flow.human_approval",
   "flow.wait",
@@ -622,6 +623,24 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     kind: z.literal("logic.for_each"),
     collection: z.string().max(2000),
   }),
+  z
+    .object({
+      kind: z.literal("logic.array_transform"),
+      operation: z.enum(["filter", "map", "reduce", "find"]),
+      collection: z.string().max(2000),
+      itemType: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+      resultType: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+      initialValue: z.unknown().optional(),
+    })
+    .superRefine((config, context) => {
+      if (config.operation === "reduce" && config.initialValue === undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["initialValue"],
+          message: "array_reduce_requires_initial_value",
+        });
+      }
+    }),
   z.object({
     kind: z.literal("logic.retry"),
     maxAttempts: z.number().int().min(1).max(10).optional(),

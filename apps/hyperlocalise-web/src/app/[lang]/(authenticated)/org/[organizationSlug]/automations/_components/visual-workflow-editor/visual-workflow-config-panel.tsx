@@ -85,6 +85,7 @@ import type {
   VisualAssignmentRule,
   VisualAssigneeSource,
   VisualAssignmentStrategy,
+  VisualArrayTransformOperation,
   VisualCatalogType,
   VisualComparisonOperand,
   VisualComparisonOperator,
@@ -2002,6 +2003,79 @@ export function VisualWorkflowConfigPanel({
             onChange={(value) => onChangeConfig({ ...config, collection: value })}
             placeholder="{{trigger.items}}"
           />
+        ) : null}
+        {config.kind === "logic.array_transform" ? (
+          <div className="space-y-4">
+            <SelectField
+              id="vw-array-transform-operation"
+              label={intl.formatMessage(messages.arrayTransformOperation)}
+              value={config.operation}
+              items={ARRAY_TRANSFORM_OPERATIONS.map((operation) => ({
+                value: operation,
+                label: operation,
+              }))}
+              onValueChange={(operation) => {
+                if (!isArrayTransformOperation(operation)) return;
+                onChangeConfig({
+                  ...config,
+                  operation,
+                  ...(operation === "reduce" && config.initialValue === undefined
+                    ? { initialValue: defaultValueForWorkflowType(config.resultType) }
+                    : {}),
+                });
+              }}
+            />
+            <TextAreaField
+              id="vw-array-transform-collection"
+              label={intl.formatMessage(messages.forEachCollection)}
+              value={config.collection}
+              {...connectedInputProps("collection")}
+              onChange={(collection) => onChangeConfig({ ...config, collection })}
+              placeholder="{{trigger.items}}"
+            />
+            <SelectField
+              id="vw-array-transform-item-type"
+              label={intl.formatMessage(messages.arrayTransformItemType)}
+              value={config.itemType}
+              items={WORKFLOW_VALUE_TYPES.map((type) => ({ value: type, label: type }))}
+              onValueChange={(itemType) => {
+                if (isWorkflowValueType(itemType)) onChangeConfig({ ...config, itemType });
+              }}
+            />
+            {config.operation === "map" || config.operation === "reduce" ? (
+              <SelectField
+                id="vw-array-transform-result-type"
+                label={intl.formatMessage(messages.arrayTransformResultType)}
+                value={config.resultType}
+                items={WORKFLOW_VALUE_TYPES.map((type) => ({ value: type, label: type }))}
+                onValueChange={(resultType) => {
+                  if (!isWorkflowValueType(resultType)) return;
+                  onChangeConfig({
+                    ...config,
+                    resultType,
+                    ...(config.operation === "reduce"
+                      ? { initialValue: defaultValueForWorkflowType(resultType) }
+                      : {}),
+                  });
+                }}
+              />
+            ) : null}
+            {config.operation === "reduce" ? (
+              <TextAreaField
+                id="vw-array-transform-initial-value"
+                label={intl.formatMessage(messages.arrayTransformInitialValue)}
+                value={JSON.stringify(config.initialValue ?? null)}
+                {...connectedInputProps("initialValue")}
+                onChange={(value) => {
+                  try {
+                    onChangeConfig({ ...config, initialValue: JSON.parse(value) });
+                  } catch {
+                    onChangeConfig({ ...config, initialValue: value });
+                  }
+                }}
+              />
+            ) : null}
+          </div>
         ) : null}
         {config.kind === "logic.retry" ? (
           <>
@@ -4117,6 +4191,12 @@ const WORKFLOW_VALUE_TYPES: readonly WorkflowValueType[] = [
   "array",
   "unknown",
 ];
+const ARRAY_TRANSFORM_OPERATIONS: readonly VisualArrayTransformOperation[] = [
+  "filter",
+  "map",
+  "reduce",
+  "find",
+];
 
 const COMPARISON_OPERATORS: readonly VisualComparisonOperator[] = [
   "equal",
@@ -4184,6 +4264,27 @@ function comparisonOperandsForOperator(
 
 function isWorkflowValueType(value: string | null): value is WorkflowValueType {
   return WORKFLOW_VALUE_TYPES.includes(value as WorkflowValueType);
+}
+
+function isArrayTransformOperation(value: string | null): value is VisualArrayTransformOperation {
+  return ARRAY_TRANSFORM_OPERATIONS.includes(value as VisualArrayTransformOperation);
+}
+
+function defaultValueForWorkflowType(type: WorkflowValueType): unknown {
+  switch (type) {
+    case "string":
+      return "";
+    case "number":
+      return 0;
+    case "boolean":
+      return false;
+    case "object":
+      return {};
+    case "array":
+      return [];
+    case "unknown":
+      return null;
+  }
 }
 
 function formatSelectPath(path: readonly (string | number)[]): string {

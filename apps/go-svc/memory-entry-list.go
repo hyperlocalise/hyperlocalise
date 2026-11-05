@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 )
 
 type memoryEntryListFilters struct {
@@ -269,30 +270,68 @@ func memoryEntrySearchWhere(search string, argOffset int) (string, []any) {
 	return strings.Join(clauses, " or "), args
 }
 
-func buildMemoryEntryTsQuery(input string) string {
-	cleaned := strings.Map(func(r rune) rune {
-		switch r {
-		case '&', '|', '!', '(', ')', ':', '*', '<', '>', '\'', '"', '-':
-			return ' '
-		default:
-			if unicode.IsSpace(r) {
-				return ' '
-			}
-			return r
-		}
-	}, input)
-	parts := strings.Fields(cleaned)
-	if len(parts) > 50 {
-		parts = parts[:50]
+const (
+	memoryEntryTsQueryMaxTokens = 50
+	memoryEntryTsQueryPrefix    = ":*"
+	memoryEntryTsQuerySeparator = " & "
+)
+
+func isMemoryEntryTsDelimiter(r rune) bool {
+	switch r {
+	case '&', '|', '!', '(', ')', ':', '*', '<', '>', '\'', '"', '-':
+		return true
 	}
-	if len(parts) == 0 {
+	if r < utf8.RuneSelf {
+		return r == ' ' || ('\t' <= r && r <= '\r')
+	}
+	return unicode.IsSpace(r)
+}
+
+func buildMemoryEntryTsQuery(input string) string {
+	if !utf8.ValidString(input) {
+		// An identity strings.Map rewrites each invalid byte as U+FFFD, so Postgres
+		// never receives an invalid UTF-8 tsquery.
+		input = strings.Map(func(r rune) rune { return r }, input)
+	}
+
+	var spans [memoryEntryTsQueryMaxTokens][2]int
+	count, tokenBytes, start := 0, 0, -1
+	for i := 0; i < len(input) && count < len(spans); {
+		r, width := rune(input[i]), 1
+		if r >= utf8.RuneSelf {
+			r, width = utf8.DecodeRuneInString(input[i:])
+		}
+		if isMemoryEntryTsDelimiter(r) {
+			if start >= 0 {
+				spans[count] = [2]int{start, i}
+				tokenBytes += i - start
+				count++
+				start = -1
+			}
+		} else if start < 0 {
+			start = i
+		}
+		i += width
+	}
+	if start >= 0 && count < len(spans) {
+		spans[count] = [2]int{start, len(input)}
+		tokenBytes += len(input) - start
+		count++
+	}
+	if count == 0 {
 		return ""
 	}
-	prefixed := make([]string, 0, len(parts))
-	for _, part := range parts {
-		prefixed = append(prefixed, part+":*")
+
+	var b strings.Builder
+	b.Grow(tokenBytes + count*len(memoryEntryTsQueryPrefix) + (count-1)*len(memoryEntryTsQuerySeparator))
+	for i, span := range spans[:count] {
+		if i > 0 {
+			b.WriteString(memoryEntryTsQuerySeparator)
+		}
+		b.WriteString(input[span[0]:span[1]])
+		b.WriteString(memoryEntryTsQueryPrefix)
 	}
-	return strings.Join(prefixed, " & ")
+	return b.String()
 }
 
 func memoryEntryListSortColumn(sort string) string {

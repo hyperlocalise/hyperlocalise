@@ -38,12 +38,11 @@ function deriveFlowBodyMembership(
   edges: readonly VisualWorkflowRfEdge[],
 ): VisualWorkflowRfNode[] {
   return nodes.map((node) => {
-    const compute =
-      node.data.catalogType === "logic.for_each"
-        ? computeForEachBodyNodeIds
-        : node.data.catalogType === "logic.try_catch"
-          ? computeTryCatchBodyNodeIds
-          : null;
+    const compute = ["logic.for_each", "logic.array_transform"].includes(node.data.catalogType)
+      ? computeForEachBodyNodeIds
+      : node.data.catalogType === "logic.try_catch"
+        ? computeTryCatchBodyNodeIds
+        : null;
 
     return compute
       ? {

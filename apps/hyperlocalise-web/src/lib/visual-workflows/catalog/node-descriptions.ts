@@ -117,6 +117,10 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
   },
   "ai.agent": { title: "AI Agent", purpose: "Placeholder agent step with tools." },
   "logic.for_each": { title: "Loop", purpose: "Iterate over a collection sequentially." },
+  "logic.array_transform": {
+    title: "Array transform",
+    purpose: "Filter, map, reduce, or find values in an ordered collection.",
+  },
   "logic.retry": { title: "Retry", purpose: "Re-run a body region with backoff." },
   "flow.human_approval": {
     title: "Human approval",

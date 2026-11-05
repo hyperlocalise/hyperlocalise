@@ -230,6 +230,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: CheckSquareIcon,
   },
   {
+    type: "logic.array_transform",
+    category: "flow",
+    enabled: true,
+    icon: BracketsCurlyIcon,
+  },
+  {
     type: "logic.retry",
     category: "flow",
     enabled: true,
@@ -505,6 +511,14 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       return { kind: "ai.agent", prompt: "", onError: "stop" };
     case "logic.for_each":
       return { kind: "logic.for_each", collection: "[]" };
+    case "logic.array_transform":
+      return {
+        kind: "logic.array_transform",
+        operation: "map",
+        collection: "[]",
+        itemType: "unknown",
+        resultType: "unknown",
+      };
     case "logic.retry":
       return {
         kind: "logic.retry",
@@ -588,6 +602,9 @@ export function getVisualNodeDimensions(
     return { width: 280, height: 140 };
   }
   if (type === "logic.retry") {
+    return { width: 280, height: 140 };
+  }
+  if (type === "logic.array_transform") {
     return { width: 280, height: 140 };
   }
   if (type.startsWith("trigger.")) {
@@ -701,6 +718,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return "Tools agent";
     case "logic.for_each":
       return "For each item";
+    case "logic.array_transform":
+      return `${config.operation} array`;
     case "logic.retry":
       return config.maxAttempts ? `${config.maxAttempts} attempts` : "Retry policy";
     case "flow.human_approval":

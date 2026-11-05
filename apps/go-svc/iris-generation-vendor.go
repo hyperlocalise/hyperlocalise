@@ -19,6 +19,8 @@ import (
 type irisMediaFetcher func(context.Context, string) ([]byte, string, error)
 
 type irisCompositeProvider struct {
+	// Only assign a non-nil gateway; a nil *irisGatewayProvider stored in this
+	// interface would pass != nil and panic on use.
 	gateway    irisGenerationProvider
 	elevenlabs *elevenlabs.Client
 	fal        *fal.Client
@@ -27,8 +29,10 @@ type irisCompositeProvider struct {
 
 func newIrisGenerationProvider() irisGenerationProvider {
 	provider := &irisCompositeProvider{
-		gateway: newIrisGatewayProvider(),
-		fetch:   fetchHTTPS,
+		fetch: fetchHTTPS,
+	}
+	if gateway := newIrisGatewayProvider(); gateway != nil {
+		provider.gateway = gateway
 	}
 	if key := strings.TrimSpace(os.Getenv("ELEVENLABS_API_KEY")); key != "" {
 		if client, err := elevenlabs.NewClient(elevenlabs.Config{

@@ -17,6 +17,7 @@ import {
   getVisualNodeDimensions,
   VISUAL_NODE_CATALOG,
 } from "../catalog/node-catalog";
+import { getWorkflowInputFields, getWorkflowOutputFields } from "../catalog/node-contracts";
 import type {
   VisualCatalogType,
   VisualNodeConfig,
@@ -136,7 +137,7 @@ function forEachBodyIdsEqual(left: readonly string[], right: readonly string[]):
 function reconcileBodyMembershipForType(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
-  catalogType: "logic.for_each" | "logic.retry" | "logic.try_catch",
+  catalogType: "logic.for_each" | "logic.array_transform" | "logic.retry" | "logic.try_catch",
   compute: (ownerId: string, edges: readonly VisualWorkflowRfEdge[]) => string[],
 ): VisualWorkflowRfNode[] {
   let changed = false;
@@ -221,6 +222,18 @@ export function reconcileForEachBodyMembership(
   return reconcileBodyMembershipForType(nodes, edges, "logic.for_each", computeForEachBodyNodeIds);
 }
 
+export function reconcileArrayTransformBodyMembership(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+): VisualWorkflowRfNode[] {
+  return reconcileBodyMembershipForType(
+    nodes,
+    edges,
+    "logic.array_transform",
+    computeForEachBodyNodeIds,
+  );
+}
+
 export function reconcileRetryBodyMembership(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
@@ -245,7 +258,10 @@ export function reconcileFlowBodyMembership(
   edges: readonly VisualWorkflowRfEdge[],
 ): VisualWorkflowRfNode[] {
   return reconcileTryCatchBodyMembership(
-    reconcileRetryBodyMembership(reconcileForEachBodyMembership(nodes, edges), edges),
+    reconcileRetryBodyMembership(
+      reconcileArrayTransformBodyMembership(reconcileForEachBodyMembership(nodes, edges), edges),
+      edges,
+    ),
     edges,
   );
 }
@@ -331,6 +347,40 @@ export function applyNodeConfigUpdate(
         nodeId,
         collectRemovedObjectPortIds(current.data.config.operands, nextConfig.operands),
       ),
+    };
+  }
+  if (
+    current?.data.config.kind === "logic.array_transform" &&
+    nextConfig.kind === "logic.array_transform"
+  ) {
+    const canonical = {
+      id: nodeId,
+      type: "logic.array_transform" as const,
+      config: nextConfig,
+    };
+    const allowedInputs = new Set(getWorkflowInputFields(canonical).map((field) => field.name));
+    const allowedOutputs = new Set(getWorkflowOutputFields(canonical).map((field) => field.path));
+    return {
+      nodes: nextNodes.map((node) => {
+        if (node.id !== nodeId || !node.data.inputs) return node;
+        const nextInputs = Object.fromEntries(
+          Object.entries(node.data.inputs).filter(([name]) => allowedInputs.has(name)),
+        );
+        if (Object.keys(nextInputs).length === Object.keys(node.data.inputs).length) {
+          return node;
+        }
+        return { ...node, data: { ...node.data, inputs: nextInputs } };
+      }),
+      edges: edges.filter((edge) => {
+        if (edge.data?.kind !== "data") return true;
+        if (edge.target === nodeId && edge.targetHandle && !allowedInputs.has(edge.targetHandle)) {
+          return false;
+        }
+        if (edge.source === nodeId && edge.sourceHandle && !allowedOutputs.has(edge.sourceHandle)) {
+          return false;
+        }
+        return true;
+      }),
     };
   }
   return { nodes: nextNodes, edges: [...edges] };

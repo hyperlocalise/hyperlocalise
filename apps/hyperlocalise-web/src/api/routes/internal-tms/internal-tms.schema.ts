@@ -31,6 +31,7 @@ export const externalTmsAccessTokenSchema = z.object({
   headerValue: z.string().min(1),
   expiresAt: z.string().datetime().nullable(),
   probeUrl: z.url().nullable(),
+  accountId: z.string().nullable().optional(),
 });
 
 export const mintExternalTmsAccessTokenResponseSchema = successEnvelopeSchema(

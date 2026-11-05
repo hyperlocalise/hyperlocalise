@@ -353,6 +353,19 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     ],
     mock: {},
   },
+  "logic.array_transform": {
+    inputs: [field("collection", "array"), field("initialValue", "unknown", false)],
+    outputs: [
+      output("item", "unknown"),
+      output("index", "number"),
+      output("count", "number"),
+      output("accumulator", "unknown", true),
+      output("items", "array", true),
+      output("value", "unknown", true),
+      output("found", "boolean", true),
+    ],
+    mock: {},
+  },
   "logic.retry": {
     inputs: [
       field("maxAttempts", "number", false),
@@ -509,8 +522,35 @@ function isAvailableCoalesceValue(
   return true;
 }
 
+function arrayTransformOutputFields(
+  config: Extract<CanonicalVisualWorkflowNode["config"], { kind: "logic.array_transform" }>,
+): WorkflowOutputField[] {
+  const contextFields: WorkflowOutputField[] = [
+    output("item", config.itemType),
+    output("index", "number"),
+    output("count", "number"),
+  ];
+  switch (config.operation) {
+    case "filter":
+    case "map":
+      return [...contextFields, output("items", "array")];
+    case "reduce":
+      return [
+        ...contextFields,
+        output("accumulator", config.resultType),
+        output("value", config.resultType),
+      ];
+    case "find":
+      return [...contextFields, output("value", config.itemType, true), output("found", "boolean")];
+  }
+}
+
 export function getWorkflowOutputFields(node: CanonicalVisualWorkflowNode): WorkflowOutputField[] {
   const fields = new Map(NODE_CONTRACTS[node.type].outputs.map((field) => [field.path, field]));
+  if (node.config.kind === "logic.array_transform") {
+    fields.clear();
+    for (const field of arrayTransformOutputFields(node.config)) fields.set(field.path, field);
+  }
   if (node.config.kind === "logic.select_path") {
     const outputType =
       node.config.outputType === "unknown"
@@ -618,6 +658,15 @@ export function getWorkflowInputFields(node: CanonicalVisualWorkflowNode): Workf
       type: inputField.type,
       required: inputField.required !== false,
     }));
+  }
+
+  if (node.config.kind === "logic.array_transform") {
+    return [
+      field("collection", "array"),
+      ...(node.config.operation === "reduce"
+        ? [field("initialValue", node.config.resultType)]
+        : []),
+    ];
   }
 
   return NODE_CONTRACTS[node.type].inputs;
