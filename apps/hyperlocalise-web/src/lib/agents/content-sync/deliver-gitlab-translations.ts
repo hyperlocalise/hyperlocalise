@@ -347,7 +347,7 @@ function fingerprintOf(changes: Change[]): string {
   const lines = changes
     .map((change) => `${change.path}:${gitBlobId(change.content, "sha1")}`)
     .sort();
-  return createHash("sha1").update(lines.join("\n")).digest("hex");
+  return createHash("sha256").update(lines.join("\n")).digest("hex");
 }
 
 type SyncBranch = {
