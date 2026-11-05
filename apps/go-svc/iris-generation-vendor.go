@@ -19,9 +19,10 @@ import (
 type irisMediaFetcher func(context.Context, string) ([]byte, string, error)
 
 type irisCompositeProvider struct {
-	// Only assign a non-nil gateway; a nil *irisGatewayProvider stored in this
-	// interface would pass != nil and panic on use.
+	// Only assign a non-nil gateway/openai; a nil *irisGatewayProvider stored in
+	// an interface would pass != nil and panic on use.
 	gateway    irisGenerationProvider
+	openai     irisGenerationProvider
 	elevenlabs *elevenlabs.Client
 	fal        *fal.Client
 	fetch      irisMediaFetcher
@@ -33,9 +34,9 @@ func newIrisGenerationProvider() irisGenerationProvider {
 	}
 	if gateway := newIrisGatewayProvider(); gateway != nil {
 		provider.gateway = gateway
-	} else if openai := newIrisOpenAIProvider(); openai != nil {
-		// Same chat/image HTTP client as AI Gateway, pointed at api.openai.com.
-		provider.gateway = openai
+	}
+	if openai := newIrisOpenAIProvider(); openai != nil {
+		provider.openai = openai
 	}
 	if key := strings.TrimSpace(os.Getenv("ELEVENLABS_API_KEY")); key != "" {
 		if client, err := elevenlabs.NewClient(elevenlabs.Config{
@@ -68,10 +69,22 @@ func (p *irisCompositeProvider) Generate(ctx context.Context, req irisProviderRe
 			return generateFal(ctx, p.fal, p.fetcher(), req)
 		}
 	}
+	// AI Gateway keeps the full catalog. OPENAI_API_KEY only covers openai/*
+	// models — never send google/xai/… ids to api.openai.com.
 	if p.gateway != nil {
 		return p.gateway.Generate(ctx, req)
 	}
+	if p.openai != nil && irisModelUsesOpenAI(req.Model) {
+		return p.openai.Generate(ctx, req)
+	}
+	if p.openai != nil {
+		return nil, fmt.Errorf("model %q requires AI_GATEWAY_API_KEY (OPENAI_API_KEY only supports OpenAI models)", req.Model.ID)
+	}
 	return nil, fmt.Errorf("generation provider is not configured (set AI_GATEWAY_API_KEY, OPENAI_API_KEY, ELEVENLABS_API_KEY, or FAL_KEY)")
+}
+
+func irisModelUsesOpenAI(model irisModelInfo) bool {
+	return strings.HasPrefix(strings.TrimSpace(model.GatewayID), "openai/")
 }
 
 func (p *irisCompositeProvider) fetcher() irisMediaFetcher {

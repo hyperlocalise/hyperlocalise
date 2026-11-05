@@ -279,24 +279,38 @@ func TestNewIrisGenerationProviderReadsEnv(t *testing.T) {
 	empty, ok := newIrisGenerationProvider().(*irisCompositeProvider)
 	require.True(t, ok)
 	require.Nil(t, empty.gateway)
+	require.Nil(t, empty.openai)
 	require.Nil(t, empty.elevenlabs)
 	require.Nil(t, empty.fal)
 	_, err := empty.Generate(t.Context(), irisProviderRequest{
-		Model: irisModelInfo{ID: "image-text", Kind: irisKindTool, Provider: irisProviderGateway},
+		Model: irisModelInfo{ID: "image-text", Kind: irisKindTool, Provider: irisProviderGateway, GatewayID: defaultGuidelineCheckModel},
 	})
 	require.ErrorContains(t, err, "generation provider is not configured")
 	require.ErrorContains(t, err, "OPENAI_API_KEY")
 
 	t.Setenv("OPENAI_API_KEY", "sk-test")
 	withOpenAI := newIrisGenerationProvider().(*irisCompositeProvider)
-	require.NotNil(t, withOpenAI.gateway)
-	openai, ok := withOpenAI.gateway.(*irisGatewayProvider)
+	require.Nil(t, withOpenAI.gateway)
+	require.NotNil(t, withOpenAI.openai)
+	openai, ok := withOpenAI.openai.(*irisGatewayProvider)
 	require.True(t, ok)
 	require.Equal(t, defaultIrisOpenAIBaseURL, openai.baseURL)
 	require.Equal(t, "sk-test", openai.apiKey)
 
+	imageText, ok := irisModelByID("image-text")
+	require.True(t, ok)
+	require.True(t, irisModelUsesOpenAI(imageText))
+	nano, ok := irisModelByID("nano-banana-2.1")
+	require.True(t, ok)
+	require.False(t, irisModelUsesOpenAI(nano))
+	_, err = withOpenAI.Generate(t.Context(), irisProviderRequest{Model: nano})
+	require.ErrorContains(t, err, "requires AI_GATEWAY_API_KEY")
+	require.ErrorContains(t, err, "nano-banana-2.1")
+
 	t.Setenv("AI_GATEWAY_API_KEY", "gw-test")
 	withGateway := newIrisGenerationProvider().(*irisCompositeProvider)
+	require.NotNil(t, withGateway.gateway)
+	require.NotNil(t, withGateway.openai)
 	gateway, ok := withGateway.gateway.(*irisGatewayProvider)
 	require.True(t, ok)
 	require.Equal(t, defaultIrisGatewayBaseURL, gateway.baseURL)
@@ -310,6 +324,7 @@ func TestNewIrisGenerationProviderReadsEnv(t *testing.T) {
 	require.True(t, ok)
 	require.NotNil(t, composite.elevenlabs)
 	require.Nil(t, composite.gateway)
+	require.Nil(t, composite.openai)
 }
 
 func TestGenerateElevenLabsMusicUsesNativeClient(t *testing.T) {

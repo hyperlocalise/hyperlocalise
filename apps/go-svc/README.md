@@ -131,9 +131,11 @@ queue, err := fal.NewClient(fal.Config{
 })
 ```
 
-When a native client is unset, Iris falls back to `AI_GATEWAY_API_KEY`, then
-`OPENAI_API_KEY`, for gateway-routed models. If no generation backend is
-configured, jobs fail with `PROVIDER_ERROR`.
+When a native client is unset, Iris uses `AI_GATEWAY_API_KEY` for gateway-routed
+models. If that is unset, `OPENAI_API_KEY` covers only models whose Gateway id
+starts with `openai/` (for example `image-text`). Google, xAI, and other
+non-OpenAI gateway models still need `AI_GATEWAY_API_KEY`. If no generation
+backend is configured, jobs fail with `PROVIDER_ERROR`.
 
 ### Iris localisation
 
@@ -160,8 +162,8 @@ Localisation models on `/generate`: `elevenlabs-dubbing` (ElevenLabs Dubbing:
 
 | Variable | Description |
 |----------|-------------|
-| `AI_GATEWAY_API_KEY` | Preferred. Vercel AI Gateway key for `/localise/translate` and gateway-routed generation. |
-| `OPENAI_API_KEY` | Fallback when the gateway key is unset. Direct OpenAI for translate and gateway-routed generation. |
+| `AI_GATEWAY_API_KEY` | Preferred. Vercel AI Gateway key for `/localise/translate` and all gateway-routed generation. |
+| `OPENAI_API_KEY` | Fallback when the gateway key is unset. Direct OpenAI for translate and `openai/*` generation models only. |
 | `IRIS_TRANSLATE_MODEL` | Optional. AI Gateway model for `/localise/translate`. Defaults to `openai/gpt-6-luna`, the model go-svc and the agents use by default. |
 | `IRIS_OPENAI_TRANSLATE_MODEL` | Optional. Native OpenAI model when using `OPENAI_API_KEY`. Defaults to `gpt-6-luna`. |
 | `IRIS_VISION_MODEL` | Optional. AI Gateway model for `image-text`. Defaults to `openai/gpt-6-luna`. |
