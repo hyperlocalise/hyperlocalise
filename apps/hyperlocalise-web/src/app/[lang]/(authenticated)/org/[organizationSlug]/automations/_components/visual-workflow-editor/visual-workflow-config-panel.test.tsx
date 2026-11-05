@@ -390,6 +390,44 @@ describe("VisualWorkflowConfigPanel", () => {
     expect(screen.queryByLabelText("Project ID (optional)")).not.toBeInTheDocument();
   });
 
+  it("shows the GitLab branch and language file path fields", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+    const base = triggerNode("action.content_sync");
+    const gitlabNode = {
+      ...base,
+      data: {
+        ...base.data,
+        config: {
+          ...(base.data.config as Extract<
+            VisualWorkflowRfNode["data"]["config"],
+            { kind: "action.content_sync" }
+          >),
+          provider: "gitlab" as const,
+        },
+      },
+    };
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={gitlabNode}
+        organizationSlug="acme"
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Branch")).toHaveAttribute("placeholder", "Default branch");
+    const paths = screen.getByLabelText("Language file paths");
+    expect(paths).toHaveAttribute("placeholder", "for example {{locale}}.json");
+    expect(screen.queryByLabelText(/language codes/i)).not.toBeInTheDocument();
+
+    await user.type(paths, "x");
+    expect(onChangeConfig.mock.calls.at(-1)?.[0].pathTemplate).toBe("x");
+  });
+
   it("configures a Wait node and changes its mode", async () => {
     const user = userEvent.setup();
     const onChangeConfig = vi.fn();

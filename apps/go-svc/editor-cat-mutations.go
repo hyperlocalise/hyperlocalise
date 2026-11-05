@@ -692,7 +692,8 @@ func (api *editorCatAPI) setHidden(r *http.Request, actor editorCatActor, projec
 	if len(ids) == 0 {
 		return nil, 0, editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
-	sql := `update project_translation_keys set is_hidden=$4, updated_at=now()
+	// A person's choice, so a repository sync no longer owns the hidden state.
+	sql := `update project_translation_keys set is_hidden=$4, hidden_by_sync_at=null, updated_at=now()
         where organization_id=$1 and project_id=$2 and id = any($3::uuid[])`
 	args := []any{actor.organizationID, project.ID, ids, body.IsHidden}
 	if !isEditorCatAllFiles(body.SourcePath) {

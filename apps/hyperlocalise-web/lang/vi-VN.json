@@ -4019,6 +4019,9 @@
   "4z9+RgG2Ms": {
     "defaultMessage": "Các lớp văn bản đã thay đổi. Hãy tạo lại hình ảnh để áp dụng chúng trước khi phê duyệt."
   },
+  "4zBhSf3vTo": {
+    "defaultMessage": "Thao tác"
+  },
   "4zEqWvETM+": {
     "defaultMessage": "Ngôn ngữ: {value}"
   },
@@ -4202,6 +4205,9 @@
   "5G9CHzXNWL": {
     "defaultMessage": "Privacy"
   },
+  "5GsfnkqQvS": {
+    "defaultMessage": "Chuyển đổi một giá trị có cấu trúc thành văn bản JSON."
+  },
   "5H+UdOBSV9": {
     "defaultMessage": "Khớp ngữ cảnh"
   },
@@ -4330,6 +4336,9 @@
   },
   "5V5XZ84WTf": {
     "defaultMessage": "Chọn người được giao việc"
+  },
+  "5VQvCOhS8Q": {
+    "defaultMessage": "Lọc, ánh xạ, rút gọn hoặc tìm giá trị trong một tập hợp có thứ tự."
   },
   "5Wfh7kerri": {
     "defaultMessage": "Autumn chưa được định cấu hình trong môi trường này. Thêm AUTUMN_API_KEY sandbox để bật tính năng thanh toán cho không gian làm việc này."
@@ -6907,6 +6916,9 @@
   },
   "ACTAy3p5p3": {
     "defaultMessage": "Đã khắc phục"
+  },
+  "ACmO8h4/+b": {
+    "defaultMessage": "Lược đồ"
   },
   "ACud1VtN9i": {
     "defaultMessage": "Tên hiển thị"
@@ -11063,6 +11075,9 @@
   "HmM5vdsqD+": {
     "defaultMessage": "Close"
   },
+  "HmWwCwYFtV": {
+    "defaultMessage": "Loại mục"
+  },
   "HmXZYnVvj0": {
     "defaultMessage": "Các bước này sẽ được thực hiện thật trong lần chạy thử này. Những gì chúng thực hiện sẽ xảy ra và không thể hoàn tác."
   },
@@ -12788,6 +12803,9 @@
   "L0gachMRlZ": {
     "defaultMessage": "Cơ sở thuật ngữ"
   },
+  "L13hAmUXIJ": {
+    "defaultMessage": "Xác thực một giá trị theo một lược đồ có cấu trúc với các giới hạn xác định."
+  },
   "L14GgyGrCO": {
     "defaultMessage": "Hoàn tác việc tải lại quy trình tự động hóa đã lưu"
   },
@@ -13135,6 +13153,9 @@
   },
   "Lfo/HfkA0U": {
     "defaultMessage": "Mức sử dụng AI"
+  },
+  "LgF4rByVBa": {
+    "defaultMessage": "Giá trị ban đầu"
   },
   "LgOdyUATt4": {
     "defaultMessage": "Không có AI nào được sử dụng trong những ngày này với các bộ lọc này."
@@ -16418,6 +16439,9 @@
   "Rgp/V+Ndcw": {
     "defaultMessage": "Lý do thất bại"
   },
+  "RhYn29mibB": {
+    "defaultMessage": "Nhập văn bản JSON hoặc kết nối đầu ra chuỗi từ bước trước."
+  },
   "RhmMBU70/7": {
     "defaultMessage": "Email chiến dịch ra mắt"
   },
@@ -18863,6 +18887,9 @@
   "WA49vhY6w5": {
     "defaultMessage": "Làm mới danh sách kho lưu trữ và siêu dữ liệu từ GitHub. Việc này không đẩy lên hoặc tải xuống bản dịch."
   },
+  "WAMmUgMIAk": {
+    "defaultMessage": "Tư cách thành viên được xác định tự động từ các kết nối đi ra từ cổng Each item."
+  },
   "WAOAGxwy+L": {
     "defaultMessage": "Câu chuyện khách hàng"
   },
@@ -19742,6 +19769,9 @@
   "XpeTF2YWKH": {
     "defaultMessage": "Mô hình mặc định"
   },
+  "Xpq2AJzIub": {
+    "defaultMessage": "Phân tích cú pháp JSON"
+  },
   "XqZ3cu2irp": {
     "defaultMessage": "Đẩy các bản dịch đã được phê duyệt trở lại"
   },
@@ -20261,6 +20291,9 @@
   "YiZ5ttL/m5": {
     "defaultMessage": "Đã hủy các thay đổi của bạn một lần nữa."
   },
+  "YjRk5tT6GE": {
+    "defaultMessage": "Sử dụng một đối tượng JSON Schema có giới hạn. Không hỗ trợ tham chiếu từ xa."
+  },
   "YjdAJSrtAi": {
     "defaultMessage": "Phần tử văn bản {index}"
   },
@@ -20314,6 +20347,9 @@
   },
   "Yo96f8fXbJ": {
     "defaultMessage": "Ánh sáng ban ngày"
+  },
+  "YoEqgQgzqb": {
+    "defaultMessage": "Xác thực lược đồ"
   },
   "YoNT/y/382": {
     "defaultMessage": "Chọn một dự án"
@@ -20570,6 +20606,9 @@
   "ZIg96oUMGy": {
     "defaultMessage": "Không thể tải các khái niệm"
   },
+  "ZJ57VYQVaQ": {
+    "defaultMessage": "Giá trị"
+  },
   "ZJI5SD947D": {
     "defaultMessage": "Audiences"
   },
@@ -20809,6 +20848,9 @@
   },
   "ZkAl1q2it8": {
     "defaultMessage": "Xử lý như hình ảnh"
+  },
+  "ZkImYkaYlt": {
+    "defaultMessage": "Chuyển đổi mảng"
   },
   "ZkYSjdsJm0": {
     "defaultMessage": "Dịch {locale} bằng AI"
@@ -21734,6 +21776,9 @@
   "bI+YTOZIIO": {
     "defaultMessage": "“{name}” và các phiên bản của nó sẽ bị xóa. Bạn không thể hoàn tác thao tác này."
   },
+  "bIBIV/XSnS": {
+    "defaultMessage": "Giá trị"
+  },
   "bIhHNqhcPu": {
     "defaultMessage": "Lưu & bản địa hóa"
   },
@@ -22249,6 +22294,9 @@
   },
   "cFLoSPa62D": {
     "defaultMessage": "Quy trình trực quan"
+  },
+  "cFRjw0ewOm": {
+    "defaultMessage": "Loại kết quả"
   },
   "cFooypWUsT": {
     "defaultMessage": "Giá trị bí mật"
@@ -23965,6 +24013,9 @@
   },
   "f5Adx9k+6N": {
     "defaultMessage": "Được phê duyệt một phần"
+  },
+  "f5XgyzsBIQ": {
+    "defaultMessage": "Văn bản JSON"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Thay đổi chưa lưu"
@@ -29486,6 +29537,9 @@
   "ohFSHTwja2": {
     "defaultMessage": "Đã cập nhật"
   },
+  "ohWq8Fp+QJ": {
+    "defaultMessage": "Chuyển JSON thành chuỗi"
+  },
   "oiJegD5+SZ": {
     "defaultMessage": "Không thể kiểm tra những gì sẽ thay đổi khi bạn rời đi."
   },
@@ -29824,6 +29878,9 @@
   },
   "pHj5D5hJU+": {
     "defaultMessage": "Nhập khẩu"
+  },
+  "pHz3Uy2BNF": {
+    "defaultMessage": "thành công"
   },
   "pIhCSFb9aQ": {
     "defaultMessage": "Bản gốc"
@@ -30382,6 +30439,9 @@
   },
   "qAENVVTQnI": {
     "defaultMessage": "Khám phá Guidelines"
+  },
+  "qAIm+dJ8lo": {
+    "defaultMessage": "Không có nút nào được kết nối với vùng Mỗi mục."
   },
   "qAQXdmfmq+": {
     "defaultMessage": "Phê duyệt chuỗi"
@@ -34286,6 +34346,9 @@
   "x5RsQtpxzS": {
     "defaultMessage": "Thứ tự"
   },
+  "x5b2BktTkL": {
+    "defaultMessage": "Phân tích cú pháp văn bản JSON thành một giá trị có cấu trúc."
+  },
   "x5jXClnMbS": {
     "defaultMessage": "{actor} đã tự giao việc cho mình"
   },
@@ -35356,6 +35419,9 @@
   },
   "z3bR+/cqxl": {
     "defaultMessage": "Tìm thấy {count, plural, one {# chuỗi} other {# chuỗi}} trong tệp"
+  },
+  "z3fkYQNXlF": {
+    "defaultMessage": "không hợp lệ"
   },
   "z3hAWnzQKx": {
     "defaultMessage": "Không thể tải kết nối Ahrefs."

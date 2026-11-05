@@ -24,6 +24,17 @@ You can upload a **TMX** or **CSV** file when you create a workspace memory, or 
 4. Review the report, then choose **Import entries** to write the segments into the memory. Until you confirm, nothing is applied.
 5. If the report shows a size or entry limit, split the file into smaller batches and import each batch separately.
 
+## Import from a connected TMS
+
+When **Integrations** lists Crowdin, Phrase Strings, or Smartling, you can copy a provider translation memory into a **native** workspace memory. Hyperlocalise exports TMX from the TMS, stores it like an uploaded file, and runs the same preview-and-apply import flow.
+
+1. Connect the TMS under **Integrations**.
+2. Create or open a native memory you can edit.
+3. Start the import through the API (below) or the in-product flow when available. Track progress under **Import attempts** on the memory detail page.
+4. Review the preview report, then confirm **Import entries**.
+
+The workspace uses the most recently updated TMS credential; the request must name that credential id and the provider memory's external id. Supported providers are Crowdin, Phrase Strings, and Smartling. The acting user's token must be able to export the memory. Smartling may require an account UID on the connection or a linked Smartling project in the workspace.
+
 ## Export in Platform
 
 1. Open the memory and choose **Export**.
@@ -40,6 +51,23 @@ TMX (and CSV) import and export are available with a personal access token on `h
 | POST | `/v1/translation-memories/{memoryId}/entries/import` | `memories:write` |
 
 The import body is JSON with `format` (`tmx` or `csv`) and `content`. See [Files and translation jobs API](/platform/api#translation-memories).
+
+### List TMS memories and import from TMS
+
+`GET https://api.hyperlocalise.com/v1/orgs/{organizationSlug}/tms/translation-memories`
+
+Returns the active TMS connection and provider memories (`externalId`, locales, optional `segmentCount`).
+
+`POST https://api.hyperlocalise.com/v1/orgs/{organizationSlug}/translation-memories/{memoryId}/entries/import/from-tms`
+
+```json
+{
+  "credentialId": "<active TMS credential uuid>",
+  "externalId": "<provider memory id>"
+}
+```
+
+`202 Accepted` returns an import `attemptId`. Poll `GET .../translation-memories/{memoryId}/import-attempts/{attemptId}` and its report before applying entries.
 
 ## External TMS memories
 

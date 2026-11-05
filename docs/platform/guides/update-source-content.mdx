@@ -30,7 +30,7 @@ When a string's source text changes, what happens to its approved translations d
 
 The setting applies to every way source text changes: file uploads, repository syncs, CLI pushes, integration imports and the API. A change to surrounding spaces only doesn't count. An integration import that brings back a translation's current text, unchanged, leaves it in review; new text from the integration is approved as before. Importing a bilingual or translation file yourself approves what it contains, as before.
 
-A translation in review is still delivered by downloads, the CLI pull, GitHub sync and bilingual export, with its old text. Integration pushes send only approved translations: most keep the language's current copy until it is approved again (or send the source text where no copy exists yet), and Sanity and Intercom skip that language. Check the **Needs review** filter in the Content Editor before you deliver files.
+A translation in review is still delivered by downloads, the CLI pull, GitHub sync and bilingual export, with its old text. Integration pushes send only approved translations: most keep the language's current copy until it is approved again (or send the source text where no copy exists yet), and Sanity and Intercom skip that language. GitLab sync keeps the repository's current text for that key. Check the **Needs review** filter in the Content Editor before you deliver files.
 
 For example, changing a button from “Start trial” to “Buy now” needs a fresh review even if its key is still `checkout.action`.
 

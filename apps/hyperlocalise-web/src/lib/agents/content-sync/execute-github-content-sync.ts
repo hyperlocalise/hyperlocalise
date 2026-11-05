@@ -76,6 +76,7 @@ export async function executeGithubContentSync(input: {
   automationId: string;
   runId: string;
   syncConfig: ContentSyncConfig;
+  pullRequestBranchKey?: string;
 }): Promise<Result<ContentSyncSummary, ContentSyncError>> {
   const [repository] = await db
     .select()
@@ -150,7 +151,7 @@ export async function executeGithubContentSync(input: {
       const folderCheck = await runSandboxCommand(
         sandboxId,
         "git",
-        ["ls-files", "--error-unmatch", input.syncConfig.providerFolder],
+        ["ls-files", "--error-unmatch", "--", input.syncConfig.providerFolder],
         { output: "stdout" },
       );
       if (folderCheck.exitCode !== 0) {
@@ -206,6 +207,7 @@ export async function executeGithubContentSync(input: {
       baseBranch: head.branch,
       baseSha: head.sha,
       syncConfig: input.syncConfig,
+      pullRequestBranchKey: input.pullRequestBranchKey,
     });
 
     if (isErr(pushResult)) {
@@ -243,6 +245,7 @@ async function pushGithubTranslations(input: {
   baseBranch: string;
   baseSha: string;
   syncConfig: ContentSyncConfig;
+  pullRequestBranchKey?: string;
 }): Promise<Result<{ written: number; pullRequestUrl?: string }, ContentSyncError>> {
   const installationId = Number.parseInt(input.installationId, 10);
   if (!Number.isFinite(installationId)) {
@@ -445,14 +448,16 @@ async function pushGithubTranslations(input: {
     githubRepositoryId: input.githubRepositoryId,
     baseBranch: input.baseBranch,
     baseSha: input.baseSha,
-    branchName: buildPullTranslationsBranchName(input.runId),
+    branchName: buildPullTranslationsBranchName(input.pullRequestBranchKey ?? input.runId),
     paths: targetPaths,
     candidates: exportCandidates,
     linkedTranslationJobIds: [],
+    reuseBranch: input.pullRequestBranchKey !== undefined,
   });
 
   return ok({
-    written: candidates.length,
+    // An open pull request that already has these files is left alone, so nothing was sent.
+    written: pr.pushed ? candidates.length : 0,
     pullRequestUrl: pr.pullRequestUrl,
   });
 }

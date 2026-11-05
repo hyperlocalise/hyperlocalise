@@ -37,3 +37,26 @@ export function useGitLabServerConnection(organizationSlug: string) {
     },
   });
 }
+
+export const gitlabConnectionsQueryKey = (organizationSlug: string) =>
+  ["gitlab", organizationSlug, "connections"] as const;
+
+/** Every connection, the default first; empty when there are none or this person can't see them. */
+export function useGitLabConnections(organizationSlug: string) {
+  return useQuery({
+    queryKey: gitlabConnectionsQueryKey(organizationSlug),
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].gitlab.connections.$get({
+        param: { organizationSlug },
+      });
+      if (response.status === 403) {
+        return [];
+      }
+      if (!response.ok) {
+        throw new Error("gitlab_connections_load_failed");
+      }
+      const body = await response.json();
+      return "gitlabConnections" in body ? body.gitlabConnections : [];
+    },
+  });
+}

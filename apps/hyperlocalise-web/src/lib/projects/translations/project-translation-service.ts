@@ -279,6 +279,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     return row ?? null;
   }
 
+  /** Writes a file's keys. The file's text replaces the platform's source text, as every upload does. */
   async upsertKeysFromEntries(
     input: {
       organizationId: string;
@@ -291,7 +292,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
       sendApprovedToReviewOnSourceChange?: boolean;
     },
     database: DatabaseClient = this.database,
-  ) {
+  ): Promise<{ imported: number; updated: number }> {
     if (input.entries.length > PROJECT_TRANSLATION_WRITE_BATCH_SIZE) {
       let imported = 0;
       let updated = 0;
@@ -471,6 +472,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
       .update(schema.projectTranslationKeys)
       .set({
         isHidden: input.isHidden,
+        // A person's choice, so a sync no longer owns the hidden state.
+        hiddenBySyncAt: null,
         updatedAt: new Date(),
       })
       .where(

@@ -22,9 +22,11 @@ import {
   GITLAB_PROJECT_MAX_PAGES,
   GITLAB_PROJECT_PAGE_SIZE,
   GITLAB_SERVER_REQUEST_TIMEOUT_MS,
+  GITLAB_WRITE_REQUEST_TIMEOUT_MS,
 } from "./constants";
 import { isLocalDevGitLabServer } from "./server-url";
 import type {
+  GitLabTokenAbilities,
   GitLabAccess,
   GitLabApiError,
   GitLabMergeRequestDetails,
@@ -91,7 +93,20 @@ function parseProject(value: unknown, baseUrl: string | null): GitLabProject | n
     httpUrlToRepo: baseUrl ? buildGitLabCloneUrl(baseUrl, pathWithNamespace) : httpUrlToRepo,
     defaultBranch: asString(record.default_branch),
     archived: record.archived === true,
+    accessLevel: parseAccessLevel(record.permissions),
   };
+}
+
+/** The higher of the token's project and group roles; null when the answer carries neither. */
+function parseAccessLevel(value: unknown): number | null {
+  const permissions = asRecord(value);
+  if (!permissions) {
+    return null;
+  }
+  const levels = [permissions.project_access, permissions.group_access]
+    .map((entry) => asNumber(asRecord(entry)?.access_level))
+    .filter((level): level is number => level !== null);
+  return levels.length > 0 ? Math.max(...levels) : null;
 }
 
 const logger = createLogger("gitlab-client");
@@ -105,7 +120,19 @@ function describeRequestFailure(error: unknown) {
   };
 }
 
-type GitLabResponse = { ok: boolean; status: number; text: () => Promise<string> };
+type GitLabResponse = { ok: boolean; status: number; body: Buffer };
+
+type GitLabRequestInit = {
+  headers: Record<string, string>;
+  method?: string;
+  body?: string;
+  signal?: AbortSignal;
+};
+
+async function readResponse(response: Response): Promise<GitLabResponse> {
+  const body = Buffer.from(await response.arrayBuffer());
+  return { ok: response.ok, status: response.status, body };
+}
 
 /**
  * A workspace's own server is an address someone typed, so each request pins the checked address
@@ -114,39 +141,49 @@ type GitLabResponse = { ok: boolean; status: number; text: () => Promise<string>
 async function requestGitLabServer(
   url: URL,
   baseUrl: string,
-  init: { headers: Record<string, string>; signal?: AbortSignal },
+  init: GitLabRequestInit,
 ): Promise<GitLabResponse> {
-  const timeout = AbortSignal.timeout(GITLAB_SERVER_REQUEST_TIMEOUT_MS);
+  const timeout = AbortSignal.timeout(
+    init.method ? GITLAB_WRITE_REQUEST_TIMEOUT_MS : GITLAB_SERVER_REQUEST_TIMEOUT_MS,
+  );
   const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
   if (isLocalDevGitLabServer(new URL(baseUrl))) {
-    const response = await fetch(url, { ...init, signal, redirect: "error" });
-    const body = await response.text();
-    return { ok: response.ok, status: response.status, text: async () => body };
+    return readResponse(await fetch(url, { ...init, signal, redirect: "error" }));
   }
   return stopWaitingOnAbort(
-    withPublicHttpFetch(
-      url.toString(),
-      { ...init, signal, redirect: "error" },
-      async (response) => {
-        const body = await response.text();
-        return { ok: response.ok, status: response.status, text: async () => body };
-      },
-    ),
+    withPublicHttpFetch(url.toString(), { ...init, signal, redirect: "error" }, readResponse),
     signal,
   );
 }
 
-async function gitlabJson(
-  input: GitLabAccess & {
-    path: string;
-    query?: URLSearchParams;
-    signal?: AbortSignal;
-  },
-): Promise<Result<unknown, GitLabApiError>> {
-  const headers = {
+export type GitLabRequest = GitLabAccess & {
+  path: string;
+  query?: URLSearchParams;
+  /** GET unless given; a body is sent as JSON. */
+  method?: "GET" | "POST" | "PUT" | "DELETE";
+  body?: unknown;
+  signal?: AbortSignal;
+};
+
+/**
+ * One GitLab request with the token, answering the body as bytes. Every GitLab call goes
+ * through here, so a relay or a fixed outgoing address would be added in one place.
+ */
+async function gitlabRequest(
+  input: GitLabRequest & { accept: string },
+): Promise<Result<GitLabResponse, GitLabApiError>> {
+  const headers: Record<string, string> = {
     Authorization: `Bearer ${input.accessToken}`,
-    Accept: "application/json",
+    Accept: input.accept,
   };
+  const init: GitLabRequestInit = { headers, signal: input.signal };
+  if (input.method && input.method !== "GET") {
+    init.method = input.method;
+  }
+  if (input.body !== undefined) {
+    headers["Content-Type"] = "application/json";
+    init.body = JSON.stringify(input.body);
+  }
 
   let response: GitLabResponse;
   try {
@@ -154,9 +191,20 @@ async function gitlabJson(
     if (input.query) {
       url.search = input.query.toString();
     }
-    response = input.baseUrl
-      ? await requestGitLabServer(url, input.baseUrl, { headers, signal: input.signal })
-      : await fetch(url, { headers, signal: input.signal });
+    if (input.baseUrl) {
+      response = await requestGitLabServer(url, input.baseUrl, init);
+    } else {
+      // GitLab.com gets the same patience as a company server, so a run can't hang on it.
+      const timeout = AbortSignal.timeout(
+        init.method ? GITLAB_WRITE_REQUEST_TIMEOUT_MS : GITLAB_SERVER_REQUEST_TIMEOUT_MS,
+      );
+      response = await readResponse(
+        await fetch(url, {
+          ...init,
+          signal: init.signal ? AbortSignal.any([init.signal, timeout]) : timeout,
+        }),
+      );
+    }
   } catch (error) {
     logger.warn(describeRequestFailure(error), "gitlab request failed before an answer");
     return err(requestFailed(0, error instanceof Error && error.name === "TimeoutError"));
@@ -164,7 +212,7 @@ async function gitlabJson(
 
   if (response.status === 401 || response.status === 403) {
     // A saved address may not be GitLab at all, and GitLab answers these with JSON.
-    return input.baseUrl && isErr(safeJsonParse(await response.text()))
+    return input.baseUrl && isErr(safeJsonParse(response.body.toString("utf8")))
       ? err(requestFailed(response.status))
       : err(UNAUTHORIZED);
   }
@@ -174,14 +222,29 @@ async function gitlabJson(
   if (!response.ok) {
     return err(requestFailed(response.status));
   }
+  return ok(response);
+}
 
-  const body = await response.text();
-  const parsed = safeJsonParse(body);
-  if (isErr(parsed)) {
-    return err(requestFailed(response.status));
+export async function gitlabJson(input: GitLabRequest): Promise<Result<unknown, GitLabApiError>> {
+  const response = await gitlabRequest({ ...input, accept: "application/json" });
+  if (isErr(response)) {
+    return response;
   }
-
+  if (input.method === "DELETE" && response.value.body.length === 0) {
+    // A delete answers with no body.
+    return ok(null);
+  }
+  const parsed = safeJsonParse(response.value.body.toString("utf8"));
+  if (isErr(parsed)) {
+    return err(requestFailed(response.value.status));
+  }
   return ok(parsed.value);
+}
+
+/** A raw file endpoint's bytes, untouched, so a file in any encoding comes back as stored. */
+export async function gitlabBytes(input: GitLabRequest): Promise<Result<Buffer, GitLabApiError>> {
+  const response = await gitlabRequest({ ...input, accept: "*/*" });
+  return isErr(response) ? response : ok(response.value.body);
 }
 
 export async function getGitLabCurrentUsername(
@@ -196,19 +259,74 @@ export async function getGitLabCurrentUsername(
   return username ? ok(username) : err(requestFailed(200));
 }
 
-/** Proves the token can read projects, without fetching them all. */
+/**
+ * Whether the token can list projects at all, and whether it can read at least one: a project
+ * needs the Reporter role or above before its files can be read, so a Guest-only token answers
+ * false here and lists nothing anywhere.
+ */
 export async function checkGitLabProjectAccess(
   input: GitLabAccess & { signal?: AbortSignal },
-): Promise<Result<void, GitLabApiError>> {
+): Promise<Result<{ readsProjects: boolean }, GitLabApiError>> {
   const result = await gitlabJson({
     ...input,
     path: "/api/v4/projects",
-    query: new URLSearchParams({ membership: "true", simple: "true", per_page: "1" }),
+    query: new URLSearchParams({
+      membership: "true",
+      min_access_level: String(GITLAB_CLONE_MIN_ACCESS_LEVEL),
+      simple: "true",
+      archived: "false",
+      per_page: "1",
+    }),
   });
   if (isErr(result)) {
     return result;
   }
-  return Array.isArray(result.value) ? ok(undefined) : err(requestFailed(200));
+  return Array.isArray(result.value)
+    ? ok({ readsProjects: result.value.length > 0 })
+    : err(requestFailed(200));
+}
+
+/**
+ * How GitLab describes the token itself: its scopes and expiry. Null when the server can't or
+ * won't say: an older server (404), a token kind the endpoint refuses (400), or any other
+ * failure, because this is extra information and must never stop a save or a check.
+ */
+export async function getGitLabTokenAbilities(
+  input: GitLabAccess & { signal?: AbortSignal },
+): Promise<Result<GitLabTokenAbilities | null, GitLabApiError>> {
+  const result = await gitlabJson({ ...input, path: "/api/v4/personal_access_tokens/self" });
+  if (isErr(result)) {
+    return ok(null);
+  }
+  const record = asRecord(result.value);
+  const scopes = Array.isArray(record?.scopes)
+    ? record.scopes.filter((scope): scope is string => typeof scope === "string")
+    : null;
+  if (!record || !scopes) {
+    return ok(null);
+  }
+  return ok({ scopes, canSend: scopes.includes("api"), expiresAt: asString(record.expires_at) });
+}
+
+/**
+ * Whether the token can read the project's files: the one check that settles it, since GitLab's
+ * reported role leaves out access through a shared group, and a Guest can read a public or
+ * internal project but not a private one.
+ */
+export async function canReadGitLabRepository(
+  input: GitLabAccess & { projectId: number; signal?: AbortSignal },
+): Promise<Result<boolean, GitLabApiError>> {
+  const result = await gitlabJson({
+    ...input,
+    path: `/api/v4/projects/${input.projectId}/repository/tree`,
+    query: new URLSearchParams({ per_page: "1" }),
+  });
+  if (isErr(result)) {
+    return result.error.code === "gitlab_not_found" || result.error.code === "gitlab_unauthorized"
+      ? ok(false)
+      : result;
+  }
+  return ok(true);
 }
 
 export async function listGitLabMembershipProjects(
@@ -220,7 +338,8 @@ export async function listGitLabMembershipProjects(
     const query = new URLSearchParams({
       membership: "true",
       min_access_level: String(GITLAB_CLONE_MIN_ACCESS_LEVEL),
-      simple: "true",
+      // The full shape, for the token's role on each project; archived ones are left out.
+      archived: "false",
       order_by: "last_activity_at",
       per_page: String(GITLAB_PROJECT_PAGE_SIZE),
       page: String(page),

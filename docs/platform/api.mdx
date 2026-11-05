@@ -365,6 +365,22 @@ JSON body. Inline TMX (or CSV) is applied immediately.
 
 Large files can use `POST .../entries/import/uploads` to receive a signed upload URL, then `POST .../entries/import` with `attemptId` to apply. `GET .../import-attempts/{attemptId}` and `GET .../import-attempts/{attemptId}/download` read the attempt and its source file (`memories:read`).
 
+### Copy from a connected TMS
+
+Requires an active Crowdin, Phrase Strings, or Smartling connection (the credential updated most recently in the workspace).
+
+List provider translation memories:
+
+`GET https://api.hyperlocalise.com/v1/orgs/{organizationSlug}/tms/translation-memories`
+
+Import into a native memory (background TMX export + interchange queue):
+
+`POST https://api.hyperlocalise.com/v1/orgs/{organizationSlug}/translation-memories/{memoryId}/entries/import/from-tms`
+
+Body: `{ "credentialId": "<uuid>", "externalId": "<provider id>" }`. Response `202` includes `attemptId`.
+
+Glossary listing and `POST .../glossaries/{glossaryId}/concepts/import/from-tms` follow the same pattern; see [Glossary import and export](/platform/glossary-import-export#public-api-tms-copy).
+
 ## Translations and images
 
 These reconstruct current project state. They do not require a job id. That is what `sync pull` uses.

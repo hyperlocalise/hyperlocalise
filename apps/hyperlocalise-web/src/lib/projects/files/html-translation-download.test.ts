@@ -106,6 +106,30 @@ describe("loadProjectHtmlTranslationDownload", () => {
     );
   });
 
+  it("leaves omitted keys as the source has them", async () => {
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      prefilled: { "html.p": "欢迎", "html.p[1]": "品牌" },
+      loadedKeyCount: 2,
+      translatedKeyCount: 2,
+    });
+    mocks.getLatestRepositorySourceFileVersion.mockResolvedValue({ storedFileId: "stored_1" });
+    mocks.getStoredFileContent.mockResolvedValue({
+      content: Buffer.from("<p>Welcome</p><p>Brand</p>", "utf-8"),
+    });
+
+    const result = await loadProjectHtmlTranslationDownload({
+      ...INPUT,
+      omitKeys: new Set(["html.p[1]"]),
+    });
+    if (!isOk(result) || !result.value) {
+      throw new Error("expected HTML download");
+    }
+    const html = result.value.content.toString("utf-8");
+    expect(html).toContain("欢迎");
+    expect(html).toContain("Brand");
+    expect(html).not.toContain("品牌");
+  });
+
   it("keeps the .htm extension", async () => {
     mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
       prefilled: { "html.p": "欢迎" },

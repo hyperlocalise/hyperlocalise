@@ -49,7 +49,7 @@ Other translation tools differ in their defaults, but most string-based ones fla
   - Integration pushes that apply only approved translations onto the platform's existing locale copy (HubSpot, Braze, Mailchimp, Iterable, Loops, Customer.io) leave that key's current text in the copy, the old translation, until it is approved again; where no copy exists yet, the key goes out in the source language.
   - Sanity and Intercom skip that language for the item.
   - Webflow pushes only approved translations.
-  - GitLab delivery (on the GitLab content sync branch, not yet merged) keeps the repository's current text for that key.
+  - GitLab delivery keeps the repository's current text for that key.
   - Downloads, the CLI pull, GitHub content sync and bilingual export deliver the text whatever its status.
 - **Docs:** the guide [Update source content safely](../platform/guides/update-source-content.mdx) and the content editor page describe the setting and the skip.
 

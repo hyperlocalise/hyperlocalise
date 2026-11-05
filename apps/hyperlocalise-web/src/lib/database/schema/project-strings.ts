@@ -62,6 +62,11 @@ export const projectTranslationKeys = pgTable(
      * translation jobs skip it.
      */
     isHidden: boolean("is_hidden").notNull().default(false),
+    /**
+     * Set by a repository sync that found the key missing from the repository, and cleared when
+     * the key returns, so a sync only unhides what a sync hid.
+     */
+    hiddenBySyncAt: timestamp("hidden_by_sync_at", { withTimezone: true }),
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
       .notNull()
