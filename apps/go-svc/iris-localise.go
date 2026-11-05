@@ -356,7 +356,7 @@ left join lateral (
     limit 1
 ) tt on true
 where `+glossaryAccessPredicate("g", 1, 2, 3)+`
-  and g.source = 'native' and coalesce(g.status, '') <> 'archived'
+  and g.source = 'native' and g.status <> 'archived'
   and st.archived_at is null and coalesce(st.forbidden, false) = false
   and lower(replace(st.locale, '_', '-')) in (lower($4), lower($5))
   and char_length(st.term) >= 2
