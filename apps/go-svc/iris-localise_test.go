@@ -96,6 +96,31 @@ func TestContainsTerm(t *testing.T) {
 	require.True(t, containsTerm("東京の夜", "東京", false))
 }
 
+func TestNewIrisTextModelPrefersGatewayThenOpenAI(t *testing.T) {
+	t.Setenv("AI_GATEWAY_API_KEY", "")
+	t.Setenv("AI_GATEWAY_BASE_URL", "")
+	t.Setenv("OPENAI_API_KEY", "")
+	require.Nil(t, newIrisTextModel())
+
+	t.Setenv("OPENAI_API_KEY", "sk-test")
+	openai := newIrisTextModel()
+	require.NotNil(t, openai)
+	provider, ok := openai.(*irisGatewayProvider)
+	require.True(t, ok)
+	require.Equal(t, defaultIrisOpenAIBaseURL, provider.baseURL)
+	require.Equal(t, "sk-test", provider.apiKey)
+	require.Equal(t, defaultIrisOpenAITranslateModel, irisTranslateModelID(openai))
+
+	t.Setenv("AI_GATEWAY_API_KEY", "gw-test")
+	gateway := newIrisTextModel()
+	require.NotNil(t, gateway)
+	provider, ok = gateway.(*irisGatewayProvider)
+	require.True(t, ok)
+	require.Equal(t, defaultIrisGatewayBaseURL, provider.baseURL)
+	require.Equal(t, "gw-test", provider.apiKey)
+	require.Equal(t, defaultIrisTranslateModel, irisTranslateModelID(gateway))
+}
+
 func TestTranslateWithModelKeepsOnlySafeTranslations(t *testing.T) {
 	text := &stubIrisText{reply: "```json\n" + `{"translations":{"title":"Nuits néon","greet":"Bonjour","cta":""}}` + "\n```"}
 	api := &irisGenerationAPI{text: text}

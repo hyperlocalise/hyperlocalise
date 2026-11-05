@@ -16,6 +16,7 @@ import (
 
 const (
 	defaultIrisGatewayBaseURL = "https://ai-gateway.vercel.sh/v1"
+	defaultIrisOpenAIBaseURL  = "https://api.openai.com/v1"
 	irisProviderTimeout       = 9 * time.Minute
 )
 
@@ -67,6 +68,20 @@ func newIrisGatewayProvider() *irisGatewayProvider {
 	}
 	return &irisGatewayProvider{
 		baseURL:    baseURL,
+		apiKey:     apiKey,
+		httpClient: &http.Client{Timeout: irisProviderTimeout},
+	}
+}
+
+// newIrisOpenAIProvider talks to OpenAI directly when the managed gateway key
+// is unset. Used for Iris translate (and other chat completions) locally.
+func newIrisOpenAIProvider() *irisGatewayProvider {
+	apiKey := strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
+	if apiKey == "" {
+		return nil
+	}
+	return &irisGatewayProvider{
+		baseURL:    defaultIrisOpenAIBaseURL,
 		apiKey:     apiKey,
 		httpClient: &http.Client{Timeout: irisProviderTimeout},
 	}
