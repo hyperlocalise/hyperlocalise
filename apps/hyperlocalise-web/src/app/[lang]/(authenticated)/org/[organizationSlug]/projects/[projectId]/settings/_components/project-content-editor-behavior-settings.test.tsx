@@ -41,12 +41,13 @@ vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
   }),
 }));
 
-function renderSettings(canManage = true) {
+function renderSettings(canManage = true, sourceTextEditable = false) {
   apiMocks.contentEditorBehavior.mockResolvedValue({
     contentEditorBehavior: {
       automaticallyGroupIdenticalStrings: false,
       groupingRevision: 0,
       approvedTranslationsOnSourceChange: "stay_approved",
+      sourceTextEditable,
       canManage,
     },
   });
@@ -110,6 +111,36 @@ describe("ProjectContentEditorBehaviorSettings", () => {
       }),
     );
     expect(apiMocks.previewContentEditorBehavior).not.toHaveBeenCalled();
+  });
+
+  it("turns source text editing on at once and asks before turning it off", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    await user.click(
+      await screen.findByRole("switch", { name: "Edit source text in Hyperlocalise" }),
+    );
+    await waitFor(() =>
+      expect(apiMocks.updateContentEditorBehavior).toHaveBeenCalledWith("acme", "project_1", {
+        sourceTextEditable: true,
+      }),
+    );
+  });
+
+  it("warns that edits not yet in the files are replaced when editing is turned off", async () => {
+    const user = userEvent.setup();
+    renderSettings(true, true);
+    await user.click(
+      await screen.findByRole("switch", { name: "Edit source text in Hyperlocalise" }),
+    );
+
+    expect(await screen.findByText("Stop editing source text here?")).toBeInTheDocument();
+    expect(apiMocks.updateContentEditorBehavior).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Stop editing here" }));
+    await waitFor(() =>
+      expect(apiMocks.updateContentEditorBehavior).toHaveBeenCalledWith("acme", "project_1", {
+        sourceTextEditable: false,
+      }),
+    );
   });
 
   it("keeps the setting read-only for non-managers", async () => {

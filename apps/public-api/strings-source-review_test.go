@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -138,8 +139,8 @@ func TestSourceChangeLeavesOtherStatusesAndWhitespaceAlone(t *testing.T) {
 	require.Empty(t, f.revisionStatuses(t, title.ID, "fr"))
 	require.Empty(t, f.revisionStatuses(t, title.ID, "de"))
 
-	// An import can store surrounding spaces and the API trims what it receives: the text is
-	// written as sent, but a whitespace-only difference does not send translations to review.
+	// An import can store surrounding spaces and the API trims what it receives, so a
+	// whitespace-only difference is not a change: the stored text stays and nothing goes to review.
 	total := f.createString(t, "", "cart.total", "Total:", nil)
 	f.exec(t, `UPDATE project_translation_keys SET source_text = 'Total: ' WHERE id = $1`, total.ID)
 	f.insertTranslation(t, total.ID, "fr", "Total :", "approved")
@@ -150,12 +151,119 @@ func TestSourceChangeLeavesOtherStatusesAndWhitespaceAlone(t *testing.T) {
 	}
 	_, err = f.store.updateString(ctx, f.actor, f.project, total.ID, stringPatch{SourceText: ptr("Total:")})
 	require.NoError(t, err)
-	require.Equal(t, "Total:", storedText())
-	f.exec(t, `UPDATE project_translation_keys SET source_text = 'Total: ' WHERE id = $1`, total.ID)
+	require.Equal(t, "Total: ", storedText())
 	_, err = f.store.upsertStrings(ctx, f.actor, f.project, []stringUpsert{{Key: "cart.total", SourceText: ptr("Total:")}})
 	require.NoError(t, err)
-	require.Equal(t, "Total:", storedText())
+	require.Equal(t, "Total: ", storedText())
 	status, _, _ = f.translationState(t, total.ID, "fr")
 	require.Equal(t, "approved", status)
 	require.Empty(t, f.revisionStatuses(t, total.ID, "fr"))
+}
+
+// importedFile is a source file whose last import came through the given surface.
+func (f dbFixture) importedFile(t *testing.T, path, surface string) string {
+	t.Helper()
+	fileID := f.sourceFile(t, path)
+	storedID := "file_" + uuid.NewString()
+	f.exec(t, `INSERT INTO stored_files (id, organization_id, role, source_kind, storage_provider, storage_key, storage_url, filename, content_type, byte_size, sha256)
+		VALUES ($1, $2, 'source', 'repository_file', 'test', $1, $1, 'x.json', 'application/json', 2, 'x')`, storedID, f.actor.OrganizationID)
+	var versionID string
+	require.NoError(t, f.pool.QueryRow(t.Context(), `INSERT INTO repository_source_file_versions (organization_id, project_id, repository_source_file_id, source_path, stored_file_id, source_hash, upload_surface)
+		VALUES ($1, $2, $3, $4, $5, 'sha256:x', $6) RETURNING id`, f.actor.OrganizationID, f.project, fileID, path, storedID, surface).Scan(&versionID))
+	f.exec(t, `UPDATE repository_source_files SET reconciled_source_file_version_id = $2 WHERE id = $1`, fileID, versionID)
+	return fileID
+}
+
+func (f dbFixture) setSourceTextEditable(t *testing.T, editable bool) {
+	t.Helper()
+	f.exec(t, `UPDATE projects SET source_text_editable = $2 WHERE id = $1`, f.project, editable)
+}
+
+func TestSourceTextOfFileStringsIsEditableOnlyWithTheSetting(t *testing.T) {
+	f := newDBFixture(t)
+	ctx := t.Context()
+	f.importedFile(t, "locales/en.json", "files_page")
+
+	inFile := f.createString(t, "locales/en.json", "home.title", "Home", nil)
+	apiOnly := f.createString(t, "", "promo.banner", "Sale", nil)
+
+	// Off: a file's next import would replace the edit, so it is refused; the same text, or the
+	// same text with other spaces around it (the API trims), is not an edit.
+	_, err := f.store.updateString(ctx, f.actor, f.project, inFile.ID, stringPatch{SourceText: ptr("Home page")})
+	require.ErrorIs(t, err, errSourceTextNotEditable)
+	_, err = f.store.updateString(ctx, f.actor, f.project, inFile.ID, stringPatch{SourceText: ptr("Home"), Context: optionalString{Set: true, Value: ptr("Header")}})
+	require.NoError(t, err)
+	filePath := "locales/en.json"
+	_, err = f.store.upsertStrings(ctx, f.actor, f.project, []stringUpsert{{Key: "home.title", FilePath: &filePath, SourceText: ptr("Start")}})
+	require.ErrorIs(t, err, errSourceTextNotEditable)
+	// A string in no file has no import to lose it to.
+	_, err = f.store.updateString(ctx, f.actor, f.project, apiOnly.ID, stringPatch{SourceText: ptr("Big sale")})
+	require.NoError(t, err)
+	_, err = f.store.upsertStrings(ctx, f.actor, f.project, []stringUpsert{{Key: "promo.banner", SourceText: ptr("Bigger sale")}})
+	require.NoError(t, err)
+
+	// On: the first edit records the text before it as the base the next import compares with.
+	f.setSourceTextEditable(t, true)
+	f.exec(t, `UPDATE project_translation_keys SET imported_source_text = NULL WHERE id = $1`, inFile.ID)
+	updated, err := f.store.updateString(ctx, f.actor, f.project, inFile.ID, stringPatch{SourceText: ptr("Home page")})
+	require.NoError(t, err)
+	require.Equal(t, "Home page", updated.SourceText)
+	_, err = f.store.upsertStrings(ctx, f.actor, f.project, []stringUpsert{{Key: "home.title", FilePath: &filePath, SourceText: ptr("Start")}})
+	require.NoError(t, err)
+	var imported *string
+	require.NoError(t, f.pool.QueryRow(ctx, `SELECT imported_source_text FROM project_translation_keys WHERE id = $1`, inFile.ID).Scan(&imported))
+	require.NotNil(t, imported)
+	require.Equal(t, "Home", *imported)
+}
+
+func TestSourceTextEditsFollowTheFileAndTheRole(t *testing.T) {
+	f := newDBFixture(t)
+	ctx := t.Context()
+	f.setSourceTextEditable(t, true)
+	f.importedFile(t, "locales/en.yaml", "files_page")
+	jsonFile := f.importedFile(t, "locales/app.json", "braze_automation")
+	yaml := f.createString(t, "locales/en.yaml", "home.title", "Home", nil)
+	json := f.createString(t, "locales/app.json", "home.title", "Home", nil)
+
+	// No writer for YAML yet, so its file stays the source of truth.
+	_, err := f.store.updateString(ctx, f.actor, f.project, yaml.ID, stringPatch{SourceText: ptr("Start")})
+	require.ErrorIs(t, err, errSourceTextNotEditable)
+
+	// An integration's file belongs to its service.
+	_, err = f.store.updateString(ctx, f.actor, f.project, json.ID, stringPatch{SourceText: ptr("Start")})
+	require.ErrorIs(t, err, errSourceTextNotEditable)
+	f.exec(t, `UPDATE repository_source_file_versions SET upload_surface = 'gitlab_content_sync' WHERE repository_source_file_id = $1`, jsonFile)
+
+	translator := f.actor
+	translator.Role = "translator"
+	_, err = f.store.updateString(ctx, translator, f.project, json.ID, stringPatch{SourceText: ptr("Start")})
+	require.ErrorIs(t, err, errSourceTextForbidden)
+	_, err = f.store.updateString(ctx, f.actor, f.project, json.ID, stringPatch{SourceText: ptr("Start")})
+	require.NoError(t, err)
+}
+
+func TestResendingTheSourceTextOfALockedStringIsAccepted(t *testing.T) {
+	f := newDBFixture(t)
+	ctx := t.Context()
+	title := f.createString(t, "", "home.title", "Home", nil)
+	f.exec(t, `INSERT INTO project_cat_segment_locks (organization_id, project_id, target_locale, external_string_id)
+		VALUES ($1, $2, 'fr', $3)`, f.actor.OrganizationID, f.project, title.ID)
+	_, err := f.store.updateString(ctx, f.actor, f.project, title.ID, stringPatch{SourceText: ptr("Home"), Context: optionalString{Set: true, Value: ptr("Header")}})
+	require.NoError(t, err)
+	_, err = f.store.updateString(ctx, f.actor, f.project, title.ID, stringPatch{SourceText: ptr("Start")})
+	require.ErrorIs(t, err, errSegmentLocked)
+}
+
+func TestSourceTextWithInternalMarkersIsRefusedOnlyAsAChange(t *testing.T) {
+	f := newDBFixture(t)
+	ctx := t.Context()
+	page := f.createString(t, "", "html.p", "Hi there", nil)
+	f.exec(t, `UPDATE project_translation_keys SET source_text = $2 WHERE id = $1`, page.ID, "Hi \x1eHLHTPH_AB_0\x1f there")
+	// Sent back as read, it is not a change.
+	_, err := f.store.updateString(ctx, f.actor, f.project, page.ID, stringPatch{SourceText: ptr("Hi \x1eHLHTPH_AB_0\x1f there"), Context: optionalString{Set: true, Value: ptr("Hero")}})
+	require.NoError(t, err)
+	_, err = f.store.updateString(ctx, f.actor, f.project, page.ID, stringPatch{SourceText: ptr("Hello \x1eHLHTPH_AB_0\x1f there")})
+	require.ErrorIs(t, err, errSourceTextInvalid)
+	_, err = f.store.upsertStrings(ctx, f.actor, f.project, []stringUpsert{{Key: "new.one", SourceText: ptr("Bad \x00")}})
+	require.ErrorIs(t, err, errSourceTextInvalid)
 }

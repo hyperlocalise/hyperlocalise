@@ -85,6 +85,8 @@ export interface ContentEditorQueueSegment {
   imageVariantId?: string | null;
   looksLikeImageUrl?: boolean;
   looksLikeVideoUrl?: boolean;
+  /** The string's file is one whose source text the platform can write back. */
+  sourceTextEditable?: boolean;
   /** TMS hidden string — unavailable to translators, still visible to managers. */
   isHidden?: boolean;
   /** Explicit CAT lock. Editors can set and show this independently of approved/hidden. */
@@ -164,6 +166,8 @@ export interface ContentEditorSegment {
   imageVariantId?: string | null;
   looksLikeImageUrl?: boolean;
   looksLikeVideoUrl?: boolean;
+  /** The string's file is one whose source text the platform can write back. */
+  sourceTextEditable?: boolean;
   /** Grouped queues: identical source strings this row saves to, including itself. */
   occurrenceCount?: number;
   /** Grouped queues: least complete status among the occurrences in the queue locale. */

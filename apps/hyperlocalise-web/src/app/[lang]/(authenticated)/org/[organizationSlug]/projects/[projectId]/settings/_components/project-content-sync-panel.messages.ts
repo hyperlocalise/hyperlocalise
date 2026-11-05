@@ -576,6 +576,20 @@ export const projectContentSyncPanelMessages = defineMessages({
     description:
       "Summary of the keys a project sync run hid because they were removed from the repository files",
   },
+  runClashes: {
+    defaultMessage:
+      "{count, plural, one {# key was} other {# keys were}} changed both in the repository and here; the project's text was kept",
+    id: "E4Xx5iKeCf",
+    description:
+      "Summary of the keys whose source text both the repository and the project changed differently, in a project sync run",
+  },
+  runSourceWritten: {
+    defaultMessage:
+      "{count, plural, one {# source file sent} other {# source files sent}} with source text edited here",
+    id: "dYeJfkv10B",
+    description:
+      "Count of source files a GitLab sync run sent back with source text edited in the project",
+  },
   runHiddenKeysMore: {
     defaultMessage: "and {more, number} more",
     id: "RJLxYJk50b",

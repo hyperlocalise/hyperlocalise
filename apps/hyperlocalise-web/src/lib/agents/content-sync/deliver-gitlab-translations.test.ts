@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   keyRows: vi.fn<() => { key: string; isHidden: boolean; hiddenBySyncAt: Date | null }[]>(),
   loadPrefilled: vi.fn(),
   loadHtml: vi.fn(),
+  applySourceText: vi.fn(),
 }));
 
 vi.mock("@/lib/database/client", () => ({
@@ -42,6 +43,12 @@ vi.mock("@/lib/database/client", () => ({
 }));
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
   loadProjectTranslationsAsPrefilledEntries: (...args: unknown[]) => mocks.loadPrefilled(...args),
+}));
+vi.mock("@/lib/projects/files/source-text-editing", async () => ({
+  ...(await vi.importActual<typeof import("@/lib/projects/files/source-text-editing")>(
+    "@/lib/projects/files/source-text-editing",
+  )),
+  applyProjectSourceText: (...args: unknown[]) => mocks.applySourceText(...args),
 }));
 vi.mock("@/lib/projects/files/html-translation-download", () => ({
   loadProjectHtmlTranslationDownload: (...args: unknown[]) => mocks.loadHtml(...args),
@@ -194,6 +201,7 @@ function deliver(input: {
   repositoryPaths?: string[];
   sourceFiles?: { relativePath: string; projectPath: string; content: Buffer }[];
   template?: string;
+  sourceTextEditable?: boolean;
 }) {
   const template = input.template ?? syncConfig.pathTemplate!;
   return deliverGitLabTranslations({
@@ -206,6 +214,7 @@ function deliver(input: {
     head,
     template: compileContentSyncPathTemplate(template),
     sourceLocale: input.sourceLocale ?? "en-US",
+    sourceTextEditable: input.sourceTextEditable ?? false,
     targetLocales: input.targetLocales ?? ["fr-FR", "de-DE"],
     localeCodes:
       input.localeCodes ??
@@ -555,6 +564,103 @@ describe("deliverGitLabTranslations", () => {
     expect(mocks.loadHtml).toHaveBeenCalledWith(
       expect.objectContaining({ approvedTranslationsOnly: true, omitKeys: new Set(["s3"]) }),
     );
+  });
+
+  describe("with source text editable in the project", () => {
+    const editedEn = Buffer.from('{\n  "title": "Welcome",\n  "nav": { "about": "About" }\n}\n');
+
+    it("writes the project's source text into the source file in the same merge request", async () => {
+      mocks.applySourceText.mockResolvedValue({ content: editedEn, written: ["title"] });
+      prefilled({ "fr-FR": { title: "Accueil" } });
+      const writer = fakeWriter();
+
+      const result = await deliver({ reader: fakeReader({}), writer, sourceTextEditable: true });
+
+      expect(result).toEqual({
+        ...nothing,
+        written: 1,
+        sourceWritten: 1,
+        pullRequestUrl: review.url,
+      });
+      expect(committedChanges(writer)).toEqual([
+        { path: "locales/en.json", content: editedEn.toString("utf8"), exists: true },
+        { path: "locales/fr.json", content: '{\n  "title": "Accueil"\n}\n', exists: false },
+      ]);
+      expect(mocks.applySourceText).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: "org-1",
+          projectId: "project-1",
+          sourcePath: "gitlab/acme/web/en.json",
+          content: sourceEn.content,
+        }),
+      );
+      expect(writer.commitFiles).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "chore(i18n): update source text and translations (run-1234)",
+        }),
+      );
+      // The title stays as it was, since an open merge request keeps its title.
+      expect(writer.upsertReview).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "chore(i18n): update translations",
+          description: expect.stringContaining("**This merge request also changes source text:**"),
+        }),
+      );
+    });
+
+    it("sends source text alone in a project with no target languages", async () => {
+      mocks.applySourceText.mockResolvedValue({ content: editedEn, written: ["title"] });
+      prefilled({});
+      const writer = fakeWriter();
+
+      const result = await deliver({
+        reader: fakeReader({}),
+        writer,
+        sourceTextEditable: true,
+        targetLocales: [],
+      });
+
+      expect(result).toEqual({ ...nothing, sourceWritten: 1, pullRequestUrl: review.url });
+      expect(committedChanges(writer).map((change) => change.path)).toEqual(["locales/en.json"]);
+    });
+
+    it("writes no source file while the setting is off, or for a page", async () => {
+      prefilled({ "fr-FR": { title: "Accueil" } });
+      const off = fakeWriter();
+      await deliver({ reader: fakeReader({}), writer: off });
+      expect(committedChanges(off).map((change) => change.path)).toEqual(["locales/fr.json"]);
+      expect(mocks.applySourceText).not.toHaveBeenCalled();
+
+      mocks.keyRows.mockReturnValue([{ key: "s1", isHidden: false, hiddenBySyncAt: null }]);
+      prefilled({}, 1);
+      await deliver({
+        reader: fakeReader({}),
+        writer: fakeWriter(),
+        sourceFiles: [
+          {
+            relativePath: "en/pricing.html",
+            projectPath: "gitlab/acme/web/en/pricing.html",
+            content: Buffer.from("<p>Hi</p>"),
+          },
+        ],
+        template: "{{locale}}/*.html",
+        targetLocales: [],
+        repositoryPaths: ["locales/en/pricing.html"],
+        sourceTextEditable: true,
+      });
+      expect(mocks.applySourceText).not.toHaveBeenCalled();
+    });
+
+    it("closes an open merge request when there is nothing left to send and no target languages", async () => {
+      prefilled({});
+      const writer = fakeWriter({ state: "open" });
+      await deliver({
+        reader: fakeReader({ syncBranch: { files: { "locales/en.json": "{}" } } }),
+        writer,
+        targetLocales: [],
+      });
+      expect(writer.closeReview).toHaveBeenCalled();
+    });
   });
 
   it("counts what it can't send: unsupported formats, unreadable files and two sources naming one file", async () => {

@@ -12,27 +12,30 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/sourcetext"
 	"github.com/jackc/pgx/v5"
 )
 
 var hashedHTMLSegmentKey = regexp.MustCompile(`^html\.[0-9a-f]{16}(?:\.\d+)?(?:#srx\.\d+)?$`)
 
 type editorCatSegment struct {
-	ExternalStringID  string  `json:"externalStringId"`
-	Key               string  `json:"key"`
-	SourceText        string  `json:"sourceText"`
-	Context           *string `json:"context"`
-	Type              *string `json:"type"`
-	MaxLength         *int    `json:"maxLength,omitempty"`
-	IsHidden          *bool   `json:"isHidden,omitempty"`
-	IsLocked          *bool   `json:"isLocked,omitempty"`
-	ContentKind       *string `json:"contentKind,omitempty"`
-	SourceAssetURL    *string `json:"sourceAssetUrl,omitempty"`
-	TargetAssetURL    *string `json:"targetAssetUrl,omitempty"`
-	ImageVariantID    *string `json:"imageVariantId,omitempty"`
-	LooksLikeImageURL *bool   `json:"looksLikeImageUrl,omitempty"`
-	LooksLikeVideoURL *bool   `json:"looksLikeVideoUrl,omitempty"`
-	SourcePath        *string `json:"sourcePath,omitempty"`
+	ExternalStringID string  `json:"externalStringId"`
+	Key              string  `json:"key"`
+	SourceText       string  `json:"sourceText"`
+	Context          *string `json:"context"`
+	Type             *string `json:"type"`
+	MaxLength        *int    `json:"maxLength,omitempty"`
+	IsHidden         *bool   `json:"isHidden,omitempty"`
+	IsLocked         *bool   `json:"isLocked,omitempty"`
+	// Set when the string's file is one whose source text the platform can write back.
+	SourceTextEditable *bool   `json:"sourceTextEditable,omitempty"`
+	ContentKind        *string `json:"contentKind,omitempty"`
+	SourceAssetURL     *string `json:"sourceAssetUrl,omitempty"`
+	TargetAssetURL     *string `json:"targetAssetUrl,omitempty"`
+	ImageVariantID     *string `json:"imageVariantId,omitempty"`
+	LooksLikeImageURL  *bool   `json:"looksLikeImageUrl,omitempty"`
+	LooksLikeVideoURL  *bool   `json:"looksLikeVideoUrl,omitempty"`
+	SourcePath         *string `json:"sourcePath,omitempty"`
 	// Set in all-files queues, where segments come from files with different settings.
 	MessageFormat *string `json:"messageFormat,omitempty"`
 	// Set in all-files queues alongside MessageFormat: the file's custom placeholder regexes.
@@ -623,7 +626,12 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		lockLocaleN = strconv.Itoa(len(listArgs))
 	}
 	listArgs = append(listArgs, query.limit, query.offset)
-	selectCols := `k.id, k.key, k.source_text, k.context, k.type, k.max_length, k.metadata, k.is_hidden`
+	// The source text control is offered where the route would accept it: a lock in any language
+	// refuses a source edit.
+	selectCols := `k.id, k.key, k.source_text, k.context, k.type, k.max_length, k.metadata, k.is_hidden, (` +
+		sourcetext.KeyEditableSQL("k") + ` and not exists (select 1 from project_cat_segment_locks sl
+            where sl.organization_id = k.organization_id and sl.project_id = k.project_id
+                and sl.external_string_id = k.id::text))`
 	if includeSourcePath {
 		selectCols += `, f.source_path, f.message_format, f.placeholder_patterns`
 	}
@@ -669,11 +677,11 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		var context, keyType *string
 		var maxLength *int
 		var metadata []byte
-		var hidden bool
+		var hidden, sourceTextEditable bool
 		var sourcePath, messageFormat *string
 		var placeholderPatterns []string
 		var occurrenceCount int
-		dest := []any{&segment.ExternalStringID, &segment.Key, &segment.SourceText, &context, &keyType, &maxLength, &metadata, &hidden}
+		dest := []any{&segment.ExternalStringID, &segment.Key, &segment.SourceText, &context, &keyType, &maxLength, &metadata, &hidden, &sourceTextEditable}
 		if includeSourcePath {
 			dest = append(dest, &sourcePath, &messageFormat, &placeholderPatterns)
 		}
@@ -694,6 +702,9 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		if hidden {
 			value := true
 			segment.IsHidden = &value
+		}
+		if sourceTextEditable {
+			segment.SourceTextEditable = &sourceTextEditable
 		}
 		contentKind := editorCatMetadataContentKind(metadata)
 		if contentKind != "" {

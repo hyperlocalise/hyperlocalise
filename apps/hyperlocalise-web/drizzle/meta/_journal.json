@@ -1233,6 +1233,13 @@
       "when": 1793899819356,
       "tag": "0175_approved_translations_on_source_change",
       "breakpoints": true
+    },
+    {
+      "idx": 176,
+      "version": "7",
+      "when": 1793899979183,
+      "tag": "0176_source_text_editable",
+      "breakpoints": true
     }
   ]
 }
