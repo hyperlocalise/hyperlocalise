@@ -1223,22 +1223,8 @@
     {
       "idx": 174,
       "version": "7",
-      "when": 1793769079596,
+      "when": 1793861211445,
       "tag": "0174_gitlab_content_sync",
-      "breakpoints": true
-    },
-    {
-      "idx": 175,
-      "version": "7",
-      "when": 1793769332079,
-      "tag": "0175_project_content_syncs",
-      "breakpoints": true
-    },
-    {
-      "idx": 176,
-      "version": "7",
-      "when": 1793847288902,
-      "tag": "0176_gitlab_connections_named",
       "breakpoints": true
     }
   ]
