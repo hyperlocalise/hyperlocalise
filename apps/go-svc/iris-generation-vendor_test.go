@@ -280,6 +280,10 @@ func TestNewIrisGenerationProviderReadsEnv(t *testing.T) {
 	require.Nil(t, empty.gateway)
 	require.Nil(t, empty.elevenlabs)
 	require.Nil(t, empty.fal)
+	_, err := empty.Generate(t.Context(), irisProviderRequest{
+		Model: irisModelInfo{ID: "image-text", Kind: irisKindTool, Provider: irisProviderGateway},
+	})
+	require.ErrorContains(t, err, "generation provider is not configured")
 
 	t.Setenv("ELEVENLABS_API_KEY", "xi")
 	provider := newIrisGenerationProvider()
