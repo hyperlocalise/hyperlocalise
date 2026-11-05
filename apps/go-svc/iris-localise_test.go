@@ -233,6 +233,8 @@ func TestGatewayCompleteAndImageText(t *testing.T) {
 	require.Equal(t, "text.json", outputs[0].Filename)
 	require.Contains(t, string(outputs[0].Bytes), "50% OFF")
 	require.Equal(t, map[string]any{"type": "json_object"}, payload["response_format"])
+	_, hasTemperature := payload["temperature"]
+	require.False(t, hasTemperature)
 	messages := payload["messages"].([]any)
 	user := messages[1].(map[string]any)["content"].([]any)
 	require.Equal(t, "image_url", user[1].(map[string]any)["type"])

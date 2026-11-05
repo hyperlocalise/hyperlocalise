@@ -690,7 +690,6 @@ func (p *irisGatewayProvider) Complete(ctx context.Context, req irisChatRequest)
 			{"role": "system", "content": req.System},
 			{"role": "user", "content": content},
 		},
-		"temperature": 0.3,
 	}
 	if req.JSON {
 		payload["response_format"] = map[string]string{"type": "json_object"}
