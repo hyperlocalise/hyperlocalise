@@ -24,23 +24,34 @@ const GITLAB_NOT_CONNECTED: GitLabApiError = {
   message: "Connect GitLab in Integrations before using it.",
 };
 
+const GITLAB_CONNECTION_REMOVED: GitLabApiError = {
+  code: "gitlab_connection_removed",
+  message: "The GitLab connection this uses was removed in Integrations. Choose another.",
+};
+
 /**
  * The token and the server it belongs to, returned together so a token can't be sent elsewhere.
- * A workspace's own server replaces every member's GitLab.com account, so a project path means
- * the workspace's current server.
+ * A workspace's own connections replace every member's GitLab.com account, so a project path
+ * means the workspace's default connection, or the one named by `connectionId`.
  */
 export async function resolveGitLabAccess(input: {
   localOrganizationId: string;
   workosUserId?: string | null;
+  /** A connection chosen for this use, such as a project sync's; the default otherwise. */
+  connectionId?: string | null;
 }): Promise<Result<GitLabAccess, GitLabApiError>> {
   const connection = await loadGitLabConnectionCredentials({
     organizationId: input.localOrganizationId,
+    connectionId: input.connectionId,
   });
   if (isErr(connection)) {
     return connection;
   }
   if (connection.value) {
-    return ok(connection.value);
+    return ok({ accessToken: connection.value.accessToken, baseUrl: connection.value.baseUrl });
+  }
+  if (input.connectionId) {
+    return err(GITLAB_CONNECTION_REMOVED);
   }
 
   if (!input.workosUserId) {
@@ -64,7 +75,7 @@ export async function resolveGitLabCredentialOwner(input: {
 }): Promise<string | null> {
   const connection = await getGitLabConnection({ organizationId: input.localOrganizationId });
   return connection
-    ? `gitlab-connection:${connection.serverUrl}:${connection.updatedAt}`
+    ? `gitlab-connection:${connection.id}:${connection.serverUrl}:${connection.updatedAt}`
     : (input.workosUserId ?? null);
 }
 

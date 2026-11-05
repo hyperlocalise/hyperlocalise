@@ -20,6 +20,17 @@ GitLab access goes through WorkOS Pipes, which holds each person's GitLab.com si
 
 The Integrations row became the single **GitLab** row: an admin or localization manager chooses GitLab.com or a company server, so a GitLab.com workspace connects with a token the same way, and syncing files needs this connection either way. While the workspace has no connection, the per-member GitLab.com sign-in row (WorkOS Pipes) stays, named as a sign-in and described as serving chat and the automations that person creates; once a connection exists it is shown only to someone whose own sign-in is still stored, marked as not in use, so they can remove it. Because GitLab has no per-project switch like a GitHub App installation, the token's reach is the workspace's reach; the hint steers a GitLab.com workspace to a project or group access token or a dedicated account. Whether a GitLab.com workspace should instead keep members' own sign-ins for chat, or get an enabled-projects list, is an open product question recorded with the feature's review.
 
+## Several named connections (2026-11-05)
+
+A workspace can hold **several GitLab connections**, each with a name, so a project's sync can use a token scoped to its own repositories while chat and automations use another. This follows the connector list in other translation tools, where an administrator makes the connections once and a project picks one, rather than a token stored with each project.
+
+- `gitlab_connections` loses its one-per-workspace rule and gains `name` (shown as the server's host when empty, for connections made before names) and `is_default`. At most one connection per workspace is marked default (partial unique index); when none is marked, the oldest one is the default, so existing workspaces keep working without a data change.
+- **The default connection** is what chat, workspace automations and visual workflow Content sync steps use, and what "Connected" means on the Integrations row. An admin can mark any connection as the default.
+- **A project sync names its connection** (`gitlabConnectionId` in its settings). Saving a GitLab sync in the Sync panel resolves the chosen connection, or the default when none was chosen, and stores its id, so changing the default later never moves a sync. A run whose connection was removed reports it and does nothing, until someone chooses another connection in the panel.
+- **Removing a connection** asks for confirmation and says how many project syncs use it. Replacing its token, name or address keeps its id, so syncs follow it.
+- Routes: `GET /gitlab/connections` lists the workspace's connections (never the tokens, with how many syncs use each); `POST /gitlab/connections` adds one; `PUT /gitlab/connections/:id` replaces one (token required, as before); `POST /gitlab/connections/:id/default` marks the default; `DELETE /gitlab/connections/:id` removes one; `GET /gitlab/connections/:id/check` runs the live check. `GET /gitlab/connection` keeps answering with the default connection for the parts of the app that only need to know whether GitLab is connected.
+- The Sync panel's connections route takes the connection to list projects for, so a server is only asked for its projects when that connection is chosen.
+
 ## Consequences
 
 - Everyone in the workspace who can use GitLab features acts through one token, so an admin decides what they can reach by choosing that token's access. This matches how a GitHub App installation works.

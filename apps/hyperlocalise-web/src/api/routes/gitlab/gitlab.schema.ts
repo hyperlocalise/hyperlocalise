@@ -10,10 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-
 import { z } from "zod";
 
 export const saveGitLabConnectionBodySchema = z.object({
+  name: z.string().trim().max(80).optional(),
   serverUrl: z.string().min(1).max(2048),
   accessToken: z.string().min(1).max(8192),
+});
+
+export const gitlabConnectionParamsSchema = z.object({
+  connectionId: z.string().uuid(),
 });

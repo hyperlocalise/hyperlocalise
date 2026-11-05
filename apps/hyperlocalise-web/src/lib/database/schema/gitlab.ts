@@ -10,12 +10,24 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { organizations, users } from "./organizations";
 
 /**
- * A workspace's connection to its own GitLab server, shared by everyone in the workspace.
+ * A workspace's connections to GitLab servers, shared by everyone in the workspace. At most one
+ * is marked the default; with none marked, the oldest is. The default serves chat and
+ * automations; a project sync names the one it uses.
  */
 export const gitlabConnections = pgTable(
   "gitlab_connections",
@@ -30,6 +42,9 @@ export const gitlabConnections = pgTable(
     updatedByUserId: uuid("updated_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    /** What people call it; the server's host when empty (connections made before names). */
+    name: text("name"),
+    isDefault: boolean("is_default").notNull().default(false),
     serverUrl: text("server_url").notNull(),
     connectedUsername: text("connected_username").notNull(),
     encryptionAlgorithm: text("encryption_algorithm").notNull(),
@@ -44,5 +59,10 @@ export const gitlabConnections = pgTable(
       .defaultNow()
       .$onUpdateFn(() => new Date()),
   },
-  (table) => [uniqueIndex("gitlab_connections_organization_key").on(table.organizationId)],
+  (table) => [
+    index("idx_gitlab_connections_org").on(table.organizationId),
+    uniqueIndex("gitlab_connections_default_key")
+      .on(table.organizationId)
+      .where(sql`${table.isDefault}`),
+  ],
 );

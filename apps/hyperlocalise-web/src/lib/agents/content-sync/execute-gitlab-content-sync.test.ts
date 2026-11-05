@@ -552,5 +552,19 @@ describe("executeGitLabContentSync", () => {
     );
     const disconnected = await run(undefined);
     expect(isErr(disconnected) && disconnected.error.code).toBe("content_sync_connection_required");
+
+    // A sync names its connection; one that was removed is reported, not replaced by another.
+    mocks.resolveGitLabAccess.mockResolvedValue(
+      err({ code: "gitlab_connection_removed" as const, message: "gone" }),
+    );
+    const removed = await run(undefined);
+    expect(isErr(removed) && removed.error).toMatchObject({
+      code: "content_sync_connection_required",
+      message: expect.stringContaining("removed in Integrations"),
+    });
+    expect(mocks.resolveGitLabAccess).toHaveBeenLastCalledWith({
+      localOrganizationId: expect.any(String),
+      connectionId: undefined,
+    });
   });
 });

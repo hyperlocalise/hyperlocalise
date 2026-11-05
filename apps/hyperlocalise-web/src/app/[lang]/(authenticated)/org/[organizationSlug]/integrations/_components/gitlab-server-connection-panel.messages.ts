@@ -27,6 +27,101 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
     id: "wkxyIAleHa",
     description: "Integration row description for the workspace's GitLab connection",
   },
+  connectionsDescription: {
+    defaultMessage:
+      "{count, plural, one {# connection} other {# connections}}. Chat and automations use {name}.",
+    id: "mQ+9Xns9qF",
+    description:
+      "Integrations row description when the workspace has several GitLab connections; name is the default connection's name",
+  },
+  nameLabel: {
+    defaultMessage: "Name",
+    id: "vcWN5oIVkw",
+    description: "Label for a GitLab connection's name field",
+  },
+  namePlaceholder: {
+    defaultMessage: "for example Website repositories",
+    id: "afHUN4SiZD",
+    description: "Placeholder for a GitLab connection's name field",
+  },
+  nameHint: {
+    defaultMessage: "Shown wherever a project picks a connection to sync with.",
+    id: "9OjG8oVPqZ",
+    description: "Hint under a GitLab connection's name field",
+  },
+  addConnection: {
+    defaultMessage: "Add connection",
+    id: "k1OeGxmTdJ",
+    description: "Button that opens the form for another GitLab connection",
+  },
+  addIntro: {
+    defaultMessage:
+      "A project can sync with any of these connections; chat and automations use the default one. Add one with a token scoped to the repositories it should reach.",
+    id: "cu5L6vnd2u",
+    description: "Explains why a workspace might add a second GitLab connection",
+  },
+  change: {
+    defaultMessage: "Change",
+    id: "i1Z46jIiYF",
+    description: "Button that opens the form to change one GitLab connection",
+  },
+  makeDefault: {
+    defaultMessage: "Use for chat and automations",
+    id: "BBsS8wxmqc",
+    description: "Button that marks one GitLab connection as the workspace's default",
+  },
+  defaultBadge: {
+    defaultMessage: "Default",
+    id: "16jzdfV84U",
+    description: "Badge on the GitLab connection that chat and automations use",
+  },
+  defaultSaved: {
+    defaultMessage: "Chat and automations now use {name}.",
+    id: "LQPCUXFTmO",
+    description: "Toast after marking a GitLab connection as the default",
+  },
+  defaultFailed: {
+    defaultMessage: "Unable to change the default GitLab connection.",
+    id: "y1usr5qWfu",
+    description: "Toast when marking a GitLab connection as the default fails",
+  },
+  usedBySyncs: {
+    defaultMessage: "Used by {count, plural, one {# project sync} other {# project syncs}}.",
+    id: "yJtQmL9RYq",
+    description: "How many project syncs run with a GitLab connection",
+  },
+  remove: {
+    defaultMessage: "Remove",
+    id: "CEvOadGE6K",
+    description: "Button that starts removing one GitLab connection",
+  },
+  removeConfirm: {
+    defaultMessage:
+      "Removing this connection affects everyone in the workspace. {count, plural, =0 {} one {# project sync uses it and will stop until it is given another connection.} other {# project syncs use it and will stop until they are given another connection.}}",
+    id: "HxWOvKpnhC",
+    description:
+      "Asks for confirmation before removing a GitLab connection, with how many project syncs use it",
+  },
+  removeNow: {
+    defaultMessage: "Remove connection",
+    id: "GqszOf+J5n",
+    description: "Button that removes a GitLab connection after confirmation",
+  },
+  removing: {
+    defaultMessage: "Removing…",
+    id: "r2eGswphgY",
+    description: "Button text while a GitLab connection is being removed",
+  },
+  removed: {
+    defaultMessage: "GitLab connection removed.",
+    id: "/ayzi+h3Zt",
+    description: "Toast after a GitLab connection is removed",
+  },
+  removeFailed: {
+    defaultMessage: "Unable to remove the GitLab connection.",
+    id: "33J0ngE9lx",
+    description: "Toast when removing a GitLab connection fails",
+  },
   connectedDescription: {
     defaultMessage: "Connected to {serverUrl} as {username}.",
     id: "TYbrzdSaf3",
@@ -59,14 +154,14 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
   },
   intro: {
     defaultMessage:
-      "While connected, everyone in this workspace uses this token's projects, in chat, automations and syncs, and can reach whatever it can reach. Members' own GitLab.com sign-ins are not used.",
-    id: "3pYg4s3MFm",
+      "Everyone in this workspace uses these connections' projects: chat and automations use the default one, and each project's sync picks one. Each reaches whatever its token can reach. Members' own GitLab.com sign-ins are not used while any exist.",
+    id: "8XlU68Tzsj",
     description: "Explains the effect of connecting GitLab for the workspace",
   },
   replaceWarning: {
     defaultMessage:
-      "Automations name a project by its path, so replacing or removing this connection points them at the new connection, or back at members' own GitLab.com sign-ins. Chats stop using projects from the old one.",
-    id: "apW26rROTz",
+      "Project syncs that use this connection follow the change. If this is the default, automations name a project by its path, so pointing it at another server moves them too, and chats stop using projects from the old one.",
+    id: "MUf7zMkumb",
     description: "Warning shown before replacing or removing a GitLab server connection",
   },
   hostLabel: {
@@ -137,30 +232,14 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
     description: "Button label while a GitLab server connection is being checked",
   },
   saved: {
-    defaultMessage: "GitLab connected.",
-    id: "VfYe3A3WWH",
+    defaultMessage: "GitLab connection saved.",
+    id: "C0fLYasN09",
     description: "Toast after a GitLab server connection is saved",
   },
   saveFailed: {
     defaultMessage: "Unable to save the GitLab connection.",
     id: "Gz+qUGue0p",
     description: "Toast when saving a GitLab server connection fails without a reason",
-  },
-  disconnect: {
-    defaultMessage: "Disconnect",
-    id: "mm8ESSKJcB",
-    description: "Button that removes the GitLab server connection",
-  },
-  disconnectConfirm: {
-    defaultMessage:
-      "Disconnect for the whole workspace? Project syncs from GitLab stop, automations go back to their authors' own GitLab.com sign-ins, and chats stop using this connection's projects.",
-    id: "+Ix60XIwcI",
-    description: "Question shown before removing the GitLab server connection",
-  },
-  disconnectNow: {
-    defaultMessage: "Disconnect GitLab",
-    id: "u3tN+F7OTN",
-    description: "Button that confirms removing the GitLab server connection",
   },
   cancel: {
     defaultMessage: "Cancel",
@@ -185,20 +264,5 @@ export const gitlabServerConnectionPanelMessages = defineMessages({
     id: "nqiSfq5i+m",
     description:
       "Description of a member's own GitLab.com sign-in row while the workspace has a GitLab connection",
-  },
-  disconnecting: {
-    defaultMessage: "Disconnecting…",
-    id: "omW67FLa2e",
-    description: "Button label while the GitLab server connection is being removed",
-  },
-  disconnected: {
-    defaultMessage: "GitLab disconnected.",
-    id: "xlwTptAKyK",
-    description: "Toast after the GitLab server connection is removed",
-  },
-  disconnectFailed: {
-    defaultMessage: "Unable to disconnect GitLab.",
-    id: "wq3dtDLYEw",
-    description: "Toast when removing the GitLab server connection fails",
   },
 });

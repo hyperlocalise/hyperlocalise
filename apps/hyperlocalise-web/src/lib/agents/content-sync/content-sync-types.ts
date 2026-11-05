@@ -55,6 +55,12 @@ export const contentSyncConfigSchema = z.object({
    * code names a project locale the way the other integrations match them (`fr` for `fr-FR`).
    */
   pathTemplate: z.string().trim().max(512).optional(),
+  /**
+   * GitLab: the workspace connection the sync runs with, chosen in the Sync panel and filled in
+   * when a sync is saved. A sync saved without one (a visual workflow step, or one from before
+   * connections had names) runs with the workspace's default connection.
+   */
+  gitlabConnectionId: z.string().uuid().optional(),
 });
 export type ContentSyncConfig = z.infer<typeof contentSyncConfigSchema>;
 

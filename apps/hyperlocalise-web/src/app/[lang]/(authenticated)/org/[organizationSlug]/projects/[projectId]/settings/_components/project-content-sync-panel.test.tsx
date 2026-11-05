@@ -13,7 +13,7 @@
 // @vitest-environment happy-dom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -128,14 +128,27 @@ const gitlabSync = {
   },
 };
 
-const gitlabConnected = { connected: true, available: true };
+const gitlabConnected = { connected: true, available: true, connectionId: null };
+const webConnection = {
+  id: "11111111-1111-4111-8111-111111111111",
+  name: "Website",
+  serverUrl: "https://git.acme.example",
+  isDefault: true,
+};
+const codeConnection = {
+  id: "22222222-2222-4222-8222-222222222222",
+  name: "Code",
+  serverUrl: "https://gitlab.com",
+  isDefault: false,
+};
 
 function renderPanel(
   input: {
     canManage?: boolean;
     sync?: unknown;
     connections?: unknown[];
-    gitlab?: { connected: boolean; available: boolean };
+    gitlab?: { connected: boolean; available: boolean; connectionId?: string | null };
+    gitlabConnections?: unknown[];
     runs?: unknown[];
   } = {},
 ) {
@@ -152,7 +165,8 @@ function renderPanel(
       connections: input.connections ?? [
         { provider: "github", connectionId: "repo_1", resourceKey: "acme/web", branch: "main" },
       ],
-      gitlab: input.gitlab ?? { connected: false, available: false },
+      gitlab: input.gitlab ?? { connected: false, available: false, connectionId: null },
+      gitlabConnections: input.gitlabConnections ?? [],
     }),
   );
   api.put.mockResolvedValue(jsonResponse(200, { sync: savedSync }));
@@ -429,6 +443,86 @@ describe("ProjectContentSyncPanel", () => {
           },
         },
       });
+    });
+
+    it("offers the workspace's GitLab connections once there are two, lists the chosen one's projects and saves it", async () => {
+      const user = userEvent.setup();
+      renderPanel({
+        sync: gitlabSync,
+        runs: [],
+        connections: [{ provider: "gitlab", connectionId: "42", resourceKey: "acme/app" }],
+        gitlab: { ...gitlabConnected, connectionId: webConnection.id },
+        gitlabConnections: [webConnection, codeConnection],
+      });
+      const picker = await screen.findByRole("combobox", { name: "GitLab connection" });
+      expect(picker).toHaveTextContent("Website");
+      expect(api.getConnections).toHaveBeenLastCalledWith({
+        param: { organizationSlug: "acme", projectId: "project_1" },
+        query: {},
+      });
+
+      // Another connection lists other projects, so the repository is chosen again.
+      api.getConnections.mockResolvedValue(
+        jsonResponse(200, {
+          connections: [{ provider: "gitlab", connectionId: "9", resourceKey: "code/site" }],
+          gitlab: { ...gitlabConnected, connectionId: codeConnection.id },
+          gitlabConnections: [webConnection, codeConnection],
+        }),
+      );
+      await user.click(picker);
+      await user.click(await screen.findByRole("option", { name: "Code" }));
+      await waitFor(() =>
+        expect(api.getConnections).toHaveBeenLastCalledWith({
+          param: { organizationSlug: "acme", projectId: "project_1" },
+          query: { gitlabConnectionId: codeConnection.id },
+        }),
+      );
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+      await user.click(screen.getByRole("combobox", { name: "Repository" }));
+      await user.click(await screen.findByRole("option", { name: "code/site" }));
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1));
+      expect(api.put.mock.calls[0]?.[0]).toMatchObject({
+        json: {
+          syncConfig: {
+            provider: "gitlab",
+            connectionId: "9",
+            resourceKey: "code/site",
+            gitlabConnectionId: codeConnection.id,
+          },
+        },
+      });
+    });
+
+    it("keeps the connection picker away with one connection, and flags a sync whose connection was removed", async () => {
+      renderPanel({
+        sync: gitlabSync,
+        runs: [],
+        connections: [{ provider: "gitlab", connectionId: "42", resourceKey: "acme/app" }],
+        gitlab: { ...gitlabConnected, connectionId: webConnection.id },
+        gitlabConnections: [webConnection],
+      });
+      await screen.findByLabelText("Branch");
+      expect(screen.queryByRole("combobox", { name: "GitLab connection" })).toBeNull();
+      cleanup();
+
+      renderPanel({
+        sync: {
+          ...gitlabSync,
+          syncConfig: { ...gitlabSync.syncConfig, gitlabConnectionId: codeConnection.id },
+        },
+        runs: [],
+        connections: [],
+        gitlab: { connected: true, available: false, connectionId: codeConnection.id },
+        gitlabConnections: [webConnection],
+      });
+      const picker = await screen.findByRole("combobox", { name: "GitLab connection" });
+      expect(picker).toHaveTextContent("Removed connection");
+      expect(
+        screen.getByText(/The GitLab connection this sync used was removed in Integrations/),
+      ).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Sync now" })).toBeDisabled();
     });
 
     it("labels a GitLab run's review link as a merge request", async () => {

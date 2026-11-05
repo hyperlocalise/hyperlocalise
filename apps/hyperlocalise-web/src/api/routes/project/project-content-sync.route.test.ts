@@ -191,7 +191,7 @@ describe("project content sync routes", () => {
     expect(empty.status).toBe(200);
     expect(await empty.json()).toEqual({ contentSync: { sync: null, runs: [] } });
 
-    const connections = await routeFor().connections.$get({ param }, { headers });
+    const connections = await routeFor().connections.$get({ param, query: {} }, { headers });
     expect(await connections.json()).toEqual({
       connections: [
         {
@@ -201,7 +201,8 @@ describe("project content sync routes", () => {
           branch: "main",
         },
       ],
-      gitlab: { connected: false, available: false },
+      gitlab: { connected: false, available: false, connectionId: null },
+      gitlabConnections: [],
     });
 
     const refused = await routeFor().$put({ param, json: syncBody(repository.id) }, { headers });
@@ -285,7 +286,10 @@ describe("project content sync routes", () => {
     expect(write.status).toBe(403);
     const run = await routeFor().runs.$post({ param }, { headers: memberHeaders });
     expect(run.status).toBe(403);
-    const connections = await routeFor().connections.$get({ param }, { headers: memberHeaders });
+    const connections = await routeFor().connections.$get(
+      { param, query: {} },
+      { headers: memberHeaders },
+    );
     expect(connections.status).toBe(403);
     expect(enqueue).not.toHaveBeenCalled();
   });
@@ -415,7 +419,11 @@ describe("project content sync routes", () => {
   });
 
   describe("GitLab", () => {
-    const access = { accessToken: "glpat-test", baseUrl: "https://gitlab.example.test" };
+    const access = {
+      id: "33333333-3333-4333-8333-333333333333",
+      accessToken: "glpat-test",
+      baseUrl: "https://gitlab.example.test",
+    };
 
     function gitlabProject(overrides: Partial<GitLabProject> = {}): GitLabProject {
       return {
@@ -455,7 +463,7 @@ describe("project content sync routes", () => {
       );
       getGitLabProjectMock.mockResolvedValue(ok(gitlabProject()));
 
-      const connections = await routeFor().connections.$get({ param }, { headers });
+      const connections = await routeFor().connections.$get({ param, query: {} }, { headers });
       expect(await connections.json()).toEqual({
         connections: [
           {
@@ -467,7 +475,8 @@ describe("project content sync routes", () => {
           { provider: "gitlab", connectionId: "42", resourceKey: "Acme/App", branch: "main" },
           { provider: "gitlab", connectionId: "7", resourceKey: "acme/zeta", branch: "main" },
         ],
-        gitlab: { connected: true, available: true },
+        gitlab: { connected: true, available: true, connectionId: access.id },
+        gitlabConnections: [],
       });
 
       const saved = await routeFor().$put({ param, json: gitlabBody() }, { headers });
@@ -481,6 +490,8 @@ describe("project content sync routes", () => {
         resourceKey: "Acme/App",
         branch: "release",
         pathTemplate: "{{locale}}.json",
+        // The connection the sync ran with is kept, so a later default change never moves it.
+        gitlabConnectionId: access.id,
       });
       expect(getGitLabProjectMock).toHaveBeenCalledWith({
         ...access,
@@ -502,7 +513,7 @@ describe("project content sync routes", () => {
       );
 
       const connections = await routeFor().connections.$get(
-        { param: paramFor(admin, project.id) },
+        { param: paramFor(admin, project.id), query: {} },
         { headers },
       );
       expect(await connections.json()).toMatchObject({

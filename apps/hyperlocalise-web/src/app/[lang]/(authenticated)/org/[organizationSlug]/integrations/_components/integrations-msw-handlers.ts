@@ -127,6 +127,9 @@ function createIntegrationsGetHandlers({
     http.get("/api/orgs/:organizationSlug/gitlab/connection", () =>
       HttpResponse.json({ gitlabConnection: null }),
     ),
+    http.get("/api/orgs/:organizationSlug/gitlab/connections", () =>
+      HttpResponse.json({ gitlabConnections: [] }),
+    ),
     http.get("/api/orgs/:organizationSlug/pipes/:provider", ({ params }) =>
       HttpResponse.json({
         pipe: {
@@ -261,6 +264,10 @@ export const integrationsLoadingMswHandlers = [
   http.get("/api/orgs/:organizationSlug/gitlab/connection", async () => {
     await delay("infinite");
     return HttpResponse.json({ gitlabConnection: null });
+  }),
+  http.get("/api/orgs/:organizationSlug/gitlab/connections", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ gitlabConnections: [] });
   }),
   http.get("/api/orgs/:organizationSlug/ahrefs-connections", async () => {
     await delay("infinite");

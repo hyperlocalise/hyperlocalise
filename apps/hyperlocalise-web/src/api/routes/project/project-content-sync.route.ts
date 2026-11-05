@@ -37,7 +37,7 @@ import {
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
 import { db, schema } from "@/lib/database/client";
 import { getGitLabProject, listGitLabMembershipProjects } from "@/lib/gitlab/client";
-import { loadGitLabConnectionCredentials } from "@/lib/gitlab/connections";
+import { listGitLabConnections, loadGitLabConnectionCredentials } from "@/lib/gitlab/connections";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import {
   deleteProjectContentSync,
@@ -61,6 +61,21 @@ const RECENT_RUN_LIMIT = 10;
 /** Enough to say which keys went, without sending a whole repository's report per run. */
 const HIDDEN_KEY_FILE_LIMIT = 20;
 const HIDDEN_KEY_LIMIT = 20;
+
+const validateConnectionsQuery = validator("query", (value, c) => {
+  const parsed = z
+    .object({ gitlabConnectionId: z.string().uuid().optional() })
+    .safeParse({ gitlabConnectionId: value.gitlabConnectionId || undefined });
+  if (!parsed.success) {
+    return validationErrorResponse(
+      c,
+      "invalid_content_sync_connections_query",
+      "Invalid GitLab connection",
+      parsed.error.issues,
+    );
+  }
+  return parsed.data;
+});
 
 const validateParams = validator("param", (value, c) => {
   const parsed = projectContentSyncParamsSchema.safeParse(value);
@@ -242,6 +257,11 @@ const GITLAB_UNREACHABLE_ERROR: SyncConnectionError = {
   message: "The workspace's GitLab server couldn't be reached. Try again or check Integrations.",
 };
 
+const GITLAB_CONNECTION_REMOVED_ERROR: SyncConnectionError = {
+  code: "content_sync_gitlab_connection_removed",
+  message: "The chosen GitLab connection no longer exists. Choose another connection.",
+};
+
 type SyncConnectionOption = {
   provider: "github" | "gitlab";
   connectionId: string;
@@ -250,25 +270,44 @@ type SyncConnectionOption = {
   branch: string | null;
 };
 
+type GitLabSyncListing = {
+  /** Whether the workspace has any GitLab connection. */
+  connected: boolean;
+  /** Whether the chosen connection's projects could be read. */
+  available: boolean;
+  /** The connection the projects belong to: the one asked for, else the default. */
+  connectionId: string | null;
+  connections: SyncConnectionOption[];
+};
+
 /**
- * The workspace's GitLab projects; `available` is false when GitLab can't be read. The listing
+ * One GitLab connection's projects; `available` is false when GitLab can't be read. The listing
  * stops at the most recently active few hundred, so a saved project outside them is looked up
  * by its path and added, rather than being called missing.
  */
 async function listGitLabSyncConnections(
   organizationId: string,
+  gitlabConnectionId: string | null,
   saved?: { connectionId: string; resourceKey: string },
-): Promise<{ connected: boolean; available: boolean; connections: SyncConnectionOption[] }> {
-  const access = await loadGitLabConnectionCredentials({ organizationId });
+): Promise<GitLabSyncListing> {
+  const access = await loadGitLabConnectionCredentials({
+    organizationId,
+    connectionId: gitlabConnectionId,
+  });
   if (isErr(access)) {
-    return { connected: true, available: false, connections: [] };
+    return { connected: true, available: false, connectionId: gitlabConnectionId, connections: [] };
   }
   if (!access.value) {
-    return { connected: false, available: false, connections: [] };
+    // A removed connection still counts the workspace as connected when another exists.
+    const connected = gitlabConnectionId
+      ? (await listGitLabConnections({ organizationId })).length > 0
+      : false;
+    return { connected, available: false, connectionId: gitlabConnectionId, connections: [] };
   }
+  const connectionId = access.value.id;
   const projects = await listGitLabMembershipProjects(access.value);
   if (isErr(projects)) {
-    return { connected: true, available: false, connections: [] };
+    return { connected: true, available: false, connectionId, connections: [] };
   }
   const listed = projects.value;
   if (saved && !listed.some((project) => String(project.id) === saved.connectionId)) {
@@ -276,7 +315,7 @@ async function listGitLabSyncConnections(
     if (isErr(found)) {
       if (found.error.code !== "gitlab_not_found") {
         // A slow or failing lookup must not call the saved project missing.
-        return { connected: true, available: false, connections: [] };
+        return { connected: true, available: false, connectionId, connections: [] };
       }
     } else if (String(found.value.id) === saved.connectionId && !found.value.archived) {
       // The same project, outside the most recently active ones the listing stops at.
@@ -286,6 +325,7 @@ async function listGitLabSyncConnections(
   return {
     connected: true,
     available: true,
+    connectionId,
     connections: listed
       .map((project) => ({
         provider: "gitlab" as const,
@@ -337,15 +377,19 @@ async function resolveSyncConnection(input: {
       return ok({ ...github, resourceKey: repository.fullName });
     }
     case "gitlab": {
-      // Syncs run with the workspace's own GitLab server, never a member's GitLab.com sign-in.
+      // Syncs run with one of the workspace's own GitLab connections, never a member's
+      // GitLab.com sign-in: the one chosen, else the default, whose id is then kept.
       const access = await loadGitLabConnectionCredentials({
         organizationId: input.organizationId,
+        connectionId: config.gitlabConnectionId,
       });
       if (isErr(access)) {
         return err(GITLAB_TOKEN_UNREADABLE_ERROR);
       }
       if (!access.value) {
-        return err(GITLAB_NOT_CONNECTED_ERROR);
+        return err(
+          config.gitlabConnectionId ? GITLAB_CONNECTION_REMOVED_ERROR : GITLAB_NOT_CONNECTED_ERROR,
+        );
       }
       // The path is what runs look up; the id proves it still names the project that was chosen.
       const project = await getGitLabProject({
@@ -362,7 +406,11 @@ async function resolveSyncConnection(input: {
       if (String(project.value.id) !== config.connectionId || project.value.archived) {
         return err(GITLAB_PROJECT_NOT_FOUND_ERROR);
       }
-      return ok({ ...config, resourceKey: project.value.pathWithNamespace });
+      return ok({
+        ...config,
+        resourceKey: project.value.pathWithNamespace,
+        gitlabConnectionId: access.value.id,
+      });
     }
     default:
       return err({
@@ -420,7 +468,7 @@ export function createProjectContentSyncRoutes(
         200,
       );
     })
-    .get("/connections", validateParams, async (c) => {
+    .get("/connections", validateParams, validateConnectionsQuery, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
         return projectForbiddenResponse(c);
       }
@@ -451,10 +499,21 @@ export function createProjectContentSyncRoutes(
         organizationId: resolved.project.organizationId,
         projectId: resolved.project.id,
       });
-      const gitlab = await listGitLabSyncConnections(
-        resolved.project.organizationId,
-        savedGitLabProject(saved),
-      );
+      // The projects of the connection asked for, else the saved sync's, else the default.
+      const savedConnectionId =
+        saved?.syncConfig.provider === "gitlab" &&
+        typeof saved.syncConfig.gitlabConnectionId === "string"
+          ? saved.syncConfig.gitlabConnectionId
+          : null;
+      const askedConnectionId = c.req.valid("query").gitlabConnectionId ?? savedConnectionId;
+      const [gitlab, gitlabConnections] = await Promise.all([
+        listGitLabSyncConnections(
+          resolved.project.organizationId,
+          askedConnectionId,
+          savedGitLabProject(saved),
+        ),
+        listGitLabConnections({ organizationId: resolved.project.organizationId }),
+      ]);
 
       const connections: SyncConnectionOption[] = [
         ...repositories.map((repository) => ({
@@ -468,7 +527,17 @@ export function createProjectContentSyncRoutes(
       return c.json(
         {
           connections,
-          gitlab: { connected: gitlab.connected, available: gitlab.available },
+          gitlab: {
+            connected: gitlab.connected,
+            available: gitlab.available,
+            connectionId: gitlab.connectionId,
+          },
+          gitlabConnections: gitlabConnections.map((connection) => ({
+            id: connection.id,
+            name: connection.name,
+            serverUrl: connection.serverUrl,
+            isDefault: connection.isDefault,
+          })),
         },
         200,
       );

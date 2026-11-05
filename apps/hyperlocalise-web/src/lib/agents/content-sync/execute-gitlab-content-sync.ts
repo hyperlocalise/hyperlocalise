@@ -131,14 +131,19 @@ export async function executeGitLabContentSync(input: {
   let reader = input.reader;
   let writer = input.writer;
   if (!reader) {
-    const access = await resolveGitLabAccess({ localOrganizationId: input.organizationId });
+    const access = await resolveGitLabAccess({
+      localOrganizationId: input.organizationId,
+      connectionId: input.syncConfig.gitlabConnectionId,
+    });
     if (isErr(access)) {
       return err({
         code: "content_sync_connection_required",
         message:
           access.error.code === "gitlab_connection_decrypt_failed"
-            ? "The workspace's saved GitLab token can't be read. Save the connection again in Integrations."
-            : "Connect GitLab in Integrations before syncing.",
+            ? "The sync's saved GitLab token can't be read. Save the connection again in Integrations."
+            : access.error.code === "gitlab_connection_removed"
+              ? "The GitLab connection this sync uses was removed in Integrations. Choose another connection in the project's Sync settings."
+              : "Connect GitLab in Integrations before syncing.",
       });
     }
     // The saved path is looked up on the workspace's current server; the id proves it's still

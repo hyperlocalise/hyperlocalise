@@ -13,12 +13,13 @@
  * Version 2.0 or later.
  */
 import { useId, useState } from "react";
-import { EyeIcon, EyeSlashIcon, FloppyDiskIcon } from "@phosphor-icons/react";
+import { EyeIcon, EyeSlashIcon, FloppyDiskIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { siGitlab } from "simple-icons";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -35,15 +36,81 @@ import { readApiError } from "@/lib/api-error";
 import { gitlabServerConnectionPanelMessages as messages } from "./gitlab-server-connection-panel.messages";
 import { CollapsibleIntegrationRow } from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
-import { useGitLabServerConnection } from "./use-gitlab-server-connection";
+import { gitlabConnectionsQueryKey, useGitLabConnections } from "./use-gitlab-server-connection";
 
 const api = createApiClient();
 const GITLAB_COM_SERVER_URL = "https://gitlab.com";
 
 type GitLabHost = "gitlab.com" | "server";
 
+type GitLabConnection = NonNullable<ReturnType<typeof useGitLabConnections>["data"]>[number];
+
+/** The form is open to add a connection, or to change one. */
+type Editing = { mode: "add" } | { mode: "change"; connection: GitLabConnection };
+
 function hostOf(serverUrl: string | null | undefined): GitLabHost {
   return !serverUrl || serverUrl === GITLAB_COM_SERVER_URL ? "gitlab.com" : "server";
+}
+
+function checkQueryKey(organizationSlug: string, connection: GitLabConnection) {
+  return ["gitlab", organizationSlug, "connection-check", connection.id, connection.updatedAt];
+}
+
+/**
+ * One connection's live check. Asked when the row opens, because a token can stop working at
+ * any time after it was saved; kept while the row stays open and dropped when it closes.
+ */
+function ConnectionStatus({
+  organizationSlug,
+  connection,
+  expanded,
+}: {
+  organizationSlug: string;
+  connection: GitLabConnection;
+  expanded: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const checkQuery = useQuery({
+    queryKey: checkQueryKey(organizationSlug, connection),
+    enabled: expanded,
+    staleTime: Number.POSITIVE_INFINITY,
+    queryFn: async ({ signal }) => {
+      const response = await api.api.orgs[":organizationSlug"].gitlab.connections[
+        ":connectionId"
+      ].check.$get(
+        { param: { organizationSlug, connectionId: connection.id } },
+        { init: { signal } },
+      );
+      if (response.status === 404) {
+        // Removed elsewhere since this page loaded.
+        await queryClient.invalidateQueries({
+          queryKey: gitlabConnectionsQueryKey(organizationSlug),
+        });
+        return null;
+      }
+      if (!response.ok) {
+        throw new Error("gitlab_connection_check_failed");
+      }
+      return response.json();
+    },
+  });
+  const result = checkQuery.data;
+  return (
+    <p className="text-xs text-muted-foreground" role="status">
+      {checkQuery.isFetching ? (
+        <FormattedMessage {...messages.checking} />
+      ) : checkQuery.isError ? (
+        <FormattedMessage {...messages.checkUnavailable} />
+      ) : result?.working === false ? (
+        <FormattedMessage {...messages.checkFailed} values={{ reason: result.message }} />
+      ) : result?.working ? (
+        <FormattedMessage
+          {...messages.checkPassed}
+          values={{ suffix: connection.maskedTokenSuffix }}
+        />
+      ) : null}
+    </p>
+  );
 }
 
 export function GitLabServerConnectionPanel({
@@ -57,19 +124,24 @@ export function GitLabServerConnectionPanel({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const nameFieldId = useId();
   const hostFieldId = useId();
   const serverUrlFieldId = useId();
   const tokenFieldId = useId();
   const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState<Editing | null>(null);
+  const [name, setName] = useState<string | null>(null);
   const [hostChoice, setHostChoice] = useState<GitLabHost | null>(null);
   const [serverUrl, setServerUrl] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState("");
   const [showToken, setShowToken] = useState(false);
-  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
+  const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null);
   const userCanManage = !disabled;
-  // Exact, so an open row's live check isn't run again under the connection's old save time.
+  const listKey = gitlabConnectionsQueryKey(organizationSlug);
+  // The default is what the rest of the app reads as "the" connection.
   const refreshGitLabQueries = () =>
     Promise.all([
+      queryClient.invalidateQueries({ queryKey: listKey, exact: true }),
       queryClient.invalidateQueries({
         queryKey: ["gitlab", organizationSlug, "connection"],
         exact: true,
@@ -78,65 +150,49 @@ export function GitLabServerConnectionPanel({
       queryClient.invalidateQueries({ queryKey: ["chat-repositories", organizationSlug] }),
     ]);
 
-  const connectionQuery = useGitLabServerConnection(organizationSlug);
-  const connection = connectionQuery.data ?? null;
+  const connectionsQuery = useGitLabConnections(organizationSlug);
+  const connections = connectionsQuery.data ?? [];
+  const defaultConnection = connections[0] ?? null;
   const hostItems: { value: GitLabHost; label: string }[] = [
     { value: "gitlab.com", label: intl.formatMessage(messages.hostGitLabCom) },
     { value: "server", label: intl.formatMessage(messages.hostServer) },
   ];
 
-  // Asked when the row opens, because a token can stop working at any time after it was saved.
-  // The answer is kept while the row stays open and dropped when it closes.
-  const checkQueryKey = ["gitlab", organizationSlug, "connection", "check", connection?.updatedAt];
-  const checkQuery = useQuery({
-    queryKey: checkQueryKey,
-    enabled: expanded && connection !== null,
-    staleTime: Number.POSITIVE_INFINITY,
-    queryFn: async ({ signal }) => {
-      const response = await api.api.orgs[":organizationSlug"].gitlab.connection.check.$get(
-        { param: { organizationSlug } },
-        { init: { signal } },
-      );
-      if (response.status === 404) {
-        // Removed elsewhere since this page loaded.
-        await queryClient.invalidateQueries({
-          queryKey: ["gitlab", organizationSlug, "connection"],
-          exact: true,
-        });
-        return null;
-      }
-      if (!response.ok) {
-        throw new Error("gitlab_connection_check_failed");
-      }
-      return response.json();
-    },
-  });
-
-  const changeExpanded = (open: boolean) => {
-    setExpanded(open);
-    if (!open) {
-      setConfirmingDisconnect(false);
-      // Stops a check still waiting on the server; its answer would be thrown away anyway.
-      void queryClient.cancelQueries({
-        queryKey: ["gitlab", organizationSlug, "connection", "check"],
-      });
-      queryClient.removeQueries({ queryKey: ["gitlab", organizationSlug, "connection", "check"] });
-    }
-  };
-
   const clearForm = () => {
+    setEditing(null);
+    setName(null);
     setHostChoice(null);
     setServerUrl(null);
     setAccessToken("");
     setShowToken(false);
   };
 
-  const save = useMutation({
-    mutationFn: async (json: { serverUrl: string; accessToken: string }) => {
-      const response = await api.api.orgs[":organizationSlug"].gitlab.connection.$put({
-        param: { organizationSlug },
-        json,
+  const changeExpanded = (open: boolean) => {
+    setExpanded(open);
+    if (!open) {
+      setConfirmingRemove(null);
+      // Stops checks still waiting on the servers; their answers would be thrown away anyway.
+      void queryClient.cancelQueries({
+        queryKey: ["gitlab", organizationSlug, "connection-check"],
       });
+      queryClient.removeQueries({ queryKey: ["gitlab", organizationSlug, "connection-check"] });
+    }
+  };
+
+  const save = useMutation({
+    mutationFn: async (input: {
+      connectionId: string | null;
+      json: { name: string; serverUrl: string; accessToken: string };
+    }) => {
+      const response = input.connectionId
+        ? await api.api.orgs[":organizationSlug"].gitlab.connections[":connectionId"].$put({
+            param: { organizationSlug, connectionId: input.connectionId },
+            json: input.json,
+          })
+        : await api.api.orgs[":organizationSlug"].gitlab.connections.$post({
+            param: { organizationSlug },
+            json: input.json,
+          });
       if (!response.ok) {
         throw new Error(await readApiError(response, intl.formatMessage(messages.saveFailed)));
       }
@@ -144,16 +200,11 @@ export function GitLabServerConnectionPanel({
       return "gitlabConnection" in body ? body.gitlabConnection : null;
     },
     onSuccess: async (saved) => {
-      // The row shows the saved connection at once, rather than an empty form for a request.
-      queryClient.setQueryData(["gitlab", organizationSlug, "connection"], saved ?? null);
       clearForm();
-      setConfirmingDisconnect(false);
+      setConfirmingRemove(null);
       // Saving has just checked the connection, so the open row needn't check it again.
       if (saved) {
-        queryClient.setQueryData(
-          ["gitlab", organizationSlug, "connection", "check", saved.updatedAt],
-          { working: true },
-        );
+        queryClient.setQueryData(checkQueryKey(organizationSlug, saved), { working: true });
       }
       await refreshGitLabQueries();
       toast.success(intl.formatMessage(messages.saved));
@@ -163,95 +214,269 @@ export function GitLabServerConnectionPanel({
     },
   });
 
-  const disconnect = useMutation({
-    mutationFn: async () => {
-      const response = await api.api.orgs[":organizationSlug"].gitlab.connection.$delete({
-        param: { organizationSlug },
-      });
-      // Already removed elsewhere since this page loaded: the outcome is the same.
-      if (!response.ok && response.status !== 404) {
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.disconnectFailed)),
-        );
+  const makeDefault = useMutation({
+    mutationFn: async (connection: GitLabConnection) => {
+      const response = await api.api.orgs[":organizationSlug"].gitlab.connections[
+        ":connectionId"
+      ].default.$post({ param: { organizationSlug, connectionId: connection.id } });
+      if (!response.ok) {
+        throw new Error(await readApiError(response, intl.formatMessage(messages.defaultFailed)));
       }
+      return connection;
     },
-    onSuccess: async () => {
-      clearForm();
-      changeExpanded(false);
+    onSuccess: async (connection) => {
       await refreshGitLabQueries();
-      toast.success(intl.formatMessage(messages.disconnected));
+      toast.success(intl.formatMessage(messages.defaultSaved, { name: connection.name }));
     },
     onError: (error) => {
       toast.error(
-        error instanceof Error ? error.message : intl.formatMessage(messages.disconnectFailed),
+        error instanceof Error ? error.message : intl.formatMessage(messages.defaultFailed),
       );
     },
   });
 
+  const remove = useMutation({
+    mutationFn: async (connection: GitLabConnection) => {
+      const response = await api.api.orgs[":organizationSlug"].gitlab.connections[
+        ":connectionId"
+      ].$delete({ param: { organizationSlug, connectionId: connection.id } });
+      // Already removed elsewhere since this page loaded: the outcome is the same.
+      if (!response.ok && response.status !== 404) {
+        throw new Error(await readApiError(response, intl.formatMessage(messages.removeFailed)));
+      }
+    },
+    onSuccess: async () => {
+      setConfirmingRemove(null);
+      if (editing?.mode === "change") {
+        clearForm();
+      }
+      await refreshGitLabQueries();
+      toast.success(intl.formatMessage(messages.removed));
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.removeFailed),
+      );
+    },
+  });
+
+  const startChange = (connection: GitLabConnection) => {
+    setEditing({ mode: "change", connection });
+    setName(null);
+    setHostChoice(null);
+    setServerUrl(null);
+    setAccessToken("");
+    setShowToken(false);
+    setConfirmingRemove(null);
+  };
+
   // GitLab.com or a company's own server is an explicit choice, so a company token is never
   // sent to GitLab.com because an address was left as it was.
   // No host is assumed for a new connection: a token typed before the choice goes nowhere.
-  const savedHost = connection ? hostOf(connection.serverUrl) : null;
+  const changing = editing?.mode === "change" ? editing.connection : null;
+  const savedHost = changing ? hostOf(changing.serverUrl) : null;
   const host = hostChoice ?? savedHost;
-  const savedServerUrl =
-    connection && hostOf(connection.serverUrl) === "server" ? connection.serverUrl : "";
+  const savedServerUrl = changing && savedHost === "server" ? changing.serverUrl : "";
   const serverUrlValue = serverUrl ?? savedServerUrl;
+  const nameValue = name ?? changing?.name ?? "";
   const serverUrlToSave =
     host === "gitlab.com" ? GITLAB_COM_SERVER_URL : host === "server" ? serverUrlValue.trim() : "";
-  const busy = save.isPending || disconnect.isPending;
-  // A failed load can't say whether a connection exists, so saving could overwrite one unwarned.
-  const showForm = userCanManage && !connectionQuery.isError;
+  const busy = save.isPending || makeDefault.isPending || remove.isPending;
+  // A failed load can't say what exists, so saving could overwrite a connection unwarned.
+  const canEdit = userCanManage && !connectionsQuery.isError;
+  const showForm = canEdit && editing !== null;
   const canSave =
     userCanManage && !busy && serverUrlToSave.length > 0 && accessToken.trim().length > 0;
-  const checkResult = checkQuery.data;
 
   return (
     <CollapsibleIntegrationRow
       name={intl.formatMessage(messages.name)}
       description={
-        connectionQuery.isError
+        connectionsQuery.isError
           ? intl.formatMessage(messages.loadError)
-          : connection
-            ? intl.formatMessage(messages.connectedDescription, {
-                serverUrl: connection.serverUrl,
-                username: connection.connectedUsername,
+          : connections.length > 1 && defaultConnection
+            ? intl.formatMessage(messages.connectionsDescription, {
+                count: connections.length,
+                name: defaultConnection.name,
               })
-            : intl.formatMessage(messages.description)
+            : defaultConnection
+              ? intl.formatMessage(messages.connectedDescription, {
+                  serverUrl: defaultConnection.serverUrl,
+                  username: defaultConnection.connectedUsername,
+                })
+              : intl.formatMessage(messages.description)
       }
-      icon={<SimpleBrandIcon icon={siGitlab} colored={connection !== null} />}
-      isConnected={connection !== null}
+      icon={<SimpleBrandIcon icon={siGitlab} colored={defaultConnection !== null} />}
+      isConnected={defaultConnection !== null}
       userIsAdmin={userCanManage}
       expanded={expanded}
       onExpandedChange={changeExpanded}
-      isLoading={connectionQuery.isLoading}
+      isLoading={connectionsQuery.isLoading}
       isLast={isLast}
     >
       <div className="grid gap-3">
-        {connectionQuery.isError ? null : connection ? (
-          <p className="text-xs text-muted-foreground" role="status">
-            {checkQuery.isFetching ? (
-              <FormattedMessage {...messages.checking} />
-            ) : checkQuery.isError ? (
-              <FormattedMessage {...messages.checkUnavailable} />
-            ) : checkResult?.working === false ? (
-              <FormattedMessage
-                {...messages.checkFailed}
-                values={{ reason: checkResult.message }}
-              />
-            ) : checkResult?.working ? (
-              <FormattedMessage
-                {...messages.checkPassed}
-                values={{ suffix: connection.maskedTokenSuffix }}
-              />
-            ) : null}
-          </p>
-        ) : (
+        {connectionsQuery.isError ? null : connections.length === 0 ? (
           <p className="text-sm leading-6 text-muted-foreground">
             <FormattedMessage {...messages.intro} />
           </p>
+        ) : (
+          <ul className="grid gap-2">
+            {connections.map((connection) => (
+              <li
+                key={connection.id}
+                className="grid gap-1 rounded-md border border-border bg-background p-3"
+                aria-label={connection.name}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium">{connection.name}</span>
+                  {connection.isDefault ? (
+                    <Badge variant="secondary">
+                      <FormattedMessage {...messages.defaultBadge} />
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  <FormattedMessage
+                    {...messages.connectedDescription}
+                    values={{
+                      serverUrl: connection.serverUrl,
+                      username: connection.connectedUsername,
+                    }}
+                  />{" "}
+                  {connection.syncCount > 0 ? (
+                    <FormattedMessage
+                      {...messages.usedBySyncs}
+                      values={{ count: connection.syncCount }}
+                    />
+                  ) : null}
+                </p>
+                <ConnectionStatus
+                  organizationSlug={organizationSlug}
+                  connection={connection}
+                  expanded={expanded}
+                />
+                {canEdit ? (
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {confirmingRemove === connection.id ? (
+                      <>
+                        <p className="basis-full text-end text-xs text-muted-foreground">
+                          <FormattedMessage
+                            {...messages.removeConfirm}
+                            values={{ count: connection.syncCount }}
+                          />
+                        </p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => setConfirmingRemove(null)}
+                        >
+                          <FormattedMessage {...messages.cancel} />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => remove.mutate(connection)}
+                        >
+                          <FormattedMessage
+                            {...(remove.isPending ? messages.removing : messages.removeNow)}
+                          />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        {connection.isDefault ? null : (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => makeDefault.mutate(connection)}
+                          >
+                            <FormattedMessage {...messages.makeDefault} />
+                          </Button>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => startChange(connection)}
+                        >
+                          <FormattedMessage {...messages.change} />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => setConfirmingRemove(connection.id)}
+                        >
+                          <FormattedMessage {...messages.remove} />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
         )}
+        {canEdit && editing === null ? (
+          <div className="grid gap-2">
+            {connections.length > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                <FormattedMessage {...messages.addIntro} />
+              </p>
+            ) : null}
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant={connections.length > 0 ? "outline" : "default"}
+                size="sm"
+                disabled={busy}
+                onClick={() => setEditing({ mode: "add" })}
+              >
+                <PlusIcon />
+                <FormattedMessage {...messages.addConnection} />
+              </Button>
+            </div>
+          </div>
+        ) : null}
         {showForm ? (
-          <>
+          <form
+            className="grid gap-3 rounded-md border border-border p-3"
+            aria-label={intl.formatMessage(changing ? messages.change : messages.addConnection)}
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (canSave) {
+                save.mutate({
+                  connectionId: changing?.id ?? null,
+                  json: { name: nameValue.trim(), serverUrl: serverUrlToSave, accessToken },
+                });
+              }
+            }}
+          >
+            <Field>
+              <FieldLabel htmlFor={nameFieldId}>
+                <FormattedMessage {...messages.nameLabel} />
+              </FieldLabel>
+              <Input
+                id={nameFieldId}
+                autoComplete="off"
+                maxLength={80}
+                placeholder={intl.formatMessage(messages.namePlaceholder)}
+                value={nameValue}
+                disabled={busy}
+                onChange={(event) => setName(event.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                <FormattedMessage {...messages.nameHint} />
+              </p>
+            </Field>
             <Field>
               <FieldLabel htmlFor={hostFieldId}>
                 <FormattedMessage {...messages.hostLabel} />
@@ -323,7 +548,7 @@ export function GitLabServerConnectionPanel({
               {host ? (
                 <p className="text-xs text-muted-foreground">
                   <FormattedMessage
-                    {...(connection && host === savedHost
+                    {...(changing && host === savedHost
                       ? messages.tokenReplaceHint
                       : host === "server"
                         ? messages.tokenHint
@@ -332,56 +557,21 @@ export function GitLabServerConnectionPanel({
                 </p>
               ) : null}
             </Field>
-            {connection ? (
+            {changing ? (
               <p className="text-xs text-muted-foreground">
                 <FormattedMessage {...messages.replaceWarning} />
               </p>
             ) : null}
             <div className="flex flex-wrap justify-end gap-2">
-              {connection && confirmingDisconnect ? (
-                <>
-                  <p className="basis-full text-end text-xs text-muted-foreground">
-                    <FormattedMessage {...messages.disconnectConfirm} />
-                  </p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    disabled={busy}
-                    onClick={() => setConfirmingDisconnect(false)}
-                  >
-                    <FormattedMessage {...messages.cancel} />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    disabled={busy}
-                    onClick={() => disconnect.mutate()}
-                  >
-                    <FormattedMessage
-                      {...(disconnect.isPending ? messages.disconnecting : messages.disconnectNow)}
-                    />
-                  </Button>
-                </>
-              ) : connection ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={busy}
-                  onClick={() => setConfirmingDisconnect(true)}
-                >
-                  <FormattedMessage {...messages.disconnect} />
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                disabled={!canSave}
-                onClick={() => save.mutate({ serverUrl: serverUrlToSave, accessToken })}
-              >
+              <Button type="button" variant="ghost" disabled={busy} onClick={clearForm}>
+                <FormattedMessage {...messages.cancel} />
+              </Button>
+              <Button type="submit" disabled={!canSave}>
                 <FloppyDiskIcon />
                 <FormattedMessage {...(save.isPending ? messages.saving : messages.save)} />
               </Button>
             </div>
-          </>
+          </form>
         ) : null}
       </div>
     </CollapsibleIntegrationRow>

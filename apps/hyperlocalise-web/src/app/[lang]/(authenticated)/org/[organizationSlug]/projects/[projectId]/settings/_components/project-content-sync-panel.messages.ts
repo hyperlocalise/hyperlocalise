@@ -422,6 +422,29 @@ export const projectContentSyncPanelMessages = defineMessages({
     id: "mYbmbB/GF/",
     description: "Shown in the project Sync panel when the GitLab connection lists no repositories",
   },
+  gitlabConnectionLabel: {
+    defaultMessage: "GitLab connection",
+    id: "m19bKnw7GV",
+    description: "Label for the picker of which workspace GitLab connection a project sync uses",
+  },
+  gitlabConnectionHelp: {
+    defaultMessage:
+      "Which of the workspace's GitLab connections this sync runs with. Chat and automations use the default one.",
+    id: "6N5DoenBFR",
+    description: "Help under the GitLab connection picker in the project Sync panel",
+  },
+  gitlabConnectionRemoved: {
+    defaultMessage: "Removed connection",
+    id: "/w3K1Pwx24",
+    description: "Picker entry for a GitLab connection a sync names that no longer exists",
+  },
+  errorGitLabConnectionRemoved: {
+    defaultMessage:
+      "The GitLab connection this sync used was removed in Integrations. Choose another connection.",
+    id: "rc9mIgg+S4",
+    description:
+      "Shown in the project Sync panel when the sync's GitLab connection no longer exists",
+  },
   gitlabUnavailable: {
     defaultMessage: "Unable to list the GitLab repositories. Check the connection in Integrations.",
     id: "wfI6r/Q+hm",

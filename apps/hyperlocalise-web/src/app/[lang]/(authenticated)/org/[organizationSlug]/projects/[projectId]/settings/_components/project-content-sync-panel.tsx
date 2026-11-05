@@ -93,6 +93,8 @@ type SyncDraft = {
   branch: string;
   /** GitLab only. */
   pathTemplate: string;
+  /** GitLab only: the workspace connection to run with; empty means the default one. */
+  gitlabConnectionId: string;
   schedule: SyncSchedule;
 };
 
@@ -113,6 +115,7 @@ const EMPTY_DRAFT: SyncDraft = {
   projectFolder: "",
   branch: "",
   pathTemplate: "",
+  gitlabConnectionId: "",
   schedule: "manual",
 };
 
@@ -135,6 +138,7 @@ const requestErrorMessages: Record<string, PanelMessage> = {
   content_sync_gitlab_token_unreadable: messages.errorGitLabTokenUnreadable,
   content_sync_gitlab_project_not_found: messages.errorGitLabProjectNotFound,
   content_sync_gitlab_unavailable: messages.errorGitLabUnavailable,
+  content_sync_gitlab_connection_removed: messages.errorGitLabConnectionRemoved,
 };
 
 /** Messages for the error codes a finished run records; others show the stored text. */
@@ -172,10 +176,19 @@ function projectContentSyncQueryKey(organizationSlug: string, projectId: string)
   return ["project-content-sync", organizationSlug, projectId];
 }
 
+function serverHost(serverUrl: string) {
+  try {
+    return new URL(serverUrl).host;
+  } catch {
+    return serverUrl;
+  }
+}
+
 function draftsEqual(a: SyncDraft, b: SyncDraft) {
   return (
     a.provider === b.provider &&
     a.connectionId === b.connectionId &&
+    a.gitlabConnectionId === b.gitlabConnectionId &&
     a.branch.trim() === b.branch.trim() &&
     a.pathTemplate.trim() === b.pathTemplate.trim() &&
     a.providerFolder.trim() === b.providerFolder.trim() &&
@@ -257,20 +270,6 @@ export function ProjectContentSyncPanel({
   if (active && !shown) {
     setShown(true);
   }
-  const connectionsQuery = useQuery({
-    queryKey: [...queryKey, "connections"],
-    enabled: canManage && shown,
-    queryFn: async () => {
-      const response = await contentSyncRoute().connections.$get({ param });
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(messages.loadConnectionsError));
-      }
-      return await response.json();
-    },
-    // Picks up a repository enabled in Integrations in another tab.
-    refetchOnWindowFocus: active,
-  });
-
   const saved = syncQuery.data?.sync ?? null;
   const savedDraft: SyncDraft | null = saved?.syncConfig
     ? {
@@ -281,15 +280,62 @@ export function ProjectContentSyncPanel({
         projectFolder: saved.syncConfig.projectFolder,
         branch: saved.syncConfig.branch ?? "",
         pathTemplate: saved.syncConfig.pathTemplate ?? "",
+        gitlabConnectionId: saved.syncConfig.gitlabConnectionId ?? "",
         schedule: saved.schedule,
       }
     : null;
-  const connections = connectionsQuery.data?.connections ?? [];
-  const gitlab = connectionsQuery.data?.gitlab ?? { connected: false, available: false };
   const baseDraft = savedDraft ?? EMPTY_DRAFT;
   const values: SyncDraft = edits ?? baseDraft;
   const dirty = edits !== null && !draftsEqual(edits, baseDraft);
   const isGitLab = values.provider === "gitlab";
+  // The GitLab projects listed are the chosen connection's; empty asks for the saved sync's,
+  // else the default's.
+  const chosenGitLabConnectionId = values.gitlabConnectionId || null;
+  const connectionsQuery = useQuery({
+    queryKey: [...queryKey, "connections", chosenGitLabConnectionId],
+    enabled: canManage && shown,
+    queryFn: async () => {
+      const response = await contentSyncRoute().connections.$get({
+        param,
+        query: chosenGitLabConnectionId ? { gitlabConnectionId: chosenGitLabConnectionId } : {},
+      });
+      if (!response.ok) {
+        throw new Error(intl.formatMessage(messages.loadConnectionsError));
+      }
+      return await response.json();
+    },
+    // Picks up a repository enabled in Integrations in another tab.
+    refetchOnWindowFocus: active,
+  });
+  const connections = connectionsQuery.data?.connections ?? [];
+  const gitlab = connectionsQuery.data?.gitlab ?? {
+    connected: false,
+    available: false,
+    connectionId: null,
+  };
+  const gitlabConnections = connectionsQuery.data?.gitlabConnections ?? [];
+  // The connection the listed projects belong to, shown as the picker's value.
+  const effectiveGitLabConnectionId = chosenGitLabConnectionId ?? gitlab.connectionId ?? "";
+  const gitlabConnectionItems = gitlabConnections.map((connection) => ({
+    value: connection.id,
+    label: connection.serverUrl.includes("gitlab.com")
+      ? connection.name
+      : `${connection.name} (${serverHost(connection.serverUrl)})`,
+  }));
+  // A sync whose connection was removed still names it, so the picker can say so.
+  const gitlabConnectionRemoved =
+    isGitLab &&
+    connectionsQuery.isSuccess &&
+    Boolean(values.gitlabConnectionId) &&
+    !gitlabConnections.some((connection) => connection.id === values.gitlabConnectionId);
+  if (gitlabConnectionRemoved && values.gitlabConnectionId) {
+    gitlabConnectionItems.unshift({
+      value: values.gitlabConnectionId,
+      label: intl.formatMessage(messages.gitlabConnectionRemoved),
+    });
+  }
+  const showGitLabConnectionPicker =
+    isGitLab && canManage && (gitlabConnections.length > 1 || gitlabConnectionRemoved);
   const providerConnections = connections.filter(
     (connection) => connection.provider === values.provider,
   );
@@ -347,6 +393,9 @@ export function ProjectContentSyncPanel({
               ? {
                   ...(draft.branch.trim() ? { branch: draft.branch.trim() } : {}),
                   pathTemplate: draft.pathTemplate.trim(),
+                  ...(draft.gitlabConnectionId
+                    ? { gitlabConnectionId: draft.gitlabConnectionId }
+                    : {}),
                 }
               : {}),
           },
@@ -444,6 +493,20 @@ export function ProjectContentSyncPanel({
       provider,
       connectionId: "",
       resourceKey: "",
+      gitlabConnectionId: "",
+      projectFolder: keepsProjectFolder() ? values.projectFolder : "",
+    });
+  }
+
+  /** Another connection lists other projects, so the chosen one no longer applies. */
+  function chooseGitLabConnection(gitlabConnectionId: string) {
+    if (gitlabConnectionId === effectiveGitLabConnectionId) {
+      return;
+    }
+    update({
+      gitlabConnectionId,
+      connectionId: "",
+      resourceKey: "",
       projectFolder: keepsProjectFolder() ? values.projectFolder : "",
     });
   }
@@ -479,6 +542,7 @@ export function ProjectContentSyncPanel({
     canManage &&
     connectionsQuery.isSuccess &&
     providerListed &&
+    !gitlabConnectionRemoved &&
     Boolean(values.connectionId) &&
     !providerConnections.some((connection) => connection.connectionId === values.connectionId);
   const fieldsDisabled = !canManage || busy;
@@ -515,7 +579,10 @@ export function ProjectContentSyncPanel({
   ).map((provider) => provider.value);
   // Why the repository list is empty for the chosen service, when it is.
   const emptyRepositoriesHint =
-    !canManage || !connectionsQuery.isSuccess || providerConnections.length > 0
+    !canManage ||
+    !connectionsQuery.isSuccess ||
+    providerConnections.length > 0 ||
+    gitlabConnectionRemoved
       ? null
       : !isGitLab
         ? messages.noGitHubRepositories
@@ -540,7 +607,12 @@ export function ProjectContentSyncPanel({
                   type="button"
                   size="sm"
                   disabled={
-                    running || dirty || repositoryNotEnabled || syncNowMutation.isPending || busy
+                    running ||
+                    dirty ||
+                    repositoryNotEnabled ||
+                    gitlabConnectionRemoved ||
+                    syncNowMutation.isPending ||
+                    busy
                   }
                   aria-describedby={syncNowDescribedBy}
                   onClick={() => syncNowMutation.mutate()}
@@ -645,6 +717,50 @@ export function ProjectContentSyncPanel({
                   </FieldDescription>
                 ) : null}
               </Field>
+              {showGitLabConnectionPicker ? (
+                <Field className="gap-1.5">
+                  <FieldLabel htmlFor="project-sync-gitlab-connection">
+                    <FormattedMessage {...messages.gitlabConnectionLabel} />
+                  </FieldLabel>
+                  <Select
+                    value={effectiveGitLabConnectionId || null}
+                    items={gitlabConnectionItems}
+                    disabled={fieldsDisabled}
+                    onValueChange={(value) => {
+                      if (typeof value === "string") {
+                        chooseGitLabConnection(value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger
+                      id="project-sync-gitlab-connection"
+                      className="w-full md:w-[360px]"
+                      aria-invalid={gitlabConnectionRemoved || undefined}
+                      aria-describedby={
+                        gitlabConnectionRemoved ? "project-sync-gitlab-connection-error" : undefined
+                      }
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {gitlabConnectionItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value} label={item.label}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {gitlabConnectionRemoved ? (
+                    <FieldError id="project-sync-gitlab-connection-error">
+                      <FormattedMessage {...messages.errorGitLabConnectionRemoved} />
+                    </FieldError>
+                  ) : (
+                    <FieldDescription>
+                      <FormattedMessage {...messages.gitlabConnectionHelp} />
+                    </FieldDescription>
+                  )}
+                </Field>
+              ) : null}
               <Field className="gap-1.5">
                 <FieldLabel htmlFor="project-sync-repository">
                   <FormattedMessage {...messages.repositoryLabel} />
