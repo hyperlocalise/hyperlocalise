@@ -494,13 +494,56 @@ describe("ProjectContentSyncPanel", () => {
       });
     });
 
-    it("says why there are no GitLab repositories to choose", async () => {
+    it("can't choose GitLab until it is connected in Integrations", async () => {
       const user = userEvent.setup();
       renderPanel({ sync: null });
 
       await user.click(await screen.findByRole("combobox", { name: "Repository service" }));
-      await user.click(await screen.findByRole("option", { name: "GitLab" }));
+      expect(await screen.findByRole("option", { name: "GitLab Not set up" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+      expect(screen.getByRole("option", { name: "GitHub" })).not.toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+      expect(
+        screen.getByText("Connect GitLab in Integrations to sync from GitLab."),
+      ).toBeInTheDocument();
+    });
 
+    it("can't choose GitHub until a repository is enabled in Integrations", async () => {
+      const user = userEvent.setup();
+      renderPanel({
+        sync: null,
+        connections: [{ provider: "gitlab", connectionId: "42", resourceKey: "acme/app" }],
+        gitlab: gitlabConnected,
+      });
+
+      await user.click(await screen.findByRole("combobox", { name: "Repository service" }));
+      expect(await screen.findByRole("option", { name: "GitHub Not set up" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+      expect(screen.getByRole("option", { name: "GitLab" })).not.toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+    });
+
+    it("keeps a saved GitLab sync's service after GitLab is disconnected", async () => {
+      const user = userEvent.setup();
+      renderPanel({ sync: gitlabSync, connections: [] });
+
+      await user.click(await screen.findByRole("combobox", { name: "Repository service" }));
+      expect(await screen.findByRole("option", { name: "GitLab" })).not.toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+      expect(screen.getByRole("option", { name: "GitHub Not set up" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
       expect(
         screen.getByText("Connect GitLab in Integrations to sync from GitLab."),
       ).toBeInTheDocument();

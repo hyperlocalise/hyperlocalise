@@ -387,6 +387,12 @@ export const projectContentSyncPanelMessages = defineMessages({
     id: "TX+fYK8q8U",
     description: "Label for the picker of the service (GitHub or GitLab) the project syncs with",
   },
+  providerNotSetUp: {
+    defaultMessage: "Not set up",
+    id: "O9WSf08ndF",
+    description:
+      "Shown next to GitHub or GitLab in the project Sync panel's service picker when that service isn't set up in Integrations",
+  },
   noGitHubRepositories: {
     defaultMessage: "Enable a GitHub repository in Integrations to sync from GitHub.",
     id: "sUzlcXbcY3",

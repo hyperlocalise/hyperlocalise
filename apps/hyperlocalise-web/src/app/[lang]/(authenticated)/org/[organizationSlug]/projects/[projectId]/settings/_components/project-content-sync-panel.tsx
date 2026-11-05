@@ -14,7 +14,7 @@
  */
 import { ArrowsClockwiseIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, Fragment, useEffect, useRef, useState } from "react";
 import { FormattedMessage, type IntlShape, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -505,6 +505,19 @@ export function ProjectContentSyncPanel({
     connections.length === 0 &&
     !gitlab.connected &&
     !saved;
+  // A service that isn't set up in Integrations can't be chosen, unless the sync already uses it.
+  const providerSetUp: Record<SyncProvider, boolean> = {
+    github: connections.some((connection) => connection.provider === "github"),
+    gitlab: gitlab.connected,
+  };
+  const providersNotSetUp = connectionsQuery.isSuccess
+    ? PROVIDERS.filter(
+        (provider) =>
+          !providerSetUp[provider.value] &&
+          provider.value !== values.provider &&
+          provider.value !== savedDraft?.provider,
+      ).map((provider) => provider.value)
+    : [];
   // Why the repository list is empty for the chosen service, when it is.
   const emptyRepositoriesHint =
     !canManage || !connectionsQuery.isSuccess || providerConnections.length > 0
@@ -599,8 +612,17 @@ export function ProjectContentSyncPanel({
                         key={provider.value}
                         value={provider.value}
                         label={provider.label}
+                        disabled={providersNotSetUp.includes(provider.value)}
                       >
                         {provider.label}
+                        {providersNotSetUp.includes(provider.value) ? (
+                          <>
+                            {" "}
+                            <span className="text-muted-foreground">
+                              <FormattedMessage {...messages.providerNotSetUp} />
+                            </span>
+                          </>
+                        ) : null}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -610,6 +632,25 @@ export function ProjectContentSyncPanel({
                     {...(isGitLab ? messages.gitlabBehaviour : messages.githubBehaviour)}
                   />
                 </FieldDescription>
+                {providersNotSetUp.length > 0 ? (
+                  <FieldDescription>
+                    {providersNotSetUp.map((provider) => (
+                      <Fragment key={provider}>
+                        <FormattedMessage
+                          {...(provider === "gitlab"
+                            ? messages.noGitLabConnection
+                            : messages.noGitHubRepositories)}
+                        />{" "}
+                      </Fragment>
+                    ))}
+                    <OrgNavLink
+                      href={`/org/${organizationSlug}/integrations`}
+                      className="text-primary underline-offset-4 hover:underline"
+                    >
+                      <FormattedMessage {...messages.openIntegrations} />
+                    </OrgNavLink>
+                  </FieldDescription>
+                ) : null}
               </Field>
               <Field className="gap-1.5">
                 <FieldLabel htmlFor="project-sync-repository">
