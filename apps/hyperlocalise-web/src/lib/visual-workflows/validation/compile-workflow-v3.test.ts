@@ -144,6 +144,63 @@ describe("compileVisualWorkflowV3Definition", () => {
     ]);
   });
 
+  it("accepts the invalid and error branches of JSON nodes", () => {
+    const workflow = definition([]);
+    workflow.nodes.splice(
+      1,
+      1,
+      {
+        id: "parse",
+        type: "logic.json_parse",
+        config: { kind: "logic.json_parse", text: "{}" },
+      },
+      {
+        id: "stringify",
+        type: "logic.json_stringify",
+        config: { kind: "logic.json_stringify", value: {} },
+      },
+      {
+        id: "validate",
+        type: "logic.schema_validate",
+        config: { kind: "logic.schema_validate", value: {}, schema: {} },
+      },
+      {
+        id: "stop",
+        type: "flow.stop",
+        config: { kind: "flow.stop", outcome: "completed" },
+      },
+    );
+    const execution = (
+      id: string,
+      source: string,
+      target: string,
+      sourcePortId: string,
+    ): VisualWorkflowV3Definition["edges"][number] => ({
+      id,
+      kind: "execution",
+      source,
+      target,
+      sourcePortId,
+      targetPortId: "input",
+    });
+    workflow.edges.push(
+      execution("trigger-parse", "trigger", "parse", "success"),
+      execution("parse-invalid", "parse", "stringify", "invalid"),
+      execution("stringify-error", "stringify", "validate", "error"),
+      execution("validate-invalid", "validate", "stop", "invalid"),
+    );
+
+    const compiled = compileVisualWorkflowV3Definition(workflow);
+
+    expect(compiled.issues).toEqual([]);
+    expect(toVisualWorkflowExecutionDefinition(compiled).edges).toEqual([
+      expect.objectContaining({ id: "trigger-parse", sourceHandle: null }),
+      expect.objectContaining({ id: "parse-invalid", sourceHandle: "invalid" }),
+      expect.objectContaining({ id: "stringify-error", sourceHandle: "error" }),
+      expect.objectContaining({ id: "validate-invalid", sourceHandle: "invalid" }),
+    ]);
+  });
+
   it("compiles a data edge into the existing WorkflowBinding model", () => {
     const result = compileVisualWorkflowV3Definition(
       definition([

@@ -159,6 +159,14 @@ function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> 
     return new Set(["completed", "timed_out", "error"]);
   }
 
+  if (node.type === "logic.json_parse" || node.type === "logic.schema_validate") {
+    return new Set(["success", "invalid"]);
+  }
+
+  if (node.type === "logic.json_stringify") {
+    return new Set(["success", "error"]);
+  }
+
   const portIds = new Set(["success"]);
 
   if ("onError" in node.config && node.config.onError === "branch") {

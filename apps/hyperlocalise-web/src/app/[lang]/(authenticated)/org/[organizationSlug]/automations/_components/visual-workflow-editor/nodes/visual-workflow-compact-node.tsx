@@ -401,6 +401,28 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         },
       ];
     }
+    if (
+      data.catalogType === "logic.json_parse" ||
+      data.catalogType === "logic.json_stringify" ||
+      data.catalogType === "logic.schema_validate"
+    ) {
+      const failsAsError = data.catalogType === "logic.json_stringify";
+      return [
+        {
+          id: "success",
+          label: intl.formatMessage(messages.jsonSuccessHandle),
+          ariaLabel: "Success",
+          top: executionTop(0.35),
+        },
+        {
+          id: failsAsError ? "error" : "invalid",
+          label: intl.formatMessage(failsAsError ? messages.errorHandle : messages.invalidHandle),
+          ariaLabel: failsAsError ? "Error" : "Invalid",
+          top: executionTop(0.65),
+          className: "text-destructive",
+        },
+      ];
+    }
     if (["logic.for_each", "logic.array_transform"].includes(data.catalogType)) {
       return [
         {

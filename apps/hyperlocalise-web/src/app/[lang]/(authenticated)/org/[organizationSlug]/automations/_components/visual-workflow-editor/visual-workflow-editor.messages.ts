@@ -1188,6 +1188,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "nYOxYYV5jF",
     description: "Label on error output handle",
   },
+  jsonSuccessHandle: {
+    defaultMessage: "success",
+    id: "pHz3Uy2BNF",
+    description: "Label on the success output handle of a JSON parse, stringify, or validate node",
+  },
+  invalidHandle: {
+    defaultMessage: "invalid",
+    id: "z3fkYQNXlF",
+    description: "Label on the invalid output handle of a JSON parse or schema validate node",
+  },
   eachHandle: {
     defaultMessage: "Each item",
     id: "7eZfUxSh+m",
