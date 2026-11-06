@@ -40,6 +40,7 @@ import type { SourceFileIngestQueue } from "@/lib/workflow/types";
 import { GITLAB_CONTENT_SYNC_UPLOAD_SURFACE } from "@/lib/agents/content-sync/content-sync-types";
 
 import { reconcileSourceFileTranslationKeys } from "./reconcile-source-file-translation-keys";
+import { applyProjectSourceText } from "./source-text-editing";
 
 import {
   claimSourceFileIngest,
@@ -1282,5 +1283,143 @@ describe("reconcileSourceFileTranslationKeys for a GitLab sync", () => {
       isHidden: false,
       hiddenBySyncAt: null,
     });
+  });
+});
+
+describe("applyProjectSourceText", () => {
+  it("writes source text edited in the project into the file, for a project that allows it", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const version = await createSourceVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      ingestState: "ingesting",
+      ingestWorkflowRunId: "run_apply_1",
+      uploadSurface: GITLAB_CONTENT_SYNC_UPLOAD_SURFACE,
+    });
+    await reconcileSourceFileTranslationKeys({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: version.repositorySourceFileId,
+      sourceFileVersionId: version.id,
+      workflowRunId: "run_apply_1",
+      entries: [
+        { key: "title", text: "Home", context: null },
+        { key: "hidden", text: "Hidden", context: null },
+        { key: "cta", text: "Buy", context: null },
+      ],
+    });
+    const rows = await db
+      .select({ id: schema.projectTranslationKeys.id, key: schema.projectTranslationKeys.key })
+      .from(schema.projectTranslationKeys)
+      .where(
+        eq(schema.projectTranslationKeys.repositorySourceFileId, version.repositorySourceFileId),
+      );
+    const idOf = (key: string) => rows.find((row) => row.key === key)!.id;
+    await db
+      .update(schema.projectTranslationKeys)
+      .set({ sourceText: "Welcome" })
+      .where(eq(schema.projectTranslationKeys.id, idOf("title")));
+    await db
+      .update(schema.projectTranslationKeys)
+      .set({ sourceText: "Hidden edit", isHidden: true })
+      .where(eq(schema.projectTranslationKeys.id, idOf("hidden")));
+    // No text last imported: not known to be an edit made here.
+    await db
+      .update(schema.projectTranslationKeys)
+      .set({ sourceText: "Buy now", importedSourceText: null })
+      .where(eq(schema.projectTranslationKeys.id, idOf("cta")));
+    const content = Buffer.from(
+      '{\n  "title": "Home",\n  "hidden": "Hidden",\n  "cta": "Buy"\n}\n',
+    );
+    const apply = () =>
+      applyProjectSourceText({
+        organizationId: organization.id,
+        projectId: project.id,
+        sourcePath: SOURCE_PATH,
+        content,
+      });
+
+    expect((await apply()).written).toEqual([]);
+
+    await db
+      .update(schema.projects)
+      .set({ sourceTextEditable: true })
+      .where(eq(schema.projects.id, project.id));
+    const applied = await apply();
+    expect(applied.written).toEqual(["title"]);
+    expect(applied.content.toString("utf8")).toBe(
+      '{\n  "title": "Welcome",\n  "hidden": "Hidden",\n  "cta": "Buy"\n}\n',
+    );
+    expect(
+      (
+        await applyProjectSourceText({
+          organizationId: organization.id,
+          projectId: project.id,
+          sourcePath: "locales/en.yaml",
+          content,
+        })
+      ).written,
+    ).toEqual([]);
+  });
+
+  it("leaves a list item that clashes as the file has it, for jobs and delivery alike", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    await db
+      .update(schema.projects)
+      .set({ sourceTextEditable: true })
+      .where(eq(schema.projects.id, project.id));
+    const version = await createSourceVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      ingestState: "ingesting",
+      ingestWorkflowRunId: "run_apply_list",
+      uploadSurface: GITLAB_CONTENT_SYNC_UPLOAD_SURFACE,
+    });
+    await reconcileSourceFileTranslationKeys({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: version.repositorySourceFileId,
+      sourceFileVersionId: version.id,
+      workflowRunId: "run_apply_list",
+      entries: [
+        { key: "items[0]", text: "A", context: null },
+        { key: "items[1]", text: "B", context: null },
+        { key: "Price [USD]", text: "Price", context: null },
+      ],
+    });
+    for (const [key, text] of [
+      ["items[0]", "A edited"],
+      ["items[1]", "B edited"],
+      ["Price [USD]", "Cost"],
+    ] as const) {
+      await db
+        .update(schema.projectTranslationKeys)
+        .set({ sourceText: text })
+        .where(
+          and(
+            eq(schema.projectTranslationKeys.projectId, project.id),
+            eq(schema.projectTranslationKeys.key, key),
+          ),
+        );
+    }
+    // The repository inserted "X" at the top, so items[1] now holds what was items[0].
+    const applied = await applyProjectSourceText({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: SOURCE_PATH,
+      content: Buffer.from('{"items": ["X", "A", "B"], "Price [USD]": "Price in dollars"}'),
+    });
+    // "Price [USD]" clashes too (the file changed it), but it isn't a list item, so it's written.
+    expect(applied.written.sort()).toEqual(["Price [USD]"]);
+
+    const unshifted = await applyProjectSourceText({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: SOURCE_PATH,
+      content: Buffer.from('{"items": ["A", "B"], "Price [USD]": "Price"}'),
+    });
+    expect(unshifted.content.toString("utf8")).toBe(
+      '{"items": ["A edited", "B edited"], "Price [USD]": "Cost"}',
+    );
   });
 });

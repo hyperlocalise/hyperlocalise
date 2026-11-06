@@ -31,6 +31,7 @@ import {
   sandboxEntriesLocaleOptions,
 } from "@/lib/translation/sandbox-cli-release";
 import { addCliTokenUsage, type CliTokenUsage } from "@/lib/translation/cli-token-usage";
+import { isSourceEditableSourcePath } from "@/lib/projects/files/source-text-editable-paths";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import type { JobEventInput } from "@/lib/job-events/job-events-contract";
 import {
@@ -43,6 +44,7 @@ import {
   failTranslationJobStep,
   getProjectOrganizationStep,
   getStoredFileContentStep,
+  applyProjectSourceTextStep,
   getStoredFileStep,
   getRepositorySourcePathForStoredFileStep,
   loadProjectTranslationsAsPrefilledEntriesStep,
@@ -997,6 +999,27 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       message: `source file ${parsedInput.sourceFileId} could not be retrieved from storage`,
     });
     throw error;
+  }
+
+  // A file whose source text can be edited here is translated as the project has it.
+  if (repositorySourcePath && isSourceEditableSourcePath(repositorySourcePath)) {
+    try {
+      sourceContent = await applyProjectSourceTextStep({
+        organizationId,
+        projectId: claim.job.projectId,
+        sourcePath: repositorySourcePath,
+        content: sourceContent,
+      });
+    } catch (error) {
+      await failTranslationJobStep({
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
+        code: "source_text_unavailable",
+        message: `the project's source text for ${repositorySourcePath} could not be read`,
+      });
+      throw error;
+    }
   }
 
   let sandboxId = "";
