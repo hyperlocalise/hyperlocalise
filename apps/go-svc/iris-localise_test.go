@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/stretchr/testify/require"
 )
 
@@ -153,6 +154,37 @@ func TestIrisLocalisePairs(t *testing.T) {
 	require.Error(t, err)
 	require.Error(t, validateIrisMessages([]irisLocaliseMessage{{ID: "a", Text: "x"}, {ID: "a", Text: "y"}}))
 	require.Error(t, validateIrisTexts(nil))
+}
+
+func TestIrisGlossaryHitsExcludesArchivedGlossaries(t *testing.T) {
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	api := &irisGenerationAPI{pool: scope.Pool}
+	irisScope := irisOrgScope{OrganizationID: scope.OrganizationID, UserID: scope.UserID, Role: "admin"}
+
+	activeID := scope.MustGlossary(t, "", "Active Brand", "en-US")
+	archivedID := scope.MustGlossary(t, "", "Archived Brand", "en-US")
+	_, err := scope.Pool.Exec(t.Context(), `update glossaries set status='archived' where id=$1`, archivedID)
+	require.NoError(t, err)
+
+	activeConcept := mustGlossaryConcept(t, scope, activeID, "PublicTerm", "", "")
+	mustGlossaryTerm(t, scope, activeID, activeConcept, "en-US", "PublicTerm")
+	mustGlossaryTerm(t, scope, activeID, activeConcept, "fr-FR", "TermePublic")
+
+	archivedConcept := mustGlossaryConcept(t, scope, archivedID, "SecretTerm", "", "")
+	mustGlossaryTerm(t, scope, archivedID, archivedConcept, "en-US", "SecretTerm")
+	mustGlossaryTerm(t, scope, archivedID, archivedConcept, "fr-FR", "TermeSecret")
+
+	hits, err := api.glossaryHits(t.Context(), irisScope, "en-US", "fr-FR", []string{"PublicTerm SecretTerm"})
+	require.NoError(t, err)
+	require.Equal(t, []irisGlossaryHit{{
+		Term:        "PublicTerm",
+		Translation: ptr("TermePublic"),
+		Glossary:    "Active Brand",
+	}}, hits)
+
+	onlyArchived, err := api.glossaryHits(t.Context(), irisScope, "en-US", "fr-FR", []string{"SecretTerm"})
+	require.NoError(t, err)
+	require.Empty(t, onlyArchived)
 }
 
 func TestIrisLocaliseEndpointsValidateBeforeTouchingData(t *testing.T) {
