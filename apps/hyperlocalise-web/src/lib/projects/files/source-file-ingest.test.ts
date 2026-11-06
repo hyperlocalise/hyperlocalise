@@ -14,7 +14,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const {
@@ -934,6 +934,7 @@ describe("reconcileSourceFileTranslationKeys for a GitLab sync", () => {
       .select({
         key: schema.projectTranslationKeys.key,
         sourceText: schema.projectTranslationKeys.sourceText,
+        importedSourceText: schema.projectTranslationKeys.importedSourceText,
         isHidden: schema.projectTranslationKeys.isHidden,
         hiddenBySyncAt: schema.projectTranslationKeys.hiddenBySyncAt,
         id: schema.projectTranslationKeys.id,
@@ -1002,7 +1003,7 @@ describe("reconcileSourceFileTranslationKeys for a GitLab sync", () => {
     expect(keys.get("manual")).toMatchObject({ isHidden: true, hiddenBySyncAt: null });
   });
 
-  it("replaces source text edited in the platform with the file's, as every upload does", async () => {
+  it("replaces source text edited in the platform while the setting is off", async () => {
     const { organization, project } = await createStoredProjectFixture();
     const first = await syncSnapshot({
       organizationId: organization.id,
@@ -1011,6 +1012,7 @@ describe("reconcileSourceFileTranslationKeys for a GitLab sync", () => {
       entries: [{ key: "title", text: "Home" }],
     });
     const title = (await keysByName(first.fileId)).get("title")!;
+    expect(title.importedSourceText).toBe("Home");
     await db
       .update(schema.projectTranslationKeys)
       .set({ sourceText: "Home (edited here)" })
@@ -1026,7 +1028,192 @@ describe("reconcileSourceFileTranslationKeys for a GitLab sync", () => {
       status: "ingested",
       syncReport: { missingKeys: [] },
     });
-    expect((await keysByName(first.fileId)).get("title")).toMatchObject({ sourceText: "Home" });
+    expect((await keysByName(first.fileId)).get("title")).toMatchObject({
+      sourceText: "Home",
+      importedSourceText: "Home",
+    });
+  });
+
+  async function editSourceText(id: string, sourceText: string) {
+    await db
+      .update(schema.projectTranslationKeys)
+      .set({ sourceText })
+      .where(eq(schema.projectTranslationKeys.id, id));
+  }
+
+  async function turnOnSourceTextEditing(
+    projectId: string,
+    approvedTranslationsOnSourceChange: "stay_approved" | "needs_review" = "stay_approved",
+  ) {
+    await db
+      .update(schema.projects)
+      .set({ sourceTextEditable: true, approvedTranslationsOnSourceChange })
+      .where(eq(schema.projects.id, projectId));
+  }
+
+  it("keeps platform edits, takes file edits and reports clashes while the setting is on", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    await turnOnSourceTextEditing(project.id, "needs_review");
+    const first = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_on_1",
+      entries: [
+        { key: "platform", text: "Platform v1" },
+        { key: "repo", text: "Repo v1" },
+        { key: "both", text: "Both v1" },
+        { key: "agreed", text: "Agreed v1" },
+        { key: "same", text: "Same" },
+      ],
+    });
+    const keys = await keysByName(first.fileId);
+    await editSourceText(keys.get("platform")!.id, "Platform edited here");
+    await editSourceText(keys.get("both")!.id, "Both edited here");
+    await editSourceText(keys.get("agreed")!.id, "Agreed v2");
+    for (const key of ["platform", "repo", "both", "agreed", "same"]) {
+      await db.insert(schema.projectTranslations).values({
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: keys.get(key)!.id,
+        targetLocale: "fr-FR",
+        text: "Traduit",
+        status: "approved",
+      });
+    }
+
+    const entries = [
+      { key: "platform", text: "Platform v1" },
+      { key: "repo", text: "Repo v2" },
+      { key: "both", text: "Both edited in the repo" },
+      { key: "agreed", text: "Agreed v2" },
+      { key: "same", text: "Same" },
+    ];
+    const second = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_on_2",
+      entries,
+    });
+    expect(second.result).toEqual({
+      status: "ingested",
+      syncReport: {
+        clashes: [{ key: "both", fileText: "Both edited in the repo" }],
+        missingKeys: [],
+      },
+    });
+    const after = await keysByName(first.fileId);
+    expect(after.get("platform")).toMatchObject({
+      sourceText: "Platform edited here",
+      importedSourceText: "Platform v1",
+    });
+    expect(after.get("repo")).toMatchObject({
+      sourceText: "Repo v2",
+      importedSourceText: "Repo v2",
+    });
+    // A clash keeps its base, so the next import reports it again until one side gives way.
+    expect(after.get("both")).toMatchObject({
+      sourceText: "Both edited here",
+      importedSourceText: "Both v1",
+    });
+    expect(after.get("agreed")).toMatchObject({
+      sourceText: "Agreed v2",
+      importedSourceText: "Agreed v2",
+    });
+
+    // Only the key whose source text the import wrote goes back to review.
+    const translations = await db
+      .select({
+        translationKeyId: schema.projectTranslations.translationKeyId,
+        status: schema.projectTranslations.status,
+      })
+      .from(schema.projectTranslations)
+      .where(eq(schema.projectTranslations.projectId, project.id));
+    const keyById = new Map([...after.values()].map((row) => [row.id, row.key]));
+    const statusByKey = new Map(
+      translations.map((row) => [keyById.get(row.translationKeyId), row.status]),
+    );
+    expect(statusByKey.get("repo")).toBe("needs_review");
+    for (const key of ["platform", "both", "agreed", "same"]) {
+      expect(statusByKey.get(key)).toBe("approved");
+    }
+
+    const third = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_on_3",
+      entries,
+    });
+    expect(third.result).toEqual({
+      status: "ingested",
+      syncReport: {
+        clashes: [{ key: "both", fileText: "Both edited in the repo" }],
+        missingKeys: [],
+      },
+    });
+  });
+
+  it("takes the file's text for a key from before the last import was kept", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    await turnOnSourceTextEditing(project.id);
+    const first = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_base_1",
+      entries: [{ key: "title", text: "Old" }],
+    });
+    const title = (await keysByName(first.fileId)).get("title")!;
+    await db
+      .update(schema.projectTranslationKeys)
+      .set({ importedSourceText: null })
+      .where(eq(schema.projectTranslationKeys.id, title.id));
+
+    await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_base_2",
+      entries: [{ key: "title", text: "New" }],
+    });
+    expect((await keysByName(first.fileId)).get("title")).toMatchObject({
+      sourceText: "New",
+      importedSourceText: "New",
+    });
+  });
+
+  it("keeps a hand upload's clashes, and a hand upload still deletes what it lacks", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    await turnOnSourceTextEditing(project.id);
+    const first = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_hand_clash_1",
+      entries: [
+        { key: "clash", text: "v1" },
+        { key: "gone", text: "Gone" },
+      ],
+    });
+    await editSourceText((await keysByName(first.fileId)).get("clash")!.id, "edited here");
+
+    const version = await createSourceVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      ingestState: "ingesting",
+      ingestWorkflowRunId: "run_hand_clash_2",
+    });
+    const result = await reconcileSourceFileTranslationKeys({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: version.repositorySourceFileId,
+      sourceFileVersionId: version.id,
+      workflowRunId: "run_hand_clash_2",
+      entries: [{ key: "clash", text: "v2", context: null }],
+    });
+    expect(result).toEqual({
+      status: "ingested",
+      syncReport: { clashes: [{ key: "clash", fileText: "v2" }], missingKeys: [] },
+    });
+    const after = await keysByName(first.fileId);
+    expect(after.get("gone")).toBeUndefined();
+    expect(after.get("clash")).toMatchObject({ sourceText: "edited here" });
   });
 
   it("stores no report for a hand upload, which still deletes what it lacks", async () => {
