@@ -275,7 +275,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
     );
     await user.upload(container.querySelector('input[type="file"]') as HTMLInputElement, upload);
     expect(
-      screen.queryByRole("checkbox", { name: "Small fix: keep approved translations" }),
+      screen.queryByRole("checkbox", { name: "Keep translations approved" }),
     ).not.toBeInTheDocument();
 
     behaviorMock.mockReturnValue({ approvedTranslationsOnSourceChange: "needs_review" });
@@ -285,7 +285,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
       </IntlProvider>,
     );
     const keepApproved = await screen.findByRole("checkbox", {
-      name: "Small fix: keep approved translations",
+      name: "Keep translations approved",
     });
     expect(keepApproved).toHaveAccessibleDescription(/For typo or punctuation fixes/);
     await user.click(keepApproved);

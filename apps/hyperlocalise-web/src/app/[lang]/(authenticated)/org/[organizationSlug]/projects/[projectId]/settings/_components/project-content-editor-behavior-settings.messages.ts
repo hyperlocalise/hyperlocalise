@@ -44,9 +44,8 @@ export const projectContentEditorBehaviorMessages = defineMessages({
       "Label of the setting for approved translations when a string's source text changes",
   },
   sourceChangeDescription: {
-    defaultMessage:
-      "What happens to a string's approved translations when its source text changes through an upload, a repository sync, an integration or the API. Files page uploads and the API can skip this for a small fix.",
-    id: "xZ2hkO2Zvh",
+    defaultMessage: "What happens to approved translations when a string's source text changes.",
+    id: "26D7HBTpAx",
     description: "Description of the setting for approved translations when source text changes",
   },
   sourceChangeStayApproved: {
