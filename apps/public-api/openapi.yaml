@@ -352,8 +352,8 @@ paths:
         the item sets; otherwise a string is created and `sourceText` is required. The batch runs
         in one transaction: if an item fails, nothing is saved and the `X-Failed-Item` header
         holds its index. Changing the source text of a locked string returns `409`, and so does
-        changing the source text of a string in a file while the project's "Edit source text in
-        Hyperlocalise" setting is off, or of a hidden string, or in a file that isn't JSON, JSONC or ARB,
+        changing the source text of a string in a file while the project's "Allow source text editing"
+        setting is off, or of a hidden string, or in a file that isn't JSON, JSONC or ARB,
         came from an integration, or was last uploaded before uploads were recorded
         (`source_text_not_editable`). New source text holding the control characters U+001E or
         U+0000 returns `400` (`invalid_source_text`). Only admins, localization managers and
