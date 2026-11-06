@@ -4019,6 +4019,9 @@
   "4z9+RgG2Ms": {
     "defaultMessage": "Les calques de texte ont changé. Régénérez l’image pour les appliquer avant de l’approuver."
   },
+  "4zBhSf3vTo": {
+    "defaultMessage": "Opération"
+  },
   "4zEqWvETM+": {
     "defaultMessage": "Paramètres régionaux : {value}"
   },
@@ -4202,6 +4205,9 @@
   "5G9CHzXNWL": {
     "defaultMessage": "Privacy"
   },
+  "5GsfnkqQvS": {
+    "defaultMessage": "Sérialiser une valeur structurée en texte JSON."
+  },
   "5H+UdOBSV9": {
     "defaultMessage": "Correspondance de contexte"
   },
@@ -4330,6 +4336,9 @@
   },
   "5V5XZ84WTf": {
     "defaultMessage": "Choisir un responsable"
+  },
+  "5VQvCOhS8Q": {
+    "defaultMessage": "Filtrer, mapper, réduire ou rechercher des valeurs dans une collection ordonnée."
   },
   "5Wfh7kerri": {
     "defaultMessage": "Autumn n’est pas configuré dans cet environnement. Ajoutez une AUTUMN_API_KEY de sandbox pour activer la facturation pour cet espace de travail."
@@ -6908,6 +6917,9 @@
   "ACTAy3p5p3": {
     "defaultMessage": "Corrigé"
   },
+  "ACmO8h4/+b": {
+    "defaultMessage": "Schéma"
+  },
   "ACud1VtN9i": {
     "defaultMessage": "Nom d’affichage"
   },
@@ -9198,7 +9210,7 @@
     "defaultMessage": "Lancez des expérimentations de marché et affichez différentes fonctionnalités selon le pays. Hyperlab vous indique ce qui fonctionne, puis vous déployez cette version partout."
   },
   "EKx1s7RxNY": {
-    "defaultMessage": "via {name} ({prefix})"
+    "defaultMessage": "avec {name} ({prefix})"
   },
   "EKyvEH55l4": {
     "defaultMessage": "Constats non répertoriés dans les critères ci-dessus."
@@ -11063,6 +11075,9 @@
   "HmM5vdsqD+": {
     "defaultMessage": "Close"
   },
+  "HmWwCwYFtV": {
+    "defaultMessage": "Type d’élément"
+  },
   "HmXZYnVvj0": {
     "defaultMessage": "Ces étapes effectuent de véritables appels lors de cette exécution de test. Les actions qu’elles effectuent ont réellement lieu et ne peuvent pas être annulées."
   },
@@ -12788,6 +12803,9 @@
   "L0gachMRlZ": {
     "defaultMessage": "Base de termes"
   },
+  "L13hAmUXIJ": {
+    "defaultMessage": "Valider une valeur par rapport à un schéma structuré avec des limites."
+  },
   "L14GgyGrCO": {
     "defaultMessage": "Annuler le rechargement de l’automatisation enregistrée"
   },
@@ -13135,6 +13153,9 @@
   },
   "Lfo/HfkA0U": {
     "defaultMessage": "Utilisation de l’IA"
+  },
+  "LgF4rByVBa": {
+    "defaultMessage": "Valeur initiale"
   },
   "LgOdyUATt4": {
     "defaultMessage": "Aucune IA n’a été utilisée à ces dates avec ces filtres."
@@ -16418,6 +16439,9 @@
   "Rgp/V+Ndcw": {
     "defaultMessage": "Motif de l’échec"
   },
+  "RhYn29mibB": {
+    "defaultMessage": "Saisissez du texte JSON ou connectez la sortie d’une chaîne provenant d’une étape précédente."
+  },
   "RhmMBU70/7": {
     "defaultMessage": "E-mail de campagne de lancement"
   },
@@ -18863,6 +18887,9 @@
   "WA49vhY6w5": {
     "defaultMessage": "Actualiser la liste des dépôts et les métadonnées depuis GitHub. Cela n’envoie ni ne récupère de traductions."
   },
+  "WAMmUgMIAk": {
+    "defaultMessage": "L’appartenance est déterminée automatiquement à partir des connexions partant du port de chaque élément."
+  },
   "WAOAGxwy+L": {
     "defaultMessage": "Témoignage client"
   },
@@ -19742,6 +19769,9 @@
   "XpeTF2YWKH": {
     "defaultMessage": "Modèle par défaut"
   },
+  "Xpq2AJzIub": {
+    "defaultMessage": "Analyser le JSON"
+  },
   "XqZ3cu2irp": {
     "defaultMessage": "Publier les traductions approuvées обратно"
   },
@@ -20261,6 +20291,9 @@
   "YiZ5ttL/m5": {
     "defaultMessage": "Vos modifications ont de nouveau été abandonnées."
   },
+  "YjRk5tT6GE": {
+    "defaultMessage": "Utilisez un objet de schéma JSON borné. Les références distantes ne sont pas prises en charge."
+  },
   "YjdAJSrtAi": {
     "defaultMessage": "Élément de texte {index}"
   },
@@ -20314,6 +20347,9 @@
   },
   "Yo96f8fXbJ": {
     "defaultMessage": "Lumière du jour"
+  },
+  "YoEqgQgzqb": {
+    "defaultMessage": "Valider le schéma"
   },
   "YoNT/y/382": {
     "defaultMessage": "Choisissez un projet"
@@ -20570,6 +20606,9 @@
   "ZIg96oUMGy": {
     "defaultMessage": "Impossible de charger les concepts"
   },
+  "ZJ57VYQVaQ": {
+    "defaultMessage": "Valeur"
+  },
   "ZJI5SD947D": {
     "defaultMessage": "Publics"
   },
@@ -20809,6 +20848,9 @@
   },
   "ZkAl1q2it8": {
     "defaultMessage": "Traiter comme une image"
+  },
+  "ZkImYkaYlt": {
+    "defaultMessage": "Transformation de tableau"
   },
   "ZkYSjdsJm0": {
     "defaultMessage": "Traduire {locale} avec l’agent"
@@ -21734,6 +21776,9 @@
   "bI+YTOZIIO": {
     "defaultMessage": "“{name}” et ses versions seront supprimés. Cette action est irréversible."
   },
+  "bIBIV/XSnS": {
+    "defaultMessage": "Valeur"
+  },
   "bIhHNqhcPu": {
     "defaultMessage": "Enregistrer et localiser"
   },
@@ -22249,6 +22294,9 @@
   },
   "cFLoSPa62D": {
     "defaultMessage": "Flux de travail visuels"
+  },
+  "cFRjw0ewOm": {
+    "defaultMessage": "Type de résultat"
   },
   "cFooypWUsT": {
     "defaultMessage": "Valeur secrète"
@@ -23965,6 +24013,9 @@
   },
   "f5Adx9k+6N": {
     "defaultMessage": "Partiellement approuvé"
+  },
+  "f5XgyzsBIQ": {
+    "defaultMessage": "Texte JSON"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Modifications non enregistrées"
@@ -29486,6 +29537,9 @@
   "ohFSHTwja2": {
     "defaultMessage": "Mis à jour"
   },
+  "ohWq8Fp+QJ": {
+    "defaultMessage": "Convertir en JSON 񟟙"
+  },
   "oiJegD5+SZ": {
     "defaultMessage": "Impossible de vérifier ce qui change lorsque vous quittez."
   },
@@ -29824,6 +29878,9 @@
   },
   "pHj5D5hJU+": {
     "defaultMessage": "Importer"
+  },
+  "pHz3Uy2BNF": {
+    "defaultMessage": "Succès"
   },
   "pIhCSFb9aQ": {
     "defaultMessage": "Original"
@@ -30382,6 +30439,9 @@
   },
   "qAENVVTQnI": {
     "defaultMessage": "Découvrir les directives"
+  },
+  "qAIm+dJ8lo": {
+    "defaultMessage": "Aucun nœud n’est connecté à la région « Chaque élément »."
   },
   "qAQXdmfmq+": {
     "defaultMessage": "Approuver la chaîne"
@@ -34286,6 +34346,9 @@
   "x5RsQtpxzS": {
     "defaultMessage": "Ordre"
   },
+  "x5b2BktTkL": {
+    "defaultMessage": "Analyser du texte JSON pour le convertir en une valeur structurée."
+  },
   "x5jXClnMbS": {
     "defaultMessage": "{actor} s’est assigné le problème"
   },
@@ -35356,6 +35419,9 @@
   },
   "z3bR+/cqxl": {
     "defaultMessage": "{count, plural, one {# chaîne trouvée} other {# chaînes trouvées}} dans le fichier"
+  },
+  "z3fkYQNXlF": {
+    "defaultMessage": "invalide"
   },
   "z3hAWnzQKx": {
     "defaultMessage": "Échec du chargement de la connexion Ahrefs."
