@@ -24,14 +24,14 @@ import {
 
 function renderEditor(
   editing: Partial<ContentEditorSourceTextEditing> = {},
-  props: { isLocked?: boolean } = {},
+  props: { isLocked?: boolean; sourceText?: string } = {},
 ) {
   const onSave = vi.fn<ContentEditorSourceTextEditing["onSave"]>(async () => undefined);
   render(
     <IntlProvider locale="en" messages={{}}>
       <ContentEditorSourceTextEditor
         segmentId="key-1"
-        sourceText="Sign in"
+        sourceText={props.sourceText ?? "Sign in"}
         isLocked={props.isLocked ?? false}
         editing={{ canEdit: true, offerSmallFix: false, isSaving: false, onSave, ...editing }}
       />
@@ -58,6 +58,19 @@ describe("ContentEditorSourceTextEditor", () => {
       sourceText: "Log in",
       keepApproved: true,
     });
+  });
+
+  it("keeps the original's line breaks when the field hands them back as \\n", async () => {
+    const user = userEvent.setup();
+    const { onSave } = renderEditor({}, { sourceText: "Play\rnow" });
+
+    await user.click(screen.getByRole("button", { name: "Edit source text" }));
+    const field = screen.getByRole("textbox", { name: "Source text" });
+    await user.clear(field);
+    await user.type(field, "Play{Enter}later");
+    await user.click(screen.getByRole("button", { name: "Save source text" }));
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ sourceText: "Play\rlater" }));
   });
 
   it("starts the next edit with the small fix unticked", async () => {

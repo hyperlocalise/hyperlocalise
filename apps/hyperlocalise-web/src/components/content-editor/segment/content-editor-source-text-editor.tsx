@@ -38,6 +38,18 @@ export type ContentEditorSourceTextEditing = {
 export const ContentEditorSourceTextEditingContext =
   createContext<ContentEditorSourceTextEditing | null>(null);
 
+// A text field hands back every line break as "\n". Strings that store them as "\r\n" or "\r"
+// (Lottie text keeps "\r") get their own style back, so an edit doesn't rewrite every line break.
+function withLineBreaksOf(original: string, edited: string): string {
+  if (original.includes("\r\n")) {
+    return edited.replace(/\r?\n/g, "\r\n");
+  }
+  if (original.includes("\r")) {
+    return edited.replace(/\r?\n/g, "\r");
+  }
+  return edited;
+}
+
 export function useContentEditorSourceTextEditing() {
   return useContext(ContentEditorSourceTextEditingContext);
 }
@@ -96,7 +108,8 @@ export function ContentEditorSourceTextEditor({
       setError(intl.formatMessage(messages.blank));
       return;
     }
-    if (draft === sourceText) {
+    const text = withLineBreaksOf(sourceText, draft);
+    if (text === sourceText) {
       close();
       return;
     }
@@ -104,7 +117,7 @@ export function ContentEditorSourceTextEditor({
     try {
       await editing.onSave({
         segmentId,
-        sourceText: draft,
+        sourceText: text,
         keepApproved: editing.offerSmallFix && keepApproved,
       });
       // A small fix covers this save only; the next edit starts unticked.
