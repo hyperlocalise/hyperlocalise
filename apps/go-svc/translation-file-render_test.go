@@ -213,6 +213,14 @@ func TestRenderTranslationFileRejectsBadRequests(t *testing.T) {
 			code: http.StatusBadRequest,
 		},
 		{
+			name: "blank source path",
+			parts: translationFileRenderParts{
+				source:  []byte("key,value\n"),
+				request: translationFileRenderRequest{SourcePath: "  ", TargetLocale: "de-DE"},
+			},
+			code: http.StatusBadRequest,
+		},
+		{
 			name: "missing target locale",
 			parts: translationFileRenderParts{
 				source:  []byte("key,value\n"),
@@ -260,6 +268,28 @@ func TestRenderTranslationFileRejectsBadRequests(t *testing.T) {
 			require.NotContains(t, rec.Body.String(), "not xml")
 		})
 	}
+}
+
+func TestRenderTranslationFileRejectsDuplicateParts(t *testing.T) {
+	mux, token := newTranslationFileRenderMux(t)
+
+	var body bytes.Buffer
+	form := multipart.NewWriter(&body)
+	require.NoError(t, form.WriteField(translationFileRenderRequestFormName, `{"sourcePath":"messages.csv","targetLocale":"de-DE"}`))
+	require.NoError(t, form.WriteField(translationFileRenderRequestFormName, `{"sourcePath":"messages.csv","targetLocale":"de-DE"}`))
+	file, err := form.CreateFormFile(translationFileRenderSourceFormName, "source")
+	require.NoError(t, err)
+	_, err = file.Write([]byte("key,value\n"))
+	require.NoError(t, err)
+	require.NoError(t, form.Close())
+
+	req := httptest.NewRequest(http.MethodPost, "/internal/translation-files/render", &body)
+	req.Header.Set("Content-Type", form.FormDataContentType())
+	req.Header.Set(serverCallTokenHeader, token)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestRenderTranslationFileRejectsAPlainJSONBody(t *testing.T) {
