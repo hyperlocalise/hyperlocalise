@@ -102,7 +102,7 @@ Left out of parts 2 and 3:
 
 - A clash from a hand upload, the CLI push or the GitHub repository automation is kept on the version's report but shown nowhere; only the GitLab sync lists clashes, and only it writes source text back.
 - Edits to files from uploads, the CLI and GitHub stay in the platform: no download of the source language yet.
-- Only the JSON family is editable; the other key-value formats wait for writers.
+- Only the JSON family is editable; the other key-value formats wait for writers. A likely route, not decided: the Go writer and go-svc render route from the work on string file downloads in their own format (`fix/web-non-json-string-downloads`) write values into a copy of a file the caller sends, so GitLab write-back could send the repository's current source file with the edited source text. That fits single-language formats (YAML, Android XML, `.strings`, properties, TOML, INI, CSV/TSV, Fluent, RESX, PHP), not XLIFF, PO or Qt TS, whose writers fill the target. Sending translations back in those formats needs its own design.
 - A Lottie animation saved as `.json` is editable and jobs translate its edits (its keys are JSON paths), but GitLab delivery doesn't write Lottie files back, for translations or source.
 - A clashing list item stays as the file has it in jobs too, so the job's translation for that key is of the file's item, next to the edited source in the editor, until the clash is settled.
 - An edit undone here (back to the text last imported) while a merge request carrying the edit is still open: if that merge request is merged before the next sync rebuilds it, the next import takes the edit as a file change, with no clash.
