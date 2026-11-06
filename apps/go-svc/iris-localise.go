@@ -25,12 +25,12 @@ import (
 // the copy baked into a picture.
 
 const (
-	irisLocaliseMaxTexts      = 200
-	irisLocaliseMaxTextRunes  = 5000
-	irisLocaliseMaxGuidance   = 4000
-	irisLocaliseMaxGlossary   = 200
-	irisLocaliseMaxKnowledge  = 6000
-	irisLocaliseMemoryName    = "Iris"
+	irisLocaliseMaxTexts            = 200
+	irisLocaliseMaxTextRunes        = 5000
+	irisLocaliseMaxGuidance         = 4000
+	irisLocaliseMaxGlossary         = 200
+	irisLocaliseMaxKnowledge        = 6000
+	irisLocaliseMemoryName          = "Iris"
 	defaultIrisTranslateModel       = defaultGuidelineCheckModel
 	defaultIrisOpenAITranslateModel = "gpt-6-luna"
 	defaultIrisVisionModel          = defaultGuidelineCheckModel
