@@ -142,13 +142,32 @@ function readPushError(pushed: unknown): { code: string; message: string } | nul
   return typeof code === "string" && typeof message === "string" ? { code, message } : null;
 }
 
+function readFileReports(pulled: unknown): unknown[] {
+  return pulled && typeof pulled === "object" && "files" in pulled && Array.isArray(pulled.files)
+    ? (pulled.files as unknown[])
+    : [];
+}
+
+/** Per file, the keys whose clash a GitLab run left standing: both sides changed them. */
+function readClashes(pulled: unknown) {
+  return readFileReports(pulled).flatMap((file) => {
+    if (!file || typeof file !== "object") {
+      return [];
+    }
+    const { path, clashes } = file as { path?: unknown; clashes?: unknown };
+    if (typeof path !== "string" || !Array.isArray(clashes)) {
+      return [];
+    }
+    const keys = clashes.filter((key): key is string => typeof key === "string");
+    return keys.length > 0
+      ? [{ path, keys: keys.slice(0, HIDDEN_KEY_LIMIT), keyCount: keys.length }]
+      : [];
+  });
+}
+
 /** Per file, the keys a GitLab run hid because the repository no longer has them. */
 function readHiddenKeys(pulled: unknown) {
-  const files =
-    pulled && typeof pulled === "object" && "files" in pulled && Array.isArray(pulled.files)
-      ? (pulled.files as unknown[])
-      : [];
-  return files.flatMap((file) => {
+  return readFileReports(pulled).flatMap((file) => {
     if (!file || typeof file !== "object") {
       return [];
     }
@@ -205,7 +224,9 @@ function serializeRun(run: ProjectContentSyncRunRow, syncProvider: "github" | "g
         }
       : null,
     hiddenKeys: readHiddenKeys(pulled).slice(0, HIDDEN_KEY_FILE_LIMIT),
+    clashes: readClashes(pulled).slice(0, HIDDEN_KEY_FILE_LIMIT),
     written: pushed ? readSummaryCount(pushed, "written") : null,
+    sourceWritten: pushed ? readSummaryCount(pushed, "sourceWritten") : null,
     heldBack: pushed ? readSummaryCount(pushed, "heldBack") : null,
     listsHeldBack: pushed ? readSummaryCount(pushed, "listsHeldBack") : null,
     notSent: pushed

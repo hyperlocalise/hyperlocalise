@@ -697,7 +697,7 @@ describe("project content sync routes", () => {
       expect(await save()).toBe("content_sync_gitlab_project_not_found");
     });
 
-    it("shows unmatched files and the keys a run hid", async () => {
+    it("shows unmatched files, the keys a run hid or found clashing, and source files sent", async () => {
       const { admin, project } = await seedWorkspace();
       const headers = await projectFixture.authHeadersFor(admin);
       const param = paramFor(admin, project.id);
@@ -721,11 +721,11 @@ describe("project content sync routes", () => {
             translationFiles: 1,
             commitSha: "abc",
             files: [
-              { path: "gitlab/acme/app/en.json", missingKeys: manyKeys },
+              { path: "gitlab/acme/app/en.json", clashes: ["home.title"], missingKeys: manyKeys },
               { path: "gitlab/acme/app/empty.json", missingKeys: [] },
             ],
           },
-          pushed: { written: 0, pullRequestUrl: null },
+          pushed: { written: 0, sourceWritten: 1, pullRequestUrl: null },
         },
         completedAt: new Date(),
       });
@@ -739,6 +739,8 @@ describe("project content sync routes", () => {
         hiddenKeys: [
           { path: "gitlab/acme/app/en.json", keys: manyKeys.slice(0, 20), keyCount: 25 },
         ],
+        clashes: [{ path: "gitlab/acme/app/en.json", keys: ["home.title"], keyCount: 1 }],
+        sourceWritten: 1,
         pullRequestUrl: null,
       });
     });

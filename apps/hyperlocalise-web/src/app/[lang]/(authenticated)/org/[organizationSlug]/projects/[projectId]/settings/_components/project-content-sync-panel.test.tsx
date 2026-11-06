@@ -82,6 +82,8 @@ const runs = [
     status: "succeeded",
     pulled: { uploaded: 3, skipped: 1, failed: 0, unmatched: 0 },
     hiddenKeys: [],
+    clashes: [],
+    sourceWritten: null,
     written: 2,
     heldBack: null,
     listsHeldBack: null,
@@ -101,6 +103,8 @@ const runs = [
     status: "failed",
     pulled: null,
     hiddenKeys: [],
+    clashes: [],
+    sourceWritten: null,
     written: null,
     heldBack: null,
     listsHeldBack: null,
@@ -746,6 +750,36 @@ describe("ProjectContentSyncPanel", () => {
         ),
       ).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Sync now" })).toBeEnabled();
+    });
+
+    it("lists the keys a run found changed on both sides, and source files sent", async () => {
+      const user = userEvent.setup();
+      renderPanel({
+        sync: gitlabSync,
+        connections: [
+          { provider: "gitlab", connectionId: "42", resourceKey: "acme/app", branch: null },
+        ],
+        gitlab: gitlabConnected,
+        runs: [
+          {
+            ...runs[0],
+            provider: "gitlab",
+            written: 1,
+            sourceWritten: 1,
+            clashes: [{ path: "gitlab/acme/app/en.json", keys: ["home.title"], keyCount: 1 }],
+          },
+        ],
+      });
+
+      await user.click(
+        await screen.findByText(
+          "Kept Hyperlocalise's text for 1 string also changed in the repository",
+        ),
+      );
+      expect(screen.getByText("home.title")).toBeInTheDocument();
+      expect(
+        screen.getByText("1 source file sent with edits from Hyperlocalise"),
+      ).toBeInTheDocument();
     });
 
     it("shows files left out and keys a run hid, and a GitLab run's own error text", async () => {

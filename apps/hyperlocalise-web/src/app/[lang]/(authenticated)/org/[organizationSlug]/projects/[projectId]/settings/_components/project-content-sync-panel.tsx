@@ -15,7 +15,7 @@
 import { ArrowsClockwiseIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, Fragment, useEffect, useRef, useState } from "react";
-import { FormattedMessage, type IntlShape, useIntl } from "react-intl";
+import { FormattedMessage, type IntlShape, type MessageDescriptor, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
@@ -1104,7 +1104,11 @@ type SyncRun = {
   status: "running" | "succeeded" | "failed";
   pulled: { uploaded: number; skipped: number; failed: number; unmatched: number } | null;
   hiddenKeys: { path: string; keys: string[]; keyCount: number }[];
+  /** Keys both the repository and the project changed; the project's text was kept. */
+  clashes: { path: string; keys: string[]; keyCount: number }[];
   written: number | null;
+  /** Source files sent back with source text edited in the project. */
+  sourceWritten: number | null;
   /** Language files (pages) that wait until every segment is approved. */
   heldBack: number | null;
   /** Lists inside sent files that wait until every item is approved. */
@@ -1186,7 +1190,18 @@ function ProjectContentSyncRuns({ runs }: { runs: SyncRun[] }) {
                   </TypographyP>
                 ) : null}
                 {run.status === "succeeded" && run.hiddenKeys.length > 0 ? (
-                  <RunHiddenKeys hiddenKeys={run.hiddenKeys} />
+                  <RunKeyList files={run.hiddenKeys} summary={messages.runHiddenKeys} />
+                ) : null}
+                {run.status === "succeeded" && run.clashes.length > 0 ? (
+                  <RunKeyList files={run.clashes} summary={messages.runClashes} />
+                ) : null}
+                {run.status === "succeeded" && run.sourceWritten && !run.pushError ? (
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage
+                      {...messages.runSourceWritten}
+                      values={{ count: run.sourceWritten }}
+                    />
+                  </TypographyP>
                 ) : null}
                 {run.status === "succeeded" && run.written !== null && !run.pushError ? (
                   <TypographyP size="small" tone="subtle">
@@ -1255,15 +1270,22 @@ function ProjectContentSyncRuns({ runs }: { runs: SyncRun[] }) {
   );
 }
 
-function RunHiddenKeys({ hiddenKeys }: { hiddenKeys: SyncRun["hiddenKeys"] }) {
-  const count = hiddenKeys.reduce((total, file) => total + file.keyCount, 0);
+/** Keys per file a run reports, under a summary line that counts them. */
+function RunKeyList({
+  files,
+  summary,
+}: {
+  files: SyncRun["hiddenKeys"];
+  summary: MessageDescriptor;
+}) {
+  const count = files.reduce((total, file) => total + file.keyCount, 0);
   return (
     <details className="text-sm text-muted-foreground">
       <summary className="cursor-pointer">
-        <FormattedMessage {...messages.runHiddenKeys} values={{ count }} />
+        <FormattedMessage {...summary} values={{ count }} />
       </summary>
       <ul className="mt-1 grid gap-1">
-        {hiddenKeys.map((file) => (
+        {files.map((file) => (
           <li key={file.path}>
             <span className="font-mono">{file.path}</span>:{" "}
             <span className="font-mono">{file.keys.join(", ")}</span>
