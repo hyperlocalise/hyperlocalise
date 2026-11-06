@@ -30,6 +30,7 @@ import {
   unhideKeysSyncHid,
 } from "@/lib/projects/files/hide-keys-missing-from-sync";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
+import { settleUnchangedSourceFile } from "@/lib/projects/files/settle-unchanged-source-file";
 import { SYNC_REPORT_KEY_LIMIT } from "@/lib/projects/files/source-file-sync-report";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 
@@ -60,11 +61,13 @@ export type ContentSyncFileReport = {
   /** How many keys were hidden, when more than `missingKeys` lists. */
   missingKeyCount?: number;
   path: string;
+  /** Keys whose clash still stands after this run: both sides changed, the project's text kept. */
+  clashes: string[];
   /** Keys this run hid because the repository no longer has them. */
   missingKeys: string[];
 };
 
-/** The GitHub summary's shape, plus what a GitLab pull hid or left aside. */
+/** The GitHub summary's shape, plus what a GitLab pull hid, left aside or couldn't settle. */
 export type GitLabContentSyncSummary = ContentSyncSummary & {
   pushed: ContentSyncSummary["pushed"] &
     Partial<
@@ -79,7 +82,7 @@ export type GitLabContentSyncSummary = ContentSyncSummary & {
     /** Translation files seen in the repository; not imported, delivery owns them. */
     translationFiles: number;
     commitSha: string;
-    /** Per file, the keys the repository no longer has. */
+    /** Per file, the keys that clashed and the keys the repository no longer has. */
     files: ContentSyncFileReport[];
   };
 };
@@ -108,6 +111,7 @@ export async function executeGitLabContentSync(input: {
     .select({
       sourceLocale: schema.projects.sourceLocale,
       targetLocales: schema.projects.targetLocales,
+      sourceTextEditable: schema.projects.sourceTextEditable,
     })
     .from(schema.projects)
     .where(
@@ -360,9 +364,28 @@ export async function executeGitLabContentSync(input: {
     });
   }
 
-  // A file imported by this run has a fresh report; an unchanged file's report counts only if no
-  // run has shown it yet (its run may have failed on another file after this one was ingested).
-  const reports = await loadSyncReports(versions);
+  // An unchanged file isn't imported again, but its clashes and edits are settled against the
+  // text already known. A file whose ingest this run queued again was just through the rule.
+  const settled = new Map<string, string[]>();
+  for (const version of versions) {
+    if (!version.unchanged || version.requeued) {
+      continue;
+    }
+    const clashes = await settleUnchangedSourceFile({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: version.path,
+    });
+    settled.set(
+      version.sourceFileVersionId,
+      clashes.map((clash) => clash.key),
+    );
+  }
+
+  // A file imported by this run has a fresh report; an unchanged file's hidden keys count only if
+  // no run has shown them yet (its run may have failed on another file after this one was
+  // ingested), while its clashes stand on every run until settled.
+  const reports = await loadSyncReports(versions, settled);
   const files = [
     ...reports.map(({ versionId: _versionId, ...report }) => report),
     ...(await hideFilesMissingFromRepository({
@@ -382,6 +405,7 @@ export async function executeGitLabContentSync(input: {
       pulled,
       unmatched,
       translationFiles,
+      clashes: files.reduce((count, file) => count + file.clashes.length, 0),
       missingKeys: files.reduce((count, file) => count + file.missingKeys.length, 0),
     },
     "gitlab content sync pulled",
@@ -404,6 +428,7 @@ export async function executeGitLabContentSync(input: {
       repositoryPaths: new Set(listing.value.map((file) => file.path)),
       sourceFiles: deliverable,
       sourceLocale,
+      sourceTextEditable: project.sourceTextEditable,
       branchName: buildPullTranslationsBranchName(
         input.pullRequestBranchKey ?? `workflow-${input.automationId}`,
       ),
@@ -641,6 +666,7 @@ async function hideFilesMissingFromRepository(input: {
     if (missingKeys.length > 0) {
       reports.push({
         path: file.sourcePath,
+        clashes: [],
         missingKeys: missingKeys.slice(0, SYNC_REPORT_KEY_LIMIT),
         ...(missingKeys.length > SYNC_REPORT_KEY_LIMIT
           ? { missingKeyCount: missingKeys.length }
@@ -653,6 +679,8 @@ async function hideFilesMissingFromRepository(input: {
 
 async function loadSyncReports(
   versions: SyncedVersion[],
+  /** Clashes still standing on each unchanged file, by version. */
+  settled: Map<string, string[]>,
 ): Promise<(ContentSyncFileReport & { versionId: string })[]> {
   if (versions.length === 0) {
     return [];
@@ -673,17 +701,20 @@ async function loadSyncReports(
   return versions
     .map((version) => {
       const report = reportById.get(version.sourceFileVersionId);
-      if (!report || report.missingKeys.length === 0) {
-        return null;
-      }
-      if (version.unchanged && !version.requeued && report.reportedRunId) {
+      const clashes =
+        settled.get(version.sourceFileVersionId) ??
+        (report?.clashes ?? []).map((clash) => clash.key);
+      const missing =
+        report && !(version.unchanged && !version.requeued && report.reportedRunId) ? report : null;
+      if (clashes.length === 0 && !missing?.missingKeys?.length) {
         return null;
       }
       return {
         versionId: version.sourceFileVersionId,
         path: version.path,
-        missingKeys: report.missingKeys,
-        ...(report.missingKeyCount ? { missingKeyCount: report.missingKeyCount } : {}),
+        clashes,
+        missingKeys: missing?.missingKeys ?? [],
+        ...(missing?.missingKeyCount ? { missingKeyCount: missing.missingKeyCount } : {}),
       };
     })
     .filter((report) => report !== null);
