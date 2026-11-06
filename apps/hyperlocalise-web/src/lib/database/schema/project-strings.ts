@@ -54,6 +54,11 @@ export const projectTranslationKeys = pgTable(
     key: text("key").notNull(),
     sourceText: text("source_text").notNull(),
     normalizedSourceText: text("normalized_source_text").notNull(),
+    /**
+     * The source text as last imported from a file. Null until an import writes it; then the
+     * three-way rule in `upsertKeysFromEntries` can tell a platform edit from a repository edit.
+     */
+    importedSourceText: text("imported_source_text"),
     context: text("context"),
     type: text("type"),
     maxLength: integer("max_length"),
