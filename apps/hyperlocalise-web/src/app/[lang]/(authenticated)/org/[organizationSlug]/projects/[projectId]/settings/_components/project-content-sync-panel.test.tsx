@@ -773,12 +773,12 @@ describe("ProjectContentSyncPanel", () => {
 
       await user.click(
         await screen.findByText(
-          "1 key was changed both in the repository and here; the project's text was kept",
+          "Kept Hyperlocalise's text for 1 string also changed in the repository",
         ),
       );
       expect(screen.getByText("home.title")).toBeInTheDocument();
       expect(
-        screen.getByText("1 source file sent with source text edited here"),
+        screen.getByText("1 source file sent with edits from Hyperlocalise"),
       ).toBeInTheDocument();
     });
 

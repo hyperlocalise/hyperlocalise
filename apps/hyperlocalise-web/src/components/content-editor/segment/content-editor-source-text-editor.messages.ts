@@ -29,8 +29,8 @@ export const contentEditorSourceTextEditorMessages = defineMessages({
     description: "Accessible label of the field that edits a string's source text",
   },
   smallFix: {
-    defaultMessage: "Small fix: keep approved translations",
-    id: "wFNfwDkO6r",
+    defaultMessage: "Keep translations approved",
+    id: "SipE8X0v9J",
     description:
       "Checkbox that keeps approved translations approved when the source text edit is saved",
   },
@@ -56,8 +56,8 @@ export const contentEditorSourceTextEditorMessages = defineMessages({
     description: "Error when the edited source text is empty",
   },
   saveFailed: {
-    defaultMessage: "The source text couldn't be saved.",
-    id: "CVQmBcw6/Q",
+    defaultMessage: "Unable to save source text",
+    id: "S9AU7Fr7+S",
     description: "Error when saving the edited source text fails",
   },
   saved: {

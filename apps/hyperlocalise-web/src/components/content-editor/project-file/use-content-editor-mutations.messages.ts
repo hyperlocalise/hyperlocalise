@@ -83,8 +83,8 @@ export const useContentEditorMutationsMessages = defineMessages({
     description: "Fallback error when updating a native segment max length fails",
   },
   failedToUpdateSourceText: {
-    defaultMessage: "The source text couldn't be saved",
-    id: "SvsfGne6Z0",
+    defaultMessage: "Unable to save source text",
+    id: "ZOxMtkQ8RM",
     description: "Fallback error when saving a string's source text in the content editor fails",
   },
 });

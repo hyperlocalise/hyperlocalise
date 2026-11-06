@@ -112,14 +112,14 @@ export const projectContentEditorBehaviorMessages = defineMessages({
     description: "Content Editor behavior update failure",
   },
   sourceTextEditableLabel: {
-    defaultMessage: "Edit source text in Hyperlocalise",
-    id: "cXMmKKeMKc",
+    defaultMessage: "Allow source text editing",
+    id: "0f1vRHyb/+",
     description: "Source text editing setting label",
   },
   sourceTextEditableDescription: {
     defaultMessage:
-      "Lets people edit the source text of JSON, JSONC and ARB files in the Content Editor and through the API. Imports then keep edits made here, translation jobs translate them, and a GitLab sync sends them back in its merge request and lists strings changed on both sides. Off, the next import of a file replaces edits made here with the file's text.",
-    id: "6qE2HcfwsA",
+      "Works for JSON, JSONC and ARB files. Uploads and syncs keep edits made in Hyperlocalise, and GitLab syncs send them back.",
+    id: "IpqFY41m31",
     description: "Source text editing setting description",
   },
   sourceTextEditableDisableTitle: {
@@ -129,8 +129,8 @@ export const projectContentEditorBehaviorMessages = defineMessages({
   },
   sourceTextEditableDisableDescription: {
     defaultMessage:
-      "Source text edits made here that haven't reached the file yet will be replaced by the file's text on its next import or sync. The Content Editor and the API will no longer change the source text of strings in files.",
-    id: "yuUhv1kJRS",
+      "Edits not yet in the file will be replaced by the file's text on its next import or sync.",
+    id: "Cz/PpwoKv+",
     description: "Disable source text editing confirmation description",
   },
   confirmDisableSourceTextEditing: {

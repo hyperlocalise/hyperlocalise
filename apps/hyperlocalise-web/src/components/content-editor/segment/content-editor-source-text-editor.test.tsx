@@ -50,9 +50,7 @@ describe("ContentEditorSourceTextEditor", () => {
     const field = screen.getByRole("textbox", { name: "Source text" });
     await user.clear(field);
     await user.type(field, "Log in");
-    await user.click(
-      screen.getByRole("checkbox", { name: "Small fix: keep approved translations" }),
-    );
+    await user.click(screen.getByRole("checkbox", { name: "Keep translations approved" }));
     await user.click(screen.getByRole("button", { name: "Save source text" }));
 
     expect(onSave).toHaveBeenCalledWith({
@@ -67,15 +65,11 @@ describe("ContentEditorSourceTextEditor", () => {
     const { onSave } = renderEditor({ offerSmallFix: true });
     await user.click(screen.getByRole("button", { name: "Edit source text" }));
     await user.type(screen.getByRole("textbox", { name: "Source text" }), "!");
-    await user.click(
-      screen.getByRole("checkbox", { name: "Small fix: keep approved translations" }),
-    );
+    await user.click(screen.getByRole("checkbox", { name: "Keep translations approved" }));
     await user.click(screen.getByRole("button", { name: "Save source text" }));
 
     await user.click(screen.getByRole("button", { name: "Edit source text" }));
-    expect(
-      screen.getByRole("checkbox", { name: "Small fix: keep approved translations" }),
-    ).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Keep translations approved" })).not.toBeChecked();
     await user.type(screen.getByRole("textbox", { name: "Source text" }), "?");
     await user.click(screen.getByRole("button", { name: "Save source text" }));
     expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ keepApproved: false }));

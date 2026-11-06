@@ -116,9 +116,7 @@ describe("ProjectContentEditorBehaviorSettings", () => {
   it("turns source text editing on at once and asks before turning it off", async () => {
     const user = userEvent.setup();
     renderSettings();
-    await user.click(
-      await screen.findByRole("switch", { name: "Edit source text in Hyperlocalise" }),
-    );
+    await user.click(await screen.findByRole("switch", { name: "Allow source text editing" }));
     await waitFor(() =>
       expect(apiMocks.updateContentEditorBehavior).toHaveBeenCalledWith("acme", "project_1", {
         sourceTextEditable: true,
@@ -129,9 +127,7 @@ describe("ProjectContentEditorBehaviorSettings", () => {
   it("warns that edits not yet in the files are replaced when editing is turned off", async () => {
     const user = userEvent.setup();
     renderSettings(true, true);
-    await user.click(
-      await screen.findByRole("switch", { name: "Edit source text in Hyperlocalise" }),
-    );
+    await user.click(await screen.findByRole("switch", { name: "Allow source text editing" }));
 
     expect(await screen.findByText("Stop editing source text here?")).toBeInTheDocument();
     expect(apiMocks.updateContentEditorBehavior).not.toHaveBeenCalled();

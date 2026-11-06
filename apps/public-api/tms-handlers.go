@@ -40,7 +40,7 @@ var storeErrorResponses = []storeErrorResponse{
 	{errStringKeyConflict, http.StatusConflict, "string_key_conflict", "A string with this key already exists"},
 	{errLocaleNotInProject, http.StatusBadRequest, "invalid_locale", "Locale is not a target locale of the project"},
 	{errSegmentLocked, http.StatusConflict, "segment_locked", "Segment is locked"},
-	{errSourceTextNotEditable, http.StatusConflict, "source_text_not_editable", "This string's source text comes from its file: the project's 'Edit source text in Hyperlocalise' setting is off, the string is hidden, or the file isn't a JSON, JSONC or ARB file uploaded by people or synced from a repository (an integration's file, or one uploaded before that was recorded, isn't editable until uploaded again)"},
+	{errSourceTextNotEditable, http.StatusConflict, "source_text_not_editable", "This string's source text comes from its file: the project's 'Allow source text editing' setting is off, the string is hidden, or the file isn't a JSON, JSONC or ARB file uploaded by people or synced from a repository (an integration's file, or one uploaded before that was recorded, isn't editable until uploaded again)"},
 	{errSourceTextInvalid, http.StatusBadRequest, "invalid_source_text", "sourceText may not hold control characters U+001E or U+0000"},
 	{errSourceTextForbidden, http.StatusForbidden, "source_text_forbidden", "Only admins, localization managers and developers can change the source text of strings in files"},
 	{errTranslationTooLong, http.StatusUnprocessableEntity, "translation_too_long", "Translation exceeds the string max length"},
