@@ -46,6 +46,7 @@ function renderSettings(canManage = true) {
     contentEditorBehavior: {
       automaticallyGroupIdenticalStrings: false,
       groupingRevision: 0,
+      approvedTranslationsOnSourceChange: "stay_approved",
       canManage,
     },
   });
@@ -56,6 +57,7 @@ function renderSettings(canManage = true) {
     contentEditorBehavior: {
       automaticallyGroupIdenticalStrings: true,
       groupingRevision: 1,
+      approvedTranslationsOnSourceChange: "stay_approved",
       canManage: true,
     },
   });
@@ -93,12 +95,31 @@ describe("ProjectContentEditorBehaviorSettings", () => {
     expect(apiMocks.previewContentEditorBehavior).toHaveBeenCalledWith("acme", "project_1");
   });
 
+  it("saves what happens to approved translations when source text changes", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    const setting = await screen.findByRole("combobox", { name: "When source text changes" });
+    expect(setting).toHaveTextContent("Stays approved");
+
+    await user.click(setting);
+    await user.click(await screen.findByRole("option", { name: "Needs review" }));
+
+    await waitFor(() =>
+      expect(apiMocks.updateContentEditorBehavior).toHaveBeenCalledWith("acme", "project_1", {
+        approvedTranslationsOnSourceChange: "needs_review",
+      }),
+    );
+    expect(apiMocks.previewContentEditorBehavior).not.toHaveBeenCalled();
+  });
+
   it("keeps the setting read-only for non-managers", async () => {
     renderSettings(false);
     const setting = await screen.findByRole("switch", {
       name: "Automatically merge identical strings",
     });
     await waitFor(() => expect(setting).toHaveAttribute("aria-disabled", "true"));
-    expect(screen.getByText("Only project managers can change this setting.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Only admins and localization managers can change these settings."),
+    ).toBeInTheDocument();
   });
 });

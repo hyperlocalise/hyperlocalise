@@ -46,6 +46,8 @@ Those actions stay hidden on other files and on the all-files queue. **Ingest** 
 
 Translators can prepare drafts; approval requires a reviewer, localization manager, or administrator with project access. See [Roles and permissions](/platform/workspace/roles).
 
+When a string's source text changes, from a new file upload, a repository sync, an integration import or the API, its approved translations stay approved unless the project's **When source text changes** setting is **Needs review**. Then they go back to **Needs review** with their text kept, so a reviewer can update it to the new source and approve it again. See [Update source content safely](/platform/guides/update-source-content#recheck-approved-wording).
+
 Format checks on the segment include **Placeholders & ICU** and **Length**. Fix those before you approve. Unreal Engine tags in gettext `.po` files appear as chips such as **UE#0**; keep them and translate the words around them. See [Unreal Engine rich text in gettext PO](/cli/reference/formats/gettext#unreal-engine-rich-text).
 
 ## Filter the queue

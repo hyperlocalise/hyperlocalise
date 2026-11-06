@@ -67,6 +67,11 @@ vi.mock("@/lib/database/client", () => ({
       translationKeyId: "translationKeyId",
       targetLocale: "targetLocale",
     },
+    projects: {
+      id: "id",
+      organizationId: "organizationId",
+      approvedTranslationsOnSourceChange: "approvedTranslationsOnSourceChange",
+    },
   },
 }));
 

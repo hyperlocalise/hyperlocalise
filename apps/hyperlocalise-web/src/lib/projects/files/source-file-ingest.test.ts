@@ -34,6 +34,7 @@ import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { insertStoredSourceFile } from "@/api/routes/public-jobs/public-jobs.fixture";
 import { db, schema } from "@/lib/database/client";
 import { createRepositorySourceFileVersion } from "@/lib/file-storage/records";
+import { importApprovedProjectTranslationsFromEntries } from "@/lib/projects/translations/project-translation-service";
 import type { SourceFileIngestQueue } from "@/lib/workflow/types";
 
 import { GITLAB_CONTENT_SYNC_UPLOAD_SURFACE } from "@/lib/agents/content-sync/content-sync-types";
@@ -76,6 +77,7 @@ async function createSourceVersion(input: {
   ingestWorkflowRunId?: string | null;
   filename?: string;
   uploadSurface?: string;
+  keepApprovedTranslations?: boolean;
 }) {
   const storedFile = await insertStoredSourceFile({
     organizationId: input.organizationId,
@@ -93,6 +95,7 @@ async function createSourceVersion(input: {
     sourcePath: input.sourcePath ?? SOURCE_PATH,
     sourceHash: input.sourceHash === undefined ? SOURCE_HASH : input.sourceHash,
     uploadSurface: input.uploadSurface ?? "test",
+    keepApprovedTranslations: input.keepApprovedTranslations,
   });
 
   if (input.ingestState || input.ingestWorkflowRunId !== undefined) {
@@ -401,6 +404,7 @@ describe("reconcileSourceFileTranslationKeys", () => {
     projectId: string,
     entries: { key: string; text: string }[],
     sourcePath = SOURCE_PATH,
+    options: { keepApprovedTranslations?: boolean } = {},
   ) {
     const version = await createSourceVersion({
       organizationId,
@@ -408,6 +412,7 @@ describe("reconcileSourceFileTranslationKeys", () => {
       sourcePath,
       ingestState: "ingesting",
       ingestWorkflowRunId: "run_reconcile",
+      keepApprovedTranslations: options.keepApprovedTranslations,
     });
     const input = {
       organizationId,
@@ -554,6 +559,265 @@ describe("reconcileSourceFileTranslationKeys", () => {
         .from(schema.projectTranslationComments)
         .where(eq(schema.projectTranslationComments.projectId, project.id)),
     ).toHaveLength(1);
+  });
+
+  async function reimportWithApprovedTranslations(input: {
+    setting?: "stay_approved" | "needs_review";
+    keepApprovedTranslations?: boolean;
+    lockedLocale?: string;
+  }) {
+    const { organization, project } = await createStoredProjectFixture();
+    if (input.setting) {
+      await db
+        .update(schema.projects)
+        .set({ approvedTranslationsOnSourceChange: input.setting })
+        .where(eq(schema.projects.id, project.id));
+    }
+    await snapshot(organization.id, project.id, [
+      { key: "changed", text: "Save" },
+      { key: "same", text: "Cancel" },
+    ]);
+    const keys = await db
+      .select()
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.projectId, project.id));
+    const keyId = (key: string) => keys.find((row) => row.key === key)!.id;
+    const reviewedAt = new Date("2026-01-01T00:00:00Z");
+    await db.insert(schema.projectTranslations).values(
+      [
+        { key: "changed", targetLocale: "fr", status: "approved" as const },
+        { key: "changed", targetLocale: "de", status: "draft" as const },
+        { key: "same", targetLocale: "fr", status: "approved" as const },
+      ].map((row) => ({
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: keyId(row.key),
+        targetLocale: row.targetLocale,
+        text: `${row.key} ${row.targetLocale}`,
+        status: row.status,
+        provenance: "import" as const,
+        reviewedAt: row.status === "approved" ? reviewedAt : null,
+      })),
+    );
+    if (input.lockedLocale) {
+      await db.insert(schema.projectContentEditorSegmentLocks).values({
+        organizationId: organization.id,
+        projectId: project.id,
+        targetLocale: input.lockedLocale,
+        externalStringId: keyId("changed"),
+      });
+    }
+
+    await snapshot(
+      organization.id,
+      project.id,
+      [
+        { key: "changed", text: "Save changes" },
+        { key: "same", text: "Cancel" },
+      ],
+      SOURCE_PATH,
+      { keepApprovedTranslations: input.keepApprovedTranslations },
+    );
+
+    const translations = await db
+      .select()
+      .from(schema.projectTranslations)
+      .where(eq(schema.projectTranslations.projectId, project.id));
+    const state = (key: string, locale: string) =>
+      translations.find(
+        (row) => row.translationKeyId === keyId(key) && row.targetLocale === locale,
+      );
+    const revisions = await db
+      .select()
+      .from(schema.projectTranslationRevisions)
+      .where(eq(schema.projectTranslationRevisions.projectId, project.id));
+    return { state, revisions, reviewedAt };
+  }
+
+  it("keeps approved translations approved by default when source text changes", async () => {
+    const { state, revisions, reviewedAt } = await reimportWithApprovedTranslations({});
+    expect(state("changed", "fr")).toMatchObject({ status: "approved", reviewedAt });
+    expect(revisions).toEqual([]);
+  });
+
+  it("sends approved translations of changed source text back to review when the project asks", async () => {
+    const { state, revisions, reviewedAt } = await reimportWithApprovedTranslations({
+      setting: "needs_review",
+    });
+    expect(state("changed", "fr")).toMatchObject({
+      status: "needs_review",
+      text: "changed fr",
+      reviewedAt: null,
+    });
+    expect(state("changed", "de")).toMatchObject({ status: "draft" });
+    expect(state("same", "fr")).toMatchObject({ status: "approved", reviewedAt });
+    expect(
+      revisions
+        .toSorted((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .map((row) => [row.translationId, row.status, row.actorKind]),
+    ).toEqual([
+      [state("changed", "fr")!.id, "approved", "system"],
+      [state("changed", "fr")!.id, "needs_review", "system"],
+    ]);
+  });
+
+  it("leaves a locked translation approved when source text changes", async () => {
+    const { state, reviewedAt } = await reimportWithApprovedTranslations({
+      setting: "needs_review",
+      lockedLocale: "fr",
+    });
+    expect(state("changed", "fr")).toMatchObject({ status: "approved", reviewedAt });
+  });
+
+  it("scopes a lock to its own locale", async () => {
+    const { state } = await reimportWithApprovedTranslations({
+      setting: "needs_review",
+      lockedLocale: "de",
+    });
+    expect(state("changed", "fr")).toMatchObject({ status: "needs_review" });
+  });
+
+  it("does not count surrounding whitespace as a source change", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    await db
+      .update(schema.projects)
+      .set({ approvedTranslationsOnSourceChange: "needs_review" })
+      .where(eq(schema.projects.id, project.id));
+    await snapshot(organization.id, project.id, [{ key: "total", text: "Total:" }]);
+    const [key] = await db
+      .select()
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.projectId, project.id));
+    await db.insert(schema.projectTranslations).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: key!.id,
+      targetLocale: "fr",
+      text: "Total :",
+      status: "approved",
+      provenance: "import",
+    });
+
+    await snapshot(organization.id, project.id, [{ key: "total", text: "Total: " }]);
+
+    const [translation] = await db
+      .select()
+      .from(schema.projectTranslations)
+      .where(eq(schema.projectTranslations.translationKeyId, key!.id));
+    expect(translation).toMatchObject({ status: "approved" });
+  });
+
+  it("keeps approved translations approved when the upload is marked as a small fix", async () => {
+    const { state, revisions, reviewedAt } = await reimportWithApprovedTranslations({
+      setting: "needs_review",
+      keepApprovedTranslations: true,
+    });
+    expect(state("changed", "fr")).toMatchObject({ status: "approved", reviewedAt });
+    expect(revisions).toEqual([]);
+  });
+
+  it("leaves translations in review when an import brings back their unchanged text", async () => {
+    const { state } = await reimportWithApprovedTranslations({ setting: "needs_review" });
+    const fr = state("changed", "fr")!;
+
+    const unchanged = await importApprovedProjectTranslationsFromEntries({
+      organizationId: fr.organizationId,
+      projectId: fr.projectId,
+      sourcePath: SOURCE_PATH,
+      targetLocale: "fr",
+      entries: { changed: "changed fr" },
+    });
+    expect(unchanged).toMatchObject({ imported: 1, skipped: 0 });
+    const [afterUnchanged] = await db
+      .select()
+      .from(schema.projectTranslations)
+      .where(eq(schema.projectTranslations.id, fr.id));
+    expect(afterUnchanged).toMatchObject({ status: "needs_review", text: "changed fr" });
+
+    const [project] = await db
+      .select({ createdByUserId: schema.projects.createdByUserId })
+      .from(schema.projects)
+      .where(eq(schema.projects.id, fr.projectId));
+    const byPerson = await importApprovedProjectTranslationsFromEntries({
+      organizationId: fr.organizationId,
+      projectId: fr.projectId,
+      sourcePath: SOURCE_PATH,
+      targetLocale: "fr",
+      entries: { changed: "changed fr" },
+      actorUserId: project!.createdByUserId,
+    });
+    expect(byPerson).toMatchObject({ imported: 1 });
+    const [afterPerson] = await db
+      .select()
+      .from(schema.projectTranslations)
+      .where(eq(schema.projectTranslations.id, fr.id));
+    expect(afterPerson).toMatchObject({ status: "approved", text: "changed fr" });
+
+    await db
+      .update(schema.projectTranslations)
+      .set({ status: "needs_review" })
+      .where(eq(schema.projectTranslations.id, fr.id));
+    await importApprovedProjectTranslationsFromEntries({
+      organizationId: fr.organizationId,
+      projectId: fr.projectId,
+      sourcePath: SOURCE_PATH,
+      targetLocale: "fr",
+      entries: { changed: "Enregistrer les modifications" },
+    });
+    const [afterEdited] = await db
+      .select()
+      .from(schema.projectTranslations)
+      .where(eq(schema.projectTranslations.id, fr.id));
+    expect(afterEdited).toMatchObject({
+      status: "approved",
+      text: "Enregistrer les modifications",
+    });
+  });
+
+  it("sends more approved translations to review than one statement can bind", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    await db
+      .update(schema.projects)
+      .set({ approvedTranslationsOnSourceChange: "needs_review" })
+      .where(eq(schema.projects.id, project.id));
+    // 520 keys in 11 locales: 5,720 revisions at 12 values each would exceed Postgres's 65,535.
+    const locales = Array.from({ length: 11 }, (_, index) => `x${index}`);
+    const entries = Array.from({ length: 520 }, (_, index) => ({
+      key: `k${index}`,
+      text: `Text ${index}`,
+    }));
+    await snapshot(organization.id, project.id, entries);
+    const keys = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.projectId, project.id));
+    const rows = keys.flatMap((key) =>
+      locales.map((targetLocale) => ({
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: key.id,
+        targetLocale,
+        text: "t",
+        status: "approved" as const,
+        provenance: "import" as const,
+      })),
+    );
+    for (let start = 0; start < rows.length; start += 1000) {
+      await db.insert(schema.projectTranslations).values(rows.slice(start, start + 1000));
+    }
+
+    await snapshot(
+      organization.id,
+      project.id,
+      entries.map((entry) => ({ ...entry, text: `${entry.text}!` })),
+    );
+
+    const statuses = await db
+      .select({ status: schema.projectTranslations.status })
+      .from(schema.projectTranslations)
+      .where(eq(schema.projectTranslations.projectId, project.id));
+    expect(statuses).toHaveLength(rows.length);
+    expect(new Set(statuses.map((row) => row.status))).toEqual(new Set(["needs_review"]));
   });
 
   it("reconciles empty files and does not let an older workflow restore deleted keys", async () => {

@@ -80,7 +80,7 @@ func TestProjectRoutes(t *testing.T) {
 		require.NoError(t, err)
 		rec := projectRequest(api, scope, scope.OrgPath("/projects/"+scope.ProjectID+"/content-editor-behavior"))
 		require.Equal(t, http.StatusOK, rec.Code)
-		require.JSONEq(t, `{"contentEditorBehavior":{"automaticallyGroupIdenticalStrings":true,"groupingRevision":4,"canManage":true}}`, rec.Body.String())
+		require.JSONEq(t, `{"contentEditorBehavior":{"automaticallyGroupIdenticalStrings":true,"groupingRevision":4,"approvedTranslationsOnSourceChange":"stay_approved","canManage":true}}`, rec.Body.String())
 	})
 
 	t.Run("lists the latest native repository files", func(t *testing.T) {

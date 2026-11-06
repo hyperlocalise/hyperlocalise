@@ -68,6 +68,8 @@ export type SourceFileUploadInput = {
   format?: string | null;
   branch?: string | null;
   uploadSurface: string;
+  /** Keep approved translations approved for this upload's source text changes. */
+  keepApprovedTranslations?: boolean;
   uploadedByApiKeyId?: string | null;
   uploadedByUserId?: string | null;
   actorUserId?: string | null;
@@ -159,6 +161,7 @@ async function uploadNativeSourceFile(
         uploadedByApiKeyId: input.uploadedByApiKeyId ?? undefined,
         uploadedByUserId: input.uploadedByUserId ?? undefined,
         uploadSurface: input.uploadSurface,
+        keepApprovedTranslations: input.keepApprovedTranslations,
         db: tx,
       });
 

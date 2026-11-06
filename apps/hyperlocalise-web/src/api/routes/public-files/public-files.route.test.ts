@@ -277,6 +277,38 @@ describe("publicFileRoutes", () => {
     expect(new Set(versions.map((version) => version.storedFileId)).size).toBe(2);
   });
 
+  it("records an upload's request to keep approved translations approved", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const upload = (path: string, keepApproved?: string) =>
+      client.api.v1.files.$post(
+        {
+          form: {
+            projectId: project.id,
+            sourcePath: path,
+            ...(keepApproved ? { keepApproved } : {}),
+            file: new File(["# Hello"], "home.md", { type: "text/markdown" }),
+          },
+        },
+        { headers: { "x-api-key": apiKey } },
+      );
+
+    expect((await upload("content/en/fix.md", "true")).status).toBe(201);
+    expect((await upload("content/en/plain.md")).status).toBe(201);
+    expect((await upload("content/en/bad.md", "yes")).status).toBe(400);
+
+    const versions = await db
+      .select({
+        sourcePath: schema.repositorySourceFileVersions.sourcePath,
+        keepApprovedTranslations: schema.repositorySourceFileVersions.keepApprovedTranslations,
+      })
+      .from(schema.repositorySourceFileVersions)
+      .where(eq(schema.repositorySourceFileVersions.projectId, project.id));
+    expect(versions.toSorted((a, b) => a.sourcePath.localeCompare(b.sourcePath))).toEqual([
+      { sourcePath: "content/en/fix.md", keepApprovedTranslations: true },
+      { sourcePath: "content/en/plain.md", keepApprovedTranslations: false },
+    ]);
+  });
+
   it("rejects unsupported source file formats", async () => {
     const { apiKey, project } = await createPublicApiFixture();
 
