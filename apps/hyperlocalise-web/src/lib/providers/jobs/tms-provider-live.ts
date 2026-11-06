@@ -674,6 +674,7 @@ function buildLiveProviderProject(input: {
     issueTemplateConfig: {},
     automaticallyGroupIdenticalStrings: false,
     approvedTranslationsOnSourceChange: "stay_approved",
+    sourceTextEditable: false,
     contentEditorGroupingRevision: 0,
     qaScanCadence: "off",
     qaCheckPolicy: DEFAULT_QA_POLICY,

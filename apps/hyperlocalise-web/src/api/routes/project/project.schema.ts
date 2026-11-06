@@ -1075,6 +1075,7 @@ export const projectFileCatSegmentSchema = z.object({
   imageVariantId: z.string().nullable().optional(),
   looksLikeImageUrl: z.boolean().optional(),
   looksLikeVideoUrl: z.boolean().optional(),
+  sourceTextEditable: z.boolean().optional(),
   /** Present when the queue spans multiple files (`sourcePath=*`). */
   sourcePath: z.string().optional(),
   /** Provider file format for this segment's file (All Files mode). */

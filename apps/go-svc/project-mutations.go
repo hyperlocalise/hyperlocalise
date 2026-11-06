@@ -901,6 +901,7 @@ func teamGlossariesAttachedToProject(ctx context.Context, db dictionaryDB, organ
 type updateContentEditorBehaviorRequest struct {
 	AutomaticallyGroupIdenticalStrings *bool   `json:"automaticallyGroupIdenticalStrings"`
 	ApprovedTranslationsOnSourceChange *string `json:"approvedTranslationsOnSourceChange"`
+	SourceTextEditable                 *bool   `json:"sourceTextEditable"`
 }
 
 func (api *projectAPI) updateContentEditorBehaviorHandler(r *http.Request, actor projectActor) (any, int, error) {
@@ -915,7 +916,8 @@ func (api *projectAPI) updateContentEditorBehaviorHandler(r *http.Request, actor
 	if err := decodeProjectBody(r, &req); err != nil {
 		return nil, 0, err
 	}
-	if req.AutomaticallyGroupIdenticalStrings == nil && req.ApprovedTranslationsOnSourceChange == nil {
+	if req.AutomaticallyGroupIdenticalStrings == nil && req.ApprovedTranslationsOnSourceChange == nil &&
+		req.SourceTextEditable == nil {
 		return nil, 0, invalidProjectPayload()
 	}
 	if value := req.ApprovedTranslationsOnSourceChange; value != nil && *value != "stay_approved" && *value != "needs_review" {
@@ -958,6 +960,20 @@ func (api *projectAPI) updateContentEditorBehaviorHandler(r *http.Request, actor
 			return nil, 0, err
 		}
 	}
+	if req.SourceTextEditable != nil {
+		if _, err := tx.Exec(ctx, `
+			update projects p
+			set source_text_editable=$3,
+				updated_by_user_id=$4,
+				updated_at=now()
+			where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(5, 6, 2)+`
+				and p.source_text_editable is distinct from $3`,
+			projectID, actor.organizationID, *req.SourceTextEditable, actor.userID,
+			actor.canReadAllTeams(), actor.userID,
+		); err != nil {
+			return nil, 0, err
+		}
+	}
 	behavior, err := loadContentEditorBehavior(ctx, tx, projectID, actor)
 	if isNoRows(err) {
 		return nil, 0, projectNotFound()
@@ -968,5 +984,5 @@ func (api *projectAPI) updateContentEditorBehaviorHandler(r *http.Request, actor
 	if err := tx.Commit(ctx); err != nil {
 		return nil, 0, err
 	}
-	return behavior.response(true), http.StatusOK, nil
+	return behavior.response(actor), http.StatusOK, nil
 }

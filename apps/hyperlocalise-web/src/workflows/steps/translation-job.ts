@@ -379,6 +379,18 @@ export async function getStoredFileContentStep(fileId: string, organizationId: s
   return Buffer.from(arrayBuffer);
 }
 
+/** The source file with source text edited in the project written in, so a job translates it. */
+export async function applyProjectSourceTextStep(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  content: Buffer;
+}) {
+  "use step";
+  const { applyProjectSourceText } = await import("@/lib/projects/files/source-text-editing");
+  return (await applyProjectSourceText(input)).content;
+}
+
 export async function storeOutputFileStep(input: {
   organizationId: string;
   projectId: string;

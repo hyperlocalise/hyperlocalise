@@ -19,6 +19,8 @@ import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { loadProjectHtmlTranslationDownload } from "@/lib/projects/files/html-translation-download";
+import { applyProjectSourceText } from "@/lib/projects/files/source-text-editing";
+import { isSourceEditableSourcePath } from "@/lib/projects/files/source-text-editable-paths";
 import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
 
@@ -46,6 +48,8 @@ const READ_CONCURRENCY = 6;
 export type GitLabDeliverySummary = {
   /** Language files committed this run. */
   written: number;
+  /** Source files committed this run with source text edited in the project. */
+  sourceWritten?: number;
   /** The open merge request, whether or not this run changed it. */
   pullRequestUrl?: string;
   /** Language files (pages) that wait until every segment is approved. */
@@ -87,6 +91,8 @@ export type GitLabDeliveryInput = {
   /** Every file under the provider folder at the head commit. */
   repositoryPaths: Set<string>;
   sourceFiles: GitLabDeliverySourceFile[];
+  /** The project's setting: source text edited here is written back to the source files too. */
+  sourceTextEditable: boolean;
   branchName: string;
 };
 
@@ -94,7 +100,8 @@ type Change = ContentSyncFileChange & { content: Buffer };
 
 /**
  * Sends approved translations back as one merge request per sync: one language file per source
- * file and target locale, built from the source file's own shape against the target commit, on
+ * file and target locale, and, with source text editable in the project, the source files with
+ * the project's source text, built from the source file's own shape against the target commit, on
  * one branch rebuilt from that commit each run. A file whose content wouldn't change is left out;
  * when nothing changes the open merge request is linked, or closed when it still carries text
  * that is no longer approved. A merge request a reviewer closed stays closed as long as the same
@@ -112,7 +119,8 @@ export async function deliverGitLabTranslations(
     unreadable: 0,
     conflicts: 0,
   };
-  if (input.sourceFiles.length === 0 || input.targetLocales.length === 0) {
+  // Even with nothing to build, an open merge request may still need closing.
+  if (input.sourceFiles.length === 0) {
     return summary;
   }
 
@@ -177,6 +185,28 @@ export async function deliverGitLabTranslations(
 
   const changes: Change[] = [];
   const keysByFile = new Map<GitLabDeliverySourceFile, FileKeys>();
+  let sourceChanges = 0;
+  if (input.sourceTextEditable) {
+    for (const [file, format] of formats) {
+      if (format !== "json" || !isSourceEditableSourcePath(file.projectPath)) {
+        continue;
+      }
+      const source = await applyProjectSourceText({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: file.projectPath,
+        content: file.content,
+      });
+      if (source.written.length > 0) {
+        sourceChanges += 1;
+        changes.push({
+          path: joinContentSyncPath(input.syncConfig.providerFolder, file.relativePath),
+          content: source.content,
+          exists: true,
+        });
+      }
+    }
+  }
   for (const candidate of candidates) {
     if ((sourcesByPath.get(candidate.path) ?? 0) > 1) {
       // Two source files would write the same language file; neither can be right.
@@ -272,7 +302,7 @@ export async function deliverGitLabTranslations(
     const commit = await input.writer.commitFiles({
       branch: input.branchName,
       startFrom: input.head,
-      message: `chore(i18n): update translations (${shortRun})`,
+      message: `chore(i18n): update ${sourceChanges > 0 ? "source text and translations" : "translations"} (${shortRun})`,
       changes,
     });
     if (isErr(commit)) {
@@ -282,13 +312,23 @@ export async function deliverGitLabTranslations(
   const upserted = await input.writer.upsertReview({
     sourceBranch: input.branchName,
     targetBranch: input.head.branch,
+    // The title is kept once the merge request is open, so it stays the same whatever it carries;
+    // the description leads with any source text changes.
     title: "chore(i18n): update translations",
     description: [
       "## Hyperlocalise translation sync",
       "",
-      "This merge request writes approved Hyperlocalise translations back to the repository. It is rebuilt on each sync run, so make translation fixes in Hyperlocalise rather than here.",
+      ...(sourceChanges > 0
+        ? [
+            `**This merge request also changes source text:** ${sourceChanges === 1 ? "1 source file carries" : `${sourceChanges} source files carry`} text edited in Hyperlocalise.`,
+            "",
+          ]
+        : []),
+      sourceChanges > 0
+        ? "It writes approved Hyperlocalise translations, and source text edited in Hyperlocalise, back to the repository. It is rebuilt on each sync run, so make source text and translation fixes in Hyperlocalise rather than here."
+        : "This merge request writes approved Hyperlocalise translations back to the repository. It is rebuilt on each sync run, so make translation fixes in Hyperlocalise rather than here.",
       "",
-      `- Language files in this merge request: ${changes.length}`,
+      `- Language files in this merge request: ${changes.length - sourceChanges}`,
       `- Last sync run: ${shortRun}`,
     ].join("\n"),
     fingerprint,
@@ -296,13 +336,16 @@ export async function deliverGitLabTranslations(
   if (isErr(upserted)) {
     return withError(summary, upserted.error);
   }
+  const written = alreadyThere ? 0 : changes.length - sourceChanges;
+  const sourceWritten = alreadyThere ? 0 : sourceChanges;
   logger.info(
-    { projectId: input.projectId, written: alreadyThere ? 0 : changes.length },
+    { projectId: input.projectId, written, sourceWritten },
     "gitlab content sync delivered translations",
   );
   return {
     ...summary,
-    written: alreadyThere ? 0 : changes.length,
+    written,
+    ...(sourceWritten > 0 ? { sourceWritten } : {}),
     pullRequestUrl: upserted.value.url,
   };
 }
@@ -311,7 +354,8 @@ function withError(
   summary: GitLabDeliverySummary,
   error: ContentSyncProviderError,
 ): GitLabDeliverySummary {
-  return { ...summary, written: 0, error: { code: error.code, message: error.message } };
+  const { sourceWritten: _sourceWritten, ...rest } = summary;
+  return { ...rest, written: 0, error: { code: error.code, message: error.message } };
 }
 
 /**

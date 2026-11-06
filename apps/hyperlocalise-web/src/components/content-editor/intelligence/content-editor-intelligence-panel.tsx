@@ -29,6 +29,7 @@ import {
   FileIcon,
   ArrowClockwiseIcon,
   ListMagnifyingGlassIcon,
+  TextAaIcon,
   TextTIcon,
   type Icon,
 } from "@phosphor-icons/react";
@@ -38,6 +39,11 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { formatInternalMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-internal-markup";
 import { MarkdownContent } from "@/components/markdown-editor/markdown-editor";
 import { ContentEditorSegmentMaxLengthEditor } from "@/components/content-editor/segment/content-editor-segment-max-length-editor";
+import {
+  ContentEditorSourceTextEditor,
+  useContentEditorSourceTextEditing,
+} from "@/components/content-editor/segment/content-editor-source-text-editor";
+import { contentEditorSourceTextEditorMessages } from "@/components/content-editor/segment/content-editor-source-text-editor.messages";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -338,6 +344,8 @@ export function ContentEditorIntelligencePanel({
   segmentKey,
   contentKind,
   targetText = "",
+  sourceText,
+  sourceTextEditable = false,
   sourceLocale,
   organizationSlug,
   projectId,
@@ -369,6 +377,10 @@ export function ContentEditorIntelligencePanel({
   segmentKey?: string;
   contentKind?: ContentEditorContentKind;
   targetText?: string;
+  /** Shown, and editable where the project allows it, when given. */
+  sourceText?: string;
+  /** The string's file is one whose source text the platform can write back. */
+  sourceTextEditable?: boolean;
   sourceLocale?: string;
   organizationSlug?: string;
   projectId?: string;
@@ -488,6 +500,13 @@ export function ContentEditorIntelligencePanel({
   }
 
   const canEditMaxLength = canEditTranslations && !isTranslationLocked && Boolean(onSetMaxLength);
+  const sourceTextEditing = useContentEditorSourceTextEditing();
+  const showSourceTextEditor =
+    Boolean(sourceTextEditing?.canEdit) &&
+    sourceTextEditable &&
+    segmentId !== undefined &&
+    sourceText !== undefined &&
+    !isContentEditorAssetContentKind(contentKind);
   const sectionResetKey = segmentId ?? segmentKey ?? null;
 
   return (
@@ -644,6 +663,21 @@ export function ContentEditorIntelligencePanel({
             >
               <ContentEditorLottieContextPanel activeSegmentKey={segmentKey} />
             </ContentEditorSectionErrorBoundary>
+
+            {showSourceTextEditor && sourceTextEditing && segmentId && sourceText !== undefined ? (
+              <PanelSection
+                title={intl.formatMessage(contentEditorSourceTextEditorMessages.title)}
+                icon={TextAaIcon}
+              >
+                <ContentEditorSourceTextEditor
+                  key={segmentId}
+                  segmentId={segmentId}
+                  sourceText={sourceText}
+                  isLocked={isTranslationLocked}
+                  editing={sourceTextEditing}
+                />
+              </PanelSection>
+            ) : null}
 
             {showMaxLengthEditor ? (
               <PanelSection

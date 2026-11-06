@@ -21,12 +21,14 @@ func TestProjectsAdminDatabase(t *testing.T) {
 	require.Len(t, events, 1)
 	require.Equal(t, map[string]any{"changedFields": []any{"name", "targetLocales"}, "projectId": f.project}, events[0].Payload)
 
-	f.sourceFile(t, "en.json")
+	f.importedFile(t, "en.json", "files_page")
 	existing := f.createString(t, "en.json", "home.title", "Home", nil)
 	locked := f.createString(t, "en.json", "home.locked", "Locked", nil)
 	f.exec(t, `INSERT INTO project_cat_segment_locks (organization_id, project_id, target_locale, external_string_id)
 		VALUES ($1, $2, 'fr', $3)`, f.actor.OrganizationID, f.project, locked.ID)
 
+	// Source text in a file is edited here only with the project's setting on.
+	f.setSourceTextEditable(t, true)
 	file := "en.json"
 	result, err := f.store.upsertStrings(ctx, f.actor, f.project, []stringUpsert{
 		{Key: "home.title", FilePath: &file, SourceText: ptr("Home page"), MaxLength: optionalInt{Set: true, Value: ptr(40)}},
@@ -47,7 +49,9 @@ func TestProjectsAdminDatabase(t *testing.T) {
 	require.Len(t, events, 1)
 	require.Equal(t, map[string]any{"projectId": f.project, "created": float64(2), "updated": float64(2), "itemCount": float64(4)}, events[0].Payload)
 
-	// A source-text change on a locked string fails the whole batch.
+	// A source-text change on a locked string fails the whole batch. (Shown again first: a hidden
+	// string's source text isn't editable at all.)
+	f.exec(t, `UPDATE project_translation_keys SET is_hidden = false WHERE id = $1`, locked.ID)
 	_, err = f.store.upsertStrings(ctx, f.actor, f.project, []stringUpsert{
 		{Key: "new.one", SourceText: ptr("New")},
 		{Key: "home.locked", FilePath: &file, SourceText: ptr("Changed")},

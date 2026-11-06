@@ -277,13 +277,14 @@ func (api *projectAPI) contentEditorBehaviorHandler(r *http.Request, actor proje
 	if err != nil {
 		return nil, 0, fmt.Errorf("get native project content editor behavior: %w", err)
 	}
-	return behavior.response(actor.canManageContentEditorBehavior()), http.StatusOK, nil
+	return behavior.response(actor), http.StatusOK, nil
 }
 
 type contentEditorBehavior struct {
 	automaticallyGroupIdenticalStrings bool
 	groupingRevision                   int
 	approvedTranslationsOnSourceChange string
+	sourceTextEditable                 bool
 }
 
 func loadContentEditorBehavior(ctx context.Context, db interface {
@@ -293,24 +294,28 @@ func loadContentEditorBehavior(ctx context.Context, db interface {
 	var behavior contentEditorBehavior
 	err := db.QueryRow(ctx, `
 		select p.automatically_group_identical_strings, p.cat_grouping_revision,
-			p.approved_translations_on_source_change
+			p.approved_translations_on_source_change, p.source_text_editable
 		from projects p
 		where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(3, 4, 2),
 		projectID,
 		actor.organizationID,
 		actor.canReadAllTeams(),
 		actor.userID,
-	).Scan(&behavior.automaticallyGroupIdenticalStrings, &behavior.groupingRevision, &behavior.approvedTranslationsOnSourceChange)
+	).Scan(&behavior.automaticallyGroupIdenticalStrings, &behavior.groupingRevision, &behavior.approvedTranslationsOnSourceChange,
+		&behavior.sourceTextEditable)
 	return behavior, err
 }
 
-func (b contentEditorBehavior) response(canManage bool) map[string]any {
+func (b contentEditorBehavior) response(actor projectActor) map[string]any {
 	return map[string]any{
 		"contentEditorBehavior": map[string]any{
 			"automaticallyGroupIdenticalStrings": b.automaticallyGroupIdenticalStrings,
 			"groupingRevision":                   b.groupingRevision,
 			"approvedTranslationsOnSourceChange": b.approvedTranslationsOnSourceChange,
-			"canManage":                          canManage,
+			"sourceTextEditable":                 b.sourceTextEditable,
+			"canManage":                          actor.canManageContentEditorBehavior(),
+			// The content editor's source text control; the same roles the editor route allows.
+			"canEditSourceText": b.sourceTextEditable && actor.canMutateProjects(),
 		},
 	}
 }
