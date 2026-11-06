@@ -131,8 +131,11 @@ queue, err := fal.NewClient(fal.Config{
 })
 ```
 
-When a native client is unset, Iris falls back to `AI_GATEWAY_API_KEY` for that
-model. If no generation backend is configured, jobs fail with `PROVIDER_ERROR`.
+When a native client is unset, Iris uses `AI_GATEWAY_API_KEY` for gateway-routed
+models. If that is unset, `OPENAI_API_KEY` covers `openai/*` models plus
+`image-localise` (which falls back to GPT Image edit instead of Gemini). Other
+Google, xAI, and non-OpenAI gateway models still need `AI_GATEWAY_API_KEY`. If
+no generation backend is configured, jobs fail with `PROVIDER_ERROR`.
 
 ### Iris localisation
 
@@ -152,9 +155,18 @@ Localisation models on `/generate`: `elevenlabs-dubbing` (ElevenLabs Dubbing:
 `image`'s copy for `targetLocale`, optionally with fixed `translations`) and
 `image-text` (reads an `image`'s copy into `text.json`), both on AI Gateway.
 
+`/localise/translate` resolves the chat model from env in this order:
+
+1. `AI_GATEWAY_API_KEY` (optional `AI_GATEWAY_BASE_URL`, default `https://ai-gateway.vercel.sh/v1`)
+2. `OPENAI_API_KEY` (direct `https://api.openai.com/v1`)
+
 | Variable | Description |
 |----------|-------------|
+| `AI_GATEWAY_API_KEY` | Preferred. Vercel AI Gateway key for `/localise/translate` and all gateway-routed generation. |
+| `OPENAI_API_KEY` | Fallback when the gateway key is unset. Direct OpenAI for translate, `openai/*` generation, and `image-localise`. |
 | `IRIS_TRANSLATE_MODEL` | Optional. AI Gateway model for `/localise/translate`. Defaults to `openai/gpt-6-luna`, the model go-svc and the agents use by default. |
+| `IRIS_OPENAI_TRANSLATE_MODEL` | Optional. Native OpenAI model when using `OPENAI_API_KEY`. Defaults to `gpt-6-luna`. |
+| `IRIS_OPENAI_IMAGE_MODEL` | Optional. OpenAI image model for `image-localise` when using `OPENAI_API_KEY`. Defaults to `openai/gpt-image-2.5-flare`. |
 | `IRIS_VISION_MODEL` | Optional. AI Gateway model for `image-text`. Defaults to `openai/gpt-6-luna`. |
 
 ### Datadog tracing

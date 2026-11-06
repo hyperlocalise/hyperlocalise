@@ -25,14 +25,15 @@ import (
 // the copy baked into a picture.
 
 const (
-	irisLocaliseMaxTexts      = 200
-	irisLocaliseMaxTextRunes  = 5000
-	irisLocaliseMaxGuidance   = 4000
-	irisLocaliseMaxGlossary   = 200
-	irisLocaliseMaxKnowledge  = 6000
-	irisLocaliseMemoryName    = "Iris"
-	defaultIrisTranslateModel = defaultGuidelineCheckModel
-	defaultIrisVisionModel    = defaultGuidelineCheckModel
+	irisLocaliseMaxTexts            = 200
+	irisLocaliseMaxTextRunes        = 5000
+	irisLocaliseMaxGuidance         = 4000
+	irisLocaliseMaxGlossary         = 200
+	irisLocaliseMaxKnowledge        = 6000
+	irisLocaliseMemoryName          = "Iris"
+	defaultIrisTranslateModel       = defaultGuidelineCheckModel
+	defaultIrisOpenAITranslateModel = "gpt-6-luna"
+	defaultIrisVisionModel          = defaultGuidelineCheckModel
 )
 
 type irisGlossaryHit struct {
@@ -213,7 +214,7 @@ func (api *irisGenerationAPI) localiseTranslate(w http.ResponseWriter, r *http.R
 	var translated []irisTranslatedMessage
 	if len(pending) > 0 {
 		if api.text == nil {
-			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "provider_unavailable", "message": "Translation is not configured (set AI_GATEWAY_API_KEY)"})
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "provider_unavailable", "message": "Translation is not configured (set AI_GATEWAY_API_KEY or OPENAI_API_KEY)"})
 			return
 		}
 		var usage irisChatReply
@@ -506,7 +507,7 @@ func (api *irisGenerationAPI) translateWithModel(ctx context.Context, source, ta
 		return nil, irisChatReply{}, err
 	}
 	reply, err := api.text.Complete(ctx, irisChatRequest{
-		Model:  irisEnvOr("IRIS_TRANSLATE_MODEL", defaultIrisTranslateModel),
+		Model:  irisTranslateModelID(api.text),
 		System: irisTranslateSystem,
 		User:   string(prompt),
 		JSON:   true,
@@ -684,12 +685,16 @@ func (p *irisGatewayProvider) Complete(ctx context.Context, req irisChatRequest)
 		})
 	}
 	payload := map[string]any{
-		"model": req.Model,
+		"model": p.modelID(req.Model),
 		"messages": []map[string]any{
 			{"role": "system", "content": req.System},
 			{"role": "user", "content": content},
 		},
-		"temperature": 0.3,
+	}
+	// Direct OpenAI rejects non-default temperature on current chat models;
+	// AI Gateway keeps the existing 0.3 sampling used in production.
+	if !isIrisOpenAIBaseURL(p.baseURL) {
+		payload["temperature"] = 0.3
 	}
 	if req.JSON {
 		payload["response_format"] = map[string]string{"type": "json_object"}
@@ -720,12 +725,28 @@ func (p *irisGatewayProvider) Complete(ctx context.Context, req irisChatRequest)
 	return reply, nil
 }
 
-// newIrisTextModel is the gateway as a text model, or nil when it is not configured.
+// newIrisTextModel prefers the AI Gateway, then a direct OpenAI key.
 func newIrisTextModel() irisTextModel {
 	if provider := newIrisGatewayProvider(); provider != nil {
 		return provider
 	}
+	if provider := newIrisOpenAIProvider(); provider != nil {
+		return provider
+	}
 	return nil
+}
+
+// irisTranslateModelID picks the chat model for /localise/translate: gateway
+// ids when using AI Gateway, native OpenAI ids when using OPENAI_API_KEY.
+func irisTranslateModelID(text irisTextModel) string {
+	if provider, ok := text.(*irisGatewayProvider); ok && isIrisOpenAIBaseURL(provider.baseURL) {
+		return irisEnvOr("IRIS_OPENAI_TRANSLATE_MODEL", defaultIrisOpenAITranslateModel)
+	}
+	return irisEnvOr("IRIS_TRANSLATE_MODEL", defaultIrisTranslateModel)
+}
+
+func isIrisOpenAIBaseURL(baseURL string) bool {
+	return strings.TrimRight(strings.TrimSpace(baseURL), "/") == defaultIrisOpenAIBaseURL
 }
 
 // ---------------------------------------------------------------------------
