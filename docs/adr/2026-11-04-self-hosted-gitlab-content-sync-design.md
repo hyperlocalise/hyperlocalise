@@ -28,7 +28,7 @@ Translations are edited here, so a repeat sync must not throw them away when the
 - The settings live in the existing sync configuration (`ContentSyncConfig`: `branch`, `pathTemplate`). GitLab is offered in the visual workflow **Content sync** step and in the project Sync panel, which run the same `executeContentSyncConfig`.
 - The run waits for every imported file's ingest to finish, so delivery can rely on the keys being there. A file whose bytes are unchanged since the last run is not stored again, whatever the commit, as long as the last version is the sync's own and its ingest isn't still running from the last hour; its last ingest is waited for, and queued again if it never ran or failed. No parse and no source-upload automation runs for that. A version a newer upload superseded counts as finished.
 
-- An import replaces the platform's source text with the file's, as every upload does; editing source text in the platform is a separate, later design.
+- An import replaces the platform's source text with the file's, as every upload does, unless the project lets source text be edited in the platform; that setting, its import rule and the source text a merge request writes back are designed in [the platform as the source of truth for strings](2026-11-05-platform-source-of-truth-design.md), parts 2 and 3.
 
 ### What a delivery sends
 
@@ -54,5 +54,5 @@ The keys a run hid are stored on the source file version (`sync_report`); the ru
 - The sync holds the GitLab project's id as well as its path, and refuses to run when the path on the current server names another project. The step's repository picker lists projects only when the workspace has a connection.
 - A sync's waits for many files run together with one time limit; a very large folder may need more than one run. Two Content sync steps for the same repository that keep the default project folder write the same files; nothing stops that yet.
 - A translation file in the repository is counted and left as it is until delivery; a manual clean-up of hidden keys is later work.
-- Delivery sends approved translations as they stand. Whether a source text change sends a key's approved translations back to review is a project setting covering every upload path, sync included, described in [the platform as the source of truth for strings](2026-11-05-platform-source-of-truth-design.md); by default they stay approved. Delivery keeps the repository's current text for a key whose translations are back in review.
+- Delivery sends approved translations as they stand. Whether a source text change sends a key's approved translations back to review is a project setting for every upload path, designed in part 1 of [the platform as the source of truth for strings](2026-11-05-platform-source-of-truth-design.md).
 - The GitHub content sync still clones, delivers unreviewed text and hard-deletes missing keys. Moving it onto the interface is a separate change.
