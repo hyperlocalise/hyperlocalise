@@ -38,7 +38,7 @@ For example, changing a button from “Start trial” to “Buy now” needs a f
 
 A typo or punctuation fix leaves the translations correct. In a project set to **Needs review**, you can keep approved translations approved for one change:
 
-- When uploading on the **Files** page, tick **Small fix: keep approved translations** before you select **Upload**.
+- When uploading on the **Files** page, tick **Keep translations approved** before you select **Upload**.
 - When uploading through the [API](/platform/api#upload-a-source-file) (`POST /v1/files`), send the form field `keepApproved=true`.
 - When editing strings through the public API, send `"keepApproved": true` with `PATCH /v1/projects/{projectId}/strings/{stringId}` or `POST /v1/projects/{projectId}/strings/batch`.
 
