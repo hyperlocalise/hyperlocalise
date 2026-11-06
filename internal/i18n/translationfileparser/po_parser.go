@@ -755,9 +755,14 @@ func rebuildPOPlural(lines []poRawLine, entry poBuiltEntry, keyBase string, valu
 		}
 		if i < len(entry.forms) {
 			forms[i] = entry.forms[i]
+		} else if len(entry.forms) > 0 {
+			// A slot the source does not have repeats its last form.
+			forms[i] = entry.forms[len(entry.forms)-1]
 		}
 	}
-	if !replaced {
+	// The header carries the target's count, so an untouched message still needs that
+	// many slots.
+	if !replaced && count == len(entry.forms) {
 		return lines, nil
 	}
 
@@ -944,7 +949,8 @@ func rewritePOHeader(lines []poRawLine, entry poBuiltEntry, targetLocale string)
 	}
 	updated := updatePOHeaderFields(header, targetLocale, poPluralSpecForLocale(targetLocale))
 	if updated == header {
-		return lines, nil
+		// clearPOFuzzyLines edits in place, and lines is the caller's reusable buffer.
+		return clearPOFuzzyLines(append([]poRawLine(nil), lines...)), nil
 	}
 	indent := ""
 	crlf := false
@@ -971,7 +977,8 @@ func rewritePOHeader(lines []poRawLine, entry poBuiltEntry, targetLocale string)
 	if !inserted {
 		out = append(out, poHeaderValueLines(indent, updated, true, crlf)...)
 	}
-	return out, nil
+	// A template's header is flagged fuzzy until a locale is filled in.
+	return clearPOFuzzyLines(out), nil
 }
 
 func updatePOHeaderFields(header, locale string, spec poPluralSpec) string {
@@ -989,6 +996,10 @@ func updatePOHeaderFields(header, locale string, spec poPluralSpec) string {
 		if strings.HasPrefix(trim, "Plural-Forms:") {
 			lines[i] = plural
 			foundPlural = true
+		}
+		// xgettext leaves the CHARSET placeholder; the writer emits UTF-8.
+		if strings.HasPrefix(trim, "Content-Type:") {
+			lines[i] = strings.Replace(line, "charset=CHARSET", "charset=UTF-8", 1)
 		}
 	}
 	if !foundLanguage {
