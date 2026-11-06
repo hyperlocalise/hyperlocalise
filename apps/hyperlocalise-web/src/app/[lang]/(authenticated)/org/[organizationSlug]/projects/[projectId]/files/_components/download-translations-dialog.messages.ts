@@ -71,6 +71,13 @@ export const downloadTranslationsDialogMessages = defineMessages({
     id: "lH4tr3c/1j",
     description: "Toast after translation files download successfully",
   },
+  downloadedAsJson: {
+    defaultMessage:
+      "{count, plural, one {{files} could not be written in its own format, so it was downloaded as JSON.} other {{files} could not be written in their own format, so they were downloaded as JSON.}}",
+    id: "yC+i4u1RyR",
+    description:
+      "Toast naming the translation files that downloaded as JSON instead of their own format",
+  },
   downloadFailed: {
     defaultMessage: "Failed to download translations",
     id: "u9Z5lV8isJ",
