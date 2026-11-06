@@ -488,6 +488,29 @@ describe("executeGitLabContentSync", () => {
     ]);
   });
 
+  it("stores a count when a dropped file hid more keys than the report keeps", async () => {
+    const missingKeys = Array.from({ length: 201 }, (_, index) => `key-${index}`);
+    mocks.syncedFileRows.mockReturnValue([
+      { id: "file:old", sourcePath: "gitlab/acme/web/old-en.json" },
+    ]);
+    mocks.hideKeysMissingFromSync.mockResolvedValue(missingKeys);
+
+    const result = await run(
+      fakeReader({
+        listFiles: async () => ok([{ path: "locales/web-en.json", contentId: null }]),
+      }),
+      { ...syncConfig, pathTemplate: "*-{{locale}}.json" },
+    );
+
+    expect(isOk(result) && result.value.pulled.files).toEqual([
+      {
+        path: "gitlab/acme/web/old-en.json",
+        missingKeys: missingKeys.slice(0, 200),
+        missingKeyCount: 201,
+      },
+    ]);
+  });
+
   it("fails the run when a file can't be read, stored or parsed", async () => {
     const unreadable = await run(
       fakeReader({
