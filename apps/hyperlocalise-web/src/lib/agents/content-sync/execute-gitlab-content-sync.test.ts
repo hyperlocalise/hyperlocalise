@@ -613,6 +613,7 @@ describe("executeGitLabContentSync", () => {
         path: "gitlab/acme/web/old-en.json",
         missingKeys: missingKeys.slice(0, 200),
         missingKeyCount: 201,
+        clashes: [],
       },
     ]);
   });
