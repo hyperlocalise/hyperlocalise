@@ -903,6 +903,10 @@
     "defaultMessage": "Choose a connection to authorize this Canva app install.",
     "description": "Description for the Canva claim authorization page"
   },
+  "/FxKqT7rxo": {
+    "defaultMessage": "This sync was removed. Reload the page to set it up again.",
+    "description": "Error shown when Sync now is clicked for a project sync that someone else removed"
+  },
   "/GID42o6lx": {
     "defaultMessage": "From pull request to release gate",
     "description": "Workflow section title for the github-release-localisation use case"
@@ -1147,6 +1151,10 @@
     "defaultMessage": "Translate document",
     "description": "Document editor: drafts AI translations for the whole document"
   },
+  "/ayzi+h3Zt": {
+    "defaultMessage": "GitLab connection removed.",
+    "description": "Toast after a GitLab connection is removed"
+  },
   "/bDXY5b2qg": {
     "defaultMessage": "Invitation revoked",
     "description": "Success toast after revoking a pending invitation"
@@ -1318,6 +1326,10 @@
   "/vxavoK/xz": {
     "defaultMessage": "LinkedIn",
     "description": "LinkedIn link label on founder cards"
+  },
+  "/w3K1Pwx24": {
+    "defaultMessage": "Removed connection",
+    "description": "Picker entry for a GitLab connection a sync names that no longer exists"
   },
   "/wIWjD2LD2": {
     "defaultMessage": "Tokens",
@@ -1975,6 +1987,10 @@
     "defaultMessage": "Search concordance, load style guidance, and recommend translations for strings under review.",
     "description": "Description for the Crowdin automation tool when Crowdin is connected"
   },
+  "0ulsI+XIyW": {
+    "defaultMessage": "The sync did not finish in time.",
+    "description": "Error shown for a project sync run that stopped responding"
+  },
   "0vM9ZUQzKc": {
     "defaultMessage": "Contribute to jobs and run AI actions; approve reviews and write-back. No organization administration.",
     "description": "Description of the reviewer role"
@@ -2086,6 +2102,10 @@
   "15zAdlHpmJ": {
     "defaultMessage": "HubSpot",
     "description": "Tool badge when an automation uses HubSpot"
+  },
+  "16jzdfV84U": {
+    "defaultMessage": "Default",
+    "description": "Badge on the GitLab connection that chat and automations use"
   },
   "16sYDMkqBx": {
     "defaultMessage": "No. Connect the site you already have. Domains publishes and checks it. You can also publish from Content Studio.",
@@ -2263,6 +2283,10 @@
     "defaultMessage": "The problem was never the talent of localisation teams. It was that they were expected to scale knowledge faster than any human team could.",
     "description": "Fifth paragraph of the founders note on the company page"
   },
+  "1SmOqBo4fU": {
+    "defaultMessage": "That connection is to another server: automations name a project by its path, so they move to that server too, and chats stop using projects from this one.",
+    "description": "Added to the remove confirmation when the connection taking over as default points at a different GitLab server"
+  },
   "1StG7IXt4v": {
     "defaultMessage": "Feed locale results into the next cycle",
     "description": "Workflow step 6 description for the marketing-localisation use case"
@@ -2270,6 +2294,10 @@
   "1ToGNDd6TO": {
     "defaultMessage": "Files",
     "description": "Label for the files selection list"
+  },
+  "1U++3URWS4": {
+    "defaultMessage": "Repository folder",
+    "description": "Label for the repository folder field in the project Sync panel"
   },
   "1U9PZ5VcN2": {
     "defaultMessage": "Clear",
@@ -2775,6 +2803,10 @@
     "defaultMessage": "GPT-5.6 Sol (Fast)",
     "description": "Label for the OpenAI GPT-5.6 Sol fast automation model"
   },
+  "29x/gSNhzG": {
+    "defaultMessage": "Choose…",
+    "description": "Placeholder of the GitLab.com or company server choice before one is made"
+  },
   "2ACZd8DTJY": {
     "defaultMessage": "Location",
     "description": "Label for the file path of a string in the CAT details panel"
@@ -2794,6 +2826,10 @@
   "2B2vocYfiC": {
     "defaultMessage": "Download filtered view",
     "description": "Accessible label for downloading the filtered CAT queue"
+  },
+  "2BDMq4KV+/": {
+    "defaultMessage": "You can see these settings but not change them.",
+    "description": "Note shown in the project Sync panel to people who cannot change project settings"
   },
   "2BaYUyVX1c": {
     "defaultMessage": "Show API key",
@@ -3091,10 +3127,6 @@
     "defaultMessage": "Job Cancelled",
     "description": "Activity log event type label for job cancellation"
   },
-  "2ge8oszx7T": {
-    "defaultMessage": "Unable to load the GitLab server connection right now.",
-    "description": "Integration row description when the connection fails to load"
-  },
   "2hGlbn4iZa": {
     "defaultMessage": "Create",
     "description": "Button that creates a team glossary from CAT"
@@ -3306,6 +3338,10 @@
   "32TT/pgWLo": {
     "defaultMessage": "Developer",
     "description": "Settings nav group label for developer pages"
+  },
+  "33J0ngE9lx": {
+    "defaultMessage": "Unable to remove the GitLab connection.",
+    "description": "Toast when removing a GitLab connection fails"
   },
   "33ZcrkXcDM": {
     "defaultMessage": "Opens a pull request with updated translation files when sync succeeds.",
@@ -3558,6 +3594,10 @@
   "3UtT5HKUXH": {
     "defaultMessage": "Continue",
     "description": "Continue button label"
+  },
+  "3V79KDlgh2": {
+    "defaultMessage": "Open pull request",
+    "description": "Link to the pull request a project sync run opened"
   },
   "3VQO3rGiUE": {
     "defaultMessage": "Copy terminal output",
@@ -3875,6 +3915,10 @@
     "defaultMessage": "Priority",
     "description": "Placeholder for the priority select"
   },
+  "3yWat7D9eo": {
+    "defaultMessage": "Language file paths",
+    "description": "Label for the field that says where each language's files are in the repository"
+  },
   "3yZFMdlOT1": {
     "defaultMessage": "Help AI answer with your page.",
     "description": "Title for the Domains AEO solution panel"
@@ -4019,6 +4063,10 @@
     "defaultMessage": "Glossary",
     "description": "Warning type label for glossary issues on an agent proposal"
   },
+  "48BU/b+yFc": {
+    "defaultMessage": "Branch",
+    "description": "Repository branch to read on the content sync action"
+  },
   "48liY3M4is": {
     "defaultMessage": "Pages",
     "description": "Domain overview tab for ranking pages"
@@ -4126,6 +4174,10 @@
   "4Jm91tEu1i": {
     "defaultMessage": "Keeping our TMS while adding agent workflows is the difference.",
     "description": "Marketing homepage testimonial quote"
+  },
+  "4JyzfnXrai": {
+    "defaultMessage": "A GitHub sync clones the repository, deletes keys the repository dropped, and sends every translation except rejected ones back in a pull request, reviewed or not.",
+    "description": "Note under the repository service picker while GitHub is chosen, saying what a GitHub sync does"
   },
   "4Jz0LdypFu": {
     "defaultMessage": "The version could not be restored.",
@@ -4403,6 +4455,10 @@
     "defaultMessage": "Tools",
     "description": "Disabled AI node slot label for tools"
   },
+  "4oWir+lPBP": {
+    "defaultMessage": "Recent syncs",
+    "description": "Heading of the list of recent project sync runs"
+  },
   "4p/SsmkJuR": {
     "defaultMessage": "Check this German launch line against Brand-claims-policy.pdf: \"Unsere einzigartige KI-Plattform ist klinisch erwiesen.\"",
     "description": "User prompt in the guidelines board chat"
@@ -4622,6 +4678,10 @@
   "58rI5iuou2": {
     "defaultMessage": "AI-assessed, not scored ({count})",
     "description": "Heading for localisation audit criteria reviewed by a language model that do not affect the score"
+  },
+  "5954s2fe1F": {
+    "defaultMessage": "Chat and automations will use {name} instead.",
+    "description": "Added to the remove confirmation when the connection is the default and another remains; name is the connection that takes over"
   },
   "59CKJeZUxb": {
     "defaultMessage": "Failure code",
@@ -5287,6 +5347,10 @@
     "defaultMessage": "Cancel",
     "description": "Cancel adding Canva connection"
   },
+  "6A1cbaLTLI": {
+    "defaultMessage": "The connection's token can't read this repository's files: its role there is below Reporter. Give it at least the Reporter role, and Developer to send merge requests.",
+    "description": "Shown in the project Sync panel when the GitLab connection's role on the chosen project is too low to read it"
+  },
   "6At7mQKfX7": {
     "defaultMessage": "Loading activity…",
     "description": "Loading state for activity logs"
@@ -5342,6 +5406,10 @@
   "6GvRaMOu4p": {
     "defaultMessage": "Create an API key with files and jobs permissions first.",
     "description": "Empty state when no eligible API keys exist for Figma"
+  },
+  "6HbWUjcTj7": {
+    "defaultMessage": "Repository",
+    "description": "Label for the repository picker in the project Sync panel"
   },
   "6Hh/TB07+q": {
     "defaultMessage": "Choose a TMX or CSV file.",
@@ -5406,6 +5474,10 @@
   "6N3tTQGcSO": {
     "defaultMessage": "Someone",
     "description": "Fallback actor name when notification actor is missing"
+  },
+  "6N5DoenBFR": {
+    "defaultMessage": "Which of the workspace's GitLab connections this sync runs with. Chat and automations use the default one.",
+    "description": "Help under the GitLab connection picker in the project Sync panel"
   },
   "6NDLX93t5d": {
     "defaultMessage": "Content sync",
@@ -6791,6 +6863,10 @@
     "defaultMessage": "Draft",
     "description": "Status badge for a draft glossary term"
   },
+  "8bfWDHVAiv": {
+    "defaultMessage": "Where each language's files sit under the repository folder, with {placeholder} for the language code: fr names your one French language, fr-FR names only fr-FR. The source language's files are imported; * matches within a folder and ** across folders.",
+    "description": "Help text under the path template setting"
+  },
   "8bpns6mW0p": {
     "defaultMessage": "Authentication method",
     "description": "Label for the Crowdin authentication method selector"
@@ -7047,6 +7123,10 @@
     "defaultMessage": "Name set to “{name}”",
     "description": "Listed change of the assistant: the automation was named"
   },
+  "9/rHOO9Hcc": {
+    "defaultMessage": "A sync is running. You can start another when it finishes.",
+    "description": "Shown in the project Sync panel while a sync run is going"
+  },
   "90JdQQe9zz": {
     "defaultMessage": "Body",
     "description": "Heading for the Markdown/MDX body editor in CAT document view"
@@ -7290,10 +7370,6 @@
   "9OTiPECmGp": {
     "defaultMessage": "Hourly work on a task with no time estimate is left out of the cost.",
     "description": "Note when an hourly line has no time estimate"
-  },
-  "9OXmD1sseg": {
-    "defaultMessage": "While connected, this server replaces GitLab.com for everyone in this workspace. They can reach whatever this token can reach.",
-    "description": "Explains the effect of connecting a GitLab server"
   },
   "9PKFI8itjo": {
     "defaultMessage": "Could not localise the image. Your instructions are preserved; try again.",
@@ -8019,6 +8095,10 @@
     "defaultMessage": "Translation memory",
     "description": "Crowdin machine-translation submenu: translation memory"
   },
+  "AVXDmG66Yd": {
+    "defaultMessage": "A sync is already running.",
+    "description": "Error shown when Sync now is clicked while a project sync is running"
+  },
   "AVpQwXJaXX": {
     "defaultMessage": "Create a key and send it to whoever plugs Hyperlab into your website.",
     "description": "Home card body for API keys"
@@ -8435,6 +8515,10 @@
     "defaultMessage": "Could not load linked domains.",
     "description": "Error when the domains list fails to load"
   },
+  "BBsS8wxmqc": {
+    "defaultMessage": "Use for chat and automations",
+    "description": "Button that marks one GitLab connection as the workspace's default"
+  },
   "BC+EYtp52c": {
     "defaultMessage": "User",
     "description": "Human Approval user reviewer option"
@@ -8530,6 +8614,10 @@
   "BKxL4swmsj": {
     "defaultMessage": "Versions",
     "description": "Heading for the saved versions of a translation in the activity panel"
+  },
+  "BL4Aw/xqvM": {
+    "defaultMessage": "Connect GitLab in Integrations to sync this project. A GitHub repository syncs from its Automation settings there.",
+    "description": "Shown in the project Sync panel when the workspace has no GitLab connection and the project has no sync"
   },
   "BLCf0utxhq": {
     "defaultMessage": "This string is locked. Unlock it to edit.",
@@ -8855,6 +8943,10 @@
     "defaultMessage": "Sending…",
     "description": "Dashboard Slack Connect banner primary action while sending"
   },
+  "Bs57lrRswl": {
+    "defaultMessage": "{count, plural, one {# key was} other {# keys were}} hidden because the repository no longer has them",
+    "description": "Summary of the keys a project sync run hid because they were removed from the repository files"
+  },
   "BsHGinE5HI": {
     "defaultMessage": "A durable record of this translation memory import.",
     "description": "Translation memory import report page description"
@@ -8890,6 +8982,10 @@
   "BxEHMhUBpO": {
     "defaultMessage": "Team updated",
     "description": "Toast after a team is updated successfully"
+  },
+  "BxGtFLZNTw": {
+    "defaultMessage": "The repository folder was not found or could not be read.",
+    "description": "Error shown for a project sync run whose repository folder was missing"
   },
   "BxVa0XAhsz": {
     "defaultMessage": "That page is no longer valid. Showing the first page.",
@@ -8938,6 +9034,10 @@
   "C0LtvlP3Fa": {
     "defaultMessage": "View original issue",
     "description": "Link to the canonical issue this one is a duplicate of"
+  },
+  "C0fLYasN09": {
+    "defaultMessage": "GitLab connection saved.",
+    "description": "Toast after a GitLab server connection is saved"
   },
   "C0jp5QUb8B": {
     "defaultMessage": "Iterable",
@@ -9071,6 +9171,10 @@
     "defaultMessage": "No categories found.",
     "description": "Empty search result in the part of speech picker"
   },
+  "CCuCNrvni7": {
+    "defaultMessage": "Use a project or group access token, or a dedicated account that belongs only to the projects to sync: everyone here reaches what the token reaches. Role: Developer to send merge requests, Reporter to pull only. Scopes: api to send merge requests; with read_api and read_repository only, syncs pull and say translations weren't sent. Set an expiry.",
+    "description": "Hint describing which access token to create on GitLab.com"
+  },
   "CDa9RKAB5k": {
     "defaultMessage": "Brand guidelines",
     "description": "Label in the brand guidance illustration"
@@ -9094,6 +9198,10 @@
   "CEaPOoMSXx": {
     "defaultMessage": "Delete",
     "description": "Bulk action that deletes selected translation memory entries"
+  },
+  "CEvOadGE6K": {
+    "defaultMessage": "Remove",
+    "description": "Button that starts removing one GitLab connection"
   },
   "CFK4BGiWin": {
     "defaultMessage": "Review state",
@@ -9254,6 +9362,10 @@
   "CT9/X7v9OM": {
     "defaultMessage": "Link",
     "description": "Bubble menu button to add or remove a hyperlink"
+  },
+  "CTGr9CwLJv": {
+    "defaultMessage": "Unable to load sync settings.",
+    "description": "Error shown when the project sync settings fail to load"
   },
   "CTI9kmmWqH": {
     "defaultMessage": "{count, plural, one {# project} other {# projects}}",
@@ -9735,6 +9847,10 @@
     "defaultMessage": "LLM agnostic",
     "description": "Differentiator point 2 for the marketing-localisation use case"
   },
+  "DCn9Wmv+Wt": {
+    "defaultMessage": "Failed",
+    "description": "Status of a project sync run that failed"
+  },
   "DDkCNI/bRQ": {
     "defaultMessage": "you asked",
     "description": "Detected-locale source: requested by the visitor as a focus language"
@@ -9754,6 +9870,10 @@
   "DFNppqOCak": {
     "defaultMessage": "Create project",
     "description": "Title of the create project dialog"
+  },
+  "DGiD4orSjR": {
+    "defaultMessage": "Connect to",
+    "description": "Label for the choice between GitLab.com and a company's own GitLab server"
   },
   "DH/XelozZt": {
     "defaultMessage": "Charged",
@@ -10042,6 +10162,10 @@
   "Dhz9gdqnZ4": {
     "defaultMessage": "Next workflow starts smarter",
     "description": "Knowledge mock UI stage 4 title"
+  },
+  "Diw4K6SV2n": {
+    "defaultMessage": "Connect GitLab in Integrations to sync from GitLab.",
+    "description": "Shown in the project Sync panel when GitLab is chosen and the workspace has no GitLab connection"
   },
   "DjyFDSQhTb": {
     "defaultMessage": "See the world in a different light.",
@@ -10395,9 +10519,17 @@
     "defaultMessage": "See full pricing details",
     "description": "Marketing homepage pricingLink"
   },
+  "EIpgZS0MVO": {
+    "defaultMessage": "Every hour",
+    "description": "Schedule option: the project syncs every hour"
+  },
   "EIzyJsuyBD": {
     "defaultMessage": "Unable to load the Mailchimp connection right now.",
     "description": "Mailchimp integration row description when connection status fails to load"
+  },
+  "EJ9REmTRCU": {
+    "defaultMessage": "It is read-only (no api scope): syncs pull but can't send merge requests.",
+    "description": "Status line part for a GitLab token without the api scope"
   },
   "EJHq4HC1h1": {
     "defaultMessage": "Security review assistance",
@@ -10418,6 +10550,10 @@
   "EKyvEH55l4": {
     "defaultMessage": "Findings not listed under a criterion above.",
     "description": "Intro under the other findings heading on a localisation audit result"
+  },
+  "ELF+12oSuA": {
+    "defaultMessage": "Sync settings saved.",
+    "description": "Toast shown after the project sync settings are saved"
   },
   "ELSLC4cOgT": {
     "defaultMessage": "Experiment across markets. Measure what works. Scale what performs.",
@@ -10718,6 +10854,10 @@
   "Ehcy1DdQ49": {
     "defaultMessage": "Works across GitHub, TMS, and release tooling",
     "description": "Differentiator point 6 for the github-release-localisation use case"
+  },
+  "EiXxrmIRgk": {
+    "defaultMessage": "{name} (pull only)",
+    "description": "Repository picker entry for a GitLab project the connection can read but not send merge requests to"
   },
   "Ej5U0a0604": {
     "defaultMessage": "Agent Instructions",
@@ -11431,6 +11571,10 @@
     "defaultMessage": "GTM context recalled for JP product launch",
     "description": "Guideline mock UI market knowledge panel subtitle"
   },
+  "FqY/BvkEQe": {
+    "defaultMessage": "It can pull and send merge requests.",
+    "description": "Status line part for a GitLab token with the api scope"
+  },
   "FqcQ3Q8Id9": {
     "defaultMessage": "Copy JSON",
     "description": "Accessible label for the button that copies a run's raw JSON result"
@@ -11522,6 +11666,10 @@
   "G1T9+1x7MC": {
     "defaultMessage": "{actor} related this to {relatedIssue}",
     "description": "Activity line when a related-issue relationship is added"
+  },
+  "G1iUqTOOGV": {
+    "defaultMessage": "Started by hand",
+    "description": "Shows that a project sync run was started with Sync now"
   },
   "G1vKHQVWch": {
     "defaultMessage": "Download all locales",
@@ -11714,6 +11862,10 @@
   "GOImV2QS+V": {
     "defaultMessage": "Unable to delete project",
     "description": "Fallback error when deleting a project fails"
+  },
+  "GOvSvuh32/": {
+    "defaultMessage": "GitLab reports this connection's role on this repository as below Developer, so syncs pull but may not be able to send merge requests. Give its token's user or group the Developer role to send.",
+    "description": "Shown under the repository picker when the GitLab connection's role on the chosen project is below Developer"
   },
   "GPiuIeFZ32": {
     "defaultMessage": "Select a project",
@@ -11999,6 +12151,10 @@
     "defaultMessage": "List issues",
     "description": "Menu item and tool title for listing Queries issues"
   },
+  "GqszOf+J5n": {
+    "defaultMessage": "Remove connection",
+    "description": "Button that removes a GitLab connection after confirmation"
+  },
   "Gs4Pgl/iTx": {
     "defaultMessage": "Optional. Extra localisation review instructions for this workspace.",
     "description": "Placeholder for the Auto-review additional prompt textarea"
@@ -12070,6 +12226,10 @@
   "Gy9Swg1os7": {
     "defaultMessage": "Access until {date}",
     "description": "Current plan access end date when cancellation is scheduled"
+  },
+  "Gz+qUGue0p": {
+    "defaultMessage": "Unable to save the GitLab connection.",
+    "description": "Toast when saving a GitLab server connection fails without a reason"
   },
   "Gz/Ip82h05": {
     "defaultMessage": "Source path",
@@ -12507,6 +12667,10 @@
     "defaultMessage": "{count, plural, one {# warning} other {# warnings}}",
     "description": "QA run summary: warning count"
   },
+  "HgPHDYcLMY": {
+    "defaultMessage": "Sync now",
+    "description": "Button that starts a project sync at once"
+  },
   "HhB3zV2KR/": {
     "defaultMessage": "Web chat",
     "description": "AI channel: the public web chat"
@@ -12643,10 +12807,6 @@
     "defaultMessage": "Disable merging",
     "description": "Confirm disabling identical string merging"
   },
-  "HtShi6DFMi": {
-    "defaultMessage": "Self-hosted GitLab",
-    "description": "Integration row name for a workspace's own GitLab server"
-  },
   "HtVUcSTMS/": {
     "defaultMessage": "On error is set to Continue, so the test run goes on past this step.",
     "description": "On a workflow step's Test tab, what a failure does when the step's On error setting is Continue"
@@ -12674,6 +12834,10 @@
   "HxWBdm4nhz": {
     "defaultMessage": "Unsaved translations",
     "description": "CAT queue filter option for segments with unsaved drafts in this session"
+  },
+  "HxWOvKpnhC": {
+    "defaultMessage": "Removing this connection affects everyone in the workspace. {count, plural, =0 {} one {# project sync uses it and will stop until it is given another connection.} other {# project syncs use it and will stop until they are given another connection.}}",
+    "description": "Asks for confirmation before removing a GitLab connection, with how many project syncs use it"
   },
   "HxXrdebYXD": {
     "defaultMessage": "Last 24 hours",
@@ -12947,6 +13111,10 @@
     "defaultMessage": "App",
     "description": "AI channel: the Hyperlocalise app"
   },
+  "IRQWT9S62n": {
+    "defaultMessage": "The workspace's saved GitLab token can't be read. Save the connection again in Integrations.",
+    "description": "Error shown when the workspace's stored GitLab token can't be decrypted"
+  },
   "IRcbylygLF": {
     "defaultMessage": "Reviewed",
     "description": "Audit event label for a reviewed translation memory entry"
@@ -13066,10 +13234,6 @@
   "IiGIsIulPY": {
     "defaultMessage": "This string is locked, so it can't be restored.",
     "description": "Toast when a restore is refused because the string is locked"
-  },
-  "IiTUi5qzJ2": {
-    "defaultMessage": "GitLab server disconnected.",
-    "description": "Toast after the GitLab server connection is removed"
   },
   "IiWzWDOWnD": {
     "defaultMessage": "Hyperlocalise Agent",
@@ -13590,6 +13754,10 @@
   "JQuMZXhBtU": {
     "defaultMessage": "Enter valid JSON.",
     "description": "Under a test value of a workflow step whose JSON cannot be read"
+  },
+  "JRHfM8uH3R": {
+    "defaultMessage": "Only when I click Sync now",
+    "description": "Schedule option: the project syncs only when someone clicks Sync now"
   },
   "JRvO1zUFRY": {
     "defaultMessage": "Reading {detail}",
@@ -14703,6 +14871,10 @@
     "defaultMessage": "Undo discarding your changes",
     "description": "Tooltip of the undo button when the latest step was the Discard changes button"
   },
+  "LQPCUXFTmO": {
+    "defaultMessage": "Chat and automations now use {name}.",
+    "description": "Toast after marking a GitLab connection as the default"
+  },
   "LRVFAS5BU6": {
     "defaultMessage": "Voice",
     "description": "Filter label for voice models on the pricing page"
@@ -15043,10 +15215,6 @@
     "defaultMessage": "This chat is paused",
     "description": "Title when a public web chat agent is paused"
   },
-  "LxPruuLaUX": {
-    "defaultMessage": "Use your company's own GitLab server for the whole workspace.",
-    "description": "Integration row description for a workspace's own GitLab server"
-  },
   "LxzxKCrG8Q": {
     "defaultMessage": "SharePoint",
     "description": "SharePoint integration name on the integrations page"
@@ -15283,6 +15451,10 @@
     "defaultMessage": "Audit failed",
     "description": "Title when a public localisation audit fails"
   },
+  "MHOYy5Rwc3": {
+    "defaultMessage": "Chat and automations use this connection. Automations name a project by its path, so pointing it at another server moves them too, and chats stop using projects from the old one.",
+    "description": "Added to the change warning when the connection being changed is the workspace's default"
+  },
   "MHiaxGXuxI": {
     "defaultMessage": "Button label · Must stay compact on mobile",
     "description": "Constraints for the CTA segment in the hero CAT mock"
@@ -15507,10 +15679,6 @@
     "defaultMessage": "traduction automatique",
     "description": "Add keywords textarea placeholder"
   },
-  "MbHpGGZQUr": {
-    "defaultMessage": "Disconnect server",
-    "description": "Button that confirms removing the GitLab server connection"
-  },
   "MbppXfDsbM": {
     "defaultMessage": "Queries is unavailable for this string.",
     "description": "Shown when the CAT segment cannot link to Queries (missing translation key)"
@@ -15554,6 +15722,10 @@
   "MikRGST8w6": {
     "defaultMessage": "Open the invitation email from your workspace admin and finish accepting the invite, then sign in again. If you already accepted, use Try again to refresh your membership.",
     "description": "Access denied page guidance when the user has a pending workspace invite"
+  },
+  "Mj8cMFDFRg": {
+    "defaultMessage": "Choose a repository",
+    "description": "Placeholder for the repository picker in the project Sync panel"
   },
   "MjW+xFl6ux": {
     "defaultMessage": "Turn new and updated help articles into reviewed translations, sync them to your CMS, and monitor freshness so customers never read stale guidance.",
@@ -15606,6 +15778,10 @@
   "MmdCe+3eSk": {
     "defaultMessage": "Connect Google Drive, Notion, and SharePoint, or type guidelines in. Agents read them and flag what does not match.",
     "description": "Hero description for the Guidelines product page"
+  },
+  "MnS30u+aA3": {
+    "defaultMessage": "for example {example}",
+    "description": "Placeholder of the language file paths field, showing an example value"
   },
   "MnuXzcJn6d": {
     "defaultMessage": "{count} P1 on Queries",
@@ -15690,6 +15866,10 @@
   "MtaQi7PiPN": {
     "defaultMessage": "General",
     "description": "Workspace general settings page heading"
+  },
+  "MtgG06vtLX": {
+    "defaultMessage": "It can read no projects: give its user or group at least the Reporter role on the projects to sync, and Developer to send merge requests.",
+    "description": "Warning on a GitLab connection whose token has no project with the Reporter role or above"
   },
   "MuUohGqmxo": {
     "defaultMessage": "Job created",
@@ -15967,10 +16147,6 @@
     "defaultMessage": "Unable to load task comments.",
     "description": "Error state when task comments fail to load"
   },
-  "NIXB2viMhz": {
-    "defaultMessage": "Use a token from a non-admin user, with the api scope, or read_api and read_repository for reading only.",
-    "description": "Hint describing which GitLab access token to create"
-  },
   "NIhlMUMura": {
     "defaultMessage": "Build your publishing workflow.",
     "description": "Supporting note under the Domains bottom CTA"
@@ -16051,9 +16227,17 @@
     "defaultMessage": "Collapse {status}",
     "description": "Accessible label to collapse an issue status group"
   },
+  "NRQuibW48k": {
+    "defaultMessage": "Open merge request",
+    "description": "Link to the merge request a GitLab project sync run opened"
+  },
   "NRfaLdr7/e": {
     "defaultMessage": "Add {name}?",
     "description": "Title of the confirmation shown before attaching a skill that does something irreversible"
+  },
+  "NSI7HOMKgo": {
+    "defaultMessage": "Connections you add here are shared by everyone in the workspace: chat and automations use the default one, and each project's Sync settings pick one. Each reaches whatever its token can reach. Once one exists, members' own GitLab.com sign-ins are no longer used.",
+    "description": "Explains the effect of connecting GitLab for the workspace"
   },
   "NSbs2IoiBz": {
     "defaultMessage": "Your agent is ready",
@@ -16435,6 +16619,10 @@
     "defaultMessage": "Insights on hyperlocalisation, translation intelligence, and building localisation workflows for global teams.",
     "description": "Supporting copy below the marketing homepage recent blog posts heading"
   },
+  "O2+CxE1DPu": {
+    "defaultMessage": "GitLab.com",
+    "description": "Choice: the public GitLab.com service"
+  },
   "O2AgYH2fic": {
     "defaultMessage": "Inspect agent-proposed translations before pushing approved changes back to the provider.",
     "description": "Description under the agent proposal review heading"
@@ -16494,6 +16682,10 @@
   "O9HkCEOzPy": {
     "defaultMessage": "Jobs",
     "description": "Back link label from job detail to the jobs list"
+  },
+  "O9WSf08ndF": {
+    "defaultMessage": "Not set up",
+    "description": "Shown next to GitHub or GitLab in the project Sync panel's service picker when that service isn't set up in Integrations"
   },
   "OAZ7oFBkRI": {
     "defaultMessage": "{count, plural, one {# new QA error} other {# new QA errors}} since the previous scan",
@@ -16723,6 +16915,10 @@
     "defaultMessage": "Could not load Google Drive connection status.",
     "description": "Integration row description when status fetch fails"
   },
+  "OXAVWnTukA": {
+    "defaultMessage": "GitLab",
+    "description": "Integration row name for the workspace's GitLab connection, GitLab.com or its own server"
+  },
   "OXxWMckqBr": {
     "defaultMessage": "When knowledge is shared instead of searched for, localisation teams can focus on what humans do best: making products feel genuinely local, culturally relevant, and trustworthy.",
     "description": "Eighth paragraph of the founders note on the company page"
@@ -16762,6 +16958,14 @@
   "Oam8wqCN9r": {
     "defaultMessage": "Webflow connection removed.",
     "description": "Success toast when the Webflow connection is removed."
+  },
+  "OawVGF0jzY": {
+    "defaultMessage": "Save",
+    "description": "Button that saves the project sync settings"
+  },
+  "ObksDhMzPR": {
+    "defaultMessage": "{written, plural, =0 {No new translations to send} one {# translated file sent} other {# translated files sent}}",
+    "description": "Summary of the translated files a project sync run sent back to the repository"
   },
   "Obrc0xXXmw": {
     "defaultMessage": "Connected",
@@ -16842,6 +17046,10 @@
   "Ok15bFijfb": {
     "defaultMessage": "Updated product terminology",
     "description": "Placeholder for the optional knowledge memory version note field"
+  },
+  "Ol/CLajqiN": {
+    "defaultMessage": "Succeeded",
+    "description": "Status of a project sync run that finished without errors"
   },
   "OlLKnWDUCM": {
     "defaultMessage": "Best for most domains.",
@@ -17014,6 +17222,10 @@
   "P1e3b+MNYt": {
     "defaultMessage": "Hide unicode characters",
     "description": "Accessible label to collapse the CAT unicode table"
+  },
+  "P1sxklxMwY": {
+    "defaultMessage": "Your company's GitLab server",
+    "description": "Choice: a GitLab server the customer runs"
   },
   "P2TLmiPIxh": {
     "defaultMessage": "Generate new version",
@@ -17511,6 +17723,10 @@
     "defaultMessage": "Connect Contentful in Integrations before this trigger can run.",
     "description": "Description for Contentful webhook trigger when Contentful is not connected"
   },
+  "PsfScgqwTN": {
+    "defaultMessage": "for example {example}",
+    "description": "Placeholder of the path template setting, showing an example value"
+  },
   "PslOM8EEdU": {
     "defaultMessage": "Attempted",
     "description": "QA run attempted time label"
@@ -17722,6 +17938,10 @@
   "QG31S8uFy7": {
     "defaultMessage": "Track every locale in one campaign—who is reviewing, what is approved, and what still needs attention—without switching tools.",
     "description": "Content Studio FAQ answer about review status"
+  },
+  "QG9yuQhA60": {
+    "defaultMessage": "Sync",
+    "description": "Project settings nav item for syncing files with a repository"
   },
   "QGaxqP2Jqi": {
     "defaultMessage": "No. Hyperlab works with the site and content you already have. It decides which version each visitor sees.",
@@ -18355,6 +18575,10 @@
     "defaultMessage": "Select all",
     "description": "Select every mapped Braze template in the push dialog"
   },
+  "RJLxYJk50b": {
+    "defaultMessage": "and {more, number} more",
+    "description": "Follows a shortened list of hidden keys in a project sync run"
+  },
   "RJqS5CWiIH": {
     "defaultMessage": "new-headline",
     "description": "Placeholder for a variant key field"
@@ -18422,6 +18646,10 @@
   "RQHyujQ0I4": {
     "defaultMessage": "Sampled {count} pages across technical, linguistic, contextual, and visual localisation credits.",
     "description": "Summary of how many pages a localisation audit sampled"
+  },
+  "RRTJeJffFC": {
+    "defaultMessage": "The sync stopped unexpectedly.",
+    "description": "Error shown for a project sync run that failed for an unexpected reason"
   },
   "RRjkhCG4Cs": {
     "defaultMessage": "Could not load QA reports.",
@@ -18542,6 +18770,10 @@
   "Ra7PJXU8aK": {
     "defaultMessage": "Access denied",
     "description": "Default access denied page title"
+  },
+  "RaStbLcbsa": {
+    "defaultMessage": "Unable to remove the sync.",
+    "description": "Error shown when removing the project sync settings fails"
   },
   "Rb4oe0xPau": {
     "defaultMessage": "Report",
@@ -18739,6 +18971,10 @@
     "defaultMessage": "Provider",
     "description": "Badge for a provider-managed glossary"
   },
+  "RtFvRzHXme": {
+    "defaultMessage": "Scheduled",
+    "description": "Shows that a project sync run was started by its schedule"
+  },
   "RtU7kH2epq": {
     "defaultMessage": "Select a project",
     "description": "Placeholder prompting the user to choose a TMS project"
@@ -18834,6 +19070,10 @@
   "S2pzZyn+jp": {
     "defaultMessage": "Revoke key",
     "description": "Confirm button to revoke an API key"
+  },
+  "S3Dsv7C7Nh": {
+    "defaultMessage": "Remove sync",
+    "description": "Button that removes the project's sync settings"
   },
   "S3hIFEOuBV": {
     "defaultMessage": "To",
@@ -19695,10 +19935,6 @@
     "defaultMessage": "Apply for startup pricing",
     "description": "Primary CTA on the startups page hero and program section"
   },
-  "TS8IDVeEcm": {
-    "defaultMessage": "Disconnect for the whole workspace? Automations go back to GitLab.com and chats stop using this server's projects.",
-    "description": "Question shown before removing the GitLab server connection"
-  },
   "TSLfOgCp9k": {
     "defaultMessage": "Collection expression",
     "description": "Label for for-each collection expression field"
@@ -19754,6 +19990,10 @@
   "TWyi7AS4VO": {
     "defaultMessage": "Folder per language — vi-VN/overview.docx",
     "description": "Google Drive translation output option: locale folder"
+  },
+  "TX+fYK8q8U": {
+    "defaultMessage": "Repository service",
+    "description": "Label for the picker of the service (GitHub or GitLab) the project syncs with"
   },
   "TXP1gdWAFX": {
     "defaultMessage": "Fix SRX rule errors before saving: {detail}",
@@ -19942,6 +20182,10 @@
   "TnzQT7gNHf": {
     "defaultMessage": "Copy code",
     "description": "Tooltip and aria label for the copy code button"
+  },
+  "TooKILigu3": {
+    "defaultMessage": "Chat and automations go back to members' own GitLab.com sign-ins until a connection is added again.",
+    "description": "Added to the remove confirmation when it is the workspace's last GitLab connection"
   },
   "TosoMhOGUj": {
     "defaultMessage": "Content sync",
@@ -20207,10 +20451,6 @@
     "defaultMessage": "Create a key in Zernio under API keys. Automations authenticate with Authorization: Bearer.",
     "description": "Help text for where to find a Zernio API key"
   },
-  "UDr0hZGNG/": {
-    "defaultMessage": "GitLab server connected.",
-    "description": "Toast after a GitLab server connection is saved"
-  },
   "UE1Umv7eEm": {
     "defaultMessage": "What is wrong (meaning, tone, grammar, or style)",
     "description": "Description skeleton heading for the translation mistake issue template"
@@ -20314,6 +20554,10 @@
   "UOISryu9xO": {
     "defaultMessage": "All projects",
     "description": "Workspace files project filter option to show every project"
+  },
+  "UOMRfGQ0jp": {
+    "defaultMessage": "Translations weren't sent: {reason}",
+    "description": "Shown on a GitLab sync run whose pull succeeded but whose write GitLab refused; the reason is GitLab's"
   },
   "UP0P0zCDA/": {
     "defaultMessage": "Archived repositories cannot use translation automation.",
@@ -20651,6 +20895,10 @@
     "defaultMessage": "This Figma connect request is missing or expired.",
     "description": "Error when a Figma claim id is missing"
   },
+  "UwEjMjlBD5": {
+    "defaultMessage": "Language file paths",
+    "description": "Path template setting on the content sync action"
+  },
   "UxD7Hy8Ypk": {
     "defaultMessage": "Refresh data",
     "description": "Refresh provider-backed Overview"
@@ -20718,6 +20966,10 @@
   "V1BIkH6W+O": {
     "defaultMessage": "{displayName} connected",
     "description": "Toast after connecting an external TMS provider"
+  },
+  "V1PaomMYKB": {
+    "defaultMessage": "The workspace has no GitLab connection yet. An admin connects one under Integrations; a member's own GitLab.com sign-in is not used for syncs.",
+    "description": "Hint under the GitLab project picker of the Content sync step when the workspace has no GitLab connection"
   },
   "V1UeldRHjR": {
     "defaultMessage": "There are no blocks to translate.",
@@ -20830,6 +21082,10 @@
   "VDIjD34xp9": {
     "defaultMessage": "Spend",
     "description": "Reports mock UI spend use case title"
+  },
+  "VDeyA5c96f": {
+    "defaultMessage": "A GitLab sync reads the repository through its API, hides keys the repository dropped, and sends approved translations back in a merge request.",
+    "description": "Note under the repository service picker while GitLab is chosen, saying what a GitLab sync does"
   },
   "VDvLBw/7C6": {
     "defaultMessage": "Add text manually",
@@ -21071,10 +21327,6 @@
     "defaultMessage": "Open full-page editor",
     "description": "Link to open repository automation settings on a dedicated page"
   },
-  "VdrqJKSKUW": {
-    "defaultMessage": "Automations name a project by its path, so replacing or removing this connection points them at the new server, or back at GitLab.com. Chats stop using projects from the old server.",
-    "description": "Warning shown before replacing or removing a GitLab server connection"
-  },
   "Ve+0mAQW0d": {
     "defaultMessage": "Pulling search volume for core product terms",
     "description": "Automations mock UI keyword research step 1"
@@ -21158,6 +21410,10 @@
   "Vnwufq/GzB": {
     "defaultMessage": "Could not load this automation.",
     "description": "Shown on an automation detail page when the automation fails to load"
+  },
+  "VoQIrWE/6m": {
+    "defaultMessage": "GitLab.com sign-in",
+    "description": "Name of the per-member GitLab.com sign-in row on the integrations page"
   },
   "VoaTgvMGb7": {
     "defaultMessage": "Use inline default",
@@ -21603,6 +21859,10 @@
     "defaultMessage": "GitHub status check",
     "description": "Section heading for GitHub status check settings"
   },
+  "WZsGvl//q1": {
+    "defaultMessage": "Expires on {date}.",
+    "description": "Status line part giving a GitLab token's expiry date"
+  },
   "Wa3kCtjTDm": {
     "defaultMessage": "Preview ready",
     "description": "Legacy translation memory import preview status (read-only)"
@@ -21855,6 +22115,10 @@
     "defaultMessage": "to branch",
     "description": "Prose between a GitHub trigger name and its branch selector"
   },
+  "WxwypwDXoe": {
+    "defaultMessage": "Use a token from a non-admin user with the Developer role on the projects to sync (Reporter can only pull), and the api scope to send merge requests; with read_api and read_repository only, syncs pull and say translations weren't sent. Set an expiry.",
+    "description": "Hint describing which access token to create on a company's own GitLab server"
+  },
   "Wy1vE+UJqV": {
     "defaultMessage": "Multilingual keyword research",
     "description": "Automations mock UI multilingual keyword research use case title"
@@ -22026,6 +22290,10 @@
   "XFpqPsul6Y": {
     "defaultMessage": "Changed: {fields}",
     "description": "Badge listing which fields changed on an agent proposal"
+  },
+  "XGVaZ97qQ9": {
+    "defaultMessage": "Sync a GitHub repository from its Automation settings in Integrations.",
+    "description": "Says where GitHub syncs are set up, in place of the project Sync panel; shown under its service picker and when a GitHub sync is refused"
   },
   "XH27tSt/JN": {
     "defaultMessage": "FRENCH · TRANSLATION",
@@ -22707,6 +22975,10 @@
     "defaultMessage": "One brand name per line. We’ll look them up next to this domain.",
     "description": "Add competitors dialog description"
   },
+  "YLY+U5/DGl": {
+    "defaultMessage": "locales",
+    "description": "Example repository folder shown in the empty repository folder field of the project Sync panel"
+  },
   "YLbt57UkC5": {
     "defaultMessage": "Failed to disconnect Braze.",
     "description": "Toast when Braze disconnect fails"
@@ -22931,6 +23203,10 @@
     "defaultMessage": "Discarded your changes again",
     "description": "Notice after an undone discard was put back"
   },
+  "Yj1IVsPHUq": {
+    "defaultMessage": "A sync is running. Remove the sync once it finishes.",
+    "description": "Error shown when removing the project sync while a sync run is going"
+  },
   "YjRk5tT6GE": {
     "defaultMessage": "Use a bounded JSON Schema object. Remote references are not supported.",
     "description": "Schema validation node schema input help"
@@ -23042,6 +23318,10 @@
   "Yt7zrC9Btd": {
     "defaultMessage": "Loading translation memory entries",
     "description": "Accessible label for the translation memory entry loading state"
+  },
+  "YvKNfbM9SW": {
+    "defaultMessage": "{count, plural, one {# file wasn't sent back} other {# files weren't sent back}}: the format isn't supported yet, or the repository's copy couldn't be read",
+    "description": "Count of source files a GitLab sync run couldn't write a language file for"
   },
   "YvOtHkprF2": {
     "defaultMessage": "{providerName} is connected via OAuth",
@@ -23783,6 +24063,10 @@
     "defaultMessage": "Connect tasks, agents, and human review into repeatable workflows for your content operations.",
     "description": "Marketing homepage automationBody"
   },
+  "a1QYZOb8v/": {
+    "defaultMessage": "Next scheduled sync: {time}",
+    "description": "Shows when the next scheduled project sync will start"
+  },
   "a1Rp/rylyq": {
     "defaultMessage": "Create a workspace memory, upload a TMX or CSV file, then assign it to the projects that should use it.",
     "description": "Empty state description when the user can create translation memories"
@@ -24171,6 +24455,10 @@
     "defaultMessage": "Tuesday",
     "description": "Tuesday option for weekly schedule"
   },
+  "afHUN4SiZD": {
+    "defaultMessage": "for example Website repositories",
+    "description": "Placeholder for a GitLab connection's name field"
+  },
   "afM0hfkHOH": {
     "defaultMessage": "Latest posts",
     "description": "Marketing homepage recent blog posts section title"
@@ -24190,6 +24478,10 @@
   "ahBN6E+7kk": {
     "defaultMessage": "Could not load articles",
     "description": "Error when mapped Intercom articles fail to load"
+  },
+  "ai2FI9MiCn": {
+    "defaultMessage": "Project folder",
+    "description": "Label for the project folder field in the project Sync panel"
   },
   "ajjoHt03BE": {
     "defaultMessage": "Save {providerName}",
@@ -24366,6 +24658,10 @@
   "b/Vd04dNDW": {
     "defaultMessage": "Hyperlocalise",
     "description": "Tab to show only Hyperlocalise-native projects"
+  },
+  "b/d4N94nLn": {
+    "defaultMessage": "Default branch",
+    "description": "Placeholder of the branch setting when the repository's default branch is used"
   },
   "b/pQ8GedZy": {
     "defaultMessage": "The assistant updated this automation",
@@ -24687,9 +24983,17 @@
     "defaultMessage": "DNS TXT",
     "description": "Verification method"
   },
+  "bSZGRrVpZH": {
+    "defaultMessage": "Bring source files in from a repository and send finished translations back as a pull request or merge request.",
+    "description": "Description of the project Sync panel"
+  },
   "bSoPJAmJQC": {
     "defaultMessage": "This audit is queued and will start shortly.",
     "description": "Detail text when a localisation audit is queued"
+  },
+  "bTTUPk+i8t": {
+    "defaultMessage": "This repository is not enabled in Integrations. Enable it there or choose another one.",
+    "description": "Shown when the repository chosen for the project sync is not enabled in Integrations"
   },
   "bUBd4XGtBI": {
     "defaultMessage": "AI features",
@@ -25239,6 +25543,10 @@
     "defaultMessage": "What is Domains, in one sentence?",
     "description": "Domains FAQ question explaining the product"
   },
+  "cN7lGns1+R": {
+    "defaultMessage": "Unable to save sync settings.",
+    "description": "Error shown when saving the project sync settings fails"
+  },
   "cOeHLAqsSE": {
     "defaultMessage": "Contentful webhook ID: {webhookId}",
     "description": "Displays the provider-assigned Contentful webhook ID"
@@ -25571,6 +25879,10 @@
     "defaultMessage": "Characters with spaces",
     "description": "Unit switch option: count characters including spaces"
   },
+  "cu5L6vnd2u": {
+    "defaultMessage": "A project can sync with any of these connections; chat and automations use the default one. Add one with a token scoped to the repositories it should reach.",
+    "description": "Explains why a workspace might add a second GitLab connection"
+  },
   "cu5vz2inFd": {
     "defaultMessage": "Import entries",
     "description": "Primary action to apply a completed translation memory import preview"
@@ -25859,6 +26171,10 @@
     "defaultMessage": "Production website",
     "description": "Placeholder for a client key name field"
   },
+  "dIAjQ/dX+w": {
+    "defaultMessage": "{unmatched, plural, one {# file} other {# files}} in the folder didn't match the language file paths",
+    "description": "Summary of the repository files a project sync run left out because their path matched no language"
+  },
   "dIHTtzU056": {
     "defaultMessage": "The audit could not finish for this domain.",
     "description": "Fallback error when a failed localisation audit has no error message"
@@ -25990,6 +26306,10 @@
   "dSYoXf1ZmK": {
     "defaultMessage": "Days are in UTC.",
     "description": "End of the volume chart's subtitle when each bar is a day"
+  },
+  "dSbL+8m8KU": {
+    "defaultMessage": "Use a folder path inside the repository, such as locales.",
+    "description": "Error shown when a folder in the project sync settings is not a safe relative path"
   },
   "dStMwhojOw": {
     "defaultMessage": "08:00 UTC",
@@ -26158,6 +26478,10 @@
   "df83PL1R8p": {
     "defaultMessage": "{provider} connected",
     "description": "Toast success after connecting a Crowdin account with a personal access token"
+  },
+  "dfPeYtLjRq": {
+    "defaultMessage": "Sync removed.",
+    "description": "Toast shown after the project sync settings are removed"
   },
   "dfVzkj5hWL": {
     "defaultMessage": "Untitled workflow",
@@ -26471,6 +26795,10 @@
     "defaultMessage": "Voyez le monde sous un autre jour.",
     "description": "French sample article title in the Domains live preview"
   },
+  "e4UP1KeoEn": {
+    "defaultMessage": "{held, plural, one {# language file waits} other {# language files wait}} until every translation in it is approved",
+    "description": "Count of language files a GitLab sync run held back because a page is sent whole, once fully approved"
+  },
   "e4Xzg6LTW9": {
     "defaultMessage": "From product demos to campaigns",
     "description": "Supporting link line for the video format panel"
@@ -26478,6 +26806,10 @@
   "e4ecBMTJAg": {
     "defaultMessage": "Due date updated",
     "description": "Toast after a native job's due date is saved"
+  },
+  "e54flb2PR8": {
+    "defaultMessage": "Save your changes before syncing.",
+    "description": "Hint shown when Sync now is disabled because the sync settings have unsaved edits"
   },
   "e55K7kZph5": {
     "defaultMessage": "Hreflang, locale coverage, and multilingual content quality",
@@ -26998,6 +27330,10 @@
   "erXgCbsSqH": {
     "defaultMessage": "Export filtered as CSV",
     "description": "Glossary action to export the current language filter as CSV"
+  },
+  "erwKpxK+ds": {
+    "defaultMessage": "Unable to start the sync.",
+    "description": "Error shown when Sync now fails to start a project sync"
   },
   "es92Uya8hG": {
     "defaultMessage": "Guidelines",
@@ -27531,6 +27867,10 @@
     "defaultMessage": "Write, or type / for blocks…",
     "description": "Placeholder shown in an empty markdown description editor"
   },
+  "fkrYmhHuuT": {
+    "defaultMessage": "Unable to load the repositories. Reload the page to try again.",
+    "description": "Error shown when the list of repositories for the project Sync panel fails to load"
+  },
   "flUWk1JFBu": {
     "defaultMessage": "Hide passed audits",
     "description": "Control to collapse passed localisation audit criteria"
@@ -27963,6 +28303,10 @@
     "defaultMessage": "Deleting...",
     "description": "Delete button label while a project is being deleted"
   },
+  "gLwbnoGaiP": {
+    "defaultMessage": "{count, plural, one {# list was left as the repository has it} other {# lists were left as the repository has them}} until every item in it is approved",
+    "description": "Count of JSON lists a GitLab sync run left unchanged because an item had no approved text"
+  },
   "gMIZAR6HUF": {
     "defaultMessage": "Images",
     "description": "Content Studio format tab for images"
@@ -27974,6 +28318,10 @@
   "gMcYjhS5Ca": {
     "defaultMessage": "Team",
     "description": "Resource type badge for a team-controlled Hyperlocalise glossary"
+  },
+  "gNGTIO7J5R": {
+    "defaultMessage": "Connect GitLab in Integrations first.",
+    "description": "Error shown when a GitLab project sync is saved while the workspace has no GitLab connection"
   },
   "gNwdZXjHEr": {
     "defaultMessage": "Cancel",
@@ -28018,6 +28366,10 @@
   "gQaOHIIj8G": {
     "defaultMessage": "Review imports and exports, then open a report to download a finished export.",
     "description": "Translation memory import and export history dialog description"
+  },
+  "gRXUWrsLcF": {
+    "defaultMessage": "Default branch",
+    "description": "Placeholder of the branch field when the repository's default branch is used"
   },
   "gRhG9VDHId": {
     "defaultMessage": "Copy",
@@ -28294,6 +28646,10 @@
   "gso6nAA1gq": {
     "defaultMessage": "Slack agent disabled",
     "description": "Toast after disabling the Slack agent"
+  },
+  "gsrh5zQdZC": {
+    "defaultMessage": "Open Integrations",
+    "description": "Link from the project Sync panel to the Integrations page"
   },
   "gt/cmQvJ4u": {
     "defaultMessage": "Approved terms for launch and globally are present in the target.",
@@ -28787,6 +29143,10 @@
     "defaultMessage": "No limit",
     "description": "Placeholder when a native segment has no max length set"
   },
+  "hZbM3bN0LI": {
+    "defaultMessage": "Not available",
+    "description": "Shown next to GitHub in the project Sync panel's service picker, where GitHub can't be chosen for now"
+  },
   "hZtUjyTrTe": {
     "defaultMessage": "Search files…",
     "description": "Search placeholder in the files picker"
@@ -29031,6 +29391,10 @@
     "defaultMessage": "Failed to load the Braze REST cluster.",
     "description": "Error when the Braze REST cluster cannot be loaded"
   },
+  "i+FQZUhhZw": {
+    "defaultMessage": "Project syncs that use this connection follow the change.",
+    "description": "Warning shown in the form that changes a GitLab connection"
+  },
   "i+L328OqBg": {
     "defaultMessage": "Filter by priority",
     "description": "Accessible label for the inbox priority filter menu"
@@ -29058,6 +29422,10 @@
   "i1PMbnhRAE": {
     "defaultMessage": "Language review",
     "description": "Status heading in the language review mock"
+  },
+  "i1Z46jIiYF": {
+    "defaultMessage": "Change",
+    "description": "Button that opens the form to change one GitLab connection"
   },
   "i29Xh/8PGM": {
     "defaultMessage": "Done",
@@ -29715,6 +30083,10 @@
     "defaultMessage": "Copy key",
     "description": "Button to copy a newly created client key"
   },
+  "izSm4OVUTX": {
+    "defaultMessage": "Sync started.",
+    "description": "Toast shown after Sync now starts a project sync"
+  },
   "izy21loiHb": {
     "defaultMessage": "No files available in this project.",
     "description": "Empty state when the project has no selectable files"
@@ -29875,6 +30247,10 @@
     "defaultMessage": "Audiences",
     "description": "Hyperlab mock UI nav tab"
   },
+  "jEd2qvOqhD": {
+    "defaultMessage": "{name} (no access to files)",
+    "description": "Repository picker entry for a GitLab project where the connection's role is below Reporter"
+  },
   "jEjjYeEzuW": {
     "defaultMessage": "Edit TM segment",
     "description": "Button and dialog title for editing a translation memory unit"
@@ -29906,6 +30282,10 @@
   "jI9SFqJ4/5": {
     "defaultMessage": "Concepts",
     "description": "Section title for the native glossary concept table"
+  },
+  "jItb0aNazj": {
+    "defaultMessage": "The workspace's GitLab token can't see this repository. Choose it again.",
+    "description": "Error shown when the GitLab repository chosen for the project sync is not found"
   },
   "jJ0I/EZEoA": {
     "defaultMessage": "Origin: {value}",
@@ -29946,6 +30326,10 @@
   "jOtw3PC362": {
     "defaultMessage": "Default (general prose)",
     "description": "SRX template option: default"
+  },
+  "jP0KlytPO/": {
+    "defaultMessage": "Where each language's files sit under the repository folder, with {placeholder} for the language code: fr names your one French language, fr-FR names only fr-FR. The source language's files are imported; * matches within a folder and ** across folders.",
+    "description": "Help text under the language file paths field in the project Sync panel"
   },
   "jP0mfL7DgW": {
     "defaultMessage": "{planName}: {priceLabel} per month",
@@ -30271,10 +30655,6 @@
     "defaultMessage": "Rate",
     "description": "Column heading: the rate that prices a language's work on the task"
   },
-  "jwOzDgWMEq": {
-    "defaultMessage": "Unable to disconnect the GitLab server.",
-    "description": "Toast when removing the GitLab server connection fails"
-  },
   "jxHawvN/1R": {
     "defaultMessage": "Could not remove the Webflow connection.",
     "description": "Error toast when removing the Webflow connection fails."
@@ -30358,6 +30738,10 @@
   "k15HfZEC8T": {
     "defaultMessage": "Expand term details",
     "description": "Accessible label for expanding a glossary term row"
+  },
+  "k1OeGxmTdJ": {
+    "defaultMessage": "Add connection",
+    "description": "Button that opens the form for another GitLab connection"
   },
   "k1XwyH9gj+": {
     "defaultMessage": "No history yet",
@@ -30590,6 +30974,10 @@
   "kNmR4YupCp": {
     "defaultMessage": "Add rule",
     "description": "Button to add an audience rule"
+  },
+  "kNzPwDjtB/": {
+    "defaultMessage": "Sync",
+    "description": "Heading of the project settings panel that syncs files with a repository"
   },
   "kO17DbZxuG": {
     "defaultMessage": "Add a named field to construct an object.",
@@ -31435,6 +31823,10 @@
     "defaultMessage": "Automations",
     "description": "Pricing matrix row label for automations"
   },
+  "llq1zCo/D6": {
+    "defaultMessage": "Branch",
+    "description": "Label for the repository branch field in the project Sync panel"
+  },
   "lm8uSjSdQw": {
     "defaultMessage": "Missing translation",
     "description": "QA review: not_localized"
@@ -31531,6 +31923,10 @@
     "defaultMessage": "Set template",
     "description": "More menu action to apply an issue template"
   },
+  "lvk9CHFHpK": {
+    "defaultMessage": "Every day",
+    "description": "Schedule option: the project syncs once a day"
+  },
   "lvwFhMaVAT": {
     "defaultMessage": "Coming soon",
     "description": "Dropdown section label for tools that are not yet available"
@@ -31574,6 +31970,10 @@
   "m0gQ9lgLTM": {
     "defaultMessage": "Chat model",
     "description": "Disabled AI node slot label for a chat model"
+  },
+  "m19bKnw7GV": {
+    "defaultMessage": "GitLab connection",
+    "description": "Label for the picker of which workspace GitLab connection a project sync uses"
   },
   "m1KcvYGLt0": {
     "defaultMessage": "Entry deleted",
@@ -31630,6 +32030,10 @@
   "m4T5sYEFR7": {
     "defaultMessage": "Preparing",
     "description": "Progress step label when a localisation audit is preparing"
+  },
+  "m4iVRIAaW3": {
+    "defaultMessage": "The folder in the repository that holds the source files, for example locales.",
+    "description": "Help text for the repository folder field in the project Sync panel"
   },
   "m4m7Z9SYlx": {
     "defaultMessage": "Optional. We will send a summary of the report to your inbox when the audit completes.",
@@ -31883,6 +32287,10 @@
     "defaultMessage": "Cancel",
     "description": "Cancel button in the download translations dialog footer"
   },
+  "mQ+9Xns9qF": {
+    "defaultMessage": "{count, plural, one {# connection} other {# connections}}. Chat and automations use {name}.",
+    "description": "Integrations row description when the workspace has several GitLab connections; name is the default connection's name"
+  },
   "mQ36/6Ov5o": {
     "defaultMessage": "This is the snippet Google would show. Missing descriptions and mixed languages are the usual reason a market never shows up.",
     "description": "Body for the Domains search snippet section"
@@ -32102,10 +32510,6 @@
   "mltE2S4MiK": {
     "defaultMessage": "Instructions",
     "description": "Section label for agent system instructions"
-  },
-  "mm8ESSKJcB": {
-    "defaultMessage": "Disconnect",
-    "description": "Button that removes the GitLab server connection"
   },
   "mmB/r+ohDb": {
     "defaultMessage": "Some segments have unsaved edits. Leave without saving?",
@@ -32599,6 +33003,10 @@
     "defaultMessage": "via {name}",
     "description": "Shows the API key used to perform an activity"
   },
+  "nWS380YnWC": {
+    "defaultMessage": "Remove",
+    "description": "Confirm button in the dialog confirming removal of the project sync settings"
+  },
   "nWSKQmdY9E": {
     "defaultMessage": "Download CSV",
     "description": "Button that downloads a table as a CSV file"
@@ -32831,6 +33239,10 @@
     "defaultMessage": "Do",
     "description": "Guideline mock UI market knowledge do label"
   },
+  "nouZfHJYX6": {
+    "defaultMessage": "A content sync automation already syncs this repository folder into the project. Pause it on the Automations page first.",
+    "description": "Error shown when saving the project sync while an active content sync automation covers the same repository folder"
+  },
   "nqWsz/vBZ6": {
     "defaultMessage": "Who should own the connected files?",
     "description": "Guidelines FAQ question about ownership"
@@ -32839,6 +33251,10 @@
     "defaultMessage": "Failed to approve image",
     "description": "Fallback error when approving an image translation fails"
   },
+  "nqiSfq5i+m": {
+    "defaultMessage": "Not used while GitLab is connected for the workspace. Disconnect it here to remove your sign-in.",
+    "description": "Description of a member's own GitLab.com sign-in row while the workspace has a GitLab connection"
+  },
   "nqnh5BEInQ": {
     "defaultMessage": "Delete",
     "description": "Button that deletes the current visual workflow"
@@ -32846,6 +33262,10 @@
   "nrNj6bYo1e": {
     "defaultMessage": "Personal Access Token Created",
     "description": "Activity log event type label for personal access token creation"
+  },
+  "nrjgwEgszO": {
+    "defaultMessage": "Optional. Shown where a project's Sync settings pick a connection; left empty, the server's address is shown.",
+    "description": "Hint under a GitLab connection's name field"
   },
   "ntLrh30Crw": {
     "defaultMessage": "Delete",
@@ -33398,10 +33818,6 @@
   "omP7hSnBIw": {
     "defaultMessage": "Format {format}",
     "description": "Shows the provider file format in the file detail panel"
-  },
-  "omW67FLa2e": {
-    "defaultMessage": "Disconnecting…",
-    "description": "Button label while the GitLab server connection is being removed"
   },
   "omiOFhhyA0": {
     "defaultMessage": "Against paying every match band in full",
@@ -34103,6 +34519,10 @@
     "defaultMessage": "Decisions compound as teams learn what works in each market",
     "description": "Feature teaser benefit for guideline"
   },
+  "plPoWuOVzN": {
+    "defaultMessage": "The repository's default branch on GitHub. A GitHub sync always reads it.",
+    "description": "Help text under the read-only branch field of a GitHub project sync"
+  },
   "pm1TRAF3RM": {
     "defaultMessage": "Redirecting…",
     "description": "Button label while Sanity OAuth URL loads"
@@ -34126,6 +34546,10 @@
   "pnAixkNSMy": {
     "defaultMessage": "QA failure",
     "description": "Unresolved issue submenu: QA failure"
+  },
+  "pnBGoxuR5t": {
+    "defaultMessage": "The settings and the run history are deleted. Files already in the project stay.",
+    "description": "Description of the dialog confirming removal of the project sync settings"
   },
   "pnhrsfcx7g": {
     "defaultMessage": "Collaboration",
@@ -34434,6 +34858,10 @@
   "qByVEBzLzv": {
     "defaultMessage": "Could not remove a step",
     "description": "Line in the assistant's change list: removing a step from the workflow was refused"
+  },
+  "qCA5FK7jVt": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button in the dialog confirming removal of the project sync settings"
   },
   "qCIzGw7LDA": {
     "defaultMessage": "Localize behavioral email and in-app messages in Customer.io.",
@@ -34767,6 +35195,10 @@
     "defaultMessage": "Search locales…",
     "description": "Search placeholder for the target locale multi-select"
   },
+  "qkzeYEZkME": {
+    "defaultMessage": "{name} (default)",
+    "description": "Picker entry for the GitLab connection chat and automations use; name is the connection's label"
+  },
   "qlC3SJDnRm": {
     "defaultMessage": "Startmate",
     "description": "Startmate name on the startups page recognition row"
@@ -34831,6 +35263,10 @@
     "defaultMessage": "Integration Connected",
     "description": "Activity log event type label for connected integrations"
   },
+  "qtB7+3Uye/": {
+    "defaultMessage": "Saving…",
+    "description": "Save button text while the project sync settings are saving"
+  },
   "qtFi5mIdMd": {
     "defaultMessage": "Explore the platform",
     "description": "Marketing homepage explore"
@@ -34871,6 +35307,10 @@
     "defaultMessage": "You edited the workflow · {count, plural, one {# change} other {# changes}}",
     "description": "Line above a message of the person's in the assistant panel, which opens to list what they changed on the visual workflow themselves before sending it"
   },
+  "qxAtQr1hgC": {
+    "defaultMessage": "Schedule",
+    "description": "Label for the schedule picker in the project Sync panel"
+  },
   "qxBrl7Yxqo": {
     "defaultMessage": "Monday",
     "description": "Weekday option for scheduled automation"
@@ -34882,6 +35322,10 @@
   "qxdCTJo5wL": {
     "defaultMessage": "Pull request",
     "description": "GitHub pull request event checkbox label"
+  },
+  "qy3PLCUa/e": {
+    "defaultMessage": "Remove this project's sync?",
+    "description": "Title of the dialog confirming removal of the project sync settings"
   },
   "qyAeUOVpZe": {
     "defaultMessage": "Czech (Czechia)",
@@ -34923,6 +35367,10 @@
     "defaultMessage": "Ran for real",
     "description": "Mark beside a step in a test run's step list: the step called out for real"
   },
+  "r0YvO5Z1tm": {
+    "defaultMessage": "Your own GitLab.com account, for chat and for automations you create. To sync files, connect GitLab for the workspace above.",
+    "description": "Description of the per-member GitLab.com sign-in row, shown while the workspace has no GitLab connection"
+  },
   "r0gMCcsbGC": {
     "defaultMessage": "No conversations or notifications yet.",
     "description": "Empty state when the inbox has neither conversations nor notifications"
@@ -34946,6 +35394,10 @@
   "r2K/PgwYTn": {
     "defaultMessage": "Search templates and snippets",
     "description": "Placeholder for filtering mapped Iterable items"
+  },
+  "r2eGswphgY": {
+    "defaultMessage": "Removing…",
+    "description": "Button text while a GitLab connection is being removed"
   },
   "r2k+y+3lqI": {
     "defaultMessage": "Checking for glossary matches",
@@ -35130,6 +35582,10 @@
   "rIEncw8pvm": {
     "defaultMessage": "Brand voice and terminology",
     "description": "Marketing homepage agentFinding"
+  },
+  "rIj4p1pD6H": {
+    "defaultMessage": "Put {placeholder} where the language code goes. Use ** only as a whole folder, at most twice, and no more than two * or {placeholder} in one name or eight in all.",
+    "description": "Error shown when the language file paths of a project sync can't be used"
   },
   "rIotJfHv/2": {
     "defaultMessage": "Build your AI-native localisation workflow",
@@ -35322,6 +35778,10 @@
   "rc9DBDztDD": {
     "defaultMessage": "Models your team can use",
     "description": "Heading for the models section on the pricing page"
+  },
+  "rc9mIgg+S4": {
+    "defaultMessage": "The GitLab connection this sync used was removed in Integrations. Choose another connection.",
+    "description": "Shown in the project Sync panel when the sync's GitLab connection no longer exists"
   },
   "rcANTRobpQ": {
     "defaultMessage": "Role",
@@ -35683,6 +36143,10 @@
     "defaultMessage": "Choose the repository the GitHub trigger watches.",
     "description": "A still-needed step: the GitHub trigger has no repository"
   },
+  "sBD3fLEfW2": {
+    "defaultMessage": "{uploaded, plural, one {# file imported} other {# files imported}}, {skipped, number} unchanged",
+    "description": "Summary of the source files a project sync run imported"
+  },
   "sCRcGCSbrv": {
     "defaultMessage": "Project ID",
     "description": "Label above the copyable native project ID"
@@ -35799,6 +36263,10 @@
     "defaultMessage": "Canva",
     "description": "Name shown for the Canva integrations row"
   },
+  "sOfLCiMyCh": {
+    "defaultMessage": "Where the files appear in this project.",
+    "description": "Help text for the project folder field in the project Sync panel"
+  },
   "sPeeyibl9Y": {
     "defaultMessage": "Approve selected",
     "description": "Bulk action to approve all selected CAT segments"
@@ -35842,6 +36310,10 @@
   "sUjt/GKyKZ": {
     "defaultMessage": "Unable to create automation right now",
     "description": "Toast when creating a workspace automation fails"
+  },
+  "sUzlcXbcY3": {
+    "defaultMessage": "Enable a GitHub repository in Integrations to sync from GitHub.",
+    "description": "Shown in the project Sync panel when GitHub is chosen and no repository is enabled"
   },
   "sV2dSDjwcL": {
     "defaultMessage": "Understand",
@@ -36051,6 +36523,10 @@
     "defaultMessage": "Could not import those words.",
     "description": "Error when importing dictionary words fails"
   },
+  "stTMDlHaoL": {
+    "defaultMessage": "No sync is set up for this project.",
+    "description": "Shown in the project Sync panel to people who cannot change it when no sync is set up"
+  },
   "stUnm5XNi2": {
     "defaultMessage": "Imported by",
     "description": "Import actor field label"
@@ -36131,6 +36607,10 @@
     "defaultMessage": "Show a change only to visitors in a market, plan, or traffic source",
     "description": "Feature teaser benefit for Hyperlab"
   },
+  "t0XKEe4Dhs": {
+    "defaultMessage": "This connection's token can read no repositories. A project or group token sees only that project or group, and needs at least the Reporter role to read files and Developer to send merge requests.",
+    "description": "Shown in the project Sync panel when the GitLab connection lists no repositories"
+  },
   "t0biooOCbM": {
     "defaultMessage": "French page is missing a language link",
     "description": "Localisation issue in the Domains live preview"
@@ -36154,6 +36634,10 @@
   "t1mgNhpwfB": {
     "defaultMessage": "current",
     "description": "Fallback plan name in the active-plan dialog title when the plan name is unknown"
+  },
+  "t1rHIpUc1L": {
+    "defaultMessage": "Say where each language's files are, for example {example}.",
+    "description": "Error shown when GitLab sync settings are saved without language file paths"
   },
   "t2I2Yj3t0M": {
     "defaultMessage": "Notify Slack",
@@ -36687,6 +37171,10 @@
     "defaultMessage": "Disconnect",
     "description": "Button label to disconnect Braze"
   },
+  "tz78TaaqjA": {
+    "defaultMessage": "The folder in the repository that holds the source files, for example locales. Every supported file in it is imported.",
+    "description": "Help text for the repository folder field of a GitHub project sync"
+  },
   "tzNTVPZse0": {
     "defaultMessage": "Clear all",
     "description": "Button to clear all concept filters and search"
@@ -36835,6 +37323,10 @@
     "defaultMessage": "HTML sub-filter",
     "description": "Label for treating matching JSON strings as HTML"
   },
+  "uBwn2q4h2i": {
+    "defaultMessage": "The GitLab connection this sync used was removed in Integrations. Add a connection there, then choose it here.",
+    "description": "Shown in the project Sync panel when the sync's GitLab connection no longer exists and the workspace has none left"
+  },
   "uC9uH1Yi+P": {
     "defaultMessage": "Could not save the translation.",
     "description": "Error when saving a translation variant fails"
@@ -36982,6 +37474,10 @@
   "uPw9H782Mo": {
     "defaultMessage": "Edit",
     "description": "Button that opens a dialog to change a row"
+  },
+  "uPwlCtMJAb": {
+    "defaultMessage": "Leave empty to read the repository's default branch.",
+    "description": "Help text for the branch field in the project Sync panel"
   },
   "uQThnP+5M7": {
     "defaultMessage": "Review source and target side by side, with translation memory matches, AI suggestions, glossary checks, and visual context for each string in the same view.",
@@ -37163,6 +37659,10 @@
     "defaultMessage": "01 — Multilingual Content Studio",
     "description": "Marketing homepage studio product card title"
   },
+  "uhRyrKXNRS": {
+    "defaultMessage": "This connection's token is read-only (no api scope), so syncs pull but can't send merge requests.",
+    "description": "Shown under the repository picker when the GitLab connection's token lacks the api scope"
+  },
   "ui5MGrW8sq": {
     "defaultMessage": "One market first",
     "description": "Hyperlab mock UI audiences use case title"
@@ -37210,6 +37710,10 @@
   "ultNeGfvXw": {
     "defaultMessage": "GitHub requests",
     "description": "AI feature: answering a person's mention of Hyperlocalise in a GitHub pull request"
+  },
+  "um3tvZk8RN": {
+    "defaultMessage": "Running",
+    "description": "Status of a project sync run that has not finished"
   },
   "umK6yIapNV": {
     "defaultMessage": "Value",
@@ -37334,6 +37838,10 @@
   "uyHddFItti": {
     "defaultMessage": "Couldn't load projects from GitLab",
     "description": "Placeholder when the GitLab project list failed to load, for example because the workspace's GitLab token was refused"
+  },
+  "uyNK3DRlM0": {
+    "defaultMessage": "Choose a repository and fill in both folders.",
+    "description": "Error shown when the project sync settings are saved with a missing repository or folder"
   },
   "uyOcKxzNqN": {
     "defaultMessage": "Extracting frame…",
@@ -37607,6 +38115,10 @@
     "defaultMessage": "Actions for {teamName}",
     "description": "Accessible label for a team row actions menu"
   },
+  "vLmy8LFeIy": {
+    "defaultMessage": "GitLab couldn't be reached. Try again or check the connection in Integrations.",
+    "description": "Error shown when GitLab can't be reached while saving the project sync"
+  },
   "vMChOzfTNJ": {
     "defaultMessage": "Checking translations… Results will refresh when the scan finishes.",
     "description": "QA review: running"
@@ -37727,10 +38239,6 @@
     "defaultMessage": "This file format is not supported for translation jobs.",
     "description": "Validation error when the source file format cannot be translated"
   },
-  "vXav6npaND": {
-    "defaultMessage": "Unable to save the GitLab server connection.",
-    "description": "Toast when saving a GitLab server connection fails without a reason"
-  },
   "vY4jaTW3UF": {
     "defaultMessage": "Workload words",
     "description": "Reports mock UI workload words metric label"
@@ -37795,6 +38303,10 @@
     "defaultMessage": "Upload a verification file.",
     "description": "Verification method help"
   },
+  "vcWN5oIVkw": {
+    "defaultMessage": "Name",
+    "description": "Label for a GitLab connection's name field"
+  },
   "vcWkRHmX1+": {
     "defaultMessage": "Add column",
     "description": "Submit button in the add column dialog"
@@ -37850,10 +38362,6 @@
   "vj1b+ydRtP": {
     "defaultMessage": "New workflow",
     "description": "Button that creates a new visual workflow draft"
-  },
-  "vjX9EcsHlB": {
-    "defaultMessage": "Not used while this workspace is connected to its own GitLab server.",
-    "description": "GitLab.com row description while a self-hosted GitLab server is connected"
   },
   "vjXHRG767Q": {
     "defaultMessage": "Created {createdCount} of {totalCount} jobs, then failed: {errorMessage}",
@@ -37938,6 +38446,10 @@
   "vrYsk4CDa0": {
     "defaultMessage": "Delete task",
     "description": "Confirm button to delete a Crowdin task"
+  },
+  "vrbsvX/uWN": {
+    "defaultMessage": "No syncs yet.",
+    "description": "Shown when the project has no sync runs"
   },
   "vrk+FdEagx": {
     "defaultMessage": "Budgets",
@@ -38471,6 +38983,10 @@
     "defaultMessage": "GitHub sync workflows",
     "description": "Menu item and tool title for GitHub sync workflows"
   },
+  "wfI6r/Q+hm": {
+    "defaultMessage": "Unable to list the GitLab repositories. Check the connection in Integrations.",
+    "description": "Shown in the project Sync panel when the GitLab repositories can't be read"
+  },
   "wgVc9diqXQ": {
     "defaultMessage": "Human-in-the-loop approvals",
     "description": "Differentiator point 3 for the marketing-localisation use case"
@@ -38522,6 +39038,10 @@
   "wkeCz4YE6S": {
     "defaultMessage": "Upload a glossary file to merge its concepts and terms into this glossary.",
     "description": "Description for the glossary import dialog"
+  },
+  "wkxyIAleHa": {
+    "defaultMessage": "Connect GitLab.com or your company's own GitLab server for the whole workspace.",
+    "description": "Integration row description for the workspace's GitLab connection"
   },
   "wlMkvi2Lg8": {
     "defaultMessage": "AI that works on your terms",
@@ -39443,6 +39963,10 @@
     "defaultMessage": "Each language pair and step can have one rate on a card.",
     "description": "Error when two lines have the same languages and step"
   },
+  "y1usr5qWfu": {
+    "defaultMessage": "Unable to change the default GitLab connection.",
+    "description": "Toast when marking a GitLab connection as the default fails"
+  },
   "y301nYXIIx": {
     "defaultMessage": "Enabled",
     "description": "Badge shown when a Canva connection is enabled"
@@ -39630,6 +40154,10 @@
   "yJXWaRawBn": {
     "defaultMessage": "Copied",
     "description": "Confirmation after copying a Hyperlab value"
+  },
+  "yJtQmL9RYq": {
+    "defaultMessage": "Used by {count, plural, one {# project sync} other {# project syncs}}.",
+    "description": "How many project syncs run with a GitLab connection"
   },
   "yKFLGCc18p": {
     "defaultMessage": "Style guide",
@@ -40179,6 +40707,10 @@
     "defaultMessage": "journal.example.com",
     "description": "Marketing homepage cmsAddress"
   },
+  "zHdfx9LT12": {
+    "defaultMessage": "Unable to load the GitLab connections right now.",
+    "description": "Integration row description when the connection fails to load"
+  },
   "zHmiYq4Tm1": {
     "defaultMessage": "Translation Memories",
     "description": "Translation memories page heading"
@@ -40423,6 +40955,10 @@
     "defaultMessage": "Cancel",
     "description": "Cancel button on the insert-image dialog"
   },
+  "zeRvYqj5Gy": {
+    "defaultMessage": "Some source files could not be imported.",
+    "description": "Error shown for a project sync run where some source files failed to import"
+  },
   "zedkthWR8N": {
     "defaultMessage": "Target locales",
     "description": "Label for the target locales selection list"
@@ -40634,6 +41170,10 @@
   "zyYnZ9Lo4u": {
     "defaultMessage": "Search files",
     "description": "Placeholder for filtering mapped Google Drive files"
+  },
+  "zyZLiFVz+9": {
+    "defaultMessage": "{count, plural, one {# language file wasn't sent because two source files would write it} other {# language files weren't sent because two source files would write them}}",
+    "description": "Count of language files a GitLab sync run skipped because two source files map to the same file"
   },
   "zz/Y8OSRLj": {
     "defaultMessage": "Select locale",

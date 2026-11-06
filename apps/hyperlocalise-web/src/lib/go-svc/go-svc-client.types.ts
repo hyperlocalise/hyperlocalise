@@ -707,6 +707,17 @@ export type ValidateSegmentResult = {
   skippedModes?: string[];
 };
 
+/** The "request" part of a render; the source file's bytes go in their own part. */
+export type RenderTranslationFileRequest = {
+  sourcePath: string;
+  sourceLocale: string;
+  targetLocale: string;
+  /** Translated text by key. Untranslated keys are left out. */
+  values: Record<string, string>;
+  /** Source text of every SRX span key the file has. */
+  sourceSpans: Record<string, string>;
+};
+
 export type EditorExportBody = {
   format: "csv" | "tmx" | "xlf" | "xliff" | "xlsx";
   rows: GoSvcRecord[];
