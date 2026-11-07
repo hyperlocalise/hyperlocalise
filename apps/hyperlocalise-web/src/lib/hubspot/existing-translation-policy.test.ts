@@ -18,6 +18,7 @@ import {
   hubspotTranslationPresence,
   isHubspotExistingTranslationPolicy,
   isHubspotRemoteCopyNewer,
+  shouldSkipHubspotRemoteNewerCopy,
 } from "./existing-translation-policy";
 
 describe("hubspot existing translation policy", () => {
@@ -166,5 +167,41 @@ describe("hubspot existing translation policy", () => {
     expect(isHubspotRemoteCopyNewer({ lastPushedAt: pushedAt, copyUpdatedAt: "not-a-date" })).toBe(
       true,
     );
+  });
+
+  it("skips an existing copy only when overwrite is off and the remote looks newer", () => {
+    const pushedAt = new Date("2026-10-01T00:00:00.000Z");
+    expect(
+      shouldSkipHubspotRemoteNewerCopy({
+        hasCopy: false,
+        overwriteWhenRemoteNewer: false,
+        lastPushedAt: pushedAt,
+        copyUpdatedAt: null,
+      }),
+    ).toBe(false);
+    expect(
+      shouldSkipHubspotRemoteNewerCopy({
+        hasCopy: true,
+        overwriteWhenRemoteNewer: true,
+        lastPushedAt: pushedAt,
+        copyUpdatedAt: null,
+      }),
+    ).toBe(false);
+    expect(
+      shouldSkipHubspotRemoteNewerCopy({
+        hasCopy: true,
+        overwriteWhenRemoteNewer: false,
+        lastPushedAt: pushedAt,
+        copyUpdatedAt: null,
+      }),
+    ).toBe(true);
+    expect(
+      shouldSkipHubspotRemoteNewerCopy({
+        hasCopy: true,
+        overwriteWhenRemoteNewer: false,
+        lastPushedAt: pushedAt,
+        copyUpdatedAt: "2026-10-01T00:01:00.000Z",
+      }),
+    ).toBe(false);
   });
 });
