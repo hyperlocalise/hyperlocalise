@@ -10455,6 +10455,7 @@
   "yAZ3Vc7BoF": "각 실행은 AI를 사용한 작업, 자동화 실행, 채팅 턴 또는 단일 요청입니다.",
   "yB2wsLvc7h": "고객이 알아차리기 전에 번역 품질 저하를 감지하세요 | Hyperlocalise",
   "yBvXsTHP4U": "CSV, XLS 또는 XLSX 파일을 선택하세요.",
+  "yC+i4u1RyR": "{count, plural, one {{files}을(를) 자체 형식으로 저장할 수 없어 JSON으로 다운로드했습니다.} other {{files}을(를) 자체 형식으로 저장할 수 없어 JSON으로 다운로드했습니다.}}",
   "yC1DFxWE4z": "검토자 또는 팀 ID",
   "yD2L9eM3l9": "로드된 모든 이슈 선택",
   "yD9TkWr+aV": "표시 이름을 입력하세요.",

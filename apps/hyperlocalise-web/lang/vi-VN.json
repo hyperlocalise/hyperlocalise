@@ -35432,6 +35432,9 @@
   "yBvXsTHP4U": {
     "defaultMessage": "Chọn tệp CSV, XLS hoặc XLSX"
   },
+  "yC+i4u1RyR": {
+    "defaultMessage": "{count, plural, one {{files} không thể được ghi ở định dạng riêng, nên đã được tải xuống dưới dạng JSON.} other {{files} không thể được ghi ở định dạng riêng, nên đã được tải xuống dưới dạng JSON.}}"
+  },
   "yC1DFxWE4z": {
     "defaultMessage": "ID của người đánh giá hoặc nhóm"
   },
