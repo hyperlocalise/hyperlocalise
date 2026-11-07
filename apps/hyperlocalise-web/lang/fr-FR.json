@@ -35432,6 +35432,9 @@
   "yBvXsTHP4U": {
     "defaultMessage": "Choisissez un fichier CSV, XLS ou XLSX"
   },
+  "yC+i4u1RyR": {
+    "defaultMessage": "{count, plural, one {{files} n’a pas pu être enregistré dans son propre format et a donc été téléchargé au format JSON.} other {{files} n’ont pas pu être enregistrés dans leur propre format et ont donc été téléchargés au format JSON.}}"
+  },
   "yC1DFxWE4z": {
     "defaultMessage": "Identifiant du réviseur ou de l’équipe"
   },

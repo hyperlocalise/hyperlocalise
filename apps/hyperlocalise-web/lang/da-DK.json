@@ -10455,6 +10455,7 @@
   "yAZ3Vc7BoF": "Hver opgave, automatiseringskørsel, chatrunde eller enkeltanmodning, der har brugt AI",
   "yB2wsLvc7h": "Opdag oversættelsesafvigelser, før dine kunder gør det | Hyperlocalise",
   "yBvXsTHP4U": "Vælg en CSV-, XLS- eller XLSX-fil.",
+  "yC+i4u1RyR": "{count, plural, one {{files} kunne ikke skrives i sit eget format, så den blev downloadet som JSON.} other {{files} kunne ikke skrives i deres eget format, så de blev downloadet som JSON.}}",
   "yC1DFxWE4z": "Godkender- eller team-id",
   "yD2L9eM3l9": "Vælg alle indlæste problemer",
   "yD9TkWr+aV": "Indtast et visningsnavn.",

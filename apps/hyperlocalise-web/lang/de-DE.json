@@ -35432,6 +35432,9 @@
   "yBvXsTHP4U": {
     "defaultMessage": "Wählen Sie eine CSV-, XLS- oder XLSX-Datei aus"
   },
+  "yC+i4u1RyR": {
+    "defaultMessage": "{count, plural, one {{files} konnte nicht in ihrem eigenen Format geschrieben werden und wurde daher als JSON heruntergeladen.} other {{files} konnten nicht in ihrem eigenen Format geschrieben werden und wurden daher als JSON heruntergeladen.}}"
+  },
   "yC1DFxWE4z": {
     "defaultMessage": "Prüfer- oder Team-ID"
   },

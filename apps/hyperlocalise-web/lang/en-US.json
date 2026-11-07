@@ -40063,6 +40063,10 @@
     "defaultMessage": "Choose a CSV, XLS, or XLSX file",
     "description": "Primary label on the Queries import upload drop zone"
   },
+  "yC+i4u1RyR": {
+    "defaultMessage": "{count, plural, one {{files} could not be written in its own format, so it was downloaded as JSON.} other {{files} could not be written in their own format, so they were downloaded as JSON.}}",
+    "description": "Toast naming the translation files that downloaded as JSON instead of their own format"
+  },
   "yC1DFxWE4z": {
     "defaultMessage": "Reviewer or team ID",
     "description": "Human Approval reviewer identifier field"

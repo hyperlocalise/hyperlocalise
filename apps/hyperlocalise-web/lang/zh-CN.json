@@ -35432,6 +35432,9 @@
   "yBvXsTHP4U": {
     "defaultMessage": "选择一个 CSV、XLS 或 XLSX 文件"
   },
+  "yC+i4u1RyR": {
+    "defaultMessage": "{count, plural, one {{files} 无法以其自身格式写入，因此已下载为 JSON。} other {{files} 无法以其自身格式写入，因此已下载为 JSON。}}"
+  },
   "yC1DFxWE4z": {
     "defaultMessage": "审核人或团队 ID"
   },
