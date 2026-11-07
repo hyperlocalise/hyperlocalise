@@ -14,7 +14,7 @@ echo "Preferred install dir: ${INSTALL_DIR}"
 
 if [ "${VERSION}" = "latest" ]; then
   echo "Resolving latest release version from GitHub..."
-  LATEST_RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null || true)"
+  LATEST_RELEASE_JSON="$(curl -fsSL -H "X-GitHub-Api-Version: 2026-03-10" "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null || true)"
   VERSION="$(printf '%s' "${LATEST_RELEASE_JSON}" | sed -n 's/.*"tag_name": "\([^"]*\)".*/\1/p' | head -n1)"
   if [ -z "${VERSION}" ]; then
     echo "Failed to resolve latest release version from GitHub API." >&2
