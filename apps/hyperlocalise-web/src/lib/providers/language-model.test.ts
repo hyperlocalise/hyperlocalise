@@ -55,7 +55,7 @@ describe("managed language model", () => {
     expect(getManagedTtsModel()).toBe(hyperlocaliseTtsModelId);
     expect(getManagedTranscribeModel()).toBe(hyperlocaliseTranscribeModelId);
     expect(hyperlocaliseManagedGatewayModelId).toBe("openai/gpt-6-luna");
-    expect(hyperlocaliseImageModelId).toBe("openai/gpt-image-2.5-flare");
+    expect(hyperlocaliseImageModelId).toBe("openai/gpt-image-2.6-flare");
     expect(hyperlocaliseVideoModelId).toBe("bytedance/seedance-2.5");
     expect(hyperlocaliseTtsModelId).toBe("fish-audio/s2.1-pro");
     expect(hyperlocaliseTranscribeModelId).toBe("google/gemini-3.5-transcribe");

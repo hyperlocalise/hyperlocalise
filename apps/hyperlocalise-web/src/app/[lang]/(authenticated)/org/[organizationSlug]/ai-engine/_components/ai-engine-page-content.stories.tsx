@@ -62,7 +62,7 @@ export const Default: Story = {
     await expect(canvas.getByText("Video generation")).toBeInTheDocument();
     await expect(canvas.getByText("fish-audio/s2.1-pro")).toBeInTheDocument();
     await expect(canvas.getByText("google/gemini-3.5-transcribe")).toBeInTheDocument();
-    await expect(canvas.getByText("openai/gpt-image-2.5-flare")).toBeInTheDocument();
+    await expect(canvas.getByText("openai/gpt-image-2.6-flare")).toBeInTheDocument();
     await expect(canvas.getByText("bytedance/seedance-2.5")).toBeInTheDocument();
     await expect(canvas.getAllByText("Workspace default").length).toBeGreaterThan(0);
     await expect(canvas.getByText("Open AI")).toBeInTheDocument();
