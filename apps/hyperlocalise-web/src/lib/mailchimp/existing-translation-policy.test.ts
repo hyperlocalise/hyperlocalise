@@ -12,7 +12,13 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { isMailchimpRemoteCopyNewer } from "./existing-translation-policy";
+import {
+  isMailchimpRemoteCopyNewer,
+  mailchimpCampaignCanRecreate,
+  readMailchimpCopyUpdatedAt,
+  shouldSkipMailchimpRemoteNewerCopy,
+  shouldSkipUnchangedMailchimpPush,
+} from "./existing-translation-policy";
 
 describe("isMailchimpRemoteCopyNewer", () => {
   it("treats missing timestamps as newer", () => {
@@ -41,5 +47,143 @@ describe("isMailchimpRemoteCopyNewer", () => {
         copyUpdatedAt: "2026-10-01T00:01:00.000Z",
       }),
     ).toBe(false);
+  });
+});
+
+describe("shouldSkipUnchangedMailchimpPush", () => {
+  it("skips only when a previous hash exists and matches", () => {
+    expect(shouldSkipUnchangedMailchimpPush("abc", "abc")).toBe(true);
+    expect(shouldSkipUnchangedMailchimpPush("abc", "def")).toBe(false);
+    expect(shouldSkipUnchangedMailchimpPush(undefined, "abc")).toBe(false);
+    expect(shouldSkipUnchangedMailchimpPush("", "abc")).toBe(false);
+  });
+});
+
+describe("shouldSkipMailchimpRemoteNewerCopy", () => {
+  const pushedAt = new Date("2026-10-01T00:00:00.000Z");
+
+  it("never skips a first create or an overwrite push", () => {
+    expect(
+      shouldSkipMailchimpRemoteNewerCopy({
+        hasCopy: false,
+        overwriteWhenRemoteNewer: false,
+        lastPushedAt: pushedAt,
+        copyUpdatedAt: null,
+      }),
+    ).toBe(false);
+    expect(
+      shouldSkipMailchimpRemoteNewerCopy({
+        hasCopy: true,
+        overwriteWhenRemoteNewer: true,
+        lastPushedAt: pushedAt,
+        copyUpdatedAt: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("skips an existing campaign copy when overwrite is off because campaigns have no edit time", () => {
+    expect(
+      shouldSkipMailchimpRemoteNewerCopy({
+        hasCopy: true,
+        overwriteWhenRemoteNewer: false,
+        lastPushedAt: pushedAt,
+        copyUpdatedAt: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("skips a template copy only when the remote timestamp is newer than the last push", () => {
+    expect(
+      shouldSkipMailchimpRemoteNewerCopy({
+        hasCopy: true,
+        overwriteWhenRemoteNewer: false,
+        lastPushedAt: pushedAt,
+        copyUpdatedAt: "2026-10-02T00:00:00.000Z",
+      }),
+    ).toBe(true);
+    expect(
+      shouldSkipMailchimpRemoteNewerCopy({
+        hasCopy: true,
+        overwriteWhenRemoteNewer: false,
+        lastPushedAt: pushedAt,
+        copyUpdatedAt: "2026-10-01T00:01:00.000Z",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("mailchimpCampaignCanRecreate", () => {
+  it("requires both audience list and reply-to", () => {
+    expect(mailchimpCampaignCanRecreate(null)).toBe(false);
+    expect(mailchimpCampaignCanRecreate({ listId: "list-1", replyTo: "" })).toBe(false);
+    expect(mailchimpCampaignCanRecreate({ listId: "", replyTo: "hi@example.com" })).toBe(false);
+    expect(mailchimpCampaignCanRecreate({ listId: "list-1", replyTo: "hi@example.com" })).toBe(
+      true,
+    );
+  });
+});
+
+describe("readMailchimpCopyUpdatedAt", () => {
+  it("does not read campaign timestamps because create_time is not an edit signal", async () => {
+    const getTemplate = async () => {
+      throw new Error("campaigns must not load template timestamps");
+    };
+    await expect(
+      readMailchimpCopyUpdatedAt({
+        client: { getTemplate },
+        resourceKind: "campaign",
+        copyId: "camp-1",
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it("prefers template date_edited, then edited_on, then created timestamps", async () => {
+    await expect(
+      readMailchimpCopyUpdatedAt({
+        client: {
+          getTemplate: async () => ({
+            date_edited: "2026-10-04T00:00:00.000Z",
+            edited_on: "2026-10-03T00:00:00.000Z",
+            date_created: "2026-10-02T00:00:00.000Z",
+            created_on: "2026-10-01T00:00:00.000Z",
+          }),
+        },
+        resourceKind: "template",
+        copyId: "tmpl-1",
+      }),
+    ).resolves.toBe("2026-10-04T00:00:00.000Z");
+    await expect(
+      readMailchimpCopyUpdatedAt({
+        client: {
+          getTemplate: async () => ({
+            date_edited: "  ",
+            edited_on: "2026-10-03T00:00:00.000Z",
+          }),
+        },
+        resourceKind: "template",
+        copyId: "tmpl-1",
+      }),
+    ).resolves.toBe("2026-10-03T00:00:00.000Z");
+    await expect(
+      readMailchimpCopyUpdatedAt({
+        client: { getTemplate: async () => ({ date_created: "2026-10-02T00:00:00.000Z" }) },
+        resourceKind: "template",
+        copyId: "tmpl-1",
+      }),
+    ).resolves.toBe("2026-10-02T00:00:00.000Z");
+    await expect(
+      readMailchimpCopyUpdatedAt({
+        client: { getTemplate: async () => ({ created_on: "2026-10-01T00:00:00.000Z" }) },
+        resourceKind: "template",
+        copyId: "tmpl-1",
+      }),
+    ).resolves.toBe("2026-10-01T00:00:00.000Z");
+    await expect(
+      readMailchimpCopyUpdatedAt({
+        client: { getTemplate: async () => ({}) },
+        resourceKind: "template",
+        copyId: "tmpl-1",
+      }),
+    ).resolves.toBeNull();
   });
 });

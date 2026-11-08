@@ -38,9 +38,10 @@ import { importApprovedProjectTranslationsFromEntries } from "@/lib/projects/tra
 import type { SourceFileIngestQueue } from "@/lib/workflow/types";
 
 import { GITLAB_CONTENT_SYNC_UPLOAD_SURFACE } from "@/lib/agents/content-sync/content-sync-types";
-
+import { hideKeysMissingFromSync } from "./hide-keys-missing-from-sync";
 import { reconcileSourceFileTranslationKeys } from "./reconcile-source-file-translation-keys";
 import { settleUnchangedSourceFile } from "./settle-unchanged-source-file";
+import { SYNC_REPORT_KEY_LIMIT } from "./source-file-sync-report";
 import { applyProjectSourceText } from "./source-text-editing";
 
 import {
@@ -1284,6 +1285,74 @@ describe("reconcileSourceFileTranslationKeys for a GitLab sync", () => {
       isHidden: false,
       hiddenBySyncAt: null,
     });
+  });
+
+  it("stores a count when ingest hides more keys than the report keeps", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const keys = Array.from({ length: SYNC_REPORT_KEY_LIMIT + 1 }, (_, index) => ({
+      key: `key-${index}`,
+      text: `Text ${index}`,
+    }));
+    const first = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_trunc_1",
+      entries: keys,
+    });
+    expect(first.result).toEqual({ status: "ingested", syncReport: { missingKeys: [] } });
+
+    const second = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_trunc_2",
+      entries: [],
+    });
+    const missingKeys = keys.map((entry) => entry.key).sort();
+    expect(second.result).toEqual({
+      status: "ingested",
+      syncReport: {
+        missingKeys: missingKeys.slice(0, SYNC_REPORT_KEY_LIMIT),
+        missingKeyCount: missingKeys.length,
+      },
+    });
+    expect(second.storedReport).toEqual({
+      missingKeys: missingKeys.slice(0, SYNC_REPORT_KEY_LIMIT),
+      missingKeyCount: missingKeys.length,
+    });
+  });
+
+  it("hides every visible key of a dropped file and leaves hand-hidden keys alone", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const first = await syncSnapshot({
+      organizationId: organization.id,
+      projectId: project.id,
+      runId: "run_drop_1",
+      entries: [
+        { key: "keep", text: "Keep" },
+        { key: "dropped", text: "Dropped" },
+        { key: "manual", text: "Manual" },
+      ],
+    });
+    const manual = (await keysByName(first.fileId)).get("manual")!;
+    await db
+      .update(schema.projectTranslationKeys)
+      .set({ isHidden: true })
+      .where(eq(schema.projectTranslationKeys.id, manual.id));
+
+    await expect(
+      hideKeysMissingFromSync(db, {
+        organizationId: organization.id,
+        projectId: project.id,
+        repositorySourceFileId: first.fileId,
+      }),
+    ).resolves.toEqual(["dropped", "keep"]);
+
+    const keys = await keysByName(first.fileId);
+    expect(keys.get("keep")).toMatchObject({ isHidden: true });
+    expect(keys.get("keep")?.hiddenBySyncAt).not.toBeNull();
+    expect(keys.get("dropped")).toMatchObject({ isHidden: true });
+    expect(keys.get("dropped")?.hiddenBySyncAt).not.toBeNull();
+    expect(keys.get("manual")).toMatchObject({ isHidden: true, hiddenBySyncAt: null });
   });
 });
 

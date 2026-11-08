@@ -119,7 +119,7 @@ msgstr "Open"
 
 Those two entries are `nav||Open` and `forum||Open`. Translator comments (`#`) and extracted comments (`#.`) are sent with the string as context. Reference comments (`#:`), flag comments (`#,`), and previous-string comments (`#|`) stay in the file. Obsolete entries (`#~`) are kept and are not translated. Replacing a translation removes a `fuzzy` flag and leaves other flags, such as `c-format`, in place.
 
-The header entry (`msgid ""`) is metadata, not a string. `Language` and `Plural-Forms` in that header select plural categories. On writeback for a target locale, Hyperlocalise sets `Language` to that locale (hyphens become underscores) and writes the matching gettext `Plural-Forms` rule.
+The header entry (`msgid ""`) is metadata, not a string. `Language` and `Plural-Forms` in that header select plural categories. On writeback for a target locale, Hyperlocalise sets `Language` to that locale (hyphens become underscores) and writes the matching gettext `Plural-Forms` rule. It also clears a `fuzzy` flag on the header, replaces a template's `charset=CHARSET` with UTF-8, and gives every plural entry the target's number of forms, including entries with no translation yet.
 
 ## Plural forms
 

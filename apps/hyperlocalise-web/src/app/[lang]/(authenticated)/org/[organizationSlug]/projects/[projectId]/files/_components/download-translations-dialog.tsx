@@ -27,6 +27,10 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { readApiResponseError } from "@/lib/api-error";
+import {
+  TRANSLATION_DOWNLOAD_FALLBACK_HEADER,
+  TRANSLATION_DOWNLOAD_JSON_FALLBACK,
+} from "@/lib/projects/files/translation-download-fallback";
 import { cn } from "@/lib/primitives/cn";
 
 import { downloadTranslationsDialogMessages as messages } from "./download-translations-dialog.messages";
@@ -73,13 +77,14 @@ function parseDownloadFilename(contentDisposition: string | null, fallback: stri
   return fallback;
 }
 
+/** Downloads one file; resolves to whether it came out as JSON instead of its own format. */
 async function downloadTranslationFile(
   organizationSlug: string,
   projectId: string,
   sourcePath: string,
   locale: string,
   failedMessage: string,
-) {
+): Promise<boolean> {
   const href = buildDownloadHref(organizationSlug, projectId, sourcePath, locale);
   const response = await fetch(href);
 
@@ -103,6 +108,10 @@ async function downloadTranslationFile(
     anchor.remove();
     setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
   }
+  return (
+    response.headers.get(TRANSLATION_DOWNLOAD_FALLBACK_HEADER) ===
+    TRANSLATION_DOWNLOAD_JSON_FALLBACK
+  );
 }
 
 export function DownloadTranslationsDialog({
@@ -152,19 +161,32 @@ export function DownloadTranslationsDialog({
     setIsDownloading(true);
 
     try {
+      const cameAsJsonPaths: string[] = [];
       for (const sourcePath of selectedSourcePaths) {
-        await downloadTranslationFile(
+        const cameAsJson = await downloadTranslationFile(
           organizationSlug,
           projectId,
           sourcePath,
           locale,
           intl.formatMessage(messages.downloadFileFailed, { sourcePath }),
         );
+        if (cameAsJson) {
+          cameAsJsonPaths.push(sourcePath);
+        }
       }
 
-      toast.success(
-        intl.formatMessage(messages.downloadSuccess, { count: selectedSourcePaths.length }),
-      );
+      if (cameAsJsonPaths.length > 0) {
+        toast.warning(
+          intl.formatMessage(messages.downloadedAsJson, {
+            count: cameAsJsonPaths.length,
+            files: intl.formatList(cameAsJsonPaths, { type: "conjunction" }),
+          }),
+        );
+      } else {
+        toast.success(
+          intl.formatMessage(messages.downloadSuccess, { count: selectedSourcePaths.length }),
+        );
+      }
       onOpenChange(false);
     } catch (error) {
       toast.error(
