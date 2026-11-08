@@ -28,6 +28,49 @@ func isJSONNull(raw json.RawMessage) bool {
 	return len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null"))
 }
 
+type conversationPartMeta struct {
+	Type json.RawMessage `json:"type"`
+	Text json.RawMessage `json:"text"`
+}
+
+// parseJSONStringLiteral decodes a JSON string literal. For unescaped string literals,
+// it extracts the string directly from the byte slice to avoid heap allocations in json.Unmarshal.
+func parseJSONStringLiteral(raw json.RawMessage) (string, bool) {
+	if len(raw) >= 2 && raw[0] == '"' && raw[len(raw)-1] == '"' {
+		inner := raw[1 : len(raw)-1]
+		if bytes.IndexByte(inner, '\\') < 0 {
+			return string(inner), true
+		}
+	}
+	var s string
+	if json.Unmarshal(raw, &s) != nil {
+		return "", false
+	}
+	return s, true
+}
+
+// formatRawJSONArray joins raw JSON items into a valid JSON array without json.Marshal reflection overhead.
+func formatRawJSONArray(items []json.RawMessage) json.RawMessage {
+	if len(items) == 0 {
+		return json.RawMessage("[]")
+	}
+	totalLen := 2 + (len(items) - 1)
+	for _, item := range items {
+		totalLen += len(item)
+	}
+	var buf bytes.Buffer
+	buf.Grow(totalLen)
+	buf.WriteByte('[')
+	for i, item := range items {
+		if i > 0 {
+			buf.WriteByte(',')
+		}
+		buf.Write(item)
+	}
+	buf.WriteByte(']')
+	return json.RawMessage(buf.Bytes())
+}
+
 func readableAgentParts(parts json.RawMessage) (json.RawMessage, string) {
 	var items []json.RawMessage
 	if err := json.Unmarshal(parts, &items); err != nil {
@@ -36,28 +79,27 @@ func readableAgentParts(parts json.RawMessage) (json.RawMessage, string) {
 	kept := make([]json.RawMessage, 0, len(items))
 	var texts []string
 	for _, item := range items {
-		var fields map[string]json.RawMessage
-		if json.Unmarshal(item, &fields) != nil || fields == nil {
+		trimmed := bytes.TrimSpace(item)
+		if len(trimmed) == 0 || trimmed[0] != '{' {
 			continue
 		}
-		var partType string
-		if json.Unmarshal(fields["type"], &partType) != nil {
+		// Decode only the type and text fields into a typed struct instead of allocating a map[string]json.RawMessage
+		var meta conversationPartMeta
+		if json.Unmarshal(trimmed, &meta) != nil || len(meta.Type) == 0 {
 			continue
 		}
-		if partType != "text" && !strings.HasPrefix(partType, "source-") {
+		partType, ok := parseJSONStringLiteral(meta.Type)
+		if !ok || (partType != "text" && !strings.HasPrefix(partType, "source-")) {
 			continue
 		}
 		kept = append(kept, item)
-		var text string
-		if partType == "text" && json.Unmarshal(fields["text"], &text) == nil && !isJSONNull(fields["text"]) {
-			texts = append(texts, text)
+		if partType == "text" && !isJSONNull(meta.Text) {
+			if text, ok := parseJSONStringLiteral(meta.Text); ok {
+				texts = append(texts, text)
+			}
 		}
 	}
-	encoded, err := json.Marshal(kept)
-	if err != nil {
-		return json.RawMessage("[]"), ""
-	}
-	return encoded, strings.Join(texts, "\n")
+	return formatRawJSONArray(kept), strings.Join(texts, "\n")
 }
 
 func sanitizeConversationMessage(message conversationMessage, canRunAIActions bool) conversationMessage {
