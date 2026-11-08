@@ -61,7 +61,7 @@ import {
   decideHubspotPushLocaleAction,
   DEFAULT_HUBSPOT_EXISTING_TRANSLATION_POLICY,
   isHubspotExistingTranslationPolicy,
-  isHubspotRemoteCopyNewer,
+  shouldSkipHubspotRemoteNewerCopy,
 } from "./existing-translation-policy";
 import { readHubspotDocumentJson } from "./import-hubspot-content";
 import {
@@ -471,7 +471,14 @@ export async function runPushHubspotContent(input: {
         }
         if (copyId && hubspot.overwriteWhenRemoteNewer === false) {
           const copyUpdatedAt = await loadCopyUpdatedAt(client, mapping.resourceKind, copyId);
-          if (isHubspotRemoteCopyNewer({ lastPushedAt: mapping.lastPushedAt, copyUpdatedAt })) {
+          if (
+            shouldSkipHubspotRemoteNewerCopy({
+              hasCopy: true,
+              overwriteWhenRemoteNewer: false,
+              lastPushedAt: mapping.lastPushedAt,
+              copyUpdatedAt,
+            })
+          ) {
             result.skippedLocales += 1;
             continue;
           }

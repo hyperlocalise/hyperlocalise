@@ -129,3 +129,18 @@ export function isHubspotRemoteCopyNewer(input: {
   }
   return copyTime > input.lastPushedAt.getTime() + HUBSPOT_REMOTE_NEWER_SKEW_MS;
 }
+
+export function shouldSkipHubspotRemoteNewerCopy(input: {
+  hasCopy: boolean;
+  overwriteWhenRemoteNewer: boolean;
+  lastPushedAt: Date | null;
+  copyUpdatedAt: string | null;
+}): boolean {
+  if (!input.hasCopy || input.overwriteWhenRemoteNewer) {
+    return false;
+  }
+  return isHubspotRemoteCopyNewer({
+    lastPushedAt: input.lastPushedAt,
+    copyUpdatedAt: input.copyUpdatedAt,
+  });
+}
