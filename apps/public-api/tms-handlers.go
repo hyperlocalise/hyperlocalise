@@ -8,6 +8,8 @@ import (
 	"mime"
 	"net/http"
 	"strings"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/sourcetext"
 )
 
 const (
@@ -38,6 +40,9 @@ var storeErrorResponses = []storeErrorResponse{
 	{errStringKeyConflict, http.StatusConflict, "string_key_conflict", "A string with this key already exists"},
 	{errLocaleNotInProject, http.StatusBadRequest, "invalid_locale", "Locale is not a target locale of the project"},
 	{errSegmentLocked, http.StatusConflict, "segment_locked", "Segment is locked"},
+	{errSourceTextNotEditable, http.StatusConflict, "source_text_not_editable", "This string's source text comes from its file: the project's 'Allow source text editing' setting is off, the string is hidden, or the file isn't a JSON, JSONC or ARB file uploaded by people or synced from a repository (an integration's file, or one uploaded before that was recorded, isn't editable until uploaded again)"},
+	{errSourceTextInvalid, http.StatusBadRequest, "invalid_source_text", "sourceText may not hold control characters U+001E or U+0000"},
+	{errSourceTextForbidden, http.StatusForbidden, "source_text_forbidden", "Only admins, localization managers and developers can change the source text of strings in files"},
 	{errTranslationTooLong, http.StatusUnprocessableEntity, "translation_too_long", "Translation exceeds the string max length"},
 }
 
@@ -155,6 +160,10 @@ func (s apiServer) createString(w http.ResponseWriter, r *http.Request, projectI
 		!validOptionalText(input.Context, 10_000) || !validOptionalText(input.Type, 64) ||
 		!validOptionalText(input.FilePath, 2048) || !validMaxLength(input.MaxLength) {
 		writeError(w, http.StatusBadRequest, "invalid_body", "key and sourceText are required; context, type, maxLength, or filePath is invalid")
+		return
+	}
+	if !sourcetext.ValidText(input.SourceText) {
+		writeStoreError(w, errSourceTextInvalid, "create string")
 		return
 	}
 	item, err := s.store.createString(r.Context(), p, projectID, input)

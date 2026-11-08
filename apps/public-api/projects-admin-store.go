@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/sourcetext"
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/text/language"
 )
@@ -235,12 +236,15 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 		if item.SourceText == nil {
 			return translationString{}, false, errStringSourceTextRequired
 		}
+		if !sourcetext.ValidText(*item.SourceText) {
+			return translationString{}, false, errSourceTextInvalid
+		}
 		hidden := item.Hidden != nil && *item.Hidden
 		var id string
 		if err := tx.QueryRow(ctx, `INSERT INTO project_translation_keys (
 				organization_id, project_id, repository_source_file_id, key, source_text,
-				normalized_source_text, context, type, max_length, is_hidden
-			) VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10)
+				normalized_source_text, context, type, max_length, is_hidden, imported_source_text
+			) VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $5)
 			RETURNING id`,
 			actor.OrganizationID, scope.ID, fileID, item.Key, *item.SourceText,
 			normalizeSourceText(*item.SourceText), item.Context.Value, item.Type.Value, item.MaxLength.Value, hidden,
@@ -264,13 +268,19 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 		return translationString{}, false, err
 	}
 	set := newSQLFilter("updated_at = now()")
-	textChanged := item.SourceText != nil && *item.SourceText != current.SourceText
+	// The API trims what it receives, so surrounding spaces alone are not a change.
+	textChanged := item.SourceText != nil && sourceTextChanged(current.SourceText, *item.SourceText)
 	if textChanged {
+		if !sourcetext.ValidText(*item.SourceText) {
+			return translationString{}, false, errSourceTextInvalid
+		}
+		if err := rejectSourceTextEdit(ctx, tx, actor, scope, existingID); err != nil {
+			return translationString{}, false, err
+		}
 		if err := rejectIfStringLocked(ctx, tx, actor, scope, existingID, ""); err != nil {
 			return translationString{}, false, err
 		}
-		set.add("source_text = ?", *item.SourceText)
-		set.add("normalized_source_text = ?", normalizeSourceText(*item.SourceText))
+		addSourceTextChange(set, *item.SourceText)
 	}
 	if item.Context.Set {
 		set.add("context = ?", item.Context.Value)
@@ -294,8 +304,7 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 			return translationString{}, false, fmt.Errorf("update string: %w", err)
 		}
 	}
-	if textChanged && sourceTextChanged(current.SourceText, *item.SourceText) &&
-		scope.SourceChangeNeedsReview && !item.KeepApproved {
+	if textChanged && scope.SourceChangeNeedsReview && !item.KeepApproved {
 		if err := sendApprovedTranslationsToReview(ctx, tx, actor, scope, existingID); err != nil {
 			return translationString{}, false, err
 		}

@@ -113,6 +113,7 @@ export class GoSvcProjectApi {
     body: {
       automaticallyGroupIdenticalStrings?: boolean;
       approvedTranslationsOnSourceChange?: ApprovedTranslationsOnSourceChange;
+      sourceTextEditable?: boolean;
     },
     options: GoSvcRequestOptions = {},
   ) {

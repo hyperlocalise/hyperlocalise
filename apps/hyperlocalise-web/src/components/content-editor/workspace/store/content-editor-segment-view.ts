@@ -100,6 +100,7 @@ export function toQueueSegment(
     | "imageVariantId"
     | "looksLikeImageUrl"
     | "looksLikeVideoUrl"
+    | "sourceTextEditable"
     | "isHidden"
     | "isLocked"
     | "occurrenceCount"
@@ -129,6 +130,7 @@ export function toQueueSegment(
       : {}),
     ...(segment.isHidden ? { isHidden: true } : {}),
     ...(segment.isLocked ? { isLocked: true } : {}),
+    ...(segment.sourceTextEditable ? { sourceTextEditable: true } : {}),
     ...(segment.occurrenceCount ? { occurrenceCount: segment.occurrenceCount } : {}),
     ...(segment.groupStatus ? { groupStatus: segment.groupStatus } : {}),
     ...(segment.divergentLocales?.length ? { divergentLocales: segment.divergentLocales } : {}),

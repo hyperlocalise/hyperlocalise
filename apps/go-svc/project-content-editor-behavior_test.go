@@ -15,8 +15,51 @@ type contentEditorBehaviorResponseBody struct {
 		AutomaticallyGroupIdenticalStrings bool   `json:"automaticallyGroupIdenticalStrings"`
 		GroupingRevision                   int    `json:"groupingRevision"`
 		ApprovedTranslationsOnSourceChange string `json:"approvedTranslationsOnSourceChange"`
+		SourceTextEditable                 bool   `json:"sourceTextEditable"`
 		CanManage                          bool   `json:"canManage"`
+		CanEditSourceText                  bool   `json:"canEditSourceText"`
 	} `json:"contentEditorBehavior"`
+}
+
+func TestUpdateContentEditorBehaviorSourceTextEditable(t *testing.T) {
+	testenv.Require(t)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin", WithProject: true})
+	api := &projectAPI{pool: scope.Pool, membership: scope.Membership("admin")}
+	path := scope.OrgPath("/projects/" + scope.ProjectID + "/content-editor-behavior")
+
+	rec := projectMutationRequest(api, scope, http.MethodPatch, path, map[string]any{"sourceTextEditable": true})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var resp contentEditorBehaviorResponseBody
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.True(t, resp.ContentEditorBehavior.SourceTextEditable)
+	require.True(t, resp.ContentEditorBehavior.CanEditSourceText)
+	// Not a grouping change, so open content editors don't refresh.
+	require.Equal(t, 0, resp.ContentEditorBehavior.GroupingRevision)
+
+	rec = projectMutationRequest(api, scope, http.MethodPatch, path, map[string]any{"sourceTextEditable": false})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.False(t, resp.ContentEditorBehavior.SourceTextEditable)
+	require.False(t, resp.ContentEditorBehavior.CanEditSourceText)
+}
+
+func TestContentEditorBehaviorCanEditSourceTextByRole(t *testing.T) {
+	for _, tc := range []struct {
+		role string
+		want bool
+	}{
+		{"admin", true},
+		{"localization_manager", true},
+		{"developer", true},
+		{"reviewer", false},
+		{"translator", false},
+		{"member", false},
+	} {
+		on := contentEditorBehavior{sourceTextEditable: true}.response(projectActor{role: tc.role})
+		require.Equal(t, tc.want, on["contentEditorBehavior"].(map[string]any)["canEditSourceText"], tc.role)
+		off := contentEditorBehavior{}.response(projectActor{role: tc.role})
+		require.Equal(t, false, off["contentEditorBehavior"].(map[string]any)["canEditSourceText"], tc.role)
+	}
 }
 
 func patchContentEditorBehavior(api *projectAPI, scope *testenv.Scope, value bool) *contentEditorBehaviorResponseBody {

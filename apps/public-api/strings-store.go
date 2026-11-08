@@ -11,21 +11,25 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/sourcetext"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/text/unicode/norm"
 )
 
 var (
-	errProjectNotFound     = fmt.Errorf("%w: project", errResourceNotFound)
-	errStringNotFound      = fmt.Errorf("%w: string", errResourceNotFound)
-	errTranslationNotFound = fmt.Errorf("%w: translation", errResourceNotFound)
-	errSourceFileNotFound  = errors.New("source file not found")
-	errProjectNotNative    = errors.New("project strings are managed by an external TMS")
-	errStringKeyConflict   = errors.New("string key already exists")
-	errLocaleNotInProject  = errors.New("locale is not a project target locale")
-	errSegmentLocked       = errors.New("segment is locked")
-	errTranslationTooLong  = errors.New("translation exceeds the string max length")
+	errProjectNotFound       = fmt.Errorf("%w: project", errResourceNotFound)
+	errStringNotFound        = fmt.Errorf("%w: string", errResourceNotFound)
+	errTranslationNotFound   = fmt.Errorf("%w: translation", errResourceNotFound)
+	errSourceFileNotFound    = errors.New("source file not found")
+	errProjectNotNative      = errors.New("project strings are managed by an external TMS")
+	errStringKeyConflict     = errors.New("string key already exists")
+	errLocaleNotInProject    = errors.New("locale is not a project target locale")
+	errSegmentLocked         = errors.New("segment is locked")
+	errSourceTextNotEditable = errors.New("source text is not editable in this project")
+	errSourceTextInvalid     = errors.New("source text holds a control character")
+	errSourceTextForbidden   = errors.New("source text of strings in files is edited by admins, localization managers and developers")
+	errTranslationTooLong    = errors.New("translation exceeds the string max length")
 )
 
 type translationString struct {
@@ -119,6 +123,9 @@ type projectScope struct {
 	// SourceChangeNeedsReview is the project's setting to send approved translations back to
 	// review when a string's source text changes.
 	SourceChangeNeedsReview bool
+	// SourceTextEditable is the project setting that lets source text be edited in the platform;
+	// off, a file's next import would replace an edit, so strings in files refuse one.
+	SourceTextEditable bool
 }
 
 type queryRower interface {
@@ -129,11 +136,11 @@ func loadProjectScope(ctx context.Context, db queryRower, actor principal, proje
 	var scope projectScope
 	var targetLocales []byte
 	err := db.QueryRow(ctx, `SELECT p.id, p.source, p.source_locale, p.target_locales,
-			p.approved_translations_on_source_change = 'needs_review'
+			p.approved_translations_on_source_change = 'needs_review', p.source_text_editable
 		FROM projects p
 		WHERE `+accessibleProjectPredicate+` AND p.id = $3`,
 		actor.OrganizationID, actor.UserID, projectID,
-	).Scan(&scope.ID, &scope.Source, &scope.SourceLocale, &targetLocales, &scope.SourceChangeNeedsReview)
+	).Scan(&scope.ID, &scope.Source, &scope.SourceLocale, &targetLocales, &scope.SourceChangeNeedsReview, &scope.SourceTextEditable)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return projectScope{}, errProjectNotFound
 	}
@@ -365,8 +372,8 @@ func (s *postgresStore) createString(ctx context.Context, actor principal, proje
 		var id string
 		if err := tx.QueryRow(ctx, `INSERT INTO project_translation_keys (
 				organization_id, project_id, repository_source_file_id, key, source_text,
-				normalized_source_text, context, type, max_length, is_hidden
-			) VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10)
+				normalized_source_text, context, type, max_length, is_hidden, imported_source_text
+			) VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $5)
 			RETURNING id`,
 			actor.OrganizationID, scope.ID, fileID, input.Key, input.SourceText,
 			normalizeSourceText(input.SourceText), input.Context, input.Type, input.MaxLength, input.Hidden,
@@ -391,9 +398,6 @@ func (s *postgresStore) updateString(ctx context.Context, actor principal, proje
 		}
 		sourceChanged := false
 		if patch.SourceText != nil {
-			if err := rejectIfStringLocked(ctx, tx, actor, scope, stringID, ""); err != nil {
-				return err
-			}
 			var current string
 			if err := tx.QueryRow(ctx, `SELECT source_text FROM project_translation_keys
 				WHERE organization_id = $1 AND project_id = $2 AND id = $3`,
@@ -401,11 +405,25 @@ func (s *postgresStore) updateString(ctx context.Context, actor principal, proje
 				return fmt.Errorf("load source text: %w", err)
 			}
 			sourceChanged = sourceTextChanged(current, *patch.SourceText)
+			if sourceChanged {
+				// Checked only on a change: a string from a document holds markers, and sending
+				// its text back unchanged is fine.
+				if !sourcetext.ValidText(*patch.SourceText) {
+					return errSourceTextInvalid
+				}
+				if err := rejectSourceTextEdit(ctx, tx, actor, scope, stringID); err != nil {
+					return err
+				}
+				if err := rejectIfStringLocked(ctx, tx, actor, scope, stringID, ""); err != nil {
+					return err
+				}
+			}
 		}
 		set := newSQLFilter("updated_at = now()")
-		if patch.SourceText != nil {
-			set.add("source_text = ?", *patch.SourceText)
-			set.add("normalized_source_text = ?", normalizeSourceText(*patch.SourceText))
+		// The API trims what it receives, so surrounding spaces alone are not written over a
+		// file's text: that would read as an edit made here.
+		if sourceChanged {
+			addSourceTextChange(set, *patch.SourceText)
 		}
 		if patch.Context.Set {
 			set.add("context = ?", patch.Context.Value)
@@ -664,6 +682,42 @@ func (f *sqlFilter) sql() string { return strings.Join(f.conditions, " AND ") }
 func (f *sqlFilter) page(limit, offset int) string {
 	f.args = append(f.args, limit, offset)
 	return fmt.Sprintf(" LIMIT $%d OFFSET $%d", len(f.args)-1, len(f.args))
+}
+
+// rejectSourceTextEdit refuses a source text change to a string in a file unless the project lets
+// source text be edited in the platform, the file is one the platform can write edited text back
+// into (`sourcetext`), and the key's owner may edit it in the content editor too. Otherwise the
+// file's next import would replace the edit, or it could never leave the platform. Strings
+// outside any file stay editable; nothing else writes them.
+func rejectSourceTextEdit(ctx context.Context, tx pgx.Tx, actor principal, scope projectScope, stringID string) error {
+	var inFile, editable bool
+	if err := tx.QueryRow(ctx, `SELECT k.repository_source_file_id IS NOT NULL, `+sourcetext.KeyEditableSQL("k")+`
+		FROM project_translation_keys k
+		WHERE k.organization_id = $1 AND k.project_id = $2 AND k.id = $3`,
+		actor.OrganizationID, scope.ID, stringID).Scan(&inFile, &editable); err != nil {
+		return fmt.Errorf("check source text editable: %w", err)
+	}
+	if !inFile {
+		return nil
+	}
+	if !scope.SourceTextEditable || !editable {
+		return errSourceTextNotEditable
+	}
+	switch actor.Role {
+	case "admin", "localization_manager", "developer":
+		return nil
+	default:
+		return errSourceTextForbidden
+	}
+}
+
+// addSourceTextChange sets a string's new source text. For a string in a file, the text before
+// its first edit is the base the next import compares with, so it is recorded if no import has.
+func addSourceTextChange(set *sqlFilter, sourceText string) {
+	set.add("source_text = ?", sourceText)
+	set.add("normalized_source_text = ?", normalizeSourceText(sourceText))
+	set.conditions = append(set.conditions, `imported_source_text = CASE WHEN repository_source_file_id IS NULL
+		THEN imported_source_text ELSE coalesce(imported_source_text, source_text) END`)
 }
 
 func rejectIfStringLocked(ctx context.Context, tx pgx.Tx, actor principal, scope projectScope, stringID, locale string) error {

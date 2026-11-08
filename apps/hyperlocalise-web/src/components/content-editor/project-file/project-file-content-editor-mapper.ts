@@ -304,6 +304,7 @@ export function projectFileCatToWorkspaceState(
       : {}),
     ...(segment.isHidden ? { isHidden: true } : {}),
     ...(segment.isLocked ? { isLocked: true } : {}),
+    ...(segment.sourceTextEditable ? { sourceTextEditable: true } : {}),
     ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
     ...(segment.messageFormat ? { messageFormat: segment.messageFormat } : {}),
     ...(segment.placeholderPatterns?.length

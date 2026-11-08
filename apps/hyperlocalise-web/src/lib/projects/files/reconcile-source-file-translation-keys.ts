@@ -109,6 +109,7 @@ export async function reconcileSourceFileTranslationKeys(input: {
     const [project] = await tx
       .select({
         approvedTranslationsOnSourceChange: schema.projects.approvedTranslationsOnSourceChange,
+        sourceTextEditable: schema.projects.sourceTextEditable,
       })
       .from(schema.projects)
       .where(
@@ -117,13 +118,14 @@ export async function reconcileSourceFileTranslationKeys(input: {
           eq(schema.projects.organizationId, input.organizationId),
         ),
       );
-    await new ProjectTranslationService().upsertKeysFromEntries(
+    const { clashes } = await new ProjectTranslationService().upsertKeysFromEntries(
       {
         ...input,
         preserveEmptySourceText: true,
         sendApprovedToReviewOnSourceChange:
           project?.approvedTranslationsOnSourceChange === "needs_review" &&
           !version.keepApprovedTranslations,
+        sourceTextEditable: project?.sourceTextEditable ?? false,
       },
       tx,
     );
@@ -158,16 +160,18 @@ export async function reconcileSourceFileTranslationKeys(input: {
           ),
         );
     }
-    const syncReport: SourceFileSyncReport | null = uploadSurfaceKeepsMissingKeys(
-      version.uploadSurface,
-    )
-      ? {
-          missingKeys: missingKeys.slice(0, SYNC_REPORT_KEY_LIMIT),
-          ...(missingKeys.length > SYNC_REPORT_KEY_LIMIT
-            ? { missingKeyCount: missingKeys.length }
-            : {}),
-        }
-      : null;
+    // Clashes are kept whatever brought the file in, so the next sync can settle them; the
+    // whole list, since settling needs each clash's file text.
+    const syncReport: SourceFileSyncReport | null =
+      uploadSurfaceKeepsMissingKeys(version.uploadSurface) || clashes.length > 0
+        ? {
+            ...(clashes.length > 0 ? { clashes } : {}),
+            missingKeys: missingKeys.slice(0, SYNC_REPORT_KEY_LIMIT),
+            ...(missingKeys.length > SYNC_REPORT_KEY_LIMIT
+              ? { missingKeyCount: missingKeys.length }
+              : {}),
+          }
+        : null;
     await tx
       .update(schema.repositorySourceFiles)
       .set({

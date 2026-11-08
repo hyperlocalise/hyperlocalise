@@ -22,6 +22,7 @@ import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-ed
 import { nativeQueueFilterCondition } from "@/lib/projects/content-editor/native-content-editor-queue-filter";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecycle";
+import type { SourceFileSyncClash } from "@/lib/projects/files/source-file-sync-report";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { translationKeysQueueOrderBy } from "@/lib/projects/translations/project-translation-queue-order";
 import {
@@ -245,6 +246,30 @@ async function sendApprovedTranslationsToReview(
   }
 }
 
+/**
+ * Which source text an import leaves on an existing key. The last imported text is the common
+ * ancestor; with none recorded the platform's text stands in, so the import takes the file's
+ * text. Texts are compared exactly.
+ */
+export function decideImportedSourceText(input: {
+  fileText: string;
+  platformText: string;
+  lastImportedText: string | null;
+  sourceTextEditable: boolean;
+}): { text: string; clash: boolean } {
+  if (!input.sourceTextEditable) {
+    return { text: input.fileText, clash: false };
+  }
+  const base = input.lastImportedText ?? input.platformText;
+  if (input.fileText === base || input.fileText === input.platformText) {
+    return { text: input.platformText, clash: false };
+  }
+  if (input.platformText === base) {
+    return { text: input.fileText, clash: false };
+  }
+  return { text: input.platformText, clash: true };
+}
+
 function translationTextKey(row: { translationKeyId: string; targetLocale: string; text: string }) {
   return JSON.stringify([row.translationKeyId, row.targetLocale, row.text]);
 }
@@ -279,7 +304,13 @@ export class ProjectTranslationService extends ProjectServiceBase {
     return row ?? null;
   }
 
-  /** Writes a file's keys. The file's text replaces the platform's source text, as every upload does. */
+  /**
+   * Writes a file's keys. With `sourceTextEditable` off the file's text replaces the platform's,
+   * as every upload does. On, each existing key follows a three-way rule between the file's text,
+   * the platform's and the text last imported (`decideImportedSourceText`): a change on one side
+   * only wins, and a change on both sides is a clash that keeps the platform's text. Every import
+   * records the file's text as the last imported text, except on a clash. Returns the clashes.
+   */
   async upsertKeysFromEntries(
     input: {
       organizationId: string;
@@ -290,12 +321,15 @@ export class ProjectTranslationService extends ProjectServiceBase {
       preserveEmptySourceText?: boolean;
       /** Move approved translations of keys whose source text changed back to `needs_review`. */
       sendApprovedToReviewOnSourceChange?: boolean;
+      /** Keep source text edited in the platform, by the three-way rule. */
+      sourceTextEditable?: boolean;
     },
     database: DatabaseClient = this.database,
-  ): Promise<{ imported: number; updated: number }> {
+  ): Promise<{ imported: number; updated: number; clashes: SourceFileSyncClash[] }> {
     if (input.entries.length > PROJECT_TRANSLATION_WRITE_BATCH_SIZE) {
       let imported = 0;
       let updated = 0;
+      const clashes: SourceFileSyncClash[] = [];
       for (const entries of chunkItems(input.entries, PROJECT_TRANSLATION_WRITE_BATCH_SIZE)) {
         const result = await this.upsertKeysFromEntries(
           {
@@ -306,8 +340,9 @@ export class ProjectTranslationService extends ProjectServiceBase {
         );
         imported += result.imported;
         updated += result.updated;
+        clashes.push(...result.clashes);
       }
-      return { imported, updated };
+      return { imported, updated, clashes };
     }
     const entries = input.entries
       .map((entry) => ({
@@ -326,7 +361,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
       );
 
     if (entries.length === 0) {
-      return { imported: 0, updated: 0 };
+      return { imported: 0, updated: 0, clashes: [] };
     }
 
     const existingQuery = database
@@ -334,6 +369,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
         id: schema.projectTranslationKeys.id,
         key: schema.projectTranslationKeys.key,
         sourceText: schema.projectTranslationKeys.sourceText,
+        importedSourceText: schema.projectTranslationKeys.importedSourceText,
       })
       .from(schema.projectTranslationKeys)
       .where(
@@ -348,37 +384,61 @@ export class ProjectTranslationService extends ProjectServiceBase {
       );
     // Locked before comparing, so a string edit cannot change the source text between this
     // comparison and the upsert; id order within each batch, as translation writers lock keys.
-    const existing = input.sendApprovedToReviewOnSourceChange
-      ? await existingQuery.orderBy(schema.projectTranslationKeys.id).for("no key update")
-      : await existingQuery;
+    const existing =
+      input.sendApprovedToReviewOnSourceChange || input.sourceTextEditable
+        ? await existingQuery.orderBy(schema.projectTranslationKeys.id).for("no key update")
+        : await existingQuery;
 
     const existingByKey = new Map(existing.map((row) => [row.key, row]));
     let updated = 0;
     const sourceChangedKeyIds: string[] = [];
-    for (const entry of entries) {
+    const clashes: SourceFileSyncClash[] = [];
+    const rows = entries.map((entry) => {
       const row = existingByKey.get(entry.key);
-      if (row) {
-        updated += 1;
-        if (
-          input.sendApprovedToReviewOnSourceChange &&
-          row.sourceText.trim() !== entry.sourceText.trim()
-        ) {
-          sourceChangedKeyIds.push(row.id);
-        }
+      if (!row) {
+        return { ...entry, importedSourceText: entry.sourceText };
       }
-    }
+      updated += 1;
+      const decision = decideImportedSourceText({
+        fileText: entry.sourceText,
+        platformText: row.sourceText,
+        lastImportedText: row.importedSourceText,
+        sourceTextEditable: input.sourceTextEditable ?? false,
+      });
+      if (decision.clash) {
+        clashes.push({ key: entry.key, fileText: entry.sourceText });
+      }
+      // Only text this import writes counts as a source change; a kept edit leaves translations.
+      if (
+        input.sendApprovedToReviewOnSourceChange &&
+        row.sourceText.trim() !== decision.text.trim()
+      ) {
+        sourceChangedKeyIds.push(row.id);
+      }
+      return {
+        ...entry,
+        // A clash keeps its base, so it is reported on every import until one side gives way.
+        importedSourceText: decision.clash ? row.importedSourceText : entry.sourceText,
+        sourceText: decision.text,
+        normalizedSourceText:
+          decision.text === entry.sourceText
+            ? entry.normalizedSourceText
+            : normalizeTranslationMemorySourceText(decision.text),
+      };
+    });
     const imported = entries.length - updated;
 
     await database
       .insert(schema.projectTranslationKeys)
       .values(
-        entries.map((entry) => ({
+        rows.map((entry) => ({
           organizationId: input.organizationId,
           projectId: input.projectId,
           repositorySourceFileId: input.repositorySourceFileId,
           key: entry.key,
           sourceText: entry.sourceText,
           normalizedSourceText: entry.normalizedSourceText,
+          importedSourceText: entry.importedSourceText,
           context: entry.context,
           type: entry.type,
           maxLength: entry.maxLength,
@@ -394,11 +454,13 @@ export class ProjectTranslationService extends ProjectServiceBase {
         set: {
           sourceText: sql`excluded.source_text`,
           normalizedSourceText: sql`excluded.normalized_source_text`,
+          importedSourceText: sql`excluded.imported_source_text`,
           context: sql`excluded.context`,
           type: sql`excluded.type`,
           maxLength: sql`coalesce(excluded.max_length, ${schema.projectTranslationKeys.maxLength})`,
           sourceFileVersionId: sql`excluded.source_file_version_id`,
-          updatedAt: sql`now()`,
+          // Settling an unchanged file revisits keys without changing them; those keep their time.
+          updatedAt: sql`case when ${schema.projectTranslationKeys.sourceText} is distinct from excluded.source_text or ${schema.projectTranslationKeys.importedSourceText} is distinct from excluded.imported_source_text or ${schema.projectTranslationKeys.context} is distinct from excluded.context or ${schema.projectTranslationKeys.type} is distinct from excluded.type or ${schema.projectTranslationKeys.maxLength} is distinct from coalesce(excluded.max_length, ${schema.projectTranslationKeys.maxLength}) or ${schema.projectTranslationKeys.sourceFileVersionId} is distinct from excluded.source_file_version_id then now() else ${schema.projectTranslationKeys.updatedAt} end`,
         },
       });
     await sendApprovedTranslationsToReview(database, {
@@ -414,12 +476,13 @@ export class ProjectTranslationService extends ProjectServiceBase {
         repositorySourceFileId: input.repositorySourceFileId,
         imported,
         updated,
+        clashes: clashes.length,
         total: entries.length,
       },
       "upserted project translation keys",
     );
 
-    return { imported, updated };
+    return { imported, updated, clashes };
   }
 
   async setKeyMaxLength(input: {

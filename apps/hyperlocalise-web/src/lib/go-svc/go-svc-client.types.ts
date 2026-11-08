@@ -788,7 +788,11 @@ export type ProjectContentEditorBehavior = {
   automaticallyGroupIdenticalStrings: boolean;
   groupingRevision: number;
   approvedTranslationsOnSourceChange: ApprovedTranslationsOnSourceChange;
+  /** Whether source text may be edited in the platform, not only in the files. */
+  sourceTextEditable: boolean;
   canManage: boolean;
+  /** Whether this person may edit source text in the content editor now. */
+  canEditSourceText: boolean;
 };
 
 export type ProjectContentEditorBehaviorPreview = {
