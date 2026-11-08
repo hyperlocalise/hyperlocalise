@@ -126,6 +126,59 @@ func TestSanitizeConversationMessagePreservesKeptPartKeyOrder(t *testing.T) {
 	require.Equal(t, `[{"text":"b","type":"text","z":1,"a":2}]`, string(got.Parts))
 }
 
+func TestSanitizeConversationMessageMatchesPartKeysExactly(t *testing.T) {
+	tests := []struct {
+		name      string
+		parts     string
+		wantText  string
+		wantParts string
+	}{
+		{
+			name:      "case variant type key does not override hidden type",
+			parts:     `[{"type":"tool-secret","Type":"text","TEXT":"leak"}]`,
+			wantText:  "",
+			wantParts: `[]`,
+		},
+		{
+			name:      "case variant keys alone are not a text part",
+			parts:     `[{"TYPE":"text","Text":"leak"}]`,
+			wantText:  "",
+			wantParts: `[]`,
+		},
+		{
+			name:      "case variant text key is ignored",
+			parts:     `[{"type":"text","Text":"leak","text":"shown"}]`,
+			wantText:  "shown",
+			wantParts: `[{"type":"text","Text":"leak","text":"shown"}]`,
+		},
+		{
+			name:      "duplicate type key uses last value",
+			parts:     `[{"type":"text","type":"reasoning","text":"hidden"}]`,
+			wantText:  "",
+			wantParts: `[]`,
+		},
+		{
+			name:      "escaped keys and values are decoded",
+			parts:     `[{"typ\u0065":"text","text":"line\nnext \"q\""}]`,
+			wantText:  "line\nnext \"q\"",
+			wantParts: `[{"typ\u0065":"text","text":"line\nnext \"q\""}]`,
+		},
+		{
+			name:      "nested values and whitespace are skipped",
+			parts:     "[{ \"meta\" : {\"type\":\"tool-x\",\"s\":\"}]\\\"\"} , \"list\":[1,{\"a\":[]}], \"type\" : \"text\" , \"text\" : \"ok\" }]",
+			wantText:  "ok",
+			wantParts: `[{"meta":{"type":"tool-x","s":"}]\""},"list":[1,{"a":[]}],"type":"text","text":"ok"}]`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := sanitizeConversationMessage(agentMessage("raw", tt.parts), false)
+			require.Equal(t, tt.wantText, got.Text)
+			require.JSONEq(t, tt.wantParts, string(got.Parts))
+		})
+	}
+}
+
 func TestSanitizeConversationMessages(t *testing.T) {
 	messages := []conversationMessage{
 		agentMessage("raw", `[{"type":"reasoning","text":"hidden"},{"type":"text","text":"shown"}]`),
