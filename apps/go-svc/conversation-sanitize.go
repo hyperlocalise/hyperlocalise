@@ -28,9 +28,111 @@ func isJSONNull(raw json.RawMessage) bool {
 	return len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null"))
 }
 
-type conversationPartMeta struct {
-	Type json.RawMessage `json:"type"`
-	Text json.RawMessage `json:"text"`
+func skipJSONSpace(raw []byte, i int) int {
+	for i < len(raw) && (raw[i] == ' ' || raw[i] == '\t' || raw[i] == '\n' || raw[i] == '\r') {
+		i++
+	}
+	return i
+}
+
+func endOfJSONString(raw []byte, i int) int {
+	for j := i + 1; j < len(raw); j++ {
+		switch raw[j] {
+		case '\\':
+			j++
+		case '"':
+			return j + 1
+		}
+	}
+	return -1
+}
+
+func endOfJSONValue(raw []byte, i int) int {
+	if i >= len(raw) {
+		return -1
+	}
+	switch raw[i] {
+	case '"':
+		return endOfJSONString(raw, i)
+	case '{', '[':
+		depth := 0
+		for j := i; j < len(raw); j++ {
+			switch raw[j] {
+			case '"':
+				end := endOfJSONString(raw, j)
+				if end < 0 {
+					return -1
+				}
+				j = end - 1
+			case '{', '[':
+				depth++
+			case '}', ']':
+				depth--
+				if depth == 0 {
+					return j + 1
+				}
+			}
+		}
+		return -1
+	default:
+		j := i
+		for j < len(raw) && raw[j] != ',' && raw[j] != '}' && raw[j] != ']' && raw[j] != ' ' && raw[j] != '\t' && raw[j] != '\n' && raw[j] != '\r' {
+			j++
+		}
+		if j == i {
+			return -1
+		}
+		return j
+	}
+}
+
+// conversationPartFields returns the raw values of the top-level "type" and "text" keys of an
+// already-validated JSON object. Keys must match exactly: struct decoding is avoided because
+// encoding/json matches field names case-insensitively, so a hidden part could pass the filter
+// with a "Type":"text" key.
+func conversationPartFields(object []byte) (partType, text json.RawMessage, ok bool) {
+	i := skipJSONSpace(object, 0)
+	if i >= len(object) || object[i] != '{' {
+		return nil, nil, false
+	}
+	i++
+	for {
+		i = skipJSONSpace(object, i)
+		if i >= len(object) {
+			return nil, nil, false
+		}
+		switch object[i] {
+		case '}':
+			return partType, text, true
+		case ',':
+			i++
+			continue
+		case '"':
+		default:
+			return nil, nil, false
+		}
+		keyEnd := endOfJSONString(object, i)
+		if keyEnd < 0 {
+			return nil, nil, false
+		}
+		key := object[i:keyEnd]
+		i = skipJSONSpace(object, keyEnd)
+		if i >= len(object) || object[i] != ':' {
+			return nil, nil, false
+		}
+		i = skipJSONSpace(object, i+1)
+		valueEnd := endOfJSONValue(object, i)
+		if valueEnd < 0 {
+			return nil, nil, false
+		}
+		switch name, _ := parseJSONStringLiteral(key); name {
+		case "type":
+			partType = object[i:valueEnd]
+		case "text":
+			text = object[i:valueEnd]
+		}
+		i = valueEnd
+	}
 }
 
 // parseJSONStringLiteral decodes a JSON string literal. For unescaped string literals,
@@ -79,22 +181,17 @@ func readableAgentParts(parts json.RawMessage) (json.RawMessage, string) {
 	kept := make([]json.RawMessage, 0, len(items))
 	var texts []string
 	for _, item := range items {
-		trimmed := bytes.TrimSpace(item)
-		if len(trimmed) == 0 || trimmed[0] != '{' {
+		rawType, rawText, ok := conversationPartFields(item)
+		if !ok || len(rawType) == 0 {
 			continue
 		}
-		// Decode only the type and text fields into a typed struct instead of allocating a map[string]json.RawMessage
-		var meta conversationPartMeta
-		if json.Unmarshal(trimmed, &meta) != nil || len(meta.Type) == 0 {
-			continue
-		}
-		partType, ok := parseJSONStringLiteral(meta.Type)
+		partType, ok := parseJSONStringLiteral(rawType)
 		if !ok || (partType != "text" && !strings.HasPrefix(partType, "source-")) {
 			continue
 		}
 		kept = append(kept, item)
-		if partType == "text" && !isJSONNull(meta.Text) {
-			if text, ok := parseJSONStringLiteral(meta.Text); ok {
+		if partType == "text" && !isJSONNull(rawText) {
+			if text, ok := parseJSONStringLiteral(rawText); ok {
 				texts = append(texts, text)
 			}
 		}
