@@ -32,6 +32,7 @@ import { loadMailchimpAutomationClient } from "./credentials";
 import {
   mailchimpCampaignCanRecreate,
   readMailchimpCopyUpdatedAt,
+  rememberMailchimpCopy,
   shouldSkipMailchimpRemoteNewerCopy,
   shouldSkipUnchangedMailchimpPush,
 } from "./existing-translation-policy";
@@ -105,13 +106,14 @@ async function persistCopySuccess(
   copyName: string,
   contentHash: string,
 ): Promise<void> {
+  rememberMailchimpCopy(mapping, locale, copyId, copyName, contentHash);
   await db
     .update(schema.mailchimpContentSyncStates)
     .set({
-      localeCopyIds: { ...mapping.localeCopyIds, [locale]: copyId },
-      localeCopyNames: { ...mapping.localeCopyNames, [locale]: copyName },
-      lastPushContentHash: { ...mapping.lastPushContentHash, [locale]: contentHash },
-      lastPushedAt: new Date(),
+      localeCopyIds: mapping.localeCopyIds,
+      localeCopyNames: mapping.localeCopyNames,
+      lastPushContentHash: mapping.lastPushContentHash,
+      lastPushedAt: mapping.lastPushedAt,
       status: "active",
       lastError: null,
       updatedAt: new Date(),
