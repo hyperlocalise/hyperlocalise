@@ -782,9 +782,12 @@ export type ProjectLocaleProgressRow = {
   lastActivityAt: string | null;
 };
 
+export type ApprovedTranslationsOnSourceChange = "stay_approved" | "needs_review";
+
 export type ProjectContentEditorBehavior = {
   automaticallyGroupIdenticalStrings: boolean;
   groupingRevision: number;
+  approvedTranslationsOnSourceChange: ApprovedTranslationsOnSourceChange;
   canManage: boolean;
 };
 

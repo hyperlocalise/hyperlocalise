@@ -12,9 +12,10 @@ import (
 
 type contentEditorBehaviorResponseBody struct {
 	ContentEditorBehavior struct {
-		AutomaticallyGroupIdenticalStrings bool `json:"automaticallyGroupIdenticalStrings"`
-		GroupingRevision                   int  `json:"groupingRevision"`
-		CanManage                          bool `json:"canManage"`
+		AutomaticallyGroupIdenticalStrings bool   `json:"automaticallyGroupIdenticalStrings"`
+		GroupingRevision                   int    `json:"groupingRevision"`
+		ApprovedTranslationsOnSourceChange string `json:"approvedTranslationsOnSourceChange"`
+		CanManage                          bool   `json:"canManage"`
 	} `json:"contentEditorBehavior"`
 }
 
@@ -163,4 +164,53 @@ func TestConcurrentContentEditorBehaviorToggle(t *testing.T) {
 		scope.ProjectID).Scan(&finalValue, &finalRevision))
 	require.True(t, finalValue)
 	require.Equal(t, initialRevision+1, finalRevision, "concurrent requests for the same value must produce exactly one increment, never lost or duplicated")
+}
+
+func TestUpdateApprovedTranslationsOnSourceChange(t *testing.T) {
+	testenv.Require(t)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin", WithProject: true})
+	api := &projectAPI{pool: scope.Pool, membership: scope.Membership("admin")}
+	path := scope.OrgPath("/projects/" + scope.ProjectID + "/content-editor-behavior")
+
+	rec := projectRequest(api, scope, path)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var resp contentEditorBehaviorResponseBody
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, "stay_approved", resp.ContentEditorBehavior.ApprovedTranslationsOnSourceChange)
+
+	rec = projectMutationRequest(api, scope, http.MethodPatch, path, map[string]any{
+		"approvedTranslationsOnSourceChange": "needs_review",
+	})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, "needs_review", resp.ContentEditorBehavior.ApprovedTranslationsOnSourceChange)
+	require.False(t, resp.ContentEditorBehavior.AutomaticallyGroupIdenticalStrings)
+	require.Equal(t, 0, resp.ContentEditorBehavior.GroupingRevision, "the source change setting must not bump the grouping revision")
+
+	rec = projectMutationRequest(api, scope, http.MethodPatch, path, map[string]any{
+		"approvedTranslationsOnSourceChange": "clear",
+	})
+	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"invalid_project_payload"`)
+
+	var stored string
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `select approved_translations_on_source_change from projects where id=$1`, scope.ProjectID).Scan(&stored))
+	require.Equal(t, "needs_review", stored)
+}
+
+func TestUpdateBothContentEditorBehaviorSettings(t *testing.T) {
+	testenv.Require(t)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin", WithProject: true})
+	api := &projectAPI{pool: scope.Pool, membership: scope.Membership("admin")}
+
+	rec := projectMutationRequest(api, scope, http.MethodPatch, scope.OrgPath("/projects/"+scope.ProjectID+"/content-editor-behavior"), map[string]any{
+		"automaticallyGroupIdenticalStrings": true,
+		"approvedTranslationsOnSourceChange": "needs_review",
+	})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var resp contentEditorBehaviorResponseBody
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.True(t, resp.ContentEditorBehavior.AutomaticallyGroupIdenticalStrings)
+	require.Equal(t, 1, resp.ContentEditorBehavior.GroupingRevision)
+	require.Equal(t, "needs_review", resp.ContentEditorBehavior.ApprovedTranslationsOnSourceChange)
 }

@@ -96,7 +96,8 @@ func (s apiServer) projectStringsBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Strings []stringUpsertBody `json:"strings"`
+		Strings      []stringUpsertBody `json:"strings"`
+		KeepApproved bool               `json:"keepApproved"`
 	}
 	if !decodeJSONBodyLimit(w, r, &body, maxStringBatchBodyBytes) {
 		return
@@ -108,13 +109,14 @@ func (s apiServer) projectStringsBatch(w http.ResponseWriter, r *http.Request) {
 	items := make([]stringUpsert, len(body.Strings))
 	for i, raw := range body.Strings {
 		item := stringUpsert{
-			Key:        strings.TrimSpace(raw.Key),
-			FilePath:   trimmedOrNil(raw.FilePath),
-			SourceText: raw.SourceText,
-			Context:    optionalString{Set: raw.Context.Set, Value: trimmedOrNil(raw.Context.Value)},
-			Type:       optionalString{Set: raw.Type.Set, Value: trimmedOrNil(raw.Type.Value)},
-			MaxLength:  raw.MaxLength,
-			Hidden:     raw.Hidden,
+			Key:          strings.TrimSpace(raw.Key),
+			FilePath:     trimmedOrNil(raw.FilePath),
+			SourceText:   raw.SourceText,
+			Context:      optionalString{Set: raw.Context.Set, Value: trimmedOrNil(raw.Context.Value)},
+			Type:         optionalString{Set: raw.Type.Set, Value: trimmedOrNil(raw.Type.Value)},
+			MaxLength:    raw.MaxLength,
+			Hidden:       raw.Hidden,
+			KeepApproved: body.KeepApproved,
 		}
 		if item.SourceText != nil {
 			trimmed := strings.TrimSpace(*item.SourceText)
