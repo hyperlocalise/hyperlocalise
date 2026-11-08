@@ -673,6 +673,7 @@ function buildLiveProviderProject(input: {
     // template config to read — same empty default as an unconfigured native project.
     issueTemplateConfig: {},
     automaticallyGroupIdenticalStrings: false,
+    approvedTranslationsOnSourceChange: "stay_approved",
     contentEditorGroupingRevision: 0,
     qaScanCadence: "off",
     qaCheckPolicy: DEFAULT_QA_POLICY,

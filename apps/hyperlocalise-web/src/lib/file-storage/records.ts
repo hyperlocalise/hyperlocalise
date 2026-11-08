@@ -58,6 +58,7 @@ type RepositorySourceFileVersionInput = {
   uploadedByUserId?: string | null;
   uploadedByApiKeyId?: string | null;
   uploadSurface?: string | null;
+  keepApprovedTranslations?: boolean;
   db?: DbInsertClient;
 };
 
@@ -331,6 +332,7 @@ async function createRepositorySourceFileVersionWithDb(
       uploadedByUserId: input.uploadedByUserId ?? input.storedFile.createdByUserId,
       uploadedByApiKeyId: input.uploadedByApiKeyId ?? null,
       uploadSurface: input.uploadSurface ?? null,
+      keepApprovedTranslations: input.keepApprovedTranslations ?? false,
     })
     .onConflictDoUpdate({
       target: schema.repositorySourceFileVersions.storedFileId,
@@ -345,6 +347,7 @@ async function createRepositorySourceFileVersionWithDb(
         uploadedByUserId: input.uploadedByUserId ?? input.storedFile.createdByUserId,
         uploadedByApiKeyId: input.uploadedByApiKeyId ?? null,
         uploadSurface: input.uploadSurface ?? null,
+        keepApprovedTranslations: input.keepApprovedTranslations ?? false,
       },
     })
     .returning();

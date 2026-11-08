@@ -262,6 +262,43 @@ func TestTMSImportsProvider(t *testing.T) {
 	}
 }
 
+func TestTMSImportsProviderSmartlingAccountBackfill(t *testing.T) {
+	t.Parallel()
+
+	conn := tmsConnection{CredentialID: "cred-1", ProviderKind: "smartling", DisplayName: "Smartling"}
+	accountID := "acc-token"
+	withAccount := &tmsImports{tokens: stubTMSMinter{token: &tmsauth.AccessToken{
+		BaseURL:     "https://api.smartling.com",
+		HeaderName:  "Authorization",
+		HeaderValue: "Bearer token",
+		AccountID:   &accountID,
+	}}, http: http.DefaultClient}
+	provider, err := withAccount.provider(t.Context(), tmsStubDB{row: tmsScanRow{err: errors.New("should not query projects")}}, conn, "org-1", "user-1")
+	if err != nil || provider == nil {
+		t.Fatalf("token account: %v %#v", err, provider)
+	}
+
+	missingAccount := &tmsImports{tokens: stubTMSMinter{token: &tmsauth.AccessToken{
+		BaseURL:     "https://api.smartling.com",
+		HeaderName:  "Authorization",
+		HeaderValue: "Bearer token",
+	}}, http: http.DefaultClient}
+	_, err = missingAccount.provider(t.Context(), tmsStubDB{row: tmsScanRow{err: errors.New("db down")}}, conn, "org-1", "user-1")
+	if err == nil || err.Error() != "db down" {
+		t.Fatalf("project lookup error: %v", err)
+	}
+
+	provider, err = missingAccount.provider(t.Context(), tmsStubDB{row: tmsScanRow{values: []any{"acc-1", "proj-1"}}}, conn, "org-1", "user-1")
+	if err != nil || provider == nil {
+		t.Fatalf("backfill: %v %#v", err, provider)
+	}
+
+	provider, err = missingAccount.provider(t.Context(), tmsStubDB{row: tmsScanRow{err: pgx.ErrNoRows}}, conn, "org-1", "user-1")
+	if err != nil || provider == nil {
+		t.Fatalf("no synced project: %v %#v", err, provider)
+	}
+}
+
 func assertTMSFailure(t *testing.T, err error, status int, code, message string) {
 	t.Helper()
 	var failure *tmsFailure

@@ -39,11 +39,16 @@ const pricingFile = createProjectFileRecord({
   filename: "pricing.json",
 });
 
-const { routerPushMock, routerReplaceMock, searchParamsMock } = vi.hoisted(() => ({
-  routerPushMock: vi.fn(),
-  routerReplaceMock: vi.fn(),
-  searchParamsMock: vi.fn(() => "sourcePath=en-US.json&locale=vi"),
-}));
+const { routerPushMock, routerReplaceMock, searchParamsMock, uploadMutateMock, behaviorMock } =
+  vi.hoisted(() => ({
+    routerPushMock: vi.fn(),
+    routerReplaceMock: vi.fn(),
+    searchParamsMock: vi.fn(() => "sourcePath=en-US.json&locale=vi"),
+    uploadMutateMock: vi.fn(),
+    behaviorMock: vi.fn(
+      (): { approvedTranslationsOnSourceChange: string } | undefined => undefined,
+    ),
+  }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/org/acme/projects/proj_1/files",
@@ -59,9 +64,10 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
   return {
     ...actual,
     useMutation: () => ({
-      mutate: vi.fn(),
+      mutate: uploadMutateMock,
       isPending: false,
     }),
+    useQuery: () => ({ data: behaviorMock() }),
     useQueryClient: () => ({
       invalidateQueries: vi.fn(),
     }),
@@ -143,6 +149,10 @@ vi.mock("./download-translations-dialog", () => ({
 vi.mock("./project-file-segmentation-dialog", () => ({
   ProjectFileSegmentationDialog: ({ open }: { open: boolean }) =>
     open ? <div role="dialog" aria-label="Segmentation settings" /> : null,
+}));
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({ client: { project: {} }, loading: false }),
 }));
 
 vi.mock("./project-files-branch-filter", () => ({
@@ -254,5 +264,32 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
         "ja-JP is not a target locale for this file. Double-click a file or use Open Editor to edit vi.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("offers to keep approved translations only when the project sends them to review", async () => {
+    const user = userEvent.setup();
+    const upload = new File(["{}"], "en-US.json", { type: "application/json" });
+    behaviorMock.mockReturnValue({ approvedTranslationsOnSourceChange: "stay_approved" });
+    const { container, rerender } = renderWithIntl(
+      <ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />,
+    );
+    await user.upload(container.querySelector('input[type="file"]') as HTMLInputElement, upload);
+    expect(
+      screen.queryByRole("checkbox", { name: "Keep translations approved" }),
+    ).not.toBeInTheDocument();
+
+    behaviorMock.mockReturnValue({ approvedTranslationsOnSourceChange: "needs_review" });
+    rerender(
+      <IntlProvider locale="en" messages={{}}>
+        <ProjectFilesPageContent organizationSlug="acme" projectId="proj_1" />
+      </IntlProvider>,
+    );
+    const keepApproved = await screen.findByRole("checkbox", {
+      name: "Keep translations approved",
+    });
+    expect(keepApproved).toHaveAccessibleDescription(/For typo or punctuation fixes/);
+    await user.click(keepApproved);
+    await user.click(screen.getByRole("button", { name: "Upload" }));
+    expect(uploadMutateMock).toHaveBeenCalledWith({ files: [upload], keepApproved: true });
   });
 });

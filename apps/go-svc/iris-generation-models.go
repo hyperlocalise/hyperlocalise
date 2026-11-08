@@ -66,7 +66,7 @@ func irisModels() []irisModelInfo {
 	return []irisModelInfo{
 		{ID: "nano-banana-2.1", Name: "Nano Banana 2.1", Kind: irisKindImage, GatewayID: "google/gemini-3-pro-image", Pricing: irisPricing{Unit: "image", Credits: 4, Minimum: &min1}, ETASeconds: 20, PromptMax: 32000},
 		{ID: "nano-banana-pro", Name: "Nano Banana Pro", Kind: irisKindImage, GatewayID: "google/gemini-3-pro-image", Pricing: irisPricing{Unit: "image", Credits: 6, Minimum: &min1}, ETASeconds: 25, PromptMax: 32000},
-		{ID: "gpt-image-2.5-sunburst", Name: "GPT Image 2.5 Sunburst", Kind: irisKindImage, GatewayID: "openai/gpt-image-2.5-flare", Pricing: irisPricing{Unit: "image", Credits: 8, Minimum: &min1}, ETASeconds: 30, PromptMax: 32000},
+		{ID: "gpt-image-2.6-sunburst", Name: "GPT Image 2.6 Sunburst", Kind: irisKindImage, GatewayID: "openai/gpt-image-2.6-flare", Pricing: irisPricing{Unit: "image", Credits: 8, Minimum: &min1}, ETASeconds: 30, PromptMax: 32000},
 		{ID: "nano-banana-2", Name: "Nano Banana 2", Kind: irisKindImage, GatewayID: "google/gemini-3-pro-image", Pricing: irisPricing{Unit: "image", Credits: 3, Minimum: &min1}, ETASeconds: 18, PromptMax: 32000},
 		{ID: "seedream-5.0-pro", Name: "Seedream 5.0 Pro", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "bytedance/seedream-4.5", NativeID: "fal-ai/bytedance/seedream/v4.5/text-to-image", FalRefID: "fal-ai/bytedance/seedream/v4.5/edit", Pricing: irisPricing{Unit: "image", Credits: 5, Minimum: &min1}, ETASeconds: 22, PromptMax: 32000},
 		{ID: "flux-3-image", Name: "FLUX.3 Image", Kind: irisKindImage, Provider: irisProviderFal, GatewayID: "black-forest-labs/flux-2-pro", NativeID: "fal-ai/flux-2-pro", Pricing: irisPricing{Unit: "image", Credits: 6, Minimum: &min1}, ETASeconds: 24, PromptMax: 32000},

@@ -28,9 +28,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { TypographyP } from "@/components/ui/typography";
+import type { ApprovedTranslationsOnSourceChange } from "@/lib/go-svc/go-svc-client.types";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
@@ -40,8 +48,13 @@ import { ProjectSettingsSectionHeading } from "./project-settings-section-headin
 type ContentEditorBehavior = {
   automaticallyGroupIdenticalStrings: boolean;
   groupingRevision: number;
+  approvedTranslationsOnSourceChange: ApprovedTranslationsOnSourceChange;
   canManage: boolean;
 };
+
+type BehaviorChange =
+  | { automaticallyGroupIdenticalStrings: boolean }
+  | { approvedTranslationsOnSourceChange: ApprovedTranslationsOnSourceChange };
 
 type Preview = { affectedOccurrences: number; groups: number };
 
@@ -106,12 +119,12 @@ export function ProjectContentEditorBehaviorSettings({
       ),
   });
   const updateMutation = useMutation({
-    mutationFn: async (nextValue: boolean) => {
+    mutationFn: async (change: BehaviorChange) => {
       try {
         const body = await goSvcClient.project.updateContentEditorBehavior(
           organizationSlug,
           projectId,
-          { automaticallyGroupIdenticalStrings: nextValue },
+          change,
         );
         return body.contentEditorBehavior as ContentEditorBehavior;
       } catch (error) {
@@ -138,6 +151,18 @@ export function ProjectContentEditorBehaviorSettings({
   });
   const behavior = behaviorQuery.data;
   const pending = previewMutation.isPending || updateMutation.isPending;
+  const sourceChangeOptions = [
+    {
+      value: "stay_approved",
+      label: intl.formatMessage(projectContentEditorBehaviorMessages.sourceChangeStayApproved),
+    },
+    {
+      value: "needs_review",
+      label: intl.formatMessage(projectContentEditorBehaviorMessages.sourceChangeNeedsReview),
+    },
+  ] satisfies { value: ApprovedTranslationsOnSourceChange; label: string }[];
+  // No value until loaded, so a failed load does not show the default as the saved choice.
+  const sourceChange = behavior?.approvedTranslationsOnSourceChange ?? null;
 
   function requestChange(nextValue: boolean) {
     if (nextValue) previewMutation.mutate();
@@ -160,11 +185,6 @@ export function ProjectContentEditorBehaviorSettings({
           <TypographyP className="mt-1 max-w-2xl" size="small" tone="subtle">
             <FormattedMessage {...projectContentEditorBehaviorMessages.settingDescription} />
           </TypographyP>
-          {!canManage ? (
-            <TypographyP className="mt-2" size="xsmall" tone="subtle">
-              <FormattedMessage {...projectContentEditorBehaviorMessages.managerOnly} />
-            </TypographyP>
-          ) : null}
         </div>
         {behaviorQuery.isLoading ? (
           <Spinner />
@@ -177,6 +197,51 @@ export function ProjectContentEditorBehaviorSettings({
           />
         )}
       </div>
+      <div className="flex flex-col gap-3 rounded-md border border-border bg-background p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <div className="min-w-0">
+          <label htmlFor="approved-translations-on-source-change" className="text-sm font-medium">
+            <FormattedMessage {...projectContentEditorBehaviorMessages.sourceChangeLabel} />
+          </label>
+          <TypographyP className="mt-1 max-w-2xl" size="small" tone="subtle">
+            <FormattedMessage {...projectContentEditorBehaviorMessages.sourceChangeDescription} />
+          </TypographyP>
+        </div>
+        {behaviorQuery.isLoading ? (
+          <Spinner />
+        ) : (
+          <Select
+            value={sourceChange}
+            items={sourceChangeOptions}
+            disabled={!canManage || pending || behaviorQuery.isError}
+            onValueChange={(next) => {
+              if (next && next !== sourceChange) {
+                updateMutation.mutate({ approvedTranslationsOnSourceChange: next });
+              }
+            }}
+          >
+            <SelectTrigger
+              id="approved-translations-on-source-change"
+              className="h-9 w-full shrink-0 sm:w-44"
+            >
+              <SelectValue>
+                {sourceChangeOptions.find((option) => option.value === sourceChange)?.label}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {sourceChangeOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value} label={option.label}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+      {!canManage ? (
+        <TypographyP size="xsmall" tone="subtle">
+          <FormattedMessage {...projectContentEditorBehaviorMessages.managerOnly} />
+        </TypographyP>
+      ) : null}
       <AlertDialog
         open={confirmation !== null}
         onOpenChange={(open) => {
@@ -212,7 +277,12 @@ export function ProjectContentEditorBehaviorSettings({
             </AlertDialogCancel>
             <Button
               disabled={updateMutation.isPending}
-              onClick={() => confirmation && updateMutation.mutate(confirmation.nextValue)}
+              onClick={() =>
+                confirmation &&
+                updateMutation.mutate({
+                  automaticallyGroupIdenticalStrings: confirmation.nextValue,
+                })
+              }
             >
               {updateMutation.isPending ? <Spinner /> : null}
               <FormattedMessage

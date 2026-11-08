@@ -197,10 +197,11 @@ func (s apiServer) projectString(w http.ResponseWriter, r *http.Request) {
 		return
 	case http.MethodPatch:
 		var body struct {
-			SourceText *string        `json:"sourceText"`
-			Context    optionalString `json:"context"`
-			MaxLength  optionalInt    `json:"maxLength"`
-			Hidden     *bool          `json:"hidden"`
+			SourceText   *string        `json:"sourceText"`
+			Context      optionalString `json:"context"`
+			MaxLength    optionalInt    `json:"maxLength"`
+			Hidden       *bool          `json:"hidden"`
+			KeepApproved bool           `json:"keepApproved"`
 		}
 		if !decodeJSONBody(w, r, &body) {
 			return

@@ -1,6 +1,6 @@
 # Source file reconciliation
 
-Approved design: reconcile complete source snapshots inside the existing Vercel ingest workflow. Parse outside a transaction, then lock the repository file, verify workflow ownership and latest upload order, bulk-upsert in bounded batches, delete missing keys, and record the applied version and successful ingestion atomically. Cascades remove translations and comments; issue and QA references are cleared. Retained keys retain IDs and translations, including keys whose source becomes blank.
+Approved design: reconcile complete source snapshots inside the existing Vercel ingest workflow. Parse outside a transaction, then lock the repository file, verify workflow ownership and latest upload order, bulk-upsert in bounded batches, delete missing keys, and record the applied version and successful ingestion atomically. Cascades remove translations and comments; issue and QA references are cleared. Retained keys retain IDs and translations, including keys whose source becomes blank. A project can send a retained key's approved translations back to review when its source text changes: see [The platform as the source of truth for strings](../adr/2026-11-05-platform-source-of-truth-design.md).
 
 The alternative of a separate cleanup workflow introduces a period of inconsistent membership and additional coordination. Filtering stale keys only in UI queries leaves database records and other consumers inconsistent.
 

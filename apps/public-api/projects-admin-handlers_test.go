@@ -91,6 +91,13 @@ func TestStringsBatchRoute(t *testing.T) {
 		require.True(t, store.upserts[0].Context.Set)
 		require.False(t, store.upserts[1].Context.Set)
 		require.True(t, *store.upserts[1].Hidden)
+		require.False(t, store.upserts[0].KeepApproved)
+
+		w = sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodPost, "/v1/projects/project-1/strings/batch",
+			`{"keepApproved":true,"strings":[{"key":"a","sourceText":"A"},{"key":"b","sourceText":"B"}]}`)
+		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+		require.True(t, store.upserts[0].KeepApproved)
+		require.True(t, store.upserts[1].KeepApproved)
 	})
 
 	t.Run("rejects invalid batches", func(t *testing.T) {

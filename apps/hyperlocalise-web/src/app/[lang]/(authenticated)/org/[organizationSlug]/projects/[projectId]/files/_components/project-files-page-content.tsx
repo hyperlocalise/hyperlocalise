@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FileIcon, UploadSimpleIcon } from "@phosphor-icons/react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -25,9 +25,11 @@ import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tms-user-connection-shared";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resource-capabilities";
 import {
   buildProjectFileContentEditorHref,
@@ -291,12 +293,31 @@ const ProjectFilesPageContentInner = observer(function ProjectFilesPageContentIn
     [pathname, router, searchParams],
   );
 
+  const { client: goSvcClient } = useGoSvcClient();
+  const [keepApprovedTranslations, setKeepApprovedTranslations] = useState(false);
+  // Shares its cache with the project settings page, which owns this setting.
+  const contentEditorBehaviorQuery = useQuery({
+    queryKey: ["project-content-editor-behavior", organizationSlug, projectId],
+    queryFn: async () =>
+      (await goSvcClient.project.contentEditorBehavior(organizationSlug, projectId))
+        .contentEditorBehavior,
+    enabled: selectedFiles.length > 0,
+    // Read again for each new selection, so a change made in settings is seen.
+    staleTime: 0,
+  });
+  if (selectedFiles.length === 0 && keepApprovedTranslations) {
+    setKeepApprovedTranslations(false);
+  }
+  const offerKeepApprovedTranslations =
+    contentEditorBehaviorQuery.data?.approvedTranslationsOnSourceChange === "needs_review";
+
   const uploadFiles = useMutation({
-    mutationFn: async (files: File[]) => {
+    mutationFn: async ({ files, keepApproved }: { files: File[]; keepApproved: boolean }) => {
       for (const file of files) {
         const formData = new FormData();
         formData.set("file", file);
         formData.set("sourcePath", sourcePathForFile(file));
+        if (keepApproved) formData.set("keepApproved", "true");
 
         const response = await fetch(apiPath(organizationSlug, projectId), {
           method: "POST",
@@ -313,7 +334,8 @@ const ProjectFilesPageContentInner = observer(function ProjectFilesPageContentIn
         }
       }
     },
-    onSuccess: async (_, files) => {
+    onSuccess: async (_, { files }) => {
+      setKeepApprovedTranslations(false);
       const lastUploadedPath = files.at(-1) ? sourcePathForFile(files.at(-1) as File) : null;
       pageStore.clearSelectedFiles();
       await queryClient.invalidateQueries({
@@ -532,7 +554,15 @@ const ProjectFilesPageContentInner = observer(function ProjectFilesPageContentIn
         onSelectBranch={setSelectedBranch}
         onAddSelectedFiles={addSelectedFiles}
         onRemoveSelectedFile={removeSelectedFile}
-        onUploadSelectedFiles={() => uploadFiles.mutate(selectedFiles)}
+        offerKeepApprovedTranslations={offerKeepApprovedTranslations}
+        keepApprovedTranslations={keepApprovedTranslations}
+        onKeepApprovedTranslationsChange={setKeepApprovedTranslations}
+        onUploadSelectedFiles={() =>
+          uploadFiles.mutate({
+            files: selectedFiles,
+            keepApproved: offerKeepApprovedTranslations && keepApprovedTranslations,
+          })
+        }
         filesTree={() => (
           <ProjectFilesTreePanel
             organizationSlug={organizationSlug}
@@ -581,6 +611,9 @@ export function ProjectFilesPageContentView({
   onSelectBranch: _onSelectBranch,
   onAddSelectedFiles,
   onRemoveSelectedFile,
+  offerKeepApprovedTranslations = false,
+  keepApprovedTranslations = false,
+  onKeepApprovedTranslationsChange,
   onUploadSelectedFiles,
   renderError = defaultRenderFilesError,
   renderFilesTree = defaultRenderFilesTree,
@@ -605,6 +638,10 @@ export function ProjectFilesPageContentView({
   onSelectBranch?: (branch: string | null) => void;
   onAddSelectedFiles: (files: File[]) => void;
   onRemoveSelectedFile: (file: File) => void;
+  /** Show the checkbox that keeps approved translations approved for this upload. */
+  offerKeepApprovedTranslations?: boolean;
+  keepApprovedTranslations?: boolean;
+  onKeepApprovedTranslationsChange?: (keep: boolean) => void;
   onUploadSelectedFiles: () => void;
   renderError?: ProjectFilesErrorRenderer;
   renderFilesTree?: ProjectFilesTreeRenderer;
@@ -684,6 +721,26 @@ export function ProjectFilesPageContentView({
               )}
             </Button>
           </div>
+          {offerKeepApprovedTranslations ? (
+            <div className="mt-3 flex items-start gap-2">
+              <Checkbox
+                id="keep-approved-translations"
+                aria-describedby="keep-approved-translations-help"
+                className="mt-0.5"
+                checked={keepApprovedTranslations}
+                disabled={isUploading}
+                onCheckedChange={(checked) => onKeepApprovedTranslationsChange?.(checked === true)}
+              />
+              <div className="min-w-0">
+                <label htmlFor="keep-approved-translations" className="text-sm font-medium">
+                  <FormattedMessage {...messages.keepApprovedTranslations} />
+                </label>
+                <TypographyP id="keep-approved-translations-help" size="xsmall" tone="subtle">
+                  <FormattedMessage {...messages.keepApprovedTranslationsHelp} />
+                </TypographyP>
+              </div>
+            </div>
+          ) : null}
           <ul className="mt-3 divide-y divide-border rounded-md border border-border bg-background">
             {selectedFiles.map((file) => (
               <li key={fileKey(file)} className="flex items-center justify-between gap-3 px-3 py-2">
