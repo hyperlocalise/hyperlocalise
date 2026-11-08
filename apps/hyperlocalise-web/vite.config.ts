@@ -20,6 +20,9 @@ import type { DummyRuleMap } from "vite-plus/lint";
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 loadDotenv({ path: path.join(rootDir, ".env") });
+if (process.env.CI === "true") {
+  loadDotenv({ path: path.join(rootDir, "ci/vitest-defaults.env") });
+}
 
 // Keep in sync with eslint-plugin-formatjs `configs.strict`. Do not import the
 // plugin here: Storybook loads this Vite config, and the plugin pulls
