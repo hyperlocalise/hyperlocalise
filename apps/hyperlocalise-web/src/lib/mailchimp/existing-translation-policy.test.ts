@@ -16,6 +16,7 @@ import {
   isMailchimpRemoteCopyNewer,
   mailchimpCampaignCanRecreate,
   readMailchimpCopyUpdatedAt,
+  rememberMailchimpCopy,
   shouldSkipMailchimpRemoteNewerCopy,
   shouldSkipUnchangedMailchimpPush,
 } from "./existing-translation-policy";
@@ -47,6 +48,28 @@ describe("isMailchimpRemoteCopyNewer", () => {
         copyUpdatedAt: "2026-10-01T00:01:00.000Z",
       }),
     ).toBe(false);
+  });
+});
+
+describe("rememberMailchimpCopy", () => {
+  it("keeps earlier locale copy ids when later locales persist in the same run", () => {
+    const mapping = {
+      localeCopyIds: {} as Record<string, string>,
+      localeCopyNames: {} as Record<string, string>,
+      lastPushContentHash: {} as Record<string, string>,
+      lastPushedAt: null as Date | null,
+    };
+
+    rememberMailchimpCopy(mapping, "fr-FR", "tmpl-fr", "Welcome_fr-FR", "hash-fr");
+    rememberMailchimpCopy(mapping, "de-DE", "tmpl-de", "Welcome_de-DE", "hash-de");
+
+    expect(mapping.localeCopyIds).toEqual({ "fr-FR": "tmpl-fr", "de-DE": "tmpl-de" });
+    expect(mapping.localeCopyNames).toEqual({
+      "fr-FR": "Welcome_fr-FR",
+      "de-DE": "Welcome_de-DE",
+    });
+    expect(mapping.lastPushContentHash).toEqual({ "fr-FR": "hash-fr", "de-DE": "hash-de" });
+    expect(mapping.lastPushedAt).toBeInstanceOf(Date);
   });
 });
 

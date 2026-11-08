@@ -42,6 +42,33 @@ export function shouldSkipUnchangedMailchimpPush(
   return Boolean(lastHash && lastHash === contentHash);
 }
 
+export type MailchimpCopySuccessState = {
+  localeCopyIds: Record<string, string> | null;
+  localeCopyNames: Record<string, string> | null;
+  lastPushContentHash: Record<string, string> | null;
+  lastPushedAt: Date | null;
+};
+
+/**
+ * Mutate in-memory sync state after a locale push so the next locale in the
+ * same run still sees earlier copy ids. Spreading the original mapping in
+ * persist would keep only the last locale.
+ */
+export function rememberMailchimpCopy<T extends MailchimpCopySuccessState>(
+  mapping: T,
+  locale: string,
+  copyId: string,
+  copyName: string,
+  contentHash: string,
+  pushedAt = new Date(),
+): T {
+  mapping.localeCopyIds = { ...mapping.localeCopyIds, [locale]: copyId };
+  mapping.localeCopyNames = { ...mapping.localeCopyNames, [locale]: copyName };
+  mapping.lastPushContentHash = { ...mapping.lastPushContentHash, [locale]: contentHash };
+  mapping.lastPushedAt = pushedAt;
+  return mapping;
+}
+
 export function shouldSkipMailchimpRemoteNewerCopy(input: {
   hasCopy: boolean;
   overwriteWhenRemoteNewer: boolean;

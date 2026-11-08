@@ -26,6 +26,33 @@ export type ResolvedCampaignCopy = {
   created: boolean;
 };
 
+export type LoopsCopySuccessState = {
+  localeCopyIds: Record<string, string> | null;
+  localeCopyNames: Record<string, string> | null;
+  lastPushContentHash: Record<string, string> | null;
+  lastPushedAt: Date | null;
+};
+
+/**
+ * Mutate in-memory sync state after a locale push so the next locale in the
+ * same run still sees earlier copy ids. Spreading the original mapping in
+ * persist would keep only the last locale.
+ */
+export function rememberLoopsCopy<T extends LoopsCopySuccessState>(
+  mapping: T,
+  locale: string,
+  copyId: string,
+  copyName: string,
+  contentHash: string,
+  pushedAt = new Date(),
+): T {
+  mapping.localeCopyIds = { ...mapping.localeCopyIds, [locale]: copyId };
+  mapping.localeCopyNames = { ...mapping.localeCopyNames, [locale]: copyName };
+  mapping.lastPushContentHash = { ...mapping.lastPushContentHash, [locale]: contentHash };
+  mapping.lastPushedAt = pushedAt;
+  return mapping;
+}
+
 type CopyResolutionInput = {
   client: LoopsClient;
   /** Copy id recorded by a previous push, if any. */

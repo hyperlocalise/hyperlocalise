@@ -38,7 +38,11 @@ import {
   loopsEmailCopyName,
   toLoopsLanguageCode,
 } from "./html-envelope";
-import { resolveCampaignCopy, resolveTransactionalCopy } from "./push-copy-resolution";
+import {
+  rememberLoopsCopy,
+  resolveCampaignCopy,
+  resolveTransactionalCopy,
+} from "./push-copy-resolution";
 
 const logger = createLogger("push-loops-emails");
 
@@ -373,13 +377,14 @@ async function persistCopySuccess(
   copyName: string,
   contentHash: string,
 ): Promise<void> {
+  rememberLoopsCopy(mapping, locale, copyId, copyName, contentHash);
   await db
     .update(schema.loopsEmailSyncStates)
     .set({
-      localeCopyIds: { ...mapping.localeCopyIds, [locale]: copyId },
-      localeCopyNames: { ...mapping.localeCopyNames, [locale]: copyName },
-      lastPushContentHash: { ...mapping.lastPushContentHash, [locale]: contentHash },
-      lastPushedAt: new Date(),
+      localeCopyIds: mapping.localeCopyIds,
+      localeCopyNames: mapping.localeCopyNames,
+      lastPushContentHash: mapping.lastPushContentHash,
+      lastPushedAt: mapping.lastPushedAt,
       status: "active",
       lastError: null,
       updatedAt: new Date(),
