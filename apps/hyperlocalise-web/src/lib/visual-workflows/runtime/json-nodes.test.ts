@@ -45,10 +45,68 @@ describe("JSON workflow nodes", () => {
       output: { error: { code: "unsafe_json_key", path: "$.nested.__proto__" } },
       switchCase: "invalid",
     });
+    expect(executeJsonParse('{"constructor":{"polluted":true}}')).toMatchObject({
+      ok: true,
+      output: { error: { code: "unsafe_json_key", path: "$.constructor" } },
+      switchCase: "invalid",
+    });
+    expect(executeJsonParse('{"prototype":{"polluted":true}}')).toMatchObject({
+      ok: true,
+      output: { error: { code: "unsafe_json_key", path: "$.prototype" } },
+      switchCase: "invalid",
+    });
     expect(executeJsonParse(`"${"a".repeat(JSON_NODE_LIMITS.maxBytes)}"`)).toMatchObject({
       ok: true,
       output: { error: { code: "json_too_large" } },
       switchCase: "invalid",
+    });
+  });
+
+  it("rejects non-text parse input and values that are not JSON-compatible", () => {
+    expect(executeJsonParse(12 as unknown as string)).toMatchObject({
+      ok: true,
+      output: { error: { code: "invalid_json_text" } },
+      switchCase: "invalid",
+    });
+    expect(executeJsonStringify(new Date("2026-11-08T00:00:00.000Z"))).toMatchObject({
+      ok: true,
+      output: { error: { code: "invalid_json_value" } },
+      switchCase: "error",
+    });
+    expect(executeJsonStringify({ a: undefined })).toMatchObject({
+      ok: true,
+      output: { error: { code: "invalid_json_value", path: "$.a" } },
+      switchCase: "error",
+    });
+  });
+
+  it("enforces nesting and entry limits", () => {
+    const nest = (depth: number): unknown => {
+      let value: unknown = 1;
+      for (let index = 0; index < depth; index += 1) value = { nested: value };
+      return value;
+    };
+
+    expect(executeJsonStringify(nest(JSON_NODE_LIMITS.maxDepth))).toMatchObject({
+      ok: true,
+      switchCase: "success",
+    });
+    expect(executeJsonStringify(nest(JSON_NODE_LIMITS.maxDepth + 1))).toMatchObject({
+      ok: true,
+      output: { error: { code: "json_too_deep" } },
+      switchCase: "error",
+    });
+
+    const withinLimit = Object.fromEntries(
+      Array.from({ length: JSON_NODE_LIMITS.maxEntries }, (_, index) => [String(index), index]),
+    );
+    expect(executeJsonStringify(withinLimit)).toMatchObject({ ok: true, switchCase: "success" });
+
+    const tooMany = { ...withinLimit, extra: 1 };
+    expect(executeJsonStringify(tooMany)).toMatchObject({
+      ok: true,
+      output: { error: { code: "json_too_large" } },
+      switchCase: "error",
     });
   });
 
@@ -126,6 +184,43 @@ describe("JSON workflow nodes", () => {
   it("counts string length in code points", () => {
     expect(executeSchemaValidate("😀😀", { type: "string", maxLength: 2 })).toMatchObject({
       output: { valid: true },
+    });
+  });
+
+  it("validates integer, numeric bounds, and array item counts", () => {
+    expect(executeSchemaValidate(2, { type: "integer" })).toMatchObject({
+      output: { valid: true },
+    });
+    expect(executeSchemaValidate(1.5, { type: "integer" })).toMatchObject({
+      output: { valid: false, errors: [{ code: "schema_type_mismatch" }] },
+    });
+    expect(executeSchemaValidate(null, { type: ["string", "null"] })).toMatchObject({
+      output: { valid: true },
+    });
+    expect(executeSchemaValidate(3, { type: "number", minimum: 5 })).toMatchObject({
+      output: { valid: false, errors: [{ code: "schema_minimum" }] },
+    });
+    expect(executeSchemaValidate(9, { type: "number", maximum: 5 })).toMatchObject({
+      output: { valid: false, errors: [{ code: "schema_maximum" }] },
+    });
+    expect(
+      executeSchemaValidate(["a"], { type: "array", minItems: 2, items: { type: "string" } }),
+    ).toMatchObject({
+      output: { valid: false, errors: [{ code: "schema_min_items" }] },
+    });
+    expect(
+      executeSchemaValidate(["a", "b", "c"], {
+        type: "array",
+        maxItems: 2,
+        items: { type: "string" },
+      }),
+    ).toMatchObject({
+      output: { valid: false, errors: [{ code: "schema_max_items" }] },
+    });
+    expect(
+      executeSchemaValidate(["a", 2], { type: "array", items: { type: "string" } }),
+    ).toMatchObject({
+      output: { valid: false, errors: [{ code: "schema_type_mismatch", path: "$[1]" }] },
     });
   });
 
