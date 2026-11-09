@@ -36,6 +36,8 @@ vi.mock("@/components/content-editor/project-file/use-content-editor-segment-tar
   }),
 }));
 
+let viewportHeight = 900;
+
 // Give the virtualized lists a viewport so their rows render.
 vi.mock("@tanstack/react-virtual", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-virtual")>();
@@ -45,7 +47,7 @@ vi.mock("@tanstack/react-virtual", async (importOriginal) => {
       actual.useVirtualizer({
         ...options,
         observeElementRect: (_instance, callback) => {
-          callback({ width: 1280, height: 900 });
+          callback({ width: 1280, height: viewportHeight });
           return () => {};
         },
       }),
@@ -85,12 +87,13 @@ function renderWorkspace(
 
 describe("ContentEditorWorkspaceContainer selection", () => {
   beforeEach(() => {
+    viewportHeight = 900;
     localStorage.clear();
     localStorage.setItem("content-editor-queue:selection-mode:v1", "true");
   });
 
   it.each(["comfortable", "side-by-side", "multilingual"] as const)(
-    "ticks strings one by one and with Select all visible in the %s layout",
+    "ticks strings one by one and with Select all loaded in the %s layout",
     async (viewMode) => {
       const user = userEvent.setup();
       renderWorkspace({ initialViewMode: viewMode, review: { onBulkLock: vi.fn() } });
@@ -101,12 +104,33 @@ describe("ContentEditorWorkspaceContainer selection", () => {
 
       const bar = screen.getByRole("toolbar", { name: /bulk/i });
       expect(within(bar).getByText("1 selected")).toBeInTheDocument();
-      await user.click(within(bar).getByRole("button", { name: /Select all visible/ }));
+      await user.click(within(bar).getByRole("button", { name: /Select all loaded/ }));
 
       for (const key of SEGMENT_KEYS) {
         expect(screen.getByRole("checkbox", { name: `Select ${key}` })).toBeChecked();
       }
       expect(within(bar).getByText("3 selected")).toBeInTheDocument();
+    },
+  );
+
+  it.each(["comfortable", "side-by-side", "multilingual"] as const)(
+    "ticks loaded strings that are scrolled out of view in the %s layout",
+    async (viewMode) => {
+      const user = userEvent.setup();
+      viewportHeight = 120;
+      renderWorkspace({
+        initialViewMode: viewMode,
+        initialState: createContentEditorWorkspaceState({ selectedSegmentId: "seg-01" }),
+      });
+      const drawn = (await screen.findAllByRole("checkbox", { name: /^Select / })).length;
+      const selectAll = screen.getByRole("button", { name: /^Select all loaded \(\d+\)$/ });
+      const loaded = Number(/\((\d+)\)/.exec(selectAll.textContent ?? "")?.[1]);
+      expect(drawn).toBeLessThan(loaded);
+
+      await user.click(selectAll);
+
+      const bar = screen.getByRole("toolbar", { name: /bulk/i });
+      expect(within(bar).getByText(`${loaded} selected`)).toBeInTheDocument();
     },
   );
 

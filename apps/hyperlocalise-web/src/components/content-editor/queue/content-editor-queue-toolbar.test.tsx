@@ -233,7 +233,7 @@ describe("ContentEditorQueueToolbar", () => {
       />,
     );
 
-    const selectAll = screen.getByRole("button", { name: /Select all visible/ });
+    const selectAll = screen.getByRole("button", { name: /Select all loaded/ });
     const approveSelected = screen.getByRole("button", { name: "Approve selected" });
     expect(selectAll).toBeDisabled();
     expect(approveSelected).toBeDisabled();
@@ -266,7 +266,7 @@ describe("ContentEditorQueueToolbar", () => {
       />,
     );
 
-    const selectAll = screen.getByRole("button", { name: /Select all visible/ });
+    const selectAll = screen.getByRole("button", { name: /Select all loaded/ });
     expect(selectAll).toBeDisabled();
     expect(screen.getByRole("button", { name: "More" })).toBeDisabled();
 
