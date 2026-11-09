@@ -618,7 +618,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             kind: "translation",
             jobId: job.id,
             projectId: job.projectId ?? params.projectId,
-            type: job.type,
+            type: payload.type,
           });
         } catch (error) {
           await updateJobs(db, {
@@ -1241,7 +1241,8 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           : notFoundResponse(c, "job_not_found", "Job not found");
       }
 
-      if (!job.projectId || !job.type) {
+      // Key jobs are tasks for people, so there is no run to retry.
+      if (!job.projectId || !job.type || job.type === "keys") {
         return conflictResponse(c, "job_action_unavailable", "Job action is not available");
       }
 
