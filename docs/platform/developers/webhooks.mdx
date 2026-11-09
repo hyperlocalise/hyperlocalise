@@ -1,7 +1,7 @@
 ---
 title: "Job webhooks"
 sidebarTitle: "Webhooks"
-description: "Receive a signed HTTP POST when a job is created, changes status, or is reassigned."
+description: "Receive a signed HTTP POST when a job is created, changes status, is reassigned, or gets a new due date, title, or description."
 ---
 
 Webhooks tell your systems about job changes, so you do not have to poll the jobs API. Hyperlocalise Platform records each change immediately and sends one signed `POST` per change to each endpoint you register, usually within a minute.
@@ -28,6 +28,12 @@ You need the API keys permission to manage webhooks.
 | `job.created` | A job is created. |
 | `job.status_changed` | A job moves to another status. |
 | `job.assignee_changed` | A job is assigned to someone else, or to or from the agent. |
+| `job.due_date_changed` | A job's due date is set, changed, or cleared. |
+| `job.details_changed` | A job's title or description changes. |
+
+Due date, title, and description changes are sent for jobs created in Hyperlocalise Platform, not for jobs synced from a connected TMS.
+
+An endpoint with no changes ticked receives every type, including types added later, so ignore types you do not handle.
 
 Statuses are `queued`, `running`, `succeeded`, `failed`, `waiting_for_review`, and `cancelled`.
 
@@ -50,6 +56,8 @@ Statuses are `queued`, `running`, `succeeded`, `failed`, `waiting_for_review`, a
   }
 }
 ```
+
+For types other than `job.status_changed`, `previousStatus` is the same as `status`.
 
 The payload holds IDs and statuses only. Call the [jobs API](/platform/api#read-jobs) with the job ID for details.
 

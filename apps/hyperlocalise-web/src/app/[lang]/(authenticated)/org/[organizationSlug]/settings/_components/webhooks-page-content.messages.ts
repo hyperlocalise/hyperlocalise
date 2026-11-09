@@ -23,8 +23,8 @@ export const webhooksPageContentMessages = defineMessages({
   },
   pageDescription: {
     defaultMessage:
-      "Hyperlocalise sends a signed POST to each endpoint when a job is created, changes status, or is reassigned. Failed deliveries are retried for about a day.",
-    id: "AH2+MpTauH",
+      "Hyperlocalise sends a signed POST to each endpoint when a job is created, changes status, is reassigned, or gets a new due date, title or description. Failed deliveries are retried for about a day.",
+    id: "C0e3g7zLU6",
     description: "Description at the top of the webhooks settings page",
   },
   addButton: {
@@ -202,6 +202,16 @@ export const webhooksPageContentMessages = defineMessages({
     defaultMessage: "Assignee changed",
     id: "AWDYKHksqH",
     description: "Event type checkbox for job.assignee_changed webhooks",
+  },
+  eventDueDateChanged: {
+    defaultMessage: "Due date changed",
+    id: "UNt/7D/9ge",
+    description: "Event type checkbox for job.due_date_changed webhooks",
+  },
+  eventDetailsChanged: {
+    defaultMessage: "Title or description changed",
+    id: "awblgkR0ah",
+    description: "Event type checkbox for job.details_changed webhooks",
   },
   cancel: {
     defaultMessage: "Cancel",

@@ -98,6 +98,46 @@ describe("insertJobs and updateJobs", () => {
     ]);
   });
 
+  it("records due date and title or description changes", async () => {
+    const organizationId = await insertOrganization();
+    const values = {
+      ...jobValues(organizationId),
+      inputPayload: { metadata: { title: "Launch" }, sourceLocale: "en" },
+    };
+    await insertJobs(db, { values });
+    const byId = eq(schema.jobs.id, values.id);
+    const dueAt = new Date("2026-12-01T09:00:00Z");
+
+    await updateJobs(db, { set: { dueAt }, where: byId });
+    await updateJobs(db, { set: { dueAt: new Date(dueAt) }, where: byId });
+    await updateJobs(db, {
+      set: { inputPayload: { metadata: { title: "Launch" }, sourceLocale: "fr" } },
+      where: byId,
+    });
+    await updateJobs(db, {
+      set: { inputPayload: { metadata: { title: "Launch", description: "Copy" } } },
+      where: byId,
+    });
+    await updateJobs(db, {
+      set: { dueAt: null, inputPayload: { metadata: { title: "Relaunch" } } },
+      where: byId,
+    });
+
+    const events = await db
+      .select({ type: schema.jobChangeEvents.type })
+      .from(schema.jobChangeEvents)
+      .where(eq(schema.jobChangeEvents.jobId, values.id))
+      .orderBy(asc(schema.jobChangeEvents.occurredAt));
+    const types = events.map((event) => event.type);
+    expect(types.slice(0, 3)).toEqual([
+      "job.created",
+      "job.due_date_changed",
+      "job.details_changed",
+    ]);
+    // The last write's two events share one insert, so their order is not fixed.
+    expect(types.slice(3).toSorted()).toEqual(["job.details_changed", "job.due_date_changed"]);
+  });
+
   it("returns the requested columns, as the drizzle builder would", async () => {
     const organizationId = await insertOrganization();
     const values = jobValues(organizationId);

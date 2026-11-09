@@ -4358,6 +4358,8 @@ const JOB_CHANGE_EVENT_LABELS: Record<JobChangeEventType, MessageDescriptor> = {
   "job.created": messages.jobChangedEventCreated,
   "job.status_changed": messages.jobChangedEventStatusChanged,
   "job.assignee_changed": messages.jobChangedEventAssigneeChanged,
+  "job.due_date_changed": messages.jobChangedEventDueDateChanged,
+  "job.details_changed": messages.jobChangedEventDetailsChanged,
 };
 const JOB_KIND_LABELS: Record<JobKind, MessageDescriptor> = {
   translation: messages.jobKindTranslation,
