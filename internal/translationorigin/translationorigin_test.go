@@ -2,6 +2,19 @@ package translationorigin
 
 import "testing"
 
+func TestValid(t *testing.T) {
+	for _, value := range []string{Machine, MachinePostEdited, Human, Unknown} {
+		if !Valid(value) {
+			t.Fatalf("Valid(%q) = false, want true", value)
+		}
+	}
+	for _, value := range []string{"", "spelling", "translation_job", "machine "} {
+		if Valid(value) {
+			t.Fatalf("Valid(%q) = true, want false", value)
+		}
+	}
+}
+
 func TestNext(t *testing.T) {
 	tests := []struct {
 		name     string

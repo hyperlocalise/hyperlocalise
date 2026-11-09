@@ -71,6 +71,7 @@ func TestParseEditorCatQueueFilterQualifier(t *testing.T) {
 
 func TestEditorCatQueueNeedsLocale(t *testing.T) {
 	require.True(t, editorCatQueueNeedsLocale(editorCatQueueQuery{queueFilter: "untranslated"}))
+	require.True(t, editorCatQueueNeedsLocale(editorCatQueueQuery{queueFilter: "origin"}))
 	require.False(t, editorCatQueueNeedsLocale(editorCatQueueQuery{queueFilter: "hidden"}))
 	require.True(t, editorCatQueueNeedsLocale(editorCatQueueQuery{
 		advancedFilter: &editorCatAdvancedFilter{TranslationStatus: "translated"},
@@ -107,6 +108,23 @@ func TestAppendEditorCatQueueFilterSQL(t *testing.T) {
 	require.Equal(t, []any{"org"}, hiddenArgs)
 	require.Contains(t, hiddenWhere, "k.is_hidden = true")
 	require.NotContains(t, hiddenWhere, "target_locale")
+
+	originWhere, originArgs := appendEditorCatQueueFilterSQL("where org=$1 and project=$2", []any{"org", "proj"}, editorCatQueueQuery{
+		targetLocale:         "fr-FR",
+		queueFilter:          "origin",
+		queueFilterQualifier: "machine_post_edited",
+	}, 1, 2)
+	require.Equal(t, []any{"org", "proj", "fr-FR", "machine_post_edited"}, originArgs)
+	require.Contains(t, originWhere, "t.target_locale=$3")
+	require.Contains(t, originWhere, "t.origin::text=$4")
+
+	anyOriginWhere, anyOriginArgs := appendEditorCatQueueFilterSQL("where org=$1 and project=$2", []any{"org", "proj"}, editorCatQueueQuery{
+		targetLocale: "de",
+		queueFilter:  "origin",
+	}, 1, 2)
+	require.Equal(t, []any{"org", "proj", "de"}, anyOriginArgs)
+	require.Contains(t, anyOriginWhere, "trim(t.text) != ''")
+	require.NotContains(t, anyOriginWhere, "t.origin::text=")
 }
 
 func TestEditorCatDateBoundSQL(t *testing.T) {

@@ -110,6 +110,29 @@ describe("nativeQueueFilterCondition", () => {
     expect(unknown).not.toContain("human");
   });
 
+  it("filters origin to a labelled translation and ignores unknown qualifiers", () => {
+    const anyOrigin = filterSql({ ...scope, queueFilter: "origin" });
+    expect(anyOrigin).toContain("exists (");
+    expect(anyOrigin).toContain("trim(");
+    expect(anyOrigin).not.toContain("machine_post_edited");
+    expect(anyOrigin).not.toContain("unknown");
+
+    const postEdited = filterSql({
+      ...scope,
+      queueFilter: "origin",
+      queueFilterQualifier: "machine_post_edited",
+    });
+    expect(postEdited).toContain("machine_post_edited");
+
+    const invalidQualifier = filterSql({
+      ...scope,
+      queueFilter: "origin",
+      queueFilterQualifier: "translation_job",
+    });
+    expect(invalidQualifier).not.toContain("translation_job");
+    expect(invalidQualifier).not.toContain("machine_post_edited");
+  });
+
   it("builds comment presence SQL for the preset and advanced without invert", () => {
     const withComments = filterSql({ ...scope, queueFilter: "with_comments" });
     expect(withComments).toContain("exists (");

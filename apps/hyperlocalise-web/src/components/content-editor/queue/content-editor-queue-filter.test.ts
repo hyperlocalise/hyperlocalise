@@ -194,10 +194,14 @@ describe("resolveAvailableCatQueueFilters", () => {
     expect(resolveAvailableCatQueueFilters("native")).toContain("machine_translated");
     expect(resolveAvailableCatQueueFilters("native")).toContain("with_comments");
     expect(resolveAvailableCatQueueFilters("native")).toContain("has_issues");
+    expect(resolveAvailableCatQueueFilters("native")).toContain("origin");
+    expect(resolveAvailableCatQueueFilters("crowdin")).not.toContain("origin");
     expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("qa_issues");
     expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("machine_translated");
+    expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("origin");
     expect(resolveAvailableCatQueueFilters(null)).toContain("unsaved");
     expect(resolveAvailableCatQueueFilters(null)).toContain("with_comments");
+    expect(resolveAvailableCatQueueFilters(null)).toContain("origin");
   });
 });
 
