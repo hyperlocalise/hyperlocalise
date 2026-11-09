@@ -353,6 +353,17 @@ export function nativeQueueFilterCondition(input: {
           : sql`not (${tags} @> ${exclude})`,
       );
     }
+    if (advanced.jobId) {
+      fragments.push(sql`exists (
+        select 1 from ${schema.translationJobKeys}
+        where ${schema.translationJobKeys.jobId} = ${advanced.jobId}
+          and ${schema.translationJobKeys.translationKeyId} = ${schema.projectTranslationKeys.id}
+      )`);
+      // A key job leaves out its hidden strings, as its progress does, unless they are asked for.
+      if (advanced.visibility !== "hidden" && input.queueFilter !== "hidden") {
+        fragments.push(sql`${schema.projectTranslationKeys.isHidden} = false`);
+      }
+    }
   }
 
   if (fragments.length === 0) {

@@ -392,3 +392,29 @@ describe("ContentEditorQueueToolbar", () => {
     expect(screen.queryByRole("menuitem", { name: "Advanced Filter…" })).not.toBeInTheDocument();
   });
 });
+
+describe("ContentEditorQueueToolbar key job scope", () => {
+  it("keeps the task scope when a preset filter is chosen, and leaves it on request", async () => {
+    const user = userEvent.setup();
+    const onQueueAdvancedChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        queueFilter="all"
+        onQueueFilterChange={vi.fn()}
+        availableQueueFilters={["all", "hidden", "not_hidden"]}
+        queueAdvanced={{ jobId: "job_1", stringType: "plain" }}
+        onQueueAdvancedChange={onQueueAdvancedChange}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Showing the strings of one task");
+
+    await user.click(screen.getByRole("button", { name: /Filter queue|Advanced/ }));
+    await user.click(screen.getByRole("menuitem", { name: "Hidden" }));
+    expect(onQueueAdvancedChange).toHaveBeenLastCalledWith({ jobId: "job_1" });
+
+    await user.click(screen.getByRole("button", { name: "Show all strings" }));
+    expect(onQueueAdvancedChange).toHaveBeenLastCalledWith({ stringType: "plain" });
+  });
+});

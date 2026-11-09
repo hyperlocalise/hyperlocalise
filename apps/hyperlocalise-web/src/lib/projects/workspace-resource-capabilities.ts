@@ -69,7 +69,7 @@ export function canOpenProviderJobContentEditor(job: {
 export function canOpenNativeJobContentEditor(job: {
   id: string;
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
-  type: "string" | "file" | null;
+  type: "string" | "file" | "keys" | null;
   externalProviderKind: string | null;
   inputPayload: unknown;
 }) {
@@ -77,7 +77,16 @@ export function canOpenNativeJobContentEditor(job: {
     return false;
   }
 
-  if ((job.kind !== "translation" && job.kind !== "proofread") || job.type !== "file") {
+  if (job.kind !== "translation" && job.kind !== "proofread") {
+    return false;
+  }
+
+  // A key job opens the project's content editor filtered to its strings.
+  if (job.type === "keys") {
+    return true;
+  }
+
+  if (job.type !== "file") {
     return false;
   }
 

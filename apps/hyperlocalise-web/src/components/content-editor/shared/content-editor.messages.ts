@@ -269,6 +269,16 @@ export const contentEditorQueuePanelMessages = defineMessages({
     description:
       "Bulk action in the multilingual table: unlock the selected strings' translations in one language",
   },
+  keyJobScope: {
+    defaultMessage: "Showing the strings of one task",
+    id: "ieniHtb4tT",
+    description: "Notice above the queue when it is limited to a key job's strings",
+  },
+  keyJobShowAll: {
+    defaultMessage: "Show all strings",
+    id: "3utulgy/hh",
+    description: "Leaves the key job view and shows every string of the project",
+  },
   bulkSelectAll: {
     defaultMessage: "Select all visible",
     id: "1v2hbAXp/Y",

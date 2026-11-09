@@ -162,6 +162,10 @@ export function ContentEditorQueueToolbar({
   // while the store still holds the previous page — never treat those ids as
   // bulk targets.
   const bulkTargetsReady = !isQueueLoading;
+  // A key job's scope rides in the advanced filter; other filter changes keep it.
+  const jobId = queueAdvanced?.jobId;
+  const keepJobScope = (filter: ContentEditorAdvancedQueueFilter | undefined) =>
+    jobId ? { ...filter, jobId } : filter;
   const selectableVisibleCount = bulkTargetsReady ? visibleCount : 0;
 
   useHotkeys("escape", () => onSelectionModeChange?.(false), {
@@ -186,6 +190,27 @@ export function ContentEditorQueueToolbar({
 
   return (
     <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+      {jobId && onQueueAdvancedChange ? (
+        <div
+          role="status"
+          className="flex w-full items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs"
+        >
+          <FormattedMessage {...contentEditorQueuePanelMessages.keyJobScope} />
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto px-0 text-xs"
+            onClick={() => {
+              const rest = { ...queueAdvanced };
+              delete rest.jobId;
+              onQueueAdvancedChange(isCatQueueFilterEmpty(rest) ? undefined : rest);
+            }}
+          >
+            <FormattedMessage {...contentEditorQueuePanelMessages.keyJobShowAll} />
+          </Button>
+        </div>
+      ) : null}
       {showBulkBar ? (
         <ContentEditorBulkBar
           selectedCount={selectedCount}
@@ -263,7 +288,7 @@ export function ContentEditorQueueToolbar({
                     onSelect={(selection) => {
                       onQueueFilterChange(selection.filter);
                       onQueueFilterQualifierChange?.(selection.qualifier);
-                      onQueueAdvancedChange?.(undefined);
+                      onQueueAdvancedChange?.(keepJobScope(undefined));
                       if (selection.sort) {
                         onQueueSortChange?.(selection.sort);
                       }
@@ -282,7 +307,7 @@ export function ContentEditorQueueToolbar({
                 onApply={(filter) => {
                   onQueueFilterChange("all");
                   onQueueFilterQualifierChange?.(undefined);
-                  onQueueAdvancedChange?.(filter);
+                  onQueueAdvancedChange?.(keepJobScope(filter));
                 }}
               />
             </>

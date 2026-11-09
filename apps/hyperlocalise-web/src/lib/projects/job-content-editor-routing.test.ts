@@ -181,3 +181,28 @@ describe("buildJobContentEditorHref", () => {
     );
   });
 });
+
+describe("key jobs", () => {
+  const keyJob = createJob({
+    id: "job_keys_1",
+    kind: "proofread",
+    type: "keys",
+    externalProviderKind: null,
+    externalTargetLocales: null,
+    inputPayload: { sourceLocale: "en-US", targetLocales: ["fr-FR", "de-DE"] },
+  });
+
+  it("opens the project content editor filtered to the job's strings", () => {
+    expect(canOpenJobContentEditor(keyJob)).toBe(true);
+    const href = buildJobContentEditorHref("acme", "project 1", keyJob);
+    const url = new URL(href!, "https://app.test");
+    expect(url.pathname).toBe("/org/acme/projects/project%201/strings");
+    expect(url.searchParams.get("locale")).toBe("fr-FR");
+    expect(JSON.parse(url.searchParams.get("queueAdvanced")!)).toEqual({ jobId: "job_keys_1" });
+    expect(url.searchParams.has("queueFilter")).toBe(false);
+  });
+
+  it("does not open string jobs", () => {
+    expect(canOpenJobContentEditor({ ...keyJob, type: "string" })).toBe(false);
+  });
+});

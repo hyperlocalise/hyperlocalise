@@ -172,6 +172,8 @@ export const contentEditorAdvancedQueueFilterSchema = z
     comments: z.enum(contentEditorPresenceFilters).optional(),
     screenshots: z.enum(contentEditorPresenceFilters).optional(),
     visibility: z.enum(contentEditorVisibilityFilters).optional(),
+    /** Only the strings of this key job. */
+    jobId: z.string().trim().min(1).max(128).optional(),
   })
   .strict();
 
@@ -255,6 +257,7 @@ export function compactAdvancedQueueFilter(
   if (filter.comments) compacted.comments = filter.comments;
   if (filter.screenshots) compacted.screenshots = filter.screenshots;
   if (filter.visibility) compacted.visibility = filter.visibility;
+  if (filter.jobId) compacted.jobId = filter.jobId;
 
   return compacted;
 }

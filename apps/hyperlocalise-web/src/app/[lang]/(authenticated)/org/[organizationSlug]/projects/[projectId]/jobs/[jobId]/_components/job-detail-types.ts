@@ -21,9 +21,11 @@ export type JobDetailRecord = {
   ownerUserId: string | null;
   assigneeType?: "user" | "agent" | null;
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
-  type: "string" | "file" | null;
+  type: "string" | "file" | "keys" | null;
   status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   inputPayload: unknown;
+  /** Set on key jobs: how many strings the job holds. */
+  keyCount?: number | null;
   outcomeKind: string | null;
   outcomePayload: unknown;
   lastError: string | null;
@@ -142,6 +144,9 @@ export function jobDetailStatusTone(status: JobDetailRecord["status"]) {
 }
 
 export function formatJobDetailKind(job: Pick<JobDetailRecord, "kind" | "type">) {
+  if (job.type === "keys") {
+    return `${job.kind.replace("_", " ")} · keys`;
+  }
   if (job.kind === "translation" && job.type) {
     return `translation · ${job.type}`;
   }

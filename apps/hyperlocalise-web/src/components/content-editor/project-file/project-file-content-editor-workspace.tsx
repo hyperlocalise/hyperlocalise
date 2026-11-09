@@ -1286,7 +1286,15 @@ export function ProjectFileContentEditorWorkspace({
         setSearch(segment.key);
         setQueueFilter("all");
         setQueueFilterQualifier(undefined);
-        setQueueAdvanced(undefined);
+        // A key job's scope stays; the search finds the string within it, hidden or not.
+        setQueueAdvanced((current) =>
+          current?.jobId
+            ? {
+                jobId: current.jobId,
+                ...(segment.isHidden ? { visibility: "hidden" as const } : {}),
+              }
+            : undefined,
+        );
         if (onOpenTranslationLocale) {
           onOpenTranslationLocale(locale, segment.key);
         } else {

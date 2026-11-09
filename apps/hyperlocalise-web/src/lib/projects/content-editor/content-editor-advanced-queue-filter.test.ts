@@ -134,7 +134,12 @@ describe("croql helpers", () => {
   });
 });
 
-describe("tag filters", () => {
+describe("key job and tag filters", () => {
+  it("round-trips a key job filter", () => {
+    const serialized = serializeAdvancedQueueFilter({ jobId: " job_1 " });
+    expect(parseAdvancedQueueFilter(serialized)).toEqual({ jobId: "job_1" });
+  });
+
   it("offers labels on native projects, where they are the keys' tags", () => {
     expect(advancedQueueFilterSupportsLabels(null)).toBe(true);
     expect(advancedQueueFilterSupportsLabels("native")).toBe(true);
