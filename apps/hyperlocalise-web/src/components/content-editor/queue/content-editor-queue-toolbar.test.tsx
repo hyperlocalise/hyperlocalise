@@ -169,6 +169,33 @@ describe("ContentEditorQueueToolbar", () => {
     expect(onBulkUnlock).toHaveBeenCalled();
   });
 
+  it("names the language on per-language bulk actions when one is given", async () => {
+    const user = userEvent.setup();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        selectionMode
+        onSelectionModeChange={vi.fn()}
+        selectedCount={2}
+        bulkActionLocale="de-DE"
+        onBulkApprove={vi.fn()}
+        onBulkSkip={vi.fn()}
+        onBulkHide={vi.fn()}
+        onBulkLock={vi.fn()}
+        onBulkUnlock={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Approve in German (Germany)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Skip selected" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByRole("menuitem", { name: "Hide selected" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Lock in German (Germany)" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Unlock in German (Germany)" }),
+    ).toBeInTheDocument();
+  });
+
   it("exits selection mode from the bulk bar", async () => {
     const user = userEvent.setup();
     const onSelectionModeChange = vi.fn();

@@ -251,6 +251,24 @@ export const contentEditorQueuePanelMessages = defineMessages({
     id: "RdS22zCv6k",
     description: "Bulk action to unlock selected CAT segments so they can be edited",
   },
+  bulkApproveInLanguage: {
+    defaultMessage: "Approve in {language}",
+    id: "NM+znbA1FV",
+    description:
+      "Bulk action in the multilingual table: approve the selected strings' translations in one language, named by the toolbar's language picker",
+  },
+  bulkLockInLanguage: {
+    defaultMessage: "Lock in {language}",
+    id: "K+XUbo+2o8",
+    description:
+      "Bulk action in the multilingual table: lock the selected strings' translations in one language against edits",
+  },
+  bulkUnlockInLanguage: {
+    defaultMessage: "Unlock in {language}",
+    id: "MpFVCAtnHS",
+    description:
+      "Bulk action in the multilingual table: unlock the selected strings' translations in one language",
+  },
   bulkSelectAll: {
     defaultMessage: "Select all visible",
     id: "1v2hbAXp/Y",

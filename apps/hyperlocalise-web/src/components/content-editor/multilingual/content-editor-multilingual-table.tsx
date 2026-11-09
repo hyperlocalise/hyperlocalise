@@ -14,7 +14,7 @@
  */
 import { useNearEndPagination } from "../project-file/content-editor-near-end-pagination";
 import { useEditorPageWindow } from "../project-file/content-editor-page-window";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { reaction } from "mobx";
 import { observer } from "mobx-react-lite";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
@@ -34,6 +34,7 @@ import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.message
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
 import { useContentEditorSegmentTarget } from "@/components/content-editor/project-file/use-content-editor-segment-target";
 import { formatInternalMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-internal-markup";
+import { ContentEditorSegmentCheckbox } from "@/components/content-editor/segment/content-editor-segment-checkbox";
 import { multilingualMessages as messages } from "./content-editor-multilingual.messages";
 
 import { ContentEditorTargetEditor } from "../editor/content-editor-target-editor";
@@ -273,6 +274,9 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
   onLoadMore,
   drafts: providedDrafts,
   onOpenTranslation,
+  checkedSegmentIds,
+  showSelection = false,
+  onToggleSegmentChecked,
 }: {
   config: ContentEditorMultilingualConfig;
   segments: ContentEditorSegment[];
@@ -283,8 +287,13 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
   onLoadMore?: () => void;
   drafts?: MultilingualDrafts;
   onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
+  /** Ticks whole strings (every language) for the toolbar's bulk actions in Select mode. */
+  checkedSegmentIds?: ReadonlySet<string>;
+  showSelection?: boolean;
+  onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
 }) {
   const intl = useIntl();
+  const keyIdPrefix = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [localDrafts] = useState(() => new MultilingualDrafts());
   const drafts = providedDrafts ?? localDrafts;
@@ -481,11 +490,23 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
                 <div
                   role="rowheader"
                   aria-colindex={1}
+                  // In Select mode, named by the key alone, not the tick box's "Select …" label.
+                  aria-labelledby={showSelection ? `${keyIdPrefix}-${row.index}` : undefined}
                   title={segment.key}
                   className="sticky left-0 z-10 flex h-full items-center gap-1.5 border-r bg-background px-3 font-mono text-xs"
                   style={{ width: KEY_WIDTH }}
                 >
-                  <span className="truncate">{segment.key}</span>
+                  {showSelection && onToggleSegmentChecked ? (
+                    <ContentEditorSegmentCheckbox
+                      segmentId={segment.id}
+                      segmentKey={segment.key}
+                      checkedSegmentIds={checkedSegmentIds}
+                      onCheckedChange={(checked) => onToggleSegmentChecked(segment.id, checked)}
+                    />
+                  ) : null}
+                  <span id={`${keyIdPrefix}-${row.index}`} className="truncate">
+                    {segment.key}
+                  </span>
                   {(segment.occurrenceCount ?? 0) > 1 ? (
                     <ContentEditorOccurrenceBadge
                       count={segment.occurrenceCount!}

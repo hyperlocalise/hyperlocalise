@@ -270,6 +270,9 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
             isLoadingMore={isQueueFetchingPage}
             onLoadMore={onLoadMoreQueue}
             drafts={store.multilingualDrafts}
+            checkedSegmentIds={checkedSegmentIds}
+            showSelection={store.selectionMode}
+            onToggleSegmentChecked={onToggleSegmentChecked}
           />
         )}
       </div>

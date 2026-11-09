@@ -39,6 +39,7 @@ import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-e
 import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { isCatQueueFilterEmpty } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { cn } from "@/lib/primitives/cn";
+import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.messages";
 
 import {
   contentEditorQueueFilterValues,
@@ -88,6 +89,7 @@ export function ContentEditorQueueToolbar({
   onBulkUnlock,
   isBulkActionPending = false,
   bulkProgress,
+  bulkActionLocale,
   isQueueLoading = false,
   onDownloadFilteredView,
   isDownloadingFilteredView = false,
@@ -125,6 +127,12 @@ export function ContentEditorQueueToolbar({
   onBulkUnlock?: () => void;
   isBulkActionPending?: boolean;
   bulkProgress?: string;
+  /**
+   * Language that Approve, Lock and Unlock act on, named on those actions. Set where several
+   * languages are on screen (the multilingual table). Hide and unhide act on every language,
+   * and skip is not saved, so they keep their usual names.
+   */
+  bulkActionLocale?: string;
   /**
    * When the queue query is showing placeholder data, or the store has not
    * ingested the current snapshot yet, visible segments may still be from the
@@ -192,6 +200,7 @@ export function ContentEditorQueueToolbar({
           onBulkUnhide={onBulkUnhide}
           onBulkLock={onBulkLock}
           onBulkUnlock={onBulkUnlock}
+          actionLocale={bulkActionLocale}
           onDone={() => onSelectionModeChange?.(false)}
         />
       ) : (
@@ -330,6 +339,7 @@ function ContentEditorBulkBar({
   onBulkUnhide,
   onBulkLock,
   onBulkUnlock,
+  actionLocale,
   onDone,
 }: {
   selectedCount: number;
@@ -344,14 +354,25 @@ function ContentEditorBulkBar({
   onBulkUnhide?: () => void;
   onBulkLock?: () => void;
   onBulkUnlock?: () => void;
+  actionLocale?: string;
   onDone: () => void;
 }) {
   const intl = useIntl();
+  const language = actionLocale ? formatLocaleDisplayName(intl, actionLocale) : undefined;
+  const messages = contentEditorQueuePanelMessages;
   const moreActions = [
-    { key: "hide", handler: onBulkHide, message: contentEditorQueuePanelMessages.bulkHide },
-    { key: "unhide", handler: onBulkUnhide, message: contentEditorQueuePanelMessages.bulkUnhide },
-    { key: "lock", handler: onBulkLock, message: contentEditorQueuePanelMessages.bulkLock },
-    { key: "unlock", handler: onBulkUnlock, message: contentEditorQueuePanelMessages.bulkUnlock },
+    { key: "hide", handler: onBulkHide, message: messages.bulkHide },
+    { key: "unhide", handler: onBulkUnhide, message: messages.bulkUnhide },
+    {
+      key: "lock",
+      handler: onBulkLock,
+      message: language ? messages.bulkLockInLanguage : messages.bulkLock,
+    },
+    {
+      key: "unlock",
+      handler: onBulkUnlock,
+      message: language ? messages.bulkUnlockInLanguage : messages.bulkUnlock,
+    },
   ].filter((action) => Boolean(action.handler));
 
   return (
@@ -375,7 +396,10 @@ function ContentEditorBulkBar({
           onClick={onBulkApprove}
           disabled={!canMutate}
         >
-          <FormattedMessage {...contentEditorQueuePanelMessages.bulkApprove} />
+          <FormattedMessage
+            {...(language ? messages.bulkApproveInLanguage : messages.bulkApprove)}
+            values={{ language }}
+          />
         </Button>
       ) : null}
       {onBulkSkip ? (
@@ -387,7 +411,7 @@ function ContentEditorBulkBar({
           onClick={onBulkSkip}
           disabled={!canMutate}
         >
-          <FormattedMessage {...contentEditorQueuePanelMessages.bulkSkip} />
+          <FormattedMessage {...messages.bulkSkip} />
         </Button>
       ) : null}
       {moreActions.length > 0 || onClearChecked ? (
@@ -411,7 +435,7 @@ function ContentEditorBulkBar({
               <DropdownMenuGroup>
                 {moreActions.map((action) => (
                   <DropdownMenuItem key={action.key} onClick={action.handler} disabled={!canMutate}>
-                    <FormattedMessage {...action.message} />
+                    <FormattedMessage {...action.message} values={{ language }} />
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuGroup>
