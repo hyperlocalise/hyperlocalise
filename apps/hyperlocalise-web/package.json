@@ -197,7 +197,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "bun": "^1.4.3",
     "drizzle-kit": "0.31.11",
-    "eslint-plugin-formatjs": "^6.6.3",
+    "eslint-plugin-formatjs": "^8.0.0",
     "happy-dom": "^21.0.4",
     "mockdate": "^3.0.5",
     "msw": "^3.0.3",
