@@ -42,6 +42,7 @@ export const V1_ACTIVITY_EVENT_TYPES = [
   "member_joined",
   "member_role_changed",
   "member_removed",
+  "member_left",
   "workspace_updated",
   "workspace_archived",
   "personal_access_token_created",
@@ -53,6 +54,7 @@ export const V1_ACTIVITY_EVENT_TYPES = [
   "project_created",
   "project_deleted",
   "project_settings_changed",
+  "project_strings_updated",
   "glossary_created",
   "glossary_deleted",
   "glossary_imported",
@@ -80,6 +82,7 @@ export const LATER_ACTIVITY_EVENT_TYPES = [
   "job_created",
   "job_cancelled",
   "job_failed",
+  "job_updated",
   "automation_created",
   "automation_deleted",
   "automation_run_started",
@@ -95,6 +98,8 @@ export const VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES = [
   "visual_workflow_enabled",
   "visual_workflow_disabled",
   "visual_workflow_run_started",
+  "visual_workflow_approval_requested",
+  "visual_workflow_approval_decided",
 ] as const;
 export type VisualWorkflowActivityEventType = (typeof VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES)[number];
 
@@ -231,6 +236,10 @@ export type ActivityPayloadByEventType = {
     memberUserId: string;
     membershipId: string;
   };
+  member_left: {
+    memberUserId: string;
+    membershipId: string;
+  };
   workspace_updated: {
     changedFields: readonly string[];
     previousName?: string;
@@ -287,6 +296,13 @@ export type ActivityPayloadByEventType = {
     previousVisibility?: string;
     projectId: string;
   };
+  /** Strings created or updated in bulk through the public API. */
+  project_strings_updated: {
+    created: number;
+    itemCount: number;
+    projectId: string;
+    updated: number;
+  };
   glossary_created: SafeResourcePayload;
   glossary_deleted: SafeResourcePayload;
   glossary_imported: ImportExportPayload;
@@ -322,6 +338,12 @@ export type ActivityPayloadByEventType = {
     kind: string;
     projectId?: string;
     status: "failed";
+  };
+  job_updated: {
+    changedFields: readonly ("title" | "description" | "dueAt" | "owner")[];
+    jobId: string;
+    kind: string;
+    projectId?: string;
   };
   automation_created: {
     automationId: string;
@@ -380,6 +402,22 @@ export type ActivityPayloadByEventType = {
     runId: string;
     status: "queued";
     triggerSource: string;
+    visualWorkflowId: string;
+  };
+  visual_workflow_approval_requested: {
+    approvalRequestId: string;
+    nodeId: string;
+    reviewerId: string;
+    reviewerType: "user" | "team";
+    runId: string;
+    status: "pending";
+    visualWorkflowId: string;
+  };
+  visual_workflow_approval_decided: {
+    approvalRequestId: string;
+    decision: "approved" | "rejected" | "changes_requested";
+    nodeId: string;
+    runId: string;
     visualWorkflowId: string;
   };
   query_created: {
@@ -462,6 +500,7 @@ export type ActivityTargetKindByEventType = {
   member_joined: "membership";
   member_role_changed: "membership";
   member_removed: "membership";
+  member_left: "membership";
   workspace_updated: "organization";
   workspace_archived: "organization";
   personal_access_token_created: "personal_access_token";
@@ -475,6 +514,7 @@ export type ActivityTargetKindByEventType = {
   project_created: "project";
   project_deleted: "project";
   project_settings_changed: "project";
+  project_strings_updated: "project";
   glossary_created: "glossary";
   glossary_deleted: "glossary";
   glossary_imported: "glossary";
@@ -491,6 +531,7 @@ export type ActivityTargetKindByEventType = {
   job_created: "job";
   job_cancelled: "job";
   job_failed: "job";
+  job_updated: "job";
   automation_created: "automation";
   automation_deleted: "automation";
   automation_run_started: "automation";
@@ -502,6 +543,8 @@ export type ActivityTargetKindByEventType = {
   visual_workflow_enabled: "visual_workflow";
   visual_workflow_disabled: "visual_workflow";
   visual_workflow_run_started: "visual_workflow";
+  visual_workflow_approval_requested: "visual_workflow";
+  visual_workflow_approval_decided: "visual_workflow";
   query_created: "query";
   query_deleted: "query";
   query_imported: "project";

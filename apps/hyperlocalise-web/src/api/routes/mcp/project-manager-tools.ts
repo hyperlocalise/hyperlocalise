@@ -19,7 +19,6 @@ import { hasCapability } from "@/api/auth/policy";
 import {
   buildAccessibleJobsWhere,
   canAccessProject,
-  getAccessibleProjectIds,
   ownedProjectWhere,
 } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
@@ -34,9 +33,12 @@ import {
   overviewTriageJobStatusValues,
   openJobStatusValues,
 } from "@/api/routes/project/job.schema";
-import { REPORT_QUERY_SCHEMAS } from "@/api/routes/reports/reports.schema";
+import { REPORT_KINDS, REPORT_QUERY_SCHEMAS } from "@/api/routes/mcp/report-query-schema";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
+import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
 import { db, schema } from "@/lib/database/client";
 import { workspaceReportsFlag } from "@/lib/flags/workspace-flags";
+import { createLogger } from "@/lib/log";
 import { formatMemberDisplayName } from "@/lib/members/member-management";
 import { isErr } from "@/lib/primitives/result/results";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
@@ -44,16 +46,37 @@ import { listAssignableIssueMembers } from "@/lib/projects/issue-sheet/issue-she
 import { cancelNativeJob } from "@/lib/projects/jobs/cancel-native-job";
 import { updateNativeJob } from "@/lib/projects/jobs/update-native-job";
 import {
-  REPORT_KINDS,
-  readActivity,
-  readCosts,
-  readTime,
-  readWords,
-  summaryFreshness,
-  type ReportReadContext,
-} from "@/lib/reporting/report-reads";
-import { REPORT_STEPS, REPORT_UNITS } from "@/lib/reporting/report-units";
-import { getReportingStart } from "@/lib/reporting/reporting-start";
+  AI_CHANNELS,
+  AI_KEY_TYPES,
+  AI_ORIGINS,
+  AI_USAGE_DIMENSIONS,
+  AI_USAGE_MEASURES,
+} from "@/lib/reporting/ai-usage-origins";
+import {
+  REPORT_STEPS,
+  REPORT_UNITS,
+  WORD_COUNT_INTERVALS,
+  WORD_COUNT_SPLITS,
+} from "@/lib/reporting/report-units";
+
+const logger = createLogger("mcp-project-manager-tools");
+
+/** Just past go-svc's own 30 s limit, so a stalled call answers instead of hanging. */
+const GET_REPORT_TIME_LIMIT_MS = 35_000;
+
+/**
+ * go-svc's answers to `get_report` that are about the member's request, passed on as they are.
+ * Anything else (go-svc unreachable, an internal error, the server call refused) is ours to fix.
+ * The tool checks the flag itself first, so go-svc's `feature_unavailable` means its own lookup
+ * failed or is a minute behind: not passed on as "not enabled".
+ */
+const REPORT_REFUSAL_CODES = new Set([
+  "organization_access_denied",
+  "report_forbidden",
+  "invalid_report_query",
+  "reports_busy",
+  "report_timed_out",
+]);
 
 /** A provider job's due date, or a native job's own. Needs externalJobDetails left-joined. */
 const jobDueDateSql =
@@ -130,17 +153,22 @@ const mcpGetReportInputSchema = z.object({
     .enum(REPORT_KINDS)
     .default("activity")
     .describe(
-      "activity (default): words arrived and finished in the dates, by where the text came from, with the previous period; words: word counts by match band, by project or by task; time: time people logged and automated run time; costs: what was spent, by project.",
+      "activity (default): words arrived and finished in the dates, by where the text came from, with the previous period; words: word counts by match band, by project, task, week, language or task step, with a series over time; time: time people logged and automated run time; ai: AI calls, tokens, images, videos and billing's charge, grouped by one detail and optionally a second; costs: what was spent, by project.",
     ),
   from: mcpDay.optional().describe("Start date (YYYY-MM-DD, UTC). Defaults to 28 days ago."),
   to: mcpDay.optional().describe("End date (YYYY-MM-DD, UTC). Defaults to today."),
   projectId: z.string().min(1).max(200).optional().describe("Optional project ID filter."),
   jobId: z.string().min(1).max(200).optional().describe("Optional job ID filter."),
-  targetLocale: z.string().min(2).max(35).optional().describe("Optional target locale filter."),
+  targetLocale: z
+    .string()
+    .min(2)
+    .max(35)
+    .optional()
+    .describe("Optional target locale filter. Not for ai."),
   step: z
     .enum(REPORT_STEPS)
     .optional()
-    .describe("Workflow step: translation (default) or review. Not for costs."),
+    .describe("Workflow step: translation (default) or review. Not for costs or ai."),
   unit: z
     .enum(REPORT_UNITS)
     .optional()
@@ -151,12 +179,58 @@ const mcpGetReportInputSchema = z.object({
     .enum(["arrived", "finished"])
     .optional()
     .describe("Words only: strings that arrived (default) or were finished in the dates."),
-  groupBy: z
-    .enum(["project", "task", "week"])
+  split: z
+    .enum(WORD_COUNT_SPLITS)
     .optional()
     .describe(
-      "Words only: rows per project (default), per task (50 tasks a page), or per week and project.",
+      "Words only: what the series splits each point by: project (default) or language, the five largest and Other; band, in tiers: exact (100% and repetitions), high (95-99%), fuzzy (75-94%), low (50-74%), new (new, and memory unavailable); or task_step: translate, post_edit, proofread, other, no_task, where a string in more than one task counts in each, so points can be larger than with the other splits.",
     ),
+  per: z
+    .enum(WORD_COUNT_INTERVALS)
+    .optional()
+    .describe(
+      "Words only: how long each point of the series covers: day, week or month. By default days, or weeks for periods over 45 days.",
+    ),
+  groupBy: z
+    .enum([
+      "project",
+      "task",
+      "week",
+      "language",
+      "task_step",
+      ...AI_USAGE_DIMENSIONS.filter((dimension) => dimension !== "project" && dimension !== "task"),
+    ])
+    .optional()
+    .describe(
+      "Words: rows per project (default), per task (50 tasks a page), per week and project, per language, or per task step and language. Rows per task or task step count a string in each task that holds it, so they can add up to more than total and bandTotals, which count it once per project. AI: area (default), feature, model, provider, channel, key, project, task or automation (50 groups a page).",
+    ),
+  thenBy: z
+    .enum(AI_USAGE_DIMENSIONS)
+    .optional()
+    .describe("AI only: a second detail to split each group by, other than groupBy."),
+  rankBy: z
+    .enum(AI_USAGE_MEASURES)
+    .optional()
+    .describe(
+      "AI only: what the largest groups are by: tokens (default, including cache and reasoning), calls or charge (AI credit used).",
+    ),
+  area: z.enum(AI_ORIGINS).optional().describe("AI only: where the AI was called."),
+  feature: z
+    .string()
+    .min(1)
+    .max(200)
+    .optional()
+    .describe("AI only: billing's source name for the call, as in the feature groups."),
+  model: z.string().min(1).max(200).optional().describe("AI only: model id."),
+  provider: z.string().min(1).max(200).optional().describe("AI only: model provider."),
+  channel: z.enum(AI_CHANNELS).optional().describe("AI only: how the call reached Hyperlocalise."),
+  key: z
+    .enum(AI_KEY_TYPES)
+    .optional()
+    .describe(
+      "AI only: our_ai (plan credit), own_key (the workspace's provider key) or not_recorded.",
+    ),
+  automationId: z.string().min(1).max(200).optional().describe("AI only: automation ID filter."),
   page: z.number().int().min(1).max(10_000).optional().describe("Page of rows, from 1."),
 });
 
@@ -441,10 +515,10 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
     {
       annotations: MCP_READ_ONLY_TOOL,
       description:
-        "Get one of the Reports page's reports for accessible projects, with the same fields the page shows: activity (words arrived and finished, by where the text came from), words (word counts by match band), time (logged and automated time) or costs (what was spent). Days are UTC. Figures can lag the latest work by up to about 15 minutes; stillUpdating is true while recent work is still being counted. Needs billing access.",
+        "Get one of the Reports page's reports for accessible projects, with the same fields the page shows: activity (words arrived and finished, by where the text came from), words (word counts by match band), time (logged and automated time), ai (AI calls, tokens and billing's charge) or costs (what was spent). Days are UTC. Figures can lag the latest work by up to about 15 minutes; stillUpdating is true while recent work is still being counted. ai reads billing's records directly, so stillUpdating does not apply to it; calls whose charge billing has not recorded are counted in unrecordedCharges. Needs billing access.",
       inputSchema: mcpGetReportInputSchema,
     },
-    async (input) => {
+    async (input, extra) => {
       if (!(await isWorkspaceFeatureFlagEnabled(workspaceReportsFlag, apiAuth))) {
         return mcpToolError("feature_unavailable", "Reports is not enabled for this workspace");
       }
@@ -461,47 +535,40 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
         });
       }
 
-      const startedAt = await getReportingStart(organizationId);
-      const context: ReportReadContext = {
-        organizationId,
-        projectIds: await getAccessibleProjectIds(apiAuth),
-        startedDay: startedAt ? startedAt.toISOString().slice(0, 10) : null,
-        today: new Date().toISOString().slice(0, 10),
-        financial: true,
-        userId: apiAuth.user.localUserId,
-      };
-      const summary = await summaryFreshness(organizationId);
-      const shared = { kind, summary, stillUpdating: summary.pendingDays > 0 };
-      switch (kind) {
-        case "activity":
-          return mcpToolJson({
-            ...shared,
-            activity: await readActivity(
-              context,
-              parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.activity>,
-            ),
-          });
-        case "words":
-          return mcpToolJson({
-            ...shared,
-            wordCounts: await readWords(
-              context,
-              parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.words>,
-            ),
-          });
-        case "time":
-          return mcpToolJson({
-            ...shared,
-            time: await readTime(context, parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.time>),
-          });
-        default:
-          return mcpToolJson({
-            ...shared,
-            costs: await readCosts(
-              context,
-              parsed.data as z.infer<typeof REPORT_QUERY_SCHEMAS.costs>,
-            ),
-          });
+      // go-svc reads the report as the member, with the member's own project access.
+      const { format: _format, ...reportQuery } = parsed.data as Record<string, unknown>;
+      const limit = AbortSignal.timeout(GET_REPORT_TIME_LIMIT_MS);
+      try {
+        return mcpToolJson(
+          await createGoSvcServerClient().reports.internal(
+            kind,
+            {
+              organizationId,
+              userId: apiAuth.user.localUserId,
+              query: reportQuery as Record<string, string | number | boolean | undefined>,
+            },
+            {
+              signal: extra.signal ? AbortSignal.any([extra.signal, limit]) : limit,
+            },
+          ),
+        );
+      } catch (error) {
+        if (error instanceof GoSvcClientError && REPORT_REFUSAL_CODES.has(error.code))
+          return mcpToolError(error.code, error.message);
+        // The host cancelled; leave it to the transport. Our own time limit answers as usual.
+        if (extra.signal?.aborted) throw error;
+        logger.warn(
+          {
+            error: error instanceof Error ? error.message : String(error),
+            code: error instanceof GoSvcClientError ? error.code : null,
+            status: error instanceof GoSvcClientError ? error.status : null,
+          },
+          "get_report could not read go-svc's Reports",
+        );
+        return mcpToolError(
+          "reports_unavailable",
+          "Reports could not be read just now; try again later",
+        );
       }
     },
   );

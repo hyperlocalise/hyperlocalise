@@ -22,6 +22,7 @@ import {
   visualWorkflowRetryDraft,
   visualWorkflowSwitchDeleteDraft,
   visualWorkflowWaitDraft,
+  visualWorkflowHumanApprovalDraft,
   visualWorkflowMergeDraft,
   visualWorkflowSequenceDraft,
   visualWorkflowTerminalNodesDraft,
@@ -933,6 +934,118 @@ export const WaitBranches: Story = {
   },
 };
 
+export const HumanApprovalBranches: Story = {
+  name: "Human approval configuration and decisions",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Shows the durable Human Approval node, its typed request and result ports, and every decision branch.",
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowHumanApprovalDraft.name,
+    initialNodes: visualWorkflowHumanApprovalDraft.nodes,
+    initialEdges: visualWorkflowHumanApprovalDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    for (const branch of ["Approved", "Rejected", "Changes requested", "Timed out"]) {
+      await expect(
+        await canvas.findByLabelText(branch, {}, { timeout: 10_000 }),
+      ).toBeInTheDocument();
+    }
+
+    await expect(canvas.getByLabelText("Data input: reviewerId, string")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data input: prompt, string")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: decision, string")).toBeInTheDocument();
+
+    const approvalNode = canvas
+      .getByLabelText("Data input: reviewerId, string")
+      .closest(".react-flow__node");
+    await expect(approvalNode).not.toBeNull();
+    await userEvent.click(approvalNode!);
+
+    await expect(
+      await canvas.findByRole("combobox", { name: "Reviewer type" }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("textbox", { name: "Reviewer or team ID" })).toHaveValue(
+      "localization-reviewers",
+    );
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+  },
+};
+
+const humanApprovalNodesWithStatus = (status: "idle" | "running" | "succeeded" | "failed") =>
+  visualWorkflowHumanApprovalDraft.nodes.map((node) =>
+    node.id === "approval" ? { ...node, data: { ...node.data, runStatus: status } } : node,
+  );
+
+export const HumanApprovalRunning: Story = {
+  name: "Human approval — running",
+  args: {
+    initialName: visualWorkflowHumanApprovalDraft.name,
+    initialNodes: humanApprovalNodesWithStatus("running"),
+    initialEdges: visualWorkflowHumanApprovalDraft.edges,
+    previewMode: true,
+  },
+};
+
+export const HumanApprovalSucceeded: Story = {
+  name: "Human approval — succeeded",
+  args: {
+    initialName: visualWorkflowHumanApprovalDraft.name,
+    initialNodes: humanApprovalNodesWithStatus("succeeded"),
+    initialEdges: visualWorkflowHumanApprovalDraft.edges,
+    previewMode: true,
+  },
+};
+
+export const HumanApprovalFailedNarrow: Story = {
+  name: "Human approval — failed, narrow viewport",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: {
+    initialName: visualWorkflowHumanApprovalDraft.name,
+    initialNodes: humanApprovalNodesWithStatus("failed"),
+    initialEdges: visualWorkflowHumanApprovalDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+};
+
+export const HumanApprovalInvalid: Story = {
+  name: "Human approval — invalid configuration",
+  args: {
+    initialName: "Invalid human approval",
+    initialNodes: visualWorkflowHumanApprovalDraft.nodes.map((node) =>
+      node.id === "approval"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: {
+                kind: "flow.human_approval" as const,
+                reviewerType: "user" as const,
+                reviewerId: "",
+                prompt: "",
+              },
+            },
+          }
+        : node,
+    ),
+    initialEdges: visualWorkflowHumanApprovalDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByTestId("visual-workflow-validation-issues", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+  },
+};
+
 export const MergeBranches: Story = {
   name: "Merge inputs and branches",
   parameters: {
@@ -1576,5 +1689,628 @@ export const CompareNarrow: Story = {
   play: async ({ canvas }) => {
     await expect(await canvas.findByText("Succeeded", {}, { timeout: 10_000 })).toBeInTheDocument();
     await expect(canvas.getByText(/true/)).toBeInTheDocument();
+  },
+};
+
+const arrayTransformNodes = [
+  {
+    id: "trigger",
+    type: "trigger.manual" as const,
+    position: { x: 80, y: 180 },
+    data: {
+      catalogType: "trigger.manual" as const,
+      config: { kind: "trigger.manual" as const },
+      outputFields: [{ path: "items", type: "array" as const }],
+      runStatus: "succeeded" as const,
+      lastOutput: { items: [1, 2, 3, 4] },
+    },
+  },
+  {
+    id: "transform",
+    type: "logic.array_transform" as const,
+    position: { x: 440, y: 180 },
+    data: {
+      catalogType: "logic.array_transform" as const,
+      config: {
+        kind: "logic.array_transform" as const,
+        operation: "reduce" as const,
+        collection: "{{nodes.trigger.items}}",
+        itemType: "number" as const,
+        resultType: "number" as const,
+        initialValue: 0,
+      },
+      bodyNodeIds: ["body"],
+      collect: {
+        result: { kind: "reference" as const, nodeId: "body", path: ["value"] },
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: { count: 4, value: 10 },
+    },
+  },
+  {
+    id: "body",
+    type: "logic.select_path" as const,
+    position: { x: 800, y: 80 },
+    data: {
+      catalogType: "logic.select_path" as const,
+      config: {
+        kind: "logic.select_path" as const,
+        path: ["value"],
+        outputType: "unknown" as const,
+        missingBehavior: "error" as const,
+      },
+      inputs: {
+        value: { kind: "literal" as const, value: { value: 10 } },
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: { value: 10, found: true },
+    },
+  },
+  {
+    id: "after",
+    type: "logic.set" as const,
+    position: { x: 800, y: 340 },
+    data: {
+      catalogType: "logic.set" as const,
+      config: { kind: "logic.set" as const, assignments: [] },
+      runStatus: "idle" as const,
+    },
+  },
+];
+
+const arrayTransformEdges = [
+  {
+    id: "trigger-transform-execution",
+    source: "trigger",
+    target: "transform",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "trigger-transform-data",
+    source: "trigger",
+    target: "transform",
+    sourceHandle: "items",
+    targetHandle: "collection",
+    data: { kind: "data" as const },
+  },
+  {
+    id: "transform-body",
+    source: "transform",
+    target: "body",
+    sourceHandle: "each",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "transform-after",
+    source: "transform",
+    target: "after",
+    sourceHandle: "done",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+];
+
+export const ArrayTransformConfigured: Story = {
+  name: "Array Transform — configured",
+  args: {
+    initialName: "Reduce ordered values",
+    initialNodes: arrayTransformNodes,
+    initialEdges: arrayTransformEdges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText("Data input: collection, array", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data input: initialValue, number")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: item, number")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: index, number")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: accumulator, number")).toBeInTheDocument();
+    const output = canvas.getByLabelText("Data output: value, number");
+    await userEvent.click(output.closest(".react-flow__node")!);
+    await expect(canvas.getByRole("combobox", { name: "Operation" })).toHaveTextContent("reduce");
+    await expect(canvas.getByRole("combobox", { name: "Item type" })).toHaveTextContent("number");
+    await expect(canvas.getByRole("combobox", { name: "Result type" })).toHaveTextContent("number");
+    await expect(canvas.getByRole("textbox", { name: "Initial value" })).toHaveValue("0");
+  },
+};
+
+export const ArrayTransformValidationError: Story = {
+  name: "Array Transform — validation error",
+  args: {
+    ...ArrayTransformConfigured.args,
+    initialNodes: arrayTransformNodes.map((node) =>
+      node.id === "transform" && node.data.config.kind === "logic.array_transform"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: { ...node.data.config, collection: "x".repeat(2_001) },
+            },
+          }
+        : node,
+    ),
+  },
+};
+
+export const ArrayTransformFind: Story = {
+  name: "Array Transform — find",
+  args: {
+    ...ArrayTransformConfigured.args,
+    initialName: "Find the first matching value",
+    initialNodes: arrayTransformNodes.map((node) =>
+      node.id === "transform" && node.data.config.kind === "logic.array_transform"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: {
+                ...node.data.config,
+                operation: "find" as const,
+                initialValue: undefined,
+              },
+              lastOutput: { count: 4, found: true, value: 2 },
+            },
+          }
+        : node.id === "body"
+          ? {
+              ...node,
+              data: { ...node.data, lastOutput: { value: true, found: true } },
+            }
+          : node,
+    ),
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText("Data output: found, boolean", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: value, number, optional")).toBeInTheDocument();
+    await expect(
+      canvas.queryByLabelText("Data input: initialValue, number"),
+    ).not.toBeInTheDocument();
+  },
+};
+
+export const ArrayTransformNarrow: Story = {
+  name: "Array Transform — narrow",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: { ...ArrayTransformConfigured.args },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByText("Succeeded", {}, { timeout: 10_000 })).toBeInTheDocument();
+    await expect(canvas.getByText(/10/)).toBeInTheDocument();
+  },
+};
+
+const jsonOperationNodes = [
+  {
+    id: "trigger-json",
+    type: "trigger.manual" as const,
+    position: { x: 80, y: 180 },
+    data: {
+      catalogType: "trigger.manual" as const,
+      config: { kind: "trigger.manual" as const },
+      outputFields: [{ path: "payload", type: "string" as const }],
+      runStatus: "succeeded" as const,
+      lastOutput: { payload: '{"name":"Ada","locales":["en","de"]}' },
+    },
+  },
+  {
+    id: "parse-json",
+    type: "logic.json_parse" as const,
+    position: { x: 420, y: 180 },
+    data: {
+      catalogType: "logic.json_parse" as const,
+      config: { kind: "logic.json_parse" as const, text: "{}" },
+      runStatus: "succeeded" as const,
+      lastOutput: { value: { name: "Ada", locales: ["en", "de"] } },
+    },
+  },
+  {
+    id: "validate-json",
+    type: "logic.schema_validate" as const,
+    position: { x: 780, y: 70 },
+    data: {
+      catalogType: "logic.schema_validate" as const,
+      config: {
+        kind: "logic.schema_validate" as const,
+        value: null,
+        schema: {
+          type: "object",
+          required: ["name"],
+          properties: { name: { type: "string" } },
+        },
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: {
+        value: { name: "Ada", locales: ["en", "de"] },
+        valid: true,
+        errors: [],
+      },
+    },
+  },
+  {
+    id: "stringify-json",
+    type: "logic.json_stringify" as const,
+    position: { x: 780, y: 340 },
+    data: {
+      catalogType: "logic.json_stringify" as const,
+      config: { kind: "logic.json_stringify" as const, value: null },
+      runStatus: "succeeded" as const,
+      lastOutput: { text: '{"name":"Ada","locales":["en","de"]}' },
+    },
+  },
+];
+
+const jsonOperationEdges = [
+  {
+    id: "trigger-parse-execution",
+    source: "trigger-json",
+    target: "parse-json",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "trigger-parse-text",
+    source: "trigger-json",
+    target: "parse-json",
+    sourceHandle: "payload",
+    targetHandle: "text",
+    data: { kind: "data" as const },
+  },
+  {
+    id: "parse-validate-execution",
+    source: "parse-json",
+    target: "validate-json",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "parse-validate-value",
+    source: "parse-json",
+    target: "validate-json",
+    sourceHandle: "value",
+    targetHandle: "value",
+    data: { kind: "data" as const },
+  },
+  {
+    id: "validate-stringify-execution",
+    source: "validate-json",
+    target: "stringify-json",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "validate-stringify-value",
+    source: "validate-json",
+    target: "stringify-json",
+    sourceHandle: "value",
+    targetHandle: "value",
+    data: { kind: "data" as const },
+  },
+];
+
+export const JsonOperationsConfigured: Story = {
+  name: "JSON Operations — configured and connected",
+  args: {
+    initialName: "Parse and validate a JSON payload",
+    initialNodes: jsonOperationNodes,
+    initialEdges: jsonOperationEdges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const parseInput = await canvas.findByLabelText(
+      "Data input: text, string",
+      {},
+      { timeout: 10_000 },
+    );
+    await expect(parseInput).toBeInTheDocument();
+    await expect(canvas.getAllByLabelText("Data input: value, unknown")).toHaveLength(2);
+    await expect(canvas.getByLabelText("Data input: schema, object")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: text, string, optional")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: valid, boolean")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: errors, array, optional")).toBeInTheDocument();
+
+    await userEvent.click(parseInput.closest(".react-flow__node")!);
+    await expect(canvas.getByText(/connect a string output/i)).toBeInTheDocument();
+
+    const schemaPort = canvas.getByLabelText("Data input: schema, object");
+    await userEvent.click(schemaPort.closest(".react-flow__node")!);
+    await expect(canvas.getByRole("textbox", { name: "Schema" })).toHaveTextContent(
+      /"type": "object"/,
+    );
+    await expect(canvas.getByText(/remote references are not supported/i)).toBeInTheDocument();
+  },
+};
+
+export const JsonOperationsInvalid: Story = {
+  name: "JSON Operations — invalid JSON preview",
+  args: {
+    ...JsonOperationsConfigured.args,
+    initialName: "Handle an invalid JSON payload",
+    initialNodes: jsonOperationNodes.map((node) =>
+      node.id === "parse-json" && node.data.config.kind === "logic.json_parse"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: { ...node.data.config, text: '{"name":' },
+              lastOutput: {
+                error: {
+                  code: "invalid_json_syntax",
+                  message: "JSON text is not valid.",
+                  path: "$",
+                },
+              },
+            },
+          }
+        : node,
+    ),
+    initialEdges: jsonOperationEdges.filter((edge) => edge.id !== "trigger-parse-text"),
+  },
+  play: async ({ canvas }) => {
+    const parseInput = await canvas.findByLabelText(
+      "Data input: text, string",
+      {},
+      { timeout: 10_000 },
+    );
+    await userEvent.click(parseInput.closest(".react-flow__node")!);
+    await expect(canvas.getByText(/invalid_json_syntax/)).toBeInTheDocument();
+    await expect(canvas.getByText(/JSON text is not valid/)).toBeInTheDocument();
+  },
+};
+
+export const JsonOperationsNarrow: Story = {
+  name: "JSON Operations — narrow",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: { ...JsonOperationsConfigured.args },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findAllByText("Succeeded", {}, { timeout: 10_000 })).toHaveLength(4);
+    await expect(canvas.getAllByText(/Ada/).length).toBeGreaterThan(0);
+  },
+};
+
+const fileOperationNodes = [
+  {
+    id: "trigger-file",
+    type: "trigger.manual" as const,
+    position: { x: 60, y: 220 },
+    data: {
+      catalogType: "trigger.manual" as const,
+      config: { kind: "trigger.manual" as const },
+      outputFields: [{ path: "fileId", type: "string" as const }],
+      runStatus: "succeeded" as const,
+      lastOutput: { fileId: "file_source_messages" },
+    },
+  },
+  {
+    id: "read-file",
+    type: "action.file_read" as const,
+    position: { x: 390, y: 220 },
+    data: {
+      catalogType: "action.file_read" as const,
+      config: {
+        kind: "action.file_read" as const,
+        fileId: "file_source_messages",
+        encoding: "utf-8" as const,
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: {
+        fileId: "file_source_messages",
+        content: '{"hello":"Hello","@hello":{"description":"Greeting"}}',
+        filename: "messages.json",
+        contentType: "application/json",
+        byteSize: 58,
+        sha256: "source-sha256",
+        encoding: "utf-8",
+        locale: "en-AU",
+      },
+    },
+  },
+  {
+    id: "convert-file",
+    type: "action.file_convert" as const,
+    position: { x: 750, y: 90 },
+    data: {
+      catalogType: "action.file_convert" as const,
+      config: {
+        kind: "action.file_convert" as const,
+        fileId: "file_source_messages",
+        targetFormat: "yaml" as const,
+        filename: "messages.yaml",
+        locale: "en-AU",
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: {
+        fileId: "file_derived_yaml",
+        filename: "messages.yaml",
+        contentType: "application/yaml",
+        byteSize: 55,
+        sha256: "derived-sha256",
+        encoding: "utf-8",
+        locale: "en-AU",
+        sourceFileId: "file_source_messages",
+        sourceFormat: "json",
+        targetFormat: "yaml",
+      },
+    },
+  },
+  {
+    id: "write-file",
+    type: "action.file_write" as const,
+    position: { x: 750, y: 410 },
+    data: {
+      catalogType: "action.file_write" as const,
+      config: {
+        kind: "action.file_write" as const,
+        content: '{"hello":"Hello"}',
+        filename: "messages-copy.json",
+        contentType: "application/json",
+        encoding: "utf-8" as const,
+        locale: "en-AU",
+        sourceFileId: "file_source_messages",
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: {
+        fileId: "file_written_copy",
+        filename: "messages-copy.json",
+        contentType: "application/json",
+        byteSize: 17,
+        sha256: "written-sha256",
+        encoding: "utf-8",
+        locale: "en-AU",
+        sourceFileId: "file_source_messages",
+      },
+    },
+  },
+];
+
+const fileOperationEdges = [
+  {
+    id: "trigger-read-execution",
+    source: "trigger-file",
+    target: "read-file",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "trigger-read-file-id",
+    source: "trigger-file",
+    target: "read-file",
+    sourceHandle: "fileId",
+    targetHandle: "fileId",
+    data: { kind: "data" as const },
+  },
+  {
+    id: "read-convert-execution",
+    source: "read-file",
+    target: "convert-file",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "read-convert-file-id",
+    source: "read-file",
+    target: "convert-file",
+    sourceHandle: "fileId",
+    targetHandle: "fileId",
+    data: { kind: "data" as const },
+  },
+  {
+    id: "convert-write-execution",
+    source: "convert-file",
+    target: "write-file",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "read-write-content",
+    source: "read-file",
+    target: "write-file",
+    sourceHandle: "content",
+    targetHandle: "content",
+    data: { kind: "data" as const },
+  },
+  {
+    id: "convert-write-source",
+    source: "convert-file",
+    target: "write-file",
+    sourceHandle: "fileId",
+    targetHandle: "sourceFileId",
+    data: { kind: "data" as const },
+  },
+];
+
+export const FileOperationsConfigured: Story = {
+  name: "File Operations — configured and connected",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Reads a stored JSON file, creates a YAML derivative, and writes a second derived file using typed stored-file ports.",
+      },
+    },
+  },
+  args: {
+    initialName: "Read, convert, and write localisation files",
+    initialNodes: fileOperationNodes,
+    initialEdges: fileOperationEdges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText(
+        "Data output: content, string, optional",
+        {},
+        { timeout: 10_000 },
+      ),
+    ).toBeInTheDocument();
+    await expect(canvas.getAllByLabelText("Data output: fileId, string, optional")).toHaveLength(3);
+    await expect(canvas.getAllByLabelText("Error")).toHaveLength(3);
+
+    const convertInput = canvas.getAllByLabelText("Data input: fileId, string")[1]!;
+    await userEvent.click(convertInput.closest(".react-flow__node")!);
+    await expect(canvas.getByRole("combobox", { name: "Target format" })).toHaveTextContent("YAML");
+    await expect(canvas.getByRole("textbox", { name: "Filename" })).toHaveTextContent(
+      "messages.yaml",
+    );
+    await expect(canvas.getByRole("textbox", { name: "Locale" })).toHaveTextContent("en-AU");
+  },
+};
+
+export const FileOperationsValidationError: Story = {
+  name: "File Operations — validation error",
+  args: {
+    ...FileOperationsConfigured.args,
+    initialNodes: fileOperationNodes.map((node) =>
+      node.id === "read-file" && node.data.config.kind === "action.file_read"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: { ...node.data.config, fileId: "" },
+              runStatus: "failed" as const,
+              lastOutput: undefined,
+              lastError: {
+                code: "invalid_file_reference",
+                message: "Select a valid stored file.",
+              },
+            },
+          }
+        : node,
+    ),
+    initialEdges: fileOperationEdges.filter((edge) => edge.id !== "trigger-read-file-id"),
+  },
+  play: async ({ canvas }) => {
+    const readInput = (
+      await canvas.findAllByLabelText("Data input: fileId, string", {}, { timeout: 10_000 })
+    )[0]!;
+    await userEvent.click(readInput.closest(".react-flow__node")!);
+    await expect(canvas.getByRole("textbox", { name: "Source file ID" })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    await expect(canvas.getByText(/invalid_file_reference/)).toBeInTheDocument();
+  },
+};
+
+export const FileOperationsNarrow: Story = {
+  name: "File Operations — narrow",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: { ...FileOperationsConfigured.args },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findAllByText("Succeeded", {}, { timeout: 10_000 })).toHaveLength(4);
+    await expect(canvas.getAllByText(/messages\.yaml/).length).toBeGreaterThan(0);
   },
 };

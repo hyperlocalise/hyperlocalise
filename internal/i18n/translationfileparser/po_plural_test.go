@@ -187,6 +187,40 @@ msgstr "Hello"
 	}
 }
 
+func TestMarshalPOFileDropsFuzzyOnlyFlagLine(t *testing.T) {
+	template := []byte(`# translator note
+#, fuzzy
+msgid "hello"
+msgstr "Hello"
+`)
+	out, err := MarshalPOFile(template, map[string]string{"hello": "Bonjour"})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	content := string(out)
+	if strings.Contains(content, "fuzzy") || strings.Contains(content, "#,") {
+		t.Fatalf("expected fuzzy-only flag line dropped, got %q", content)
+	}
+	if !strings.Contains(content, "# translator note") || !strings.Contains(content, `msgstr "Bonjour"`) {
+		t.Fatalf("expected translator note and translation, got %q", content)
+	}
+}
+
+func TestMarshalPOFileKeepsFuzzyWhenUnchanged(t *testing.T) {
+	template := []byte(`#, fuzzy
+msgid "hello"
+msgstr "Hello"
+`)
+	out, err := MarshalPOFile(template, map[string]string{})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	content := string(out)
+	if !strings.Contains(content, "#, fuzzy") || !strings.Contains(content, `msgstr "Hello"`) {
+		t.Fatalf("expected unchanged fuzzy entry, got %q", content)
+	}
+}
+
 func TestMarshalPOFileUsesMsgctxtKey(t *testing.T) {
 	template := []byte(`msgctxt "nav"
 msgid "home"
@@ -610,5 +644,38 @@ func (p *pluralEval) parseUnary() (int, error) {
 func (p *pluralEval) skip() {
 	for p.i < len(p.s) && (p.s[p.i] == ' ' || p.s[p.i] == '\t') {
 		p.i++
+	}
+}
+
+func TestMarshalPOFileForLocaleGivesUntranslatedPluralsTheTargetsSlotCount(t *testing.T) {
+	template := []byte("msgid \"\"\nmsgstr \"\"\n\"Language: en\\n\"\n\"Plural-Forms: nplurals=2; plural=(n != 1);\\n\"\n\nmsgid \"file\"\nmsgid_plural \"files\"\nmsgstr[0] \"file\"\nmsgstr[1] \"files\"\n")
+
+	for _, tc := range []struct {
+		locale string
+		want   string
+	}{
+		{locale: "ru", want: "msgstr[0] \"file\"\nmsgstr[1] \"files\"\nmsgstr[2] \"files\"\n"},
+		{locale: "ja", want: "msgstr[0] \"file\"\n"},
+	} {
+		out, err := MarshalPOFileForLocale(template, map[string]string{}, tc.locale)
+		if err != nil {
+			t.Fatalf("%s: marshal: %v", tc.locale, err)
+		}
+		if !strings.HasSuffix(string(out), "msgid_plural \"files\"\n"+tc.want) {
+			t.Errorf("%s: plural slots do not match the header:\n%s", tc.locale, out)
+		}
+	}
+}
+
+func TestMarshalPOFileForLocaleFillsInATemplateHeader(t *testing.T) {
+	template := []byte("#, fuzzy\nmsgid \"\"\nmsgstr \"\"\n\"Language: \\n\"\n\"Content-Type: text/plain; charset=CHARSET\\n\"\n\nmsgid \"Hello\"\nmsgstr \"\"\n")
+
+	out, err := MarshalPOFileForLocale(template, map[string]string{"Hello": "Bonjour"}, "fr")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	rendered := string(out)
+	if strings.Contains(rendered, "fuzzy") || strings.Contains(rendered, "CHARSET") || !strings.Contains(rendered, "charset=UTF-8") || !strings.Contains(rendered, "Language: fr") {
+		t.Fatalf("template header not filled in:\n%s", rendered)
 	}
 }

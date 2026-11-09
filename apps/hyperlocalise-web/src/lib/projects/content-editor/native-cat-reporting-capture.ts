@@ -113,11 +113,7 @@ export async function captureNativeCatTranslationReporting(input: {
       provenance === "manual"
         ? personSave(
             existing
-              ? (
-                  await textOrigins(input.organizationId, [
-                    { translationId: existing.id, text: input.text },
-                  ])
-                )[0]
+              ? (await textOrigins(input.organizationId, [{ translationId: existing.id }]))[0]
               : undefined,
           )
         : { source: sourceOfProvenance(provenance), unchanged: undefined };

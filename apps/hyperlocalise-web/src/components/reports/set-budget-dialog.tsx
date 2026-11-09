@@ -12,7 +12,7 @@
  */
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useRef, useId, useState } from "react";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -30,7 +30,8 @@ import { Input } from "@/components/ui/input";
 
 import { budgetsTabMessages as messages } from "./budgets-tab.messages";
 import { ReportSelect } from "./reports-filter-bar";
-import { useBudgets, useSetBudget, type ReportSettings } from "./reports-queries";
+import { ReportLoadFailed } from "./report-section";
+import { isRefusedRead, useBudgets, useSetBudget, type ReportSettings } from "./reports-queries";
 
 const USD = /^\d{1,12}(\.\d{1,8})?$/;
 const NONE = "__none__";
@@ -66,13 +67,20 @@ export function SetBudgetDialog({
     setRateCard(current?.rateCardName ?? NONE);
   }
 
-  // Fill in the chosen project's budget once the budgets have loaded.
-  const loaded = budgets.isSuccess;
+  // Fill in the chosen project's budget once the budgets are up to date, so a reload still
+  // running or failed after a save cannot put the old amount and rate card back. After that
+  // fill, a later refetch may fail: keep the form usable and say the figures may be old.
+  const upToDate = budgets.isSuccess && !budgets.isFetching;
+  const filled = useRef(false);
   useEffect(() => {
-    if (loaded && chosenProjectId) chooseProject(chosenProjectId);
+    if (!upToDate || filled.current) return;
+    filled.current = true;
+    if (chosenProjectId) chooseProject(chosenProjectId);
     // Only when the budgets first arrive; later choices are the person's.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded]);
+  }, [upToDate]);
+  const ready = upToDate || filled.current;
+  const kept = Boolean(budgets.data) && budgets.isError && !isRefusedRead(budgets.error);
 
   async function save() {
     setError(null);
@@ -92,7 +100,7 @@ export function SetBudgetDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => (open ? null : onClose())}>
+    <Dialog open onOpenChange={(open) => (open || setBudget.isPending ? null : onClose())}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{intl.formatMessage(messages.dialogTitle)}</DialogTitle>
@@ -109,14 +117,14 @@ export function SetBudgetDialog({
               label: project.name,
             }))}
             onChange={chooseProject}
-            disabled={!budgets.isSuccess}
+            disabled={!ready}
           />
           <Field>
             <FieldLabel htmlFor={amountId}>{intl.formatMessage(messages.amount)}</FieldLabel>
             <Input
               id={amountId}
               inputMode="decimal"
-              disabled={!budgets.isSuccess}
+              disabled={!ready}
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
             />
@@ -130,20 +138,18 @@ export function SetBudgetDialog({
               ...settings.rateCardNames.map((name) => ({ value: name, label: name })),
             ]}
             onChange={setRateCard}
-            disabled={!budgets.isSuccess}
+            disabled={!ready}
           />
           {budgets.isError ? (
-            <FieldError data-slot="field-error">
-              {intl.formatMessage(messages.loadFailed)}
-            </FieldError>
+            <ReportLoadFailed error={budgets.error} kept={kept} retry={budgets.refetch} />
           ) : null}
           {error ? <FieldError data-slot="field-error">{error}</FieldError> : null}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" disabled={setBudget.isPending} onClick={onClose}>
             {intl.formatMessage(messages.cancel)}
           </Button>
-          <Button disabled={setBudget.isPending || !budgets.isSuccess} onClick={() => void save()}>
+          <Button disabled={setBudget.isPending || !ready} onClick={() => void save()}>
             {intl.formatMessage(setBudget.isPending ? messages.saving : messages.save)}
           </Button>
         </DialogFooter>

@@ -43,24 +43,45 @@ export const AI_CHANNELS = [
 ] as const;
 export type AiChannel = (typeof AI_CHANNELS)[number];
 
+/**
+ * Whose provider key a call used, from billing's `credential_source`: our AI gateway, which uses
+ * plan credit, or the workspace's own key. Rows from before billing recorded it have none.
+ */
+export const AI_KEY_TYPES = ["our_ai", "own_key", "not_recorded"] as const;
+export type AiKeyType = (typeof AI_KEY_TYPES)[number];
+
+/** The details AI usage can be grouped and narrowed by. */
+export const AI_USAGE_DIMENSIONS = [
+  "area",
+  "feature",
+  "model",
+  "provider",
+  "channel",
+  "key",
+  "project",
+  "task",
+  "automation",
+] as const;
+export type AiUsageDimension = (typeof AI_USAGE_DIMENSIONS)[number];
+
+/** What AI usage's chart shows and its groups are ranked by: tokens, runs or AI credit used. */
+export const AI_USAGE_MEASURES = ["tokens", "calls", "charge"] as const;
+
 /** Sources of billing rows that each stand for one image or one video made. */
-export const AI_IMAGE_SOURCES = [
+const AI_IMAGE_SOURCES = [
   "project_image_variant",
   "project_image_url_translation",
-  "image_text_extraction",
   "slack_image_localization",
   "email_image_localization",
   "contentful_image_localization",
 ] as const;
-export const AI_VIDEO_SOURCES = ["project_video_variant", "project_video_url_translation"] as const;
+const AI_VIDEO_SOURCES = ["project_video_variant", "project_video_url_translation"] as const;
 
 const MEDIA_SOURCES = new Set<string>([...AI_IMAGE_SOURCES, ...AI_VIDEO_SOURCES]);
 
 const ORIGIN_BY_SOURCE: Record<string, AiOrigin> = {
   translation_job_create: "translation",
-  translation_job: "translation",
   email_translation_job_create: "translation",
-  email_translation_job: "translation",
   contentful_agent: "translation",
   contentful_field_translation: "translation",
   content_editor_ai_suggestion: "translation",
@@ -69,48 +90,40 @@ const ORIGIN_BY_SOURCE: Record<string, AiOrigin> = {
   chat_translate_string: "assistants_and_chat",
   web_chat_agent_turn: "assistants_and_chat",
   slack_agent_turn: "assistants_and_chat",
-  email_agent: "assistants_and_chat",
   project_file_string_context_lookup: "assistants_and_chat",
+  // Answers a person's @mention in a GitHub pull request.
+  repository_agent_workflow: "assistants_and_chat",
   automation_assistant_turn: "building_automations",
-  repository_agent_workflow: "running_automations",
   visual_workflow_ai_step: "running_automations",
-};
-
-/** Kinds of agent runs on tasks from a connected TMS (`agent_runs.kind`). */
-const ORIGIN_BY_AGENT_RUN_KIND: Record<string, AiOrigin> = {
-  translate: "translation",
-  review: "review_and_qa",
-  qa_fix: "review_and_qa",
-  glossary_suggestion: "review_and_qa",
+  // Automatic localisation reviews of a GitHub commit or pull request.
+  github_repository_commit_review: "review_and_qa",
+  github_pull_request_review: "review_and_qa",
+  // Reading the text in an image or a video frame: a call with tokens, not an image made.
+  image_text_extraction: "images_and_video",
 };
 
 /**
- * The origin of a billing row. `source` is the row's parent's source when it has a parent, else
- * its own; `agentRunKind` is set for agent runs on tasks from a connected TMS.
+ * A rule placing a source: the whole name, or a name's start, tried in order. go-svc keeps its own
+ * copy (`reporting-ai.go`), which places the calls; here it only names the area of a source that
+ * has no label of its own, so a new source goes in both.
  */
-export function aiOrigin(source: string, agentRunKind?: string | null): AiOrigin {
-  if (MEDIA_SOURCES.has(source)) return "images_and_video";
-  if (source === "agent_run_create") return ORIGIN_BY_AGENT_RUN_KIND[agentRunKind ?? ""] ?? "other";
-  if (ORIGIN_BY_SOURCE[source]) return ORIGIN_BY_SOURCE[source];
+type SourceRule<T> = { exact: string; result: T } | { prefix: string; result: T };
+
+/** The origin of a source other than a connected TMS's agent run, after the media sources. */
+const ORIGIN_RULES: SourceRule<AiOrigin>[] = [
+  ...Object.entries(ORIGIN_BY_SOURCE).map(([exact, result]) => ({ exact, result })),
   // Workspace automations and their agents: `workspace_orchestrator`, `workspace_*_agent`.
-  if (source.startsWith("workspace_")) return "running_automations";
-  return "other";
+  { prefix: "workspace_", result: "running_automations" },
+];
+
+function ruleFor<T>(rules: SourceRule<T>[], source: string): T | undefined {
+  return rules.find((rule) =>
+    "exact" in rule ? rule.exact === source : source.startsWith(rule.prefix),
+  )?.result;
 }
 
-/** How a call reached us: the app unless its source or task says otherwise. */
-export function aiChannel(source: string, viaApiKey: boolean): AiChannel {
-  if (source.startsWith("slack_")) return "slack";
-  if (source.startsWith("email_")) return "email";
-  if (source.startsWith("contentful_")) return "contentful";
-  if (source === "web_chat_agent_turn") return "web_chat";
-  if (source === "agent_run_create") return "connected_tms";
-  if (source.startsWith("workspace_github_")) return "github";
-  if (source.startsWith("workspace_gitlab_")) return "gitlab";
-  if (
-    source.startsWith("workspace_") ||
-    source === "repository_agent_workflow" ||
-    source === "visual_workflow_ai_step"
-  )
-    return "automation";
-  return viaApiKey ? "api" : "app";
+/** The area of a billing row's source, or of its parent's when it has a parent. */
+export function aiOrigin(source: string): AiOrigin {
+  if (MEDIA_SOURCES.has(source)) return "images_and_video";
+  return ruleFor(ORIGIN_RULES, source) ?? "other";
 }

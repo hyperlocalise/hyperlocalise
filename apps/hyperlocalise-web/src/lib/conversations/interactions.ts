@@ -19,12 +19,19 @@ import {
 } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
+import { updateJobs } from "@/lib/job-change-events/job-writes";
 
 const sourceFileIdPattern = /\bsourceFileId=/;
 
 type CreateInteractionInput = {
   organizationId: string;
-  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent" | "web_chat";
+  source:
+    | "chat_ui"
+    | "email_agent"
+    | "github_agent"
+    | "slack_agent"
+    | "web_chat"
+    | "workflow_approval";
   title: string;
   projectId?: string;
   sourceThreadId?: string;
@@ -168,12 +175,13 @@ export async function linkJobToInteraction(input: {
     return;
   }
 
-  await db
-    .update(schema.jobs)
-    .set({ interactionId: input.interactionId })
-    .where(
-      and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
-    );
+  await updateJobs(db, {
+    set: { interactionId: input.interactionId },
+    where: and(
+      eq(schema.jobs.id, input.jobId),
+      eq(schema.jobs.organizationId, input.organizationId),
+    ),
+  });
 }
 
 export async function findInteractionBySourceThreadId(input: {

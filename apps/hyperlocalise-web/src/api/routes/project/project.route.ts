@@ -31,6 +31,7 @@ import {
 } from "@/api/response.schema";
 import { createProjectKnowledgeMemoryRoutes } from "@/api/routes/knowledge-memory/project-knowledge-memory.route";
 import { createProjectQaReportScanRoutes } from "@/api/routes/project/qa-report-scan.route";
+import { createProjectContentSyncRoutes } from "@/api/routes/project/project-content-sync.route";
 import {
   deleteProjectWithTeamGlossaryGuard,
   glossaryTeamProjectRequiredResponse,
@@ -77,6 +78,13 @@ import {
   isContentEditorAllFilesSourcePath,
   parseCatSourcePathsFilter,
 } from "@/lib/projects/content-editor-all-files";
+import { importCatBilingualRows } from "@/lib/projects/content-editor/content-editor-bilingual-import-apply";
+import {
+  inferCatBilingualFormat,
+  maxCatFilteredExportSegments,
+} from "@/lib/projects/content-editor/content-editor-filtered-export";
+import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 
 import {
   countTmsProviderLiveOpenJobsForProject,
@@ -140,9 +148,13 @@ import {
   updateRepositorySourceFileSegmentation,
 } from "@/lib/projects/files/source-file-segmentation";
 import {
-  getRepositorySourceFileMessageFormat,
-  updateRepositorySourceFileMessageFormat,
+  getRepositorySourceFilePlaceholderSettings,
+  updateRepositorySourceFilePlaceholderSettings,
 } from "@/lib/projects/files/source-file-message-format";
+import {
+  getRepositorySourceFileImportSettings,
+  updateRepositorySourceFileImportSettings,
+} from "@/lib/projects/files/source-file-import-settings";
 import { localizeAndStoreDocumentVariant } from "@/lib/projects/files/document-variant-service";
 import {
   localizeAndStoreImageVariant,
@@ -170,6 +182,12 @@ import {
 } from "@/lib/projects/files/video-url-translation-service";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import { loadProjectSubtitleTranslationDownload } from "@/lib/projects/files/subtitle-translation-download";
+import { loadProjectHtmlTranslationDownload } from "@/lib/projects/files/html-translation-download";
+import { loadProjectSourceFormatTranslationDownload } from "@/lib/projects/files/source-format-translation-download";
+import {
+  TRANSLATION_DOWNLOAD_FALLBACK_HEADER,
+  TRANSLATION_DOWNLOAD_JSON_FALLBACK,
+} from "@/lib/projects/files/translation-download-fallback";
 import {
   loadProjectOfficeTranslationDownload,
   officeTranslationDownloadFailure,
@@ -196,6 +214,7 @@ import type {
   JobQueue,
   TranslationFileImportQueue,
   TranslationJobEventData,
+  ProjectContentSyncQueue,
   TranslationQaScanQueue,
 } from "@/lib/workflow/types";
 import {
@@ -234,6 +253,8 @@ import {
   updateProjectFileSegmentationBodySchema,
   projectFileMessageFormatQuerySchema,
   updateProjectFileMessageFormatBodySchema,
+  projectFileImportSettingsQuerySchema,
+  updateProjectFileImportSettingsBodySchema,
   projectFileStringContextBodySchema,
   projectFileUploadBodySchema,
   projectFileTranslationImportBodySchema,
@@ -708,6 +729,26 @@ const validateUpdateProjectFileMessageFormatBody = validator("json", (value, c) 
   return parsed.data;
 });
 
+const validateProjectFileImportSettingsQuery = validator("query", (value, c) => {
+  const parsed = projectFileImportSettingsQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateUpdateProjectFileImportSettingsBody = validator("json", (value, c) => {
+  const parsed = updateProjectFileImportSettingsBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validateProjectFileContentEditorSegmentParams = validator("param", (value, c) => {
   const parsed = projectFileCatSegmentParamsSchema.safeParse(value);
 
@@ -1054,6 +1095,7 @@ type CreateProjectRoutesOptions = {
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
   translationQaScanQueue?: TranslationQaScanQueue;
+  projectContentSyncQueue?: ProjectContentSyncQueue;
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
 };
 
@@ -1299,6 +1341,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     .route("/:projectId/issue-sheet", createIssueSheetRoutes())
     .route("/:projectId/knowledge-memory", createProjectKnowledgeMemoryRoutes())
     .route("/:projectId/qa-reports", createProjectQaReportScanRoutes({ translationQaScanQueue }))
+    .route(
+      "/:projectId/content-sync",
+      createProjectContentSyncRoutes({ projectContentSyncQueue: options.projectContentSyncQueue }),
+    )
     .route(
       "/:projectId/assets",
       createProjectAssetRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
@@ -3723,16 +3769,22 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
-        const messageFormat = await getRepositorySourceFileMessageFormat({
+        const settings = await getRepositorySourceFilePlaceholderSettings({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: query.sourcePath,
         });
-        if (!messageFormat) {
+        if (!settings) {
           return notFoundResponse(c, "source_file_not_found");
         }
 
-        return c.json({ messageFormat }, 200);
+        return c.json(
+          {
+            messageFormat: settings.messageFormat,
+            placeholderPatterns: settings.placeholderPatterns,
+          },
+          200,
+        );
       },
     )
     .patch(
@@ -3760,17 +3812,108 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
-        const messageFormat = await updateRepositorySourceFileMessageFormat({
+        const settings = await updateRepositorySourceFilePlaceholderSettings({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
           sourcePath: body.sourcePath,
           messageFormat: body.messageFormat,
+          placeholderPatterns: body.placeholderPatterns,
         });
-        if (!messageFormat) {
+        if (!settings) {
           return notFoundResponse(c, "source_file_not_found");
         }
 
-        return c.json({ messageFormat }, 200);
+        return c.json(
+          {
+            messageFormat: settings.messageFormat,
+            placeholderPatterns: settings.placeholderPatterns,
+          },
+          200,
+        );
+      },
+    )
+    .get(
+      "/:projectId/files/import-settings",
+      validateProjectParams,
+      validateProjectFileImportSettingsQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind !== "native") {
+          return badRequestResponse(
+            c,
+            "import_settings_not_supported",
+            "Import settings apply to native workspace files only.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const record = await getRepositorySourceFileImportSettings({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+        });
+        if (!record) {
+          return notFoundResponse(c, "source_file_not_found");
+        }
+
+        return c.json(
+          {
+            importSettings: record.importSettings,
+            kind: record.kind,
+          },
+          200,
+        );
+      },
+    )
+    .patch(
+      "/:projectId/files/import-settings",
+      validateProjectParams,
+      validateUpdateProjectFileImportSettingsBody,
+      async (c) => {
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind !== "native") {
+          return badRequestResponse(
+            c,
+            "import_settings_not_supported",
+            "Import settings apply to native workspace files only.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const result = await updateRepositorySourceFileImportSettings({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: body.sourcePath,
+          settings: body.importSettings,
+        });
+        if (!result.ok) {
+          return notFoundResponse(c, result.error);
+        }
+
+        return c.json(
+          {
+            importSettings: result.importSettings,
+            kind: result.kind,
+            reingest: result.reingest,
+          },
+          200,
+        );
       },
     )
     .post(
@@ -3986,6 +4129,26 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             fileStorageAdapter: options.fileStorageAdapter,
           });
           if (!fileVariant) {
+            const htmlDownload = await loadProjectHtmlTranslationDownload({
+              organizationId,
+              projectId: params.projectId,
+              sourcePath: query.sourcePath,
+              targetLocale: query.locale,
+            });
+            if (isErr(htmlDownload)) {
+              if (htmlDownload.error.code === "source_content_not_found") {
+                return notFoundResponse(c, "source_file_not_found", "Source file not found");
+              }
+              return internalErrorResponse(c, htmlDownload.error.code, htmlDownload.error.message);
+            }
+            if (htmlDownload.value) {
+              return c.body(new Uint8Array(htmlDownload.value.content), 200, {
+                "Content-Type": htmlDownload.value.contentType,
+                "Content-Disposition": contentDisposition,
+                "X-Content-Type-Options": "nosniff",
+                "Cache-Control": "no-store",
+              });
+            }
             return notFoundResponse(
               c,
               "file_variant_not_found",
@@ -4006,6 +4169,31 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             "Cache-Control": "no-store",
           });
         }
+
+        const sourceFormatDownload = await loadProjectSourceFormatTranslationDownload({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+          targetLocale: query.locale,
+          fileStorageAdapter: options.fileStorageAdapter,
+        });
+        if (sourceFormatDownload?.kind === "file") {
+          // A filled-in gettext template is a catalog, so it downloads as .po.
+          const sourceFormatFilename = filename.replace(/\.pot$/i, ".po");
+          return c.body(new Uint8Array(sourceFormatDownload.content), 200, {
+            "Content-Type": sourceFormatDownload.contentType,
+            "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(sourceFormatFilename)}`,
+            "Content-Security-Policy": "default-src 'none'; sandbox;",
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+          });
+        }
+        // A file that could not be written in its own format downloads as JSON, named and
+        // marked so.
+        const jsonFallback = sourceFormatDownload?.kind === "json";
+        const jsonContentDisposition = jsonFallback
+          ? `attachment; filename*=UTF-8''${encodeURIComponent(`${suffix}.json`)}`
+          : contentDisposition;
 
         const result = await loadProjectTranslationsAsPrefilledEntries({
           organizationId,
@@ -4052,6 +4240,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           projectId: params.projectId,
           sourcePath: query.sourcePath,
           prefilled: result.prefilled,
+          fileStorageAdapter: options.fileStorageAdapter,
         });
         if (isErr(subtitleDownload)) {
           return internalErrorResponse(
@@ -4071,7 +4260,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
         return c.body(content, 200, {
           "Content-Type": "application/json; charset=utf-8",
-          "Content-Disposition": contentDisposition,
+          "Content-Disposition": jsonContentDisposition,
+          ...(jsonFallback
+            ? { [TRANSLATION_DOWNLOAD_FALLBACK_HEADER]: TRANSLATION_DOWNLOAD_JSON_FALLBACK }
+            : {}),
         });
       },
     )
@@ -4232,6 +4424,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           sourceHash: asString(body.sourceHash),
           commitSha: asString(body.commitSha),
           workflowRunId: asString(body.workflowRunId),
+          keepApproved: asString(body.keepApproved),
         });
 
         if (!parsed.success) {
@@ -4280,6 +4473,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               workflowRunId: parsed.data.workflowRunId,
               uploadedByUserId: c.var.auth.user.localUserId,
               uploadSurface: "files_page",
+              keepApprovedTranslations: parsed.data.keepApproved === "true",
               db: tx,
             });
 
@@ -4450,6 +4644,137 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           },
           200,
         );
+      },
+    )
+    .post(
+      "/:projectId/files/bilingual/import",
+      validateProjectParams,
+      bodyLimit({
+        maxSize: maxProjectFileUploadBytes,
+        onError: (c) => badRequestResponse(c, "file_upload_too_large", "File upload is too large"),
+      }),
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_import_unsupported",
+            "Bilingual imports are only available for workspace files.",
+          );
+        }
+
+        const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const body = await c.req.parseBody({ all: true });
+        const parsed = projectFileTranslationImportBodySchema.safeParse({
+          sourcePath: asString(body.sourcePath),
+          locale: asString(body.locale),
+        });
+        if (!parsed.success) {
+          return invalidProjectPayloadResponse(c);
+        }
+
+        const file = asFile(body.file);
+        if (!file) {
+          return invalidProjectPayloadResponse(c);
+        }
+
+        if (!project.targetLocales.includes(parsed.data.locale)) {
+          return badRequestResponse(
+            c,
+            "invalid_target_locale",
+            "Locale is not a target locale of this project.",
+          );
+        }
+
+        const isAllFiles = isContentEditorAllFilesSourcePath(parsed.data.sourcePath);
+        if (!isAllFiles) {
+          const sourceFile = await getRepositorySourceFileByPath({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: parsed.data.sourcePath,
+          });
+          if (!sourceFile) {
+            return notFoundResponse(c, "source_file_not_found", "Source file not found");
+          }
+        }
+
+        const format = inferCatBilingualFormat(file.name);
+        if (!format) {
+          return badRequestResponse(
+            c,
+            "unsupported_bilingual_format",
+            "Upload a CSV, TMX, XLF, XLIFF, or XLSX file exported from the Content Editor.",
+          );
+        }
+
+        const fileBytes = new Uint8Array(await file.arrayBuffer());
+        let rows;
+        try {
+          const parsedFile = await createGoSvcServerClient().editorExport.parseFiltered({
+            format,
+            filename: file.name,
+            body: fileBytes,
+          });
+          rows = parsedFile.rows;
+        } catch (error) {
+          if (error instanceof GoSvcClientError && error.status === 400) {
+            return badRequestResponse(
+              c,
+              "invalid_bilingual_file",
+              error.message || "The bilingual file could not be parsed.",
+            );
+          }
+          return serviceUnavailableResponse(
+            c,
+            "bilingual_parse_unavailable",
+            "The bilingual import service is unavailable.",
+          );
+        }
+
+        if (rows.length === 0) {
+          return badRequestResponse(
+            c,
+            "empty_bilingual_file",
+            "The bilingual file does not contain any strings.",
+          );
+        }
+        if (rows.length > maxCatFilteredExportSegments) {
+          return badRequestResponse(
+            c,
+            "too_many_bilingual_rows",
+            "The bilingual file has more than 5,000 strings.",
+          );
+        }
+
+        try {
+          const result = await importCatBilingualRows({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: parsed.data.sourcePath,
+            targetLocale: parsed.data.locale,
+            rows,
+            actorUserId: c.var.auth.user.localUserId,
+          });
+          return c.json({ import: result }, 200);
+        } catch (error) {
+          const message =
+            error instanceof Error && error.message === "too many rows"
+              ? "The bilingual file has more than 5,000 strings."
+              : "Failed to import bilingual translations.";
+          return badRequestResponse(c, "bilingual_import_failed", message);
+        }
       },
     )
     .get("/:projectId/locale-progress", validateProjectParams, async (c) => {

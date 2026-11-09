@@ -67,6 +67,26 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       deliveryId: "delivery_mock",
     },
   },
+  "trigger.job_changed": {
+    ...trigger,
+    outputs: [
+      ...trigger.outputs,
+      ...["eventId", "eventType", "jobId", "jobKind", "status"].map((name) => output(name)),
+      ...["projectId", "previousStatus", "assigneeType"].map((name) =>
+        output(name, "string", true),
+      ),
+    ],
+    mock: {
+      eventId: "00000000-0000-4000-8000-000000000000",
+      eventType: "job.status_changed",
+      jobId: "job_mock",
+      jobKind: "translation",
+      status: "succeeded",
+      previousStatus: "running",
+      projectId: "proj_mock",
+      assigneeType: "agent",
+    },
+  },
   "action.http": {
     inputs: [field("url"), field("body", "unknown", false)],
     outputs: [
@@ -86,6 +106,10 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       field("projectFolder"),
     ],
     outputs: [output("pulled", "object"), output("pushed", "object")],
+    // The fields every provider returns; GitLab adds `unmatched`, `translationFiles`,
+    // `commitSha` and per-file `files` with `clashes` and `missingKeys` to `pulled`, and
+    // `sourceWritten`, `heldBack`, `listsHeldBack`, `unsupported`, `unreadable`, `conflicts`,
+    // `pullRequestUrl` and `error` to `pushed`.
     mock: {
       pulled: { uploaded: 1, skipped: 0, failed: 0 },
       pushed: { written: 1 },
@@ -191,6 +215,92 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       sourceFileIds: ["file_mock_1", "file_mock_2"],
       count: 2,
       truncated: false,
+    },
+  },
+  "action.file_read": {
+    inputs: [field("fileId"), field("encoding")],
+    outputs: [
+      output("fileId", "string", true),
+      output("content", "string", true),
+      output("filename", "string", true),
+      output("contentType", "string", true),
+      output("byteSize", "number", true),
+      output("sha256", "string", true),
+      output("encoding", "string", true),
+      output("locale", "string", true),
+      output("metadata", "object", true),
+      output("error", "object", true),
+    ],
+    mock: {
+      fileId: "file_mock_source",
+      content: '{"greeting":"Hello"}',
+      filename: "messages.json",
+      contentType: "application/json",
+      byteSize: 20,
+      sha256: "mock-sha256",
+      encoding: "utf-8",
+      metadata: {},
+    },
+  },
+  "action.file_write": {
+    inputs: [
+      field("content"),
+      field("filename"),
+      field("contentType"),
+      field("encoding"),
+      field("locale", "string", false),
+      field("sourceFileId", "string", false),
+    ],
+    outputs: [
+      output("fileId", "string", true),
+      output("filename", "string", true),
+      output("contentType", "string", true),
+      output("byteSize", "number", true),
+      output("sha256", "string", true),
+      output("encoding", "string", true),
+      output("locale", "string", true),
+      output("sourceFileId", "string", true),
+      output("error", "object", true),
+    ],
+    mock: {
+      fileId: "file_mock_output",
+      filename: "output.json",
+      contentType: "application/json",
+      byteSize: 20,
+      sha256: "mock-sha256",
+      encoding: "utf-8",
+    },
+  },
+  "action.file_convert": {
+    inputs: [
+      field("fileId"),
+      field("targetFormat"),
+      field("filename", "string", false),
+      field("locale", "string", false),
+    ],
+    outputs: [
+      output("fileId", "string", true),
+      output("filename", "string", true),
+      output("contentType", "string", true),
+      output("byteSize", "number", true),
+      output("sha256", "string", true),
+      output("encoding", "string", true),
+      output("locale", "string", true),
+      output("sourceFileId", "string", true),
+      output("sourceFormat", "string", true),
+      output("targetFormat", "string", true),
+      output("error", "object", true),
+    ],
+    mock: {
+      fileId: "file_mock_converted",
+      filename: "messages.yaml",
+      contentType: "application/yaml",
+      byteSize: 18,
+      sha256: "mock-sha256",
+      encoding: "utf-8",
+      sourceFileId: "file_mock_source",
+      sourceFormat: "json",
+      targetFormat: "yaml",
     },
   },
   "action.update_job": {
@@ -340,6 +450,25 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     outputs: [output("result", "boolean")],
     mock: { result: true },
   },
+  "logic.json_parse": {
+    inputs: [field("text", "string")],
+    outputs: [output("value", "unknown", true), output("error", "object", true)],
+    mock: { value: null },
+  },
+  "logic.json_stringify": {
+    inputs: [field("value", "unknown")],
+    outputs: [output("text", "string", true), output("error", "object", true)],
+    mock: { text: "null" },
+  },
+  "logic.schema_validate": {
+    inputs: [field("value", "unknown"), field("schema", "object")],
+    outputs: [
+      output("value", "unknown"),
+      output("valid", "boolean"),
+      output("errors", "array", true),
+    ],
+    mock: { value: null, valid: true, errors: [] },
+  },
   "logic.for_each": {
     inputs: [field("collection", "array")],
     outputs: [
@@ -347,6 +476,19 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       output("index", "number"),
       output("count", "number"),
       output("iterationOutputs", "array"),
+    ],
+    mock: {},
+  },
+  "logic.array_transform": {
+    inputs: [field("collection", "array"), field("initialValue", "unknown", false)],
+    outputs: [
+      output("item", "unknown"),
+      output("index", "number"),
+      output("count", "number"),
+      output("accumulator", "unknown", true),
+      output("items", "array", true),
+      output("value", "unknown", true),
+      output("found", "boolean", true),
     ],
     mock: {},
   },
@@ -363,6 +505,27 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       output("lastErrorMessage", "string", true),
     ],
     mock: { attemptNumber: 1, exhausted: false },
+  },
+  "flow.human_approval": {
+    inputs: [
+      field("reviewerId"),
+      field("prompt"),
+      field("artifactReference", "string", false),
+      field("jobReference", "string", false),
+      field("deadline"),
+    ],
+    outputs: [
+      output("reviewerId"),
+      output("decision"),
+      output("commentReference", "string", true),
+      output("decidedAt"),
+    ],
+    mock: {
+      reviewerId: "user_mock",
+      decision: "approved",
+      commentReference: "comment_mock",
+      decidedAt: "2026-01-01T00:00:00.000Z",
+    },
   },
   "flow.wait": {
     inputs: [
@@ -485,8 +648,35 @@ function isAvailableCoalesceValue(
   return true;
 }
 
+function arrayTransformOutputFields(
+  config: Extract<CanonicalVisualWorkflowNode["config"], { kind: "logic.array_transform" }>,
+): WorkflowOutputField[] {
+  const contextFields: WorkflowOutputField[] = [
+    output("item", config.itemType),
+    output("index", "number"),
+    output("count", "number"),
+  ];
+  switch (config.operation) {
+    case "filter":
+    case "map":
+      return [...contextFields, output("items", "array")];
+    case "reduce":
+      return [
+        ...contextFields,
+        output("accumulator", config.resultType),
+        output("value", config.resultType),
+      ];
+    case "find":
+      return [...contextFields, output("value", config.itemType, true), output("found", "boolean")];
+  }
+}
+
 export function getWorkflowOutputFields(node: CanonicalVisualWorkflowNode): WorkflowOutputField[] {
   const fields = new Map(NODE_CONTRACTS[node.type].outputs.map((field) => [field.path, field]));
+  if (node.config.kind === "logic.array_transform") {
+    fields.clear();
+    for (const field of arrayTransformOutputFields(node.config)) fields.set(field.path, field);
+  }
   if (node.config.kind === "logic.select_path") {
     const outputType =
       node.config.outputType === "unknown"
@@ -594,6 +784,15 @@ export function getWorkflowInputFields(node: CanonicalVisualWorkflowNode): Workf
       type: inputField.type,
       required: inputField.required !== false,
     }));
+  }
+
+  if (node.config.kind === "logic.array_transform") {
+    return [
+      field("collection", "array"),
+      ...(node.config.operation === "reduce"
+        ? [field("initialValue", node.config.resultType)]
+        : []),
+    ];
   }
 
   return NODE_CONTRACTS[node.type].inputs;

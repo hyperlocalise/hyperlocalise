@@ -19,6 +19,7 @@ import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileContentEditorQueueFile } from "@/api/routes/project/project.schema";
 import type { ContentEditorSegmentFileIdentityLookupRef } from "@/components/content-editor/project-file/use-content-editor-mutations";
+import type { CatBilingualImportCounts } from "@/lib/projects/content-editor/content-editor-bilingual-import";
 import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
 import {
   AlertDialog,
@@ -121,6 +122,8 @@ export interface ContentEditorWorkspaceContainerProps {
   nativeIssuesEnabled?: boolean;
   onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
   isDownloadingFilteredView?: boolean;
+  onImportBilingualFile?: (file: File) => Promise<CatBilingualImportCounts>;
+  isImportingBilingualFile?: boolean;
   /** Stable identity for the open file/locale. Changing this resets workspace data only. */
   fileScopeKey?: string;
   /**
@@ -177,6 +180,8 @@ const ContentEditorWorkspaceContainerObserver = observer(
     nativeIssuesEnabled = false,
     onDownloadFilteredView,
     isDownloadingFilteredView = false,
+    onImportBilingualFile,
+    isImportingBilingualFile = false,
     fileScopeKey,
     adaptiveWorkspaceEnabled = false,
   }: ContentEditorWorkspaceContainerProps & { store: ContentEditorWorkspaceOrchestrator }) {
@@ -345,6 +350,8 @@ const ContentEditorWorkspaceContainerObserver = observer(
             }
             onDownloadFilteredView={onDownloadFilteredView}
             isDownloadingFilteredView={isDownloadingFilteredView}
+            onImportBilingualFile={onImportBilingualFile}
+            isImportingBilingualFile={isImportingBilingualFile}
             adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
           />
         </ContentEditorPanelErrorBoundary>

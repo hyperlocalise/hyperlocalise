@@ -54,6 +54,7 @@ import {
 import { getVideoVariant, projectVideoAssetPath } from "@/lib/projects/files/video-variant-service";
 import { requeueKeylessOfficeSourceIngest } from "@/lib/projects/files/office-legacy-reingest";
 import { projectOfficeTranslationDownloadPath } from "@/lib/projects/files/office-translation-download";
+import { projectHtmlTranslationDownloadPath } from "@/lib/projects/files/html-translation-download";
 import {
   VIDEO_URL_CONTENT_KIND,
   isVideoUrlContentKind,
@@ -66,6 +67,10 @@ import {
   writeProjectTranslations,
   type TranslationRevisionActor,
 } from "@/lib/projects/translations/project-translation-revisions";
+import {
+  nextTranslationOrigin,
+  translationOriginWriterForProvenance,
+} from "@/lib/projects/translations/translation-origin-rule";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 import {
   inferSupportedDocumentTranslationFileFormat,
@@ -322,16 +327,28 @@ export class NativeContentEditorService extends ProjectServiceBase {
     }
 
     const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
+    const isHtml = inferSupportedDocumentTranslationFileFormat(input.sourcePath) === "html";
     const isPdf = Boolean(inferSupportedPdfTranslationFileFormat(input.sourcePath));
     const loadKeyedFileDocumentView = async () =>
-      isDocument
-        ? publicDocumentView(await this.loadDocumentView({ input, sourceFileId: sourceFile.id }))
-        : isOffice || isPdf
-          ? await this.loadGeneratedTranslationFileDocumentView({
-              input,
-              sourceFileId: sourceFile.id,
-            })
-          : undefined;
+      isHtml
+        ? await this.loadGeneratedTranslationFileDocumentView({
+            input,
+            sourceFileId: sourceFile.id,
+            targetDownloadPath: projectHtmlTranslationDownloadPath({
+              organizationSlug: input.organizationSlug,
+              projectId: input.projectId,
+              sourcePath: input.sourcePath,
+              targetLocale: input.targetLocale,
+            }),
+          })
+        : isDocument
+          ? publicDocumentView(await this.loadDocumentView({ input, sourceFileId: sourceFile.id }))
+          : isOffice || isPdf
+            ? await this.loadGeneratedTranslationFileDocumentView({
+                input,
+                sourceFileId: sourceFile.id,
+              })
+            : undefined;
     const paginationInput = input.pagination ?? {
       offset: 0,
       limit: legacyNativeContentEditorSegmentLimit,
@@ -781,6 +798,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationSlug: string;
     };
     sourceFileId: string;
+    targetDownloadPath?: string;
   }): Promise<NonNullable<ProjectFileContentEditorQueueFile["documentView"]>> {
     const latestVersion = await getLatestRepositorySourceFileVersion({
       organizationId: input.input.organizationId,
@@ -798,12 +816,14 @@ export class NativeContentEditorService extends ProjectServiceBase {
             fileId: latestVersion.storedFileId,
           })
         : null,
-      targetAssetUrl: projectOfficeTranslationDownloadPath({
-        organizationSlug: input.input.organizationSlug,
-        projectId: input.input.projectId,
-        sourcePath: input.input.sourcePath,
-        targetLocale: input.input.targetLocale,
-      }),
+      targetAssetUrl:
+        input.targetDownloadPath ??
+        projectOfficeTranslationDownloadPath({
+          organizationSlug: input.input.organizationSlug,
+          projectId: input.input.projectId,
+          sourcePath: input.input.sourcePath,
+          targetLocale: input.input.targetLocale,
+        }),
       imageVariantId: null,
     };
   }
@@ -1157,6 +1177,11 @@ export class NativeContentEditorService extends ProjectServiceBase {
       async (tx, before) => {
         const [existing] = before.values();
         const sourceJobId = input.sourceJobId ?? existing?.sourceJobId ?? undefined;
+        const origin = nextTranslationOrigin(
+          existing,
+          translationOriginWriterForProvenance(provenance),
+          input.text,
+        );
         const [saved] = await tx
           .insert(schema.projectTranslations)
           .values({
@@ -1167,6 +1192,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
             text: input.text,
             status,
             provenance,
+            origin,
             sourceJobId: sourceJobId ?? null,
             reviewedByUserId,
             reviewedAt,
@@ -1180,6 +1206,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
               text: input.text,
               status,
               provenance,
+              origin,
               sourceJobId: sourceJobId ?? existing?.sourceJobId ?? null,
               reviewedByUserId,
               reviewedAt,

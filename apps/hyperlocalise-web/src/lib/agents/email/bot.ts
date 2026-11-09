@@ -24,6 +24,7 @@ import {
 } from "@/lib/billing/usage-control";
 import { ensureAiFeaturesAllowed, formatAiFeaturesRefusal } from "@/lib/billing/ai-features";
 import { db, schema } from "@/lib/database/client";
+import { insertJobs, updateJobs } from "@/lib/job-change-events/job-writes";
 import {
   enqueueJobCreatedActivity,
   enqueueJobFailedActivity,
@@ -118,17 +119,17 @@ async function createEmailTranslationJob(input: CreateEmailTranslationJobInput) 
   };
 
   const [job] = await db.transaction(async (tx) => {
-    const [createdJob] = await tx
-      .insert(schema.jobs)
-      .values({
+    const [createdJob] = await insertJobs(tx, {
+      values: {
         id: jobId,
         organizationId: input.organizationId,
         kind: "translation",
         status: "queued",
         inputPayload,
         interactionId: input.conversationId ?? null,
-      })
-      .returning();
+      },
+      returning: "all",
+    });
 
     await tx.insert(schema.translationJobDetails).values({
       jobId,
@@ -175,12 +176,13 @@ async function setEmailTranslationJobWorkflowRun(input: {
   jobId: string;
   workflowRunId: string | null;
 }) {
-  await db
-    .update(schema.jobs)
-    .set({ workflowRunId: input.workflowRunId })
-    .where(
-      and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
-    );
+  await updateJobs(db, {
+    set: { workflowRunId: input.workflowRunId },
+    where: and(
+      eq(schema.jobs.id, input.jobId),
+      eq(schema.jobs.organizationId, input.organizationId),
+    ),
+  });
 }
 
 async function failEmailTranslationJobBeforeRun(input: {
@@ -188,9 +190,8 @@ async function failEmailTranslationJobBeforeRun(input: {
   jobId: string;
   reason: string;
 }) {
-  await db
-    .update(schema.jobs)
-    .set({
+  await updateJobs(db, {
+    set: {
       status: "failed",
       lastError: input.reason,
       outcomePayload: {
@@ -198,10 +199,12 @@ async function failEmailTranslationJobBeforeRun(input: {
         message: input.reason,
       },
       completedAt: new Date(),
-    })
-    .where(
-      and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
-    );
+    },
+    where: and(
+      eq(schema.jobs.id, input.jobId),
+      eq(schema.jobs.organizationId, input.organizationId),
+    ),
+  });
 
   await enqueueJobFailedActivity({
     actorCredentialId: null,

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/translationorigin"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -22,6 +23,8 @@ type editorCatTranslation struct {
 	TargetAssetURL        *string `json:"targetAssetUrl,omitempty"`
 	ImageVariantID        *string `json:"imageVariantId,omitempty"`
 	Status                string  `json:"status,omitempty"`
+	// Origin says whether a machine or a person wrote Text (translationorigin values).
+	Origin string `json:"origin,omitempty"`
 }
 
 type editorCatComment struct {
@@ -119,11 +122,11 @@ func (api *editorCatAPI) loadTextTarget(r *http.Request, actor editorCatActor, p
 	if err != nil {
 		return nil, err
 	}
-	var id, text, status, revision string
+	var id, text, status, revision, origin string
 	err = api.pool.QueryRow(r.Context(), `
-        select id, text, status, xmin::text from project_translations
+        select id, text, status, xmin::text, origin::text from project_translations
         where organization_id=$1 and project_id=$2 and translation_key_id=$3 and target_locale=$4
-        limit 1`, actor.organizationID, project.ID, keyID, targetLocale).Scan(&id, &text, &status, &revision)
+        limit 1`, actor.organizationID, project.ID, keyID, targetLocale).Scan(&id, &text, &status, &revision, &origin)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -136,6 +139,7 @@ func (api *editorCatAPI) loadTextTarget(r *http.Request, actor editorCatActor, p
 		IsApproved:            status == "approved",
 		Status:                status,
 		Revision:              &revision,
+		Origin:                origin,
 	}, nil
 }
 
@@ -352,14 +356,15 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		}
 		var occurrenceSourceText, occurrencePath, occurrenceMessageFormat string
 		var occurrenceMaxLength *int
+		var occurrencePlaceholderPatterns []string
 		err = tx.QueryRow(r.Context(), `
-            select k.source_text, coalesce(f.source_path, $4), k.max_length, coalesce(f.message_format, 'auto')
+            select k.source_text, coalesce(f.source_path, $4), k.max_length, coalesce(f.message_format, 'auto'), f.placeholder_patterns
             from project_translation_keys k
             left join repository_source_files f on f.id=k.repository_source_file_id
                 and f.organization_id=k.organization_id and f.project_id=k.project_id
             where k.organization_id=$1 and k.project_id=$2 and k.id=$3`,
 			actor.organizationID, project.ID, occurrenceID, sourcePath,
-		).Scan(&occurrenceSourceText, &occurrencePath, &occurrenceMaxLength, &occurrenceMessageFormat)
+		).Scan(&occurrenceSourceText, &occurrencePath, &occurrenceMaxLength, &occurrenceMessageFormat, &occurrencePlaceholderPatterns)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -371,6 +376,8 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 				targetLocale:  targetLocale,
 				maxLength:     occurrenceMaxLength,
 				messageFormat: occurrenceMessageFormat,
+
+				placeholderPatterns: occurrencePlaceholderPatterns,
 			}); err != nil {
 				return nil, 0, err
 			}
@@ -390,11 +397,13 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
                 insert into project_translations (
                     organization_id, project_id, translation_key_id, target_locale, text, status, provenance,
                     reviewed_by_user_id, reviewed_at
-                ) values ($1,$2,$3,$4,$5,$6,'manual',$7,$8)
+                    , origin
+                ) values ($1,$2,$3,$4,$5,$6,'manual',$7,$8,$10::text::project_translation_origin)
                 on conflict (translation_key_id, target_locale) do update set
                     text=excluded.text,
                     status=excluded.status,
                     provenance=excluded.provenance,
+                    origin=excluded.origin,
                     reviewed_by_user_id=excluded.reviewed_by_user_id,
                     reviewed_at=excluded.reviewed_at,
                     updated_at=now()
@@ -405,6 +414,7 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
             join project_translation_keys k on k.id=$3
             left join repository_source_files f on f.id=k.repository_source_file_id`,
 			actor.organizationID, project.ID, occurrenceID, targetLocale, body.Text, status, reviewedBy, reviewedAt, sourcePath,
+			translationorigin.Next(before.originPrevious(), translationorigin.WriterPerson, body.Text),
 		).Scan(&id, &text, &savedStatus, &afterRevision, &occurrencePath)
 		if err != nil {
 			return nil, 0, err
@@ -689,7 +699,8 @@ func (api *editorCatAPI) setHidden(r *http.Request, actor editorCatActor, projec
 	if len(ids) == 0 {
 		return nil, 0, editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
-	sql := `update project_translation_keys set is_hidden=$4, updated_at=now()
+	// A person's choice, so a repository sync no longer owns the hidden state.
+	sql := `update project_translation_keys set is_hidden=$4, hidden_by_sync_at=null, updated_at=now()
         where organization_id=$1 and project_id=$2 and id = any($3::uuid[])`
 	args := []any{actor.organizationID, project.ID, ids, body.IsHidden}
 	if !isEditorCatAllFiles(body.SourcePath) {

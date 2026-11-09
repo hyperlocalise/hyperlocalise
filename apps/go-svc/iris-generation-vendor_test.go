@@ -273,20 +273,107 @@ func TestFalInputOmitsEmptyPrompt(t *testing.T) {
 
 func TestNewIrisGenerationProviderReadsEnv(t *testing.T) {
 	t.Setenv("AI_GATEWAY_API_KEY", "")
+	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("ELEVENLABS_API_KEY", "")
 	t.Setenv("FAL_KEY", "")
 	empty, ok := newIrisGenerationProvider().(*irisCompositeProvider)
 	require.True(t, ok)
 	require.Nil(t, empty.gateway)
+	require.Nil(t, empty.openai)
 	require.Nil(t, empty.elevenlabs)
 	require.Nil(t, empty.fal)
+	_, err := empty.Generate(t.Context(), irisProviderRequest{
+		Model: irisModelInfo{ID: "image-text", Kind: irisKindTool, Provider: irisProviderGateway, GatewayID: defaultGuidelineCheckModel},
+	})
+	require.ErrorContains(t, err, "generation provider is not configured")
+	require.ErrorContains(t, err, "OPENAI_API_KEY")
 
+	t.Setenv("OPENAI_API_KEY", "sk-test")
+	withOpenAI := newIrisGenerationProvider().(*irisCompositeProvider)
+	require.Nil(t, withOpenAI.gateway)
+	require.NotNil(t, withOpenAI.openai)
+	openai, ok := withOpenAI.openai.(*irisGatewayProvider)
+	require.True(t, ok)
+	require.Equal(t, defaultIrisOpenAIBaseURL, openai.baseURL)
+	require.Equal(t, "sk-test", openai.apiKey)
+
+	imageText, ok := irisModelByID("image-text")
+	require.True(t, ok)
+	require.True(t, irisModelUsesOpenAI(imageText))
+	imageLocalise, ok := irisModelByID("image-localise")
+	require.True(t, ok)
+	require.True(t, irisModelUsesOpenAI(imageLocalise))
+	nano, ok := irisModelByID("nano-banana-2.1")
+	require.True(t, ok)
+	require.False(t, irisModelUsesOpenAI(nano))
+	_, err = withOpenAI.Generate(t.Context(), irisProviderRequest{Model: nano})
+	require.ErrorContains(t, err, "requires AI_GATEWAY_API_KEY")
+	require.ErrorContains(t, err, "nano-banana-2.1")
+
+	t.Setenv("AI_GATEWAY_API_KEY", "gw-test")
+	withGateway := newIrisGenerationProvider().(*irisCompositeProvider)
+	require.NotNil(t, withGateway.gateway)
+	require.NotNil(t, withGateway.openai)
+	gateway, ok := withGateway.gateway.(*irisGatewayProvider)
+	require.True(t, ok)
+	require.Equal(t, defaultIrisGatewayBaseURL, gateway.baseURL)
+	require.Equal(t, "gw-test", gateway.apiKey)
+
+	t.Setenv("AI_GATEWAY_API_KEY", "")
+	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("ELEVENLABS_API_KEY", "xi")
 	provider := newIrisGenerationProvider()
 	composite, ok := provider.(*irisCompositeProvider)
 	require.True(t, ok)
 	require.NotNil(t, composite.elevenlabs)
 	require.Nil(t, composite.gateway)
+	require.Nil(t, composite.openai)
+}
+
+func TestImageLocaliseUsesOpenAIImageModelOnDirectOpenAI(t *testing.T) {
+	var gotModel, gotImageType string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/v1/images/edits", r.URL.Path)
+		require.NoError(t, r.ParseMultipartForm(1<<20))
+		gotModel = r.FormValue("model")
+		_, header, err := r.FormFile("image")
+		require.NoError(t, err)
+		gotImageType = header.Header.Get("Content-Type")
+		_, _ = w.Write([]byte(`{"data":[{"b64_json":"aGVsbG8="}]}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL: defaultIrisOpenAIBaseURL,
+		apiKey:  "sk",
+		httpClient: &http.Client{Transport: rewriteHostRoundTripper{
+			host: server.URL,
+			next: http.DefaultTransport,
+		}},
+	}
+	model, ok := irisModelByID("image-localise")
+	require.True(t, ok)
+	require.Equal(t, "google/gemini-3-pro-image", model.GatewayID)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model:  model,
+		Inputs: []irisProviderInput{{Role: "image", Bytes: []byte("png"), ContentType: "application/octet-stream"}},
+		Fields: irisGenerateRequest{"targetLocale": "fr-FR"},
+	})
+	require.NoError(t, err)
+	require.Len(t, outputs, 1)
+	require.Equal(t, "gpt-image-2.5-flare", gotModel)
+	require.Equal(t, "image/png", gotImageType)
+}
+
+func TestIrisImageFormMIME(t *testing.T) {
+	ct, ext := irisImageFormMIME(irisProviderInput{ContentType: "application/octet-stream", Bytes: []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}})
+	require.Equal(t, "image/png", ct)
+	require.Equal(t, "png", ext)
+	ct, ext = irisImageFormMIME(irisProviderInput{ContentType: "image/jpeg"})
+	require.Equal(t, "image/jpeg", ct)
+	require.Equal(t, "jpg", ext)
+	ct, ext = irisImageFormMIME(irisProviderInput{ContentType: "image/webp"})
+	require.Equal(t, "image/webp", ct)
+	require.Equal(t, "webp", ext)
 }
 
 func TestGenerateElevenLabsMusicUsesNativeClient(t *testing.T) {

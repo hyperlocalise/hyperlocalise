@@ -10,6 +10,9 @@ Connect the systems that hold your content or provide tools for your workflows. 
 | GitHub repositories and events | [Connect GitHub](/platform/connections/github) |
 | Intercom Help Center articles | [Localize Intercom Help Center articles](/platform/connections/intercom) |
 | Braze | [Localize Braze](/platform/connections/braze) (Email Templates or Campaigns & Canvas) |
+| HubSpot | [Localize HubSpot](/platform/connections/hubspot) (emails, forms, blog posts, landing pages, and website pages). Connect HubSpot from **Integrations**, then use **Translate HubSpot content**. |
+| Mailchimp | [Localize Mailchimp](/platform/connections/mailchimp) (regular campaigns; HTML user templates only). Connect Mailchimp from **Integrations**, then use **Translate Mailchimp content**. |
+| Iterable | [Localize Iterable](/platform/connections/iterable) (email, in-app, push, SMS, and snippets) |
 | Canva | [Localize Canva](/platform/connections/canva) |
 | Figma | [Localize Figma](/platform/connections/figma) |
 | Sanity (Studio inspector) | [Localize Sanity Studio documents](/platform/connections/sanity-studio-plugin) |
@@ -39,9 +42,22 @@ Hyperlocalise supports two Sanity workflows:
 
 ## GitLab
 
-An administrator can connect GitLab from **Integrations** through the authorization flow. Connected GitLab.com projects that you can clone with Reporter access or higher can be used as repository context in chat. Select a project or provide its project or merge-request URL.
+Connected GitLab projects can be used as repository context in chat: select a project or paste its project or merge-request address. **Use GitLab repo** in a manual or scheduled automation runs repository analysis. Syncing files with GitLab is described under [Sync content with a repository](/platform/automation/content-sync).
 
-Use **Use GitLab repo** in a manual or scheduled automation for repository analysis. Merge-request comment tools and GitLab content sync are not available in this workflow.
+### Connect GitLab for the workspace
+
+An admin or localization manager connects the workspace to GitLab under **Integrations → GitLab** → **Add connection**: give it a name, choose **GitLab.com** or **Your company's GitLab server** (with its `https` address), and enter an access token. Hyperlocalise checks the address and the token before saving, and checks each connection again whenever you open the row. Syncing files with GitLab needs a connection.
+
+- A workspace can hold several connections, each with its own token. Chat and automations use the **default** one; each project's **Sync** settings pick the connection to run with. Mark another connection as the default with **Use for chat and automations**.
+- Everyone in the workspace reaches whatever a connection's token can reach. GitLab has no per-project switch like GitHub's, so choose each token with care: on GitLab.com, a project or group access token, or a dedicated account that belongs only to the projects to sync; on your own server, a token from a non-admin user. Give the token's user or group the **Developer** role on the projects to sync: Reporter can only pull, and Guest can't read files at all. Give it the `api` scope to send merge requests; with `read_api` and `read_repository` only, syncs pull and each run says translations weren't sent. Set an expiry. When you open the row, each connection's line says whether its token can send or only pull, when it expires, and warns when it can read no projects. A connection used by a few projects can carry a token that reaches only their repositories; anyone who can change a project's settings can still pick any of the workspace's connections for its sync.
+- **Change** replaces a connection's name, address or token (the token is always entered again); project syncs that use it follow the change. **Remove** asks you to confirm and says how many project syncs use the connection; those syncs stop until they are given another connection in the project's Sync settings. Removing the default makes the oldest remaining connection the default; removing the last one sends chat and automations back to members' own GitLab.com sign-ins.
+- Paste links from the default connection's GitLab into chat; links from another GitLab server get a reply saying they aren't used.
+- Automations name a project by its path, so pointing the default connection at another server, or removing it, points them at the new default, or back at their authors' own GitLab.com sign-ins. Project syncs and visual workflow Content sync steps also remember the project's id and refuse to run when the path on the new connection names another project. When the default's server address changes, chats stop using projects from the old one.
+- A company server must be reachable from the internet. Fixed outgoing addresses for an allow-list aren't available yet.
+
+### Your own GitLab.com sign-in
+
+While the workspace has no GitLab connection, an admin or localization manager can sign in with their own GitLab.com account from the **GitLab.com sign-in** row below the GitLab row. It serves chat and the automations that person creates; it can't sync files. Once the workspace connects GitLab, the row stays only for people whose own sign-in is stored, marked as not in use, so they can remove it; their sign-ins come back into use if the workspace connection is removed.
 
 ## Intercom
 
@@ -50,6 +66,18 @@ Connect Intercom from **Integrations**, then create a scheduled or manual automa
 ## Braze
 
 Connect Braze from **Integrations** with a REST API key and REST cluster. Two workflows share that connection. Apply **Translate Braze Email Templates** or **Translate Braze Campaigns & Canvas** from Popular or Marketing. Do not attach both on one automation. Email Templates imports HTML and **Push to Braze** writes locale-suffixed library copies. Campaigns & Canvas imports tagged draft JSON maps and writes approved locales through the Translation API. Neither action publishes. See [Localize Braze](/platform/connections/braze).
+
+## HubSpot
+
+Emails, blog posts, and forms import into a native project and push back as unpublished locale copies. Hyperlocalise translates the copy. HubSpot does not. Emails clone into a locale draft. Forms become a new form named `{source} [{locale}]`. Add each blog language in HubSpot first (**Settings → Blog → Add/edit multi-language variations**). When that language is on the blog, push creates an unpublished post draft. Landing pages and website pages are temporarily unsupported. Connect HubSpot from **Integrations**, then add the **Translate HubSpot content** template. See [Localize HubSpot](/platform/connections/hubspot).
+
+## Mailchimp
+
+Regular campaigns import as HTML into a native project, including emails built with Mailchimp's drag-and-drop editor. Only **code-your-own HTML** user templates import; saved drag-and-drop template layouts do not (use campaigns for those emails). **Push to Mailchimp** writes draft copies named `{source} [{locale}]` and never sends or schedules. Connect Mailchimp from **Integrations** with OAuth, then add the **Translate Mailchimp content** template. Do not attach HubSpot or other marketing-email tools on the same automation. See [Localize Mailchimp](/platform/connections/mailchimp).
+
+## Iterable
+
+Connect Iterable with a server-side API key and US or EU data center in **Integrations**, then apply **Translate Iterable templates and snippets** from **Popular** or **Marketing**. Import pulls email, in-app, push, and SMS templates plus snippets into the project without changing Iterable. **Push to Iterable** writes approved locales only and never sends a campaign. See [Localize Iterable](/platform/connections/iterable).
 
 ## Other external services
 

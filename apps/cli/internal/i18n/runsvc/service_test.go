@@ -4533,6 +4533,29 @@ llm:
 	}
 }
 
+func TestPlanTasksSkipsEmptySourceText(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "en.json")
+	if err := os.WriteFile(sourcePath, []byte(`{"a":"one","b":"","c":"   "}`), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	targetPath := filepath.Join(dir, "fr.json")
+	cfg := testConfig(sourcePath, targetPath)
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+
+	tasks, _, err := svc.planTasks(&cfg, "", "", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("planTasks: %v", err)
+	}
+	if len(tasks) != 1 {
+		t.Fatalf("expected 1 task for the non-empty source, got %d: %+v", len(tasks), tasks)
+	}
+	if tasks[0].EntryKey != "a" {
+		t.Fatalf("entry key=%q, want a", tasks[0].EntryKey)
+	}
+}
+
 func TestPlanTasksFixTargetsFiltersTasks(t *testing.T) {
 	dir := t.TempDir()
 	sourcePath := filepath.Join(dir, "en.json")
@@ -6945,6 +6968,56 @@ func TestRunExperimentalContextMemoryIsSharedAcrossLocales(t *testing.T) {
 	}
 	if memoryMismatches != 0 {
 		t.Fatalf("expected shared locale-agnostic memory context, mismatches=%d", memoryMismatches)
+	}
+}
+
+func TestRunHTMLSkipsEntityOnlyCells(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "page.html")
+	targetPath := filepath.Join(dir, "fr.html")
+	template := []byte(`<table><tr><td>&nbsp;</td><td>Hello</td><td>&amp;</td></tr></table>`)
+	if err := os.WriteFile(sourcePath, template, 0o644); err != nil {
+		t.Fatalf("write html: %v", err)
+	}
+	cfg := testConfig(sourcePath, targetPath)
+	svc := newTestService()
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) { return &cfg, nil }
+	svc.readFile = func(path string) ([]byte, error) {
+		if path == sourcePath {
+			return os.ReadFile(sourcePath)
+		}
+		if path == targetPath {
+			return nil, os.ErrNotExist
+		}
+		return nil, filepath.ErrBadPattern
+	}
+	var translated []string
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		translated = append(translated, req.Source)
+		return "Bonjour", nil
+	}
+	svc.writeFile = func(path string, data []byte) error {
+		return os.WriteFile(path, data, 0o644)
+	}
+	svc.numCPU = func() int { return 1 }
+
+	report, err := svc.Run(context.Background(), Input{Workers: 1})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if report.Failed != 0 {
+		t.Fatalf("unexpected failures: %+v", report.Failures)
+	}
+	if len(translated) != 1 || translated[0] != "Hello" {
+		t.Fatalf("translated=%v, want [Hello]", translated)
+	}
+	out, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	got := string(out)
+	if !strings.Contains(got, "&nbsp;") || !strings.Contains(got, "Bonjour") || !strings.Contains(got, "&amp;") {
+		t.Fatalf("target=%q", got)
 	}
 }
 

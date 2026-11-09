@@ -84,6 +84,11 @@ export const contentEditorOverflowMenuMessages = defineMessages({
     id: "cx3+OxbAb3",
     description: "Overflow menu item that opens the filtered export dialog",
   },
+  importBilingualFile: {
+    defaultMessage: "Import bilingual file…",
+    id: "cxb+FsoLJb",
+    description: "Overflow menu item that opens the bilingual file re-import dialog",
+  },
   fileActivity: {
     defaultMessage: "File activity",
     id: "c2QYSQJf6k",
@@ -108,9 +113,10 @@ export const contentEditorBulkBarMessages = defineMessages({
     description: "Number of strings selected in the Content Editor bulk action bar",
   },
   selectAllVisible: {
-    defaultMessage: "Select all visible ({count})",
-    id: "I8eNE+aJdj",
-    description: "Bulk action bar button that selects every loaded string",
+    defaultMessage: "Select all loaded ({count})",
+    id: "2WT/yGH514",
+    description:
+      "Bulk action bar button that ticks every string loaded so far, including ones scrolled out of view; count is how many are loaded",
   },
   more: {
     defaultMessage: "More",
@@ -154,6 +160,69 @@ export const contentEditorExportDialogMessages = defineMessages({
     defaultMessage: "Download",
     id: "RcXQkSHSjo",
     description: "Starts the filtered export download",
+  },
+});
+
+export const contentEditorImportDialogMessages = defineMessages({
+  title: {
+    defaultMessage: "Import bilingual file",
+    id: "VzLClJsLg0",
+    description: "Title of the Content Editor bilingual import dialog",
+  },
+  description: {
+    defaultMessage:
+      "Re-import a CSV, TMX, XLF, XLIFF, or XLSX file exported from this queue to apply tag and translation fixes for {locale}. Matching keys are updated. Empty targets are skipped.",
+    id: "KrcMVcci8Z",
+    description:
+      "Description of the Content Editor bilingual import dialog. {locale} is the current target locale",
+  },
+  fileLabel: {
+    defaultMessage: "Bilingual file",
+    id: "EOTMIMF/c9",
+    description: "Label for the bilingual file picker in the import dialog",
+  },
+  chooseFile: {
+    defaultMessage: "Choose file",
+    id: "MyCHJKVL+S",
+    description: "Button that opens the bilingual file picker",
+  },
+  noFileSelected: {
+    defaultMessage: "No file selected",
+    id: "14fjm7KS5p",
+    description: "Placeholder when no bilingual file has been chosen",
+  },
+  cancel: {
+    defaultMessage: "Cancel",
+    id: "/846Cme9F7",
+    description: "Closes the bilingual import dialog without uploading",
+  },
+  import: {
+    defaultMessage: "Import",
+    id: "jPLbJdtewx",
+    description: "Starts the bilingual file import",
+  },
+  importFailed: {
+    defaultMessage: "Could not import the bilingual file.",
+    id: "57vdPa03Kj",
+    description: "Toast when bilingual import fails",
+  },
+  noneImported: {
+    defaultMessage: "No matching translations were imported.",
+    id: "R7DirRTdeG",
+    description: "Toast when bilingual import matches no keys",
+  },
+  importSuccess: {
+    defaultMessage:
+      "{imported, plural, one {Imported # translation.} other {Imported # translations.}}",
+    id: "h7ecP3kpVa",
+    description: "Toast after bilingual import. {imported} is the number of saved translations",
+  },
+  importSkipped: {
+    defaultMessage:
+      "{skipped, plural, one {Skipped # unmatched or empty row.} other {Skipped # unmatched or empty rows.}}",
+    id: "kzjEnGFmtM",
+    description:
+      "Follow-on toast text after bilingual import. {skipped} is unmatched or empty rows",
   },
 });
 

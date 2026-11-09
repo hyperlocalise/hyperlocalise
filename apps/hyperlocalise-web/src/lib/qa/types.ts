@@ -62,6 +62,8 @@ export type TranslationQaSegmentInput = {
   targetLocale: string;
   glossaryTerms?: readonly TranslationQaGlossaryTerm[];
   messageFormat?: MessageFormat | null;
+  /** The file's custom placeholder regular expressions. */
+  placeholderPatterns?: readonly string[] | null;
 };
 
 export type TranslationQaCheck = {

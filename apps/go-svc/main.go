@@ -98,11 +98,13 @@ func main() {
 	}
 	h.spellChecker = spellChecker
 	h.dictionaries = &dictionaryAPI{activityLog: activityLogPublisher}
-	h.glossaries = &glossaryAPI{activityLog: activityLogPublisher, interchange: interchangePublisher}
+	tms := newTMSImportsFromEnv()
+	h.glossaries = &glossaryAPI{activityLog: activityLogPublisher, interchange: interchangePublisher, tms: tms}
 	h.memories = &memoryAPI{
 		activityLog: activityLogPublisher,
 		interchange: memoryInterchangePublisher,
 		analytics:   newGAProductUsageTrackerFromEnv(),
+		tms:         tms,
 	}
 	h.qaReports = &qaReportAPI{activityLog: activityLogPublisher}
 	h.teams = &teamAPI{}
@@ -113,7 +115,8 @@ func main() {
 	h.workspaceSettings = &workspaceSettingsAPI{activityLog: activityLogPublisher}
 	h.sessionOrganizations = &sessionOrganizationsAPI{}
 	h.sessionAccount = &sessionAccountAPI{}
-	h.irisGeneration = &irisGenerationAPI{provider: newIrisGenerationProvider()}
+	h.sessionOnboarding = &sessionOnboardingAPI{}
+	h.irisGeneration = &irisGenerationAPI{provider: newIrisGenerationProvider(), text: newIrisTextModel()}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}
@@ -129,6 +132,7 @@ func main() {
 	h.overview = &overviewAPI{}
 	h.publicTranslations = &publicTranslationsAPI{auth: newPublicAPIAuthFromEnv(nil, nil)}
 	h.publicJobs = &publicJobsAPI{auth: h.publicTranslations.auth}
+	h.publicMemory = &publicMemoryAPI{auth: h.publicTranslations.auth, memories: h.memories}
 	if autumnKey := strings.TrimSpace(os.Getenv("AUTUMN_API_KEY")); autumnKey != "" {
 		if client, err := autumn.NewClient(autumn.Config{SecretKey: autumnKey}); err != nil {
 			log.Printf("configure autumn: %v", err)
@@ -149,6 +153,9 @@ func main() {
 		}
 		h.members.workos = newLiveMemberWorkos(key, workosAPIBaseURL())
 		if identity := newLiveMemberWorkos(key, workosAPIBaseURL()); identity != nil {
+			h.sessionOnboarding.workos = identity
+		}
+		if identity := newLiveMemberWorkos(key, workosAPIBaseURL()); identity != nil {
 			h.workspaceSettings.workos = identity
 		}
 	}
@@ -157,6 +164,7 @@ func main() {
 		h.irisGeneration.membership = membershipLookup
 	}
 	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
+	h.reports = newReportingAPI()
 	if workosClient != nil {
 		h.workspace.flags = workosWorkspaceFlags{client: workosClient}
 		h.workspace.pipes = workosPipeTokens{client: workosClient}
@@ -192,6 +200,7 @@ func main() {
 		h.workspaceSettings.pool = traced
 		h.sessionOrganizations.pool = traced
 		h.sessionAccount.pool = traced
+		h.sessionOnboarding.pool = traced
 		if h.irisGeneration != nil {
 			h.irisGeneration.pool = traced
 		}
@@ -202,6 +211,7 @@ func main() {
 		h.projects.pool = traced
 		h.conversations.pool = traced
 		h.overview.pool = traced
+		h.reports.pool = traced
 		h.publicTranslations.auth.pool = traced
 		h.workspace.pool = traced
 		store, err := experiment.NewPGStore(context.Background(), databaseURL)
@@ -299,6 +309,8 @@ func main() {
 	h.conversations.membership = membershipLookup
 	h.overview.membership = membershipLookup
 	h.overview.flags = h.workspace.flags
+	h.reports.membership = membershipLookup
+	h.reports.flags = newCachedWorkspaceFlags(h.workspace.flags)
 	h.publicTranslations.auth.membership = membershipLookup
 	h.workspace.membership = membershipLookup
 

@@ -47,7 +47,7 @@ import {
 } from "@/lib/projects/content-editor/content-editor-filtered-export";
 
 /** Dialogs opened from the queue toolbar's "…" menu. */
-export type ContentEditorChromeDialog = "export" | "activity" | "shortcuts";
+export type ContentEditorChromeDialog = "export" | "import" | "activity" | "shortcuts";
 
 export class ContentEditorWorkspaceUiStore {
   viewMode: ContentEditorWorkspaceViewMode;

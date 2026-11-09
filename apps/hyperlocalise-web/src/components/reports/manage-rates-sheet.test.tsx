@@ -29,16 +29,18 @@ import {
 const mocks = vi.hoisted(() => ({
   calls: [] as ReportsApiCall[],
   bodies: {} as Record<string, unknown>,
+  statuses: {} as Record<string, number>,
 }));
 
-vi.mock("@/lib/api-client-instance", async () => ({
-  apiClient: (await import("./reports.fixture")).reportsApiClient(mocks),
+vi.mock("@/lib/go-svc/use-go-svc-client", async () => ({
+  useGoSvcClient: (await import("./reports.fixture")).reportsGoSvcClient(mocks),
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-function renderSheet(canManage: boolean, onCardChange = vi.fn()) {
+function renderSheet(canManage: boolean, onCardChange = vi.fn(), answers = {}) {
   mocks.bodies = {
+    ...answers,
     ...reportsResponseBodies(createReportsSettings({ canManage })),
     "rate-cards": { rateCards: reportsRateCards, canManage },
   };
@@ -64,6 +66,7 @@ const saved = () =>
 
 beforeEach(() => {
   mocks.calls.length = 0;
+  mocks.statuses = {};
 });
 
 describe("Rates panel", () => {
@@ -106,11 +109,28 @@ describe("Rates panel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
     expect(await screen.findByText("Give the rate card a name.")).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText("Name"), "Agency C");
-    mocks.bodies["rate-cards"] = { rateCard: { ...reportsRateCards[0], name: "Agency C" } };
+    mocks.bodies["put rate-cards"] = { rateCard: { ...reportsRateCards[0], name: "Agency C" } };
+    // The list's reload fails: the sheet still shows the card just saved, not another one.
+    mocks.statuses["get rate-cards"] = 503;
+    mocks.bodies["get rate-cards"] = { error: "reports_busy", message: "Reports is busy" };
     await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
     await waitFor(() => expect(saved()).toHaveLength(1));
     expect(saved()[0].args.json).toMatchObject({ name: "Agency C", create: true });
     expect((saved()[0].args.json as { lines: unknown[] }).lines).toHaveLength(2);
     await waitFor(() => expect(onCardChange).toHaveBeenCalledWith("Agency C"));
+    expect(screen.getByRole("combobox", { name: "Rate card" })).toHaveTextContent("Agency C");
+  });
+
+  it("says when the rate cards cannot load, instead of offering a blank card", async () => {
+    mocks.statuses = { "get rate-cards": 503 };
+    renderSheet(true, vi.fn(), {
+      "get rate-cards": { error: "report_timed_out", message: "go-svc's own words" },
+    });
+    expect(
+      await screen.findByText(
+        "This took too long to load. Try again, or narrow the report's filters.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
   });
 });

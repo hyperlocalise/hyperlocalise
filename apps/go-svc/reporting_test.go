@@ -20,7 +20,7 @@ func reportingBodyFrom(t *testing.T, raw string) *reportingBody {
 func TestReadReportingBodyMapsUnparseableJSONToRouteCode(t *testing.T) {
 	for _, raw := range []string{"{", "[]", "123", `"text"`} {
 		_, err := readReportingBody(httptest.NewRequest(http.MethodPost, "/", strings.NewReader(raw)), "invalid_rate")
-		var failure *workspaceError
+		var failure *reportingError
 		require.True(t, errors.As(err, &failure), raw)
 		require.Equal(t, 400, failure.status)
 		require.Equal(t, "invalid_rate", failure.code)
@@ -88,7 +88,7 @@ func TestReportingBodyIntegers(t *testing.T) {
 func TestReportingBodyFormats(t *testing.T) {
 	valid := reportingBodyFrom(t, `{
 		"step":"review","rate":"0.12","maxRate":"999999999999.99999999",
-		"day":"2028-02-29","firstDay":"0000-01-01",
+		"day":"2028-02-29","firstDay":"2000-01-01",
 		"id":"a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11","nilId":"00000000-0000-0000-0000-000000000000",
 		"maxId":"FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF","override":null
 	}`)
@@ -96,7 +96,7 @@ func TestReportingBodyFormats(t *testing.T) {
 	require.Equal(t, "0.12", valid.usd("rate"))
 	require.Equal(t, "999999999999.99999999", valid.usd("maxRate"))
 	require.Equal(t, "2028-02-29", valid.day("day"))
-	require.Equal(t, "0000-01-01", valid.day("firstDay"))
+	require.Equal(t, "2000-01-01", valid.day("firstDay"))
 	valid.uuid("id")
 	valid.uuid("nilId")
 	valid.uuid("maxId")
@@ -114,6 +114,8 @@ func TestReportingBodyFormats(t *testing.T) {
 		{`"1\n"`, func(b *reportingBody) { b.usd("value") }},
 		{`0.12`, func(b *reportingBody) { b.usd("value") }},
 		{`"2026-02-29"`, func(b *reportingBody) { b.day("value") }},
+		{`"1999-12-31"`, func(b *reportingBody) { b.day("value") }},
+		{`"0026-06-01"`, func(b *reportingBody) { b.day("value") }},
 		{`"2026-1-01"`, func(b *reportingBody) { b.day("value") }},
 		{`" 2026-01-01"`, func(b *reportingBody) { b.day("value") }},
 		{`"2026-01-01T00:00:00Z"`, func(b *reportingBody) { b.day("value") }},
@@ -141,9 +143,15 @@ func TestReportingBodyPercentages(t *testing.T) {
 
 func TestWriteReportingCSV(t *testing.T) {
 	rec := httptest.NewRecorder()
-	writeReportingCSV(rec, http.StatusOK, reportingCSV{filename: "translation-report.csv", body: []byte(`"period"`)})
+	writeReportingCSV(t.Context(), rec, http.StatusOK, reportingCSV{filename: "activity.csv", write: func(w *reportingCSVWriter) error {
+		if err := w.row("start", "memory"); err != nil {
+			return err
+		}
+		return w.row("2026-06-01", "=1+1", "-3.5", "a\"b")
+	}})
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "text/csv; charset=utf-8", rec.Header().Get("Content-Type"))
-	require.Equal(t, `attachment; filename="translation-report.csv"`, rec.Header().Get("Content-Disposition"))
-	require.Equal(t, `"period"`, rec.Body.String())
+	require.Equal(t, `attachment; filename="activity.csv"`, rec.Header().Get("Content-Disposition"))
+	// CRLF between rows and none after the last; formulas disarmed, negative numbers left alone.
+	require.Equal(t, "\"start\",\"memory\"\r\n\"2026-06-01\",\"'=1+1\",\"-3.5\",\"a\"\"b\"", rec.Body.String())
 }

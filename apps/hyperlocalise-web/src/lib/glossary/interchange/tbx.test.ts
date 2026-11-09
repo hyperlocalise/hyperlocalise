@@ -534,6 +534,18 @@ describe("TBX-Basic DCA interchange", () => {
       expect(locales.has("en")).toBe(true);
     });
 
+    it("parses the Phrase TBX 2 glossary export fixture", () => {
+      const parsed = parseTbx(readFixture("phrase-export.tbx"));
+      expect(parsed.diagnostics.filter((entry) => entry.severity === "error")).toEqual([]);
+      expect(parsed.concepts).toHaveLength(2);
+      expect(parsed.concepts.flatMap((concept) => concept.terms)).toHaveLength(5);
+      expect(
+        parsed.concepts
+          .flatMap((concept) => concept.terms)
+          .find((term) => term.term === "Kasse alt")?.forbidden,
+      ).toBe(true);
+    });
+
     it("parses the Hyperlocalise glossary export fixture", () => {
       const parsed = parseTbx(readFixture("hyperlocalise-export.tbx"));
       expect(parsed.diagnostics.filter((entry) => entry.severity === "error")).toEqual([]);
@@ -555,6 +567,62 @@ describe("TBX-Basic DCA interchange", () => {
         .find((term) => term.term === "lodging");
       expect(lodging).toMatchObject({ status: "admitted" });
       expect(lodging?.partOfSpeech).toBeFalsy();
+    });
+  });
+
+  it("imports Phrase TBX 2 martif files including forbidden terms", () => {
+    const parsed = parseTbx(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE martif SYSTEM "TBXBasiccoreStructV02.dtd">
+<martif type="TBX-Basic" xml:lang="en">
+  <text>
+    <body>
+      <termEntry id="1001">
+        <descrip type="subjectField">Commerce</descrip>
+        <langSet xml:lang="en-US">
+          <tig>
+            <term>Checkout</term>
+            <termNote type="status">Approved</termNote>
+            <termNote type="preferred">true</termNote>
+            <termNote type="forbidden">false</termNote>
+          </tig>
+        </langSet>
+        <langSet xml:lang="de-DE">
+          <tig>
+            <term>Kasse alt</term>
+            <termNote type="forbidden">true</termNote>
+          </tig>
+        </langSet>
+      </termEntry>
+      <termEntry id="1002">
+        <langSet xml:lang="fr-FR">
+          <ntig>
+            <termGrp>
+              <term>Panier interdit</term>
+            </termGrp>
+            <termNote type="administrativeStatus">forbiddenTerm</termNote>
+          </ntig>
+        </langSet>
+      </termEntry>
+    </body>
+  </text>
+</martif>`);
+
+    expect(parsed.diagnostics.filter((entry) => entry.severity === "error")).toEqual([]);
+    expect(parsed.concepts).toHaveLength(2);
+    expect(parsed.concepts.flatMap((concept) => concept.terms)).toHaveLength(3);
+    expect(parsed.concepts[0]?.terms.find((term) => term.term === "Checkout")).toMatchObject({
+      locale: "en-US",
+      status: "preferred",
+      forbidden: false,
+    });
+    expect(parsed.concepts[0]?.terms.find((term) => term.term === "Kasse alt")).toMatchObject({
+      locale: "de-DE",
+      forbidden: true,
+    });
+    expect(parsed.concepts[1]?.terms[0]).toMatchObject({
+      term: "Panier interdit",
+      locale: "fr-FR",
+      forbidden: true,
     });
   });
 });

@@ -18,6 +18,7 @@ export const visualWorkflowRunTriggerSourceSchema = z.enum([
   "github",
   "source_upload",
   "webhook",
+  "job_changed",
 ]);
 export const visualWorkflowRunStatusSchema = z.enum([
   "queued",

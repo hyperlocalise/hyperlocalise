@@ -14,6 +14,8 @@ import { sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 
+import type { TranslationOrigin } from "@/lib/projects/translations/translation-origin-rule";
+
 import type { CompletionSource } from "./report-units";
 
 type Provenance = (typeof schema.projectTranslationRevisions.$inferSelect)["provenance"];
@@ -45,17 +47,15 @@ export type SavedText = {
   revisionId?: string;
   /** When the save was made: the latest version by then is the saved one when none is named. */
   at?: Date;
-  /** The text saved, for a translation with no history to read it from. */
-  text: string;
 };
 
 /**
- * For each save, what the person was given and whether they changed it: the version they saved
- * (named by the save, else the latest at the save's time, else the text given here) against the
- * latest version up to it not written by a person (a task's output, an import). Read from the
- * editor's history rather than the translation now, which a job may have overwritten since the
- * save. A translation with no such version was written by a person from nothing. Results are in
- * the order of `saves`.
+ * For each save, what the person was given and whether they changed it, read from the saved
+ * version's origin (named by the save, else the latest version by the save's time), which writers
+ * work out by the same comparison: `machine` is machine text kept as is, `unknown` imported text
+ * kept as is, and anything else the person's own work. Read from the editor's history rather than
+ * the translation now, which a job may have overwritten since the save. A save with no version is
+ * the person's own work. Results are in the order of `saves`.
  */
 export async function textOrigins(
   organizationId: string,
@@ -64,12 +64,7 @@ export async function textOrigins(
   if (saves.length === 0) return [];
   const column = (values: (string | null)[], type: string) =>
     sql`${`{${values.map((value) => (value === null ? "NULL" : `"${value}"`)).join(",")}}`}::${sql.raw(type)}[]`;
-  const result = await db.execute<{
-    position: number;
-    savedText: string | null;
-    givenText: string | null;
-    givenProvenance: Provenance | null;
-  }>(sql`
+  const result = await db.execute<{ position: number; origin: TranslationOrigin | null }>(sql`
     with saves as (
       select translation_id, revision_id, at, position
       from unnest(
@@ -87,11 +82,10 @@ export async function textOrigins(
         )}
       ) with ordinality as s(translation_id, revision_id, at, position)
     )
-    select s.position::integer, saved.text as "savedText", given.text as "givenText",
-      given.provenance as "givenProvenance"
+    select s.position::integer, saved.origin::text as origin
     from saves s
     left join lateral (
-      select r.id, r.text, r.created_at from project_translation_revisions r
+      select r.origin from project_translation_revisions r
       where r.organization_id = ${organizationId} and r.translation_id = s.translation_id
         -- The save's time arrives cut to the millisecond, while a revision's has microseconds:
         -- compared whole, a revision written in the save's own millisecond would look later.
@@ -99,22 +93,23 @@ export async function textOrigins(
           else s.at is null or date_trunc('milliseconds', r.created_at) <= s.at end
       order by r.created_at desc, r.id desc limit 1
     ) saved on true
-    left join lateral (
-      select r.text, r.provenance from project_translation_revisions r
-      where r.organization_id = ${organizationId} and r.translation_id = s.translation_id
-        and r.actor_kind <> 'user'
-        -- The saved version itself, when a person saved without a change of their own.
-        and (saved.id is null or (r.created_at, r.id) <= (saved.created_at, saved.id))
-      order by r.created_at desc, r.id desc limit 1
-    ) given on true
     order by s.position
   `);
-  return result.rows.map((row, index) => {
-    const saved = row.savedText ?? saves[index].text;
-    return row.givenProvenance
-      ? { source: sourceOfProvenance(row.givenProvenance), unchanged: row.givenText === saved }
-      : { source: "person", unchanged: false };
-  });
+  return result.rows.map((row) => sourceOfOrigin(row.origin));
+}
+
+/** What a saved version's origin says the person was given, and whether they kept it. */
+export function sourceOfOrigin(origin: TranslationOrigin | null): TextOrigin {
+  switch (origin) {
+    case "machine":
+      return { source: "ai", unchanged: true };
+    case "unknown":
+      return { source: "import", unchanged: true };
+    case "machine_post_edited":
+    case "human":
+    case null:
+      return { source: "person", unchanged: false };
+  }
 }
 
 /** What a person's save records: the given text's source if they kept it, else their own work. */

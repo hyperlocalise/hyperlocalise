@@ -977,6 +977,71 @@ func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
 	}
 }
 
+func TestRunHyperlocalisePullWritesReconstructedHTMLExport(t *testing.T) {
+	dir := t.TempDir()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(wd)
+	})
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir project dir: %v", err)
+	}
+
+	sourcePath := "public/page.html"
+	targetPath := "public/page.fr.html"
+	writePullSourceFile(t, filepath.FromSlash(sourcePath), "<p>Hello</p>")
+	exported := []byte("<td>&nbsp;</td><p>Bonjour</p>")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download") {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write(exported)
+	}))
+	t.Cleanup(server.Close)
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{Source: "en", Targets: []string{"fr"}},
+			Buckets: map[string]config.BucketConfig{
+				"html": {
+					Files: []config.BucketFileMapping{{
+						From: "public/page.html",
+						To:   "public/page.{{target}}.html",
+					}},
+				},
+			},
+		},
+		configRoot: dir,
+		projectID:  "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{})
+	if err != nil {
+		t.Fatalf("pull reconstructed HTML: %v", err)
+	}
+	if report.Downloaded != 1 {
+		t.Fatalf("report = %#v, want one downloaded export", report)
+	}
+
+	got, err := os.ReadFile(filepath.FromSlash(targetPath))
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	if string(got) != string(exported) {
+		t.Fatalf("target = %q, want reconstructed HTML", got)
+	}
+}
+
 type hyperlocalisePullReconstructCase struct {
 	name          string
 	sourceLocale  string

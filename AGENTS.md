@@ -4,6 +4,7 @@
 
 - Run `make bootstrap` before working if dependencies are not installed yet.
 - For web-related work, also check [`apps/hyperlocalise-web/AGENTS.md`](apps/hyperlocalise-web/AGENTS.md).
+- Mailchimp connects with **OAuth only** (WorkOS Pipes slug `mailchimp`); the web app calls Marketing API 3.0 over REST (`fetch`), not the TypeScript SDK. See [`docs/platform/connections/mailchimp.mdx`](docs/platform/connections/mailchimp.mdx) and [Mailchimp developer docs](https://mailchimp.com/developer/llms.txt).
 
 ## Commit Messages
 
@@ -88,7 +89,7 @@ Enable Agent Registration on the WorkOS environment (account team if the feature
 
 - Methods: **Service auth** on, **Anonymous** off.
 - Credential type: short-lived **access token** JWT.
-- Trusted (post-claim) permissions: the same PAT scopes as `/api/v1` (`files:read`, `files:write`, `jobs:read`, `jobs:write`) plus `mcp`.
+- Trusted (post-claim) permissions: the same PAT scopes as `/api/v1` (`files:read`, `files:write`, `jobs:read`, `jobs:write`, `memories:read`, `memories:write`) plus `mcp`.
 - Host `auth.md`: copy the AuthKit hostname into `WORKOS_AUTHKIT_DOMAIN` (no scheme). The app rewrites `/auth.md` to `https://$WORKOS_AUTHKIT_DOMAIN/agent/auth.md`.
 - OAuth well-known: protected resource is Hyperlocalise (`/api/v1`). Authorization server is AuthKit. Do not add AuthKit as the first authorization server on MCP protected-resource metadata.
 

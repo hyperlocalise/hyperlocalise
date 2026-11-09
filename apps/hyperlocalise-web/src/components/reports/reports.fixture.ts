@@ -10,14 +10,33 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { AiUsage } from "@/lib/reporting/ai-usage";
-import type { BudgetRow, CostEstimate, Costs } from "@/lib/reporting/cost-queries";
-import type { RateCard } from "@/lib/reporting/rate-cards";
+import { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import type {
+  ActivityReport,
+  ActivityTotals,
+  AiUsageReport,
+  AiUsageTotals,
+  AutomatedTime,
+  BudgetRow,
+  CostEstimate,
+  CostsReport,
+  RateCard,
+  ReportSettings,
+  StepTimesReport,
+  TaskReport,
+  TimeReport,
+  WordCountsReport,
+  WordSeriesReport,
+} from "@/lib/go-svc/go-svc-reports-api";
 import { resolvePeriod } from "@/lib/reporting/report-period";
-import type { AutomatedTime, LoggedTime, StepTime } from "@/lib/reporting/time-queries";
-import type { ActivityTotals, FinishedSeriesPoint, WordCounts } from "@/lib/reporting/word-queries";
 
-import type { ReportSettings, TaskReport } from "./reports-queries";
+type FinishedSeriesPoint = ActivityReport["series"][number];
+type StepTime = StepTimesReport["logged"][number];
+type LoggedTime = TimeReport["logged"];
+/** The word counts and their chart without the query they echo, which the handlers add. */
+type WordCounts = Omit<WordCountsReport, "period" | "unit" | "step" | "mode" | "groupBy">;
+export type WordCountSeries = Omit<WordSeriesReport, "period" | "unit" | "step" | "mode">;
+type AiUsage = AiUsageReport;
 
 /** Sample Reports data for component tests, Storybook and its MSW handlers. */
 
@@ -103,58 +122,143 @@ export const reportsStepTimes: {
 } = {
   period: reportsPeriod,
   logged: [
-    { step: "translation", minutes: 2_490, people: 5 },
-    { step: "review", minutes: 1_380, people: 3 },
+    { taskStep: "translate", minutes: 2_490, people: 5 },
+    { taskStep: "post_edit", minutes: 900, people: 2 },
+    { taskStep: "proofread", minutes: 480, people: 3 },
   ],
   automated: {
     workflowSteps: [{ nodeType: "action.http", milliseconds: 1_260_000, runs: 980 }],
-    taskRuns: { milliseconds: 22_320_000, runs: 212 },
+    taskRuns: {
+      milliseconds: 22_320_000,
+      runs: 212,
+      stages: [
+        { stage: "preparing", milliseconds: 1_800_000 },
+        { stage: "reusing_memory", milliseconds: 300_000 },
+        { stage: "translating", milliseconds: 18_000_000 },
+        { stage: "finishing", milliseconds: 1_500_000 },
+        { stage: "other", milliseconds: 720_000 },
+      ],
+    },
   },
 };
 
-export const reportsAiUsage: { period: typeof reportsPeriod } & AiUsage = {
+const aiTotals = (
+  calls: number,
+  inputTokens: number,
+  outputTokens: number,
+  more: Partial<AiUsageTotals> = {},
+): AiUsageTotals => ({
+  calls,
+  inputTokens,
+  outputTokens,
+  cacheAndReasoningTokens: 0,
+  images: 0,
+  videos: 0,
+  chargeUsd: "0.00000000",
+  unrecordedCharges: 0,
+  ownKeyCalls: 0,
+  ...more,
+});
+
+export const reportsAiUsage: AiUsage = {
   period: reportsPeriod,
-  byOrigin: [
+  groupBy: "area",
+  thenBy: "model",
+  totals: aiTotals(2_400, 19_800_000, 4_200_000, {
+    images: 84,
+    videos: 6,
+    chargeUsd: "41.25000000",
+    unrecordedCharges: 3,
+    ownKeyCalls: 260,
+  }),
+  previous: aiTotals(2_050, 17_100_000, 3_600_000, { images: 70, chargeUsd: "36.10000000" }),
+  rows: [
     {
-      origin: "translation",
-      calls: 2_140,
-      inputTokens: 18_400_000,
-      outputTokens: 3_900_000,
-      images: 0,
-      videos: 0,
-      models: ["gpt-6-luna"],
-      channels: ["api", "app"],
+      key: "translation",
+      label: null,
+      ...aiTotals(2_140, 18_400_000, 3_900_000, {
+        chargeUsd: "38.40000000",
+        unrecordedCharges: 3,
+      }),
+      children: [
+        {
+          key: "openai/gpt-6-luna",
+          label: null,
+          ...aiTotals(2_140, 18_400_000, 3_900_000, {
+            chargeUsd: "38.40000000",
+            unrecordedCharges: 3,
+          }),
+        },
+      ],
     },
     {
-      origin: "images_and_video",
-      calls: 0,
-      inputTokens: 0,
-      outputTokens: 0,
-      images: 84,
-      videos: 6,
-      models: [],
-      channels: ["app"],
+      key: "assistants_and_chat",
+      label: null,
+      ...aiTotals(260, 1_400_000, 300_000, { ownKeyCalls: 260 }),
+      children: [
+        {
+          key: "anthropic/claude-haiku-4.5",
+          label: null,
+          ...aiTotals(260, 1_400_000, 300_000, { ownKeyCalls: 260 }),
+        },
+      ],
+    },
+    {
+      key: "images_and_video",
+      label: null,
+      ...aiTotals(0, 0, 0, { images: 84, videos: 6, chargeUsd: "2.85000000" }),
+      children: [
+        {
+          key: "google/imagen-5",
+          label: null,
+          ...aiTotals(0, 0, 0, { images: 84, videos: 6, chargeUsd: "2.85000000" }),
+        },
+      ],
     },
   ],
-  byModel: [
-    {
-      model: "gpt-6-luna",
-      calls: 2_140,
-      inputTokens: 18_400_000,
-      outputTokens: 3_900_000,
-      images: 0,
-      videos: 0,
-      origins: ["translation"],
-    },
-  ],
-  totals: { calls: 2_140, inputTokens: 18_400_000, outputTokens: 3_900_000, images: 84, videos: 6 },
+  totalGroups: 3,
+  page: 1,
+  pageSize: 50,
+  series: {
+    groups: [
+      { key: "translation", label: null, other: false },
+      { key: "assistants_and_chat", label: null, other: false },
+    ],
+    points: Array.from({ length: 28 }, (_, index) => ({
+      start: new Date(Date.parse(`${reportsPeriod.from}T00:00:00Z`) + index * 86_400_000)
+        .toISOString()
+        .slice(0, 10),
+      calls: [70 + ((index * 13) % 20), 8 + (index % 5)],
+      tokens: [650_000 + ((index * 61_300) % 200_000), 45_000 + ((index * 7_100) % 20_000)],
+      chargeUsd: [1.2 + ((index * 17) % 30) / 100, 0],
+    })),
+  },
+  automationName: null,
 };
 
-export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): WordCounts & {
-  period: typeof reportsPeriod;
-} {
+/** The volume chart's series by project and week: two projects, nothing past the fifth. */
+export const reportsWordCountSeries: WordCountSeries = {
+  split: "project",
+  per: "week",
+  groups: [
+    { key: "project_help", name: "Help centre", other: false },
+    { key: "project_web", name: "Web app", other: false },
+  ],
+  points: [
+    { start: "2026-09-21", units: [3_000, 1_000] },
+    { start: "2026-09-28", units: [9_000, 5_000] },
+    { start: "2026-10-05", units: [10_870, 4_420] },
+    { start: "2026-10-12", units: [9_000, 4_000] },
+    { start: "2026-10-19", units: [8_000, 4_000] },
+  ],
+};
+
+export function createReportsWordCounts(
+  overrides: Partial<WordCounts & { series: WordCountSeries | null }> = {},
+): WordCounts & { period: typeof reportsPeriod; series: WordCountSeries | null } {
   return {
     period: reportsPeriod,
+    series: null,
     rows: [
       {
         week: null,
@@ -162,6 +266,7 @@ export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): Wo
         projectName: "Web app",
         jobId: null,
         jobTitle: null,
+        taskStep: null,
         targetLocale: "de-DE",
         bands: { "100": 4_000, new: 14_420 },
         total: 18_420,
@@ -172,6 +277,7 @@ export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): Wo
         projectName: "Help centre",
         jobId: null,
         jobTitle: null,
+        taskStep: null,
         targetLocale: "fr-FR",
         bands: { repetition: 2_000, new: 37_870 },
         total: 39_870,
@@ -187,6 +293,45 @@ export function createReportsWordCounts(overrides: Partial<WordCounts> = {}): Wo
   };
 }
 
+/** The volume chart's series by match band tier, per week. */
+export const reportsBandSeries: WordCountSeries = {
+  split: "band",
+  per: "week",
+  groups: [
+    { key: "exact", name: null, other: false },
+    { key: "fuzzy", name: null, other: false },
+    { key: "new", name: null, other: false },
+  ],
+  points: reportsWordCountSeries.points.map((point) => ({
+    start: point.start,
+    units: [point.units[0] / 4, point.units[1] / 2, point.units[0] / 2],
+  })),
+};
+
+/** The volume chart's answer, as the page's own endpoint gives it. */
+export function createReportsWordSeries(series: WordCountSeries = reportsWordCountSeries) {
+  return {
+    period: reportsPeriod,
+    unit: "words" as const,
+    step: "translation" as const,
+    mode: "arrived" as const,
+    ...series,
+  };
+}
+
+/** Word counts grouped by week: the two projects over the last two weeks in the table. */
+export function createReportsWeeklyWordCounts() {
+  const base = createReportsWordCounts();
+  return createReportsWordCounts({
+    rows: base.rows.flatMap((row) => [
+      { ...row, week: "2026-10-12", bands: { new: 100 }, total: 100 },
+      { ...row, week: "2026-10-19" },
+    ]),
+    groupCount: 2,
+    pageSize: 2,
+  });
+}
+
 /** Word counts grouped by task, one row per task and language. */
 export function createReportsTaskWordCounts() {
   return createReportsWordCounts({
@@ -197,6 +342,7 @@ export function createReportsTaskWordCounts() {
         projectName: "Help centre",
         jobId: "job_billing",
         jobTitle: "Help centre: billing articles",
+        taskStep: null,
         targetLocale: "fr-FR",
         bands: { repetition: 2_000, new: 18_980 },
         total: 20_980,
@@ -207,6 +353,7 @@ export function createReportsTaskWordCounts() {
         projectName: "Web app",
         jobId: null,
         jobTitle: null,
+        taskStep: null,
         targetLocale: "de-DE",
         bands: { new: 1_200 },
         total: 1_200,
@@ -231,6 +378,7 @@ export const reportsLoggedTime: {
         jobId: "job_release",
         jobTitle: "Release 4.2 strings",
         projectId: "project_web",
+        taskStep: "translate",
         step: "translation",
         targetLocale: "ja-JP",
         minutes: 555,
@@ -246,7 +394,7 @@ export const reportsLoggedTime: {
   automated: reportsStepTimes.automated,
 };
 
-export const reportsCosts: { period: typeof reportsPeriod } & Costs = {
+export const reportsCosts: CostsReport = {
   period: reportsPeriod,
   rows: [
     {
@@ -256,7 +404,6 @@ export const reportsCosts: { period: typeof reportsPeriod } & Costs = {
       aiUsd: "612.40000000",
       aiOnTasksUsd: "540.40000000",
       aiOutsideTasksUsd: "72.00000000",
-      expensesUsd: "0.00000000",
       totalUsd: "4022.40000000",
     },
   ],
@@ -270,7 +417,6 @@ export const reportsCosts: { period: typeof reportsPeriod } & Costs = {
     aiUsd: "630.60000000",
     aiOnTasksUsd: "540.40000000",
     aiOutsideTasksUsd: "90.20000000",
-    expensesUsd: "0.00000000",
     totalUsd: "4040.60000000",
   },
   previousTotalUsd: "3800.00000000",
@@ -562,6 +708,7 @@ export function reportsResponseBodies(settings = createReportsSettings()) {
     activity: { activity: reportsActivity },
     "step-times": { stepTimes: reportsStepTimes },
     "ai-usage": { aiUsage: reportsAiUsage },
+    "word-series": { wordSeries: createReportsWordSeries() },
     words: {
       wordCounts: {
         unit: "words",
@@ -601,50 +748,85 @@ export type ReportsApiState = {
   bodies: Record<string, unknown>;
   /** A status per endpoint, for failures; 200 otherwise. */
   statuses?: Record<string, number>;
+  /** Requests ("post time-entries") that wait for a promise before answering. */
+  holds?: Record<string, Promise<void>>;
 };
 
-const ENDPOINTS = [
-  "settings",
-  "activity",
-  "step-times",
-  "ai-usage",
-  "words",
-  "time",
-  "costs",
-  "cost-estimate",
-  "budgets",
-  "rate-cards",
-  "jobs",
-  "time-entries",
-  "expenses",
-  "task-rates",
-] as const;
-
-/** A stand-in for the typed API client's Reports routes, for component tests. */
-export function reportsApiClient(state: ReportsApiState) {
-  const endpoint = (name: string) => {
-    const answer = (method: ReportsApiCall["method"]) => async (args: ReportsApiCall["args"]) => {
-      state.calls.push({ endpoint: name, method, args });
-      return new Response(JSON.stringify(state.bodies[name] ?? {}), {
-        status: state.statuses?.[name] ?? 200,
+/**
+ * A stand-in for go-svc's Reports routes, for component tests: `useGoSvcClient` answering with
+ * a client whose requests are recorded by endpoint and answered from `bodies`.
+ */
+export function reportsGoSvcClient(state: ReportsApiState) {
+  const client = new GoSvcClient({
+    baseUrl: "http://localhost",
+    getAccessToken: () => "test-access-token",
+    fetch: async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      const match = /^\/v1\/orgs\/([^/]+)\/reports\/(.+)$/.exec(url.pathname);
+      if (!match) throw new Error(`Unexpected go-svc request: ${url.pathname}`);
+      const param: Record<string, string> = { organizationSlug: decodeURIComponent(match[1]) };
+      const segments = match[2].split("/").map(decodeURIComponent);
+      const name = endpointName(segments, param);
+      const method = (init?.method ?? "GET").toLowerCase() as ReportsApiCall["method"];
+      const query = Object.fromEntries(url.searchParams);
+      const json = typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : undefined;
+      state.calls.push({ endpoint: name, method, args: { param, query, json } });
+      // An answer for one method ("put rate-cards") wins over the endpoint's own.
+      const status = state.statuses?.[`${method} ${name}`] ?? state.statuses?.[name] ?? 200;
+      await waitForHold(state.holds?.[`${method} ${name}`], init?.signal ?? undefined);
+      // Status 0 stands for go-svc not answering at all, as fetch fails then.
+      if (status === 0) throw new TypeError("Failed to fetch");
+      if (query.format === "csv" && status === 200)
+        return new Response("a,b\n1,2\n", {
+          headers: {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": `attachment; filename="${name}.csv"`,
+          },
+        });
+      const body = state.bodies[`${method} ${name}`] ?? state.bodies[name] ?? {};
+      // A string stands for a body that is not JSON, as a load balancer's error page is.
+      return new Response(typeof body === "string" ? body : JSON.stringify(body), {
+        status,
         headers: { "Content-Type": "application/json" },
       });
-    };
-    return {
-      $get: answer("get"),
-      $put: answer("put"),
-      $post: answer("post"),
-      $patch: answer("patch"),
-      $delete: answer("delete"),
-      $url: () => new URL(`http://localhost/${name}.csv`),
-    };
-  };
-  const reports: Record<string, unknown> = Object.fromEntries(
-    ENDPOINTS.map((name) => [name, endpoint(name)]),
-  );
-  reports.tasks = {
-    ":jobId": { report: endpoint("task-report"), analysis: endpoint("task-analysis") },
-  };
-  reports["time-entries"] = { ...endpoint("time-entries"), ":id": endpoint("time-entry") };
-  return { api: { orgs: { ":organizationSlug": { reports } } } };
+    },
+  });
+  return () => ({ client, loading: false });
+}
+
+/** Wait for a held answer, or stop at once if the request was cancelled. */
+function waitForHold(hold: Promise<void> | undefined, signal?: AbortSignal) {
+  if (!hold && !signal) return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const onAbort = () => reject(new DOMException("Aborted", "AbortError"));
+    signal?.addEventListener("abort", onAbort, { once: true });
+    void (hold ?? Promise.resolve()).then(
+      () => {
+        signal?.removeEventListener("abort", onAbort);
+        resolve();
+      },
+      (error) => {
+        signal?.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
+/** The endpoint a path names, as the tests know it, with its path values. */
+function endpointName(segments: string[], param: Record<string, string>) {
+  if (segments[0] === "words" && segments[1] === "series") return "word-series";
+  if (segments[0] === "tasks" && segments.length === 3) {
+    param.jobId = segments[1];
+    return segments[2] === "report" ? "task-report" : "task-analysis";
+  }
+  if (segments[0] === "time-entries" && segments.length === 2) {
+    param.id = segments[1];
+    return "time-entry";
+  }
+  return segments.join("/");
 }

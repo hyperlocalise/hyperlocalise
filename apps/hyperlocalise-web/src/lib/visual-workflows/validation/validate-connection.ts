@@ -20,6 +20,10 @@ import { getAllowedExecutionSourceHandles } from "./execution-handles";
 
 const CANDIDATE_EDGE_ID = "__connection_candidate__";
 
+function isCollectionRegionNode(node: VisualWorkflowRfNode): boolean {
+  return ["logic.for_each", "logic.array_transform"].includes(node.data.catalogType);
+}
+
 export type ConnectionValidationCode =
   | "missing_endpoint"
   | "self_connection"
@@ -189,19 +193,19 @@ export function validateVisualWorkflowConnection(input: {
   if (edgeKind === "execution") {
     const bodyNodeIdsByLoopId = new Map(
       nodes
-        .filter((node) => node.data.catalogType === "logic.for_each")
+        .filter(isCollectionRegionNode)
         .map((node) => [node.id, computeForEachBodyNodeIds(node.id, existingEdges)]),
     );
 
     const sourceLoopOwner = nodes.find(
       (node) =>
-        node.data.catalogType === "logic.for_each" &&
+        isCollectionRegionNode(node) &&
         bodyNodeIdsByLoopId.get(node.id)?.includes(connection.source!),
     );
 
     const targetLoopOwner = nodes.find(
       (node) =>
-        node.data.catalogType === "logic.for_each" &&
+        isCollectionRegionNode(node) &&
         bodyNodeIdsByLoopId.get(node.id)?.includes(connection.target!),
     );
 
@@ -216,7 +220,7 @@ export function validateVisualWorkflowConnection(input: {
         "loop_boundary",
         normalizedSourcePortId,
         normalizedTargetPortId,
-        `Connection from "${normalizedSourcePortId}" to "${normalizedTargetPortId}" cannot enter a For Each body from outside its loop.`,
+        `Connection from "${normalizedSourcePortId}" to "${normalizedTargetPortId}" cannot enter a collection region from outside its body.`,
       );
     }
 
@@ -225,21 +229,21 @@ export function validateVisualWorkflowConnection(input: {
         "loop_boundary",
         normalizedSourcePortId,
         normalizedTargetPortId,
-        `Connection from "${normalizedSourcePortId}" to "${normalizedTargetPortId}" cannot point back to its owning For Each node.`,
+        `Connection from "${normalizedSourcePortId}" to "${normalizedTargetPortId}" cannot point back to its owning collection region.`,
       );
     }
 
     const createsNestedLoop =
-      targetNode.data.catalogType === "logic.for_each" &&
+      isCollectionRegionNode(targetNode) &&
       (sourceLoopOwner !== undefined ||
-        (sourceNode.data.catalogType === "logic.for_each" && normalizedSourcePortId === "each"));
+        (isCollectionRegionNode(sourceNode) && normalizedSourcePortId === "each"));
 
     if (createsNestedLoop) {
       return invalidResult(
         "loop_boundary",
         normalizedSourcePortId,
         normalizedTargetPortId,
-        "Nested For Each loop regions are not supported.",
+        "Nested collection regions are not supported.",
       );
     }
   }

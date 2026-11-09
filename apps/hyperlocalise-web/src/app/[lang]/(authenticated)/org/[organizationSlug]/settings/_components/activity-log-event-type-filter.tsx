@@ -74,6 +74,7 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
       "member_joined",
       "member_role_changed",
       "member_removed",
+      "member_left",
     ],
   },
   {
@@ -104,7 +105,12 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
   {
     icon: FoldersIcon,
     label: messages.projectEventGroup,
-    eventTypes: ["project_created", "project_deleted", "project_settings_changed"],
+    eventTypes: [
+      "project_created",
+      "project_deleted",
+      "project_settings_changed",
+      "project_strings_updated",
+    ],
   },
   {
     icon: BookOpenTextIcon,
@@ -134,7 +140,7 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
   {
     icon: DatabaseIcon,
     label: messages.jobEventGroup,
-    eventTypes: ["job_created", "job_cancelled", "job_failed"],
+    eventTypes: ["job_created", "job_cancelled", "job_failed", "job_updated"],
   },
   {
     icon: PuzzlePieceIcon,
@@ -157,6 +163,8 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
       "visual_workflow_enabled",
       "visual_workflow_disabled",
       "visual_workflow_run_started",
+      "visual_workflow_approval_requested",
+      "visual_workflow_approval_decided",
     ],
   },
   {
@@ -212,6 +220,7 @@ const eventTypeLabels = {
   member_joined: messages.memberJoinedEventType,
   member_role_changed: messages.memberRoleChangedEventType,
   member_removed: messages.memberRemovedEventType,
+  member_left: messages.memberLeftEventType,
   workspace_updated: messages.workspaceUpdatedEventType,
   workspace_archived: messages.workspaceArchivedEventType,
   personal_access_token_created: messages.personalAccessTokenCreatedEventType,
@@ -225,6 +234,7 @@ const eventTypeLabels = {
   project_created: messages.projectCreatedEventType,
   project_deleted: messages.projectDeletedEventType,
   project_settings_changed: messages.projectSettingsChangedEventType,
+  project_strings_updated: messages.projectStringsUpdatedEventType,
   glossary_created: messages.glossaryCreatedEventType,
   glossary_deleted: messages.glossaryDeletedEventType,
   glossary_imported: messages.glossaryImportedEventType,
@@ -241,6 +251,7 @@ const eventTypeLabels = {
   job_created: messages.jobCreatedEventType,
   job_cancelled: messages.jobCancelledEventType,
   job_failed: messages.jobFailedEventType,
+  job_updated: messages.jobUpdatedEventType,
   automation_created: messages.automationCreatedEventType,
   automation_deleted: messages.automationDeletedEventType,
   automation_run_started: messages.automationRunStartedEventType,
@@ -252,6 +263,8 @@ const eventTypeLabels = {
   visual_workflow_enabled: messages.visualWorkflowEnabledEventType,
   visual_workflow_disabled: messages.visualWorkflowDisabledEventType,
   visual_workflow_run_started: messages.visualWorkflowRunStartedEventType,
+  visual_workflow_approval_requested: messages.visualWorkflowApprovalRequestedEventType,
+  visual_workflow_approval_decided: messages.visualWorkflowApprovalDecidedEventType,
   query_created: messages.queryCreatedEventType,
   query_deleted: messages.queryDeletedEventType,
   query_imported: messages.queryImportedEventType,

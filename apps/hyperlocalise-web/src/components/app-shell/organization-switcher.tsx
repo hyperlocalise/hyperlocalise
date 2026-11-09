@@ -19,6 +19,7 @@ import {
   CaretUpDownIcon,
   CheckIcon,
   GearIcon,
+  PlusIcon,
   UserPlusIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react";
@@ -171,6 +172,21 @@ export function OrganizationSwitcher({
               </>
             ) : null}
             <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={closeMobileSidebar}
+              render={
+                <Link
+                  href={
+                    activeSlug
+                      ? `/auth/new-workspace?from=${encodeURIComponent(activeSlug)}`
+                      : "/auth/new-workspace"
+                  }
+                />
+              }
+            >
+              <PlusIcon className="size-4" />
+              <FormattedMessage {...organizationSwitcherMessages.createWorkspace} />
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={closeMobileSidebar}
               render={<Link href="/auth/select-organization" />}

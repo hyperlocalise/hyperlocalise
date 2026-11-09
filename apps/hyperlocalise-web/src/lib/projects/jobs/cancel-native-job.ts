@@ -14,6 +14,7 @@ import { and, eq, inArray, notExists, type SQL } from "drizzle-orm";
 
 import { enqueueJobCancelledActivity } from "@/lib/activity-log/job-automation-events";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { updateJobs } from "@/lib/job-change-events/job-writes";
 import { recordJobEvents } from "@/lib/job-events/job-events-writer";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import { captureJobStatus } from "@/lib/reporting/capture";
@@ -38,9 +39,8 @@ export async function cancelNativeJob(input: {
 }): Promise<Result<{ id: string }, CancelNativeJobError>> {
   const database = input.database ?? db;
 
-  const [cancelled] = await database
-    .update(schema.jobs)
-    .set({
+  const [cancelled] = await updateJobs(database, {
+    set: {
       status: "cancelled",
       workflowRunId: null,
       lastError: null,
@@ -49,21 +49,20 @@ export async function cancelNativeJob(input: {
         message: "Cancelled by user",
       },
       completedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(schema.jobs.id, input.jobId),
-        input.accessWhere,
-        inArray(schema.jobs.status, [...CANCELLABLE_JOB_STATUSES]),
-        notExists(
-          database
-            .select({ jobId: schema.externalJobDetails.jobId })
-            .from(schema.externalJobDetails)
-            .where(eq(schema.externalJobDetails.jobId, schema.jobs.id)),
-        ),
+    },
+    where: and(
+      eq(schema.jobs.id, input.jobId),
+      input.accessWhere,
+      inArray(schema.jobs.status, [...CANCELLABLE_JOB_STATUSES]),
+      notExists(
+        database
+          .select({ jobId: schema.externalJobDetails.jobId })
+          .from(schema.externalJobDetails)
+          .where(eq(schema.externalJobDetails.jobId, schema.jobs.id)),
       ),
-    )
-    .returning({ id: schema.jobs.id, kind: schema.jobs.kind });
+    ),
+    returning: { id: schema.jobs.id, kind: schema.jobs.kind },
+  });
 
   if (!cancelled) {
     const [existing] = await database
@@ -95,7 +94,6 @@ export async function cancelNativeJob(input: {
   await captureJobStatus({
     jobId: cancelled.id,
     status: "cancelled",
-    operationKey: `cancel:${cancelled.id}`,
   });
 
   return ok({ id: cancelled.id });

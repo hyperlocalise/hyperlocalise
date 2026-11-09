@@ -132,3 +132,59 @@ export async function enqueueVisualWorkflowRunStartedActivity(
     targetKind: "visual_workflow",
   });
 }
+
+export async function enqueueVisualWorkflowApprovalRequestedActivity(input: {
+  approvalRequestId: string;
+  nodeId: string;
+  organizationId: string;
+  reviewerId: string;
+  reviewerType: "user" | "team";
+  runId: string;
+  visualWorkflowId: string;
+}) {
+  return enqueueActivityLogEvent({
+    actorCredentialId: null,
+    actorKind: "system",
+    actorUserId: null,
+    eventType: "visual_workflow_approval_requested",
+    organizationId: input.organizationId,
+    payload: {
+      approvalRequestId: input.approvalRequestId,
+      nodeId: input.nodeId,
+      reviewerId: input.reviewerId,
+      reviewerType: input.reviewerType,
+      runId: input.runId,
+      status: "pending",
+      visualWorkflowId: input.visualWorkflowId,
+    },
+    targetId: input.visualWorkflowId,
+    targetKind: "visual_workflow",
+  });
+}
+
+export async function enqueueVisualWorkflowApprovalDecidedActivity(input: {
+  approvalRequestId: string;
+  decision: "approved" | "rejected" | "changes_requested";
+  nodeId: string;
+  organizationId: string;
+  runId: string;
+  userId: string;
+  visualWorkflowId: string;
+}) {
+  return enqueueActivityLogEvent({
+    actorCredentialId: null,
+    actorKind: "user",
+    actorUserId: input.userId,
+    eventType: "visual_workflow_approval_decided",
+    organizationId: input.organizationId,
+    payload: {
+      approvalRequestId: input.approvalRequestId,
+      decision: input.decision,
+      nodeId: input.nodeId,
+      runId: input.runId,
+      visualWorkflowId: input.visualWorkflowId,
+    },
+    targetId: input.visualWorkflowId,
+    targetKind: "visual_workflow",
+  });
+}

@@ -46,12 +46,24 @@ import {
 import { jobCatPageContentMessages } from "./job-content-editor-page-content.messages";
 import { ContentEditorBrazeIngestButton } from "@/components/content-editor/page/content-editor-braze-ingest-button";
 import { ContentEditorBrazePushButton } from "@/components/content-editor/page/content-editor-braze-push-button";
+import { ContentEditorCustomerIoIngestButton } from "@/components/content-editor/page/content-editor-customer-io-ingest-button";
+import { ContentEditorCustomerIoPushButton } from "@/components/content-editor/page/content-editor-customer-io-push-button";
+import { ContentEditorIterableIngestButton } from "@/components/content-editor/page/content-editor-iterable-ingest-button";
+import { ContentEditorIterablePushButton } from "@/components/content-editor/page/content-editor-iterable-push-button";
 import { ContentEditorGoogleDriveIngestButton } from "@/components/content-editor/page/content-editor-google-drive-ingest-button";
 import { ContentEditorGoogleDrivePushButton } from "@/components/content-editor/page/content-editor-google-drive-push-button";
 import { ContentEditorIntercomIngestButton } from "@/components/content-editor/page/content-editor-intercom-ingest-button";
 import { ContentEditorIntercomPushButton } from "@/components/content-editor/page/content-editor-intercom-push-button";
+import { ContentEditorHubspotIngestButton } from "@/components/content-editor/page/content-editor-hubspot-ingest-button";
+import { ContentEditorHubspotPushButton } from "@/components/content-editor/page/content-editor-hubspot-push-button";
+import { ContentEditorMailchimpIngestButton } from "@/components/content-editor/page/content-editor-mailchimp-ingest-button";
+import { ContentEditorMailchimpPushButton } from "@/components/content-editor/page/content-editor-mailchimp-push-button";
+import { ContentEditorLoopsIngestButton } from "@/components/content-editor/page/content-editor-loops-ingest-button";
+import { ContentEditorLoopsPushButton } from "@/components/content-editor/page/content-editor-loops-push-button";
 import { ContentEditorSanityIngestButton } from "@/components/content-editor/page/content-editor-sanity-ingest-button";
 import { ContentEditorSanityPushButton } from "@/components/content-editor/page/content-editor-sanity-push-button";
+import { ContentEditorWebflowIngestButton } from "@/components/content-editor/page/content-editor-webflow-ingest-button";
+import { ContentEditorWebflowPushButton } from "@/components/content-editor/page/content-editor-webflow-push-button";
 import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
 import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
@@ -260,6 +272,20 @@ export function JobContentEditorPageContent({
         sourcePath={sourcePath}
         pageNavigationGuardRef={pageNavigationGuardRef}
       />
+      <ContentEditorWebflowIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorWebflowPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
       <ContentEditorBrazeIngestButton
         organizationSlug={organizationSlug}
         projectId={projectId}
@@ -268,6 +294,76 @@ export function JobContentEditorPageContent({
         pageNavigationGuardRef={pageNavigationGuardRef}
       />
       <ContentEditorBrazePushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorCustomerIoIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorCustomerIoPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorIterableIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorLoopsIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorIterablePushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorLoopsPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorHubspotIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorHubspotPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorMailchimpIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorMailchimpPushButton
         organizationSlug={organizationSlug}
         projectId={projectId}
         canManageAutomations={canManageAutomations}

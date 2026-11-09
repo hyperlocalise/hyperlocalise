@@ -31,6 +31,7 @@ import {
 import { resolveOrganizationHasTmsIntegration } from "@/lib/agent-runtime/skills/conversation-tms-integration";
 import { stopRepositorySandbox } from "@/lib/agent-runtime/workspaces/repository-sandbox";
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
+import { keepGitLabContextIfCurrent } from "@/lib/gitlab/access";
 import {
   postThreadMessageWithoutTracking,
   wrapThreadPostForInteraction,
@@ -313,7 +314,10 @@ async function processSlackMessage(
       return [{ role: chatMessage.role, content: chatMessage.content }];
     });
     const storedRepositoryContext = threadState?.repositoryGitHubContext ?? null;
-    const storedGitLabContext = threadState?.repositoryGitLabContext ?? null;
+    const storedGitLabContext = await keepGitLabContextIfCurrent({
+      localOrganizationId: organizationId,
+      context: threadState?.repositoryGitLabContext,
+    });
     const languageModel = await resolveHyperlocaliseAgentLanguageModel({
       organizationId,
     });
@@ -345,6 +349,7 @@ async function processSlackMessage(
       localUserId: membership.localUserId,
       projectId,
       conversationText,
+      currentMessageText: message.text,
       classification,
       repositorySession: threadState,
       connectorConfig,

@@ -473,7 +473,23 @@ export type MembersResponse = {
   memberManagement?: MemberManagement;
 };
 
-export type ApiKeyPermission = "jobs:read" | "jobs:write" | "files:read" | "files:write";
+export type LeaveWorkspacePreview = {
+  /** `last_admin` when the caller is the only admin who has accepted their invitation. */
+  blockedReason: "last_admin" | null;
+  apiKeys: Array<{ name: string; keyPrefix: string }>;
+  automations: Array<{ id: string; name: string }>;
+  /** The lists are cut at 50; the totals count every match. */
+  apiKeyTotal: number;
+  automationTotal: number;
+};
+
+export type ApiKeyPermission =
+  | "jobs:read"
+  | "jobs:write"
+  | "files:read"
+  | "files:write"
+  | "memories:read"
+  | "memories:write";
 
 export type ApiKeyOwner = {
   userId: string;
@@ -679,6 +695,8 @@ export type ValidateSegmentBody = {
   maxLength?: number;
   /** auto | icu | i18next; omitted means auto. */
   messageFormat?: string;
+  /** The file's custom placeholder regular expressions. */
+  placeholderPatterns?: readonly string[];
   modes?: readonly string[];
   targetLocale?: string;
   acceptedWords?: readonly string[];
@@ -687,6 +705,17 @@ export type ValidateSegmentBody = {
 export type ValidateSegmentResult = {
   checks: GoSvcRecord[];
   skippedModes?: string[];
+};
+
+/** The "request" part of a render; the source file's bytes go in their own part. */
+export type RenderTranslationFileRequest = {
+  sourcePath: string;
+  sourceLocale: string;
+  targetLocale: string;
+  /** Translated text by key. Untranslated keys are left out. */
+  values: Record<string, string>;
+  /** Source text of every SRX span key the file has. */
+  sourceSpans: Record<string, string>;
 };
 
 export type EditorExportBody = {
@@ -753,10 +782,17 @@ export type ProjectLocaleProgressRow = {
   lastActivityAt: string | null;
 };
 
+export type ApprovedTranslationsOnSourceChange = "stay_approved" | "needs_review";
+
 export type ProjectContentEditorBehavior = {
   automaticallyGroupIdenticalStrings: boolean;
   groupingRevision: number;
+  approvedTranslationsOnSourceChange: ApprovedTranslationsOnSourceChange;
+  /** Whether source text may be edited in the platform, not only in the files. */
+  sourceTextEditable: boolean;
   canManage: boolean;
+  /** Whether this person may edit source text in the content editor now. */
+  canEditSourceText: boolean;
 };
 
 export type ProjectContentEditorBehaviorPreview = {

@@ -179,6 +179,12 @@ export const contentEditorQueuePanelMessages = defineMessages({
     id: "p/GrdJcH5A",
     description: "CAT queue filter option for Crowdin pre-translated strings",
   },
+  filterOrigin: {
+    defaultMessage: "Machine or human",
+    id: "EEDujIUcvK",
+    description:
+      "CAT queue filter: narrows strings by whether a machine or a person wrote the translation",
+  },
   filterWithComments: {
     defaultMessage: "With comments",
     id: "DU3T9+E0+x",
@@ -244,6 +250,24 @@ export const contentEditorQueuePanelMessages = defineMessages({
     defaultMessage: "Unlock selected",
     id: "RdS22zCv6k",
     description: "Bulk action to unlock selected CAT segments so they can be edited",
+  },
+  bulkApproveInLanguage: {
+    defaultMessage: "Approve in {language}",
+    id: "NM+znbA1FV",
+    description:
+      "Bulk action in the multilingual table: approve the selected strings' translations in one language, named by the toolbar's language picker",
+  },
+  bulkLockInLanguage: {
+    defaultMessage: "Lock in {language}",
+    id: "K+XUbo+2o8",
+    description:
+      "Bulk action in the multilingual table: lock the selected strings' translations in one language against edits",
+  },
+  bulkUnlockInLanguage: {
+    defaultMessage: "Unlock in {language}",
+    id: "MpFVCAtnHS",
+    description:
+      "Bulk action in the multilingual table: unlock the selected strings' translations in one language",
   },
   bulkSelectAll: {
     defaultMessage: "Select all visible",

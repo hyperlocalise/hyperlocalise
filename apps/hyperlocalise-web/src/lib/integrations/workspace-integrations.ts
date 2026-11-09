@@ -32,11 +32,7 @@ export const workspaceComingSoonCollaborationSlugs = ["microsoft-teams", "jira",
 
 export const workspaceComingSoonGuidelineSlugs = ["sharepoint"] as const;
 
-export const workspaceComingSoonCustomerEngagementSlugs = [
-  "iterable",
-  "customer-io",
-  "loops",
-] as const;
+export const workspaceComingSoonCustomerEngagementSlugs = [] as const;
 
 export const workspaceComingSoonExperimentationSlugs = ["statsig"] as const;
 
@@ -54,14 +50,18 @@ export const workspacePipesGuidelineSlugs = [
 
 export const workspacePipesCustomerEngagementSlugs = [
   "intercom",
+  "iterable",
   "braze",
+  "customer-io",
   "hubspot",
+  "loops",
   "mailchimp",
   "sendgrid",
   "resend",
 ] as const satisfies readonly PipesProviderSlug[];
 
-export const workspacePipesCmsSlugs = ["webflow"] as const satisfies readonly PipesProviderSlug[];
+/** Webflow uses a custom connection panel; generic Pipes rows are unused for CMS today. */
+export const workspacePipesCmsSlugs = [] as const satisfies readonly PipesProviderSlug[];
 
 export const workspacePipesSeoToolSlugs = [
   "google-search-console",

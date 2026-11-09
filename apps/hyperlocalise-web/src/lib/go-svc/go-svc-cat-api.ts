@@ -470,6 +470,26 @@ export class GoSvcCatApi {
     );
   }
 
+  /** Changes a string's source text; refused unless the project allows editing it here. */
+  setSourceText(
+    organizationSlug: string,
+    projectId: string,
+    externalStringId: string,
+    body: {
+      sourcePath: string;
+      externalStringId: string;
+      sourceText: string;
+      /** A small fix: leave approved translations approved. */
+      keepApproved: boolean;
+    },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ segment: { externalStringId: string; sourceText: string } }>(
+      catPath(organizationSlug, projectId, "segments", externalStringId, "source-text"),
+      { method: "POST", body, ...options },
+    );
+  }
+
   treatAsImage(
     organizationSlug: string,
     projectId: string,

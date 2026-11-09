@@ -21,7 +21,6 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { AI_ORIGINS, type AiChannel, type AiOrigin } from "@/lib/reporting/ai-usage-origins";
 import { describeChange, shareOf } from "@/lib/reporting/report-period";
 import { REPORT_STEPS, SUMMARY_SOURCES } from "@/lib/reporting/report-units";
 import { VISUAL_NODE_DESCRIPTIONS } from "@/lib/visual-workflows/catalog/node-descriptions";
@@ -29,34 +28,27 @@ import { VISUAL_NODE_DESCRIPTIONS } from "@/lib/visual-workflows/catalog/node-de
 import { activityTabMessages as messages } from "./activity-tab.messages";
 import {
   formatChange,
-  formatCompact,
   formatCount,
   formatDuration,
   formatShare,
   stepLabel,
+  taskStepLabel,
 } from "./report-format";
-import {
-  ReportSection,
-  ReportSectionState,
-  DownloadCsvButton,
-  ReportEmpty,
-} from "./report-section";
+import { chartDayLabel, spansYears } from "./report-chart";
+import { ReportSection, ReportSectionState, DownloadCsvButton } from "./report-section";
 import { ReportStatCard, ReportStatCards, ReportStatCardsSkeleton } from "./report-stat-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
 import { reportsPageMessages as pageMessages } from "./reports-page.messages";
 import {
-  aiUsageQuery,
-  reportDownloadUrl,
+  useReportCsv,
   stepTimesQuery,
   useActivityReport,
-  useAiUsage,
   useStepTimes,
   type SectionInput,
 } from "./reports-queries";
 import type { ReportsUrlState } from "./reports-url-state";
 import { SegmentedSwitch } from "./segmented-switch";
 
-type Intl = ReturnType<typeof useIntl>;
 type ActivityData = NonNullable<ReturnType<typeof useActivityReport>["data"]>;
 
 export function ActivityTab({
@@ -77,15 +69,14 @@ export function ActivityTab({
         </ReportSectionState>
       )}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <ReportSectionState query={activity} skeletonHeight={280}>
+        <ReportSectionState query={activity} showFailure={false} skeletonHeight={280}>
           {(data) => <FinishedWordsChart data={data} onChange={onChange} />}
         </ReportSectionState>
-        <ReportSectionState query={activity} skeletonHeight={280}>
+        <ReportSectionState query={activity} showFailure={false} skeletonHeight={280}>
           {(data) => <FinishedByLanguage data={data} />}
         </ReportSectionState>
       </div>
       <StepTimesSection input={input} />
-      <AiUsageSection input={input} onChange={onChange} />
     </div>
   );
 }
@@ -152,15 +143,6 @@ function ActivityCards({ data }: { data: ActivityData }) {
   );
 }
 
-function formatChartDay(intl: Intl, day: string, weekly: boolean) {
-  const date = intl.formatDate(`${day}T00:00:00Z`, {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  });
-  return weekly ? intl.formatMessage(messages.weekOf, { date }) : date;
-}
-
 function FinishedWordsChart({
   data,
   onChange,
@@ -170,6 +152,7 @@ function FinishedWordsChart({
 }) {
   const intl = useIntl();
   const weekly = data.period.interval === "week";
+  const withYear = spansYears(data.period);
   // Where the finished text came from, bottom to top of each bar; "unknown" only shows when it occurs.
   const config = {
     memory: { label: intl.formatMessage(messages.fromMemory), color: "var(--chart-2)" },
@@ -180,7 +163,7 @@ function FinishedWordsChart({
   } satisfies ChartConfig;
   const rows = data.series.map((point) => ({
     ...point,
-    label: formatChartDay(intl, point.start, weekly),
+    label: chartDayLabel(intl, point.start, { weekly, withYear }),
   }));
   const totals = SUMMARY_SOURCES.map(
     (key) => [key, data.series.reduce((sum, point) => sum + point[key], 0)] as const,
@@ -228,8 +211,8 @@ function FinishedWordsChart({
         aria-label={intl.formatMessage(messages.chartSummary, {
           finished: formatCount(intl, finished),
           people: formatCount(intl, totals.find(([name]) => name === "person")?.[1] ?? 0),
-          from: formatChartDay(intl, data.period.from, false),
-          to: formatChartDay(intl, data.period.to, false),
+          from: chartDayLabel(intl, data.period.from, { withYear }),
+          to: chartDayLabel(intl, data.period.to, { withYear }),
         })}
       >
         <BarChart data={rows} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
@@ -241,7 +224,15 @@ function FinishedWordsChart({
             minTickGap={24}
           />
           <YAxis hide allowDecimals={false} />
-          <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+          <ChartTooltip
+            cursor={false}
+            content={
+              <ChartTooltipContent
+                indicator="dot"
+                formatValue={(value) => formatCount(intl, value)}
+              />
+            }
+          />
           {shown.map((key, index) => (
             <Bar
               key={key}
@@ -319,19 +310,18 @@ function narrowedBeyondProject(input: SectionInput) {
 
 function StepTimesSection({ input }: { input: SectionInput }) {
   const intl = useIntl();
+  const csv = useReportCsv(input.organizationSlug);
   const stepTimes = useStepTimes(input);
   return (
     <ReportSection
       title={intl.formatMessage(messages.stepTimes)}
       description={
         narrowedBeyondProject(input)
-          ? `${intl.formatMessage(messages.stepTimesDetail)}. ${intl.formatMessage(messages.automatedFiltersNote)}`
+          ? `${intl.formatMessage(messages.stepTimesDetail)}. ${intl.formatMessage(messages.stepTimesFiltersNote)}`
           : intl.formatMessage(messages.stepTimesDetail)
       }
       actions={
-        <DownloadCsvButton
-          href={reportDownloadUrl(input.organizationSlug, "step-times", stepTimesQuery(input))}
-        />
+        <DownloadCsvButton download={() => csv.section("step-times", stepTimesQuery(input))} />
       }
     >
       <ReportSectionState
@@ -357,9 +347,11 @@ function StepTimesSection({ input }: { input: SectionInput }) {
             </TableHeader>
             <TableBody>
               {data.logged.map((row) => (
-                <TableRow key={row.step}>
+                <TableRow key={row.taskStep}>
                   <TableCell>
-                    {intl.formatMessage(messages.loggedStep, { step: stepLabel(intl, row.step) })}
+                    {intl.formatMessage(messages.loggedStep, {
+                      step: taskStepLabel(intl, row.taskStep),
+                    })}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatDuration(intl, row.minutes)}
@@ -370,17 +362,35 @@ function StepTimesSection({ input }: { input: SectionInput }) {
                 </TableRow>
               ))}
               {data.automated.taskRuns.runs > 0 ? (
-                <TableRow>
-                  <TableCell>{intl.formatMessage(messages.taskRuns)}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatDuration(intl, data.automated.taskRuns.milliseconds / 60_000)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {intl.formatMessage(messages.runsCount, {
-                      count: data.automated.taskRuns.runs,
-                    })}
-                  </TableCell>
-                </TableRow>
+                <>
+                  <TableRow>
+                    <TableCell>{intl.formatMessage(messages.taskRuns)}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatDuration(intl, data.automated.taskRuns.milliseconds / 60_000)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {intl.formatMessage(messages.runsCount, {
+                        count: data.automated.taskRuns.runs,
+                      })}
+                    </TableCell>
+                  </TableRow>
+                  {/* The runs' stages that amount to a minute; the run count stays on the row above. */}
+                  {data.automated.taskRuns.stages
+                    .filter((row) => row.milliseconds >= 30_000)
+                    .map((row) => (
+                      <TableRow key={row.stage}>
+                        <TableCell className="pl-8 text-muted-foreground">
+                          {intl.formatMessage(messages.taskRunStage, {
+                            stage: intl.formatMessage(messages[`stage_${row.stage}`]),
+                          })}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatDuration(intl, row.milliseconds / 60_000)}
+                        </TableCell>
+                        <TableCell />
+                      </TableRow>
+                    ))}
+                </>
               ) : null}
               {data.automated.workflowSteps.map((row) => (
                 <TableRow key={row.nodeType}>
@@ -400,150 +410,6 @@ function StepTimesSection({ input }: { input: SectionInput }) {
             </TableBody>
           </Table>
         )}
-      </ReportSectionState>
-    </ReportSection>
-  );
-}
-
-const ORIGIN_MESSAGES = Object.fromEntries(
-  AI_ORIGINS.map((origin) => [origin, messages[`origin_${origin}`]]),
-) as Record<AiOrigin, (typeof messages)["origin_other"]>;
-
-function originLabel(intl: Intl, origin: AiOrigin) {
-  return intl.formatMessage(ORIGIN_MESSAGES[origin]);
-}
-
-function channelLabel(intl: Intl, channel: AiChannel) {
-  return intl.formatMessage(messages[`channel_${channel}`]);
-}
-
-function AiUsageSection({
-  input,
-  onChange,
-}: {
-  input: SectionInput;
-  onChange: (change: Partial<ReportsUrlState>) => void;
-}) {
-  const intl = useIntl();
-  const usage = useAiUsage(input);
-  const byModel = input.state.aiGroup === "model";
-  const numeric = "text-right tabular-nums";
-  return (
-    <ReportSection
-      title={intl.formatMessage(messages.aiUsage)}
-      description={
-        narrowedBeyondProject(input)
-          ? `${intl.formatMessage(messages.aiUsageDetail)} ${intl.formatMessage(messages.aiUsageFiltersNote)}`
-          : intl.formatMessage(messages.aiUsageDetail)
-      }
-      actions={
-        <>
-          <SegmentedSwitch
-            label={intl.formatMessage(messages.groupAiUsage)}
-            value={input.state.aiGroup}
-            options={[
-              { value: "origin", label: intl.formatMessage(messages.byOrigin) },
-              { value: "model", label: intl.formatMessage(messages.byModel) },
-            ]}
-            onChange={(aiGroup) => onChange({ aiGroup, page: input.state.page })}
-          />
-          <DownloadCsvButton
-            href={reportDownloadUrl(input.organizationSlug, "ai-usage", aiUsageQuery(input))}
-          />
-        </>
-      }
-    >
-      <ReportSectionState query={usage}>
-        {(data) =>
-          data.byOrigin.length === 0 ? (
-            <ReportEmpty description={intl.formatMessage(messages.noAiUsage)} />
-          ) : (
-            <Table aria-label={intl.formatMessage(messages.aiUsage)}>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    {intl.formatMessage(byModel ? messages.modelColumn : messages.originColumn)}
-                  </TableHead>
-                  <TableHead className="text-right">
-                    {intl.formatMessage(messages.callsColumn)}
-                  </TableHead>
-                  <TableHead className="text-right">
-                    {intl.formatMessage(messages.inputColumn)}
-                  </TableHead>
-                  <TableHead className="text-right">
-                    {intl.formatMessage(messages.outputColumn)}
-                  </TableHead>
-                  {byModel ? (
-                    <TableHead>{intl.formatMessage(messages.originsColumn)}</TableHead>
-                  ) : (
-                    <>
-                      <TableHead>{intl.formatMessage(messages.modelsColumn)}</TableHead>
-                      <TableHead>{intl.formatMessage(messages.channelsColumn)}</TableHead>
-                    </>
-                  )}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {byModel
-                  ? data.byModel.map((row) => (
-                      <TableRow key={row.model}>
-                        <TableCell>{row.model}</TableCell>
-                        <TableCell className={numeric}>{formatCount(intl, row.calls)}</TableCell>
-                        <TableCell className={numeric}>
-                          {formatCompact(intl, row.inputTokens)}
-                        </TableCell>
-                        <TableCell className={numeric}>
-                          {formatCompact(intl, row.outputTokens)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {row.origins.map((origin) => originLabel(intl, origin)).join(", ")}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  : data.byOrigin.map((row) => (
-                      <TableRow key={row.origin}>
-                        <TableCell>{originLabel(intl, row.origin)}</TableCell>
-                        <TableCell className={numeric}>
-                          {row.images + row.videos > 0 && row.calls === 0
-                            ? intl.formatMessage(messages.mediaCalls, {
-                                images: intl.formatMessage(messages.imagesCount, {
-                                  count: row.images,
-                                }),
-                                videos: intl.formatMessage(messages.videosCount, {
-                                  count: row.videos,
-                                }),
-                              })
-                            : formatCount(intl, row.calls)}
-                        </TableCell>
-                        <TableCell className={numeric}>
-                          {row.inputTokens ? formatCompact(intl, row.inputTokens) : "—"}
-                        </TableCell>
-                        <TableCell className={numeric}>
-                          {row.outputTokens ? formatCompact(intl, row.outputTokens) : "—"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {row.models.join(", ")}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {row.channels.map((channel) => channelLabel(intl, channel)).join(", ")}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                <TableRow className="bg-muted/50 font-semibold">
-                  <TableCell>{intl.formatMessage(pageMessages.total)}</TableCell>
-                  <TableCell className={numeric}>{formatCount(intl, data.totals.calls)}</TableCell>
-                  <TableCell className={numeric}>
-                    {formatCompact(intl, data.totals.inputTokens)}
-                  </TableCell>
-                  <TableCell className={numeric}>
-                    {formatCompact(intl, data.totals.outputTokens)}
-                  </TableCell>
-                  <TableCell colSpan={byModel ? 1 : 2} />
-                </TableRow>
-              </TableBody>
-            </Table>
-          )
-        }
       </ReportSectionState>
     </ReportSection>
   );

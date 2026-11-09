@@ -26,6 +26,7 @@ import {
 
 import {
   projectTranslationCommentTypeEnum,
+  projectTranslationOriginEnum,
   projectTranslationProvenanceEnum,
   projectTranslationStatusEnum,
 } from "./enums";
@@ -54,6 +55,11 @@ export const projectTranslationKeys = pgTable(
     key: text("key").notNull(),
     sourceText: text("source_text").notNull(),
     normalizedSourceText: text("normalized_source_text").notNull(),
+    /**
+     * The source text as last imported from a file. Null until an import writes it; then the
+     * three-way rule in `upsertKeysFromEntries` can tell a platform edit from a repository edit.
+     */
+    importedSourceText: text("imported_source_text"),
     context: text("context"),
     type: text("type"),
     maxLength: integer("max_length"),
@@ -62,6 +68,11 @@ export const projectTranslationKeys = pgTable(
      * translation jobs skip it.
      */
     isHidden: boolean("is_hidden").notNull().default(false),
+    /**
+     * Set by a repository sync that found the key missing from the repository, and cleared when
+     * the key returns, so a sync only unhides what a sync hid.
+     */
+    hiddenBySyncAt: timestamp("hidden_by_sync_at", { withTimezone: true }),
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
       .notNull()
@@ -107,6 +118,8 @@ export const projectTranslations = pgTable(
     text: text("text").notNull().default(""),
     status: projectTranslationStatusEnum("status").notNull().default("draft"),
     provenance: projectTranslationProvenanceEnum("provenance").notNull().default("manual"),
+    /** Machine or human authorship of `text`; see `projectTranslationOriginEnum`. */
+    origin: projectTranslationOriginEnum("origin").notNull().default("unknown"),
     sourceJobId: text("source_job_id").references(() => jobs.id, { onDelete: "set null" }),
     reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, {
       onDelete: "set null",
@@ -154,6 +167,8 @@ export const projectTranslationRevisions = pgTable(
     text: text("text").notNull(),
     status: projectTranslationStatusEnum("status").notNull(),
     provenance: projectTranslationProvenanceEnum("provenance").notNull(),
+    /** The translation's origin after this write. */
+    origin: projectTranslationOriginEnum("origin").notNull().default("unknown"),
     sourceJobId: text("source_job_id").references(() => jobs.id, { onDelete: "set null" }),
     actorKind: text("actor_kind").notNull(),
     actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),

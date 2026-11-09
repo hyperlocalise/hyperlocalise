@@ -30,6 +30,7 @@ import {
   ChartBarIcon,
   SealCheckIcon,
   WebhooksLogoIcon,
+  ListChecksIcon,
   FilesIcon,
   UserSwitchIcon,
   UsersThreeIcon,
@@ -86,6 +87,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: WebhooksLogoIcon,
   },
   {
+    type: "trigger.job_changed",
+    category: "trigger",
+    enabled: true,
+    icon: ListChecksIcon,
+  },
+  {
     type: "action.http",
     category: "action",
     enabled: true,
@@ -138,6 +145,24 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     category: "localization",
     enabled: true,
     icon: FilesIcon,
+  },
+  {
+    type: "action.file_read",
+    category: "action",
+    enabled: true,
+    icon: FilesIcon,
+  },
+  {
+    type: "action.file_write",
+    category: "action",
+    enabled: true,
+    icon: FilesIcon,
+  },
+  {
+    type: "action.file_convert",
+    category: "localization",
+    enabled: true,
+    icon: TranslateIcon,
   },
   {
     type: "action.update_job",
@@ -218,6 +243,24 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: CheckSquareIcon,
   },
   {
+    type: "logic.json_parse",
+    category: "logic",
+    enabled: true,
+    icon: BracketsCurlyIcon,
+  },
+  {
+    type: "logic.json_stringify",
+    category: "logic",
+    enabled: true,
+    icon: BracketsCurlyIcon,
+  },
+  {
+    type: "logic.schema_validate",
+    category: "logic",
+    enabled: true,
+    icon: SealCheckIcon,
+  },
+  {
     type: "ai.agent",
     category: "ai",
     enabled: true,
@@ -230,10 +273,22 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: CheckSquareIcon,
   },
   {
+    type: "logic.array_transform",
+    category: "flow",
+    enabled: true,
+    icon: BracketsCurlyIcon,
+  },
+  {
     type: "logic.retry",
     category: "flow",
     enabled: true,
     icon: ArrowClockwiseIcon,
+  },
+  {
+    type: "flow.human_approval",
+    category: "flow",
+    enabled: true,
+    icon: UserCheckIcon,
   },
   {
     type: "flow.wait",
@@ -316,6 +371,8 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       return { kind: "trigger.source_upload" };
     case "trigger.webhook":
       return { kind: "trigger.webhook", tokenVersion: 1 };
+    case "trigger.job_changed":
+      return { kind: "trigger.job_changed", eventTypes: ["job.status_changed"] };
     case "action.http":
       return {
         kind: "action.http",
@@ -386,6 +443,26 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       return { kind: "action.run_qa", projectId: "", onError: "stop" };
     case "action.list_source_files":
       return { kind: "action.list_source_files", projectId: "", pathPrefix: "", onError: "stop" };
+    case "action.file_read":
+      return { kind: "action.file_read", fileId: "", encoding: "utf-8" };
+    case "action.file_write":
+      return {
+        kind: "action.file_write",
+        content: "",
+        filename: "output.json",
+        contentType: "application/json",
+        encoding: "utf-8",
+        locale: "",
+        sourceFileId: "",
+      };
+    case "action.file_convert":
+      return {
+        kind: "action.file_convert",
+        fileId: "",
+        targetFormat: "json",
+        filename: "",
+        locale: "",
+      };
     case "action.update_job":
       return {
         kind: "action.update_job",
@@ -495,10 +572,24 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
           { id: createComparisonOperandId(), name: "Right", type: "unknown" },
         ],
       };
+    case "logic.json_parse":
+      return { kind: "logic.json_parse", text: "{}" };
+    case "logic.json_stringify":
+      return { kind: "logic.json_stringify", value: null };
+    case "logic.schema_validate":
+      return { kind: "logic.schema_validate", value: null, schema: {} };
     case "ai.agent":
       return { kind: "ai.agent", prompt: "", onError: "stop" };
     case "logic.for_each":
       return { kind: "logic.for_each", collection: "[]" };
+    case "logic.array_transform":
+      return {
+        kind: "logic.array_transform",
+        operation: "map",
+        collection: "[]",
+        itemType: "unknown",
+        resultType: "unknown",
+      };
     case "logic.retry":
       return {
         kind: "logic.retry",
@@ -507,6 +598,14 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         backoffMultiplier: 2,
         jitter: true,
         acknowledgeDuplicateRisk: false,
+      };
+    case "flow.human_approval":
+      return {
+        kind: "flow.human_approval",
+        reviewerType: "user",
+        reviewerId: "",
+        prompt: "",
+        deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       };
     case "flow.wait":
       return {
@@ -576,10 +675,13 @@ export function getVisualNodeDimensions(
   if (type === "logic.retry") {
     return { width: 280, height: 140 };
   }
+  if (type === "logic.array_transform") {
+    return { width: 280, height: 140 };
+  }
   if (type.startsWith("trigger.")) {
     return { width: 280, height: 120 };
   }
-  if (type === "flow.wait") {
+  if (type === "flow.human_approval" || type === "flow.wait") {
     return { width: 280, height: 140 };
   }
   if (["flow.stop", "flow.return", "flow.fail"].includes(type)) {
@@ -613,6 +715,26 @@ export function catalogItemByType(type: VisualCatalogType): VisualNodeCatalogIte
   return item;
 }
 
+const JOB_CHANGED_EVENT_LABELS: Record<string, string> = {
+  "job.created": "Created",
+  "job.status_changed": "Status changed",
+  "job.assignee_changed": "Assignee changed",
+};
+
+function jobChangedSubtitle(config: Extract<VisualNodeConfig, { kind: "trigger.job_changed" }>) {
+  const parts: string[] = [];
+  if (config.eventTypes?.length) {
+    parts.push(config.eventTypes.map((type) => JOB_CHANGED_EVENT_LABELS[type] ?? type).join(", "));
+  }
+  if (config.jobKinds?.length) {
+    parts.push(config.jobKinds.join(", "));
+  }
+  if (config.toStatuses?.length) {
+    parts.push(config.toStatuses.join(", "));
+  }
+  return parts.length > 0 ? parts.join(" · ") : "Any job change";
+}
+
 export function resolveNodeSubtitle(config: VisualNodeConfig): string {
   switch (config.kind) {
     case "trigger.manual":
@@ -625,6 +747,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.projectId ? "Project upload" : "Any project";
     case "trigger.webhook":
       return "Incoming HTTP POST";
+    case "trigger.job_changed":
+      return jobChangedSubtitle(config);
     case "action.http":
       return config.method;
     case "action.content_sync":
@@ -647,6 +771,12 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.projectId ? "Project QA" : "Select project";
     case "action.list_source_files":
       return config.pathPrefix.trim() || "All source files";
+    case "action.file_read":
+      return config.encoding === "base64" ? "Read as base64" : "Read as UTF-8";
+    case "action.file_write":
+      return config.filename.trim() || "Create stored file";
+    case "action.file_convert":
+      return `Convert to ${config.targetFormat.toUpperCase()}`;
     case "action.update_job":
       return config.assigneeWorkosUserId.trim() ? "Reassign job" : "Update job";
     case "action.pick_assignee":
@@ -683,12 +813,22 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return `${config.inputs.length} ordered values`;
     case "logic.compare":
       return config.operator.replaceAll("_", " ");
+    case "logic.json_parse":
+      return "JSON text to value";
+    case "logic.json_stringify":
+      return "Value to JSON text";
+    case "logic.schema_validate":
+      return "Validate JSON value";
     case "ai.agent":
       return "Tools agent";
     case "logic.for_each":
       return "For each item";
+    case "logic.array_transform":
+      return `${config.operation} array`;
     case "logic.retry":
       return config.maxAttempts ? `${config.maxAttempts} attempts` : "Retry policy";
+    case "flow.human_approval":
+      return config.reviewerId ? `Approval by ${config.reviewerType}` : "Select reviewer or team";
     case "flow.wait":
       if (config.mode === "duration") {
         return formatWaitDuration(config.durationMs ?? 0);

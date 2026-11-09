@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
@@ -64,7 +65,9 @@ func TestStatusRecorderWriteDeadlineSurvivesServerTimeout(t *testing.T) {
 			}()
 			t.Cleanup(func() {
 				_ = srv.Close()
-				<-serveErr
+				if err := <-serveErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
+					t.Errorf("server exited with unexpected error: %v", err)
+				}
 			})
 
 			client := &http.Client{Timeout: 3 * time.Second}

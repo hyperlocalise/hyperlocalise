@@ -13,6 +13,13 @@ go_library(
 
 go_test(
     name = "pluralrules_test",
-    srcs = ["categories_test.go"],
+    srcs = [
+        "categories_more_test.go",
+        "categories_test.go",
+    ],
     embed = [":pluralrules"],
+    deps = [
+        "@org_golang_x_text//feature/plural",
+        "@org_golang_x_text//language",
+    ],
 )

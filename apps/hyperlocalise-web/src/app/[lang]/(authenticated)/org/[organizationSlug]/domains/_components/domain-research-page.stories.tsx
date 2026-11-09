@@ -17,6 +17,7 @@ import { DomainOverviewView } from "./domain-overview-view";
 import { DomainKeywordsView } from "./domain-keywords-view";
 import { DomainRanksView } from "./domain-ranks-view";
 import { DomainBrandView } from "./domain-brand-view";
+import { DomainAuditView } from "./domain-audit-view";
 import { DomainPromptsView } from "./domain-prompts-view";
 import { DomainSearchConsoleView } from "./domain-search-console-view";
 import { domainResearchMswHandlers } from "./domain-research-msw-handlers";
@@ -45,6 +46,9 @@ function DomainResearchPage({
         organizationSlug={organizationSlug}
         canManageConnection
       />
+    ),
+    audit: (
+      <DomainAuditView linkedDomainId={linkedDomainId} organizationSlug={organizationSlug} canRun />
     ),
   };
   return (

@@ -46,6 +46,7 @@ vi.mock("@/lib/providers/language-model", () => ({
     source === "openai" || source === "gateway"
       ? { openai: { reasoningSummary: "auto" as const } }
       : undefined,
+  getManagedLanguageModel: () => "mock-language-model",
 }));
 
 vi.mock("@/lib/providers/organization-language-model", () => ({

@@ -12,6 +12,8 @@
  */
 import { pgEnum } from "drizzle-orm/pg-core";
 
+import { translationOrigins } from "@/lib/projects/translations/translation-origin-rule";
+
 /**
  * Classifies the high-level work a job performs so workers, APIs, and UI views can route translation, review, sync, research, and asset-management workflows consistently.
  */
@@ -256,6 +258,7 @@ export const visualWorkflowRunTriggerSourceEnum = pgEnum("visual_workflow_run_tr
   "github",
   "source_upload",
   "webhook",
+  "job_changed",
 ]);
 /**
  * Tracks persisted visual workflow run execution from queueing through terminal outcomes.
@@ -300,6 +303,7 @@ export const interactionSourceEnum = pgEnum("interaction_source", [
   "github_agent",
   "slack_agent",
   "web_chat",
+  "workflow_approval",
 ]);
 /**
  * Tracks whether an inbox item is still active for operators or has been archived from the active work queue.
@@ -380,6 +384,17 @@ export const projectTranslationProvenanceEnum = pgEnum("project_translation_prov
   "agent",
 ]);
 /**
+ * Whether a machine or a person wrote a native project translation's text. Unlike provenance,
+ * which names the last writer, origin survives a person saving machine text unchanged:
+ * `machine` (written by a job or agent, or kept as is), `machine_post_edited` (machine text a
+ * person changed), `human` (a person's own text), `unknown` (imported, author not recorded).
+ * Rules: `lib/projects/translations/translation-origin-rule.ts` and `internal/translationorigin` (Go).
+ */
+export const projectTranslationOriginEnum = pgEnum(
+  "project_translation_origin",
+  translationOrigins,
+);
+/**
  * Distinguishes regular CAT comments from review issues on native project strings.
  */
 export const projectTranslationCommentTypeEnum = pgEnum("project_translation_comment_type", [
@@ -415,4 +430,23 @@ export const otaDistributionFormatEnum = pgEnum("ota_distribution_format", [
   "json",
   "android_xml",
   "ios_strings",
+]);
+/**
+ * Identifies whether a Human Approval request targets one user or a team.
+ */
+export const visualWorkflowApprovalReviewerTypeEnum = pgEnum(
+  "visual_workflow_approval_reviewer_type",
+  ["user", "team"],
+);
+
+/**
+ * Tracks a Human Approval request from creation through its terminal decision.
+ */
+export const visualWorkflowApprovalStatusEnum = pgEnum("visual_workflow_approval_status", [
+  "pending",
+  "approved",
+  "rejected",
+  "changes_requested",
+  "timed_out",
+  "cancelled",
 ]);

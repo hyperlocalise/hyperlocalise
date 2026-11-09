@@ -32,6 +32,7 @@ export type WorkspaceAutomationSkillDefaults = {
   githubInstallationRepositoryId?: string;
   crowdinProjectId?: string;
   contentfulConnectionId?: string;
+  webflowConnectionId?: string;
 };
 
 export type WorkspaceAutomationSkillAvailability =
@@ -75,12 +76,24 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS: Record<
     "sanityDocumentTypes",
     "projectId",
   ],
+  import_webflow_items: ["webflowConnectionId", "webflowCollectionIds", "projectId"],
+  push_webflow_translations: ["webflowConnectionId", "webflowCollectionIds", "projectId"],
   import_google_drive_files: ["googleDrive", "projectId"],
   push_google_drive_translations: ["googleDrive", "projectId"],
   import_braze_templates: ["projectId"],
   push_braze_templates: ["projectId"],
   import_braze_campaigns: ["projectId"],
   push_braze_campaigns: ["projectId"],
+  import_customer_io_campaigns: ["projectId"],
+  push_customer_io_campaigns: ["projectId"],
+  import_iterable_templates: ["projectId", "iterableSourceLocale"],
+  push_iterable_templates: ["projectId", "iterableSourceLocale"],
+  import_loops_emails: ["projectId"],
+  push_loops_emails: ["projectId"],
+  import_hubspot_content: ["projectId"],
+  push_hubspot_content: ["projectId"],
+  import_mailchimp_content: ["projectId"],
+  push_mailchimp_content: ["projectId"],
 };
 
 /** Ids of the given skills whose tools own the field, in the order given. */
@@ -156,6 +169,13 @@ function enableSkillTool(
         ...form,
         sanityEnabled: true,
       };
+    case "import_webflow_items":
+    case "push_webflow_translations":
+      return {
+        ...form,
+        webflowEnabled: true,
+        webflowConnectionId: form.webflowConnectionId || defaults.webflowConnectionId || "",
+      };
     case "import_google_drive_files":
     case "push_google_drive_translations":
       return {
@@ -168,6 +188,11 @@ function enableSkillTool(
         ...form,
         brazeEnabled: true,
         brazeCampaignsEnabled: false,
+        customerIoEnabled: false,
+        iterableEnabled: false,
+        loopsEnabled: false,
+        hubspotEnabled: false,
+        mailchimpEnabled: false,
       };
     case "import_braze_campaigns":
     case "push_braze_campaigns":
@@ -175,6 +200,71 @@ function enableSkillTool(
         ...form,
         brazeCampaignsEnabled: true,
         brazeEnabled: false,
+        customerIoEnabled: false,
+        iterableEnabled: false,
+        loopsEnabled: false,
+        hubspotEnabled: false,
+        mailchimpEnabled: false,
+      };
+    case "import_customer_io_campaigns":
+    case "push_customer_io_campaigns":
+      return {
+        ...form,
+        customerIoEnabled: true,
+        brazeEnabled: false,
+        brazeCampaignsEnabled: false,
+        iterableEnabled: false,
+        loopsEnabled: false,
+        hubspotEnabled: false,
+        mailchimpEnabled: false,
+      };
+    case "import_iterable_templates":
+    case "push_iterable_templates":
+      return {
+        ...form,
+        iterableEnabled: true,
+        loopsEnabled: false,
+        brazeEnabled: false,
+        brazeCampaignsEnabled: false,
+        customerIoEnabled: false,
+        hubspotEnabled: false,
+        mailchimpEnabled: false,
+      };
+    case "import_loops_emails":
+    case "push_loops_emails":
+      return {
+        ...form,
+        loopsEnabled: true,
+        iterableEnabled: false,
+        brazeEnabled: false,
+        brazeCampaignsEnabled: false,
+        customerIoEnabled: false,
+        hubspotEnabled: false,
+        mailchimpEnabled: false,
+      };
+    case "import_hubspot_content":
+    case "push_hubspot_content":
+      return {
+        ...form,
+        hubspotEnabled: true,
+        mailchimpEnabled: false,
+        brazeEnabled: false,
+        brazeCampaignsEnabled: false,
+        customerIoEnabled: false,
+        iterableEnabled: false,
+        loopsEnabled: false,
+      };
+    case "import_mailchimp_content":
+    case "push_mailchimp_content":
+      return {
+        ...form,
+        mailchimpEnabled: true,
+        hubspotEnabled: false,
+        brazeEnabled: false,
+        brazeCampaignsEnabled: false,
+        customerIoEnabled: false,
+        iterableEnabled: false,
+        loopsEnabled: false,
       };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: true };
@@ -231,6 +321,9 @@ function disableSkillTool(
     case "import_sanity_documents":
     case "push_sanity_translations":
       return { ...form, sanityEnabled: false };
+    case "import_webflow_items":
+    case "push_webflow_translations":
+      return { ...form, webflowEnabled: false };
     case "import_google_drive_files":
     case "push_google_drive_translations":
       return { ...form, googleDriveEnabled: false };
@@ -240,6 +333,21 @@ function disableSkillTool(
     case "import_braze_campaigns":
     case "push_braze_campaigns":
       return { ...form, brazeCampaignsEnabled: false };
+    case "import_customer_io_campaigns":
+    case "push_customer_io_campaigns":
+      return { ...form, customerIoEnabled: false };
+    case "import_iterable_templates":
+    case "push_iterable_templates":
+      return { ...form, iterableEnabled: false };
+    case "import_loops_emails":
+    case "push_loops_emails":
+      return { ...form, loopsEnabled: false };
+    case "import_hubspot_content":
+    case "push_hubspot_content":
+      return { ...form, hubspotEnabled: false };
+    case "import_mailchimp_content":
+    case "push_mailchimp_content":
+      return { ...form, mailchimpEnabled: false };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: false };
     case "assign_translate_with_agent":

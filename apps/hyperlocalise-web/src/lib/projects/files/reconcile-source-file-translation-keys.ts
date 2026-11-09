@@ -13,8 +13,12 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 
 import type { ProjectSourceStringEntry } from "@/api/routes/project/project.schema";
+import { uploadSurfaceKeepsMissingKeys } from "@/lib/agents/content-sync/content-sync-types";
 import { db, schema } from "@/lib/database/client";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
+
+import { hideKeysMissingFromSync, unhideKeysSyncHid } from "./hide-keys-missing-from-sync";
+import { SYNC_REPORT_KEY_LIMIT, type SourceFileSyncReport } from "./source-file-sync-report";
 
 export async function reconcileSourceFileTranslationKeys(input: {
   organizationId: string;
@@ -102,23 +106,72 @@ export async function reconcileSourceFileTranslationKeys(input: {
       throw new Error("Source version is not ingesting");
     }
 
-    await new ProjectTranslationService().upsertKeysFromEntries(
+    const [project] = await tx
+      .select({
+        approvedTranslationsOnSourceChange: schema.projects.approvedTranslationsOnSourceChange,
+        sourceTextEditable: schema.projects.sourceTextEditable,
+      })
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.id, input.projectId),
+          eq(schema.projects.organizationId, input.organizationId),
+        ),
+      );
+    const { clashes } = await new ProjectTranslationService().upsertKeysFromEntries(
       {
         ...input,
         preserveEmptySourceText: true,
+        sendApprovedToReviewOnSourceChange:
+          project?.approvedTranslationsOnSourceChange === "needs_review" &&
+          !version.keepApprovedTranslations,
+        sourceTextEditable: project?.sourceTextEditable ?? false,
       },
       tx,
     );
-    await tx
-      .delete(schema.projectTranslationKeys)
-      .where(
-        and(
-          eq(schema.projectTranslationKeys.organizationId, input.organizationId),
-          eq(schema.projectTranslationKeys.projectId, input.projectId),
-          eq(schema.projectTranslationKeys.repositorySourceFileId, file.id),
-          sql`${schema.projectTranslationKeys.sourceFileVersionId} IS DISTINCT FROM ${version.id}::uuid`,
-        ),
-      );
+    let missingKeys: string[] = [];
+    if (uploadSurfaceKeepsMissingKeys(version.uploadSurface)) {
+      // A repository sync hides what the repository dropped, so nothing is lost if it comes
+      // back, and translation jobs skip hidden keys. Only keys a sync hid are unhidden.
+      missingKeys = await hideKeysMissingFromSync(tx, {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        repositorySourceFileId: file.id,
+        keepVersionId: version.id,
+      });
+      await unhideKeysSyncHid(tx, {
+        repositorySourceFileId: file.id,
+        sourceFileVersionId: version.id,
+      });
+    } else {
+      // A hand upload that brings a key back shows it again too; only a sync hides.
+      await unhideKeysSyncHid(tx, {
+        repositorySourceFileId: file.id,
+        sourceFileVersionId: version.id,
+      });
+      await tx
+        .delete(schema.projectTranslationKeys)
+        .where(
+          and(
+            eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+            eq(schema.projectTranslationKeys.projectId, input.projectId),
+            eq(schema.projectTranslationKeys.repositorySourceFileId, file.id),
+            sql`${schema.projectTranslationKeys.sourceFileVersionId} IS DISTINCT FROM ${version.id}::uuid`,
+          ),
+        );
+    }
+    // Clashes are kept whatever brought the file in, so the next sync can settle them; the
+    // whole list, since settling needs each clash's file text.
+    const syncReport: SourceFileSyncReport | null =
+      uploadSurfaceKeepsMissingKeys(version.uploadSurface) || clashes.length > 0
+        ? {
+            ...(clashes.length > 0 ? { clashes } : {}),
+            missingKeys: missingKeys.slice(0, SYNC_REPORT_KEY_LIMIT),
+            ...(missingKeys.length > SYNC_REPORT_KEY_LIMIT
+              ? { missingKeyCount: missingKeys.length }
+              : {}),
+          }
+        : null;
     await tx
       .update(schema.repositorySourceFiles)
       .set({
@@ -131,8 +184,9 @@ export async function reconcileSourceFileTranslationKeys(input: {
         ingestState: "ingested",
         ingestedAt: new Date(),
         ingestError: null,
+        syncReport,
       })
       .where(eq(schema.repositorySourceFileVersions.id, version.id));
-    return { status: "ingested" as const };
+    return { status: "ingested" as const, ...(syncReport ? { syncReport } : {}) };
   });
 }

@@ -16,6 +16,7 @@ import { fireEvent, screen, waitFor, cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
 import { contentEditorSegmentsFixture } from "@/components/content-editor/shared/content-editor.fixture";
+import { ContentEditorQueueStore } from "@/components/content-editor/workspace/store/content-editor-queue-store";
 import {
   ContentEditorMultilingualTable,
   type ContentEditorMultilingualConfig,
@@ -106,6 +107,33 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("multilingual table", () => {
+  it("shows no tick boxes outside Select mode", async () => {
+    renderTable({ onToggleSegmentChecked: vi.fn() });
+    await screen.findByRole("button", { name: "Edit message.0 in French" });
+    expect(screen.queryByRole("checkbox", { name: "Select message.0" })).not.toBeInTheDocument();
+  });
+
+  it("ticks a whole string in Select mode without editing a cell", async () => {
+    const store = new ContentEditorQueueStore();
+    renderTable({
+      showSelection: true,
+      checkedSegmentIds: store.checkedSegmentIds,
+      onToggleSegmentChecked: (segmentId, checked) => store.toggleChecked(segmentId, checked),
+    });
+    const checkbox = await screen.findByRole("checkbox", { name: "Select message.1" });
+
+    fireEvent.click(checkbox);
+
+    expect(store.checkedSegmentIds.has("key-1")).toBe(true);
+    expect(checkbox).toBeChecked();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+
+    fireEvent.click(checkbox);
+
+    expect(store.checkedSegmentIds.has("key-1")).toBe(false);
+    expect(checkbox).not.toBeChecked();
+  });
+
   it("cancels edits and does not save composing Enter or Shift+Enter", async () => {
     renderTable();
     fireEvent.click(await screen.findByRole("button", { name: "Edit message.0 in French" }));

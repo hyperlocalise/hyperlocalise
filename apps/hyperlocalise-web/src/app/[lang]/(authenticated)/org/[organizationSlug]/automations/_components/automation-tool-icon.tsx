@@ -61,6 +61,14 @@ export function AutomationToolIcon({ toolId }: { toolId: AutomationListToolId })
       return <SimpleBrandIcon icon={siSanity} colored data-icon="inline-start" />;
     case "braze":
       return <BrandLogo src="/images/braze-logo.svg" />;
+    case "iterable":
+      return <BrandLogo src="/images/iterable-logo.png" />;
+    case "customerIo":
+      return <BrandLogo src="/images/customerio-logo.svg" />;
+    case "hubspot":
+      return <BrandLogo src="/images/hubspot-logo.svg" />;
+    case "mailchimp":
+      return <BrandLogo src="/images/mailchimp-logo.svg" />;
     case "crowdin":
       return <SimpleBrandIcon icon={siCrowdin} colored data-icon="inline-start" />;
     case "semrush":

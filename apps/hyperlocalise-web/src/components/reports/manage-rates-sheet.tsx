@@ -42,8 +42,14 @@ import { MATCH_BUCKETS, type MatchBucket } from "@/lib/reporting/word-analysis";
 import { manageRatesSheetMessages as messages } from "./manage-rates-sheet.messages";
 import { bandLabel, formatRateAmount, stepLabel } from "./report-format";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
+import { ReportLoadFailed } from "./report-section";
 import { ReportSelect } from "./reports-filter-bar";
-import { useRateCards, useSaveRateCard, type ReportSettings } from "./reports-queries";
+import {
+  isRefusedRead,
+  useRateCards,
+  useSaveRateCard,
+  type ReportSettings,
+} from "./reports-queries";
 
 type Line = {
   key: string;
@@ -105,7 +111,7 @@ export function ManageRatesSheet({
   const nameId = useId();
   const list = cards.data?.rateCards ?? [];
   const selected = list.find((card) => card.name === chosen) ?? list[0] ?? null;
-  const creating = draft !== null || (cards.isSuccess && list.length === 0);
+  const creating = draft !== null || (cards.data !== undefined && list.length === 0);
 
   const locales = useMemo(() => {
     const sources = new Set(settings.projects.map((project) => project.sourceLocale ?? "en"));
@@ -196,7 +202,7 @@ export function ManageRatesSheet({
   }
 
   return (
-    <Sheet open onOpenChange={(open) => (open ? null : onClose())}>
+    <Sheet open onOpenChange={(open) => (open || save.isPending ? null : onClose())}>
       <SheetContent
         side="right"
         className="w-full overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl"
@@ -210,8 +216,13 @@ export function ManageRatesSheet({
           </SheetDescription>
         </SheetHeader>
         <div className="grid gap-6 px-6 pb-6 [&>*]:min-w-0">
+          {cards.isError && cards.data && !isRefusedRead(cards.error) ? (
+            <ReportLoadFailed kept retry={cards.refetch} />
+          ) : null}
           {cards.isPending ? (
             <Skeleton className="h-64 w-full rounded-xl" />
+          ) : !cards.data || (cards.isError && isRefusedRead(cards.error)) ? (
+            <ReportLoadFailed error={cards.error} retry={cards.refetch} />
           ) : list.length === 0 && !canManage ? (
             <p className="text-sm text-muted-foreground">{intl.formatMessage(messages.noCards)}</p>
           ) : (
@@ -394,15 +405,15 @@ export function ManageRatesSheet({
           )}
         </div>
         <SheetFooter className="flex-row flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" disabled={save.isPending} onClick={onClose}>
             {intl.formatMessage(messages.cancel)}
           </Button>
-          {canManage && !creating ? (
+          {canManage && !creating && cards.data ? (
             <Button variant="outline" disabled={save.isPending} onClick={() => startCard("copy")}>
               {intl.formatMessage(messages.saveAsNew)}
             </Button>
           ) : null}
-          {canManage ? (
+          {canManage && cards.data ? (
             <Button disabled={save.isPending} onClick={() => void submit()}>
               {intl.formatMessage(save.isPending ? messages.saving : messages.save)}
             </Button>

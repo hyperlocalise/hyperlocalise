@@ -13,6 +13,11 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { EmailProviderSlug } from "@/lib/email/constants";
+import type {
+  JobChangeEventType,
+  JobKind,
+  JobStatus,
+} from "@/lib/job-change-events/job-change-events-contract";
 
 export const VISUAL_WORKFLOW_SCHEMA_VERSION = 2 as const;
 export const VISUAL_WORKFLOW_SCHEMA_V3_VERSION = 3 as const;
@@ -23,6 +28,7 @@ export type VisualCatalogType =
   | "trigger.github"
   | "trigger.source_upload"
   | "trigger.webhook"
+  | "trigger.job_changed"
   | "action.http"
   | "action.content_sync"
   | "action.notify_slack"
@@ -32,6 +38,9 @@ export type VisualCatalogType =
   | "action.check_progress"
   | "action.run_qa"
   | "action.list_source_files"
+  | "action.file_read"
+  | "action.file_write"
+  | "action.file_convert"
   | "action.update_job"
   | "action.pick_assignee"
   | "action.crowdin_pre_translate"
@@ -45,9 +54,14 @@ export type VisualCatalogType =
   | "logic.select_path"
   | "logic.coalesce"
   | "logic.compare"
+  | "logic.json_parse"
+  | "logic.json_stringify"
+  | "logic.schema_validate"
   | "ai.agent"
   | "logic.for_each"
+  | "logic.array_transform"
   | "logic.retry"
+  | "flow.human_approval"
   | "flow.wait"
   | "flow.stop"
   | "flow.return"
@@ -83,6 +97,8 @@ export type VisualComparisonOperand = {
   name: string;
   type: WorkflowValueType;
 };
+
+export type VisualArrayTransformOperation = "filter" | "map" | "reduce" | "find";
 
 /**
  * How Pick assignee chooses among the people of the matched rule: the first one listed, each in
@@ -126,6 +142,18 @@ export type VisualKeyValuePair = {
 export type VisualWorkflowScheduleCadence = "hourly" | "daily" | "weekly";
 
 export type VisualWorkflowGithubTriggerEvent = "push" | "pull_request";
+
+export type VisualWorkflowJobChangedTriggerConfig = {
+  kind: "trigger.job_changed";
+  /** Only jobs in this project; every project when unset. */
+  projectId?: string;
+  /** Which job changes start a run; every change when unset or empty. */
+  eventTypes?: JobChangeEventType[];
+  /** Only jobs of these kinds; every kind when unset or empty. */
+  jobKinds?: JobKind[];
+  /** Only changes that leave the job in one of these statuses; any status when unset or empty. */
+  toStatuses?: JobStatus[];
+};
 
 export type VisualWorkflowScheduleConfig = {
   cadence: VisualWorkflowScheduleCadence;
@@ -176,6 +204,7 @@ export type VisualNodeConfig =
       /** Part of the signed webhook token; raising it invalidates every URL handed out before. */
       tokenVersion: number;
     }
+  | VisualWorkflowJobChangedTriggerConfig
   | {
       kind: "action.http";
       method: HttpMethod;
@@ -203,6 +232,10 @@ export type VisualNodeConfig =
       resourceKey: string;
       providerFolder: string;
       projectFolder: string;
+      /** Git providers: the branch to read; the default branch when empty. */
+      branch?: string;
+      /** Git providers: where each language's files sit, with `{{locale}}` for the code. */
+      pathTemplate?: string;
       onError?: VisualNodeErrorBehavior;
     }
   | {
@@ -265,6 +298,27 @@ export type VisualNodeConfig =
       /** Keeps only files whose path starts with this; empty lists every source file. */
       pathPrefix: string;
       onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.file_read";
+      fileId: string;
+      encoding: "utf-8" | "base64";
+    }
+  | {
+      kind: "action.file_write";
+      content: string;
+      filename: string;
+      contentType: string;
+      encoding: "utf-8" | "base64";
+      locale?: string;
+      sourceFileId?: string;
+    }
+  | {
+      kind: "action.file_convert";
+      fileId: string;
+      targetFormat: "json" | "yaml" | "arb";
+      filename?: string;
+      locale?: string;
     }
   | {
       kind: "action.update_job";
@@ -386,8 +440,19 @@ export type VisualNodeConfig =
       locale?: string;
       sensitivity?: "base" | "accent" | "case" | "variant";
     }
+  | { kind: "logic.json_parse"; text: string }
+  | { kind: "logic.json_stringify"; value: unknown }
+  | { kind: "logic.schema_validate"; value: unknown; schema: Record<string, unknown> }
   | { kind: "ai.agent"; prompt: string; onError?: VisualNodeErrorBehavior }
   | { kind: "logic.for_each"; collection: string }
+  | {
+      kind: "logic.array_transform";
+      operation: VisualArrayTransformOperation;
+      collection: string;
+      itemType: WorkflowValueType;
+      resultType: WorkflowValueType;
+      initialValue?: unknown;
+    }
   | {
       kind: "logic.retry";
       maxAttempts?: number;
@@ -396,6 +461,15 @@ export type VisualNodeConfig =
       jitter?: boolean;
       retryableErrorCodes?: string[];
       acknowledgeDuplicateRisk?: boolean;
+    }
+  | {
+      kind: "flow.human_approval";
+      reviewerType: "user" | "team";
+      reviewerId: string;
+      prompt: string;
+      artifactReference?: string;
+      jobReference?: string;
+      deadline?: string;
     }
   | {
       kind: "flow.wait";

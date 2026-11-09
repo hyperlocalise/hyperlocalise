@@ -33,10 +33,16 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     purpose:
       "Start when another system, such as a TMS, CMS or CI job, sends an HTTP POST to the workflow's webhook URL. The JSON body is available to later steps.",
   },
+  "trigger.job_changed": {
+    title: "Job changed",
+    purpose:
+      "Start when a job in the workspace is created, changes status, or is reassigned. Filters narrow it to a project, job kinds, or the status the job moved to. Later steps get the job's id, kind, project, new status and previous status.",
+  },
   "action.http": { title: "HTTP Request", purpose: "Call an HTTP endpoint." },
   "action.content_sync": {
     title: "Content sync",
-    purpose: "Pull source files into a project and push ready translations back.",
+    purpose:
+      "Pull source files into a project and send translations back: ready ones to GitHub, approved ones to GitLab.",
   },
   "action.notify_slack": { title: "Notify Slack", purpose: "Send a Slack message to a channel." },
   "action.notify_email": {
@@ -66,6 +72,18 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     title: "List source files",
     purpose:
       "List a project's source files, optionally under a path, so a For each can translate or assign every file.",
+  },
+  "action.file_read": {
+    title: "Read file",
+    purpose: "Read bounded content and metadata from an organization-scoped stored file.",
+  },
+  "action.file_write": {
+    title: "Write file",
+    purpose: "Create an idempotent stored file with actor and provenance metadata.",
+  },
+  "action.file_convert": {
+    title: "Convert file",
+    purpose: "Create a derived localisation file in a supported lossless format.",
   },
   "action.update_job": {
     title: "Update job",
@@ -114,9 +132,29 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     title: "Compare",
     purpose: "Compare typed values or combine boolean predicates without implicit coercion.",
   },
+  "logic.json_parse": {
+    title: "Parse JSON",
+    purpose: "Parse JSON text into a structured value.",
+  },
+  "logic.json_stringify": {
+    title: "Stringify JSON",
+    purpose: "Serialize a structured value as JSON text.",
+  },
+  "logic.schema_validate": {
+    title: "Validate schema",
+    purpose: "Validate a value against a bounded structured schema.",
+  },
   "ai.agent": { title: "AI Agent", purpose: "Placeholder agent step with tools." },
   "logic.for_each": { title: "Loop", purpose: "Iterate over a collection sequentially." },
+  "logic.array_transform": {
+    title: "Array transform",
+    purpose: "Filter, map, reduce, or find values in an ordered collection.",
+  },
   "logic.retry": { title: "Retry", purpose: "Re-run a body region with backoff." },
+  "flow.human_approval": {
+    title: "Human approval",
+    purpose: "Pause until an authorized reviewer decides or the request expires.",
+  },
   "flow.wait": { title: "Wait", purpose: "Pause until a duration, timestamp, or condition." },
   "flow.stop": {
     title: "Stop workflow",

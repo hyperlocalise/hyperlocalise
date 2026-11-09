@@ -13,6 +13,10 @@ go_library(
 
 go_test(
     name = "qavalidate_test",
-    srcs = ["validate_test.go"],
+    srcs = [
+        "validate_policy_test.go",
+        "validate_test.go",
+    ],
     embed = [":qavalidate"],
+    deps = ["//internal/i18n/segmentvalidate"],
 )

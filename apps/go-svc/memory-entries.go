@@ -167,12 +167,17 @@ func (api *memoryAPI) createMemoryEntry(r *http.Request, actor memoryActor, m me
 	var existing string
 	err = tx.QueryRow(ctx, `select id from memory_entries where memory_id=$1 and source_locale=$2 and target_locale=$3 and normalized_source_text=$4`, m.ID, sourceLocale, targetLocale, normalized).Scan(&existing)
 	if err == nil {
-		return nil, 0, memoryFailure(409, "duplicate_memory_entry", "An entry with this source text and locale pair already exists")
+		return nil, 0, duplicateMemoryEntry()
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, err
 	}
+	// The lookup above takes no lock, so a concurrent create can still win the
+	// race; the unique index is the source of truth.
 	entry, err := scanMemoryEntry(tx.QueryRow(ctx, `insert into memory_entries as e (memory_id, source_locale, target_locale, source_text, normalized_source_text, target_text, match_score, provenance, created_by_user_id) values ($1,$2,$3,$4,$5,$6,$7,'manual',$8) returning `+memoryEntryColumns, m.ID, sourceLocale, targetLocale, sourceText, normalized, targetText, matchScore, actor.userID))
+	if isUniqueViolation(err) {
+		return nil, 0, duplicateMemoryEntry()
+	}
 	if err != nil {
 		return nil, 0, err
 	}
@@ -214,6 +219,9 @@ func (api *memoryAPI) patchMemoryEntry(r *http.Request, actor memoryActor, m mem
 		}
 	} else if !actor.canWriteMemories() {
 		return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
+	}
+	if payload.Metadata != nil && !isMemoryEntryMetadataObject(payload.Metadata) {
+		return nil, 0, invalidMemory()
 	}
 	ctx := r.Context()
 	tx, err := api.pool.Begin(ctx)
@@ -334,6 +342,13 @@ func memoryEntryChangedContentFields(current, next memoryEntryRecord) []string {
 		fields = append(fields, "metadata")
 	}
 	return fields
+}
+
+// The metadata column is a non-null JSON object; null, arrays, and scalars
+// would be stored verbatim and break readers that expect an object.
+func isMemoryEntryMetadataObject(raw json.RawMessage) bool {
+	var object map[string]json.RawMessage
+	return json.Unmarshal(raw, &object) == nil && object != nil
 }
 
 func memoryEntryMetadataEqual(a, b json.RawMessage) bool {

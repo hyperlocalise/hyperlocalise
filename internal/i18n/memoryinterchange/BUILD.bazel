@@ -9,6 +9,7 @@ go_library(
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/memoryinterchange",
     visibility = ["//visibility:public"],
     deps = [
+        "//internal/csvsafe",
         "//internal/i18n/editor-export:editor-export",
         "@org_golang_x_text//language",
         "@org_golang_x_text//unicode/norm",
@@ -18,7 +19,10 @@ go_library(
 go_test(
     name = "memoryinterchange_test",
     srcs = [
+        "import_plan_equivalence_test.go",
         "import_plan_test.go",
+        "interchange_benchmark_test.go",
+        "interchange_fuzz_test.go",
         "interchange_test.go",
     ],
     embed = [":memoryinterchange"],

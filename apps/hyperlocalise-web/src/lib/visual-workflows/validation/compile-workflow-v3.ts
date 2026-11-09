@@ -25,6 +25,7 @@ import {
   computeForEachBodyNodeIdsFromV3Edges,
   computeTryCatchBodyNodeIdsFromV3Edges,
 } from "../editor/for-each-body-membership";
+import { getAllowedExecutionSourceHandles } from "./execution-handles";
 
 export type VisualWorkflowV3CompilationIssue = {
   code:
@@ -86,6 +87,22 @@ function comparisonOperandTypesAreCompatible(
   }
 }
 
+function isScopedCollectionOutputPort(
+  source: CanonicalVisualWorkflowNode,
+  portId: string,
+): boolean {
+  const root = portId.split(".")[0];
+  if (source.type === "logic.for_each") return root === "item" || root === "index";
+  if (source.type !== "logic.array_transform" || source.config.kind !== "logic.array_transform") {
+    return false;
+  }
+  return (
+    root === "item" ||
+    root === "index" ||
+    (root === "accumulator" && source.config.operation === "reduce")
+  );
+}
+
 function hasDataSourcePort(node: CanonicalVisualWorkflowNode, portId: string): boolean {
   const fields = getWorkflowOutputFields(node);
 
@@ -134,7 +151,7 @@ function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> 
     return new Set(["default", ...node.config.cases.map((caseEntry) => caseEntry.id)]);
   }
 
-  if (node.type === "logic.for_each") {
+  if (["logic.for_each", "logic.array_transform"].includes(node.type)) {
     return new Set(["each", "done"]);
   }
 
@@ -142,10 +159,26 @@ function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> 
     return new Set(["completed", "timed_out", "error"]);
   }
 
+  if (node.type === "logic.json_parse" || node.type === "logic.schema_validate") {
+    return new Set(["success", "invalid"]);
+  }
+
+  if (node.type === "logic.json_stringify") {
+    return new Set(["success", "error"]);
+  }
+
+  if (["action.file_read", "action.file_write", "action.file_convert"].includes(node.type)) {
+    return new Set(["success", "error"]);
+  }
+
   const portIds = new Set(["success"]);
 
   if ("onError" in node.config && node.config.onError === "branch") {
     portIds.add("error");
+  }
+
+  if (node.type === "flow.human_approval") {
+    return new Set(["approved", "rejected", "changes_requested", "timed_out"]);
   }
 
   if (node.type === "flow.wait") {
@@ -212,6 +245,85 @@ function hasExecutionCycle(
   }
 
   return visitedNodeCount !== definition.nodes.length;
+}
+
+const HUMAN_APPROVAL_REQUIRED_FIELDS = ["reviewerId", "prompt", "deadline"] as const;
+
+function hasConfiguredHumanApprovalField(
+  node: CanonicalVisualWorkflowNode,
+  field: (typeof HUMAN_APPROVAL_REQUIRED_FIELDS)[number],
+): boolean {
+  if (node.config.kind !== "flow.human_approval") return false;
+
+  const configuredValue =
+    field === "reviewerId"
+      ? node.config.reviewerId
+      : field === "prompt"
+        ? node.config.prompt
+        : node.config.deadline;
+
+  if (typeof configuredValue === "string" && configuredValue.trim().length > 0) {
+    return true;
+  }
+
+  const binding = node.inputs?.[field];
+  if (!binding) return false;
+
+  if (binding.kind !== "literal") {
+    return true;
+  }
+
+  return typeof binding.value === "string" && binding.value.trim().length > 0;
+}
+
+function validateHumanApprovalInputs(
+  node: CanonicalVisualWorkflowNode,
+): VisualWorkflowV3CompilationIssue[] {
+  if (node.config.kind !== "flow.human_approval") return [];
+
+  const issues: VisualWorkflowV3CompilationIssue[] = [];
+
+  for (const field of HUMAN_APPROVAL_REQUIRED_FIELDS) {
+    if (!hasConfiguredHumanApprovalField(node, field)) {
+      issues.push({
+        code: "missing_required_input",
+        nodeId: node.id,
+        field,
+        reason: "required",
+      });
+    }
+
+    const binding = node.inputs?.[field];
+    if (
+      binding?.kind === "literal" &&
+      binding.value !== undefined &&
+      typeof binding.value !== "string"
+    ) {
+      issues.push({
+        code: "incompatible_data_types",
+        nodeId: node.id,
+        field,
+      });
+    }
+  }
+
+  for (const field of ["artifactReference", "jobReference"] as const) {
+    const binding = node.inputs?.[field];
+
+    if (
+      binding?.kind === "literal" &&
+      binding.value !== undefined &&
+      typeof binding.value !== "string"
+    ) {
+      issues.push({
+        code: "incompatible_data_types",
+        nodeId: node.id,
+        field,
+      });
+    }
+  }
+
+  return issues;
 }
 
 export function compileVisualWorkflowV3Definition(
@@ -359,6 +471,18 @@ export function compileVisualWorkflowV3Definition(
       continue;
     }
 
+    if (isScopedCollectionOutputPort(source, edge.sourcePortId)) {
+      const bodyNodeIds = new Set(computeForEachBodyNodeIdsFromV3Edges(source.id, executionEdges));
+      if (!bodyNodeIds.has(target.id)) {
+        issues.push({
+          code: "invalid_source_port",
+          edgeId: edge.id,
+          nodeId: source.id,
+        });
+        continue;
+      }
+    }
+
     if (!hasDataTargetPort(target, edge.targetPortId)) {
       issues.push({
         code: "invalid_target_port",
@@ -428,6 +552,11 @@ export function compileVisualWorkflowV3Definition(
   }
 
   for (const node of nodes) {
+    if (node.config.kind === "flow.human_approval") {
+      issues.push(...validateHumanApprovalInputs(node));
+      continue;
+    }
+
     if (
       node.config.kind !== "flow.return" &&
       node.config.kind !== "flow.call_workflow" &&
@@ -484,17 +613,20 @@ export function compileVisualWorkflowV3Definition(
 export function toVisualWorkflowExecutionDefinition(
   compiled: CompiledVisualWorkflowV3Definition,
 ): VisualWorkflowDefinition {
-  const tryCatchNodeIds = new Set(
-    compiled.definition.nodes
-      .filter((node) => node.type === "logic.try_catch")
-      .map((node) => node.id),
-  );
+  const nodesById = new Map(compiled.definition.nodes.map((node) => [node.id, node]));
+  const executionSourceHandle = (
+    edge: Extract<VisualWorkflowV3Edge, { kind: "execution" }>,
+  ): string | null => {
+    if (edge.sourcePortId !== "success") return edge.sourcePortId;
+    const source = nodesById.get(edge.source);
+    return source && getAllowedExecutionSourceHandles(source).includes(null) ? null : "success";
+  };
 
   return {
     schemaVersion: 2,
     name: compiled.definition.name,
     nodes: compiled.definition.nodes.map((node) =>
-      node.type === "logic.for_each"
+      ["logic.for_each", "logic.array_transform"].includes(node.type)
         ? {
             ...node,
             bodyNodeIds: computeForEachBodyNodeIdsFromV3Edges(node.id, compiled.definition.edges),
@@ -513,10 +645,7 @@ export function toVisualWorkflowExecutionDefinition(
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      sourceHandle:
-        edge.sourcePortId === "success" && !tryCatchNodeIds.has(edge.source)
-          ? null
-          : edge.sourcePortId,
+      sourceHandle: executionSourceHandle(edge),
       targetHandle: edge.targetPortId === "input" ? null : edge.targetPortId,
     })),
     editor: compiled.definition.editor,

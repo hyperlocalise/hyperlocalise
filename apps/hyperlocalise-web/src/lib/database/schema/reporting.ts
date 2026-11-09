@@ -70,9 +70,9 @@ export const reportingWorkspaces = pgTable("reporting_workspaces", {
   summaryVersion: integer("summary_version"),
 });
 /**
- * One Reports start for every workspace, from before each workspace had its own. The web app no
- * longer reads it; go-svc's reporting routes still do, so the table stays until they move to
- * `reporting_workspaces`.
+ * @deprecated Unused. Each workspace's Reports start is `reporting_workspaces.started_at`.
+ * One Reports start for every workspace, from before each workspace had its own. Kept so
+ * existing rows stay; nothing reads or writes it.
  */
 export const reportingRollout = pgTable("reporting_rollout", {
   id: integer("id").primaryKey().default(1),
@@ -138,8 +138,8 @@ export const reportingTaskRates = pgTable(
     /** The card's prices are taken as they were at this time, so later edits leave the task. */
     pricedAt: timestamp("priced_at", { withTimezone: true }),
     /**
-     * The task's one rate line for every language, before it had a card. Not read any more;
-     * kept so the rework needs one migration, to be dropped in a later clean-up.
+     * @deprecated Unused. A task is priced by `rateCardName`, a time estimate or a fixed fee.
+     * The task's one rate line for every language, before it had a card. Kept so existing rows stay.
      */
     rateId: uuid("rate_id").references(() => reportingRates.id),
     estimatedMinutes: integer("estimated_minutes"),
@@ -175,6 +175,10 @@ export const reportingAnalyses = pgTable(
     matchScore: integer("match_score"),
     bucket: text("bucket").$type<MatchBucket>().notNull(),
     algorithmVersion: integer("algorithm_version").notNull().default(1),
+    /**
+     * @deprecated Unused. Pricing is on `reporting_costs` when work finishes, not on the analysis.
+     * The rate when a string arrived. Kept so existing rows stay.
+     */
     rateId: uuid("rate_id").references(() => reportingRates.id),
     createdAt: createdAt(),
   },
@@ -436,6 +440,7 @@ export const reportingCosts = pgTable(
     projectId: projectId(),
     jobId: jobId(),
     operationKey: text("operation_key").notNull(),
+    /** Only old rows are `ai` or `expense`: nothing writes or sums them now. */
     kind: text("kind", { enum: ["human", "ai", "expense"] }).notNull(),
     step: text("step").notNull(),
     targetLocale: text("target_locale"),

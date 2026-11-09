@@ -46,6 +46,12 @@ Those actions stay hidden on other files and on the all-files queue. **Ingest** 
 
 Translators can prepare drafts; approval requires a reviewer, localization manager, or administrator with project access. See [Roles and permissions](/platform/workspace/roles).
 
+When a string's source text changes, from a new file upload, a repository sync, an integration import or the API, its approved translations stay approved unless the project's **When source text changes** setting is **Needs review**. Then they go back to **Needs review** with their text kept, so a reviewer can update it to the new source and approve it again. See [Update source content safely](/platform/guides/update-source-content#recheck-approved-wording).
+
+### Edit source text
+
+In a project with **Allow source text editing** turned on, administrators, localization managers and developers can change a string's source text from the **Source text** section of the side panel: select the pencil, edit the text, and select **Save source text** (or press ⌘↵). In a project set to send approved translations to review when source text changes, tick **Keep translations approved** for a typo or punctuation fix. The section appears on strings in JSON, JSONC and ARB files, not on hidden strings or in the merged-strings view; a string locked in any language can't be edited. An upload or repository sync keeps the edit, and a GitLab sync sends it back to the repository; see [Edit source text in Hyperlocalise](/platform/guides/update-source-content#edit-source-text-in-hyperlocalise).
+
 Format checks on the segment include **Placeholders & ICU** and **Length**. Fix those before you approve. Unreal Engine tags in gettext `.po` files appear as chips such as **UE#0**; keep them and translate the words around them. See [Unreal Engine rich text in gettext PO](/cli/reference/formats/gettext#unreal-engine-rich-text).
 
 ## Filter the queue
@@ -65,6 +71,19 @@ Common filters:
 - **Unsaved translations**
 
 Provider-specific filters such as **QA issues** and **Machine translations** appear when the connected TMS supports them.
+
+### Machine or human
+
+Every translation in a native project records whether a machine or a person wrote its text. Use **Filter queue** → **Machine or human** to narrow the queue to one label, and see each version's label in the string's history.
+
+| Label | Meaning |
+| --- | --- |
+| **Machine** | Written by a translation job or the agent, and not changed since. Approving it unchanged keeps it **Machine**. |
+| **Machine, post-edited** | Machine text a person then changed. |
+| **Human** | Written by a person, with no machine text before it. |
+| **Unknown** | Imported from a file or an integration that doesn't say who wrote it. |
+
+Approving or rejecting a translation never changes its label; only a change to the text does. Translations written before November 2026 were labelled from their history: a save with no earlier machine version is **Human**.
 
 **Load more** continues the infinite-scroll list.
 
@@ -87,6 +106,14 @@ Each row includes the segment key, source text, target text (empty when untransl
 Exports include up to **5,000** matching segments. If more segments match your filters, the download contains the first 5,000 in queue order; narrow filters or search to export a smaller slice.
 
 If nothing matches the current filters, download fails with a message that no segments match.
+
+### Import a bilingual file
+
+On a native project, use **Import bilingual file…** in the queue **More actions** menu to re-import a CSV, TMX, XLF, XLIFF, or XLSX file you exported from this editor. Matching keys in the current locale are updated. Empty targets are skipped so untranslated strings stay empty.
+
+Use this to repair inline tags or placeholders outside the editor, then bring the corrected targets back. The import is scoped to the open file, or to every file when you are in the all-files queue. Locale must match the current target locale. The same **5,000**-string cap applies.
+
+Provider-backed projects cannot re-import bilingual files.
 
 For complete target files, use the project’s **Download translations** action. See [Download translated files](/platform/translation/download) to choose the correct export.
 

@@ -69,6 +69,9 @@ export function ContentEditorSideBySideVirtualList({
   onRegenerateImage,
   onUploadImage,
   onToggleLocked,
+  checkedSegmentIds,
+  showSelection = false,
+  onToggleSegmentChecked,
   hasMore = false,
   isLoadingMore = false,
   onNearEnd,
@@ -110,6 +113,9 @@ export function ContentEditorSideBySideVirtualList({
   onRegenerateImage?: (segmentId: string) => void;
   onUploadImage?: (segmentId: string, file: File) => void;
   onToggleLocked?: (segmentId: string) => void | Promise<void>;
+  checkedSegmentIds?: ReadonlySet<string>;
+  showSelection?: boolean;
+  onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onNearEnd?: () => void;
@@ -281,6 +287,12 @@ export function ContentEditorSideBySideVirtualList({
                     onUploadImage ? (file) => onUploadImage(segment.id, file) : undefined
                   }
                   onToggleLocked={onToggleLocked ? () => onToggleLocked(segment.id) : undefined}
+                  checkedSegmentIds={checkedSegmentIds}
+                  onCheckedChange={
+                    showSelection && onToggleSegmentChecked
+                      ? (checked) => onToggleSegmentChecked(segment.id, checked)
+                      : undefined
+                  }
                 />
               </ContentEditorSectionErrorBoundary>
             </div>

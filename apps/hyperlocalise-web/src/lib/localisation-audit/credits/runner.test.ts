@@ -29,14 +29,13 @@ vi.mock("@/lib/agent-runtime/loops/model", () => ({
   getHyperlocaliseAgentModel: () => getHyperlocaliseAgentModelMock(),
 }));
 
-vi.mock("@/lib/log", () => ({
-  createLogger: () => ({
-    warn: vi.fn(),
-    info: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-  }),
-}));
+vi.mock("@/lib/log", async () => {
+  const { createTestLogger } = await import("@/test/create-test-logger");
+  return {
+    createLogger: () => createTestLogger(),
+    serializeErrorForLog: vi.fn((error: Error) => ({ error })),
+  };
+});
 
 import { LOCALISATION_AUDIT_CREDITS } from "./catalog";
 import { runLocalisationAuditCredits } from "./runner";

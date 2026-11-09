@@ -30,11 +30,12 @@ vi.mock("motion/react", async (importOriginal) => {
   };
 });
 
-function renderBackground() {
+function renderBackground(container?: HTMLElement) {
   return render(
     <IntlProvider locale="en" messages={{}} onError={() => undefined}>
       <IrisVideoBackground />
     </IntlProvider>,
+    container ? { container } : undefined,
   );
 }
 
@@ -54,15 +55,15 @@ describe("IrisVideoBackground", () => {
 
   it("mounts the autoplay embed after the client allows motion", async () => {
     useReducedMotionMock.mockReturnValue(false);
-
-    renderBackground();
+    const container = document.createElement("div");
+    renderBackground(container);
 
     await waitFor(() => {
-      const iframe = document.querySelector("iframe");
+      const iframe = container.querySelector("iframe");
       expect(iframe).toHaveAttribute("src", irisLaunchEmbedSrc(undefined, window.location.origin));
       expect(iframe).toHaveClass("h-[min(100%,56.25vw)]", "w-[min(100%,177.78vh)]");
     });
-    expect(document.querySelector("img")).toBeNull();
+    expect(container.querySelector("img")).toBeNull();
   });
 
   it("keeps the poster when the client prefers reduced motion", async () => {

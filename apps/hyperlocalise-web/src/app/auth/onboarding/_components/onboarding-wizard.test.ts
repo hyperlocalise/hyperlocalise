@@ -42,5 +42,25 @@ describe("OnboardingWizard Accessibility", () => {
     expect(markup).toContain("/org/workspace");
     expect(markup).toContain('for="_R_');
     expect(markup).toContain('id="_R_');
+    expect(markup).not.toContain('name="intent"');
+    expect(markup).not.toContain("Cancel");
+  });
+
+  it("creates another workspace when given a way back", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(
+        IntlProvider,
+        { locale: "en", messages: testIntl.messages },
+        React.createElement(
+          TooltipProvider,
+          {},
+          React.createElement(OnboardingWizard, { cancelHref: "/org/acme/dashboard" }),
+        ),
+      ),
+    );
+
+    expect(markup).toContain("Create another workspace");
+    expect(markup).toContain('name="intent" value="another"');
+    expect(markup).toContain('href="/org/acme/dashboard"');
   });
 });

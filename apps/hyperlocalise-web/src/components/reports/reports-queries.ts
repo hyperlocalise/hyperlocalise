@@ -11,21 +11,35 @@
  * Version 2.0 or later.
  */
 "use client";
-
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
-import { addDays } from "@/lib/reporting/report-period";
+import { ApiResponseError } from "@/lib/api-error";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
+import type {
+  BudgetBody,
+  RateCardBody,
+  RateCardsReport,
+  ReportCsvSection,
+  ReportQuery,
+  TaskRateBody,
+  TimeEntryBody,
+  TimeEntryUpdateBody,
+} from "@/lib/go-svc/go-svc-reports-api";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import type { ReportStep, ReportUnit } from "@/lib/reporting/report-units";
 
 import { reportsPageMessages as messages } from "./reports-page.messages";
-import type { ReportsUrlState } from "./reports-url-state";
+import { presetDates, type ReportsUrlState } from "./reports-url-state";
 
-/** Loading for every section of the Reports page, through the typed API client. */
+export type {
+  ReportSettings,
+  ReportTask,
+  TaskAnalysisState,
+  TaskReport,
+} from "@/lib/go-svc/go-svc-reports-api";
 
-const reportsApi = () => apiClient.api.orgs[":organizationSlug"].reports;
+/** Loading for every section of the Reports page, through go-svc's Reports routes. */
 
 /** How often a task's Report tab looks again while its strings are being counted. */
 const COUNTING_POLL_MS = 5_000;
@@ -33,7 +47,7 @@ const COUNTING_POLL_MS = 5_000;
 type Query = Record<string, string | undefined>;
 
 /** A query without the parameters left unset. */
-function compact(query: Query): Record<string, string> {
+function compact(query: Query): ReportQuery {
   return Object.fromEntries(
     Object.entries(query).filter((entry): entry is [string, string] => entry[1] !== undefined),
   );
@@ -41,15 +55,88 @@ function compact(query: Query): Record<string, string> {
 
 const optional = (value: string | null) => value ?? undefined;
 
+/**
+ * Codes the client gives a failure that is not go-svc's own answer, and go-svc's answers that it
+ * could not read the report (an internal error, its database or WorkOS unavailable, or a sign-in
+ * it could not check), whose own text is not for the person. The page shows only when the web
+ * app has the flag on, so go-svc's `feature_unavailable` nearly always means its own lookup failed
+ * or is a minute behind, rather than that Reports is off.
+ */
+const UNANSWERED_CODES = new Set([
+  "network_error",
+  "missing_access_token",
+  "http_error",
+  "invalid_response",
+  "internal_error",
+  "reports_unavailable",
+  "workos_membership_lookup_failed",
+  "unauthorized",
+  "feature_unavailable",
+]);
+
+/** Whether a failure is a cancelled request, which the client wraps if it came mid-answer. */
+function isCancelled(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  const cause = error.cause;
+  return error.name === "AbortError" || (cause instanceof Error && cause.name === "AbortError");
+}
+
+/**
+ * A request's failure as the dialogs read it: go-svc's code, with go-svc's message when go-svc
+ * refused the request, or the fallback when it could not answer (`UNANSWERED_CODES`). A
+ * cancelled request stays cancelled.
+ */
+async function reportRequest<T>(fallback: string, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (isCancelled(error)) throw error;
+    const code = error instanceof GoSvcClientError ? error.code : null;
+    const status = error instanceof GoSvcClientError ? (error.status ?? 0) : 0;
+    const refused = error instanceof GoSvcClientError && !UNANSWERED_CODES.has(error.code);
+    if (!refused) console.warn("[go-svc] Reports request failed", error);
+    throw new ApiResponseError(refused ? error.message : fallback, { code, status });
+  }
+}
+
+/** Whether go-svc refuses this person the read, so what was loaded should not stay on screen. */
+export function isRefusedRead(error: unknown) {
+  return (
+    error instanceof ApiResponseError &&
+    (error.status === 403 || error.status === 404) &&
+    error.code !== null &&
+    !UNANSWERED_CODES.has(error.code)
+  );
+}
+
+/**
+ * Whether asking again soon may work: go-svc could not answer (`UNANSWERED_CODES`), was
+ * restarting behind its load balancer (a load balancer's error has no CORS headers, so the
+ * browser reports it as unreachable), or the sign-in token could not be fetched (no code). Any
+ * other status without go-svc's own code is final. go-svc's refusals are not asked for again: a
+ * busy answer comes only after the request waited 30 s for a slot, and a report that took too
+ * long would take as long again.
+ */
+function worthRetrying(error: unknown) {
+  if (!(error instanceof ApiResponseError)) return false;
+  if (error.status === 502 || error.status === 504) return true;
+  if (error.code === "http_error") return false;
+  return error.code === null || UNANSWERED_CODES.has(error.code);
+}
+
+const reportRetry = {
+  retry: (failureCount: number, error: unknown) => worthRetrying(error) && failureCount < 2,
+  retryDelay: (failureCount: number) => 1_000 * (failureCount + 1),
+};
+
 /** The UTC days the dates filter covers, inclusive. */
-export function reportDates(state: ReportsUrlState, today: string) {
+export function reportDates(state: ReportsUrlState, today: string, startedDay: string | null) {
   if (state.range === "custom" && state.from && state.to) {
     return state.from <= state.to
       ? { from: state.from, to: state.to }
       : { from: state.to, to: state.from };
   }
-  const days = state.range === "custom" ? 28 : Number(state.range);
-  return { from: addDays(today, -(days - 1)), to: today };
+  return presetDates(state.range === "custom" ? "28" : state.range, today, startedDay);
 }
 
 export function reportsQueryKey(organizationSlug: string, ...parts: unknown[]) {
@@ -58,32 +145,29 @@ export function reportsQueryKey(organizationSlug: string, ...parts: unknown[]) {
 
 export function useReportSettings(organizationSlug: string) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   return useQuery({
     queryKey: reportsQueryKey(organizationSlug, "settings"),
-    queryFn: async ({ signal }) => {
-      const response = await reportsApi().settings.$get(
-        { param: { organizationSlug } },
-        { init: { signal } },
-      );
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
-      return (await response.json()).settings;
-    },
+    ...reportRetry,
+    queryFn: ({ signal }) =>
+      reportRequest(intl.formatMessage(messages.loadFailed), () =>
+        client.reports.settings(organizationSlug, { signal }),
+      ),
   });
 }
-
-export type ReportSettings = NonNullable<ReturnType<typeof useReportSettings>["data"]>;
 
 /** What a section is filtered by: the page's state, with the dates worked out. */
 export type SectionInput = {
   organizationSlug: string;
   state: ReportsUrlState;
   today: string;
+  /** The day Reports started for the workspace, which "since Reports started" begins on. */
+  startedDay: string | null;
 };
 
-function scope({ state, today }: SectionInput) {
+function scope({ state, today, startedDay }: SectionInput) {
   return {
-    ...reportDates(state, today),
+    ...reportDates(state, today, startedDay),
     projectId: optional(state.projectId),
     targetLocale: optional(state.targetLocale),
     jobId: optional(state.jobId),
@@ -96,19 +180,16 @@ export function activityQuery(input: SectionInput) {
 
 export function useActivityReport(input: SectionInput) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   const query = activityQuery(input);
   return useQuery({
     queryKey: reportsQueryKey(input.organizationSlug, "activity", query),
     placeholderData: keepPreviousData,
-    queryFn: async ({ signal }) => {
-      const response = await reportsApi().activity.$get(
-        { param: { organizationSlug: input.organizationSlug }, query },
-        { init: { signal } },
-      );
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
-      return (await response.json()).activity;
-    },
+    ...reportRetry,
+    queryFn: ({ signal }) =>
+      reportRequest(intl.formatMessage(messages.loadFailed), () =>
+        client.reports.activity(input.organizationSlug, query, { signal }),
+      ),
   });
 }
 
@@ -118,43 +199,50 @@ export function stepTimesQuery(input: SectionInput) {
 
 export function useStepTimes(input: SectionInput) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   const query = stepTimesQuery(input);
   return useQuery({
     queryKey: reportsQueryKey(input.organizationSlug, "step-times", query),
     placeholderData: keepPreviousData,
-    queryFn: async ({ signal }) => {
-      const response = await reportsApi()["step-times"].$get(
-        { param: { organizationSlug: input.organizationSlug }, query },
-        { init: { signal } },
-      );
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
-      return (await response.json()).stepTimes;
-    },
+    ...reportRetry,
+    queryFn: ({ signal }) =>
+      reportRequest(intl.formatMessage(messages.loadFailed), () =>
+        client.reports.stepTimes(input.organizationSlug, query, { signal }),
+      ),
   });
 }
 
 export function aiUsageQuery(input: SectionInput) {
-  const { from, to, projectId } = scope(input);
-  return compact({ from, to, projectId, groupBy: input.state.aiGroup });
+  const { state } = input;
+  const { from, to, projectId, jobId } = scope(input);
+  const { automation, ...filters } = state.aiFilters;
+  return compact({
+    from,
+    to,
+    projectId,
+    jobId,
+    automationId: automation,
+    ...filters,
+    groupBy: state.aiGroup,
+    thenBy: optional(state.aiThen),
+    // The chart's measure is also what the largest groups are by.
+    rankBy: state.aiMeasure,
+    page: String(state.page),
+  });
 }
 
 export function useAiUsage(input: SectionInput) {
   const intl = useIntl();
-  // Both groupings come in one response, so switching between them reads nothing again.
-  const { groupBy: _groupBy, ...query } = aiUsageQuery(input);
+  const { client } = useGoSvcClient();
+  const query = aiUsageQuery(input);
   return useQuery({
     queryKey: reportsQueryKey(input.organizationSlug, "ai-usage", query),
     placeholderData: keepPreviousData,
-    queryFn: async ({ signal }) => {
-      const response = await reportsApi()["ai-usage"].$get(
-        { param: { organizationSlug: input.organizationSlug }, query },
-        { init: { signal } },
-      );
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
-      return (await response.json()).aiUsage;
-    },
+    ...reportRetry,
+    queryFn: ({ signal }) =>
+      reportRequest(intl.formatMessage(messages.loadFailed), () =>
+        client.reports.aiUsage(input.organizationSlug, query, { signal }),
+      ),
   });
 }
 
@@ -170,21 +258,46 @@ export function wordCountsQuery(input: SectionInput) {
   });
 }
 
+export function wordSeriesQuery(input: SectionInput) {
+  const { state } = input;
+  return compact({
+    ...scope(input),
+    unit: state.unit,
+    step: state.step,
+    mode: state.mode,
+    split: state.split,
+    per: optional(state.per),
+  });
+}
+
+/** Word counts' volume chart, read apart from the table so changing the chart leaves it be. */
+export function useWordSeries(input: SectionInput) {
+  const intl = useIntl();
+  const { client } = useGoSvcClient();
+  const query = wordSeriesQuery(input);
+  return useQuery({
+    queryKey: reportsQueryKey(input.organizationSlug, "word-series", query),
+    placeholderData: keepPreviousData,
+    ...reportRetry,
+    queryFn: ({ signal }) =>
+      reportRequest(intl.formatMessage(messages.loadFailed), () =>
+        client.reports.wordSeries(input.organizationSlug, query, { signal }),
+      ),
+  });
+}
+
 export function useWordCounts(input: SectionInput) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   const query = wordCountsQuery(input);
   return useQuery({
     queryKey: reportsQueryKey(input.organizationSlug, "words", query),
     placeholderData: keepPreviousData,
-    queryFn: async ({ signal }) => {
-      const response = await reportsApi().words.$get(
-        { param: { organizationSlug: input.organizationSlug }, query },
-        { init: { signal } },
-      );
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
-      return (await response.json()).wordCounts;
-    },
+    ...reportRetry,
+    queryFn: ({ signal }) =>
+      reportRequest(intl.formatMessage(messages.loadFailed), () =>
+        client.reports.words(input.organizationSlug, query, { signal }),
+      ),
   });
 }
 
@@ -194,19 +307,16 @@ export function loggedTimeQuery(input: SectionInput) {
 
 export function useLoggedTime(input: SectionInput) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   const query = loggedTimeQuery(input);
   return useQuery({
     queryKey: reportsQueryKey(input.organizationSlug, "time", query),
     placeholderData: keepPreviousData,
-    queryFn: async ({ signal }) => {
-      const response = await reportsApi().time.$get(
-        { param: { organizationSlug: input.organizationSlug }, query },
-        { init: { signal } },
-      );
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
-      return (await response.json()).time;
-    },
+    ...reportRetry,
+    queryFn: ({ signal }) =>
+      reportRequest(intl.formatMessage(messages.loadFailed), () =>
+        client.reports.time(input.organizationSlug, query, { signal }),
+      ),
   });
 }
 
@@ -217,19 +327,16 @@ export function costsQuery(input: SectionInput) {
 
 export function useCosts(input: SectionInput) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   const query = costsQuery(input);
   return useQuery({
     queryKey: reportsQueryKey(input.organizationSlug, "costs", query),
     placeholderData: keepPreviousData,
-    queryFn: async ({ signal }) => {
-      const response = await reportsApi().costs.$get(
-        { param: { organizationSlug: input.organizationSlug }, query },
-        { init: { signal } },
-      );
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
-      return (await response.json()).costs;
-    },
+    ...reportRetry,
+    queryFn: ({ signal }) =>
+      reportRequest(intl.formatMessage(messages.loadFailed), () =>
+        client.reports.costs(input.organizationSlug, query, { signal }),
+      ),
   });
 }
 
@@ -246,21 +353,18 @@ export function costEstimateQuery(input: SectionInput) {
 
 export function useCostEstimate(input: SectionInput) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   const query = costEstimateQuery(input);
   return useQuery({
     queryKey: reportsQueryKey(input.organizationSlug, "cost-estimate", query),
     placeholderData: keepPreviousData,
+    ...reportRetry,
     // An estimate is for chosen tasks, or for the whole of one project.
     enabled: input.state.jobIds.length > 0 || Boolean(input.state.projectId),
-    queryFn: async ({ signal }) => {
-      const response = await reportsApi()["cost-estimate"].$get(
-        { param: { organizationSlug: input.organizationSlug }, query },
-        { init: { signal } },
-      );
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
-      return (await response.json()).costEstimate;
-    },
+    queryFn: ({ signal }) =>
+      reportRequest(intl.formatMessage(messages.loadFailed), () =>
+        client.reports.costEstimate(input.organizationSlug, query, { signal }),
+      ),
   });
 }
 
@@ -270,36 +374,30 @@ export function budgetsQuery(projectId: string | null) {
 
 export function useBudgets(organizationSlug: string, projectId: string | null) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   const query = budgetsQuery(projectId);
   return useQuery({
     queryKey: reportsQueryKey(organizationSlug, "budgets", query),
     placeholderData: keepPreviousData,
-    queryFn: async ({ signal }) => {
-      const response = await reportsApi().budgets.$get(
-        { param: { organizationSlug }, query },
-        { init: { signal } },
-      );
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
-      return (await response.json()).budgets;
-    },
+    ...reportRetry,
+    queryFn: ({ signal }) =>
+      reportRequest(intl.formatMessage(messages.loadFailed), () =>
+        client.reports.budgets(organizationSlug, query, { signal }),
+      ),
   });
 }
 
 export function useRateCards(organizationSlug: string, enabled = true) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   return useQuery({
     queryKey: reportsQueryKey(organizationSlug, "rate-cards"),
     enabled,
-    queryFn: async ({ signal }) => {
-      const response = await reportsApi()["rate-cards"].$get(
-        { param: { organizationSlug } },
-        { init: { signal } },
-      );
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
-      return response.json();
-    },
+    ...reportRetry,
+    queryFn: ({ signal }) =>
+      reportRequest(intl.formatMessage(messages.loadFailed), () =>
+        client.reports.rateCards(organizationSlug, { signal }),
+      ),
   });
 }
 
@@ -323,28 +421,23 @@ export function useTaskReport(
   recheck?: (report: { words: { rows: { step: string }[] } | null }) => boolean,
 ) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   const query = taskReportQuery(view);
   return useQuery({
     queryKey: reportsQueryKey(organizationSlug, "task-report", jobId, query),
     placeholderData: keepPreviousData,
     enabled,
+    ...reportRetry,
     // The argument is typed here, since inferring it would make the data's type depend on itself.
     refetchInterval: (current: {
       state: { data?: { words: { rows: { step: string }[] } | null } };
     }) => (current.state.data && recheck?.(current.state.data) ? RECORDED_POLL_MS : false),
-    queryFn: async ({ signal }) => {
-      const response = await reportsApi().tasks[":jobId"].report.$get(
-        { param: { organizationSlug, jobId }, query },
-        { init: { signal } },
-      );
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
-      return (await response.json()).taskReport;
-    },
+    queryFn: ({ signal }) =>
+      reportRequest(intl.formatMessage(messages.loadFailed), () =>
+        client.reports.taskReport(organizationSlug, jobId, query, { signal }),
+      ),
   });
 }
-
-export type TaskReport = NonNullable<ReturnType<typeof useTaskReport>["data"]>;
 
 /**
  * The state of a task's analysis per step, looked at again every few seconds while a step is
@@ -352,38 +445,19 @@ export type TaskReport = NonNullable<ReturnType<typeof useTaskReport>["data"]>;
  */
 export function useTaskAnalysis(organizationSlug: string, jobId: string, enabled = true) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   return useQuery({
     queryKey: reportsQueryKey(organizationSlug, "task-analysis", jobId),
     enabled,
+    ...reportRetry,
     // The argument is typed here, since inferring it would make the data's type depend on itself.
     refetchInterval: (current: { state: { data?: { status: string }[] } }) =>
       current.state.data?.some((step) => step.status === "pending") ? COUNTING_POLL_MS : false,
-    queryFn: async ({ signal }) => {
-      const response = await reportsApi().tasks[":jobId"].analysis.$get(
-        { param: { organizationSlug, jobId } },
-        { init: { signal } },
-      );
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
-      return (await response.json()).analysis;
-    },
+    queryFn: ({ signal }) =>
+      reportRequest(intl.formatMessage(messages.loadFailed), () =>
+        client.reports.taskAnalysis(organizationSlug, jobId, { signal }),
+      ),
   });
-}
-
-export type TaskAnalysisState = NonNullable<ReturnType<typeof useTaskAnalysis>["data"]>[number];
-
-/** A link that downloads a task's words for one step as CSV. */
-export function taskReportDownloadUrl(
-  organizationSlug: string,
-  jobId: string,
-  view: TaskReportView,
-) {
-  return reportsApi()
-    .tasks[":jobId"].report.$url({
-      param: { organizationSlug, jobId },
-      query: { ...taskReportQuery(view), format: "csv" },
-    })
-    .toString();
 }
 
 /** Tasks with Reports data, for the task pickers: by search text, or the chosen ids. */
@@ -395,6 +469,7 @@ export function useReportTasks(input: {
   enabled?: boolean;
 }) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   const query = compact({
     projectId: optional(input.projectId),
     q: input.search ? input.search : undefined,
@@ -405,171 +480,201 @@ export function useReportTasks(input: {
     queryKey: reportsQueryKey(input.organizationSlug, "jobs", query),
     placeholderData: keepPreviousData,
     enabled: input.enabled ?? true,
-    queryFn: async ({ signal }) => {
-      const response = await reportsApi().jobs.$get(
-        { param: { organizationSlug: input.organizationSlug }, query },
-        { init: { signal } },
-      );
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
-      return (await response.json()).jobs;
-    },
+    ...reportRetry,
+    queryFn: ({ signal }) =>
+      reportRequest(intl.formatMessage(messages.loadFailed), () =>
+        client.reports.tasks(input.organizationSlug, query, { signal }),
+      ),
   });
 }
 
-export type ReportTask = NonNullable<ReturnType<typeof useReportTasks>["data"]>[number];
-
-/** A link that downloads a section as CSV, with the same filters as on screen. */
-export function reportDownloadUrl(
-  organizationSlug: string,
-  section: "words" | "time" | "step-times" | "ai-usage" | "costs" | "cost-estimate" | "budgets",
-  query: Record<string, string>,
-) {
-  const api = reportsApi();
-  const input = { param: { organizationSlug }, query: { ...query, format: "csv" } };
-  switch (section) {
-    case "words":
-      return api.words.$url(input).toString();
-    case "time":
-      return api.time.$url(input).toString();
-    case "step-times":
-      return api["step-times"].$url(input).toString();
-    case "ai-usage":
-      return api["ai-usage"].$url(input).toString();
-    case "costs":
-      return api.costs.$url(input).toString();
-    case "cost-estimate":
-      return api["cost-estimate"].$url(input).toString();
-    case "budgets":
-      return api.budgets.$url(input).toString();
-  }
+/**
+ * Downloads as CSV, with the same filters as on screen. go-svc takes a signed-in request only,
+ * so a download is fetched and then saved, rather than linked to.
+ */
+export function useReportCsv(organizationSlug: string) {
+  const intl = useIntl();
+  const { client } = useGoSvcClient();
+  const fallback = () => intl.formatMessage(messages.downloadFailed);
+  return {
+    section: (section: ReportCsvSection, query: ReportQuery) =>
+      reportRequest(fallback(), () =>
+        withTimeLimit(SAVE_TIME_LIMIT_MS, (signal) =>
+          client.reports.csv(organizationSlug, section, query, { signal }),
+        ),
+      ),
+    taskReport: (jobId: string, view: TaskReportView) =>
+      reportRequest(fallback(), () =>
+        withTimeLimit(SAVE_TIME_LIMIT_MS, (signal) =>
+          client.reports.taskReportCsv(organizationSlug, jobId, taskReportQuery(view), { signal }),
+        ),
+      ),
+  };
 }
 
-/** Saving anything on the page reads every section again. */
+/**
+ * The save dialogs stay open while they save, since closing one and saving again could log the
+ * same time twice. So a save fails at once when offline instead of waiting to be sent later.
+ */
+const SAVE_OPTIONS = { networkMode: "always" } as const;
+
+/** The longest a save or download is waited for, past go-svc's own 30 s limit and the way there. */
+const SAVE_TIME_LIMIT_MS = 40_000;
+
+/**
+ * A request that fails if a stalled connection never answers, and stops the fetch then, so a
+ * save is not sent twice and its dialog can close. The timer is cleared once the request
+ * finishes, so a finished save does not reject later.
+ */
+function withTimeLimit<T>(ms: number, run: (signal: AbortSignal) => Promise<T>) {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let settled = false;
+  return new Promise<T>((resolve, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      if (settled) return;
+      settled = true;
+      reject(new GoSvcClientError({ code: "network_error", message: "No answer in time" }));
+    }, ms);
+    void run(controller.signal).then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        resolve(value);
+      },
+      (error) => {
+        if (settled) return;
+        settled = true;
+        reject(
+          controller.signal.aborted
+            ? new GoSvcClientError({ code: "network_error", message: "No answer in time" })
+            : error,
+        );
+      },
+    );
+  }).finally(() => clearTimeout(timer));
+}
+
+/** A save's request, which fails if a stalled connection never answers, so its dialog can close. */
+function reportSave<T>(fallback: string, run: (signal: AbortSignal) => Promise<T>) {
+  return reportRequest(fallback, () => withTimeLimit(SAVE_TIME_LIMIT_MS, run));
+}
+
+/** The longest a save waits for the reload after it, as its dialog cannot close meanwhile. */
+const SAVE_WAITS_FOR_RELOAD_MS = 5_000;
+
+/**
+ * Saving anything on the page reads every section again. Returned from `onSuccess`, the save
+ * finishes once they have loaded (or failed), so a dialog reopened at once shows what was saved,
+ * or after a few seconds when go-svc is busy, with the reload carrying on behind it.
+ */
 function useInvalidateReports(organizationSlug: string) {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: reportsQueryKey(organizationSlug) });
+  return () =>
+    Promise.race([
+      queryClient.invalidateQueries({ queryKey: reportsQueryKey(organizationSlug) }),
+      new Promise((resolve) => setTimeout(resolve, SAVE_WAITS_FOR_RELOAD_MS)),
+    ]);
 }
-
-type RateCardBody = Parameters<ReturnType<typeof reportsApi>["rate-cards"]["$put"]>[0]["json"];
 
 export function useSaveRateCard(organizationSlug: string) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
+  const queryClient = useQueryClient();
   const invalidate = useInvalidateReports(organizationSlug);
   return useMutation({
-    mutationFn: async (json: RateCardBody) => {
-      const response = await reportsApi()["rate-cards"].$put({
-        param: { organizationSlug },
-        json,
-      });
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
-      return (await response.json()).rateCard;
+    ...SAVE_OPTIONS,
+    mutationFn: (body: RateCardBody) =>
+      reportSave(intl.formatMessage(messages.saveFailed), (signal) =>
+        client.reports.saveRateCard(organizationSlug, body, { signal }),
+      ),
+    // The saved card is in the list at once, so the rate card sheet shows it even when the
+    // list's reload fails.
+    onSuccess: (saved) => {
+      queryClient.setQueryData<RateCardsReport>(
+        reportsQueryKey(organizationSlug, "rate-cards"),
+        (report) =>
+          report && {
+            ...report,
+            // An edited card keeps its place; a new one goes last until the list reloads.
+            rateCards: report.rateCards.some((card) => card.name === saved.name)
+              ? report.rateCards.map((card) => (card.name === saved.name ? saved : card))
+              : [...report.rateCards, saved],
+          },
+      );
+      return invalidate();
     },
-    onSuccess: invalidate,
   });
 }
-
-type TimeEntryBody = Parameters<ReturnType<typeof reportsApi>["time-entries"]["$post"]>[0]["json"];
 
 export function useLogTime(organizationSlug: string) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   const invalidate = useInvalidateReports(organizationSlug);
   return useMutation({
-    mutationFn: async (json: TimeEntryBody) => {
-      const response = await reportsApi()["time-entries"].$post({
-        param: { organizationSlug },
-        json,
-      });
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
-      return response.json();
-    },
+    ...SAVE_OPTIONS,
+    mutationFn: (body: TimeEntryBody) =>
+      reportSave(intl.formatMessage(messages.saveFailed), (signal) =>
+        client.reports.logTime(organizationSlug, body, { signal }),
+      ),
     onSuccess: invalidate,
   });
 }
-
-type ExpenseBody = Parameters<ReturnType<typeof reportsApi>["expenses"]["$post"]>[0]["json"];
-
-export function useAddExpense(organizationSlug: string) {
-  const intl = useIntl();
-  const invalidate = useInvalidateReports(organizationSlug);
-  return useMutation({
-    mutationFn: async (json: ExpenseBody) => {
-      const response = await reportsApi().expenses.$post({ param: { organizationSlug }, json });
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
-      return response.json();
-    },
-    onSuccess: invalidate,
-  });
-}
-
-type BudgetBody = Parameters<ReturnType<typeof reportsApi>["budgets"]["$put"]>[0]["json"];
 
 export function useSetBudget(organizationSlug: string) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   const invalidate = useInvalidateReports(organizationSlug);
   return useMutation({
-    mutationFn: async (json: BudgetBody) => {
-      const response = await reportsApi().budgets.$put({ param: { organizationSlug }, json });
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
-      return response.json();
-    },
+    ...SAVE_OPTIONS,
+    mutationFn: (body: BudgetBody) =>
+      reportSave(intl.formatMessage(messages.saveFailed), (signal) =>
+        client.reports.setBudget(organizationSlug, body, { signal }),
+      ),
     onSuccess: invalidate,
   });
 }
-
-type TaskPricingBody = Parameters<ReturnType<typeof reportsApi>["task-rates"]["$put"]>[0]["json"];
 
 /** Saves a task's own pricing for one step: its rate card, time estimate and fixed fee. */
 export function useSetTaskPricing(organizationSlug: string) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   const invalidate = useInvalidateReports(organizationSlug);
   return useMutation({
-    mutationFn: async (json: TaskPricingBody) => {
-      const response = await reportsApi()["task-rates"].$put({ param: { organizationSlug }, json });
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
-      return (await response.json()).taskRate;
-    },
+    ...SAVE_OPTIONS,
+    mutationFn: (body: TaskRateBody) =>
+      reportSave(intl.formatMessage(messages.saveFailed), (signal) =>
+        client.reports.setTaskPricing(organizationSlug, body, { signal }),
+      ),
     onSuccess: invalidate,
   });
 }
 
-type TimeUpdateBody = Parameters<
-  ReturnType<typeof reportsApi>["time-entries"][":id"]["$patch"]
->[0]["json"];
-
 export function useEditTime(organizationSlug: string) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   const invalidate = useInvalidateReports(organizationSlug);
   return useMutation({
-    mutationFn: async ({ id, ...json }: TimeUpdateBody & { id: string }) => {
-      const response = await reportsApi()["time-entries"][":id"].$patch({
-        param: { organizationSlug, id },
-        json,
-      });
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
-      return response.json();
-    },
+    ...SAVE_OPTIONS,
+    mutationFn: ({ id, ...body }: TimeEntryUpdateBody & { id: string }) =>
+      reportSave(intl.formatMessage(messages.saveFailed), (signal) =>
+        client.reports.editTime(organizationSlug, id, body, { signal }),
+      ),
     onSuccess: invalidate,
   });
 }
 
 export function useDeleteTime(organizationSlug: string) {
   const intl = useIntl();
+  const { client } = useGoSvcClient();
   const invalidate = useInvalidateReports(organizationSlug);
   return useMutation({
-    mutationFn: async (id: string) => {
-      const response = await reportsApi()["time-entries"][":id"].$delete({
-        param: { organizationSlug, id },
-      });
-      if (!response.ok)
-        throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
-    },
+    ...SAVE_OPTIONS,
+    mutationFn: (id: string) =>
+      reportSave(intl.formatMessage(messages.saveFailed), (signal) =>
+        client.reports.deleteTime(organizationSlug, id, { signal }),
+      ),
     onSuccess: invalidate,
   });
 }

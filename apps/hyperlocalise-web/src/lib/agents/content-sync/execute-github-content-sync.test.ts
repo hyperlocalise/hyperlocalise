@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   canPushToGitHubRepository: vi.fn(),
   loadProjectTranslationsAsPrefilledEntries: vi.fn(),
   loadProjectOfficeTranslationDownload: vi.fn(),
+  loadProjectHtmlTranslationDownload: vi.fn(),
   hasDiffAgainstBase: vi.fn(),
   commitPushAndCreatePullTranslationsPullRequest: vi.fn(),
 }));
@@ -94,6 +95,11 @@ vi.mock("@/lib/projects/files/office-translation-download", async (importOrigina
     mocks.loadProjectOfficeTranslationDownload(...args),
 }));
 
+vi.mock("@/lib/projects/files/html-translation-download", () => ({
+  loadProjectHtmlTranslationDownload: (...args: unknown[]) =>
+    mocks.loadProjectHtmlTranslationDownload(...args),
+}));
+
 vi.mock("@/lib/agents/github/github-repository-automation-pull-translations-pr", () => ({
   commitPushAndCreatePullTranslationsPullRequest: (...args: unknown[]) =>
     mocks.commitPushAndCreatePullTranslationsPullRequest(...args),
@@ -104,14 +110,13 @@ vi.mock("@/lib/agents/github/github-repository-automation-pull-translations-bran
   buildPullTranslationsBranchName: (runId: string) => `content-sync/${runId}`,
 }));
 
-vi.mock("@/lib/log", () => ({
-  createLogger: () => ({
-    error: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn(),
-  }),
-}));
+vi.mock("@/lib/log", async () => {
+  const { createTestLogger } = await import("@/test/create-test-logger");
+  return {
+    createLogger: () => createTestLogger(),
+    serializeErrorForLog: vi.fn((error: Error) => ({ error })),
+  };
+});
 
 import { executeGithubContentSync } from "./execute-github-content-sync";
 
@@ -143,13 +148,14 @@ function repository(overrides?: Record<string, unknown>) {
   };
 }
 
-async function runSync(config: ContentSyncConfig = syncConfig) {
+async function runSync(config: ContentSyncConfig = syncConfig, pullRequestBranchKey?: string) {
   return executeGithubContentSync({
     organizationId: ORG_ID,
     projectId: PROJECT_ID,
     automationId: AUTOMATION_ID,
     runId: RUN_ID,
     syncConfig: config,
+    pullRequestBranchKey,
   });
 }
 
@@ -161,6 +167,7 @@ async function pullThenPush(options?: {
   hasDiff?: boolean;
   pullRequestUrl?: string;
   repositoryOverrides?: Record<string, unknown>;
+  pullRequestBranchKey?: string;
 }) {
   mocks.selectLimit
     .mockResolvedValueOnce([repository(options?.repositoryOverrides)])
@@ -183,8 +190,9 @@ async function pullThenPush(options?: {
   mocks.hasDiffAgainstBase.mockResolvedValue(options?.hasDiff ?? true);
   mocks.commitPushAndCreatePullTranslationsPullRequest.mockResolvedValue({
     pullRequestUrl: options?.pullRequestUrl ?? "https://github.com/acme/web/pull/9",
+    pushed: true,
   });
-  return runSync();
+  return runSync(syncConfig, options?.pullRequestBranchKey);
 }
 
 describe("executeGithubContentSync", () => {
@@ -197,6 +205,7 @@ describe("executeGithubContentSync", () => {
     mocks.stopGithubRepositoryAutomationSandbox.mockResolvedValue(undefined);
     mocks.canPushToGitHubRepository.mockResolvedValue({ canPush: false });
     mocks.selectWhere.mockResolvedValue([]);
+    mocks.loadProjectHtmlTranslationDownload.mockResolvedValue({ ok: true, value: null });
   });
 
   it("returns content_sync_connection_required when the repository is missing", async () => {
@@ -292,7 +301,7 @@ describe("executeGithubContentSync", () => {
       2,
       "sbx-1",
       "git",
-      ["ls-files", "--error-unmatch", "locales"],
+      ["ls-files", "--error-unmatch", "--", "locales"],
       { output: "stdout" },
     );
     expect(mocks.stopGithubRepositoryAutomationSandbox).toHaveBeenCalledWith("sbx-1");
@@ -418,6 +427,40 @@ describe("executeGithubContentSync", () => {
     expect(mocks.stopGithubRepositoryAutomationSandbox).toHaveBeenCalledWith("sbx-1");
   });
 
+  it("reports nothing sent when the open pull request already had the files", async () => {
+    mocks.commitPushAndCreatePullTranslationsPullRequest.mockResolvedValue({
+      pullRequestUrl: "https://github.com/acme/web/pull/9",
+      pushed: false,
+    });
+    mocks.selectLimit
+      .mockResolvedValueOnce([repository()])
+      .mockResolvedValueOnce([{ targetLocales: ["fr"] }]);
+    mocks.selectWhere.mockResolvedValue([{ sourcePath: "github/acme/web/en.json" }]);
+    mocks.runSandboxCommand.mockResolvedValue({ exitCode: 0, output: "locales/en.json\0" });
+    mocks.uploadRepositorySourceFilesFromSandbox.mockResolvedValue([{ outcome: "uploaded" }]);
+    mocks.canPushToGitHubRepository.mockResolvedValue({ canPush: true });
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      translatedKeyCount: 1,
+      prefilled: { greeting: "Bonjour" },
+    });
+    mocks.hasDiffAgainstBase.mockResolvedValue(true);
+
+    const result = await runSync(syncConfig, "sync-1");
+
+    expect(isOk(result) && result.value.pushed).toEqual({
+      written: 0,
+      pullRequestUrl: "https://github.com/acme/web/pull/9",
+    });
+  });
+
+  it("reuses the caller's pull request branch across runs", async () => {
+    await pullThenPush({ pullRequestBranchKey: "sync-1" });
+
+    expect(mocks.commitPushAndCreatePullTranslationsPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ branchName: "content-sync/sync-1", reuseBranch: true }),
+    );
+  });
+
   it("pushes generated Excel workbooks only for locales with ready translations", async () => {
     const workbook = Buffer.from("PK\x03\x04xlsx");
     mocks.loadProjectOfficeTranslationDownload.mockImplementation(
@@ -501,5 +544,63 @@ describe("executeGithubContentSync", () => {
         ],
       }),
     );
+  });
+
+  it("pushes reconstructed HTML only for locales with ready translations", async () => {
+    const html = Buffer.from("<td>&nbsp;</td><p>Bienvenue</p>");
+    mocks.loadProjectHtmlTranslationDownload.mockImplementation(
+      async (input: { targetLocale: string }) => ({
+        ok: true,
+        value: {
+          contentType: "text/html",
+          content: html,
+          extension: ".html",
+          translatedKeyCount: input.targetLocale === "fr" ? 1 : 0,
+        },
+      }),
+    );
+
+    const result = await pullThenPush({
+      targetLocales: ["fr", "de"],
+      sourceFiles: [{ sourcePath: "github/acme/web/welcome.html" }],
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.pushed).toMatchObject({ written: 1 });
+    }
+    expect(mocks.loadProjectHtmlTranslationDownload).toHaveBeenCalledWith({
+      organizationId: ORG_ID,
+      projectId: PROJECT_ID,
+      sourcePath: "github/acme/web/welcome.html",
+      targetLocale: "fr",
+    });
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+    expect(mocks.commitPushAndCreatePullTranslationsPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        candidates: [
+          expect.objectContaining({ targetPath: "locales/welcome-fr.html", content: html }),
+        ],
+      }),
+    );
+  });
+
+  it("skips HTML exports that fail to generate instead of falling back to JSON", async () => {
+    mocks.loadProjectHtmlTranslationDownload.mockResolvedValue({
+      ok: false,
+      error: { code: "html_export_failed" },
+    });
+
+    const result = await pullThenPush({
+      targetLocales: ["fr"],
+      sourceFiles: [{ sourcePath: "github/acme/web/welcome.html" }],
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.pushed).toEqual({ written: 0 });
+    }
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+    expect(mocks.commitPushAndCreatePullTranslationsPullRequest).not.toHaveBeenCalled();
   });
 });

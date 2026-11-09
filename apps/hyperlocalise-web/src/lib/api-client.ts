@@ -53,7 +53,7 @@ function createOrgSlugClient(origin: string) {
   const workspace = hc<OrgWorkspaceRpcAppType>(origin).api.orgs[":organizationSlug"];
 
   return {
-    ...pickClientPaths(inbox, ["conversations"]),
+    ...pickClientPaths(inbox, ["conversations", "workflow-approvals"]),
     ...pickClientPaths(knowledge, ["glossaries", "knowledge-memory", "translation-memories"]),
     ...pickClientPaths(projects, ["projects", "jobs", "files", "automations", "visual-workflows"]),
     ...pickClientPaths(tms, [
@@ -65,12 +65,18 @@ function createOrgSlugClient(origin: string) {
     ]),
     ...pickClientPaths(integrations, [
       "contentful-connections",
+      "webflow-connections",
       "mcp-server-connections",
       "semrush-connections",
       "zernio-connections",
       "ahrefs-connections",
       "pipes",
       "braze",
+      "loops",
+      "customer-io",
+      "hubspot",
+      "mailchimp",
+      "iterable",
       "intercom-connections",
       "canva-connections",
       "figma-connections",
@@ -86,7 +92,7 @@ function createOrgSlugClient(origin: string) {
       "intercom",
       "sanity",
     ]),
-    ...pickClientPaths(workspace, ["workspace", "billing", "reports"]),
+    ...pickClientPaths(workspace, ["workspace", "billing", "webhook-endpoints"]),
   };
 }
 

@@ -85,6 +85,7 @@ import type {
   VisualAssignmentRule,
   VisualAssigneeSource,
   VisualAssignmentStrategy,
+  VisualArrayTransformOperation,
   VisualCatalogType,
   VisualComparisonOperand,
   VisualComparisonOperator,
@@ -94,6 +95,7 @@ import type {
   VisualSubworkflowField,
   VisualTaskStep,
   VisualWorkflowGithubTriggerEvent,
+  VisualWorkflowJobChangedTriggerConfig,
   VisualWorkflowRfNode,
   VisualWorkflowValidationIssue,
   WorkflowValueType,
@@ -102,6 +104,7 @@ import type { VisualWorkflowV3ValidationIssue } from "@/lib/visual-workflows/val
 
 import {
   contentSyncNeedsProviderFolder,
+  contentSyncNeedsPathTemplate,
   defaultContentSyncProjectFolder,
   type ContentSyncProvider,
 } from "@/lib/agents/content-sync/content-sync-types";
@@ -130,12 +133,20 @@ import {
 } from "./visual-workflow-resource-options";
 import { getVisualWorkflowWebhookUrl } from "../visual-workflows-api";
 import { deriveReusableWorkflowContract } from "@/lib/visual-workflows/validation/subworkflow-validation";
+import {
+  JOB_CHANGE_EVENT_TYPES,
+  JOB_KINDS,
+  JOB_STATUSES,
+  type JobChangeEventType,
+  type JobKind,
+  type JobStatus,
+} from "@/lib/job-change-events/job-change-events-contract";
 
 const ANY_PROJECT_VALUE = "__any_project__";
 const UNASSIGNED_VALUE = "__unassigned__";
 const KEEP_ASSIGNEE_VALUE = "__keep_assignee__";
-// Content sync runs for GitHub only; other providers fail at run time.
-const CONTENT_SYNC_PROVIDERS: ContentSyncProvider[] = ["github"];
+// Content sync runs for GitHub and GitLab only; other providers fail at run time.
+const CONTENT_SYNC_PROVIDERS: ContentSyncProvider[] = ["github", "gitlab"];
 
 const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 const ERROR_BEHAVIORS: VisualNodeErrorBehavior[] = ["stop", "continue", "branch"];
@@ -1992,6 +2003,188 @@ export function VisualWorkflowConfigPanel({
             ) : null}
           </div>
         ) : null}
+        {config.kind === "logic.json_parse" ? (
+          <TextAreaField
+            id="vw-json-parse-text"
+            label={intl.formatMessage(messages.jsonParseText)}
+            description={intl.formatMessage(messages.jsonParseTextHint)}
+            value={config.text}
+            {...connectedInputProps("text")}
+            onChange={(text) => onChangeConfig({ ...config, text })}
+            placeholder='{"name":"Ada"}'
+          />
+        ) : null}
+        {config.kind === "logic.json_stringify" ? (
+          <JsonBoundField
+            id="vw-json-stringify-value"
+            label={intl.formatMessage(messages.jsonStringifyValue)}
+            value={config.value}
+            {...connectedInputProps("value")}
+            onChange={(value) => onChangeConfig({ ...config, value })}
+          />
+        ) : null}
+        {config.kind === "logic.schema_validate" ? (
+          <div className="grid gap-3">
+            <JsonBoundField
+              id="vw-schema-validate-value"
+              label={intl.formatMessage(messages.schemaValidateValue)}
+              value={config.value}
+              {...connectedInputProps("value")}
+              onChange={(value) => onChangeConfig({ ...config, value })}
+            />
+            <JsonBoundField
+              id="vw-schema-validate-schema"
+              label={intl.formatMessage(messages.schemaValidateSchema)}
+              description={intl.formatMessage(messages.schemaValidateSchemaHint)}
+              value={config.schema}
+              requireObject
+              {...connectedInputProps("schema")}
+              onChange={(schema) => {
+                if (schema !== null && typeof schema === "object" && !Array.isArray(schema)) {
+                  onChangeConfig({ ...config, schema: schema as Record<string, unknown> });
+                }
+              }}
+            />
+          </div>
+        ) : null}
+        {config.kind === "action.file_read" ? (
+          <div className="grid gap-3">
+            <TextField
+              id="vw-file-read-id"
+              label={intl.formatMessage(messages.localizationSourceFileId)}
+              value={config.fileId}
+              {...connectedInputProps("fileId")}
+              invalid={invalidFields.has("fileId")}
+              onChange={(fileId) => onChangeConfig({ ...config, fileId })}
+              placeholder="file_…"
+            />
+            <SelectField
+              id="vw-file-read-encoding"
+              label={intl.formatMessage(messages.fileEncoding)}
+              value={config.encoding}
+              items={["utf-8", "base64"].map((encoding) => ({
+                value: encoding,
+                label: encoding,
+              }))}
+              onValueChange={(encoding) => {
+                if (encoding === "utf-8" || encoding === "base64") {
+                  onChangeConfig({ ...config, encoding });
+                }
+              }}
+            />
+          </div>
+        ) : null}
+        {config.kind === "action.file_write" ? (
+          <div className="grid gap-3">
+            <TextAreaField
+              id="vw-file-write-content"
+              label={intl.formatMessage(messages.fileContent)}
+              value={config.content}
+              {...connectedInputProps("content")}
+              invalid={invalidFields.has("content")}
+              onChange={(content) => onChangeConfig({ ...config, content })}
+            />
+            <TextField
+              id="vw-file-write-name"
+              label={intl.formatMessage(messages.fileName)}
+              value={config.filename}
+              {...connectedInputProps("filename")}
+              invalid={invalidFields.has("filename")}
+              onChange={(filename) => onChangeConfig({ ...config, filename })}
+              placeholder="messages.json"
+            />
+            <TextField
+              id="vw-file-write-content-type"
+              label={intl.formatMessage(messages.fileContentType)}
+              value={config.contentType}
+              {...connectedInputProps("contentType")}
+              invalid={invalidFields.has("contentType")}
+              onChange={(contentType) => onChangeConfig({ ...config, contentType })}
+              placeholder="application/json"
+            />
+            <SelectField
+              id="vw-file-write-encoding"
+              label={intl.formatMessage(messages.fileEncoding)}
+              value={config.encoding}
+              items={["utf-8", "base64"].map((encoding) => ({
+                value: encoding,
+                label: encoding,
+              }))}
+              onValueChange={(encoding) => {
+                if (encoding === "utf-8" || encoding === "base64") {
+                  onChangeConfig({ ...config, encoding });
+                }
+              }}
+            />
+            <TextField
+              id="vw-file-write-locale"
+              label={intl.formatMessage(messages.fileLocale)}
+              value={config.locale ?? ""}
+              {...connectedInputProps("locale")}
+              invalid={invalidFields.has("locale")}
+              onChange={(locale) => onChangeConfig({ ...config, locale: locale || undefined })}
+              placeholder="en-AU"
+            />
+            <TextField
+              id="vw-file-write-source"
+              label={intl.formatMessage(messages.localizationSourceFileIdOptional)}
+              value={config.sourceFileId ?? ""}
+              {...connectedInputProps("sourceFileId")}
+              invalid={invalidFields.has("sourceFileId")}
+              onChange={(sourceFileId) =>
+                onChangeConfig({ ...config, sourceFileId: sourceFileId || undefined })
+              }
+              placeholder="file_…"
+            />
+          </div>
+        ) : null}
+        {config.kind === "action.file_convert" ? (
+          <div className="grid gap-3">
+            <TextField
+              id="vw-file-convert-id"
+              label={intl.formatMessage(messages.localizationSourceFileId)}
+              value={config.fileId}
+              {...connectedInputProps("fileId")}
+              invalid={invalidFields.has("fileId")}
+              onChange={(fileId) => onChangeConfig({ ...config, fileId })}
+              placeholder="file_…"
+            />
+            <SelectField
+              id="vw-file-convert-format"
+              label={intl.formatMessage(messages.fileTargetFormat)}
+              value={config.targetFormat}
+              items={["json", "yaml", "arb"].map((format) => ({
+                value: format,
+                label: format.toUpperCase(),
+              }))}
+              onValueChange={(targetFormat) => {
+                if (targetFormat === "json" || targetFormat === "yaml" || targetFormat === "arb") {
+                  onChangeConfig({ ...config, targetFormat });
+                }
+              }}
+            />
+            <TextField
+              id="vw-file-convert-name"
+              label={intl.formatMessage(messages.fileName)}
+              value={config.filename ?? ""}
+              {...connectedInputProps("filename")}
+              invalid={invalidFields.has("filename")}
+              onChange={(filename) =>
+                onChangeConfig({ ...config, filename: filename || undefined })
+              }
+              placeholder={intl.formatMessage(messages.fileConvertFilenamePlaceholder)}
+            />
+            <TextField
+              id="vw-file-convert-locale"
+              label={intl.formatMessage(messages.fileLocale)}
+              value={config.locale ?? ""}
+              {...connectedInputProps("locale")}
+              invalid={invalidFields.has("locale")}
+              onChange={(locale) => onChangeConfig({ ...config, locale: locale || undefined })}
+              placeholder={intl.formatMessage(messages.fileConvertLocalePlaceholder)}
+            />
+          </div>
+        ) : null}
         {config.kind === "logic.for_each" ? (
           <TextAreaField
             id="vw-for-each-collection"
@@ -2001,6 +2194,79 @@ export function VisualWorkflowConfigPanel({
             onChange={(value) => onChangeConfig({ ...config, collection: value })}
             placeholder="{{trigger.items}}"
           />
+        ) : null}
+        {config.kind === "logic.array_transform" ? (
+          <div className="space-y-4">
+            <SelectField
+              id="vw-array-transform-operation"
+              label={intl.formatMessage(messages.arrayTransformOperation)}
+              value={config.operation}
+              items={ARRAY_TRANSFORM_OPERATIONS.map((operation) => ({
+                value: operation,
+                label: operation,
+              }))}
+              onValueChange={(operation) => {
+                if (!isArrayTransformOperation(operation)) return;
+                onChangeConfig({
+                  ...config,
+                  operation,
+                  ...(operation === "reduce" && config.initialValue === undefined
+                    ? { initialValue: defaultValueForWorkflowType(config.resultType) }
+                    : {}),
+                });
+              }}
+            />
+            <TextAreaField
+              id="vw-array-transform-collection"
+              label={intl.formatMessage(messages.forEachCollection)}
+              value={config.collection}
+              {...connectedInputProps("collection")}
+              onChange={(collection) => onChangeConfig({ ...config, collection })}
+              placeholder="{{trigger.items}}"
+            />
+            <SelectField
+              id="vw-array-transform-item-type"
+              label={intl.formatMessage(messages.arrayTransformItemType)}
+              value={config.itemType}
+              items={WORKFLOW_VALUE_TYPES.map((type) => ({ value: type, label: type }))}
+              onValueChange={(itemType) => {
+                if (isWorkflowValueType(itemType)) onChangeConfig({ ...config, itemType });
+              }}
+            />
+            {config.operation === "map" || config.operation === "reduce" ? (
+              <SelectField
+                id="vw-array-transform-result-type"
+                label={intl.formatMessage(messages.arrayTransformResultType)}
+                value={config.resultType}
+                items={WORKFLOW_VALUE_TYPES.map((type) => ({ value: type, label: type }))}
+                onValueChange={(resultType) => {
+                  if (!isWorkflowValueType(resultType)) return;
+                  onChangeConfig({
+                    ...config,
+                    resultType,
+                    ...(config.operation === "reduce"
+                      ? { initialValue: defaultValueForWorkflowType(resultType) }
+                      : {}),
+                  });
+                }}
+              />
+            ) : null}
+            {config.operation === "reduce" ? (
+              <TextAreaField
+                id="vw-array-transform-initial-value"
+                label={intl.formatMessage(messages.arrayTransformInitialValue)}
+                value={JSON.stringify(config.initialValue ?? null)}
+                {...connectedInputProps("initialValue")}
+                onChange={(value) => {
+                  try {
+                    onChangeConfig({ ...config, initialValue: JSON.parse(value) });
+                  } catch {
+                    onChangeConfig({ ...config, initialValue: value });
+                  }
+                }}
+              />
+            ) : null}
+          </div>
         ) : null}
         {config.kind === "logic.retry" ? (
           <>
@@ -2055,6 +2321,77 @@ export function VisualWorkflowConfigPanel({
                 {intl.formatMessage(messages.retryAcknowledgeDuplicateRisk)}
               </Label>
             </div>
+          </>
+        ) : null}
+        {config.kind === "flow.human_approval" ? (
+          <>
+            <SelectField
+              id="vw-human-approval-reviewer-type"
+              label={intl.formatMessage(messages.humanApprovalReviewerType)}
+              value={config.reviewerType}
+              items={[
+                {
+                  value: "user",
+                  label: intl.formatMessage(messages.humanApprovalReviewerUser),
+                },
+                {
+                  value: "team",
+                  label: intl.formatMessage(messages.humanApprovalReviewerTeam),
+                },
+              ]}
+              onValueChange={(value) => {
+                if (value !== "user" && value !== "team") return;
+                onChangeConfig({ ...config, reviewerType: value, reviewerId: "" });
+              }}
+            />
+            <SelectField
+              id="vw-human-approval-reviewer-id"
+              label={intl.formatMessage(messages.humanApprovalReviewerId)}
+              value={config.reviewerId}
+              items={
+                config.reviewerType === "user"
+                  ? resources.members.map((member) => ({
+                      value: member.userId ?? member.workosUserId,
+                      label: member.label,
+                    }))
+                  : resources.teams.map((team) => ({
+                      value: team.id,
+                      label: team.label,
+                    }))
+              }
+              onValueChange={(value) => onChangeConfig({ ...config, reviewerId: value ?? "" })}
+            />
+            <TextAreaField
+              id="vw-human-approval-prompt"
+              label={intl.formatMessage(messages.humanApprovalPrompt)}
+              value={config.prompt}
+              {...connectedInputProps("prompt")}
+              onChange={(value) => onChangeConfig({ ...config, prompt: value })}
+            />
+            <TextField
+              id="vw-human-approval-artifact-reference"
+              label={intl.formatMessage(messages.humanApprovalArtifactReference)}
+              value={config.artifactReference ?? ""}
+              {...connectedInputProps("artifactReference")}
+              onChange={(value) =>
+                onChangeConfig({ ...config, artifactReference: value || undefined })
+              }
+            />
+            <TextField
+              id="vw-human-approval-job-reference"
+              label={intl.formatMessage(messages.humanApprovalJobReference)}
+              value={config.jobReference ?? ""}
+              {...connectedInputProps("jobReference")}
+              onChange={(value) => onChangeConfig({ ...config, jobReference: value || undefined })}
+            />
+            <TextField
+              id="vw-human-approval-deadline"
+              label={intl.formatMessage(messages.humanApprovalDeadline)}
+              value={config.deadline ?? ""}
+              {...connectedInputProps("deadline")}
+              onChange={(value) => onChangeConfig({ ...config, deadline: value || undefined })}
+              placeholder="2026-10-30T10:00:00.000Z"
+            />
           </>
         ) : null}
         {config.kind === "flow.wait" ? (
@@ -2444,6 +2781,13 @@ export function VisualWorkflowConfigPanel({
                 projectId: value === ANY_PROJECT_VALUE ? undefined : value,
               });
             }}
+          />
+        ) : null}
+        {config.kind === "trigger.job_changed" ? (
+          <JobChangedTriggerFields
+            config={config}
+            projects={resources.projects}
+            onChangeConfig={onChangeConfig}
           />
         ) : null}
         {config.kind === "trigger.webhook" ? (
@@ -3602,6 +3946,11 @@ function ContentSyncConfigFields({
         label={intl.formatMessage(messages.contentSyncResource)}
         value={selectedResource?.id ?? ""}
         placeholder={intl.formatMessage(messages.selectResource)}
+        description={
+          config.provider === "gitlab" && !resources.gitlabConnected
+            ? intl.formatMessage(messages.contentSyncGitLabNotConnected)
+            : undefined
+        }
         items={resourceOptions.map((option) => ({
           value: option.id,
           label: option.label,
@@ -3632,6 +3981,29 @@ function ContentSyncConfigFields({
         value={config.projectFolder}
         onChange={(value) => onChangeConfig({ ...config, projectFolder: value })}
       />
+      {contentSyncNeedsPathTemplate(config.provider) ? (
+        <>
+          <TextField
+            id="vw-content-sync-branch"
+            label={intl.formatMessage(messages.contentSyncBranch)}
+            value={config.branch ?? ""}
+            placeholder={intl.formatMessage(messages.contentSyncBranchPlaceholder)}
+            onChange={(value) => onChangeConfig({ ...config, branch: value })}
+          />
+          <TextField
+            id="vw-content-sync-path-template"
+            label={intl.formatMessage(messages.contentSyncPathTemplate)}
+            value={config.pathTemplate ?? ""}
+            placeholder={intl.formatMessage(messages.contentSyncPathTemplatePlaceholder, {
+              example: "{{locale}}.json",
+            })}
+            description={intl.formatMessage(messages.contentSyncPathTemplateHelp, {
+              placeholder: "{{locale}}",
+            })}
+            onChange={(value) => onChangeConfig({ ...config, pathTemplate: value })}
+          />
+        </>
+      ) : null}
     </>
   );
 }
@@ -3982,6 +4354,126 @@ function TextAreaField({
   );
 }
 
+const JOB_CHANGE_EVENT_LABELS: Record<JobChangeEventType, MessageDescriptor> = {
+  "job.created": messages.jobChangedEventCreated,
+  "job.status_changed": messages.jobChangedEventStatusChanged,
+  "job.assignee_changed": messages.jobChangedEventAssigneeChanged,
+};
+const JOB_KIND_LABELS: Record<JobKind, MessageDescriptor> = {
+  translation: messages.jobKindTranslation,
+  research: messages.jobKindResearch,
+  review: messages.jobKindReview,
+  proofread: messages.jobKindProofread,
+  sync: messages.jobKindSync,
+  asset_management: messages.jobKindAssetManagement,
+};
+const JOB_STATUS_LABELS: Record<JobStatus, MessageDescriptor> = {
+  queued: messages.jobStatusQueued,
+  running: messages.jobStatusRunning,
+  succeeded: messages.jobStatusSucceeded,
+  failed: messages.jobStatusFailed,
+  waiting_for_review: messages.jobStatusWaitingForReview,
+  cancelled: messages.jobStatusCancelled,
+};
+
+function toggleFilterValue<T>(values: readonly T[] | undefined, value: T, checked: boolean) {
+  const current = values ?? [];
+  const next = checked
+    ? [...new Set([...current, value])]
+    : current.filter((entry) => entry !== value);
+  return next.length > 0 ? next : undefined;
+}
+
+function JobChangedFilterGroup<T extends string>(props: {
+  idPrefix: string;
+  label: MessageDescriptor;
+  options: readonly T[];
+  labels: Record<T, MessageDescriptor>;
+  values: readonly T[] | undefined;
+  onChange: (values: T[] | undefined) => void;
+}) {
+  const intl = useIntl();
+  return (
+    <div className="grid gap-2">
+      <Label>
+        <FormattedMessage {...props.label} />
+      </Label>
+      {props.options.map((option) => (
+        <CheckboxField
+          key={option}
+          id={`${props.idPrefix}-${option}`}
+          label={intl.formatMessage(props.labels[option])}
+          checked={props.values?.includes(option) ?? false}
+          onCheckedChange={(checked) =>
+            props.onChange(toggleFilterValue(props.values, option, checked))
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+function JobChangedTriggerFields({
+  config,
+  projects,
+  onChangeConfig,
+}: {
+  config: VisualWorkflowJobChangedTriggerConfig;
+  projects: { id: string; name: string }[];
+  onChangeConfig: (config: VisualNodeConfig) => void;
+}) {
+  const intl = useIntl();
+  return (
+    <>
+      <SelectField
+        id="vw-job-changed-project"
+        label={intl.formatMessage(messages.jobChangedProject)}
+        value={config.projectId ?? ANY_PROJECT_VALUE}
+        items={[
+          { value: ANY_PROJECT_VALUE, label: intl.formatMessage(messages.anyProject) },
+          ...projects.map((project) => ({ value: project.id, label: project.name })),
+        ]}
+        onValueChange={(value) => {
+          if (!value) {
+            return;
+          }
+          onChangeConfig({
+            ...config,
+            projectId: value === ANY_PROJECT_VALUE ? undefined : value,
+          });
+        }}
+      />
+      <JobChangedFilterGroup
+        idPrefix="vw-job-changed-event"
+        label={messages.jobChangedEventTypes}
+        options={JOB_CHANGE_EVENT_TYPES}
+        labels={JOB_CHANGE_EVENT_LABELS}
+        values={config.eventTypes}
+        onChange={(eventTypes) => onChangeConfig({ ...config, eventTypes })}
+      />
+      <JobChangedFilterGroup
+        idPrefix="vw-job-changed-kind"
+        label={messages.jobChangedJobKinds}
+        options={JOB_KINDS}
+        labels={JOB_KIND_LABELS}
+        values={config.jobKinds}
+        onChange={(jobKinds) => onChangeConfig({ ...config, jobKinds })}
+      />
+      <JobChangedFilterGroup
+        idPrefix="vw-job-changed-status"
+        label={messages.jobChangedToStatuses}
+        options={JOB_STATUSES}
+        labels={JOB_STATUS_LABELS}
+        values={config.toStatuses}
+        onChange={(toStatuses) => onChangeConfig({ ...config, toStatuses })}
+      />
+      <TypographyP className="text-xs text-muted-foreground">
+        <FormattedMessage {...messages.jobChangedFiltersHint} />
+      </TypographyP>
+    </>
+  );
+}
+
 function CheckboxField({
   id,
   label,
@@ -4016,6 +4508,12 @@ const WORKFLOW_VALUE_TYPES: readonly WorkflowValueType[] = [
   "object",
   "array",
   "unknown",
+];
+const ARRAY_TRANSFORM_OPERATIONS: readonly VisualArrayTransformOperation[] = [
+  "filter",
+  "map",
+  "reduce",
+  "find",
 ];
 
 const COMPARISON_OPERATORS: readonly VisualComparisonOperator[] = [
@@ -4084,6 +4582,27 @@ function comparisonOperandsForOperator(
 
 function isWorkflowValueType(value: string | null): value is WorkflowValueType {
   return WORKFLOW_VALUE_TYPES.includes(value as WorkflowValueType);
+}
+
+function isArrayTransformOperation(value: string | null): value is VisualArrayTransformOperation {
+  return ARRAY_TRANSFORM_OPERATIONS.includes(value as VisualArrayTransformOperation);
+}
+
+function defaultValueForWorkflowType(type: WorkflowValueType): unknown {
+  switch (type) {
+    case "string":
+      return "";
+    case "number":
+      return 0;
+    case "boolean":
+      return false;
+    case "object":
+      return {};
+    case "array":
+      return [];
+    case "unknown":
+      return null;
+  }
 }
 
 function formatSelectPath(path: readonly (string | number)[]): string {
@@ -4237,6 +4756,61 @@ function ObjectDefaultInput({
           onChange(parsed.value);
           setDraft(null);
         }
+      }}
+    />
+  );
+}
+
+function JsonBoundField({
+  id,
+  label,
+  value,
+  onChange,
+  port,
+  invalid = false,
+  description,
+  requireObject = false,
+}: {
+  id: string;
+  label: string;
+  value: unknown;
+  onChange: (value: unknown) => void;
+  port: BoundPort;
+  invalid?: boolean;
+  description?: string;
+  requireObject?: boolean;
+}) {
+  const formatted = JSON.stringify(value, null, 2) ?? "null";
+  const [draft, setDraft] = useState<{ text: string; base: string } | null>(null);
+  const display = draft?.base === formatted ? draft.text : formatted;
+  const parsed = tryParseJson(display);
+  const draftInvalid =
+    !parsed.ok ||
+    (requireObject &&
+      (parsed.value === null || typeof parsed.value !== "object" || Array.isArray(parsed.value)));
+
+  return (
+    <WorkflowBoundField
+      id={id}
+      label={label}
+      value={display}
+      multiline
+      description={description}
+      invalid={invalid || draftInvalid}
+      port={port}
+      onChange={(text) => {
+        const next = tryParseJson(text);
+        if (
+          !next.ok ||
+          (requireObject &&
+            (next.value === null || typeof next.value !== "object" || Array.isArray(next.value)))
+        ) {
+          setDraft({ text, base: formatted });
+          return;
+        }
+        const nextFormatted = JSON.stringify(next.value, null, 2) ?? "null";
+        setDraft({ text, base: nextFormatted });
+        onChange(next.value);
       }}
     />
   );

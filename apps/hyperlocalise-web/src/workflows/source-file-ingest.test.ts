@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   writeSourceIngestFileStep: vi.fn(),
   extractSourceIngestEntriesStep: vi.fn(),
   extractOfficeSourceEntriesStep: vi.fn(),
+  loadSourceFileImportSettingsStep: vi.fn(),
   loadSourceFileSegmentationStep: vi.fn(),
   writeSourceFileSegmentationSrxStep: vi.fn(),
   parseHlEntriesStep: vi.fn(),
@@ -60,6 +61,18 @@ beforeEach(() => {
   });
   mocks.getStoredFileMetadataStep.mockResolvedValue({ filename: "en.json" });
   mocks.createSourceIngestSandboxStep.mockResolvedValue({ sandboxId: "sandbox" });
+  mocks.loadSourceFileImportSettingsStep.mockResolvedValue({
+    html: { excludedElements: [], icuSubfilter: false },
+    json: {
+      keyPaths: [],
+      excludeKeyPaths: [],
+      contextFields: [],
+      characterLimitFields: [],
+      htmlSubfilter: false,
+      icuSubfilter: false,
+    },
+    excel: { columns: {} },
+  });
   mocks.loadSourceFileSegmentationStep.mockResolvedValue({ enabled: false, template: "default" });
   mocks.writeSourceFileSegmentationSrxStep.mockResolvedValue({});
   mocks.extractSourceIngestEntriesStep.mockResolvedValue({});
@@ -180,6 +193,7 @@ describe("sourceFileIngestWorkflow Office files", () => {
       projectId: "project",
       storedFileId: "stored",
       sourcePath: "copy/strings.xlsx",
+      excelImportSettings: { columns: {} },
     });
     expect(mocks.reconcileSourceFileTranslationKeysStep).toHaveBeenCalledWith(
       expect.objectContaining({ entries: [xlsxEntry] }),

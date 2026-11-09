@@ -15,7 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 const { generateImageMock, getManagedImageModelMock, withAgentRuntimeUsageMeteringMock } =
   vi.hoisted(() => ({
     generateImageMock: vi.fn(),
-    getManagedImageModelMock: vi.fn(() => "openai/gpt-image-2.5-flare"),
+    getManagedImageModelMock: vi.fn(() => "openai/gpt-image-2.6-flare"),
     withAgentRuntimeUsageMeteringMock: vi.fn(async ({ run }: { run: () => Promise<unknown> }) =>
       run(),
     ),
@@ -31,7 +31,8 @@ vi.mock("ai", async () => {
 
 vi.mock("@/lib/providers/language-model", () => ({
   getManagedImageModel: getManagedImageModelMock,
-  hyperlocaliseImageModelId: "openai/gpt-image-2",
+  getManagedLanguageModel: () => "mock-language-model",
+  hyperlocaliseImageModelId: "openai/gpt-image-2.6-flare",
 }));
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
@@ -67,7 +68,7 @@ describe("image generation", () => {
     expect(getManagedImageModelMock).toHaveBeenCalledOnce();
     expect(generateImageMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "openai/gpt-image-2.5-flare",
+        model: "openai/gpt-image-2.6-flare",
         prompt: {
           images: [Buffer.from("source")],
           text: "Localize this screenshot into Japanese",
@@ -163,7 +164,7 @@ describe("image generation", () => {
       outputTokens: 80,
       totalTokens: 200,
     });
-    expect(metering.aiCreditModelId(generated)).toBe("openai/gpt-image-2");
+    expect(metering.aiCreditModelId(generated)).toBe("openai/gpt-image-2.6-flare");
   });
 
   it("does not complete image tracking when generation fails", async () => {

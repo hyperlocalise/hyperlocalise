@@ -14,6 +14,7 @@ import { Hono } from "hono";
 
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import type {
+  EngineSetupQueue,
   JobQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
@@ -21,8 +22,10 @@ import type {
   ProviderAgentWritebackQueue,
   TranslationFileImportQueue,
   TranslationJobEventData,
+  ProjectContentSyncQueue,
   TranslationQaScanQueue,
 } from "@/lib/workflow/types";
+import { createEngineSetupQueue } from "@/workflows/adapters";
 
 import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
@@ -34,14 +37,21 @@ import { createFigmaConnectionRoutes } from "./routes/figma-connection/figma-con
 import { createSanityConnectionRoutes } from "./routes/sanity-connection/sanity-connection.route";
 import { createGoogleDriveRoutes } from "./routes/google-drive/google-drive.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
+import { createWebflowConnectionRoutes } from "./routes/webflow-connection/webflow-connection.route";
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
 import { createBrazeRoutes } from "./routes/braze/braze.route";
+import { createLoopsRoutes } from "./routes/loops/loops.route";
+import { createCustomerIoRoutes } from "./routes/customer-io/customer-io.route";
+import { createHubspotRoutes } from "./routes/hubspot/hubspot.route";
+import { createMailchimpRoutes } from "./routes/mailchimp/mailchimp.route";
+import { createIterableRoutes } from "./routes/iterable/iterable.route";
 import { createPipesRoutes } from "./routes/pipes/pipes.route";
 import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
 import { createZernioConnectionRoutes } from "./routes/zernio-connection/zernio-connection.route";
 import { createIntercomConnectionRoutes } from "./routes/intercom-connection/intercom-connection.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
+import { createEngineSetupRoutes } from "./routes/engine-setup/engine-setup.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
@@ -66,7 +76,8 @@ import { createTmsAgentAutomationRoutes } from "./routes/tms-agent-automation/tm
 import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/tms-dashboard-summary.route";
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { createBillingRoutes } from "./routes/billing/billing.route";
-import { createReportsRoutes } from "./routes/reports/reports.route";
+import { createWebhookEndpointRoutes } from "./routes/webhook-endpoint/webhook-endpoint.route";
+import { createHumanApprovalRoutes } from "./routes/human-approval/human-approval.route";
 
 export type OrgScopedRouteOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
@@ -77,6 +88,8 @@ export type OrgScopedRouteOptions = {
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
   translationQaScanQueue?: TranslationQaScanQueue;
+  projectContentSyncQueue?: ProjectContentSyncQueue;
+  engineSetupQueue?: EngineSetupQueue;
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
 };
 
@@ -108,16 +121,26 @@ export function createPublicApiRoutes(options: PublicApiRouteOptions) {
 }
 
 export function createOrgInboxRoutes(options: OrgScopedRouteOptions) {
-  return new Hono().route(
-    "/conversations",
-    createConversationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
-  );
+  return new Hono()
+    .route(
+      "/conversations",
+      createConversationRoutes({
+        fileStorageAdapter: options.fileStorageAdapter,
+      }),
+    )
+    .route("/workflow-approvals", createHumanApprovalRoutes());
 }
 
 export function createOrgKnowledgeRoutes(
-  options: Pick<OrgScopedRouteOptions, "fileStorageAdapter"> = {},
+  options: Pick<OrgScopedRouteOptions, "fileStorageAdapter" | "engineSetupQueue"> = {},
 ) {
   return new Hono()
+    .route(
+      "/engine-setup",
+      createEngineSetupRoutes({
+        engineSetupQueue: options.engineSetupQueue ?? createEngineSetupQueue(),
+      }),
+    )
     .route("/glossaries", createGlossaryRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
     .route("/knowledge-memory", createKnowledgeMemoryRoutes())
     .route("/translation-memories", createMemoryRoutes());
@@ -162,12 +185,18 @@ export function createOrgTmsRoutes(options: OrgScopedRouteOptions) {
 export function createOrgIntegrationsRoutes() {
   return new Hono()
     .route("/contentful-connections", createContentfulConnectionRoutes())
+    .route("/webflow-connections", createWebflowConnectionRoutes())
     .route("/mcp-server-connections", createMcpServerConnectionRoutes())
     .route("/semrush-connections", createSemrushConnectionRoutes())
     .route("/zernio-connections", createZernioConnectionRoutes())
     .route("/ahrefs-connections", createAhrefsConnectionRoutes())
     .route("/pipes", createPipesRoutes())
     .route("/braze", createBrazeRoutes())
+    .route("/loops", createLoopsRoutes())
+    .route("/customer-io", createCustomerIoRoutes())
+    .route("/hubspot", createHubspotRoutes())
+    .route("/mailchimp", createMailchimpRoutes())
+    .route("/iterable", createIterableRoutes())
     .route("/intercom-connections", createIntercomConnectionRoutes())
     .route("/canva-connections", createCanvaConnectionRoutes())
     .route("/figma-connections", createFigmaConnectionRoutes())
@@ -190,7 +219,7 @@ export function createOrgWorkspaceRoutes() {
   return new Hono()
     .route("/workspace", createWorkspaceRoutes())
     .route("/billing", createBillingRoutes())
-    .route("/reports", createReportsRoutes());
+    .route("/webhook-endpoints", createWebhookEndpointRoutes());
 }
 
 export function createOrgScopedAppRoutes(options: OrgScopedRouteOptions) {

@@ -37,6 +37,7 @@ import {
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
+import { insertJobs, updateJobs } from "@/lib/job-change-events/job-writes";
 import { startTaskAnalysis } from "@/lib/reporting/task-analysis-start";
 import {
   ensureRepositorySourceFileVersionForStoredFile,
@@ -54,6 +55,10 @@ import {
   enqueueJobFailedActivity,
 } from "@/lib/activity-log/job-automation-events";
 import { recordJobEvents } from "@/lib/job-events/job-events-writer";
+import {
+  enqueueJobUpdatedActivity,
+  jobUpdatedFields,
+} from "@/lib/activity-log/job-automation-events";
 import {
   assertOrganizationCanEnqueueTranslationJobInTransaction,
   OrganizationJobBudgetExceededError,
@@ -111,6 +116,9 @@ import {
 } from "./job.schema";
 import { updateNativeJob } from "@/lib/projects/jobs/update-native-job";
 import { cancelNativeJob } from "@/lib/projects/jobs/cancel-native-job";
+import { markTaskDone } from "@/lib/projects/jobs/mark-task-done";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
+import { hasCapability } from "@/api/auth/policy";
 
 type CreateJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
@@ -525,9 +533,8 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
                 })
               : null;
 
-          const [createdJob] = await tx
-            .insert(schema.jobs)
-            .values({
+          const [createdJob] = await insertJobs(tx, {
+            values: {
               id: jobId,
               organizationId: c.var.auth.organization.localOrganizationId,
               projectId: params.projectId,
@@ -538,8 +545,9 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
               status: isProofreadJob ? "waiting_for_review" : "queued",
               inputPayload: enrichedInputPayload,
               dueAt: payload.dueAt ? new Date(payload.dueAt) : null,
-            })
-            .returning();
+            },
+            returning: "all",
+          });
 
           const [details] = await tx
             .insert(schema.translationJobDetails)
@@ -613,14 +621,14 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             type: job.type,
           });
         } catch (error) {
-          await db
-            .update(schema.jobs)
-            .set({
+          await updateJobs(db, {
+            set: {
               status: "failed",
               lastError:
                 error instanceof Error ? error.message : "translation job queue unavailable",
-            })
-            .where(and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, job.id)));
+            },
+            where: and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, job.id)),
+          });
 
           await enqueueJobFailedActivity({
             actorCredentialId: null,
@@ -1114,22 +1122,20 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       const type = job.type;
 
       const restartedJob = await db.transaction(async (tx) => {
-        const [updatedJob] = await tx
-          .update(schema.jobs)
-          .set({
+        const [updatedJob] = await updateJobs(tx, {
+          set: {
             status: "queued",
             workflowRunId: null,
             lastError: null,
             completedAt: null,
-          })
-          .where(
-            and(
-              eq(schema.jobs.id, params.jobId),
-              await buildAccessibleJobsWhere(c.var.auth),
-              or(eq(schema.jobs.status, "failed"), eq(schema.jobs.status, "succeeded")),
-            ),
-          )
-          .returning({ id: schema.jobs.id, projectId: schema.jobs.projectId });
+          },
+          where: and(
+            eq(schema.jobs.id, params.jobId),
+            await buildAccessibleJobsWhere(c.var.auth),
+            or(eq(schema.jobs.status, "failed"), eq(schema.jobs.status, "succeeded")),
+          ),
+          returning: { id: schema.jobs.id, projectId: schema.jobs.projectId },
+        });
 
         if (!updatedJob) {
           return null;
@@ -1155,19 +1161,19 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           type: restartedJob.type,
         });
 
-        await db
-          .update(schema.jobs)
-          .set({ workflowRunId: result.ids[0] ?? null })
-          .where(eq(schema.jobs.id, restartedJob.id));
+        await updateJobs(db, {
+          set: { workflowRunId: result.ids[0] ?? null },
+          where: eq(schema.jobs.id, restartedJob.id),
+        });
       } catch (error) {
-        await db
-          .update(schema.jobs)
-          .set({
+        await updateJobs(db, {
+          set: {
             status: "failed",
             lastError: error instanceof Error ? error.message : "translation job queue unavailable",
             completedAt: new Date(),
-          })
-          .where(eq(schema.jobs.id, restartedJob.id));
+          },
+          where: eq(schema.jobs.id, restartedJob.id),
+        });
 
         await enqueueJobFailedActivity({
           actorCredentialId: null,
@@ -1251,17 +1257,17 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       const type = job.type;
 
       const retriedJob = await db.transaction(async (tx) => {
-        const [updatedJob] = await tx
-          .update(schema.jobs)
-          .set({
+        const [updatedJob] = await updateJobs(tx, {
+          set: {
             status: "queued",
             workflowRunId: null,
             lastError: null,
             outcomePayload: null,
             completedAt: null,
-          })
-          .where(await retryableJobWhere(c.var.auth, params.jobId))
-          .returning({ id: schema.jobs.id, projectId: schema.jobs.projectId });
+          },
+          where: await retryableJobWhere(c.var.auth, params.jobId),
+          returning: { id: schema.jobs.id, projectId: schema.jobs.projectId },
+        });
 
         if (!updatedJob) {
           return null;
@@ -1294,17 +1300,18 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         });
       } catch (error) {
         await db.transaction(async (tx) => {
-          await tx
-            .update(schema.jobs)
-            .set({
+          await updateJobs(tx, {
+            set: {
               status: "failed",
               lastError:
                 error instanceof Error ? error.message : "translation job queue unavailable",
               completedAt: new Date(),
-            })
-            .where(
-              and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)),
-            );
+            },
+            where: and(
+              eq(schema.jobs.id, params.jobId),
+              await buildAccessibleJobsWhere(c.var.auth),
+            ),
+          });
 
           await tx
             .update(schema.translationJobDetails)
@@ -1365,9 +1372,8 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
 
       const params = c.req.valid("param");
       const updatedJob = await db.transaction(async (tx) => {
-        const [job] = await tx
-          .update(schema.jobs)
-          .set({
+        const [job] = await updateJobs(tx, {
+          set: {
             status: "failed",
             workflowRunId: null,
             lastError: "Marked failed by user",
@@ -1376,9 +1382,10 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
               message: "Marked failed by user",
             },
             completedAt: new Date(),
-          })
-          .where(await agentActiveJobWhere(c.var.auth, params.jobId))
-          .returning({ id: schema.jobs.id, kind: schema.jobs.kind });
+          },
+          where: await agentActiveJobWhere(c.var.auth, params.jobId),
+          returning: { id: schema.jobs.id, kind: schema.jobs.kind },
+        });
 
         if (job?.kind === "translation") {
           await tx
@@ -1502,6 +1509,17 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return notFoundResponse(c, "job_not_found", "Job not found");
       }
 
+      await enqueueJobUpdatedActivity({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        changedFields: jobUpdatedFields(body),
+        jobId: job.id,
+        kind: job.kind,
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: job.projectId,
+      });
+
       return c.json({ job }, 200);
     })
     .post("/:jobId/cancel", validateWorkspaceJobParams, async (c) => {
@@ -1521,6 +1539,59 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return cancelled.error.code === "job_action_unavailable"
           ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
           : notFoundResponse(c, "job_not_found", "Job not found");
+      }
+
+      const [job] = await db
+        .select(jobWithProjectSelect)
+        .from(schema.jobs)
+        .leftJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
+        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.assetManagementJobDetails,
+          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.projects,
+          and(
+            eq(schema.projects.id, schema.jobs.projectId),
+            eq(schema.projects.organizationId, schema.jobs.organizationId),
+          ),
+        )
+        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
+        .limit(1);
+
+      return c.json({ job }, 200);
+    })
+    .post("/:jobId/mark-done", validateWorkspaceJobParams, async (c) => {
+      if (!isJobMutationAllowed(c.var.auth.membership.role)) {
+        return projectForbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const done = await markTaskDone({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        jobId: params.jobId,
+        actorUserId: c.var.auth.user.localUserId,
+        actorMayFinishAnyTask: hasCapability(c.var.auth.membership.role, "reviews:approve"),
+        accessWhere: await buildAccessibleJobsWhere(c.var.auth),
+      });
+
+      if (isErr(done)) {
+        switch (done.error.code) {
+          case "job_action_unavailable":
+            return conflictResponse(c, "job_action_unavailable", "Job action is not available");
+          case "not_task_assignee":
+            return projectForbiddenResponse(c);
+          case "job_not_found":
+            return notFoundResponse(c, "job_not_found", "Job not found");
+          default:
+            return assertNever(done.error);
+        }
       }
 
       const [job] = await db

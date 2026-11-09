@@ -18,6 +18,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   applyHtmlIngestEntryKeys,
+  applyHtmlIngestTranslations,
   extractHtmlIngestEntries,
   htmlCliPrefillsFromPathEntries,
   htmlCompletedPathKeysFromLock,
@@ -57,6 +58,41 @@ describe("extractHtmlIngestEntries", () => {
       "html.body.table.tr.td": "Value",
     });
     expect(got["html.head.title"]).toBeUndefined();
+  });
+
+  it("extracts Mailchimp envelope metadata from head", () => {
+    const got = extractHtmlIngestEntries(`<!doctype html><html><head>
+<title data-hl-mailchimp-field="subject">Campaign subject</title>
+<meta data-hl-mailchimp-field="previewText" name="description" content="Preview line">
+<meta data-hl-mailchimp-field="fromName" name="author" content="Brand">
+</head><body><div data-hl-mailchimp-field="htmlBody"><p>Shop the sale</p></div></body></html>`);
+
+    expect(got["html.head.title"]).toBe("Campaign subject");
+    expect(got["html.head.meta.description"]).toBe("Preview line");
+    expect(got["html.head.meta.author"]).toBe("Brand");
+    expect(got["html.body.div.p"]).toBe("Shop the sale");
+  });
+
+  it("skips extra excluded tags", () => {
+    const got = extractHtmlIngestEntries(
+      `<html><body><nav>Menu</nav><p>Hello</p><footer>Legal</footer></body></html>`,
+      { excludedElements: ["nav", "footer"] },
+    );
+    expect(got["html.body.p"]).toBe("Hello");
+    expect(Object.values(got)).not.toContain("Menu");
+    expect(Object.values(got)).not.toContain("Legal");
+  });
+
+  it("marks ICU arguments when the HTML ICU sub-filter is on", () => {
+    const got = applyHtmlIngestEntryKeys(
+      "pages/home.html",
+      `<html><body><nav>Menu</nav><p>Hello {name}</p></body></html>`,
+      { leftover: "from cli" },
+      { excludedElements: ["nav"], icuSubfilter: true },
+    );
+    expect(got).toEqual({
+      "html.body.p": { text: "Hello {name}", format: "icu" },
+    });
   });
 
   it("extracts the formatting fixture with table and list paths", () => {
@@ -126,6 +162,53 @@ describe("extractHtmlIngestEntries", () => {
       "html.p": "Keep",
       "html.p.2": "After",
     });
+  });
+
+  it("skips entity-only cells so spacer markup is not a segment", () => {
+    const html =
+      "<table><tr><td>&nbsp;</td><td>Hello</td><td>&amp;</td><td>&#160;</td></tr></table>";
+    const got = extractHtmlIngestEntries(html);
+    expect(Object.values(got)).toEqual(["Hello"]);
+    expect(applyHtmlIngestTranslations(html, { [Object.keys(got)[0]!]: "Bonjour" })).toBe(
+      "<table><tr><td>&nbsp;</td><td>Bonjour</td><td>&amp;</td><td>&#160;</td></tr></table>",
+    );
+  });
+
+  it("treats Design Studio x- components as fold boundaries", () => {
+    const html =
+      "<x-base><x-section><x-heading-1>Welcome! Confirm your email</x-heading-1></x-section>" +
+      "<x-section><x-paragraph>Hi {{customer.first_name}},</x-paragraph>" +
+      '<x-cta href="https://example.com">Confirm Email Address</x-cta>' +
+      '<x-spacer :size="16" /><x-paragraph>If you did not create an account, ignore this.</x-paragraph>' +
+      "</x-section></x-base>";
+    const got = extractHtmlIngestEntries(html, { foldInline: true });
+
+    const texts = Object.values(got);
+    expect(texts).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Welcome! Confirm your email"),
+        expect.stringContaining("Confirm Email Address"),
+        expect.stringContaining("ignore this."),
+      ]),
+    );
+    // One entry per component: heading, greeting, CTA, and closing paragraph.
+    expect(Object.keys(got)).toHaveLength(4);
+    // Inline markup and Liquid stay folded inside their component.
+    expect(got["html.x-base.x-section.x-paragraph"]).toContain("{{customer.first_name}}");
+  });
+
+  it("round-trips Design Studio markup through applyHtmlIngestTranslations", () => {
+    const html =
+      "<x-base><x-paragraph>Hello</x-paragraph><x-hr /><x-paragraph>Bye</x-paragraph></x-base>";
+    const entries = extractHtmlIngestEntries(html, { foldInline: true });
+    const keys = Object.keys(entries);
+    expect(keys).toHaveLength(2);
+
+    const translated = applyHtmlIngestTranslations(html, { [keys[0] as string]: "Bonjour" });
+    expect(translated).toContain("Bonjour");
+    expect(translated).toContain("Bye");
+    // Void components survive the rewrite unchanged.
+    expect(translated).toContain("<x-hr />");
   });
 });
 

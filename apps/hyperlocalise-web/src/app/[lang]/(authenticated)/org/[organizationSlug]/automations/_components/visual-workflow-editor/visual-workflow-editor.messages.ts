@@ -270,6 +270,36 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "LSAb8ph9tQ",
     description: "Catalog description for the list source files node",
   },
+  nodeFileRead: {
+    defaultMessage: "Read file",
+    id: "4+YLajE++n",
+    description: "Catalog title for the stored file read node",
+  },
+  nodeFileReadHint: {
+    defaultMessage: "Read bounded content and metadata from a stored file.",
+    id: "7sT5Pqjjvw",
+    description: "Catalog description for the stored file read node",
+  },
+  nodeFileWrite: {
+    defaultMessage: "Write file",
+    id: "q+TRkEIOsF",
+    description: "Catalog title for the stored file write node",
+  },
+  nodeFileWriteHint: {
+    defaultMessage: "Create an idempotent stored file with provenance.",
+    id: "65k6GaEuoy",
+    description: "Catalog description for the stored file write node",
+  },
+  nodeFileConvert: {
+    defaultMessage: "Convert file",
+    id: "/PvtDEahT8",
+    description: "Catalog title for the localisation file conversion node",
+  },
+  nodeFileConvertHint: {
+    defaultMessage: "Create a derived file in a supported localisation format.",
+    id: "HoJLi2H4IT",
+    description: "Catalog description for the localisation file conversion node",
+  },
   nodeUpdateJob: {
     defaultMessage: "Update job",
     id: "QqqMJ6Bi0e",
@@ -399,6 +429,66 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Compare typed values or combine boolean predicates.",
     id: "BWn4lTVOW+",
     description: "Catalog description for the compare and boolean operators node",
+  },
+  nodeJsonParse: {
+    defaultMessage: "Parse JSON",
+    id: "Xpq2AJzIub",
+    description: "Catalog title for the JSON parse node",
+  },
+  nodeJsonParseHint: {
+    defaultMessage: "Parse JSON text into a structured value.",
+    id: "x5b2BktTkL",
+    description: "Catalog description for the JSON parse node",
+  },
+  nodeJsonStringify: {
+    defaultMessage: "Stringify JSON",
+    id: "ohWq8Fp+QJ",
+    description: "Catalog title for the JSON stringify node",
+  },
+  nodeJsonStringifyHint: {
+    defaultMessage: "Serialize a structured value as JSON text.",
+    id: "5GsfnkqQvS",
+    description: "Catalog description for the JSON stringify node",
+  },
+  nodeSchemaValidate: {
+    defaultMessage: "Validate schema",
+    id: "YoEqgQgzqb",
+    description: "Catalog title for the schema validation node",
+  },
+  nodeSchemaValidateHint: {
+    defaultMessage: "Validate a value against a bounded structured schema.",
+    id: "L13hAmUXIJ",
+    description: "Catalog description for the schema validation node",
+  },
+  jsonParseText: {
+    defaultMessage: "JSON text",
+    id: "f5XgyzsBIQ",
+    description: "Parse JSON node text input label",
+  },
+  jsonParseTextHint: {
+    defaultMessage: "Enter JSON text or connect a string output from an earlier step.",
+    id: "RhYn29mibB",
+    description: "Parse JSON node text input help",
+  },
+  jsonStringifyValue: {
+    defaultMessage: "Value",
+    id: "bIBIV/XSnS",
+    description: "Stringify JSON node value input label",
+  },
+  schemaValidateValue: {
+    defaultMessage: "Value",
+    id: "ZJ57VYQVaQ",
+    description: "Schema validation node value input label",
+  },
+  schemaValidateSchema: {
+    defaultMessage: "Schema",
+    id: "ACmO8h4/+b",
+    description: "Schema validation node schema input label",
+  },
+  schemaValidateSchemaHint: {
+    defaultMessage: "Use a bounded JSON Schema object. Remote references are not supported.",
+    id: "YjRk5tT6GE",
+    description: "Schema validation node schema input help",
   },
   compareOperator: {
     defaultMessage: "Operator",
@@ -720,6 +810,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "UBB7DkzFVO",
     description: "Catalog description for the for-each node",
   },
+  nodeArrayTransform: {
+    defaultMessage: "Array transform",
+    id: "ZkImYkaYlt",
+    description: "Catalog title for the array transform node",
+  },
+  nodeArrayTransformHint: {
+    defaultMessage: "Filter, map, reduce, or find values in an ordered collection.",
+    id: "5VQvCOhS8Q",
+    description: "Catalog description for the array transform node",
+  },
   nodeScheduledTrigger: {
     defaultMessage: "Schedule",
     id: "Q6fTrZjDFK",
@@ -749,6 +849,117 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Start when a source file is uploaded.",
     id: "96dcZwdhGc",
     description: "Catalog description for the source upload trigger node",
+  },
+  nodeJobChangedTrigger: {
+    defaultMessage: "Job changed",
+    id: "0Y+bOOsSA1",
+    description: "Catalog title for the job changed trigger node",
+  },
+  nodeJobChangedTriggerHint: {
+    defaultMessage: "Start when a job is created, changes status, or is reassigned.",
+    id: "2sNNxyCWxU",
+    description: "Catalog description for the job changed trigger node",
+  },
+  jobChangedProject: {
+    defaultMessage: "Project",
+    id: "AYk2MYcXaX",
+    description: "Project picker label for the job changed trigger",
+  },
+  jobChangedEventTypes: {
+    defaultMessage: "Changes",
+    id: "v1D5AwYN+5",
+    description: "Label above the job change type checkboxes on the job changed trigger",
+  },
+  jobChangedEventCreated: {
+    defaultMessage: "Job created",
+    id: "OzxhHflCxK",
+    description: "Checkbox on the job changed trigger for runs when a job is created",
+  },
+  jobChangedEventStatusChanged: {
+    defaultMessage: "Status changed",
+    id: "U9+1FmfAQd",
+    description: "Checkbox on the job changed trigger for runs when a job changes status",
+  },
+  jobChangedEventAssigneeChanged: {
+    defaultMessage: "Assignee changed",
+    id: "YQQTccmttg",
+    description: "Checkbox on the job changed trigger for runs when a job is reassigned",
+  },
+  jobChangedJobKinds: {
+    defaultMessage: "Job kinds",
+    id: "DIOqVd1e6E",
+    description: "Label above the job kind checkboxes on the job changed trigger",
+  },
+  jobChangedToStatuses: {
+    defaultMessage: "New status",
+    id: "HomH2bbon7",
+    description: "Label above the status checkboxes on the job changed trigger",
+  },
+  jobChangedFiltersHint: {
+    defaultMessage: "Leave a group unticked to match all of it.",
+    id: "7CQNMRs4uT",
+    description:
+      "Hint under the job changed trigger filters explaining that an empty group matches everything",
+  },
+  jobKindTranslation: {
+    defaultMessage: "Translation",
+    id: "sZQGYSlu1H",
+    description: "Job kind option on the job changed trigger",
+  },
+  jobKindResearch: {
+    defaultMessage: "Research",
+    id: "reIlcT0QRC",
+    description: "Job kind option on the job changed trigger",
+  },
+  jobKindReview: {
+    defaultMessage: "Review",
+    id: "O+emHrgUxr",
+    description: "Job kind option on the job changed trigger",
+  },
+  jobKindProofread: {
+    defaultMessage: "Proofread",
+    id: "T2vE02BwKa",
+    description: "Job kind option on the job changed trigger",
+  },
+  jobKindSync: {
+    defaultMessage: "Sync",
+    id: "y2+HBcJTpS",
+    description: "Job kind option on the job changed trigger",
+  },
+  jobKindAssetManagement: {
+    defaultMessage: "Asset management",
+    id: "sLTQn6B7e0",
+    description: "Job kind option on the job changed trigger",
+  },
+  jobStatusQueued: {
+    defaultMessage: "Queued",
+    id: "79V3a1PcwL",
+    description: "Job status option on the job changed trigger",
+  },
+  jobStatusRunning: {
+    defaultMessage: "Running",
+    id: "mJu4OMDjxt",
+    description: "Job status option on the job changed trigger",
+  },
+  jobStatusSucceeded: {
+    defaultMessage: "Succeeded",
+    id: "rzBQEN3n2o",
+    description: "Job status option on the job changed trigger",
+  },
+  jobStatusFailed: {
+    defaultMessage: "Failed",
+    id: "kGodH9H/M5",
+    description: "Job status option on the job changed trigger",
+  },
+  jobStatusWaitingForReview: {
+    defaultMessage: "Waiting for review",
+    id: "0G2aUMQEkR",
+    description: "Job status option on the job changed trigger",
+  },
+  jobStatusCancelled: {
+    defaultMessage: "Cancelled",
+    id: "Q1GxejEHOl",
+    description: "Job status option on the job changed trigger",
   },
   nodeWebhookTrigger: {
     defaultMessage: "Webhook",
@@ -1118,6 +1329,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "nYOxYYV5jF",
     description: "Label on error output handle",
   },
+  jsonSuccessHandle: {
+    defaultMessage: "success",
+    id: "pHz3Uy2BNF",
+    description: "Label on the success output handle of a JSON parse, stringify, or validate node",
+  },
+  invalidHandle: {
+    defaultMessage: "invalid",
+    id: "z3fkYQNXlF",
+    description: "Label on the invalid output handle of a JSON parse or schema validate node",
+  },
   eachHandle: {
     defaultMessage: "Each item",
     id: "7eZfUxSh+m",
@@ -1132,6 +1353,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Retry",
     id: "2RORR1xT6r",
     description: "Retry policy node title",
+  },
+  nodeHumanApproval: {
+    defaultMessage: "Human approval",
+    id: "49xYhuwsTz",
+    description: "Human Approval node title",
+  },
+  nodeHumanApprovalHint: {
+    defaultMessage: "Pause until an authorized reviewer makes a decision",
+    id: "z9oHNrIi/C",
+    description: "Human Approval node picker hint",
   },
   nodeWait: {
     defaultMessage: "Wait",
@@ -1368,6 +1599,21 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "w2tot+OYiM",
     description: "Wait completion output",
   },
+  approvedHandle: {
+    defaultMessage: "Approved",
+    id: "wxMPaxWGqe",
+    description: "Human Approval approved execution branch",
+  },
+  rejectedHandle: {
+    defaultMessage: "Rejected",
+    id: "AaJTPoHaG4",
+    description: "Human Approval rejected execution branch",
+  },
+  changesRequestedHandle: {
+    defaultMessage: "Changes requested",
+    id: "hfibk5yUP6",
+    description: "Human Approval changes requested execution branch",
+  },
   timedOutHandle: {
     defaultMessage: "Timed out",
     id: "1XJEkWqFT6",
@@ -1377,6 +1623,46 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Wait mode",
     id: "bUh5gPU+mn",
     description: "Wait node mode field",
+  },
+  humanApprovalReviewerType: {
+    defaultMessage: "Reviewer type",
+    id: "+nKpOXtDzW",
+    description: "Human Approval reviewer type field",
+  },
+  humanApprovalReviewerUser: {
+    defaultMessage: "User",
+    id: "BC+EYtp52c",
+    description: "Human Approval user reviewer option",
+  },
+  humanApprovalReviewerTeam: {
+    defaultMessage: "Team",
+    id: "DgvKFCDcyk",
+    description: "Human Approval team reviewer option",
+  },
+  humanApprovalReviewerId: {
+    defaultMessage: "Reviewer or team ID",
+    id: "yC1DFxWE4z",
+    description: "Human Approval reviewer identifier field",
+  },
+  humanApprovalPrompt: {
+    defaultMessage: "Approval request",
+    id: "vW4Y6bvp8n",
+    description: "Human Approval prompt field",
+  },
+  humanApprovalArtifactReference: {
+    defaultMessage: "Artifact reference (optional)",
+    id: "NCCUCBym5a",
+    description: "Human Approval protected artifact reference field",
+  },
+  humanApprovalJobReference: {
+    defaultMessage: "Job reference (optional)",
+    id: "JHWc0sKhNb",
+    description: "Human Approval job reference field",
+  },
+  humanApprovalDeadline: {
+    defaultMessage: "Deadline",
+    id: "sSzIe3av3r",
+    description: "Human Approval deadline field",
   },
   waitModeDuration: {
     defaultMessage: "Duration",
@@ -1775,8 +2061,9 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Toast when publishing a visual workflow fails because its graph has issues",
   },
   statusInvalidTrigger: {
-    defaultMessage: "Use a schedule, GitHub, source upload, or webhook trigger before activating.",
-    id: "TxnR8+WWRE",
+    defaultMessage:
+      "Use a schedule, GitHub, source upload, job changed, or webhook trigger before activating.",
+    id: "ZQ3jq911qr",
     description:
       "Toast when activating a visual workflow fails because its trigger only runs manually",
   },
@@ -1799,6 +2086,26 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Collection expression",
     id: "TSLfOgCp9k",
     description: "Label for for-each collection expression field",
+  },
+  arrayTransformOperation: {
+    defaultMessage: "Operation",
+    id: "4zBhSf3vTo",
+    description: "Array transform operation field",
+  },
+  arrayTransformItemType: {
+    defaultMessage: "Item type",
+    id: "HmWwCwYFtV",
+    description: "Array transform item type field",
+  },
+  arrayTransformResultType: {
+    defaultMessage: "Result type",
+    id: "cFRjw0ewOm",
+    description: "Array transform result type field",
+  },
+  arrayTransformInitialValue: {
+    defaultMessage: "Initial value",
+    id: "LgF4rByVBa",
+    description: "Array reduce initial value field",
   },
   slackChannelId: {
     defaultMessage: "Slack channel ID",
@@ -1990,6 +2297,39 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "8R777UILAL",
     description: "Folder inside the Hyperlocalise project for content sync",
   },
+  contentSyncGitLabNotConnected: {
+    defaultMessage:
+      "The workspace has no GitLab connection yet. An admin connects one under Integrations; a member's own GitLab.com sign-in is not used for syncs.",
+    id: "V1PaomMYKB",
+    description:
+      "Hint under the GitLab project picker of the Content sync step when the workspace has no GitLab connection",
+  },
+  contentSyncBranch: {
+    defaultMessage: "Branch",
+    id: "48BU/b+yFc",
+    description: "Repository branch to read on the content sync action",
+  },
+  contentSyncBranchPlaceholder: {
+    defaultMessage: "Default branch",
+    id: "b/d4N94nLn",
+    description: "Placeholder of the branch setting when the repository's default branch is used",
+  },
+  contentSyncPathTemplate: {
+    defaultMessage: "Language file paths",
+    id: "UwEjMjlBD5",
+    description: "Path template setting on the content sync action",
+  },
+  contentSyncPathTemplatePlaceholder: {
+    defaultMessage: "for example {example}",
+    id: "PsfScgqwTN",
+    description: "Placeholder of the path template setting, showing an example value",
+  },
+  contentSyncPathTemplateHelp: {
+    defaultMessage:
+      "Where each language's files sit under the repository folder, with {placeholder} for the language code: fr names your one French language, fr-FR names only fr-FR. The source language's files are imported; * matches within a folder and ** across folders.",
+    id: "8bfWDHVAiv",
+    description: "Help text under the path template setting",
+  },
   localizationProjectId: {
     defaultMessage: "Project ID",
     id: "7qPJACmQFj",
@@ -2015,6 +2355,46 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "IT9fuYzCqC",
     description:
       "Optional source file setting on the progress step; empty checks the whole project",
+  },
+  fileContent: {
+    defaultMessage: "Content",
+    id: "Pl+u+xnyRi",
+    description: "File write node content field label",
+  },
+  fileName: {
+    defaultMessage: "Filename",
+    id: "jHz7qBLEBI",
+    description: "File operation filename field label",
+  },
+  fileContentType: {
+    defaultMessage: "Content type",
+    id: "+3SmR81C/v",
+    description: "File write node MIME content type field label",
+  },
+  fileEncoding: {
+    defaultMessage: "Encoding",
+    id: "GByeCLJS+6",
+    description: "File operation encoding field label",
+  },
+  fileLocale: {
+    defaultMessage: "Locale",
+    id: "ym88cOvbnb",
+    description: "File operation locale field label",
+  },
+  fileTargetFormat: {
+    defaultMessage: "Target format",
+    id: "mLZuHpUnUy",
+    description: "File conversion target format field label",
+  },
+  fileConvertFilenamePlaceholder: {
+    defaultMessage: "Derived automatically",
+    id: "6RB0hyF0cE",
+    description: "Placeholder for the optional output filename of a file conversion",
+  },
+  fileConvertLocalePlaceholder: {
+    defaultMessage: "Preserve source locale",
+    id: "CIcsaiziRl",
+    description: "Placeholder for the optional locale of a file conversion",
   },
   localizationTargetLocales: {
     defaultMessage: "Target locales",

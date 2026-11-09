@@ -31,6 +31,7 @@ vi.mock("ai", async () => {
 
 vi.mock("@/lib/providers/language-model", () => ({
   getManagedVideoModel: getManagedVideoModelMock,
+  getManagedLanguageModel: () => "mock-language-model",
   hyperlocaliseVideoModelId: "bytedance/seedance-2.5",
 }));
 

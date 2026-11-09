@@ -16,6 +16,7 @@ import { and, eq } from "drizzle-orm";
 
 import { enqueueJobCreatedActivity } from "@/lib/activity-log/job-automation-events";
 import { db, schema } from "@/lib/database/client";
+import { insertJobs } from "@/lib/job-change-events/job-writes";
 import {
   ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
@@ -174,21 +175,23 @@ export async function createWorkflowTaskJob(
       });
       repositorySourceFileId = sourceFileVersion?.repositorySourceFileId ?? null;
 
-      await tx.insert(schema.jobs).values({
-        id: jobId,
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        ownerUserId,
-        assigneeType: ownerUserId ? "user" : null,
-        dueAt: input.dueAt ?? null,
-        kind: input.step === "translate" ? "translation" : "proofread",
-        status: "waiting_for_review",
-        inputPayload: {
-          sourceFileId: input.sourceFileId,
-          fileFormat,
-          sourceLocale: input.sourceLocale,
-          targetLocales: input.targetLocales,
-          metadata: { ...metadata, title },
+      await insertJobs(tx, {
+        values: {
+          id: jobId,
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          ownerUserId,
+          assigneeType: ownerUserId ? "user" : null,
+          dueAt: input.dueAt ?? null,
+          kind: input.step === "translate" ? "translation" : "proofread",
+          status: "waiting_for_review",
+          inputPayload: {
+            sourceFileId: input.sourceFileId,
+            fileFormat,
+            sourceLocale: input.sourceLocale,
+            targetLocales: input.targetLocales,
+            metadata: { ...metadata, title },
+          },
         },
       });
       await tx.insert(schema.translationJobDetails).values({

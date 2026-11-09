@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 import { toast } from "sonner";
@@ -34,7 +34,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { ApiResponseError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import {
@@ -42,6 +44,14 @@ import {
   messageFormats,
   normalizeMessageFormat,
 } from "@/lib/i18n/message-format";
+import {
+  extractCustomPlaceholderSpans,
+  MAX_PLACEHOLDER_PATTERN_LENGTH,
+  MAX_PLACEHOLDER_PATTERNS,
+  normalizePlaceholderPatterns,
+  type PlaceholderPatternError,
+  validatePlaceholderPattern,
+} from "@/lib/i18n/placeholder-patterns";
 
 import { projectFileMessageFormatDialogMessages as messages } from "./project-file-message-format-dialog.messages";
 
@@ -56,6 +66,26 @@ const FORMAT_HINTS: Record<MessageFormat, MessageDescriptor> = {
   icu: messages.formatIcuHint,
   i18next: messages.formatI18nextHint,
 };
+
+const PATTERN_ERROR_MESSAGES: Record<PlaceholderPatternError, MessageDescriptor> = {
+  empty: messages.patternErrorInvalid,
+  too_long: messages.patternErrorTooLong,
+  invalid: messages.patternErrorInvalid,
+  unsupported_syntax: messages.patternErrorUnsupported,
+  matches_empty: messages.patternErrorMatchesEmpty,
+};
+
+type PlaceholderSettings = {
+  messageFormat: MessageFormat;
+  placeholderPatterns: string[];
+};
+
+function patternLines(text: string) {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
+}
 
 function messageFormatApi() {
   return apiClient.api.orgs[":organizationSlug"].projects[":projectId"].files["message-format"];
@@ -77,6 +107,10 @@ export function ProjectFileMessageFormatDialog({
   const intl = useIntl();
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<MessageFormat | null>(null);
+  const [patternsDraft, setPatternsDraft] = useState<string | null>(null);
+  const [sampleText, setSampleText] = useState("");
+  const patternsFieldId = useId();
+  const sampleFieldId = useId();
   const queryKey = ["project-file-message-format", organizationSlug, projectId, sourcePath];
 
   const settingsQuery = useQuery({
@@ -93,7 +127,10 @@ export function ProjectFileMessageFormatDialog({
           throw await readApiResponseError(response, fallback);
         }
         const body = await response.json();
-        return normalizeMessageFormat(body.messageFormat);
+        return {
+          messageFormat: normalizeMessageFormat(body.messageFormat),
+          placeholderPatterns: normalizePlaceholderPatterns(body.placeholderPatterns),
+        } satisfies PlaceholderSettings;
       } catch (error) {
         if (error instanceof ApiResponseError) {
           throw error;
@@ -103,17 +140,40 @@ export function ProjectFileMessageFormatDialog({
     },
   });
 
-  const messageFormat = selected ?? settingsQuery.data ?? null;
+  const messageFormat = selected ?? settingsQuery.data?.messageFormat ?? null;
+  const patternsText = patternsDraft ?? settingsQuery.data?.placeholderPatterns.join("\n") ?? "";
+  const placeholderPatterns = useMemo(() => patternLines(patternsText), [patternsText]);
+  const patternErrors = useMemo(
+    () =>
+      placeholderPatterns.flatMap((pattern, index) => {
+        const error = validatePlaceholderPattern(pattern);
+        return error ? [{ line: index + 1, error }] : [];
+      }),
+    [placeholderPatterns],
+  );
+  const tooManyPatterns = placeholderPatterns.length > MAX_PLACEHOLDER_PATTERNS;
+  const patternsInvalid = patternErrors.length > 0 || tooManyPatterns;
+  const sampleMatches = useMemo(
+    () =>
+      patternsInvalid || !sampleText
+        ? []
+        : extractCustomPlaceholderSpans(sampleText, placeholderPatterns),
+    [patternsInvalid, placeholderPatterns, sampleText],
+  );
   const loadErrorMessage =
     settingsQuery.error instanceof Error
       ? settingsQuery.error.message
       : intl.formatMessage(messages.loadFailed);
 
   const saveMutation = useMutation({
-    mutationFn: async (value: MessageFormat) => {
+    mutationFn: async (value: PlaceholderSettings) => {
       const response = await messageFormatApi().$patch({
         param: { organizationSlug, projectId },
-        json: { sourcePath, messageFormat: value },
+        json: {
+          sourcePath,
+          messageFormat: value.messageFormat,
+          placeholderPatterns: value.placeholderPatterns,
+        },
       });
       if (response.status !== 200) {
         throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
@@ -179,6 +239,79 @@ export function ProjectFileMessageFormatDialog({
             <p className="text-sm text-muted-foreground">
               <FormattedMessage {...FORMAT_HINTS[messageFormat]} />
             </p>
+
+            <Label htmlFor={patternsFieldId} className="mt-4">
+              <FormattedMessage {...messages.patternsLabel} />
+            </Label>
+            <Textarea
+              id={patternsFieldId}
+              value={patternsText}
+              onChange={(event) => setPatternsDraft(event.target.value)}
+              placeholder={intl.formatMessage(messages.patternsPlaceholder)}
+              aria-invalid={patternsInvalid || undefined}
+              aria-describedby={`${patternsFieldId}-hint`}
+              className="max-h-48 font-mono text-sm"
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+              rows={3}
+            />
+            <p id={`${patternsFieldId}-hint`} className="text-sm text-muted-foreground">
+              <FormattedMessage
+                {...messages.patternsHint}
+                values={{ max: MAX_PLACEHOLDER_PATTERNS }}
+              />
+            </p>
+            {patternsInvalid ? (
+              <ul className="flex flex-col gap-1 text-sm text-destructive" role="alert">
+                {tooManyPatterns ? (
+                  <li>
+                    <FormattedMessage
+                      {...messages.patternErrorTooMany}
+                      values={{ max: MAX_PLACEHOLDER_PATTERNS }}
+                    />
+                  </li>
+                ) : null}
+                {patternErrors.map(({ line, error }) => (
+                  <li key={line}>
+                    <FormattedMessage
+                      {...PATTERN_ERROR_MESSAGES[error]}
+                      values={{ line, max: MAX_PLACEHOLDER_PATTERN_LENGTH }}
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            {placeholderPatterns.length > 0 && !patternsInvalid ? (
+              <>
+                <Label htmlFor={sampleFieldId} className="mt-2">
+                  <FormattedMessage {...messages.sampleLabel} />
+                </Label>
+                <Input
+                  id={sampleFieldId}
+                  value={sampleText}
+                  onChange={(event) => setSampleText(event.target.value)}
+                  placeholder={intl.formatMessage(messages.samplePlaceholder)}
+                  spellCheck={false}
+                />
+                {sampleText ? (
+                  <p className="text-sm text-muted-foreground" aria-live="polite">
+                    {sampleMatches.length > 0 ? (
+                      <FormattedMessage
+                        {...messages.sampleMatches}
+                        values={{
+                          count: sampleMatches.length,
+                          matches: sampleMatches.map((match) => match.literal).join(", "),
+                        }}
+                      />
+                    ) : (
+                      <FormattedMessage {...messages.sampleNoMatches} />
+                    )}
+                  </p>
+                ) : null}
+              </>
+            ) : null}
           </div>
         )}
 
@@ -200,10 +333,10 @@ export function ProjectFileMessageFormatDialog({
           ) : (
             <Button
               type="button"
-              disabled={messageFormat === null || saveMutation.isPending}
+              disabled={messageFormat === null || patternsInvalid || saveMutation.isPending}
               onClick={() => {
                 if (messageFormat) {
-                  saveMutation.mutate(messageFormat);
+                  saveMutation.mutate({ messageFormat, placeholderPatterns });
                 }
               }}
             >

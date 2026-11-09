@@ -16,7 +16,7 @@ import (
 
 // $1: organization ID, $2: org-wide access, $3: user ID.
 var conversationAccessSQL = `i.organization_id = $1 and (
-            $2
+            ($2 and i.source <> 'workflow_approval')
             or exists (
                 select 1 from projects p
                 where p.id = i.project_id and p.organization_id = $1
@@ -29,6 +29,33 @@ var conversationAccessSQL = `i.organization_id = $1 and (
                     select 1 from interaction_messages m
                     where m.interaction_id = i.id and m.sender_type = 'user'
                         and m.sender_email = (select u.email from users u where u.id = $3)
+                )
+            )
+            or (
+                i.source = 'workflow_approval'
+                and exists (
+                    select 1 from visual_workflow_approval_requests a
+                    where a.interaction_id = i.id and a.organization_id = $1
+                        and (
+                            (
+                                a.reviewer_type = 'user'
+                                and (
+                                    a.reviewer_id = $3::text
+                                    or a.reviewer_id = (
+                                        select u.workos_user_id from users u where u.id = $3
+                                    )
+                                )
+                            )
+                            or (
+                                a.reviewer_type = 'team'
+                                and exists (
+                                    select 1 from team_memberships tm
+                                    join teams t on t.id = tm.team_id
+                                    where tm.team_id::text = a.reviewer_id
+                                        and tm.user_id = $3 and t.organization_id = $1
+                                )
+                            )
+                        )
                 )
             )
         )`

@@ -139,43 +139,45 @@ const DomainResearchShellView = observer(function DomainResearchShellView({
         />
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
-        <Field className="w-full sm:w-72">
-          <FieldLabel htmlFor={localeSelectId}>
-            <FormattedMessage {...messages.localeLabel} />
-          </FieldLabel>
-          <Select
-            value={locale.id}
-            items={domain.locales.map((item) => ({ value: item.id, label: item.label }))}
-            onValueChange={(value) => {
-              if (value) changeLocale(value);
-            }}
-          >
-            <SelectTrigger id={localeSelectId} className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {domain.locales.map((item) => (
-                  <SelectItem key={item.id} value={item.id} label={item.label}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
-        <p className="text-sm text-muted-foreground">
-          <FormattedMessage {...messages.localeScope} />
-        </p>
-      </div>
+      {store.showLocaleSelector ? (
+        <div className="flex flex-wrap items-end gap-3">
+          <Field className="w-full sm:w-72">
+            <FieldLabel htmlFor={localeSelectId}>
+              <FormattedMessage {...messages.localeLabel} />
+            </FieldLabel>
+            <Select
+              value={locale.id}
+              items={domain.locales.map((item) => ({ value: item.id, label: item.label }))}
+              onValueChange={(value) => {
+                if (value) changeLocale(value);
+              }}
+            >
+              <SelectTrigger id={localeSelectId} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {domain.locales.map((item) => (
+                    <SelectItem key={item.id} value={item.id} label={item.label}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+          <p className="text-sm text-muted-foreground">
+            <FormattedMessage {...messages.localeScope} />
+          </p>
+        </div>
+      ) : null}
 
       {store.isPending ? (
         <DomainResearchEmpty
           title={<FormattedMessage {...sharedMessages.pendingTitle} />}
           description={<FormattedMessage {...sharedMessages.pendingDescription} />}
         />
-      ) : store.showSearchConsoleSurface ? (
+      ) : store.showSearchConsoleSurface || store.showAuditSurface ? (
         children
       ) : store.showResearchContent && store.activeCatalog ? (
         <DomainResearchContext

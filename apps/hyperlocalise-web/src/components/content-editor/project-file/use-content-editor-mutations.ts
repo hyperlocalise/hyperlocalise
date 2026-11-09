@@ -1001,6 +1001,55 @@ export function useContentEditorMutations(input: {
     },
   });
 
+  // Source text is edited only where go-svc serves the editor: native projects.
+  const sourceTextMutation = useMutation({
+    mutationFn: async (mutationInput: {
+      externalStringId: string;
+      sourceText: string;
+      keepApproved: boolean;
+    }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+      const fallback = intl.formatMessage(
+        useContentEditorMutationsMessages.failedToUpdateSourceText,
+      );
+      if (!input.goSvcClient) {
+        throw new Error(fallback);
+      }
+      try {
+        return await input.goSvcClient.cat.setSourceText(
+          input.organizationSlug,
+          input.projectId,
+          mutationInput.externalStringId,
+          {
+            sourcePath,
+            externalStringId: mutationInput.externalStringId,
+            sourceText: mutationInput.sourceText,
+            keepApproved: mutationInput.keepApproved,
+          },
+        );
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, fallback), { cause: error });
+      }
+    },
+    // A source change can send the open string's approved translations to review.
+    onSuccess: async () => {
+      await Promise.all([
+        input.invalidateQueue(),
+        queryClient.invalidateQueries({
+          queryKey: [
+            "project-file-content-editor-segment-target",
+            input.organizationSlug,
+            input.projectId,
+          ],
+        }),
+      ]);
+    },
+  });
+
   return {
     saveMutation,
     saveTranslation: saveMutation.mutateAsync,
@@ -1020,6 +1069,8 @@ export function useContentEditorMutations(input: {
     setStringsLocked: lockedStringsMutation.mutateAsync,
     setMaxLength: maxLengthMutation.mutateAsync,
     isSavingMaxLength: maxLengthMutation.isPending,
+    setSourceText: sourceTextMutation.mutateAsync,
+    isSavingSourceText: sourceTextMutation.isPending,
     isSaving: saveMutation.isPending,
     isPostingComment: commentMutation.isPending,
     isResolvingComment: resolveCommentMutation.isPending,

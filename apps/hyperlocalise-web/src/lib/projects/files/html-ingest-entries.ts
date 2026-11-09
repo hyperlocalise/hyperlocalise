@@ -88,8 +88,23 @@ const HTML_VOID_ELEMENTS = new Set([
 ]);
 const HTML_VOID_TRANSLATABLE_ATTRS: Record<string, string> = { img: "alt" };
 
-function htmlPushesPath(tag: string): boolean {
-  return !HTML_SKIP_ELEMENTS.has(tag) && !HTML_VOID_ELEMENTS.has(tag);
+function htmlSkipElements(extra?: readonly string[]): Set<string> {
+  const skip = new Set(HTML_SKIP_ELEMENTS);
+  for (const raw of extra ?? []) {
+    const tag =
+      raw
+        .trim()
+        .toLowerCase()
+        .split(/[.#[ >:+~]/, 1)[0] ?? "";
+    if (tag) {
+      skip.add(tag);
+    }
+  }
+  return skip;
+}
+
+function htmlPushesPath(tag: string, skip: ReadonlySet<string> = HTML_SKIP_ELEMENTS): boolean {
+  return !skip.has(tag) && !HTML_VOID_ELEMENTS.has(tag);
 }
 
 export type HtmlIngestEntry = {
@@ -132,7 +147,7 @@ export function isHashedHtmlEntryKey(key: string): boolean {
 
 export function extractHtmlIngestEntries(
   html: string,
-  options?: { foldInline?: boolean },
+  options?: { foldInline?: boolean; excludedElements?: readonly string[] },
 ): Record<string, string> {
   const out: Record<string, string> = {};
   for (const entry of extractHtmlIngestEntriesInOrder(html, options)) {
@@ -141,16 +156,21 @@ export function extractHtmlIngestEntries(
   return out;
 }
 
+const ICU_ARGUMENT = /\{[A-Za-z_]\w*(?:\s*,\s*(?:plural|select|selectordinal|number|date|time)\b)?/;
+
 export function applyHtmlIngestEntryKeys(
   sourcePath: string,
   sourceText: string,
   payload: HlEntriesPayload,
+  options?: { excludedElements?: readonly string[]; icuSubfilter?: boolean },
 ): HlEntriesPayload {
   if (!isHtmlTranslationSourcePath(sourcePath) || sourceText.length === 0) {
     return payload;
   }
 
-  const extracted = extractHtmlIngestEntries(sourceText);
+  const extracted = extractHtmlIngestEntries(sourceText, {
+    excludedElements: options?.excludedElements,
+  });
   if (Object.keys(extracted).length === 0) {
     return payload;
   }
@@ -159,7 +179,15 @@ export function applyHtmlIngestEntryKeys(
     return remapHashedHtmlPayload(sourceText, payload);
   }
 
-  return extracted;
+  if (!options?.icuSubfilter) {
+    return extracted;
+  }
+
+  const out: HlEntriesPayload = {};
+  for (const [key, text] of Object.entries(extracted)) {
+    out[key] = ICU_ARGUMENT.test(text) ? { text, format: "icu" } : text;
+  }
+  return out;
 }
 
 export function rewriteHashedHtmlSegmentKey(html: string, key: string, sourceText: string): string {
@@ -311,16 +339,78 @@ type FoldedHtmlUnit = {
 
 export function extractHtmlIngestEntriesInOrder(
   html: string,
-  options?: { foldInline?: boolean },
+  options?: { foldInline?: boolean; excludedElements?: readonly string[] },
 ): HtmlIngestEntry[] {
   const entries: HtmlIngestEntry[] = [];
   walkHtmlDocument(html, {
     foldInline: options?.foldInline === true,
+    excludedElements: options?.excludedElements,
     onText(key, text) {
       entries.push({ key, text });
     },
   });
+  return [...extractMarkedHeadEntries(html), ...entries];
+}
+
+const MAILCHIMP_HEAD_TITLE =
+  /<title\b[^>]*data-hl-mailchimp-field="[^"]+"[^>]*>([\s\S]*?)<\/title>/i;
+const MAILCHIMP_HEAD_META = /<meta\b[^>]*data-hl-mailchimp-field="[^"]+"[^>]*>/gi;
+
+function extractMarkedHeadEntries(html: string): HtmlIngestEntry[] {
+  const entries: HtmlIngestEntry[] = [];
+  const title = MAILCHIMP_HEAD_TITLE.exec(html);
+  if (title?.[1] != null) {
+    const text = unescapeHtml(title[1]);
+    if (isTranslatableChunk(text)) {
+      entries.push({ key: "html.head.title", text });
+    }
+  }
+  for (const match of html.matchAll(MAILCHIMP_HEAD_META)) {
+    const tag = match[0] ?? "";
+    const name = /(?:\sname|\sproperty)\s*=\s*"([^"]+)"/i.exec(tag)?.[1]?.trim();
+    const content = /\scontent\s*=\s*"([^"]*)"/i.exec(tag)?.[1] ?? "";
+    const text = unescapeHtml(content);
+    if (name && isTranslatableChunk(text)) {
+      entries.push({ key: `html.head.meta.${name}`, text });
+    }
+  }
   return entries;
+}
+
+function applyMarkedHeadTranslations(html: string, translations: Record<string, string>): string {
+  let out = html;
+  const titleNext = translations["html.head.title"];
+  if (titleNext !== undefined) {
+    out = out.replace(
+      /(<title\b[^>]*data-hl-mailchimp-field="[^"]+"[^>]*>)[\s\S]*?(<\/title>)/i,
+      (_, open: string, close: string) => `${open}${escapeHtmlText(titleNext)}${close}`,
+    );
+  }
+  return out.replace(/<meta\b[^>]*data-hl-mailchimp-field="[^"]+"[^>]*>/gi, (tag) => {
+    const name = /(?:\sname|\sproperty)\s*=\s*"([^"]+)"/i.exec(tag)?.[1]?.trim();
+    if (!name) {
+      return tag;
+    }
+    const next = translations[`html.head.meta.${name}`];
+    if (next === undefined) {
+      return tag;
+    }
+    if (/\scontent\s*=\s*"/i.test(tag)) {
+      return tag.replace(/\scontent\s*=\s*"[^"]*"/i, ` content="${escapeHtmlText(next)}"`);
+    }
+    if (/\scontent\s*=\s*'/i.test(tag)) {
+      return tag.replace(/\scontent\s*=\s*'[^']*'/i, ` content='${escapeHtmlText(next)}'`);
+    }
+    return tag;
+  });
+}
+
+function escapeHtmlText(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 function extractFoldedHtmlUnits(html: string): FoldedHtmlUnit[] {
@@ -368,7 +458,7 @@ export function applyHtmlIngestTranslations(
   html: string,
   translations: Record<string, string>,
 ): string {
-  return rewriteHtmlIngestTexts(html, translations);
+  return applyMarkedHeadTranslations(rewriteHtmlIngestTexts(html, translations), translations);
 }
 
 function rewriteHtmlIngestTexts(html: string, translations: Record<string, string>): string {
@@ -410,12 +500,14 @@ function walkHtmlDocument(
   html: string,
   handlers: {
     foldInline?: boolean;
+    excludedElements?: readonly string[];
     onLiteral?: (raw: string) => void;
     onText?: (key: string, text: string, raw: string, stack: readonly string[]) => void;
     onVoidAttr?: (key: string, text: string, raw: string, attrName: string) => void;
   },
 ) {
   const foldInline = handlers.foldInline === true;
+  const skip = htmlSkipElements(handlers.excludedElements);
   const occurrences = new Map<string, number>();
   const stack: string[] = [];
   let buffer = "";
@@ -436,7 +528,7 @@ function walkHtmlDocument(
       return;
     }
     const { placeholdered, plainText } = protectHTMLInlineSyntax(raw);
-    if (!isTranslatableChunk(plainText)) {
+    if (!isHtmlTranslatableText(plainText)) {
       emitLiteral(raw);
       return;
     }
@@ -460,14 +552,19 @@ function walkHtmlDocument(
   };
 
   const isFoldBoundary = (tag: string) =>
-    HTML_BLOCK_ELEMENTS.has(tag) || HTML_STRUCTURAL_ELEMENTS.has(tag);
+    HTML_BLOCK_ELEMENTS.has(tag) ||
+    HTML_STRUCTURAL_ELEMENTS.has(tag) ||
+    // Customer.io Design Studio component markup (`<x-paragraph>`,
+    // `<x-heading-1>`, `<x-cta>`, …): each component is its own translatable
+    // unit, while inline markup (`<a>`) and Liquid stay folded inside it.
+    tag.startsWith("x-");
 
   for (const token of tokenizeHtml(html)) {
     if (skipDepth > 0) {
       emitLiteral(token.raw);
-      if (token.kind === "end" && HTML_SKIP_ELEMENTS.has(token.name)) {
+      if (token.kind === "end" && skip.has(token.name)) {
         skipDepth -= 1;
-      } else if (token.kind === "start" && HTML_SKIP_ELEMENTS.has(token.name)) {
+      } else if (token.kind === "start" && skip.has(token.name)) {
         skipDepth += 1;
       }
       continue;
@@ -483,7 +580,7 @@ function walkHtmlDocument(
         emitLiteral(token.raw);
         break;
       case "start":
-        if (HTML_SKIP_ELEMENTS.has(token.name)) {
+        if (skip.has(token.name)) {
           flushBuffer();
           skipDepth += 1;
           emitLiteral(token.raw);
@@ -498,7 +595,7 @@ function walkHtmlDocument(
         } else {
           flushBuffer();
           emitLiteral(token.raw);
-          if (htmlPushesPath(token.name)) {
+          if (htmlPushesPath(token.name, skip)) {
             stack.push(token.name);
           }
         }
@@ -560,6 +657,15 @@ function htmlSlotKey(path: string, occurrences: Map<string, number>): string {
 
 function isAllHTMLWhitespace(value: string): boolean {
   return value.trim().length === 0;
+}
+
+/** Decode entities before the letter/digit check so `&nbsp;` is not a segment. */
+function isHtmlTranslatableText(value: string): boolean {
+  const decoded = unescapeHtml(value);
+  if (decoded === "" || isAllHTMLWhitespace(decoded)) {
+    return false;
+  }
+  return isTranslatableChunk(decoded);
 }
 
 function isTranslatableChunk(chunk: string): boolean {

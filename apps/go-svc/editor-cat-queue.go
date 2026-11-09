@@ -12,29 +12,35 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/sourcetext"
+	"github.com/hyperlocalise/hyperlocalise/internal/translationorigin"
 	"github.com/jackc/pgx/v5"
 )
 
 var hashedHTMLSegmentKey = regexp.MustCompile(`^html\.[0-9a-f]{16}(?:\.\d+)?(?:#srx\.\d+)?$`)
 
 type editorCatSegment struct {
-	ExternalStringID  string  `json:"externalStringId"`
-	Key               string  `json:"key"`
-	SourceText        string  `json:"sourceText"`
-	Context           *string `json:"context"`
-	Type              *string `json:"type"`
-	MaxLength         *int    `json:"maxLength,omitempty"`
-	IsHidden          *bool   `json:"isHidden,omitempty"`
-	IsLocked          *bool   `json:"isLocked,omitempty"`
-	ContentKind       *string `json:"contentKind,omitempty"`
-	SourceAssetURL    *string `json:"sourceAssetUrl,omitempty"`
-	TargetAssetURL    *string `json:"targetAssetUrl,omitempty"`
-	ImageVariantID    *string `json:"imageVariantId,omitempty"`
-	LooksLikeImageURL *bool   `json:"looksLikeImageUrl,omitempty"`
-	LooksLikeVideoURL *bool   `json:"looksLikeVideoUrl,omitempty"`
-	SourcePath        *string `json:"sourcePath,omitempty"`
+	ExternalStringID string  `json:"externalStringId"`
+	Key              string  `json:"key"`
+	SourceText       string  `json:"sourceText"`
+	Context          *string `json:"context"`
+	Type             *string `json:"type"`
+	MaxLength        *int    `json:"maxLength,omitempty"`
+	IsHidden         *bool   `json:"isHidden,omitempty"`
+	IsLocked         *bool   `json:"isLocked,omitempty"`
+	// Set when the string's file is one whose source text the platform can write back.
+	SourceTextEditable *bool   `json:"sourceTextEditable,omitempty"`
+	ContentKind        *string `json:"contentKind,omitempty"`
+	SourceAssetURL     *string `json:"sourceAssetUrl,omitempty"`
+	TargetAssetURL     *string `json:"targetAssetUrl,omitempty"`
+	ImageVariantID     *string `json:"imageVariantId,omitempty"`
+	LooksLikeImageURL  *bool   `json:"looksLikeImageUrl,omitempty"`
+	LooksLikeVideoURL  *bool   `json:"looksLikeVideoUrl,omitempty"`
+	SourcePath         *string `json:"sourcePath,omitempty"`
 	// Set in all-files queues, where segments come from files with different settings.
 	MessageFormat *string `json:"messageFormat,omitempty"`
+	// Set in all-files queues alongside MessageFormat: the file's custom placeholder regexes.
+	PlaceholderPatterns []string `json:"placeholderPatterns,omitempty"`
 	// Set in grouped queues: identical source strings in scope, including this one.
 	OccurrenceCount *int `json:"occurrenceCount,omitempty"`
 	// Set on grouped rows with several occurrences. The least complete status among the
@@ -70,6 +76,7 @@ type editorCatQueueFile struct {
 	Filename                  string                     `json:"filename"`
 	Provider                  any                        `json:"provider"`
 	MessageFormat             string                     `json:"messageFormat,omitempty"`
+	PlaceholderPatterns       []string                   `json:"placeholderPatterns,omitempty"`
 	TargetLocale              string                     `json:"targetLocale"`
 	CanEditTranslations       bool                       `json:"canEditTranslations"`
 	Truncated                 bool                       `json:"truncated"`
@@ -126,7 +133,7 @@ func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
 		queueFilter = "all"
 	}
 	switch queueFilter {
-	case "all", "untranslated", "needs_review", "reviewed", "has_issues", "hidden", "not_hidden", "qa_issues", "machine_translated", "with_comments":
+	case "all", "untranslated", "needs_review", "reviewed", "has_issues", "hidden", "not_hidden", "qa_issues", "machine_translated", "origin", "with_comments":
 	default:
 		return editorCatQueueQuery{}, editorCatFailure(400, "invalid_project_payload", "Invalid CAT query")
 	}
@@ -138,6 +145,14 @@ func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
 		return editorCatQueueQuery{}, editorCatFailure(400, "invalid_project_payload", "Invalid CAT query")
 	}
 	queueFilterQualifier := parseEditorCatQueueFilterQualifier(values.Get("queueFilterQualifier"))
+	if queueFilter == "origin" {
+		// Origin values are qualifiers of this filter only, so the shared allowlist (also used
+		// for QA issue types) does not hold them.
+		queueFilterQualifier = ""
+		if origin := trimEditorCat(values.Get("queueFilterQualifier")); translationorigin.Valid(origin) {
+			queueFilterQualifier = origin
+		}
+	}
 	advancedFilter, err := parseEditorCatAdvancedFilter(values.Get("queueAdvanced"))
 	if err != nil {
 		return editorCatQueueQuery{}, err
@@ -272,7 +287,8 @@ func (api *editorCatAPI) loadTextFileQueue(r *http.Request, actor editorCatActor
 	}
 	keys = api.rewriteHashedHTMLQueueKeys(r, actor, project, query.sourcePath, keys)
 	var messageFormat string
-	if err := api.pool.QueryRow(r.Context(), `select message_format from repository_source_files where id=$1`, sourceFileID).Scan(&messageFormat); err != nil {
+	var placeholderPatterns []string
+	if err := api.pool.QueryRow(r.Context(), `select message_format, placeholder_patterns from repository_source_files where id=$1`, sourceFileID).Scan(&messageFormat, &placeholderPatterns); err != nil {
 		return editorCatQueueFile{}, err
 	}
 	pagination := editorCatPagination{
@@ -287,6 +303,7 @@ func (api *editorCatAPI) loadTextFileQueue(r *http.Request, actor editorCatActor
 		Filename:            filenameFromSourcePath(query.sourcePath),
 		Provider:            nil,
 		MessageFormat:       messageFormat,
+		PlaceholderPatterns: placeholderPatterns,
 		TargetLocale:        query.targetLocale,
 		CanEditTranslations: actor.canEdit(),
 		Truncated:           pagination.HasMore,
@@ -534,9 +551,12 @@ func (api *editorCatAPI) sourceFileID(r *http.Request, actor editorCatActor, pro
 	return id, err
 }
 
+// editorCatIlikeReplacer is reused across escapeEditorCatIlike calls to avoid
+// rebuilding the replacer trie and allocating heap memory on every ILIKE escape.
+var editorCatIlikeReplacer = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
 func escapeEditorCatIlike(value string) string {
-	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
-	return replacer.Replace(value)
+	return editorCatIlikeReplacer.Replace(value)
 }
 
 func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project editorCatProject, query editorCatQueueQuery, sourceFileID *string, includeSourcePath bool) ([]editorCatSegment, int, error) {
@@ -615,9 +635,14 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		lockLocaleN = strconv.Itoa(len(listArgs))
 	}
 	listArgs = append(listArgs, query.limit, query.offset)
-	selectCols := `k.id, k.key, k.source_text, k.context, k.type, k.max_length, k.metadata, k.is_hidden`
+	// The source text control is offered where the route would accept it: a lock in any language
+	// refuses a source edit.
+	selectCols := `k.id, k.key, k.source_text, k.context, k.type, k.max_length, k.metadata, k.is_hidden, (` +
+		sourcetext.KeyEditableSQL("k") + ` and not exists (select 1 from project_cat_segment_locks sl
+            where sl.organization_id = k.organization_id and sl.project_id = k.project_id
+                and sl.external_string_id = k.id::text))`
 	if includeSourcePath {
-		selectCols += `, f.source_path, f.message_format`
+		selectCols += `, f.source_path, f.message_format, f.placeholder_patterns`
 	}
 	limitN := strconv.Itoa(len(listArgs) - 1)
 	offsetN := strconv.Itoa(len(listArgs))
@@ -661,12 +686,13 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		var context, keyType *string
 		var maxLength *int
 		var metadata []byte
-		var hidden bool
+		var hidden, sourceTextEditable bool
 		var sourcePath, messageFormat *string
+		var placeholderPatterns []string
 		var occurrenceCount int
-		dest := []any{&segment.ExternalStringID, &segment.Key, &segment.SourceText, &context, &keyType, &maxLength, &metadata, &hidden}
+		dest := []any{&segment.ExternalStringID, &segment.Key, &segment.SourceText, &context, &keyType, &maxLength, &metadata, &hidden, &sourceTextEditable}
 		if includeSourcePath {
-			dest = append(dest, &sourcePath, &messageFormat)
+			dest = append(dest, &sourcePath, &messageFormat, &placeholderPatterns)
 		}
 		if query.grouped {
 			dest = append(dest, &occurrenceCount)
@@ -686,6 +712,9 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 			value := true
 			segment.IsHidden = &value
 		}
+		if sourceTextEditable {
+			segment.SourceTextEditable = &sourceTextEditable
+		}
 		contentKind := editorCatMetadataContentKind(metadata)
 		if contentKind != "" {
 			segment.ContentKind = &contentKind
@@ -702,6 +731,7 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		if includeSourcePath && sourcePath != nil {
 			segment.SourcePath = sourcePath
 			segment.MessageFormat = messageFormat
+			segment.PlaceholderPatterns = placeholderPatterns
 		}
 		segments = append(segments, segment)
 	}

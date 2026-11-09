@@ -29,7 +29,13 @@ export type GoSvcConversationLastMessage = {
 export type GoSvcConversationSummary = {
   id: string;
   title: string;
-  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent" | "web_chat";
+  source:
+    | "chat_ui"
+    | "email_agent"
+    | "github_agent"
+    | "slack_agent"
+    | "web_chat"
+    | "workflow_approval";
   status: "active" | "archived";
   projectId: string | null;
   lastMessageAt: string;

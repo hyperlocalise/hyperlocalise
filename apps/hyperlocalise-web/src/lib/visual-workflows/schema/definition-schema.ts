@@ -14,6 +14,11 @@ import { z } from "zod";
 
 import { contentSyncProviderSchema } from "@/lib/agents/content-sync/content-sync-types";
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
+import {
+  JOB_CHANGE_EVENT_TYPES,
+  JOB_KINDS,
+  JOB_STATUSES,
+} from "@/lib/job-change-events/job-change-events-contract";
 import { VISUAL_WORKFLOW_SCHEMA_VERSION, VISUAL_WORKFLOW_SCHEMA_V3_VERSION } from "./types";
 
 const httpMethodSchema = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]);
@@ -66,6 +71,7 @@ export const visualCatalogTypeSchema = z.enum([
   "trigger.github",
   "trigger.source_upload",
   "trigger.webhook",
+  "trigger.job_changed",
   "action.http",
   "action.content_sync",
   "action.notify_slack",
@@ -75,6 +81,9 @@ export const visualCatalogTypeSchema = z.enum([
   "action.check_progress",
   "action.run_qa",
   "action.list_source_files",
+  "action.file_read",
+  "action.file_write",
+  "action.file_convert",
   "action.update_job",
   "action.pick_assignee",
   "action.crowdin_pre_translate",
@@ -88,9 +97,14 @@ export const visualCatalogTypeSchema = z.enum([
   "logic.select_path",
   "logic.coalesce",
   "logic.compare",
+  "logic.json_parse",
+  "logic.json_stringify",
+  "logic.schema_validate",
   "ai.agent",
   "logic.for_each",
+  "logic.array_transform",
   "logic.retry",
+  "flow.human_approval",
   "flow.wait",
   "flow.stop",
   "flow.return",
@@ -319,6 +333,16 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     tokenVersion: z.number().int().min(1).max(1_000_000),
   }),
   z.object({
+    kind: z.literal("trigger.job_changed"),
+    projectId: z.string().trim().min(1).max(128).optional(),
+    eventTypes: z
+      .array(z.enum(JOB_CHANGE_EVENT_TYPES))
+      .max(JOB_CHANGE_EVENT_TYPES.length)
+      .optional(),
+    jobKinds: z.array(z.enum(JOB_KINDS)).max(JOB_KINDS.length).optional(),
+    toStatuses: z.array(z.enum(JOB_STATUSES)).max(JOB_STATUSES.length).optional(),
+  }),
+  z.object({
     kind: z.literal("action.http"),
     method: httpMethodSchema,
     idempotencyHeader: z
@@ -352,6 +376,8 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
       .trim()
       .max(512)
       .regex(/^[^\\:*?"<>|]*$/, "invalid_folder_path"),
+    branch: z.string().trim().max(256).optional(),
+    pathTemplate: z.string().trim().max(512).optional(),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({
@@ -407,6 +433,27 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     projectId: z.string().trim().max(128),
     pathPrefix: z.string().trim().max(1024),
     onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.file_read"),
+    fileId: z.string().trim().max(256),
+    encoding: z.enum(["utf-8", "base64"]),
+  }),
+  z.object({
+    kind: z.literal("action.file_write"),
+    content: z.string().max(7_000_000),
+    filename: z.string().trim().max(512),
+    contentType: z.string().trim().max(256),
+    encoding: z.enum(["utf-8", "base64"]),
+    locale: z.string().trim().max(64).optional(),
+    sourceFileId: z.string().trim().max(256).optional(),
+  }),
+  z.object({
+    kind: z.literal("action.file_convert"),
+    fileId: z.string().trim().max(256),
+    targetFormat: z.enum(["json", "yaml", "arb"]),
+    filename: z.string().trim().max(512).optional(),
+    locale: z.string().trim().max(64).optional(),
   }),
   z.object({
     kind: z.literal("action.update_job"),
@@ -611,6 +658,19 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
       }
     }),
   z.object({
+    kind: z.literal("logic.json_parse"),
+    text: z.string().max(1_000_000),
+  }),
+  z.object({
+    kind: z.literal("logic.json_stringify"),
+    value: z.unknown(),
+  }),
+  z.object({
+    kind: z.literal("logic.schema_validate"),
+    value: z.unknown(),
+    schema: z.record(z.string(), z.unknown()),
+  }),
+  z.object({
     kind: z.literal("ai.agent"),
     prompt: z.string().max(20_000),
     onError: visualNodeErrorBehaviorSchema.optional(),
@@ -619,6 +679,24 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     kind: z.literal("logic.for_each"),
     collection: z.string().max(2000),
   }),
+  z
+    .object({
+      kind: z.literal("logic.array_transform"),
+      operation: z.enum(["filter", "map", "reduce", "find"]),
+      collection: z.string().max(2000),
+      itemType: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+      resultType: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+      initialValue: z.unknown().optional(),
+    })
+    .superRefine((config, context) => {
+      if (config.operation === "reduce" && config.initialValue === undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["initialValue"],
+          message: "array_reduce_requires_initial_value",
+        });
+      }
+    }),
   z.object({
     kind: z.literal("logic.retry"),
     maxAttempts: z.number().int().min(1).max(10).optional(),
@@ -627,6 +705,15 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     jitter: z.boolean().optional(),
     retryableErrorCodes: z.array(z.string().trim().min(1).max(64)).max(32).optional(),
     acknowledgeDuplicateRisk: z.boolean().optional(),
+  }),
+  z.object({
+    kind: z.literal("flow.human_approval"),
+    reviewerType: z.enum(["user", "team"]),
+    reviewerId: z.string().trim().max(256),
+    prompt: z.string().max(4_000),
+    artifactReference: z.string().trim().max(512).optional(),
+    jobReference: z.string().trim().max(256).optional(),
+    deadline: z.string().datetime({ offset: true }),
   }),
   z
     .object({

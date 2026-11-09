@@ -11,6 +11,7 @@ Fix the affected translation, then improve the resource or instruction that caus
 | Wrong tone or regional wording | Guideline audience, market, examples, and contradictory instructions. |
 | Repeated outdated phrase | Translation-memory source/target pair and its suitability for the current context. |
 | Broken variables or plurals | Exact placeholder names, ICU syntax, and unused plural cases. |
+| Broken inline tags | Export the filtered queue, repair tags in the bilingual file, then re-import it on a native project. |
 | Text is too long | Length checks and the actual destination layout. |
 | Old approved wording survives generation | Source meaning changes and the existing approval. |
 
@@ -28,4 +29,4 @@ A glossary is for terms; a guideline is for instructions; a translation memory i
 
 Run a small representative translation request with the updated resources and review its output. Updating resources does not retroactively rewrite existing translations. Include ambiguous wording, plural messages, and short labels in the sample when those caused the original issue.
 
-For concrete placeholder examples, see [ICU troubleshooting](/cli/troubleshooting/icu-placeholders). For Unreal Engine tags in gettext `.po` files, see [Unreal Engine rich text in gettext PO](/cli/reference/formats/gettext#unreal-engine-rich-text). For a review process across many files, see [Prepare a review handoff](/platform/guides/review-handoff).
+For concrete placeholder examples, see [ICU troubleshooting](/cli/troubleshooting/icu-placeholders). For Unreal Engine tags in gettext `.po` files, see [Unreal Engine rich text in gettext PO](/cli/reference/formats/gettext#unreal-engine-rich-text). To repair tags in an exported bilingual file and bring the targets back, see [Review translations](/platform/cat#import-a-bilingual-file). For a review process across many files, see [Prepare a review handoff](/platform/guides/review-handoff).

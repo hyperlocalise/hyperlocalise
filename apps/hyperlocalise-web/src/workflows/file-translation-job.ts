@@ -31,6 +31,7 @@ import {
   sandboxEntriesLocaleOptions,
 } from "@/lib/translation/sandbox-cli-release";
 import { addCliTokenUsage, type CliTokenUsage } from "@/lib/translation/cli-token-usage";
+import { isSourceEditableSourcePath } from "@/lib/projects/files/source-text-editable-paths";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import type { JobEventInput } from "@/lib/job-events/job-events-contract";
 import {
@@ -43,6 +44,7 @@ import {
   failTranslationJobStep,
   getProjectOrganizationStep,
   getStoredFileContentStep,
+  applyProjectSourceTextStep,
   getStoredFileStep,
   getRepositorySourcePathForStoredFileStep,
   loadProjectTranslationsAsPrefilledEntriesStep,
@@ -442,9 +444,7 @@ async function runTranslationStep(
     force?: boolean;
     maxTranslations?: number;
     organizationId?: string;
-    projectId?: string;
     jobId?: string;
-    reportsEnabled?: boolean;
   },
 ) {
   "use step";
@@ -547,26 +547,6 @@ async function runTranslationStep(
     const report = (await readTranslatedFile(sandboxId, reportPath)).toString("utf8");
     const reportPayload = JSON.parse(report) as unknown;
     const progress = fileTranslationReportSchema.parse(reportPayload);
-    if (options?.reportsEnabled && options.organizationId && options.projectId && options.jobId) {
-      try {
-        const { captureSandboxUsage } = await import("@/lib/reporting/sandbox-usage");
-        const { resolveSandboxLlmProfile } = await import("@/lib/translation/sandbox-llm");
-        const { env } = await import("@/lib/env");
-        await captureSandboxUsage({
-          organizationId: options.organizationId,
-          projectId: options.projectId,
-          jobId: options.jobId,
-          invocationId,
-          ...resolveSandboxLlmProfile(env, byok),
-          report,
-        });
-      } catch (error) {
-        console.warn("[file-translation-workflow] usage capture failed", {
-          jobId: options.jobId,
-          error,
-        });
-      }
-    }
     const tokenUsage = await readSandboxCliTokenUsage(sandboxId, reportPath);
     return { ...result, progress, tokenUsage };
   } catch (error) {
@@ -659,6 +639,7 @@ async function assembleFileTranslationContextStep(input: {
 
   const { and, eq } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database/client");
+  const { updateJobs } = await import("@/lib/job-change-events/job-writes");
   const { listGlossaryTermsForProject, FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT } =
     await import("@/lib/glossary/query-glossary-terms");
   const { sourceContainsTerm } =
@@ -751,9 +732,8 @@ async function assembleFileTranslationContextStep(input: {
     customInstructions: Boolean(input.metadata?.instructions?.trim()),
   });
 
-  await db
-    .update(schema.jobs)
-    .set({
+  await updateJobs(db, {
+    set: {
       contextSnapshot: {
         assembledAt: new Date().toISOString(),
         project,
@@ -764,8 +744,9 @@ async function assembleFileTranslationContextStep(input: {
         },
         glossaryTerms,
       },
-    })
-    .where(and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.projectId, input.projectId)));
+    },
+    where: and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.projectId, input.projectId)),
+  });
 
   return context;
 }
@@ -1019,6 +1000,27 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       message: `source file ${parsedInput.sourceFileId} could not be retrieved from storage`,
     });
     throw error;
+  }
+
+  // A file whose source text can be edited here is translated as the project has it.
+  if (repositorySourcePath && isSourceEditableSourcePath(repositorySourcePath)) {
+    try {
+      sourceContent = await applyProjectSourceTextStep({
+        organizationId,
+        projectId: claim.job.projectId,
+        sourcePath: repositorySourcePath,
+        content: sourceContent,
+      });
+    } catch (error) {
+      await failTranslationJobStep({
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
+        code: "source_text_unavailable",
+        message: `the project's source text for ${repositorySourcePath} could not be read`,
+      });
+      throw error;
+    }
   }
 
   let sandboxId = "";
@@ -1355,9 +1357,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
             force: runForce,
             maxTranslations,
             organizationId,
-            projectId: claim.job.projectId,
             jobId: claim.job.id,
-            reportsEnabled,
           },
         );
 

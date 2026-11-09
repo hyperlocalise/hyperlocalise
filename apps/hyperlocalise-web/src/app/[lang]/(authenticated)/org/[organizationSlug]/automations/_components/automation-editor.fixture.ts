@@ -262,6 +262,61 @@ export const createBrazeAutomationRecord = () =>
     },
   });
 
+export const createCustomerIoAutomationRecord = () =>
+  createAutomationSummary({
+    id: "99999999-9999-4999-9999-999999999999",
+    skillIds: ["translate-customer-io-campaigns"],
+    name: "Translate Customer.io campaigns",
+    instructions:
+      "Import Customer.io campaigns into the native project each week. Open native jobs for mapped locales. Push approved translations only when requested.",
+    projectId: "project_website",
+    triggerConfig: {
+      mode: "scheduled",
+      schedule: {
+        cadence: "weekly",
+        hourUtc: 6,
+        dayOfWeek: 1,
+        timezone: "UTC",
+      },
+    },
+    repositoryTarget: { kind: "none" },
+    toolConfig: {
+      github: {
+        enabled: false,
+        mode: "sync",
+        pushSource: false,
+        pullTranslations: false,
+        validation: false,
+      },
+      slack: { enabled: false },
+      email: { enabled: false, provider: "resend" },
+      contentful: {
+        enabled: false,
+        sourceLocale: "en",
+        contentTypeIds: [],
+        targetLocales: [],
+        fieldMode: "auto",
+        overwriteDraftLocales: false,
+        runQa: true,
+        writeDrafts: true,
+      },
+      customerIo: {
+        enabled: true,
+        broadcastIds: [],
+        campaignIds: [],
+        newsletterIds: [],
+        transactionalMessageIds: [],
+        broadcastActions: {},
+        campaignActions: {},
+        newsletterActions: {},
+        transactionalMessageActions: {},
+        existingTranslationPolicy: "seed_empty",
+        overwriteWhenRemoteNewer: true,
+        workosUserId: "user_001",
+      },
+    },
+  });
+
 export const createIntercomAutomationRecord = () =>
   createAutomationSummary({
     id: "66666666-6666-4666-8666-666666666666",

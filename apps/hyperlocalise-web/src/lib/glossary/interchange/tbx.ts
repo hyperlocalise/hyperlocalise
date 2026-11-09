@@ -35,6 +35,93 @@ function textValue(value: string | undefined) {
   return value?.replace(/[ \t]+/g, " ").trim() ?? "";
 }
 
+function stripXmlDoctype(xml: string) {
+  return xml.replace(/<!DOCTYPE[\s\S]*?>/i, "");
+}
+
+function isTbxTrue(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return normalized === "true" || normalized === "yes" || normalized === "1";
+}
+
+function isTbxForbiddenToken(value: string) {
+  const normalized = value.trim().toLowerCase().replaceAll(" ", "");
+  return normalized === "forbidden" || normalized === "forbiddenterm";
+}
+
+function applyTbxTermNote(term: MutableTerm, type: string | undefined, value: string) {
+  const noteType = (type ?? "").trim();
+  const normalizedType = noteType.toLowerCase();
+  if (normalizedType === "partofspeech" || normalizedType === "pos") {
+    term.partOfSpeech = value;
+    return;
+  }
+  if (normalizedType === "grammaticalgender" || normalizedType === "gender") {
+    term.gender = value;
+    return;
+  }
+  if (normalizedType === "termtype") {
+    term.termType =
+      Object.entries(termTypeMap).find(([, mapped]) => mapped === value)?.[0] ?? value;
+    return;
+  }
+  if (normalizedType === "forbidden") {
+    term.forbidden = isTbxTrue(value) || isTbxForbiddenToken(value);
+    return;
+  }
+  if (normalizedType === "preferred" && isTbxTrue(value)) {
+    term.status = "preferred";
+    return;
+  }
+  if (normalizedType === "casesensitive" || normalizedType === "case") {
+    term.caseSensitive = isTbxTrue(value);
+    return;
+  }
+  if (normalizedType === "termlocation" && value === "case-sensitive") {
+    term.caseSensitive = true;
+    return;
+  }
+  if (normalizedType === "administrativestatus" || normalizedType === "normativeauthorization") {
+    const normalized = value.trim().toLowerCase().replaceAll(" ", "");
+    term.status =
+      (
+        {
+          "preferredterm-admn-sts": "preferred",
+          preferredterm: "preferred",
+          "admittedterm-admn-sts": "admitted",
+          admittedterm: "admitted",
+          "deprecatedterm-admn-sts": "not_recommended",
+          deprecatedterm: "not_recommended",
+          "supersededterm-admn-sts": "obsolete",
+          supersededterm: "obsolete",
+        } as Record<string, string>
+      )[normalized] ??
+      term.status ??
+      "draft";
+    if (isTbxForbiddenToken(value)) term.forbidden = true;
+    return;
+  }
+  if (normalizedType === "status") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "preferred") term.status = "preferred";
+    else if (normalized === "approved" || normalized === "admitted") {
+      if (term.status !== "preferred") term.status = "admitted";
+    } else if (normalized === "new" || normalized === "draft") {
+      if (!term.status || term.status === "draft") term.status = "draft";
+    } else if (isTbxForbiddenToken(value)) term.forbidden = true;
+    return;
+  }
+  if (normalizedType === "usagenote" || normalizedType === "usage") {
+    if (isTbxForbiddenToken(value)) term.forbidden = true;
+    else term.note = [term.note, value].filter(Boolean).join("\n");
+    return;
+  }
+  term.metadata = {
+    ...term.metadata,
+    [`tbx:${noteType || "termNote"}`]: value,
+  };
+}
+
 function attr(tag: SaxesTagNS, name: string) {
   const value = tag.attributes[name] ?? tag.attributes[`xml:${name}`];
   return typeof value === "string" ? value : value?.value;
@@ -431,7 +518,7 @@ function applyLegacyMartifDescrip(
         term.caseSensitive = value === "true";
         break;
       case "forbidden":
-        term.forbidden = value === "true";
+        term.forbidden = isTbxTrue(value);
         break;
       default:
         break;
@@ -633,6 +720,7 @@ export function serializeTbx(document: GlossaryInterchangeDocument): Serializati
 type MutableTerm = Partial<GlossaryInterchangeTerm> & { id: string; locale: string; term: string };
 
 export function parseTbx(content: string): GlossaryImportDocument {
+  content = stripXmlDoctype(content);
   const diagnostics: InterchangeDiagnostic[] = [];
   if (Buffer.byteLength(content, "utf8") > MAX_TBX_BYTES) {
     return {
@@ -704,7 +792,7 @@ export function parseTbx(content: string): GlossaryImportDocument {
       currentConcept = { id, primaryTerm: "", terms: [] };
     } else if (local === "langSec" || local === "langSet") {
       currentLocale = attr(tag, "lang") ?? attr(tag, "xml:lang") ?? "";
-    } else if (local === "termSec" || local === "tig") {
+    } else if (local === "termSec" || local === "tig" || local === "ntig") {
       currentTerm = {
         id: normalizeImportedId(attr(tag, "id") ?? `term-${conceptCount}-${termCount + 1}`, "t"),
         locale: currentLocale,
@@ -818,34 +906,15 @@ export function parseTbx(content: string): GlossaryImportDocument {
         mergeLanguageDetailNote(currentConcept, currentLocale, value);
       } else currentConcept.note = [currentConcept.note, value].filter(Boolean).join("\n");
     } else if (frame.local === "termNote" && currentTerm) {
-      if (frame.type === "partOfSpeech") currentTerm.partOfSpeech = value;
-      else if (frame.type === "grammaticalGender") currentTerm.gender = value;
-      else if (frame.type === "termType")
-        currentTerm.termType =
-          Object.entries(termTypeMap).find(([, mapped]) => mapped === value)?.[0] ?? value;
-      else if (frame.type === "administrativeStatus") {
-        currentTerm.status =
-          (
-            {
-              "preferredTerm-admn-sts": "preferred",
-              "admittedTerm-admn-sts": "admitted",
-              "deprecatedTerm-admn-sts": "not_recommended",
-              "supersededTerm-admn-sts": "obsolete",
-            } as Record<string, string>
-          )[value] ?? "draft";
-        if (value === "forbiddenTerm") currentTerm.forbidden = true;
-      } else if (frame.type === "termLocation" && value === "case-sensitive")
-        currentTerm.caseSensitive = true;
-      else
-        currentTerm.metadata = {
-          ...currentTerm.metadata,
-          [`tbx:${frame.type ?? "termNote"}`]: value,
-        };
+      applyTbxTermNote(currentTerm, frame.type, value);
     } else if ((frame.local === "ref" || frame.local === "xref") && frame.target) {
       if (currentTerm) currentTerm.url = frame.target;
       else if (frame.type === "externalCrossReference") currentConcept.url = frame.target;
       else if (frame.type === "xGraphic") currentConcept.figure = frame.target;
-    } else if ((frame.local === "termSec" || frame.local === "tig") && currentTerm) {
+    } else if (
+      (frame.local === "termSec" || frame.local === "tig" || frame.local === "ntig") &&
+      currentTerm
+    ) {
       if (!currentTerm.term || !currentTerm.locale) {
         diagnostics.push(
           diagnostic({

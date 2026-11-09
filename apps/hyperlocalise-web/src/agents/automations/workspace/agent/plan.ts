@@ -22,9 +22,15 @@ import {
   hasWorkspaceAutomationCreateNativeTmsJobTool,
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationBrazeCampaignsTool,
+  hasWorkspaceAutomationCustomerIoTool,
+  hasWorkspaceAutomationIterableTool,
+  hasWorkspaceAutomationLoopsTool,
+  hasWorkspaceAutomationHubspotTool,
+  hasWorkspaceAutomationMailchimpTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationGoogleDriveTool,
   hasWorkspaceAutomationSanityTool,
+  hasWorkspaceAutomationWebflowTool,
   hasWorkspaceAutomationListIssuesTool,
   hasWorkspaceAutomationWebSearchTool,
   type WorkspaceAutomationRecord,
@@ -42,12 +48,24 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "push_intercom_translations",
   "import_sanity_documents",
   "push_sanity_translations",
+  "import_webflow_items",
+  "push_webflow_translations",
   "import_google_drive_files",
   "push_google_drive_translations",
   "import_braze_templates",
   "push_braze_templates",
   "import_braze_campaigns",
   "push_braze_campaigns",
+  "import_customer_io_campaigns",
+  "push_customer_io_campaigns",
+  "import_iterable_templates",
+  "push_iterable_templates",
+  "import_loops_emails",
+  "push_loops_emails",
+  "import_hubspot_content",
+  "push_hubspot_content",
+  "import_mailchimp_content",
+  "push_mailchimp_content",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -84,6 +102,8 @@ const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
   "push_intercom_translations",
   "import_sanity_documents",
   "push_sanity_translations",
+  "import_webflow_items",
+  "push_webflow_translations",
   "import_google_drive_files",
   "push_google_drive_translations",
   "create_native_tms_job",
@@ -128,6 +148,9 @@ function workflowToolEnabled(
     case "import_sanity_documents":
     case "push_sanity_translations":
       return hasWorkspaceAutomationSanityTool(toolConfig);
+    case "import_webflow_items":
+    case "push_webflow_translations":
+      return hasWorkspaceAutomationWebflowTool(toolConfig);
     case "import_google_drive_files":
     case "push_google_drive_translations":
       return hasWorkspaceAutomationGoogleDriveTool(toolConfig);
@@ -137,6 +160,21 @@ function workflowToolEnabled(
     case "import_braze_campaigns":
     case "push_braze_campaigns":
       return hasWorkspaceAutomationBrazeCampaignsTool(toolConfig);
+    case "import_customer_io_campaigns":
+    case "push_customer_io_campaigns":
+      return hasWorkspaceAutomationCustomerIoTool(toolConfig);
+    case "import_iterable_templates":
+    case "push_iterable_templates":
+      return hasWorkspaceAutomationIterableTool(toolConfig);
+    case "import_loops_emails":
+    case "push_loops_emails":
+      return hasWorkspaceAutomationLoopsTool(toolConfig);
+    case "import_hubspot_content":
+    case "push_hubspot_content":
+      return hasWorkspaceAutomationHubspotTool(toolConfig);
+    case "import_mailchimp_content":
+    case "push_mailchimp_content":
+      return hasWorkspaceAutomationMailchimpTool(toolConfig);
     case "create_native_tms_job":
       return hasWorkspaceAutomationCreateNativeTmsJobTool(toolConfig);
     case "assign_translate_with_agent":
@@ -256,6 +294,17 @@ export function buildWorkspaceOrchestratorPlan(
     return { tools: [sanityTool, ...notificationTools] };
   }
 
+  if (hasWorkspaceAutomationWebflowTool(automation.toolConfig)) {
+    const webflowTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_webflow_translations"
+        : "import_webflow_items";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [webflowTool, ...notificationTools] };
+  }
+
   if (hasWorkspaceAutomationGoogleDriveTool(automation.toolConfig)) {
     const googleDriveTool =
       triggerContext?.operation === "push_approved"
@@ -278,6 +327,28 @@ export function buildWorkspaceOrchestratorPlan(
     return { tools: [brazeTool, ...notificationTools] };
   }
 
+  if (hasWorkspaceAutomationCustomerIoTool(automation.toolConfig)) {
+    const customerIoTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_customer_io_campaigns"
+        : "import_customer_io_campaigns";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [customerIoTool, ...notificationTools] };
+  }
+
+  if (hasWorkspaceAutomationIterableTool(automation.toolConfig)) {
+    const iterableTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_iterable_templates"
+        : "import_iterable_templates";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [iterableTool, ...notificationTools] };
+  }
+
   if (hasWorkspaceAutomationBrazeTool(automation.toolConfig)) {
     const brazeTool =
       triggerContext?.operation === "push_approved"
@@ -287,6 +358,37 @@ export function buildWorkspaceOrchestratorPlan(
       notificationToolEnabled(tool, automation.toolConfig),
     );
     return { tools: [brazeTool, ...notificationTools] };
+  }
+
+  if (hasWorkspaceAutomationLoopsTool(automation.toolConfig)) {
+    const loopsTool =
+      triggerContext?.operation === "push_approved" ? "push_loops_emails" : "import_loops_emails";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [loopsTool, ...notificationTools] };
+  }
+
+  if (hasWorkspaceAutomationHubspotTool(automation.toolConfig)) {
+    const hubspotTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_hubspot_content"
+        : "import_hubspot_content";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [hubspotTool, ...notificationTools] };
+  }
+
+  if (hasWorkspaceAutomationMailchimpTool(automation.toolConfig)) {
+    const mailchimpTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_mailchimp_content"
+        : "import_mailchimp_content";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [mailchimpTool, ...notificationTools] };
   }
 
   const workflowTools = orderWorkflowTools({

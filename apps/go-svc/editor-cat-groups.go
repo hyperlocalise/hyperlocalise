@@ -270,6 +270,8 @@ type editorCatValidationInput struct {
 	targetLocale  string
 	maxLength     *int
 	messageFormat string
+	// placeholderPatterns are the file's custom placeholder regexes.
+	placeholderPatterns []string
 }
 
 func editorCatValidateTargetText(input editorCatValidationInput) error {
@@ -284,6 +286,8 @@ func editorCatValidateTargetText(input editorCatValidationInput) error {
 		MaxLength:     limit,
 		TargetLocale:  input.targetLocale,
 		MessageFormat: segmentvalidate.ParseMessageFormat(input.messageFormat),
+
+		PlaceholderPatterns: input.placeholderPatterns,
 	}) {
 		if check.Status == segmentvalidate.StatusFail {
 			return editorCatFailure(422, "group_member_validation_failed", input.sourcePath+": "+check.Message)

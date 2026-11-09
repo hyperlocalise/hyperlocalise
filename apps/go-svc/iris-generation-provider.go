@@ -9,14 +9,17 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
 	"strings"
 	"time"
 )
 
 const (
-	defaultIrisGatewayBaseURL = "https://ai-gateway.vercel.sh/v1"
-	irisProviderTimeout       = 9 * time.Minute
+	defaultIrisGatewayBaseURL   = "https://ai-gateway.vercel.sh/v1"
+	defaultIrisOpenAIBaseURL    = "https://api.openai.com/v1"
+	defaultIrisOpenAIImageModel = "openai/gpt-image-2.5-flare"
+	irisProviderTimeout         = 9 * time.Minute
 )
 
 type irisProviderRequest struct {
@@ -29,6 +32,9 @@ type irisProviderRequest struct {
 	Count       int
 	Language    string
 	Inputs      []irisProviderInput
+	// Fields is the request as the client sent it, for the fields only one
+	// model reads (a dub's target language, an image's translations).
+	Fields irisGenerateRequest
 }
 
 type irisProviderInput struct {
@@ -69,6 +75,20 @@ func newIrisGatewayProvider() *irisGatewayProvider {
 	}
 }
 
+// newIrisOpenAIProvider talks to OpenAI directly when the managed gateway key
+// is unset. Used for Iris translate (and other chat completions) locally.
+func newIrisOpenAIProvider() *irisGatewayProvider {
+	apiKey := strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
+	if apiKey == "" {
+		return nil
+	}
+	return &irisGatewayProvider{
+		baseURL:    defaultIrisOpenAIBaseURL,
+		apiKey:     apiKey,
+		httpClient: &http.Client{Timeout: irisProviderTimeout},
+	}
+}
+
 func (p *irisGatewayProvider) Generate(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
 	switch req.Model.Kind {
 	case irisKindVoice, irisKindAudio:
@@ -82,6 +102,18 @@ func (p *irisGatewayProvider) Generate(ctx context.Context, req irisProviderRequ
 	}
 }
 
+// modelID maps a Gateway model id for this client's base URL. Direct OpenAI
+// rejects the `openai/` provider prefix that AI Gateway expects.
+func (p *irisGatewayProvider) modelID(gatewayID string) string {
+	id := strings.TrimSpace(gatewayID)
+	if p != nil && isIrisOpenAIBaseURL(p.baseURL) {
+		if native, ok := strings.CutPrefix(id, "openai/"); ok && native != "" {
+			return native
+		}
+	}
+	return id
+}
+
 func (p *irisGatewayProvider) image(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
 	count := req.Count
 	if count < 1 {
@@ -91,7 +123,7 @@ func (p *irisGatewayProvider) image(ctx context.Context, req irisProviderRequest
 		return p.imageEdit(ctx, req, refs, count)
 	}
 	payload := map[string]any{
-		"model":  req.Model.GatewayID,
+		"model":  p.modelID(req.Model.GatewayID),
 		"prompt": req.Prompt,
 		"n":      count,
 		"size":   imageSize(req.Resolution, req.AspectRatio),
@@ -109,19 +141,11 @@ func (p *irisGatewayProvider) imageEdit(ctx context.Context, req irisProviderReq
 	}
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
-	_ = writer.WriteField("model", req.Model.GatewayID)
+	_ = writer.WriteField("model", p.modelID(req.Model.GatewayID))
 	_ = writer.WriteField("prompt", req.Prompt)
 	_ = writer.WriteField("n", fmt.Sprintf("%d", count))
 	for i, image := range images {
-		name := "input.png"
-		if len(images) > 1 {
-			name = fmt.Sprintf("input-%d.png", i+1)
-		}
-		part, err := writer.CreateFormFile("image", name)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := part.Write(image.Bytes); err != nil {
+		if err := writeIrisImageFormFile(writer, "image", image, i, len(images)); err != nil {
 			return nil, err
 		}
 	}
@@ -143,7 +167,7 @@ func (p *irisGatewayProvider) imageEdit(ctx context.Context, req irisProviderReq
 
 func (p *irisGatewayProvider) speech(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
 	payload := map[string]any{
-		"model": req.Model.GatewayID,
+		"model": p.modelID(req.Model.GatewayID),
 		"input": req.Prompt,
 		"voice": req.Voice,
 	}
@@ -185,7 +209,7 @@ func (p *irisGatewayProvider) video(ctx context.Context, req irisProviderRequest
 		duration = 6
 	}
 	payload := map[string]any{
-		"model":        req.Model.GatewayID,
+		"model":        p.modelID(req.Model.GatewayID),
 		"prompt":       req.Prompt,
 		"duration":     duration,
 		"aspect_ratio": req.AspectRatio,
@@ -241,6 +265,23 @@ func (p *irisGatewayProvider) tool(ctx context.Context, req irisProviderRequest)
 	case "bytedance-upscaler":
 		req.Prompt = irisFirstNonEmpty(req.Prompt, "Upscale this video. Preserve subject, motion, and audio.")
 		return p.video(ctx, req)
+	case "image-localise":
+		image, ok := firstInput(req.Inputs, "image")
+		if !ok {
+			return nil, fmt.Errorf("image input is required")
+		}
+		req.Prompt = irisImageLocalisePrompt(req.Fields.stringField("targetLocale"), req.Fields.translations(), req.Prompt)
+		if isIrisOpenAIBaseURL(p.baseURL) {
+			// Gemini image edit is Gateway-only; OpenAI path uses GPT Image.
+			req.Model.GatewayID = irisEnvOr("IRIS_OPENAI_IMAGE_MODEL", defaultIrisOpenAIImageModel)
+		}
+		return p.imageEdit(ctx, req, []irisProviderInput{image}, 1)
+	case "image-text":
+		return p.imageText(ctx, req)
+	case "elevenlabs-dubbing":
+		return nil, fmt.Errorf("dubbing needs ELEVENLABS_API_KEY")
+	case "sync-lipsync-2":
+		return nil, fmt.Errorf("lip-sync needs FAL_KEY")
 	default:
 		image, ok := firstInput(req.Inputs, "image")
 		if !ok {
@@ -262,7 +303,7 @@ func (p *irisGatewayProvider) transcribe(ctx context.Context, req irisProviderRe
 	}
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
-	_ = writer.WriteField("model", req.Model.GatewayID)
+	_ = writer.WriteField("model", p.modelID(req.Model.GatewayID))
 	if req.Language != "" {
 		_ = writer.WriteField("language", req.Language)
 	}
@@ -441,6 +482,51 @@ func defaultType(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+// writeIrisImageFormFile writes an image part with an image/* Content-Type.
+// multipart.Writer.CreateFormFile always uses application/octet-stream, which
+// OpenAI image edits reject.
+func writeIrisImageFormFile(writer *multipart.Writer, field string, image irisProviderInput, index, total int) error {
+	contentType, ext := irisImageFormMIME(image)
+	name := "input." + ext
+	if total > 1 {
+		name = fmt.Sprintf("input-%d.%s", index+1, ext)
+	}
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, field, name))
+	header.Set("Content-Type", contentType)
+	part, err := writer.CreatePart(header)
+	if err != nil {
+		return err
+	}
+	_, err = part.Write(image.Bytes)
+	return err
+}
+
+func irisImageFormMIME(image irisProviderInput) (contentType, ext string) {
+	ct := strings.ToLower(strings.TrimSpace(image.ContentType))
+	if i := strings.IndexByte(ct, ';'); i >= 0 {
+		ct = strings.TrimSpace(ct[:i])
+	}
+	switch ct {
+	case "image/jpeg", "image/jpg":
+		return "image/jpeg", "jpg"
+	case "image/webp":
+		return "image/webp", "webp"
+	case "image/png":
+		return "image/png", "png"
+	}
+	detected := http.DetectContentType(image.Bytes)
+	switch {
+	case strings.HasPrefix(detected, "image/jpeg"):
+		return "image/jpeg", "jpg"
+	case strings.HasPrefix(detected, "image/webp"):
+		return "image/webp", "webp"
+	case strings.HasPrefix(detected, "image/png"):
+		return "image/png", "png"
+	}
+	return "image/png", "png"
 }
 
 func irisFirstNonEmpty(values ...string) string {

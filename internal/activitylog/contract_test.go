@@ -51,6 +51,7 @@ func TestValidateMessageRejectsMismatchedTarget(t *testing.T) {
 
 func TestIsImplementedEventType(t *testing.T) {
 	require.True(t, IsImplementedEventType("project_created"))
+	require.True(t, IsImplementedEventType("member_left"))
 	require.True(t, IsImplementedEventType("string_segment_translation_updated"))
 	require.True(t, IsImplementedEventType("automation_created"))
 	require.True(t, IsImplementedEventType("visual_workflow_published"))
@@ -111,4 +112,19 @@ func TestValidateMessageAcceptsTranslationUpdated(t *testing.T) {
 	message.Event.Payload = json.RawMessage(`{"fileName":"en.json","name":"en.json","projectId":"project-1","segmentId":"seg-1","sourcePath":"locales/en.json"}`)
 
 	require.NoError(t, ValidateMessage(message))
+}
+
+func TestPublicAPIEventTypes(t *testing.T) {
+	for eventType, targetKind := range map[string]string{
+		"job_updated":             "job",
+		"project_strings_updated": "project",
+	} {
+		message := validMessage()
+		message.Event.EventType = eventType
+		message.Event.TargetKind = targetKind
+		message.Event.ActorKind = "api_key"
+		require.NoError(t, ValidateMessage(message), eventType)
+		message.Event.TargetKind = "organization"
+		require.Error(t, ValidateMessage(message), eventType)
+	}
 }

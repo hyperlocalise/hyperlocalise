@@ -14,6 +14,7 @@
  */
 import type { ComponentProps, ReactNode } from "react";
 import { useActionState, useId, useState } from "react";
+import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -44,7 +45,15 @@ function SubmitButton({
   );
 }
 
-export function OnboardingWizard() {
+export function OnboardingWizard({
+  cancelHref,
+  createsAnotherWorkspace = Boolean(cancelHref),
+}: {
+  /** Adds a Cancel button that goes back to this address. */
+  cancelHref?: string;
+  /** Set when the person already has a workspace: the form then creates another one. */
+  createsAnotherWorkspace?: boolean;
+}) {
   const intl = useIntl();
   const [organizationName, setOrganizationName] = useState("");
   const [state, formAction] = useActionState<CreateWorkspaceActionState, FormData>(
@@ -68,14 +77,23 @@ export function OnboardingWizard() {
               className="mx-auto size-10 rounded-xl"
             />
             <h1 className="font-heading text-xl font-semibold text-foreground">
-              <FormattedMessage {...onboardingWizardMessages.title} />
+              <FormattedMessage
+                {...(createsAnotherWorkspace
+                  ? onboardingWizardMessages.anotherWorkspaceTitle
+                  : onboardingWizardMessages.title)}
+              />
             </h1>
             <TypographyP className="leading-6" size="small" tone="subtle">
-              <FormattedMessage {...onboardingWizardMessages.description} />
+              <FormattedMessage
+                {...(createsAnotherWorkspace
+                  ? onboardingWizardMessages.anotherWorkspaceDescription
+                  : onboardingWizardMessages.description)}
+              />
             </TypographyP>
           </div>
 
           <form action={formAction} className="space-y-6">
+            {createsAnotherWorkspace ? <input type="hidden" name="intent" value="another" /> : null}
             {state.error ? (
               <Alert variant="destructive">
                 <AlertDescription>{state.error}</AlertDescription>
@@ -113,9 +131,22 @@ export function OnboardingWizard() {
               </FieldContent>
             </Field>
 
-            <SubmitButton nativeButton type="submit">
-              <FormattedMessage {...onboardingWizardMessages.createWorkspace} />
-            </SubmitButton>
+            <div className="space-y-3">
+              <SubmitButton nativeButton type="submit">
+                <FormattedMessage {...onboardingWizardMessages.createWorkspace} />
+              </SubmitButton>
+              {cancelHref ? (
+                <Button
+                  className="w-full"
+                  size="lg"
+                  variant="ghost"
+                  nativeButton={false}
+                  render={<Link href={cancelHref} />}
+                >
+                  <FormattedMessage {...onboardingWizardMessages.cancel} />
+                </Button>
+              ) : null}
+            </div>
           </form>
         </CardContent>
       </Card>

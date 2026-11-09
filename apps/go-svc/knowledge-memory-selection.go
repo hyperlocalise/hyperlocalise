@@ -52,9 +52,10 @@ type rankedKnowledgeMemorySegment struct {
 }
 
 var (
-	knowledgeMemoryHeadingPattern = regexp.MustCompile(`^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$`)
-	knowledgeMemoryBulletPattern  = regexp.MustCompile(`^\s*(?:[-*+]\s+|\d+[.)]\s+)`)
-	knowledgeMemoryLocalePattern  = regexp.MustCompile(`^[a-z]{2,3}(?:[-_][a-z0-9]{1,8})*$`)
+	knowledgeMemoryHeadingPattern         = regexp.MustCompile(`^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$`)
+	knowledgeMemoryBulletPattern          = regexp.MustCompile(`^\s*(?:[-*+]\s+|\d+[.)]\s+)`)
+	knowledgeMemoryLocalePattern          = regexp.MustCompile(`^[a-z]{2,3}(?:[-_][a-z0-9]{1,8})*$`)
+	knowledgeMemoryHeadingPriorityPattern = regexp.MustCompile(`(?i)brand|voice|tone|style|glossary|terminology|protected|token|never|avoid|locale|rule`)
 )
 
 var knowledgeMemoryStopWords = map[string]struct{}{
@@ -588,8 +589,9 @@ func preferredKnowledgeMemoryFallbackSegment(segment knowledgeMemorySegment) boo
 	return knowledgeMemoryFallbackPriority(segment) == 0
 }
 
+// BOLT OPTIMIZATION: Use package-level pre-compiled regex to prevent expensive regexp compilation on every comparison during sorting.
 func knowledgeMemoryHeadingPriority(heading string) int {
-	if regexp.MustCompile(`(?i)brand|voice|tone|style|glossary|terminology|protected|token|never|avoid|locale|rule`).MatchString(heading) {
+	if knowledgeMemoryHeadingPriorityPattern.MatchString(heading) {
 		return 0
 	}
 	return 1

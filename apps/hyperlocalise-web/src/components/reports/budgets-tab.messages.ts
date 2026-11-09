@@ -87,9 +87,9 @@ export const budgetsTabMessages = defineMessages({
     description: "Note on a budget whose still to come is incomplete",
   },
   note: {
-    id: "zWgBXG1Wl8",
+    id: "rbRL1rS0sb",
     defaultMessage:
-      "Spent includes people's work, billed AI and expenses. Still to come is what unfinished paid work in open tasks will cost.",
+      "Spent includes people's work and billed AI. Still to come is what unfinished paid work in open tasks will cost.",
     description: "Note under the budgets table",
   },
   tableLabel: {
@@ -152,12 +152,6 @@ export const budgetsTabMessages = defineMessages({
     id: "labVcE5WnM",
     defaultMessage: "Saving…",
     description: "Button text while saving",
-  },
-  loadFailed: {
-    id: "T0nIeTVdtm",
-    defaultMessage:
-      "The budgets could not be loaded, so this cannot be saved. Close and try again.",
-    description: "Error in the set budget dialog when the existing budgets fail to load",
   },
   saved: {
     id: "hWXCxydPO+",

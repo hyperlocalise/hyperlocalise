@@ -68,6 +68,7 @@ describe("activity log contract", () => {
       "job_created",
       "job_cancelled",
       "job_failed",
+      "job_updated",
       "automation_created",
       "automation_deleted",
       "automation_run_started",
@@ -81,6 +82,8 @@ describe("activity log contract", () => {
       "visual_workflow_enabled",
       "visual_workflow_disabled",
       "visual_workflow_run_started",
+      "visual_workflow_approval_requested",
+      "visual_workflow_approval_decided",
     ]);
     expect(QUERY_ACTIVITY_EVENT_TYPES).toEqual([
       "query_created",

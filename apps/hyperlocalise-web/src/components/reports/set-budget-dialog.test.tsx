@@ -28,10 +28,11 @@ import { SetBudgetDialog } from "./set-budget-dialog";
 const mocks = vi.hoisted(() => ({
   calls: [] as ReportsApiCall[],
   bodies: {} as Record<string, unknown>,
+  statuses: {} as Record<string, number>,
 }));
 
-vi.mock("@/lib/api-client-instance", async () => ({
-  apiClient: (await import("./reports.fixture")).reportsApiClient(mocks),
+vi.mock("@/lib/go-svc/use-go-svc-client", async () => ({
+  useGoSvcClient: (await import("./reports.fixture")).reportsGoSvcClient(mocks),
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -50,6 +51,7 @@ function renderDialog(projectId: string | null) {
       </QueryClientProvider>
     </IntlProvider>,
   );
+  return queryClient;
 }
 
 async function choose(label: string, option: string) {
@@ -60,6 +62,7 @@ async function choose(label: string, option: string) {
 beforeEach(() => {
   mocks.calls.length = 0;
   mocks.bodies = reportsResponseBodies();
+  mocks.statuses = {};
 });
 
 describe("Set a budget dialog", () => {
@@ -73,6 +76,30 @@ describe("Set a budget dialog", () => {
     await choose("Project", "Web app");
     expect(screen.getByLabelText("Budget (USD)")).toHaveValue("20000");
     expect(screen.getByRole("combobox", { name: "Rate card" })).toHaveTextContent("Standard 2026");
+  });
+
+  it("offers a retry when budgets fail to load, and leaves the form empty", async () => {
+    mocks.statuses = { budgets: 503 };
+    mocks.bodies.budgets = { error: "reports_busy", message: "Reports is busy; try again shortly" };
+    renderDialog("project_help");
+    expect(await screen.findByText("Reports is busy. Try again in a moment.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Budget (USD)")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save budget" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+  });
+
+  it("keeps the filled form when budgets fail to reload", async () => {
+    const queryClient = renderDialog("project_help");
+    await waitFor(() => expect(screen.getByLabelText("Budget (USD)")).toHaveValue("5000"));
+    mocks.statuses = { budgets: 503 };
+    mocks.bodies.budgets = { error: "reports_busy", message: "Reports is busy; try again shortly" };
+    await queryClient.refetchQueries({ queryKey: ["reports", "acme", "budgets"] });
+    expect(
+      await screen.findByText("These figures could not be refreshed, so they may be out of date."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Budget (USD)")).toHaveValue("5000");
+    expect(screen.getByLabelText("Budget (USD)")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save budget" })).toBeEnabled();
   });
 
   it("saves the amount and keeps the project's rate card", async () => {

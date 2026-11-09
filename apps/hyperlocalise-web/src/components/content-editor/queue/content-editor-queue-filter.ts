@@ -35,6 +35,7 @@ export const contentEditorQueueFilterValues: ContentEditorQueueFilter[] = [
   "unsaved",
   "qa_issues",
   "machine_translated",
+  "origin",
   "with_comments",
   "has_issues",
   "skipped",
@@ -68,6 +69,11 @@ export function isQueueFilterSupportedForProvider(
       providerKind === "native" ||
       providerKind === null
     );
+  }
+
+  if (filter === "origin") {
+    // Origin is recorded on native translations only.
+    return providerKind === "native" || providerKind === null;
   }
 
   if (filter === "machine_translated" || filter === "with_comments") {
@@ -210,6 +216,7 @@ export function segmentMatchesQueueFilterFromInput(
       return !input.isHidden;
     case "qa_issues":
     case "machine_translated":
+    case "origin":
     case "with_comments":
       // The server (Crowdin CroQL or the latest native QA scan) is the source of truth;
       // keep locally overridden rows visible.

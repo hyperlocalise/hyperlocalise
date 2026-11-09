@@ -31,8 +31,14 @@ const connectionsSchema = z.object({
   contentful: z.boolean().optional(),
   intercom: z.boolean().optional(),
   sanity: z.boolean().optional(),
+  webflow: z.boolean().optional(),
   google_drive: z.boolean().optional(),
   braze: z.boolean().optional(),
+  customer_io: z.boolean().optional(),
+  iterable: z.boolean().optional(),
+  loops: z.boolean().optional(),
+  hubspot: z.boolean().optional(),
+  mailchimp: z.boolean().optional(),
   slack: z.boolean().optional(),
   email: z.boolean().optional(),
 }) satisfies z.ZodType<WorkspaceAutomationSkillConnections>;
@@ -41,6 +47,7 @@ const defaultsSchema = z.object({
   githubInstallationRepositoryId: id.optional(),
   crowdinProjectId: id.optional(),
   contentfulConnectionId: id.optional(),
+  webflowConnectionId: id.optional(),
 }) satisfies z.ZodType<WorkspaceAutomationSkillDefaults>;
 
 /**

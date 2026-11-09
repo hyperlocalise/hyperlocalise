@@ -21,6 +21,7 @@ import {
   SlackLogoIcon,
   CodeIcon,
   UserIcon,
+  UserCheckIcon,
   UsersIcon,
   type Icon,
 } from "@phosphor-icons/react";
@@ -39,7 +40,6 @@ const inboxBadgeIconAmber = "text-amber-900 dark:text-amber-700";
 const inboxBadgeIconGreen = "text-green-900 dark:text-green-900";
 const inboxBadgeIconNeutral = "text-foreground";
 const inboxBadgeIconPrimary = "text-primary";
-const inboxBadgeIconDestructive = "text-destructive";
 
 export type InboxListItemVisual = {
   typeIcon: Icon;
@@ -85,6 +85,12 @@ export function getConversationListItemVisual(
         typeIconLabel,
         badgeClassName: inboxBadgeIconGreen,
       };
+    case "workflow_approval":
+      return {
+        typeIcon: UserCheckIcon,
+        typeIconLabel,
+        badgeClassName: inboxBadgeIconPrimary,
+      };
     default:
       return assertNever(source);
   }
@@ -129,7 +135,7 @@ export function getNotificationListItemVisual(
       return {
         typeIcon: WarningIcon,
         typeIconLabel: intl.formatMessage(inboxNotificationsMessages.qaErrorsIncreasedType),
-        badgeClassName: inboxBadgeIconDestructive,
+        badgeClassName: inboxBadgeIconAmber,
       };
     case "qa_scan_failed":
       return {

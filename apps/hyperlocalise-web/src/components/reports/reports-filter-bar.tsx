@@ -29,7 +29,6 @@ import {
   ComboboxValue,
 } from "@/components/ui/combobox";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -38,34 +37,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { REPORT_PRESET_DAYS } from "@/lib/reporting/report-period";
+import { AI_CHANNELS, AI_KEY_TYPES, AI_ORIGINS } from "@/lib/reporting/ai-usage-origins";
 import { REPORT_STEPS } from "@/lib/reporting/report-units";
 
+import { channelLabel, dimensionLabel, keyTypeLabel, originLabel } from "./ai-usage-labels";
+import { aiUsageTabMessages as aiMessages } from "./ai-usage-tab.messages";
 import { stepLabel } from "./report-format";
+import { ReportsDateRange } from "./reports-date-range";
 import { reportsPageMessages as messages } from "./reports-page.messages";
 import {
-  reportDates,
   useReportSettings,
   useReportTasks,
   type ReportSettings,
   type ReportTask,
 } from "./reports-queries";
-import {
-  MAX_ESTIMATE_TASKS,
-  type ReportsRange,
-  type ReportsTab,
-  type ReportsUrlState,
-} from "./reports-url-state";
-import { SegmentedSwitch } from "./segmented-switch";
+import { MAX_ESTIMATE_TASKS, type ReportsTab, type ReportsUrlState } from "./reports-url-state";
 
 /** Which filters each tab uses; the bar shows only those. */
 const TAB_FILTERS: Record<
   ReportsTab,
-  { dates?: true; task?: "one" | "many"; language?: true; step?: true; rateCard?: true }
+  {
+    dates?: true;
+    task?: "one" | "many";
+    language?: true;
+    step?: true;
+    rateCard?: true;
+    ai?: true;
+  }
 > = {
   activity: { dates: true, task: "one", language: true },
   words: { dates: true, task: "one", language: true, step: true },
   time: { dates: true, task: "one", language: true },
+  ai: { dates: true, task: "one", ai: true },
   costs: { dates: true, language: true },
   estimate: { task: "many", language: true, rateCard: true },
   budgets: {},
@@ -98,53 +101,11 @@ export function ReportsFilterBar({
     const chosen = projects.filter((project) => !state.projectId || project.id === state.projectId);
     return [...new Set(chosen.flatMap((project) => project.targetLocales ?? []))].sort();
   }, [projects, state.projectId]);
-  const dates = reportDates(state, settings.today);
 
   return (
     <div className="flex flex-wrap items-end gap-3">
       {filters.dates ? (
-        <>
-          <Field className="w-auto">
-            <FieldLabel>{intl.formatMessage(messages.dates)}</FieldLabel>
-            <SegmentedSwitch<ReportsRange>
-              label={intl.formatMessage(messages.dates)}
-              value={state.range}
-              options={[
-                ...REPORT_PRESET_DAYS.map((days) => ({
-                  value: String(days) as ReportsRange,
-                  label: intl.formatMessage(messages.lastDays, { days }),
-                })),
-                { value: "custom", label: intl.formatMessage(messages.customRange) },
-              ]}
-              onChange={(range) => onChange(range === "custom" ? { range, ...dates } : { range })}
-            />
-          </Field>
-          {state.range === "custom" ? (
-            <>
-              <DateField
-                label={intl.formatMessage(messages.from)}
-                value={dates.from}
-                min={settings.startedDay ?? undefined}
-                max={settings.today}
-                onChange={(from) => onChange({ from, to: dates.to })}
-              />
-              <DateField
-                label={intl.formatMessage(messages.to)}
-                value={dates.to}
-                min={settings.startedDay ?? undefined}
-                max={settings.today}
-                onChange={(to) => onChange({ from: dates.from, to })}
-              />
-            </>
-          ) : (
-            <p className="pb-2 text-[13px] text-muted-foreground tabular-nums">
-              {intl.formatMessage(messages.rangeText, {
-                from: formatDay(intl, dates.from),
-                to: formatDay(intl, dates.to),
-              })}
-            </p>
-          )}
-        </>
+        <ReportsDateRange state={state} settings={settings} onChange={onChange} />
       ) : null}
       {fixedProjectId ? null : (
         <ReportSelect
@@ -154,9 +115,16 @@ export function ReportsFilterBar({
             { value: ALL, label: intl.formatMessage(messages.allProjects) },
             ...projects.map((project) => ({ value: project.id, label: project.name })),
           ]}
-          onChange={(value) =>
-            onChange({ projectId: value === ALL ? null : value, jobId: null, jobIds: [] })
-          }
+          onChange={(value) => {
+            // An automation belongs to one project, so it does not carry over to another.
+            const { automation: _automation, ...aiFilters } = state.aiFilters;
+            onChange({
+              projectId: value === ALL ? null : value,
+              jobId: null,
+              jobIds: [],
+              aiFilters,
+            });
+          }}
         />
       )}
       {filters.task === "one" ? (
@@ -185,6 +153,31 @@ export function ReportsFilterBar({
           ]}
           onChange={(value) => onChange({ targetLocale: value === ALL ? null : value })}
         />
+      ) : null}
+      {filters.ai ? (
+        <>
+          <AiFilterSelect
+            dimension="area"
+            values={AI_ORIGINS}
+            label={(value) => originLabel(intl, value)}
+            state={state}
+            onChange={onChange}
+          />
+          <AiFilterSelect
+            dimension="channel"
+            values={AI_CHANNELS}
+            label={(value) => channelLabel(intl, value)}
+            state={state}
+            onChange={onChange}
+          />
+          <AiFilterSelect
+            dimension="key"
+            values={AI_KEY_TYPES}
+            label={(value) => keyTypeLabel(intl, value)}
+            state={state}
+            onChange={onChange}
+          />
+        </>
       ) : null}
       {filters.step ? (
         <ReportSelect
@@ -216,60 +209,43 @@ export function ReportsFilterBar({
   );
 }
 
+/** One of AI usage's details with fixed values, as a filter. */
+function AiFilterSelect<T extends string>({
+  dimension,
+  values,
+  label,
+  state,
+  onChange,
+}: {
+  dimension: "area" | "channel" | "key";
+  values: readonly T[];
+  label: (value: T) => string;
+  state: ReportsUrlState;
+  onChange: (change: Partial<ReportsUrlState>) => void;
+}) {
+  const intl = useIntl();
+  return (
+    <ReportSelect
+      label={dimensionLabel(intl, dimension)}
+      className="w-full sm:w-44"
+      value={state.aiFilters[dimension] ?? ALL}
+      options={[
+        { value: ALL, label: intl.formatMessage(aiMessages.allValues) },
+        ...values.map((value) => ({ value, label: label(value) })),
+      ]}
+      onChange={(value) => {
+        const { [dimension]: _dropped, ...rest } = state.aiFilters;
+        onChange({ aiFilters: value === ALL ? rest : { ...rest, [dimension]: value } });
+      }}
+    />
+  );
+}
+
 /** The rate card an estimate uses: the chosen one, else the workspace's first. */
 export function chosenRateCard(state: ReportsUrlState, settings: ReportSettings) {
   // A card in the URL that no longer exists falls back like no choice at all.
   const names: string[] = settings.rateCardNames;
   return state.rateCard && names.includes(state.rateCard) ? state.rateCard : (names[0] ?? null);
-}
-
-function formatDay(intl: ReturnType<typeof useIntl>, day: string) {
-  return intl.formatDate(`${day}T00:00:00Z`, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
-
-function DateField({
-  label,
-  value,
-  min,
-  max,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  min?: string;
-  max: string;
-  onChange: (value: string) => void;
-}) {
-  const id = useId();
-  // Typing a date passes through dates out of range (a year starts 0002), so the field keeps
-  // what is typed and only a whole date in range reaches the report.
-  const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
-  const inRange = (day: string) =>
-    /^\d{4}-\d{2}-\d{2}$/.test(day) && (!min || day >= min) && day <= max;
-  return (
-    <Field className="w-auto">
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Input
-        id={id}
-        type="date"
-        value={draft}
-        min={min}
-        max={max}
-        className="w-40"
-        onChange={(event) => {
-          setDraft(event.target.value);
-          if (inRange(event.target.value)) onChange(event.target.value);
-        }}
-        onBlur={() => setDraft(value)}
-      />
-    </Field>
-  );
 }
 
 export function ReportSelect({

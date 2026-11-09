@@ -52,6 +52,7 @@ import {
   siContentful,
   siIntercom,
   siSanity,
+  siWebflow,
   siGoogledrive,
 } from "simple-icons";
 
@@ -108,12 +109,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
 import { BRAZE_PIPES_SLUG } from "@/lib/braze/constants";
+import { CUSTOMER_IO_PIPES_SLUG } from "@/lib/customer-io/constants";
+import { HUBSPOT_PIPES_SLUG } from "@/lib/hubspot/constants";
+import { MAILCHIMP_PIPES_SLUG } from "@/lib/mailchimp/constants";
+import { ITERABLE_PIPES_SLUG } from "@/lib/iterable/constants";
+import { LOOPS_PIPES_SLUG } from "@/lib/loops/constants";
 import { INTERCOM_PIPES_SLUG } from "@/lib/intercom/constants";
 import { SANITY_PIPES_SLUG } from "@/lib/sanity/constants";
 import { GOOGLE_DRIVE_PIPES_SLUG } from "@/lib/google-drive/constants";
 import { WorkspaceAutomationGoogleDriveSettings } from "./workspace-automation-google-drive-settings";
 import type { WorkspaceAutomationEditorTab } from "@/lib/navigation/workspace-automation-editor-tab";
 import { GITLAB_PIPES_SLUG } from "@/lib/gitlab/constants";
+import { useGitLabServerConnection } from "../../integrations/_components/use-gitlab-server-connection";
 import { createApiClient } from "@/lib/api-client";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model.messages";
@@ -186,9 +193,15 @@ import {
   type GithubRepositoryOption,
 } from "./workspace-automation-trigger-settings";
 import { WorkspaceAutomationBrazeCampaignsSettings } from "./workspace-automation-braze-campaigns-settings";
+import { WorkspaceAutomationCustomerIoSettings } from "./workspace-automation-customer-io-settings";
 import { WorkspaceAutomationBrazeSettings } from "./workspace-automation-braze-settings";
+import { WorkspaceAutomationHubspotSettings } from "./workspace-automation-hubspot-settings";
+import { WorkspaceAutomationMailchimpSettings } from "./workspace-automation-mailchimp-settings";
+import { WorkspaceAutomationIterableSettings } from "./workspace-automation-iterable-settings";
 import { WorkspaceAutomationIntercomSettings } from "./workspace-automation-intercom-settings";
 import { WorkspaceAutomationSanitySettings } from "./workspace-automation-sanity-settings";
+import { WorkspaceAutomationWebflowSettings } from "./workspace-automation-webflow-settings";
+import type { WebflowConnectionSummary } from "@/lib/webflow/types";
 import { useScrollToFirstFieldError } from "./use-scroll-to-first-field-error";
 
 const api = createApiClient();
@@ -287,6 +300,39 @@ function ZernioToolIcon() {
 function BrazeToolIcon({ className }: { className?: string }) {
   return (
     <IntegrationLogo src="/images/braze-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
+  );
+}
+
+function CustomerIoToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo
+      src="/images/customerio-logo.svg"
+      className={cn(BRAND_ICON_CLASS, className)}
+    />
+  );
+}
+
+function IterableToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/iterable-logo.png" className={cn(BRAND_ICON_CLASS, className)} />
+  );
+}
+
+function LoopsToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/loops-logo.png" className={cn(BRAND_ICON_CLASS, className)} />
+  );
+}
+
+function HubspotToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/hubspot-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
+  );
+}
+
+function MailchimpToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/mailchimp-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
   );
 }
 
@@ -704,12 +750,14 @@ function GitlabProjectSelect({
   disabled,
   error,
   form,
+  loadFailed,
   onChange,
   projects,
 }: {
   disabled?: boolean;
   error?: string;
   form: WorkspaceAutomationFormState;
+  loadFailed?: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
   projects: GitlabProjectOption[];
 }) {
@@ -738,7 +786,11 @@ function GitlabProjectSelect({
         <SelectTrigger className="h-8 w-full rounded-lg">
           <span className="truncate">
             {projects.length === 0
-              ? intl.formatMessage(workspaceAutomationFormMessages.connectGitlabForProject)
+              ? intl.formatMessage(
+                  loadFailed
+                    ? workspaceAutomationFormMessages.gitlabProjectsLoadFailed
+                    : workspaceAutomationFormMessages.connectGitlabForProject,
+                )
               : selectedValue
                 ? projects.find((project) => gitlabProjectPickerValue(project) === selectedValue)
                   ? formatGitlabProjectOptionLabel(
@@ -950,7 +1002,14 @@ function AddToolMenu({
   ahrefsConnected,
   intercomConnected,
   sanityConnected,
+  webflowConnected,
   brazeConnected,
+  customerIoConnected,
+  iterableConnected,
+  loopsConnected,
+  hubspotConnected,
+  mailchimpConnected,
+  projectSourceLocale,
   semrushConnected,
   zernioConnected,
   slackConnected,
@@ -971,7 +1030,14 @@ function AddToolMenu({
   ahrefsConnected: boolean;
   intercomConnected: boolean;
   sanityConnected: boolean;
+  webflowConnected: boolean;
   brazeConnected: boolean;
+  customerIoConnected: boolean;
+  iterableConnected: boolean;
+  loopsConnected: boolean;
+  hubspotConnected: boolean;
+  mailchimpConnected: boolean;
+  projectSourceLocale?: string | null;
   semrushConnected: boolean;
   zernioConnected: boolean;
   slackConnected: boolean;
@@ -1265,9 +1331,39 @@ function AddToolMenu({
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={form.brazeEnabled || form.brazeCampaignsEnabled || !brazeConnected}
+              disabled={form.webflowEnabled || !webflowConnected}
+              onClick={() => onChange({ ...form, webflowEnabled: true })}
+            >
+              <AutomationToolMenuIcon icon={siWebflow} />
+              Webflow CMS items
+              {form.webflowEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !webflowConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.iterableEnabled ||
+                form.loopsEnabled ||
+                form.hubspotEnabled ||
+                !brazeConnected
+              }
               onClick={() =>
-                onChange({ ...form, brazeEnabled: true, brazeCampaignsEnabled: false })
+                onChange({
+                  ...form,
+                  brazeEnabled: true,
+                  brazeCampaignsEnabled: false,
+                  iterableEnabled: false,
+                  loopsEnabled: false,
+                  hubspotEnabled: false,
+                })
               }
             >
               <BrazeToolIcon />
@@ -1285,9 +1381,23 @@ function AddToolMenu({
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={form.brazeCampaignsEnabled || form.brazeEnabled || !brazeConnected}
+              disabled={
+                form.brazeCampaignsEnabled ||
+                form.brazeEnabled ||
+                form.iterableEnabled ||
+                form.loopsEnabled ||
+                form.hubspotEnabled ||
+                !brazeConnected
+              }
               onClick={() =>
-                onChange({ ...form, brazeCampaignsEnabled: true, brazeEnabled: false })
+                onChange({
+                  ...form,
+                  brazeCampaignsEnabled: true,
+                  brazeEnabled: false,
+                  iterableEnabled: false,
+                  loopsEnabled: false,
+                  hubspotEnabled: false,
+                })
               }
             >
               <BrazeToolIcon />
@@ -1301,6 +1411,206 @@ function AddToolMenu({
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
                 </DropdownMenuHint>
               ) : form.brazeEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.customerIoEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.iterableEnabled ||
+                form.loopsEnabled ||
+                form.hubspotEnabled ||
+                !customerIoConnected
+              }
+              onClick={() =>
+                onChange({
+                  ...form,
+                  customerIoEnabled: true,
+                  brazeEnabled: false,
+                  brazeCampaignsEnabled: false,
+                  iterableEnabled: false,
+                  loopsEnabled: false,
+                  hubspotEnabled: false,
+                })
+              }
+            >
+              <CustomerIoToolIcon />
+              Customer.io Campaigns, Broadcasts, Newsletters & Transactional
+              {form.customerIoEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !customerIoConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.iterableEnabled ||
+                form.loopsEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.iterableEnabled ||
+                form.loopsEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                !iterableConnected
+              }
+              onClick={() =>
+                onChange({
+                  ...form,
+                  iterableEnabled: true,
+                  iterableSourceLocale:
+                    form.iterableSourceLocale.trim() || projectSourceLocale?.trim() || "",
+                  loopsEnabled: false,
+                  brazeEnabled: false,
+                  brazeCampaignsEnabled: false,
+                  customerIoEnabled: false,
+                })
+              }
+            >
+              <IterableToolIcon />
+              Iterable templates & snippets
+              {form.iterableEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !iterableConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.loopsEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.loopsEnabled ||
+                form.iterableEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.hubspotEnabled ||
+                !loopsConnected
+              }
+              onClick={() =>
+                onChange({
+                  ...form,
+                  loopsEnabled: true,
+                  iterableEnabled: false,
+                  brazeEnabled: false,
+                  brazeCampaignsEnabled: false,
+                  customerIoEnabled: false,
+                  hubspotEnabled: false,
+                })
+              }
+            >
+              <LoopsToolIcon />
+              Loops Transactional, Campaigns & Workflows
+              {form.loopsEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !loopsConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.iterableEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.hubspotEnabled ||
+                form.mailchimpEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.loopsEnabled ||
+                !hubspotConnected
+              }
+              onClick={() =>
+                onChange({
+                  ...form,
+                  hubspotEnabled: true,
+                  mailchimpEnabled: false,
+                  brazeEnabled: false,
+                  brazeCampaignsEnabled: false,
+                  customerIoEnabled: false,
+                  loopsEnabled: false,
+                })
+              }
+            >
+              <HubspotToolIcon />
+              HubSpot emails, forms, pages, and blog posts
+              {form.hubspotEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !hubspotConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.loopsEnabled ||
+                form.mailchimpEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.mailchimpEnabled ||
+                form.hubspotEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.iterableEnabled ||
+                form.loopsEnabled ||
+                !mailchimpConnected
+              }
+              onClick={() =>
+                onChange({
+                  ...form,
+                  mailchimpEnabled: true,
+                  hubspotEnabled: false,
+                  brazeEnabled: false,
+                  brazeCampaignsEnabled: false,
+                  customerIoEnabled: false,
+                  iterableEnabled: false,
+                  loopsEnabled: false,
+                })
+              }
+            >
+              <MailchimpToolIcon />
+              Mailchimp campaigns and templates
+              {form.mailchimpEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !mailchimpConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.hubspotEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.iterableEnabled ||
+                form.loopsEnabled ? (
                 <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
@@ -1599,8 +1909,14 @@ const SKILL_INTEGRATION_LABELS: Record<WorkspaceAutomationSkillIntegration, Mess
   contentful: workspaceAutomationFormMessages.skillIntegrationContentful,
   intercom: workspaceAutomationFormMessages.skillIntegrationIntercom,
   sanity: workspaceAutomationFormMessages.skillIntegrationSanity,
+  webflow: workspaceAutomationFormMessages.skillIntegrationWebflow,
   google_drive: workspaceAutomationFormMessages.skillIntegrationGoogleDrive,
   braze: workspaceAutomationFormMessages.skillIntegrationBraze,
+  customer_io: workspaceAutomationFormMessages.skillIntegrationCustomerIo,
+  iterable: workspaceAutomationFormMessages.skillIntegrationIterable,
+  loops: workspaceAutomationFormMessages.skillIntegrationLoops,
+  hubspot: workspaceAutomationFormMessages.skillIntegrationHubspot,
+  mailchimp: workspaceAutomationFormMessages.skillIntegrationMailchimp,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
 };
@@ -1640,6 +1956,8 @@ const SKILL_BRAND_ICONS: Partial<Record<WorkspaceAutomationSkillTool, SimpleIcon
   push_intercom_translations: siIntercom,
   import_sanity_documents: siSanity,
   push_sanity_translations: siSanity,
+  import_webflow_items: siWebflow,
+  push_webflow_translations: siWebflow,
 };
 
 const SKILL_TOOL_ICONS: Partial<Record<WorkspaceAutomationSkillTool, Icon>> = {
@@ -1665,6 +1983,21 @@ function SkillIcon({ className, skill }: { className?: string; skill: WorkspaceA
     tool === "push_braze_campaigns"
   ) {
     return <BrazeToolIcon className={className} />;
+  }
+  if (tool === "import_customer_io_campaigns" || tool === "push_customer_io_campaigns") {
+    return <CustomerIoToolIcon className={className} />;
+  }
+  if (tool === "import_iterable_templates" || tool === "push_iterable_templates") {
+    return <IterableToolIcon className={className} />;
+  }
+  if (tool === "import_loops_emails" || tool === "push_loops_emails") {
+    return <LoopsToolIcon className={className} />;
+  }
+  if (tool === "import_hubspot_content" || tool === "push_hubspot_content") {
+    return <HubspotToolIcon className={className} />;
+  }
+  if (tool === "import_mailchimp_content" || tool === "push_mailchimp_content") {
+    return <MailchimpToolIcon className={className} />;
   }
   if (tool === "notify_slack") {
     return <SlackToolIcon className={className} />;
@@ -1959,6 +2292,7 @@ function ToolsSettings({
   githubConnected,
   gitlabConnected,
   gitlabProjects,
+  gitlabProjectsFailed,
   knowledgeAvailable,
   mcpServerConnections,
   onChange,
@@ -1969,10 +2303,17 @@ function ToolsSettings({
   intercomConnected,
   googleDriveConnected,
   sanityConnected,
+  webflowConnected,
+  webflowConnections,
   brazeConnected,
+  customerIoConnected,
+  iterableConnected,
   semrushConnections,
   zernioConnections,
   slackConnected,
+  loopsConnected,
+  hubspotConnected,
+  mailchimpConnected,
 }: {
   automationId?: string;
   canUpdateKnowledgeMemory: boolean;
@@ -1987,6 +2328,7 @@ function ToolsSettings({
   githubConnected: boolean;
   gitlabConnected: boolean;
   gitlabProjects: GitlabProjectOption[];
+  gitlabProjectsFailed: boolean;
   knowledgeAvailable: boolean;
   mcpServerConnections: McpServerConnectionOption[];
   onChange: (next: WorkspaceAutomationFormState) => void;
@@ -1997,7 +2339,14 @@ function ToolsSettings({
   intercomConnected: boolean;
   googleDriveConnected: boolean;
   sanityConnected: boolean;
+  webflowConnected: boolean;
+  webflowConnections: WebflowConnectionSummary[];
   brazeConnected: boolean;
+  customerIoConnected: boolean;
+  iterableConnected: boolean;
+  loopsConnected: boolean;
+  hubspotConnected: boolean;
+  mailchimpConnected: boolean;
   semrushConnections: SemrushConnectionOption[];
   zernioConnections: ZernioConnectionOption[];
   slackConnected: boolean;
@@ -2168,6 +2517,7 @@ function ToolsSettings({
               disabled={disabled}
               error={errors.gitlabRepository}
               form={form}
+              loadFailed={gitlabProjectsFailed}
               onChange={onChange}
               projects={gitlabProjects}
             />
@@ -2770,6 +3120,44 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.webflowEnabled ? (
+          <EditorRow
+            icon={<AutomationToolMenuIcon icon={siWebflow} />}
+            tone="external"
+            title={
+              <>
+                <span>Webflow CMS items</span>
+                {!webflowConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import collection items on a schedule, translate in Jobs, then push approved translations when you are ready."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_webflow_items")}
+                label="Remove Webflow"
+                onClick={() => onChange({ ...form, webflowEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationWebflowSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              errors={errors}
+              webflowConnected={webflowConnected}
+              connections={webflowConnections}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
+              onChange={onChange}
+            />
+            <FieldError message={errors.webflow} />
+          </EditorRow>
+        ) : null}
+
         {form.brazeEnabled ? (
           <EditorRow
             icon={<BrazeToolIcon />}
@@ -2839,6 +3227,170 @@ function ToolsSettings({
               onChange={onChange}
             />
             <FieldError message={errors.braze} />
+          </EditorRow>
+        ) : null}
+
+        {form.customerIoEnabled ? (
+          <EditorRow
+            icon={<CustomerIoToolIcon />}
+            title={
+              <>
+                <span>Customer.io Campaigns, Broadcasts, Newsletters & Transactional</span>
+                {!customerIoConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import campaigns, broadcasts, newsletters, and transactional messages as JSON, translate in Jobs, then push approved locales back to Customer.io."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_customer_io_campaigns")}
+                label="Remove Customer.io"
+                onClick={() => onChange({ ...form, customerIoEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationCustomerIoSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              customerIoConnected={customerIoConnected}
+              onChange={onChange}
+            />
+            <FieldError message={errors.customerIo} />
+          </EditorRow>
+        ) : null}
+
+        {form.iterableEnabled ? (
+          <EditorRow
+            icon={<IterableToolIcon />}
+            title={
+              <>
+                <span>Iterable templates & snippets</span>
+                {!iterableConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import Iterable templates and snippets on a schedule, translate in Jobs, then push approved locales back to Iterable."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_iterable_templates")}
+                label="Remove Iterable"
+                onClick={() => onChange({ ...form, iterableEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationIterableSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              errors={errors}
+              iterableConnected={iterableConnected}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
+              onChange={onChange}
+            />
+            <FieldError message={errors.iterable} />
+          </EditorRow>
+        ) : null}
+
+        {form.loopsEnabled ? (
+          <EditorRow
+            icon={<LoopsToolIcon />}
+            title={
+              <>
+                <span>Loops Transactional, Campaigns & Workflows</span>
+                {!loopsConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import Loops emails as HTML, translate in Jobs, then push approved locales as separate unpublished Loops copies."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_loops_emails")}
+                label="Remove Loops"
+                onClick={() => onChange({ ...form, loopsEnabled: false })}
+              />
+            }
+          >
+            <FieldError message={errors.loops} />
+          </EditorRow>
+        ) : null}
+
+        {form.hubspotEnabled ? (
+          <EditorRow
+            icon={<HubspotToolIcon />}
+            title={
+              <>
+                <span>HubSpot emails, forms, pages, and blog posts</span>
+                {!hubspotConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import HubSpot marketing emails, forms, blog posts, landing pages, and website pages, translate in Jobs, then push approved locales as unpublished copies."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_hubspot_content")}
+                label="Remove HubSpot"
+                onClick={() => onChange({ ...form, hubspotEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationHubspotSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              hubspotConnected={hubspotConnected}
+              disabled={disabled}
+              onChange={onChange}
+            />
+            <FieldError message={errors.hubspot} />
+          </EditorRow>
+        ) : null}
+
+        {form.mailchimpEnabled ? (
+          <EditorRow
+            icon={<MailchimpToolIcon />}
+            tone="external"
+            title={
+              <>
+                <span>Mailchimp campaigns and templates</span>
+                {!mailchimpConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import Mailchimp campaigns and user templates, translate in Jobs, then push approved locales as draft copies."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_mailchimp_content")}
+                label="Remove Mailchimp"
+                onClick={() => onChange({ ...form, mailchimpEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationMailchimpSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              mailchimpConnected={mailchimpConnected}
+              disabled={disabled}
+              onChange={onChange}
+            />
           </EditorRow>
         ) : null}
 
@@ -3372,7 +3924,14 @@ function ToolsSettings({
           ahrefsConnected={ahrefsConnected}
           intercomConnected={intercomConnected}
           sanityConnected={sanityConnected}
+          webflowConnected={webflowConnected}
           brazeConnected={brazeConnected}
+          customerIoConnected={customerIoConnected}
+          iterableConnected={iterableConnected}
+          loopsConnected={loopsConnected}
+          hubspotConnected={hubspotConnected}
+          mailchimpConnected={mailchimpConnected}
+          projectSourceLocale={selectedProject?.sourceLocale}
           semrushConnected={semrushConnected}
           zernioConnected={zernioConnected}
           slackConnected={slackConnected}
@@ -3605,6 +4164,20 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const webflowConnectionsQuery = useQuery({
+    queryKey: ["webflow-connections", organizationSlug],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"]["webflow-connections"].$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Webflow connections");
+      }
+      const body = await response.json();
+      return body.webflowConnections as WebflowConnectionSummary[];
+    },
+  });
+
   const mcpServerConnectionsQuery = useQuery({
     queryKey: ["mcp-server-connections", organizationSlug],
     queryFn: async () => {
@@ -3655,6 +4228,91 @@ export function WorkspaceAutomationEditor({
       });
       if (!response.ok) {
         throw new Error("Failed to load Braze connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
+  const customerIoPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, CUSTOMER_IO_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: CUSTOMER_IO_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Customer.io connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
+  const iterablePipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, ITERABLE_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: ITERABLE_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Iterable connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
+  const loopsPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, LOOPS_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: LOOPS_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Loops connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
+  const hubspotPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, HUBSPOT_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: HUBSPOT_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load HubSpot connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
+  const mailchimpPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, MAILCHIMP_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: MAILCHIMP_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Mailchimp connection");
       }
       const body = await response.json();
       return body.pipe as {
@@ -3753,6 +4411,7 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const gitlabServerConnectionQuery = useGitLabServerConnection(organizationSlug);
   const gitlabProjectsQuery = useQuery({
     queryKey: ["gitlab-projects", organizationSlug],
     queryFn: async () => {
@@ -3760,7 +4419,7 @@ export function WorkspaceAutomationEditor({
         param: { organizationSlug },
       });
       if (!response.ok) {
-        return [] as GitlabProjectOption[];
+        throw new Error("Failed to load GitLab projects");
       }
       const body = await response.json();
       return body.projects as GitlabProjectOption[];
@@ -3785,6 +4444,8 @@ export function WorkspaceAutomationEditor({
     Boolean(resendPipesQuery.data?.connected) || Boolean(sendgridPipesQuery.data?.connected);
   const contentfulConnections = contentfulConnectionsQuery.data ?? [];
   const contentfulConnected = contentfulConnections.length > 0;
+  const webflowConnections = webflowConnectionsQuery.data ?? [];
+  const webflowConnected = webflowConnections.length > 0;
   const mcpServerConnections = mcpServerConnectionsQuery.data ?? [];
   const semrushConnections = semrushConnectionsQuery.data ?? [];
   const zernioConnections = zernioConnectionsQuery.data ?? [];
@@ -3793,8 +4454,15 @@ export function WorkspaceAutomationEditor({
   const sanityConnected = Boolean(sanityPipesQuery.data?.connected);
   const googleDriveConnected = Boolean(googleDrivePipesQuery.data?.connected);
   const brazeConnected = Boolean(brazePipesQuery.data?.connected);
-  const gitlabConnected = Boolean(gitlabPipesQuery.data?.connected);
+  const customerIoConnected = Boolean(customerIoPipesQuery.data?.connected);
+  const iterableConnected = Boolean(iterablePipesQuery.data?.connected);
+  const loopsConnected = Boolean(loopsPipesQuery.data?.connected);
+  const hubspotConnected = Boolean(hubspotPipesQuery.data?.connected);
+  const mailchimpConnected = Boolean(mailchimpPipesQuery.data?.connected);
+  const gitlabConnected =
+    Boolean(gitlabPipesQuery.data?.connected) || Boolean(gitlabServerConnectionQuery.data);
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
+  const gitlabProjectsFailed = gitlabProjectsQuery.isError;
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
   const hasHistory = mode === "detail";
   const skillDefaults: WorkspaceAutomationSkillDefaults = {
@@ -3805,6 +4473,7 @@ export function WorkspaceAutomationEditor({
     ),
     contentfulConnectionId:
       contentfulConnections.length === 1 ? contentfulConnections[0]?.id : undefined,
+    webflowConnectionId: webflowConnections.length === 1 ? webflowConnections[0]?.id : undefined,
   };
   const usableSemrushConnections = semrushConnections.filter(
     (connection) => connection.enabled && connection.validationStatus === "valid",
@@ -3819,8 +4488,14 @@ export function WorkspaceAutomationEditor({
     contentful: contentfulConnectionsQuery.isSuccess ? contentfulConnected : undefined,
     intercom: intercomPipesQuery.isSuccess ? intercomConnected : undefined,
     sanity: sanityPipesQuery.isSuccess ? sanityConnected : undefined,
+    webflow: webflowConnectionsQuery.isSuccess ? webflowConnected : undefined,
     google_drive: googleDrivePipesQuery.isSuccess ? googleDriveConnected : undefined,
     braze: brazePipesQuery.isSuccess ? brazeConnected : undefined,
+    customer_io: customerIoPipesQuery.isSuccess ? customerIoConnected : undefined,
+    iterable: iterablePipesQuery.isSuccess ? iterableConnected : undefined,
+    loops: loopsPipesQuery.isSuccess ? loopsConnected : undefined,
+    hubspot: hubspotPipesQuery.isSuccess ? hubspotConnected : undefined,
+    mailchimp: mailchimpPipesQuery.isSuccess ? mailchimpConnected : undefined,
     slack: slackQuery.isSuccess ? slackConnected : undefined,
     email: emailConnected
       ? true
@@ -3888,7 +4563,12 @@ export function WorkspaceAutomationEditor({
     !sendgridPipesQuery.isPending &&
     !intercomPipesQuery.isPending &&
     !sanityPipesQuery.isPending &&
-    !brazePipesQuery.isPending;
+    !webflowConnectionsQuery.isPending &&
+    !brazePipesQuery.isPending &&
+    !customerIoPipesQuery.isPending &&
+    !iterablePipesQuery.isPending &&
+    !loopsPipesQuery.isPending &&
+    !hubspotPipesQuery.isPending;
 
   const editor = (
     <div ref={editorRef} className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -4061,6 +4741,7 @@ export function WorkspaceAutomationEditor({
             githubConnected={githubConnected}
             gitlabConnected={gitlabConnected}
             gitlabProjects={gitlabProjects}
+            gitlabProjectsFailed={gitlabProjectsFailed}
             knowledgeAvailable={knowledgeAvailable}
             mcpServerConnections={mcpServerConnections}
             onChange={onChange}
@@ -4071,7 +4752,14 @@ export function WorkspaceAutomationEditor({
             intercomConnected={intercomConnected}
             googleDriveConnected={googleDriveConnected}
             sanityConnected={sanityConnected}
+            webflowConnected={webflowConnected}
+            webflowConnections={webflowConnections}
             brazeConnected={brazeConnected}
+            customerIoConnected={customerIoConnected}
+            iterableConnected={iterableConnected}
+            loopsConnected={loopsConnected}
+            hubspotConnected={hubspotConnected}
+            mailchimpConnected={mailchimpConnected}
             semrushConnections={semrushConnections}
             zernioConnections={zernioConnections}
             slackConnected={slackConnected}

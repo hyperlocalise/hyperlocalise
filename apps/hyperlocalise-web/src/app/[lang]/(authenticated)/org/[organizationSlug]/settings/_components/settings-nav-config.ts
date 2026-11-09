@@ -24,6 +24,7 @@ export const settingsNavItemIds = [
   "hyperlab",
   "billing",
   "api-keys",
+  "webhooks",
   "account",
 ] as const;
 
@@ -88,7 +89,10 @@ export const settingsNavGroups: readonly SettingsNavGroupConfig[] = [
   },
   {
     id: "developer",
-    items: [{ id: "api-keys", href: "api-keys", requiredCapability: "api_keys:read" }],
+    items: [
+      { id: "api-keys", href: "api-keys", requiredCapability: "api_keys:read" },
+      { id: "webhooks", href: "webhooks", requiredCapability: "api_keys:read" },
+    ],
   },
   {
     id: "you",
@@ -187,6 +191,10 @@ export function resolveActiveSettingsNavItem(
 
   if (normalizedPath.startsWith(`${settingsRoot}/api-keys`)) {
     return "api-keys";
+  }
+
+  if (normalizedPath.startsWith(`${settingsRoot}/webhooks`)) {
+    return "webhooks";
   }
 
   return "general";

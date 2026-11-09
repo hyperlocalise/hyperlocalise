@@ -12,26 +12,25 @@
  */
 "use client";
 
-import { WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useState } from "react";
 import { useIntl } from "react-intl";
 
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
 
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { ActivityTab } from "./activity-tab";
+import { AiUsageTab } from "./ai-usage-tab";
 import { BudgetsTab } from "./budgets-tab";
 import { CostEstimateTab } from "./cost-estimate-tab";
 import { CostsTab } from "./costs-tab";
 import { ManageRatesSheet } from "./manage-rates-sheet";
+import { ReportLoadFailed } from "./report-section";
 import { chosenRateCard, ReportsFilterBar } from "./reports-filter-bar";
 import { reportsPageMessages as messages } from "./reports-page.messages";
-import { useReportSettings } from "./reports-queries";
+import { isRefusedRead, useReportSettings } from "./reports-queries";
 import { MEMBER_TABS, REPORTS_TABS, type ReportsTab } from "./reports-url-state";
 import { TimeTab } from "./time-tab";
 import { useReportsUrlState } from "./use-reports-url-state";
@@ -41,6 +40,7 @@ const TAB_LABELS = {
   activity: messages.tabActivity,
   words: messages.tabWords,
   time: messages.tabTime,
+  ai: messages.tabAi,
   costs: messages.tabCosts,
   estimate: messages.tabEstimate,
   budgets: messages.tabBudgets,
@@ -71,19 +71,12 @@ export function ReportsPage({
         <Skeleton className="h-80 w-full rounded-xl" />
       </div>
     );
-  if (settings.isError || !settings.data)
+  // Settings that fail to reload keep the page and any open sheet, unless go-svc refused them.
+  if (!settings.data || (settings.isError && isRefusedRead(settings.error)))
     return (
       <div className="flex w-full flex-col gap-4">
         <h1 className="sr-only">{intl.formatMessage(messages.title)}</h1>
-        <Alert variant="destructive">
-          <WarningCircleIcon />
-          <AlertDescription>{intl.formatMessage(messages.loadFailed)}</AlertDescription>
-          <AlertAction>
-            <Button size="sm" variant="outline" onClick={() => void settings.refetch()}>
-              {intl.formatMessage(messages.retry)}
-            </Button>
-          </AlertAction>
-        </Alert>
+        <ReportLoadFailed error={settings.error} retry={settings.refetch} />
       </div>
     );
 
@@ -92,12 +85,18 @@ export function ReportsPage({
   const tabs = data.financial ? REPORTS_TABS : MEMBER_TABS;
   const tab = tabs.includes(state.tab) ? state.tab : tabs[0];
   const effective = { ...state, tab, projectId: projectId ?? state.projectId };
-  const input = { organizationSlug, state: effective, today: data.today };
+  const input = {
+    organizationSlug,
+    state: effective,
+    today: data.today,
+    startedDay: data.startedDay,
+  };
   const rateCardName = chosenRateCard(effective, data);
 
   return (
     <div className="flex w-full flex-col gap-4">
       <h1 className="sr-only">{intl.formatMessage(messages.title)}</h1>
+      {settings.isError ? <ReportLoadFailed kept retry={settings.refetch} /> : null}
       <p className="text-[13px] text-muted-foreground">
         {data.startedAt
           ? intl.formatMessage(messages.startedOn, {
@@ -167,8 +166,11 @@ export function ReportsPage({
             <TabsContent value="words">
               <WordCountsTab input={input} onChange={update} />
             </TabsContent>
+            <TabsContent value="ai">
+              <AiUsageTab input={input} onChange={update} />
+            </TabsContent>
             <TabsContent value="costs">
-              <CostsTab input={input} settings={data} />
+              <CostsTab input={input} />
             </TabsContent>
             <TabsContent value="estimate">
               <CostEstimateTab input={input} rateCardName={rateCardName} onChange={update} />

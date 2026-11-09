@@ -19,6 +19,7 @@ func newEntriesCmd() *cobra.Command {
 	var sourceLocale string
 	var sourcePath string
 	var srxSpec string
+	var importSettingsPath string
 
 	cmd := &cobra.Command{
 		Use:          "entries <translation-file>",
@@ -35,6 +36,11 @@ func newEntriesCmd() *cobra.Command {
 				return fmt.Errorf("read entries input %q: %w", path, err)
 			}
 
+			importOptions, err := loadEntriesImportOptions(strings.TrimSpace(importSettingsPath))
+			if err != nil {
+				return err
+			}
+
 			entries, err := readEntriesCommandOutput(
 				path,
 				content,
@@ -42,6 +48,7 @@ func newEntriesCmd() *cobra.Command {
 				strings.TrimSpace(sourceLocale),
 				strings.TrimSpace(locale),
 				strings.TrimSpace(srxSpec),
+				importOptions,
 			)
 			if err != nil {
 				return err
@@ -82,10 +89,36 @@ func newEntriesCmd() *cobra.Command {
 		"",
 		"split string values with SRX 2.0 (default, html, markdown, or path to an SRX file)",
 	)
+	cmd.Flags().StringVar(
+		&importSettingsPath,
+		"import-settings",
+		"",
+		"JSON file of per-format import filters (HTML excluded elements, JSON key paths, Excel columns)",
+	)
 	return cmd
 }
 
-func readEntriesCommandOutput(path string, content []byte, sourcePath, sourceLocale, locale, srxSpec string) (map[string]translationfileparser.EntriesCommandOutputValue, error) {
+func loadEntriesImportOptions(path string) (translationfileparser.ImportOptions, error) {
+	if path == "" {
+		return translationfileparser.ImportOptions{}, nil
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return translationfileparser.ImportOptions{}, fmt.Errorf("read import settings %q: %w", path, err)
+	}
+	opts, err := translationfileparser.ParseImportOptionsJSON(raw)
+	if err != nil {
+		return translationfileparser.ImportOptions{}, fmt.Errorf("decode import settings %q: %w", path, err)
+	}
+	return opts, nil
+}
+
+func readEntriesCommandOutput(
+	path string,
+	content []byte,
+	sourcePath, sourceLocale, locale, srxSpec string,
+	importOptions translationfileparser.ImportOptions,
+) (map[string]translationfileparser.EntriesCommandOutputValue, error) {
 	if sourcePath != "" {
 		ext := strings.ToLower(filepath.Ext(path))
 		if ext == ".md" || ext == ".mdx" {
@@ -142,7 +175,7 @@ func readEntriesCommandOutput(path string, content []byte, sourcePath, sourceLoc
 	}
 
 	strategy := translationfileparser.NewDefaultStrategy()
-	entries, err := strategy.ParseIngestEntriesWithSourceLocale(path, content, sourceLocale, locale)
+	entries, err := strategy.ParseIngestEntriesWithOptions(path, content, sourceLocale, locale, importOptions)
 	if err != nil {
 		return nil, err
 	}

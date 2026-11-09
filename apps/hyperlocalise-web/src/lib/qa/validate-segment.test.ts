@@ -67,6 +67,31 @@ describe("validateTranslationSegment", () => {
     });
   });
 
+  describe("placeholderPatterns", () => {
+    const placeholderChecks = (sourceText: string, targetText: string) =>
+      validateTranslationSegment({
+        sourceText,
+        targetText,
+        targetLocale: "fr-FR",
+        placeholderPatterns: ["\\[\\[\\w+\\]\\]", "%\\w+%"],
+      })
+        .filter((check) => check.checkType === "placeholder_mismatch")
+        .flatMap((check) => check.relatedTokens);
+
+    it("reports custom placeholders missing from the target", () => {
+      expect(placeholderChecks("Hi [[name]]", "Salut")).toEqual(["[[name]]"]);
+      expect(placeholderChecks("Hi [[name]]", "Salut [[name]]")).toEqual([]);
+    });
+
+    it("reports custom placeholders the target introduces", () => {
+      expect(placeholderChecks("Hi", "Salut %user%")).toEqual(["%user%"]);
+    });
+
+    it("does not count a custom match twice as a built-in placeholder", () => {
+      expect(placeholderChecks("Hi %user%", "Salut %user%")).toEqual([]);
+    });
+  });
+
   it("warns when the target matches the source", () => {
     const checks = validateTranslationSegment({
       sourceText: "Save",

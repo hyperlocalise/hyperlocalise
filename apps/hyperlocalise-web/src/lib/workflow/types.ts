@@ -191,6 +191,14 @@ export type LocalisationAuditQueue = JobQueue<{
   attemptNumber: number;
 }>;
 
+export type LocalisationDeepAuditQueue = JobQueue<{
+  runId: string;
+}>;
+
+export type EngineSetupQueue = JobQueue<{
+  runId: string;
+}>;
+
 export type TranslationQaScanEventData = {
   runId: string;
   organizationId: string;
@@ -198,6 +206,13 @@ export type TranslationQaScanEventData = {
 };
 
 export type TranslationQaScanQueue = JobQueue<TranslationQaScanEventData>;
+
+export type ProjectContentSyncEventData = {
+  organizationId: string;
+  runId: string;
+};
+
+export type ProjectContentSyncQueue = JobQueue<ProjectContentSyncEventData>;
 
 export type LocalisationAuditReportEmailQueue = JobQueue<{
   leadId: string;

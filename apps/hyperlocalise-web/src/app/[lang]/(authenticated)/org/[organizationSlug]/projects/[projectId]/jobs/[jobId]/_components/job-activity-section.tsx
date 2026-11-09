@@ -27,7 +27,7 @@ import { isNativeFileTranslationJob } from "./native-job-detail-helpers";
 export const JOB_ACTIVITY_POLL_INTERVAL_MS = 3000;
 
 export function hasJobActivityFeed(job: JobDetailRecord) {
-  return job.kind === "translation" && isNativeFileTranslationJob(job);
+  return isNativeFileTranslationJob(job);
 }
 
 export function JobActivitySection({

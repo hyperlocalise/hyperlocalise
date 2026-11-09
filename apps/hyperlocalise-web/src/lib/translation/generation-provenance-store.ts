@@ -13,6 +13,7 @@
 import { eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import { updateJobs } from "@/lib/job-change-events/job-writes";
 import {
   generationProvenanceSchema,
   generationTriggerFromJobSource,
@@ -48,10 +49,7 @@ export async function recordJobGenerationProvenance(
     ...(trigger ? { trigger } : {}),
   });
 
-  await db
-    .update(schema.jobs)
-    .set({ generationProvenance: stored })
-    .where(eq(schema.jobs.id, jobId));
+  await updateJobs(db, { set: { generationProvenance: stored }, where: eq(schema.jobs.id, jobId) });
 
   return stored;
 }

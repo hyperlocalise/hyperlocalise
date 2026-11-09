@@ -20,6 +20,7 @@ import {
   formatRateAmount,
   formatShare,
   formatUsd,
+  joinSentences,
 } from "./report-format";
 import { createReportsSettings } from "./reports.fixture";
 import { DEFAULT_REPORTS_STATE } from "./reports-url-state";
@@ -27,6 +28,20 @@ import { DEFAULT_REPORTS_STATE } from "./reports-url-state";
 const intl = createIntl({ locale: "en", messages: {} });
 
 describe("Reports formatting", () => {
+  it("spaces sentences apart unless one ends in a full-width stop", () => {
+    expect(joinSentences(["Words finished.", null, "Days are in UTC."])).toBe(
+      "Words finished. Days are in UTC.",
+    );
+    expect(joinSentences(["完了した単語。", "日付はUTCです。"])).toBe(
+      "完了した単語。日付はUTCです。",
+    );
+    // A sentence not yet translated still gets its space.
+    expect(joinSentences(["完了した単語。", "Days are in UTC.", "日付はUTCです。"])).toBe(
+      "完了した単語。Days are in UTC. 日付はUTCです。",
+    );
+    expect(joinSentences([null])).toBe("");
+  });
+
   it("never rounds a share up to 100% or down to 0% when it is neither", () => {
     expect(formatShare(intl, 0.996)).toBe("over 99%");
     expect(formatShare(intl, 1)).toBe("100%");
@@ -50,7 +65,8 @@ describe("Reports formatting", () => {
     expect(formatChange(intl, { kind: "points", value: 1 }, 28)).toBe(
       "+1 point vs previous 28 days",
     );
-    expect(formatChange(intl, { kind: "no_earlier_data" }, 28)).toBe("No earlier data");
+    // No line at all while the previous period is not fully recorded.
+    expect(formatChange(intl, { kind: "no_earlier_data" }, 28)).toBeUndefined();
   });
 
   it("keeps every decimal of a small rate", () => {

@@ -11,19 +11,9 @@
  * Version 2.0 or later.
  */
 import { describe, expect, it } from "vite-plus/test";
-import {
-  countSourceCharacters,
-  countSourceWords,
-  matchBucket,
-  reportingPeriod,
-  csvCell,
-} from "./word-analysis";
-import { usdUnits, usdString, hourlyCost, unitCost } from "./money";
-import {
-  activityQuerySchema,
-  rateCardSchema,
-  timeSchema,
-} from "@/api/routes/reports/reports.schema";
+import { countSourceCharacters, countSourceWords, matchBucket } from "./word-analysis";
+import { usdUnits, usdString, unitCost, paidPercent } from "./money";
+import { REPORT_QUERY_SCHEMAS } from "@/api/routes/mcp/report-query-schema";
 
 describe("prospective translation accounting", () => {
   it("counts literal ICU alternatives without counting arguments or tags", () => {
@@ -82,40 +72,16 @@ describe("prospective translation accounting", () => {
   it("keeps decimal costs exact", () => {
     expect(usdString(usdUnits("0.10") + usdUnits("0.20"))).toBe("0.30000000");
     expect(unitCost("0.12", 1000, 25)).toBe("30.00000000");
-    expect(hourlyCost("60", 15)).toBe("15.00000000");
     expect(unitCost("0.00000001", 1)).toBe("0.00000001");
     expect(() => usdUnits("-1")).toThrow();
+    expect(paidPercent({ new: 50 }, "unavailable")).toBe(50);
+    expect(paidPercent({ new: 50 }, "new")).toBe(50);
+    expect(paidPercent({ "100": 0 }, "unavailable")).toBe(100);
+    expect(paidPercent(null, "new")).toBe(100);
   });
-  it("groups UTC weeks on Mondays across year boundaries", () => {
-    expect(reportingPeriod(new Date("2026-01-04T23:59:59Z"), "week")).toBe("2025-12-29");
-    expect(reportingPeriod(new Date("2026-01-05T00:00:00Z"), "week")).toBe("2026-01-05");
-  });
-  it("escapes CSV and neutralizes spreadsheet formulas", () => {
-    expect(csvCell('a,"b"')).toBe('"a,""b"""');
-    expect(csvCell('=IMPORTXML("url")')).toContain("'=IMPORTXML");
-  });
-  it("rejects invalid date ranges, time and rate percentages", () => {
-    expect(activityQuerySchema.safeParse({ from: "2026-09-06", to: "2026-09-01" }).success).toBe(
-      false,
-    );
+  it("rejects invalid date ranges", () => {
     expect(
-      timeSchema.safeParse({ jobId: "job", step: "review", minutes: 0, workDate: "2026-09-01" })
-        .success,
-    ).toBe(false);
-    expect(
-      rateCardSchema.safeParse({
-        name: "Default",
-        lines: [
-          {
-            sourceLocale: "en",
-            targetLocale: "fr",
-            step: "translation",
-            basis: "word",
-            rate: "0.1",
-            percentages: { "100": 101 },
-          },
-        ],
-      }).success,
+      REPORT_QUERY_SCHEMAS.activity.safeParse({ from: "2026-09-06", to: "2026-09-01" }).success,
     ).toBe(false);
   });
 });

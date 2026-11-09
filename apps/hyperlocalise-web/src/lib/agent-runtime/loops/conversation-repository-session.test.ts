@@ -25,12 +25,13 @@ vi.mock("@/lib/agent-runtime/workspaces/repository-sandbox", () => ({
   stopRepositorySandbox: stopRepositorySandboxMock,
 }));
 
-vi.mock("@/lib/log", () => ({
-  createLogger: vi.fn(() => ({
-    warn: vi.fn(),
-  })),
-  serializeErrorForLog: vi.fn((error: unknown) => ({ error })),
-}));
+vi.mock("@/lib/log", async () => {
+  const { createTestLogger } = await import("@/test/create-test-logger");
+  return {
+    createLogger: vi.fn(() => createTestLogger()),
+    serializeErrorForLog: vi.fn((error: unknown) => ({ error })),
+  };
+});
 
 import { db, schema } from "@/lib/database/client";
 import {

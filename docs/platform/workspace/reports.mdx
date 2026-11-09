@@ -1,0 +1,54 @@
+---
+title: "Reports"
+description: "Track word counts, translation-memory match bands, time, AI usage, and costs for workspace and project work."
+---
+
+Open **Reports** in the workspace sidebar to review translation volume, match analysis, logged time, AI usage, and spend. Native projects also link to **Reports** from the project sidebar. The feature requires the workspace **Reports** flag and **billing:read** access (administrators and localization managers).
+
+Translators and other roles without billing access see only the **Time** tab for their own entries, and a task **Report** tab limited to time logged on that task.
+
+## Date range and freshness
+
+Pick dates with the range control at the top of the page. Ready-made ranges include the last 7, 28, or 90 days, this month, last month, this quarter, and **Since Reports started**. You can also choose fixed days on the calendar or type `YYYY-MM-DD` bounds. All days are UTC, from the day Reports first recorded work for the workspace through today.
+
+Headline numbers compare with the previous period of the same length. Most tabs can lag live work by up to about one capture cycle (typically a few minutes after editor saves). When recent work is still being counted, the page shows that summaries are updating. The **AI usage** tab reads billing directly, so it does not use that lag; charges billing has not recorded yet appear as pending.
+
+## Workspace tabs
+
+| Tab | What it shows |
+| --- | --- |
+| **Activity** | Words or strings that arrived and finished in the range, progress on open work, and review volume. Filter by project, task, target locale, and translation vs review step. |
+| **Word counts** | Volume by translation-memory match band (exact, high, fuzzy, low, new, and unavailable). Group by project, language, task step, or band. Includes a chart over time with weekly or daily intervals. |
+| **Time** | Time people logged plus automated run time, by project and task. |
+| **AI usage** | AI calls, tokens, images, and videos grouped by origin and model, with billing's charge when recorded. |
+| **Costs** | Spent amounts from people's finished work and billed AI, by project. Manual expense lines are not included. |
+| **Cost estimate** | Price up to 50 chosen tasks, or all current strings in one project, from rate cards and match bands. Nothing is stored when you run an estimate. |
+| **Budgets** | Project budgets, rate cards, and what is still to come on open payable work. |
+
+Tab choice, dates, and filters stay in the URL so you can share a view.
+
+## Task and job Report tab
+
+Open a native file translation or human task job and select **Report** to see that task's words, match analysis, logged time, and (with billing access) cost and pricing. While strings are being scored against translation memory, the tab polls analysis state every few seconds and explains when a quote is not exact (for example memory could not be read for a language after retries).
+
+Set task pricing (rate card, time estimate, fixed fee) on this tab while the task is open and no finished work is recorded on that step. Pricing applies per workflow step (translate, post-edit, proofread).
+
+## Rate cards and budgets
+
+**Rate cards** are named sets of lines: one per language pair and step, with a basis (per word, per character, per character with spaces, or per hour) and paid shares per match band. Saving a card versioned history so work already priced keeps its rate.
+
+A task uses its own card for the step when set; otherwise the project budget's card; otherwise the card selected on the page. A language with no line on the chosen card is **not priced**, not zero.
+
+Administrators with **billing:write** create and edit rate cards and budgets.
+
+## MCP and exports
+
+Coding agents with billing access can call MCP `get_report` with `report` set to `activity`, `words`, `time`, `ai`, or `costs`, plus the same optional filters as the page (`from`, `to`, `projectId`, `jobId`, `targetLocale`, `step`, `unit`, and word-count `split` / `per` / `mode`). See [MCP tool reference](/platform/developers/mcp-tools#jobs).
+
+Several tabs support CSV export from the UI when you need a spreadsheet.
+
+## Related guides
+
+- [Track and recover jobs](/platform/translation/jobs) — job activity feed and due dates
+- [Manage billing and usage](/platform/workspace/billing) — plan usage and AI credit
+- [Roles and permissions](/platform/workspace/roles) — who can view Reports and change pricing

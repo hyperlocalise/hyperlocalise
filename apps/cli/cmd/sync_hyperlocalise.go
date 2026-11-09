@@ -290,9 +290,16 @@ func pullAcceptsRawPrefilledExport(targetPath string) bool {
 	}
 }
 
+func pullAcceptsReconstructedNativeExport(format string) bool {
+	return format == "html"
+}
+
 func (rt *hyperlocaliseSyncRuntime) reconstructPullFile(plan hyperlocaliseFilePlan, locale, targetPath string, prefilledJSON []byte) ([]byte, error) {
 	var prefilled map[string]string
 	if err := json.Unmarshal(prefilledJSON, &prefilled); err != nil {
+		if pullAcceptsReconstructedNativeExport(plan.FileFormat) {
+			return prefilledJSON, nil
+		}
 		return nil, fmt.Errorf("parse translation export JSON: %w", err)
 	}
 
@@ -480,7 +487,7 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "po"
 	case ".ts":
 		return "qt-ts"
-	case ".html":
+	case ".html", ".htm":
 		return "html"
 	case ".md":
 		return "markdown"

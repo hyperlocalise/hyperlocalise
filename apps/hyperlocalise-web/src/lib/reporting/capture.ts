@@ -29,9 +29,10 @@ export { sourceSimilarity };
 const REPORTING_BATCH_SIZE = 500;
 /**
  * Memory entries loaded and indexed at a time. A larger memory is scored one slice after another,
- * keeping each string's best score. The index takes about 1.5 MB per 1,000 entries, and several
- * jobs can share one function instance, so this keeps a few concurrent jobs well inside a 2 GB
- * function.
+ * keeping each string's best score. The index takes about 0.5 MB per 1,000 sentence-length
+ * entries (English or Japanese), about 2.5 MB for paragraphs, and 5 to 10 MB for long document
+ * sections or text with very many distinct character pairs. Several jobs can share one function
+ * instance, so this keeps a few concurrent jobs inside a 2 GB function for most memories.
  */
 const MEMORY_SLICE_ENTRIES = 300_000;
 /**
@@ -324,7 +325,6 @@ async function writeReportingAnalysis(
     if (!job) return [];
   }
   const step = input.step ?? "translation";
-  const rate = await resolveReportingRate({ ...input, step });
   let memoryIds: string[] | null = null;
   if (!options.withoutMemory) {
     try {
@@ -396,7 +396,6 @@ async function writeReportingAnalysis(
         matchScore: score,
         bucket: matchBucket(score, repetition),
         algorithmVersion: MATCH_ALGORITHM_VERSION,
-        rateId: rate?.id,
         createdAt: input.occurredAt?.[segmentId],
       };
     });
@@ -662,8 +661,7 @@ async function writeReportingCompletions(
     const marks: SummaryMark[] = [];
     // A person's work is priced when it is finished, at the rate in force then, as the estimate
     // prices it: the task's own card as it was when the task was priced, else its project
-    // budget's card now. A task for people has its strings recorded before it is priced, so the
-    // rate stored with each string when it arrived is not the one that applies.
+    // budget's card now.
     const rates = new Map<string, Awaited<ReturnType<typeof resolveReportingRate>>>();
     const rateFor = async (analysis: { projectId: string | null; sourceLocale: string }) => {
       if (!analysis.projectId) return null;
@@ -859,25 +857,19 @@ async function writeReportingCompletions(
     return marks;
   });
 }
-export async function captureJobStatus(input: {
-  jobId: string;
-  status: string;
-  operationKey: string;
-  durationMs?: number;
-}) {
+/**
+ * What Reports does when a task changes status: starts Reports for the workspace, charges a fixed
+ * fee when the task succeeds, and recounts its days when it is no longer open.
+ */
+export async function captureJobStatus(input: { jobId: string; status: string }) {
   try {
-    await writeJobStatus(input);
+    await applyJobStatus(input);
   } catch (error) {
     console.warn("reporting_job_status_failed", { jobId: input.jobId, error });
   }
 }
 
-async function writeJobStatus(input: {
-  jobId: string;
-  status: string;
-  operationKey: string;
-  durationMs?: number;
-}) {
+async function applyJobStatus(input: { jobId: string; status: string }) {
   const [ownedJob] = await db
     .select({ organizationId: schema.jobs.organizationId })
     .from(schema.jobs)
@@ -894,28 +886,6 @@ async function writeJobStatus(input: {
   // so nothing else would mark those days.
   if (!OPEN_TASK_STATUSES.has(input.status))
     await markTaskDays(ownedJob.organizationId, input.jobId);
-  const [job] = await db
-    .select({
-      organizationId: schema.jobs.organizationId,
-      projectId: schema.jobs.projectId,
-      kind: schema.jobs.kind,
-    })
-    .from(schema.jobs)
-    .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-    .where(and(eq(schema.jobs.id, input.jobId), isNull(schema.externalJobDetails.jobId)));
-  if (!job) return;
-  await db
-    .insert(schema.reportingActivity)
-    .values({
-      ...job,
-      jobId: input.jobId,
-      kind: "status",
-      step: job.kind,
-      status: input.status,
-      operationKey: input.operationKey,
-      durationMs: input.durationMs,
-    })
-    .onConflictDoNothing();
 }
 
 /**

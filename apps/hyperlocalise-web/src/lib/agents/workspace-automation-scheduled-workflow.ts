@@ -19,11 +19,17 @@ import {
   hasWorkspaceAutomationContentfulWorkflow,
   hasWorkspaceAutomationCreateIssueTool,
   hasWorkspaceAutomationCrowdinTool,
+  hasWorkspaceAutomationCustomerIoTool,
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationBrazeCampaignsTool,
+  hasWorkspaceAutomationLoopsTool,
+  hasWorkspaceAutomationHubspotTool,
+  hasWorkspaceAutomationMailchimpTool,
+  hasWorkspaceAutomationIterableTool,
   hasWorkspaceAutomationGoogleDriveTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
+  hasWorkspaceAutomationWebflowTool,
   hasWorkspaceAutomationListIssuesTool,
   hasWorkspaceAutomationWebSearchTool,
   type WorkspaceAutomationToolConfig,
@@ -40,9 +46,15 @@ export function hasWorkspaceAutomationScheduledWorkflow(
     hasWorkspaceAutomationContentfulWorkflow(toolConfig) ||
     hasWorkspaceAutomationIntercomTool(toolConfig) ||
     hasWorkspaceAutomationSanityTool(toolConfig) ||
+    hasWorkspaceAutomationWebflowTool(toolConfig) ||
     hasWorkspaceAutomationGoogleDriveTool(toolConfig) ||
     hasWorkspaceAutomationBrazeTool(toolConfig) ||
     hasWorkspaceAutomationBrazeCampaignsTool(toolConfig) ||
+    hasWorkspaceAutomationCustomerIoTool(toolConfig) ||
+    hasWorkspaceAutomationLoopsTool(toolConfig) ||
+    hasWorkspaceAutomationHubspotTool(toolConfig) ||
+    hasWorkspaceAutomationMailchimpTool(toolConfig) ||
+    hasWorkspaceAutomationIterableTool(toolConfig) ||
     hasWorkspaceAutomationListIssuesTool(toolConfig) ||
     hasWorkspaceAutomationCreateIssueTool(toolConfig) ||
     hasWorkspaceAutomationWebSearchTool(toolConfig) ||

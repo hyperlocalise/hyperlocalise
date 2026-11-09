@@ -19,8 +19,25 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { getAhrefsPipesConnectionStatus, resolveAhrefsPipesWorkosUserId } from "@/lib/ahrefs/pipes";
 import { getBrazePipesConnectionStatus, resolveBrazePipesWorkosUserId } from "@/lib/braze/pipes";
+import {
+  getHubspotPipesConnectionStatus,
+  resolveHubspotPipesWorkosUserId,
+} from "@/lib/hubspot/pipes";
+import {
+  getIterablePipesConnectionStatus,
+  resolveIterablePipesWorkosUserId,
+} from "@/lib/iterable/pipes";
+import { getLoopsPipesConnectionStatus, resolveLoopsPipesWorkosUserId } from "@/lib/loops/pipes";
+import {
+  getMailchimpPipesConnectionStatus,
+  resolveMailchimpPipesWorkosUserId,
+} from "@/lib/mailchimp/pipes";
 import { loadBrazeRestEndpoint } from "@/lib/braze/settings";
 import { areBrazeSourceLocalesCompatible } from "@/lib/braze/locale";
+import {
+  getCustomerIoPipesConnectionStatus,
+  resolveCustomerIoPipesWorkosUserId,
+} from "@/lib/customer-io/pipes";
 import {
   getIntercomPipesConnectionStatus,
   resolveIntercomPipesWorkosUserId,
@@ -34,7 +51,15 @@ import {
   areSanitySourceLocalesCompatible,
   mapProjectLocalesToSanity,
 } from "@/lib/sanity/sanity-locale";
+import { WebflowDataClient } from "@/lib/webflow/client";
+import { loadWebflowConnectionWithToken } from "@/lib/webflow/webflow-connection-access";
+import {
+  areWebflowSourceLocalesCompatible,
+  mapProjectLocalesToWebflow,
+  normalizeWebflowLocaleTag,
+} from "@/lib/webflow/webflow-locale";
 import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/lib/email/pipes";
+import { getGitLabConnection } from "@/lib/gitlab/connections";
 import { getGitLabPipesConnectionStatus, resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
 import {
   getGoogleDrivePipesConnectionStatus,
@@ -74,8 +99,14 @@ import {
   hasWorkspaceAutomationCreateNativeTmsJobTool,
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationBrazeCampaignsTool,
+  hasWorkspaceAutomationLoopsTool,
+  hasWorkspaceAutomationHubspotTool,
+  hasWorkspaceAutomationMailchimpTool,
+  hasWorkspaceAutomationIterableTool,
+  hasWorkspaceAutomationCustomerIoTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
+  hasWorkspaceAutomationWebflowTool,
   hasWorkspaceAutomationListIssuesTool,
   hoistLegacyWorkspaceAutomationProjectId,
   isContentSyncAutomation,
@@ -129,7 +160,11 @@ export function workspaceAutomationNeedsProject(input: {
   }
   if (
     hasWorkspaceAutomationBrazeTool(input.toolConfig) ||
-    hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig)
+    hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig) ||
+    hasWorkspaceAutomationLoopsTool(input.toolConfig) ||
+    hasWorkspaceAutomationHubspotTool(input.toolConfig) ||
+    hasWorkspaceAutomationMailchimpTool(input.toolConfig) ||
+    hasWorkspaceAutomationIterableTool(input.toolConfig)
   ) {
     return true;
   }
@@ -295,7 +330,7 @@ function validateWorkspaceAutomationConfig(input: {
     return err({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Google Drive, Braze, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
     });
   }
 
@@ -724,7 +759,10 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
-  if (input.toolConfig.gitlab?.enabled) {
+  if (
+    input.toolConfig.gitlab?.enabled &&
+    !(await getGitLabConnection({ organizationId: input.organizationId }))
+  ) {
     const workosUserId = input.toolConfig.gitlab.workosUserId;
     if (!workosUserId) {
       return err({
@@ -1055,11 +1093,106 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
+  if (input.toolConfig.webflow?.enabled) {
+    const webflow = input.toolConfig.webflow;
+    if (!webflow.connectionId) {
+      return err({
+        code: "webflow_connection_required",
+        message: "Choose a Webflow connection.",
+      });
+    }
+    if (webflow.collectionIds.length === 0) {
+      return err({
+        code: "webflow_collection_ids_required",
+        message: "Choose at least one Webflow collection.",
+      });
+    }
+
+    const loaded = await loadWebflowConnectionWithToken({
+      organizationId: input.organizationId,
+      connectionId: webflow.connectionId,
+    });
+    if (!loaded) {
+      return err({
+        code: "webflow_not_connected",
+        message:
+          "The selected Webflow connection was not found. Choose it again in the automation editor.",
+      });
+    }
+    if (!loaded.token) {
+      return err({
+        code: "webflow_not_connected",
+        message: "Reconnect Webflow in Integrations before using it.",
+      });
+    }
+
+    const projectId = readOptionalProjectId(input.projectId);
+    if (projectId) {
+      const [project] = await database
+        .select({
+          sourceLocale: schema.projects.sourceLocale,
+          targetLocales: schema.projects.targetLocales,
+        })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, input.organizationId),
+            eq(schema.projects.id, projectId),
+          ),
+        )
+        .limit(1);
+
+      if (project) {
+        const client = new WebflowDataClient({ accessToken: loaded.token });
+        const site = await client.getSite(webflow.siteId || loaded.connection.siteId);
+        if (isErr(site)) {
+          return err({
+            code: "webflow_not_connected",
+            message: site.error.message,
+          });
+        }
+
+        const localeMapping = mapProjectLocalesToWebflow({
+          projectSourceLocale: project.sourceLocale ?? "en",
+          projectTargetLocales: Array.isArray(project.targetLocales)
+            ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
+            : [],
+          webflowLocales: site.value.locales,
+          configuredSourceLocale: webflow.sourceLocale,
+          configuredTargetLocales:
+            webflow.targetLocales.length > 0 ? webflow.targetLocales : undefined,
+        });
+
+        const primaryTag = normalizeWebflowLocaleTag(site.value.locales.primary.tag);
+        const projectSource = normalizeWebflowLocaleTag(project.sourceLocale ?? "en");
+        if (!areWebflowSourceLocalesCompatible(primaryTag, projectSource)) {
+          return err({
+            code: "webflow_source_locale_mismatch",
+            message:
+              "The Webflow primary locale must match the project source locale when saving this automation.",
+          });
+        }
+
+        if (!localeMapping.sourceCmsLocaleId) {
+          return err({
+            code: "webflow_source_locale_mismatch",
+            message: "The Webflow primary locale does not map to the configured source locale.",
+          });
+        }
+      }
+    }
+  }
+
   const cmsToolCount = [
     hasWorkspaceAutomationIntercomTool(input.toolConfig),
     hasWorkspaceAutomationSanityTool(input.toolConfig),
+    hasWorkspaceAutomationWebflowTool(input.toolConfig),
     hasWorkspaceAutomationBrazeTool(input.toolConfig),
     hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig),
+    hasWorkspaceAutomationLoopsTool(input.toolConfig),
+    hasWorkspaceAutomationHubspotTool(input.toolConfig),
+    hasWorkspaceAutomationMailchimpTool(input.toolConfig),
+    hasWorkspaceAutomationIterableTool(input.toolConfig),
     hasWorkspaceAutomationContentfulWorkflow(input.toolConfig),
   ].filter(Boolean).length;
   if (cmsToolCount > 1) {
@@ -1068,6 +1201,11 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig) &&
       !hasWorkspaceAutomationIntercomTool(input.toolConfig) &&
       !hasWorkspaceAutomationSanityTool(input.toolConfig) &&
+      !hasWorkspaceAutomationWebflowTool(input.toolConfig) &&
+      !hasWorkspaceAutomationLoopsTool(input.toolConfig) &&
+      !hasWorkspaceAutomationHubspotTool(input.toolConfig) &&
+      !hasWorkspaceAutomationMailchimpTool(input.toolConfig) &&
+      !hasWorkspaceAutomationIterableTool(input.toolConfig) &&
       !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig);
     if (!brazePairOnly) {
       return err({
@@ -1237,6 +1375,212 @@ export async function validateWorkspaceAutomationIntegrations(input: {
           });
         }
       }
+    }
+  }
+
+  if (input.toolConfig.customerIo?.enabled) {
+    const customerIo = input.toolConfig.customerIo;
+    const workosUserId = customerIo.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "customer_io_not_connected",
+        message: "Connect Customer.io in Integrations before using it.",
+      });
+    }
+
+    const status = await getCustomerIoPipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "customer_io_pipes_unavailable",
+        message: "WorkOS is not configured, so Customer.io cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "customer_io_pipes_needs_reauthorization",
+        message: "Reconnect Customer.io in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "customer_io_not_connected",
+        message: "Connect Customer.io in Integrations before using it.",
+      });
+    }
+  }
+
+  if (input.toolConfig.loops?.enabled) {
+    const loops = input.toolConfig.loops;
+    const workosUserId = loops.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "loops_not_connected",
+        message: "Connect Loops in Integrations before using it.",
+      });
+    }
+
+    const status = await getLoopsPipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "loops_pipes_unavailable",
+        message: "WorkOS is not configured, so Loops cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "loops_pipes_needs_reauthorization",
+        message: "Reconnect Loops in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "loops_not_connected",
+        message: "Connect Loops in Integrations before using it.",
+      });
+    }
+  }
+
+  if (
+    hasWorkspaceAutomationHubspotTool(input.toolConfig) &&
+    hasWorkspaceAutomationCustomerIoTool(input.toolConfig)
+  ) {
+    return err({
+      code: "cms_translation_skills_exclusive",
+      message: "Choose one CMS translation skill per automation.",
+    });
+  }
+
+  if (input.toolConfig.hubspot?.enabled) {
+    const hubspot = input.toolConfig.hubspot;
+    const workosUserId = hubspot.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "hubspot_not_connected",
+        message: "Connect HubSpot in Integrations before using it.",
+      });
+    }
+
+    const status = await getHubspotPipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "hubspot_pipes_unavailable",
+        message: "WorkOS is not configured, so HubSpot cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "hubspot_pipes_needs_reauthorization",
+        message: "Reconnect HubSpot in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "hubspot_not_connected",
+        message: "Connect HubSpot in Integrations before using it.",
+      });
+    }
+  }
+
+  if (input.toolConfig.mailchimp?.enabled) {
+    const mailchimp = input.toolConfig.mailchimp;
+    const workosUserId = mailchimp.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "mailchimp_not_connected",
+        message: "Connect Mailchimp in Integrations before using it.",
+      });
+    }
+
+    const status = await getMailchimpPipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "mailchimp_pipes_unavailable",
+        message: "WorkOS is not configured, so Mailchimp cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "mailchimp_pipes_needs_reauthorization",
+        message: "Reconnect Mailchimp in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "mailchimp_not_connected",
+        message: "Connect Mailchimp in Integrations before using it.",
+      });
+    }
+  }
+
+  if (input.toolConfig.iterable?.enabled) {
+    const iterable = input.toolConfig.iterable;
+    const workosUserId = iterable.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "iterable_not_connected",
+        message: "Connect Iterable in Integrations before using it.",
+      });
+    }
+
+    const status = await getIterablePipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      if (status.error.code === "iterable_pipes_needs_reauthorization") {
+        return err({
+          code: "iterable_pipes_needs_reauthorization",
+          message: "Reconnect Iterable in Integrations, then try again.",
+        });
+      }
+      if (
+        status.error.code === "iterable_not_connected" ||
+        status.error.code === "iterable_pipes_provider_missing" ||
+        status.error.code === "iterable_api_key_required"
+      ) {
+        return err({
+          code: "iterable_not_connected",
+          message: "Connect Iterable in Integrations before using it.",
+        });
+      }
+      return err({
+        code: "iterable_pipes_unavailable",
+        message: "WorkOS is not configured, so Iterable cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "iterable_pipes_needs_reauthorization",
+        message: "Reconnect Iterable in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "iterable_not_connected",
+        message: "Connect Iterable in Integrations before using it.",
+      });
     }
   }
 
@@ -1514,6 +1858,86 @@ async function stampPipesUsersOnToolConfig(input: {
       ...toolConfig,
       braze: {
         ...toolConfig.braze,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.customerIo?.enabled) {
+    const workosUserId = await resolveCustomerIoPipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      customerIo: {
+        ...toolConfig.customerIo,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.loops?.enabled) {
+    const workosUserId = await resolveLoopsPipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      loops: {
+        ...toolConfig.loops,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.hubspot?.enabled) {
+    const workosUserId = await resolveHubspotPipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      hubspot: {
+        ...toolConfig.hubspot,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.mailchimp?.enabled) {
+    const workosUserId = await resolveMailchimpPipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      mailchimp: {
+        ...toolConfig.mailchimp,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.iterable?.enabled) {
+    const workosUserId = await resolveIterablePipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      iterable: {
+        ...toolConfig.iterable,
         enabled: true,
         ...(workosUserId ? { workosUserId } : {}),
       },

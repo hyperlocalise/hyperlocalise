@@ -75,6 +75,9 @@ function createIntegrationsGetHandlers({
     http.get("/api/orgs/:organizationSlug/contentful-connections", () =>
       HttpResponse.json({ contentfulConnections }),
     ),
+    http.get("/api/orgs/:organizationSlug/webflow-connections", () =>
+      HttpResponse.json({ webflowConnections: [] }),
+    ),
     http.get("/api/orgs/:organizationSlug/intercom-connections", () =>
       HttpResponse.json({ intercomConnections }),
     ),
@@ -110,6 +113,23 @@ function createIntegrationsGetHandlers({
       return HttpResponse.json({ braze: { restEndpoint: body.restEndpoint ?? "iad-03" } });
     }),
     http.delete("/api/orgs/:organizationSlug/braze", () => new HttpResponse(null, { status: 204 })),
+    http.get("/api/orgs/:organizationSlug/customer-io", () =>
+      HttpResponse.json({ customerIo: null }),
+    ),
+    http.put("/api/orgs/:organizationSlug/customer-io", async ({ request }) => {
+      const body = (await request.json()) as { region?: string };
+      return HttpResponse.json({ customerIo: { region: body.region ?? "us" } });
+    }),
+    http.delete(
+      "/api/orgs/:organizationSlug/customer-io",
+      () => new HttpResponse(null, { status: 204 }),
+    ),
+    http.get("/api/orgs/:organizationSlug/gitlab/connection", () =>
+      HttpResponse.json({ gitlabConnection: null }),
+    ),
+    http.get("/api/orgs/:organizationSlug/gitlab/connections", () =>
+      HttpResponse.json({ gitlabConnections: [] }),
+    ),
     http.get("/api/orgs/:organizationSlug/pipes/:provider", ({ params }) =>
       HttpResponse.json({
         pipe: {
@@ -240,6 +260,14 @@ export const integrationsLoadingMswHandlers = [
   http.get("/api/orgs/:organizationSlug/gitlab/projects", async () => {
     await delay("infinite");
     return HttpResponse.json({ projects: [] });
+  }),
+  http.get("/api/orgs/:organizationSlug/gitlab/connection", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ gitlabConnection: null });
+  }),
+  http.get("/api/orgs/:organizationSlug/gitlab/connections", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ gitlabConnections: [] });
   }),
   http.get("/api/orgs/:organizationSlug/ahrefs-connections", async () => {
     await delay("infinite");

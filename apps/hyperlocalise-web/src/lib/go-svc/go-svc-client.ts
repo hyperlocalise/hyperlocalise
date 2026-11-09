@@ -15,6 +15,7 @@ import { GoSvcApiKeyApi } from "./go-svc-api-key-api";
 import { GoSvcCatApi } from "./go-svc-cat-api";
 import { GoSvcConversationApi } from "./go-svc-conversation-api";
 import { GoSvcDictionaryApi } from "./go-svc-dictionary-api";
+import { GoSvcEditorExportApi } from "./go-svc-editor-export-api";
 import { GoSvcGlossaryApi } from "./go-svc-glossary-api";
 import { GoSvcGuidelinesApi } from "./go-svc-guidelines-api";
 import { GoSvcIssueSheetApi } from "./go-svc-issue-sheet-api";
@@ -22,6 +23,7 @@ import { GoSvcInboxApi } from "./go-svc-inbox-api";
 import { GoSvcJobApi } from "./go-svc-job-api";
 import { GoSvcMemoryApi } from "./go-svc-memory-api";
 import { GoSvcQaReportApi } from "./go-svc-qa-report-api";
+import { GoSvcReportsApi } from "./go-svc-reports-api";
 import {
   DEFAULT_GO_SVC_BASE_URL,
   GoSvcClientError,
@@ -36,6 +38,7 @@ import { GoSvcPdfApi } from "./go-svc-pdf-api";
 import { GoSvcPlaintextApi } from "./go-svc-plaintext-api";
 import { GoSvcProjectApi } from "./go-svc-project-api";
 import { GoSvcTeamApi } from "./go-svc-team-api";
+import { GoSvcTranslationFileApi } from "./go-svc-translation-file-api";
 
 export { DEFAULT_GO_SVC_BASE_URL, GoSvcClientError, type GoSvcClientOptions };
 export type { HyperlabGoSvcClient };
@@ -47,6 +50,7 @@ export class GoSvcClient {
   readonly cat: GoSvcCatApi;
   readonly conversation: GoSvcConversationApi;
   readonly dictionary: GoSvcDictionaryApi;
+  readonly editorExport: GoSvcEditorExportApi;
   readonly domains: GoSvcDomainsApi;
   readonly glossary: GoSvcGlossaryApi;
   readonly guidelines: GoSvcGuidelinesApi;
@@ -61,7 +65,9 @@ export class GoSvcClient {
   readonly plaintext: GoSvcPlaintextApi;
   readonly project: GoSvcProjectApi;
   readonly qaReport: GoSvcQaReportApi;
+  readonly reports: GoSvcReportsApi;
   readonly team: GoSvcTeamApi;
+  readonly translationFile: GoSvcTranslationFileApi;
 
   constructor(options: GoSvcClientOptions) {
     const request = new GoSvcRequest(options);
@@ -71,6 +77,7 @@ export class GoSvcClient {
     this.cat = new GoSvcCatApi(request);
     this.conversation = new GoSvcConversationApi(request);
     this.dictionary = new GoSvcDictionaryApi(request);
+    this.editorExport = new GoSvcEditorExportApi(request);
     this.domains = new GoSvcDomainsApi(request);
     this.glossary = new GoSvcGlossaryApi(request);
     this.guidelines = new GoSvcGuidelinesApi(request);
@@ -85,6 +92,8 @@ export class GoSvcClient {
     this.plaintext = new GoSvcPlaintextApi(request);
     this.project = new GoSvcProjectApi(request);
     this.qaReport = new GoSvcQaReportApi(request);
+    this.reports = new GoSvcReportsApi(request);
     this.team = new GoSvcTeamApi(request);
+    this.translationFile = new GoSvcTranslationFileApi(request);
   }
 }

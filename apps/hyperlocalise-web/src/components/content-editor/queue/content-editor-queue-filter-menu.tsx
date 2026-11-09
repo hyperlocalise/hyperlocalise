@@ -41,6 +41,8 @@ import {
   type ContentEditorQueueSort,
 } from "./content-editor-queue-filter";
 import { queueFilterMessageByValue } from "./content-editor-queue-filter-messages";
+import { translationOriginMessages } from "@/components/content-editor/shared/translation-origin.messages";
+import { translationOrigins } from "@/lib/projects/translations/translation-origin-rule";
 import {
   contentEditorAdvancedFilterMessages,
   contentEditorQueueFilterQualifierMessages,
@@ -84,6 +86,14 @@ function qualifierLabel(intl: IntlShape, qualifier: string) {
       return intl.formatMessage(contentEditorQueueFilterQualifierMessages.glossaryViolation);
     case "qa_failure":
       return intl.formatMessage(contentEditorQueueFilterQualifierMessages.qaFailure);
+    case "machine":
+      return intl.formatMessage(translationOriginMessages.machine);
+    case "machine_post_edited":
+      return intl.formatMessage(translationOriginMessages.machine_post_edited);
+    case "human":
+      return intl.formatMessage(translationOriginMessages.human);
+    case "unknown":
+      return intl.formatMessage(translationOriginMessages.unknown);
     default:
       return humanizeQualifier(qualifier);
   }
@@ -237,6 +247,7 @@ export function ContentEditorQueueFilterMenu({
 
       {available.has("qa_issues") ||
       available.has("machine_translated") ||
+      available.has("origin") ||
       available.has("with_comments") ||
       available.has("has_issues") ||
       available.has("hidden") ||
@@ -248,6 +259,7 @@ export function ContentEditorQueueFilterMenu({
       <DropdownMenuGroup>
         {renderSubmenu("qa_issues", crowdinQaQualifiersForProvider(providerKind))}
         {renderSubmenu("machine_translated", machineTranslationQualifiersForProvider(providerKind))}
+        {renderSubmenu("origin", translationOrigins)}
         {trailingFilters.map((filter) =>
           available.has(filter) ? (
             <FilterItem

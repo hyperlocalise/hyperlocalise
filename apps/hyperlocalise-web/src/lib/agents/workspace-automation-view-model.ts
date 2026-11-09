@@ -144,8 +144,46 @@ export type WorkspaceAutomationFormState = {
   sanityIncludeDrafts: boolean;
   sanityOverwriteSanityDrafts: boolean;
   sanityExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  webflowEnabled: boolean;
+  webflowConnectionId: string;
+  webflowSiteId: string;
+  webflowCollectionIds: string[];
+  webflowSourceLocale: string;
+  webflowTargetLocales: string[];
+  webflowExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  webflowRunQa: boolean;
+  webflowPublishOnPush: boolean;
   brazeEnabled: boolean;
   brazeCampaignsEnabled: boolean;
+  customerIoEnabled: boolean;
+  loopsEnabled: boolean;
+  loopsSourceLocale: string;
+  hubspotEnabled: boolean;
+  hubspotSourceLocale: string;
+  hubspotEmailIds: string[];
+  hubspotFormIds: string[];
+  hubspotBlogPostIds: string[];
+  hubspotLandingPageIds: string[];
+  hubspotWebsitePageIds: string[];
+  hubspotMessageTemplateIds: string[];
+  hubspotExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  hubspotOverwriteWhenRemoteNewer: boolean;
+  mailchimpEnabled: boolean;
+  mailchimpSourceLocale: string;
+  mailchimpCampaignIds: string[];
+  mailchimpTemplateIds: string[];
+  mailchimpExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  mailchimpOverwriteWhenRemoteNewer: boolean;
+  customerIoBroadcastIds: string[];
+  customerIoCampaignIds: string[];
+  customerIoNewsletterIds: string[];
+  customerIoTransactionalMessageIds: string[];
+  customerIoBroadcastActions: Record<string, string[]>;
+  customerIoCampaignActions: Record<string, string[]>;
+  customerIoNewsletterActions: Record<string, string[]>;
+  customerIoTransactionalMessageActions: Record<string, string[]>;
+  customerIoExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  customerIoOverwriteWhenRemoteNewer: boolean;
   brazeSourceLocale: string;
   brazeTemplateIds: string[];
   brazeContentBlockIds: string[];
@@ -153,6 +191,11 @@ export type WorkspaceAutomationFormState = {
   brazeCanvasIds: string[];
   brazeExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   brazeOverwriteWhenRemoteNewer: boolean;
+  iterableEnabled: boolean;
+  iterableSourceLocale: string;
+  iterableTemplateIds: string[];
+  iterableSnippetIds: string[];
+  iterableExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   intercomRestEndpoint: "us" | "eu" | "au";
   intercomHelpCenterId: string;
   intercomHelpCenterLocales: string[];
@@ -179,8 +222,14 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
     form.intercomEnabled ||
     form.googleDriveEnabled ||
     form.sanityEnabled ||
+    form.webflowEnabled ||
     form.brazeEnabled ||
-    form.brazeCampaignsEnabled
+    form.brazeCampaignsEnabled ||
+    form.customerIoEnabled ||
+    form.iterableEnabled ||
+    form.loopsEnabled ||
+    form.hubspotEnabled ||
+    form.mailchimpEnabled
   ) {
     return true;
   }
@@ -225,8 +274,17 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "sanityDocumentTypes"
     | "sanitySourceLocale"
     | "sanityTargetLocales"
+    | "webflow"
+    | "webflowConnectionId"
+    | "webflowCollectionIds"
+    | "webflowSourceLocale"
     | "braze"
     | "brazeSourceLocale"
+    | "iterable"
+    | "iterableSourceLocale"
+    | "customerIo"
+    | "loops"
+    | "hubspot"
     | "crowdinProjectId"
     | "scheduledTimezone"
     | "skills"
@@ -262,7 +320,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_push_branches_required: "Add at least one branch pattern for GitHub triggers.",
   github_events_required: "Choose at least one GitHub event.",
   scheduled_workflow_required:
-    "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Google Drive, Braze, Queries, Web Search, or Crowdin workflow tool.",
+    "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
   intercom_not_connected: "Connect Intercom in Integrations before using it.",
   intercom_pipes_needs_reauthorization: "Reconnect Intercom in Integrations, then try again.",
   intercom_pipes_unavailable: "Intercom is unavailable until WorkOS Pipes is configured.",
@@ -283,6 +341,11 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   sanity_source_locale_unmapped: "The source locale does not match a Sanity language tag.",
   sanity_source_locale_mismatch:
     "The Sanity source locale must be the same language as the project source locale.",
+  webflow_not_connected: "Connect Webflow in Integrations before using it.",
+  webflow_connection_required: "Choose a Webflow connection.",
+  webflow_collection_ids_required: "Choose at least one Webflow collection.",
+  webflow_source_locale_mismatch:
+    "The Webflow primary locale must match the project source locale.",
   braze_not_connected: "Connect Braze in Integrations before using it.",
   braze_pipes_needs_reauthorization: "Reconnect Braze in Integrations, then try again.",
   braze_pipes_unavailable: "Braze is unavailable until WorkOS Pipes is configured.",
@@ -291,6 +354,18 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
     "The Braze source locale must be the same language as the project source locale.",
   braze_skills_exclusive:
     "Choose either Braze Email Templates or Braze Campaigns & Canvas, not both.",
+  customer_io_not_connected: "Connect Customer.io in Integrations before using it.",
+  customer_io_pipes_needs_reauthorization: "Reconnect Customer.io in Integrations, then try again.",
+  customer_io_pipes_unavailable: "Customer.io is unavailable until WorkOS Pipes is configured.",
+  loops_not_connected: "Connect Loops in Integrations before using it.",
+  loops_pipes_needs_reauthorization: "Reconnect Loops in Integrations, then try again.",
+  loops_pipes_unavailable: "Loops is unavailable until WorkOS Pipes is configured.",
+  hubspot_not_connected: "Connect HubSpot in Integrations before using it.",
+  hubspot_pipes_needs_reauthorization: "Reconnect HubSpot in Integrations, then try again.",
+  hubspot_pipes_unavailable: "HubSpot is unavailable until WorkOS Pipes is configured.",
+  iterable_not_connected: "Connect Iterable in Integrations before using it.",
+  iterable_pipes_needs_reauthorization: "Reconnect Iterable in Integrations, then try again.",
+  iterable_pipes_unavailable: "Iterable is unavailable until WorkOS Pipes is configured.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -435,8 +510,46 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     sanityIncludeDrafts: true,
     sanityOverwriteSanityDrafts: true,
     sanityExistingTranslationPolicy: "seed_empty",
+    webflowEnabled: false,
+    webflowConnectionId: "",
+    webflowSiteId: "",
+    webflowCollectionIds: [],
+    webflowSourceLocale: "en",
+    webflowTargetLocales: [],
+    webflowExistingTranslationPolicy: "seed_empty",
+    webflowRunQa: true,
+    webflowPublishOnPush: false,
     brazeEnabled: false,
     brazeCampaignsEnabled: false,
+    customerIoEnabled: false,
+    loopsEnabled: false,
+    loopsSourceLocale: "en",
+    hubspotEnabled: false,
+    hubspotSourceLocale: "en",
+    hubspotEmailIds: [],
+    hubspotFormIds: [],
+    hubspotBlogPostIds: [],
+    hubspotLandingPageIds: [],
+    hubspotWebsitePageIds: [],
+    hubspotMessageTemplateIds: [],
+    hubspotExistingTranslationPolicy: "seed_empty",
+    hubspotOverwriteWhenRemoteNewer: true,
+    mailchimpEnabled: false,
+    mailchimpSourceLocale: "en",
+    mailchimpCampaignIds: [],
+    mailchimpTemplateIds: [],
+    mailchimpExistingTranslationPolicy: "seed_empty",
+    mailchimpOverwriteWhenRemoteNewer: true,
+    customerIoBroadcastIds: [],
+    customerIoCampaignIds: [],
+    customerIoNewsletterIds: [],
+    customerIoTransactionalMessageIds: [],
+    customerIoBroadcastActions: {},
+    customerIoCampaignActions: {},
+    customerIoNewsletterActions: {},
+    customerIoTransactionalMessageActions: {},
+    customerIoExistingTranslationPolicy: "seed_empty",
+    customerIoOverwriteWhenRemoteNewer: true,
     brazeSourceLocale: "en",
     brazeTemplateIds: [],
     brazeContentBlockIds: [],
@@ -444,6 +557,11 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     brazeCanvasIds: [],
     brazeExistingTranslationPolicy: "seed_empty",
     brazeOverwriteWhenRemoteNewer: true,
+    iterableEnabled: false,
+    iterableSourceLocale: "",
+    iterableTemplateIds: [],
+    iterableSnippetIds: [],
+    iterableExistingTranslationPolicy: "seed_empty",
     intercomRestEndpoint: "us",
     intercomHelpCenterId: "",
     intercomHelpCenterLocales: [],
@@ -481,8 +599,14 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const intercom = automation.toolConfig.intercom;
   const googleDrive = automation.toolConfig.googleDrive;
   const sanity = automation.toolConfig.sanity;
+  const webflow = automation.toolConfig.webflow;
   const braze = automation.toolConfig.braze;
   const brazeCampaigns = automation.toolConfig.brazeCampaigns;
+  const customerIo = automation.toolConfig.customerIo;
+  const iterable = automation.toolConfig.iterable;
+  const loops = automation.toolConfig.loops;
+  const hubspot = automation.toolConfig.hubspot;
+  const mailchimp = automation.toolConfig.mailchimp;
   const crowdin = automation.toolConfig.crowdin;
   const webSearch = automation.toolConfig.webSearch;
 
@@ -596,8 +720,64 @@ export function createWorkspaceAutomationFormStateFromRecord(
       sanity?.existingTranslationPolicy === "overwrite_all"
         ? sanity.existingTranslationPolicy
         : "seed_empty",
+    webflowEnabled: Boolean(webflow?.enabled),
+    webflowConnectionId: webflow?.connectionId ?? "",
+    webflowSiteId: webflow?.siteId ?? "",
+    webflowCollectionIds: webflow?.collectionIds ? [...webflow.collectionIds] : [],
+    webflowSourceLocale: webflow?.sourceLocale ?? "en",
+    webflowTargetLocales: webflow?.targetLocales ? [...webflow.targetLocales] : [],
+    webflowExistingTranslationPolicy:
+      webflow?.existingTranslationPolicy === "refresh_imported" ||
+      webflow?.existingTranslationPolicy === "overwrite_all"
+        ? webflow.existingTranslationPolicy
+        : "seed_empty",
+    webflowRunQa: webflow?.runQa ?? true,
+    webflowPublishOnPush: webflow?.publishOnPush ?? false,
     brazeEnabled: Boolean(braze?.enabled),
     brazeCampaignsEnabled: Boolean(brazeCampaigns?.enabled),
+    customerIoEnabled: Boolean(customerIo?.enabled),
+    loopsEnabled: Boolean(loops?.enabled),
+    loopsSourceLocale: loops?.sourceLocale ?? "en",
+    hubspotEnabled: Boolean(hubspot?.enabled),
+    hubspotSourceLocale: hubspot?.sourceLocale ?? "en",
+    hubspotEmailIds: hubspot?.emailIds ? [...hubspot.emailIds] : [],
+    hubspotFormIds: hubspot?.formIds ? [...hubspot.formIds] : [],
+    hubspotBlogPostIds: hubspot?.blogPostIds ? [...hubspot.blogPostIds] : [],
+    hubspotLandingPageIds: hubspot?.landingPageIds ? [...hubspot.landingPageIds] : [],
+    hubspotWebsitePageIds: hubspot?.websitePageIds ? [...hubspot.websitePageIds] : [],
+    hubspotMessageTemplateIds: hubspot?.messageTemplateIds ? [...hubspot.messageTemplateIds] : [],
+    hubspotExistingTranslationPolicy:
+      hubspot?.existingTranslationPolicy === "refresh_imported" ||
+      hubspot?.existingTranslationPolicy === "overwrite_all"
+        ? hubspot.existingTranslationPolicy
+        : "seed_empty",
+    hubspotOverwriteWhenRemoteNewer: hubspot?.overwriteWhenRemoteNewer !== false,
+    mailchimpEnabled: Boolean(mailchimp?.enabled),
+    mailchimpSourceLocale: mailchimp?.sourceLocale ?? "en",
+    mailchimpCampaignIds: mailchimp?.campaignIds ? [...mailchimp.campaignIds] : [],
+    mailchimpTemplateIds: mailchimp?.templateIds ? [...mailchimp.templateIds] : [],
+    mailchimpExistingTranslationPolicy:
+      mailchimp?.existingTranslationPolicy === "refresh_imported" ||
+      mailchimp?.existingTranslationPolicy === "overwrite_all"
+        ? mailchimp.existingTranslationPolicy
+        : "seed_empty",
+    mailchimpOverwriteWhenRemoteNewer: mailchimp?.overwriteWhenRemoteNewer !== false,
+    customerIoBroadcastIds: customerIo?.broadcastIds ? [...customerIo.broadcastIds] : [],
+    customerIoCampaignIds: customerIo?.campaignIds ? [...customerIo.campaignIds] : [],
+    customerIoNewsletterIds: customerIo?.newsletterIds ? [...customerIo.newsletterIds] : [],
+    customerIoTransactionalMessageIds: customerIo?.transactionalMessageIds
+      ? [...customerIo.transactionalMessageIds]
+      : [],
+    customerIoBroadcastActions: { ...customerIo?.broadcastActions },
+    customerIoCampaignActions: { ...customerIo?.campaignActions },
+    customerIoNewsletterActions: { ...customerIo?.newsletterActions },
+    customerIoTransactionalMessageActions: { ...customerIo?.transactionalMessageActions },
+    customerIoExistingTranslationPolicy:
+      customerIo?.existingTranslationPolicy === "refresh_imported" ||
+      customerIo?.existingTranslationPolicy === "overwrite_all"
+        ? customerIo.existingTranslationPolicy
+        : "seed_empty",
+    customerIoOverwriteWhenRemoteNewer: customerIo?.overwriteWhenRemoteNewer !== false,
     brazeSourceLocale: brazeCampaigns?.sourceLocale ?? braze?.sourceLocale ?? "en",
     brazeTemplateIds: braze?.templateIds ? [...braze.templateIds] : [],
     brazeContentBlockIds: braze?.contentBlockIds ? [...braze.contentBlockIds] : [],
@@ -614,6 +794,15 @@ export function createWorkspaceAutomationFormStateFromRecord(
         : "seed_empty",
     brazeOverwriteWhenRemoteNewer:
       (brazeCampaigns?.overwriteWhenRemoteNewer ?? braze?.overwriteWhenRemoteNewer) !== false,
+    iterableEnabled: Boolean(iterable?.enabled),
+    iterableSourceLocale: iterable?.sourceLocale?.trim() || "",
+    iterableTemplateIds: iterable?.templateIds ? [...iterable.templateIds] : [],
+    iterableSnippetIds: iterable?.snippetIds ? [...iterable.snippetIds] : [],
+    iterableExistingTranslationPolicy:
+      iterable?.existingTranslationPolicy === "refresh_imported" ||
+      iterable?.existingTranslationPolicy === "overwrite_all"
+        ? iterable.existingTranslationPolicy
+        : "seed_empty",
     intercomRestEndpoint: intercom?.restEndpoint ?? "us",
     intercomHelpCenterId: intercom?.helpCenterId ?? "",
     intercomHelpCenterLocales: intercom?.helpCenterLocales ? [...intercom.helpCenterLocales] : [],
@@ -685,6 +874,22 @@ export function applyWorkspaceAutomationProjectSelection(
       project.targetLocales.length > 0 && form.contentfulTargetLocales.length === 0
         ? [...project.targetLocales]
         : form.contentfulTargetLocales.filter((locale) => project.targetLocales.includes(locale));
+  }
+
+  if (form.loopsEnabled && project) {
+    next.loopsSourceLocale = project.sourceLocale ?? form.loopsSourceLocale;
+  }
+
+  if (form.hubspotEnabled && project) {
+    next.hubspotSourceLocale = project.sourceLocale ?? form.hubspotSourceLocale;
+  }
+
+  if (form.mailchimpEnabled && project) {
+    next.mailchimpSourceLocale = project.sourceLocale ?? form.mailchimpSourceLocale;
+  }
+
+  if (form.iterableEnabled && project) {
+    next.iterableSourceLocale = project.sourceLocale ?? "";
   }
 
   return next;
@@ -875,6 +1080,76 @@ export function formStateToWorkspaceAutomationPayload(
           },
         }
       : {}),
+    ...(form.iterableEnabled
+      ? {
+          iterable: {
+            enabled: true,
+            ...(form.iterableSourceLocale.trim()
+              ? { sourceLocale: form.iterableSourceLocale.trim() }
+              : {}),
+            templateIds: form.iterableTemplateIds,
+            snippetIds: form.iterableSnippetIds,
+            existingTranslationPolicy: form.iterableExistingTranslationPolicy,
+          },
+        }
+      : {}),
+    ...(form.customerIoEnabled
+      ? {
+          customerIo: {
+            enabled: true,
+            broadcastIds: form.customerIoBroadcastIds,
+            campaignIds: form.customerIoCampaignIds,
+            newsletterIds: form.customerIoNewsletterIds,
+            transactionalMessageIds: form.customerIoTransactionalMessageIds,
+            broadcastActions: form.customerIoBroadcastActions,
+            campaignActions: form.customerIoCampaignActions,
+            newsletterActions: form.customerIoNewsletterActions,
+            transactionalMessageActions: form.customerIoTransactionalMessageActions,
+            existingTranslationPolicy: form.customerIoExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.customerIoOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
+    ...(form.loopsEnabled
+      ? {
+          loops: {
+            enabled: true,
+            sourceLocale: form.loopsSourceLocale.trim() || "en",
+            transactionalIds: [],
+            campaignIds: [],
+            workflowIds: [],
+            existingTranslationPolicy: "seed_empty",
+            overwriteWhenRemoteNewer: true,
+          },
+        }
+      : {}),
+    ...(form.hubspotEnabled
+      ? {
+          hubspot: {
+            enabled: true,
+            sourceLocale: form.hubspotSourceLocale.trim() || "en",
+            emailIds: form.hubspotEmailIds,
+            formIds: form.hubspotFormIds,
+            blogPostIds: form.hubspotBlogPostIds,
+            landingPageIds: form.hubspotLandingPageIds,
+            websitePageIds: form.hubspotWebsitePageIds,
+            messageTemplateIds: form.hubspotMessageTemplateIds,
+            existingTranslationPolicy: form.hubspotExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.hubspotOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
+    ...(form.mailchimpEnabled
+      ? {
+          mailchimp: {
+            enabled: true,
+            campaignIds: form.mailchimpCampaignIds,
+            templateIds: form.mailchimpTemplateIds,
+            existingTranslationPolicy: form.mailchimpExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.mailchimpOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
     ...(form.intercomEnabled
       ? {
           intercom: {
@@ -924,6 +1199,21 @@ export function formStateToWorkspaceAutomationPayload(
             includeDrafts: form.sanityIncludeDrafts,
             overwriteSanityDrafts: form.sanityOverwriteSanityDrafts,
             existingTranslationPolicy: form.sanityExistingTranslationPolicy,
+          },
+        }
+      : {}),
+    ...(form.webflowEnabled
+      ? {
+          webflow: {
+            enabled: true,
+            connectionId: form.webflowConnectionId || undefined,
+            siteId: form.webflowSiteId.trim() || undefined,
+            collectionIds: form.webflowCollectionIds,
+            sourceLocale: form.webflowSourceLocale.trim() || "en",
+            targetLocales: form.webflowTargetLocales,
+            existingTranslationPolicy: form.webflowExistingTranslationPolicy,
+            runQa: form.webflowRunQa,
+            publishOnPush: form.webflowPublishOnPush,
           },
         }
       : {}),
@@ -1089,6 +1379,12 @@ export function validateWorkspaceAutomationFormState(
     errors.projectId = "Choose a Hyperlocalise project.";
   }
 
+  if (form.iterableEnabled && !form.iterableSourceLocale.trim()) {
+    errors.iterableSourceLocale = form.projectId.trim()
+      ? "Choose a source locale."
+      : "Choose a project above to pick a source locale.";
+  }
+
   if (form.githubEnabled) {
     if (!form.githubInstallationRepositoryId) {
       errors.githubRepository = "Choose a GitHub repository.";
@@ -1198,6 +1494,19 @@ export function validateWorkspaceAutomationFormState(
       if (unsupported.length > 0) {
         errors.sanitySourceLocale = `Source locale ${form.sanitySourceLocale} is not available for: ${unsupported.map((typeName) => sanityDocumentTypeTitle(typeName)).join(", ")}.`;
       }
+    }
+  }
+
+  if (form.webflowEnabled) {
+    if (!form.webflowConnectionId) {
+      errors.webflowConnectionId = "Choose a Webflow connection.";
+    }
+    if (form.webflowCollectionIds.length === 0) {
+      errors.webflowCollectionIds = "Choose at least one Webflow collection.";
+    }
+    if (!form.webflowSourceLocale.trim()) {
+      errors.webflowSourceLocale =
+        "Choose a Webflow source locale that matches the project source language.";
     }
   }
 
@@ -1375,6 +1684,14 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "sanity_source_locale_unmapped":
     case "sanity_source_locale_mismatch":
       return { sanitySourceLocale: message };
+    case "webflow_not_connected":
+      return { webflow: message };
+    case "webflow_connection_required":
+      return { webflowConnectionId: message };
+    case "webflow_collection_ids_required":
+      return { webflowCollectionIds: message };
+    case "webflow_source_locale_mismatch":
+      return { webflowSourceLocale: message };
     case "braze_not_connected":
     case "braze_pipes_needs_reauthorization":
     case "braze_pipes_unavailable":
@@ -1383,6 +1700,22 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
       return { braze: message };
     case "braze_source_locale_mismatch":
       return { brazeSourceLocale: message };
+    case "customer_io_not_connected":
+    case "customer_io_pipes_needs_reauthorization":
+    case "customer_io_pipes_unavailable":
+      return { customerIo: message };
+    case "loops_not_connected":
+    case "loops_pipes_needs_reauthorization":
+    case "loops_pipes_unavailable":
+      return { loops: message };
+    case "hubspot_not_connected":
+    case "hubspot_pipes_needs_reauthorization":
+    case "hubspot_pipes_unavailable":
+      return { hubspot: message };
+    case "iterable_not_connected":
+    case "iterable_pipes_needs_reauthorization":
+    case "iterable_pipes_unavailable":
+      return { iterable: message };
     case "crowdin_project_required":
     case "crowdin_project_not_found":
     case "crowdin_project_not_linked":
@@ -1453,8 +1786,14 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.intercomEnabled ||
     form.googleDriveEnabled ||
     form.sanityEnabled ||
+    form.webflowEnabled ||
     form.brazeEnabled ||
     form.brazeCampaignsEnabled ||
+    form.customerIoEnabled ||
+    form.iterableEnabled ||
+    form.loopsEnabled ||
+    form.hubspotEnabled ||
+    form.mailchimpEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
     form.listIssuesEnabled ||

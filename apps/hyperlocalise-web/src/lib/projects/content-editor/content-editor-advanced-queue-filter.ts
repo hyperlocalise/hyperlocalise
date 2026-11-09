@@ -12,6 +12,7 @@
  */
 import { z } from "zod";
 
+import { translationOrigins } from "@/lib/projects/translations/translation-origin-rule";
 import { translationQaCheckTypes } from "@/lib/qa/types";
 
 export const crowdinUnresolvedIssueQualifiers = [
@@ -293,6 +294,7 @@ const allowedQualifiers = new Set<string>([
   ...crowdinMachineTranslationQualifiers,
   ...nativeMachineTranslationQualifiers,
   ...nativeUnresolvedIssueQualifiers,
+  ...translationOrigins,
 ]);
 
 export function parseQueueFilterQualifier(value: string | null | undefined) {

@@ -16,6 +16,7 @@ import { and, eq, or, isNull, lte, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/database/client";
 import { createVisualWorkflowExecutionQueue } from "@/workflows/adapters";
 import { getVisualWorkflowRunById } from "./visual-workflow-runs";
+import { cancelHumanApprovalRequestsForRuns } from "./human-approval-requests";
 const logger = createLogger("visual-workflow-recovery");
 type RunIdentity = { organizationId: string; visualWorkflowId: string; runId: string };
 export async function requestWorkflowCancellation(input: RunIdentity) {
@@ -54,6 +55,11 @@ export async function requestWorkflowCancellation(input: RunIdentity) {
         inArray(schema.visualWorkflowRuns.status, ["queued", "running"]),
       ),
     );
+  await cancelHumanApprovalRequestsForRuns({
+    organizationId: input.organizationId,
+    runIds,
+    now,
+  });
   return getVisualWorkflowRunById(input);
 }
 export async function retryWorkflowRun(input: RunIdentity) {

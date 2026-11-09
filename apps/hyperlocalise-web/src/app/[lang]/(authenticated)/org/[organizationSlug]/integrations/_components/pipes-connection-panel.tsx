@@ -100,11 +100,17 @@ export function PipesConnectionPanel({
   provider,
   disabled,
   isLast = false,
+  name,
+  description,
 }: {
   organizationSlug: string;
   provider: PipesProviderSlug;
   disabled?: boolean;
   isLast?: boolean;
+  /** Replaces the provider's usual name, for example to tell a per-member sign-in apart. */
+  name?: string;
+  /** Replaces the provider's usual description, for example to say it isn't in use. */
+  description?: string;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -132,8 +138,8 @@ export function PipesConnectionPanel({
 
   return (
     <CollapsibleIntegrationRow
-      name={providerName}
-      description={summary?.detail ?? ""}
+      name={name ?? providerName}
+      description={description ?? summary?.detail ?? ""}
       icon={
         summary?.logoSrc ? (
           <IntegrationLogo src={summary.logoSrc} />

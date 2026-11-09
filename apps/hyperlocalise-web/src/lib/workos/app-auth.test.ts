@@ -21,6 +21,7 @@ const {
   getStoredActiveOrganizationSlugMock,
   setStoredActiveOrganizationSlugMock,
   redirectForMissingOrganizationAccessMock,
+  hasPendingInvitationToOrganizationMock,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((location: string) => {
     throw new Error(`redirect:${location}`);
@@ -32,6 +33,7 @@ const {
   redirectForMissingOrganizationAccessMock: vi.fn(async () => {
     throw new Error("redirect:/auth/onboarding");
   }),
+  hasPendingInvitationToOrganizationMock: vi.fn(async () => false),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -58,6 +60,39 @@ vi.mock("@/lib/workos/active-organization", () => ({
 vi.mock("@/lib/workos/missing-organization-access", () => ({
   redirectForMissingOrganizationAccess: redirectForMissingOrganizationAccessMock,
 }));
+
+vi.mock("@/lib/workos/pending-invitations", () => ({
+  hasPendingInvitationToOrganization: hasPendingInvitationToOrganizationMock,
+}));
+
+describe("getAppAuthContextAllowingNoWorkspace", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each([
+    ["has no memberships", () => resolveApiAuthContextFromSessionMock.mockResolvedValue(null)],
+    [
+      "is refused access",
+      () =>
+        resolveApiAuthContextFromSessionMock.mockRejectedValue(
+          new Error("organization_access_denied"),
+        ),
+    ],
+  ])("returns no workspace instead of redirecting when the person %s", async (_case, arrange) => {
+    const user = { id: "user_123", email: "person@example.com", emailVerified: true };
+    withAuthMock.mockResolvedValue({ user, organizationId: null });
+    arrange();
+
+    const { getAppAuthContextAllowingNoWorkspace } = await import("./app-auth");
+
+    expect(
+      await getAppAuthContextAllowingNoWorkspace({ ignoreStoredActiveOrganization: true }),
+    ).toEqual({ sessionUser: user, auth: null });
+    expect(redirectForMissingOrganizationAccessMock).not.toHaveBeenCalled();
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+});
 
 describe("requireAppAuthContext", () => {
   afterEach(() => {
@@ -102,6 +137,24 @@ describe("requireAppAuthContext", () => {
     expect(redirectForMissingOrganizationAccessMock).toHaveBeenCalledWith({
       email: "person@example.com",
       workosUserId: "user_123",
+    });
+  });
+
+  it("tells the redirect helper whether the email is verified", async () => {
+    withAuthMock.mockResolvedValue({
+      user: { id: "user_123", email: "person@example.com", emailVerified: true },
+      organizationId: null,
+    });
+    getStoredActiveOrganizationSlugMock.mockResolvedValue(null);
+    resolveApiAuthContextFromSessionMock.mockResolvedValue(null);
+
+    const { requireAppAuthContext } = await import("./app-auth");
+
+    await expect(requireAppAuthContext()).rejects.toThrow("redirect:/auth/onboarding");
+    expect(redirectForMissingOrganizationAccessMock).toHaveBeenCalledWith({
+      email: "person@example.com",
+      workosUserId: "user_123",
+      emailVerified: true,
     });
   });
 
@@ -170,5 +223,51 @@ describe("requireAppAuthContext", () => {
     ).rejects.toThrow("redirect:/org/new-slug/dashboard?error=oauth_callback");
     expect(setStoredActiveOrganizationSlugMock).toHaveBeenCalledWith("new-slug");
     expect(redirectMock).toHaveBeenCalledWith("/org/new-slug/dashboard?error=oauth_callback");
+  });
+
+  it("offers the invitation instead of another workspace for an invited, unjoined workspace", async () => {
+    const session = {
+      user: { id: "user_123", email: "person@example.com", emailVerified: true },
+      organizationId: "org_home",
+    };
+    const { StaleOrganizationSlugError } = await import("@/api/auth/workos-session");
+
+    withAuthMock.mockResolvedValue(session);
+    hasPendingInvitationToOrganizationMock.mockResolvedValueOnce(true);
+    resolveApiAuthContextFromSessionMock.mockRejectedValue(
+      new StaleOrganizationSlugError("invited-workspace", "home-workspace"),
+    );
+
+    const { requireAppAuthContext } = await import("./app-auth");
+
+    await expect(requireAppAuthContext({ organizationSlug: "invited-workspace" })).rejects.toThrow(
+      "redirect:/auth/select-organization",
+    );
+    expect(hasPendingInvitationToOrganizationMock).toHaveBeenCalledWith(
+      "user_123",
+      "invited-workspace",
+    );
+    expect(setStoredActiveOrganizationSlugMock).not.toHaveBeenCalled();
+  });
+
+  it("does not reveal invitations to a session whose email is not verified", async () => {
+    const session = {
+      user: { id: "user_123", email: "person@example.com", emailVerified: false },
+      organizationId: "org_home",
+    };
+    const { StaleOrganizationSlugError } = await import("@/api/auth/workos-session");
+
+    withAuthMock.mockResolvedValue(session);
+    hasPendingInvitationToOrganizationMock.mockResolvedValue(true);
+    resolveApiAuthContextFromSessionMock.mockRejectedValue(
+      new StaleOrganizationSlugError("invited-workspace", "home-workspace"),
+    );
+
+    const { requireAppAuthContext } = await import("./app-auth");
+
+    await expect(requireAppAuthContext({ organizationSlug: "invited-workspace" })).rejects.toThrow(
+      "redirect:/org/home-workspace/dashboard",
+    );
+    expect(hasPendingInvitationToOrganizationMock).not.toHaveBeenCalled();
   });
 });

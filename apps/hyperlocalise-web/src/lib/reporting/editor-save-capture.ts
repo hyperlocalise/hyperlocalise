@@ -451,7 +451,6 @@ async function recordSaves(
       translationId: translation.id,
       revisionId: segment.revisionId,
       at: segment.occurredAt,
-      text: translation.text,
     })),
   );
   const originOf = new Map(

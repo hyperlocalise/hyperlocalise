@@ -552,7 +552,7 @@ describe("workspace automations", () => {
     expect(notificationOnlySchedule.error).toMatchObject({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Google Drive, Braze, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
     });
 
     const scheduledWebSearch = expectOk(
@@ -602,7 +602,7 @@ describe("workspace automations", () => {
     expect(scheduledUpdate.error).toMatchObject({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Google Drive, Braze, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
     });
   });
 
@@ -1653,6 +1653,35 @@ describe("workspace automations", () => {
       throw new Error("expected update-path semrush validation error");
     }
     expect(updateRejected.error.code).toBe("semrush_not_connected");
+  });
+
+  it("saves a GitLab automation without a personal sign-in when the workspace has a server", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    await db.insert(schema.gitlabConnections).values({
+      organizationId: scope.organizationId,
+      serverUrl: "https://git.acme.example",
+      connectedUsername: "translations-bot",
+      encryptionAlgorithm: "aes-256-gcm",
+      ciphertext: "unused",
+      iv: "unused",
+      authTag: "unused",
+      maskedTokenSuffix: "••••abcd",
+    });
+
+    const created = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "GitLab automation",
+        instructions: "Review localisation impact.",
+        triggerConfig: { mode: "manual" as const },
+        repositoryTarget: { kind: "gitlab", gitlabPathWithNamespace: "acme/web" },
+        toolConfig: { gitlab: { enabled: true } },
+      }),
+    );
+
+    expect(created.toolConfig.gitlab?.enabled).toBe(true);
+    expect(pipesMocks.getGitLabPipesConnectionStatus).not.toHaveBeenCalled();
   });
 
   it("creates GitLab.com automations and keeps GitHub exclusive", async () => {

@@ -69,6 +69,10 @@ import {
   SegmentStatusBadge,
   shouldShowSegmentStatusBadge,
 } from "@/components/content-editor/segment/content-editor-segment-status";
+import {
+  CONTENT_EDITOR_SEGMENT_CHECKBOX_ATTRIBUTE,
+  ContentEditorSegmentCheckbox,
+} from "@/components/content-editor/segment/content-editor-segment-checkbox";
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
 import { ContentEditorSegmentTags } from "@/components/content-editor/segment/content-editor-segment-tags";
 import { ContentEditorSegmentActionsMenu } from "@/components/content-editor/segment/content-editor-segment-actions-menu";
@@ -86,7 +90,9 @@ import type {
 
 import { ContentEditorSideBySideAiSuggestion } from "./content-editor-side-by-side-ai-suggestion";
 import {
+  SIDE_BY_SIDE_CHECK_AREA_CLASS_NAME,
   SIDE_BY_SIDE_GRID_CLASS_NAME,
+  SIDE_BY_SIDE_SELECTION_GRID_CLASS_NAME,
   SIDE_BY_SIDE_SOURCE_AREA_CLASS_NAME,
   SIDE_BY_SIDE_STATUS_AREA_CLASS_NAME,
   SIDE_BY_SIDE_TARGET_AREA_CLASS_NAME,
@@ -149,6 +155,8 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   onRegenerateImage,
   onUploadImage,
   onToggleLocked,
+  checkedSegmentIds,
+  onCheckedChange,
 }: {
   segment: ContentEditorSegment;
   isFocused: boolean;
@@ -183,6 +191,9 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   onRegenerateImage?: () => void;
   onUploadImage?: (file: File) => void;
   onToggleLocked?: () => void | Promise<void>;
+  checkedSegmentIds?: ReadonlySet<string>;
+  /** Shows the bulk-selection tick box when set (Select mode). */
+  onCheckedChange?: (checked: boolean) => void;
 }) {
   const intl = useIntl();
   const isMac = useIsMac();
@@ -201,8 +212,11 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
     () =>
       isAssetSegment
         ? null
-        : analyzeCatMessageFormat(segment.sourceText, { messageFormat: segment.messageFormat }),
-    [isAssetSegment, segment.messageFormat, segment.sourceText],
+        : analyzeCatMessageFormat(segment.sourceText, {
+            messageFormat: segment.messageFormat,
+            placeholderPatterns: segment.placeholderPatterns,
+          }),
+    [isAssetSegment, segment.messageFormat, segment.placeholderPatterns, segment.sourceText],
   );
   const hasApprovingTarget = isAssetSegment
     ? hasAssetTarget(segment)
@@ -344,7 +358,8 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
       const activeElement = document.activeElement;
       if (
         activeElement instanceof HTMLElement &&
-        activeElement.dataset.contentEditorCommentInput === "true"
+        (activeElement.dataset.contentEditorCommentInput === "true" ||
+          activeElement.hasAttribute(CONTENT_EDITOR_SEGMENT_CHECKBOX_ATTRIBUTE))
       ) {
         return;
       }
@@ -436,6 +451,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
           <Text size="small" wrapStyle="pretty">
             <ContentEditorMessagePreview
               message={segment.targetText}
+              placeholderPatterns={segment.placeholderPatterns}
               companionMessage={segment.sourceText}
             />
           </Text>
@@ -468,7 +484,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   return (
     <div
       className={cn(
-        SIDE_BY_SIDE_GRID_CLASS_NAME,
+        onCheckedChange ? SIDE_BY_SIDE_SELECTION_GRID_CLASS_NAME : SIDE_BY_SIDE_GRID_CLASS_NAME,
         "group/row gap-y-2 border-b border-border px-4 py-3 transition-colors",
         isFocused ? "bg-primary/5" : isActive && "bg-muted/40",
       )}
@@ -476,6 +492,15 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
       onMouseLeave={() => setIsPointerHovered(false)}
       onFocus={onFocus}
     >
+      {onCheckedChange ? (
+        <ContentEditorSegmentCheckbox
+          className={SIDE_BY_SIDE_CHECK_AREA_CLASS_NAME}
+          segmentId={segment.id}
+          segmentKey={segment.key}
+          checkedSegmentIds={checkedSegmentIds}
+          onCheckedChange={onCheckedChange}
+        />
+      ) : null}
       <div className={SIDE_BY_SIDE_STATUS_AREA_CLASS_NAME}>{statusBadges}</div>
 
       <div className={SIDE_BY_SIDE_SOURCE_AREA_CLASS_NAME}>
@@ -526,6 +551,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
               <Text size="small" wrapStyle="pretty">
                 <ContentEditorMessagePreview
                   message={segment.sourceText}
+                  placeholderPatterns={segment.placeholderPatterns}
                   companionMessage={segment.targetText}
                 />
               </Text>
@@ -611,6 +637,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                       value={segment.targetText}
                       maxLength={segment.maxLength}
                       messageFormat={segment.messageFormat}
+                      placeholderPatterns={segment.placeholderPatterns}
                       compact
                       highlightTokens={highlightTokens}
                       highlightStatus={highlightStatus}
@@ -709,6 +736,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                     <Text size="small" wrapStyle="pretty">
                       <ContentEditorMessagePreview
                         message={segment.targetText}
+                        placeholderPatterns={segment.placeholderPatterns}
                         companionMessage={segment.sourceText}
                         highlightTokens={highlightTokens}
                         highlightStatus={highlightStatus}

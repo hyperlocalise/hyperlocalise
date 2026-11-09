@@ -263,6 +263,7 @@ export async function localizeImageUrlTranslation(input: {
           text: assetUrl,
           status: "needs_review",
           provenance: "agent",
+          origin: "machine",
           metadata: {
             contentKind: IMAGE_URL_CONTENT_KIND,
             storedFileId: stored.id,
@@ -277,6 +278,7 @@ export async function localizeImageUrlTranslation(input: {
             text: assetUrl,
             status: "needs_review",
             provenance: "agent",
+            origin: "machine",
             reviewedByUserId: null,
             reviewedAt: null,
             metadata: {
@@ -406,6 +408,8 @@ export async function replaceImageUrlTranslationBytes(input: {
           text: assetUrl,
           status: "needs_review",
           provenance: "manual",
+          // A person's own asset: always new text, so human.
+          origin: "human",
           metadata: {
             contentKind: IMAGE_URL_CONTENT_KIND,
             storedFileId: stored.id,
@@ -420,6 +424,8 @@ export async function replaceImageUrlTranslationBytes(input: {
             text: assetUrl,
             status: "needs_review",
             provenance: "manual",
+            // A person's own asset: always new text, so human.
+            origin: "human",
             reviewedByUserId: null,
             reviewedAt: null,
             metadata: {

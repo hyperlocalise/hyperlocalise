@@ -17,6 +17,7 @@ import { createPortal } from "react-dom";
 import {
   BracketsCurlyIcon,
   DownloadSimpleIcon,
+  FunnelIcon,
   ListBulletsIcon,
   GearSixIcon,
   TranslateIcon,
@@ -47,6 +48,7 @@ export type ProjectFileTreeActionsConfig = {
   onDownloadFile?: (file: ProjectFileRecord) => void;
   onSegmentationSettings?: (file: ProjectFileRecord) => void;
   onMessageFormatSettings?: (file: ProjectFileRecord) => void;
+  onImportSettings?: (file: ProjectFileRecord) => void;
 };
 
 const MENU_MIN_WIDTH_PX = 208;
@@ -239,6 +241,22 @@ export function ProjectFileTreeContextMenu({
           >
             <BracketsCurlyIcon />
             <FormattedMessage {...messages.messageFormatSettings} />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full justify-start"
+            disabled={!capabilities.canConfigureImportSettings}
+            onClick={() => {
+              closeMenu();
+              runAfterMenuClose(() => {
+                fileActions.onImportSettings?.(file);
+              });
+            }}
+          >
+            <FunnelIcon />
+            <FormattedMessage {...messages.importSettings} />
           </Button>
         </>
       ) : null}

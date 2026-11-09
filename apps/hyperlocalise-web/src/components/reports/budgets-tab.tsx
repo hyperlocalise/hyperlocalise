@@ -23,12 +23,7 @@ import { budgetsTabMessages as messages } from "./budgets-tab.messages";
 import { formatUsd } from "./report-format";
 import { DownloadCsvButton, ReportEmpty, ReportSectionState } from "./report-section";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./report-table";
-import {
-  budgetsQuery,
-  reportDownloadUrl,
-  useBudgets,
-  type ReportSettings,
-} from "./reports-queries";
+import { budgetsQuery, useReportCsv, useBudgets, type ReportSettings } from "./reports-queries";
 import { SetBudgetDialog } from "./set-budget-dialog";
 
 type BudgetStatus = "on_track" | "over_80" | "forecast_over" | "over_budget";
@@ -60,6 +55,7 @@ export function BudgetsTab({
   projectId: string | null;
 }) {
   const intl = useIntl();
+  const csv = useReportCsv(organizationSlug);
   const budgets = useBudgets(organizationSlug, projectId);
   const [editing, setEditing] = useState(false);
   const numeric = "text-right tabular-nums";
@@ -73,9 +69,7 @@ export function BudgetsTab({
         ) : (
           <span />
         )}
-        <DownloadCsvButton
-          href={reportDownloadUrl(organizationSlug, "budgets", budgetsQuery(projectId))}
-        />
+        <DownloadCsvButton download={() => csv.section("budgets", budgetsQuery(projectId))} />
       </div>
       <ReportSectionState query={budgets}>
         {(data) => {

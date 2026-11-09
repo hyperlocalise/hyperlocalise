@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { switchableWorkspaces } from "@/lib/workos/switchable-workspaces";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
 import { MembersPageContent } from "../_components/members-page-content";
@@ -33,7 +34,13 @@ async function MembersSettingsPageLoader({
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-  await requireAppAuthContext({ organizationSlug });
+  const auth = await requireAppAuthContext({ organizationSlug });
 
-  return <MembersPageContent organizationSlug={organizationSlug} />;
+  return (
+    <MembersPageContent
+      organizationSlug={organizationSlug}
+      organizationName={auth.activeOrganization.name}
+      isOnlyWorkspace={switchableWorkspaces(auth.organizations).length <= 1}
+    />
+  );
 }

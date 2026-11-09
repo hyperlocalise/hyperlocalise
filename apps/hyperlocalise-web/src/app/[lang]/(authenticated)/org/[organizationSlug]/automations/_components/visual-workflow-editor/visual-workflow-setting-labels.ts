@@ -27,6 +27,12 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     events: messages.githubEvents,
   },
   "trigger.source_upload": { projectId: messages.sourceUploadProject },
+  "trigger.job_changed": {
+    projectId: messages.jobChangedProject,
+    eventTypes: messages.jobChangedEventTypes,
+    jobKinds: messages.jobChangedJobKinds,
+    toStatuses: messages.jobChangedToStatuses,
+  },
   "action.http": {
     method: messages.httpMethod,
     url: messages.httpUrl,
@@ -45,6 +51,8 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     resourceKey: messages.contentSyncResource,
     providerFolder: messages.contentSyncProviderFolder,
     projectFolder: messages.contentSyncProjectFolder,
+    branch: messages.contentSyncBranch,
+    pathTemplate: messages.contentSyncPathTemplate,
     ...ON_ERROR,
   },
   "action.machine_translate": {
@@ -76,6 +84,24 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     projectId: messages.localizationProjectId,
     pathPrefix: messages.listFilesPathPrefix,
     ...ON_ERROR,
+  },
+  "action.file_read": {
+    fileId: messages.localizationSourceFileId,
+    encoding: messages.fileEncoding,
+  },
+  "action.file_write": {
+    content: messages.fileContent,
+    filename: messages.fileName,
+    contentType: messages.fileContentType,
+    encoding: messages.fileEncoding,
+    locale: messages.fileLocale,
+    sourceFileId: messages.localizationSourceFileIdOptional,
+  },
+  "action.file_convert": {
+    fileId: messages.localizationSourceFileId,
+    targetFormat: messages.fileTargetFormat,
+    filename: messages.fileName,
+    locale: messages.fileLocale,
   },
   "action.update_job": {
     jobId: messages.updateJobJobId,
@@ -151,8 +177,21 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     missingBehavior: messages.selectPathMissingBehavior,
     defaultValue: messages.selectPathDefaultValue,
   },
+  "logic.json_parse": { text: messages.jsonParseText },
+  "logic.json_stringify": { value: messages.jsonStringifyValue },
+  "logic.schema_validate": {
+    value: messages.schemaValidateValue,
+    schema: messages.schemaValidateSchema,
+  },
   "ai.agent": { prompt: messages.aiPrompt, ...ON_ERROR },
   "logic.for_each": { collection: messages.forEachCollection },
+  "logic.array_transform": {
+    operation: messages.arrayTransformOperation,
+    collection: messages.forEachCollection,
+    itemType: messages.arrayTransformItemType,
+    resultType: messages.arrayTransformResultType,
+    initialValue: messages.arrayTransformInitialValue,
+  },
   "logic.retry": {
     maxAttempts: messages.retryMaxAttempts,
     initialDelayMs: messages.retryInitialDelay,

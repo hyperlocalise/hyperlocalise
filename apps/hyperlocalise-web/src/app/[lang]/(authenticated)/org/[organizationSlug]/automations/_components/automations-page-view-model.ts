@@ -25,6 +25,10 @@ import {
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationContentfulWorkflow,
   hasWorkspaceAutomationCrowdinTool,
+  hasWorkspaceAutomationCustomerIoTool,
+  hasWorkspaceAutomationHubspotTool,
+  hasWorkspaceAutomationMailchimpTool,
+  hasWorkspaceAutomationIterableTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
   hasWorkspaceAutomationSemrushTool,
@@ -173,6 +177,10 @@ export const AUTOMATION_LIST_TOOL_IDS = [
   "intercom",
   "sanity",
   "braze",
+  "iterable",
+  "customerIo",
+  "hubspot",
+  "mailchimp",
   "crowdin",
   "webSearch",
   "semrush",
@@ -278,6 +286,22 @@ export function resolveAutomationTools(
     hasWorkspaceAutomationBrazeCampaignsTool(toolConfig)
   ) {
     addTool(tools, "braze", intl.formatMessage(automationsPageViewModelMessages.toolBraze));
+  }
+  if (hasWorkspaceAutomationIterableTool(toolConfig)) {
+    addTool(tools, "iterable", intl.formatMessage(automationsPageViewModelMessages.toolIterable));
+  }
+  if (hasWorkspaceAutomationCustomerIoTool(toolConfig)) {
+    addTool(
+      tools,
+      "customerIo",
+      intl.formatMessage(automationsPageViewModelMessages.toolCustomerIo),
+    );
+  }
+  if (hasWorkspaceAutomationHubspotTool(toolConfig)) {
+    addTool(tools, "hubspot", intl.formatMessage(automationsPageViewModelMessages.toolHubspot));
+  }
+  if (hasWorkspaceAutomationMailchimpTool(toolConfig)) {
+    addTool(tools, "mailchimp", intl.formatMessage(automationsPageViewModelMessages.toolMailchimp));
   }
   if (hasWorkspaceAutomationCrowdinTool(toolConfig)) {
     addTool(tools, "crowdin", intl.formatMessage(automationsPageViewModelMessages.toolCrowdin));

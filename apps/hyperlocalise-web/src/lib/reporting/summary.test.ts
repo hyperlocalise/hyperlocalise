@@ -653,7 +653,6 @@ describe("reporting daily summary", () => {
     await captureJobStatus({
       jobId: cancelled.id,
       status: "cancelled",
-      operationKey: `cancel:${cancelled.id}`,
     });
     await expectSummaryMatchesRecount(organization.id);
     expect((await project_rows()).rows[0]).toEqual({ arrived: 2, done: 0, abandoned: 2 });
@@ -700,7 +699,7 @@ describe("reporting daily summary", () => {
         .update(schema.jobs)
         .set({ status: "cancelled", completedAt: new Date() })
         .where(eq(schema.jobs.id, jobId));
-      await captureJobStatus({ jobId, status: "cancelled", operationKey: `cancel:${jobId}` });
+      await captureJobStatus({ jobId, status: "cancelled" });
       await expectSummaryMatchesRecount(organization.id);
     };
     const projectRows = async () =>

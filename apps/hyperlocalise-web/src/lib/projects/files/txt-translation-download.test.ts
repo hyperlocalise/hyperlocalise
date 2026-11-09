@@ -90,11 +90,52 @@ describe("loadProjectTxtTranslationDownload", () => {
       extension: ".txt",
       translatedKeyCount: 1,
     });
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        readyTranslationsOnly: true,
+        approvedTranslationsOnly: undefined,
+      }),
+    );
     expect(mocks.plaintextApply).toHaveBeenCalledWith({
       template: new Uint8Array([1, 2, 3]),
       values: { "txt.0001": "Bonjour" },
       targetLocale: "fr-FR",
     });
+  });
+
+  it("forwards approvedTranslationsOnly to the translation loader", async () => {
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      prefilled: { "txt.0001": "Bonjour" },
+      loadedKeyCount: 1,
+      translatedKeyCount: 1,
+    });
+    mocks.getLatestRepositorySourceFileVersion.mockResolvedValue({ storedFileId: "stored_1" });
+    mocks.getStoredFileContent.mockResolvedValue({ content: new Uint8Array([1]) });
+    mocks.plaintextApply.mockResolvedValue({
+      content: new Uint8Array([2]),
+    });
+
+    await loadProjectTxtTranslationDownload({ ...INPUT, approvedTranslationsOnly: true });
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        approvedTranslationsOnly: true,
+        readyTranslationsOnly: true,
+      }),
+    );
+  });
+
+  it("returns source_content_not_found when stored bytes cannot be read", async () => {
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      prefilled: { "txt.0001": "Bonjour" },
+      loadedKeyCount: 1,
+      translatedKeyCount: 1,
+    });
+    mocks.getLatestRepositorySourceFileVersion.mockResolvedValue({ storedFileId: "stored_1" });
+    mocks.getStoredFileContent.mockRejectedValue(new Error("missing object"));
+
+    const result = await loadProjectTxtTranslationDownload(INPUT);
+    expect(result).toEqual(err({ code: "source_content_not_found" }));
+    expect(mocks.plaintextApply).not.toHaveBeenCalled();
   });
 
   it("returns source_content_not_found when the stored source is missing", async () => {
@@ -125,6 +166,25 @@ describe("loadProjectTxtTranslationDownload", () => {
         status: 500,
       }),
     );
+
+    const result = await loadProjectTxtTranslationDownload(INPUT);
+    expect(result).toEqual(
+      err({
+        code: "plaintext_export_failed",
+        message: "Could not write translations into the text file.",
+      }),
+    );
+  });
+
+  it("maps unexpected apply errors to the default plaintext export message", async () => {
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue({
+      prefilled: { "txt.0001": "Bonjour" },
+      loadedKeyCount: 1,
+      translatedKeyCount: 1,
+    });
+    mocks.getLatestRepositorySourceFileVersion.mockResolvedValue({ storedFileId: "stored_1" });
+    mocks.getStoredFileContent.mockResolvedValue({ content: new Uint8Array([1]) });
+    mocks.plaintextApply.mockRejectedValue(new Error("socket hang up"));
 
     const result = await loadProjectTxtTranslationDownload(INPUT);
     expect(result).toEqual(

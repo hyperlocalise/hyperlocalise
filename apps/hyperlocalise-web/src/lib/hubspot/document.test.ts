@@ -1,0 +1,779 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { describe, expect, it } from "vite-plus/test";
+
+import {
+  applyEmailDocument,
+  applyStringTree,
+  applyFormDocument,
+  applyPageDocument,
+  applyBlogContentDocument,
+  buildBlogContentDocument,
+  buildBlogDocument,
+  buildEmailDocument,
+  buildEmailHtmlDocument,
+  buildFormDocument,
+  buildMessageTemplateDocument,
+  buildPageDocument,
+  mergeHubspotTranslations,
+  messageTemplateHasCopy,
+  extractEmailStyleSettings,
+  readBlogDocument,
+  readEmailHtmlDocument,
+  readMessageTemplateDocument,
+} from "./document";
+
+describe("hubspot documents", () => {
+  it("ignores __proto__ keys when applying translation trees", () => {
+    const target = { body: "Welcome" };
+    applyStringTree(target, JSON.parse('{"body":"Bienvenue","__proto__":"polluted"}'));
+    expect(target.body).toBe("Bienvenue");
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect(Object.prototype.hasOwnProperty.call(target, "__proto__")).toBe(false);
+  });
+
+  it("lifts preview text and leaves widget ids, urls, and colors out of the tree", () => {
+    const document = buildEmailDocument({
+      subject: "Hello",
+      widgets: {
+        module: {
+          id: "widget-1",
+          body: "Welcome",
+          href: "https://example.com",
+          color: "#ff4800",
+          preview_text: "See you soon",
+        },
+      },
+    });
+
+    expect(document.subject).toBe("Hello");
+    expect(document.previewText).toBe("See you soon");
+    expect(JSON.stringify(document)).not.toContain("widget-1");
+    expect(JSON.stringify(document)).not.toContain("https://example.com");
+    expect(JSON.stringify(document)).not.toContain("#ff4800");
+    expect(document.widgets).toEqual({ module: { body: "Welcome" } });
+  });
+
+  it("writes translations back onto existing widget strings", () => {
+    const source = buildEmailDocument({
+      subject: "Hello",
+      widgets: { module: { body: "Welcome", preview_text: "Soon" } },
+    });
+    const translated = mergeHubspotTranslations(source, {
+      subject: "Bonjour",
+      "widgets.module.body": "Bienvenue",
+      previewText: "Bientot",
+      "widgets.module.missing": "skip",
+    });
+    const applied = applyEmailDocument(
+      { module: { id: "widget-1", body: "Welcome", preview_text: "Soon" } },
+      translated,
+    );
+    expect(applied.subject).toBe("Bonjour");
+    expect(applied.widgets).toMatchObject({
+      module: { id: "widget-1", body: "Bienvenue", preview_text: "Bientot" },
+    });
+  });
+
+  it("extracts every form group, dependent field, thank-you, and legal copy", () => {
+    const definition = {
+      displayOptions: { submitButtonText: "Send" },
+      configuration: {
+        language: "en",
+        postSubmitAction: { type: "thank_you", value: "Thanks for joining" },
+      },
+      legalConsentOptions: {
+        type: "explicit_consent_to_process",
+        privacyText: "We keep this private",
+        communicationConsentText: "Email me updates",
+      },
+      fieldGroups: [
+        {
+          groupType: "default_group",
+          richTextType: "text",
+          richText: "Step one intro",
+          fields: [
+            {
+              name: "email",
+              label: "Email",
+              placeholder: "you@example.com",
+              dependentFields: [
+                {
+                  dependentField: {
+                    name: "company",
+                    label: "Company",
+                    placeholder: "Acme",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          groupType: "queued",
+          richTextType: "text",
+          richText: "Step two intro",
+          fields: [
+            {
+              name: "role",
+              label: "Role",
+              options: [{ value: "eng", label: "Engineer" }],
+            },
+          ],
+        },
+      ],
+    };
+    const document = buildFormDocument(definition);
+    expect(document).toEqual({
+      submitText: "Send",
+      thankYou: "Thanks for joining",
+      fields: {
+        email: {
+          label: "Email",
+          placeholder: "you@example.com",
+        },
+        company: {
+          label: "Company",
+          placeholder: "Acme",
+        },
+        role: {
+          label: "Role",
+          options: { eng: "Engineer" },
+        },
+      },
+      groups: {
+        "0": { richText: "Step one intro" },
+        "1": { richText: "Step two intro" },
+      },
+      legal: {
+        privacyText: "We keep this private",
+        communicationConsentText: "Email me updates",
+      },
+    });
+    const translated = mergeHubspotTranslations(document, {
+      submitText: "Envoyer",
+      thankYou: "Merci de nous rejoindre",
+      "fields.email.label": "Courriel",
+      "fields.company.label": "Entreprise",
+      "fields.role.options.eng": "Ingenieur",
+      "groups.0.richText": "Intro etape un",
+      "legal.privacyText": "Nous gardons ceci prive",
+    });
+    const applied = applyFormDocument(definition, translated);
+    expect((applied.displayOptions as { submitButtonText: string }).submitButtonText).toBe(
+      "Envoyer",
+    );
+    expect(
+      (applied.configuration as { postSubmitAction: { value: string } }).postSubmitAction.value,
+    ).toBe("Merci de nous rejoindre");
+    const groups = applied.fieldGroups as Array<{
+      richText: string;
+      fields: Array<Record<string, unknown>>;
+    }>;
+    const firstField = groups[0]?.fields[0];
+    const secondField = groups[1]?.fields[0];
+    const dependents = Array.isArray(firstField?.dependentFields)
+      ? (firstField.dependentFields as Array<{
+          dependentField: { name: string; label: string };
+        }>)
+      : [];
+    const roleOptions = Array.isArray(secondField?.options)
+      ? (secondField.options as Array<{ value: string; label: string }>)
+      : [];
+    expect(groups[0]?.richText).toBe("Intro etape un");
+    expect(firstField?.name).toBe("email");
+    expect(firstField?.label).toBe("Courriel");
+    expect(dependents[0]?.dependentField.name).toBe("company");
+    expect(dependents[0]?.dependentField.label).toBe("Entreprise");
+    expect(secondField?.name).toBe("role");
+    expect(roleOptions[0]?.label).toBe("Ingenieur");
+    expect((applied.legalConsentOptions as { privacyText: string }).privacyText).toBe(
+      "Nous gardons ceci prive",
+    );
+  });
+
+  it("keeps form field names locked and updates labels", () => {
+    const definition = {
+      displayOptions: { submitButtonText: "Send" },
+      fieldGroups: [
+        {
+          fields: [
+            {
+              name: "email",
+              label: "Email",
+              placeholder: "you@example.com",
+              options: [{ value: "yes", label: "Yes" }],
+            },
+          ],
+        },
+      ],
+    };
+    const document = buildFormDocument(definition);
+    expect(document.fields).toEqual({
+      email: {
+        label: "Email",
+        placeholder: "you@example.com",
+        options: { yes: "Yes" },
+      },
+    });
+    const translated = mergeHubspotTranslations(document, {
+      submitText: "Envoyer",
+      "fields.email.label": "Courriel",
+      "fields.email.options.yes": "Oui",
+    });
+    const applied = applyFormDocument(definition, translated);
+    const field = (applied.fieldGroups as Array<{ fields: Array<Record<string, unknown>> }>)[0]
+      ?.fields[0];
+    expect(field?.name).toBe("email");
+    expect(field?.label).toBe("Courriel");
+    expect((applied.displayOptions as { submitButtonText: string }).submitButtonText).toBe(
+      "Envoyer",
+    );
+  });
+
+  it("extracts visual form step copy, field labels, submit, and thank-you", () => {
+    const definition = {
+      name: "New newsletter form",
+      settings: { hubspotFormLocale: "en" },
+      layout: {
+        nodes: [
+          {
+            type: "step",
+            id: 38,
+            nodes: [
+              { type: "row", id: 33, nodes: [{ id: 31 }] },
+              { type: "row", id: 34, nodes: [{ id: 6 }] },
+              { type: "navigationRow", id: 37, nodes: [{ id: 15 }] },
+            ],
+          },
+          {
+            type: "postSubmitStep",
+            id: 40,
+            nodes: [{ type: "row", id: 39, nodes: [{ id: 32 }] }],
+          },
+        ],
+      },
+      elementsDefinition: {
+        "3": {
+          type: "email",
+          id: 3,
+          propertyReference: { objectTypeId: "0-1", name: "email" },
+          label: "Email",
+          description: "",
+        },
+        "5": {
+          type: "text",
+          id: 5,
+          propertyReference: { objectTypeId: "0-1", name: "lastname" },
+          label: "Last Name",
+          description: "",
+        },
+        "6": {
+          type: "text",
+          id: 6,
+          propertyReference: { objectTypeId: "0-1", name: "firstname" },
+          label: "First Name",
+          description: "",
+        },
+        "15": {
+          type: "submitButton",
+          id: 15,
+          text: "Submit",
+        },
+        "31": {
+          type: "richText",
+          id: 31,
+          html: "<p>Sign Up for Our Newsletter</p><p>Stay updated with the latest news.</p>",
+        },
+        "32": {
+          type: "richText",
+          id: 32,
+          html: "<p>Thanks for Subscribing!</p><p>You've successfully joined our newsletter.</p>",
+        },
+      },
+    };
+    const document = buildFormDocument(definition);
+    expect(document).toEqual({
+      submitText: "Submit",
+      thankYou: "<p>Thanks for Subscribing!</p><p>You've successfully joined our newsletter.</p>",
+      fields: {
+        email: { label: "Email" },
+        lastname: { label: "Last Name" },
+        firstname: { label: "First Name" },
+      },
+      elements: {
+        "31": {
+          html: "<p>Sign Up for Our Newsletter</p><p>Stay updated with the latest news.</p>",
+        },
+      },
+    });
+    const translated = mergeHubspotTranslations(document, {
+      submitText: "Envoyer",
+      thankYou: "<p>Merci de vous etre abonne !</p>",
+      "fields.email.label": "Courriel",
+      "fields.firstname.label": "Prenom",
+      "fields.lastname.label": "Nom",
+      "elements.31.html": "<p>Inscrivez-vous a notre newsletter</p>",
+    });
+    const applied = applyFormDocument(definition, translated);
+    expect(applied.elementsDefinition?.["15"]?.text).toBe("Envoyer");
+    expect(applied.elementsDefinition?.["3"]?.label).toBe("Courriel");
+    expect(applied.elementsDefinition?.["6"]?.label).toBe("Prenom");
+    expect(applied.elementsDefinition?.["5"]?.label).toBe("Nom");
+    expect(applied.elementsDefinition?.["31"]?.html).toBe(
+      "<p>Inscrivez-vous a notre newsletter</p>",
+    );
+    expect(applied.elementsDefinition?.["32"]?.html).toBe("<p>Merci de vous etre abonne !</p>");
+    expect(applied.displayOptions?.submitButtonText).toBe("Envoyer");
+    expect(applied.configuration?.postSubmitAction).toEqual({
+      type: "thank_you",
+      value: "<p>Merci de vous etre abonne !</p>",
+    });
+  });
+
+  it("writes submit and thank-you onto public fields when HubSpot omitted them", () => {
+    const definition = {
+      fieldGroups: [{ fields: [{ name: "email", label: "Email" }] }],
+    };
+    const applied = applyFormDocument(definition, {
+      submitText: "Envoyer",
+      thankYou: "Merci",
+      fields: { email: { label: "Courriel" } },
+    });
+    expect(applied.displayOptions?.submitButtonText).toBe("Envoyer");
+    expect(applied.configuration?.postSubmitAction).toEqual({
+      type: "thank_you",
+      value: "Merci",
+    });
+    expect(applied.fieldGroups?.[0]?.fields?.[0]?.label).toBe("Courriel");
+  });
+
+  it("does not replace a thank-you redirect with translated copy", () => {
+    const definition = {
+      configuration: {
+        postSubmitAction: { type: "redirect_url", value: "https://example.com/thanks" },
+      },
+    };
+    const applied = applyFormDocument(definition, { thankYou: "Merci" });
+    expect(applied.configuration?.postSubmitAction).toEqual({
+      type: "redirect_url",
+      value: "https://example.com/thanks",
+    });
+  });
+
+  it("keeps page widget ids locked and writes layout copy back", () => {
+    const live = {
+      htmlTitle: "Pricing",
+      metaDescription: "Plans",
+      featuredImageAltText: "Chart",
+      widgets: { hero: { id: "hero-1", body: "Start", href: "https://example.com" } },
+      layoutSections: { main: { richText: "Hello" } },
+    };
+    const document = buildPageDocument(live);
+    expect(JSON.stringify(document)).not.toContain("hero-1");
+    expect(JSON.stringify(document)).not.toContain("https://example.com");
+    expect(document.layoutSections).toEqual({ main: { richText: "Hello" } });
+    const translated = mergeHubspotTranslations(document, {
+      htmlTitle: "Tarifs",
+      "layoutSections.main.richText": "Bonjour",
+      "widgets.hero.body": "Commencer",
+    });
+    const applied = applyPageDocument(live, translated);
+    expect(applied.htmlTitle).toBe("Tarifs");
+    expect(applied.widgets).toMatchObject({ hero: { id: "hero-1", body: "Commencer" } });
+    expect(applied.layoutSections).toEqual({ main: { richText: "Bonjour" } });
+  });
+
+  it("reads page copy stored in layout rows and widget container lists", () => {
+    const live = {
+      htmlTitle: "",
+      metaDescription: "",
+      featuredImageAltText: "",
+      widgets: {},
+      layoutSections: {
+        dnd_area: {
+          rows: [
+            {
+              "0": {
+                rows: [
+                  {
+                    "0": {
+                      params: {
+                        html: "<h2>Pricing</h2>",
+                        path: "@hubspot/rich_text",
+                      },
+                      type: "custom_widget",
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      widgetContainers: {
+        footer: {
+          widgets: [{ body: { html: "Footer line" }, type: "module", id: "footer-1" }],
+        },
+      },
+    };
+    const document = buildPageDocument(live);
+    expect(document.layoutSections).toEqual({
+      dnd_area: {
+        rows: {
+          "0": {
+            "0": {
+              rows: {
+                "0": {
+                  "0": {
+                    params: { html: "<h2>Pricing</h2>" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(document.widgetContainers).toEqual({
+      footer: { widgets: { "0": { body: { html: "Footer line" } } } },
+    });
+    const translated = mergeHubspotTranslations(document, {
+      "layoutSections.dnd_area.rows.0.0.rows.0.0.params.html": "<h2>Tarifs</h2>",
+      "widgetContainers.footer.widgets.0.body.html": "Pied de page",
+    });
+    const applied = applyPageDocument(live, translated);
+    expect(applied.layoutSections).toMatchObject({
+      dnd_area: {
+        rows: [
+          {
+            "0": {
+              rows: [
+                {
+                  "0": {
+                    params: { html: "<h2>Tarifs</h2>", path: "@hubspot/rich_text" },
+                    type: "custom_widget",
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    expect(applied.widgetContainers).toMatchObject({
+      footer: { widgets: [{ id: "footer-1", body: { html: "Pied de page" } }] },
+    });
+  });
+
+  it("reads module copy stored under value and on layout widgets", () => {
+    const live = {
+      htmlTitle: "",
+      metaDescription: "",
+      featuredImageAltText: "",
+      widgets: {
+        hero: {
+          id: "hero",
+          type: "module",
+          body: {
+            html: { value: "<p>Welcome to the homepage with a lot of text.</p>" },
+            alignment: { value: "left" },
+          },
+        },
+      },
+      layoutSections: {
+        dnd_area: {
+          rows: [
+            {
+              "0": {
+                widgets: [{ body: { html: "<p>Section copy that the editor shows.</p>" } }],
+              },
+            },
+          ],
+        },
+      },
+      widgetContainers: {},
+    };
+    const document = buildPageDocument(live);
+    expect(JSON.stringify(document)).toContain("Welcome to the homepage");
+    expect(JSON.stringify(document)).toContain("Section copy that the editor shows");
+    expect(JSON.stringify(document)).not.toContain("left");
+    const translated = mergeHubspotTranslations(document, {
+      "widgets.hero.body.html.value": "<p>Bienvenue sur la page d'accueil.</p>",
+    });
+    const applied = applyPageDocument(live, translated);
+    expect(applied.widgets).toMatchObject({
+      hero: {
+        id: "hero",
+        type: "module",
+        body: {
+          html: { value: "<p>Bienvenue sur la page d'accueil.</p>" },
+          alignment: { value: "left" },
+        },
+      },
+    });
+  });
+
+  it("reads section html nested inside a value object", () => {
+    const live = {
+      htmlTitle: "Launch",
+      metaDescription: "",
+      featuredImageAltText: "",
+      postBody: "<p>The opening paragraph of the article.</p>",
+      postSummary: "",
+      rssBody:
+        "<h2>Section heading with a lot of text</h2><p>Section body copy that was missing.</p>",
+      rssSummary: "",
+      widgets: {
+        hero: {
+          body: {
+            richtext_field: {
+              value: {
+                content:
+                  "<h2>Section heading with a lot of text</h2><p>Section body copy that was missing.</p>",
+                type: "html",
+              },
+            },
+          },
+        },
+      },
+      layoutSections: {},
+    };
+    const document = buildBlogContentDocument(live);
+    const serialized = JSON.stringify(document);
+    expect(serialized).toContain("The opening paragraph of the article");
+    expect(serialized).toContain("Section body copy that was missing");
+    expect(serialized).not.toContain('"type":"html"');
+    expect(document.rssBody).toBe(live.rssBody);
+  });
+
+  it("keeps blog section text with the post body", () => {
+    const live = {
+      htmlTitle: "Launch",
+      metaDescription: "Notes",
+      featuredImageAltText: "",
+      postBody: "<p>Intro</p>",
+      postSummary: "A short summary",
+      rssSummary: "",
+      widgets: {},
+      layoutSections: {
+        dnd_area: {
+          rows: [
+            {
+              "0": {
+                params: { html: "<h2>Section heading with a lot of text</h2>" },
+              },
+            },
+          ],
+        },
+      },
+    };
+    const document = buildBlogContentDocument(live);
+    expect(document.postBody).toBe("<p>Intro</p>");
+    expect(document.postSummary).toBe("A short summary");
+    expect(document.layoutSections).toEqual({
+      dnd_area: {
+        rows: { "0": { "0": { params: { html: "<h2>Section heading with a lot of text</h2>" } } } },
+      },
+    });
+    const applied = applyBlogContentDocument(live, {
+      ...document,
+      postBody: "<p>Introduction</p>",
+      layoutSections: {
+        dnd_area: {
+          rows: { "0": { "0": { params: { html: "<h2>Titre de section</h2>" } } } },
+        },
+      },
+    });
+    expect(applied.postBody).toBe("<p>Introduction</p>");
+    expect(applied.rssBody).toBe("");
+    expect(applied.layoutSections).toMatchObject({
+      dnd_area: {
+        rows: [{ "0": { params: { html: "<h2>Titre de section</h2>" } } }],
+      },
+    });
+  });
+
+  it("uses the translated post body for RSS when the source RSS duplicates the article", () => {
+    const live = {
+      htmlTitle: "Launch",
+      metaDescription: "",
+      featuredImageAltText: "",
+      postBody: "<p>Hello world</p>",
+      postSummary: "",
+      rssBody: "<p>Hello world</p>",
+      rssSummary: "",
+      widgets: {},
+      layoutSections: {},
+    };
+    const document = buildBlogContentDocument(live);
+    expect(document.rssBody).toBeUndefined();
+    const applied = applyBlogContentDocument(live, {
+      ...document,
+      postBody: "<p>Bonjour le monde</p>",
+    });
+    expect(applied.postBody).toBe("<p>Bonjour le monde</p>");
+    expect(applied.rssBody).toBe("<p>Bonjour le monde</p>");
+  });
+
+  it("imports and pushes an RSS excerpt instead of expanding it to the full article", () => {
+    const live = {
+      htmlTitle: "Launch",
+      metaDescription: "",
+      featuredImageAltText: "",
+      postBody: "<p>Hello world. More article copy.</p>",
+      postSummary: "",
+      rssBody: "<p>Hello world.</p>",
+      rssSummary: "",
+      widgets: {},
+      layoutSections: {},
+    };
+    const document = buildBlogContentDocument(live);
+    expect(document.rssBody).toBe("<p>Hello world.</p>");
+    const applied = applyBlogContentDocument(live, {
+      ...document,
+      postBody: "<p>Bonjour le monde. Suite de l'article.</p>",
+      rssBody: "<p>Bonjour le monde.</p>",
+    });
+    expect(applied.rssBody).toBe("<p>Bonjour le monde.</p>");
+    expect(
+      applyBlogContentDocument(live, {
+        postBody: "<p>Bonjour le monde. Suite de l'article.</p>",
+      }).rssBody,
+    ).toBe("<p>Hello world.</p>");
+  });
+
+  it("keeps a distinct live RSS body when that field was not translated", () => {
+    const live = {
+      htmlTitle: "Launch",
+      metaDescription: "",
+      featuredImageAltText: "",
+      postBody: "<p>Hello world</p>",
+      postSummary: "",
+      rssBody: "<p>Feed-only teaser</p>",
+      rssSummary: "",
+      widgets: {},
+      layoutSections: {},
+    };
+    const applied = applyBlogContentDocument(live, {
+      postBody: "<p>Bonjour le monde</p>",
+    });
+    expect(applied.rssBody).toBe("<p>Feed-only teaser</p>");
+  });
+
+  it("round-trips blog title, description, and body", () => {
+    const html = buildBlogDocument({
+      htmlTitle: "Launch & more",
+      metaDescription: "A <note>",
+      postBody: "<p>Body</p>",
+    });
+    expect(readBlogDocument(html)).toEqual({
+      htmlTitle: "Launch & more",
+      metaDescription: "A <note>",
+      postBody: "<p>Body</p>",
+    });
+  });
+
+  it("drops email widget settings but keeps html and alt copy", () => {
+    const document = buildEmailDocument({
+      subject: "Newsletter",
+      widgets: {
+        "module-0-0-0": {
+          body: {
+            alignment: "center",
+            img: { alt: "HubSpot logo white" },
+            style: {
+              alignment: "center",
+              border_style: "none",
+              corner_radius_unit: "%",
+            },
+          },
+        },
+        "module-2-0-0": {
+          body: { html: "<h1>Share your latest news</h1>" },
+        },
+        "module-7-0-0": {
+          body: {
+            align: "center",
+            font: { font: "Arial, sans-serif", size: { units: "px" } },
+            unsubscribe_link_type: "both",
+          },
+        },
+      },
+    });
+    expect(JSON.stringify(document)).not.toContain("center");
+    expect(JSON.stringify(document)).not.toContain("Arial");
+    expect(document.widgets).toEqual({
+      "module-0-0-0": { body: { img: { alt: "HubSpot logo white" } } },
+      "module-2-0-0": { body: { html: "<h1>Share your latest news</h1>" } },
+    });
+    const html = buildEmailHtmlDocument(document);
+    expect(html).not.toContain(">center<");
+    expect(html).toContain("HubSpot logo white");
+    expect(html).toContain("Share your latest news");
+  });
+
+  it("round-trips email text and rich-text widgets through the html envelope", () => {
+    const source = buildEmailDocument({
+      subject: "Hello & welcome",
+      widgets: {
+        header: { body: "Plain greeting" },
+        hero: {
+          body: { html: '<p>Hi <a href="https://example.com">there</a></p>' },
+        },
+        nested: {
+          body: { html: "<section><p>Inner section</p></section><p>{{ contact.firstname }}</p>" },
+        },
+      },
+    });
+    const html = buildEmailHtmlDocument(source);
+    expect(html).toContain('data-hl-kind="text"');
+    expect(html).toContain('data-hl-kind="html"');
+    expect(html).toContain("<!--/hl-field-->");
+    expect(readEmailHtmlDocument(html)).toEqual(source);
+  });
+
+  it("round-trips email style settings without segmenting them", () => {
+    const source = buildEmailDocument({
+      subject: "Hello",
+      widgets: { module: { body: "Welcome" } },
+    });
+    const styleSettings = {
+      backgroundColor: "#ffffff",
+      emailBodyWidth: "600",
+      primaryFont: "Arial",
+    };
+    const html = buildEmailHtmlDocument(source, { styleSettings });
+    expect(html).toContain('data-hl-meta="styleSettings"');
+    expect(extractEmailStyleSettings(html)).toEqual(styleSettings);
+    expect(readEmailHtmlDocument(html)).toEqual(source);
+    expect(extractEmailStyleSettings(buildEmailHtmlDocument(source))).toBeUndefined();
+  });
+
+  it("round-trips message template subject and body and skips token-only copy", () => {
+    expect(messageTemplateHasCopy({ subject: "", body: "<p>{{ contact.firstname }}</p>" })).toBe(
+      false,
+    );
+    expect(messageTemplateHasCopy({ subject: "Hello", body: "" })).toBe(true);
+    const html = buildMessageTemplateDocument({
+      subject: "Hello & welcome",
+      body: "<p>Hi {{ contact.firstname }}</p>",
+    });
+    expect(readMessageTemplateDocument(html)).toEqual({
+      subject: "Hello & welcome",
+      body: "<p>Hi {{ contact.firstname }}</p>",
+      foundSubject: true,
+      foundBody: true,
+    });
+  });
+});

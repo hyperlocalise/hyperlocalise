@@ -149,6 +149,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeSourceUploadTrigger;
     case "trigger.webhook":
       return messages.nodeWebhookTrigger;
+    case "trigger.job_changed":
+      return messages.nodeJobChangedTrigger;
     case "action.http":
       return messages.nodeHttp;
     case "action.content_sync":
@@ -163,6 +165,12 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeRunQa;
     case "action.list_source_files":
       return messages.nodeListSourceFiles;
+    case "action.file_read":
+      return messages.nodeFileRead;
+    case "action.file_write":
+      return messages.nodeFileWrite;
+    case "action.file_convert":
+      return messages.nodeFileConvert;
     case "action.update_job":
       return messages.nodeUpdateJob;
     case "action.pick_assignee":
@@ -193,12 +201,22 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeCoalesce;
     case "logic.compare":
       return messages.nodeCompare;
+    case "logic.json_parse":
+      return messages.nodeJsonParse;
+    case "logic.json_stringify":
+      return messages.nodeJsonStringify;
+    case "logic.schema_validate":
+      return messages.nodeSchemaValidate;
     case "ai.agent":
       return messages.nodeAi;
     case "logic.for_each":
       return messages.nodeLoop;
+    case "logic.array_transform":
+      return messages.nodeArrayTransform;
     case "logic.retry":
       return messages.nodeRetry;
+    case "flow.human_approval":
+      return messages.nodeHumanApproval;
     case "flow.wait":
       return messages.nodeWait;
     case "flow.stop":
@@ -230,6 +248,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeSourceUploadTriggerHint;
     case "trigger.webhook":
       return messages.nodeWebhookTriggerHint;
+    case "trigger.job_changed":
+      return messages.nodeJobChangedTriggerHint;
     case "action.http":
       return messages.nodeHttpHint;
     case "action.content_sync":
@@ -244,6 +264,12 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeRunQaHint;
     case "action.list_source_files":
       return messages.nodeListSourceFilesHint;
+    case "action.file_read":
+      return messages.nodeFileReadHint;
+    case "action.file_write":
+      return messages.nodeFileWriteHint;
+    case "action.file_convert":
+      return messages.nodeFileConvertHint;
     case "action.update_job":
       return messages.nodeUpdateJobHint;
     case "action.pick_assignee":
@@ -274,12 +300,22 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeCoalesceHint;
     case "logic.compare":
       return messages.nodeCompareHint;
+    case "logic.json_parse":
+      return messages.nodeJsonParseHint;
+    case "logic.json_stringify":
+      return messages.nodeJsonStringifyHint;
+    case "logic.schema_validate":
+      return messages.nodeSchemaValidateHint;
     case "ai.agent":
       return messages.nodeAiHint;
     case "logic.for_each":
       return messages.nodeLoopHint;
+    case "logic.array_transform":
+      return messages.nodeArrayTransformHint;
     case "logic.retry":
       return messages.nodeRetryHint;
+    case "flow.human_approval":
+      return messages.nodeHumanApprovalHint;
     case "flow.wait":
       return messages.nodeWaitHint;
     case "flow.stop":

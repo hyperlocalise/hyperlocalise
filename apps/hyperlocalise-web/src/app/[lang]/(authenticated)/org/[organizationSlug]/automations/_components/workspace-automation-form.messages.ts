@@ -313,6 +313,12 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "+TLsx7a6do",
     description: "Placeholder when GitLab is not connected so projects cannot be chosen",
   },
+  gitlabProjectsLoadFailed: {
+    defaultMessage: "Couldn't load projects from GitLab",
+    id: "uyHddFItti",
+    description:
+      "Placeholder when the GitLab project list failed to load, for example because the workspace's GitLab token was refused",
+  },
   selectGitlabProject: {
     defaultMessage: "Select a GitLab project",
     id: "aD9snRqB1l",
@@ -604,6 +610,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "G9eQqJWzlH",
     description: "Name of the Sanity integration in the hint on a skill that needs it connected",
   },
+  skillIntegrationWebflow: {
+    defaultMessage: "Webflow",
+    id: "zC+2fxCHmG",
+    description: "Name of the Webflow integration in the hint on a skill that needs it connected",
+  },
   skillIntegrationGoogleDrive: {
     defaultMessage: "Google Drive",
     id: "mCZ6rjBj9L",
@@ -614,6 +625,32 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Braze",
     id: "o0HXRhjJ+T",
     description: "Name of the Braze integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationCustomerIo: {
+    defaultMessage: "Customer.io",
+    id: "NwFKmyGsjl",
+    description:
+      "Name of the Customer.io integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationIterable: {
+    defaultMessage: "Iterable",
+    id: "C0jp5QUb8B",
+    description: "Name of the Iterable integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationLoops: {
+    defaultMessage: "Loops",
+    id: "oC6DC5UXTd",
+    description: "Name of the Loops integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationHubspot: {
+    defaultMessage: "HubSpot",
+    id: "UT4djK0Z7P",
+    description: "Name of the HubSpot integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationMailchimp: {
+    defaultMessage: "Mailchimp",
+    id: "8T9ADmB57c",
+    description: "Name of the Mailchimp integration in the hint on a skill that needs it connected",
   },
   skillIntegrationSlack: {
     defaultMessage: "Slack",
@@ -927,6 +964,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Choose a project above to pick target locales.",
     id: "mzBTNMYPpo",
     description: "Empty state when Create job target locales need a project first",
+  },
+  chooseProjectForIterableSourceLocale: {
+    defaultMessage: "Choose a project above to pick a source locale.",
+    id: "Fb6qGloXW4",
+    description: "Empty state when the Iterable source locale needs a project first",
   },
   noRunsYet: {
     defaultMessage: "No runs yet.",

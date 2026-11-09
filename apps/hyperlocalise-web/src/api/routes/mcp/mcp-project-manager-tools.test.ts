@@ -22,6 +22,7 @@ import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
 import { insertPublicTranslationJob } from "@/api/routes/public-jobs/public-jobs.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { upsertExternalTmsJobRecords } from "@/lib/projects/external-tms/external-tms-sync-service";
 
 const { resolveApiAuthContextFromSessionMock, workspaceReportsFlagRunMock } = vi.hoisted(() => ({
@@ -49,6 +50,12 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
     workspaceReportsFlag: { run: workspaceReportsFlagRunMock },
   };
 });
+
+const { reportsInternalMock } = vi.hoisted(() => ({ reportsInternalMock: vi.fn() }));
+
+vi.mock("@/lib/go-svc/go-svc-server-client", () => ({
+  createGoSvcServerClient: () => ({ reports: { internal: reportsInternalMock } }),
+}));
 
 const mcpApp = createMcpTestApp();
 const fixture = createProjectTestFixture();
@@ -665,31 +672,28 @@ describe("MCP project manager tools", () => {
     });
   });
 
-  it("gates get_report on the workspace flag and billing, and reads like the page", async () => {
+  it("gates get_report on the workspace flag and billing, then reads through go-svc as the member", async () => {
     const stored = await fixture.createStoredProjectFixture();
     const translator = fixture.createWorkosIdentityForOrganization(
       stored.identity.organization,
       "translator",
     );
-
-    if (!stored.project.teamId) {
-      throw new Error("expected project team");
-    }
-
-    await fixture.authHeadersFor(translator);
-    const translatorAuth = globalThis.__testApiAuthContext;
-    if (!translatorAuth) {
-      throw new Error("expected translator auth context");
-    }
-
-    await db.insert(schema.teamMemberships).values({
-      teamId: stored.project.teamId,
-      userId: translatorAuth.user.localUserId,
-      role: "member",
-    });
+    reportsInternalMock.mockReset();
+    reportsInternalMock.mockImplementation(async (kind: string) => ({
+      kind,
+      summary: { pendingDays: 0, oldestMarkedAt: null },
+      stillUpdating: false,
+      ...(kind === "activity"
+        ? { activity: { current: { arrived: 0 }, series: [{ start: "2026-09-24" }] } }
+        : { wordCounts: { rows: [], groupBy: "task", series: { split: "band", per: "month" } } }),
+    }));
 
     workspaceReportsFlagRunMock.mockResolvedValueOnce(false);
     const adminHeaders = await authenticatedMcpHeaders(stored.identity);
+    const adminAuth = globalThis.__testApiAuthContext;
+    if (!adminAuth) {
+      throw new Error("expected admin auth context");
+    }
     const disabled = await readToolResult<{ error?: string }>(
       await callMcpTool(adminHeaders, "get_report", { report: "activity" }),
     );
@@ -698,6 +702,8 @@ describe("MCP project manager tools", () => {
     const refused = await readToolResult<{ error?: string }>(
       await callMcpTool(translatorHeaders, "get_report", { report: "costs" }),
     );
+    // Neither reached go-svc.
+    expect(reportsInternalMock).not.toHaveBeenCalled();
 
     // The same reads as the page: a kind, that tab's fields, and whether work is still counted.
     const activity = await readToolResult<{
@@ -708,13 +714,76 @@ describe("MCP project manager tools", () => {
     const words = await readToolResult<{
       kind?: string;
       wordCounts?: { rows?: unknown[]; groupBy?: string };
-    }>(await callMcpTool(adminHeaders, "get_report", { report: "words", groupBy: "task" }));
+    }>(
+      await callMcpTool(adminHeaders, "get_report", {
+        report: "words",
+        groupBy: "task",
+        split: "band",
+        per: "month",
+      }),
+    );
     const invalid = await readToolResult<{ error?: string }>(
       await callMcpTool(adminHeaders, "get_report", {
         report: "words",
         from: "2026-06-10",
         to: "2026-06-01",
       }),
+    );
+    reportsInternalMock.mockRejectedValueOnce(
+      new GoSvcClientError({
+        code: "report_forbidden",
+        message: "Reports require billing access",
+        status: 403,
+      }),
+    );
+    const refusedByGoSvc = await readToolResult<{ error?: string; message?: string }>(
+      await callMcpTool(adminHeaders, "get_report", { report: "ai", groupBy: "model" }),
+    );
+    reportsInternalMock.mockRejectedValueOnce(
+      new GoSvcClientError({
+        code: "reports_busy",
+        message: "Reports is busy; try again shortly",
+        status: 503,
+      }),
+    );
+    const busy = await readToolResult<{ error?: string; message?: string }>(
+      await callMcpTool(adminHeaders, "get_report", { report: "time" }),
+    );
+    reportsInternalMock.mockRejectedValueOnce(
+      new GoSvcClientError({ code: "network_error", message: "Unable to reach go-svc" }),
+    );
+    const unreachable = await readToolResult<{ error?: string; message?: string }>(
+      await callMcpTool(adminHeaders, "get_report", { report: "costs" }),
+    );
+    reportsInternalMock.mockRejectedValueOnce(
+      new GoSvcClientError({
+        code: "unauthorized",
+        message: "missing server call token",
+        status: 401,
+      }),
+    );
+    const misconfigured = await readToolResult<{ error?: string; message?: string }>(
+      await callMcpTool(adminHeaders, "get_report", { report: "costs" }),
+    );
+    reportsInternalMock.mockRejectedValueOnce(
+      new GoSvcClientError({
+        code: "organization_access_denied",
+        message: "Organization access denied",
+        status: 403,
+      }),
+    );
+    const removed = await readToolResult<{ error?: string }>(
+      await callMcpTool(adminHeaders, "get_report", { report: "costs" }),
+    );
+    reportsInternalMock.mockRejectedValueOnce(
+      new GoSvcClientError({
+        code: "feature_unavailable",
+        message: "Reports is not enabled for this workspace",
+        status: 403,
+      }),
+    );
+    const flagLookupFailed = await readToolResult<{ error?: string; message?: string }>(
+      await callMcpTool(adminHeaders, "get_report", { report: "costs" }),
     );
 
     expect(disabled).toMatchObject({
@@ -735,8 +804,63 @@ describe("MCP project manager tools", () => {
     expect(activity.output.activity?.series?.length).toBeGreaterThan(0);
     expect(words.output).toMatchObject({
       kind: "words",
-      wordCounts: { rows: [], groupBy: "task" },
+      wordCounts: { rows: [], groupBy: "task", series: { split: "band", per: "month" } },
+    });
+    // go-svc is asked as the member, with the validated query and the page's defaults.
+    expect(reportsInternalMock.mock.calls.map((call) => call[0])).toEqual([
+      "activity",
+      "words",
+      "ai",
+      "time",
+      "costs",
+      "costs",
+      "costs",
+      "costs",
+    ]);
+    expect(reportsInternalMock.mock.calls[0][1]).toMatchObject({
+      organizationId: adminAuth.organization.localOrganizationId,
+      userId: adminAuth.user.localUserId,
+      query: { unit: "strings", step: "translation" },
+    });
+    expect(reportsInternalMock.mock.calls[0][1].query).not.toHaveProperty("format");
+    expect(reportsInternalMock.mock.calls[1][1]).toMatchObject({
+      query: { groupBy: "task", split: "band", per: "month", page: 1 },
     });
     expect(invalid).toMatchObject({ isError: true, output: { error: "invalid_report_query" } });
+    expect(refusedByGoSvc).toMatchObject({
+      isError: true,
+      output: { error: "report_forbidden", message: "Reports require billing access" },
+    });
+    expect(reportsInternalMock.mock.calls[2][1]).toMatchObject({
+      query: { groupBy: "model", page: 1 },
+    });
+    // go-svc's answers about the request pass on; its own failures are ours, said plainly.
+    expect(busy).toMatchObject({
+      isError: true,
+      output: { error: "reports_busy", message: "Reports is busy; try again shortly" },
+    });
+    expect(removed).toMatchObject({
+      isError: true,
+      output: { error: "organization_access_denied" },
+    });
+    // The tool found the flag on; go-svc's "off" is its own lookup failing.
+    for (const failed of [unreachable, misconfigured, flagLookupFailed]) {
+      expect(failed).toMatchObject({ isError: true, output: { error: "reports_unavailable" } });
+      expect(failed.output.message).not.toMatch(/go-svc|token/);
+    }
+  });
+
+  it("answers get_report when the go-svc call is aborted, instead of failing the tool", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    reportsInternalMock.mockReset();
+    reportsInternalMock.mockRejectedValueOnce(
+      Object.assign(new Error("The operation was aborted"), { name: "AbortError" }),
+    );
+    const stalled = await readToolResult<{ error?: string; message?: string }>(
+      await callMcpTool(headers, "get_report", { report: "activity" }),
+    );
+    expect(stalled).toMatchObject({ isError: true, output: { error: "reports_unavailable" } });
+    expect(stalled.output.message).not.toMatch(/abort/i);
   });
 });

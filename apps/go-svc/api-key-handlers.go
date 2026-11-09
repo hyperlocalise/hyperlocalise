@@ -188,7 +188,7 @@ func parseCreateAPIKeyBody(r *http.Request) (createAPIKeyRequest, error) {
 				if json.Unmarshal(item, &scope) != nil || bytes.Equal(item, []byte("null")) || !isAPIKeyScope(scope) {
 					issues = append(issues, apiKeyValidationIssue{
 						Path:    []any{"permissions", i},
-						Message: `Invalid option: expected one of "jobs:read"|"jobs:write"|"files:read"|"files:write"`,
+						Message: apiKeyScopeOptionMessage(),
 					})
 					continue
 				}

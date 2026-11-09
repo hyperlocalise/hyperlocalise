@@ -69,6 +69,8 @@ export async function createWorkspaceForSessionUser(input: {
     profilePictureUrl?: string | null;
   };
   organizationName: string;
+  /** Where the workspace was created from, for analytics. */
+  source?: "onboarding" | "another_workspace";
 }) {
   const user = await syncWorkosUser(db, {
     workosUserId: input.sessionUser.id,
@@ -127,7 +129,7 @@ export async function createWorkspaceForSessionUser(input: {
 
         serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.workspaceCreated, {
           status: "created",
-          source: "onboarding",
+          source: input.source ?? "onboarding",
         });
 
         return {

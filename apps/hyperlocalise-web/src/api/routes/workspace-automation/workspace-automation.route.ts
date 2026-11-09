@@ -48,14 +48,40 @@ import { resolveContentSyncRepositoryTarget } from "@/lib/agents/content-sync/co
 import {
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationBrazeTool,
+  hasWorkspaceAutomationCustomerIoTool,
   hasWorkspaceAutomationGoogleDriveTool,
+  hasWorkspaceAutomationIterableTool,
   hasWorkspaceAutomationIntercomTool,
+  hasWorkspaceAutomationLoopsTool,
+  hasWorkspaceAutomationHubspotTool,
+  hasWorkspaceAutomationMailchimpTool,
   hasWorkspaceAutomationSanityTool,
+  hasWorkspaceAutomationWebflowTool,
   type WorkspaceAutomationConfigValidationError,
   type WorkspaceAutomationKind,
   type WorkspaceAutomationRepositoryTarget,
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automation-types";
+import {
+  getCustomerIoPushEligibility,
+  isCustomerIoPushRunActive,
+  type CustomerIoPushItem,
+} from "@/lib/customer-io/push-eligibility";
+import {
+  getHubspotPushEligibility,
+  isHubspotPushRunActive,
+  type HubspotPushItem,
+} from "@/lib/hubspot/push-eligibility";
+import {
+  getMailchimpPushEligibility,
+  isMailchimpPushRunActive,
+  type MailchimpPushItem,
+} from "@/lib/mailchimp/push-eligibility";
+import {
+  getLoopsPushEligibility,
+  isLoopsPushRunActive,
+  type LoopsPushItem,
+} from "@/lib/loops/push-eligibility";
 import {
   getBrazeCampaignPushEligibility,
   getBrazePushEligibility,
@@ -73,10 +99,20 @@ import {
   type GoogleDrivePushFile,
 } from "@/lib/google-drive/push-eligibility";
 import {
+  getIterablePushEligibility,
+  isIterablePushRunActive,
+  type IterablePushItem,
+} from "@/lib/iterable/push-eligibility";
+import {
   getSanityPushEligibility,
   isSanityPushRunActive,
   type SanityPushDocument,
 } from "@/lib/sanity/push-eligibility";
+import {
+  getWebflowPushEligibility,
+  isWebflowPushRunActive,
+  type WebflowPushItem,
+} from "@/lib/webflow/push-eligibility";
 import {
   createWorkspaceAutomationKnowledgeFile,
   deleteWorkspaceAutomationKnowledgeFile,
@@ -681,6 +717,26 @@ export function createWorkspaceAutomationRoutes(
         };
       }
 
+      let webflowPush: {
+        eligibleLocaleCount: number;
+        mappedItemCount: number;
+        pushRunInProgress: boolean;
+        items?: WebflowPushItem[];
+      } | null = null;
+      if (hasWorkspaceAutomationWebflowTool(automation.toolConfig)) {
+        const eligibility = await getWebflowPushEligibility({
+          organizationId,
+          automation,
+          includeLocaleProgress: includePushArticles,
+        });
+        webflowPush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedItemCount: eligibility?.mappedItemCount ?? 0,
+          pushRunInProgress: isWebflowPushRunActive(recentRuns),
+          ...(includePushArticles ? { items: eligibility?.items ?? [] } : {}),
+        };
+      }
+
       let googleDrivePush: {
         eligibleLocaleCount: number;
         mappedFileCount: number;
@@ -701,8 +757,121 @@ export function createWorkspaceAutomationRoutes(
         };
       }
 
+      let customerIoPush: {
+        eligibleLocaleCount: number;
+        mappedItemCount: number;
+        pushRunInProgress: boolean;
+        items?: CustomerIoPushItem[];
+      } | null = null;
+      if (hasWorkspaceAutomationCustomerIoTool(automation.toolConfig)) {
+        const eligibility = await getCustomerIoPushEligibility({
+          organizationId,
+          automation,
+          includeLocaleProgress: includePushArticles,
+        });
+        customerIoPush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedItemCount: eligibility?.mappedItemCount ?? 0,
+          pushRunInProgress: isCustomerIoPushRunActive(recentRuns),
+          ...(includePushArticles ? { items: eligibility?.items ?? [] } : {}),
+        };
+      }
+
+      let iterablePush: {
+        eligibleLocaleCount: number;
+        mappedItemCount: number;
+        pushRunInProgress: boolean;
+        items?: IterablePushItem[];
+      } | null = null;
+      if (hasWorkspaceAutomationIterableTool(automation.toolConfig)) {
+        const eligibility = await getIterablePushEligibility({
+          organizationId,
+          automation,
+          includeLocaleProgress: includePushArticles,
+        });
+        iterablePush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedItemCount: eligibility?.mappedItemCount ?? 0,
+          pushRunInProgress: isIterablePushRunActive(recentRuns),
+          ...(includePushArticles ? { items: eligibility?.items ?? [] } : {}),
+        };
+      }
+
+      let loopsPush: {
+        eligibleLocaleCount: number;
+        mappedItemCount: number;
+        pushRunInProgress: boolean;
+        items?: LoopsPushItem[];
+      } | null = null;
+      if (hasWorkspaceAutomationLoopsTool(automation.toolConfig)) {
+        const eligibility = await getLoopsPushEligibility({
+          organizationId,
+          automation,
+          includeLocaleProgress: includePushArticles,
+        });
+        loopsPush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedItemCount: eligibility?.mappedItemCount ?? 0,
+          pushRunInProgress: isLoopsPushRunActive(recentRuns),
+          ...(includePushArticles ? { items: eligibility?.items ?? [] } : {}),
+        };
+      }
+
+      let hubspotPush: {
+        eligibleLocaleCount: number;
+        mappedItemCount: number;
+        pushRunInProgress: boolean;
+        items?: HubspotPushItem[];
+      } | null = null;
+      if (hasWorkspaceAutomationHubspotTool(automation.toolConfig)) {
+        const eligibility = await getHubspotPushEligibility({
+          organizationId,
+          automation,
+          includeLocaleProgress: includePushArticles,
+        });
+        hubspotPush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedItemCount: eligibility?.mappedItemCount ?? 0,
+          pushRunInProgress: isHubspotPushRunActive(recentRuns),
+          ...(includePushArticles ? { items: eligibility?.items ?? [] } : {}),
+        };
+      }
+
+      let mailchimpPush: {
+        eligibleLocaleCount: number;
+        mappedItemCount: number;
+        pushRunInProgress: boolean;
+        items?: MailchimpPushItem[];
+      } | null = null;
+      if (hasWorkspaceAutomationMailchimpTool(automation.toolConfig)) {
+        const eligibility = await getMailchimpPushEligibility({
+          organizationId,
+          automation,
+          includeLocaleProgress: includePushArticles,
+        });
+        mailchimpPush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedItemCount: eligibility?.mappedItemCount ?? 0,
+          pushRunInProgress: isMailchimpPushRunActive(recentRuns),
+          ...(includePushArticles ? { items: eligibility?.items ?? [] } : {}),
+        };
+      }
+
       return c.json(
-        { automation, recentRuns, intercomPush, sanityPush, brazePush, googleDrivePush },
+        {
+          automation,
+          recentRuns,
+          intercomPush,
+          sanityPush,
+          webflowPush,
+          brazePush,
+          googleDrivePush,
+          customerIoPush,
+          iterablePush,
+          loopsPush,
+          hubspotPush,
+          mailchimpPush,
+        },
         200,
       );
     })

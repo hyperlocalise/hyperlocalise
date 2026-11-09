@@ -23,6 +23,7 @@ import { cn } from "@/lib/primitives/cn";
 import { formatInternalMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-internal-markup";
 import { ContentEditorHiddenStringBadge } from "@/components/content-editor/segment/content-editor-hidden-string-badge";
 import { ContentEditorLockedStringBadge } from "@/components/content-editor/segment/content-editor-locked-string-badge";
+import { ContentEditorSegmentCheckbox } from "@/components/content-editor/segment/content-editor-segment-checkbox";
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
 import { contentEditorQueuePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
@@ -107,7 +108,6 @@ export function ContentEditorQueueVirtualList({
 
           const selected = segment.id === selectedSegmentId;
           const isDirty = dirtySegmentIds?.has(segment.id) ?? false;
-          const isChecked = checkedSegmentIds?.has(segment.id) ?? false;
 
           return (
             <li
@@ -131,24 +131,12 @@ export function ContentEditorQueueVirtualList({
                   )}
                 >
                   {showSelection && onToggleSegmentChecked ? (
-                    <label className="mt-1.5 flex shrink-0 cursor-pointer items-center">
-                      <input
-                        type="checkbox"
-                        className="size-4 rounded border-input accent-foreground"
-                        checked={isChecked}
-                        aria-label={intl.formatMessage(
-                          contentEditorQueuePanelMessages.selectSegmentAria,
-                          {
-                            key: segment.key,
-                          },
-                        )}
-                        onChange={(event) => {
-                          event.stopPropagation();
-                          onToggleSegmentChecked?.(segment.id, event.currentTarget.checked);
-                        }}
-                        onClick={(event) => event.stopPropagation()}
-                      />
-                    </label>
+                    <ContentEditorSegmentCheckbox
+                      segmentId={segment.id}
+                      segmentKey={segment.key}
+                      checkedSegmentIds={checkedSegmentIds}
+                      onCheckedChange={(checked) => onToggleSegmentChecked(segment.id, checked)}
+                    />
                   ) : null}
 
                   <button

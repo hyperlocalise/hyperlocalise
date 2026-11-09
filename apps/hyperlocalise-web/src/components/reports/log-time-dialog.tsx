@@ -76,7 +76,7 @@ export function LogTimeDialog({
     ids: jobId ? [jobId] : [],
     enabled: Boolean(jobId),
   }).data?.[0];
-  // A task with no Reports strings yet is not found by the lookup, but its project is given.
+  // The task's project, or the one given while the task is still being looked up.
   const taskProject = settings.projects.find(
     (project) => project.id === (task?.projectId ?? projectId),
   );
@@ -112,7 +112,7 @@ export function LogTimeDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => (open ? null : onClose())}>
+    <Dialog open onOpenChange={(open) => (open || logTime.isPending ? null : onClose())}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{intl.formatMessage(messages.dialogTitle)}</DialogTitle>
@@ -198,7 +198,7 @@ export function LogTimeDialog({
           {error ? <FieldError data-slot="field-error">{error}</FieldError> : null}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" disabled={logTime.isPending} onClick={onClose}>
             {intl.formatMessage(messages.cancel)}
           </Button>
           <Button disabled={logTime.isPending} onClick={() => void save()}>

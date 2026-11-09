@@ -1,0 +1,2 @@
+ALTER TABLE "repository_source_files" ADD COLUMN "placeholder_patterns" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "repository_source_files" ADD COLUMN "import_settings" jsonb DEFAULT '{}'::jsonb NOT NULL;

@@ -51,6 +51,8 @@ import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notific
 import { createReportingCaptureRoutes } from "./routes/cron/reporting-capture.route";
 import { createTranslationQaScanRoutes } from "./routes/cron/translation-qa-scan.route";
 import { createGuidelineIngestSweepRoutes } from "./routes/cron/guideline-ingest-sweep.route";
+import { createProjectContentSyncCronRoutes } from "./routes/cron/project-content-sync.route";
+import { createJobChangeEventsCronRoutes } from "./routes/cron/job-change-events.route";
 import { createLocalisationAuditRoutes } from "./routes/localisation-audit/localisation-audit.route";
 import {
   createLocalisationAuditQueue,
@@ -60,8 +62,16 @@ import {
   createProviderAgentTranslationQueue,
   createProviderAgentWritebackQueue,
 } from "@/workflows/adapters";
-import type { LocalisationAuditQueue, TranslationQaScanQueue } from "@/lib/workflow/types";
+import type {
+  EngineSetupQueue,
+  LocalisationAuditQueue,
+  LocalisationDeepAuditQueue,
+  ProjectContentSyncQueue,
+  TranslationQaScanQueue,
+} from "@/lib/workflow/types";
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
+import { createInternalTmsRoutes } from "./routes/internal-tms/internal-tms.route";
+import { createInternalDeepAuditRoutes } from "./routes/internal-deep-audits/internal-deep-audits.route";
 
 export type CreateAppOptions = {
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
@@ -76,6 +86,9 @@ export type CreateAppOptions = {
   translationFileImportQueue?: TranslationFileImportQueue;
   localisationAuditQueue?: LocalisationAuditQueue;
   translationQaScanQueue?: TranslationQaScanQueue;
+  projectContentSyncQueue?: ProjectContentSyncQueue;
+  engineSetupQueue?: EngineSetupQueue;
+  localisationDeepAuditQueue?: LocalisationDeepAuditQueue;
 };
 
 export function createApp(options: CreateAppOptions = {}): Hono<EvlogVariables> {
@@ -138,6 +151,11 @@ export const app = createApp();
 function createInternalRoutes(options: CreateAppOptions = {}) {
   return new Hono()
     .route("/health", healthRoutes)
+    .route("/internal/tms", createInternalTmsRoutes())
+    .route(
+      "/internal/deep-audits",
+      createInternalDeepAuditRoutes({ queue: options.localisationDeepAuditQueue }),
+    )
     .route(
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),
@@ -147,10 +165,17 @@ function createInternalRoutes(options: CreateAppOptions = {}) {
     .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes())
     .route("/cron/reporting-capture", createReportingCaptureRoutes())
     .route("/cron/guideline-ingest-sweep", createGuidelineIngestSweepRoutes())
+    .route("/cron/job-change-events", createJobChangeEventsCronRoutes())
     .route(
       "/cron/translation-qa-scan",
       createTranslationQaScanRoutes({
         translationQaScanQueue: options.translationQaScanQueue ?? createTranslationQaScanQueue(),
+      }),
+    )
+    .route(
+      "/cron/project-content-sync",
+      createProjectContentSyncCronRoutes({
+        projectContentSyncQueue: options.projectContentSyncQueue,
       }),
     );
 }

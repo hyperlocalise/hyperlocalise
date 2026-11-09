@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   inferSupportedTranslationFileFormat: vi.fn(),
   loadProjectOfficeTranslationDownload: vi.fn(),
   loadProjectPdfTranslationDownload: vi.fn(),
+  loadProjectHtmlTranslationDownload: vi.fn(),
 }));
 
 vi.mock("@/lib/projects/files/office-translation-download", async (importOriginal) => ({
@@ -31,6 +32,12 @@ vi.mock("@/lib/projects/files/pdf-translation-download", async (importOriginal) 
   ...(await importOriginal<typeof import("@/lib/projects/files/pdf-translation-download")>()),
   loadProjectPdfTranslationDownload: (...args: unknown[]) =>
     mocks.loadProjectPdfTranslationDownload(...args),
+}));
+
+vi.mock("@/lib/projects/files/html-translation-download", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/projects/files/html-translation-download")>()),
+  loadProjectHtmlTranslationDownload: (...args: unknown[]) =>
+    mocks.loadProjectHtmlTranslationDownload(...args),
 }));
 
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
@@ -61,6 +68,7 @@ describe("downloadMcpTranslations", () => {
     mocks.loadProjectLottieTranslationDownload.mockResolvedValue({ ok: true, value: null });
     mocks.loadProjectOfficeTranslationDownload.mockResolvedValue({ ok: true, value: null });
     mocks.loadProjectPdfTranslationDownload.mockResolvedValue({ ok: true, value: null });
+    mocks.loadProjectHtmlTranslationDownload.mockResolvedValue({ ok: true, value: null });
   });
 
   it("returns source_file_too_large with the key limit when prefill is truncated", async () => {
@@ -393,6 +401,58 @@ describe("downloadMcpTranslations", () => {
     });
 
     expect(result).toEqual({ ok: false, error: "unsupported_binary_download" });
+  });
+
+  it("returns reconstructed HTML as UTF-8", async () => {
+    mocks.inferSupportedTranslationFileFormat.mockReturnValue("html");
+    mocks.loadProjectHtmlTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: {
+        contentType: "text/html",
+        content: Buffer.from("<td>&nbsp;</td><p>Bienvenue</p>"),
+        extension: ".html",
+        translatedKeyCount: 1,
+      },
+    });
+
+    const result = await downloadMcpTranslations({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "emails/welcome.html",
+      locale: "fr-FR",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        filename: "welcome-fr-FR.html",
+        contentType: "text/html; charset=utf-8",
+        locale: "fr-FR",
+        sourcePath: "emails/welcome.html",
+        contentEncoding: "utf8",
+        content: "<td>&nbsp;</td><p>Bienvenue</p>",
+      },
+    });
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+  });
+
+  it("maps HTML export failures", async () => {
+    mocks.loadProjectHtmlTranslationDownload.mockResolvedValue({
+      ok: false,
+      error: {
+        code: "html_export_failed",
+        message: "Could not write translations into the HTML file.",
+      },
+    });
+
+    await expect(
+      downloadMcpTranslations({
+        organizationId: "org_1",
+        projectId: "project_1",
+        sourcePath: "emails/welcome.html",
+        locale: "fr-FR",
+      }),
+    ).resolves.toEqual({ ok: false, error: "html_export_failed" });
   });
 
   it("returns translations_not_found when no keys load", async () => {

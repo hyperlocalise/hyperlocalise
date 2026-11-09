@@ -315,6 +315,7 @@ describe("path builders", () => {
       ["AI visibility", "/org/acme/domains/ld_1/brand"],
       ["Prompt explorer", "/org/acme/domains/ld_1/prompts"],
       ["Search Console", "/org/acme/domains/ld_1/search-console"],
+      ["Localisation audit", "/org/acme/domains/ld_1/audit"],
     ]);
   });
 

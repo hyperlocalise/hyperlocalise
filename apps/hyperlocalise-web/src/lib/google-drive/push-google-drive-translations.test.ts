@@ -11,6 +11,8 @@
  * Version 2.0 or later.
  */
 
+import { createHash } from "node:crypto";
+
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { GOOGLE_EXPORT_MIME } from "./constants";
@@ -29,6 +31,7 @@ const mocks = vi.hoisted(() => ({
   loadProjectOfficeTranslationDownload: vi.fn(),
   loadProjectPdfTranslationDownload: vi.fn(),
   loadProjectTxtTranslationDownload: vi.fn(),
+  loadProjectHtmlTranslationDownload: vi.fn(),
   loadProjectTranslationsAsPrefilledEntries: vi.fn(),
   loadProjectLottieTranslationDownload: vi.fn(),
   loadProjectSubtitleTranslationDownload: vi.fn(),
@@ -52,6 +55,11 @@ vi.mock("@/lib/projects/files/pdf-translation-download", () => ({
 vi.mock("@/lib/projects/files/txt-translation-download", () => ({
   loadProjectTxtTranslationDownload: (...args: unknown[]) =>
     mocks.loadProjectTxtTranslationDownload(...args),
+}));
+
+vi.mock("@/lib/projects/files/html-translation-download", () => ({
+  loadProjectHtmlTranslationDownload: (...args: unknown[]) =>
+    mocks.loadProjectHtmlTranslationDownload(...args),
 }));
 
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
@@ -198,6 +206,7 @@ describe("loadTranslatedBytes", () => {
     mocks.loadProjectOfficeTranslationDownload.mockReset();
     mocks.loadProjectPdfTranslationDownload.mockReset();
     mocks.loadProjectTxtTranslationDownload.mockReset();
+    mocks.loadProjectHtmlTranslationDownload.mockReset();
     mocks.loadProjectTranslationsAsPrefilledEntries.mockReset();
     mocks.loadProjectLottieTranslationDownload.mockReset();
     mocks.loadProjectSubtitleTranslationDownload.mockReset();
@@ -372,6 +381,50 @@ describe("loadTranslatedBytes", () => {
     expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
   });
 
+  it("returns the html download for html sources", async () => {
+    mocks.loadProjectHtmlTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: {
+        content: Buffer.from("<p>Xin chào</p>"),
+        contentType: "text/html",
+        extension: ".html",
+        translatedKeyCount: 1,
+      },
+    });
+
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/welcome.html",
+        ingestFormat: "html",
+      }),
+    ).resolves.toEqual({
+      buffer: Buffer.from("<p>Xin chào</p>"),
+      fileName: "welcome.html",
+      mimeType: "text/html",
+    });
+    expect(mocks.loadProjectHtmlTranslationDownload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        approvedTranslationsOnly: true,
+      }),
+    );
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+  });
+
+  it("returns null for html when the download has no ready translations", async () => {
+    mocks.loadProjectHtmlTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: { translatedKeyCount: 0, content: Buffer.from("<p>Hello</p>") },
+    });
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/welcome.html",
+        ingestFormat: "html",
+      }),
+    ).resolves.toBeNull();
+  });
+
   it("returns null for txt when the download has no ready translations", async () => {
     mocks.loadProjectTxtTranslationDownload.mockResolvedValue({ ok: true, value: null });
     await expect(
@@ -459,6 +512,37 @@ describe("loadTranslatedBytes", () => {
       fileName: "readme",
       mimeType: "text/plain; charset=utf-8",
     });
+  });
+
+  it("treats ingestFormat pdf as PDF when the path has no extension", async () => {
+    mocks.loadProjectPdfTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: {
+        content: Buffer.from("pdf-bytes"),
+        contentType: "application/pdf",
+        extension: ".pdf",
+        translatedKeyCount: 2,
+        overflowKeys: [],
+      },
+    });
+
+    await expect(
+      loadTranslatedBytes({
+        ...input,
+        sourcePath: "google-drive/folder/brief",
+        ingestFormat: "pdf",
+      }),
+    ).resolves.toEqual({
+      buffer: Buffer.from("pdf-bytes"),
+      fileName: "brief",
+      mimeType: "application/pdf",
+    });
+    expect(mocks.loadProjectPdfTranslationDownload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourcePath: "google-drive/folder/brief",
+        approvedTranslationsOnly: true,
+      }),
+    );
   });
 
   it("returns subtitle exports for .srt sources", async () => {
@@ -836,6 +920,128 @@ describe("runPushGoogleDriveTranslations", () => {
           locales: [{ locale: "vi-VN", code: "plaintext_export_failed" }],
         },
       ],
+    });
+    expect(mocks.uploadGoogleDriveFile).not.toHaveBeenCalled();
+  });
+
+  it("records skippedFiles as unchanged when the last push hash still matches", async () => {
+    const pdfBytes = Buffer.from("pdf-bytes");
+    const pushHash = createHash("sha256").update(pdfBytes).digest("hex");
+    selectQueue([
+      [{ id: "project-1", source: "native", targetLocales: ["vi-VN"] }],
+      [
+        {
+          id: "map-1",
+          automationId: "automation-1",
+          projectId: "project-1",
+          folderId: "folder-1",
+          driveFileId: "drive-1",
+          mimeType: "application/pdf",
+          ingestFormat: "pdf",
+          sourcePath: "google-drive/folder/report.pdf",
+          localeFolderIds: {},
+          translatedFileIds: {},
+          lastPushContentHash: { "vi-VN": pushHash },
+          status: "active",
+        },
+      ],
+    ]);
+    mocks.dbUpdate.mockImplementation(() => ({
+      set: () => ({ where: async () => [] }),
+    }));
+    mocks.loadGoogleDrivePipesAccessToken.mockResolvedValue({ ok: true, value: "token" });
+    mocks.getGoogleDriveFile.mockResolvedValue({
+      ok: true,
+      value: { parents: ["parent-1"], driveId: null },
+    });
+    mocks.loadProjectPdfTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: {
+        content: pdfBytes,
+        contentType: "application/pdf",
+        extension: ".pdf",
+        translatedKeyCount: 2,
+        overflowKeys: [],
+      },
+    });
+    const automation = driveAutomation([]);
+    automation.toolConfig.googleDrive!.translationOutput = "suffix";
+
+    await expect(
+      runPushGoogleDriveTranslations({
+        organizationId: "org-1",
+        automation,
+      }),
+    ).resolves.toEqual({
+      pushed: 0,
+      skipped: 1,
+      failed: 0,
+      skippedFiles: [
+        {
+          sourcePath: "google-drive/folder/report.pdf",
+          driveFileId: "drive-1",
+          locales: [{ locale: "vi-VN", reason: "unchanged" }],
+        },
+      ],
+      partialFiles: [],
+      failedFiles: [],
+    });
+    expect(mocks.uploadGoogleDriveFile).not.toHaveBeenCalled();
+  });
+
+  it("records skippedFiles as unsupported_script when the PDF cannot be shaped", async () => {
+    selectQueue([
+      [{ id: "project-1", source: "native", targetLocales: ["vi-VN"] }],
+      [
+        {
+          id: "map-1",
+          automationId: "automation-1",
+          projectId: "project-1",
+          folderId: "folder-1",
+          driveFileId: "drive-1",
+          mimeType: "application/pdf",
+          ingestFormat: "pdf",
+          sourcePath: "google-drive/folder/report.pdf",
+          localeFolderIds: {},
+          translatedFileIds: {},
+          lastPushContentHash: {},
+          status: "active",
+        },
+      ],
+    ]);
+    mocks.dbUpdate.mockImplementation(() => ({
+      set: () => ({ where: async () => [] }),
+    }));
+    mocks.loadGoogleDrivePipesAccessToken.mockResolvedValue({ ok: true, value: "token" });
+    mocks.getGoogleDriveFile.mockResolvedValue({
+      ok: true,
+      value: { parents: ["parent-1"], driveId: null },
+    });
+    mocks.loadProjectPdfTranslationDownload.mockResolvedValue({
+      ok: false,
+      error: { code: "pdf_script_unsupported", message: "unsupported script" },
+    });
+    const automation = driveAutomation([]);
+    automation.toolConfig.googleDrive!.translationOutput = "suffix";
+
+    await expect(
+      runPushGoogleDriveTranslations({
+        organizationId: "org-1",
+        automation,
+      }),
+    ).resolves.toEqual({
+      pushed: 0,
+      skipped: 1,
+      failed: 0,
+      skippedFiles: [
+        {
+          sourcePath: "google-drive/folder/report.pdf",
+          driveFileId: "drive-1",
+          locales: [{ locale: "vi-VN", reason: "unsupported_script" }],
+        },
+      ],
+      partialFiles: [],
+      failedFiles: [],
     });
     expect(mocks.uploadGoogleDriveFile).not.toHaveBeenCalled();
   });

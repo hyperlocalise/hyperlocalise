@@ -114,8 +114,10 @@ func TestPublicAPIRoleAllowsScope(t *testing.T) {
 	for _, role := range []string{"admin", "localization_manager", "developer", "reviewer", "translator", "member"} {
 		require.True(t, publicAPIRoleAllowsScope(role, "files:read"), role)
 		require.True(t, publicAPIRoleAllowsScope(role, "jobs:read"), role)
+		require.True(t, publicAPIRoleAllowsScope(role, "memories:read"), role)
 		require.Equal(t, role != "member", publicAPIRoleAllowsScope(role, "files:write"), role)
 		require.Equal(t, role != "member", publicAPIRoleAllowsScope(role, "jobs:write"), role)
+		require.Equal(t, role == "admin" || role == "localization_manager", publicAPIRoleAllowsScope(role, "memories:write"), role)
 		require.False(t, publicAPIRoleAllowsScope(role, "mcp"), role)
 		require.False(t, publicAPIRoleAllowsScope(role, "api_keys:write"), role)
 	}

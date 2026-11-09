@@ -15,6 +15,7 @@ import { z } from "zod";
 import { successEnvelopeSchema } from "@/api/response.schema";
 import { projectIssueIdentifierSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/identity/project-id";
+import { translationOrigins } from "@/lib/projects/translations/translation-origin-rule";
 import { VISUAL_CONTEXT_SCREENSHOT_MAX_BYTES } from "@/lib/translation/content-editor-visual-context";
 import {
   localeInputSchema,
@@ -22,6 +23,13 @@ import {
   projectTargetLocalesSchema,
 } from "@/lib/i18n/locales";
 import { messageFormatSchema } from "@/lib/i18n/message-format";
+import { placeholderPatternsSchema } from "@/lib/i18n/placeholder-patterns";
+import {
+  repositorySourceFileImportSettingsSchema,
+  type RepositorySourceFileImportSettings,
+} from "@/lib/projects/files/source-file-import-settings-schema";
+
+export { repositorySourceFileImportSettingsSchema, type RepositorySourceFileImportSettings };
 
 export const projectIdParamsSchema = z.object({
   projectId: projectIdSchema,
@@ -326,6 +334,7 @@ export const projectFileCatQueueFilterSchema = z.enum([
   "not_hidden",
   "qa_issues",
   "machine_translated",
+  "origin",
   "with_comments",
 ]);
 
@@ -531,6 +540,7 @@ export const projectFileUploadBodySchema = z.object({
   sourceHash: z.string().trim().min(1).max(256).optional(),
   commitSha: z.string().trim().min(1).max(256).optional(),
   workflowRunId: z.string().trim().min(1).max(256).optional(),
+  keepApproved: z.enum(["true", "false"]).optional(),
 });
 
 export const projectFileTranslationImportBodySchema = z.object({
@@ -657,6 +667,14 @@ export const projectFileMessageFormatQuerySchema = projectFileSegmentationQueryS
 export const updateProjectFileMessageFormatBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   messageFormat: messageFormatSchema,
+  placeholderPatterns: placeholderPatternsSchema.optional(),
+});
+
+export const projectFileImportSettingsQuerySchema = projectFileSegmentationQuerySchema;
+
+export const updateProjectFileImportSettingsBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  importSettings: repositorySourceFileImportSettingsSchema,
 });
 
 export const projectFileSegmentationResponseSchema = z.object({
@@ -1011,6 +1029,8 @@ export const projectFileCatTranslationSchema = z.object({
   targetAssetUrl: z.string().nullable().optional(),
   imageVariantId: z.string().nullable().optional(),
   status: z.enum(["draft", "needs_review", "approved", "rejected"]).optional(),
+  /** Whether a machine or a person wrote `text`; native string targets only. */
+  origin: z.enum(translationOrigins).optional(),
 });
 
 /** Bounds apply to the rectangle, including cells not explicitly requested by callers. */
@@ -1059,12 +1079,15 @@ export const projectFileCatSegmentSchema = z.object({
   imageVariantId: z.string().nullable().optional(),
   looksLikeImageUrl: z.boolean().optional(),
   looksLikeVideoUrl: z.boolean().optional(),
+  sourceTextEditable: z.boolean().optional(),
   /** Present when the queue spans multiple files (`sourcePath=*`). */
   sourcePath: z.string().optional(),
   /** Provider file format for this segment's file (All Files mode). */
   format: z.string().nullable().optional(),
   /** Placeholder syntax of this segment's file (All Files mode). */
   messageFormat: messageFormatSchema.optional(),
+  /** Custom placeholder regexes of this segment's file (All Files mode). */
+  placeholderPatterns: z.array(z.string()).optional(),
   externalResourceId: z.string().optional(),
   resourceType: z.enum(["file", "key"]).optional(),
   /** Grouped queues only: identical source strings in scope, including this one. */
@@ -1145,6 +1168,8 @@ export const projectFileCatResponseSchema = z.object({
     ingestError: z.string().nullable().optional(),
     /** Placeholder syntax for single-file queues. All Files queues set it per segment. */
     messageFormat: messageFormatSchema.optional(),
+    /** Custom placeholder regexes for single-file queues. All Files queues set them per segment. */
+    placeholderPatterns: z.array(z.string()).optional(),
     segments: z.array(projectFileCatSegmentSchema),
     pagination: projectFileCatPaginationSchema.optional(),
   }),

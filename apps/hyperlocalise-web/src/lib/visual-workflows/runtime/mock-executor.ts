@@ -86,6 +86,12 @@ export function createMockWorkflowExecutor(
     if (!outputs[node.id]) {
       fillMissingOutputFields(node, output);
     }
-    return { ok: true, output };
+    return {
+      ok: true,
+      output,
+      ...(node.type === "flow.human_approval" && typeof output.decision === "string"
+        ? { switchCase: output.decision }
+        : {}),
+    };
   };
 }
