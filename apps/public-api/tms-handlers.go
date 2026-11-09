@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/sourcetext"
+	"github.com/hyperlocalise/hyperlocalise/internal/translationorigin"
 )
 
 const (
@@ -314,6 +315,7 @@ func (s apiServer) stringTranslation(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Text   *string `json:"text"`
 		Status string  `json:"status"`
+		Origin string  `json:"origin"`
 	}
 	if !decodeJSONBody(w, r, &body) {
 		return
@@ -325,7 +327,11 @@ func (s apiServer) stringTranslation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_body", "text is required and status must be draft, needs_review, approved, or rejected")
 		return
 	}
-	item, err := s.store.putTranslation(r.Context(), p, projectID, stringID, locale, translationWrite{Text: *body.Text, Status: body.Status})
+	if body.Origin != "" && !translationorigin.Valid(body.Origin) {
+		writeError(w, http.StatusBadRequest, "invalid_body", "origin must be machine, machine_post_edited, human, or unknown")
+		return
+	}
+	item, err := s.store.putTranslation(r.Context(), p, projectID, stringID, locale, translationWrite{Text: *body.Text, Status: body.Status, Origin: body.Origin})
 	if err != nil {
 		writeStoreError(w, err, "save translation")
 		return
@@ -355,13 +361,15 @@ func (s apiServer) projectTranslations(w http.ResponseWriter, r *http.Request) {
 	filters := translationFilters{
 		Locale: strings.TrimSpace(values.Get("locale")),
 		Status: values.Get("status"),
+		Origin: values.Get("origin"),
 		Limit:  page.Limit,
 		Offset: page.Offset,
 	}
 	includeHidden := values.Get("includeHidden")
 	filters.IncludeHidden = includeHidden == "true"
 	if !member(includeHidden, "", "true", "false") || len(filters.Locale) > maxLocaleLength ||
-		(filters.Status != "" && !member(filters.Status, translationStatuses...)) {
+		(filters.Status != "" && !member(filters.Status, translationStatuses...)) ||
+		(filters.Origin != "" && !translationorigin.Valid(filters.Origin)) {
 		writeError(w, http.StatusBadRequest, "invalid_query", "One or more query filters are invalid")
 		return
 	}

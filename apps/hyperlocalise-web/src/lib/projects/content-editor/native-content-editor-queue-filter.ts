@@ -15,6 +15,7 @@ import { sql, type SQL } from "drizzle-orm";
 import type { ProjectFileContentEditorQueueFilter } from "@/api/routes/project/project.schema";
 import { schema } from "@/lib/database/client";
 import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
+import { isTranslationOrigin } from "@/lib/projects/translations/translation-origin-rule";
 import { translationQaCheckTypes } from "@/lib/qa/types";
 
 const nativeMachineTranslationProvenances = ["translation_job", "agent", "import"] as const;
@@ -144,6 +145,19 @@ function nativeMachineTranslatedSql(
   )`;
 }
 
+function nativeOriginSql(
+  input: { organizationId: string; projectId: string; targetLocale: string },
+  qualifier?: string,
+) {
+  return sql`exists (
+    select 1
+    from ${schema.projectTranslations}
+    where ${translationMatchSql(input)}
+      and trim(${schema.projectTranslations.text}) != ''
+      ${isTranslationOrigin(qualifier) ? sql`and ${schema.projectTranslations.origin} = ${qualifier}` : sql``}
+  )`;
+}
+
 function nativeDateBoundSql(
   column:
     | typeof schema.projectTranslationKeys.createdAt
@@ -238,6 +252,9 @@ export function nativeQueueFilterCondition(input: {
         break;
       case "machine_translated":
         fragments.push(nativeMachineTranslatedSql(input, input.queueFilterQualifier));
+        break;
+      case "origin":
+        fragments.push(nativeOriginSql(input, input.queueFilterQualifier));
         break;
       case "with_comments":
         fragments.push(nativeCommentsSql(input, "with"));

@@ -13,6 +13,7 @@ import (
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 	"github.com/hyperlocalise/hyperlocalise/internal/sourcetext"
+	"github.com/hyperlocalise/hyperlocalise/internal/translationorigin"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -132,7 +133,7 @@ func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
 		queueFilter = "all"
 	}
 	switch queueFilter {
-	case "all", "untranslated", "needs_review", "reviewed", "has_issues", "hidden", "not_hidden", "qa_issues", "machine_translated", "with_comments":
+	case "all", "untranslated", "needs_review", "reviewed", "has_issues", "hidden", "not_hidden", "qa_issues", "machine_translated", "origin", "with_comments":
 	default:
 		return editorCatQueueQuery{}, editorCatFailure(400, "invalid_project_payload", "Invalid CAT query")
 	}
@@ -144,6 +145,14 @@ func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
 		return editorCatQueueQuery{}, editorCatFailure(400, "invalid_project_payload", "Invalid CAT query")
 	}
 	queueFilterQualifier := parseEditorCatQueueFilterQualifier(values.Get("queueFilterQualifier"))
+	if queueFilter == "origin" {
+		// Origin values are qualifiers of this filter only, so the shared allowlist (also used
+		// for QA issue types) does not hold them.
+		queueFilterQualifier = ""
+		if origin := trimEditorCat(values.Get("queueFilterQualifier")); translationorigin.Valid(origin) {
+			queueFilterQualifier = origin
+		}
+	}
 	advancedFilter, err := parseEditorCatAdvancedFilter(values.Get("queueAdvanced"))
 	if err != nil {
 		return editorCatQueueQuery{}, err

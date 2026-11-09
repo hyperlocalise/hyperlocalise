@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
+	"github.com/hyperlocalise/hyperlocalise/internal/translationorigin"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -108,7 +109,8 @@ func (s *postgresStore) exportBilingualRows(ctx context.Context, actor principal
 		where.add("f.source_path = ?", *query.FilePath)
 	}
 	where.args = append(where.args, editor_export.MaxRows+1)
-	rows, err := s.pool.Query(ctx, fmt.Sprintf(`SELECT k.key, k.source_text, COALESCE(t.text, ''), COALESCE(f.source_path, '')
+	rows, err := s.pool.Query(ctx, fmt.Sprintf(`SELECT k.key, k.source_text, COALESCE(t.text, ''), COALESCE(f.source_path, ''),
+			COALESCE(t.origin::text, '')
 		%s
 		LEFT JOIN project_translations t ON t.translation_key_id = k.id AND t.target_locale = $3
 		WHERE %s
@@ -123,7 +125,7 @@ func (s *postgresStore) exportBilingualRows(ctx context.Context, actor principal
 	}
 	items, err := collectRows(rows, func(row rowScanner) (editor_export.Row, error) {
 		item := editor_export.Row{SourceLocale: sourceLocale, TargetLocale: query.Locale}
-		err := row.Scan(&item.Key, &item.SourceText, &item.TargetText, &item.SourcePath)
+		err := row.Scan(&item.Key, &item.SourceText, &item.TargetText, &item.SourcePath, &item.Origin)
 		return item, err
 	})
 	if err != nil {
@@ -207,9 +209,13 @@ func (s *postgresStore) importBilingualRows(ctx context.Context, actor principal
 			}
 			write.keyIDs = append(write.keyIDs, key.id)
 			write.texts = append(write.texts, text)
+			// A corrected bilingual file is a person's edit: changed machine text is post-edited.
+			var previous *translationorigin.Previous
 			if existed {
 				write.before = append(write.before, snapshot)
+				previous = &translationorigin.Previous{Origin: snapshot.origin, Text: snapshot.text}
 			}
+			write.origins = append(write.origins, translationorigin.Next(previous, translationorigin.WriterPerson, text))
 		}
 		if err := saveBilingualTranslations(ctx, tx, actor, scope, input.Locale, write); err != nil {
 			return err
@@ -283,7 +289,7 @@ type bilingualSnapshot struct {
 }
 
 func lockBilingualTranslations(ctx context.Context, tx pgx.Tx, actor principal, locale string, keys []bilingualKey) (map[string]bilingualSnapshot, error) {
-	rows, err := tx.Query(ctx, `SELECT id, translation_key_id, text, status::text, provenance::text, source_job_id, updated_at
+	rows, err := tx.Query(ctx, `SELECT id, translation_key_id, text, status::text, provenance::text, origin::text, source_job_id, updated_at
 		FROM project_translations
 		WHERE organization_id = $1 AND target_locale = $2 AND translation_key_id = ANY($3::uuid[])
 		ORDER BY id
@@ -293,7 +299,7 @@ func lockBilingualTranslations(ctx context.Context, tx pgx.Tx, actor principal, 
 	}
 	snapshots, err := collectRows(rows, func(row rowScanner) (bilingualSnapshot, error) {
 		var item bilingualSnapshot
-		err := row.Scan(&item.id, &item.keyID, &item.text, &item.status, &item.provenance, &item.sourceJobID, &item.updatedAt)
+		err := row.Scan(&item.id, &item.keyID, &item.text, &item.status, &item.provenance, &item.origin, &item.sourceJobID, &item.updatedAt)
 		return item, err
 	})
 	if err != nil {
@@ -307,9 +313,10 @@ func lockBilingualTranslations(ctx context.Context, tx pgx.Tx, actor principal, 
 }
 
 type bilingualWrite struct {
-	keyIDs []string
-	texts  []string
-	before []bilingualSnapshot
+	keyIDs  []string
+	texts   []string
+	origins []string
+	before  []bilingualSnapshot
 }
 
 // saveBilingualTranslations upserts the changed translations and records their revisions the
@@ -323,25 +330,27 @@ func saveBilingualTranslations(ctx context.Context, tx pgx.Tx, actor principal, 
 		texts := make([]string, len(write.before))
 		statuses := make([]string, len(write.before))
 		provenances := make([]string, len(write.before))
+		origins := make([]string, len(write.before))
 		jobIDs := make([]*string, len(write.before))
 		updatedAts := make([]time.Time, len(write.before))
 		for i, item := range write.before {
 			ids[i], texts[i], statuses[i], provenances[i] = item.id, item.text, item.status, item.provenance
-			jobIDs[i], updatedAts[i] = item.sourceJobID, item.updatedAt
+			jobIDs[i], updatedAts[i], origins[i] = item.sourceJobID, item.updatedAt, item.origin
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO project_translation_revisions (
 				organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
-				provenance, source_job_id, actor_kind, created_at
+				provenance, origin, source_job_id, actor_kind, created_at
 			)
 			SELECT t.organization_id, t.project_id, t.id, t.translation_key_id, t.target_locale, b.text,
-				b.status::project_translation_status, b.provenance::project_translation_provenance, b.source_job_id,
+				b.status::project_translation_status, b.provenance::project_translation_provenance,
+				b.origin::project_translation_origin, b.source_job_id,
 				CASE b.provenance WHEN 'agent' THEN 'agent' WHEN 'manual' THEN 'user' ELSE 'system' END,
 				b.updated_at
-			FROM unnest($2::uuid[], $3::text[], $4::text[], $5::text[], $6::text[], $7::timestamptz[])
-				AS b(id, text, status, provenance, source_job_id, updated_at)
+			FROM unnest($2::uuid[], $3::text[], $4::text[], $5::text[], $6::text[], $7::timestamptz[], $8::text[])
+				AS b(id, text, status, provenance, source_job_id, updated_at, origin)
 			JOIN project_translations t ON t.id = b.id AND t.organization_id = $1
 			WHERE NOT EXISTS (SELECT 1 FROM project_translation_revisions r WHERE r.translation_id = b.id)`,
-			actor.OrganizationID, ids, texts, statuses, provenances, jobIDs, updatedAts,
+			actor.OrganizationID, ids, texts, statuses, provenances, jobIDs, updatedAts, origins,
 		); err != nil {
 			return fmt.Errorf("record baseline revisions: %w", err)
 		}
@@ -349,20 +358,22 @@ func saveBilingualTranslations(ctx context.Context, tx pgx.Tx, actor principal, 
 	reviewedAt := time.Now().UTC()
 	rows, err := tx.Query(ctx, `INSERT INTO project_translations (
 			organization_id, project_id, translation_key_id, target_locale, text, status, provenance,
-			reviewed_by_user_id, reviewed_at
+			reviewed_by_user_id, reviewed_at, origin
 		)
-		SELECT $1, $2, w.key_id, $3, w.text, 'approved', 'import', $6::uuid, $7::timestamptz
-		FROM unnest($4::uuid[], $5::text[]) AS w(key_id, text)
+		SELECT $1, $2, w.key_id, $3, w.text, 'approved', 'import', $6::uuid, $7::timestamptz,
+			w.origin::project_translation_origin
+		FROM unnest($4::uuid[], $5::text[], $8::text[]) AS w(key_id, text, origin)
 		ON CONFLICT (translation_key_id, target_locale) DO UPDATE SET
 			text = excluded.text,
 			status = excluded.status,
 			provenance = excluded.provenance,
+			origin = excluded.origin,
 			source_job_id = NULL,
 			reviewed_by_user_id = excluded.reviewed_by_user_id,
 			reviewed_at = excluded.reviewed_at,
 			updated_at = now()
 		RETURNING id`,
-		actor.OrganizationID, scope.ID, locale, write.keyIDs, write.texts, actor.UserID, reviewedAt)
+		actor.OrganizationID, scope.ID, locale, write.keyIDs, write.texts, actor.UserID, reviewedAt, write.origins)
 	if err != nil {
 		return fmt.Errorf("save translations: %w", err)
 	}
@@ -376,10 +387,10 @@ func saveBilingualTranslations(ctx context.Context, tx pgx.Tx, actor principal, 
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO project_translation_revisions (
 			organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
-			provenance, source_job_id, actor_kind, actor_user_id, created_at
+			provenance, origin, source_job_id, actor_kind, actor_user_id, created_at
 		)
 		SELECT t.organization_id, t.project_id, t.id, t.translation_key_id, t.target_locale, t.text, t.status,
-			t.provenance, t.source_job_id, 'api_key', $3::uuid, clock_timestamp()
+			t.provenance, t.origin, t.source_job_id, 'api_key', $3::uuid, clock_timestamp()
 		FROM project_translations t
 		WHERE t.id = ANY($1::uuid[]) AND t.organization_id = $2`,
 		ids, actor.OrganizationID, actor.UserID,

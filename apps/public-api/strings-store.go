@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/internal/sourcetext"
+	"github.com/hyperlocalise/hyperlocalise/internal/translationorigin"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/text/unicode/norm"
@@ -53,6 +54,7 @@ type translationRecord struct {
 	Text             string     `json:"text"`
 	Status           string     `json:"status"`
 	Provenance       string     `json:"provenance"`
+	Origin           string     `json:"origin"`
 	ReviewedByUserID *string    `json:"reviewedByUserId"`
 	ReviewedAt       *time.Time `json:"reviewedAt"`
 	CreatedAt        time.Time  `json:"createdAt"`
@@ -86,6 +88,7 @@ type stringFilters struct {
 type translationFilters struct {
 	Locale        string
 	Status        string
+	Origin        string
 	IncludeHidden bool
 	Limit         int
 	Offset        int
@@ -112,6 +115,9 @@ type stringPatch struct {
 type translationWrite struct {
 	Text   string
 	Status string
+	// Origin is the caller's own label for who wrote Text. Empty applies the rule for a person's
+	// write (translationorigin.Next).
+	Origin string
 }
 
 // projectScope is the accessible project a nested string or translation request targets.
@@ -477,7 +483,7 @@ func (s *postgresStore) deleteString(ctx context.Context, actor principal, proje
 
 const translationColumns = `
 	t.id, t.translation_key_id, k.key, t.target_locale, t.text, t.status::text,
-	t.provenance::text, t.reviewed_by_user_id, t.reviewed_at, t.created_at, t.updated_at`
+	t.provenance::text, t.origin::text, t.reviewed_by_user_id, t.reviewed_at, t.created_at, t.updated_at`
 
 const translationFrom = `
 	FROM project_translations t
@@ -487,7 +493,7 @@ func scanTranslation(row rowScanner) (translationRecord, error) {
 	var item translationRecord
 	err := row.Scan(
 		&item.ID, &item.StringID, &item.Key, &item.Locale, &item.Text, &item.Status,
-		&item.Provenance, &item.ReviewedByUserID, &item.ReviewedAt, &item.CreatedAt, &item.UpdatedAt,
+		&item.Provenance, &item.Origin, &item.ReviewedByUserID, &item.ReviewedAt, &item.CreatedAt, &item.UpdatedAt,
 	)
 	return item, err
 }
@@ -503,6 +509,9 @@ func (s *postgresStore) listTranslations(ctx context.Context, actor principal, p
 	}
 	if filters.Locale != "" {
 		where.add("t.target_locale = ?", filters.Locale)
+	}
+	if filters.Origin != "" {
+		where.add("t.origin::text = ?", filters.Origin)
 	}
 	if filters.Status != "" {
 		where.add("t.status::text = ?", filters.Status)
@@ -557,9 +566,22 @@ func (s *postgresStore) getStringTranslation(ctx context.Context, actor principa
 
 // translationSnapshot is a project_translations row as it was before a write.
 type translationSnapshot struct {
-	id, text, status, provenance string
-	sourceJobID                  *string
-	updatedAt                    time.Time
+	id, text, status, provenance, origin string
+	sourceJobID                          *string
+	updatedAt                            time.Time
+}
+
+// originAfter is the origin input leaves on the translation: the caller's label, else the rule
+// for a person's write over before.
+func (input translationWrite) originAfter(before *translationSnapshot) string {
+	if input.Origin != "" {
+		return input.Origin
+	}
+	var previous *translationorigin.Previous
+	if before != nil {
+		previous = &translationorigin.Previous{Origin: before.origin, Text: before.text}
+	}
+	return translationorigin.Next(previous, translationorigin.WriterPerson, input.Text)
 }
 
 func (s *postgresStore) putTranslation(ctx context.Context, actor principal, projectID, stringID, locale string, input translationWrite) (translationRecord, error) {
@@ -580,11 +602,11 @@ func (s *postgresStore) putTranslation(ctx context.Context, actor principal, pro
 		}
 		var before *translationSnapshot
 		var snapshot translationSnapshot
-		err = tx.QueryRow(ctx, `SELECT id, text, status::text, provenance::text, source_job_id, updated_at
+		err = tx.QueryRow(ctx, `SELECT id, text, status::text, provenance::text, origin::text, source_job_id, updated_at
 			FROM project_translations
 			WHERE organization_id = $1 AND translation_key_id = $2 AND target_locale = $3
 			FOR UPDATE`, actor.OrganizationID, stringID, locale,
-		).Scan(&snapshot.id, &snapshot.text, &snapshot.status, &snapshot.provenance, &snapshot.sourceJobID, &snapshot.updatedAt)
+		).Scan(&snapshot.id, &snapshot.text, &snapshot.status, &snapshot.provenance, &snapshot.origin, &snapshot.sourceJobID, &snapshot.updatedAt)
 		switch {
 		case err == nil:
 			before = &snapshot
@@ -599,17 +621,20 @@ func (s *postgresStore) putTranslation(ctx context.Context, actor principal, pro
 		var translationID string
 		if err := tx.QueryRow(ctx, `INSERT INTO project_translations (
 				organization_id, project_id, translation_key_id, target_locale, text, status, provenance,
-				reviewed_by_user_id, reviewed_at
-			) VALUES ($1, $2, $3, $4, $5, $6::text::project_translation_status, 'manual', $7::uuid, $8::timestamptz)
+				reviewed_by_user_id, reviewed_at, origin
+			) VALUES ($1, $2, $3, $4, $5, $6::text::project_translation_status, 'manual', $7::uuid, $8::timestamptz,
+				$9::text::project_translation_origin)
 			ON CONFLICT (translation_key_id, target_locale) DO UPDATE SET
 				text = excluded.text,
 				status = excluded.status,
 				provenance = excluded.provenance,
+				origin = excluded.origin,
 				reviewed_by_user_id = excluded.reviewed_by_user_id,
 				reviewed_at = excluded.reviewed_at,
 				updated_at = now()
 			RETURNING id`,
 			actor.OrganizationID, scope.ID, stringID, locale, input.Text, input.Status, reviewedBy, reviewedAt,
+			input.originAfter(before),
 		).Scan(&translationID); err != nil {
 			return fmt.Errorf("save translation: %w", err)
 		}
@@ -631,26 +656,27 @@ func recordTranslationRevision(ctx context.Context, tx pgx.Tx, actor principal, 
 	if before != nil {
 		if _, err := tx.Exec(ctx, `INSERT INTO project_translation_revisions (
 				organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
-				provenance, source_job_id, actor_kind, created_at
+				provenance, origin, source_job_id, actor_kind, created_at
 			)
 			SELECT t.organization_id, t.project_id, t.id, t.translation_key_id, t.target_locale, $3::text,
-				$4::text::project_translation_status, $5::text::project_translation_provenance, $6::text,
+				$4::text::project_translation_status, $5::text::project_translation_provenance,
+				$8::text::project_translation_origin, $6::text,
 				CASE $5::text WHEN 'agent' THEN 'agent' WHEN 'manual' THEN 'user' ELSE 'system' END,
 				$7::timestamptz
 			FROM project_translations t
 			WHERE t.id = $1 AND t.organization_id = $2
 				AND NOT EXISTS (SELECT 1 FROM project_translation_revisions r WHERE r.translation_id = $1)`,
-			translationID, actor.OrganizationID, before.text, before.status, before.provenance, before.sourceJobID, before.updatedAt,
+			translationID, actor.OrganizationID, before.text, before.status, before.provenance, before.sourceJobID, before.updatedAt, before.origin,
 		); err != nil {
 			return fmt.Errorf("record baseline revision: %w", err)
 		}
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO project_translation_revisions (
 			organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
-			provenance, source_job_id, actor_kind, actor_user_id, created_at
+			provenance, origin, source_job_id, actor_kind, actor_user_id, created_at
 		)
 		SELECT t.organization_id, t.project_id, t.id, t.translation_key_id, t.target_locale, t.text, t.status,
-			t.provenance, t.source_job_id, 'api_key', $3::uuid, clock_timestamp()
+			t.provenance, t.origin, t.source_job_id, 'api_key', $3::uuid, clock_timestamp()
 		FROM project_translations t
 		WHERE t.id = $1 AND t.organization_id = $2`,
 		translationID, actor.OrganizationID, actor.UserID,
@@ -746,10 +772,10 @@ func rejectIfStringLocked(ctx context.Context, tx pgx.Tx, actor principal, scope
 func sendApprovedTranslationsToReview(ctx context.Context, tx pgx.Tx, actor principal, scope projectScope, stringID string) error {
 	if _, err := tx.Exec(ctx, `INSERT INTO project_translation_revisions (
 			organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
-			provenance, source_job_id, actor_kind, created_at
+			provenance, origin, source_job_id, actor_kind, created_at
 		)
 		SELECT t.organization_id, t.project_id, t.id, t.translation_key_id, t.target_locale, t.text, t.status,
-			t.provenance, t.source_job_id,
+			t.provenance, t.origin, t.source_job_id,
 			CASE t.provenance WHEN 'agent' THEN 'agent' WHEN 'manual' THEN 'user' ELSE 'system' END,
 			t.updated_at
 		FROM project_translations t
@@ -765,14 +791,14 @@ func sendApprovedTranslationsToReview(ctx context.Context, tx pgx.Tx, actor prin
 			SET status = 'needs_review', reviewed_by_user_id = NULL, reviewed_at = NULL, updated_at = now()
 			WHERE organization_id = $1 AND project_id = $2 AND translation_key_id = $3 AND status = 'approved'
 			RETURNING organization_id, project_id, id, translation_key_id, target_locale, text, status,
-				provenance, source_job_id
+				provenance, origin, source_job_id
 		)
 		INSERT INTO project_translation_revisions (
 			organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
-			provenance, source_job_id, actor_kind, actor_user_id, created_at
+			provenance, origin, source_job_id, actor_kind, actor_user_id, created_at
 		)
 		SELECT organization_id, project_id, id, translation_key_id, target_locale, text, status,
-			provenance, source_job_id, 'api_key', $4::uuid, clock_timestamp()
+			provenance, origin, source_job_id, 'api_key', $4::uuid, clock_timestamp()
 		FROM moved`,
 		actor.OrganizationID, scope.ID, stringID, actor.UserID,
 	); err != nil {
@@ -789,7 +815,8 @@ func reviewerForTranslationStatus(status, userID string, now time.Time) (*string
 }
 
 func translationWriteUnchanged(before *translationSnapshot, input translationWrite) bool {
-	return before != nil && before.text == input.Text && before.status == input.Status
+	return before != nil && before.text == input.Text && before.status == input.Status &&
+		(input.Origin == "" || input.Origin == before.origin)
 }
 
 func isUniqueViolation(err error) bool {

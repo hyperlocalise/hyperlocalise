@@ -137,10 +137,10 @@ func sendEditorCatApprovedTranslationsToReview(r *http.Request, tx pgx.Tx, actor
 	if _, err := tx.Exec(ctx, `
         insert into project_translation_revisions (
             organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
-            provenance, source_job_id, actor_kind, created_at
+            provenance, origin, source_job_id, actor_kind, created_at
         )
         select t.organization_id, t.project_id, t.id, t.translation_key_id, t.target_locale, t.text, t.status,
-            t.provenance, t.source_job_id,
+            t.provenance, t.origin, t.source_job_id,
             case t.provenance when 'agent' then 'agent' when 'manual' then 'user' else 'system' end,
             t.updated_at
         from project_translations t
@@ -157,14 +157,14 @@ func sendEditorCatApprovedTranslationsToReview(r *http.Request, tx pgx.Tx, actor
             set status='needs_review', reviewed_by_user_id=null, reviewed_at=null, updated_at=now()
             where organization_id=$1 and project_id=$2 and translation_key_id=$3 and status='approved'
             returning organization_id, project_id, id, translation_key_id, target_locale, text, status,
-                provenance, source_job_id
+                provenance, origin, source_job_id
         )
         insert into project_translation_revisions (
             organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
-            provenance, source_job_id, actor_kind, actor_user_id, created_at
+            provenance, origin, source_job_id, actor_kind, actor_user_id, created_at
         )
         select organization_id, project_id, id, translation_key_id, target_locale, text, status,
-            provenance, source_job_id, 'user', $4::uuid, clock_timestamp()
+            provenance, origin, source_job_id, 'user', $4::uuid, clock_timestamp()
         from moved`,
 		actor.organizationID, project.ID, keyID, actor.userID,
 	)

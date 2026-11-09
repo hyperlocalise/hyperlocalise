@@ -173,4 +173,9 @@ export const contentEditorSegmentRevisionsMessages = defineMessages({
     id: "Z6yIjKdK2x",
     description: "Toast when undoing an operation fails",
   },
+  originHint: {
+    defaultMessage: "Whether a machine or a person wrote this version's text",
+    id: "BbkM1vD0OG",
+    description: "Tooltip on the origin badge of a translation revision",
+  },
 });

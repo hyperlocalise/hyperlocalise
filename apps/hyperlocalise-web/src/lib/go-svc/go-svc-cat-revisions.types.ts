@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import type { ProjectFileContentEditorTranslationResponse } from "@/api/routes/project/project.schema";
+import type { TranslationOrigin } from "@/lib/projects/translations/translation-origin-rule";
 
 export type CatRevisionActorKind = "user" | "agent" | "api_key" | "system";
 
@@ -22,6 +23,8 @@ export interface CatSegmentRevision {
   text: string;
   status: string;
   provenance: CatRevisionProvenance;
+  /** Whether a machine or a person wrote this version's text. */
+  origin: TranslationOrigin;
   sourceJobId: string | null;
   operationId: string | null;
   restoredFromRevisionId: string | null;

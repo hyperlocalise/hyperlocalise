@@ -16,6 +16,8 @@ import type { ActivityActorKind } from "@/lib/activity-log/activity-log-contract
 import { schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 
+import type { TranslationOrigin } from "./translation-origin-rule";
+
 const logger = createLogger("project-translation-revisions");
 
 type Provenance = (typeof schema.projectTranslations.$inferSelect)["provenance"];
@@ -36,6 +38,7 @@ export const projectTranslationRevisionColumns = {
   text: schema.projectTranslations.text,
   status: schema.projectTranslations.status,
   provenance: schema.projectTranslations.provenance,
+  origin: schema.projectTranslations.origin,
   sourceJobId: schema.projectTranslations.sourceJobId,
 };
 
@@ -48,6 +51,7 @@ export type ProjectTranslationRevisionSource = {
   text: string;
   status: Status;
   provenance: Provenance;
+  origin: TranslationOrigin;
   sourceJobId: string | null;
 };
 
@@ -232,6 +236,7 @@ function revisionValues(row: ProjectTranslationRevisionSource, actor: Translatio
     text: row.text,
     status: row.status,
     provenance: row.provenance,
+    origin: row.origin,
     sourceJobId: row.sourceJobId,
     actorKind: actor.actorKind,
     actorUserId: actor.actorUserId,
