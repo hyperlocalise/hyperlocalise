@@ -94,6 +94,8 @@ export interface ContentEditorWorkspaceReview {
   onSetLocked?: (segmentIds: string[], isLocked: boolean) => void | Promise<void>;
   onBulkLock?: (segmentIds: string[]) => void | Promise<void>;
   onBulkUnlock?: (segmentIds: string[]) => void | Promise<void>;
+  /** Opens the task dialog for the ticked strings (native projects). */
+  onCreateKeyTask?: (segmentIds: string[], onSaved: () => void) => void;
 }
 
 export interface ContentEditorWorkspaceServices {

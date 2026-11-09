@@ -19,9 +19,11 @@ import { invalidateContentEditorIntercomPushQueries } from "@/components/content
 import { invalidateContentEditorSanityPushQueries } from "@/components/content-editor/page/content-editor-sanity-push-queries";
 
 import { NativeTargetProvider } from "./content-editor-native-target-context";
+import { ContentEditorKeyTaskDialog } from "./content-editor-key-task-dialog";
 import { ContentEditorPageWindowProvider } from "./content-editor-page-window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { WarningCircleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -595,6 +597,29 @@ export function ProjectFileContentEditorWorkspace({
   );
 
   const isNativeProject = !isExternalProject && isNativeContentEditorFile(contentEditorFile);
+  const router = useRouter();
+  const [keyTask, setKeyTask] = useState<{ stringIds: string[]; onSaved: () => void } | null>(null);
+  const openKeyTaskDialog = useCallback(
+    (segmentIds: string[], onSaved: () => void) => {
+      // Whole-file and image rows have no translation key, so they can't join a key job.
+      const stringIds = segmentIds.filter(
+        (segmentId) =>
+          resolveCatLinkedIssueTranslationKeyId({
+            isNativeProject: true,
+            segmentId,
+            contentKind: contentEditorFile?.segments.find(
+              (item) => item.externalStringId === segmentId,
+            )?.contentKind,
+          }) != null,
+      );
+      if (stringIds.length === 0) {
+        toast.error(intl.formatMessage(projectFileCatWorkspaceMessages.noTaskStrings));
+        return;
+      }
+      setKeyTask({ stringIds, onSaved });
+    },
+    [contentEditorFile, intl],
+  );
   const glossaryTermsForQaGate = useCallback(
     async (sourceText: string, targetLocale: string): Promise<ContentEditorGlossaryTerm[]> => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
@@ -1626,6 +1651,9 @@ export function ProjectFileContentEditorWorkspace({
                         handleSetStringsLocked(segmentIds, true),
                       onBulkUnlock: (segmentIds: string[]) =>
                         handleSetStringsLocked(segmentIds, false),
+                      ...(isNativeProject && contentEditorFile?.canEditTranslations
+                        ? { onCreateKeyTask: openKeyTaskDialog }
+                        : {}),
                     }}
                     initialSegmentKeyOrId={openedSegmentKey ?? initialSegmentKey}
                     buildSegmentShareUrl={buildSegmentShareUrl}
@@ -1673,6 +1701,25 @@ export function ProjectFileContentEditorWorkspace({
               projectId={projectId}
               segment={linkedIssuesSegment}
             />
+            {isNativeProject ? (
+              <ContentEditorKeyTaskDialog
+                open={keyTask != null}
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setKeyTask(null);
+                  }
+                }}
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+                sourceLocale={sourceLocale}
+                targetLocales={targetLocales ?? []}
+                stringIds={keyTask?.stringIds ?? []}
+                onSaved={keyTask?.onSaved}
+                onOpenTask={(href) =>
+                  attemptCatPageNavigation(resolvedPageNavigationGuardRef, () => router.push(href))
+                }
+              />
+            ) : null}
           </div>
         </SpellcheckDictionaryProvider>
       </ContentEditorPageWindowProvider>

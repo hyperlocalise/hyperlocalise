@@ -87,6 +87,7 @@ export function ContentEditorQueueToolbar({
   onBulkUnhide,
   onBulkLock,
   onBulkUnlock,
+  onBulkCreateTask,
   isBulkActionPending = false,
   bulkProgress,
   bulkActionLocale,
@@ -125,6 +126,7 @@ export function ContentEditorQueueToolbar({
   onBulkUnhide?: () => void;
   onBulkLock?: () => void;
   onBulkUnlock?: () => void;
+  onBulkCreateTask?: () => void;
   isBulkActionPending?: boolean;
   bulkProgress?: string;
   /**
@@ -226,6 +228,7 @@ export function ContentEditorQueueToolbar({
           onBulkLock={onBulkLock}
           onBulkUnlock={onBulkUnlock}
           actionLocale={bulkActionLocale}
+          onBulkCreateTask={onBulkCreateTask}
           onDone={() => onSelectionModeChange?.(false)}
         />
       ) : (
@@ -365,6 +368,7 @@ function ContentEditorBulkBar({
   onBulkLock,
   onBulkUnlock,
   actionLocale,
+  onBulkCreateTask,
   onDone,
 }: {
   selectedCount: number;
@@ -380,6 +384,7 @@ function ContentEditorBulkBar({
   onBulkLock?: () => void;
   onBulkUnlock?: () => void;
   actionLocale?: string;
+  onBulkCreateTask?: () => void;
   onDone: () => void;
 }) {
   const intl = useIntl();
@@ -397,6 +402,11 @@ function ContentEditorBulkBar({
       key: "unlock",
       handler: onBulkUnlock,
       message: language ? messages.bulkUnlockInLanguage : messages.bulkUnlock,
+    },
+    {
+      key: "task",
+      handler: onBulkCreateTask,
+      message: messages.bulkCreateTask,
     },
   ].filter((action) => Boolean(action.handler));
 

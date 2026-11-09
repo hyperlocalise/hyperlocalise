@@ -54,6 +54,7 @@ export const ContentEditorQueueToolbarConnected = observer(
     onBulkUnhide,
     onBulkLock,
     onBulkUnlock,
+    onBulkCreateTask,
     onDownloadFilteredView,
     isDownloadingFilteredView = false,
     onImportBilingualFile,
@@ -83,6 +84,7 @@ export const ContentEditorQueueToolbarConnected = observer(
     onBulkUnhide?: () => void;
     onBulkLock?: () => void;
     onBulkUnlock?: () => void;
+    onBulkCreateTask?: () => void;
     onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
     isDownloadingFilteredView?: boolean;
     onImportBilingualFile?: (file: File) => Promise<CatBilingualImportCounts>;
@@ -171,6 +173,7 @@ export const ContentEditorQueueToolbarConnected = observer(
         onBulkUnhide={onBulkUnhide}
         onBulkLock={onBulkLock}
         onBulkUnlock={onBulkUnlock}
+        onBulkCreateTask={onBulkCreateTask}
         isBulkActionPending={store.isBulkActionPending}
         bulkActionLocale={
           store.ui.viewMode === "multilingual" ? store.fileContext.targetLocale : undefined

@@ -15,6 +15,11 @@
 import { defineMessages } from "react-intl";
 
 export const projectFileCatWorkspaceMessages = defineMessages({
+  noTaskStrings: {
+    defaultMessage: "None of the selected rows is a string that can join a task.",
+    id: "6qnnQHpizk",
+    description: "Error when the ticked rows are files or images, which a key task can't hold",
+  },
   qaBlockedSave: {
     defaultMessage: "Fix the QA errors before saving: {checks}",
     id: "uJX/OOWNsW",

@@ -279,6 +279,11 @@ export const contentEditorQueuePanelMessages = defineMessages({
     id: "3utulgy/hh",
     description: "Leaves the key job view and shows every string of the project",
   },
+  bulkCreateTask: {
+    defaultMessage: "Add to a task…",
+    id: "8DTgncaRKl",
+    description: "Bulk action that puts the selected strings into a new or open task for people",
+  },
   bulkSelectAll: {
     defaultMessage: "Select all visible",
     id: "1v2hbAXp/Y",
