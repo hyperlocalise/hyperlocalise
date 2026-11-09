@@ -64,8 +64,9 @@ membership role. Effective permissions are the intersection of stored token
 scopes and the owner's role. `files:read` also grants `projects:read`,
 `queries:read`, `strings:read`, `glossaries:read`, and
 `translation-memories:read`. `files:write`, which members cannot hold, also
-grants `strings:write`, and `projects:write` for admins, localization managers,
-and developers. `memories:read` grants `translation-memories:read`, and
+grants `strings:write`, `projects:write` for admins, localization managers,
+and developers, and `translations:approve` for admins, localization managers, and
+reviewers. `memories:read` grants `translation-memories:read`, and
 `memories:write` (admins and localization managers) grants
 `translation-memories:write`. `files:write` grants `glossaries:write` to admins,
 localization managers, and translators; translators can import only into
@@ -96,8 +97,8 @@ filters. Missing and inaccessible records both return `404`.
 | Jobs | `GET /v1/jobs`, `GET, PATCH /v1/jobs/{jobId}` | `jobs:read` / `jobs:write` |
 | Locale progress | `GET /v1/projects/{projectId}/locales` | `strings:read` |
 | Strings | `GET, POST /v1/projects/{projectId}/strings`, `POST .../strings/batch`, `GET, PATCH, DELETE /v1/projects/{projectId}/strings/{stringId}` | `strings:read` / `strings:write` |
-| Bilingual files | `GET, POST /v1/projects/{projectId}/bilingual-file` (CSV, TMX, XLF, XLIFF, XLSX) | `strings:read` / `strings:write` |
-| Translations | `GET /v1/projects/{projectId}/translations`, `GET /v1/projects/{projectId}/strings/{stringId}/translations`, `GET, PUT .../translations/{locale}` | `strings:read` / `strings:write` |
+| Bilingual files | `GET, POST /v1/projects/{projectId}/bilingual-file` (CSV, TMX, XLF, XLIFF, XLSX) | `strings:read` / `translations:approve` |
+| Translations | `GET /v1/projects/{projectId}/translations`, `GET /v1/projects/{projectId}/strings/{stringId}/translations`, `GET, PUT .../translations/{locale}` | `strings:read` / `strings:write`; `translations:approve` to approve or reject |
 | Glossaries | `GET /v1/glossaries`, `GET /v1/glossaries/{glossaryId}`, `GET .../terms`, `GET .../export` (TBX, CSV, XLSX) | `glossaries:read` |
 | Translation memories | `GET /v1/translation-memories`, `GET /v1/translation-memories/{memoryId}`, `GET .../entries`, `GET .../export` (TMX, CSV) | `translation-memories:read` |
 | Glossary import | `POST /v1/glossaries/{glossaryId}/import` (TBX, CSV, XLSX; returns `202`), `GET .../import-reports/{reportId}` | `glossaries:write` / `glossaries:read` |

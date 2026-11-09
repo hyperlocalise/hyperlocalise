@@ -27,6 +27,27 @@ func TestEffectivePermissions(t *testing.T) {
 		}
 	})
 
+	t.Run("only approving roles get translations:approve", func(t *testing.T) {
+		for role, allowed := range map[string]bool{
+			"admin": true, "localization_manager": true, "reviewer": true,
+			"developer": false, "translator": false, "member": false,
+		} {
+			perms := effectivePermissions([]string{"files:read", "files:write"}, role)
+			require.Equal(t, allowed, contains(perms, "translations:approve"), role)
+		}
+		require.NotContains(t, effectivePermissions([]string{"files:read"}, "admin"), "translations:approve")
+	})
+
+	t.Run("everyone who edits translations gets strings:write", func(t *testing.T) {
+		for role, allowed := range map[string]bool{
+			"admin": true, "localization_manager": true, "developer": true, "reviewer": true, "translator": true,
+			"member": false,
+		} {
+			perms := effectivePermissions([]string{"files:read", "files:write"}, role)
+			require.Equal(t, allowed, contains(perms, "strings:write"), role)
+		}
+	})
+
 	t.Run("member files write does not expand strings write", func(t *testing.T) {
 		perms := effectivePermissions([]string{"files:write"}, "member")
 		require.Empty(t, perms)

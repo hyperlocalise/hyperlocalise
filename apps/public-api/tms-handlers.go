@@ -327,6 +327,10 @@ func (s apiServer) stringTranslation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_body", "text is required and status must be draft, needs_review, approved, or rejected")
 		return
 	}
+	if (body.Status == "approved" || body.Status == "rejected") && !contains(p.Permissions, "translations:approve") {
+		writeError(w, http.StatusForbidden, "forbidden", "Missing required permission: translations:approve")
+		return
+	}
 	if body.Origin != "" && !translationorigin.Valid(body.Origin) {
 		writeError(w, http.StatusBadRequest, "invalid_body", "origin must be machine, machine_post_edited, human, or unknown")
 		return

@@ -557,12 +557,13 @@ paths:
       tags: [Translations]
       summary: Save a string's translation in one locale
       description: >-
-        Requires `strings:write`. Native projects only. Creates or replaces the translation and
-        records a revision attributed to the token owner. Locked segments return `409`, text
-        longer than the string's `maxLength` returns `422`. Without `origin`, the saved text is
-        labelled as a person's: `human`, or `machine_post_edited` when it changes machine text,
-        and unchanged text keeps its origin. Send `origin: machine` when the text comes from your
-        own machine translation.
+        Requires `strings:write`; saving as `approved` or `rejected` also requires
+        `translations:approve` (admins, localization managers and reviewers). Native projects only.
+        Creates or replaces the translation and records a revision attributed to the token owner.
+        Locked segments return `409`, text longer than the string's `maxLength` returns `422`.
+        Without `origin`, the saved text is labelled as a person's: `human`, or
+        `machine_post_edited` when it changes machine text, and unchanged text keeps its origin.
+        Send `origin: machine` when the text comes from your own machine translation.
       requestBody:
         required: true
         content:
@@ -685,7 +686,8 @@ paths:
       tags: [Bilingual files]
       summary: Re-import a bilingual file
       description: >-
-        Requires `strings:write`. Native projects only. Saves each row's target text as an
+        Requires `translations:approve` (admins, localization managers and reviewers). Native
+        projects only. Saves each row's target text as an
         approved, imported translation of the string with the same key and file. Rows without a
         key or target text, for another locale, for an unknown string, for a locked segment, or
         longer than the string's `maxLength` are skipped. With `filePath`, rows that name no file
