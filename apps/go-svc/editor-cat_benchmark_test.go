@@ -68,6 +68,16 @@ func BenchmarkEditorCatWholeFileMatchesAdvanced(b *testing.B) {
 	}
 }
 
+func BenchmarkValidEditorCatISODate(b *testing.B) {
+	date := "2026-02-28"
+	b.ReportAllocs()
+	for b.Loop() {
+		if !validEditorCatISODate(date) {
+			b.Fatal("expected valid date")
+		}
+	}
+}
+
 func BenchmarkParseEditorCatQueueQuery(b *testing.B) {
 	values := map[string][]string{
 		"sourcePath":           {"locales/en.json"},
