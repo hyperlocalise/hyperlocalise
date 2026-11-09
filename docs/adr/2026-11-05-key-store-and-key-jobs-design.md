@@ -8,7 +8,7 @@ Teams moving from Phrase Strings work on keys, not files. They tag keys, link ea
 
 Before this change a job covered one string or one file, keys had no tags or design link, and the content editor could not pick work by anything but file and filter.
 
-Other platforms do this work in their editor first and offer the same actions through their API: Phrase Strings (batch "Add/remove tags", "Add to job", batch verify), Lokalise (bulk actions, "Create task" from selected keys), Transifex (bulk tags in the editor), Smartling ("Change Job" from the Strings View) and Crowdin (labels, tasks by label). This change is the editor side. The public API side is a separate change with its own record.
+Other platforms do this work in their editor first and offer the same actions through their API: Phrase Strings (batch "Add/remove tags", "Add to job", batch verify), Lokalise (bulk actions, "Create task" from selected keys), Transifex (bulk tags in the editor), Smartling ("Change Job" from the Strings View) and Crowdin (labels, tasks by label). This change is the editor side. The public API side is a separate change: [Key store and key jobs in the public API](2026-11-09-key-store-public-api-design.md).
 
 ## Decision
 
