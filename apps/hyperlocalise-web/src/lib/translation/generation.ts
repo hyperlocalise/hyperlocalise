@@ -279,6 +279,8 @@ export class StringTranslationOutputError extends Error {
     message: string,
     readonly tokenUsage: StringTranslationJobResult["tokenUsage"],
     readonly validTranslations: StringTranslationJobResult["translations"],
+    /** Why each requested language was unusable, phrased so the model can fix it. */
+    readonly localeProblems: ReadonlyMap<string, string> = new Map(),
   ) {
     super(message);
     this.name = "StringTranslationOutputError";
@@ -293,11 +295,13 @@ function normalizeTranslations(
   const translationsByLocale = new Map<string, string>();
   const problems: string[] = [];
   const unusable = new Set<string>();
+  const localeProblems = new Map<string, string>();
 
   for (const translation of result.translations) {
     if (translationsByLocale.has(translation.locale)) {
       problems.push(`duplicate translation returned for locale ${translation.locale}`);
       unusable.add(translation.locale);
+      localeProblems.set(translation.locale, "It was translated more than once.");
     }
 
     translationsByLocale.set(translation.locale, translation.text);
@@ -307,6 +311,7 @@ function normalizeTranslations(
     if (!translationsByLocale.has(locale)) {
       problems.push(`missing translation for locale ${locale}`);
       unusable.add(locale);
+      localeProblems.set(locale, "No translation came back.");
     }
   }
 
@@ -323,11 +328,16 @@ function normalizeTranslations(
 
     if (!text) {
       problems.push(`missing translation for locale ${locale}`);
+      localeProblems.set(locale, "No translation came back.");
       continue;
     }
 
     if (jobInput.maxLength && text.length > jobInput.maxLength) {
       problems.push(`translation for locale ${locale} exceeds maxLength`);
+      localeProblems.set(
+        locale,
+        `${JSON.stringify(text)} is ${text.length} characters; it must be at most ${jobInput.maxLength}.`,
+      );
       continue;
     }
 
@@ -335,7 +345,7 @@ function normalizeTranslations(
   }
 
   if (problems.length > 0) {
-    throw new StringTranslationOutputError(problems[0]!, tokenUsage, translations);
+    throw new StringTranslationOutputError(problems[0]!, tokenUsage, translations, localeProblems);
   }
 
   return { translations, ...(tokenUsage ? { tokenUsage } : {}) };

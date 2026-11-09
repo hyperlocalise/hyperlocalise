@@ -16,6 +16,7 @@ import { z } from "zod";
 import {
   completeAndTrackBillableUsage,
   formatUsageControlError,
+  trackAiCreditUsageInAutumn,
 } from "@/lib/billing/usage-control";
 import { db, schema } from "@/lib/database/client";
 import { updateJobs } from "@/lib/job-change-events/job-writes";
@@ -30,6 +31,11 @@ import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
 } from "@/lib/providers/capabilities/match-resolution";
+import {
+  checkTranslation,
+  isUntranslatedCopy,
+  withRetryFeedback,
+} from "@/lib/translation/accept-translations";
 import { TranslationContextBuilder } from "@/lib/translation/context";
 import type { StringTranslationJobResult } from "@/lib/translation/domain";
 import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
@@ -68,14 +74,22 @@ export type KeyTranslationJobPlan = {
   knowledgeMemoryEnabled: boolean;
 };
 
-/** Whether a job may write a translation in this state. */
+/**
+ * Whether a job may write a translation in this state. A Needs review copy of the source is no
+ * translation, so it counts as missing, as in the file job's prefill.
+ */
 function isWritable(
   existing: { text: string; status: string } | undefined,
   overwriteUnapproved: boolean,
+  copy: { sourceText: string; sourceLocale: string; targetLocale: string },
 ) {
   if (!existing) return true;
   if (existing.status === "approved") return false;
-  return overwriteUnapproved || existing.text.trim() === "";
+  if (overwriteUnapproved || existing.text.trim() === "") return true;
+  return (
+    existing.status === "needs_review" &&
+    isUntranslatedCopy({ ...copy, translatedText: existing.text })
+  );
 }
 
 /**
@@ -156,7 +170,7 @@ export async function planKeyTranslationJob(input: {
 
   const keys = schema.projectTranslationKeys;
   const rows = await db
-    .select({ id: keys.id })
+    .select({ id: keys.id, sourceText: keys.sourceText })
     .from(schema.translationJobKeys)
     .innerJoin(keys, eq(keys.id, schema.translationJobKeys.translationKeyId))
     .where(
@@ -210,10 +224,17 @@ export async function planKeyTranslationJob(input: {
   });
 
   const items: KeyTranslationJobPlan["items"] = [];
-  for (const translationKeyId of keyIds) {
+  for (const { id: translationKeyId, sourceText } of rows) {
     const needed = targetLocales.filter((locale) => {
       const id = lockKey(translationKeyId, locale);
-      return !locked.has(id) && isWritable(existing.get(id), overwriteUnapproved);
+      return (
+        !locked.has(id) &&
+        isWritable(existing.get(id), overwriteUnapproved, {
+          sourceText,
+          sourceLocale,
+          targetLocale: locale,
+        })
+      );
     });
     if (needed.length > 0) {
       items.push({ translationKeyId, targetLocales: needed });
@@ -245,6 +266,7 @@ export async function persistKeyJobTranslations(input: {
   workflowRunId: string;
   plannedAt: string;
   translationKeyId: string;
+  sourceLocale: string;
   overwriteUnapproved: boolean;
   translations: Array<{ locale: string; text: string }>;
 }): Promise<string[] | null> {
@@ -267,7 +289,10 @@ export async function persistKeyJobTranslations(input: {
         return null;
       }
       const [key] = await tx
-        .select({ isHidden: schema.projectTranslationKeys.isHidden })
+        .select({
+          isHidden: schema.projectTranslationKeys.isHidden,
+          sourceText: schema.projectTranslationKeys.sourceText,
+        })
         .from(schema.projectTranslationKeys)
         .where(
           and(
@@ -299,7 +324,11 @@ export async function persistKeyJobTranslations(input: {
         return (
           !changedSincePlan &&
           !locked.has(lockKey(input.translationKeyId, translation.locale)) &&
-          isWritable(existing, input.overwriteUnapproved)
+          isWritable(existing, input.overwriteUnapproved, {
+            sourceText: key.sourceText,
+            sourceLocale: input.sourceLocale,
+            targetLocale: translation.locale,
+          })
         );
       });
       if (writable.length === 0) {
@@ -347,8 +376,9 @@ export async function persistKeyJobTranslations(input: {
 /**
  * Translates a batch of the job's strings through the string job's path (context builder and
  * the workspace's model), one model call per string for all the languages it needs, and saves
- * each result as it arrives. A string that fails counts as failed in its languages; the others
- * carry on.
+ * each result as it arrives. Each answer passes the accept checks (`accept-translations.ts`);
+ * languages that came back unusable or failed a check get one retry with the problems described.
+ * A string that fails counts as failed in its languages; the others carry on.
  */
 export async function translateKeyBatch(input: {
   jobId: string;
@@ -376,6 +406,7 @@ export async function translateKeyBatch(input: {
   }
 
   const keys = schema.projectTranslationKeys;
+  const files = schema.repositorySourceFiles;
   const keyRows = await db
     .select({
       id: keys.id,
@@ -383,8 +414,12 @@ export async function translateKeyBatch(input: {
       context: keys.context,
       maxLength: keys.maxLength,
       isHidden: keys.isHidden,
+      sourcePath: files.sourcePath,
+      messageFormat: files.messageFormat,
+      placeholderPatterns: files.placeholderPatterns,
     })
     .from(keys)
+    .leftJoin(files, eq(files.id, keys.repositorySourceFileId))
     .where(
       and(
         eq(keys.organizationId, input.organizationId),
@@ -430,6 +465,10 @@ export async function translateKeyBatch(input: {
         },
       );
       if (!context.ok) {
+        console.warn("[key-translation-job] translation context could not be built", {
+          jobId: input.jobId,
+          translationKeyId: item.translationKeyId,
+        });
         countFailed(item.targetLocales);
         return;
       }
@@ -442,27 +481,104 @@ export async function translateKeyBatch(input: {
         });
       }
 
-      let translation: StringTranslationJobResult;
-      try {
-        translation = await generator.translateStringJob(
-          context.context.toStringTranslationInput(
-            generator.project.name,
-            generator.project.translationContext,
+      const request = context.context.toStringTranslationInput(
+        generator.project.name,
+        generator.project.translationContext,
+      );
+      const accepted = new Map<string, string>();
+      // Calls the model for some of the string's languages, keeps the answers that pass the
+      // checks, and returns the problems of those worth a retry. On the retry an answer whose
+      // only problem is a glossary term is kept for review.
+      const translate = async (targetLocales: string[], retryContext?: string) => {
+        let translation: StringTranslationJobResult;
+        const retry = new Map<string, string[]>();
+        try {
+          translation = await generator.translateStringJob({
+            ...request,
+            jobInput: {
+              ...request.jobInput,
+              targetLocales,
+              ...(retryContext ? { context: retryContext } : {}),
+            },
+          });
+        } catch (error) {
+          if (!(error instanceof StringTranslationOutputError)) throw error;
+          // The call was made, so its tokens count, and the languages that came back fine are kept.
+          console.warn("[key-translation-job] part of a string translation was unusable", {
+            jobId: input.jobId,
+            translationKeyId: item.translationKeyId,
+            error: error.message,
+          });
+          translation = { translations: error.validTranslations, tokenUsage: error.tokenUsage };
+          for (const [locale, problem] of error.localeProblems) {
+            if (targetLocales.includes(locale)) retry.set(locale, [problem]);
+          }
+        }
+        result.tokenUsage = addTokenUsage(result.tokenUsage, translation.tokenUsage);
+
+        const answers = translation.translations.filter(
+          (entry) => targetLocales.includes(entry.locale) && entry.text.trim() !== "",
+        );
+        for (const locale of targetLocales) {
+          if (!retry.has(locale) && !answers.some((entry) => entry.locale === locale)) {
+            retry.set(locale, ["No translation came back."]);
+          }
+        }
+        const checks = await Promise.all(
+          answers.map((entry) =>
+            checkTranslation({
+              sourceText: key.sourceText,
+              translatedText: entry.text,
+              sourceLocale: input.sourceLocale,
+              targetLocale: entry.locale,
+              glossaryTerms: context.context.glossaryTerms,
+              sourcePath: key.sourcePath,
+              messageFormat: key.messageFormat,
+              placeholderPatterns: key.placeholderPatterns,
+            }),
           ),
         );
-      } catch (error) {
-        if (!(error instanceof StringTranslationOutputError)) throw error;
-        // The call was made, so its tokens count, and the languages that came back fine are kept.
-        console.warn("[key-translation-job] part of a string translation was unusable", {
-          jobId: input.jobId,
-          translationKeyId: item.translationKeyId,
-          error: error.message,
+        answers.forEach((entry, index) => {
+          const check = checks[index]!;
+          if (check.ok || (retryContext && !check.blocking)) {
+            accepted.set(entry.locale, entry.text);
+            return;
+          }
+          if (!retryContext) {
+            retry.set(entry.locale, check.problems);
+            return;
+          }
+          // The answer's text and problems can hold customer text, so only the reason is logged.
+          console.warn("[key-translation-job] answer rejected after the retry", {
+            jobId: input.jobId,
+            translationKeyId: item.translationKeyId,
+            locale: entry.locale,
+            reason: check.copy ? "copy_of_source" : "failed_checks",
+          });
         });
-        translation = { translations: error.validTranslations, tokenUsage: error.tokenUsage };
-      }
-      result.tokenUsage = addTokenUsage(result.tokenUsage, translation.tokenUsage);
+        return retry;
+      };
 
-      const wanted = new Set(item.targetLocales);
+      const retry = await translate(item.targetLocales);
+      if (retry.size > 0) {
+        // No retry call once the job is no longer this run's, so Cancel stops the work.
+        if (result.stopped || !(await ownsJob(db, input))) {
+          result.stopped = true;
+          return;
+        }
+        // Whatever the retry gets wrong again stays failed; a retry that errors keeps what passed.
+        await translate(
+          [...retry.keys()],
+          withRetryFeedback(request.jobInput.context, retry),
+        ).catch((error: unknown) => {
+          console.warn("[key-translation-job] retry of a string translation failed", {
+            jobId: input.jobId,
+            translationKeyId: item.translationKeyId,
+            error: error instanceof Error ? error.message : "unknown error",
+          });
+        });
+      }
+
       const written = await persistKeyJobTranslations({
         organizationId: input.organizationId,
         projectId: input.projectId,
@@ -470,8 +586,9 @@ export async function translateKeyBatch(input: {
         workflowRunId: input.workflowRunId,
         plannedAt: input.plannedAt,
         translationKeyId: key.id,
+        sourceLocale: input.sourceLocale,
         overwriteUnapproved: input.overwriteUnapproved,
-        translations: translation.translations.filter((entry) => wanted.has(entry.locale)),
+        translations: [...accepted].map(([locale, text]) => ({ locale, text })),
       });
       if (written === null) {
         result.stopped = true;
@@ -480,13 +597,8 @@ export async function translateKeyBatch(input: {
       for (const locale of written) {
         result.translated[locale] = (result.translated[locale] ?? 0) + 1;
       }
-      // A language with no usable text failed; one kept because someone wrote it meanwhile did not.
-      const returned = new Set(
-        translation.translations
-          .filter((entry) => entry.text.trim() !== "")
-          .map((entry) => entry.locale),
-      );
-      countFailed(item.targetLocales.filter((locale) => !returned.has(locale)));
+      // A language with no accepted text failed; one kept because someone wrote it meanwhile did not.
+      countFailed(item.targetLocales.filter((locale) => !accepted.has(locale)));
     } catch (error) {
       console.warn("[key-translation-job] string translation failed", {
         jobId: input.jobId,
@@ -554,6 +666,35 @@ export async function completeKeyTranslationJob(input: {
       jobId: input.jobId,
       operationKey,
       error: formatUsageControlError(trackUsageResult.error),
+    });
+  }
+}
+
+/**
+ * Charges the AI tokens of a run that ends failed although its model calls answered, as when
+ * every answer failed the checks. The job itself is not charged; each run is charged once.
+ */
+export async function chargeFailedKeyTranslationRun(input: {
+  jobId: string;
+  workflowRunId: string;
+  organizationId: string;
+  tokenUsage: KeyTranslationTokenUsage;
+}) {
+  const parentOperationKey = `job:${input.jobId}:run:${input.workflowRunId}`;
+  const result = await trackAiCreditUsageInAutumn({
+    organizationId: input.organizationId,
+    parentOperationKey,
+    tokenUsage: input.tokenUsage,
+    source: "translation_job_failed",
+    modelId: input.tokenUsage.modelId,
+    credentialSource: input.tokenUsage.credentialSource,
+    jobId: input.jobId,
+  });
+  if (isErr(result)) {
+    console.error("[key-translation-job] AI credit tracking failed for a failed run", {
+      jobId: input.jobId,
+      operationKey: parentOperationKey,
+      error: formatUsageControlError(result.error),
     });
   }
 }

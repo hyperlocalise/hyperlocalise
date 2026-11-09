@@ -53,6 +53,17 @@ async function translateKeyBatchStep(input: {
   return translateKeyBatch(input);
 }
 
+async function chargeFailedKeyTranslationRunStep(input: {
+  jobId: string;
+  workflowRunId: string;
+  organizationId: string;
+  tokenUsage: KeyTranslationTokenUsage;
+}) {
+  "use step";
+  const { chargeFailedKeyTranslationRun } = await import("@/lib/translation/key-translation-job");
+  return chargeFailedKeyTranslationRun(input);
+}
+
 async function completeKeyTranslationJobStep(input: {
   jobId: string;
   projectId: string;
@@ -105,6 +116,17 @@ export async function keyTranslationJobWorkflow(event: TranslationJobEventData) 
   let totals: KeyTranslationBatchResult = { translated: {}, failed: {}, tokenUsage: null };
   let nextStart = 0;
 
+  // A run that fails after its model calls answered still pays for them.
+  const chargeTokens = async (current: KeyTranslationJobPlan) => {
+    if (!totals.tokenUsage) return;
+    await chargeFailedKeyTranslationRunStep({
+      jobId: job.id,
+      workflowRunId: job.workflowRunId,
+      organizationId: current.organizationId,
+      tokenUsage: totals.tokenUsage,
+    });
+  };
+
   // Succeeds with what was saved, charged once, or fails when nothing could be translated.
   const finish = async (current: KeyTranslationJobPlan) => {
     const { translated, failed, tokenUsage } = totals;
@@ -125,6 +147,14 @@ export async function keyTranslationJobWorkflow(event: TranslationJobEventData) 
 
     const translatedTotal = sumCounts(translated);
     if (translatedTotal === 0 && sumCounts(failed) > 0) {
+      if (tokenUsage) {
+        await chargeTokens(current);
+        return fail(
+          "key_translation_rejected",
+          "No string could be translated: the AI's answers were unusable or failed the checks (a copy of the source, a glossary term, a placeholder or the file's format).",
+          failedLocales,
+        );
+      }
       return fail(
         "key_translation_failed",
         "No string could be translated. Check the workspace's model and try again.",
@@ -217,6 +247,7 @@ export async function keyTranslationJobWorkflow(event: TranslationJobEventData) 
       ]);
       return finish(plan);
     }
+    if (plan) await chargeTokens(plan);
     return fail(
       "translation_execution_failed",
       error instanceof Error ? error.message : "translation job execution failed",

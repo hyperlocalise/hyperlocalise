@@ -15,7 +15,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database/client";
@@ -24,7 +24,15 @@ import { ok } from "@/lib/primitives/result/results";
 const mocks = vi.hoisted(() => ({
   translateStringJob: vi.fn(),
   completeAndTrackBillableUsage: vi.fn(),
+  trackAiCreditUsageInAutumn: vi.fn(),
   recordJobGenerationProvenance: vi.fn(async () => null),
+  validateSegment: vi.fn(),
+  glossaryTerms: [] as Array<{
+    sourceTerm: string;
+    targetTerm: string;
+    targetLocale: string;
+    forbidden: boolean;
+  }>,
 }));
 
 vi.mock("@/lib/translation/generation", async (importOriginal) => ({
@@ -49,10 +57,16 @@ vi.mock("@/lib/translation/context", () => ({
       return {
         ok: true,
         use: {},
-        context: { toStringTranslationInput: () => ({ jobInput }) },
+        context: {
+          glossaryTerms: mocks.glossaryTerms,
+          toStringTranslationInput: () => ({ jobInput }),
+        },
       };
     }
   },
+}));
+vi.mock("@/lib/go-svc/go-svc-server-client", () => ({
+  createGoSvcServerClient: () => ({ qaReport: { validateSegment: mocks.validateSegment } }),
 }));
 vi.mock("@/lib/flags/workspace-flags", () => ({
   resolveWorkspaceKnowledgeFlag: async () => true,
@@ -63,11 +77,13 @@ vi.mock("@/lib/translation/generation-provenance-store", () => ({
 vi.mock("@/lib/billing/usage-control", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/billing/usage-control")>()),
   completeAndTrackBillableUsage: mocks.completeAndTrackBillableUsage,
+  trackAiCreditUsageInAutumn: mocks.trackAiCreditUsageInAutumn,
 }));
 
 import { StringTranslationOutputError } from "@/lib/translation/generation";
 
 import {
+  chargeFailedKeyTranslationRun,
   completeKeyTranslationJob,
   planKeyTranslationJob,
   translateKeyBatch,
@@ -79,13 +95,23 @@ beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
+beforeEach(() => {
+  mocks.validateSegment.mockResolvedValue({ checks: [] });
+});
+
 afterEach(async () => {
-  for (const mock of Object.values(mocks)) mock.mockReset();
+  mocks.translateStringJob.mockReset();
+  mocks.completeAndTrackBillableUsage.mockReset();
+  mocks.trackAiCreditUsageInAutumn.mockReset();
+  mocks.recordJobGenerationProvenance.mockReset();
+  mocks.validateSegment.mockReset();
+  mocks.glossaryTerms.length = 0;
   await projectFixture.cleanup();
 });
 
 type KeySpec = {
   key: string;
+  sourceText?: string;
   isHidden?: boolean;
   translations?: Record<string, { text: string; status: "needs_review" | "approved" | "draft" }>;
   lockedIn?: string[];
@@ -105,8 +131,8 @@ async function createJob(specs: KeySpec[], overwriteUnapproved = false) {
         projectId: project.id,
         repositorySourceFileId: sourceFile!.id,
         key: spec.key,
-        sourceText: `Text ${spec.key}`,
-        normalizedSourceText: `text ${spec.key}`,
+        sourceText: spec.sourceText ?? `Text ${spec.key}`,
+        normalizedSourceText: (spec.sourceText ?? `Text ${spec.key}`).toLowerCase(),
         isHidden: spec.isHidden ?? false,
       })),
     )
@@ -219,6 +245,32 @@ describe("planKeyTranslationJob", () => {
     expect(
       plan!.items.find((item) => item.translationKeyId === ids.approved)?.targetLocales,
     ).toEqual(["de-DE"]);
+  });
+
+  it("plans a Needs review copy of a multi-word source again, but not a one-word copy", async () => {
+    const { jobId, projectId, ids } = await createJob([
+      { key: "copy", translations: { "fr-FR": { text: "Text copy", status: "needs_review" } } },
+      {
+        key: "brand",
+        sourceText: "Lumora",
+        translations: { "fr-FR": { text: "Lumora", status: "needs_review" } },
+      },
+      {
+        key: "name",
+        sourceText: "{first} {last}",
+        translations: { "fr-FR": { text: "{first} {last}", status: "needs_review" } },
+      },
+    ]);
+
+    const plan = await planKeyTranslationJob({ jobId, projectId });
+
+    expect(sorted(plan!.items)).toEqual(
+      sorted([
+        { translationKeyId: ids.copy!, targetLocales: ["fr-FR", "de-DE"] },
+        { translationKeyId: ids.brand!, targetLocales: ["de-DE"] },
+        { translationKeyId: ids.name!, targetLocales: ["de-DE"] },
+      ]),
+    );
   });
 });
 
@@ -362,15 +414,190 @@ describe("translateKeyBatch when things change mid-run", () => {
     expect(mocks.translateStringJob).not.toHaveBeenCalled();
   });
 
-  it("keeps the usable languages of a partly unusable answer and counts its tokens", async () => {
+  function tooLong(usage: { inputTokens: number; outputTokens: number; totalTokens: number }) {
+    return new StringTranslationOutputError(
+      "translation for locale de-DE exceeds maxLength",
+      usage,
+      [{ locale: "fr-FR", text: "Bonjour" }],
+      new Map([["de-DE", '"Ein viel zu langer Text" is 24 characters; it must be at most 10.']]),
+    );
+  }
+
+  it("keeps the usable languages of a partly unusable answer and retries the rest once", async () => {
     const job = await createJob([{ key: "a" }]);
     const plan = await planKeyTranslationJob({ jobId: job.jobId, projectId: job.projectId });
     const usage = { inputTokens: 10, outputTokens: 5, totalTokens: 15 };
-    mocks.translateStringJob.mockRejectedValue(
-      new StringTranslationOutputError("translation for locale de-DE exceeds maxLength", usage, [
-        { locale: "fr-FR", text: "Bonjour" },
-      ]),
+    mocks.translateStringJob.mockRejectedValueOnce(tooLong(usage)).mockResolvedValueOnce({
+      translations: [{ locale: "de-DE", text: "Kurz" }],
+      tokenUsage: usage,
+    });
+
+    const result = await translateKeyBatch({
+      ...batchInput(job, plan!.plannedAt, []),
+      items: [{ translationKeyId: job.ids.a!, targetLocales: ["fr-FR", "de-DE"] }],
+    });
+
+    expect(result.translated).toEqual({ "fr-FR": 1, "de-DE": 1 });
+    expect(result.failed).toEqual({});
+    expect(result.tokenUsage).toMatchObject({ totalTokens: 30 });
+    expect(mocks.translateStringJob).toHaveBeenCalledTimes(2);
+    const retry = mocks.translateStringJob.mock.calls[1]![0] as {
+      jobInput: { targetLocales: string[]; context: string };
+    };
+    expect(retry.jobInput.targetLocales).toEqual(["de-DE"]);
+    expect(retry.jobInput.context).toBe(
+      [
+        "Your previous translation was rejected. Translate again and fix these problems:",
+        '- de-DE: "Ein viel zu langer Text" is 24 characters; it must be at most 10.',
+      ].join("\n"),
     );
+    await expect(readTranslation(job.ids.a!, "fr-FR")).resolves.toMatchObject({ text: "Bonjour" });
+    await expect(readTranslation(job.ids.a!, "de-DE")).resolves.toMatchObject({ text: "Kurz" });
+  });
+
+  it("counts a language as failed when the retry is unusable too, and charges both calls", async () => {
+    const job = await createJob([{ key: "a" }]);
+    const plan = await planKeyTranslationJob({ jobId: job.jobId, projectId: job.projectId });
+    const usage = { inputTokens: 10, outputTokens: 5, totalTokens: 15 };
+    mocks.translateStringJob.mockRejectedValue(tooLong(usage));
+
+    const result = await translateKeyBatch({
+      ...batchInput(job, plan!.plannedAt, []),
+      items: [{ translationKeyId: job.ids.a!, targetLocales: ["fr-FR", "de-DE"] }],
+    });
+
+    expect(mocks.translateStringJob).toHaveBeenCalledTimes(2);
+    expect(result.translated).toEqual({ "fr-FR": 1 });
+    expect(result.failed).toEqual({ "de-DE": 1 });
+    expect(result.tokenUsage).toMatchObject({ totalTokens: 30 });
+  });
+
+  it("retries a copy of the source once and saves the second answer", async () => {
+    const job = await createJob([{ key: "a" }]);
+    const plan = await planKeyTranslationJob({ jobId: job.jobId, projectId: job.projectId });
+    mocks.translateStringJob
+      .mockResolvedValueOnce({ translations: [{ locale: "fr-FR", text: "Text a" }] })
+      .mockResolvedValueOnce({ translations: [{ locale: "fr-FR", text: "Texte a" }] });
+
+    const result = await translateKeyBatch(batchInput(job, plan!.plannedAt, [job.ids.a!]));
+
+    expect(result.translated).toEqual({ "fr-FR": 1 });
+    const retry = mocks.translateStringJob.mock.calls[1]![0] as { jobInput: { context: string } };
+    expect(retry.jobInput.context).toContain(
+      "- fr-FR: The translation is a copy of the source text.",
+    );
+    await expect(readTranslation(job.ids.a!, "fr-FR")).resolves.toMatchObject({ text: "Texte a" });
+  });
+
+  it("doesn't save a copy of the source that comes back twice", async () => {
+    const job = await createJob([{ key: "a" }]);
+    const plan = await planKeyTranslationJob({ jobId: job.jobId, projectId: job.projectId });
+    mocks.translateStringJob.mockResolvedValue({
+      translations: [{ locale: "fr-FR", text: "Text a" }],
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    const result = await translateKeyBatch(batchInput(job, plan!.plannedAt, [job.ids.a!]));
+
+    expect(mocks.translateStringJob).toHaveBeenCalledTimes(2);
+    expect(result.translated).toEqual({});
+    expect(result.failed).toEqual({ "fr-FR": 1 });
+    expect(warn).toHaveBeenCalledWith(
+      "[key-translation-job] answer rejected after the retry",
+      expect.objectContaining({ locale: "fr-FR", reason: "copy_of_source" }),
+    );
+    await expect(readTranslation(job.ids.a!, "fr-FR")).resolves.toBeUndefined();
+    warn.mockRestore();
+  });
+
+  it("retries a translation that breaks the glossary or a placeholder, with the problems", async () => {
+    const job = await createJob([{ key: "a" }]);
+    const plan = await planKeyTranslationJob({ jobId: job.jobId, projectId: job.projectId });
+    mocks.glossaryTerms.push({
+      sourceTerm: "Text",
+      targetTerm: "Texte",
+      targetLocale: "fr-FR",
+      forbidden: false,
+    });
+    mocks.validateSegment
+      .mockResolvedValueOnce({
+        checks: [
+          { id: "format-missing-token", status: "fail", message: "Placeholder {name} is missing." },
+        ],
+      })
+      .mockResolvedValue({ checks: [] });
+    mocks.translateStringJob
+      .mockResolvedValueOnce({ translations: [{ locale: "fr-FR", text: "Libellé a" }] })
+      .mockResolvedValueOnce({ translations: [{ locale: "fr-FR", text: "Texte a" }] });
+
+    const result = await translateKeyBatch(batchInput(job, plan!.plannedAt, [job.ids.a!]));
+
+    expect(result.translated).toEqual({ "fr-FR": 1 });
+    const retry = mocks.translateStringJob.mock.calls[1]![0] as { jobInput: { context: string } };
+    expect(retry.jobInput.context).toContain('- fr-FR: Use "Texte" for "Text".');
+    expect(retry.jobInput.context).toContain("- fr-FR: Placeholder {name} is missing.");
+    await expect(readTranslation(job.ids.a!, "fr-FR")).resolves.toMatchObject({ text: "Texte a" });
+  });
+
+  it("keeps an answer for review when only a glossary term is still off after the retry", async () => {
+    const job = await createJob([{ key: "a" }]);
+    const plan = await planKeyTranslationJob({ jobId: job.jobId, projectId: job.projectId });
+    mocks.glossaryTerms.push({
+      sourceTerm: "Text",
+      targetTerm: "Texte",
+      targetLocale: "fr-FR",
+      forbidden: false,
+    });
+    mocks.translateStringJob.mockResolvedValue({
+      translations: [{ locale: "fr-FR", text: "Libellé a" }],
+    });
+
+    const result = await translateKeyBatch(batchInput(job, plan!.plannedAt, [job.ids.a!]));
+
+    expect(mocks.translateStringJob).toHaveBeenCalledTimes(2);
+    expect(result.translated).toEqual({ "fr-FR": 1 });
+    await expect(readTranslation(job.ids.a!, "fr-FR")).resolves.toMatchObject({
+      text: "Libellé a",
+    });
+  });
+
+  it("fails a language whose format is still broken after the retry", async () => {
+    const job = await createJob([{ key: "a" }]);
+    const plan = await planKeyTranslationJob({ jobId: job.jobId, projectId: job.projectId });
+    mocks.validateSegment.mockResolvedValue({
+      checks: [{ id: "format-missing-token", status: "fail", message: "Placeholder missing." }],
+    });
+    mocks.translateStringJob.mockResolvedValue({
+      translations: [{ locale: "fr-FR", text: "Texte" }],
+    });
+
+    const result = await translateKeyBatch(batchInput(job, plan!.plannedAt, [job.ids.a!]));
+
+    expect(mocks.translateStringJob).toHaveBeenCalledTimes(2);
+    expect(result.failed).toEqual({ "fr-FR": 1 });
+    await expect(readTranslation(job.ids.a!, "fr-FR")).resolves.toBeUndefined();
+  });
+
+  it("retries a blank answer like a missing one", async () => {
+    const job = await createJob([{ key: "a" }]);
+    const plan = await planKeyTranslationJob({ jobId: job.jobId, projectId: job.projectId });
+    mocks.translateStringJob
+      .mockResolvedValueOnce({ translations: [{ locale: "fr-FR", text: "  " }] })
+      .mockResolvedValueOnce({ translations: [{ locale: "fr-FR", text: "Texte a" }] });
+
+    const result = await translateKeyBatch(batchInput(job, plan!.plannedAt, [job.ids.a!]));
+
+    expect(result.translated).toEqual({ "fr-FR": 1 });
+    const retry = mocks.translateStringJob.mock.calls[1]![0] as { jobInput: { context: string } };
+    expect(retry.jobInput.context).toContain("- fr-FR: No translation came back.");
+  });
+
+  it("saves the first answer's good languages when the retry call fails", async () => {
+    const job = await createJob([{ key: "a" }]);
+    const plan = await planKeyTranslationJob({ jobId: job.jobId, projectId: job.projectId });
+    mocks.translateStringJob
+      .mockRejectedValueOnce(tooLong({ inputTokens: 10, outputTokens: 5, totalTokens: 15 }))
+      .mockRejectedValueOnce(new Error("rate limited"));
 
     const result = await translateKeyBatch({
       ...batchInput(job, plan!.plannedAt, []),
@@ -381,6 +608,72 @@ describe("translateKeyBatch when things change mid-run", () => {
     expect(result.failed).toEqual({ "de-DE": 1 });
     expect(result.tokenUsage).toMatchObject({ totalTokens: 15 });
     await expect(readTranslation(job.ids.a!, "fr-FR")).resolves.toMatchObject({ text: "Bonjour" });
+  });
+
+  it("saves the translation without the format check when go-svc can't be reached", async () => {
+    const job = await createJob([{ key: "a" }]);
+    const plan = await planKeyTranslationJob({ jobId: job.jobId, projectId: job.projectId });
+    mocks.validateSegment.mockRejectedValue(new Error("go-svc unavailable"));
+    mocks.translateStringJob.mockResolvedValue({
+      translations: [{ locale: "fr-FR", text: "Texte a" }],
+    });
+
+    const result = await translateKeyBatch(batchInput(job, plan!.plannedAt, [job.ids.a!]));
+
+    expect(result.translated).toEqual({ "fr-FR": 1 });
+    expect(mocks.translateStringJob).toHaveBeenCalledTimes(1);
+  });
+
+  it("makes no retry call once the job is cancelled", async () => {
+    const job = await createJob([{ key: "a" }]);
+    const plan = await planKeyTranslationJob({ jobId: job.jobId, projectId: job.projectId });
+    mocks.translateStringJob.mockImplementation(async () => {
+      await db
+        .update(schema.jobs)
+        .set({ status: "cancelled", workflowRunId: null })
+        .where(eq(schema.jobs.id, job.jobId));
+      throw tooLong({ inputTokens: 10, outputTokens: 5, totalTokens: 15 });
+    });
+
+    const result = await translateKeyBatch({
+      ...batchInput(job, plan!.plannedAt, []),
+      items: [{ translationKeyId: job.ids.a!, targetLocales: ["fr-FR", "de-DE"] }],
+    });
+
+    expect(result.stopped).toBe(true);
+    expect(mocks.translateStringJob).toHaveBeenCalledTimes(1);
+    await expect(readTranslation(job.ids.a!, "fr-FR")).resolves.toBeUndefined();
+  });
+});
+
+describe("chargeFailedKeyTranslationRun", () => {
+  it("charges the run's tokens once under its own key, without the job", async () => {
+    mocks.trackAiCreditUsageInAutumn.mockResolvedValue(ok({ status: "tracking_succeeded" }));
+    const tokenUsage = {
+      inputTokens: 10,
+      outputTokens: 5,
+      totalTokens: 15,
+      modelId: "openai/gpt-5",
+      credentialSource: "gateway" as const,
+    };
+
+    await chargeFailedKeyTranslationRun({
+      jobId: "job_1",
+      workflowRunId: "run_1",
+      organizationId: "org_1",
+      tokenUsage,
+    });
+
+    expect(mocks.trackAiCreditUsageInAutumn).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      parentOperationKey: "job:job_1:run:run_1",
+      tokenUsage,
+      source: "translation_job_failed",
+      modelId: "openai/gpt-5",
+      credentialSource: "gateway",
+      jobId: "job_1",
+    });
+    expect(mocks.completeAndTrackBillableUsage).not.toHaveBeenCalled();
   });
 });
 
