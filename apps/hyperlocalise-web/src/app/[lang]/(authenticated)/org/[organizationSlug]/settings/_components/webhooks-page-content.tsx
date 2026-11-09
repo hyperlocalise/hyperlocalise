@@ -34,6 +34,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Row } from "@/components/ui/layout/row";
 import { Rows } from "@/components/ui/layout/rows";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import {
@@ -55,6 +62,25 @@ const deliveriesQueryKey = (organizationSlug: string, endpointId: string) => [
   endpointId,
   "deliveries",
 ];
+
+const ALL_PROJECTS_VALUE = "all";
+
+type WebhookProjectOption = { id: string; name: string };
+
+function useWebhookProjects(organizationSlug: string) {
+  return useQuery({
+    queryKey: ["translation-projects", organizationSlug],
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        return [] as WebhookProjectOption[];
+      }
+      return ((await response.json()).projects ?? []) as WebhookProjectOption[];
+    },
+  });
+}
 
 const EVENT_LABELS: Record<JobChangeEventType, MessageDescriptor> = {
   "job.created": messages.eventCreated,
@@ -81,6 +107,11 @@ export function WebhooksSettingsPageContent({ organizationSlug }: { organization
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const api = endpointsApi();
   const param = { organizationSlug };
+
+  const projectsQuery = useWebhookProjects(organizationSlug);
+  const projectNameById = new Map(
+    (projectsQuery.data ?? []).map((project) => [project.id, project.name]),
+  );
 
   const endpointsQuery = useQuery({
     queryKey: endpointsQueryKey(organizationSlug),
@@ -216,6 +247,11 @@ export function WebhooksSettingsPageContent({ organizationSlug }: { organization
                       ) : null}
                       <div className="flex flex-wrap items-center gap-1.5">
                         <EndpointStatusBadge endpoint={endpoint} />
+                        {endpoint.projectId ? (
+                          <Badge variant="outline">
+                            {projectNameById.get(endpoint.projectId) ?? endpoint.projectId}
+                          </Badge>
+                        ) : null}
                         {endpoint.eventTypes.length === 0 ? (
                           <Badge variant="outline">
                             <FormattedMessage {...messages.allEvents} />
@@ -304,6 +340,7 @@ export function WebhooksSettingsPageContent({ organizationSlug }: { organization
       <CreateEndpointDialog
         open={isCreateOpen}
         organizationSlug={organizationSlug}
+        projects={projectsQuery.data ?? []}
         onOpenChange={setIsCreateOpen}
         onCreated={async (secret) => {
           setIsCreateOpen(false);
@@ -436,22 +473,30 @@ function EndpointDeliveries({
 function CreateEndpointDialog({
   open,
   organizationSlug,
+  projects,
   onOpenChange,
   onCreated,
 }: {
   open: boolean;
   organizationSlug: string;
+  projects: WebhookProjectOption[];
   onOpenChange: (open: boolean) => void;
   onCreated: (secret: string) => Promise<void>;
 }) {
   const intl = useIntl();
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
+  const [projectId, setProjectId] = useState(ALL_PROJECTS_VALUE);
   const [eventTypes, setEventTypes] = useState<JobChangeEventType[]>([]);
+  const projectItems = [
+    { value: ALL_PROJECTS_VALUE, label: intl.formatMessage(messages.allProjects) },
+    ...projects.map((project) => ({ value: project.id, label: project.name })),
+  ];
 
   const reset = () => {
     setUrl("");
     setDescription("");
+    setProjectId(ALL_PROJECTS_VALUE);
     setEventTypes([]);
   };
 
@@ -459,7 +504,12 @@ function CreateEndpointDialog({
     mutationFn: async () => {
       const response = await endpointsApi().$post({
         param: { organizationSlug },
-        json: { url: url.trim(), description: description.trim() || null, eventTypes },
+        json: {
+          url: url.trim(),
+          description: description.trim() || null,
+          eventTypes,
+          projectId: projectId === ALL_PROJECTS_VALUE ? null : projectId,
+        },
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { message?: string } | null;
@@ -519,6 +569,30 @@ function CreateEndpointDialog({
               value={description}
               onChange={(event) => setDescription(event.target.value)}
             />
+          </Field>
+          <Field className="gap-2">
+            <FieldLabel htmlFor="webhook-project">
+              <FormattedMessage {...messages.projectLabel} />
+            </FieldLabel>
+            <Select
+              value={projectId}
+              onValueChange={(value) => {
+                if (value) {
+                  setProjectId(value);
+                }
+              }}
+            >
+              <SelectTrigger id="webhook-project">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {projectItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value} label={item.label}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
           <div className="grid gap-2">
             <Label>

@@ -32,7 +32,7 @@ import {
 import { verifyWebhookSignature } from "@/lib/outbound-webhooks/webhook-signing";
 import { isErr } from "@/lib/primitives/result/results";
 
-import { dispatchJobChangeEvents } from "./job-change-event-pump";
+import { dispatchJobChangeEvents, JOB_CHANGE_EVENT_MAX_CLAIMS } from "./job-change-event-pump";
 import { insertJobs, updateJobs } from "./job-writes";
 
 const organizationIds: string[] = [];
@@ -133,6 +133,29 @@ describe("dispatchJobChangeEvents", () => {
     expect((await listEvents(jobId)).every((event) => event.dispatchedAt !== null)).toBe(true);
     // A second tick finds nothing left to do.
     expect((await dispatchJobChangeEvents({ organizationId })).claimed).toBe(0);
+  });
+
+  it("marks events abandoned after repeated fan-out failures", async () => {
+    const organizationId = await insertOrganization();
+    const jobId = await insertJob(organizationId);
+    const enqueueWebhooks = async () => {
+      throw new Error("fan-out failed");
+    };
+
+    let now = new Date();
+    for (let attempt = 1; attempt <= JOB_CHANGE_EVENT_MAX_CLAIMS; attempt += 1) {
+      const result = await dispatchJobChangeEvents({ organizationId, now, enqueueWebhooks });
+      expect(result.claimed).toBeGreaterThan(0);
+      if (attempt < JOB_CHANGE_EVENT_MAX_CLAIMS) {
+        expect(result).toMatchObject({ failed: result.claimed, abandoned: 0 });
+        now = new Date(now.getTime() + 7 * 60_000);
+      } else {
+        expect(result.abandoned).toBe(result.claimed);
+      }
+    }
+
+    expect((await listEvents(jobId)).every((event) => event.abandonedAt !== null)).toBe(true);
+    expect((await dispatchJobChangeEvents({ organizationId, enqueueWebhooks })).claimed).toBe(0);
   });
 });
 

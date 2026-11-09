@@ -4,7 +4,7 @@ sidebarTitle: "Webhooks"
 description: "Receive a signed HTTP POST when a job is created, changes status, or is reassigned."
 ---
 
-Webhooks tell your systems about job changes as they happen, so you do not have to poll the jobs API. Hyperlocalise Platform sends one signed `POST` per change to each endpoint you register.
+Webhooks tell your systems about job changes, so you do not have to poll the jobs API. Hyperlocalise Platform records each change immediately and sends one signed `POST` per change to each endpoint you register, usually within a minute.
 
 Every change to a job is sent, whoever made it: the Platform UI, the API, the CLI, an automation, or a connected TMS.
 
@@ -13,8 +13,9 @@ Every change to a job is sent, whoever made it: the Platform UI, the API, the CL
 1. Open **Settings** → **Webhooks**.
 2. Select **Add endpoint**.
 3. Enter an HTTPS URL on a public host.
-4. Tick the changes to receive. Leave them all unticked to receive every change.
-5. Copy the signing secret. It is shown once. Select **Rotate secret** to replace it.
+4. Optionally limit the endpoint to one project. Leave **All projects** selected to receive every project.
+5. Tick the changes to receive. Leave them all unticked to receive every change.
+6. Copy the signing secret. It is shown once. Select **Rotate secret** to replace it.
 
 Select **Send test** to send a `webhook.test` event. Select **Recent deliveries** to see what was sent, each response status, and the next retry.
 

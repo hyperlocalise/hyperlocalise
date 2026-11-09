@@ -11,6 +11,8 @@
  * Version 2.0 or later.
  */
 
+import { jobKindEnum, jobStatusEnum } from "@/lib/database/schema/enums";
+
 /**
  * Job changes recorded in the same transaction as the write to `jobs`: by `insertJobs` and
  * `updateJobs` in `job-writes.ts`, and by the Go public API's job update.
@@ -23,26 +25,10 @@ export const JOB_CHANGE_EVENT_TYPES = [
 
 export type JobChangeEventType = (typeof JOB_CHANGE_EVENT_TYPES)[number];
 
-export const JOB_STATUSES = [
-  "queued",
-  "running",
-  "succeeded",
-  "failed",
-  "waiting_for_review",
-  "cancelled",
-] as const;
-
+export const JOB_STATUSES = jobStatusEnum.enumValues;
 export type JobStatus = (typeof JOB_STATUSES)[number];
 
-export const JOB_KINDS = [
-  "translation",
-  "research",
-  "review",
-  "proofread",
-  "sync",
-  "asset_management",
-] as const;
-
+export const JOB_KINDS = jobKindEnum.enumValues;
 export type JobKind = (typeof JOB_KINDS)[number];
 
 export type JobAssigneeType = "user" | "agent";

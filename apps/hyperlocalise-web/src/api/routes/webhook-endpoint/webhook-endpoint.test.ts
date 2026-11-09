@@ -94,6 +94,23 @@ describe("webhookEndpointRoutes", () => {
     expect(deleted.status).toBe(204);
   });
 
+  it("rejects a project that is not in the workspace", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const response = await endpoints.$post(
+      {
+        param: param(admin),
+        json: {
+          url: "https://hooks.example.com/in",
+          eventTypes: [],
+          projectId: "proj_missing",
+        },
+      },
+      await headers(admin),
+    );
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: "webhook_project_not_found" });
+  });
+
   it("rejects unsafe URLs", async () => {
     const admin = fixture.createWorkosIdentityWithRole("admin");
     const response = await endpoints.$post(

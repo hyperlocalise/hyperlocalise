@@ -61,6 +61,7 @@ export type WebhookEndpointError =
   | { code: "webhook_endpoint_not_found" }
   | { code: "webhook_endpoint_limit_reached" }
   | { code: "webhook_url_invalid" }
+  | { code: "webhook_project_not_found" }
   | { code: "webhook_secret_encryption_failed" };
 
 function toSummary(row: WebhookEndpointRow): WebhookEndpointSummary {
@@ -107,6 +108,23 @@ function encryptSecret(secret: string) {
   return isErr(encrypted) ? null : encrypted.value;
 }
 
+async function resolveWebhookProjectId(
+  organizationId: string,
+  projectId: string | null | undefined,
+): Promise<Result<string | null, WebhookEndpointError>> {
+  if (!projectId) {
+    return ok(null);
+  }
+  const [project] = await db
+    .select({ id: schema.projects.id })
+    .from(schema.projects)
+    .where(
+      and(eq(schema.projects.id, projectId), eq(schema.projects.organizationId, organizationId)),
+    )
+    .limit(1);
+  return project ? ok(project.id) : err({ code: "webhook_project_not_found" });
+}
+
 async function findEndpoint(organizationId: string, endpointId: string) {
   const [row] = await db
     .select()
@@ -145,6 +163,10 @@ export async function createWebhookEndpoint(input: {
   if (isErr(url)) {
     return url;
   }
+  const projectId = await resolveWebhookProjectId(input.organizationId, input.projectId);
+  if (isErr(projectId)) {
+    return projectId;
+  }
 
   const [existing] = await db
     .select({ count: count() })
@@ -167,7 +189,7 @@ export async function createWebhookEndpoint(input: {
       url: url.value,
       description: input.description?.trim() || null,
       eventTypes: [...new Set(input.eventTypes)],
-      projectId: input.projectId || null,
+      projectId: projectId.value,
       secret: encrypted,
       createdByUserId: input.userId,
     })
@@ -204,7 +226,11 @@ export async function updateWebhookEndpoint(input: {
     changes.eventTypes = [...new Set(input.eventTypes)];
   }
   if (input.projectId !== undefined) {
-    changes.projectId = input.projectId || null;
+    const projectId = await resolveWebhookProjectId(input.organizationId, input.projectId);
+    if (isErr(projectId)) {
+      return projectId;
+    }
+    changes.projectId = projectId.value;
   }
   if (input.enabled === true && existing.disabledAt) {
     changes.disabledAt = null;

@@ -46,6 +46,8 @@ export const jobChangeEvents = pgTable(
     claimedUntil: timestamp("claimed_until", { withTimezone: true }),
     claimAttempts: integer("claim_attempts").notNull().default(0),
     dispatchedAt: timestamp("dispatched_at", { withTimezone: true }),
+    // Set with dispatchedAt when fan-out is given up, so the row stays queryable until prune.
+    abandonedAt: timestamp("abandoned_at", { withTimezone: true }),
   },
   (table) => [
     index("idx_job_change_events_pending")

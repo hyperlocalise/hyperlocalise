@@ -50,17 +50,18 @@ function touchesTrackedColumns(set: JobSet): boolean {
   );
 }
 
-function changeType(previous: PreviousState, current: TrackedRow): JobChangeEventType | null {
+function changeTypes(previous: PreviousState, current: TrackedRow): JobChangeEventType[] {
+  const types: JobChangeEventType[] = [];
   if (previous.status !== current.__status) {
-    return "job.status_changed";
+    types.push("job.status_changed");
   }
   if (
     previous.ownerUserId !== current.__ownerUserId ||
     previous.assigneeType !== current.__assigneeType
   ) {
-    return "job.assignee_changed";
+    types.push("job.assignee_changed");
   }
-  return null;
+  return types;
 }
 
 /**
@@ -78,22 +79,17 @@ async function recordChanges(
     if (!previous && write === "update") {
       return [];
     }
-    const type = previous ? changeType(previous, row) : "job.created";
-    if (!type) {
-      return [];
-    }
-    return [
-      {
-        organizationId: row.__organizationId,
-        jobId: row.__jobId,
-        projectId: row.__projectId,
-        kind: row.__kind,
-        type,
-        fromStatus: previous?.status ?? null,
-        toStatus: row.__status,
-        assigneeType: row.__assigneeType,
-      },
-    ];
+    const types = previous ? changeTypes(previous, row) : (["job.created"] as const);
+    return types.map((type) => ({
+      organizationId: row.__organizationId,
+      jobId: row.__jobId,
+      projectId: row.__projectId,
+      kind: row.__kind,
+      type,
+      fromStatus: previous?.status ?? null,
+      toStatus: row.__status,
+      assigneeType: row.__assigneeType,
+    }));
   });
   if (events.length > 0) {
     await tx.insert(schema.jobChangeEvents).values(events);

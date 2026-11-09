@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { createDefaultConfig } from "../catalog/node-catalog";
+import { createDefaultConfig, resolveNodeSubtitle } from "../catalog/node-catalog";
 import {
   getVisualWorkflowTriggerNode,
   resolveVisualWorkflowTriggerFingerprint,
@@ -355,6 +355,18 @@ describe("visual workflow trigger matching", () => {
         kind: "trigger.job_changed",
         eventTypes: ["job.status_changed"],
       });
+      expect(resolveNodeSubtitle(createDefaultConfig("trigger.job_changed"))).toBe(
+        "Status changed",
+      );
+      expect(resolveNodeSubtitle({ kind: "trigger.job_changed" })).toBe("Any job change");
+      expect(
+        resolveNodeSubtitle({
+          kind: "trigger.job_changed",
+          eventTypes: ["job.created"],
+          jobKinds: ["translation"],
+          toStatuses: ["succeeded"],
+        }),
+      ).toBe("Created · translation · succeeded");
     });
   });
 });

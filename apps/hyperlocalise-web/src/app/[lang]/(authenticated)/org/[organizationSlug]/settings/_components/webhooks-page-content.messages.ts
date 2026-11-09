@@ -173,6 +173,16 @@ export const webhooksPageContentMessages = defineMessages({
     id: "CluVavzlk9",
     description: "Label for the optional webhook endpoint description field",
   },
+  projectLabel: {
+    defaultMessage: "Project",
+    id: "ZXvgvgc4pb",
+    description: "Label for the optional webhook endpoint project filter",
+  },
+  allProjects: {
+    defaultMessage: "All projects",
+    id: "XMp9QG0H/t",
+    description: "Select option that delivers webhook events for every project",
+  },
   eventsLabel: {
     defaultMessage: "Job changes",
     id: "17X5du4fQ1",

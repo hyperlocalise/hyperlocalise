@@ -76,6 +76,8 @@ function webhookEndpointErrorResponse(c: JsonContext, error: WebhookEndpointErro
       );
     case "webhook_url_invalid":
       return badRequestResponse(c, error.code, "Use an HTTPS URL on a public host.");
+    case "webhook_project_not_found":
+      return badRequestResponse(c, error.code, "Choose a project in this workspace.");
     case "webhook_secret_encryption_failed":
       return internalErrorResponse(c, error.code);
   }

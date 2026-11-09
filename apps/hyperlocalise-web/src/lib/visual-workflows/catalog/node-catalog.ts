@@ -677,6 +677,26 @@ export function catalogItemByType(type: VisualCatalogType): VisualNodeCatalogIte
   return item;
 }
 
+const JOB_CHANGED_EVENT_LABELS: Record<string, string> = {
+  "job.created": "Created",
+  "job.status_changed": "Status changed",
+  "job.assignee_changed": "Assignee changed",
+};
+
+function jobChangedSubtitle(config: Extract<VisualNodeConfig, { kind: "trigger.job_changed" }>) {
+  const parts: string[] = [];
+  if (config.eventTypes?.length) {
+    parts.push(config.eventTypes.map((type) => JOB_CHANGED_EVENT_LABELS[type] ?? type).join(", "));
+  }
+  if (config.jobKinds?.length) {
+    parts.push(config.jobKinds.join(", "));
+  }
+  if (config.toStatuses?.length) {
+    parts.push(config.toStatuses.join(", "));
+  }
+  return parts.length > 0 ? parts.join(" · ") : "Any job change";
+}
+
 export function resolveNodeSubtitle(config: VisualNodeConfig): string {
   switch (config.kind) {
     case "trigger.manual":
@@ -690,7 +710,7 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
     case "trigger.webhook":
       return "Incoming HTTP POST";
     case "trigger.job_changed":
-      return config.toStatuses?.length ? config.toStatuses.join(", ") : "Any job change";
+      return jobChangedSubtitle(config);
     case "action.http":
       return config.method;
     case "action.content_sync":

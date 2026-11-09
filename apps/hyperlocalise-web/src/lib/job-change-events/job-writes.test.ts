@@ -81,6 +81,23 @@ describe("insertJobs and updateJobs", () => {
     ]);
   });
 
+  it("records status and assignee changes from the same write", async () => {
+    const organizationId = await insertOrganization();
+    const values = jobValues(organizationId);
+    await insertJobs(db, { values: { ...values, assigneeType: "user" } });
+
+    await updateJobs(db, {
+      set: { status: "cancelled", assigneeType: "agent" },
+      where: eq(schema.jobs.id, values.id),
+    });
+
+    expect(await listChanges(values.id)).toEqual([
+      ["job.created", null, "queued"],
+      ["job.status_changed", "queued", "cancelled"],
+      ["job.assignee_changed", "queued", "cancelled"],
+    ]);
+  });
+
   it("returns the requested columns, as the drizzle builder would", async () => {
     const organizationId = await insertOrganization();
     const values = jobValues(organizationId);

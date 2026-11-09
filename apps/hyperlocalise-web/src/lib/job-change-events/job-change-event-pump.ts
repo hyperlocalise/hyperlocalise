@@ -86,10 +86,14 @@ async function claimJobChangeEvents(
   return rows.sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
 }
 
-async function markDispatched(eventId: string, now: Date) {
+async function markDispatched(eventId: string, now: Date, abandoned = false) {
   await db
     .update(schema.jobChangeEvents)
-    .set({ dispatchedAt: now, claimedUntil: null })
+    .set({
+      dispatchedAt: now,
+      claimedUntil: null,
+      ...(abandoned ? { abandonedAt: now } : {}),
+    })
     .where(eq(schema.jobChangeEvents.id, eventId));
 }
 
@@ -109,6 +113,7 @@ export async function dispatchJobChangeEvents(input?: {
   queue?: VisualWorkflowExecutionQueue;
   /** Only this workspace's events, for replays and tests; every workspace when unset. */
   organizationId?: string;
+  enqueueWebhooks?: typeof enqueueWebhookDeliveriesForEvent;
 }): Promise<DispatchJobChangeEventsResult> {
   const now = input?.now ?? new Date();
   const rows = await claimJobChangeEvents(input?.limit ?? 200, now, input?.organizationId);
@@ -126,7 +131,9 @@ export async function dispatchJobChangeEvents(input?: {
     const event = toRecord(row);
     try {
       // Webhooks first: queuing them is one cheap insert, and both steps are safe to repeat.
-      result.webhookDeliveries += await enqueueWebhookDeliveriesForEvent(event);
+      result.webhookDeliveries += await (
+        input?.enqueueWebhooks ?? enqueueWebhookDeliveriesForEvent
+      )(event);
       const runs = await dispatchVisualWorkflowsForJobChange({
         event,
         cache: workflowCache,
@@ -138,7 +145,7 @@ export async function dispatchJobChangeEvents(input?: {
       result.dispatched += 1;
     } catch (error) {
       if (row.claimAttempts >= JOB_CHANGE_EVENT_MAX_CLAIMS) {
-        await markDispatched(event.id, now);
+        await markDispatched(event.id, now, true);
         result.abandoned += 1;
         logger.error(
           { jobChangeEventId: event.id, jobId: event.jobId, claimAttempts: row.claimAttempts },
