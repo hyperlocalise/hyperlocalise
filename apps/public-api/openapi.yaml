@@ -539,7 +539,10 @@ paths:
       description: >-
         Requires `strings:write`. Native projects only. Creates or replaces the translation and
         records a revision attributed to the token owner. Locked segments return `409`, text
-        longer than the string's `maxLength` returns `422`.
+        longer than the string's `maxLength` returns `422`. Without `origin`, the saved text is
+        labelled as a person's: `human`, or `machine_post_edited` when it changes machine text,
+        and unchanged text keeps its origin. Send `origin: machine` when the text comes from your
+        own machine translation.
       requestBody:
         required: true
         content:
@@ -554,6 +557,10 @@ paths:
                   type: string
                   enum: [draft, needs_review, approved, rejected]
                   default: draft
+                origin:
+                  type: string
+                  enum: [machine, machine_post_edited, human, unknown]
+                  description: Who wrote `text`. Omit to apply the rule for a person's edit.
       responses:
         "200":
           description: Saved translation.
@@ -587,6 +594,10 @@ paths:
         - name: status
           in: query
           schema: { type: string, enum: [draft, needs_review, approved, rejected] }
+        - name: origin
+          in: query
+          description: Only translations of this origin. See the `Translation` schema's `origin`.
+          schema: { type: string, enum: [machine, machine_post_edited, human, unknown] }
         - name: includeHidden
           in: query
           schema: { type: boolean, default: false }
@@ -1276,7 +1287,7 @@ components:
         string: { $ref: "#/components/schemas/String" }
     Translation:
       type: object
-      required: [id, stringId, key, locale, text, status, provenance, reviewedByUserId, reviewedAt, createdAt, updatedAt]
+      required: [id, stringId, key, locale, text, status, provenance, origin, reviewedByUserId, reviewedAt, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         stringId: { type: string, format: uuid }
@@ -1284,7 +1295,18 @@ components:
         locale: { type: string }
         text: { type: string }
         status: { type: string, enum: [draft, needs_review, approved, rejected] }
-        provenance: { type: string, enum: [manual, translation_job, import, agent] }
+        provenance:
+          type: string
+          enum: [manual, translation_job, import, agent]
+          description: The last writer. Overwritten by every save; use `origin` for machine or human authorship.
+        origin:
+          type: string
+          enum: [machine, machine_post_edited, human, unknown]
+          description: >-
+            Whether a machine or a person wrote `text`. `machine`: a translation job or the agent,
+            or kept unchanged by a person. `machine_post_edited`: machine text a person changed.
+            `human`: a person's own text. `unknown`: imported with no record of who wrote it.
+            Approving or rejecting doesn't change it.
         reviewedByUserId: { type: [string, "null"], format: uuid }
         reviewedAt: { type: [string, "null"], format: date-time }
         createdAt: { type: string, format: date-time }

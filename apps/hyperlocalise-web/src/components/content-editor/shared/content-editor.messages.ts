@@ -179,6 +179,12 @@ export const contentEditorQueuePanelMessages = defineMessages({
     id: "p/GrdJcH5A",
     description: "CAT queue filter option for Crowdin pre-translated strings",
   },
+  filterOrigin: {
+    defaultMessage: "Machine or human",
+    id: "EEDujIUcvK",
+    description:
+      "CAT queue filter: narrows strings by whether a machine or a person wrote the translation",
+  },
   filterWithComments: {
     defaultMessage: "With comments",
     id: "DU3T9+E0+x",

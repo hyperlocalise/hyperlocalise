@@ -132,7 +132,7 @@ func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
 		queueFilter = "all"
 	}
 	switch queueFilter {
-	case "all", "untranslated", "needs_review", "reviewed", "has_issues", "hidden", "not_hidden", "qa_issues", "machine_translated", "with_comments":
+	case "all", "untranslated", "needs_review", "reviewed", "has_issues", "hidden", "not_hidden", "qa_issues", "machine_translated", "origin", "with_comments":
 	default:
 		return editorCatQueueQuery{}, editorCatFailure(400, "invalid_project_payload", "Invalid CAT query")
 	}

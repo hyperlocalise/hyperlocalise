@@ -381,6 +381,19 @@ export const projectTranslationProvenanceEnum = pgEnum("project_translation_prov
   "agent",
 ]);
 /**
+ * Whether a machine or a person wrote a native project translation's text. Unlike provenance,
+ * which names the last writer, origin survives a person saving machine text unchanged:
+ * `machine` (written by a job or agent, or kept as is), `machine_post_edited` (machine text a
+ * person changed), `human` (a person's own text), `unknown` (imported, author not recorded).
+ * Rules: `lib/projects/translations/translation-origin-rule.ts` and `internal/translationorigin` (Go).
+ */
+export const projectTranslationOriginEnum = pgEnum("project_translation_origin", [
+  "machine",
+  "machine_post_edited",
+  "human",
+  "unknown",
+]);
+/**
  * Distinguishes regular CAT comments from review issues on native project strings.
  */
 export const projectTranslationCommentTypeEnum = pgEnum("project_translation_comment_type", [

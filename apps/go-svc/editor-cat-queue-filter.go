@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/translationorigin"
 )
 
 var editorCatISODate = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
@@ -146,7 +148,7 @@ func validEditorCatISODate(value string) bool {
 
 func editorCatQueueNeedsLocale(query editorCatQueueQuery) bool {
 	switch query.queueFilter {
-	case "untranslated", "reviewed", "needs_review", "has_issues", "qa_issues", "machine_translated", "with_comments":
+	case "untranslated", "reviewed", "needs_review", "has_issues", "qa_issues", "machine_translated", "origin", "with_comments":
 		return true
 	}
 	if query.advancedFilter == nil {
@@ -227,6 +229,17 @@ func editorCatMachineTranslatedSQL(orgN, projectN, localeN, provenanceN int) str
 		` and trim(t.text) != ''` + provenanceSQL + `)`
 }
 
+// editorCatOriginSQL matches strings with a translation in the locale, narrowed to one origin
+// (machine, machine_post_edited, human or unknown) when originN names its argument.
+func editorCatOriginSQL(orgN, projectN, localeN, originN int) string {
+	originSQL := ""
+	if originN > 0 {
+		originSQL = ` and t.origin::text=$` + strconv.Itoa(originN)
+	}
+	return `exists (select 1 from project_translations t where ` + editorCatTranslationMatchSQL(orgN, projectN, localeN) +
+		` and trim(t.text) != ''` + originSQL + `)`
+}
+
 func editorCatPresetFilterSQL(query editorCatQueueQuery, orgN, projectN, localeN int, args *[]any) string {
 	translationMatch := editorCatTranslationMatchSQL(orgN, projectN, localeN)
 	switch query.queueFilter {
@@ -261,6 +274,13 @@ func editorCatPresetFilterSQL(query editorCatQueueQuery, orgN, projectN, localeN
 			provenanceN = len(*args)
 		}
 		return ` and ` + editorCatMachineTranslatedSQL(orgN, projectN, localeN, provenanceN)
+	case "origin":
+		originN := 0
+		if translationorigin.Valid(query.queueFilterQualifier) {
+			*args = append(*args, query.queueFilterQualifier)
+			originN = len(*args)
+		}
+		return ` and ` + editorCatOriginSQL(orgN, projectN, localeN, originN)
 	case "with_comments":
 		return ` and ` + editorCatCommentsSQL(orgN, projectN, localeN, false)
 	default:

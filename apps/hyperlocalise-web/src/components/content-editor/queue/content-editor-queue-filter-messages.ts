@@ -30,6 +30,7 @@ export const queueFilterMessageByValue: Record<ContentEditorQueueFilter, QueuePa
   unsaved: contentEditorQueuePanelMessages.filterUnsaved,
   qa_issues: contentEditorQueuePanelMessages.filterQaIssues,
   machine_translated: contentEditorQueuePanelMessages.filterMachineTranslated,
+  origin: contentEditorQueuePanelMessages.filterOrigin,
   with_comments: contentEditorQueuePanelMessages.filterWithComments,
   has_issues: contentEditorQueuePanelMessages.filterHasIssues,
   skipped: contentEditorQueuePanelMessages.filterSkipped,

@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { TranslationOrigin } from "@/lib/projects/translations/translation-origin-rule";
 
 export const contentEditorFilteredExportFormats = ["csv", "tmx", "xlf", "xliff", "xlsx"] as const;
 
@@ -22,6 +23,8 @@ export type ContentEditorFilteredExportRow = {
   sourceLocale: string;
   targetLocale: string;
   sourcePath?: string;
+  /** Whether a machine or a person wrote `targetText`; XLIFF marks machine text. */
+  origin?: TranslationOrigin;
 };
 
 export const maxCatFilteredExportSegments = 5_000;

@@ -36,6 +36,8 @@ On a native project, open **More actions** → **Import bilingual file…** in t
 
 Use this after you repair inline tags or placeholders in an external tool. Verify the saved strings in the editor before you approve. Provider-backed projects cannot re-import bilingual files.
 
+XLF and XLIFF exports mark machine text no one has changed with `state-qualifier="mt-suggestion"`, so CAT tools show it as a machine suggestion. A re-import counts as a person's edit: changed machine text becomes **Machine, post-edited**, and unchanged text keeps its label. See [Machine or human](/platform/cat#machine-or-human).
+
 ## Missing or incorrect output
 
 Check the source path and target locale first. If text is missing, inspect untranslated segments and the generation job. If a queue export has fewer rows than expected, clear filters or check the 5,000-segment limit.

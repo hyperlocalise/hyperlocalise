@@ -26,6 +26,7 @@ import {
 
 import {
   projectTranslationCommentTypeEnum,
+  projectTranslationOriginEnum,
   projectTranslationProvenanceEnum,
   projectTranslationStatusEnum,
 } from "./enums";
@@ -117,6 +118,8 @@ export const projectTranslations = pgTable(
     text: text("text").notNull().default(""),
     status: projectTranslationStatusEnum("status").notNull().default("draft"),
     provenance: projectTranslationProvenanceEnum("provenance").notNull().default("manual"),
+    /** Machine or human authorship of `text`; see `projectTranslationOriginEnum`. */
+    origin: projectTranslationOriginEnum("origin").notNull().default("unknown"),
     sourceJobId: text("source_job_id").references(() => jobs.id, { onDelete: "set null" }),
     reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, {
       onDelete: "set null",
@@ -136,6 +139,7 @@ export const projectTranslations = pgTable(
     uniqueIndex("project_translations_key_locale").on(table.translationKeyId, table.targetLocale),
     index("idx_project_translations_org_project").on(table.organizationId, table.projectId),
     index("idx_project_translations_status").on(table.projectId, table.status),
+    index("idx_project_translations_origin").on(table.projectId, table.origin),
   ],
 );
 
@@ -164,6 +168,8 @@ export const projectTranslationRevisions = pgTable(
     text: text("text").notNull(),
     status: projectTranslationStatusEnum("status").notNull(),
     provenance: projectTranslationProvenanceEnum("provenance").notNull(),
+    /** The translation's origin after this write. */
+    origin: projectTranslationOriginEnum("origin").notNull().default("unknown"),
     sourceJobId: text("source_job_id").references(() => jobs.id, { onDelete: "set null" }),
     actorKind: text("actor_kind").notNull(),
     actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),

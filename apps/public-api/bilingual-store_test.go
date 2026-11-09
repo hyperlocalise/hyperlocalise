@@ -26,7 +26,7 @@ func TestBilingualRoundTripDatabase(t *testing.T) {
 		{Key: "loose", SourceText: "Loose", SourceLocale: "en", TargetLocale: "fr"},
 		{Key: "home.cta", SourceText: "Go", SourceLocale: "en", TargetLocale: "fr", SourcePath: "en.json"},
 		{Key: "home.locked", SourceText: "Locked", SourceLocale: "en", TargetLocale: "fr", SourcePath: "en.json"},
-		{Key: "home.title", SourceText: "Home", TargetText: "Maison", SourceLocale: "en", TargetLocale: "fr", SourcePath: "en.json"},
+		{Key: "home.title", SourceText: "Home", TargetText: "Maison", SourceLocale: "en", TargetLocale: "fr", SourcePath: "en.json", Origin: "human"},
 	}, rows)
 
 	rows, err = f.store.exportBilingualRows(ctx, f.actor, f.project, bilingualExportQuery{Locale: "fr", FilePath: ptr("en.json")})

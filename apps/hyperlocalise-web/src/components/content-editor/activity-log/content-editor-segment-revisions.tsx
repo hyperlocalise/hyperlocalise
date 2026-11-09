@@ -26,6 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { translationOriginMessages } from "@/components/content-editor/shared/translation-origin.messages";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GoSvcClientError, type GoSvcClient } from "@/lib/go-svc/go-svc-client";
@@ -208,6 +209,9 @@ export function SegmentRevisions({
                     {intl.formatDate(revision.createdAt)} · {intl.formatTime(revision.createdAt)}
                   </span>
                   <span className="text-muted-foreground">{revision.status}</span>
+                  <Badge variant="outline" title={intl.formatMessage(messages.originHint)}>
+                    <FormattedMessage {...translationOriginMessages[revision.origin]} />
+                  </Badge>
                   {revision.isCurrent ? (
                     <Badge variant="success">
                       <FormattedMessage {...messages.current} />

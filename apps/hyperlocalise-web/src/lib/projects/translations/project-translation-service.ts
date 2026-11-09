@@ -25,6 +25,7 @@ import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecy
 import type { SourceFileSyncClash } from "@/lib/projects/files/source-file-sync-report";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { translationKeysQueueOrderBy } from "@/lib/projects/translations/project-translation-queue-order";
+import { translationOriginOnConflict } from "@/lib/projects/translations/translation-origin";
 import {
   projectTranslationRevisionColumns,
   recordProjectTranslationRevisions,
@@ -1223,6 +1224,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
       text: translation.text,
       status: "needs_review" as const,
       provenance: "translation_job" as const,
+      origin: "machine" as const,
       sourceJobId: input.jobId,
     }));
 
@@ -1250,6 +1252,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
               text: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.text ELSE excluded.text END`,
               status: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.status ELSE excluded.status END`,
               provenance: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.provenance ELSE excluded.provenance END`,
+              origin: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.origin ELSE excluded.origin END`,
               sourceJobId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.source_job_id ELSE excluded.source_job_id END`,
               reviewedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_at ELSE NULL END`,
               reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
@@ -1335,6 +1338,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           text: targetText,
           status: "needs_review" as const,
           provenance: "translation_job" as const,
+          origin: "machine" as const,
           sourceJobId: input.jobId,
         },
       ];
@@ -1368,6 +1372,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
                 text: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.text ELSE excluded.text END`,
                 status: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.status ELSE excluded.status END`,
                 provenance: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.provenance ELSE excluded.provenance END`,
+                origin: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.origin ELSE excluded.origin END`,
                 sourceJobId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.source_job_id ELSE excluded.source_job_id END`,
                 reviewedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_at ELSE NULL END`,
                 reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
@@ -1472,6 +1477,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
           text,
           status: "approved" as const,
           provenance: "import" as const,
+          // An import does not say who wrote the text.
+          origin: "unknown" as const,
           reviewedAt,
           reviewedByUserId,
         },
@@ -1526,6 +1533,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
                 text: sql`excluded.text`,
                 status: sql`excluded.status`,
                 provenance: sql`excluded.provenance`,
+                origin: translationOriginOnConflict("import"),
                 sourceJobId: sql`NULL`,
                 reviewedAt: sql`excluded.reviewed_at`,
                 reviewedByUserId: sql`excluded.reviewed_by_user_id`,

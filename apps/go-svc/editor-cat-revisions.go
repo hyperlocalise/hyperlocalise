@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/translationorigin"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -15,10 +16,10 @@ const editorCatMaxOperationIDLength = 200
 
 // editorCatTranslationSnapshot is a project_translations row as it was before a write.
 type editorCatTranslationSnapshot struct {
-	id, text, status, provenance string
-	sourceJobID                  *string
-	updatedAt                    time.Time
-	revision                     string
+	id, text, status, provenance, origin string
+	sourceJobID                          *string
+	updatedAt                            time.Time
+	revision                             string
 }
 
 // lockEditorCatTranslation locks and reads the translation a write is about to change. It
@@ -38,12 +39,12 @@ func lockEditorCatTranslation(ctx context.Context, db dictionaryDB, organization
 	}
 	var snapshot editorCatTranslationSnapshot
 	err := db.QueryRow(ctx, `
-        select id, text, status::text, provenance::text, source_job_id, updated_at, xmin::text
+        select id, text, status::text, provenance::text, origin::text, source_job_id, updated_at, xmin::text
         from project_translations
         where organization_id=$1 and translation_key_id=$2 and target_locale=$3
         for update`,
 		organizationID, keyID, targetLocale,
-	).Scan(&snapshot.id, &snapshot.text, &snapshot.status, &snapshot.provenance, &snapshot.sourceJobID, &snapshot.updatedAt, &snapshot.revision)
+	).Scan(&snapshot.id, &snapshot.text, &snapshot.status, &snapshot.provenance, &snapshot.origin, &snapshot.sourceJobID, &snapshot.updatedAt, &snapshot.revision)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -73,16 +74,17 @@ func recordEditorCatRevision(ctx context.Context, db dictionaryDB, organizationI
 		if _, err := db.Exec(ctx, `
             insert into project_translation_revisions (
                 organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
-                provenance, source_job_id, actor_kind, created_at
+                provenance, origin, source_job_id, actor_kind, created_at
             )
             select t.organization_id, t.project_id, t.id, t.translation_key_id, t.target_locale, $3::text,
-                $4::text::project_translation_status, $5::text::project_translation_provenance, $6::text,
+                $4::text::project_translation_status, $5::text::project_translation_provenance,
+                $8::text::project_translation_origin, $6::text,
                 case $5::text when 'agent' then 'agent' when 'manual' then 'user' else 'system' end,
                 $7::timestamptz
             from project_translations t
             where t.id=$1 and t.organization_id=$2
                 and not exists (select 1 from project_translation_revisions r where r.translation_id=$1)`,
-			write.translationID, organizationID, before.text, before.status, before.provenance, before.sourceJobID, before.updatedAt,
+			write.translationID, organizationID, before.text, before.status, before.provenance, before.sourceJobID, before.updatedAt, before.origin,
 		); err != nil {
 			return "", err
 		}
@@ -91,10 +93,10 @@ func recordEditorCatRevision(ctx context.Context, db dictionaryDB, organizationI
 	err := db.QueryRow(ctx, `
         insert into project_translation_revisions (
             organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
-            provenance, source_job_id, actor_kind, actor_user_id, operation_id, restored_from_revision_id, created_at
+            provenance, origin, source_job_id, actor_kind, actor_user_id, operation_id, restored_from_revision_id, created_at
         )
         select t.organization_id, t.project_id, t.id, t.translation_key_id, t.target_locale, t.text, t.status,
-            t.provenance, t.source_job_id, 'user', $3::uuid, nullif($4::text, ''), nullif($5::text, '')::uuid,
+            t.provenance, t.origin, t.source_job_id, 'user', $3::uuid, nullif($4::text, ''), nullif($5::text, '')::uuid,
             clock_timestamp()
         from project_translations t
         where t.id=$1 and t.organization_id=$2
@@ -110,6 +112,7 @@ type editorCatRevisionView struct {
 	ID                     string               `json:"id"`
 	IsCurrent              bool                 `json:"isCurrent"`
 	OperationID            *string              `json:"operationId"`
+	Origin                 string               `json:"origin"`
 	Provenance             string               `json:"provenance"`
 	RestoredFromRevisionID *string              `json:"restoredFromRevisionId"`
 	SourceJobID            *string              `json:"sourceJobId"`
@@ -151,7 +154,7 @@ func (api *editorCatAPI) listSegmentRevisions(r *http.Request, actor editorCatAc
 	}
 	args = append(args, limit+1)
 	rows, err := api.pool.Query(r.Context(), `
-        select r.id, r.text, r.status::text, r.provenance::text, r.source_job_id, r.actor_kind, r.actor_user_id,
+        select r.id, r.text, r.status::text, r.provenance::text, r.origin::text, r.source_job_id, r.actor_kind, r.actor_user_id,
             u.first_name, u.last_name, r.operation_id, r.restored_from_revision_id, r.created_at,
             r.id = (
                 select latest.id from project_translation_revisions latest
@@ -175,7 +178,7 @@ func (api *editorCatAPI) listSegmentRevisions(r *http.Request, actor editorCatAc
 		var actorKind string
 		var actorUserID, firstName, lastName *string
 		var createdAt time.Time
-		if err := rows.Scan(&view.ID, &view.Text, &view.Status, &view.Provenance, &view.SourceJobID, &actorKind, &actorUserID,
+		if err := rows.Scan(&view.ID, &view.Text, &view.Status, &view.Provenance, &view.Origin, &view.SourceJobID, &actorKind, &actorUserID,
 			&firstName, &lastName, &view.OperationID, &view.RestoredFromRevisionID, &createdAt, &view.IsCurrent); err != nil {
 			return nil, 0, err
 		}
@@ -199,9 +202,9 @@ func (api *editorCatAPI) listSegmentRevisions(r *http.Request, actor editorCatAc
 
 // editorCatRestoreTarget is the state a translation is put back to.
 type editorCatRestoreTarget struct {
-	text, status, provenance string
-	sourceJobID              *string
-	restoredFromRevisionID   string
+	text, status, provenance, origin string
+	sourceJobID                      *string
+	restoredFromRevisionID           string
 }
 
 // applyEditorCatRestore writes target over the locked translation, records the revision and the
@@ -220,7 +223,7 @@ func applyEditorCatRestore(ctx context.Context, tx pgx.Tx, actor editorCatActor,
         with saved as (
             update project_translations
             set text=$3, status=$4::text::project_translation_status, provenance=$5::text::project_translation_provenance,
-                source_job_id=$6, reviewed_at=$7, reviewed_by_user_id=$8, updated_at=now()
+                source_job_id=$6, reviewed_at=$7, reviewed_by_user_id=$8, origin=$9::text::project_translation_origin, updated_at=now()
             where id=$1 and organization_id=$2
             returning id, translation_key_id, text, status::text as status, xmin::text as revision
         )
@@ -228,7 +231,7 @@ func applyEditorCatRestore(ctx context.Context, tx pgx.Tx, actor editorCatActor,
         from saved
         join project_translation_keys k on k.id = saved.translation_key_id
         left join repository_source_files f on f.id = k.repository_source_file_id`,
-		before.id, actor.organizationID, target.text, target.status, target.provenance, target.sourceJobID, reviewedAt, reviewedBy,
+		before.id, actor.organizationID, target.text, target.status, target.provenance, target.sourceJobID, reviewedAt, reviewedBy, restoreOrigin(before, target),
 	).Scan(&id, &text, &status, &afterRevision, &occurrencePath)
 	if err != nil {
 		return editorCatTranslation{}, "", err
@@ -325,11 +328,11 @@ func (api *editorCatAPI) restoreSegmentRevision(r *http.Request, actor editorCat
 	}
 	target := editorCatRestoreTarget{restoredFromRevisionID: revisionID}
 	err = tx.QueryRow(r.Context(), `
-        select text, status::text, provenance::text, source_job_id
+        select text, status::text, provenance::text, origin::text, source_job_id
         from project_translation_revisions
         where id=$1 and organization_id=$2 and project_id=$3 and translation_id=$4`,
 		revisionID, actor.organizationID, project.ID, before.id,
-	).Scan(&target.text, &target.status, &target.provenance, &target.sourceJobID)
+	).Scan(&target.text, &target.status, &target.provenance, &target.origin, &target.sourceJobID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, editorCatFailure(404, "cat_revision_not_found", "Revision not found")
 	}
@@ -476,13 +479,13 @@ func (api *editorCatAPI) undoOperation(r *http.Request, actor editorCatActor, pr
 		target := editorCatRestoreTarget{status: "draft", provenance: before.provenance}
 		var previousID string
 		err = tx.QueryRow(r.Context(), `
-            select id, text, status::text, provenance::text, source_job_id
+            select id, text, status::text, provenance::text, origin::text, source_job_id
             from project_translation_revisions
             where translation_id=$1 and (created_at, id) < ($2, $3::uuid)
             order by created_at desc, id desc
             limit 1`,
 			member.translationID, member.firstWrittenAt, member.firstRevisionID,
-		).Scan(&previousID, &target.text, &target.status, &target.provenance, &target.sourceJobID)
+		).Scan(&previousID, &target.text, &target.status, &target.provenance, &target.origin, &target.sourceJobID)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return nil, 0, err
 		}
@@ -505,4 +508,21 @@ func (api *editorCatAPI) undoOperation(r *http.Request, actor editorCatActor, pr
 		"skippedChangedCount": skippedChanged,
 		"skippedLockedCount":  skippedLocked,
 	}, 200, nil
+}
+
+// restoreOrigin is the origin a restore writes: the restored version's own, or, when the version
+// carries none (an undo back to an empty translation), the rule for a person's write.
+func restoreOrigin(before editorCatTranslationSnapshot, target editorCatRestoreTarget) string {
+	if translationorigin.Valid(target.origin) {
+		return target.origin
+	}
+	return translationorigin.Next(&translationorigin.Previous{Origin: before.origin, Text: before.text}, translationorigin.WriterPerson, target.text)
+}
+
+// originPrevious is the snapshot as the origin rule reads it, nil when there is no translation.
+func (snapshot *editorCatTranslationSnapshot) originPrevious() *translationorigin.Previous {
+	if snapshot == nil {
+		return nil
+	}
+	return &translationorigin.Previous{Origin: snapshot.origin, Text: snapshot.text}
 }

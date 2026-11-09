@@ -75,6 +75,10 @@ func writeXLIFFTransUnits(doc *strings.Builder, rows []Row, startIndex int) {
 		doc.WriteString("</source>\n")
 		doc.WriteString("      <target xml:lang=\"")
 		doc.WriteString(escapeXML(row.TargetLocale))
+		if row.Origin == "machine" && row.TargetText != "" {
+			// Machine text no person has changed: CAT tools show it as an MT suggestion.
+			doc.WriteString("\" state-qualifier=\"mt-suggestion")
+		}
 		doc.WriteString("\">")
 		doc.WriteString(escapeXML(row.TargetText))
 		doc.WriteString("</target>\n")
