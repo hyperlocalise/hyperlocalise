@@ -28,7 +28,7 @@ Jobs started before activity logging was enabled may show only **Created** and t
 
 ## Tasks made of strings
 
-A **key job** is a task for people on a chosen set of strings rather than a file. Create one from the Content Editor: tick strings, open the selection menu, and choose **Add to a task…**. On a project's **Jobs** page, **Create job → From strings in the content editor** opens the Content Editor ready for ticking. Give a new task a title, languages, and an optional due date and description, or add the strings to an open task of the project. A task covers each of its strings in each of its languages.
+A **key job** is a task for people on a chosen set of strings rather than a file. Create one from the Content Editor: tick strings, open the selection menu, and choose **Add to a task…**. On a project's **Jobs** page, **Create job → From strings in the content editor** opens the Content Editor ready for ticking. Give a new task a title, languages, and an optional due date and description, or add the strings to an open task of the project. A task covers each of its strings in each of its languages. Automation can create key jobs with the [API](/platform/api#create-a-job), picking strings by id, key name, or tag.
 
 A key job made with **Add to a task…** runs no AI translation. Its page shows how many visible strings it holds, and **Open Editor** opens the project's Content Editor filtered to the job's strings. A string hidden after it joined stays in the job but is left out of its count, its progress, and the queue, unless you choose the **Hidden** filter.
 
@@ -69,7 +69,7 @@ For a native job that is queued, running, or waiting for review, select **Cancel
 
 When the work on a proofread task is finished, select **Mark done** and confirm. The task moves to **Succeeded** and can't be reopened. Strings that are not finished stay as they are, and later edits no longer count towards the task. The file language shows as **Ready** after this, even if some strings are still unfinished.
 
-Reviewers, localization managers, and admins can mark any such task done. Anyone else with job access can mark done only a task assigned to them. Post-edit and translate tasks from visual workflows do not have **Mark done**. Key jobs are finished the same way.
+Reviewers, localization managers, and admins can mark any such task done. Anyone else with job access can mark done only a task assigned to them. Post-edit and translate tasks from visual workflows do not have **Mark done**. Key jobs are finished the same way. Automation can do the same with [Complete a task for people](/platform/api#complete-a-task-for-people).
 
 ## Hand off the result
 
