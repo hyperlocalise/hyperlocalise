@@ -45,7 +45,9 @@ import { ContentEditorSideBySideResizableLayout } from "@/components/content-edi
 import { getLocaleFlagEmoji } from "@/lib/i18n/locales";
 
 import {
+  SIDE_BY_SIDE_CHECK_AREA_CLASS_NAME,
   SIDE_BY_SIDE_GRID_CLASS_NAME,
+  SIDE_BY_SIDE_SELECTION_GRID_CLASS_NAME,
   SIDE_BY_SIDE_SOURCE_AREA_CLASS_NAME,
   SIDE_BY_SIDE_STATUS_AREA_CLASS_NAME,
   SIDE_BY_SIDE_TARGET_AREA_CLASS_NAME,
@@ -69,17 +71,20 @@ function LocaleTag({ locale }: { locale?: string }) {
 function SideBySideColumnHeader({
   sourceLocale,
   targetLocale,
+  showSelection = false,
 }: {
   sourceLocale?: string;
   targetLocale?: string;
+  showSelection?: boolean;
 }) {
   return (
     <div
       className={cn(
-        SIDE_BY_SIDE_GRID_CLASS_NAME,
+        showSelection ? SIDE_BY_SIDE_SELECTION_GRID_CLASS_NAME : SIDE_BY_SIDE_GRID_CLASS_NAME,
         "shrink-0 border-b border-border bg-muted/30 px-4 py-2 text-xs font-medium tracking-wide text-muted-foreground uppercase",
       )}
     >
+      {showSelection ? <span className={SIDE_BY_SIDE_CHECK_AREA_CLASS_NAME} /> : null}
       <p className={cn(SIDE_BY_SIDE_STATUS_AREA_CLASS_NAME, "hidden @3xl:block")}>
         <FormattedMessage {...contentEditorSideBySidePanelMessages.statusColumn} />
       </p>
@@ -233,6 +238,9 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   pagination = null,
   hasMoreQueue = false,
   onLoadMoreQueue,
+  checkedSegmentIds,
+  onToggleSegmentChecked,
+  showSelection = false,
   hasPreviousSegment,
   hasNextSegment,
   onPreviousSegment,
@@ -309,6 +317,9 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   pagination?: ContentEditorQueuePagination | null;
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
+  checkedSegmentIds?: ReadonlySet<string>;
+  onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
+  showSelection?: boolean;
   hasPreviousSegment?: boolean;
   hasNextSegment?: boolean;
   onPreviousSegment?: () => void;
@@ -393,6 +404,7 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
           <SideBySideColumnHeader
             sourceLocale={fileContext.sourceLocale}
             targetLocale={fileContext.targetLocale}
+            showSelection={showSelection && Boolean(onToggleSegmentChecked)}
           />
 
           <div className="flex min-h-0 flex-1 flex-col">
@@ -445,6 +457,9 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
                   onRegenerateImage={onRegenerateImage}
                   onUploadImage={onUploadImage}
                   onToggleLocked={onToggleLocked}
+                  checkedSegmentIds={checkedSegmentIds}
+                  showSelection={showSelection}
+                  onToggleSegmentChecked={onToggleSegmentChecked}
                   hasMore={hasMoreQueue}
                   isLoadingMore={isFetchingPage}
                   onNearEnd={onLoadMoreQueue}
