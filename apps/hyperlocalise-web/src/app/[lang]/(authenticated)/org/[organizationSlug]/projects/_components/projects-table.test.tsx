@@ -188,7 +188,7 @@ describe("ProjectsTable", () => {
     expect(within(row).getByTitle("en → vi, fr")).toHaveTextContent("2");
     expect(within(row).getByRole("link", { name: "3 jobs" })).toHaveAttribute(
       "href",
-      "/org/acme/projects/project_native/jobs",
+      "/en/org/acme/projects/project_native/jobs",
     );
     await user.click(screen.getByRole("button", { name: "Load more" }));
     expect(onLoadMore).toHaveBeenCalledOnce();
