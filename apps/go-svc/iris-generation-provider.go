@@ -18,7 +18,7 @@ import (
 const (
 	defaultIrisGatewayBaseURL   = "https://ai-gateway.vercel.sh/v1"
 	defaultIrisOpenAIBaseURL    = "https://api.openai.com/v1"
-	defaultIrisOpenAIImageModel = "openai/gpt-image-2.5-flare"
+	defaultIrisOpenAIImageModel = "openai/gpt-image-2.6-flare"
 	irisProviderTimeout         = 9 * time.Minute
 )
 

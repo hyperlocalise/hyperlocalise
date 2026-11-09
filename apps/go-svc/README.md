@@ -166,7 +166,7 @@ Localisation models on `/generate`: `elevenlabs-dubbing` (ElevenLabs Dubbing:
 | `OPENAI_API_KEY` | Fallback when the gateway key is unset. Direct OpenAI for translate, `openai/*` generation, and `image-localise`. |
 | `IRIS_TRANSLATE_MODEL` | Optional. AI Gateway model for `/localise/translate`. Defaults to `openai/gpt-6-luna`, the model go-svc and the agents use by default. |
 | `IRIS_OPENAI_TRANSLATE_MODEL` | Optional. Native OpenAI model when using `OPENAI_API_KEY`. Defaults to `gpt-6-luna`. |
-| `IRIS_OPENAI_IMAGE_MODEL` | Optional. OpenAI image model for `image-localise` when using `OPENAI_API_KEY`. Defaults to `openai/gpt-image-2.5-flare`. |
+| `IRIS_OPENAI_IMAGE_MODEL` | Optional. OpenAI image model for `image-localise` when using `OPENAI_API_KEY`. Defaults to `openai/gpt-image-2.6-flare`. |
 | `IRIS_VISION_MODEL` | Optional. AI Gateway model for `image-text`. Defaults to `openai/gpt-6-luna`. |
 
 ### Datadog tracing

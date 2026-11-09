@@ -360,7 +360,7 @@ func TestImageLocaliseUsesOpenAIImageModelOnDirectOpenAI(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, outputs, 1)
-	require.Equal(t, "gpt-image-2.5-flare", gotModel)
+	require.Equal(t, "gpt-image-2.6-flare", gotModel)
 	require.Equal(t, "image/png", gotImageType)
 }
 
