@@ -21,6 +21,7 @@ apps/hyperlocalise-web/src/workflows/adapters.ts
         |
         +-- createTranslationJobEventQueue()
         |       +-- file event ----> fileTranslationJobWorkflow
+        |       +-- keys event ----> keyTranslationJobWorkflow
         |       `-- other event ---> translationJobWorkflow
         |
         +-- createEmailAgentTaskQueue()

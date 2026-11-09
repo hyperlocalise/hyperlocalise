@@ -44,8 +44,9 @@ async function countOrganizationJobBudgetUsage(client: DatabaseClient, organizat
         and(
           eq(schema.jobs.organizationId, organizationId),
           inArray(schema.jobs.status, [...OPEN_JOB_STATUSES]),
-          // Key jobs are tasks for people that stay open for days and run nothing, so they
-          // don't hold back AI jobs. They still count towards the hourly rate.
+          // Key jobs for people stay open for days and run nothing, so they don't hold back AI
+          // jobs; key jobs for AI translation count like any other. All count towards the
+          // hourly rate.
           notExists(
             client
               .select({ jobId: schema.translationJobDetails.jobId })
@@ -54,6 +55,7 @@ async function countOrganizationJobBudgetUsage(client: DatabaseClient, organizat
                 and(
                   eq(schema.translationJobDetails.jobId, schema.jobs.id),
                   eq(schema.translationJobDetails.type, "keys"),
+                  eq(schema.jobs.kind, "proofread"),
                 ),
               ),
           ),
@@ -108,7 +110,7 @@ export async function assertOrganizationCanEnqueueTranslationJobInTransaction(
   tx: DatabaseTransaction,
   organizationId: string,
   options?: {
-    /** A key job doesn't count as open, so other open jobs don't hold it back; the rate does. */
+    /** A key job for people doesn't count as open, so other open jobs don't hold it back; the rate does. */
     isKeyJob?: boolean;
   },
 ): Promise<Result<void, OrganizationOperationBudgetError>> {

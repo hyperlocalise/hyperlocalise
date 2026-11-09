@@ -19,6 +19,11 @@ export function createTranslationJobEventQueue(): JobQueue<TranslationJobEventDa
     async enqueue(event) {
       const { fileTranslationJobWorkflow } = await import("@/workflows/file-translation-job");
       const { translationJobWorkflow } = await import("@/workflows/translation-job");
+      if (event.type === "keys") {
+        const { keyTranslationJobWorkflow } = await import("@/workflows/key-translation-job");
+        const run = await start(keyTranslationJobWorkflow, [event]);
+        return { ids: [run.runId] };
+      }
       const workflow = event.type === "file" ? fileTranslationJobWorkflow : translationJobWorkflow;
       const run = await start(workflow, [event]);
 

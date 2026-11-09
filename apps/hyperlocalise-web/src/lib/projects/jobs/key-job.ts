@@ -51,6 +51,7 @@ export function keyJobInputPayload(input: KeysTranslationJobInput) {
   return {
     sourceLocale: input.sourceLocale,
     targetLocales: input.targetLocales,
+    ...(input.overwriteUnapproved ? { overwriteUnapproved: true } : {}),
     // A visual workflow step name would hide Mark done, so a key job never carries one.
     ...(input.metadata ? { metadata: withoutWorkflowTaskStep(input.metadata) } : {}),
   };

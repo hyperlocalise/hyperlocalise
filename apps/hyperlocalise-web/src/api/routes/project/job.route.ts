@@ -411,8 +411,11 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             : keyJobInputPayload(payload.keysInput);
       const title = payload.title?.trim();
       const description = payload.description?.trim();
+      // A key job is a task for people unless AI translation is asked for.
       const jobKind =
-        payload.kind === "proofread" || payload.type === "keys" ? "proofread" : "translation";
+        payload.kind === "proofread" || (payload.type === "keys" && payload.kind !== "translation")
+          ? "proofread"
+          : "translation";
 
       let enrichedInputPayload = inputPayload;
       if (title || description) {
@@ -532,7 +535,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
             tx,
             c.var.auth.organization.localOrganizationId,
-            { isKeyJob: payload.type === "keys" },
+            { isKeyJob: payload.type === "keys" && isProofreadJob },
           );
           if (isErr(jobBudget)) {
             throw new OrganizationJobBudgetExceededError(jobBudget.error);
@@ -643,7 +646,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         });
       }
 
-      if (!isProofreadJob && payload.type !== "keys") {
+      if (!isProofreadJob) {
         try {
           await options.jobQueue.enqueue({
             kind: "translation",
@@ -1303,6 +1306,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         .select({
           id: schema.jobs.id,
           projectId: schema.jobs.projectId,
+          kind: schema.jobs.kind,
           type: schema.translationJobDetails.type,
         })
         .from(schema.jobs)
@@ -1325,8 +1329,8 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           : notFoundResponse(c, "job_not_found", "Job not found");
       }
 
-      // Key jobs are tasks for people, so there is no run to retry.
-      if (!job.projectId || !job.type || job.type === "keys") {
+      // A key job for people has no run to retry; one for AI translation does.
+      if (!job.projectId || !job.type || (job.type === "keys" && job.kind !== "translation")) {
         return conflictResponse(c, "job_action_unavailable", "Job action is not available");
       }
 

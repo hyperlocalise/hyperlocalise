@@ -81,6 +81,8 @@ export const keysTranslationJobInputSchema = z
     stringIds: z.array(z.string().uuid()).min(1).max(maxKeyJobStrings).optional(),
     keys: z.array(z.string().trim().min(1).max(1_000)).min(1).max(maxKeyJobStrings).optional(),
     tags: z.array(keyTagSchema).min(1).max(maxKeyJobTags).optional(),
+    /** AI translation only: also replace translations that are not approved yet. */
+    overwriteUnapproved: z.boolean().optional(),
   })
   .refine(
     (input) =>
@@ -119,8 +121,8 @@ export const createJobBodySchema = z.discriminatedUnion("type", [
     type: z.literal("keys"),
     keysInput: keysTranslationJobInputSchema,
     ...createJobSharedFields,
-    // A key job is always a task for people.
-    kind: z.literal("proofread").optional(),
+    // A task for people unless AI translation is asked for.
+    kind: z.enum(["translation", "proofread"]).optional(),
   }),
 ]);
 

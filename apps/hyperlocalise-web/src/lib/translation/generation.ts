@@ -269,16 +269,35 @@ function estimateCatRecommendationMaxOutputTokens(input: ContentEditorAiRecommen
   return Math.min(4_000, Math.max(512, sourceBudget + contextBudget + 256));
 }
 
+/**
+ * A model answer that could not be used in full: a language missing, repeated, unexpected or over
+ * the string's max length. It carries the call's token usage and the languages that were fine, so
+ * a caller that saves per language can keep them and still charge the call.
+ */
+export class StringTranslationOutputError extends Error {
+  constructor(
+    message: string,
+    readonly tokenUsage: StringTranslationJobResult["tokenUsage"],
+    readonly validTranslations: StringTranslationJobResult["translations"],
+  ) {
+    super(message);
+    this.name = "StringTranslationOutputError";
+  }
+}
+
 function normalizeTranslations(
   jobInput: StringTranslationGeneratorInput["jobInput"],
   result: z.infer<typeof stringTranslationOutputSchema>,
   tokenUsage?: StringTranslationJobResult["tokenUsage"],
 ): StringTranslationJobResult {
   const translationsByLocale = new Map<string, string>();
+  const problems: string[] = [];
+  const unusable = new Set<string>();
 
   for (const translation of result.translations) {
     if (translationsByLocale.has(translation.locale)) {
-      throw new Error(`duplicate translation returned for locale ${translation.locale}`);
+      problems.push(`duplicate translation returned for locale ${translation.locale}`);
+      unusable.add(translation.locale);
     }
 
     translationsByLocale.set(translation.locale, translation.text);
@@ -286,29 +305,38 @@ function normalizeTranslations(
 
   for (const locale of new Set(jobInput.targetLocales)) {
     if (!translationsByLocale.has(locale)) {
-      throw new Error(`missing translation for locale ${locale}`);
+      problems.push(`missing translation for locale ${locale}`);
+      unusable.add(locale);
     }
   }
 
   for (const locale of translationsByLocale.keys()) {
     if (!jobInput.targetLocales.includes(locale)) {
-      throw new Error(`unexpected translation locale ${locale}`);
+      problems.push(`unexpected translation locale ${locale}`);
     }
   }
 
-  const translations = [...new Set(jobInput.targetLocales)].map((locale) => {
+  const translations: StringTranslationJobResult["translations"] = [];
+  for (const locale of new Set(jobInput.targetLocales)) {
+    if (unusable.has(locale)) continue;
     const text = translationsByLocale.get(locale);
 
     if (!text) {
-      throw new Error(`missing translation for locale ${locale}`);
+      problems.push(`missing translation for locale ${locale}`);
+      continue;
     }
 
     if (jobInput.maxLength && text.length > jobInput.maxLength) {
-      throw new Error(`translation for locale ${locale} exceeds maxLength`);
+      problems.push(`translation for locale ${locale} exceeds maxLength`);
+      continue;
     }
 
-    return { locale, text };
-  });
+    translations.push({ locale, text });
+  }
+
+  if (problems.length > 0) {
+    throw new StringTranslationOutputError(problems[0]!, tokenUsage, translations);
+  }
 
   return { translations, ...(tokenUsage ? { tokenUsage } : {}) };
 }
