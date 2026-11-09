@@ -23,6 +23,7 @@ import { ContentEditorKeyTaskDialog } from "./content-editor-key-task-dialog";
 import { ContentEditorKeyTagsDialog } from "./content-editor-key-tags-dialog";
 import {
   ContentEditorKeyDetailsEditingContext,
+  ContentEditorKeyTagFilterContext,
   type ContentEditorKeyDetailsEditing,
 } from "@/components/content-editor/intelligence/content-editor-key-details";
 import { ContentEditorPageWindowProvider } from "./content-editor-page-window";
@@ -71,7 +72,10 @@ import {
   type ContentEditorQueueFilter,
   type ContentEditorQueueSort,
 } from "@/components/content-editor/queue/content-editor-queue-filter";
-import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
+import {
+  withIncludedTag,
+  type ContentEditorAdvancedQueueFilter,
+} from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import type { MessageFormat } from "@/lib/i18n/message-format";
 import { glossaryFormatChecksForSegment } from "@/components/content-editor/intelligence/content-editor-glossary-checks";
 import { buildCatSegmentShareUrl } from "@/components/content-editor/segment/content-editor-segment-share-link";
@@ -1064,6 +1068,10 @@ export function ProjectFileContentEditorWorkspace({
 
   // A merged row stands for several strings, and an edit would change only one of them.
   const canEditKeyDetails = Boolean(editorBehavior?.canEditKeyDetails && isNativeProject);
+  const filterByKeyTag = useCallback(
+    (tag: string) => setQueueAdvanced((current) => withIncludedTag(current, tag)),
+    [setQueueAdvanced],
+  );
   const keyDetailsEditing = useMemo<ContentEditorKeyDetailsEditing | null>(
     () =>
       canEditKeyDetails && !isGrouped
@@ -1586,163 +1594,168 @@ export function ProjectFileContentEditorWorkspace({
             <ContentEditorGroupingView grouping={grouping} targetLocale={targetLocale}>
               <ContentEditorSourceTextEditingContext.Provider value={sourceTextEditing}>
                 <ContentEditorKeyDetailsEditingContext.Provider value={keyDetailsEditing}>
-                  <AiFeaturesUpgradeHrefProvider value={upgradePlanHref}>
-                    <ContentEditorWorkspaceContainer
-                      multilingual={multilingual}
-                      initialState={workspaceForRender}
-                      queueSnapshot={workspaceState}
-                      fileScopeKey={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}`}
-                      pageNavigationGuardRef={resolvedPageNavigationGuardRef}
-                      adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
-                      lazySegment={{
-                        organizationSlug,
-                        projectId,
-                        sourcePath,
-                        targetLocale,
-                        externalResourceId,
-                        resourceType,
-                        contentEditorFile,
-                        retainedSegmentIdentityRef,
-                        enabled: Boolean(contentEditorFile),
-                      }}
-                      className={cn(
-                        "min-h-0 flex-1",
-                        isFullscreen && "rounded-lg border border-border",
-                      )}
-                      navigation={{}}
-                      editing={{
-                        onTreatAsImage: async (segmentId, nextTreatAsImage) => {
-                          await treatAsImage({
-                            externalStringId: segmentId,
-                            treatAsImage: nextTreatAsImage,
-                          });
-                        },
-                        ...(isNativeProject
-                          ? {
-                              onTreatAsVideo: async (
-                                segmentId: string,
-                                nextTreatAsVideo: boolean,
-                              ) => {
-                                await treatAsVideo({
-                                  externalStringId: segmentId,
-                                  treatAsVideo: nextTreatAsVideo,
-                                });
-                              },
-                              ...(aiFeaturesAllowed
-                                ? {
-                                    onRegenerateImage: async (segmentId, options) => {
-                                      await regenerateImage({
-                                        externalStringId: segmentId,
-                                        instructions: options?.instructions,
-                                        force: options?.force,
-                                      });
-                                    },
-                                  }
-                                : {}),
-                              onSetMaxLength: handleSetMaxLength,
+                  <ContentEditorKeyTagFilterContext.Provider
+                    value={isNativeProject ? filterByKeyTag : null}
+                  >
+                    <AiFeaturesUpgradeHrefProvider value={upgradePlanHref}>
+                      <ContentEditorWorkspaceContainer
+                        multilingual={multilingual}
+                        initialState={workspaceForRender}
+                        queueSnapshot={workspaceState}
+                        fileScopeKey={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}`}
+                        pageNavigationGuardRef={resolvedPageNavigationGuardRef}
+                        adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
+                        lazySegment={{
+                          organizationSlug,
+                          projectId,
+                          sourcePath,
+                          targetLocale,
+                          externalResourceId,
+                          resourceType,
+                          contentEditorFile,
+                          retainedSegmentIdentityRef,
+                          enabled: Boolean(contentEditorFile),
+                        }}
+                        className={cn(
+                          "min-h-0 flex-1",
+                          isFullscreen && "rounded-lg border border-border",
+                        )}
+                        navigation={{}}
+                        editing={{
+                          onTreatAsImage: async (segmentId, nextTreatAsImage) => {
+                            await treatAsImage({
+                              externalStringId: segmentId,
+                              treatAsImage: nextTreatAsImage,
+                            });
+                          },
+                          ...(isNativeProject
+                            ? {
+                                onTreatAsVideo: async (
+                                  segmentId: string,
+                                  nextTreatAsVideo: boolean,
+                                ) => {
+                                  await treatAsVideo({
+                                    externalStringId: segmentId,
+                                    treatAsVideo: nextTreatAsVideo,
+                                  });
+                                },
+                                ...(aiFeaturesAllowed
+                                  ? {
+                                      onRegenerateImage: async (segmentId, options) => {
+                                        await regenerateImage({
+                                          externalStringId: segmentId,
+                                          instructions: options?.instructions,
+                                          force: options?.force,
+                                        });
+                                      },
+                                    }
+                                  : {}),
+                                onSetMaxLength: handleSetMaxLength,
+                              }
+                            : {}),
+                          onUploadImage: async (segmentId, file) => {
+                            await uploadImage({ externalStringId: segmentId, file });
+                            if (isKeyedDocumentFileView(segmentId)) {
+                              await writeDocumentEditsToSegments(file);
                             }
-                          : {}),
-                        onUploadImage: async (segmentId, file) => {
-                          await uploadImage({ externalStringId: segmentId, file });
-                          if (isKeyedDocumentFileView(segmentId)) {
-                            await writeDocumentEditsToSegments(file);
-                          }
-                        },
-                        ...(!contentEditorFile?.provider?.kind ||
-                        contentEditorFile.provider.kind === "native"
-                          ? {
-                              onUploadVisualContext: async (segmentId: string, file: File) => {
-                                const visualContext = await uploadNativeVisualContextScreenshot({
-                                  client: goSvcClient,
-                                  organizationSlug,
-                                  projectId,
-                                  sourcePath,
-                                  externalStringId: segmentId,
-                                  file,
-                                });
-                                return visualContext;
-                              },
-                            }
-                          : {}),
-                      }}
-                      services={{
-                        validateFormat,
-                        runQaChecks,
-                        lookupSegmentConcordance,
-                        lookupSegmentContext,
-                        lookupSegmentVisualContext,
-                        generateAiRecommendation:
-                          aiFeaturesAccess.status === "allowed"
-                            ? generateAiRecommendation
-                            : undefined,
-                      }}
-                      review={{
-                        onApprove: handleApprove,
-                        onBulkApproveComplete: handleBulkApproveComplete,
-                        onSaveDraft: isNativeProject ? handleSaveDraft : undefined,
-                        onAddComment: handleAddComment,
-                        onAddToIssueSheet: handleAddToIssueSheet,
-                        onResolveComment:
+                          },
+                          ...(!contentEditorFile?.provider?.kind ||
+                          contentEditorFile.provider.kind === "native"
+                            ? {
+                                onUploadVisualContext: async (segmentId: string, file: File) => {
+                                  const visualContext = await uploadNativeVisualContextScreenshot({
+                                    client: goSvcClient,
+                                    organizationSlug,
+                                    projectId,
+                                    sourcePath,
+                                    externalStringId: segmentId,
+                                    file,
+                                  });
+                                  return visualContext;
+                                },
+                              }
+                            : {}),
+                        }}
+                        services={{
+                          validateFormat,
+                          runQaChecks,
+                          lookupSegmentConcordance,
+                          lookupSegmentContext,
+                          lookupSegmentVisualContext,
+                          generateAiRecommendation:
+                            aiFeaturesAccess.status === "allowed"
+                              ? generateAiRecommendation
+                              : undefined,
+                        }}
+                        review={{
+                          onApprove: handleApprove,
+                          onBulkApproveComplete: handleBulkApproveComplete,
+                          onSaveDraft: isNativeProject ? handleSaveDraft : undefined,
+                          onAddComment: handleAddComment,
+                          onAddToIssueSheet: handleAddToIssueSheet,
+                          onResolveComment:
+                            contentEditorFile?.provider?.kind === "crowdin"
+                              ? handleResolveComment
+                              : undefined,
+                          ...(canHideNativeStrings ||
                           contentEditorFile?.provider?.kind === "crowdin"
-                            ? handleResolveComment
-                            : undefined,
-                        ...(canHideNativeStrings || contentEditorFile?.provider?.kind === "crowdin"
-                          ? {
-                              onBulkHide: (segmentIds: string[]) =>
-                                handleSetStringsHidden(segmentIds, true),
-                              onBulkUnhide: (segmentIds: string[]) =>
-                                handleSetStringsHidden(segmentIds, false),
-                            }
-                          : {}),
-                        onSetLocked: handleSetStringsLocked,
-                        onBulkLock: (segmentIds: string[]) =>
-                          handleSetStringsLocked(segmentIds, true),
-                        onBulkUnlock: (segmentIds: string[]) =>
-                          handleSetStringsLocked(segmentIds, false),
-                        ...(isNativeProject && contentEditorFile?.canEditTranslations
-                          ? { onCreateKeyTask: openKeyTaskDialog }
-                          : {}),
-                        ...(canEditKeyDetails ? { onEditKeyTags: openKeyTagsDialog } : {}),
-                      }}
-                      initialSegmentKeyOrId={openedSegmentKey ?? initialSegmentKey}
-                      buildSegmentShareUrl={buildSegmentShareUrl}
-                      queueSearch={search}
-                      onQueueSearchChange={setSearch}
-                      queueFilter={queueFilter}
-                      onQueueFilterChange={setQueueFilter}
-                      availableQueueFilters={availableQueueFilters}
-                      queueSort={queueSort}
-                      onQueueSortChange={setQueueSort}
-                      availableQueueSorts={availableQueueSorts}
-                      queueFilterQualifier={queueFilterQualifier}
-                      onQueueFilterQualifierChange={setQueueFilterQualifier}
-                      queueAdvanced={queueAdvanced}
-                      onQueueAdvancedChange={setQueueAdvanced}
-                      isQueueSearchPending={isSearchPending || contentEditorQuery.isFetching}
-                      isQueueFetchingPage={isFetchingPage}
-                      isQueueListLoading={isQueueListLoading}
-                      isQueueDataPending={isQueueDataPending}
-                      isTranslationViewLoading={isTranslationViewLoading}
-                      isImageBusy={isImageBusy}
-                      isImageGenerating={isImageGenerating}
-                      generatingImageSegmentId={generatingImageSegmentId}
-                      isMaxLengthSaving={isSavingMaxLength}
-                      queuePagination={pagination}
-                      onLoadMoreQueue={loadNextPage}
-                      hasMoreQueue={pagination?.hasMore ?? false}
-                      canLookupFreshContext={aiFeaturesAllowed && canLookupFreshContext}
-                      onPageLimitChange={setPageLimit}
-                      nativeIssuesEnabled={isNativeProject}
-                      onDownloadFilteredView={handleDownloadFilteredView}
-                      isDownloadingFilteredView={isExporting}
-                      onImportBilingualFile={
-                        isNativeProject && canEditTranslations
-                          ? handleImportBilingualFile
-                          : undefined
-                      }
-                      isImportingBilingualFile={isImportingBilingualFile}
-                    />
-                  </AiFeaturesUpgradeHrefProvider>
+                            ? {
+                                onBulkHide: (segmentIds: string[]) =>
+                                  handleSetStringsHidden(segmentIds, true),
+                                onBulkUnhide: (segmentIds: string[]) =>
+                                  handleSetStringsHidden(segmentIds, false),
+                              }
+                            : {}),
+                          onSetLocked: handleSetStringsLocked,
+                          onBulkLock: (segmentIds: string[]) =>
+                            handleSetStringsLocked(segmentIds, true),
+                          onBulkUnlock: (segmentIds: string[]) =>
+                            handleSetStringsLocked(segmentIds, false),
+                          ...(isNativeProject && contentEditorFile?.canEditTranslations
+                            ? { onCreateKeyTask: openKeyTaskDialog }
+                            : {}),
+                          ...(canEditKeyDetails ? { onEditKeyTags: openKeyTagsDialog } : {}),
+                        }}
+                        initialSegmentKeyOrId={openedSegmentKey ?? initialSegmentKey}
+                        buildSegmentShareUrl={buildSegmentShareUrl}
+                        queueSearch={search}
+                        onQueueSearchChange={setSearch}
+                        queueFilter={queueFilter}
+                        onQueueFilterChange={setQueueFilter}
+                        availableQueueFilters={availableQueueFilters}
+                        queueSort={queueSort}
+                        onQueueSortChange={setQueueSort}
+                        availableQueueSorts={availableQueueSorts}
+                        queueFilterQualifier={queueFilterQualifier}
+                        onQueueFilterQualifierChange={setQueueFilterQualifier}
+                        queueAdvanced={queueAdvanced}
+                        onQueueAdvancedChange={setQueueAdvanced}
+                        isQueueSearchPending={isSearchPending || contentEditorQuery.isFetching}
+                        isQueueFetchingPage={isFetchingPage}
+                        isQueueListLoading={isQueueListLoading}
+                        isQueueDataPending={isQueueDataPending}
+                        isTranslationViewLoading={isTranslationViewLoading}
+                        isImageBusy={isImageBusy}
+                        isImageGenerating={isImageGenerating}
+                        generatingImageSegmentId={generatingImageSegmentId}
+                        isMaxLengthSaving={isSavingMaxLength}
+                        queuePagination={pagination}
+                        onLoadMoreQueue={loadNextPage}
+                        hasMoreQueue={pagination?.hasMore ?? false}
+                        canLookupFreshContext={aiFeaturesAllowed && canLookupFreshContext}
+                        onPageLimitChange={setPageLimit}
+                        nativeIssuesEnabled={isNativeProject}
+                        onDownloadFilteredView={handleDownloadFilteredView}
+                        isDownloadingFilteredView={isExporting}
+                        onImportBilingualFile={
+                          isNativeProject && canEditTranslations
+                            ? handleImportBilingualFile
+                            : undefined
+                        }
+                        isImportingBilingualFile={isImportingBilingualFile}
+                      />
+                    </AiFeaturesUpgradeHrefProvider>
+                  </ContentEditorKeyTagFilterContext.Provider>
                 </ContentEditorKeyDetailsEditingContext.Provider>
               </ContentEditorSourceTextEditingContext.Provider>
             </ContentEditorGroupingView>

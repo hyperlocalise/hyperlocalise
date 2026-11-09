@@ -21,6 +21,7 @@ import { ContentEditorTestProviders } from "@/components/content-editor/shared/c
 import {
   ContentEditorKeyDetails,
   ContentEditorKeyDetailsEditingContext,
+  ContentEditorKeyTagFilterContext,
   type ContentEditorKeyDetailsEditing,
   parseTagInput,
 } from "./content-editor-key-details";
@@ -129,6 +130,23 @@ describe("ContentEditorKeyDetails outside the queue", () => {
     expect(screen.getByText("release-7")).toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Add tags" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add design link" })).not.toBeInTheDocument();
+  });
+});
+
+describe("ContentEditorKeyDetails tag filter", () => {
+  it("filters the list by a tag clicked in the panel", async () => {
+    const user = userEvent.setup();
+    const filterByTag = vi.fn();
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorKeyTagFilterContext.Provider value={filterByTag}>
+          <ContentEditorKeyDetails segmentId="key-1" tags={["release-7"]} />
+        </ContentEditorKeyTagFilterContext.Provider>
+      </ContentEditorTestProviders>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Show strings tagged release-7" }));
+    expect(filterByTag).toHaveBeenCalledWith("release-7");
   });
 });
 

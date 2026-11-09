@@ -33,11 +33,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
 import type { CatBilingualImportCounts } from "@/lib/projects/content-editor/content-editor-bilingual-import";
 import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
 import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
-import { isCatQueueFilterEmpty } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
+import {
+  includedTagsOnly,
+  isCatQueueFilterEmpty,
+  withoutShownScope,
+} from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { cn } from "@/lib/primitives/cn";
 import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.messages";
 
@@ -54,6 +59,8 @@ import {
 import { ContentEditorAdvancedQueueFilterDialog } from "./content-editor-advanced-queue-filter-dialog";
 import { ContentEditorOverflowMenu } from "./content-editor-overflow-menu";
 import { ContentEditorViewMenu } from "./content-editor-view-menu";
+import { useContentEditorTagSearch } from "./content-editor-tag-search";
+import { contentEditorTagSearchMessages } from "./content-editor-tag-search.messages";
 import { ContentEditorShortcutHint } from "@/components/content-editor/editor/content-editor-shortcut-hints";
 import { contentEditorBulkBarMessages } from "@/components/content-editor/shared/content-editor-chrome.messages";
 import { contentEditorQueuePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
@@ -157,10 +164,14 @@ export function ContentEditorQueueToolbar({
   const showBulkBar = isSelecting && selectedCount > 0;
   const hasActiveFilter =
     queueFilter !== "all" || Boolean(queueFilterQualifier) || !isCatQueueFilterEmpty(queueAdvanced);
+  // Native projects' labels are their strings' tags, which `tag:` in the search box filters by.
+  const tagSearchEnabled = providerKind == null || providerKind === "native";
+  // A key job's scope and searched tags show beside the search box, so the button names the
+  // quick filter unless other advanced filters are set.
   const filterButtonMessage = resolveQueueFilterButtonMessage({
     queueFilter,
     queueSort,
-    queueAdvanced,
+    queueAdvanced: withoutShownScope(queueAdvanced, tagSearchEnabled),
   });
   // Placeholder reuse or a not-yet-ingested cache hit can keep chrome mounted
   // while the store still holds the previous page — never treat those ids as
@@ -171,6 +182,15 @@ export function ContentEditorQueueToolbar({
   const keepJobScope = (filter: ContentEditorAdvancedQueueFilter | undefined) =>
     jobId ? { ...filter, jobId } : filter;
   const selectableVisibleCount = bulkTargetsReady ? visibleCount : 0;
+  const tagSearch = useContentEditorTagSearch({
+    enabled: tagSearchEnabled,
+    search,
+    onSearchChange,
+    queueAdvanced,
+    onQueueAdvancedChange,
+    organizationSlug,
+    projectId,
+  });
 
   useHotkeys("escape", () => onSelectionModeChange?.(false), {
     enabled: isSelecting && !isBulkActionPending,
@@ -238,15 +258,47 @@ export function ContentEditorQueueToolbar({
         <>
           {onSearchChange ? (
             <div className="relative min-w-0 flex-1 basis-40">
-              <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(event) => onSearchChange(event.target.value)}
-                placeholder={intl.formatMessage(contentEditorQueuePanelMessages.searchPlaceholder)}
-                aria-label={intl.formatMessage(contentEditorQueuePanelMessages.searchAria)}
-                className="h-8 pl-9 font-mono text-xs"
-                data-content-editor-string-search="true"
-              />
+              {tagSearch.active ? (
+                // Tag filters sit in the box as pills before the text, as fields do in a
+                // visual workflow's settings.
+                <InputGroup className="h-8 rounded-lg">
+                  <InputGroupAddon
+                    align="inline-start"
+                    className="max-w-[60%] gap-1 overflow-x-auto py-0 ps-2.5"
+                  >
+                    <MagnifyingGlassIcon className="size-4 shrink-0 text-muted-foreground" />
+                    {tagSearch.chips}
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    value={tagSearch.inputValue}
+                    onChange={(event) => tagSearch.onInputChange(event.target.value)}
+                    onKeyDown={tagSearch.onInputKeyDown}
+                    {...tagSearch.inputProps}
+                    placeholder={
+                      tagSearch.hasTags
+                        ? undefined
+                        : intl.formatMessage(contentEditorTagSearchMessages.searchPlaceholder)
+                    }
+                    aria-label={intl.formatMessage(contentEditorQueuePanelMessages.searchAria)}
+                    className="h-8 pe-9 font-mono text-xs"
+                    data-content-editor-string-search="true"
+                  />
+                </InputGroup>
+              ) : (
+                <>
+                  <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(event) => onSearchChange(event.target.value)}
+                    placeholder={intl.formatMessage(
+                      contentEditorQueuePanelMessages.searchPlaceholder,
+                    )}
+                    aria-label={intl.formatMessage(contentEditorQueuePanelMessages.searchAria)}
+                    className="h-8 pl-9 font-mono text-xs"
+                    data-content-editor-string-search="true"
+                  />
+                </>
+              )}
               {isSearching ? (
                 <Spinner className="absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2" />
               ) : (
@@ -255,6 +307,7 @@ export function ContentEditorQueueToolbar({
                   className="top-1/2 right-2 -translate-y-1/2"
                 />
               )}
+              {tagSearch.suggestions}
             </div>
           ) : null}
 
@@ -294,7 +347,12 @@ export function ContentEditorQueueToolbar({
                     onSelect={(selection) => {
                       onQueueFilterChange(selection.filter);
                       onQueueFilterQualifierChange?.(selection.qualifier);
-                      onQueueAdvancedChange?.(keepJobScope(undefined));
+                      // Searched tags stay, as the search text does.
+                      onQueueAdvancedChange?.(
+                        keepJobScope(
+                          tagSearchEnabled ? includedTagsOnly(queueAdvanced) : undefined,
+                        ),
+                      );
                       if (selection.sort) {
                         onQueueSortChange?.(selection.sort);
                       }

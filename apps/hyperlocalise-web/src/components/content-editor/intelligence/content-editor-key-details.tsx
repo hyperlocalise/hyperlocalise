@@ -44,6 +44,9 @@ export function useContentEditorKeyDetailsEditing() {
   return useContext(ContentEditorKeyDetailsEditingContext);
 }
 
+/** Set on native projects: filters the queue to strings carrying a tag clicked in the panel. */
+export const ContentEditorKeyTagFilterContext = createContext<((tag: string) => void) | null>(null);
+
 /** Splits typed tags on commas and spaces; the caller checks each against the tag rule. */
 export function parseTagInput(value: string) {
   return [...new Set(value.split(/[\s,]+/).filter(Boolean))];
@@ -92,6 +95,7 @@ function KeyTags({
 }) {
   const intl = useIntl();
   const inputId = useId();
+  const filterByTag = useContext(ContentEditorKeyTagFilterContext);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -135,7 +139,18 @@ function KeyTags({
         </span>
         {tags.map((tag) => (
           <Badge key={tag} variant="outline" className="h-5 gap-0.5 px-1.5 text-[10px] font-medium">
-            {tag}
+            {filterByTag ? (
+              <button
+                type="button"
+                className="rounded-sm hover:underline"
+                aria-label={intl.formatMessage(messages.filterByTag, { tag })}
+                onClick={() => filterByTag(tag)}
+              >
+                {tag}
+              </button>
+            ) : (
+              tag
+            )}
             {editing ? (
               <button
                 type="button"

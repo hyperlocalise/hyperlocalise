@@ -417,3 +417,59 @@ export type ContentEditorCatLabel = {
   id: string;
   title: string;
 };
+
+/** Adds a tag to the filter's included tags, keeping their mode (strings must carry all of them by default). */
+export function withIncludedTag(
+  filter: ContentEditorAdvancedQueueFilter | undefined,
+  tag: string,
+): ContentEditorAdvancedQueueFilter {
+  const current = filter ?? EMPTY_ADVANCED_QUEUE_FILTER;
+  const tags = current.includeLabelIds ?? [];
+  return compactAdvancedQueueFilter({
+    ...current,
+    includeLabelIds: tags.includes(tag) ? tags : [...tags, tag],
+  });
+}
+
+/** Removes a tag from the filter's included tags; undefined when nothing else is left. */
+export function withoutIncludedTag(
+  filter: ContentEditorAdvancedQueueFilter | undefined,
+  tag: string,
+): ContentEditorAdvancedQueueFilter | undefined {
+  const current = filter ?? EMPTY_ADVANCED_QUEUE_FILTER;
+  const next = compactAdvancedQueueFilter({
+    ...current,
+    includeLabelIds: (current.includeLabelIds ?? []).filter((id) => id !== tag),
+  });
+  return isCatQueueFilterEmpty(next) ? undefined : next;
+}
+
+/** The included tags alone, which a quick filter keeps as it keeps the search text. */
+export function includedTagsOnly(
+  filter: ContentEditorAdvancedQueueFilter | undefined,
+): ContentEditorAdvancedQueueFilter | undefined {
+  if (!filter?.includeLabelIds?.length) {
+    return undefined;
+  }
+  return compactAdvancedQueueFilter({
+    includeLabelIds: filter.includeLabelIds,
+    includeLabelMode: filter.includeLabelMode,
+  });
+}
+
+/** The filter without what the editor shows on its own: a key job's scope, and searched tags. */
+export function withoutShownScope(
+  filter: ContentEditorAdvancedQueueFilter | undefined,
+  tagsShown: boolean,
+): ContentEditorAdvancedQueueFilter | undefined {
+  if (!filter) {
+    return undefined;
+  }
+  const rest = { ...filter };
+  delete rest.jobId;
+  if (tagsShown) {
+    delete rest.includeLabelIds;
+    delete rest.includeLabelMode;
+  }
+  return rest;
+}

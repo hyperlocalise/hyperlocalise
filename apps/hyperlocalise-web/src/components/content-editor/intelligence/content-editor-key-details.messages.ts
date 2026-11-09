@@ -20,6 +20,12 @@ export const contentEditorKeyDetailsMessages = defineMessages({
     id: "8vCpYHi50M",
     description: "Label before the tags of a string in the content editor's context panel",
   },
+  filterByTag: {
+    defaultMessage: "Show strings tagged {tag}",
+    id: "hvyRj/XXHi",
+    description:
+      "Accessible label of a tag in the context panel; clicking it filters the list by that tag",
+  },
   removeTag: {
     defaultMessage: "Remove tag {tag}",
     id: "bNrLsIXQVf",
