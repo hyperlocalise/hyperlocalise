@@ -409,6 +409,26 @@ describe("File Write workflow node", () => {
     ).resolves.toMatchObject({ output: { error: { code: "file_too_large" } } });
   });
 
+  it("validates MIME types without pathological regular-expression backtracking", async () => {
+    const state = writeDependencies();
+    await expect(
+      executeFileWriteNode(
+        writeInput({
+          contentType: `0/0;!=${":\t;!=".repeat(20_000)}`,
+          dependencies: state.dependencies,
+        }),
+      ),
+    ).resolves.toMatchObject({ output: { error: { code: "invalid_content_type" } } });
+    await expect(
+      executeFileWriteNode(
+        writeInput({
+          contentType: 'application/json; charset="utf-8"',
+          dependencies: state.dependencies,
+        }),
+      ),
+    ).resolves.toMatchObject({ switchCase: "success" });
+  });
+
   it("is wired into the production executor", async () => {
     const result = await executeVisualWorkflowNode({
       node: {

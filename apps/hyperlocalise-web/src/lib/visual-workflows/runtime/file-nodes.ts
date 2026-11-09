@@ -152,9 +152,44 @@ function validFilename(filename: string) {
 }
 
 function validContentType(contentType: string) {
-  return /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*(?:\s*;\s*[a-z0-9!#$&^_.+-]+=[^;\r\n]+)*$/i.test(
-    contentType,
-  );
+  const isToken = (value: string) => {
+    if (!value) return false;
+    const punctuation = "!#$&^_.+-";
+    for (const character of value) {
+      const code = character.charCodeAt(0);
+      const alphaNumeric =
+        (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+      if (!alphaNumeric && !punctuation.includes(character)) return false;
+    }
+    return true;
+  };
+  const parts = contentType.split(";");
+  const mediaType = parts.shift()?.trim() ?? "";
+  const slash = mediaType.indexOf("/");
+  if (
+    slash <= 0 ||
+    slash !== mediaType.lastIndexOf("/") ||
+    !isToken(mediaType.slice(0, slash)) ||
+    !isToken(mediaType.slice(slash + 1))
+  ) {
+    return false;
+  }
+
+  return parts.every((part) => {
+    const parameter = part.trim();
+    const equals = parameter.indexOf("=");
+    if (equals <= 0 || equals === parameter.length - 1) return false;
+    const name = parameter.slice(0, equals).trim();
+    const value = parameter.slice(equals + 1).trim();
+    if (!isToken(name)) return false;
+    if (isToken(value)) return true;
+    if (value.length < 2 || value[0] !== '"' || value.at(-1) !== '"') return false;
+    for (let index = 1; index < value.length - 1; index += 1) {
+      const code = value.charCodeAt(index);
+      if (code < 32 || code > 126 || value[index] === '"') return false;
+    }
+    return true;
+  });
 }
 
 function canonicalLocale(locale: string | undefined) {
