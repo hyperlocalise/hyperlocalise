@@ -135,9 +135,9 @@ func compactEditorCatAdvancedFilter(filter editorCatAdvancedFilter) *editorCatAd
 	return &out
 }
 
-// validEditorCatISODate validates whether value matches YYYY-MM-DD format and is a valid calendar date.
-// BOLT OPTIMIZATION: Replaced regexp.MatchString and time.Parse with a zero-allocation byte scanner
-// and direct calendar bounds checks, avoiding regex execution and time.Time struct construction.
+// validEditorCatISODate reports whether value is an ASCII YYYY-MM-DD string naming a real
+// proleptic Gregorian date. It must stay equivalent to time.Parse(time.DateOnly, value)
+// restricted to that exact shape; it avoids allocations because it runs on every queue query.
 func validEditorCatISODate(value string) bool {
 	if len(value) != 10 || value[4] != '-' || value[7] != '-' {
 		return false
