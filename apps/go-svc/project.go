@@ -316,6 +316,8 @@ func (b contentEditorBehavior) response(actor projectActor) map[string]any {
 			"canManage":                          actor.canManageContentEditorBehavior(),
 			// The content editor's source text control; the same roles the editor route allows.
 			"canEditSourceText": b.sourceTextEditable && actor.canMutateProjects(),
+			// Editing tags and the design link in the content editor; the editor route allows the same roles.
+			"canEditKeyDetails": actor.canMutateProjects(),
 		},
 	}
 }
