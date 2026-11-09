@@ -360,6 +360,18 @@ const ContentEditorWorkspaceContainerObserver = observer(
                   }
                 : undefined
             }
+            onBulkEditTags={
+              review?.onEditKeyTags
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    review.onEditKeyTags?.([...store.checkedSegmentIds], () =>
+                      store.clearChecked(),
+                    );
+                  }
+                : undefined
+            }
             onDownloadFilteredView={onDownloadFilteredView}
             isDownloadingFilteredView={isDownloadingFilteredView}
             onImportBilingualFile={onImportBilingualFile}

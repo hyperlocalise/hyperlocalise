@@ -15,6 +15,16 @@
 import { defineMessages } from "react-intl";
 
 export const projectFileCatWorkspaceMessages = defineMessages({
+  noTagStrings: {
+    defaultMessage: "None of the selected rows is a string that can carry tags.",
+    id: "vsvZiPc8Wx",
+    description: "Error when the ticked rows are files or images, which have no tags",
+  },
+  tagsSaved: {
+    defaultMessage: "Tags changed on {count, plural, one {# string} other {# strings}}.",
+    id: "onLHhVdx2Q",
+    description: "Confirmation after adding or removing tags on the ticked strings",
+  },
   noTaskStrings: {
     defaultMessage: "None of the selected rows is a string that can join a task.",
     id: "6qnnQHpizk",

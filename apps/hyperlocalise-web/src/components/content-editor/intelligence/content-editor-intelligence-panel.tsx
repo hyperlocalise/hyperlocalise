@@ -24,7 +24,6 @@ import {
 
 import { ContentEditorSectionErrorBoundary } from "@/components/content-editor/workspace/content-editor-section-error-boundary";
 import {
-  ArrowSquareOutIcon,
   LightbulbIcon,
   DatabaseIcon,
   FileIcon,
@@ -86,6 +85,7 @@ import type {
 import { ContentEditorEditTmSegmentButton } from "./content-editor-edit-tm-segment";
 import { requiresLowMatchConfirmation } from "./tm-match-quality";
 import { ContentEditorLottieContextPanel } from "./content-editor-lottie-context-panel";
+import { ContentEditorKeyDetails } from "./content-editor-key-details";
 import {
   ContentEditorExpandableContent,
   ContentEditorShowLessButton,
@@ -589,33 +589,11 @@ export function ContentEditorIntelligencePanel({
                   <FormattedMessage {...contentEditorIntelligencePanelMessages.noFileContext} />
                 </p>
               )}
-              {keyTags.length > 0 ? (
-                <div className="mt-2 flex flex-wrap items-center gap-1">
-                  <span className="text-xs text-subtle-foreground">
-                    <FormattedMessage {...contentEditorIntelligencePanelMessages.keyTagsLabel} />
-                  </span>
-                  {keyTags.map((tag) => (
-                    <Badge
-                      key={tag}
-                      variant="outline"
-                      className="h-5 px-1.5 text-[10px] font-medium"
-                    >
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              ) : null}
-              {intelligence.designUrl ? (
-                <a
-                  href={intelligence.designUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 inline-flex items-center gap-1 text-sm text-primary underline-offset-4 hover:underline"
-                >
-                  <ArrowSquareOutIcon className="size-3.5" />
-                  <FormattedMessage {...contentEditorIntelligencePanelMessages.openDesign} />
-                </a>
-              ) : null}
+              <ContentEditorKeyDetails
+                segmentId={segmentId}
+                tags={keyTags}
+                designUrl={intelligence.designUrl}
+              />
             </PanelSection>
 
             {isConcordanceLoading ? (

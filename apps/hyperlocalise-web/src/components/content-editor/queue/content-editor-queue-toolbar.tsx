@@ -88,6 +88,7 @@ export function ContentEditorQueueToolbar({
   onBulkLock,
   onBulkUnlock,
   onBulkCreateTask,
+  onBulkEditTags,
   isBulkActionPending = false,
   bulkProgress,
   bulkActionLocale,
@@ -127,6 +128,7 @@ export function ContentEditorQueueToolbar({
   onBulkLock?: () => void;
   onBulkUnlock?: () => void;
   onBulkCreateTask?: () => void;
+  onBulkEditTags?: () => void;
   isBulkActionPending?: boolean;
   bulkProgress?: string;
   /**
@@ -229,6 +231,7 @@ export function ContentEditorQueueToolbar({
           onBulkUnlock={onBulkUnlock}
           actionLocale={bulkActionLocale}
           onBulkCreateTask={onBulkCreateTask}
+          onBulkEditTags={onBulkEditTags}
           onDone={() => onSelectionModeChange?.(false)}
         />
       ) : (
@@ -369,6 +372,7 @@ function ContentEditorBulkBar({
   onBulkUnlock,
   actionLocale,
   onBulkCreateTask,
+  onBulkEditTags,
   onDone,
 }: {
   selectedCount: number;
@@ -385,6 +389,7 @@ function ContentEditorBulkBar({
   onBulkUnlock?: () => void;
   actionLocale?: string;
   onBulkCreateTask?: () => void;
+  onBulkEditTags?: () => void;
   onDone: () => void;
 }) {
   const intl = useIntl();
@@ -407,6 +412,11 @@ function ContentEditorBulkBar({
       key: "task",
       handler: onBulkCreateTask,
       message: messages.bulkCreateTask,
+    },
+    {
+      key: "tags",
+      handler: onBulkEditTags,
+      message: contentEditorQueuePanelMessages.bulkEditTags,
     },
   ].filter((action) => Boolean(action.handler));
 

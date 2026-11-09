@@ -793,6 +793,8 @@ export type ProjectContentEditorBehavior = {
   canManage: boolean;
   /** Whether this person may edit source text in the content editor now. */
   canEditSourceText: boolean;
+  /** Whether this person may edit strings' tags and design links in the content editor. */
+  canEditKeyDetails: boolean;
 };
 
 export type ProjectContentEditorBehaviorPreview = {

@@ -127,6 +127,11 @@ const labelIdSchema = z
   .max(64)
   .regex(/^[A-Za-z0-9_-]+$/);
 
+/** A label id, which on native projects is a key tag: the rule internal/keymeta enforces. */
+export function isValidLabelId(value: string) {
+  return labelIdSchema.safeParse(value).success && value.trim() === value;
+}
+
 function capLabelIds(ids: readonly string[]) {
   return [...new Set(ids)].slice(0, contentEditorAdvancedQueueFilterLabelLimit);
 }

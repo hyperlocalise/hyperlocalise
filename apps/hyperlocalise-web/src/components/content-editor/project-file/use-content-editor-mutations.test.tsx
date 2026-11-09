@@ -560,6 +560,46 @@ describe("useContentEditorMutations", () => {
     expectFileMetadataInvalidated(invalidateQueries);
   });
 
+  it("changes tags through go-svc and refreshes every queue and the project's tag list", async () => {
+    const setTags = vi.fn().mockResolvedValue({ updatedCount: 1, segments: [] });
+    const goSvcClient = { cat: { setTags } } as unknown as GoSvcClient;
+    const queryClient = createMutationTestQueryClient();
+    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
+    // A queue loaded earlier for a tag filter, not the one on screen.
+    const tagFilterQueueKey = [
+      "project-file-content-editor-queue",
+      contentEditorApiTestContext.organizationSlug,
+      contentEditorApiTestContext.projectId,
+      "*",
+      "tag-filter",
+    ];
+    queryClient.setQueryData(tagFilterQueueKey, { segments: [] });
+
+    const { result } = renderCatMutations(undefined, goSvcClient, queryClient);
+
+    await act(async () => {
+      await result.current.setTags({
+        externalStringIds: ["segment-1"],
+        addTags: ["brand-new"],
+        removeTags: [],
+      });
+    });
+
+    expect(setTags).toHaveBeenCalledWith(
+      contentEditorApiTestContext.organizationSlug,
+      contentEditorApiTestContext.projectId,
+      expect.objectContaining({ externalStringIds: ["segment-1"], addTags: ["brand-new"] }),
+    );
+    expect(queryClient.getQueryState(tagFilterQueueKey)?.isInvalidated).toBe(true);
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: [
+        "content-editor-cat-labels",
+        contentEditorApiTestContext.organizationSlug,
+        contentEditorApiTestContext.projectId,
+      ],
+    });
+  });
+
   it("locks strings and invalidates the queue on success", async () => {
     contentEditorStringsLockedPostMock.mockResolvedValue(
       jsonResponse({ contentEditorSegmentLock: { updatedCount: 2, isLocked: true } }),

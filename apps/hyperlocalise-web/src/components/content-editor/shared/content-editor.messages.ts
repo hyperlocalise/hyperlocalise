@@ -279,6 +279,11 @@ export const contentEditorQueuePanelMessages = defineMessages({
     id: "3utulgy/hh",
     description: "Leaves the key job view and shows every string of the project",
   },
+  bulkEditTags: {
+    defaultMessage: "Edit tags…",
+    id: "RSwnlVqhIH",
+    description: "Bulk action that adds or removes tags on the selected strings",
+  },
   bulkCreateTask: {
     defaultMessage: "Add to a task…",
     id: "8DTgncaRKl",
@@ -680,16 +685,6 @@ export const contentEditorIntelligencePanelMessages = defineMessages({
     defaultMessage: "File context",
     id: "9RkSMcYnN2",
     description: "Accessible label for file-attached context markdown content",
-  },
-  keyTagsLabel: {
-    defaultMessage: "Tags",
-    id: "8vCpYHi50M",
-    description: "Label before the tags of a string in the content editor's context panel",
-  },
-  openDesign: {
-    defaultMessage: "Open design",
-    id: "ZWQRslmNm4",
-    description: "Link to the design (such as a Figma frame) where the string appears",
   },
   noFileContext: {
     defaultMessage: "No context is attached to this string in the source file.",

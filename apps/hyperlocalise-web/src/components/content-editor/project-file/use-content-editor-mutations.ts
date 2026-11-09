@@ -1001,6 +1001,89 @@ export function useContentEditorMutations(input: {
     },
   });
 
+  // Tags and design links exist only on native strings, which go-svc serves.
+  const tagsMutation = useMutation({
+    mutationFn: async (mutationInput: {
+      externalStringIds: string[];
+      addTags: string[];
+      removeTags: string[];
+    }) => {
+      const fallback = intl.formatMessage(useContentEditorMutationsMessages.failedToUpdateTags);
+      if (!input.goSvcClient) {
+        throw new Error(fallback);
+      }
+      const chunks = chunkItems(
+        [...new Set(mutationInput.externalStringIds)],
+        maxNativeContentEditorHiddenStringBatch,
+      );
+      let updatedCount = 0;
+      try {
+        for (const externalStringIds of chunks) {
+          const saved = await input.goSvcClient.cat.setTags(
+            input.organizationSlug,
+            input.projectId,
+            {
+              sourcePath: input.sourcePath,
+              externalStringIds,
+              addTags: mutationInput.addTags,
+              removeTags: mutationInput.removeTags,
+            },
+          );
+          updatedCount += saved.updatedCount;
+        }
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, fallback), { cause: error });
+      }
+      return { updatedCount };
+    },
+    // A new tag must show in the tag suggestions and the advanced filter's list straight away.
+    // Every cached queue of the project is refreshed, not just the one on screen: a list already
+    // loaded for a tag filter would otherwise come back without the strings just tagged.
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["project-file-content-editor-queue", input.organizationSlug, input.projectId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["content-editor-cat-labels", input.organizationSlug, input.projectId],
+        }),
+      ]);
+    },
+  });
+
+  const designUrlMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringId: string; designUrl: string | null }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+      const fallback = intl.formatMessage(
+        useContentEditorMutationsMessages.failedToUpdateDesignUrl,
+      );
+      if (!input.goSvcClient) {
+        throw new Error(fallback);
+      }
+      try {
+        return await input.goSvcClient.cat.setDesignUrl(
+          input.organizationSlug,
+          input.projectId,
+          mutationInput.externalStringId,
+          {
+            sourcePath,
+            externalStringId: mutationInput.externalStringId,
+            designUrl: mutationInput.designUrl,
+          },
+        );
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, fallback), { cause: error });
+      }
+    },
+    onSuccess: async () => {
+      await input.invalidateQueue();
+    },
+  });
+
   // Source text is edited only where go-svc serves the editor: native projects.
   const sourceTextMutation = useMutation({
     mutationFn: async (mutationInput: {
@@ -1070,6 +1153,9 @@ export function useContentEditorMutations(input: {
     setMaxLength: maxLengthMutation.mutateAsync,
     isSavingMaxLength: maxLengthMutation.isPending,
     setSourceText: sourceTextMutation.mutateAsync,
+    setTags: tagsMutation.mutateAsync,
+    setDesignUrl: designUrlMutation.mutateAsync,
+    isSavingKeyDetails: tagsMutation.isPending || designUrlMutation.isPending,
     isSavingSourceText: sourceTextMutation.isPending,
     isSaving: saveMutation.isPending,
     isPostingComment: commentMutation.isPending,

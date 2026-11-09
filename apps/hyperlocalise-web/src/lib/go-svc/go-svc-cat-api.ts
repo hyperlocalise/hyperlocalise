@@ -470,6 +470,42 @@ export class GoSvcCatApi {
     );
   }
 
+  /** Adds and removes tags on native strings; answers each string's tags after the change. */
+  setTags(
+    organizationSlug: string,
+    projectId: string,
+    body: {
+      sourcePath: string;
+      externalStringIds: string[];
+      addTags: string[];
+      removeTags: string[];
+    },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{
+      updatedCount: number;
+      segments: { externalStringId: string; tags: string[] }[];
+    }>(catPath(organizationSlug, projectId, "strings", "tags"), {
+      method: "POST",
+      body,
+      ...options,
+    });
+  }
+
+  /** Sets or clears (null) a native string's design link. */
+  setDesignUrl(
+    organizationSlug: string,
+    projectId: string,
+    externalStringId: string,
+    body: { sourcePath: string; externalStringId: string; designUrl: string | null },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ segment: { externalStringId: string; designUrl: string | null } }>(
+      catPath(organizationSlug, projectId, "segments", externalStringId, "design-url"),
+      { method: "POST", body, ...options },
+    );
+  }
+
   /** Changes a string's source text; refused unless the project allows editing it here. */
   setSourceText(
     organizationSlug: string,
