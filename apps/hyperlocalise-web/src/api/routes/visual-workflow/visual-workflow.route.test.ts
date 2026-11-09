@@ -236,7 +236,8 @@ describe("visual workflow routes", () => {
       .select({ encryptedTestSetup: schema.visualWorkflows.encryptedTestSetup })
       .from(schema.visualWorkflows)
       .where(eq(schema.visualWorkflows.id, visualWorkflowId));
-    expect(JSON.stringify(row?.encryptedTestSetup)).not.toContain("Ada");
+    // Match the JSON string value, not a random base64 substring in authTag/ciphertext.
+    expect(JSON.stringify(row?.encryptedTestSetup)).not.toContain('"Ada"');
 
     // A save from an out-of-date draft changes neither the draft nor its test setup.
     const staleResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
