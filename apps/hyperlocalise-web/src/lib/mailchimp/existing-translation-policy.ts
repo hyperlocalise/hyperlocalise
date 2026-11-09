@@ -34,3 +34,86 @@ export function isMailchimpRemoteCopyNewer(input: {
   }
   return copyTime > input.lastPushedAt.getTime() + REMOTE_NEWER_SKEW_MS;
 }
+
+export function shouldSkipUnchangedMailchimpPush(
+  lastHash: string | undefined,
+  contentHash: string,
+): boolean {
+  return Boolean(lastHash && lastHash === contentHash);
+}
+
+export type MailchimpCopySuccessState = {
+  localeCopyIds: Record<string, string> | null;
+  localeCopyNames: Record<string, string> | null;
+  lastPushContentHash: Record<string, string> | null;
+  lastPushedAt: Date | null;
+};
+
+/**
+ * Mutate in-memory sync state after a locale push so the next locale in the
+ * same run still sees earlier copy ids. Spreading the original mapping in
+ * persist would keep only the last locale.
+ */
+export function rememberMailchimpCopy<T extends MailchimpCopySuccessState>(
+  mapping: T,
+  locale: string,
+  copyId: string,
+  copyName: string,
+  contentHash: string,
+  pushedAt = new Date(),
+): T {
+  mapping.localeCopyIds = { ...mapping.localeCopyIds, [locale]: copyId };
+  mapping.localeCopyNames = { ...mapping.localeCopyNames, [locale]: copyName };
+  mapping.lastPushContentHash = { ...mapping.lastPushContentHash, [locale]: contentHash };
+  mapping.lastPushedAt = pushedAt;
+  return mapping;
+}
+
+export function shouldSkipMailchimpRemoteNewerCopy(input: {
+  hasCopy: boolean;
+  overwriteWhenRemoteNewer: boolean;
+  lastPushedAt: Date | null;
+  copyUpdatedAt: string | null;
+}): boolean {
+  if (!input.hasCopy || input.overwriteWhenRemoteNewer) {
+    return false;
+  }
+  return isMailchimpRemoteCopyNewer({
+    lastPushedAt: input.lastPushedAt,
+    copyUpdatedAt: input.copyUpdatedAt,
+  });
+}
+
+export function mailchimpCampaignCanRecreate<
+  T extends { listId?: string | null; replyTo?: string | null },
+>(recreate: T | null): recreate is T & { listId: string; replyTo: string } {
+  return Boolean(recreate?.listId && recreate.replyTo);
+}
+
+type MailchimpCopyTimestampClient = {
+  getTemplate(templateId: string): Promise<{
+    date_edited?: string;
+    edited_on?: string;
+    date_created?: string;
+    created_on?: string;
+  }>;
+};
+
+/** Campaigns only expose create_time, which is not an edit signal. */
+export async function readMailchimpCopyUpdatedAt(input: {
+  client: MailchimpCopyTimestampClient;
+  resourceKind: "campaign" | "template";
+  copyId: string;
+}): Promise<string | null> {
+  if (input.resourceKind === "template") {
+    const template = await input.client.getTemplate(input.copyId);
+    return (
+      template.date_edited?.trim() ||
+      template.edited_on?.trim() ||
+      template.date_created?.trim() ||
+      template.created_on?.trim() ||
+      null
+    );
+  }
+  return null;
+}

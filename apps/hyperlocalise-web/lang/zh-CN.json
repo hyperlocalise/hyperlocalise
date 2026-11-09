@@ -782,6 +782,9 @@
   "/FnHAPAn3P": {
     "defaultMessage": "选择一个连接，以授权安装此 Canva 应用。"
   },
+  "/FxKqT7rxo": {
+    "defaultMessage": "此同步已移除。请重新加载页面以重新设置。"
+  },
   "/GID42o6lx": {
     "defaultMessage": "从拉取请求到发布门控"
   },
@@ -989,6 +992,9 @@
   "/avsY2MZtR": {
     "defaultMessage": "Preferred"
   },
+  "/ayzi+h3Zt": {
+    "defaultMessage": "GitLab 连接已移除。"
+  },
   "/bDXY5b2qg": {
     "defaultMessage": "邀请已撤销"
   },
@@ -1141,6 +1147,9 @@
   },
   "/vxavoK/xz": {
     "defaultMessage": "LinkedIn"
+  },
+  "/w3K1Pwx24": {
+    "defaultMessage": "已移除的连接"
   },
   "/wIWjD2LD2": {
     "defaultMessage": "词元"
@@ -1751,6 +1760,9 @@
   "0ug9As7ELn": {
     "defaultMessage": "只需设置一次操作手册。智能体会处理繁琐工作，让您无需扩充团队即可覆盖更多市场——只有需要作出判断时，审核人员才会介入。"
   },
+  "0ulsI+XIyW": {
+    "defaultMessage": "同步未能及时完成。"
+  },
   "0vM9ZUQzKc": {
     "defaultMessage": "参与任务并执行 AI 操作；批准审核并写回。无组织管理权限。"
   },
@@ -1855,6 +1867,9 @@
   },
   "15zAdlHpmJ": {
     "defaultMessage": "HubSpot"
+  },
+  "16jzdfV84U": {
+    "defaultMessage": "默认"
   },
   "16sYDMkqBx": {
     "defaultMessage": "不可以。连接您已有的网站即可。Domains 会发布并检查该网站。您也可以从 Content Studio 发布。"
@@ -2027,11 +2042,17 @@
   "1SarEJV+CO": {
     "defaultMessage": "问题从来不在于本地化团队的能力，而在于人们期望他们以任何人类团队都无法企及的速度扩展知识。"
   },
+  "1SmOqBo4fU": {
+    "defaultMessage": "该连接指向另一台服务器：自动化通过项目路径指定项目，因此也会迁移到那台服务器，而聊天将不再使用此服务器上的项目。"
+  },
   "1StG7IXt4v": {
     "defaultMessage": "将区域设置结果输入到下一轮循环中"
   },
   "1ToGNDd6TO": {
     "defaultMessage": "Files"
+  },
+  "1U++3URWS4": {
+    "defaultMessage": "存储库文件夹"
   },
   "1U9PZ5VcN2": {
     "defaultMessage": "清除"
@@ -2456,6 +2477,9 @@
   "29NlUC9+y8": {
     "defaultMessage": "GPT-5.6 Sol（快速）"
   },
+  "29x/gSNhzG": {
+    "defaultMessage": "选择…"
+  },
   "2ACZd8DTJY": {
     "defaultMessage": "位置"
   },
@@ -2470,6 +2494,9 @@
   },
   "2B2vocYfiC": {
     "defaultMessage": "下载筛选后的视图"
+  },
+  "2BDMq4KV+/": {
+    "defaultMessage": "您可以查看这些设置，但无法更改。"
   },
   "2BaYUyVX1c": {
     "defaultMessage": "显示 API 密钥"
@@ -2957,6 +2984,9 @@
   "32sQGI6Lre": {
     "defaultMessage": "根据属性规则实时筛选访客"
   },
+  "33J0ngE9lx": {
+    "defaultMessage": "无法移除 GitLab 连接。"
+  },
   "33PBu8aQXh": {
     "defaultMessage": "先启用"
   },
@@ -3193,6 +3223,9 @@
   },
   "3UtT5HKUXH": {
     "defaultMessage": "Continue"
+  },
+  "3V79KDlgh2": {
+    "defaultMessage": "打开拉取请求"
   },
   "3VQO3rGiUE": {
     "defaultMessage": "复制终端输出"
@@ -3464,6 +3497,9 @@
   "3y5ogrzNWd": {
     "defaultMessage": "Priority"
   },
+  "3yWat7D9eo": {
+    "defaultMessage": "语言文件路径"
+  },
   "3yZFMdlOT1": {
     "defaultMessage": "帮助 AI 使用您的页面回答。"
   },
@@ -3593,6 +3629,9 @@
   "4895zl1/X5": {
     "defaultMessage": "Glossary"
   },
+  "48BU/b+yFc": {
+    "defaultMessage": "Branch"
+  },
   "48liY3M4is": {
     "defaultMessage": "页面"
   },
@@ -3685,6 +3724,9 @@
   },
   "4Jm91tEu1i": {
     "defaultMessage": "保留我们的 TMS，同时增加代理工作流，这就是区别。"
+  },
+  "4JyzfnXrai": {
+    "defaultMessage": "GitHub 同步会克隆仓库，删除仓库中已移除的键，并将除已拒绝的翻译外的所有翻译（无论是否经过审核）通过拉取请求发送回去。"
   },
   "4Jz0LdypFu": {
     "defaultMessage": "无法恢复此版本。"
@@ -3926,6 +3968,9 @@
   "4nvKEU8P6F": {
     "defaultMessage": "Tools"
   },
+  "4oWir+lPBP": {
+    "defaultMessage": "最近的同步记录"
+  },
   "4p/SsmkJuR": {
     "defaultMessage": "请根据 Brand-claims-policy.pdf 检查这句德语发布文案：“我们的独一无二的 AI 平台已获临床证实。”"
   },
@@ -4018,6 +4063,9 @@
   },
   "4z9+RgG2Ms": {
     "defaultMessage": "文本图层已更改。请重新生成图像以应用更改，然后再批准。"
+  },
+  "4zBhSf3vTo": {
+    "defaultMessage": "操作"
   },
   "4zEqWvETM+": {
     "defaultMessage": "区域：{value}"
@@ -4127,6 +4175,9 @@
   "58rI5iuou2": {
     "defaultMessage": "AI 评估，不计分（{count}）"
   },
+  "5954s2fe1F": {
+    "defaultMessage": "聊天和自动化将改用 {name}。"
+  },
   "59CKJeZUxb": {
     "defaultMessage": "失败代码"
   },
@@ -4201,6 +4252,9 @@
   },
   "5G9CHzXNWL": {
     "defaultMessage": "Privacy"
+  },
+  "5GsfnkqQvS": {
+    "defaultMessage": "将结构化值序列化为 JSON 文本。"
   },
   "5H+UdOBSV9": {
     "defaultMessage": "上下文匹配"
@@ -4330,6 +4384,9 @@
   },
   "5V5XZ84WTf": {
     "defaultMessage": "选择负责人"
+  },
+  "5VQvCOhS8Q": {
+    "defaultMessage": "在有序集合中筛选、映射、归约或查找值。"
   },
   "5Wfh7kerri": {
     "defaultMessage": "此环境尚未配置 Autumn。请添加沙盒 AUTUMN_API_KEY，以便为此工作区启用计费。"
@@ -4688,6 +4745,9 @@
   "6A1bUgl3t/": {
     "defaultMessage": "Cancel"
   },
+  "6A1cbaLTLI": {
+    "defaultMessage": "该连接的令牌无法读取此仓库的文件：它在该仓库中的角色低于 Reporter。请至少授予其 Reporter 角色；如需发送合并请求，则授予 Developer 角色。"
+  },
   "6AKflqYexI": {
     "defaultMessage": "所选发现已有提供商评论"
   },
@@ -4735,6 +4795,9 @@
   },
   "6GvRaMOu4p": {
     "defaultMessage": "请先创建一个具有文件和作业权限的 API 密钥。"
+  },
+  "6HbWUjcTj7": {
+    "defaultMessage": "仓库"
   },
   "6Hh/TB07+q": {
     "defaultMessage": "选择一个 TMX 或 CSV 文件。"
@@ -4786,6 +4849,9 @@
   },
   "6N3tTQGcSO": {
     "defaultMessage": "某人"
+  },
+  "6N5DoenBFR": {
+    "defaultMessage": "此同步将使用工作区中的哪个 GitLab 连接。聊天和自动化使用默认连接。"
   },
   "6NDLX93t5d": {
     "defaultMessage": "内容同步"
@@ -6014,6 +6080,9 @@
   "8bfW3Jqg2b": {
     "defaultMessage": "草稿"
   },
+  "8bfWDHVAiv": {
+    "defaultMessage": "每种语言的文件在仓库文件夹中的位置，{placeholder} 表示语言代码：fr 指代唯一的法语语言，fr-FR 仅指代 fr-FR。源语言的文件会被导入；* 匹配文件夹内的内容，** 匹配跨文件夹的内容。"
+  },
   "8bpns6mW0p": {
     "defaultMessage": "身份验证方法"
   },
@@ -6238,6 +6307,9 @@
   },
   "9/pQQpDU+H": {
     "defaultMessage": "分配 AI 代理来翻译、审核和同步内容，同时将人工审核置于首要位置。保持在不同的 LLM 提供商和 TMS 平台之间的灵活性。"
+  },
+  "9/rHOO9Hcc": {
+    "defaultMessage": "同步正在进行。完成后，你可以再启动一次。"
   },
   "90JdQQe9zz": {
     "defaultMessage": "正文"
@@ -6908,6 +6980,9 @@
   "ACTAy3p5p3": {
     "defaultMessage": "已修复"
   },
+  "ACmO8h4/+b": {
+    "defaultMessage": "架构"
+  },
   "ACud1VtN9i": {
     "defaultMessage": "显示名称"
   },
@@ -7078,6 +7153,9 @@
   },
   "AVWmFSjbP6": {
     "defaultMessage": "翻译记忆库"
+  },
+  "AVXDmG66Yd": {
+    "defaultMessage": "同步已在运行。"
   },
   "AVpQwXJaXX": {
     "defaultMessage": "创建一个密钥，并将其发送给负责将 Hyperlab 接入你们网站的人员。"
@@ -7430,6 +7508,9 @@
   "BBrh+7z4Oj": {
     "defaultMessage": "无法加载关联的域名。"
   },
+  "BBsS8wxmqc": {
+    "defaultMessage": "用于聊天和自动化"
+  },
   "BC+EYtp52c": {
     "defaultMessage": "User"
   },
@@ -7513,6 +7594,9 @@
   },
   "BKxL4swmsj": {
     "defaultMessage": "版本"
+  },
+  "BL4Aw/xqvM": {
+    "defaultMessage": "在“集成”中连接 GitLab 以同步此项目。GitHub 仓库则通过其“自动化”设置进行同步。"
   },
   "BLCf0utxhq": {
     "defaultMessage": "此字符串已锁定。解锁后即可编辑。"
@@ -7784,6 +7868,9 @@
   "BrzNDtGGWt": {
     "defaultMessage": "Sending…"
   },
+  "Bs57lrRswl": {
+    "defaultMessage": "{count, plural, one {# 个键因仓库中已不再包含它们而被隐藏} other {# 个键因仓库中已不再包含它们而被隐藏}}"
+  },
   "BsHGinE5HI": {
     "defaultMessage": "此翻译记忆导入的持久记录。"
   },
@@ -7816,6 +7903,9 @@
   },
   "BxEHMhUBpO": {
     "defaultMessage": "团队已更新"
+  },
+  "BxGtFLZNTw": {
+    "defaultMessage": "未找到存储库文件夹，或无法读取该文件夹。"
   },
   "BxVa0XAhsz": {
     "defaultMessage": "该页面已失效。正在显示第一页。"
@@ -7852,6 +7942,9 @@
   },
   "C0LtvlP3Fa": {
     "defaultMessage": "查看原始问题"
+  },
+  "C0fLYasN09": {
+    "defaultMessage": "GitLab 连接已保存。"
   },
   "C0jp5QUb8B": {
     "defaultMessage": "Iterable"
@@ -7976,6 +8069,9 @@
   "CCHRUS19n3": {
     "defaultMessage": "未找到类别。"
   },
+  "CCuCNrvni7": {
+    "defaultMessage": "使用项目或群组访问令牌，或使用仅属于要同步项目的专用账号：此处的所有人都能访问令牌可访问的内容。角色：发送合并请求需使用 Developer（开发者），仅拉取需使用 Reporter（报告者）。范围：发送合并请求需使用 api；若仅使用 read_api 和 read_repository，则同步只会拉取内容，并提示翻译未发送。设置过期时间。"
+  },
   "CDHpNJeAfK": {
     "defaultMessage": "全部处理完毕"
   },
@@ -7996,6 +8092,9 @@
   },
   "CEaPOoMSXx": {
     "defaultMessage": "Delete"
+  },
+  "CEvOadGE6K": {
+    "defaultMessage": "移除"
   },
   "CFK4BGiWin": {
     "defaultMessage": "审核状态"
@@ -8137,6 +8236,9 @@
   },
   "CT9/X7v9OM": {
     "defaultMessage": "链接"
+  },
+  "CTGr9CwLJv": {
+    "defaultMessage": "无法加载同步设置。"
   },
   "CTI9kmmWqH": {
     "defaultMessage": "{count, plural, one {# 个项目} other {# 个项目}}"
@@ -8582,6 +8684,9 @@
   "DChuKVBoeL": {
     "defaultMessage": "与 LLM 无关"
   },
+  "DCn9Wmv+Wt": {
+    "defaultMessage": "Failed"
+  },
   "DDkCNI/bRQ": {
     "defaultMessage": "你询问了"
   },
@@ -8596,6 +8701,9 @@
   },
   "DFNppqOCak": {
     "defaultMessage": "创建项目"
+  },
+  "DGiD4orSjR": {
+    "defaultMessage": "连接到"
   },
   "DGx/LlMkDv": {
     "defaultMessage": "添加翻译指南"
@@ -8860,6 +8968,9 @@
   },
   "DiXV/bkiCg": {
     "defaultMessage": "从 Canva 本地化的设计存储在此项目中。"
+  },
+  "Diw4K6SV2n": {
+    "defaultMessage": "在集成中连接 GitLab，以便从 GitLab 同步。"
   },
   "DjyFDSQhTb": {
     "defaultMessage": "以不同的视角看世界。"
@@ -9185,8 +9296,14 @@
   "EIFZa0D92d": {
     "defaultMessage": "查看完整定价详情"
   },
+  "EIpgZS0MVO": {
+    "defaultMessage": "每小时"
+  },
   "EIzyJsuyBD": {
     "defaultMessage": "目前无法加载 Mailchimp 连接。"
+  },
+  "EJ9REmTRCU": {
+    "defaultMessage": "它是只读的（没有 api 权限范围）：同步时会拉取内容，但无法发送合并请求。"
   },
   "EJHq4HC1h1": {
     "defaultMessage": "安全审查协助"
@@ -9202,6 +9319,9 @@
   },
   "EKyvEH55l4": {
     "defaultMessage": "未列在上述标准下的发现。"
+  },
+  "ELF+12oSuA": {
+    "defaultMessage": "同步设置已保存。"
   },
   "ELSLC4cOgT": {
     "defaultMessage": "跨市场开展实验。衡量有效的做法。扩大高效策略。"
@@ -9451,6 +9571,9 @@
   },
   "Ehcy1DdQ49": {
     "defaultMessage": "可跨 GitHub、TMS 和发布工具使用"
+  },
+  "EiXxrmIRgk": {
+    "defaultMessage": "{name}（仅拉取）"
   },
   "Ej5U0a0604": {
     "defaultMessage": "代理指令"
@@ -10070,6 +10193,9 @@
   "FqCBwFx5md": {
     "defaultMessage": "为日本产品发布调取的 GTM 上下文"
   },
+  "FqY/BvkEQe": {
+    "defaultMessage": "它可以拉取和发送合并请求。"
+  },
   "FqcQ3Q8Id9": {
     "defaultMessage": "复制 JSON"
   },
@@ -10147,6 +10273,9 @@
   },
   "G1T9+1x7MC": {
     "defaultMessage": "{actor} 将此问题与 {relatedIssue} 关联了"
+  },
+  "G1iUqTOOGV": {
+    "defaultMessage": "手动启动"
   },
   "G1is+5n2E6": {
     "defaultMessage": "捕获审校修改、术语表决策、产品上下文和市场偏好，让每个本地化工作流都从更智能的起点开始。"
@@ -10309,6 +10438,9 @@
   },
   "GOImV2QS+V": {
     "defaultMessage": "无法删除项目"
+  },
+  "GOvSvuh32/": {
+    "defaultMessage": "GitLab 报告此连接在此代码仓库中的角色低于开发者，因此同步可以拉取内容，但可能无法提交合并请求。若要提交合并请求，请为令牌所属的用户或群组授予开发者角色。"
   },
   "GOx0phpLcM": {
     "defaultMessage": "管理项目、集成、凭据、团队和知识资源；批准审核并回写。"
@@ -10565,6 +10697,9 @@
   "GqjLAPYWZT": {
     "defaultMessage": "列出问题"
   },
+  "GqszOf+J5n": {
+    "defaultMessage": "移除连接"
+  },
   "Gs4Pgl/iTx": {
     "defaultMessage": "可选。此工作区的额外本地化审核说明。"
   },
@@ -10630,6 +10765,9 @@
   },
   "GygH5eMQXV": {
     "defaultMessage": "Weekly"
+  },
+  "Gz+qUGue0p": {
+    "defaultMessage": "无法保存 GitLab 连接。"
   },
   "Gz/Ip82h05": {
     "defaultMessage": "源路径"
@@ -11024,6 +11162,9 @@
   "HfKaBbYViW": {
     "defaultMessage": "剩余预算"
   },
+  "HgPHDYcLMY": {
+    "defaultMessage": "立即同步"
+  },
   "HhB3zV2KR/": {
     "defaultMessage": "网页聊天"
   },
@@ -11062,6 +11203,9 @@
   },
   "HmM5vdsqD+": {
     "defaultMessage": "Close"
+  },
+  "HmWwCwYFtV": {
+    "defaultMessage": "条目类型"
   },
   "HmXZYnVvj0": {
     "defaultMessage": "这些步骤将在本次测试运行中实际执行。它们造成的影响会真实发生，且无法撤销。"
@@ -11185,6 +11329,9 @@
   },
   "HxWBdm4nhz": {
     "defaultMessage": "未保存的翻译"
+  },
+  "HxWOvKpnhC": {
+    "defaultMessage": "删除此连接会影响工作区中的所有人。{count, plural, =0 {} one {# 个项目同步正在使用此连接，在为其指定其他连接之前将会停止。} other {# 个项目同步正在使用此连接，在为它们指定其他连接之前将会停止。}}"
   },
   "HxXrdebYXD": {
     "defaultMessage": "过去 24 小时"
@@ -11437,6 +11584,9 @@
   },
   "IROF4KmxXQ": {
     "defaultMessage": "未完成的估算"
+  },
+  "IRQWT9S62n": {
+    "defaultMessage": "无法读取工作区保存的 GitLab 令牌。请在“集成”中重新保存连接。"
   },
   "IRcbylygLF": {
     "defaultMessage": "已审核"
@@ -12001,6 +12151,9 @@
   },
   "JQuMZXhBtU": {
     "defaultMessage": "请输入有效的 JSON。"
+  },
+  "JRHfM8uH3R": {
+    "defaultMessage": "仅当我点击“立即同步”时"
   },
   "JRTnSLtq//": {
     "defaultMessage": "Intercom"
@@ -12788,6 +12941,9 @@
   "L0gachMRlZ": {
     "defaultMessage": "术语库"
   },
+  "L13hAmUXIJ": {
+    "defaultMessage": "验证值是否符合有界结构化模式。"
+  },
   "L14GgyGrCO": {
     "defaultMessage": "撤销已保存自动化的重新加载"
   },
@@ -13010,6 +13166,9 @@
   "LPr1xWZqN2": {
     "defaultMessage": "撤销丢弃更改"
   },
+  "LQPCUXFTmO": {
+    "defaultMessage": "聊天和自动化现在使用 {name}。"
+  },
   "LQqGbywv5w": {
     "defaultMessage": "No recommendations were found. You can continue with no markets and add them later."
   },
@@ -13135,6 +13294,9 @@
   },
   "Lfo/HfkA0U": {
     "defaultMessage": "AI 使用量"
+  },
+  "LgF4rByVBa": {
+    "defaultMessage": "初始值"
   },
   "LgOdyUATt4": {
     "defaultMessage": "在这些日期和筛选条件下，未使用 AI。"
@@ -13508,6 +13670,9 @@
   "MHGSRfE0a7": {
     "defaultMessage": "审核失败"
   },
+  "MHOYy5Rwc3": {
+    "defaultMessage": "聊天和自动化都使用此连接。自动化通过项目路径引用项目，因此将此连接指向另一台服务器也会迁移自动化，而聊天将不再使用旧服务器上的项目。"
+  },
   "MHiaxGXuxI": {
     "defaultMessage": "按钮标签 · 在移动端必须保持简洁"
   },
@@ -13736,6 +13901,9 @@
   "MikRGST8w6": {
     "defaultMessage": "打开来自你的工作区管理员的邀请邮件并完成接受邀请，然后重新登录。如果你已经接受了邀请，请使用“重试”来刷新你的成员资格。"
   },
+  "Mj8cMFDFRg": {
+    "defaultMessage": "选择一个代码库"
+  },
   "MjW+xFl6ux": {
     "defaultMessage": "将新增和更新的帮助文章转化为经过审核的译文，同步到您的 CMS，并监控时效性，确保客户不会看到过时的指南。"
   },
@@ -13774,6 +13942,9 @@
   },
   "MmdCe+3eSk": {
     "defaultMessage": "连接 Google Drive、Notion 和 SharePoint，或直接输入指南。智能体会阅读这些指南，并标记出不匹配的内容。"
+  },
+  "MnS30u+aA3": {
+    "defaultMessage": "例如 {example}"
   },
   "MnuXzcJn6d": {
     "defaultMessage": "查询中的 {count} 个 P1、】【"
@@ -13849,6 +14020,9 @@
   },
   "MtaQi7PiPN": {
     "defaultMessage": "General"
+  },
+  "MtgG06vtLX": {
+    "defaultMessage": "它无法读取任何项目：请为其用户或群组授予要同步的项目至少「报告者」角色，并授予「开发者」角色以发送合并请求。"
   },
   "MuUohGqmxo": {
     "defaultMessage": "职位已创建"
@@ -14159,8 +14333,14 @@
   "NRH7Cv54cL": {
     "defaultMessage": "折叠 {status}"
   },
+  "NRQuibW48k": {
+    "defaultMessage": "打开合并请求"
+  },
   "NRfaLdr7/e": {
     "defaultMessage": "添加 {name}？"
+  },
+  "NSI7HOMKgo": {
+    "defaultMessage": "你在此处添加的连接会在工作区内共享：聊天和自动化会使用默认连接，每个项目则可在“同步”设置中选择一个连接。每个连接都只能访问其令牌所能访问的内容。添加连接后，将不再使用成员各自的 GitLab.com 登录信息。"
   },
   "NSbs2IoiBz": {
     "defaultMessage": "您的代理已准备就绪"
@@ -14492,6 +14672,9 @@
   "O1hmkcilYp": {
     "defaultMessage": "关于超本地化、翻译智能以及为全球团队构建本地化工作流程的洞见。"
   },
+  "O2+CxE1DPu": {
+    "defaultMessage": "GitLab.com"
+  },
   "O2AgYH2fic": {
     "defaultMessage": "在将已批准的更改推送回提供商之前，检查代理提出的翻译。"
   },
@@ -14545,6 +14728,9 @@
   },
   "O9HkCEOzPy": {
     "defaultMessage": "Jobs"
+  },
+  "O9WSf08ndF": {
+    "defaultMessage": "尚未设置"
   },
   "OAZ7oFBkRI": {
     "defaultMessage": "{count, plural, one {自上次扫描以来新增 # 个 QA 错误} other {自上次扫描以来新增 # 个 QA 错误}}"
@@ -14729,6 +14915,9 @@
   "OWsqdkxxfx": {
     "defaultMessage": "无法加载 Google Drive 连接状态。"
   },
+  "OXAVWnTukA": {
+    "defaultMessage": "GitLab"
+  },
   "OXTjKr806t": {
     "defaultMessage": "选择一个 CSV 文件"
   },
@@ -14767,6 +14956,12 @@
   },
   "Oam8wqCN9r": {
     "defaultMessage": "已移除 Webflow 连接。"
+  },
+  "OawVGF0jzY": {
+    "defaultMessage": "Save"
+  },
+  "ObksDhMzPR": {
+    "defaultMessage": "{written, plural, =0 {没有要发送的新翻译} one {已发送 # 个翻译文件} other {已发送 # 个翻译文件}}"
   },
   "Obrc0xXXmw": {
     "defaultMessage": "已连接"
@@ -14833,6 +15028,9 @@
   },
   "Ok15bFijfb": {
     "defaultMessage": "更新后的产品术语"
+  },
+  "Ol/CLajqiN": {
+    "defaultMessage": "Succeeded"
   },
   "OlLKnWDUCM": {
     "defaultMessage": "适用于大多数域名。"
@@ -14986,6 +15184,9 @@
   },
   "P1e3b+MNYt": {
     "defaultMessage": "隐藏 Unicode 字符"
+  },
+  "P1sxklxMwY": {
+    "defaultMessage": "贵公司的 GitLab 服务器"
   },
   "P2BhUXKrFa": {
     "defaultMessage": "已拒绝"
@@ -15437,6 +15638,9 @@
   "PsCe6RXT6P": {
     "defaultMessage": "请先在“集成”中连接 Contentful，此触发器才能运行。"
   },
+  "PsfScgqwTN": {
+    "defaultMessage": "例如 {example}"
+  },
   "PslOM8EEdU": {
     "defaultMessage": "尝试时间"
   },
@@ -15637,6 +15841,9 @@
   },
   "QG31S8uFy7": {
     "defaultMessage": "在同一个活动中跟踪所有语言区域——谁在审核、哪些内容已获批准，以及哪些内容仍需关注——无需切换工具。"
+  },
+  "QG9yuQhA60": {
+    "defaultMessage": "sync"
   },
   "QGaxqP2Jqi": {
     "defaultMessage": "不。Hyperlab 会使用您现有的网站和内容，并决定每位访客看到哪个版本。"
@@ -16199,6 +16406,9 @@
   "RIwi4j2nfJ": {
     "defaultMessage": "全选"
   },
+  "RJLxYJk50b": {
+    "defaultMessage": "还有 {more, number} 个"
+  },
   "RJqS5CWiIH": {
     "defaultMessage": "新标题"
   },
@@ -16261,6 +16471,9 @@
   },
   "RQv/LERmVL": {
     "defaultMessage": "创建任务"
+  },
+  "RRTJeJffFC": {
+    "defaultMessage": "同步意外停止。"
   },
   "RRjkhCG4Cs": {
     "defaultMessage": "无法加载 QA 报告。"
@@ -16361,6 +16574,9 @@
   "Ra7PJXU8aK": {
     "defaultMessage": "访问被拒绝"
   },
+  "RaStbLcbsa": {
+    "defaultMessage": "无法移除同步。"
+  },
   "Rb4oe0xPau": {
     "defaultMessage": "报告"
   },
@@ -16417,6 +16633,9 @@
   },
   "Rgp/V+Ndcw": {
     "defaultMessage": "失败原因"
+  },
+  "RhYn29mibB": {
+    "defaultMessage": "输入 JSON 文本，或连接前一步的字符串输出。"
   },
   "RhmMBU70/7": {
     "defaultMessage": "启动营销活动电子邮件"
@@ -16529,6 +16748,9 @@
   "RtEbYHhw1P": {
     "defaultMessage": "Issues"
   },
+  "RtFvRzHXme": {
+    "defaultMessage": "已安排"
+  },
   "RtU7kH2epq": {
     "defaultMessage": "选择一个项目"
   },
@@ -16618,6 +16840,9 @@
   },
   "S2yOKsAuHb": {
     "defaultMessage": "Days, not months"
+  },
+  "S3Dsv7C7Nh": {
+    "defaultMessage": "移除同步"
   },
   "S3hIFEOuBV": {
     "defaultMessage": "To"
@@ -17411,6 +17636,9 @@
   "TWyi7AS4VO": {
     "defaultMessage": "每种语言一个文件夹 — vi-VN/overview.docx"
   },
+  "TX+fYK8q8U": {
+    "defaultMessage": "代码仓库服务"
+  },
   "TXP1gdWAFX": {
     "defaultMessage": "保存前修复 SRX 规则错误：{detail}"
   },
@@ -17569,6 +17797,9 @@
   },
   "TnzQT7gNHf": {
     "defaultMessage": "复制代码"
+  },
+  "TooKILigu3": {
+    "defaultMessage": "在再次添加连接之前，聊天和自动化将恢复使用成员各自的 GitLab.com 账号登录。"
   },
   "TosoMhOGUj": {
     "defaultMessage": "内容同步"
@@ -17915,6 +18146,9 @@
   "UOISryu9xO": {
     "defaultMessage": "所有项目"
   },
+  "UOMRfGQ0jp": {
+    "defaultMessage": "翻译未能发送：{reason}"
+  },
   "UOrQi3aNyW": {
     "defaultMessage": "无法加载实时 TMS 作业。"
   },
@@ -18206,6 +18440,9 @@
   "UwAnfXP81g": {
     "defaultMessage": "此 Figma 连接请求缺失或已过期。"
   },
+  "UwEjMjlBD5": {
+    "defaultMessage": "语言文件路径"
+  },
   "Uwe1uvQEJi": {
     "defaultMessage": "PR 可见性"
   },
@@ -18271,6 +18508,9 @@
   },
   "V1BIkH6W+O": {
     "defaultMessage": "{displayName} 已连接"
+  },
+  "V1PaomMYKB": {
+    "defaultMessage": "此工作区尚未连接 GitLab。管理员可在“集成”中进行连接；成员自己的 GitLab.com 登录不会用于同步。"
   },
   "V1UeldRHjR": {
     "defaultMessage": "没有可翻译的区块。"
@@ -18364,6 +18604,9 @@
   },
   "VDIjD34xp9": {
     "defaultMessage": "Spend"
+  },
+  "VDeyA5c96f": {
+    "defaultMessage": "GitLab 同步会通过其 API 读取仓库，隐藏仓库中已移除的键，并通过合并请求将已批准的翻译发送回仓库。"
   },
   "VDktuK9D7C": {
     "defaultMessage": "Provider"
@@ -18650,6 +18893,9 @@
   "VoN3hfznUR": {
     "defaultMessage": "再试一次"
   },
+  "VoQIrWE/6m": {
+    "defaultMessage": "GitLab.com 登录"
+  },
   "VoaTgvMGb7": {
     "defaultMessage": "使用内联默认值"
   },
@@ -18863,6 +19109,9 @@
   "WA49vhY6w5": {
     "defaultMessage": "从 GitHub 刷新仓库列表和元数据。这不会推送或拉取翻译。"
   },
+  "WAMmUgMIAk": {
+    "defaultMessage": "成员资格根据从“每个项目”端口发出的连接自动确定。"
+  },
   "WAOAGxwy+L": {
     "defaultMessage": "客户案例"
   },
@@ -19066,6 +19315,9 @@
   },
   "WZko2fwHOK": {
     "defaultMessage": "GitHub 状态检查"
+  },
+  "WZsGvl//q1": {
+    "defaultMessage": "将于{date}过期。"
   },
   "Wa3kCtjTDm": {
     "defaultMessage": "预览已就绪"
@@ -19289,6 +19541,9 @@
   "WxCNLYrtLZ": {
     "defaultMessage": "到分支"
   },
+  "WxwypwDXoe": {
+    "defaultMessage": "请使用非管理员用户的访问令牌，该用户在要同步的项目中拥有 Developer 角色（Reporter 只能拉取），并授予 api 权限范围以发送合并请求；如果只有 read_api 和 read_repository 权限范围，同步只会拉取内容，并提示翻译未发送。请设置过期时间。"
+  },
   "Wy1vE+UJqV": {
     "defaultMessage": "多语言关键词研究"
   },
@@ -19450,6 +19705,9 @@
   },
   "XFpqPsul6Y": {
     "defaultMessage": "已更改：{fields}"
+  },
+  "XGVaZ97qQ9": {
+    "defaultMessage": "在“集成”中的“自动化”设置里同步 GitHub 仓库。"
   },
   "XH27tSt/JN": {
     "defaultMessage": "法语 · 翻译"
@@ -19741,6 +19999,9 @@
   },
   "XpeTF2YWKH": {
     "defaultMessage": "默认模型"
+  },
+  "Xpq2AJzIub": {
+    "defaultMessage": "解析 JSON"
   },
   "XqZ3cu2irp": {
     "defaultMessage": "将已批准的译文推送回去"
@@ -20054,6 +20315,9 @@
   "YKrlBkbjMO": {
     "defaultMessage": "每行输入一个品牌名称。我们会在此域名下查找它们。"
   },
+  "YLY+U5/DGl": {
+    "defaultMessage": "本地化文件夹"
+  },
   "YLbt57UkC5": {
     "defaultMessage": "断开 Braze 连接失败。"
   },
@@ -20261,6 +20525,12 @@
   "YiZ5ttL/m5": {
     "defaultMessage": "再次撤销了您的更改"
   },
+  "Yj1IVsPHUq": {
+    "defaultMessage": "同步正在运行。请在同步完成后移除。"
+  },
+  "YjRk5tT6GE": {
+    "defaultMessage": "使用范围受限的 JSON Schema 对象。不支持远程引用。"
+  },
   "YjdAJSrtAi": {
     "defaultMessage": "文本元素 {index}"
   },
@@ -20315,6 +20585,9 @@
   "Yo96f8fXbJ": {
     "defaultMessage": "日光"
   },
+  "YoEqgQgzqb": {
+    "defaultMessage": "验证架构文件"
+  },
   "YoNT/y/382": {
     "defaultMessage": "选择一个项目"
   },
@@ -20359,6 +20632,9 @@
   },
   "YtKo2CQ5hL": {
     "defaultMessage": "AI 功能"
+  },
+  "YvKNfbM9SW": {
+    "defaultMessage": "{count, plural, one {# 个文件未能写回} other {# 个文件未能写回}}：格式暂不受支持，或无法读取仓库中的副本。"
   },
   "YvOtHkprF2": {
     "defaultMessage": "{providerName} 已通过 OAuth 连接"
@@ -20569,6 +20845,9 @@
   },
   "ZIg96oUMGy": {
     "defaultMessage": "无法加载概念"
+  },
+  "ZJ57VYQVaQ": {
+    "defaultMessage": "值"
   },
   "ZJI5SD947D": {
     "defaultMessage": "Audiences"
@@ -20810,6 +21089,9 @@
   "ZkAl1q2it8": {
     "defaultMessage": "作为图片处��"
   },
+  "ZkImYkaYlt": {
+    "defaultMessage": "数组转换"
+  },
   "ZkYSjdsJm0": {
     "defaultMessage": "使用代理翻译 {locale}"
   },
@@ -21022,6 +21304,9 @@
   },
   "a1ESTaNdyS": {
     "defaultMessage": "将任务、代理和人工审核连接起来，为您的内容运营打造可重复执行的工作流程。"
+  },
+  "a1QYZOb8v/": {
+    "defaultMessage": "下次计划同步时间：{time}"
   },
   "a1Rp/rylyq": {
     "defaultMessage": "创建工作区记忆，上传 TMX 或 CSV 文件，然后将其分配给应使用它的项目。"
@@ -21368,6 +21653,9 @@
   "afDLXVwU/G": {
     "defaultMessage": "问题标题"
   },
+  "afHUN4SiZD": {
+    "defaultMessage": "例如网站仓库"
+  },
   "afM0hfkHOH": {
     "defaultMessage": "最新文章"
   },
@@ -21394,6 +21682,9 @@
   },
   "ahKQ/Hvzg2": {
     "defaultMessage": "请输入以美元计价的金额，例如 120.50。"
+  },
+  "ai2FI9MiCn": {
+    "defaultMessage": "项目文件夹"
   },
   "ajjoHt03BE": {
     "defaultMessage": "保存 {providerName}"
@@ -21538,6 +21829,9 @@
   },
   "b/Vd04dNDW": {
     "defaultMessage": "Hyperlocalise"
+  },
+  "b/d4N94nLn": {
+    "defaultMessage": "默认分支"
   },
   "b/pQ8GedZy": {
     "defaultMessage": "助手已更新此自动化流程"
@@ -21734,6 +22028,9 @@
   "bI+YTOZIIO": {
     "defaultMessage": "“{name}”及其版本将被删除。此操作无法撤销。"
   },
+  "bIBIV/XSnS": {
+    "defaultMessage": "值"
+  },
   "bIhHNqhcPu": {
     "defaultMessage": "保存并本地化"
   },
@@ -21812,8 +22109,14 @@
   "bSLGYWqIO6": {
     "defaultMessage": "DNS TXT记录"
   },
+  "bSZGRrVpZH": {
+    "defaultMessage": "从代码仓库导入源文件，并通过拉取请求或合并请求提交完成的翻译。"
+  },
   "bSoPJAmJQC": {
     "defaultMessage": "此审核已排队，很快将开始。"
+  },
+  "bTTUPk+i8t": {
+    "defaultMessage": "此代码库未在集成中启用。请在集成中启用它，或选择其他代码库。"
   },
   "bUBd4XGtBI": {
     "defaultMessage": "AI 功能"
@@ -22250,6 +22553,9 @@
   "cFLoSPa62D": {
     "defaultMessage": "可视化工作流"
   },
+  "cFRjw0ewOm": {
+    "defaultMessage": "结果类型"
+  },
   "cFooypWUsT": {
     "defaultMessage": "密钥值"
   },
@@ -22303,6 +22609,9 @@
   },
   "cMuLE7Fon0": {
     "defaultMessage": "需要审核"
+  },
+  "cN7lGns1+R": {
+    "defaultMessage": "无法保存同步设置。"
   },
   "cO/T6pkJcW": {
     "defaultMessage": "6"
@@ -22601,6 +22910,9 @@
   "cthbIcABnk": {
     "defaultMessage": "刷新页面重试。"
   },
+  "cu5L6vnd2u": {
+    "defaultMessage": "项目可以与这些连接中的任意一个同步；聊天和自动化功能使用默认连接。添加连接时，请使用仅授予其所需代码库访问权限的令牌。"
+  },
   "cu5vz2inFd": {
     "defaultMessage": "导入条目"
   },
@@ -22832,6 +23144,9 @@
   "dHzZzNJO6i": {
     "defaultMessage": "生产网站"
   },
+  "dIAjQ/dX+w": {
+    "defaultMessage": "文件夹中有 {unmatched, plural, one {# 个文件} other {# 个文件}} 的路径与语言文件路径不匹配。"
+  },
   "dIHTtzU056": {
     "defaultMessage": "此域名的审核无法完成。"
   },
@@ -22948,6 +23263,9 @@
   },
   "dSYoXf1ZmK": {
     "defaultMessage": "日期均为 UTC。"
+  },
+  "dSbL+8m8KU": {
+    "defaultMessage": "使用仓库内的文件夹路径，例如 locales。"
   },
   "dStMwhojOw": {
     "defaultMessage": "08:00 UTC"
@@ -23083,6 +23401,9 @@
   },
   "df83PL1R8p": {
     "defaultMessage": "已连接 {provider}"
+  },
+  "dfPeYtLjRq": {
+    "defaultMessage": "同步已移除。"
   },
   "dfVzkj5hWL": {
     "defaultMessage": "未命名工作流"
@@ -23357,11 +23678,17 @@
   "e3o5ny2S7S": {
     "defaultMessage": "换个角度看世界。"
   },
+  "e4UP1KeoEn": {
+    "defaultMessage": "{held, plural, one {个语言文件等待} other {个语言文件等待}}，直到其中的每个翻译都获得批准"
+  },
   "e4Xzg6LTW9": {
     "defaultMessage": "从产品演示到营销活动"
   },
   "e4ecBMTJAg": {
     "defaultMessage": "截止日期已更新"
+  },
+  "e54flb2PR8": {
+    "defaultMessage": "同步前请保存更改。"
   },
   "e55K7kZph5": {
     "defaultMessage": "Hreflang、本地化覆盖范围和多语言内容质量"
@@ -23804,6 +24131,9 @@
   "erXgCbsSqH": {
     "defaultMessage": "将筛选结果导出为 CSV"
   },
+  "erwKpxK+ds": {
+    "defaultMessage": "无法启动同步。"
+  },
   "es92Uya8hG": {
     "defaultMessage": "指南"
   },
@@ -23965,6 +24295,9 @@
   },
   "f5Adx9k+6N": {
     "defaultMessage": "部分已批准"
+  },
+  "f5XgyzsBIQ": {
+    "defaultMessage": "JSON 文本"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "未保存的更改"
@@ -24310,6 +24643,9 @@
   },
   "fkMZfbcJqG": {
     "defaultMessage": "变体 ID"
+  },
+  "fkrYmhHuuT": {
+    "defaultMessage": "无法加载仓库。请重新加载页面再试一次。"
   },
   "flUWk1JFBu": {
     "defaultMessage": "隐藏已通过的审核"
@@ -24674,6 +25010,9 @@
   "gLjdVIWCoD": {
     "defaultMessage": "Deleting..."
   },
+  "gLwbnoGaiP": {
+    "defaultMessage": "{count, plural, one {# 个列表保持仓库中的原样} other {# 个列表保持仓库中的原样}}，直到其中的每个项目都获批"
+  },
   "gMIZAR6HUF": {
     "defaultMessage": "图片"
   },
@@ -24685,6 +25024,9 @@
   },
   "gN0y8UhzTR": {
     "defaultMessage": "无法删除术语"
+  },
+  "gNGTIO7J5R": {
+    "defaultMessage": "请先在“集成”中连接 GitLab。"
   },
   "gNb7LVmFTm": {
     "defaultMessage": "检查 hreflang、RTL 支持、术语和合规性"
@@ -24727,6 +25069,9 @@
   },
   "gQaOHIIj8G": {
     "defaultMessage": "查看导入和导出记录，然后打开报告以下载已完成的导出文件。"
+  },
+  "gRXUWrsLcF": {
+    "defaultMessage": "默认分支"
   },
   "gRhG9VDHId": {
     "defaultMessage": "复制"
@@ -24958,6 +25303,9 @@
   },
   "gsoVoUnBY7": {
     "defaultMessage": "线程"
+  },
+  "gsrh5zQdZC": {
+    "defaultMessage": "打开集成设置"
   },
   "gt/cmQvJ4u": {
     "defaultMessage": "用于发布和全局的已批准术语已存在于目标文本中。"
@@ -25388,6 +25736,9 @@
   "hZ7gIyvYMF": {
     "defaultMessage": "没有限制"
   },
+  "hZbM3bN0LI": {
+    "defaultMessage": "暂不可用"
+  },
   "hZtUjyTrTe": {
     "defaultMessage": "搜索文件…"
   },
@@ -25607,6 +25958,9 @@
   "hzrUUPWRn2": {
     "defaultMessage": "无法加载 Braze REST 集群。"
   },
+  "i+FQZUhhZw": {
+    "defaultMessage": "使用此连接的项目同步将随此更改而更新。"
+  },
   "i+L328OqBg": {
     "defaultMessage": "按优先级筛选"
   },
@@ -25633,6 +25987,9 @@
   },
   "i1PMbnhRAE": {
     "defaultMessage": "语言审核"
+  },
+  "i1Z46jIiYF": {
+    "defaultMessage": "变化"
   },
   "i29Xh/8PGM": {
     "defaultMessage": "已完成"
@@ -26234,6 +26591,9 @@
   "iz+EA2j9GK": {
     "defaultMessage": "复制密钥"
   },
+  "izSm4OVUTX": {
+    "defaultMessage": "同步已开始。"
+  },
   "izdWVYn/yN": {
     "defaultMessage": "问题类型"
   },
@@ -26381,6 +26741,9 @@
   "jEVZfFEPYx": {
     "defaultMessage": "Audiences"
   },
+  "jEd2qvOqhD": {
+    "defaultMessage": "{name}（无权访问文件）"
+  },
   "jEjjYeEzuW": {
     "defaultMessage": "编辑翻译记忆片段"
   },
@@ -26404,6 +26767,9 @@
   },
   "jI9SFqJ4/5": {
     "defaultMessage": "概念"
+  },
+  "jItb0aNazj": {
+    "defaultMessage": "工作区的 GitLab 令牌无法查看此仓库。请重新选择。"
   },
   "jJ0I/EZEoA": {
     "defaultMessage": "来源：{value}"
@@ -26446,6 +26812,9 @@
   },
   "jOtw3PC362": {
     "defaultMessage": "默认（一般文本）"
+  },
+  "jP0KlytPO/": {
+    "defaultMessage": "每种语言的文件在仓库文件夹中的位置，{placeholder}代表语言代码：fr 表示你的唯一法语语言，fr-FR 仅表示 fr-FR。源语言的文件会被导入；* 匹配文件夹内的内容，** 匹配跨文件夹的内容。"
   },
   "jP0mfL7DgW": {
     "defaultMessage": "{planName}：每月 {priceLabel}"
@@ -26822,6 +27191,9 @@
   "k1Ku5BR4yb": {
     "defaultMessage": "在工作超出预估之前，查看此项目的字数、时间和费用。"
   },
+  "k1OeGxmTdJ": {
+    "defaultMessage": "添加连接"
+  },
   "k1XwyH9gj+": {
     "defaultMessage": "暂无历史记录"
   },
@@ -27031,6 +27403,9 @@
   },
   "kNmR4YupCp": {
     "defaultMessage": "添加规则"
+  },
+  "kNzPwDjtB/": {
+    "defaultMessage": "sync"
   },
   "kO17DbZxuG": {
     "defaultMessage": "添加一个命名字段以构造对象。"
@@ -27797,6 +28172,9 @@
   "llbzw/iXGP": {
     "defaultMessage": "自动化"
   },
+  "llq1zCo/D6": {
+    "defaultMessage": "Branch"
+  },
   "lm8uSjSdQw": {
     "defaultMessage": "缺少翻译"
   },
@@ -27887,6 +28265,9 @@
   "lv1AQlJPi4": {
     "defaultMessage": "设置模板"
   },
+  "lvk9CHFHpK": {
+    "defaultMessage": "每天"
+  },
   "lvwFhMaVAT": {
     "defaultMessage": "即将推出"
   },
@@ -27932,6 +28313,9 @@
   "m17mlZ3/Yb": {
     "defaultMessage": "功能标志"
   },
+  "m19bKnw7GV": {
+    "defaultMessage": "GitLab 连接"
+  },
   "m1KcvYGLt0": {
     "defaultMessage": "条目已删除"
   },
@@ -27976,6 +28360,9 @@
   },
   "m4T5sYEFR7": {
     "defaultMessage": "Preparing"
+  },
+  "m4iVRIAaW3": {
+    "defaultMessage": "存放源文件的仓库文件夹，例如 locales。"
   },
   "m4m7Z9SYlx": {
     "defaultMessage": "可选。审核完成后，我们会将报告摘要发送到您的收件箱。"
@@ -28201,6 +28588,9 @@
   },
   "mPLVbw9Dvq": {
     "defaultMessage": "Cancel"
+  },
+  "mQ+9Xns9qF": {
+    "defaultMessage": "{count, plural, one {# 个连接} other {# 个连接}}。聊天和自动化使用 {name}。"
   },
   "mQ36/6Ov5o": {
     "defaultMessage": "这是 Google 会显示的摘要。缺少描述和语言混杂通常是市场从未显示的原因。"
@@ -28838,6 +29228,9 @@
   "nVpf5SOxZJ": {
     "defaultMessage": "通过 {name}"
   },
+  "nWS380YnWC": {
+    "defaultMessage": "移除"
+  },
   "nWSKQmdY9E": {
     "defaultMessage": "下载 CSV"
   },
@@ -29033,6 +29426,9 @@
   "nolrv5QFV2": {
     "defaultMessage": "做"
   },
+  "nouZfHJYX6": {
+    "defaultMessage": "内容同步自动化已将此存储库文件夹同步到项目中。请先在“自动化”页面暂停该自动化。"
+  },
   "nqI6KIqpLi": {
     "defaultMessage": "Hyperlocalise"
   },
@@ -29051,11 +29447,17 @@
   "nqfqbc0zeN": {
     "defaultMessage": "批准图片失败"
   },
+  "nqiSfq5i+m": {
+    "defaultMessage": "工作区连接 GitLab 时不会使用。请在此处断开连接，以移除您的登录方式。"
+  },
   "nqnh5BEInQ": {
     "defaultMessage": "Delete"
   },
   "nrNj6bYo1e": {
     "defaultMessage": "个人访问令牌已创建"
+  },
+  "nrjgwEgszO": {
+    "defaultMessage": "可选。在项目的同步设置中选择连接时显示；留空则显示服务器地址。"
   },
   "ntLrh30Crw": {
     "defaultMessage": "Delete"
@@ -29486,6 +29888,9 @@
   "ohFSHTwja2": {
     "defaultMessage": "已更新"
   },
+  "ohWq8Fp+QJ": {
+    "defaultMessage": "将 JSON 字符串化"
+  },
   "oiJegD5+SZ": {
     "defaultMessage": "无法检查离开后会发生哪些变化。"
   },
@@ -29825,6 +30230,9 @@
   "pHj5D5hJU+": {
     "defaultMessage": "导入"
   },
+  "pHz3Uy2BNF": {
+    "defaultMessage": "成功"
+  },
   "pIhCSFb9aQ": {
     "defaultMessage": "原始版本"
   },
@@ -30122,6 +30530,9 @@
   "plDoLEcfb7": {
     "defaultMessage": "随着团队逐渐了解在每个市场中哪些做法有效，决策会不断积累效应"
   },
+  "plPoWuOVzN": {
+    "defaultMessage": "GitHub 上仓库的默认分支。GitHub 同步始终读取此分支。"
+  },
   "plpqSFRajq": {
     "defaultMessage": "保存项目分配"
   },
@@ -30142,6 +30553,9 @@
   },
   "pnAixkNSMy": {
     "defaultMessage": "QA 失败"
+  },
+  "pnBGoxuR5t": {
+    "defaultMessage": "设置和运行历史记录将被删除。项目中已有的文件将保留。"
   },
   "pnhrsfcx7g": {
     "defaultMessage": "Collaboration"
@@ -30383,6 +30797,9 @@
   "qAENVVTQnI": {
     "defaultMessage": "探索指南"
   },
+  "qAIm+dJ8lo": {
+    "defaultMessage": "没有节点连接到“每个项目”区域。"
+  },
   "qAQXdmfmq+": {
     "defaultMessage": "批准字符串"
   },
@@ -30415,6 +30832,9 @@
   },
   "qByVEBzLzv": {
     "defaultMessage": "无法移除步骤"
+  },
+  "qCA5FK7jVt": {
+    "defaultMessage": "取消"
   },
   "qCIzGw7LDA": {
     "defaultMessage": "在 Customer.io 中本地化行为电子邮件和应用内消息。"
@@ -30713,6 +31133,9 @@
   "qkPZNDSLGU": {
     "defaultMessage": "搜索语言区域…"
   },
+  "qkzeYEZkME": {
+    "defaultMessage": "{name}（默认）"
+  },
   "qlC3SJDnRm": {
     "defaultMessage": "Startmate"
   },
@@ -30779,6 +31202,9 @@
   "qsnZ8CxWKP": {
     "defaultMessage": "Control"
   },
+  "qtB7+3Uye/": {
+    "defaultMessage": "Saving..."
+  },
   "qtFi5mIdMd": {
     "defaultMessage": "探索平台"
   },
@@ -30812,6 +31238,9 @@
   "qwKm4yzub8": {
     "defaultMessage": "你编辑了工作流 · {count, plural, one {# 项更改} other {# 项更改}}"
   },
+  "qxAtQr1hgC": {
+    "defaultMessage": "Schedule"
+  },
   "qxBrl7Yxqo": {
     "defaultMessage": "星期一"
   },
@@ -30820,6 +31249,9 @@
   },
   "qxdCTJo5wL": {
     "defaultMessage": "拉取请求"
+  },
+  "qy3PLCUa/e": {
+    "defaultMessage": "要移除此项目的同步设置吗？"
   },
   "qyAeUOVpZe": {
     "defaultMessage": "捷克语（捷克）"
@@ -30860,6 +31292,9 @@
   "r05vZ2Pf2x": {
     "defaultMessage": "Activity"
   },
+  "r0YvO5Z1tm": {
+    "defaultMessage": "你自己的 GitLab.com 帐户，用于聊天和你创建的自动化。要同步文件，请连接上方工作区的 GitLab。"
+  },
   "r0gMCcsbGC": {
     "defaultMessage": "还没有对话或通知。"
   },
@@ -30877,6 +31312,9 @@
   },
   "r2K/PgwYTn": {
     "defaultMessage": "搜索模板和代码片段"
+  },
+  "r2eGswphgY": {
+    "defaultMessage": "正在移除…"
   },
   "r2k+y+3lqI": {
     "defaultMessage": "正在检查术语表匹配项"
@@ -31030,6 +31468,9 @@
   },
   "rIEncw8pvm": {
     "defaultMessage": "品牌语气与术语"
+  },
+  "rIj4p1pD6H": {
+    "defaultMessage": "在语言代码所在的位置放置 {placeholder}。** 只能作为完整文件夹使用，最多出现两次；每个名称中最多只能有两个 * 或 {placeholder}，总共最多八个。"
   },
   "rIotJfHv/2": {
     "defaultMessage": "构建您的 AI 原生本地化工作流"
@@ -31207,6 +31648,9 @@
   },
   "rc9DBDztDD": {
     "defaultMessage": "您的团队可使用的模型"
+  },
+  "rc9mIgg+S4": {
+    "defaultMessage": "此同步使用的 GitLab 连接已在“集成”中删除。请选择其他连接。"
   },
   "rcANTRobpQ": {
     "defaultMessage": "Role"
@@ -31529,6 +31973,9 @@
   "sBAMcTOMdn": {
     "defaultMessage": "Short issue title"
   },
+  "sBD3fLEfW2": {
+    "defaultMessage": "{uploaded, plural, one {已导入 # 个文件} other {已导入 # 个文件}}，{skipped, number} 个未更改"
+  },
   "sCRcGCSbrv": {
     "defaultMessage": "项目 ID"
   },
@@ -31631,6 +32078,9 @@
   "sOWOEfN8q6": {
     "defaultMessage": "Canva"
   },
+  "sOfLCiMyCh": {
+    "defaultMessage": "文件在此项目中的显示位置。"
+  },
   "sOlwtMgDur": {
     "defaultMessage": "还没有受众。添加规则以定位部分访客。"
   },
@@ -31672,6 +32122,9 @@
   },
   "sUjt/GKyKZ": {
     "defaultMessage": "目前无法创建自动化操作"
+  },
+  "sUzlcXbcY3": {
+    "defaultMessage": "在集成中启用 GitHub 仓库，以便从 GitHub 同步。"
   },
   "sV2dSDjwcL": {
     "defaultMessage": "Understand"
@@ -31877,6 +32330,9 @@
   "ssxhSeQ+xO": {
     "defaultMessage": "无法导入这些单词。"
   },
+  "stTMDlHaoL": {
+    "defaultMessage": "此项目尚未设置同步。"
+  },
   "stUnm5XNi2": {
     "defaultMessage": "导入者"
   },
@@ -31949,6 +32405,9 @@
   "t0DApTD09b": {
     "defaultMessage": "Select a project"
   },
+  "t0XKEe4Dhs": {
+    "defaultMessage": "此连接的令牌无法读取任何仓库。项目或群组令牌只能访问对应的项目或群组，并且至少需要报告者角色才能读取文件，需要开发者角色才能发起合并请求。"
+  },
   "t0biooOCbM": {
     "defaultMessage": "法语页面缺少语言链接"
   },
@@ -31966,6 +32425,9 @@
   },
   "t1mgNhpwfB": {
     "defaultMessage": "current"
+  },
+  "t1rHIpUc1L": {
+    "defaultMessage": "请说明每种语言的文件所在位置，例如 {example}。"
   },
   "t2I2Yj3t0M": {
     "defaultMessage": "通知 Slack"
@@ -32456,6 +32918,9 @@
   "typi8awoP0": {
     "defaultMessage": "断开连接"
   },
+  "tz78TaaqjA": {
+    "defaultMessage": "仓库中存放源文件的文件夹，例如 locales。该文件夹中的所有受支持文件都会被导入。"
+  },
   "tzNTVPZse0": {
     "defaultMessage": "全部清除"
   },
@@ -32575,6 +33040,9 @@
   },
   "uBuX1gN2I5": {
     "defaultMessage": "HTML 子过滤器"
+  },
+  "uBwn2q4h2i": {
+    "defaultMessage": "此同步所使用的 GitLab 连接已在“集成”中移除。请在那里添加一个连接，然后在此处选择它。"
   },
   "uC9uH1Yi+P": {
     "defaultMessage": "无法保存翻译。"
@@ -32698,6 +33166,9 @@
   },
   "uPw9H782Mo": {
     "defaultMessage": "Edit"
+  },
+  "uPwlCtMJAb": {
+    "defaultMessage": "留空以读取代码库的默认分支。"
   },
   "uQThnP+5M7": {
     "defaultMessage": "在同一视图中并排查看源文和目标文，并可查看翻译记忆匹配项、AI 建议、术语表检查结果以及每个字符串的视觉上下文。"
@@ -32864,6 +33335,9 @@
   "uhOTpE/VkK": {
     "defaultMessage": "01 — 多语言内容工作室"
   },
+  "uhRyrKXNRS": {
+    "defaultMessage": "此连接的令牌为只读（不包含 api scope），因此同步时可以拉取，但无法发送合并请求。"
+  },
   "uhtYKc3fnS": {
     "defaultMessage": "上传源文件，然后在内容编辑器中打开一个文件，以查看和编辑翻译。"
   },
@@ -32905,6 +33379,9 @@
   },
   "ultNeGfvXw": {
     "defaultMessage": "GitHub 请求"
+  },
+  "um3tvZk8RN": {
+    "defaultMessage": "运行中"
   },
   "umK6yIapNV": {
     "defaultMessage": "值"
@@ -33007,6 +33484,9 @@
   },
   "uyHddFItti": {
     "defaultMessage": "无法从 GitLab 加载项目。"
+  },
+  "uyNK3DRlM0": {
+    "defaultMessage": "请选择一个代码仓库，并填写两个文件夹。"
   },
   "uyOcKxzNqN": {
     "defaultMessage": "正在提取帧…"
@@ -33254,6 +33734,9 @@
   "vLcCxwUDbQ": {
     "defaultMessage": "{teamName} 的操作"
   },
+  "vLmy8LFeIy": {
+    "defaultMessage": "无法连接到 GitLab。请重试，或在“集成”中检查连接。"
+  },
   "vMChOzfTNJ": {
     "defaultMessage": "正在检查翻译…扫描完成后，结果将刷新。"
   },
@@ -33425,6 +33908,9 @@
   "vcIHG9+CIG": {
     "defaultMessage": "上传验证文件。"
   },
+  "vcWN5oIVkw": {
+    "defaultMessage": "名称"
+  },
   "vcWkRHmX1+": {
     "defaultMessage": "添加列"
   },
@@ -33550,6 +34036,9 @@
   },
   "vrYsk4CDa0": {
     "defaultMessage": "删除任务"
+  },
+  "vrbsvX/uWN": {
+    "defaultMessage": "尚无同步记录。"
   },
   "vrk+FdEagx": {
     "defaultMessage": "预算"
@@ -34031,6 +34520,9 @@
   "wewNVYT5+w": {
     "defaultMessage": "GitHub 同步工作流"
   },
+  "wfI6r/Q+hm": {
+    "defaultMessage": "无法列出 GitLab 仓库。请在“集成”中检查连接。"
+  },
   "wfWyTH0EQs": {
     "defaultMessage": "接近预算"
   },
@@ -34072,6 +34564,9 @@
   },
   "wkeCz4YE6S": {
     "defaultMessage": "上传术语库文件，将其中的概念和术语合并到此术语库中。"
+  },
+  "wkxyIAleHa": {
+    "defaultMessage": "为整个工作区连接 GitLab.com 或贵公司自有的 GitLab 服务器。"
   },
   "wlMkvi2Lg8": {
     "defaultMessage": "按你的方式运作的 AI"
@@ -34285,6 +34780,9 @@
   },
   "x5RsQtpxzS": {
     "defaultMessage": "顺序"
+  },
+  "x5b2BktTkL": {
+    "defaultMessage": "将 JSON 文本解析为结构化值。"
   },
   "x5jXClnMbS": {
     "defaultMessage": "{actor} 将问题分配给了自己"
@@ -34850,6 +35348,9 @@
   "y1omtoku7R": {
     "defaultMessage": "每张卡片的每个语言对和步骤只能设置一个费率。"
   },
+  "y1usr5qWfu": {
+    "defaultMessage": "无法更改默认的 GitLab 连接。"
+  },
   "y301nYXIIx": {
     "defaultMessage": "已启用"
   },
@@ -34930,6 +35431,9 @@
   },
   "yBvXsTHP4U": {
     "defaultMessage": "选择一个 CSV、XLS 或 XLSX 文件"
+  },
+  "yC+i4u1RyR": {
+    "defaultMessage": "{count, plural, one {{files} 无法以其自身格式写入，因此已下载为 JSON。} other {{files} 无法以其自身格式写入，因此已下载为 JSON。}}"
   },
   "yC1DFxWE4z": {
     "defaultMessage": "审核人或团队 ID"
@@ -35014,6 +35518,9 @@
   },
   "yJkKJLXXDK": {
     "defaultMessage": "步骤"
+  },
+  "yJtQmL9RYq": {
+    "defaultMessage": "用于 {count, plural, one {# 个项目同步} other {# 个项目同步}}。"
   },
   "yK06fjIU98": {
     "defaultMessage": "匹配"
@@ -35357,6 +35864,9 @@
   "z3bR+/cqxl": {
     "defaultMessage": "在文件中找到 {count, plural, one {# 个字符串} other {# 个字符串}}"
   },
+  "z3fkYQNXlF": {
+    "defaultMessage": "无效"
+  },
   "z3hAWnzQKx": {
     "defaultMessage": "加载 Ahrefs 连接失败。"
   },
@@ -35488,6 +35998,9 @@
   },
   "zHHbPSaMjm": {
     "defaultMessage": "journal.example.com"
+  },
+  "zHdfx9LT12": {
+    "defaultMessage": "目前无法加载 GitLab 连接。"
   },
   "zHmiYq4Tm1": {
     "defaultMessage": "翻译记忆库"
@@ -35699,6 +36212,9 @@
   "ze9bxcwl8T": {
     "defaultMessage": "取消"
   },
+  "zeRvYqj5Gy": {
+    "defaultMessage": "部分源文件无法导入。"
+  },
   "zedkthWR8N": {
     "defaultMessage": "目标语言地区"
   },
@@ -35884,6 +36400,9 @@
   },
   "zyYnZ9Lo4u": {
     "defaultMessage": "搜索文件"
+  },
+  "zyZLiFVz+9": {
+    "defaultMessage": "{count, plural, one {# 个语言文件未发送，因为两个源文件会写入该文件} other {# 个语言文件未发送，因为两个源文件会写入这些文件}}"
   },
   "zz/Y8OSRLj": {
     "defaultMessage": "选择区域设置"

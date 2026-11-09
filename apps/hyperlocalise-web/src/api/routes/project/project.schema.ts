@@ -538,6 +538,7 @@ export const projectFileUploadBodySchema = z.object({
   sourceHash: z.string().trim().min(1).max(256).optional(),
   commitSha: z.string().trim().min(1).max(256).optional(),
   workflowRunId: z.string().trim().min(1).max(256).optional(),
+  keepApproved: z.enum(["true", "false"]).optional(),
 });
 
 export const projectFileTranslationImportBodySchema = z.object({
@@ -1074,6 +1075,7 @@ export const projectFileCatSegmentSchema = z.object({
   imageVariantId: z.string().nullable().optional(),
   looksLikeImageUrl: z.boolean().optional(),
   looksLikeVideoUrl: z.boolean().optional(),
+  sourceTextEditable: z.boolean().optional(),
   /** Present when the queue spans multiple files (`sourcePath=*`). */
   sourcePath: z.string().optional(),
   /** Provider file format for this segment's file (All Files mode). */

@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
 import {
+  normalizeStoredContentSyncConfig,
   resolveContentSyncRepositoryTarget,
   resolveContentSyncTriggerConfig,
   validateContentSyncConfig,
@@ -66,5 +67,40 @@ describe("content sync config", () => {
       projectFolder: "contentful/space-1",
     });
     expect(isOk(contentful)).toBe(true);
+  });
+
+  it("requires a safe path template for GitLab and keeps its settings", () => {
+    const gitlab: ContentSyncConfig = {
+      provider: "gitlab",
+      connectionId: "42",
+      resourceKey: "acme/web",
+      providerFolder: "locales/",
+      projectFolder: "gitlab/acme/web",
+    };
+    const missing = validateContentSyncConfig(gitlab);
+    expect(isErr(missing) && missing.error.code).toBe("content_sync_path_template_required");
+
+    const unsafe = validateContentSyncConfig({ ...gitlab, pathTemplate: "../{{locale}}.json" });
+    expect(isErr(unsafe) && unsafe.error.code).toBe("content_sync_folder_invalid");
+    for (const pathTemplate of ["*.json", "{locale}.json", "*a*a*{{locale}}.json"]) {
+      const invalid = validateContentSyncConfig({ ...gitlab, pathTemplate });
+      expect(isErr(invalid) && invalid.error.code).toBe("content_sync_path_template_invalid");
+    }
+
+    const valid = validateContentSyncConfig({
+      ...gitlab,
+      branch: " main ",
+      pathTemplate: "/{{locale}}/pages/*.html/",
+    });
+    expect(isOk(valid) && valid.value).toEqual({
+      ...gitlab,
+      providerFolder: "locales",
+      branch: "main",
+      pathTemplate: "{{locale}}/pages/*.html",
+    });
+    expect(normalizeStoredContentSyncConfig({ ...gitlab, branch: "" })).toEqual({
+      ...gitlab,
+      providerFolder: "locales",
+    });
   });
 });

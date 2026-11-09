@@ -265,7 +265,15 @@ func TestStringRoutes(t *testing.T) {
 		require.False(t, store.patch.MaxLength.Set)
 		require.True(t, *store.patch.Hidden)
 
+		require.False(t, store.patch.KeepApproved)
+
+		w = sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodPatch, "/v1/projects/project-1/strings/string-1", `{"sourceText":"Home","keepApproved":true}`)
+		require.Equal(t, http.StatusOK, w.Code)
+		require.True(t, store.patch.KeepApproved)
+
 		w = sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodPatch, "/v1/projects/project-1/strings/string-1", `{}`)
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		w = sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodPatch, "/v1/projects/project-1/strings/string-1", `{"keepApproved":true}`)
 		require.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
@@ -290,6 +298,36 @@ func TestStringRoutes(t *testing.T) {
 		w := sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodPatch, "/v1/projects/project-1/strings/string-1", `{"hidden":true}`)
 		require.Equal(t, http.StatusConflict, w.Code)
 		require.Contains(t, w.Body.String(), "segment_locked")
+	})
+
+	t.Run("patch maps source text holding internal markers", func(t *testing.T) {
+		store := &fakeResourceStore{}
+		store.tmsErr = errSourceTextInvalid
+		w := sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodPatch, "/v1/projects/project-1/strings/string-1", `{"sourceText":"Hi \u001eX"}`)
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		require.Contains(t, w.Body.String(), "invalid_source_text")
+	})
+
+	t.Run("create refuses source text holding internal markers as the batch does", func(t *testing.T) {
+		w := sendResource(t, resourcePrincipal(writeScopes...), &fakeResourceStore{}, http.MethodPost, "/v1/projects/project-1/strings", `{"key":"k","sourceText":"Hi \u001eX"}`)
+		require.Equal(t, http.StatusBadRequest, w.Code)
+		require.Contains(t, w.Body.String(), "invalid_source_text")
+	})
+
+	t.Run("patch maps a refused source text edit", func(t *testing.T) {
+		store := &fakeResourceStore{}
+		store.tmsErr = errSourceTextNotEditable
+		w := sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodPatch, "/v1/projects/project-1/strings/string-1", `{"sourceText":"Hi"}`)
+		require.Equal(t, http.StatusConflict, w.Code)
+		require.Contains(t, w.Body.String(), "source_text_not_editable")
+	})
+
+	t.Run("patch maps a source text edit by a role that may not make it", func(t *testing.T) {
+		store := &fakeResourceStore{}
+		store.tmsErr = errSourceTextForbidden
+		w := sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodPatch, "/v1/projects/project-1/strings/string-1", `{"sourceText":"Hi"}`)
+		require.Equal(t, http.StatusForbidden, w.Code)
+		require.Contains(t, w.Body.String(), "source_text_forbidden")
 	})
 
 	t.Run("delete returns no content", func(t *testing.T) {

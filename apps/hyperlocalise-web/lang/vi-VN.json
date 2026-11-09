@@ -782,6 +782,9 @@
   "/FnHAPAn3P": {
     "defaultMessage": "Chọn một kết nối để cấp quyền cài đặt ứng dụng Canva này."
   },
+  "/FxKqT7rxo": {
+    "defaultMessage": "Quá trình đồng bộ này đã bị xóa. Tải lại trang để thiết lập lại."
+  },
   "/GID42o6lx": {
     "defaultMessage": "Từ pull request đến cổng phát hành"
   },
@@ -989,6 +992,9 @@
   "/avsY2MZtR": {
     "defaultMessage": "Preferred"
   },
+  "/ayzi+h3Zt": {
+    "defaultMessage": "Đã xóa kết nối GitLab."
+  },
   "/bDXY5b2qg": {
     "defaultMessage": "Đã thu hồi lời mời"
   },
@@ -1141,6 +1147,9 @@
   },
   "/vxavoK/xz": {
     "defaultMessage": "LinkedIn"
+  },
+  "/w3K1Pwx24": {
+    "defaultMessage": "Kết nối đã bị xóa"
   },
   "/wIWjD2LD2": {
     "defaultMessage": "Token"
@@ -1751,6 +1760,9 @@
   "0ug9As7ELn": {
     "defaultMessage": "Thiết lập playbook một lần. Các agent xử lý những công việc lặp lại để bạn mở rộng sang nhiều thị trường hơn mà không cần tăng quy mô đội ngũ — người đánh giá chỉ tham gia khi cần đưa ra quyết định."
   },
+  "0ulsI+XIyW": {
+    "defaultMessage": "Quá trình đồng bộ hóa đã không hoàn tất kịp thời."
+  },
   "0vM9ZUQzKc": {
     "defaultMessage": "Đóng góp vào các công việc và chạy tác vụ AI; phê duyệt các bản đánh giá và ghi ngược. Không có quyền quản trị tổ chức."
   },
@@ -1855,6 +1867,9 @@
   },
   "15zAdlHpmJ": {
     "defaultMessage": "HubSpot"
+  },
+  "16jzdfV84U": {
+    "defaultMessage": "Mặc định"
   },
   "16sYDMkqBx": {
     "defaultMessage": "Không. Kết nối trang web bạn đã có. Domains sẽ xuất bản và kiểm tra trang web đó. Bạn cũng có thể xuất bản từ Content Studio."
@@ -2027,11 +2042,17 @@
   "1SarEJV+CO": {
     "defaultMessage": "Vấn đề chưa bao giờ nằm ở năng lực của các đội ngũ bản địa hóa. Mà là họ được kỳ vọng mở rộng kiến thức nhanh hơn bất kỳ đội ngũ con người nào có thể làm được."
   },
+  "1SmOqBo4fU": {
+    "defaultMessage": "Kết nối đó trỏ đến một máy chủ khác: các quy trình tự động hóa xác định dự án bằng đường dẫn, nên chúng cũng chuyển sang máy chủ đó, và các cuộc trò chuyện sẽ không còn sử dụng các dự án từ máy chủ này."
+  },
   "1StG7IXt4v": {
     "defaultMessage": "Đưa kết quả bản địa hóa vào chu kỳ tiếp theo"
   },
   "1ToGNDd6TO": {
     "defaultMessage": "Files"
+  },
+  "1U++3URWS4": {
+    "defaultMessage": "Thư mục kho lưu trữ"
   },
   "1U9PZ5VcN2": {
     "defaultMessage": "Xóa"
@@ -2456,6 +2477,9 @@
   "29NlUC9+y8": {
     "defaultMessage": "GPT-5.6 Sol (Nhanh)"
   },
+  "29x/gSNhzG": {
+    "defaultMessage": "Chọn…"
+  },
   "2ACZd8DTJY": {
     "defaultMessage": "Địa điểm"
   },
@@ -2470,6 +2494,9 @@
   },
   "2B2vocYfiC": {
     "defaultMessage": "Tải xuống chế độ xem đã lọc"
+  },
+  "2BDMq4KV+/": {
+    "defaultMessage": "Bạn có thể xem các cài đặt này nhưng không thể thay đổi chúng."
   },
   "2BaYUyVX1c": {
     "defaultMessage": "Hiển thị khóa API"
@@ -2957,6 +2984,9 @@
   "32sQGI6Lre": {
     "defaultMessage": "Nhắm mục tiêu khách truy cập bằng các quy tắc thuộc tính được đánh giá theo thời gian thực"
   },
+  "33J0ngE9lx": {
+    "defaultMessage": "Không thể xóa kết nối GitLab."
+  },
   "33PBu8aQXh": {
     "defaultMessage": "Bật trước"
   },
@@ -3193,6 +3223,9 @@
   },
   "3UtT5HKUXH": {
     "defaultMessage": "Continue"
+  },
+  "3V79KDlgh2": {
+    "defaultMessage": "Mở pull request"
   },
   "3VQO3rGiUE": {
     "defaultMessage": "Sao chép đầu ra của terminal"
@@ -3464,6 +3497,9 @@
   "3y5ogrzNWd": {
     "defaultMessage": "Mức độ ưu tiên"
   },
+  "3yWat7D9eo": {
+    "defaultMessage": "Đường dẫn tệp ngôn ngữ"
+  },
   "3yZFMdlOT1": {
     "defaultMessage": "Giúp AI trả lời bằng trang của bạn."
   },
@@ -3593,6 +3629,9 @@
   "4895zl1/X5": {
     "defaultMessage": "Glossary"
   },
+  "48BU/b+yFc": {
+    "defaultMessage": "Branch"
+  },
   "48liY3M4is": {
     "defaultMessage": "Trang"
   },
@@ -3685,6 +3724,9 @@
   },
   "4Jm91tEu1i": {
     "defaultMessage": "Giữ nguyên TMS của chúng tôi trong khi bổ sung quy trình làm việc của tác nhân là điểm khác biệt."
+  },
+  "4JyzfnXrai": {
+    "defaultMessage": "Đồng bộ GitHub sẽ sao chép kho lưu trữ, xóa các khóa mà kho lưu trữ đã loại bỏ và gửi mọi bản dịch, trừ những bản bị từ chối, trở lại trong một pull request, bất kể đã được xem xét hay chưa."
   },
   "4Jz0LdypFu": {
     "defaultMessage": "Không thể khôi phục phiên bản."
@@ -3926,6 +3968,9 @@
   "4nvKEU8P6F": {
     "defaultMessage": "Tools"
   },
+  "4oWir+lPBP": {
+    "defaultMessage": "Các lần đồng bộ gần đây"
+  },
   "4p/SsmkJuR": {
     "defaultMessage": "Kiểm tra câu ra mắt bằng tiếng Đức này theo Brand-claims-policy.pdf: “Nền tảng AI độc đáo của chúng tôi đã được chứng minh lâm sàng.”"
   },
@@ -4018,6 +4063,9 @@
   },
   "4z9+RgG2Ms": {
     "defaultMessage": "Các lớp văn bản đã thay đổi. Hãy tạo lại hình ảnh để áp dụng chúng trước khi phê duyệt."
+  },
+  "4zBhSf3vTo": {
+    "defaultMessage": "Thao tác"
   },
   "4zEqWvETM+": {
     "defaultMessage": "Ngôn ngữ: {value}"
@@ -4127,6 +4175,9 @@
   "58rI5iuou2": {
     "defaultMessage": "Được AI đánh giá, không tính điểm ({count})"
   },
+  "5954s2fe1F": {
+    "defaultMessage": "Trò chuyện và tự động hóa sẽ sử dụng {name} thay thế."
+  },
   "59CKJeZUxb": {
     "defaultMessage": "Mã lỗi"
   },
@@ -4201,6 +4252,9 @@
   },
   "5G9CHzXNWL": {
     "defaultMessage": "Privacy"
+  },
+  "5GsfnkqQvS": {
+    "defaultMessage": "Chuyển đổi một giá trị có cấu trúc thành văn bản JSON."
   },
   "5H+UdOBSV9": {
     "defaultMessage": "Khớp ngữ cảnh"
@@ -4330,6 +4384,9 @@
   },
   "5V5XZ84WTf": {
     "defaultMessage": "Chọn người được giao việc"
+  },
+  "5VQvCOhS8Q": {
+    "defaultMessage": "Lọc, ánh xạ, rút gọn hoặc tìm giá trị trong một tập hợp có thứ tự."
   },
   "5Wfh7kerri": {
     "defaultMessage": "Autumn chưa được định cấu hình trong môi trường này. Thêm AUTUMN_API_KEY sandbox để bật tính năng thanh toán cho không gian làm việc này."
@@ -4688,6 +4745,9 @@
   "6A1bUgl3t/": {
     "defaultMessage": "Hủy"
   },
+  "6A1cbaLTLI": {
+    "defaultMessage": "Token của kết nối không thể đọc các tệp trong kho lưu trữ này: vai trò của kết nối trong kho lưu trữ thấp hơn Reporter. Hãy cấp cho kết nối ít nhất vai trò Reporter, và vai trò Developer để gửi merge request."
+  },
   "6AKflqYexI": {
     "defaultMessage": "Các phát hiện đã chọn đã có nhận xét của nhà cung cấp"
   },
@@ -4735,6 +4795,9 @@
   },
   "6GvRaMOu4p": {
     "defaultMessage": "Trước tiên, hãy tạo một khóa API có quyền truy cập vào tệp và công việc."
+  },
+  "6HbWUjcTj7": {
+    "defaultMessage": "Kho lưu trữ"
   },
   "6Hh/TB07+q": {
     "defaultMessage": "Chọn tệp TMX hoặc CSV."
@@ -4786,6 +4849,9 @@
   },
   "6N3tTQGcSO": {
     "defaultMessage": "Ai đó"
+  },
+  "6N5DoenBFR": {
+    "defaultMessage": "Lần đồng bộ này sử dụng kết nối GitLab nào của không gian làm việc. Trò chuyện và tính năng tự động hóa sử dụng kết nối mặc định."
   },
   "6NDLX93t5d": {
     "defaultMessage": "Đồng bộ nội dung"
@@ -6014,6 +6080,9 @@
   "8bfW3Jqg2b": {
     "defaultMessage": "Bản nháp"
   },
+  "8bfWDHVAiv": {
+    "defaultMessage": "Nơi lưu tệp của từng ngôn ngữ bên trong thư mục kho lưu trữ, với {placeholder} là mã ngôn ngữ: fr khớp với ngôn ngữ tiếng Pháp duy nhất của bạn, còn fr-FR chỉ khớp với fr-FR. Các tệp của ngôn ngữ nguồn sẽ được nhập; * khớp trong một thư mục và ** khớp qua nhiều thư mục."
+  },
   "8bpns6mW0p": {
     "defaultMessage": "Phương thức xác thực"
   },
@@ -6238,6 +6307,9 @@
   },
   "9/pQQpDU+H": {
     "defaultMessage": "Phân công các tác nhân AI để dịch, rà soát và đồng bộ nội dung trong khi vẫn giữ việc xem xét của con người ở vị trí ưu tiên hàng đầu. Duy trì tính linh hoạt trên các nhà cung cấp LLM và các nền tảng TMS."
+  },
+  "9/rHOO9Hcc": {
+    "defaultMessage": "Đang diễn ra quá trình đồng bộ. Bạn có thể bắt đầu một lần đồng bộ khác khi quá trình này hoàn tất."
   },
   "90JdQQe9zz": {
     "defaultMessage": "Nội dung"
@@ -6908,6 +6980,9 @@
   "ACTAy3p5p3": {
     "defaultMessage": "Đã khắc phục"
   },
+  "ACmO8h4/+b": {
+    "defaultMessage": "Lược đồ"
+  },
   "ACud1VtN9i": {
     "defaultMessage": "Tên hiển thị"
   },
@@ -7078,6 +7153,9 @@
   },
   "AVWmFSjbP6": {
     "defaultMessage": "Bộ nhớ dịch thuật"
+  },
+  "AVXDmG66Yd": {
+    "defaultMessage": "Đang có quá trình đồng bộ hóa."
   },
   "AVpQwXJaXX": {
     "defaultMessage": "Tạo một khóa và gửi khóa đó cho người tích hợp Hyperlab vào trang web của bạn."
@@ -7430,6 +7508,9 @@
   "BBrh+7z4Oj": {
     "defaultMessage": "Không thể tải các miền được liên kết."
   },
+  "BBsS8wxmqc": {
+    "defaultMessage": "Dùng cho trò chuyện và tự động hóa"
+  },
   "BC+EYtp52c": {
     "defaultMessage": "Người dùng"
   },
@@ -7513,6 +7594,9 @@
   },
   "BKxL4swmsj": {
     "defaultMessage": "Phiên bản"
+  },
+  "BL4Aw/xqvM": {
+    "defaultMessage": "Kết nối GitLab trong mục Tích hợp để đồng bộ dự án này. Kho lưu trữ GitHub được đồng bộ từ phần cài đặt Tự động hóa tại đó."
   },
   "BLCf0utxhq": {
     "defaultMessage": "Chuỗi này đã bị khóa. Mở khóa để chỉnh sửa."
@@ -7784,6 +7868,9 @@
   "BrzNDtGGWt": {
     "defaultMessage": "Sending…"
   },
+  "Bs57lrRswl": {
+    "defaultMessage": "{count, plural, one {# khóa đã bị} other {# khóa đã bị}} ẩn vì kho lưu trữ không còn các khóa đó."
+  },
   "BsHGinE5HI": {
     "defaultMessage": "Bản ghi bền vững về lần nhập bộ nhớ dịch này."
   },
@@ -7816,6 +7903,9 @@
   },
   "BxEHMhUBpO": {
     "defaultMessage": "Đã cập nhật nhóm"
+  },
+  "BxGtFLZNTw": {
+    "defaultMessage": "Không tìm thấy thư mục kho lưu trữ hoặc không thể đọc được thư mục này."
   },
   "BxVa0XAhsz": {
     "defaultMessage": "Trang đó không còn hợp lệ. Đang hiển thị trang đầu tiên."
@@ -7852,6 +7942,9 @@
   },
   "C0LtvlP3Fa": {
     "defaultMessage": "Xem vấn đề gốc"
+  },
+  "C0fLYasN09": {
+    "defaultMessage": "Đã lưu kết nối GitLab."
   },
   "C0jp5QUb8B": {
     "defaultMessage": "Iterable"
@@ -7976,6 +8069,9 @@
   "CCHRUS19n3": {
     "defaultMessage": "Không tìm thấy danh mục nào."
   },
+  "CCuCNrvni7": {
+    "defaultMessage": "Dùng access token của dự án hoặc nhóm, hoặc một tài khoản chuyên dụng chỉ thuộc các dự án cần đồng bộ: mọi người ở đây đều có thể truy cập những gì token đó cho phép. Vai trò: Developer để gửi merge request, Reporter chỉ để tải về. Phạm vi: api để gửi merge request; nếu chỉ có read_api và read_repository, quá trình đồng bộ sẽ chỉ tải về và thông báo rằng bản dịch chưa được gửi. Đặt ngày hết hạn."
+  },
   "CDHpNJeAfK": {
     "defaultMessage": "Đã cập nhật đầy đủ"
   },
@@ -7995,6 +8091,9 @@
     "defaultMessage": "Các thành viên được mời sẽ được thêm vào nhóm này để họ có thể truy cập các dự án."
   },
   "CEaPOoMSXx": {
+    "defaultMessage": "Xóa"
+  },
+  "CEvOadGE6K": {
     "defaultMessage": "Xóa"
   },
   "CFK4BGiWin": {
@@ -8137,6 +8236,9 @@
   },
   "CT9/X7v9OM": {
     "defaultMessage": "Liên kết"
+  },
+  "CTGr9CwLJv": {
+    "defaultMessage": "Không thể tải cài đặt đồng bộ hóa."
   },
   "CTI9kmmWqH": {
     "defaultMessage": "{count, plural, one {# dự án} other {# dự án}}"
@@ -8582,6 +8684,9 @@
   "DChuKVBoeL": {
     "defaultMessage": "Không phụ thuộc LLM"
   },
+  "DCn9Wmv+Wt": {
+    "defaultMessage": "Không thành công"
+  },
   "DDkCNI/bRQ": {
     "defaultMessage": "bạn đã hỏi"
   },
@@ -8596,6 +8701,9 @@
   },
   "DFNppqOCak": {
     "defaultMessage": "Tạo dự án"
+  },
+  "DGiD4orSjR": {
+    "defaultMessage": "Kết nối với"
   },
   "DGx/LlMkDv": {
     "defaultMessage": "Thêm hướng dẫn dịch thuật"
@@ -8860,6 +8968,9 @@
   },
   "DiXV/bkiCg": {
     "defaultMessage": "Các thiết kế được bản địa hóa từ Canva được lưu trữ trong dự án này."
+  },
+  "Diw4K6SV2n": {
+    "defaultMessage": "Kết nối GitLab trong mục Tích hợp để đồng bộ từ GitLab."
   },
   "DjyFDSQhTb": {
     "defaultMessage": "Khám phá thế giới dưới một góc nhìn khác."
@@ -9185,8 +9296,14 @@
   "EIFZa0D92d": {
     "defaultMessage": "Xem chi tiết đầy đủ về giá"
   },
+  "EIpgZS0MVO": {
+    "defaultMessage": "Mỗi giờ"
+  },
   "EIzyJsuyBD": {
     "defaultMessage": "Hiện không thể tải kết nối Mailchimp."
+  },
+  "EJ9REmTRCU": {
+    "defaultMessage": "Token này chỉ có quyền đọc (không có phạm vi api): có thể kéo dữ liệu về khi đồng bộ nhưng không thể gửi merge request."
   },
   "EJHq4HC1h1": {
     "defaultMessage": "Hỗ trợ đánh giá bảo mật"
@@ -9202,6 +9319,9 @@
   },
   "EKyvEH55l4": {
     "defaultMessage": "Các phát hiện không được liệt kê trong tiêu chí nào ở trên."
+  },
+  "ELF+12oSuA": {
+    "defaultMessage": "Đã lưu cài đặt đồng bộ hóa."
   },
   "ELSLC4cOgT": {
     "defaultMessage": "Thử nghiệm trên nhiều thị trường. Đo lường những gì hiệu quả. Mở rộng những gì mang lại kết quả."
@@ -9451,6 +9571,9 @@
   },
   "Ehcy1DdQ49": {
     "defaultMessage": "Hoạt động trên GitHub, TMS và công cụ phát hành"
+  },
+  "EiXxrmIRgk": {
+    "defaultMessage": "{name} (chỉ kéo về)"
   },
   "Ej5U0a0604": {
     "defaultMessage": "Hướng dẫn dành cho tác nhân"
@@ -10070,6 +10193,9 @@
   "FqCBwFx5md": {
     "defaultMessage": "Đã ghi nhớ bối cảnh GTM cho đợt ra mắt sản phẩm tại Nhật Bản"
   },
+  "FqY/BvkEQe": {
+    "defaultMessage": "Có thể tải và gửi các yêu cầu hợp nhất."
+  },
   "FqcQ3Q8Id9": {
     "defaultMessage": "Sao chép JSON"
   },
@@ -10147,6 +10273,9 @@
   },
   "G1T9+1x7MC": {
     "defaultMessage": "{actor} đã liên kết vấn đề này với {relatedIssue}"
+  },
+  "G1iUqTOOGV": {
+    "defaultMessage": "Được khởi chạy thủ công"
   },
   "G1is+5n2E6": {
     "defaultMessage": "Ghi lại các chỉnh sửa của người đánh giá, các quyết định về bảng thuật ngữ, ngữ cảnh sản phẩm và sở thích thị trường để mọi quy trình bản địa hóa đều khởi đầu thông minh hơn."
@@ -10309,6 +10438,9 @@
   },
   "GOImV2QS+V": {
     "defaultMessage": "Không thể xóa dự án"
+  },
+  "GOvSvuh32/": {
+    "defaultMessage": "GitLab báo rằng vai trò của kết nối này trên kho lưu trữ thấp hơn Developer, vì vậy quá trình đồng bộ có thể kéo dữ liệu về nhưng không gửi được yêu cầu hợp nhất. Cấp vai trò Developer cho người dùng hoặc nhóm sở hữu mã thông báo để gửi yêu cầu hợp nhất."
   },
   "GOx0phpLcM": {
     "defaultMessage": "Quản lý các dự án, tích hợp, thông tin xác thực, nhóm và tài nguyên kiến thức; phê duyệt đánh giá và ghi ngược."
@@ -10565,6 +10697,9 @@
   "GqjLAPYWZT": {
     "defaultMessage": "Liệt kê các vấn đề"
   },
+  "GqszOf+J5n": {
+    "defaultMessage": "Xóa kết nối"
+  },
   "Gs4Pgl/iTx": {
     "defaultMessage": "Tùy chọn. Hướng dẫn đánh giá bản địa hóa bổ sung cho không gian làm việc này."
   },
@@ -10630,6 +10765,9 @@
   },
   "GygH5eMQXV": {
     "defaultMessage": "Weekly"
+  },
+  "Gz+qUGue0p": {
+    "defaultMessage": "Không thể lưu kết nối GitLab."
   },
   "Gz/Ip82h05": {
     "defaultMessage": "Đường dẫn nguồn"
@@ -11024,6 +11162,9 @@
   "HfKaBbYViW": {
     "defaultMessage": "Còn lại"
   },
+  "HgPHDYcLMY": {
+    "defaultMessage": "Đồng bộ ngay"
+  },
   "HhB3zV2KR/": {
     "defaultMessage": "Trò chuyện trên web"
   },
@@ -11062,6 +11203,9 @@
   },
   "HmM5vdsqD+": {
     "defaultMessage": "Close"
+  },
+  "HmWwCwYFtV": {
+    "defaultMessage": "Loại mục"
   },
   "HmXZYnVvj0": {
     "defaultMessage": "Các bước này sẽ được thực hiện thật trong lần chạy thử này. Những gì chúng thực hiện sẽ xảy ra và không thể hoàn tác."
@@ -11185,6 +11329,9 @@
   },
   "HxWBdm4nhz": {
     "defaultMessage": "Bản dịch chưa lưu"
+  },
+  "HxWOvKpnhC": {
+    "defaultMessage": "Việc xóa kết nối này sẽ ảnh hưởng đến mọi người trong không gian làm việc. {count, plural, =0 {} one {# lượt đồng bộ dự án đang sử dụng kết nối này và sẽ dừng cho đến khi được cấp một kết nối khác.} other {# lượt đồng bộ dự án đang sử dụng kết nối này và sẽ dừng cho đến khi được cấp một kết nối khác.}}"
   },
   "HxXrdebYXD": {
     "defaultMessage": "24 giờ qua"
@@ -11437,6 +11584,9 @@
   },
   "IROF4KmxXQ": {
     "defaultMessage": "Ước tính chưa hoàn tất"
+  },
+  "IRQWT9S62n": {
+    "defaultMessage": "Không thể đọc mã thông báo GitLab đã lưu của không gian làm việc. Hãy lưu lại kết nối trong mục Tích hợp."
   },
   "IRcbylygLF": {
     "defaultMessage": "Đã xem xét"
@@ -12001,6 +12151,9 @@
   },
   "JQuMZXhBtU": {
     "defaultMessage": "Nhập JSON hợp lệ."
+  },
+  "JRHfM8uH3R": {
+    "defaultMessage": "Chỉ khi tôi nhấp vào Đồng bộ hóa ngay bây giờ"
   },
   "JRTnSLtq//": {
     "defaultMessage": "Intercom"
@@ -12788,6 +12941,9 @@
   "L0gachMRlZ": {
     "defaultMessage": "Cơ sở thuật ngữ"
   },
+  "L13hAmUXIJ": {
+    "defaultMessage": "Xác thực một giá trị theo một lược đồ có cấu trúc với các giới hạn xác định."
+  },
   "L14GgyGrCO": {
     "defaultMessage": "Hoàn tác việc tải lại quy trình tự động hóa đã lưu"
   },
@@ -13010,6 +13166,9 @@
   "LPr1xWZqN2": {
     "defaultMessage": "Hoàn tác việc loại bỏ các thay đổi của bạn"
   },
+  "LQPCUXFTmO": {
+    "defaultMessage": "Chat và các quy trình tự động hóa hiện sử dụng {name}."
+  },
   "LQqGbywv5w": {
     "defaultMessage": "No recommendations were found. You can continue with no markets and add them later."
   },
@@ -13135,6 +13294,9 @@
   },
   "Lfo/HfkA0U": {
     "defaultMessage": "Mức sử dụng AI"
+  },
+  "LgF4rByVBa": {
+    "defaultMessage": "Giá trị ban đầu"
   },
   "LgOdyUATt4": {
     "defaultMessage": "Không có AI nào được sử dụng trong những ngày này với các bộ lọc này."
@@ -13508,6 +13670,9 @@
   "MHGSRfE0a7": {
     "defaultMessage": "Kiểm tra không thành công"
   },
+  "MHOYy5Rwc3": {
+    "defaultMessage": "Trò chuyện và các quy trình tự động hóa sử dụng kết nối này. Các quy trình tự động hóa xác định dự án bằng đường dẫn, vì vậy khi trỏ kết nối này đến một máy chủ khác, chúng cũng sẽ được chuyển theo, còn các cuộc trò chuyện sẽ không còn sử dụng dự án từ máy chủ cũ."
+  },
   "MHiaxGXuxI": {
     "defaultMessage": "Nhãn nút · Phải ngắn gọn trên thiết bị di động"
   },
@@ -13736,6 +13901,9 @@
   "MikRGST8w6": {
     "defaultMessage": "Mở email mời từ quản trị viên không gian làm việc của bạn và hoàn tất việc chấp nhận lời mời, sau đó đăng nhập lại. Nếu bạn đã chấp nhận rồi, hãy dùng Thử lại để làm mới tư cách thành viên của bạn."
   },
+  "Mj8cMFDFRg": {
+    "defaultMessage": "Chọn kho lưu trữ"
+  },
   "MjW+xFl6ux": {
     "defaultMessage": "Biến các bài viết trợ giúp mới và đã cập nhật thành các bản dịch đã được duyệt, đồng bộ chúng vào CMS của bạn và theo dõi độ mới để khách hàng không bao giờ đọc phải hướng dẫn lỗi thời."
   },
@@ -13774,6 +13942,9 @@
   },
   "MmdCe+3eSk": {
     "defaultMessage": "Kết nối Google Drive, Notion và SharePoint hoặc nhập hướng dẫn trực tiếp. Các tác nhân sẽ đọc và đánh dấu những nội dung không khớp."
+  },
+  "MnS30u+aA3": {
+    "defaultMessage": "ví dụ {example}"
   },
   "MnuXzcJn6d": {
     "defaultMessage": "{count} P1 trên Truy vấn"
@@ -13849,6 +14020,9 @@
   },
   "MtaQi7PiPN": {
     "defaultMessage": "General"
+  },
+  "MtgG06vtLX": {
+    "defaultMessage": "Không thể đọc dự án nào: hãy cấp cho người dùng hoặc nhóm đó ít nhất vai trò Reporter trên các dự án cần đồng bộ và vai trò Developer để gửi yêu cầu hợp nhất."
   },
   "MuUohGqmxo": {
     "defaultMessage": "Công việc đã được tạo."
@@ -14159,8 +14333,14 @@
   "NRH7Cv54cL": {
     "defaultMessage": "Thu gọn {status}"
   },
+  "NRQuibW48k": {
+    "defaultMessage": "Mở merge request"
+  },
   "NRfaLdr7/e": {
     "defaultMessage": "Thêm {name}?"
+  },
+  "NSI7HOMKgo": {
+    "defaultMessage": "Các kết nối bạn thêm ở đây được chia sẻ với mọi người trong không gian làm việc: chat và các quy trình tự động hóa sử dụng kết nối mặc định, còn trong cài đặt Đồng bộ của mỗi dự án, bạn có thể chọn một kết nối. Mỗi kết nối chỉ truy cập được những gì mã thông báo của nó cho phép. Khi đã có kết nối, các thành viên sẽ không còn sử dụng thông tin đăng nhập GitLab.com của riêng mình nữa."
   },
   "NSbs2IoiBz": {
     "defaultMessage": "Đại lý của bạn đã sẵn sàng"
@@ -14492,6 +14672,9 @@
   "O1hmkcilYp": {
     "defaultMessage": "Những hiểu biết về siêu địa phương hóa, trí tuệ dịch thuật và xây dựng quy trình bản địa hóa cho các đội ngũ toàn cầu."
   },
+  "O2+CxE1DPu": {
+    "defaultMessage": "GitLab.com"
+  },
   "O2AgYH2fic": {
     "defaultMessage": "Kiểm tra các bản dịch do tác nhân đề xuất trước khi đẩy các thay đổi đã được phê duyệt trở lại nhà cung cấp."
   },
@@ -14545,6 +14728,9 @@
   },
   "O9HkCEOzPy": {
     "defaultMessage": "Jobs"
+  },
+  "O9WSf08ndF": {
+    "defaultMessage": "Chưa thiết lập"
   },
   "OAZ7oFBkRI": {
     "defaultMessage": "{count, plural, one {# lỗi QA mới} other {# lỗi QA mới}} kể từ lần quét trước"
@@ -14729,6 +14915,9 @@
   "OWsqdkxxfx": {
     "defaultMessage": "Không thể tải trạng thái kết nối Google Drive."
   },
+  "OXAVWnTukA": {
+    "defaultMessage": "GitLab"
+  },
   "OXTjKr806t": {
     "defaultMessage": "Chọn tệp CSV"
   },
@@ -14767,6 +14956,12 @@
   },
   "Oam8wqCN9r": {
     "defaultMessage": "Đã xóa kết nối Webflow."
+  },
+  "OawVGF0jzY": {
+    "defaultMessage": "Lưu"
+  },
+  "ObksDhMzPR": {
+    "defaultMessage": "{written, plural, =0 {Không có bản dịch mới nào để gửi} one {Đã gửi # tệp đã dịch} other {Đã gửi # tệp đã dịch}}"
   },
   "Obrc0xXXmw": {
     "defaultMessage": "Đã kết nối"
@@ -14833,6 +15028,9 @@
   },
   "Ok15bFijfb": {
     "defaultMessage": "Thuật ngữ sản phẩm đã được cập nhật"
+  },
+  "Ol/CLajqiN": {
+    "defaultMessage": "Succeeded"
   },
   "OlLKnWDUCM": {
     "defaultMessage": "Phù hợp nhất cho hầu hết các tên miền."
@@ -14986,6 +15184,9 @@
   },
   "P1e3b+MNYt": {
     "defaultMessage": "Ẩn ký tự Unicode"
+  },
+  "P1sxklxMwY": {
+    "defaultMessage": "Máy chủ GitLab của công ty bạn"
   },
   "P2BhUXKrFa": {
     "defaultMessage": "Bị từ chối"
@@ -15437,6 +15638,9 @@
   "PsCe6RXT6P": {
     "defaultMessage": "Kết nối Contentful trong mục Tích hợp trước khi trình kích hoạt này có thể chạy."
   },
+  "PsfScgqwTN": {
+    "defaultMessage": "ví dụ {example}"
+  },
   "PslOM8EEdU": {
     "defaultMessage": "Đã thử"
   },
@@ -15637,6 +15841,9 @@
   },
   "QG31S8uFy7": {
     "defaultMessage": "Theo dõi mọi ngôn ngữ trong một chiến dịch—ai đang đánh giá, nội dung nào đã được phê duyệt và nội dung nào vẫn cần được chú ý—mà không phải chuyển đổi công cụ."
+  },
+  "QG9yuQhA60": {
+    "defaultMessage": "sync"
   },
   "QGaxqP2Jqi": {
     "defaultMessage": "Không. Hyperlab hoạt động với trang web và nội dung bạn đã có. Công cụ này quyết định phiên bản mà mỗi khách truy cập nhìn thấy."
@@ -16199,6 +16406,9 @@
   "RIwi4j2nfJ": {
     "defaultMessage": "Chọn tất cả"
   },
+  "RJLxYJk50b": {
+    "defaultMessage": "và thêm {more, number} mục nữa"
+  },
   "RJqS5CWiIH": {
     "defaultMessage": "tiêu-đề-mới"
   },
@@ -16261,6 +16471,9 @@
   },
   "RQv/LERmVL": {
     "defaultMessage": "Tạo công việc"
+  },
+  "RRTJeJffFC": {
+    "defaultMessage": "Quá trình đồng bộ hóa đã dừng đột ngột."
   },
   "RRjkhCG4Cs": {
     "defaultMessage": "Không thể tải báo cáo QA."
@@ -16361,6 +16574,9 @@
   "Ra7PJXU8aK": {
     "defaultMessage": "Truy cập bị từ chối"
   },
+  "RaStbLcbsa": {
+    "defaultMessage": "Không thể xóa chế độ đồng bộ hóa."
+  },
   "Rb4oe0xPau": {
     "defaultMessage": "Báo cáo"
   },
@@ -16417,6 +16633,9 @@
   },
   "Rgp/V+Ndcw": {
     "defaultMessage": "Lý do thất bại"
+  },
+  "RhYn29mibB": {
+    "defaultMessage": "Nhập văn bản JSON hoặc kết nối đầu ra chuỗi từ bước trước."
   },
   "RhmMBU70/7": {
     "defaultMessage": "Email chiến dịch ra mắt"
@@ -16529,6 +16748,9 @@
   "RtEbYHhw1P": {
     "defaultMessage": "Vấn đề"
   },
+  "RtFvRzHXme": {
+    "defaultMessage": "Đã lên lịch"
+  },
   "RtU7kH2epq": {
     "defaultMessage": "Chọn một dự án"
   },
@@ -16618,6 +16840,9 @@
   },
   "S2yOKsAuHb": {
     "defaultMessage": "Days, not months"
+  },
+  "S3Dsv7C7Nh": {
+    "defaultMessage": "Xóa đồng bộ hóa"
   },
   "S3hIFEOuBV": {
     "defaultMessage": "To"
@@ -17411,6 +17636,9 @@
   "TWyi7AS4VO": {
     "defaultMessage": "Thư mục cho mỗi ngôn ngữ — vi-VN/overview.docx"
   },
+  "TX+fYK8q8U": {
+    "defaultMessage": "Dịch vụ kho lưu trữ"
+  },
   "TXP1gdWAFX": {
     "defaultMessage": "Khắc phục lỗi quy tắc SRX trước khi lưu: {detail}"
   },
@@ -17569,6 +17797,9 @@
   },
   "TnzQT7gNHf": {
     "defaultMessage": "Sao chép mã"
+  },
+  "TooKILigu3": {
+    "defaultMessage": "Chat và các tính năng tự động hóa sẽ chuyển về sử dụng tài khoản GitLab.com riêng của các thành viên cho đến khi kết nối được thêm lại."
   },
   "TosoMhOGUj": {
     "defaultMessage": "Đồng bộ nội dung"
@@ -17915,6 +18146,9 @@
   "UOISryu9xO": {
     "defaultMessage": "Tất cả dự án"
   },
+  "UOMRfGQ0jp": {
+    "defaultMessage": "Các bản dịch chưa được gửi: {reason}"
+  },
   "UOrQi3aNyW": {
     "defaultMessage": "Không thể tải các công việc TMS trực tiếp."
   },
@@ -18206,6 +18440,9 @@
   "UwAnfXP81g": {
     "defaultMessage": "Yêu cầu kết nối Figma này bị thiếu hoặc đã hết hạn."
   },
+  "UwEjMjlBD5": {
+    "defaultMessage": "Đường dẫn tệp ngôn ngữ"
+  },
   "Uwe1uvQEJi": {
     "defaultMessage": "Hiển thị PR"
   },
@@ -18271,6 +18508,9 @@
   },
   "V1BIkH6W+O": {
     "defaultMessage": "{displayName} đã được kết nối"
+  },
+  "V1PaomMYKB": {
+    "defaultMessage": "Không gian làm việc chưa có kết nối GitLab. Quản trị viên cần kết nối GitLab trong mục Tích hợp; tài khoản đăng nhập GitLab.com của thành viên không được dùng để đồng bộ."
   },
   "V1UeldRHjR": {
     "defaultMessage": "Không có khối nào cần dịch."
@@ -18364,6 +18604,9 @@
   },
   "VDIjD34xp9": {
     "defaultMessage": "Spend"
+  },
+  "VDeyA5c96f": {
+    "defaultMessage": "Quá trình đồng bộ GitLab đọc kho lưu trữ thông qua API, ẩn các khóa đã bị xóa khỏi kho lưu trữ và gửi lại các bản dịch đã được phê duyệt trong một yêu cầu hợp nhất."
   },
   "VDktuK9D7C": {
     "defaultMessage": "Provider"
@@ -18650,6 +18893,9 @@
   "VoN3hfznUR": {
     "defaultMessage": "Thử lại"
   },
+  "VoQIrWE/6m": {
+    "defaultMessage": "Đăng nhập GitLab.com"
+  },
   "VoaTgvMGb7": {
     "defaultMessage": "Sử dụng giá trị mặc định nội tuyến"
   },
@@ -18863,6 +19109,9 @@
   "WA49vhY6w5": {
     "defaultMessage": "Làm mới danh sách kho lưu trữ và siêu dữ liệu từ GitHub. Việc này không đẩy lên hoặc tải xuống bản dịch."
   },
+  "WAMmUgMIAk": {
+    "defaultMessage": "Tư cách thành viên được xác định tự động từ các kết nối đi ra từ cổng Each item."
+  },
   "WAOAGxwy+L": {
     "defaultMessage": "Câu chuyện khách hàng"
   },
@@ -19066,6 +19315,9 @@
   },
   "WZko2fwHOK": {
     "defaultMessage": "Kiểm tra trạng thái GitHub"
+  },
+  "WZsGvl//q1": {
+    "defaultMessage": "Hết hạn vào ngày {date}."
   },
   "Wa3kCtjTDm": {
     "defaultMessage": "Bản xem trước đã sẵn sàng"
@@ -19289,6 +19541,9 @@
   "WxCNLYrtLZ": {
     "defaultMessage": "vào nhánh"
   },
+  "WxwypwDXoe": {
+    "defaultMessage": "Sử dụng token của người dùng không phải quản trị viên có vai trò Developer trong các dự án cần đồng bộ (Reporter chỉ có thể kéo dữ liệu) và phạm vi api để gửi merge request; nếu chỉ có read_api và read_repository, quá trình đồng bộ sẽ chỉ kéo dữ liệu và báo rằng bản dịch chưa được gửi. Đặt ngày hết hạn cho token."
+  },
   "Wy1vE+UJqV": {
     "defaultMessage": "Nghiên cứu từ khóa đa ngôn ngữ"
   },
@@ -19450,6 +19705,9 @@
   },
   "XFpqPsul6Y": {
     "defaultMessage": "Đã thay đổi: {fields}"
+  },
+  "XGVaZ97qQ9": {
+    "defaultMessage": "Đồng bộ hóa kho lưu trữ GitHub từ phần cài đặt Tự động hóa trong mục Tích hợp."
   },
   "XH27tSt/JN": {
     "defaultMessage": "TIẾNG PHÁP · BẢN DỊCH"
@@ -19741,6 +19999,9 @@
   },
   "XpeTF2YWKH": {
     "defaultMessage": "Mô hình mặc định"
+  },
+  "Xpq2AJzIub": {
+    "defaultMessage": "Phân tích cú pháp JSON"
   },
   "XqZ3cu2irp": {
     "defaultMessage": "Đẩy các bản dịch đã được phê duyệt trở lại"
@@ -20054,6 +20315,9 @@
   "YKrlBkbjMO": {
     "defaultMessage": "Mỗi dòng một tên thương hiệu. Chúng tôi sẽ tra cứu chúng cùng với tên miền này."
   },
+  "YLY+U5/DGl": {
+    "defaultMessage": "ngôn ngữ"
+  },
   "YLbt57UkC5": {
     "defaultMessage": "Không thể ngắt kết nối Braze."
   },
@@ -20261,6 +20525,12 @@
   "YiZ5ttL/m5": {
     "defaultMessage": "Đã hủy các thay đổi của bạn một lần nữa."
   },
+  "Yj1IVsPHUq": {
+    "defaultMessage": "Quá trình đồng bộ đang chạy. Hãy xóa chế độ đồng bộ sau khi quá trình hoàn tất."
+  },
+  "YjRk5tT6GE": {
+    "defaultMessage": "Sử dụng một đối tượng JSON Schema có giới hạn. Không hỗ trợ tham chiếu từ xa."
+  },
   "YjdAJSrtAi": {
     "defaultMessage": "Phần tử văn bản {index}"
   },
@@ -20315,6 +20585,9 @@
   "Yo96f8fXbJ": {
     "defaultMessage": "Ánh sáng ban ngày"
   },
+  "YoEqgQgzqb": {
+    "defaultMessage": "Xác thực lược đồ"
+  },
   "YoNT/y/382": {
     "defaultMessage": "Chọn một dự án"
   },
@@ -20359,6 +20632,9 @@
   },
   "YtKo2CQ5hL": {
     "defaultMessage": "Tính năng AI"
+  },
+  "YvKNfbM9SW": {
+    "defaultMessage": "{count, plural, one {# tệp chưa được gửi lại} other {# tệp chưa được gửi lại}}: định dạng này chưa được hỗ trợ hoặc không thể đọc bản sao trong kho lưu trữ."
   },
   "YvOtHkprF2": {
     "defaultMessage": "{providerName} đã được kết nối qua OAuth"
@@ -20569,6 +20845,9 @@
   },
   "ZIg96oUMGy": {
     "defaultMessage": "Không thể tải các khái niệm"
+  },
+  "ZJ57VYQVaQ": {
+    "defaultMessage": "Giá trị"
   },
   "ZJI5SD947D": {
     "defaultMessage": "Audiences"
@@ -20810,6 +21089,9 @@
   "ZkAl1q2it8": {
     "defaultMessage": "Xử lý như hình ảnh"
   },
+  "ZkImYkaYlt": {
+    "defaultMessage": "Chuyển đổi mảng"
+  },
   "ZkYSjdsJm0": {
     "defaultMessage": "Dịch {locale} bằng AI"
   },
@@ -21022,6 +21304,9 @@
   },
   "a1ESTaNdyS": {
     "defaultMessage": "Kết nối các tác vụ, tác nhân và quy trình đánh giá của con người thành những quy trình làm việc có thể lặp lại cho hoạt động nội dung của bạn."
+  },
+  "a1QYZOb8v/": {
+    "defaultMessage": "Lần đồng bộ tiếp theo theo lịch: {time}"
   },
   "a1Rp/rylyq": {
     "defaultMessage": "Tạo bộ nhớ không gian làm việc, tải lên tệp TMX hoặc CSV, sau đó gán tệp đó cho các dự án cần sử dụng."
@@ -21368,6 +21653,9 @@
   "afDLXVwU/G": {
     "defaultMessage": "Tiêu đề sự cố"
   },
+  "afHUN4SiZD": {
+    "defaultMessage": "ví dụ: kho lưu trữ trang web"
+  },
   "afM0hfkHOH": {
     "defaultMessage": "Bài viết mới nhất"
   },
@@ -21394,6 +21682,9 @@
   },
   "ahKQ/Hvzg2": {
     "defaultMessage": "Nhập số tiền bằng đô la Mỹ, chẳng hạn như 120,50."
+  },
+  "ai2FI9MiCn": {
+    "defaultMessage": "Thư mục dự án"
   },
   "ajjoHt03BE": {
     "defaultMessage": "Lưu {providerName}"
@@ -21538,6 +21829,9 @@
   },
   "b/Vd04dNDW": {
     "defaultMessage": "Hyperlocalise"
+  },
+  "b/d4N94nLn": {
+    "defaultMessage": "Nhánh mặc định"
   },
   "b/pQ8GedZy": {
     "defaultMessage": "Trợ lý đã cập nhật quy trình tự động hóa này"
@@ -21734,6 +22028,9 @@
   "bI+YTOZIIO": {
     "defaultMessage": "“{name}” và các phiên bản của nó sẽ bị xóa. Bạn không thể hoàn tác thao tác này."
   },
+  "bIBIV/XSnS": {
+    "defaultMessage": "Giá trị"
+  },
   "bIhHNqhcPu": {
     "defaultMessage": "Lưu & bản địa hóa"
   },
@@ -21812,8 +22109,14 @@
   "bSLGYWqIO6": {
     "defaultMessage": "Bản ghi TXT DNS"
   },
+  "bSZGRrVpZH": {
+    "defaultMessage": "Đưa các tệp nguồn từ một kho lưu trữ vào và gửi lại các bản dịch đã hoàn thành dưới dạng pull request hoặc merge request."
+  },
   "bSoPJAmJQC": {
     "defaultMessage": "Bản kiểm tra này đã được xếp hàng đợi và sẽ sớm bắt đầu."
+  },
+  "bTTUPk+i8t": {
+    "defaultMessage": "Kho lưu trữ này chưa được bật trong mục Tích hợp. Hãy bật kho lưu trữ tại đó hoặc chọn kho lưu trữ khác."
   },
   "bUBd4XGtBI": {
     "defaultMessage": "Tính năng AI"
@@ -22250,6 +22553,9 @@
   "cFLoSPa62D": {
     "defaultMessage": "Quy trình trực quan"
   },
+  "cFRjw0ewOm": {
+    "defaultMessage": "Loại kết quả"
+  },
   "cFooypWUsT": {
     "defaultMessage": "Giá trị bí mật"
   },
@@ -22303,6 +22609,9 @@
   },
   "cMuLE7Fon0": {
     "defaultMessage": "Cần xem xét"
+  },
+  "cN7lGns1+R": {
+    "defaultMessage": "Không thể lưu cài đặt đồng bộ hóa."
   },
   "cO/T6pkJcW": {
     "defaultMessage": "6"
@@ -22601,6 +22910,9 @@
   "cthbIcABnk": {
     "defaultMessage": "Tải lại trang để thử lại."
   },
+  "cu5L6vnd2u": {
+    "defaultMessage": "Một dự án có thể đồng bộ với bất kỳ kết nối nào trong số này; tính năng trò chuyện và tự động hóa sử dụng kết nối mặc định. Hãy thêm một kết nối bằng mã thông báo chỉ có quyền truy cập vào các kho lưu trữ cần thiết."
+  },
   "cu5vz2inFd": {
     "defaultMessage": "Nhập các mục"
   },
@@ -22832,6 +23144,9 @@
   "dHzZzNJO6i": {
     "defaultMessage": "Trang web sản xuất"
   },
+  "dIAjQ/dX+w": {
+    "defaultMessage": "{unmatched, plural, one {# tệp} other {# tệp}} trong thư mục không khớp với đường dẫn tệp ngôn ngữ"
+  },
   "dIHTtzU056": {
     "defaultMessage": "Không thể hoàn tất quá trình kiểm tra đối với miền này."
   },
@@ -22948,6 +23263,9 @@
   },
   "dSYoXf1ZmK": {
     "defaultMessage": "Các ngày được tính theo UTC."
+  },
+  "dSbL+8m8KU": {
+    "defaultMessage": "Hãy dùng đường dẫn thư mục nằm trong kho mã nguồn, chẳng hạn như locales."
   },
   "dStMwhojOw": {
     "defaultMessage": "08:00 UTC"
@@ -23083,6 +23401,9 @@
   },
   "df83PL1R8p": {
     "defaultMessage": "Đã kết nối {provider}"
+  },
+  "dfPeYtLjRq": {
+    "defaultMessage": "Đã xóa đồng bộ hóa."
   },
   "dfVzkj5hWL": {
     "defaultMessage": "Quy trình làm việc chưa có tiêu đề"
@@ -23357,11 +23678,17 @@
   "e3o5ny2S7S": {
     "defaultMessage": "Hãy nhìn thế giới theo một góc nhìn khác."
   },
+  "e4UP1KeoEn": {
+    "defaultMessage": "{held, plural, one {# tệp ngôn ngữ đang chờ} other {# tệp ngôn ngữ đang chờ}} cho đến khi mọi bản dịch trong đó được phê duyệt"
+  },
   "e4Xzg6LTW9": {
     "defaultMessage": "Từ bản demo sản phẩm đến các chiến dịch"
   },
   "e4ecBMTJAg": {
     "defaultMessage": "Ngày đến hạn đã được cập nhật"
+  },
+  "e54flb2PR8": {
+    "defaultMessage": "Lưu các thay đổi của bạn trước khi đồng bộ hóa."
   },
   "e55K7kZph5": {
     "defaultMessage": "Hreflang, độ bao phủ locale và chất lượng nội dung đa ngôn ngữ"
@@ -23804,6 +24131,9 @@
   "erXgCbsSqH": {
     "defaultMessage": "Xuất bộ lọc dưới dạng CSV"
   },
+  "erwKpxK+ds": {
+    "defaultMessage": "Không thể bắt đầu đồng bộ hóa."
+  },
   "es92Uya8hG": {
     "defaultMessage": "Hướng dẫn"
   },
@@ -23965,6 +24295,9 @@
   },
   "f5Adx9k+6N": {
     "defaultMessage": "Được phê duyệt một phần"
+  },
+  "f5XgyzsBIQ": {
+    "defaultMessage": "Văn bản JSON"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Thay đổi chưa lưu"
@@ -24310,6 +24643,9 @@
   },
   "fkMZfbcJqG": {
     "defaultMessage": "ID biến thể"
+  },
+  "fkrYmhHuuT": {
+    "defaultMessage": "Không thể tải danh sách kho lưu trữ. Hãy tải lại trang để thử lại."
   },
   "flUWk1JFBu": {
     "defaultMessage": "Ẩn các tiêu chí kiểm tra đã đạt"
@@ -24674,6 +25010,9 @@
   "gLjdVIWCoD": {
     "defaultMessage": "Deleting..."
   },
+  "gLwbnoGaiP": {
+    "defaultMessage": "{count, plural, one {# danh sách được giữ nguyên như trong kho lưu trữ} other {# danh sách được giữ nguyên như trong kho lưu trữ}} cho đến khi mọi mục trong đó được phê duyệt"
+  },
   "gMIZAR6HUF": {
     "defaultMessage": "Hình ảnh"
   },
@@ -24685,6 +25024,9 @@
   },
   "gN0y8UhzTR": {
     "defaultMessage": "Không thể xóa thuật ngữ"
+  },
+  "gNGTIO7J5R": {
+    "defaultMessage": "Trước tiên, hãy kết nối GitLab trong mục Tích hợp."
   },
   "gNb7LVmFTm": {
     "defaultMessage": "Kiểm tra hreflang, khả năng hỗ trợ RTL, thuật ngữ và tính tuân thủ"
@@ -24727,6 +25069,9 @@
   },
   "gQaOHIIj8G": {
     "defaultMessage": "Xem lại các lần nhập và xuất, sau đó mở báo cáo để tải xuống tệp xuất đã hoàn tất."
+  },
+  "gRXUWrsLcF": {
+    "defaultMessage": "Nhánh mặc định"
   },
   "gRhG9VDHId": {
     "defaultMessage": "Sao chép"
@@ -24958,6 +25303,9 @@
   },
   "gsoVoUnBY7": {
     "defaultMessage": "Chuỗi thảo luận"
+  },
+  "gsrh5zQdZC": {
+    "defaultMessage": "Mở các tích hợp"
   },
   "gt/cmQvJ4u": {
     "defaultMessage": "Các thuật ngữ được phê duyệt cho bản ra mắt và sử dụng trên toàn cầu đều có trong bản dịch đích."
@@ -25388,6 +25736,9 @@
   "hZ7gIyvYMF": {
     "defaultMessage": "Không giới hạn"
   },
+  "hZbM3bN0LI": {
+    "defaultMessage": "Không khả dụng"
+  },
   "hZtUjyTrTe": {
     "defaultMessage": "Tìm kiếm tệp…"
   },
@@ -25607,6 +25958,9 @@
   "hzrUUPWRn2": {
     "defaultMessage": "Không thể tải cụm REST của Braze."
   },
+  "i+FQZUhhZw": {
+    "defaultMessage": "Các lượt đồng bộ dự án sử dụng kết nối này sẽ áp dụng thay đổi."
+  },
   "i+L328OqBg": {
     "defaultMessage": "Lọc theo mức độ ưu tiên"
   },
@@ -25633,6 +25987,9 @@
   },
   "i1PMbnhRAE": {
     "defaultMessage": "Đánh giá ngôn ngữ"
+  },
+  "i1Z46jIiYF": {
+    "defaultMessage": "Thay đổi"
   },
   "i29Xh/8PGM": {
     "defaultMessage": "Đã xong"
@@ -26234,6 +26591,9 @@
   "iz+EA2j9GK": {
     "defaultMessage": "Sao chép khóa"
   },
+  "izSm4OVUTX": {
+    "defaultMessage": "Đã bắt đầu đồng bộ hóa."
+  },
   "izdWVYn/yN": {
     "defaultMessage": "Loại vấn đề"
   },
@@ -26381,6 +26741,9 @@
   "jEVZfFEPYx": {
     "defaultMessage": "Audiences"
   },
+  "jEd2qvOqhD": {
+    "defaultMessage": "{name} (không có quyền truy cập tệp)"
+  },
   "jEjjYeEzuW": {
     "defaultMessage": "Chỉnh sửa phân đoạn TM"
   },
@@ -26404,6 +26767,9 @@
   },
   "jI9SFqJ4/5": {
     "defaultMessage": "Các khái niệm"
+  },
+  "jItb0aNazj": {
+    "defaultMessage": "Token GitLab của không gian làm việc không thể truy cập kho lưu trữ này. Hãy chọn lại."
   },
   "jJ0I/EZEoA": {
     "defaultMessage": "Nguồn gốc: {value}"
@@ -26446,6 +26812,9 @@
   },
   "jOtw3PC362": {
     "defaultMessage": "Mặc định (văn xuôi thông thường)"
+  },
+  "jP0KlytPO/": {
+    "defaultMessage": "Vị trí các tệp của từng ngôn ngữ trong thư mục kho lưu trữ, với {placeholder} thay cho mã ngôn ngữ: fr chỉ định ngôn ngữ Pháp duy nhất của bạn, còn fr-FR chỉ định riêng fr-FR. Các tệp của ngôn ngữ nguồn sẽ được nhập; * khớp với các tệp trong một thư mục và ** khớp với các tệp trong mọi thư mục con."
   },
   "jP0mfL7DgW": {
     "defaultMessage": "{planName}: {priceLabel} mỗi tháng"
@@ -26822,6 +27191,9 @@
   "k1Ku5BR4yb": {
     "defaultMessage": "Xem số lượng từ, thời gian và chi phí của dự án này trước khi công việc vượt quá dự toán."
   },
+  "k1OeGxmTdJ": {
+    "defaultMessage": "Thêm kết nối"
+  },
   "k1XwyH9gj+": {
     "defaultMessage": "Chưa có lịch sử unerquicklich"
   },
@@ -27031,6 +27403,9 @@
   },
   "kNmR4YupCp": {
     "defaultMessage": "Thêm quy tắc"
+  },
+  "kNzPwDjtB/": {
+    "defaultMessage": "sync"
   },
   "kO17DbZxuG": {
     "defaultMessage": "Thêm một trường có tên để tạo đối tượng."
@@ -27797,6 +28172,9 @@
   "llbzw/iXGP": {
     "defaultMessage": "Tự động hóa"
   },
+  "llq1zCo/D6": {
+    "defaultMessage": "Branch"
+  },
   "lm8uSjSdQw": {
     "defaultMessage": "Thiếu bản dịch"
   },
@@ -27887,6 +28265,9 @@
   "lv1AQlJPi4": {
     "defaultMessage": "Đặt mẫuⅡ"
   },
+  "lvk9CHFHpK": {
+    "defaultMessage": "Mỗi ngày"
+  },
   "lvwFhMaVAT": {
     "defaultMessage": "Sắp ra mắt"
   },
@@ -27932,6 +28313,9 @@
   "m17mlZ3/Yb": {
     "defaultMessage": "Cờ tính năng"
   },
+  "m19bKnw7GV": {
+    "defaultMessage": "Kết nối GitLab"
+  },
   "m1KcvYGLt0": {
     "defaultMessage": "Đã xóa mục nhập"
   },
@@ -27976,6 +28360,9 @@
   },
   "m4T5sYEFR7": {
     "defaultMessage": "Preparing"
+  },
+  "m4iVRIAaW3": {
+    "defaultMessage": "Thư mục trong kho lưu trữ chứa các tệp nguồn, ví dụ: locales."
   },
   "m4m7Z9SYlx": {
     "defaultMessage": "Không bắt buộc. Chúng tôi sẽ gửi bản tóm tắt báo cáo đến hộp thư đến của bạn khi quá trình kiểm tra hoàn tất."
@@ -28201,6 +28588,9 @@
   },
   "mPLVbw9Dvq": {
     "defaultMessage": "Hủy"
+  },
+  "mQ+9Xns9qF": {
+    "defaultMessage": "{count, plural, one {# kết nối} other {# kết nối}}. Chat và các quy trình tự động hóa sử dụng {name}."
   },
   "mQ36/6Ov5o": {
     "defaultMessage": "Đây là đoạn trích mà Google sẽ hiển thị. Mô tả bị thiếu và ngôn ngữ không nhất quán là những lý do phổ biến khiến một thị trường không bao giờ xuất hiện."
@@ -28838,6 +29228,9 @@
   "nVpf5SOxZJ": {
     "defaultMessage": "qua {name}"
   },
+  "nWS380YnWC": {
+    "defaultMessage": "Xóa"
+  },
   "nWSKQmdY9E": {
     "defaultMessage": "Tải CSV xuống"
   },
@@ -29033,6 +29426,9 @@
   "nolrv5QFV2": {
     "defaultMessage": "Làm"
   },
+  "nouZfHJYX6": {
+    "defaultMessage": "Một quy trình tự động đồng bộ nội dung đã đồng bộ thư mục kho lưu trữ này vào dự án. Trước tiên, hãy tạm dừng quy trình đó trên trang Tự động hóa."
+  },
   "nqI6KIqpLi": {
     "defaultMessage": "Hyperlocalise"
   },
@@ -29051,11 +29447,17 @@
   "nqfqbc0zeN": {
     "defaultMessage": "Không thể phê duyệt hình ảnh"
   },
+  "nqiSfq5i+m": {
+    "defaultMessage": "Không được sử dụng khi GitLab đã kết nối với không gian làm việc. Ngắt kết nối tại đây để xóa thông tin đăng nhập của bạn."
+  },
   "nqnh5BEInQ": {
     "defaultMessage": "Xóa"
   },
   "nrNj6bYo1e": {
     "defaultMessage": "Đã tạo mã thông báo truy cập cá nhân"
+  },
+  "nrjgwEgszO": {
+    "defaultMessage": "Không bắt buộc. Hiển thị khi cài đặt Đồng bộ của dự án chọn kết nối này; nếu để trống, địa chỉ máy chủ sẽ được hiển thị."
   },
   "ntLrh30Crw": {
     "defaultMessage": "Xóa"
@@ -29486,6 +29888,9 @@
   "ohFSHTwja2": {
     "defaultMessage": "Đã cập nhật"
   },
+  "ohWq8Fp+QJ": {
+    "defaultMessage": "Chuyển JSON thành chuỗi"
+  },
   "oiJegD5+SZ": {
     "defaultMessage": "Không thể kiểm tra những gì sẽ thay đổi khi bạn rời đi."
   },
@@ -29825,6 +30230,9 @@
   "pHj5D5hJU+": {
     "defaultMessage": "Nhập khẩu"
   },
+  "pHz3Uy2BNF": {
+    "defaultMessage": "thành công"
+  },
   "pIhCSFb9aQ": {
     "defaultMessage": "Bản gốc"
   },
@@ -30122,6 +30530,9 @@
   "plDoLEcfb7": {
     "defaultMessage": "Các quyết định tích lũy khi các nhóm tìm ra điều gì hiệu quả ở từng thị trường"
   },
+  "plPoWuOVzN": {
+    "defaultMessage": "Nhánh mặc định của kho lưu trữ trên GitHub. Bản đồng bộ hóa GitHub luôn đọc nhánh này."
+  },
   "plpqSFRajq": {
     "defaultMessage": "Lưu phân công dự án"
   },
@@ -30142,6 +30553,9 @@
   },
   "pnAixkNSMy": {
     "defaultMessage": "Lỗi QA"
+  },
+  "pnBGoxuR5t": {
+    "defaultMessage": "Cài đặt và lịch sử chạy sẽ bị xóa. Các tệp đã có trong dự án vẫn được giữ nguyên."
   },
   "pnhrsfcx7g": {
     "defaultMessage": "Collaboration"
@@ -30383,6 +30797,9 @@
   "qAENVVTQnI": {
     "defaultMessage": "Khám phá Guidelines"
   },
+  "qAIm+dJ8lo": {
+    "defaultMessage": "Không có nút nào được kết nối với vùng Mỗi mục."
+  },
   "qAQXdmfmq+": {
     "defaultMessage": "Phê duyệt chuỗi"
   },
@@ -30415,6 +30832,9 @@
   },
   "qByVEBzLzv": {
     "defaultMessage": "Không thể xóa một bước."
+  },
+  "qCA5FK7jVt": {
+    "defaultMessage": "Hủy"
   },
   "qCIzGw7LDA": {
     "defaultMessage": "Bản địa hóa email và tin nhắn trong ứng dụng theo hành vi trong Customer.io."
@@ -30713,6 +31133,9 @@
   "qkPZNDSLGU": {
     "defaultMessage": "Tìm kiếm ngôn ngữ…"
   },
+  "qkzeYEZkME": {
+    "defaultMessage": "{name} (mặc định)"
+  },
   "qlC3SJDnRm": {
     "defaultMessage": "Startmate"
   },
@@ -30779,6 +31202,9 @@
   "qsnZ8CxWKP": {
     "defaultMessage": "Control"
   },
+  "qtB7+3Uye/": {
+    "defaultMessage": "Saving..."
+  },
   "qtFi5mIdMd": {
     "defaultMessage": "Khám phá nền tảng"
   },
@@ -30812,6 +31238,9 @@
   "qwKm4yzub8": {
     "defaultMessage": "Bạn đã chỉnh sửa quy trình · {count, plural, one {# thay đổi} other {# thay đổi}}"
   },
+  "qxAtQr1hgC": {
+    "defaultMessage": "Schedule"
+  },
   "qxBrl7Yxqo": {
     "defaultMessage": "Thứ Hai"
   },
@@ -30820,6 +31249,9 @@
   },
   "qxdCTJo5wL": {
     "defaultMessage": "Yêu cầu kéo"
+  },
+  "qy3PLCUa/e": {
+    "defaultMessage": "Xóa đồng bộ hóa của dự án này?"
   },
   "qyAeUOVpZe": {
     "defaultMessage": "Tiếng Séc (Séc)"
@@ -30860,6 +31292,9 @@
   "r05vZ2Pf2x": {
     "defaultMessage": "Hoạt động"
   },
+  "r0YvO5Z1tm": {
+    "defaultMessage": "Tài khoản GitLab.com của riêng bạn, dùng cho trò chuyện và các tính năng tự động hóa bạn tạo. Để đồng bộ hóa tệp, hãy kết nối GitLab với không gian làm việc ở trên."
+  },
   "r0gMCcsbGC": {
     "defaultMessage": "Chưa có cuộc trò chuyện hoặc thông báo nào."
   },
@@ -30877,6 +31312,9 @@
   },
   "r2K/PgwYTn": {
     "defaultMessage": "Tìm kiếm mẫu và đoạn trích"
+  },
+  "r2eGswphgY": {
+    "defaultMessage": "Đang xóa…"
   },
   "r2k+y+3lqI": {
     "defaultMessage": "Đang kiểm tra các kết quả khớp trong bảng thuật ngữ"
@@ -31030,6 +31468,9 @@
   },
   "rIEncw8pvm": {
     "defaultMessage": "Giọng điệu thương hiệu và thuật ngữ"
+  },
+  "rIj4p1pD6H": {
+    "defaultMessage": "Đặt {placeholder} vào vị trí mã ngôn ngữ. Chỉ sử dụng ** để đại diện cho toàn bộ thư mục, tối đa hai lần, và không dùng quá hai dấu * hoặc {placeholder} trong một tên, hoặc tám lần tổng cộng."
   },
   "rIotJfHv/2": {
     "defaultMessage": "Xây dựng quy trình bản địa hóa gốc AI của bạn"
@@ -31207,6 +31648,9 @@
   },
   "rc9DBDztDD": {
     "defaultMessage": "Các mô hình mà nhóm của bạn có thể sử dụng"
+  },
+  "rc9mIgg+S4": {
+    "defaultMessage": "Kết nối GitLab mà lần đồng bộ này sử dụng đã bị xóa trong mục Tích hợp. Hãy chọn một kết nối khác."
   },
   "rcANTRobpQ": {
     "defaultMessage": "Role"
@@ -31529,6 +31973,9 @@
   "sBAMcTOMdn": {
     "defaultMessage": "Short issue title"
   },
+  "sBD3fLEfW2": {
+    "defaultMessage": "{uploaded, plural, one {# tệp đã nhập} other {# tệp đã nhập}}, {skipped, number} không thay đổi"
+  },
   "sCRcGCSbrv": {
     "defaultMessage": "ID dự án"
   },
@@ -31631,6 +32078,9 @@
   "sOWOEfN8q6": {
     "defaultMessage": "Canva"
   },
+  "sOfLCiMyCh": {
+    "defaultMessage": "Vị trí các tệp xuất hiện trong dự án này."
+  },
   "sOlwtMgDur": {
     "defaultMessage": "Chưa có nhóm đối tượng nào. Hãy thêm một quy tắc để nhắm mục tiêu đến một nhóm nhỏ khách truy cập."
   },
@@ -31672,6 +32122,9 @@
   },
   "sUjt/GKyKZ": {
     "defaultMessage": "Không thể tạo tự động hóa lúc này"
+  },
+  "sUzlcXbcY3": {
+    "defaultMessage": "Bật kho lưu trữ GitHub trong mục Tích hợp để đồng bộ từ GitHub."
   },
   "sV2dSDjwcL": {
     "defaultMessage": "Understand"
@@ -31877,6 +32330,9 @@
   "ssxhSeQ+xO": {
     "defaultMessage": "Không thể nhập những từ đó."
   },
+  "stTMDlHaoL": {
+    "defaultMessage": "Chưa thiết lập đồng bộ hóa cho dự án này."
+  },
   "stUnm5XNi2": {
     "defaultMessage": "Được nhập bởi"
   },
@@ -31949,6 +32405,9 @@
   "t0DApTD09b": {
     "defaultMessage": "Select a project"
   },
+  "t0XKEe4Dhs": {
+    "defaultMessage": "Token của kết nối này không thể đọc kho lưu trữ nào. Token dự án hoặc nhóm chỉ xem được dự án hoặc nhóm đó, đồng thời cần có ít nhất vai trò Reporter để đọc tệp và Developer để gửi merge request."
+  },
   "t0biooOCbM": {
     "defaultMessage": "Trang tiếng Pháp bị thiếu liên kết ngôn ngữ"
   },
@@ -31966,6 +32425,9 @@
   },
   "t1mgNhpwfB": {
     "defaultMessage": "current"
+  },
+  "t1rHIpUc1L": {
+    "defaultMessage": "Hãy cho biết vị trí các tệp của từng ngôn ngữ, ví dụ {example}."
   },
   "t2I2Yj3t0M": {
     "defaultMessage": "Thông báo Slack"
@@ -32456,6 +32918,9 @@
   "typi8awoP0": {
     "defaultMessage": "Ngắt kết nối"
   },
+  "tz78TaaqjA": {
+    "defaultMessage": "Thư mục trong kho lưu trữ chứa các tệp nguồn, ví dụ: locales. Mọi tệp được hỗ trợ trong thư mục này đều được nhập."
+  },
   "tzNTVPZse0": {
     "defaultMessage": "Xóa tất cả"
   },
@@ -32575,6 +33040,9 @@
   },
   "uBuX1gN2I5": {
     "defaultMessage": "Bộ lọc phụ HTML"
+  },
+  "uBwn2q4h2i": {
+    "defaultMessage": "Kết nối GitLab mà lần đồng bộ này sử dụng đã bị xóa trong mục Tích hợp. Hãy thêm một kết nối tại đó, rồi chọn kết nối ở đây."
   },
   "uC9uH1Yi+P": {
     "defaultMessage": "Không thể lưu bản dịch."
@@ -32698,6 +33166,9 @@
   },
   "uPw9H782Mo": {
     "defaultMessage": "Edit"
+  },
+  "uPwlCtMJAb": {
+    "defaultMessage": "Để trống để đọc nhánh mặc định của kho lưu trữ."
   },
   "uQThnP+5M7": {
     "defaultMessage": "Xem văn bản nguồn và bản dịch song song, cùng với các kết quả khớp từ bộ nhớ dịch, đề xuất của AI, kiểm tra thuật ngữ và ngữ cảnh trực quan cho từng chuỗi trong cùng một chế độ xem."
@@ -32864,6 +33335,9 @@
   "uhOTpE/VkK": {
     "defaultMessage": "01 — Studio Nội dung Đa ngôn ngữ"
   },
+  "uhRyrKXNRS": {
+    "defaultMessage": "Mã thông báo của kết nối này chỉ có quyền đọc (không có phạm vi api), vì vậy quá trình đồng bộ có thể lấy dữ liệu nhưng không thể gửi yêu cầu hợp nhất."
+  },
   "uhtYKc3fnS": {
     "defaultMessage": "Tải lên các tệp nguồn, sau đó mở một tệp trong Trình chỉnh sửa nội dung để xem lại và chỉnh sửa bản dịch."
   },
@@ -32905,6 +33379,9 @@
   },
   "ultNeGfvXw": {
     "defaultMessage": "Yêu cầu GitHub"
+  },
+  "um3tvZk8RN": {
+    "defaultMessage": "Đang chạy"
   },
   "umK6yIapNV": {
     "defaultMessage": "Giá trị"
@@ -33007,6 +33484,9 @@
   },
   "uyHddFItti": {
     "defaultMessage": "Không thể tải dự án từ GitLab."
+  },
+  "uyNK3DRlM0": {
+    "defaultMessage": "Chọn một kho lưu trữ và điền vào cả hai thư mục."
   },
   "uyOcKxzNqN": {
     "defaultMessage": "Đang trích xuất khung hình…"
@@ -33254,6 +33734,9 @@
   "vLcCxwUDbQ": {
     "defaultMessage": "Thao tác cho {teamName}"
   },
+  "vLmy8LFeIy": {
+    "defaultMessage": "Không thể kết nối với GitLab. Hãy thử lại hoặc kiểm tra kết nối trong mục Tích hợp."
+  },
   "vMChOzfTNJ": {
     "defaultMessage": "Đang kiểm tra bản dịch… Kết quả sẽ được cập nhật khi quá trình quét hoàn tất."
   },
@@ -33425,6 +33908,9 @@
   "vcIHG9+CIG": {
     "defaultMessage": "Tải tệp xác minh lên."
   },
+  "vcWN5oIVkw": {
+    "defaultMessage": "Tên"
+  },
   "vcWkRHmX1+": {
     "defaultMessage": "Thêm cột"
   },
@@ -33550,6 +34036,9 @@
   },
   "vrYsk4CDa0": {
     "defaultMessage": "Xóa tác vụ"
+  },
+  "vrbsvX/uWN": {
+    "defaultMessage": "Chưa có lần đồng bộ nào."
   },
   "vrk+FdEagx": {
     "defaultMessage": "Ngân sách"
@@ -34031,6 +34520,9 @@
   "wewNVYT5+w": {
     "defaultMessage": "Quy trình đồng bộ GitHub"
   },
+  "wfI6r/Q+hm": {
+    "defaultMessage": "Không thể liệt kê các kho lưu trữ GitLab. Hãy kiểm tra kết nối trong mục Tích hợp."
+  },
   "wfWyTH0EQs": {
     "defaultMessage": "Đang gần đạt ngân sách"
   },
@@ -34072,6 +34564,9 @@
   },
   "wkeCz4YE6S": {
     "defaultMessage": "Tải lên tệp thuật ngữ để hợp nhất các khái niệm và thuật ngữ của tệp vào bảng thuật ngữ này."
+  },
+  "wkxyIAleHa": {
+    "defaultMessage": "Kết nối với GitLab.com hoặc máy chủ GitLab riêng của công ty bạn cho toàn bộ không gian làm việc."
   },
   "wlMkvi2Lg8": {
     "defaultMessage": "AI hoạt động theo cách của bạn"
@@ -34285,6 +34780,9 @@
   },
   "x5RsQtpxzS": {
     "defaultMessage": "Thứ tự"
+  },
+  "x5b2BktTkL": {
+    "defaultMessage": "Phân tích cú pháp văn bản JSON thành một giá trị có cấu trúc."
   },
   "x5jXClnMbS": {
     "defaultMessage": "{actor} đã tự giao việc cho mình"
@@ -34850,6 +35348,9 @@
   "y1omtoku7R": {
     "defaultMessage": "Mỗi cặp ngôn ngữ và bước chỉ có thể có một mức giá trên mỗi thẻ."
   },
+  "y1usr5qWfu": {
+    "defaultMessage": "Không thể thay đổi kết nối GitLab mặc định."
+  },
   "y301nYXIIx": {
     "defaultMessage": "Đã bật"
   },
@@ -34930,6 +35431,9 @@
   },
   "yBvXsTHP4U": {
     "defaultMessage": "Chọn tệp CSV, XLS hoặc XLSX"
+  },
+  "yC+i4u1RyR": {
+    "defaultMessage": "{count, plural, one {{files} không thể được ghi ở định dạng riêng, nên đã được tải xuống dưới dạng JSON.} other {{files} không thể được ghi ở định dạng riêng, nên đã được tải xuống dưới dạng JSON.}}"
   },
   "yC1DFxWE4z": {
     "defaultMessage": "ID của người đánh giá hoặc nhóm"
@@ -35014,6 +35518,9 @@
   },
   "yJkKJLXXDK": {
     "defaultMessage": "Bước"
+  },
+  "yJtQmL9RYq": {
+    "defaultMessage": "Được sử dụng bởi {count, plural, one {# lần đồng bộ dự án} other {# lần đồng bộ dự án}}."
   },
   "yK06fjIU98": {
     "defaultMessage": "Khớp"
@@ -35357,6 +35864,9 @@
   "z3bR+/cqxl": {
     "defaultMessage": "Tìm thấy {count, plural, one {# chuỗi} other {# chuỗi}} trong tệp"
   },
+  "z3fkYQNXlF": {
+    "defaultMessage": "không hợp lệ"
+  },
   "z3hAWnzQKx": {
     "defaultMessage": "Không thể tải kết nối Ahrefs."
   },
@@ -35488,6 +35998,9 @@
   },
   "zHHbPSaMjm": {
     "defaultMessage": "journal.example.com"
+  },
+  "zHdfx9LT12": {
+    "defaultMessage": "Hiện không thể tải các kết nối GitLab."
   },
   "zHmiYq4Tm1": {
     "defaultMessage": "Bộ nhớ dịch thuật"
@@ -35699,6 +36212,9 @@
   "ze9bxcwl8T": {
     "defaultMessage": "Hủy"
   },
+  "zeRvYqj5Gy": {
+    "defaultMessage": "Không thể nhập một số tệp nguồn."
+  },
   "zedkthWR8N": {
     "defaultMessage": "Ngôn ngữ đích"
   },
@@ -35884,6 +36400,9 @@
   },
   "zyYnZ9Lo4u": {
     "defaultMessage": "Tìm kiếm tệp"
+  },
+  "zyZLiFVz+9": {
+    "defaultMessage": "{count, plural, one {# tệp ngôn ngữ không được gửi vì hai tệp nguồn sẽ ghi vào tệp này} other {# tệp ngôn ngữ không được gửi vì hai tệp nguồn sẽ ghi vào các tệp này}}"
   },
   "zz/Y8OSRLj": {
     "defaultMessage": "Chọn ngôn ngữ địa phương"

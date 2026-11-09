@@ -42,6 +42,7 @@ func newDBFixture(t *testing.T) dbFixture {
 			TokenID:        "token-" + suffix,
 			UserID:         uuid.NewString(),
 			OrganizationID: uuid.NewString(),
+			Role:           "admin",
 		},
 		project: "project_" + strings.ReplaceAll(suffix[:8], "-", ""),
 	}

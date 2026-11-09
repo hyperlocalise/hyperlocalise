@@ -105,6 +105,8 @@ func parseStringsdictDocument(content []byte) (stringsdictDocument, error) {
 	var valueBuilder strings.Builder
 
 	for {
+		// Character data is measured in the raw input: entities decode to fewer bytes.
+		tokenStart := int(decoder.InputOffset())
 		tok, err := decoder.Token()
 		if err != nil {
 			if isEOFError(err) {
@@ -189,7 +191,6 @@ func parseStringsdictDocument(content []byte) (stringsdictDocument, error) {
 			if inValueString {
 				valueBuilder.Write(token)
 				tokenEnd := int(decoder.InputOffset())
-				tokenStart := tokenEnd - len(token)
 				if valueStart == -1 || tokenStart < valueStart {
 					valueStart = tokenStart
 				}

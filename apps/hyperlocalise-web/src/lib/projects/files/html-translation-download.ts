@@ -65,6 +65,8 @@ export async function loadProjectHtmlTranslationDownload(input: {
   sourcePath: string;
   targetLocale: string;
   approvedTranslationsOnly?: boolean;
+  /** Keys left as the source has them, whatever their translation. */
+  omitKeys?: ReadonlySet<string>;
 }): Promise<Result<ProjectHtmlTranslationDownload | null, ProjectHtmlTranslationDownloadError>> {
   if (inferSupportedTranslationFileFormat(input.sourcePath) !== "html") {
     return ok(null);
@@ -102,7 +104,12 @@ export async function loadProjectHtmlTranslationDownload(input: {
   const extension = input.sourcePath.toLowerCase().endsWith(".htm") ? ".htm" : ".html";
   try {
     const template = Buffer.from(stored.value.content).toString("utf-8");
-    const content = applyHtmlIngestTranslations(template, translations.prefilled);
+    const prefilled = input.omitKeys
+      ? Object.fromEntries(
+          Object.entries(translations.prefilled).filter(([key]) => !input.omitKeys!.has(key)),
+        )
+      : translations.prefilled;
+    const content = applyHtmlIngestTranslations(template, prefilled);
     return ok({
       content: Buffer.from(content, "utf-8"),
       contentType: HTML_CONTENT_TYPE,

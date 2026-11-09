@@ -29,7 +29,13 @@ import {
 } from "./client";
 import { resolveMailchimpCampaignRecreateForCopy } from "./campaign-recreate";
 import { loadMailchimpAutomationClient } from "./credentials";
-import { isMailchimpRemoteCopyNewer } from "./existing-translation-policy";
+import {
+  mailchimpCampaignCanRecreate,
+  readMailchimpCopyUpdatedAt,
+  rememberMailchimpCopy,
+  shouldSkipMailchimpRemoteNewerCopy,
+  shouldSkipUnchangedMailchimpPush,
+} from "./existing-translation-policy";
 import type { MailchimpCampaignRecreateFields } from "./types";
 import {
   buildMailchimpPushEnvelope,
@@ -38,25 +44,6 @@ import {
 } from "./html-envelope";
 import { mailchimpCopyName, resolveMailchimpSourceLocale } from "./locale";
 import { loadMailchimpCopyRemoteFields } from "./remote-html";
-
-async function readMailchimpCopyUpdatedAt(input: {
-  client: MailchimpClient;
-  resourceKind: "campaign" | "template";
-  copyId: string;
-}): Promise<string | null> {
-  if (input.resourceKind === "template") {
-    const template = await input.client.getTemplate(input.copyId);
-    return (
-      template.date_edited?.trim() ||
-      template.edited_on?.trim() ||
-      template.date_created?.trim() ||
-      template.created_on?.trim() ||
-      null
-    );
-  }
-  // Campaigns only expose create_time, which is not an edit signal.
-  return null;
-}
 
 const logger = createLogger("push-mailchimp-content");
 
@@ -119,13 +106,14 @@ async function persistCopySuccess(
   copyName: string,
   contentHash: string,
 ): Promise<void> {
+  rememberMailchimpCopy(mapping, locale, copyId, copyName, contentHash);
   await db
     .update(schema.mailchimpContentSyncStates)
     .set({
-      localeCopyIds: { ...mapping.localeCopyIds, [locale]: copyId },
-      localeCopyNames: { ...mapping.localeCopyNames, [locale]: copyName },
-      lastPushContentHash: { ...mapping.lastPushContentHash, [locale]: contentHash },
-      lastPushedAt: new Date(),
+      localeCopyIds: mapping.localeCopyIds,
+      localeCopyNames: mapping.localeCopyNames,
+      lastPushContentHash: mapping.lastPushContentHash,
+      lastPushedAt: mapping.lastPushedAt,
       status: "active",
       lastError: null,
       updatedAt: new Date(),
@@ -217,7 +205,7 @@ async function pushCampaignLocale(input: {
   pushWarning: (message: string) => void;
 }): Promise<"pushed" | "skipped"> {
   const recreate = input.campaignRecreate;
-  if (!recreate?.listId || !recreate.replyTo) {
+  if (!mailchimpCampaignCanRecreate(recreate)) {
     input.pushWarning(
       `${pushSkipLabel(input.mapping, input.locale)}: could not resolve audience list and reply-to for a new Mailchimp campaign — add an audience with campaign defaults in Mailchimp, set list/reply-to on the source campaign, re-import, then push again.`,
     );
@@ -258,7 +246,7 @@ async function pushCampaignLocale(input: {
     `${envelope.subject}\n${envelope.previewText}\n${envelope.fromName}\n${envelope.htmlBody}`,
   );
   const lastHash = input.mapping.lastPushContentHash?.[input.locale];
-  if (lastHash && lastHash === contentHash) {
+  if (shouldSkipUnchangedMailchimpPush(lastHash, contentHash)) {
     input.pushWarning(
       `${pushSkipLabel(input.mapping, input.locale)}: already pushed this content (no translation changes since the last push).`,
     );
@@ -271,7 +259,9 @@ async function pushCampaignLocale(input: {
       copyId,
     });
     if (
-      isMailchimpRemoteCopyNewer({
+      shouldSkipMailchimpRemoteNewerCopy({
+        hasCopy: true,
+        overwriteWhenRemoteNewer: false,
         lastPushedAt: input.mapping.lastPushedAt,
         copyUpdatedAt,
       })
@@ -340,7 +330,7 @@ async function pushTemplateLocale(input: {
   });
   const contentHash = hashMailchimpContent(envelope.htmlBody);
   const lastHash = input.mapping.lastPushContentHash?.[input.locale];
-  if (lastHash && lastHash === contentHash) {
+  if (shouldSkipUnchangedMailchimpPush(lastHash, contentHash)) {
     input.pushWarning(
       `${pushSkipLabel(input.mapping, input.locale)}: already pushed this content (no translation changes since the last push).`,
     );
@@ -353,7 +343,9 @@ async function pushTemplateLocale(input: {
       copyId,
     });
     if (
-      isMailchimpRemoteCopyNewer({
+      shouldSkipMailchimpRemoteNewerCopy({
+        hasCopy: true,
+        overwriteWhenRemoteNewer: false,
         lastPushedAt: input.mapping.lastPushedAt,
         copyUpdatedAt,
       })

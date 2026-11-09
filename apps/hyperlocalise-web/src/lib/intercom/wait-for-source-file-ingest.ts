@@ -17,12 +17,16 @@ import { db, schema } from "@/lib/database/client";
 const DEFAULT_POLL_INTERVAL_MS = 500;
 const DEFAULT_TIMEOUT_MS = 120_000;
 
+/**
+ * Waits until the version's ingest has finished. `skipped` is finished too: a newer version of
+ * the same file took over, so there is nothing more to wait for.
+ */
 export async function waitForSourceFileVersionIngest(input: {
   organizationId: string;
   sourceFileVersionId: string;
   pollIntervalMs?: number;
   timeoutMs?: number;
-}): Promise<"ingested" | "failed" | "timeout"> {
+}): Promise<"ingested" | "skipped" | "failed" | "timeout"> {
   const pollIntervalMs = input.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const startedAt = Date.now();
@@ -43,6 +47,10 @@ export async function waitForSourceFileVersionIngest(input: {
 
     if (version.ingestState === "ingested") {
       return "ingested";
+    }
+
+    if (version.ingestState === "skipped") {
+      return "skipped";
     }
 
     if (version.ingestState === "failed") {

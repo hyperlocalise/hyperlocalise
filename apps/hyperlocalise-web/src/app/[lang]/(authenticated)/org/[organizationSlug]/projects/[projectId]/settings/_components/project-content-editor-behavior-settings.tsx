@@ -28,9 +28,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { TypographyP } from "@/components/ui/typography";
+import type { ApprovedTranslationsOnSourceChange } from "@/lib/go-svc/go-svc-client.types";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
@@ -40,8 +48,15 @@ import { ProjectSettingsSectionHeading } from "./project-settings-section-headin
 type ContentEditorBehavior = {
   automaticallyGroupIdenticalStrings: boolean;
   groupingRevision: number;
+  approvedTranslationsOnSourceChange: ApprovedTranslationsOnSourceChange;
+  sourceTextEditable: boolean;
   canManage: boolean;
 };
+
+type BehaviorChange =
+  | { automaticallyGroupIdenticalStrings: boolean }
+  | { approvedTranslationsOnSourceChange: ApprovedTranslationsOnSourceChange }
+  | { sourceTextEditable: boolean };
 
 type Preview = { affectedOccurrences: number; groups: number };
 
@@ -57,10 +72,11 @@ export function ProjectContentEditorBehaviorSettings({
   const intl = useIntl();
   const queryClient = useQueryClient();
   const { client: goSvcClient } = useGoSvcClient();
-  const [confirmation, setConfirmation] = useState<{
-    nextValue: boolean;
-    preview?: Preview;
-  } | null>(null);
+  const [confirmation, setConfirmation] = useState<
+    | { setting: "grouping"; nextValue: boolean; preview?: Preview }
+    | { setting: "sourceText"; nextValue: false }
+    | null
+  >(null);
   const queryKey = ["project-content-editor-behavior", organizationSlug, projectId];
   const behaviorQuery = useQuery({
     queryKey,
@@ -97,7 +113,7 @@ export function ProjectContentEditorBehaviorSettings({
         );
       }
     },
-    onSuccess: (preview) => setConfirmation({ nextValue: true, preview }),
+    onSuccess: (preview) => setConfirmation({ setting: "grouping", nextValue: true, preview }),
     onError: (error) =>
       toast.error(
         error instanceof Error
@@ -106,12 +122,12 @@ export function ProjectContentEditorBehaviorSettings({
       ),
   });
   const updateMutation = useMutation({
-    mutationFn: async (nextValue: boolean) => {
+    mutationFn: async (change: BehaviorChange) => {
       try {
         const body = await goSvcClient.project.updateContentEditorBehavior(
           organizationSlug,
           projectId,
-          { automaticallyGroupIdenticalStrings: nextValue },
+          change,
         );
         return body.contentEditorBehavior as ContentEditorBehavior;
       } catch (error) {
@@ -138,11 +154,57 @@ export function ProjectContentEditorBehaviorSettings({
   });
   const behavior = behaviorQuery.data;
   const pending = previewMutation.isPending || updateMutation.isPending;
+  const sourceChangeOptions = [
+    {
+      value: "stay_approved",
+      label: intl.formatMessage(projectContentEditorBehaviorMessages.sourceChangeStayApproved),
+    },
+    {
+      value: "needs_review",
+      label: intl.formatMessage(projectContentEditorBehaviorMessages.sourceChangeNeedsReview),
+    },
+  ] satisfies { value: ApprovedTranslationsOnSourceChange; label: string }[];
+  // No value until loaded, so a failed load does not show the default as the saved choice.
+  const sourceChange = behavior?.approvedTranslationsOnSourceChange ?? null;
 
   function requestChange(nextValue: boolean) {
     if (nextValue) previewMutation.mutate();
-    else setConfirmation({ nextValue: false });
+    else setConfirmation({ setting: "grouping", nextValue: false });
   }
+
+  // Turning editing on is safe; turning it off lets the next import replace edits made here.
+  function requestSourceTextChange(nextValue: boolean) {
+    if (nextValue) updateMutation.mutate({ sourceTextEditable: true });
+    else setConfirmation({ setting: "sourceText", nextValue: false });
+  }
+
+  function confirmChange() {
+    if (!confirmation) return;
+    updateMutation.mutate(
+      confirmation.setting === "grouping"
+        ? { automaticallyGroupIdenticalStrings: confirmation.nextValue }
+        : { sourceTextEditable: confirmation.nextValue },
+    );
+  }
+
+  const confirmationMessages =
+    confirmation?.setting === "sourceText"
+      ? {
+          title: projectContentEditorBehaviorMessages.sourceTextEditableDisableTitle,
+          description: projectContentEditorBehaviorMessages.sourceTextEditableDisableDescription,
+          confirm: projectContentEditorBehaviorMessages.confirmDisableSourceTextEditing,
+        }
+      : confirmation?.nextValue
+        ? {
+            title: projectContentEditorBehaviorMessages.enableTitle,
+            description: projectContentEditorBehaviorMessages.enableDescription,
+            confirm: projectContentEditorBehaviorMessages.confirmEnable,
+          }
+        : {
+            title: projectContentEditorBehaviorMessages.disableTitle,
+            description: projectContentEditorBehaviorMessages.disableDescription,
+            confirm: projectContentEditorBehaviorMessages.confirmDisable,
+          };
 
   return (
     <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
@@ -160,11 +222,6 @@ export function ProjectContentEditorBehaviorSettings({
           <TypographyP className="mt-1 max-w-2xl" size="small" tone="subtle">
             <FormattedMessage {...projectContentEditorBehaviorMessages.settingDescription} />
           </TypographyP>
-          {!canManage ? (
-            <TypographyP className="mt-2" size="xsmall" tone="subtle">
-              <FormattedMessage {...projectContentEditorBehaviorMessages.managerOnly} />
-            </TypographyP>
-          ) : null}
         </div>
         {behaviorQuery.isLoading ? (
           <Spinner />
@@ -177,6 +234,73 @@ export function ProjectContentEditorBehaviorSettings({
           />
         )}
       </div>
+      <div className="flex flex-col gap-3 rounded-md border border-border bg-background p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <div className="min-w-0">
+          <label htmlFor="approved-translations-on-source-change" className="text-sm font-medium">
+            <FormattedMessage {...projectContentEditorBehaviorMessages.sourceChangeLabel} />
+          </label>
+          <TypographyP className="mt-1 max-w-2xl" size="small" tone="subtle">
+            <FormattedMessage {...projectContentEditorBehaviorMessages.sourceChangeDescription} />
+          </TypographyP>
+        </div>
+        {behaviorQuery.isLoading ? (
+          <Spinner />
+        ) : (
+          <Select
+            value={sourceChange}
+            items={sourceChangeOptions}
+            disabled={!canManage || pending || behaviorQuery.isError}
+            onValueChange={(next) => {
+              if (next && next !== sourceChange) {
+                updateMutation.mutate({ approvedTranslationsOnSourceChange: next });
+              }
+            }}
+          >
+            <SelectTrigger
+              id="approved-translations-on-source-change"
+              className="h-9 w-full shrink-0 sm:w-44"
+            >
+              <SelectValue>
+                {sourceChangeOptions.find((option) => option.value === sourceChange)?.label}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {sourceChangeOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value} label={option.label}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+      <div className="flex items-start justify-between gap-6 rounded-md border border-border bg-background p-4">
+        <div className="min-w-0">
+          <label htmlFor="source-text-editable" className="text-sm font-medium">
+            <FormattedMessage {...projectContentEditorBehaviorMessages.sourceTextEditableLabel} />
+          </label>
+          <TypographyP className="mt-1 max-w-2xl" size="small" tone="subtle">
+            <FormattedMessage
+              {...projectContentEditorBehaviorMessages.sourceTextEditableDescription}
+            />
+          </TypographyP>
+        </div>
+        {behaviorQuery.isLoading ? (
+          <Spinner />
+        ) : (
+          <Switch
+            id="source-text-editable"
+            checked={behavior?.sourceTextEditable ?? false}
+            disabled={!canManage || pending || behaviorQuery.isError}
+            onCheckedChange={requestSourceTextChange}
+          />
+        )}
+      </div>
+      {!canManage ? (
+        <TypographyP size="xsmall" tone="subtle">
+          <FormattedMessage {...projectContentEditorBehaviorMessages.managerOnly} />
+        </TypographyP>
+      ) : null}
       <AlertDialog
         open={confirmation !== null}
         onOpenChange={(open) => {
@@ -186,40 +310,29 @@ export function ProjectContentEditorBehaviorSettings({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              <FormattedMessage
-                {...(confirmation?.nextValue
-                  ? projectContentEditorBehaviorMessages.enableTitle
-                  : projectContentEditorBehaviorMessages.disableTitle)}
-              />
+              <FormattedMessage {...confirmationMessages.title} />
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmation?.nextValue ? (
-                <FormattedMessage
-                  {...projectContentEditorBehaviorMessages.enableDescription}
-                  values={{
-                    occurrences: confirmation.preview?.affectedOccurrences ?? 0,
-                    groups: confirmation.preview?.groups ?? 0,
-                  }}
-                />
-              ) : (
-                <FormattedMessage {...projectContentEditorBehaviorMessages.disableDescription} />
-              )}
+              <FormattedMessage
+                {...confirmationMessages.description}
+                values={{
+                  occurrences:
+                    confirmation?.setting === "grouping"
+                      ? (confirmation.preview?.affectedOccurrences ?? 0)
+                      : 0,
+                  groups:
+                    confirmation?.setting === "grouping" ? (confirmation.preview?.groups ?? 0) : 0,
+                }}
+              />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={updateMutation.isPending}>
               <FormattedMessage {...projectContentEditorBehaviorMessages.cancel} />
             </AlertDialogCancel>
-            <Button
-              disabled={updateMutation.isPending}
-              onClick={() => confirmation && updateMutation.mutate(confirmation.nextValue)}
-            >
+            <Button disabled={updateMutation.isPending} onClick={confirmChange}>
               {updateMutation.isPending ? <Spinner /> : null}
-              <FormattedMessage
-                {...(confirmation?.nextValue
-                  ? projectContentEditorBehaviorMessages.confirmEnable
-                  : projectContentEditorBehaviorMessages.confirmDisable)}
-              />
+              <FormattedMessage {...confirmationMessages.confirm} />
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

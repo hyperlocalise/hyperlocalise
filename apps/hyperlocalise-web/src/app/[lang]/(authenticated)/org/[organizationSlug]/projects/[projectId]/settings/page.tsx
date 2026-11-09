@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { isProjectMutationAllowed } from "@/api/auth/capability-guards";
 import { isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
@@ -41,6 +42,7 @@ async function ProjectSettingsPageLoader({
       organizationSlug={organizationSlug}
       projectId={projectId}
       canManageCatBehavior={isWorkspaceOperatorRole(auth.membership.role)}
+      canManageSync={isProjectMutationAllowed(auth.membership.role)}
     />
   );
 }

@@ -61,7 +61,11 @@ export function normalizeGitLabServerUrl(value: string): Result<string, GitLabSe
   const normalized = trimmed
     ? (normalizeLocalDevServerUrl(trimmed) ?? normalizeProviderBaseUrl(trimmed, ""))
     : null;
-  return normalized ? ok(normalized) : err(INVALID_SERVER_URL);
+  if (!normalized) {
+    return err(INVALID_SERVER_URL);
+  }
+  // GitLab.com answers on one host; www redirects there, and redirects are refused.
+  return ok(normalized.replace(/^https:\/\/www\.gitlab\.com(?=\/|$)/i, "https://gitlab.com"));
 }
 
 /** Also refuses a public name that resolves to a private address. */

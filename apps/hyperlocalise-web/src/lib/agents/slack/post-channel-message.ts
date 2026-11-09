@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createSlackAdapter } from "@chat-adapter/slack";
 import { Chat, type Adapter } from "chat";
 
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
@@ -47,8 +48,6 @@ async function initializeSlackChat(): Promise<SlackChat> {
   if (!env.SLACK_CLIENT_ID || !env.SLACK_CLIENT_SECRET || !env.SLACK_SIGNING_SECRET) {
     throw new Error("missing Slack bot configuration");
   }
-
-  const { createSlackAdapter } = await import("@chat-adapter/slack");
 
   const slackChat = new Chat({
     adapters: {

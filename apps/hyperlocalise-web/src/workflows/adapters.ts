@@ -34,6 +34,7 @@ import type {
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
+  ProjectContentSyncQueue,
   SourceFileIngestQueue,
   TranslationFileImportQueue,
   WorkspaceAutomationExecutionQueue,
@@ -234,6 +235,24 @@ export function createLocalisationAuditReportEmailQueue(): LocalisationAuditRepo
       const { localisationAuditReportEmailWorkflow } =
         await import("@/workflows/localisation-audit-report-email");
       const run = await start(localisationAuditReportEmailWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createProjectContentSyncQueue(): ProjectContentSyncQueue {
+  return {
+    async enqueue(event) {
+      if (shouldRunWorkflowInlineLocally()) {
+        // Not awaited: a sync clones the repository and can take minutes, and Sync now must answer at once.
+        const { executeProjectContentSyncRun } =
+          await import("@/lib/projects/content-sync/project-content-sync");
+        void executeProjectContentSyncRun(event);
+        return { ids: ["local_inline_project_content_sync"] };
+      }
+
+      const { projectContentSyncWorkflow } = await import("@/workflows/project-content-sync");
+      const run = await start(projectContentSyncWorkflow, [event]);
       return { ids: [run.runId] };
     },
   };

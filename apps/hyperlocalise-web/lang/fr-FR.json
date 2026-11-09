@@ -782,6 +782,9 @@
   "/FnHAPAn3P": {
     "defaultMessage": "Choisissez une connexion pour autoriser l’installation de cette application Canva."
   },
+  "/FxKqT7rxo": {
+    "defaultMessage": "Cette synchronisation a été supprimée. Rechargez la page pour la configurer à nouveau."
+  },
   "/GID42o6lx": {
     "defaultMessage": "Du pull request à la porte de mise en production"
   },
@@ -989,6 +992,9 @@
   "/avsY2MZtR": {
     "defaultMessage": "Preferred"
   },
+  "/ayzi+h3Zt": {
+    "defaultMessage": "Connexion GitLab supprimée."
+  },
   "/bDXY5b2qg": {
     "defaultMessage": "Invitation révoquée"
   },
@@ -1141,6 +1147,9 @@
   },
   "/vxavoK/xz": {
     "defaultMessage": "LinkedIn"
+  },
+  "/w3K1Pwx24": {
+    "defaultMessage": "Connexion supprimée"
   },
   "/wIWjD2LD2": {
     "defaultMessage": "Jetons"
@@ -1751,6 +1760,9 @@
   "0ug9As7ELn": {
     "defaultMessage": "Définissez le playbook une seule fois. Les agents s’occupent des tâches répétitives afin que vous puissiez couvrir davantage de marchés sans agrandir l’équipe — les réviseurs n’interviennent que pour les décisions nécessitant un jugement."
   },
+  "0ulsI+XIyW": {
+    "defaultMessage": "La synchronisation n’a pas été terminée à temps."
+  },
   "0vM9ZUQzKc": {
     "defaultMessage": "Contribuez aux tâches et exécutez des actions d’IA ; approuvez les révisions et effectuez des écritures rétrospectives. Aucune administration de l’organisation."
   },
@@ -1855,6 +1867,9 @@
   },
   "15zAdlHpmJ": {
     "defaultMessage": "HubSpot"
+  },
+  "16jzdfV84U": {
+    "defaultMessage": "Par défaut"
   },
   "16sYDMkqBx": {
     "defaultMessage": "Non. Connectez le site que vous avez déjà. Domains le publie et le vérifie. Vous pouvez également publier depuis Content Studio."
@@ -2027,11 +2042,17 @@
   "1SarEJV+CO": {
     "defaultMessage": "Le problème n’a jamais été le talent des équipes de localisation. C’est qu’on attendait d’elles qu’elles développent leurs connaissances plus rapidement que ne pourrait le faire n’importe quelle équipe humaine."
   },
+  "1SmOqBo4fU": {
+    "defaultMessage": "Cette connexion pointe vers un autre serveur : les automatisations désignent un projet par son chemin, elles basculeront donc elles aussi vers ce serveur, et les conversations cesseront d’utiliser les projets de celui-ci."
+  },
   "1StG7IXt4v": {
     "defaultMessage": "Alimenter les résultats locaux dans le cycle suivant"
   },
   "1ToGNDd6TO": {
     "defaultMessage": "Fichiers"
+  },
+  "1U++3URWS4": {
+    "defaultMessage": "Dossier du dépôt"
   },
   "1U9PZ5VcN2": {
     "defaultMessage": "Effacer"
@@ -2456,6 +2477,9 @@
   "29NlUC9+y8": {
     "defaultMessage": "GPT-5.6 Sol (rapide)"
   },
+  "29x/gSNhzG": {
+    "defaultMessage": "Choisir…"
+  },
   "2ACZd8DTJY": {
     "defaultMessage": "Lieu"
   },
@@ -2470,6 +2494,9 @@
   },
   "2B2vocYfiC": {
     "defaultMessage": "Télécharger la vue filtrée"
+  },
+  "2BDMq4KV+/": {
+    "defaultMessage": "Vous pouvez voir ces paramètres, mais pas les modifier."
   },
   "2BaYUyVX1c": {
     "defaultMessage": "Afficher la clé API"
@@ -2957,6 +2984,9 @@
   "32sQGI6Lre": {
     "defaultMessage": "Ciblez les visiteurs avec des règles d’attributs évaluées en temps réel"
   },
+  "33J0ngE9lx": {
+    "defaultMessage": "Impossible de supprimer la connexion GitLab."
+  },
   "33PBu8aQXh": {
     "defaultMessage": "Activer d’abord"
   },
@@ -3193,6 +3223,9 @@
   },
   "3UtT5HKUXH": {
     "defaultMessage": "Continue"
+  },
+  "3V79KDlgh2": {
+    "defaultMessage": "Ouvrir la pull request"
   },
   "3VQO3rGiUE": {
     "defaultMessage": "Copier la sortie du terminal"
@@ -3464,6 +3497,9 @@
   "3y5ogrzNWd": {
     "defaultMessage": "Priority"
   },
+  "3yWat7D9eo": {
+    "defaultMessage": "Chemins des fichiers de langue"
+  },
   "3yZFMdlOT1": {
     "defaultMessage": "Aidez l’IA à répondre avec votre page."
   },
@@ -3593,6 +3629,9 @@
   "4895zl1/X5": {
     "defaultMessage": "Glossary"
   },
+  "48BU/b+yFc": {
+    "defaultMessage": "Branche"
+  },
   "48liY3M4is": {
     "defaultMessage": "Pages"
   },
@@ -3685,6 +3724,9 @@
   },
   "4Jm91tEu1i": {
     "defaultMessage": "Conserver notre TMS tout en ajoutant des workflows agents, c’est ce qui fait la différence."
+  },
+  "4JyzfnXrai": {
+    "defaultMessage": "Une synchronisation GitHub clone le dépôt, supprime les clés que le dépôt a supprimées et renvoie toutes les traductions, sauf celles qui ont été rejetées, dans une pull request, qu’elles aient été révisées ou non."
   },
   "4Jz0LdypFu": {
     "defaultMessage": "Impossible de restaurer la version."
@@ -3926,6 +3968,9 @@
   "4nvKEU8P6F": {
     "defaultMessage": "Outils"
   },
+  "4oWir+lPBP": {
+    "defaultMessage": "Synchronisations récentes"
+  },
   "4p/SsmkJuR": {
     "defaultMessage": "Vérifiez cette accroche de lancement en allemand par rapport à Brand-claims-policy.pdf : « Notre plateforme d’IA unique en son genre est cliniquement prouvée. »"
   },
@@ -4018,6 +4063,9 @@
   },
   "4z9+RgG2Ms": {
     "defaultMessage": "Les calques de texte ont changé. Régénérez l’image pour les appliquer avant de l’approuver."
+  },
+  "4zBhSf3vTo": {
+    "defaultMessage": "Opération"
   },
   "4zEqWvETM+": {
     "defaultMessage": "Paramètres régionaux : {value}"
@@ -4127,6 +4175,9 @@
   "58rI5iuou2": {
     "defaultMessage": "Évalué par l’IA, mais non noté ({count})"
   },
+  "5954s2fe1F": {
+    "defaultMessage": "Les discussions et les automatisations utiliseront {name} à la place."
+  },
   "59CKJeZUxb": {
     "defaultMessage": "Code d’échec"
   },
@@ -4201,6 +4252,9 @@
   },
   "5G9CHzXNWL": {
     "defaultMessage": "Privacy"
+  },
+  "5GsfnkqQvS": {
+    "defaultMessage": "Sérialiser une valeur structurée en texte JSON."
   },
   "5H+UdOBSV9": {
     "defaultMessage": "Correspondance de contexte"
@@ -4330,6 +4384,9 @@
   },
   "5V5XZ84WTf": {
     "defaultMessage": "Choisir un responsable"
+  },
+  "5VQvCOhS8Q": {
+    "defaultMessage": "Filtrer, mapper, réduire ou rechercher des valeurs dans une collection ordonnée."
   },
   "5Wfh7kerri": {
     "defaultMessage": "Autumn n’est pas configuré dans cet environnement. Ajoutez une AUTUMN_API_KEY de sandbox pour activer la facturation pour cet espace de travail."
@@ -4688,6 +4745,9 @@
   "6A1bUgl3t/": {
     "defaultMessage": "Annuler"
   },
+  "6A1cbaLTLI": {
+    "defaultMessage": "Le jeton de la connexion ne peut pas lire les fichiers de ce dépôt : son rôle sur ce dépôt est inférieur à Reporter. Attribuez-lui au moins le rôle Reporter, et le rôle Développeur pour envoyer des demandes de fusion."
+  },
   "6AKflqYexI": {
     "defaultMessage": "Les résultats sélectionnés comportent déjà des commentaires du prestataire"
   },
@@ -4735,6 +4795,9 @@
   },
   "6GvRaMOu4p": {
     "defaultMessage": "Créez d’abord une clé API avec les autorisations d’accès aux fichiers et aux tâches."
+  },
+  "6HbWUjcTj7": {
+    "defaultMessage": "Dépôt"
   },
   "6Hh/TB07+q": {
     "defaultMessage": "Choisissez un fichier TMX ou CSV."
@@ -4786,6 +4849,9 @@
   },
   "6N3tTQGcSO": {
     "defaultMessage": "Quelqu’un"
+  },
+  "6N5DoenBFR": {
+    "defaultMessage": "Avec quelle connexion GitLab de l’espace de travail cette synchronisation s’exécute. Le chat et les automatisations utilisent la connexion par défaut."
   },
   "6NDLX93t5d": {
     "defaultMessage": "Synchronisation du contenu"
@@ -6014,6 +6080,9 @@
   "8bfW3Jqg2b": {
     "defaultMessage": "Brouillon"
   },
+  "8bfWDHVAiv": {
+    "defaultMessage": "Emplacement des fichiers de chaque langue dans le dossier du dépôt, avec {placeholder} pour le code de langue : fr désigne votre unique langue française, fr-FR désigne uniquement fr-FR. Les fichiers de la langue source sont importés ; * correspond aux correspondances dans un dossier et ** aux correspondances dans tous les dossiers."
+  },
   "8bpns6mW0p": {
     "defaultMessage": "Méthode d'authentification"
   },
@@ -6238,6 +6307,9 @@
   },
   "9/pQQpDU+H": {
     "defaultMessage": "Attribuez des agents IA pour traduire, réviser et synchroniser le contenu tout en plaçant la révision humaine au premier plan. Restez flexible entre les fournisseurs de LLM et les plateformes TMS."
+  },
+  "9/rHOO9Hcc": {
+    "defaultMessage": "Une synchronisation est en cours. Vous pourrez en démarrer une autre lorsqu’elle sera terminée."
   },
   "90JdQQe9zz": {
     "defaultMessage": "Corps"
@@ -6908,6 +6980,9 @@
   "ACTAy3p5p3": {
     "defaultMessage": "Corrigé"
   },
+  "ACmO8h4/+b": {
+    "defaultMessage": "Schéma"
+  },
   "ACud1VtN9i": {
     "defaultMessage": "Nom d’affichage"
   },
@@ -7078,6 +7153,9 @@
   },
   "AVWmFSjbP6": {
     "defaultMessage": "Mémoire de traduction"
+  },
+  "AVXDmG66Yd": {
+    "defaultMessage": "Une synchronisation est déjà en cours."
   },
   "AVpQwXJaXX": {
     "defaultMessage": "Créez une clé et envoyez-la à la personne qui intègre Hyperlab à votre site web."
@@ -7430,6 +7508,9 @@
   "BBrh+7z4Oj": {
     "defaultMessage": "Impossible de charger les domaines associés."
   },
+  "BBsS8wxmqc": {
+    "defaultMessage": "Utiliser pour le chat et les automatisations"
+  },
   "BC+EYtp52c": {
     "defaultMessage": "Utilisateur"
   },
@@ -7513,6 +7594,9 @@
   },
   "BKxL4swmsj": {
     "defaultMessage": "Versions"
+  },
+  "BL4Aw/xqvM": {
+    "defaultMessage": "Connectez GitLab dans Intégrations pour synchroniser ce projet. La synchronisation d’un dépôt GitHub se configure dans ses paramètres d’automatisation."
   },
   "BLCf0utxhq": {
     "defaultMessage": "Cette chaîne est verrouillée. Déverrouillez-la pour la modifier."
@@ -7784,6 +7868,9 @@
   "BrzNDtGGWt": {
     "defaultMessage": "Envoi…"
   },
+  "Bs57lrRswl": {
+    "defaultMessage": "{count, plural, one {# clé a été masquée parce que le dépôt ne la contient plus} other {# clés ont été masquées parce que le dépôt ne les contient plus}}"
+  },
   "BsHGinE5HI": {
     "defaultMessage": "Un enregistrement durable de cette importation de mémoire de traduction."
   },
@@ -7816,6 +7903,9 @@
   },
   "BxEHMhUBpO": {
     "defaultMessage": "Équipe mise à jour"
+  },
+  "BxGtFLZNTw": {
+    "defaultMessage": "Le dossier du dépôt est introuvable ou illisible."
   },
   "BxVa0XAhsz": {
     "defaultMessage": "Cette page n’est plus valide. Affichage de la première page."
@@ -7852,6 +7942,9 @@
   },
   "C0LtvlP3Fa": {
     "defaultMessage": "Voir le problème d’origine"
+  },
+  "C0fLYasN09": {
+    "defaultMessage": "Connexion GitLab enregistrée."
   },
   "C0jp5QUb8B": {
     "defaultMessage": "Iterable"
@@ -7976,6 +8069,9 @@
   "CCHRUS19n3": {
     "defaultMessage": "Aucune catégorie trouvée."
   },
+  "CCuCNrvni7": {
+    "defaultMessage": "Utilisez un jeton d’accès de projet ou de groupe, ou un compte dédié appartenant uniquement aux projets à synchroniser : toute personne ici a accès à ce à quoi le jeton donne accès. Rôle : Développeur pour envoyer des demandes de fusion, Rapporteur pour récupérer uniquement. Portées : api pour envoyer des demandes de fusion ; avec read_api et read_repository uniquement, les synchronisations récupèrent les traductions et indiquent qu’elles n’ont pas été envoyées. Définissez une date d’expiration."
+  },
   "CDHpNJeAfK": {
     "defaultMessage": "Tout est à jour"
   },
@@ -7996,6 +8092,9 @@
   },
   "CEaPOoMSXx": {
     "defaultMessage": "Delete"
+  },
+  "CEvOadGE6K": {
+    "defaultMessage": "Supprimer"
   },
   "CFK4BGiWin": {
     "defaultMessage": "État de l’avis"
@@ -8137,6 +8236,9 @@
   },
   "CT9/X7v9OM": {
     "defaultMessage": "Lien"
+  },
+  "CTGr9CwLJv": {
+    "defaultMessage": "Impossible de charger les paramètres de synchronisation."
   },
   "CTI9kmmWqH": {
     "defaultMessage": "{count, plural, one {# projet} other {# projets}}"
@@ -8582,6 +8684,9 @@
   "DChuKVBoeL": {
     "defaultMessage": "Agnostique au LLM"
   },
+  "DCn9Wmv+Wt": {
+    "defaultMessage": "Échoué"
+  },
   "DDkCNI/bRQ": {
     "defaultMessage": "vous avez demandé"
   },
@@ -8596,6 +8701,9 @@
   },
   "DFNppqOCak": {
     "defaultMessage": "Créer un projet"
+  },
+  "DGiD4orSjR": {
+    "defaultMessage": "Se connecter à"
   },
   "DGx/LlMkDv": {
     "defaultMessage": "Ajouter des consignes de traduction"
@@ -8860,6 +8968,9 @@
   },
   "DiXV/bkiCg": {
     "defaultMessage": "Les designs localisés depuis Canva sont stockés dans ce projet."
+  },
+  "Diw4K6SV2n": {
+    "defaultMessage": "Connectez GitLab dans Intégrations pour synchroniser depuis GitLab."
   },
   "DjyFDSQhTb": {
     "defaultMessage": "Découvrez le monde sous un jour différent."
@@ -9185,8 +9296,14 @@
   "EIFZa0D92d": {
     "defaultMessage": "Voir tous les détails des tarifs"
   },
+  "EIpgZS0MVO": {
+    "defaultMessage": "Toutes les heures"
+  },
   "EIzyJsuyBD": {
     "defaultMessage": "Impossible de charger la connexion à Mailchimp pour le moment."
+  },
+  "EJ9REmTRCU": {
+    "defaultMessage": "Il est en lecture seule (sans la portée api) : les synchronisations récupèrent les modifications, mais ne peuvent pas soumettre de demandes de fusion."
   },
   "EJHq4HC1h1": {
     "defaultMessage": "Assistance à l’examen de sécurité"
@@ -9198,10 +9315,13 @@
     "defaultMessage": "Lancez des expérimentations de marché et affichez différentes fonctionnalités selon le pays. Hyperlab vous indique ce qui fonctionne, puis vous déployez cette version partout."
   },
   "EKx1s7RxNY": {
-    "defaultMessage": "via {name} ({prefix})"
+    "defaultMessage": "avec {name} ({prefix})"
   },
   "EKyvEH55l4": {
     "defaultMessage": "Constats non répertoriés dans les critères ci-dessus."
+  },
+  "ELF+12oSuA": {
+    "defaultMessage": "Paramètres de synchronisation enregistrés."
   },
   "ELSLC4cOgT": {
     "defaultMessage": "Expérimentez sur différents marchés. Mesurez ce qui fonctionne. Développez ce qui est performant."
@@ -9451,6 +9571,9 @@
   },
   "Ehcy1DdQ49": {
     "defaultMessage": "Fonctionne sur GitHub, les TMS et les outils de publication"
+  },
+  "EiXxrmIRgk": {
+    "defaultMessage": "{name} (lecture seule)"
   },
   "Ej5U0a0604": {
     "defaultMessage": "Instructions pour l’agent"
@@ -10070,6 +10193,9 @@
   "FqCBwFx5md": {
     "defaultMessage": "Contexte GTM rappelé pour le lancement du produit au Japon"
   },
+  "FqY/BvkEQe": {
+    "defaultMessage": "Il peut récupérer et envoyer des demandes de fusion."
+  },
   "FqcQ3Q8Id9": {
     "defaultMessage": "Copier le JSON"
   },
@@ -10147,6 +10273,9 @@
   },
   "G1T9+1x7MC": {
     "defaultMessage": "{actor} a associé ceci à {relatedIssue}"
+  },
+  "G1iUqTOOGV": {
+    "defaultMessage": "Démarré manuellement"
   },
   "G1is+5n2E6": {
     "defaultMessage": "Capturez les corrections des relecteurs, les décisions du glossaire, le contexte du produit et les préférences du marché afin que chaque flux de travail de localisation démarre plus intelligemment."
@@ -10309,6 +10438,9 @@
   },
   "GOImV2QS+V": {
     "defaultMessage": "Impossible de supprimer le projet"
+  },
+  "GOvSvuh32/": {
+    "defaultMessage": "GitLab indique que le rôle de cette connexion sur ce dépôt est inférieur à celui de Développeur. Les synchronisations peuvent donc récupérer les modifications, mais ne pourront peut-être pas créer de demandes de fusion. Attribuez le rôle Développeur à l’utilisateur ou au groupe associé à son jeton pour pouvoir en créer."
   },
   "GOx0phpLcM": {
     "defaultMessage": "Gérer les projets, intégrations, identifiants, équipes et ressources de connaissances, approuver les révisions et effectuer les réécritures."
@@ -10565,6 +10697,9 @@
   "GqjLAPYWZT": {
     "defaultMessage": "Lister les problèmes"
   },
+  "GqszOf+J5n": {
+    "defaultMessage": "Supprimer la connexion"
+  },
   "Gs4Pgl/iTx": {
     "defaultMessage": "Facultatif. Instructions supplémentaires de révision de la localisation pour cet espace de travail."
   },
@@ -10630,6 +10765,9 @@
   },
   "GygH5eMQXV": {
     "defaultMessage": "Hebdomadaire"
+  },
+  "Gz+qUGue0p": {
+    "defaultMessage": "Impossible d’enregistrer la connexion GitLab."
   },
   "Gz/Ip82h05": {
     "defaultMessage": "Chemin source"
@@ -11024,6 +11162,9 @@
   "HfKaBbYViW": {
     "defaultMessage": "Restant"
   },
+  "HgPHDYcLMY": {
+    "defaultMessage": "Synchroniser maintenant"
+  },
   "HhB3zV2KR/": {
     "defaultMessage": "Chat web"
   },
@@ -11062,6 +11203,9 @@
   },
   "HmM5vdsqD+": {
     "defaultMessage": "Close"
+  },
+  "HmWwCwYFtV": {
+    "defaultMessage": "Type d’élément"
   },
   "HmXZYnVvj0": {
     "defaultMessage": "Ces étapes effectuent de véritables appels lors de cette exécution de test. Les actions qu’elles effectuent ont réellement lieu et ne peuvent pas être annulées."
@@ -11185,6 +11329,9 @@
   },
   "HxWBdm4nhz": {
     "defaultMessage": "Traductions non enregistrées"
+  },
+  "HxWOvKpnhC": {
+    "defaultMessage": "La suppression de cette connexion affectera tout le monde dans l’espace de travail. {count, plural, =0 {} one {# synchronisation de projet l’utilise et s’arrêtera jusqu’à ce qu’une autre connexion lui soit attribuée.} other {# synchronisations de projet l’utilisent et s’arrêteront jusqu’à ce qu’une autre connexion leur soit attribuée.}}"
   },
   "HxXrdebYXD": {
     "defaultMessage": "Dernières 24 heures"
@@ -11437,6 +11584,9 @@
   },
   "IROF4KmxXQ": {
     "defaultMessage": "Estimation incomplète"
+  },
+  "IRQWT9S62n": {
+    "defaultMessage": "Le jeton GitLab enregistré de l’espace de travail ne peut pas être lu. Enregistrez à nouveau la connexion dans Intégrations."
   },
   "IRcbylygLF": {
     "defaultMessage": "Révisé"
@@ -12001,6 +12151,9 @@
   },
   "JQuMZXhBtU": {
     "defaultMessage": "Saisissez un JSON valide."
+  },
+  "JRHfM8uH3R": {
+    "defaultMessage": "Uniquement lorsque je clique sur Synchroniser maintenant"
   },
   "JRTnSLtq//": {
     "defaultMessage": "Intercom"
@@ -12788,6 +12941,9 @@
   "L0gachMRlZ": {
     "defaultMessage": "Base de termes"
   },
+  "L13hAmUXIJ": {
+    "defaultMessage": "Valider une valeur par rapport à un schéma structuré avec des limites."
+  },
   "L14GgyGrCO": {
     "defaultMessage": "Annuler le rechargement de l’automatisation enregistrée"
   },
@@ -13010,6 +13166,9 @@
   "LPr1xWZqN2": {
     "defaultMessage": "Annuler l’abandon de vos modifications"
   },
+  "LQPCUXFTmO": {
+    "defaultMessage": "Le chat et les automatisations utilisent maintenant {name}."
+  },
   "LQqGbywv5w": {
     "defaultMessage": "No recommendations were found. You can continue with no markets and add them later."
   },
@@ -13135,6 +13294,9 @@
   },
   "Lfo/HfkA0U": {
     "defaultMessage": "Utilisation de l’IA"
+  },
+  "LgF4rByVBa": {
+    "defaultMessage": "Valeur initiale"
   },
   "LgOdyUATt4": {
     "defaultMessage": "Aucune IA n’a été utilisée à ces dates avec ces filtres."
@@ -13508,6 +13670,9 @@
   "MHGSRfE0a7": {
     "defaultMessage": "Échec de l’audit"
   },
+  "MHOYy5Rwc3": {
+    "defaultMessage": "Les chats et les automatisations utilisent cette connexion. Les automatisations identifient un projet par son chemin : si vous les dirigez vers un autre serveur, elles sont également transférées, et les chats cessent d’utiliser les projets de l’ancien serveur."
+  },
   "MHiaxGXuxI": {
     "defaultMessage": "Libellé du bouton · Doit rester compact sur mobile"
   },
@@ -13736,6 +13901,9 @@
   "MikRGST8w6": {
     "defaultMessage": "Ouvrez l’e-mail d’invitation envoyé par l’administrateur de votre espace de travail et terminez l’acceptation de l’invitation, puis connectez-vous à nouveau. Si vous l’avez déjà acceptée, utilisez Réessayer pour actualiser votre adhésion."
   },
+  "Mj8cMFDFRg": {
+    "defaultMessage": "Choisissez un dépôt"
+  },
   "MjW+xFl6ux": {
     "defaultMessage": "Transformez les nouveaux articles d’aide et les articles mis à jour en traductions relues, synchronisez-les avec votre CMS et surveillez leur fraîcheur afin que les clients ne lisent jamais de conseils obsolètes."
   },
@@ -13774,6 +13942,9 @@
   },
   "MmdCe+3eSk": {
     "defaultMessage": "Connectez Google Drive, Notion et SharePoint, ou saisissez directement vos consignes. Les agents les lisent et signalent ce qui ne correspond pas."
+  },
+  "MnS30u+aA3": {
+    "defaultMessage": "par exemple {example}"
   },
   "MnuXzcJn6d": {
     "defaultMessage": "{count} P1 sur les requêtes"
@@ -13849,6 +14020,9 @@
   },
   "MtaQi7PiPN": {
     "defaultMessage": "Général"
+  },
+  "MtgG06vtLX": {
+    "defaultMessage": "Il ne peut lire aucun projet : attribuez à son utilisateur ou à son groupe au moins le rôle de Reporter sur les projets à synchroniser, et le rôle de Developer pour envoyer des demandes de fusion."
   },
   "MuUohGqmxo": {
     "defaultMessage": "Tâche créée"
@@ -14159,8 +14333,14 @@
   "NRH7Cv54cL": {
     "defaultMessage": "Réduire {status}"
   },
+  "NRQuibW48k": {
+    "defaultMessage": "Ouvrir la demande de fusion"
+  },
   "NRfaLdr7/e": {
     "defaultMessage": "Ajouter {name} ?"
+  },
+  "NSI7HOMKgo": {
+    "defaultMessage": "Les connexions que vous ajoutez ici sont partagées avec tous les membres de l’espace de travail : le chat et les automatisations utilisent celle par défaut, et les paramètres de synchronisation de chaque projet en sélectionnent une. Chacune donne accès à tout ce auquel son jeton permet d’accéder. Dès qu’il en existe une, les connexions personnelles des membres à GitLab.com ne sont plus utilisées."
   },
   "NSbs2IoiBz": {
     "defaultMessage": "Votre agent est prêt"
@@ -14492,6 +14672,9 @@
   "O1hmkcilYp": {
     "defaultMessage": "Aperçus sur l'hyperlocalisation, l'intelligence de la traduction et la création de workflows de localisation pour les équipes internationales."
   },
+  "O2+CxE1DPu": {
+    "defaultMessage": "GitLab.com"
+  },
   "O2AgYH2fic": {
     "defaultMessage": "Inspectez les traductions proposées par l’agent avant de repousser les modifications approuvées vers le fournisseur."
   },
@@ -14545,6 +14728,9 @@
   },
   "O9HkCEOzPy": {
     "defaultMessage": "Jobs"
+  },
+  "O9WSf08ndF": {
+    "defaultMessage": "Non configuré"
   },
   "OAZ7oFBkRI": {
     "defaultMessage": "{count, plural, one {# nouvelle erreur de QA} other {# nouvelles erreurs de QA}} depuis l'analyse précédente"
@@ -14729,6 +14915,9 @@
   "OWsqdkxxfx": {
     "defaultMessage": "Impossible de charger l’état de la connexion à Google Drive."
   },
+  "OXAVWnTukA": {
+    "defaultMessage": "GitLab"
+  },
   "OXTjKr806t": {
     "defaultMessage": "Choisissez un fichier CSV"
   },
@@ -14767,6 +14956,12 @@
   },
   "Oam8wqCN9r": {
     "defaultMessage": "Connexion Webflow supprimée."
+  },
+  "OawVGF0jzY": {
+    "defaultMessage": "Save"
+  },
+  "ObksDhMzPR": {
+    "defaultMessage": "{written, plural, =0 {Aucune nouvelle traduction à envoyer} one {# fichier traduit envoyé} other {# fichiers traduits envoyés}}"
   },
   "Obrc0xXXmw": {
     "defaultMessage": "Connecté"
@@ -14833,6 +15028,9 @@
   },
   "Ok15bFijfb": {
     "defaultMessage": "Terminologie produit mise à jour"
+  },
+  "Ol/CLajqiN": {
+    "defaultMessage": "Réussi"
   },
   "OlLKnWDUCM": {
     "defaultMessage": "Idéal pour la plupart des domaines."
@@ -14986,6 +15184,9 @@
   },
   "P1e3b+MNYt": {
     "defaultMessage": "Masquer les caractères Unicode"
+  },
+  "P1sxklxMwY": {
+    "defaultMessage": "Le serveur GitLab de votre entreprise"
   },
   "P2BhUXKrFa": {
     "defaultMessage": "Rejeté"
@@ -15437,6 +15638,9 @@
   "PsCe6RXT6P": {
     "defaultMessage": "Connectez Contentful dans les intégrations avant de pouvoir exécuter ce déclencheur."
   },
+  "PsfScgqwTN": {
+    "defaultMessage": "par exemple {example}"
+  },
   "PslOM8EEdU": {
     "defaultMessage": "Tentée"
   },
@@ -15637,6 +15841,9 @@
   },
   "QG31S8uFy7": {
     "defaultMessage": "Suivez chaque langue dans une seule campagne — qui effectue la révision, ce qui est approuvé et ce qui nécessite encore votre attention — sans changer d’outil."
+  },
+  "QG9yuQhA60": {
+    "defaultMessage": "sync"
   },
   "QGaxqP2Jqi": {
     "defaultMessage": "Non. Hyperlab fonctionne avec le site et le contenu que vous avez déjà. Il détermine la version que chaque visiteur voit."
@@ -16199,6 +16406,9 @@
   "RIwi4j2nfJ": {
     "defaultMessage": "Tout sélectionner"
   },
+  "RJLxYJk50b": {
+    "defaultMessage": "et {more, number} autres"
+  },
   "RJqS5CWiIH": {
     "defaultMessage": "new-headline"
   },
@@ -16261,6 +16471,9 @@
   },
   "RQv/LERmVL": {
     "defaultMessage": "Créer un job"
+  },
+  "RRTJeJffFC": {
+    "defaultMessage": "La synchronisation s’est arrêtée de manière inattendue."
   },
   "RRjkhCG4Cs": {
     "defaultMessage": "Impossible de charger les rapports d’assurance qualité."
@@ -16361,6 +16574,9 @@
   "Ra7PJXU8aK": {
     "defaultMessage": "Accès refusé"
   },
+  "RaStbLcbsa": {
+    "defaultMessage": "Impossible de supprimer la synchronisation."
+  },
   "Rb4oe0xPau": {
     "defaultMessage": "Rapport"
   },
@@ -16417,6 +16633,9 @@
   },
   "Rgp/V+Ndcw": {
     "defaultMessage": "Motif de l’échec"
+  },
+  "RhYn29mibB": {
+    "defaultMessage": "Saisissez du texte JSON ou connectez la sortie d’une chaîne provenant d’une étape précédente."
   },
   "RhmMBU70/7": {
     "defaultMessage": "E-mail de campagne de lancement"
@@ -16529,6 +16748,9 @@
   "RtEbYHhw1P": {
     "defaultMessage": "Problèmes"
   },
+  "RtFvRzHXme": {
+    "defaultMessage": "Planifié"
+  },
   "RtU7kH2epq": {
     "defaultMessage": "Sélectionnez un projet"
   },
@@ -16618,6 +16840,9 @@
   },
   "S2yOKsAuHb": {
     "defaultMessage": "Days, not months"
+  },
+  "S3Dsv7C7Nh": {
+    "defaultMessage": "Supprimer la synchronisation"
   },
   "S3hIFEOuBV": {
     "defaultMessage": "À"
@@ -17411,6 +17636,9 @@
   "TWyi7AS4VO": {
     "defaultMessage": "Un dossier par langue — vi-VN/overview.docx"
   },
+  "TX+fYK8q8U": {
+    "defaultMessage": "Service de dépôt"
+  },
   "TXP1gdWAFX": {
     "defaultMessage": "Corrigez les erreurs de règle SRX avant d’enregistrer : {detail}"
   },
@@ -17569,6 +17797,9 @@
   },
   "TnzQT7gNHf": {
     "defaultMessage": "Copier le code"
+  },
+  "TooKILigu3": {
+    "defaultMessage": "Le chat et les automatisations repassent aux connexions GitLab.com personnelles des membres jusqu’à l’ajout d’une nouvelle connexion."
   },
   "TosoMhOGUj": {
     "defaultMessage": "Synchronisation du contenu"
@@ -17915,6 +18146,9 @@
   "UOISryu9xO": {
     "defaultMessage": "Tous les projets"
   },
+  "UOMRfGQ0jp": {
+    "defaultMessage": "Les traductions n'ont pas été envoyées : {reason}"
+  },
   "UOrQi3aNyW": {
     "defaultMessage": "Les tâches TMS en direct n’ont pas pu être chargées."
   },
@@ -18206,6 +18440,9 @@
   "UwAnfXP81g": {
     "defaultMessage": "Cette demande de connexion à Figma est manquante ou a expiré."
   },
+  "UwEjMjlBD5": {
+    "defaultMessage": "Chemins des fichiers de langue"
+  },
   "Uwe1uvQEJi": {
     "defaultMessage": "visibilité des relations publiques"
   },
@@ -18271,6 +18508,9 @@
   },
   "V1BIkH6W+O": {
     "defaultMessage": "{displayName} connecté"
+  },
+  "V1PaomMYKB": {
+    "defaultMessage": "L’espace de travail n’est pas encore connecté à GitLab. Un administrateur peut le connecter dans Intégrations ; la connexion personnelle d’un membre à GitLab.com n’est pas utilisée pour les synchronisations."
   },
   "V1UeldRHjR": {
     "defaultMessage": "Il n’y a aucun bloc à traduire."
@@ -18364,6 +18604,9 @@
   },
   "VDIjD34xp9": {
     "defaultMessage": "Dépenses"
+  },
+  "VDeyA5c96f": {
+    "defaultMessage": "Une synchronisation GitLab lit le dépôt via son API, masque les clés supprimées du dépôt et renvoie les traductions approuvées dans une demande de fusion."
   },
   "VDktuK9D7C": {
     "defaultMessage": "Provider"
@@ -18650,6 +18893,9 @@
   "VoN3hfznUR": {
     "defaultMessage": "Réessayer"
   },
+  "VoQIrWE/6m": {
+    "defaultMessage": "Connexion à GitLab.com"
+  },
   "VoaTgvMGb7": {
     "defaultMessage": "Utiliser une valeur par défaut intégrée"
   },
@@ -18863,6 +19109,9 @@
   "WA49vhY6w5": {
     "defaultMessage": "Actualiser la liste des dépôts et les métadonnées depuis GitHub. Cela n’envoie ni ne récupère de traductions."
   },
+  "WAMmUgMIAk": {
+    "defaultMessage": "L’appartenance est déterminée automatiquement à partir des connexions partant du port de chaque élément."
+  },
   "WAOAGxwy+L": {
     "defaultMessage": "Témoignage client"
   },
@@ -19066,6 +19315,9 @@
   },
   "WZko2fwHOK": {
     "defaultMessage": "Vérification d’état GitHub"
+  },
+  "WZsGvl//q1": {
+    "defaultMessage": "Expire le {date}."
   },
   "Wa3kCtjTDm": {
     "defaultMessage": "Aperçu prêt"
@@ -19289,6 +19541,9 @@
   "WxCNLYrtLZ": {
     "defaultMessage": "vers la branche"
   },
+  "WxwypwDXoe": {
+    "defaultMessage": "Utilisez un jeton appartenant à un utilisateur non administrateur ayant le rôle Développeur sur les projets à synchroniser (le rôle Rapporteur permet uniquement de récupérer les modifications), ainsi que la portée api pour envoyer des demandes de fusion. Avec uniquement les portées read_api et read_repository, les synchronisations récupèrent les modifications et indiquent que les traductions n’ont pas été envoyées. Définissez une date d’expiration."
+  },
   "Wy1vE+UJqV": {
     "defaultMessage": "Recherche de mots-clés multilingue"
   },
@@ -19450,6 +19705,9 @@
   },
   "XFpqPsul6Y": {
     "defaultMessage": "Modifié : {fields}"
+  },
+  "XGVaZ97qQ9": {
+    "defaultMessage": "Synchronisez un dépôt GitHub depuis ses paramètres d’automatisation dans Intégrations."
   },
   "XH27tSt/JN": {
     "defaultMessage": "FRANÇAIS · TRADUCTION"
@@ -19741,6 +19999,9 @@
   },
   "XpeTF2YWKH": {
     "defaultMessage": "Modèle par défaut"
+  },
+  "Xpq2AJzIub": {
+    "defaultMessage": "Analyser le JSON"
   },
   "XqZ3cu2irp": {
     "defaultMessage": "Publier les traductions approuvées обратно"
@@ -20054,6 +20315,9 @@
   "YKrlBkbjMO": {
     "defaultMessage": "Un nom de marque par ligne. Nous les rechercherons à côté de ce domaine."
   },
+  "YLY+U5/DGl": {
+    "defaultMessage": "locales"
+  },
   "YLbt57UkC5": {
     "defaultMessage": "Échec de la déconnexion de Braze."
   },
@@ -20261,6 +20525,12 @@
   "YiZ5ttL/m5": {
     "defaultMessage": "Vos modifications ont de nouveau été abandonnées."
   },
+  "Yj1IVsPHUq": {
+    "defaultMessage": "Une synchronisation est en cours. Supprimez-la une fois terminée."
+  },
+  "YjRk5tT6GE": {
+    "defaultMessage": "Utilisez un objet de schéma JSON borné. Les références distantes ne sont pas prises en charge."
+  },
   "YjdAJSrtAi": {
     "defaultMessage": "Élément de texte {index}"
   },
@@ -20315,6 +20585,9 @@
   "Yo96f8fXbJ": {
     "defaultMessage": "Lumière du jour"
   },
+  "YoEqgQgzqb": {
+    "defaultMessage": "Valider le schéma"
+  },
   "YoNT/y/382": {
     "defaultMessage": "Choisissez un projet"
   },
@@ -20359,6 +20632,9 @@
   },
   "YtKo2CQ5hL": {
     "defaultMessage": "Fonctionnalités d’IA"
+  },
+  "YvKNfbM9SW": {
+    "defaultMessage": "{count, plural, one {# fichier n’a pas été renvoyé} other {# fichiers n’ont pas été renvoyés}} : le format n’est pas encore pris en charge, ou la copie du dépôt n’a pas pu être lue."
   },
   "YvOtHkprF2": {
     "defaultMessage": "{providerName} est connecté via OAuth"
@@ -20569,6 +20845,9 @@
   },
   "ZIg96oUMGy": {
     "defaultMessage": "Impossible de charger les concepts"
+  },
+  "ZJ57VYQVaQ": {
+    "defaultMessage": "Valeur"
   },
   "ZJI5SD947D": {
     "defaultMessage": "Publics"
@@ -20810,6 +21089,9 @@
   "ZkAl1q2it8": {
     "defaultMessage": "Traiter comme une image"
   },
+  "ZkImYkaYlt": {
+    "defaultMessage": "Transformation de tableau"
+  },
   "ZkYSjdsJm0": {
     "defaultMessage": "Traduire {locale} avec l’agent"
   },
@@ -21022,6 +21304,9 @@
   },
   "a1ESTaNdyS": {
     "defaultMessage": "Reliez les tâches, les agents et la validation humaine dans des flux de travail reproductibles pour vos opérations de contenu."
+  },
+  "a1QYZOb8v/": {
+    "defaultMessage": "Prochaine synchronisation planifiée : {time}"
   },
   "a1Rp/rylyq": {
     "defaultMessage": "Créez une mémoire de traduction d’espace de travail, importez un fichier TMX ou CSV, puis affectez-la aux projets qui doivent l’utiliser."
@@ -21368,6 +21653,9 @@
   "afDLXVwU/G": {
     "defaultMessage": "Titre du problème"
   },
+  "afHUN4SiZD": {
+    "defaultMessage": "par exemple, dépôts de sites Web"
+  },
   "afM0hfkHOH": {
     "defaultMessage": "Derniers articles"
   },
@@ -21394,6 +21682,9 @@
   },
   "ahKQ/Hvzg2": {
     "defaultMessage": "Saisissez un montant en dollars américains, par exemple 120,50."
+  },
+  "ai2FI9MiCn": {
+    "defaultMessage": "Dossier de projet"
   },
   "ajjoHt03BE": {
     "defaultMessage": "Enregistrer {providerName}"
@@ -21538,6 +21829,9 @@
   },
   "b/Vd04dNDW": {
     "defaultMessage": "Hyperlocalise"
+  },
+  "b/d4N94nLn": {
+    "defaultMessage": "Branche par défaut"
   },
   "b/pQ8GedZy": {
     "defaultMessage": "L’assistant a mis à jour cette automatisation."
@@ -21734,6 +22028,9 @@
   "bI+YTOZIIO": {
     "defaultMessage": "“{name}” et ses versions seront supprimés. Cette action est irréversible."
   },
+  "bIBIV/XSnS": {
+    "defaultMessage": "Valeur"
+  },
   "bIhHNqhcPu": {
     "defaultMessage": "Enregistrer et localiser"
   },
@@ -21812,8 +22109,14 @@
   "bSLGYWqIO6": {
     "defaultMessage": "TXT DNS"
   },
+  "bSZGRrVpZH": {
+    "defaultMessage": "Importez les fichiers source depuis un dépôt et renvoyez les traductions finalisées sous forme de pull request ou de merge request."
+  },
   "bSoPJAmJQC": {
     "defaultMessage": "Cet audit est en file d’attente et commencera sous peu."
+  },
+  "bTTUPk+i8t": {
+    "defaultMessage": "Ce dépôt n’est pas activé dans les intégrations. Activez-le là-bas ou choisissez-en un autre."
   },
   "bUBd4XGtBI": {
     "defaultMessage": "Fonctionnalités d’IA"
@@ -22250,6 +22553,9 @@
   "cFLoSPa62D": {
     "defaultMessage": "Flux de travail visuels"
   },
+  "cFRjw0ewOm": {
+    "defaultMessage": "Type de résultat"
+  },
   "cFooypWUsT": {
     "defaultMessage": "Valeur secrète"
   },
@@ -22303,6 +22609,9 @@
   },
   "cMuLE7Fon0": {
     "defaultMessage": "Nécessite une révision"
+  },
+  "cN7lGns1+R": {
+    "defaultMessage": "Impossible d’enregistrer les paramètres de synchronisation."
   },
   "cO/T6pkJcW": {
     "defaultMessage": "6"
@@ -22601,6 +22910,9 @@
   "cthbIcABnk": {
     "defaultMessage": "Actualisez la page pour réessayer."
   },
+  "cu5L6vnd2u": {
+    "defaultMessage": "Un projet peut se synchroniser avec n’importe laquelle de ces connexions ; le chat et les automatisations utilisent celle par défaut. Ajoutez-en une avec un jeton limité aux dépôts auxquels elle doit accéder."
+  },
   "cu5vz2inFd": {
     "defaultMessage": "Importer des entrées"
   },
@@ -22832,6 +23144,9 @@
   "dHzZzNJO6i": {
     "defaultMessage": "Site web de production"
   },
+  "dIAjQ/dX+w": {
+    "defaultMessage": "{unmatched, plural, one {# fichier} other {# fichiers}} du dossier sans correspondance avec les chemins des fichiers de langue"
+  },
   "dIHTtzU056": {
     "defaultMessage": "L’audit n’a pas pu être terminé pour ce domaine."
   },
@@ -22948,6 +23263,9 @@
   },
   "dSYoXf1ZmK": {
     "defaultMessage": "Les jours sont en UTC."
+  },
+  "dSbL+8m8KU": {
+    "defaultMessage": "Utilisez un chemin de dossier dans le dépôt, comme locales."
   },
   "dStMwhojOw": {
     "defaultMessage": "08:00 UTC"
@@ -23083,6 +23401,9 @@
   },
   "df83PL1R8p": {
     "defaultMessage": "{provider} connecté"
+  },
+  "dfPeYtLjRq": {
+    "defaultMessage": "Synchronisation supprimée."
   },
   "dfVzkj5hWL": {
     "defaultMessage": "Workflow sans titre"
@@ -23357,11 +23678,17 @@
   "e3o5ny2S7S": {
     "defaultMessage": "Voyez le monde sous un autre jour."
   },
+  "e4UP1KeoEn": {
+    "defaultMessage": "{held, plural, one {# fichier de langue est en attente} other {# fichiers de langue sont en attente}} jusqu'à ce que toutes les traductions qu'il contient soient approuvées"
+  },
   "e4Xzg6LTW9": {
     "defaultMessage": "Des démonstrations de produits aux campagnes"
   },
   "e4ecBMTJAg": {
     "defaultMessage": "Date d’échéance mise à jour"
+  },
+  "e54flb2PR8": {
+    "defaultMessage": "Enregistrez vos modifications avant de synchroniser."
   },
   "e55K7kZph5": {
     "defaultMessage": "Hreflang, couverture des paramètres régionaux et qualité du contenu multilingue"
@@ -23804,6 +24131,9 @@
   "erXgCbsSqH": {
     "defaultMessage": "Exporter les résultats filtrés au format CSV"
   },
+  "erwKpxK+ds": {
+    "defaultMessage": "Impossible de démarrer la synchronisation."
+  },
   "es92Uya8hG": {
     "defaultMessage": "Directives"
   },
@@ -23965,6 +24295,9 @@
   },
   "f5Adx9k+6N": {
     "defaultMessage": "Partiellement approuvé"
+  },
+  "f5XgyzsBIQ": {
+    "defaultMessage": "Texte JSON"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Modifications non enregistrées"
@@ -24310,6 +24643,9 @@
   },
   "fkMZfbcJqG": {
     "defaultMessage": "ID de la variante"
+  },
+  "fkrYmhHuuT": {
+    "defaultMessage": "Impossible de charger les dépôts. Rechargez la page pour réessayer."
   },
   "flUWk1JFBu": {
     "defaultMessage": "Masquer les audits réussis"
@@ -24674,6 +25010,9 @@
   "gLjdVIWCoD": {
     "defaultMessage": "Deleting..."
   },
+  "gLwbnoGaiP": {
+    "defaultMessage": "{count, plural, one {# liste a été laissée telle qu'elle est dans le dépôt jusqu'à ce que chaque élément qu'elle contient soit approuvé} other {# listes ont été laissées telles qu'elles sont dans le dépôt jusqu'à ce que chaque élément qu'elles contiennent soit approuvé}}"
+  },
   "gMIZAR6HUF": {
     "defaultMessage": "Images"
   },
@@ -24685,6 +25024,9 @@
   },
   "gN0y8UhzTR": {
     "defaultMessage": "Impossible de supprimer le terme"
+  },
+  "gNGTIO7J5R": {
+    "defaultMessage": "Connectez d’abord GitLab dans Intégrations."
   },
   "gNb7LVmFTm": {
     "defaultMessage": "Vérifiez hreflang, la prise en charge du RTL, la terminologie et la conformité"
@@ -24727,6 +25069,9 @@
   },
   "gQaOHIIj8G": {
     "defaultMessage": "Consultez les imports et les exports, puis ouvrez un rapport pour télécharger un export terminé."
+  },
+  "gRXUWrsLcF": {
+    "defaultMessage": "Branche par défaut"
   },
   "gRhG9VDHId": {
     "defaultMessage": "Copy"
@@ -24958,6 +25303,9 @@
   },
   "gsoVoUnBY7": {
     "defaultMessage": "Fil de discussion"
+  },
+  "gsrh5zQdZC": {
+    "defaultMessage": "Ouvrir les intégrations"
   },
   "gt/cmQvJ4u": {
     "defaultMessage": "Les termes approuvés pour le lancement et à l’échelle globale sont présents dans la cible."
@@ -25388,6 +25736,9 @@
   "hZ7gIyvYMF": {
     "defaultMessage": "Aucune limite"
   },
+  "hZbM3bN0LI": {
+    "defaultMessage": "Non disponible"
+  },
   "hZtUjyTrTe": {
     "defaultMessage": "Rechercher des fichiers…"
   },
@@ -25607,6 +25958,9 @@
   "hzrUUPWRn2": {
     "defaultMessage": "Échec du chargement du cluster REST de Braze."
   },
+  "i+FQZUhhZw": {
+    "defaultMessage": "Les synchronisations de projets qui utilisent cette connexion suivent cette modification."
+  },
   "i+L328OqBg": {
     "defaultMessage": "Filtrer par priorité"
   },
@@ -25633,6 +25987,9 @@
   },
   "i1PMbnhRAE": {
     "defaultMessage": "Révision linguistique"
+  },
+  "i1Z46jIiYF": {
+    "defaultMessage": "Variation"
   },
   "i29Xh/8PGM": {
     "defaultMessage": "Terminé"
@@ -26234,6 +26591,9 @@
   "iz+EA2j9GK": {
     "defaultMessage": "Copier la clé"
   },
+  "izSm4OVUTX": {
+    "defaultMessage": "Synchronisation démarrée."
+  },
   "izdWVYn/yN": {
     "defaultMessage": "Type de problème"
   },
@@ -26381,6 +26741,9 @@
   "jEVZfFEPYx": {
     "defaultMessage": "Audiences"
   },
+  "jEd2qvOqhD": {
+    "defaultMessage": "{name} (aucun accès aux fichiers)"
+  },
   "jEjjYeEzuW": {
     "defaultMessage": "Modifier le segment de mémoire de traduction"
   },
@@ -26404,6 +26767,9 @@
   },
   "jI9SFqJ4/5": {
     "defaultMessage": "Concepts"
+  },
+  "jItb0aNazj": {
+    "defaultMessage": "Le jeton GitLab de l’espace de travail ne peut pas accéder à ce dépôt. Sélectionnez-le à nouveau."
   },
   "jJ0I/EZEoA": {
     "defaultMessage": "Origine : {value}"
@@ -26446,6 +26812,9 @@
   },
   "jOtw3PC362": {
     "defaultMessage": "Par défaut (prose générale)"
+  },
+  "jP0KlytPO/": {
+    "defaultMessage": "Indique où se trouvent les fichiers de chaque langue dans le dossier du dépôt, en utilisant {placeholder} pour le code de langue : fr désigne votre unique langue française, tandis que fr-FR désigne uniquement fr-FR. Les fichiers de la langue source sont importés ; * correspond à une recherche dans un dossier et ** à une recherche dans plusieurs dossiers."
   },
   "jP0mfL7DgW": {
     "defaultMessage": "{planName} : {priceLabel} par mois"
@@ -26822,6 +27191,9 @@
   "k1Ku5BR4yb": {
     "defaultMessage": "Consultez le nombre de mots, le temps et le coût de ce projet avant tout dépassement."
   },
+  "k1OeGxmTdJ": {
+    "defaultMessage": "Ajouter une connexion"
+  },
   "k1XwyH9gj+": {
     "defaultMessage": "Pas encore d’historique"
   },
@@ -27031,6 +27403,9 @@
   },
   "kNmR4YupCp": {
     "defaultMessage": "Ajouter une règle"
+  },
+  "kNzPwDjtB/": {
+    "defaultMessage": "sync"
   },
   "kO17DbZxuG": {
     "defaultMessage": "Ajoutez un champ nommé pour construire un objet."
@@ -27797,6 +28172,9 @@
   "llbzw/iXGP": {
     "defaultMessage": "Automatisations"
   },
+  "llq1zCo/D6": {
+    "defaultMessage": "Branche"
+  },
   "lm8uSjSdQw": {
     "defaultMessage": "Traduction manquante"
   },
@@ -27887,6 +28265,9 @@
   "lv1AQlJPi4": {
     "defaultMessage": "Définir le modèle"
   },
+  "lvk9CHFHpK": {
+    "defaultMessage": "Tous les jours"
+  },
   "lvwFhMaVAT": {
     "defaultMessage": "Bientôt disponible"
   },
@@ -27932,6 +28313,9 @@
   "m17mlZ3/Yb": {
     "defaultMessage": "Indicateurs de fonctionnalité"
   },
+  "m19bKnw7GV": {
+    "defaultMessage": "Connexion GitLab"
+  },
   "m1KcvYGLt0": {
     "defaultMessage": "Entrée supprimée"
   },
@@ -27976,6 +28360,9 @@
   },
   "m4T5sYEFR7": {
     "defaultMessage": "Préparation"
+  },
+  "m4iVRIAaW3": {
+    "defaultMessage": "Le dossier du dépôt qui contient les fichiers source, par exemple locales."
   },
   "m4m7Z9SYlx": {
     "defaultMessage": "Facultatif. Nous vous enverrons un résumé du rapport dans votre boîte de réception lorsque l’audit sera terminé."
@@ -28201,6 +28588,9 @@
   },
   "mPLVbw9Dvq": {
     "defaultMessage": "Cancel"
+  },
+  "mQ+9Xns9qF": {
+    "defaultMessage": "{count, plural, one {# connexion} other {# connexions}}. Le chat et les automatisations utilisent {name}."
   },
   "mQ36/6Ov5o": {
     "defaultMessage": "Voici l’extrait que Google afficherait. L’absence de descriptions et les mélanges de langues sont généralement la raison pour laquelle un marché n’apparaît jamais."
@@ -28838,6 +29228,9 @@
   "nVpf5SOxZJ": {
     "defaultMessage": "via {name}"
   },
+  "nWS380YnWC": {
+    "defaultMessage": "Supprimer"
+  },
   "nWSKQmdY9E": {
     "defaultMessage": "Télécharger le CSV"
   },
@@ -29033,6 +29426,9 @@
   "nolrv5QFV2": {
     "defaultMessage": "Faire"
   },
+  "nouZfHJYX6": {
+    "defaultMessage": "Une automatisation de synchronisation du contenu synchronise déjà ce dossier du dépôt avec le projet. Mettez-la d’abord en pause sur la page Automatisations."
+  },
   "nqI6KIqpLi": {
     "defaultMessage": "Hyperlocalise"
   },
@@ -29051,11 +29447,17 @@
   "nqfqbc0zeN": {
     "defaultMessage": "Échec de l’approbation de l’image"
   },
+  "nqiSfq5i+m": {
+    "defaultMessage": "Non utilisé lorsque GitLab est connecté à l’espace de travail. Déconnectez-le ici pour supprimer votre méthode de connexion."
+  },
   "nqnh5BEInQ": {
     "defaultMessage": "Delete"
   },
   "nrNj6bYo1e": {
     "defaultMessage": "Jeton d’accès personnel créé"
+  },
+  "nrjgwEgszO": {
+    "defaultMessage": "Facultatif. S’affiche lorsqu’une connexion est sélectionnée dans les paramètres de synchronisation d’un projet ; si le champ est laissé vide, l’adresse du serveur s’affiche."
   },
   "ntLrh30Crw": {
     "defaultMessage": "Delete"
@@ -29486,6 +29888,9 @@
   "ohFSHTwja2": {
     "defaultMessage": "Mis à jour"
   },
+  "ohWq8Fp+QJ": {
+    "defaultMessage": "Convertir en JSON 񟟙"
+  },
   "oiJegD5+SZ": {
     "defaultMessage": "Impossible de vérifier ce qui change lorsque vous quittez."
   },
@@ -29825,6 +30230,9 @@
   "pHj5D5hJU+": {
     "defaultMessage": "Importer"
   },
+  "pHz3Uy2BNF": {
+    "defaultMessage": "Succès"
+  },
   "pIhCSFb9aQ": {
     "defaultMessage": "Original"
   },
@@ -30122,6 +30530,9 @@
   "plDoLEcfb7": {
     "defaultMessage": "Les décisions s’accumulent à mesure que les équipes découvrent ce qui fonctionne sur chaque marché"
   },
+  "plPoWuOVzN": {
+    "defaultMessage": "La branche par défaut du dépôt sur GitHub. Une synchronisation GitHub la lit toujours."
+  },
   "plpqSFRajq": {
     "defaultMessage": "Enregistrer l’affectation du projet"
   },
@@ -30142,6 +30553,9 @@
   },
   "pnAixkNSMy": {
     "defaultMessage": "Échec de l’assurance qualité"
+  },
+  "pnBGoxuR5t": {
+    "defaultMessage": "Les paramètres et l’historique d’exécution sont supprimés. Les fichiers déjà présents dans le projet restent."
   },
   "pnhrsfcx7g": {
     "defaultMessage": "Collaboration"
@@ -30383,6 +30797,9 @@
   "qAENVVTQnI": {
     "defaultMessage": "Découvrir les directives"
   },
+  "qAIm+dJ8lo": {
+    "defaultMessage": "Aucun nœud n’est connecté à la région « Chaque élément »."
+  },
   "qAQXdmfmq+": {
     "defaultMessage": "Approuver la chaîne"
   },
@@ -30415,6 +30832,9 @@
   },
   "qByVEBzLzv": {
     "defaultMessage": "Impossible de supprimer une étape."
+  },
+  "qCA5FK7jVt": {
+    "defaultMessage": "Annuler"
   },
   "qCIzGw7LDA": {
     "defaultMessage": "Localisez les e-mails comportementaux et les messages intégrés à l’application dans Customer.io."
@@ -30713,6 +31133,9 @@
   "qkPZNDSLGU": {
     "defaultMessage": "Rechercher des langues…"
   },
+  "qkzeYEZkME": {
+    "defaultMessage": "{name} (par défaut)"
+  },
   "qlC3SJDnRm": {
     "defaultMessage": "Startmate"
   },
@@ -30779,6 +31202,9 @@
   "qsnZ8CxWKP": {
     "defaultMessage": "Control"
   },
+  "qtB7+3Uye/": {
+    "defaultMessage": "Enregistrement…"
+  },
   "qtFi5mIdMd": {
     "defaultMessage": "Explorez la plateforme"
   },
@@ -30812,6 +31238,9 @@
   "qwKm4yzub8": {
     "defaultMessage": "Vous avez modifié le workflow · {count, plural, one {# modification} other {# modifications}}"
   },
+  "qxAtQr1hgC": {
+    "defaultMessage": "Planifier"
+  },
   "qxBrl7Yxqo": {
     "defaultMessage": "Lundi"
   },
@@ -30820,6 +31249,9 @@
   },
   "qxdCTJo5wL": {
     "defaultMessage": "Demande de tirage"
+  },
+  "qy3PLCUa/e": {
+    "defaultMessage": "Supprimer la synchronisation de ce projet ?"
   },
   "qyAeUOVpZe": {
     "defaultMessage": "tchèque (Tchéquie)"
@@ -30860,6 +31292,9 @@
   "r05vZ2Pf2x": {
     "defaultMessage": "Activité"
   },
+  "r0YvO5Z1tm": {
+    "defaultMessage": "Votre compte GitLab.com personnel, pour le chat et les automatisations que vous créez. Pour synchroniser des fichiers, connectez GitLab à l’espace de travail ci-dessus."
+  },
   "r0gMCcsbGC": {
     "defaultMessage": "Aucune conversation ni notification pour le moment."
   },
@@ -30877,6 +31312,9 @@
   },
   "r2K/PgwYTn": {
     "defaultMessage": "Rechercher des modèles et des extraits"
+  },
+  "r2eGswphgY": {
+    "defaultMessage": "Suppression…"
   },
   "r2k+y+3lqI": {
     "defaultMessage": "Recherche de correspondances dans le glossaire"
@@ -31030,6 +31468,9 @@
   },
   "rIEncw8pvm": {
     "defaultMessage": "Ton de marque et terminologie"
+  },
+  "rIj4p1pD6H": {
+    "defaultMessage": "Placez {placeholder} à l’endroit où va le code de langue. Utilisez ** uniquement comme dossier entier, au maximum deux fois, et pas plus de deux * ou {placeholder} dans un même nom ni de huit au total."
   },
   "rIotJfHv/2": {
     "defaultMessage": "Créez votre flux de travail de localisation natif à l’IA"
@@ -31207,6 +31648,9 @@
   },
   "rc9DBDztDD": {
     "defaultMessage": "Modèles que votre équipe peut utiliser"
+  },
+  "rc9mIgg+S4": {
+    "defaultMessage": "La connexion GitLab utilisée par cette synchronisation a été supprimée dans Intégrations. Choisissez une autre connexion."
   },
   "rcANTRobpQ": {
     "defaultMessage": "Role"
@@ -31529,6 +31973,9 @@
   "sBAMcTOMdn": {
     "defaultMessage": "Titre court du problème"
   },
+  "sBD3fLEfW2": {
+    "defaultMessage": "{uploaded, plural, one {# fichier importé} other {# fichiers importés}}, {skipped, number} fichiers inchangés"
+  },
   "sCRcGCSbrv": {
     "defaultMessage": "ID du projet"
   },
@@ -31631,6 +32078,9 @@
   "sOWOEfN8q6": {
     "defaultMessage": "Canva"
   },
+  "sOfLCiMyCh": {
+    "defaultMessage": "Où les fichiers apparaissent dans ce projet."
+  },
   "sOlwtMgDur": {
     "defaultMessage": "Aucune audience pour le moment. Ajoutez une règle pour cibler un sous-ensemble de visiteurs."
   },
@@ -31672,6 +32122,9 @@
   },
   "sUjt/GKyKZ": {
     "defaultMessage": "Impossible de créer l’automatisation pour le moment"
+  },
+  "sUzlcXbcY3": {
+    "defaultMessage": "Activez un dépôt GitHub dans Intégrations pour synchroniser depuis GitHub."
   },
   "sV2dSDjwcL": {
     "defaultMessage": "Understand"
@@ -31877,6 +32330,9 @@
   "ssxhSeQ+xO": {
     "defaultMessage": "Impossible d’importer ces mots."
   },
+  "stTMDlHaoL": {
+    "defaultMessage": "Aucune synchronisation n’est configurée pour ce projet."
+  },
   "stUnm5XNi2": {
     "defaultMessage": "Importé par"
   },
@@ -31949,6 +32405,9 @@
   "t0DApTD09b": {
     "defaultMessage": "Select a project"
   },
+  "t0XKEe4Dhs": {
+    "defaultMessage": "Le jeton de cette connexion n'a accès à aucun dépôt. Un jeton de projet ou de groupe n'a accès qu'au projet ou au groupe correspondant et doit disposer au minimum du rôle Reporter pour lire les fichiers et du rôle Developer pour créer des demandes de fusion."
+  },
   "t0biooOCbM": {
     "defaultMessage": "La page en français ne contient pas de lien linguistique"
   },
@@ -31966,6 +32425,9 @@
   },
   "t1mgNhpwfB": {
     "defaultMessage": "current"
+  },
+  "t1rHIpUc1L": {
+    "defaultMessage": "Indiquez où se trouvent les fichiers de chaque langue, par exemple {example}."
   },
   "t2I2Yj3t0M": {
     "defaultMessage": "Notifier Slack"
@@ -32456,6 +32918,9 @@
   "typi8awoP0": {
     "defaultMessage": "Déconnecter"
   },
+  "tz78TaaqjA": {
+    "defaultMessage": "Le dossier du dépôt qui contient les fichiers source, par exemple locales. Tous les fichiers pris en charge qu’il contient sont importés."
+  },
   "tzNTVPZse0": {
     "defaultMessage": "Tout effacer"
   },
@@ -32575,6 +33040,9 @@
   },
   "uBuX1gN2I5": {
     "defaultMessage": "Sous-filtre HTML"
+  },
+  "uBwn2q4h2i": {
+    "defaultMessage": "La connexion GitLab utilisée par cette synchronisation a été supprimée dans Intégrations. Ajoutez-y une connexion, puis sélectionnez-la ici."
   },
   "uC9uH1Yi+P": {
     "defaultMessage": "Impossible d’enregistrer la traduction."
@@ -32698,6 +33166,9 @@
   },
   "uPw9H782Mo": {
     "defaultMessage": "Edit"
+  },
+  "uPwlCtMJAb": {
+    "defaultMessage": "Laissez vide pour utiliser la branche par défaut du dépôt."
   },
   "uQThnP+5M7": {
     "defaultMessage": "Examinez le texte source et la traduction côte à côte, avec les correspondances de mémoire de traduction, les suggestions de l’IA, les vérifications du glossaire et le contexte visuel de chaque chaîne dans la même vue."
@@ -32864,6 +33335,9 @@
   "uhOTpE/VkK": {
     "defaultMessage": "01 — Studio de contenu multilingue"
   },
+  "uhRyrKXNRS": {
+    "defaultMessage": "Le jeton de cette connexion est en lecture seule (sans portée api) : les synchronisations peuvent récupérer les modifications, mais pas envoyer de demandes de fusion."
+  },
   "uhtYKc3fnS": {
     "defaultMessage": "Téléversez les fichiers source, puis ouvrez-en un dans l’éditeur de contenu pour réviser et modifier les traductions."
   },
@@ -32905,6 +33379,9 @@
   },
   "ultNeGfvXw": {
     "defaultMessage": "Requêtes GitHub"
+  },
+  "um3tvZk8RN": {
+    "defaultMessage": "En cours"
   },
   "umK6yIapNV": {
     "defaultMessage": "Valeur"
@@ -33007,6 +33484,9 @@
   },
   "uyHddFItti": {
     "defaultMessage": "Impossible de charger les projets depuis GitLab."
+  },
+  "uyNK3DRlM0": {
+    "defaultMessage": "Choisissez un dépôt et renseignez les deux dossiers."
   },
   "uyOcKxzNqN": {
     "defaultMessage": "Extraction de l’image…"
@@ -33254,6 +33734,9 @@
   "vLcCxwUDbQ": {
     "defaultMessage": "Actions pour {teamName}"
   },
+  "vLmy8LFeIy": {
+    "defaultMessage": "Impossible de joindre GitLab. Réessayez ou vérifiez la connexion dans Intégrations."
+  },
   "vMChOzfTNJ": {
     "defaultMessage": "Vérification des traductions… Les résultats seront actualisés une fois l’analyse terminée."
   },
@@ -33425,6 +33908,9 @@
   "vcIHG9+CIG": {
     "defaultMessage": "Téléchargez un fichier de vérification."
   },
+  "vcWN5oIVkw": {
+    "defaultMessage": "Nom"
+  },
   "vcWkRHmX1+": {
     "defaultMessage": "Ajouter une colonne"
   },
@@ -33550,6 +34036,9 @@
   },
   "vrYsk4CDa0": {
     "defaultMessage": "Supprimer la tâche"
+  },
+  "vrbsvX/uWN": {
+    "defaultMessage": "Aucune synchronisation pour le moment."
   },
   "vrk+FdEagx": {
     "defaultMessage": "Budgets"
@@ -34031,6 +34520,9 @@
   "wewNVYT5+w": {
     "defaultMessage": "Flux de synchronisation GitHub"
   },
+  "wfI6r/Q+hm": {
+    "defaultMessage": "Impossible de répertorier les dépôts GitLab. Vérifiez la connexion dans Intégrations."
+  },
   "wfWyTH0EQs": {
     "defaultMessage": "Budget presque atteint"
   },
@@ -34072,6 +34564,9 @@
   },
   "wkeCz4YE6S": {
     "defaultMessage": "Téléversez un fichier de glossaire pour fusionner ses concepts et ses termes avec ce glossaire."
+  },
+  "wkxyIAleHa": {
+    "defaultMessage": "Connectez GitLab.com ou le serveur GitLab de votre entreprise à l’ensemble de l’espace de travail."
   },
   "wlMkvi2Lg8": {
     "defaultMessage": "Une IA qui travaille selon vos conditions"
@@ -34285,6 +34780,9 @@
   },
   "x5RsQtpxzS": {
     "defaultMessage": "Ordre"
+  },
+  "x5b2BktTkL": {
+    "defaultMessage": "Analyser du texte JSON pour le convertir en une valeur structurée."
   },
   "x5jXClnMbS": {
     "defaultMessage": "{actor} s’est assigné le problème"
@@ -34850,6 +35348,9 @@
   "y1omtoku7R": {
     "defaultMessage": "Chaque paire de langues et chaque étape peut avoir un tarif sur une carte."
   },
+  "y1usr5qWfu": {
+    "defaultMessage": "Impossible de modifier la connexion GitLab par défaut."
+  },
   "y301nYXIIx": {
     "defaultMessage": "Activé"
   },
@@ -34930,6 +35431,9 @@
   },
   "yBvXsTHP4U": {
     "defaultMessage": "Choisissez un fichier CSV, XLS ou XLSX"
+  },
+  "yC+i4u1RyR": {
+    "defaultMessage": "{count, plural, one {{files} n’a pas pu être enregistré dans son propre format et a donc été téléchargé au format JSON.} other {{files} n’ont pas pu être enregistrés dans leur propre format et ont donc été téléchargés au format JSON.}}"
   },
   "yC1DFxWE4z": {
     "defaultMessage": "Identifiant du réviseur ou de l’équipe"
@@ -35014,6 +35518,9 @@
   },
   "yJkKJLXXDK": {
     "defaultMessage": "Étape"
+  },
+  "yJtQmL9RYq": {
+    "defaultMessage": "Utilisé par {count, plural, one {# synchronisation de projet} other {# synchronisations de projet}}."
   },
   "yK06fjIU98": {
     "defaultMessage": "Correspondre"
@@ -35357,6 +35864,9 @@
   "z3bR+/cqxl": {
     "defaultMessage": "{count, plural, one {# chaîne trouvée} other {# chaînes trouvées}} dans le fichier"
   },
+  "z3fkYQNXlF": {
+    "defaultMessage": "invalide"
+  },
   "z3hAWnzQKx": {
     "defaultMessage": "Échec du chargement de la connexion Ahrefs."
   },
@@ -35488,6 +35998,9 @@
   },
   "zHHbPSaMjm": {
     "defaultMessage": "journal.example.com"
+  },
+  "zHdfx9LT12": {
+    "defaultMessage": "Impossible de charger les connexions GitLab pour le moment."
   },
   "zHmiYq4Tm1": {
     "defaultMessage": "Mémoires de traduction"
@@ -35699,6 +36212,9 @@
   "ze9bxcwl8T": {
     "defaultMessage": "Annuler"
   },
+  "zeRvYqj5Gy": {
+    "defaultMessage": "Certains fichiers source n’ont pas pu être importés."
+  },
   "zedkthWR8N": {
     "defaultMessage": "Paramètres régionaux cibles"
   },
@@ -35884,6 +36400,9 @@
   },
   "zyYnZ9Lo4u": {
     "defaultMessage": "Rechercher des fichiers"
+  },
+  "zyZLiFVz+9": {
+    "defaultMessage": "{count, plural, one {# fichier de langue n’a pas été envoyé car deux fichiers source écriraient dans le même fichier} other {# fichiers de langue n’ont pas été envoyés car deux fichiers source écriraient dans ces mêmes fichiers}}"
   },
   "zz/Y8OSRLj": {
     "defaultMessage": "Sélectionner la langue locale"

@@ -14,7 +14,11 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import type { CampaignResponse, EmailMessageResponse, TransactionalEmailResource } from "loops";
 
 import { LoopsApiError, type LoopsClient } from "./client";
-import { resolveCampaignCopy, resolveTransactionalCopy } from "./push-copy-resolution";
+import {
+  rememberLoopsCopy,
+  resolveCampaignCopy,
+  resolveTransactionalCopy,
+} from "./push-copy-resolution";
 
 function notFound(message: string) {
   return new LoopsApiError({ message, status: 404 });
@@ -280,5 +284,27 @@ describe("resolveCampaignCopy", () => {
     ).rejects.toThrow("loops_copy_message_missing");
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toContain("delete it in the Loops dashboard");
+  });
+});
+
+describe("rememberLoopsCopy", () => {
+  it("keeps earlier locale copy ids when later locales persist in the same run", () => {
+    const mapping = {
+      localeCopyIds: {} as Record<string, string>,
+      localeCopyNames: {} as Record<string, string>,
+      lastPushContentHash: {} as Record<string, string>,
+      lastPushedAt: null as Date | null,
+    };
+
+    rememberLoopsCopy(mapping, "fr-FR", "email-fr", "Welcome [fr-FR]", "hash-fr");
+    rememberLoopsCopy(mapping, "de-DE", "email-de", "Welcome [de-DE]", "hash-de");
+
+    expect(mapping.localeCopyIds).toEqual({ "fr-FR": "email-fr", "de-DE": "email-de" });
+    expect(mapping.localeCopyNames).toEqual({
+      "fr-FR": "Welcome [fr-FR]",
+      "de-DE": "Welcome [de-DE]",
+    });
+    expect(mapping.lastPushContentHash).toEqual({ "fr-FR": "hash-fr", "de-DE": "hash-de" });
+    expect(mapping.lastPushedAt).toBeInstanceOf(Date);
   });
 });

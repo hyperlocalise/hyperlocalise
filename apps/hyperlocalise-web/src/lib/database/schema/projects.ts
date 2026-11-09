@@ -117,8 +117,22 @@ export const projects = pgTable(
     automaticallyGroupIdenticalStrings: boolean("automatically_group_identical_strings")
       .notNull()
       .default(false),
+    /**
+     * Whether source text may be edited in the platform. Off, an import replaces the platform's
+     * source text with the file's; on, an import keeps platform edits and reports clashes.
+     */
+    sourceTextEditable: boolean("source_text_editable").notNull().default(false),
     // Changes whenever grouping policy changes so open CAT workspaces can defer a safe refresh.
     contentEditorGroupingRevision: integer("cat_grouping_revision").notNull().default(0),
+    /**
+     * What a source text change does to a key's approved translations: `stay_approved` leaves
+     * them alone; `needs_review` moves them to `needs_review`. Every source writer follows it.
+     */
+    approvedTranslationsOnSourceChange: text("approved_translations_on_source_change", {
+      enum: ["stay_approved", "needs_review"],
+    })
+      .notNull()
+      .default("stay_approved"),
     /**
      * Native QA scan cadence. `off` is manual only. `daily` lets the QA cron
      * start a scan when the last run is older than a day.
@@ -158,5 +172,9 @@ export const projects = pgTable(
     check("projects_identifier_format_check", sql`${table.identifier} ~ '^[A-Z][A-Z0-9]{0,9}$'`),
     check("projects_issue_number_seq_check", sql`${table.issueNumberSeq} >= 0`),
     check("projects_qa_scan_cadence_check", sql`${table.qaScanCadence} in ('off', 'daily')`),
+    check(
+      "projects_approved_translations_on_source_change_check",
+      sql`${table.approvedTranslationsOnSourceChange} in ('stay_approved', 'needs_review')`,
+    ),
   ],
 );

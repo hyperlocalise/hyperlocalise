@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/sourcetext"
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/text/language"
 )
@@ -142,13 +143,14 @@ const maxStringBatchSize = 500
 
 // stringUpsert creates the string with Key in FilePath, or updates the fields that are set.
 type stringUpsert struct {
-	Key        string
-	FilePath   *string
-	SourceText *string
-	Context    optionalString
-	Type       optionalString
-	MaxLength  optionalInt
-	Hidden     *bool
+	Key          string
+	FilePath     *string
+	SourceText   *string
+	Context      optionalString
+	Type         optionalString
+	MaxLength    optionalInt
+	Hidden       *bool
+	KeepApproved bool
 }
 
 type stringBatchResult struct {
@@ -234,12 +236,15 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 		if item.SourceText == nil {
 			return translationString{}, false, errStringSourceTextRequired
 		}
+		if !sourcetext.ValidText(*item.SourceText) {
+			return translationString{}, false, errSourceTextInvalid
+		}
 		hidden := item.Hidden != nil && *item.Hidden
 		var id string
 		if err := tx.QueryRow(ctx, `INSERT INTO project_translation_keys (
 				organization_id, project_id, repository_source_file_id, key, source_text,
-				normalized_source_text, context, type, max_length, is_hidden
-			) VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10)
+				normalized_source_text, context, type, max_length, is_hidden, imported_source_text
+			) VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $5)
 			RETURNING id`,
 			actor.OrganizationID, scope.ID, fileID, item.Key, *item.SourceText,
 			normalizeSourceText(*item.SourceText), item.Context.Value, item.Type.Value, item.MaxLength.Value, hidden,
@@ -255,20 +260,27 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 		return translationString{}, false, fmt.Errorf("find string: %w", err)
 	}
 
+	if _, err := lockString(ctx, tx, actor, scope, existingID); err != nil {
+		return translationString{}, false, err
+	}
 	current, err := loadString(ctx, tx, actor, scope, existingID)
 	if err != nil {
 		return translationString{}, false, err
 	}
-	if _, err := lockString(ctx, tx, actor, scope, existingID); err != nil {
-		return translationString{}, false, err
-	}
 	set := newSQLFilter("updated_at = now()")
-	if item.SourceText != nil && *item.SourceText != current.SourceText {
+	// The API trims what it receives, so surrounding spaces alone are not a change.
+	textChanged := item.SourceText != nil && sourceTextChanged(current.SourceText, *item.SourceText)
+	if textChanged {
+		if !sourcetext.ValidText(*item.SourceText) {
+			return translationString{}, false, errSourceTextInvalid
+		}
+		if err := rejectSourceTextEdit(ctx, tx, actor, scope, existingID); err != nil {
+			return translationString{}, false, err
+		}
 		if err := rejectIfStringLocked(ctx, tx, actor, scope, existingID, ""); err != nil {
 			return translationString{}, false, err
 		}
-		set.add("source_text = ?", *item.SourceText)
-		set.add("normalized_source_text = ?", normalizeSourceText(*item.SourceText))
+		addSourceTextChange(set, *item.SourceText)
 	}
 	if item.Context.Set {
 		set.add("context = ?", item.Context.Value)
@@ -281,6 +293,7 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 	}
 	if item.Hidden != nil {
 		set.add("is_hidden = ?", *item.Hidden)
+		set.add("hidden_by_sync_at = ?", nil)
 	}
 	if len(set.conditions) > 1 {
 		args := append(set.args, actor.OrganizationID, scope.ID, existingID)
@@ -289,6 +302,11 @@ func upsertString(ctx context.Context, tx pgx.Tx, actor principal, scope project
 			WHERE organization_id = $%d AND project_id = $%d AND id = $%d`,
 			strings.Join(set.conditions, ", "), n+1, n+2, n+3), args...); err != nil {
 			return translationString{}, false, fmt.Errorf("update string: %w", err)
+		}
+	}
+	if textChanged && scope.SourceChangeNeedsReview && !item.KeepApproved {
+		if err := sendApprovedTranslationsToReview(ctx, tx, actor, scope, existingID); err != nil {
+			return translationString{}, false, err
 		}
 	}
 	saved, err := loadString(ctx, tx, actor, scope, existingID)

@@ -266,6 +266,16 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 		}
 		h.applyPlaintext(w, r)
 	})
+	// The web server checks access and loads the file before it calls this stateless writer.
+	mux.HandleFunc("POST /internal/translation-files/render", func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" || !requireServerCallToken(w, r) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+			}
+			return
+		}
+		h.renderTranslationFile(w, r)
+	})
 	mux.Handle("POST /v1/editor-export/filtered/serialize", editorExport)
 	mux.HandleFunc("POST /internal/editor-export/filtered/parse", func(w http.ResponseWriter, r *http.Request) {
 		if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" || !requireServerCallToken(w, r) {

@@ -17,11 +17,11 @@ import (
 )
 
 var standardMarkdownParser = parser.New(parser.WithExtensions(
-	extension.TableParser,
-	extension.StrikethroughParser,
-	extension.TaskListItemParser,
-	extension.DefinitionListParser,
-	extension.FootnoteParser,
+	extension.NewTableParser(),
+	extension.NewStrikethroughParser(),
+	extension.NewTaskListItemParser(),
+	extension.NewDefinitionListParser(),
+	extension.NewFootnoteParser(),
 ))
 
 type markdownSpanCandidate struct {

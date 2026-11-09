@@ -31,6 +31,7 @@ import {
 } from "@/api/response.schema";
 import { createProjectKnowledgeMemoryRoutes } from "@/api/routes/knowledge-memory/project-knowledge-memory.route";
 import { createProjectQaReportScanRoutes } from "@/api/routes/project/qa-report-scan.route";
+import { createProjectContentSyncRoutes } from "@/api/routes/project/project-content-sync.route";
 import {
   deleteProjectWithTeamGlossaryGuard,
   glossaryTeamProjectRequiredResponse,
@@ -182,6 +183,11 @@ import {
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import { loadProjectSubtitleTranslationDownload } from "@/lib/projects/files/subtitle-translation-download";
 import { loadProjectHtmlTranslationDownload } from "@/lib/projects/files/html-translation-download";
+import { loadProjectSourceFormatTranslationDownload } from "@/lib/projects/files/source-format-translation-download";
+import {
+  TRANSLATION_DOWNLOAD_FALLBACK_HEADER,
+  TRANSLATION_DOWNLOAD_JSON_FALLBACK,
+} from "@/lib/projects/files/translation-download-fallback";
 import {
   loadProjectOfficeTranslationDownload,
   officeTranslationDownloadFailure,
@@ -208,6 +214,7 @@ import type {
   JobQueue,
   TranslationFileImportQueue,
   TranslationJobEventData,
+  ProjectContentSyncQueue,
   TranslationQaScanQueue,
 } from "@/lib/workflow/types";
 import {
@@ -1088,6 +1095,7 @@ type CreateProjectRoutesOptions = {
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
   translationQaScanQueue?: TranslationQaScanQueue;
+  projectContentSyncQueue?: ProjectContentSyncQueue;
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
 };
 
@@ -1333,6 +1341,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     .route("/:projectId/issue-sheet", createIssueSheetRoutes())
     .route("/:projectId/knowledge-memory", createProjectKnowledgeMemoryRoutes())
     .route("/:projectId/qa-reports", createProjectQaReportScanRoutes({ translationQaScanQueue }))
+    .route(
+      "/:projectId/content-sync",
+      createProjectContentSyncRoutes({ projectContentSyncQueue: options.projectContentSyncQueue }),
+    )
     .route(
       "/:projectId/assets",
       createProjectAssetRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
@@ -4158,6 +4170,31 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           });
         }
 
+        const sourceFormatDownload = await loadProjectSourceFormatTranslationDownload({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+          targetLocale: query.locale,
+          fileStorageAdapter: options.fileStorageAdapter,
+        });
+        if (sourceFormatDownload?.kind === "file") {
+          // A filled-in gettext template is a catalog, so it downloads as .po.
+          const sourceFormatFilename = filename.replace(/\.pot$/i, ".po");
+          return c.body(new Uint8Array(sourceFormatDownload.content), 200, {
+            "Content-Type": sourceFormatDownload.contentType,
+            "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(sourceFormatFilename)}`,
+            "Content-Security-Policy": "default-src 'none'; sandbox;",
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+          });
+        }
+        // A file that could not be written in its own format downloads as JSON, named and
+        // marked so.
+        const jsonFallback = sourceFormatDownload?.kind === "json";
+        const jsonContentDisposition = jsonFallback
+          ? `attachment; filename*=UTF-8''${encodeURIComponent(`${suffix}.json`)}`
+          : contentDisposition;
+
         const result = await loadProjectTranslationsAsPrefilledEntries({
           organizationId,
           projectId: params.projectId,
@@ -4203,6 +4240,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           projectId: params.projectId,
           sourcePath: query.sourcePath,
           prefilled: result.prefilled,
+          fileStorageAdapter: options.fileStorageAdapter,
         });
         if (isErr(subtitleDownload)) {
           return internalErrorResponse(
@@ -4222,7 +4260,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
         return c.body(content, 200, {
           "Content-Type": "application/json; charset=utf-8",
-          "Content-Disposition": contentDisposition,
+          "Content-Disposition": jsonContentDisposition,
+          ...(jsonFallback
+            ? { [TRANSLATION_DOWNLOAD_FALLBACK_HEADER]: TRANSLATION_DOWNLOAD_JSON_FALLBACK }
+            : {}),
         });
       },
     )
@@ -4383,6 +4424,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           sourceHash: asString(body.sourceHash),
           commitSha: asString(body.commitSha),
           workflowRunId: asString(body.workflowRunId),
+          keepApproved: asString(body.keepApproved),
         });
 
         if (!parsed.success) {
@@ -4431,6 +4473,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               workflowRunId: parsed.data.workflowRunId,
               uploadedByUserId: c.var.auth.user.localUserId,
               uploadSurface: "files_page",
+              keepApprovedTranslations: parsed.data.keepApproved === "true",
               db: tx,
             });
 

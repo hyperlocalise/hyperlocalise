@@ -1219,6 +1219,27 @@
       "when": 1793699943181,
       "tag": "0173_futuristic_lockheed",
       "breakpoints": true
+    },
+    {
+      "idx": 174,
+      "version": "7",
+      "when": 1793861211445,
+      "tag": "0174_gitlab_content_sync",
+      "breakpoints": true
+    },
+    {
+      "idx": 175,
+      "version": "7",
+      "when": 1793916407490,
+      "tag": "0175_approved_translations_on_source_change",
+      "breakpoints": true
+    },
+    {
+      "idx": 176,
+      "version": "7",
+      "when": 1793938096960,
+      "tag": "0176_source_text_editable",
+      "breakpoints": true
     }
   ]
 }

@@ -86,14 +86,14 @@ function createDeferred<T>() {
 }
 
 async function waitForInitializeCall() {
-  for (let attempt = 0; attempt < 20; attempt++) {
-    if (initializeMock.mock.calls.length > 0) {
-      return;
-    }
-    await Promise.resolve();
-  }
+  await vi.waitFor(() => {
+    expect(initializeMock.mock.calls.length).toBeGreaterThan(0);
+  });
+}
 
-  throw new Error("expected Slack chat initialization to start");
+async function loadPostSlackChannelMessage() {
+  vi.resetModules();
+  return import("./post-channel-message");
 }
 
 describe("postSlackChannelMessage", () => {
@@ -113,7 +113,7 @@ describe("postSlackChannelMessage", () => {
   it("shares initialization across concurrent callers before posting messages", async () => {
     const initialized = createDeferred<void>();
     initializeMock.mockReturnValueOnce(initialized.promise);
-    const { postSlackChannelMessage } = await import("./post-channel-message");
+    const { postSlackChannelMessage } = await loadPostSlackChannelMessage();
 
     const firstPost = postSlackChannelMessage({
       organizationId: "org-1",
@@ -153,7 +153,7 @@ describe("postSlackChannelMessage", () => {
 
   it("fails when the organization has no Slack connector team", async () => {
     getSlackConnectorTeamIdMock.mockReturnValueOnce(null);
-    const { postSlackChannelMessage } = await import("./post-channel-message");
+    const { postSlackChannelMessage } = await loadPostSlackChannelMessage();
 
     await expect(
       postSlackChannelMessage({
@@ -169,7 +169,7 @@ describe("postSlackChannelMessage", () => {
 
   it("fails when the Slack installation token is missing", async () => {
     getInstallationMock.mockResolvedValueOnce(null);
-    const { postSlackChannelMessage } = await import("./post-channel-message");
+    const { postSlackChannelMessage } = await loadPostSlackChannelMessage();
 
     await expect(
       postSlackChannelMessage({

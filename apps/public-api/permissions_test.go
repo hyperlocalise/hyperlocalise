@@ -17,6 +17,14 @@ func TestEffectivePermissions(t *testing.T) {
 	t.Run("developer keeps write scopes", func(t *testing.T) {
 		perms := effectivePermissions([]string{"jobs:read", "files:read", "jobs:write", "files:write"}, "developer")
 		require.Equal(t, []string{"jobs:read", "files:read", "jobs:write", "files:write", "projects:read", "queries:read", "strings:read", "glossaries:read", "translation-memories:read", "strings:write", "projects:write"}, perms)
+		require.NotContains(t, perms, "glossaries:write")
+	})
+
+	t.Run("managers and translators can import glossaries", func(t *testing.T) {
+		for _, role := range []string{"admin", "localization_manager", "translator"} {
+			perms := effectivePermissions([]string{"files:read", "files:write"}, role)
+			require.Contains(t, perms, "glossaries:write", role)
+		}
 	})
 
 	t.Run("member files write does not expand strings write", func(t *testing.T) {

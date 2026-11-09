@@ -168,7 +168,7 @@ Enable repository automation: push source on merge, create translation jobs via 
 
 ## API work required
 
-1. **Format-aware export** — `translations/download` today returns JSON from prefilled entries. Extend to emit the source file format (YAML, XLIFF, PO, etc.) using the same serializers as file jobs.
+1. **Format-aware export** — `translations/download` today returns JSON from prefilled entries. Extend to emit the source file format (YAML, XLIFF, PO, etc.) using the same serializers as file jobs. The project Files page download does this since [String file downloads in their own format](2026-10-29-string-file-downloads-in-source-format-design.md); the public download still returns JSON.
 2. **Export resolution** — Server picks newest materialized output: approved segment export vs succeeded job `outputFiles`, keyed by `(projectId, sourcePath, locale, sourceHash)`.
 3. **Sync status endpoint** — For `--wait`, aggregate upload + job state for a commit SHA.
 4. **Upload idempotency** — Skip/no-op when `sourceHash` unchanged (reduces noise on rerun).

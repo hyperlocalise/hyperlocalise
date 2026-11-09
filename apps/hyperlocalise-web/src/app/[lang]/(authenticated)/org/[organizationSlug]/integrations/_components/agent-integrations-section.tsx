@@ -34,7 +34,7 @@ import { GoogleDriveConnectionPanel } from "./google-drive-connection-panel";
 import { GitLabServerConnectionPanel } from "./gitlab-server-connection-panel";
 import { gitlabServerConnectionPanelMessages } from "./gitlab-server-connection-panel.messages";
 import { useGitLabServerConnection } from "./use-gitlab-server-connection";
-import { PipesConnectionPanel } from "./pipes-connection-panel";
+import { PipesConnectionPanel, usePipesStatus } from "./pipes-connection-panel";
 import { SlackIntegrationRow } from "./slack-integration-row";
 import {
   resolveWorkspaceIntegrationsBySlugs,
@@ -85,12 +85,14 @@ function PipesIntegrationList({
   slugs,
   disabled,
   isLast,
+  name,
   description,
 }: {
   organizationSlug: string;
   slugs: readonly PipesProviderSlug[];
   disabled?: boolean;
   isLast?: boolean;
+  name?: string;
   description?: string;
 }) {
   return (
@@ -102,6 +104,7 @@ function PipesIntegrationList({
           provider={slug}
           disabled={disabled}
           isLast={Boolean(isLast) && index === slugs.length - 1}
+          name={name}
           description={description}
         />
       ))}
@@ -122,25 +125,43 @@ export function SourceControlIntegrationsSection({
 }: AgentIntegrationsSectionProps & { userIsAdmin: boolean }) {
   const intl = useIntl();
   const gitlabServerConnection = useGitLabServerConnection(organizationSlug);
+  // Only admins and localization managers can sign in, so the row is theirs. Unknown while
+  // loading or after a failed load, so it stays out until the answer is no.
+  const workspaceConnected =
+    gitlabServerConnection.isSuccess && gitlabServerConnection.data !== null;
+  const workspaceUnconnected =
+    gitlabServerConnection.isSuccess && gitlabServerConnection.data === null;
+  // Once the workspace connects GitLab (GitLab.com included) everything uses that token; the
+  // sign-in row then stays only for someone whose own sign-in is stored, so they can remove it.
+  const ownSignIn = usePipesStatus(
+    organizationSlug,
+    "gitlab",
+    false,
+    userIsAdmin && workspaceConnected,
+  );
+  const showGitLabComSignIn =
+    userIsAdmin &&
+    (workspaceUnconnected ||
+      (workspaceConnected &&
+        (ownSignIn.data?.connected === true || ownSignIn.data?.needsReauthorization === true)));
 
   return (
     <>
       <GitHubIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
-      <PipesIntegrationList
-        organizationSlug={organizationSlug}
-        slugs={workspacePipesSourceControlSlugs}
-        disabled={!userIsAdmin}
-        description={
-          gitlabServerConnection.data
-            ? intl.formatMessage(gitlabServerConnectionPanelMessages.gitlabComNotUsed)
-            : undefined
-        }
-      />
-      <GitLabServerConnectionPanel
-        organizationSlug={organizationSlug}
-        disabled={!userIsAdmin}
-        isLast
-      />
+      <GitLabServerConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+      {showGitLabComSignIn ? (
+        <PipesIntegrationList
+          organizationSlug={organizationSlug}
+          slugs={workspacePipesSourceControlSlugs}
+          disabled={!userIsAdmin}
+          name={intl.formatMessage(gitlabServerConnectionPanelMessages.gitlabComSignInName)}
+          description={intl.formatMessage(
+            workspaceConnected
+              ? gitlabServerConnectionPanelMessages.gitlabComNotUsed
+              : gitlabServerConnectionPanelMessages.gitlabComSignIn,
+          )}
+        />
+      ) : null}
     </>
   );
 }

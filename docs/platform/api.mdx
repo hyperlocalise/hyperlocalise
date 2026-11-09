@@ -77,6 +77,7 @@ Permission: `files:write`
 | `sourceLocale` | no | |
 | `format` | no | |
 | `branch` | no | |
+| `keepApproved` | no | `true` keeps approved translations approved for this upload's source text changes, in a project whose **When source text changes** setting is **Needs review**. Native projects only. See [Update source content safely](/platform/guides/update-source-content#skip-the-review-for-a-small-fix). |
 
 `201` response for a native project (resource-keyed):
 
@@ -363,6 +364,22 @@ JSON body. Inline TMX (or CSV) is applied immediately.
 `201` includes `imported`, `skipped`, and the import report. Units with a stable `tuid` upsert.
 
 Large files can use `POST .../entries/import/uploads` to receive a signed upload URL, then `POST .../entries/import` with `attemptId` to apply. `GET .../import-attempts/{attemptId}` and `GET .../import-attempts/{attemptId}/download` read the attempt and its source file (`memories:read`).
+
+### Copy from a connected TMS
+
+Requires an active Crowdin, Phrase Strings, or Smartling connection (the credential updated most recently in the workspace).
+
+List provider translation memories:
+
+`GET https://api.hyperlocalise.com/v1/orgs/{organizationSlug}/tms/translation-memories`
+
+Import into a native memory (background TMX export + interchange queue):
+
+`POST https://api.hyperlocalise.com/v1/orgs/{organizationSlug}/translation-memories/{memoryId}/entries/import/from-tms`
+
+Body: `{ "credentialId": "<uuid>", "externalId": "<provider id>" }`. Response `202` includes `attemptId`.
+
+Glossary listing and `POST .../glossaries/{glossaryId}/concepts/import/from-tms` follow the same pattern; see [Glossary import and export](/platform/glossary-import-export#public-api-tms-copy).
 
 ## Translations and images
 

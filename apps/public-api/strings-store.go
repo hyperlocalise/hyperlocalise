@@ -11,21 +11,25 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/sourcetext"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/text/unicode/norm"
 )
 
 var (
-	errProjectNotFound     = fmt.Errorf("%w: project", errResourceNotFound)
-	errStringNotFound      = fmt.Errorf("%w: string", errResourceNotFound)
-	errTranslationNotFound = fmt.Errorf("%w: translation", errResourceNotFound)
-	errSourceFileNotFound  = errors.New("source file not found")
-	errProjectNotNative    = errors.New("project strings are managed by an external TMS")
-	errStringKeyConflict   = errors.New("string key already exists")
-	errLocaleNotInProject  = errors.New("locale is not a project target locale")
-	errSegmentLocked       = errors.New("segment is locked")
-	errTranslationTooLong  = errors.New("translation exceeds the string max length")
+	errProjectNotFound       = fmt.Errorf("%w: project", errResourceNotFound)
+	errStringNotFound        = fmt.Errorf("%w: string", errResourceNotFound)
+	errTranslationNotFound   = fmt.Errorf("%w: translation", errResourceNotFound)
+	errSourceFileNotFound    = errors.New("source file not found")
+	errProjectNotNative      = errors.New("project strings are managed by an external TMS")
+	errStringKeyConflict     = errors.New("string key already exists")
+	errLocaleNotInProject    = errors.New("locale is not a project target locale")
+	errSegmentLocked         = errors.New("segment is locked")
+	errSourceTextNotEditable = errors.New("source text is not editable in this project")
+	errSourceTextInvalid     = errors.New("source text holds a control character")
+	errSourceTextForbidden   = errors.New("source text of strings in files is edited by admins, localization managers and developers")
+	errTranslationTooLong    = errors.New("translation exceeds the string max length")
 )
 
 type translationString struct {
@@ -98,10 +102,11 @@ type stringCreate struct {
 }
 
 type stringPatch struct {
-	SourceText *string
-	Context    optionalString
-	MaxLength  optionalInt
-	Hidden     *bool
+	SourceText   *string
+	Context      optionalString
+	MaxLength    optionalInt
+	Hidden       *bool
+	KeepApproved bool
 }
 
 type translationWrite struct {
@@ -115,6 +120,12 @@ type projectScope struct {
 	Source        string
 	SourceLocale  *string
 	TargetLocales []string
+	// SourceChangeNeedsReview is the project's setting to send approved translations back to
+	// review when a string's source text changes.
+	SourceChangeNeedsReview bool
+	// SourceTextEditable is the project setting that lets source text be edited in the platform;
+	// off, a file's next import would replace an edit, so strings in files refuse one.
+	SourceTextEditable bool
 }
 
 type queryRower interface {
@@ -124,11 +135,12 @@ type queryRower interface {
 func loadProjectScope(ctx context.Context, db queryRower, actor principal, projectID string) (projectScope, error) {
 	var scope projectScope
 	var targetLocales []byte
-	err := db.QueryRow(ctx, `SELECT p.id, p.source, p.source_locale, p.target_locales
+	err := db.QueryRow(ctx, `SELECT p.id, p.source, p.source_locale, p.target_locales,
+			p.approved_translations_on_source_change = 'needs_review', p.source_text_editable
 		FROM projects p
 		WHERE `+accessibleProjectPredicate+` AND p.id = $3`,
 		actor.OrganizationID, actor.UserID, projectID,
-	).Scan(&scope.ID, &scope.Source, &scope.SourceLocale, &targetLocales)
+	).Scan(&scope.ID, &scope.Source, &scope.SourceLocale, &targetLocales, &scope.SourceChangeNeedsReview, &scope.SourceTextEditable)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return projectScope{}, errProjectNotFound
 	}
@@ -149,6 +161,13 @@ func (scope projectScope) requireNative() error {
 		return errProjectNotNative
 	}
 	return nil
+}
+
+// sourceTextChanged reports whether a source text change can change a translation's meaning:
+// surrounding whitespace is ignored, as the web import does, since requests arrive trimmed and
+// imported strings may keep their spaces.
+func sourceTextChanged(stored, requested string) bool {
+	return strings.TrimSpace(stored) != strings.TrimSpace(requested)
 }
 
 // normalizeSourceText matches normalizeTranslationMemorySourceText in the web app.
@@ -353,8 +372,8 @@ func (s *postgresStore) createString(ctx context.Context, actor principal, proje
 		var id string
 		if err := tx.QueryRow(ctx, `INSERT INTO project_translation_keys (
 				organization_id, project_id, repository_source_file_id, key, source_text,
-				normalized_source_text, context, type, max_length, is_hidden
-			) VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10)
+				normalized_source_text, context, type, max_length, is_hidden, imported_source_text
+			) VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $5)
 			RETURNING id`,
 			actor.OrganizationID, scope.ID, fileID, input.Key, input.SourceText,
 			normalizeSourceText(input.SourceText), input.Context, input.Type, input.MaxLength, input.Hidden,
@@ -377,15 +396,34 @@ func (s *postgresStore) updateString(ctx context.Context, actor principal, proje
 		if _, err := lockString(ctx, tx, actor, scope, stringID); err != nil {
 			return err
 		}
+		sourceChanged := false
 		if patch.SourceText != nil {
-			if err := rejectIfStringLocked(ctx, tx, actor, scope, stringID, ""); err != nil {
-				return err
+			var current string
+			if err := tx.QueryRow(ctx, `SELECT source_text FROM project_translation_keys
+				WHERE organization_id = $1 AND project_id = $2 AND id = $3`,
+				actor.OrganizationID, scope.ID, stringID).Scan(&current); err != nil {
+				return fmt.Errorf("load source text: %w", err)
+			}
+			sourceChanged = sourceTextChanged(current, *patch.SourceText)
+			if sourceChanged {
+				// Checked only on a change: a string from a document holds markers, and sending
+				// its text back unchanged is fine.
+				if !sourcetext.ValidText(*patch.SourceText) {
+					return errSourceTextInvalid
+				}
+				if err := rejectSourceTextEdit(ctx, tx, actor, scope, stringID); err != nil {
+					return err
+				}
+				if err := rejectIfStringLocked(ctx, tx, actor, scope, stringID, ""); err != nil {
+					return err
+				}
 			}
 		}
 		set := newSQLFilter("updated_at = now()")
-		if patch.SourceText != nil {
-			set.add("source_text = ?", *patch.SourceText)
-			set.add("normalized_source_text = ?", normalizeSourceText(*patch.SourceText))
+		// The API trims what it receives, so surrounding spaces alone are not written over a
+		// file's text: that would read as an edit made here.
+		if sourceChanged {
+			addSourceTextChange(set, *patch.SourceText)
 		}
 		if patch.Context.Set {
 			set.add("context = ?", patch.Context.Value)
@@ -395,6 +433,7 @@ func (s *postgresStore) updateString(ctx context.Context, actor principal, proje
 		}
 		if patch.Hidden != nil {
 			set.add("is_hidden = ?", *patch.Hidden)
+			set.add("hidden_by_sync_at = ?", nil)
 		}
 		args := append(set.args, actor.OrganizationID, scope.ID, stringID)
 		n := len(set.args)
@@ -402,6 +441,11 @@ func (s *postgresStore) updateString(ctx context.Context, actor principal, proje
 			WHERE organization_id = $%d AND project_id = $%d AND id = $%d`,
 			strings.Join(set.conditions, ", "), n+1, n+2, n+3), args...); err != nil {
 			return fmt.Errorf("update string: %w", err)
+		}
+		if sourceChanged && scope.SourceChangeNeedsReview && !patch.KeepApproved {
+			if err := sendApprovedTranslationsToReview(ctx, tx, actor, scope, stringID); err != nil {
+				return err
+			}
 		}
 		var err error
 		updated, err = loadString(ctx, tx, actor, scope, stringID)
@@ -640,10 +684,46 @@ func (f *sqlFilter) page(limit, offset int) string {
 	return fmt.Sprintf(" LIMIT $%d OFFSET $%d", len(f.args)-1, len(f.args))
 }
 
+// rejectSourceTextEdit refuses a source text change to a string in a file unless the project lets
+// source text be edited in the platform, the file is one the platform can write edited text back
+// into (`sourcetext`), and the key's owner may edit it in the content editor too. Otherwise the
+// file's next import would replace the edit, or it could never leave the platform. Strings
+// outside any file stay editable; nothing else writes them.
+func rejectSourceTextEdit(ctx context.Context, tx pgx.Tx, actor principal, scope projectScope, stringID string) error {
+	var inFile, editable bool
+	if err := tx.QueryRow(ctx, `SELECT k.repository_source_file_id IS NOT NULL, `+sourcetext.KeyEditableSQL("k")+`
+		FROM project_translation_keys k
+		WHERE k.organization_id = $1 AND k.project_id = $2 AND k.id = $3`,
+		actor.OrganizationID, scope.ID, stringID).Scan(&inFile, &editable); err != nil {
+		return fmt.Errorf("check source text editable: %w", err)
+	}
+	if !inFile {
+		return nil
+	}
+	if !scope.SourceTextEditable || !editable {
+		return errSourceTextNotEditable
+	}
+	switch actor.Role {
+	case "admin", "localization_manager", "developer":
+		return nil
+	default:
+		return errSourceTextForbidden
+	}
+}
+
+// addSourceTextChange sets a string's new source text. For a string in a file, the text before
+// its first edit is the base the next import compares with, so it is recorded if no import has.
+func addSourceTextChange(set *sqlFilter, sourceText string) {
+	set.add("source_text = ?", sourceText)
+	set.add("normalized_source_text = ?", normalizeSourceText(sourceText))
+	set.conditions = append(set.conditions, `imported_source_text = CASE WHEN repository_source_file_id IS NULL
+		THEN imported_source_text ELSE coalesce(imported_source_text, source_text) END`)
+}
+
 func rejectIfStringLocked(ctx context.Context, tx pgx.Tx, actor principal, scope projectScope, stringID, locale string) error {
 	query := `SELECT EXISTS (
 		SELECT 1 FROM project_cat_segment_locks
-		WHERE organization_id = $1 AND project_id = $2 AND external_string_id = $3`
+		WHERE organization_id = $1 AND project_id = $2 AND external_string_id = $3::uuid::text`
 	args := []any{actor.OrganizationID, scope.ID, stringID}
 	if locale != "" {
 		query += ` AND target_locale = $4`
@@ -656,6 +736,47 @@ func rejectIfStringLocked(ctx context.Context, tx pgx.Tx, actor principal, scope
 	}
 	if locked {
 		return errSegmentLocked
+	}
+	return nil
+}
+
+// sendApprovedTranslationsToReview moves a string's approved translations to needs_review after
+// its source text changed, keeping their text, and records a revision for each. The caller
+// holds the key's row lock, as every translation writer does.
+func sendApprovedTranslationsToReview(ctx context.Context, tx pgx.Tx, actor principal, scope projectScope, stringID string) error {
+	if _, err := tx.Exec(ctx, `INSERT INTO project_translation_revisions (
+			organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
+			provenance, source_job_id, actor_kind, created_at
+		)
+		SELECT t.organization_id, t.project_id, t.id, t.translation_key_id, t.target_locale, t.text, t.status,
+			t.provenance, t.source_job_id,
+			CASE t.provenance WHEN 'agent' THEN 'agent' WHEN 'manual' THEN 'user' ELSE 'system' END,
+			t.updated_at
+		FROM project_translations t
+		WHERE t.organization_id = $1 AND t.project_id = $2 AND t.translation_key_id = $3
+			AND t.status = 'approved'
+			AND NOT EXISTS (SELECT 1 FROM project_translation_revisions r WHERE r.translation_id = t.id)`,
+		actor.OrganizationID, scope.ID, stringID,
+	); err != nil {
+		return fmt.Errorf("record baseline revisions: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `WITH moved AS (
+			UPDATE project_translations
+			SET status = 'needs_review', reviewed_by_user_id = NULL, reviewed_at = NULL, updated_at = now()
+			WHERE organization_id = $1 AND project_id = $2 AND translation_key_id = $3 AND status = 'approved'
+			RETURNING organization_id, project_id, id, translation_key_id, target_locale, text, status,
+				provenance, source_job_id
+		)
+		INSERT INTO project_translation_revisions (
+			organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
+			provenance, source_job_id, actor_kind, actor_user_id, created_at
+		)
+		SELECT organization_id, project_id, id, translation_key_id, target_locale, text, status,
+			provenance, source_job_id, 'api_key', $4::uuid, clock_timestamp()
+		FROM moved`,
+		actor.OrganizationID, scope.ID, stringID, actor.UserID,
+	); err != nil {
+		return fmt.Errorf("send translations to review: %w", err)
 	}
 	return nil
 }

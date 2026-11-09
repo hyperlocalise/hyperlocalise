@@ -18,6 +18,7 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 const encryptionAlgorithm = "aes-256-gcm";
 const currentKeyVersion = 1;
+const testFallbackMasterKey = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
 
 export type EncryptedProviderCredential = {
   algorithm: string;
@@ -48,7 +49,26 @@ export function formatProviderCredentialCryptoError(error: ProviderCredentialCry
   }
 }
 
-function parseMasterKey(input: string): Result<Buffer, ProviderCredentialCryptoError> {
+function resolveProviderCredentialsMasterKey(): string | undefined {
+  const fromModule = env.PROVIDER_CREDENTIALS_MASTER_KEY;
+  if (typeof fromModule === "string" && fromModule.trim().length > 0) {
+    return fromModule;
+  }
+
+  const fromProcess = process.env.PROVIDER_CREDENTIALS_MASTER_KEY;
+  if (typeof fromProcess === "string" && fromProcess.trim().length > 0) {
+    return fromProcess;
+  }
+
+  const isTestEnv = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
+  return isTestEnv ? testFallbackMasterKey : undefined;
+}
+
+function parseMasterKey(input: string | undefined): Result<Buffer, ProviderCredentialCryptoError> {
+  if (!input?.trim()) {
+    return err({ code: "invalid_provider_credentials_master_key" });
+  }
+
   const trimmed = input.trim();
 
   if (/^[0-9a-fA-F]{64}$/.test(trimmed)) {
@@ -70,7 +90,7 @@ function getMasterKey(
     return err({ code: "unsupported_provider_credential_key_version" });
   }
 
-  const keyResult = parseMasterKey(env.PROVIDER_CREDENTIALS_MASTER_KEY);
+  const keyResult = parseMasterKey(resolveProviderCredentialsMasterKey());
   if (isErr(keyResult)) {
     return keyResult;
   }

@@ -707,6 +707,17 @@ export type ValidateSegmentResult = {
   skippedModes?: string[];
 };
 
+/** The "request" part of a render; the source file's bytes go in their own part. */
+export type RenderTranslationFileRequest = {
+  sourcePath: string;
+  sourceLocale: string;
+  targetLocale: string;
+  /** Translated text by key. Untranslated keys are left out. */
+  values: Record<string, string>;
+  /** Source text of every SRX span key the file has. */
+  sourceSpans: Record<string, string>;
+};
+
 export type EditorExportBody = {
   format: "csv" | "tmx" | "xlf" | "xliff" | "xlsx";
   rows: GoSvcRecord[];
@@ -771,10 +782,17 @@ export type ProjectLocaleProgressRow = {
   lastActivityAt: string | null;
 };
 
+export type ApprovedTranslationsOnSourceChange = "stay_approved" | "needs_review";
+
 export type ProjectContentEditorBehavior = {
   automaticallyGroupIdenticalStrings: boolean;
   groupingRevision: number;
+  approvedTranslationsOnSourceChange: ApprovedTranslationsOnSourceChange;
+  /** Whether source text may be edited in the platform, not only in the files. */
+  sourceTextEditable: boolean;
   canManage: boolean;
+  /** Whether this person may edit source text in the content editor now. */
+  canEditSourceText: boolean;
 };
 
 export type ProjectContentEditorBehaviorPreview = {
