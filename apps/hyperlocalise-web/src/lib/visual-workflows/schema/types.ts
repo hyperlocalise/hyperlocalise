@@ -13,6 +13,11 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { EmailProviderSlug } from "@/lib/email/constants";
+import type {
+  JobChangeEventType,
+  JobKind,
+  JobStatus,
+} from "@/lib/job-change-events/job-change-events-contract";
 
 export const VISUAL_WORKFLOW_SCHEMA_VERSION = 2 as const;
 export const VISUAL_WORKFLOW_SCHEMA_V3_VERSION = 3 as const;
@@ -23,6 +28,7 @@ export type VisualCatalogType =
   | "trigger.github"
   | "trigger.source_upload"
   | "trigger.webhook"
+  | "trigger.job_changed"
   | "action.http"
   | "action.content_sync"
   | "action.notify_slack"
@@ -134,6 +140,18 @@ export type VisualWorkflowScheduleCadence = "hourly" | "daily" | "weekly";
 
 export type VisualWorkflowGithubTriggerEvent = "push" | "pull_request";
 
+export type VisualWorkflowJobChangedTriggerConfig = {
+  kind: "trigger.job_changed";
+  /** Only jobs in this project; every project when unset. */
+  projectId?: string;
+  /** Which job changes start a run; every change when unset or empty. */
+  eventTypes?: JobChangeEventType[];
+  /** Only jobs of these kinds; every kind when unset or empty. */
+  jobKinds?: JobKind[];
+  /** Only changes that leave the job in one of these statuses; any status when unset or empty. */
+  toStatuses?: JobStatus[];
+};
+
 export type VisualWorkflowScheduleConfig = {
   cadence: VisualWorkflowScheduleCadence;
   hourUtc?: number;
@@ -183,6 +201,7 @@ export type VisualNodeConfig =
       /** Part of the signed webhook token; raising it invalidates every URL handed out before. */
       tokenVersion: number;
     }
+  | VisualWorkflowJobChangedTriggerConfig
   | {
       kind: "action.http";
       method: HttpMethod;

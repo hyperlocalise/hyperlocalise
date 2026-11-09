@@ -14,6 +14,11 @@ import { z } from "zod";
 
 import { contentSyncProviderSchema } from "@/lib/agents/content-sync/content-sync-types";
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
+import {
+  JOB_CHANGE_EVENT_TYPES,
+  JOB_KINDS,
+  JOB_STATUSES,
+} from "@/lib/job-change-events/job-change-events-contract";
 import { VISUAL_WORKFLOW_SCHEMA_VERSION, VISUAL_WORKFLOW_SCHEMA_V3_VERSION } from "./types";
 
 const httpMethodSchema = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]);
@@ -66,6 +71,7 @@ export const visualCatalogTypeSchema = z.enum([
   "trigger.github",
   "trigger.source_upload",
   "trigger.webhook",
+  "trigger.job_changed",
   "action.http",
   "action.content_sync",
   "action.notify_slack",
@@ -322,6 +328,16 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("trigger.webhook"),
     tokenVersion: z.number().int().min(1).max(1_000_000),
+  }),
+  z.object({
+    kind: z.literal("trigger.job_changed"),
+    projectId: z.string().trim().min(1).max(128).optional(),
+    eventTypes: z
+      .array(z.enum(JOB_CHANGE_EVENT_TYPES))
+      .max(JOB_CHANGE_EVENT_TYPES.length)
+      .optional(),
+    jobKinds: z.array(z.enum(JOB_KINDS)).max(JOB_KINDS.length).optional(),
+    toStatuses: z.array(z.enum(JOB_STATUSES)).max(JOB_STATUSES.length).optional(),
   }),
   z.object({
     kind: z.literal("action.http"),

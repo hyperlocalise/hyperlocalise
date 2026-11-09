@@ -62,6 +62,19 @@ export function buildVisualWorkflowWebhookIdempotencyKey(input: {
   ].join(":");
 }
 
+export function buildVisualWorkflowJobChangedIdempotencyKey(input: {
+  visualWorkflowId: string;
+  definitionVersion: number;
+  jobChangeEventId: string;
+}): string {
+  return [
+    "visual-workflow:job-changed",
+    input.visualWorkflowId,
+    String(input.definitionVersion),
+    input.jobChangeEventId,
+  ].join(":");
+}
+
 export function buildVisualWorkflowManualIdempotencyKey(input: {
   visualWorkflowId: string;
   definitionVersion: number;

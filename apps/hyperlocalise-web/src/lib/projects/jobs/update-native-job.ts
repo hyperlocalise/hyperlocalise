@@ -13,6 +13,7 @@
 import { and, eq, type SQL } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { updateJobs } from "@/lib/job-change-events/job-writes";
 import { assertAssignableIssueAssignee } from "@/lib/projects/issue-sheet/issue-sheet-assignee";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
@@ -191,13 +192,14 @@ export async function updateNativeJob(input: {
       };
     }
 
-    const [updated] = await tx
-      .update(schema.jobs)
-      .set(updates)
-      .where(
-        and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
-      )
-      .returning({ id: schema.jobs.id });
+    const [updated] = await updateJobs(tx, {
+      set: updates,
+      where: and(
+        eq(schema.jobs.id, input.jobId),
+        eq(schema.jobs.organizationId, input.organizationId),
+      ),
+      returning: { id: schema.jobs.id },
+    });
 
     if (!updated) {
       return err({ code: "job_not_found" as const });

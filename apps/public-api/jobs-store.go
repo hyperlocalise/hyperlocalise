@@ -178,11 +178,13 @@ func (s *postgresStore) updateJob(ctx context.Context, actor principal, jobID st
 	var projectID *string
 	var kind string
 	var external bool
-	err = tx.QueryRow(ctx, `SELECT j.project_id, j.kind::text, x.job_id IS NOT NULL
+	var before jobAssignment
+	err = tx.QueryRow(ctx, `SELECT j.project_id, j.kind::text, x.job_id IS NOT NULL,
+			j.owner_user_id::text, j.assignee_type::text
 		FROM jobs j
 		LEFT JOIN external_job_details x ON x.job_id = j.id
 		WHERE `+jobAccessPredicate+` AND j.id = $3
-		FOR UPDATE OF j`, actor.OrganizationID, actor.UserID, jobID).Scan(&projectID, &kind, &external)
+		FOR UPDATE OF j`, actor.OrganizationID, actor.UserID, jobID).Scan(&projectID, &kind, &external, &before.OwnerUserID, &before.AssigneeType)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return job{}, errJobNotFound
 	}
@@ -234,9 +236,17 @@ func (s *postgresStore) updateJob(ctx context.Context, actor principal, jobID st
 	}
 	args := append(set.args, actor.OrganizationID, jobID)
 	n := len(set.args)
-	if _, err := tx.Exec(ctx, fmt.Sprintf(`UPDATE jobs SET %s WHERE organization_id = $%d AND id = $%d`,
-		strings.Join(set.conditions, ", "), n+1, n+2), args...); err != nil {
+	var after jobAssignment
+	var status string
+	if err := tx.QueryRow(ctx, fmt.Sprintf(`UPDATE jobs SET %s WHERE organization_id = $%d AND id = $%d
+		RETURNING owner_user_id::text, assignee_type::text, status::text`,
+		strings.Join(set.conditions, ", "), n+1, n+2), args...).Scan(&after.OwnerUserID, &after.AssigneeType, &status); err != nil {
 		return job{}, fmt.Errorf("update job: %w", err)
+	}
+	if before.key() != after.key() {
+		if err := insertJobAssigneeChangedEvent(ctx, tx, actor.OrganizationID, jobID, *projectID, kind, status, after.AssigneeType); err != nil {
+			return job{}, err
+		}
 	}
 	updated, err := loadJob(ctx, tx, actor, jobID)
 	if err != nil {
@@ -254,6 +264,35 @@ func (s *postgresStore) updateJob(ctx context.Context, actor principal, jobID st
 		return job{}, fmt.Errorf("commit job update: %w", err)
 	}
 	return updated, nil
+}
+
+// jobAssignment is who a job is assigned to, compared before and after an update.
+type jobAssignment struct {
+	OwnerUserID  *string
+	AssigneeType *string
+}
+
+func (a jobAssignment) key() [2]string {
+	value := func(s *string) string {
+		if s == nil {
+			return ""
+		}
+		return *s
+	}
+	return [2]string{value(a.OwnerUserID), value(a.AssigneeType)}
+}
+
+// insertJobAssigneeChangedEvent records the change in the job change outbox in the update's
+// transaction, as the web app's updateJobs does, so outbound webhooks and Job changed workflows
+// hear about it.
+func insertJobAssigneeChangedEvent(ctx context.Context, tx pgx.Tx, organizationID, jobID, projectID, kind, status string, assigneeType *string) error {
+	if _, err := tx.Exec(ctx, `INSERT INTO job_change_events
+			(organization_id, job_id, project_id, kind, type, from_status, to_status, assignee_type)
+		VALUES ($1, $2, $3, $4::job_kind, 'job.assignee_changed', $5::job_status, $5::job_status, $6::job_assignee_type)`,
+		organizationID, jobID, projectID, kind, status, assigneeType); err != nil {
+		return fmt.Errorf("record job change event: %w", err)
+	}
+	return nil
 }
 
 // assignableJobOwner follows findPublicJobOwner and assertAssignableIssueAssignee in the web

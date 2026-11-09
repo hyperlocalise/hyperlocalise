@@ -12,6 +12,8 @@
  */
 import { describe, expect, it, vi } from "vite-plus/test";
 
+vi.mock("@/lib/job-change-events/job-writes", () => import("@/test/mocks/job-writes-passthrough"));
+
 import { err, ok } from "@/lib/primitives/result/results";
 
 // Mock environment and database before importing tools

@@ -11,6 +11,8 @@
  * Version 2.0 or later.
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+vi.mock("@/lib/job-change-events/job-writes", () => import("@/test/mocks/job-writes-passthrough"));
 import { emoji } from "chat";
 import type { Message, Thread } from "chat";
 

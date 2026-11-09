@@ -51,6 +51,7 @@ import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notific
 import { createReportingCaptureRoutes } from "./routes/cron/reporting-capture.route";
 import { createTranslationQaScanRoutes } from "./routes/cron/translation-qa-scan.route";
 import { createGuidelineIngestSweepRoutes } from "./routes/cron/guideline-ingest-sweep.route";
+import { createJobChangeEventsCronRoutes } from "./routes/cron/job-change-events.route";
 import { createProjectContentSyncCronRoutes } from "./routes/cron/project-content-sync.route";
 
 /**
@@ -128,6 +129,7 @@ function createInternalRoutes(options: CreateAppOptions = {}) {
     .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes())
     .route("/cron/reporting-capture", createReportingCaptureRoutes())
     .route("/cron/guideline-ingest-sweep", createGuidelineIngestSweepRoutes())
+    .route("/cron/job-change-events", createJobChangeEventsCronRoutes())
     .route(
       "/cron/translation-qa-scan",
       createTranslationQaScanRoutes({

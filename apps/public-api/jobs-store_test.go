@@ -80,6 +80,27 @@ func TestJobStoreDatabase(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, email, *updated.OwnerEmail)
 
+	// Only the two owner changes reach the job change outbox; the description edit does not.
+	rows, err := f.pool.Query(ctx, `SELECT type, to_status::text, assignee_type::text FROM job_change_events
+		WHERE job_id = $1 AND type <> 'job.created' ORDER BY occurred_at`, jobID)
+	require.NoError(t, err)
+	var changes [][3]string
+	for rows.Next() {
+		var changeType, toStatus string
+		var assigneeType *string
+		require.NoError(t, rows.Scan(&changeType, &toStatus, &assigneeType))
+		assignee := ""
+		if assigneeType != nil {
+			assignee = *assigneeType
+		}
+		changes = append(changes, [3]string{changeType, toStatus, assignee})
+	}
+	require.NoError(t, rows.Err())
+	require.Equal(t, [][3]string{
+		{"job.assignee_changed", "queued", ""},
+		{"job.assignee_changed", "queued", "user"},
+	}, changes)
+
 	missing := "nobody@example.com"
 	_, err = f.store.updateJob(ctx, f.actor, jobID, jobPatch{OwnerEmail: optionalString{Set: true, Value: &missing}})
 	require.ErrorIs(t, err, errJobOwnerNotFound)

@@ -16,6 +16,7 @@ import { stringTranslationJobInputSchema } from "@/api/routes/project/job.schema
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
+import { updateJobs } from "@/lib/job-change-events/job-writes";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
   isProjectTranslationKeyHidden,
@@ -153,55 +154,52 @@ class TranslationJobRepository {
     event: TranslationJobEventData;
     runId: string;
   }): Promise<ClaimTranslationJobResult> {
-    const attachedJob = await db
-      .update(schema.jobs)
-      .set({ workflowRunId: input.runId })
-      .where(
-        and(
-          eq(schema.jobs.kind, "translation"),
-          eq(schema.jobs.id, input.event.jobId),
-          eq(schema.jobs.projectId, input.event.projectId),
-          isNull(schema.jobs.workflowRunId),
-        ),
-      )
-      .returning({
+    const attachedJob = await updateJobs(db, {
+      set: { workflowRunId: input.runId },
+      where: and(
+        eq(schema.jobs.kind, "translation"),
+        eq(schema.jobs.id, input.event.jobId),
+        eq(schema.jobs.projectId, input.event.projectId),
+        isNull(schema.jobs.workflowRunId),
+      ),
+      returning: {
         id: schema.jobs.id,
         projectId: schema.jobs.projectId,
         runId: schema.jobs.workflowRunId,
-      })
-      .then(async ([job]) => {
-        if (job) {
-          const storedJob = await this.getStored(job.id, job.projectId ?? input.event.projectId);
-          if (!storedJob) {
-            throw new Error(
-              `translation job ${input.event.jobId} was not found in project ${input.event.projectId}`,
-            );
-          }
-
-          return {
-            id: storedJob.id,
-            projectId: storedJob.projectId,
-            type: storedJob.type,
-            runId: input.runId,
-            ownedByCurrentRun: true,
-          };
-        }
-
-        const existingJob = await this.getStored(input.event.jobId, input.event.projectId);
-        if (!existingJob) {
+      },
+    }).then(async ([job]) => {
+      if (job) {
+        const storedJob = await this.getStored(job.id, job.projectId ?? input.event.projectId);
+        if (!storedJob) {
           throw new Error(
             `translation job ${input.event.jobId} was not found in project ${input.event.projectId}`,
           );
         }
 
         return {
-          id: existingJob.id,
-          projectId: existingJob.projectId,
-          type: existingJob.type,
-          runId: existingJob.workflowRunId,
-          ownedByCurrentRun: existingJob.workflowRunId === input.runId,
+          id: storedJob.id,
+          projectId: storedJob.projectId,
+          type: storedJob.type,
+          runId: input.runId,
+          ownedByCurrentRun: true,
         };
-      });
+      }
+
+      const existingJob = await this.getStored(input.event.jobId, input.event.projectId);
+      if (!existingJob) {
+        throw new Error(
+          `translation job ${input.event.jobId} was not found in project ${input.event.projectId}`,
+        );
+      }
+
+      return {
+        id: existingJob.id,
+        projectId: existingJob.projectId,
+        type: existingJob.type,
+        runId: existingJob.workflowRunId,
+        ownedByCurrentRun: existingJob.workflowRunId === input.runId,
+      };
+    });
 
     if (!attachedJob.runId) {
       throw new Error(
@@ -220,28 +218,26 @@ class TranslationJobRepository {
       return { kind: "skipped", job: existingJob };
     }
 
-    const [claimedJob] = await db
-      .update(schema.jobs)
-      .set({
+    const [claimedJob] = await updateJobs(db, {
+      set: {
         status: "running",
         lastError: null,
         outcomePayload: null,
         completedAt: null,
-      })
-      .where(
-        and(
-          eq(schema.jobs.kind, "translation"),
-          eq(schema.jobs.id, input.event.jobId),
-          eq(schema.jobs.projectId, input.event.projectId),
-          or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "running")),
-          eq(schema.jobs.workflowRunId, attachedJob.runId),
-        ),
-      )
-      .returning({
+      },
+      where: and(
+        eq(schema.jobs.kind, "translation"),
+        eq(schema.jobs.id, input.event.jobId),
+        eq(schema.jobs.projectId, input.event.projectId),
+        or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "running")),
+        eq(schema.jobs.workflowRunId, attachedJob.runId),
+      ),
+      returning: {
         id: schema.jobs.id,
         projectId: schema.jobs.projectId,
         inputPayload: schema.jobs.inputPayload,
-      });
+      },
+    });
 
     if (!claimedJob) {
       const existingJob = await this.getStored(input.event.jobId, input.event.projectId);
@@ -333,12 +329,13 @@ class TranslationJobExecutor {
       };
     }
 
-    await db
-      .update(schema.jobs)
-      .set({ contextSnapshot: contextResult.context.toSnapshot() })
-      .where(
-        and(eq(schema.jobs.id, claimedJob.id), eq(schema.jobs.projectId, claimedJob.projectId)),
-      );
+    await updateJobs(db, {
+      set: { contextSnapshot: contextResult.context.toSnapshot() },
+      where: and(
+        eq(schema.jobs.id, claimedJob.id),
+        eq(schema.jobs.projectId, claimedJob.projectId),
+      ),
+    });
     await captureJobStatus({
       jobId: claimedJob.id,
       status: "running",
@@ -394,23 +391,21 @@ class TranslationJobCompletionService {
     result: StringTranslationJobResult;
   }) {
     const didSucceed = await db.transaction(async (tx) => {
-      const [updatedJob] = await tx
-        .update(schema.jobs)
-        .set({
+      const [updatedJob] = await updateJobs(tx, {
+        set: {
           status: "succeeded",
           outcomePayload: input.result,
           lastError: null,
           completedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(schema.jobs.kind, "translation"),
-            eq(schema.jobs.id, input.jobId),
-            eq(schema.jobs.projectId, input.projectId),
-            eq(schema.jobs.workflowRunId, input.workflowRunId),
-          ),
-        )
-        .returning({ id: schema.jobs.id });
+        },
+        where: and(
+          eq(schema.jobs.kind, "translation"),
+          eq(schema.jobs.id, input.jobId),
+          eq(schema.jobs.projectId, input.projectId),
+          eq(schema.jobs.workflowRunId, input.workflowRunId),
+        ),
+        returning: { id: schema.jobs.id },
+      });
 
       if (!updatedJob) {
         return false;
@@ -529,9 +524,8 @@ class TranslationJobCompletionService {
     followUpJobId?: string | null;
   }) {
     const didFail = await db.transaction(async (tx) => {
-      const [updatedJob] = await tx
-        .update(schema.jobs)
-        .set({
+      const [updatedJob] = await updateJobs(tx, {
+        set: {
           status: "failed",
           outcomePayload: {
             code: input.code,
@@ -543,16 +537,15 @@ class TranslationJobCompletionService {
           },
           lastError: input.message,
           completedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(schema.jobs.kind, "translation"),
-            eq(schema.jobs.id, input.jobId),
-            eq(schema.jobs.projectId, input.projectId),
-            eq(schema.jobs.workflowRunId, input.workflowRunId),
-          ),
-        )
-        .returning({ id: schema.jobs.id });
+        },
+        where: and(
+          eq(schema.jobs.kind, "translation"),
+          eq(schema.jobs.id, input.jobId),
+          eq(schema.jobs.projectId, input.projectId),
+          eq(schema.jobs.workflowRunId, input.workflowRunId),
+        ),
+        returning: { id: schema.jobs.id },
+      });
 
       if (!updatedJob) {
         return false;

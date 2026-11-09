@@ -30,6 +30,7 @@ import {
   ChartBarIcon,
   SealCheckIcon,
   WebhooksLogoIcon,
+  ListChecksIcon,
   FilesIcon,
   UserSwitchIcon,
   UsersThreeIcon,
@@ -84,6 +85,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     category: "trigger",
     enabled: true,
     icon: WebhooksLogoIcon,
+  },
+  {
+    type: "trigger.job_changed",
+    category: "trigger",
+    enabled: true,
+    icon: ListChecksIcon,
   },
   {
     type: "action.http",
@@ -346,6 +353,8 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       return { kind: "trigger.source_upload" };
     case "trigger.webhook":
       return { kind: "trigger.webhook", tokenVersion: 1 };
+    case "trigger.job_changed":
+      return { kind: "trigger.job_changed", eventTypes: ["job.status_changed"] };
     case "action.http":
       return {
         kind: "action.http",
@@ -680,6 +689,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.projectId ? "Project upload" : "Any project";
     case "trigger.webhook":
       return "Incoming HTTP POST";
+    case "trigger.job_changed":
+      return config.toStatuses?.length ? config.toStatuses.join(", ") : "Any job change";
     case "action.http":
       return config.method;
     case "action.content_sync":

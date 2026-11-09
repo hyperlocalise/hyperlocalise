@@ -149,6 +149,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeSourceUploadTrigger;
     case "trigger.webhook":
       return messages.nodeWebhookTrigger;
+    case "trigger.job_changed":
+      return messages.nodeJobChangedTrigger;
     case "action.http":
       return messages.nodeHttp;
     case "action.content_sync":
@@ -240,6 +242,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeSourceUploadTriggerHint;
     case "trigger.webhook":
       return messages.nodeWebhookTriggerHint;
+    case "trigger.job_changed":
+      return messages.nodeJobChangedTriggerHint;
     case "action.http":
       return messages.nodeHttpHint;
     case "action.content_sync":

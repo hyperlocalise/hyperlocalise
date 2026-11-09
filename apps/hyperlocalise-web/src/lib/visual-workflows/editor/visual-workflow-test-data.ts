@@ -83,6 +83,7 @@ const MOCKABLE: Record<VisualCatalogType, boolean> = {
   "trigger.github": true,
   "trigger.source_upload": true,
   "trigger.webhook": true,
+  "trigger.job_changed": true,
   "action.http": true,
   "action.content_sync": true,
   "action.notify_slack": true,
