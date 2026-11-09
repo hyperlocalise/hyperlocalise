@@ -67,7 +67,7 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "sanity": "^6.19.0",
-    "sanity-plugin-internationalized-array": "^3.2.2",
+    "sanity-plugin-internationalized-array": "^5.3.9",
     "styled-components": "^6.6.0",
     "typescript": "^6.0.3"
   },
