@@ -29,6 +29,10 @@
       "schedule": "0 5 * * *"
     },
     {
+      "path": "/api/cron/job-change-events",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/project-content-sync",
       "schedule": "*/15 * * * *"
     }

@@ -20,6 +20,7 @@ import {
 } from "@/lib/activity-log/job-automation-events";
 import { ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import { db, schema } from "@/lib/database/client";
+import { insertJobs, updateJobs } from "@/lib/job-change-events/job-writes";
 import {
   formatUsageControlError,
   reserveUsageEvent,
@@ -163,28 +164,26 @@ async function markFileTranslationJobEnqueueFailed(input: {
   error: unknown;
 }) {
   try {
-    const [failedJob] = await db
-      .update(schema.jobs)
-      .set({
+    const [failedJob] = await updateJobs(db, {
+      set: {
         status: "failed",
         lastError:
           input.error instanceof Error ? input.error.message : "translation job queue unavailable",
-      })
-      .where(
-        and(
-          eq(schema.jobs.organizationId, input.organizationId),
-          eq(schema.jobs.id, input.jobId),
-          ne(schema.jobs.status, "failed"),
-          ...(input.projectId ? [eq(schema.jobs.projectId, input.projectId)] : []),
-        ),
-      )
-      .returning({
+      },
+      where: and(
+        eq(schema.jobs.organizationId, input.organizationId),
+        eq(schema.jobs.id, input.jobId),
+        ne(schema.jobs.status, "failed"),
+        ...(input.projectId ? [eq(schema.jobs.projectId, input.projectId)] : []),
+      ),
+      returning: {
         apiKeyId: schema.jobs.apiKeyId,
         createdByUserId: schema.jobs.createdByUserId,
         id: schema.jobs.id,
         kind: schema.jobs.kind,
         projectId: schema.jobs.projectId,
-      });
+      },
+    });
 
     if (!failedJob) return;
 
@@ -345,9 +344,8 @@ export async function createFileTranslationJob(
       });
 
       const assignee = resolveFileTranslationJobAssignee(input);
-      const [createdJob] = await tx
-        .insert(schema.jobs)
-        .values({
+      const [createdJob] = await insertJobs(tx, {
+        values: {
           id: jobId,
           organizationId: input.organizationId,
           projectId: input.projectId,
@@ -358,11 +356,12 @@ export async function createFileTranslationJob(
           kind: "translation",
           status: "queued",
           inputPayload,
-        })
-        .returning({
+        },
+        returning: {
           id: schema.jobs.id,
           projectId: schema.jobs.projectId,
-        });
+        },
+      });
 
       await tx.insert(schema.translationJobDetails).values({
         jobId,
@@ -482,15 +481,15 @@ export async function enqueueExistingFileTranslationJob(
     };
   }
 
-  await db
-    .update(schema.jobs)
-    .set({
+  await updateJobs(db, {
+    set: {
       assigneeType: "agent",
       ownerUserId: null,
       ...(input.trigger ? { generationProvenance: { trigger: input.trigger } } : {}),
       updatedAt: new Date(),
-    })
-    .where(and(eq(schema.jobs.id, job.id), eq(schema.jobs.organizationId, input.organizationId)));
+    },
+    where: and(eq(schema.jobs.id, job.id), eq(schema.jobs.organizationId, input.organizationId)),
+  });
 
   const enqueued = await enqueueFileTranslationJobEvent({
     organizationId: input.organizationId,

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/translationorigin"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -22,6 +23,8 @@ type editorCatTranslation struct {
 	TargetAssetURL        *string `json:"targetAssetUrl,omitempty"`
 	ImageVariantID        *string `json:"imageVariantId,omitempty"`
 	Status                string  `json:"status,omitempty"`
+	// Origin says whether a machine or a person wrote Text (translationorigin values).
+	Origin string `json:"origin,omitempty"`
 }
 
 type editorCatComment struct {
@@ -119,11 +122,11 @@ func (api *editorCatAPI) loadTextTarget(r *http.Request, actor editorCatActor, p
 	if err != nil {
 		return nil, err
 	}
-	var id, text, status, revision string
+	var id, text, status, revision, origin string
 	err = api.pool.QueryRow(r.Context(), `
-        select id, text, status, xmin::text from project_translations
+        select id, text, status, xmin::text, origin::text from project_translations
         where organization_id=$1 and project_id=$2 and translation_key_id=$3 and target_locale=$4
-        limit 1`, actor.organizationID, project.ID, keyID, targetLocale).Scan(&id, &text, &status, &revision)
+        limit 1`, actor.organizationID, project.ID, keyID, targetLocale).Scan(&id, &text, &status, &revision, &origin)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -136,6 +139,7 @@ func (api *editorCatAPI) loadTextTarget(r *http.Request, actor editorCatActor, p
 		IsApproved:            status == "approved",
 		Status:                status,
 		Revision:              &revision,
+		Origin:                origin,
 	}, nil
 }
 
@@ -393,11 +397,13 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
                 insert into project_translations (
                     organization_id, project_id, translation_key_id, target_locale, text, status, provenance,
                     reviewed_by_user_id, reviewed_at
-                ) values ($1,$2,$3,$4,$5,$6,'manual',$7,$8)
+                    , origin
+                ) values ($1,$2,$3,$4,$5,$6,'manual',$7,$8,$10::text::project_translation_origin)
                 on conflict (translation_key_id, target_locale) do update set
                     text=excluded.text,
                     status=excluded.status,
                     provenance=excluded.provenance,
+                    origin=excluded.origin,
                     reviewed_by_user_id=excluded.reviewed_by_user_id,
                     reviewed_at=excluded.reviewed_at,
                     updated_at=now()
@@ -408,6 +414,7 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
             join project_translation_keys k on k.id=$3
             left join repository_source_files f on f.id=k.repository_source_file_id`,
 			actor.organizationID, project.ID, occurrenceID, targetLocale, body.Text, status, reviewedBy, reviewedAt, sourcePath,
+			translationorigin.Next(before.originPrevious(), translationorigin.WriterPerson, body.Text),
 		).Scan(&id, &text, &savedStatus, &afterRevision, &occurrencePath)
 		if err != nil {
 			return nil, 0, err

@@ -72,3 +72,5 @@ export * from "./schema/activity-log";
 export * from "./schema/ota";
 
 export * from "./schema/reporting";
+export * from "./schema/job-change-events";
+export * from "./schema/outbound-webhooks";

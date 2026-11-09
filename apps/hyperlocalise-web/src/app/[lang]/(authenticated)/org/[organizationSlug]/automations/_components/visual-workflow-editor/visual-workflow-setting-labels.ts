@@ -27,6 +27,12 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     events: messages.githubEvents,
   },
   "trigger.source_upload": { projectId: messages.sourceUploadProject },
+  "trigger.job_changed": {
+    projectId: messages.jobChangedProject,
+    eventTypes: messages.jobChangedEventTypes,
+    jobKinds: messages.jobChangedJobKinds,
+    toStatuses: messages.jobChangedToStatuses,
+  },
   "action.http": {
     method: messages.httpMethod,
     url: messages.httpUrl,

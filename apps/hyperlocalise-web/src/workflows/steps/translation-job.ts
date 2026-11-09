@@ -104,27 +104,26 @@ export async function markEmailTranslationJobRunning(input: {
   "use step";
   const { and, eq, isNull, or } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database/client");
+  const { updateJobs } = await import("@/lib/job-change-events/job-writes");
 
-  const [updatedJob] = await db
-    .update(schema.jobs)
-    .set({
+  const [updatedJob] = await updateJobs(db, {
+    set: {
       status: "running",
       workflowRunId: input.workflowRunId,
       lastError: null,
       outcomePayload: null,
       completedAt: null,
-    })
-    .where(
-      and(
-        eq(schema.jobs.id, input.jobId),
-        eq(schema.jobs.kind, "translation"),
-        or(isNull(schema.jobs.workflowRunId), eq(schema.jobs.workflowRunId, input.workflowRunId)),
-        // Do not claim terminal jobs: legacy rows may have null workflowRunId, and replays must not
-        // reset succeeded/failed jobs that already share this workflowRunId.
-        or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "running")),
-      ),
-    )
-    .returning({ id: schema.jobs.id });
+    },
+    where: and(
+      eq(schema.jobs.id, input.jobId),
+      eq(schema.jobs.kind, "translation"),
+      or(isNull(schema.jobs.workflowRunId), eq(schema.jobs.workflowRunId, input.workflowRunId)),
+      // Do not claim terminal jobs: legacy rows may have null workflowRunId, and replays must not
+      // reset succeeded/failed jobs that already share this workflowRunId.
+      or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "running")),
+    ),
+    returning: { id: schema.jobs.id },
+  });
 
   if (!updatedJob) {
     throw new Error(
@@ -144,11 +143,11 @@ export async function markEmailTranslationJobSucceeded(input: {
   "use step";
   const { and, eq } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database/client");
+  const { updateJobs } = await import("@/lib/job-change-events/job-writes");
 
   const succeededJob = await db.transaction(async (tx) => {
-    const [updatedJob] = await tx
-      .update(schema.jobs)
-      .set({
+    const [updatedJob] = await updateJobs(tx, {
+      set: {
         status: "succeeded",
         outcomePayload: {
           kind: "email_file_result",
@@ -158,15 +157,14 @@ export async function markEmailTranslationJobSucceeded(input: {
         },
         lastError: null,
         completedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(schema.jobs.id, input.jobId),
-          eq(schema.jobs.kind, "translation"),
-          eq(schema.jobs.workflowRunId, input.workflowRunId),
-        ),
-      )
-      .returning({ id: schema.jobs.id, organizationId: schema.jobs.organizationId });
+      },
+      where: and(
+        eq(schema.jobs.id, input.jobId),
+        eq(schema.jobs.kind, "translation"),
+        eq(schema.jobs.workflowRunId, input.workflowRunId),
+      ),
+      returning: { id: schema.jobs.id, organizationId: schema.jobs.organizationId },
+    });
 
     if (!updatedJob) {
       throw new Error(
@@ -219,11 +217,11 @@ export async function markEmailTranslationJobFailed(input: {
   "use step";
   const { and, eq } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database/client");
+  const { updateJobs } = await import("@/lib/job-change-events/job-writes");
 
   const failedJob = await db.transaction(async (tx) => {
-    const [updatedJob] = await tx
-      .update(schema.jobs)
-      .set({
+    const [updatedJob] = await updateJobs(tx, {
+      set: {
         status: "failed",
         outcomePayload: {
           kind: "email_file_error",
@@ -231,20 +229,19 @@ export async function markEmailTranslationJobFailed(input: {
         },
         lastError: input.reason,
         completedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(schema.jobs.id, input.jobId),
-          eq(schema.jobs.kind, "translation"),
-          eq(schema.jobs.workflowRunId, input.workflowRunId),
-        ),
-      )
-      .returning({
+      },
+      where: and(
+        eq(schema.jobs.id, input.jobId),
+        eq(schema.jobs.kind, "translation"),
+        eq(schema.jobs.workflowRunId, input.workflowRunId),
+      ),
+      returning: {
         id: schema.jobs.id,
         kind: schema.jobs.kind,
         organizationId: schema.jobs.organizationId,
         projectId: schema.jobs.projectId,
-      });
+      },
+    });
 
     if (!updatedJob) {
       throw new Error(
@@ -574,11 +571,11 @@ export async function completeFileTranslationJobStep(input: {
   "use step";
   const { and, eq } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database/client");
+  const { updateJobs } = await import("@/lib/job-change-events/job-writes");
 
   const didSucceed = await db.transaction(async (tx) => {
-    const [updatedJob] = await tx
-      .update(schema.jobs)
-      .set({
+    const [updatedJob] = await updateJobs(tx, {
+      set: {
         status: "succeeded",
         outcomePayload: {
           outputFiles: input.outputFiles,
@@ -591,16 +588,15 @@ export async function completeFileTranslationJobStep(input: {
         },
         lastError: null,
         completedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(schema.jobs.kind, "translation"),
-          eq(schema.jobs.id, input.jobId),
-          eq(schema.jobs.projectId, input.projectId),
-          eq(schema.jobs.workflowRunId, input.workflowRunId),
-        ),
-      )
-      .returning({ id: schema.jobs.id });
+      },
+      where: and(
+        eq(schema.jobs.kind, "translation"),
+        eq(schema.jobs.id, input.jobId),
+        eq(schema.jobs.projectId, input.projectId),
+        eq(schema.jobs.workflowRunId, input.workflowRunId),
+      ),
+      returning: { id: schema.jobs.id },
+    });
 
     if (!updatedJob) {
       return false;

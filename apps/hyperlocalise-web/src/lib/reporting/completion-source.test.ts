@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { personSave, sourceOfProvenance } from "./completion-source";
+import { personSave, sourceOfOrigin, sourceOfProvenance } from "./completion-source";
 
 describe("completion source", () => {
   it("maps editor provenance onto the summary buckets", () => {
@@ -36,5 +36,15 @@ describe("completion source", () => {
       source: "import",
       unchanged: true,
     });
+  });
+});
+
+describe("sourceOfOrigin", () => {
+  it("reads what the person was given and whether they kept it from the saved origin", () => {
+    expect(sourceOfOrigin("machine")).toEqual({ source: "ai", unchanged: true });
+    expect(sourceOfOrigin("unknown")).toEqual({ source: "import", unchanged: true });
+    expect(sourceOfOrigin("machine_post_edited")).toEqual({ source: "person", unchanged: false });
+    expect(sourceOfOrigin("human")).toEqual({ source: "person", unchanged: false });
+    expect(sourceOfOrigin(null)).toEqual({ source: "person", unchanged: false });
   });
 });

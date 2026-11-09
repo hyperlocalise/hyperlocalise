@@ -524,6 +524,7 @@ describe("captureEditorSaves", () => {
         text: given,
         status: "draft",
         provenance: "translation_job",
+        origin: "machine",
         actorKind: "agent",
         createdAt: minutesFromNow(-10),
       });
@@ -538,6 +539,7 @@ describe("captureEditorSaves", () => {
       text: "Bonjour le monde",
       status: "draft",
       provenance: "manual",
+      origin: "machine_post_edited",
       actorKind: "user",
       actorUserId: user.id,
       createdAt: minutesFromNow(-5),
@@ -593,6 +595,7 @@ describe("captureEditorSaves", () => {
       text: string,
       actor: "agent" | "user",
       minutes: number,
+      origin: "machine" | "machine_post_edited",
       status: "draft" | "approved" = "draft",
     ) => {
       const [row] = await db
@@ -606,6 +609,7 @@ describe("captureEditorSaves", () => {
           text,
           status,
           provenance: actor === "agent" ? "translation_job" : "manual",
+          origin,
           actorKind: actor,
           createdAt: minutesFromNow(minutes),
         })
@@ -615,9 +619,9 @@ describe("captureEditorSaves", () => {
     // A task wrote the first string; the person rewrote it; a later run of the task put its own
     // text back, which is the text now ("Bonjour le monde"). Judged against the text now, the
     // person's save would look like the task's text kept unchanged.
-    await revision(keyIds[0], "Bonjour le monde", "agent", 1);
-    const rewrite = await revision(keyIds[0], "Salut", "user", 2);
-    await revision(keyIds[0], "Bonjour le monde", "agent", 3);
+    await revision(keyIds[0], "Bonjour le monde", "agent", 1, "machine");
+    const rewrite = await revision(keyIds[0], "Salut", "user", 2, "machine_post_edited");
+    await revision(keyIds[0], "Bonjour le monde", "agent", 3, "machine");
     await insertSaveEvent({
       organizationId: organization.id,
       projectId: project.id,
@@ -628,9 +632,9 @@ describe("captureEditorSaves", () => {
     });
     // The second string was approved as the task wrote it, then overwritten by the later run. An
     // approval names no version, so the version at its time is the one judged.
-    await revision(keyIds[1], "Salut tout le monde", "agent", 1);
-    await revision(keyIds[1], "Salut tout le monde", "user", 2, "approved");
-    await revision(keyIds[1], "Bonjour le monde", "agent", 3);
+    await revision(keyIds[1], "Salut tout le monde", "agent", 1, "machine");
+    await revision(keyIds[1], "Salut tout le monde", "user", 2, "machine", "approved");
+    await revision(keyIds[1], "Bonjour le monde", "agent", 3, "machine");
     await insertSaveEvent({
       organizationId: organization.id,
       projectId: project.id,
@@ -682,9 +686,10 @@ describe("captureEditorSaves", () => {
     const revision = (text: string, actor: "agent" | "user", at: ReturnType<typeof sql>) =>
       db.execute(sql`
         insert into project_translation_revisions (organization_id, project_id, translation_id,
-          translation_key_id, target_locale, text, status, provenance, actor_kind, created_at)
+          translation_key_id, target_locale, text, status, provenance, origin, actor_kind, created_at)
         values (${organization.id}, ${project.id}, ${translation!.id}, ${keyIds[0]}, 'fr-FR',
-          ${text}, 'approved', ${actor === "agent" ? "translation_job" : "manual"}, ${actor}, ${at})
+          ${text}, 'approved', ${actor === "agent" ? "translation_job" : "manual"},
+          ${actor === "agent" ? "machine" : "machine_post_edited"}, ${actor}, ${at})
       `);
     const event = await insertSaveEvent({
       organizationId: organization.id,

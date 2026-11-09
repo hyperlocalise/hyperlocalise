@@ -48,6 +48,9 @@ import {
   dispatchVisualWorkflowsForSourceUpload,
 } from "./visual-workflow-dispatcher";
 import { listVisualWorkflowRuns } from "./visual-workflow-runs";
+import { dispatchJobChangeEvents } from "@/lib/job-change-events/job-change-event-pump";
+import { insertJobs, updateJobs } from "@/lib/job-change-events/job-writes";
+import { JOB_CHANGED_RUNS_PER_JOB_LIMIT } from "./visual-workflow-dispatcher";
 import {
   createVisualWorkflow,
   getVisualWorkflowById,
@@ -819,5 +822,113 @@ describe("visual workflow dispatcher", () => {
         query: {},
       }),
     ).resolves.toEqual({ outcome: "feature_unavailable" });
+  });
+});
+
+describe("job changed visual workflow dispatch", () => {
+  function jobChangedDefinition(name: string, toStatuses?: ("succeeded" | "failed")[]) {
+    return {
+      schemaVersion: 2,
+      name,
+      nodes: [
+        {
+          id: "t",
+          type: "trigger.job_changed",
+          config: { kind: "trigger.job_changed", eventTypes: ["job.status_changed"], toStatuses },
+        },
+      ],
+      edges: [],
+      editor: { positions: {} },
+    } satisfies VisualWorkflowDefinition;
+  }
+
+  async function insertJob(scope: { organizationId: string; projectId: string }) {
+    const jobId = `job_${crypto.randomUUID()}`;
+    await insertJobs(db, {
+      values: {
+        id: jobId,
+        organizationId: scope.organizationId,
+        projectId: scope.projectId,
+        kind: "translation",
+        status: "running",
+        inputPayload: {},
+      },
+    });
+    return jobId;
+  }
+
+  it("starts matching workflows once per job change", async () => {
+    const scope = await seedOrgScope();
+    const onSuccess = await createActiveWorkflow({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "On success",
+      definition: jobChangedDefinition("On success", ["succeeded"]),
+    });
+    const onFailure = await createActiveWorkflow({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "On failure",
+      definition: jobChangedDefinition("On failure", ["failed"]),
+    });
+    const jobId = await insertJob(scope);
+    await updateJobs(db, { set: { status: "succeeded" }, where: eq(schema.jobs.id, jobId) });
+
+    const { queue, enqueued } = trackingQueue();
+    const result = await dispatchJobChangeEvents({ organizationId: scope.organizationId, queue });
+    expect(result).toMatchObject({ claimed: 2, dispatched: 2, workflowRuns: 1 });
+    expect(enqueued.map((event) => event.visualWorkflowId)).toEqual([onSuccess.id]);
+
+    const runs = await listVisualWorkflowRuns({
+      organizationId: scope.organizationId,
+      visualWorkflowId: onSuccess.id,
+      limit: 10,
+    });
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.triggerSource).toBe("job_changed");
+    expect(runs[0]?.inputSnapshot).toMatchObject({
+      jobId,
+      projectId: scope.projectId,
+      jobKind: "translation",
+      status: "succeeded",
+      previousStatus: "running",
+      eventType: "job.status_changed",
+    });
+    expect(
+      await listVisualWorkflowRuns({
+        organizationId: scope.organizationId,
+        visualWorkflowId: onFailure.id,
+        limit: 10,
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("stops a workflow that keeps re-triggering itself on one job", async () => {
+    const scope = await seedOrgScope();
+    const workflow = await createActiveWorkflow({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Flip flop",
+      definition: jobChangedDefinition("Flip flop"),
+    });
+    const jobId = await insertJob(scope);
+    for (let index = 0; index <= JOB_CHANGED_RUNS_PER_JOB_LIMIT; index += 1) {
+      await updateJobs(db, {
+        set: { status: index % 2 === 0 ? "queued" : "running" },
+        where: eq(schema.jobs.id, jobId),
+      });
+    }
+
+    const { queue } = trackingQueue();
+    const result = await dispatchJobChangeEvents({ organizationId: scope.organizationId, queue });
+    expect(result.workflowRuns).toBe(JOB_CHANGED_RUNS_PER_JOB_LIMIT);
+    expect(result.dispatched).toBe(result.claimed);
+    expect(
+      await listVisualWorkflowRuns({
+        organizationId: scope.organizationId,
+        visualWorkflowId: workflow.id,
+        limit: 50,
+      }),
+    ).toHaveLength(JOB_CHANGED_RUNS_PER_JOB_LIMIT);
   });
 });

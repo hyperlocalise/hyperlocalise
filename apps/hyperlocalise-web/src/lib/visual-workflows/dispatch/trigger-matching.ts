@@ -20,6 +20,7 @@ import type {
   VisualWorkflowGithubTriggerEvent,
 } from "../schema/types";
 import type { VisualWorkflowRecord } from "../visual-workflow-types";
+import type { JobChangeEventRecord } from "@/lib/job-change-events/job-change-events-contract";
 
 type VisualWorkflowDefinitionWithNodes = {
   nodes: readonly CanonicalVisualWorkflowNode[];
@@ -74,6 +75,10 @@ export function resolveVisualWorkflowTriggerFingerprint(workflow: {
         : `source_upload:${workflow.id}`;
     case "trigger.webhook":
       return `webhook:${workflow.id}`;
+    case "trigger.job_changed":
+      return trigger.config.projectId
+        ? `job_changed:${workflow.id}:${trigger.config.projectId}`
+        : `job_changed:${workflow.id}`;
     default:
       return null;
   }
@@ -147,6 +152,35 @@ export function visualWorkflowShouldDispatchOnSourceUpload(
   return true;
 }
 
+function matchesOptionalFilter<T>(filter: readonly T[] | undefined, value: T): boolean {
+  return !filter || filter.length === 0 || filter.includes(value);
+}
+
+export function visualWorkflowShouldDispatchOnJobChange(
+  workflow: VisualWorkflowRecord,
+  event: Pick<JobChangeEventRecord, "type" | "projectId" | "kind" | "toStatus">,
+): boolean {
+  if (workflow.status !== "active") {
+    return false;
+  }
+
+  const trigger = getVisualWorkflowTriggerNode(workflow.definition);
+  if (!trigger || trigger.config.kind !== "trigger.job_changed") {
+    return false;
+  }
+
+  const config = trigger.config;
+  if (config.projectId && config.projectId !== event.projectId) {
+    return false;
+  }
+
+  return (
+    matchesOptionalFilter(config.eventTypes, event.type) &&
+    matchesOptionalFilter(config.jobKinds, event.kind) &&
+    matchesOptionalFilter(config.toStatuses, event.toStatus)
+  );
+}
+
 export function validateVisualWorkflowTriggerConfig(
   config: VisualNodeConfig,
 ): { ok: true } | { ok: false; message: string } {
@@ -167,6 +201,8 @@ export function validateVisualWorkflowTriggerConfig(
       return { ok: true };
     }
     case "trigger.source_upload":
+      return { ok: true };
+    case "trigger.job_changed":
       return { ok: true };
     case "trigger.webhook":
       return Number.isInteger(config.tokenVersion) && config.tokenVersion >= 1
@@ -191,7 +227,7 @@ export function validateActiveVisualWorkflowTrigger(
     return {
       ok: false,
       message:
-        "Active workflows require a production trigger (schedule, GitHub, source upload, or webhook).",
+        "Active workflows require a production trigger (schedule, GitHub, source upload, job changed, or webhook).",
     };
   }
 

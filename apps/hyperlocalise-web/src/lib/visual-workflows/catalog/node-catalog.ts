@@ -30,6 +30,7 @@ import {
   ChartBarIcon,
   SealCheckIcon,
   WebhooksLogoIcon,
+  ListChecksIcon,
   FilesIcon,
   UserSwitchIcon,
   UsersThreeIcon,
@@ -84,6 +85,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     category: "trigger",
     enabled: true,
     icon: WebhooksLogoIcon,
+  },
+  {
+    type: "trigger.job_changed",
+    category: "trigger",
+    enabled: true,
+    icon: ListChecksIcon,
   },
   {
     type: "action.http",
@@ -346,6 +353,8 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       return { kind: "trigger.source_upload" };
     case "trigger.webhook":
       return { kind: "trigger.webhook", tokenVersion: 1 };
+    case "trigger.job_changed":
+      return { kind: "trigger.job_changed", eventTypes: ["job.status_changed"] };
     case "action.http":
       return {
         kind: "action.http",
@@ -668,6 +677,26 @@ export function catalogItemByType(type: VisualCatalogType): VisualNodeCatalogIte
   return item;
 }
 
+const JOB_CHANGED_EVENT_LABELS: Record<string, string> = {
+  "job.created": "Created",
+  "job.status_changed": "Status changed",
+  "job.assignee_changed": "Assignee changed",
+};
+
+function jobChangedSubtitle(config: Extract<VisualNodeConfig, { kind: "trigger.job_changed" }>) {
+  const parts: string[] = [];
+  if (config.eventTypes?.length) {
+    parts.push(config.eventTypes.map((type) => JOB_CHANGED_EVENT_LABELS[type] ?? type).join(", "));
+  }
+  if (config.jobKinds?.length) {
+    parts.push(config.jobKinds.join(", "));
+  }
+  if (config.toStatuses?.length) {
+    parts.push(config.toStatuses.join(", "));
+  }
+  return parts.length > 0 ? parts.join(" · ") : "Any job change";
+}
+
 export function resolveNodeSubtitle(config: VisualNodeConfig): string {
   switch (config.kind) {
     case "trigger.manual":
@@ -680,6 +709,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.projectId ? "Project upload" : "Any project";
     case "trigger.webhook":
       return "Incoming HTTP POST";
+    case "trigger.job_changed":
+      return jobChangedSubtitle(config);
     case "action.http":
       return config.method;
     case "action.content_sync":

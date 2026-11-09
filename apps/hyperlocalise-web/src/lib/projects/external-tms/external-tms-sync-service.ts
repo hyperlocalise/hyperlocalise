@@ -13,6 +13,7 @@
 import { and, eq, inArray, ne, notInArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import { insertJobs, updateJobs } from "@/lib/job-change-events/job-writes";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import type { TmsProviderLiveProject } from "@/lib/providers/jobs/tms-provider-live";
 import {
@@ -343,9 +344,8 @@ export class ExternalTmsSyncService extends ProjectServiceBase {
       });
 
       await this.database.transaction(async (tx) => {
-        await tx
-          .insert(schema.jobs)
-          .values({
+        await insertJobs(tx, {
+          values: {
             id: jobId,
             organizationId: input.organizationId,
             projectId: input.projectId,
@@ -355,9 +355,9 @@ export class ExternalTmsSyncService extends ProjectServiceBase {
             status,
             inputPayload,
             completedAt,
-          })
-          .onConflictDoUpdate({
-            target: schema.jobs.id,
+          },
+          onConflict: {
+            action: "doUpdate",
             set: {
               projectId: input.projectId,
               kind: task.kind ?? "translation",
@@ -366,7 +366,8 @@ export class ExternalTmsSyncService extends ProjectServiceBase {
               completedAt,
               updatedAt: now,
             },
-          });
+          },
+        });
 
         await tx
           .insert(schema.externalJobDetails)
@@ -550,14 +551,14 @@ export class ExternalTmsSyncService extends ProjectServiceBase {
     const now = new Date();
 
     await this.database.transaction(async (tx) => {
-      await tx
-        .update(schema.jobs)
-        .set({
+      await updateJobs(tx, {
+        set: {
           status: "cancelled",
           completedAt: now,
           updatedAt: now,
-        })
-        .where(inArray(schema.jobs.id, jobIds));
+        },
+        where: inArray(schema.jobs.id, jobIds),
+      });
 
       await tx
         .update(schema.externalJobDetails)

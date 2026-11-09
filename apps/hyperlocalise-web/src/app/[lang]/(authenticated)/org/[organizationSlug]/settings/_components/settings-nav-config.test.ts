@@ -59,6 +59,7 @@ describe("settings nav config", () => {
       "hyperlab",
       "billing",
       "api-keys",
+      "webhooks",
       "account",
     ]);
   });

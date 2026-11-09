@@ -37,6 +37,7 @@ import {
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
+import { insertJobs, updateJobs } from "@/lib/job-change-events/job-writes";
 import { startTaskAnalysis } from "@/lib/reporting/task-analysis-start";
 import {
   ensureRepositorySourceFileVersionForStoredFile,
@@ -532,9 +533,8 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
                 })
               : null;
 
-          const [createdJob] = await tx
-            .insert(schema.jobs)
-            .values({
+          const [createdJob] = await insertJobs(tx, {
+            values: {
               id: jobId,
               organizationId: c.var.auth.organization.localOrganizationId,
               projectId: params.projectId,
@@ -545,8 +545,9 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
               status: isProofreadJob ? "waiting_for_review" : "queued",
               inputPayload: enrichedInputPayload,
               dueAt: payload.dueAt ? new Date(payload.dueAt) : null,
-            })
-            .returning();
+            },
+            returning: "all",
+          });
 
           const [details] = await tx
             .insert(schema.translationJobDetails)
@@ -620,14 +621,14 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             type: job.type,
           });
         } catch (error) {
-          await db
-            .update(schema.jobs)
-            .set({
+          await updateJobs(db, {
+            set: {
               status: "failed",
               lastError:
                 error instanceof Error ? error.message : "translation job queue unavailable",
-            })
-            .where(and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, job.id)));
+            },
+            where: and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, job.id)),
+          });
 
           await enqueueJobFailedActivity({
             actorCredentialId: null,
@@ -1121,22 +1122,20 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       const type = job.type;
 
       const restartedJob = await db.transaction(async (tx) => {
-        const [updatedJob] = await tx
-          .update(schema.jobs)
-          .set({
+        const [updatedJob] = await updateJobs(tx, {
+          set: {
             status: "queued",
             workflowRunId: null,
             lastError: null,
             completedAt: null,
-          })
-          .where(
-            and(
-              eq(schema.jobs.id, params.jobId),
-              await buildAccessibleJobsWhere(c.var.auth),
-              or(eq(schema.jobs.status, "failed"), eq(schema.jobs.status, "succeeded")),
-            ),
-          )
-          .returning({ id: schema.jobs.id, projectId: schema.jobs.projectId });
+          },
+          where: and(
+            eq(schema.jobs.id, params.jobId),
+            await buildAccessibleJobsWhere(c.var.auth),
+            or(eq(schema.jobs.status, "failed"), eq(schema.jobs.status, "succeeded")),
+          ),
+          returning: { id: schema.jobs.id, projectId: schema.jobs.projectId },
+        });
 
         if (!updatedJob) {
           return null;
@@ -1162,19 +1161,19 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           type: restartedJob.type,
         });
 
-        await db
-          .update(schema.jobs)
-          .set({ workflowRunId: result.ids[0] ?? null })
-          .where(eq(schema.jobs.id, restartedJob.id));
+        await updateJobs(db, {
+          set: { workflowRunId: result.ids[0] ?? null },
+          where: eq(schema.jobs.id, restartedJob.id),
+        });
       } catch (error) {
-        await db
-          .update(schema.jobs)
-          .set({
+        await updateJobs(db, {
+          set: {
             status: "failed",
             lastError: error instanceof Error ? error.message : "translation job queue unavailable",
             completedAt: new Date(),
-          })
-          .where(eq(schema.jobs.id, restartedJob.id));
+          },
+          where: eq(schema.jobs.id, restartedJob.id),
+        });
 
         await enqueueJobFailedActivity({
           actorCredentialId: null,
@@ -1258,17 +1257,17 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       const type = job.type;
 
       const retriedJob = await db.transaction(async (tx) => {
-        const [updatedJob] = await tx
-          .update(schema.jobs)
-          .set({
+        const [updatedJob] = await updateJobs(tx, {
+          set: {
             status: "queued",
             workflowRunId: null,
             lastError: null,
             outcomePayload: null,
             completedAt: null,
-          })
-          .where(await retryableJobWhere(c.var.auth, params.jobId))
-          .returning({ id: schema.jobs.id, projectId: schema.jobs.projectId });
+          },
+          where: await retryableJobWhere(c.var.auth, params.jobId),
+          returning: { id: schema.jobs.id, projectId: schema.jobs.projectId },
+        });
 
         if (!updatedJob) {
           return null;
@@ -1301,17 +1300,18 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         });
       } catch (error) {
         await db.transaction(async (tx) => {
-          await tx
-            .update(schema.jobs)
-            .set({
+          await updateJobs(tx, {
+            set: {
               status: "failed",
               lastError:
                 error instanceof Error ? error.message : "translation job queue unavailable",
               completedAt: new Date(),
-            })
-            .where(
-              and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)),
-            );
+            },
+            where: and(
+              eq(schema.jobs.id, params.jobId),
+              await buildAccessibleJobsWhere(c.var.auth),
+            ),
+          });
 
           await tx
             .update(schema.translationJobDetails)
@@ -1372,9 +1372,8 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
 
       const params = c.req.valid("param");
       const updatedJob = await db.transaction(async (tx) => {
-        const [job] = await tx
-          .update(schema.jobs)
-          .set({
+        const [job] = await updateJobs(tx, {
+          set: {
             status: "failed",
             workflowRunId: null,
             lastError: "Marked failed by user",
@@ -1383,9 +1382,10 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
               message: "Marked failed by user",
             },
             completedAt: new Date(),
-          })
-          .where(await agentActiveJobWhere(c.var.auth, params.jobId))
-          .returning({ id: schema.jobs.id, kind: schema.jobs.kind });
+          },
+          where: await agentActiveJobWhere(c.var.auth, params.jobId),
+          returning: { id: schema.jobs.id, kind: schema.jobs.kind },
+        });
 
         if (job?.kind === "translation") {
           await tx

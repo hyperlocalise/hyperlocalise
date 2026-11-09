@@ -72,6 +72,19 @@ Common filters:
 
 Provider-specific filters such as **QA issues** and **Machine translations** appear when the connected TMS supports them.
 
+### Machine or human
+
+Every translation in a native project records whether a machine or a person wrote its text. Use **Filter queue** → **Machine or human** to narrow the queue to one label, and see each version's label in the string's history.
+
+| Label | Meaning |
+| --- | --- |
+| **Machine** | Written by a translation job or the agent, and not changed since. Approving it unchanged keeps it **Machine**. |
+| **Machine, post-edited** | Machine text a person then changed. |
+| **Human** | Written by a person, with no machine text before it. |
+| **Unknown** | Imported from a file or an integration that doesn't say who wrote it. |
+
+Approving or rejecting a translation never changes its label; only a change to the text does. Translations written before November 2026 were labelled from their history: a save with no earlier machine version is **Human**.
+
 **Load more** continues the infinite-scroll list.
 
 ### Download filtered view

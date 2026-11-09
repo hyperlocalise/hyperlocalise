@@ -232,6 +232,7 @@
                       "platform/developers/projects-and-queries",
                       "platform/mcp",
                       "platform/developers/mcp-tools",
+                      "platform/developers/webhooks",
                       {
                         "group": "Framework and repository guides",
                         "pages": [

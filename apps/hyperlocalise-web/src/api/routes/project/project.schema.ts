@@ -15,6 +15,7 @@ import { z } from "zod";
 import { successEnvelopeSchema } from "@/api/response.schema";
 import { projectIssueIdentifierSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/identity/project-id";
+import { translationOrigins } from "@/lib/projects/translations/translation-origin-rule";
 import { VISUAL_CONTEXT_SCREENSHOT_MAX_BYTES } from "@/lib/translation/content-editor-visual-context";
 import {
   localeInputSchema,
@@ -333,6 +334,7 @@ export const projectFileCatQueueFilterSchema = z.enum([
   "not_hidden",
   "qa_issues",
   "machine_translated",
+  "origin",
   "with_comments",
 ]);
 
@@ -1027,6 +1029,8 @@ export const projectFileCatTranslationSchema = z.object({
   targetAssetUrl: z.string().nullable().optional(),
   imageVariantId: z.string().nullable().optional(),
   status: z.enum(["draft", "needs_review", "approved", "rejected"]).optional(),
+  /** Whether a machine or a person wrote `text`; native string targets only. */
+  origin: z.enum(translationOrigins).optional(),
 });
 
 /** Bounds apply to the rectangle, including cells not explicitly requested by callers. */

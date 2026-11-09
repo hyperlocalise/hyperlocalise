@@ -67,6 +67,10 @@ import {
   writeProjectTranslations,
   type TranslationRevisionActor,
 } from "@/lib/projects/translations/project-translation-revisions";
+import {
+  nextTranslationOrigin,
+  translationOriginWriterForProvenance,
+} from "@/lib/projects/translations/translation-origin-rule";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 import {
   inferSupportedDocumentTranslationFileFormat,
@@ -1173,6 +1177,11 @@ export class NativeContentEditorService extends ProjectServiceBase {
       async (tx, before) => {
         const [existing] = before.values();
         const sourceJobId = input.sourceJobId ?? existing?.sourceJobId ?? undefined;
+        const origin = nextTranslationOrigin(
+          existing,
+          translationOriginWriterForProvenance(provenance),
+          input.text,
+        );
         const [saved] = await tx
           .insert(schema.projectTranslations)
           .values({
@@ -1183,6 +1192,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
             text: input.text,
             status,
             provenance,
+            origin,
             sourceJobId: sourceJobId ?? null,
             reviewedByUserId,
             reviewedAt,
@@ -1196,6 +1206,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
               text: input.text,
               status,
               provenance,
+              origin,
               sourceJobId: sourceJobId ?? existing?.sourceJobId ?? null,
               reviewedByUserId,
               reviewedAt,

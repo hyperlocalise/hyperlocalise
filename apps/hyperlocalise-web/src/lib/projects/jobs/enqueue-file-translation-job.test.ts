@@ -12,6 +12,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+vi.mock("@/lib/job-change-events/job-writes", () => import("@/test/mocks/job-writes-passthrough"));
+
 import { err, ok } from "@/lib/primitives/result/results";
 import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
 
