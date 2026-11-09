@@ -13,7 +13,8 @@ CREATE TABLE "job_change_events" (
 	"occurred_at" timestamp with time zone DEFAULT clock_timestamp() NOT NULL,
 	"claimed_until" timestamp with time zone,
 	"claim_attempts" integer DEFAULT 0 NOT NULL,
-	"dispatched_at" timestamp with time zone
+	"dispatched_at" timestamp with time zone,
+	"abandoned_at" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "webhook_deliveries" (

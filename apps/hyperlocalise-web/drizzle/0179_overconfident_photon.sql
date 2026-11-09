@@ -1,1 +1,0 @@
-ALTER TABLE "job_change_events" ADD COLUMN "abandoned_at" timestamp with time zone;

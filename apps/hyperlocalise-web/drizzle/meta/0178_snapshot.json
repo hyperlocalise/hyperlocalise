@@ -1,5 +1,5 @@
 {
-  "id": "06edc4b0-c44a-4502-a4fa-43bd80b09f67",
+  "id": "4dd2fc37-1ccc-42a7-843b-c5070d783453",
   "prevId": "f0f0af12-1f6b-4a8a-8f96-c3903ab04428",
   "version": "7",
   "dialect": "postgresql",
@@ -38074,6 +38074,12 @@
         },
         "dispatched_at": {
           "name": "dispatched_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "abandoned_at": {
+          "name": "abandoned_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
