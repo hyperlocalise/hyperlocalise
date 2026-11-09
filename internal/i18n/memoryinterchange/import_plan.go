@@ -39,10 +39,10 @@ func PlanImportActions(
 	for key := range existingByExternalKey {
 		reservedExternal[key] = struct{}{}
 	}
-	sourceKeyOwners := make(map[string]string, len(existingBySourceKey))
+	owners := newSourceKeyOwners(len(existingBySourceKey))
 	for key, entry := range existingBySourceKey {
 		if entry.ID != "" {
-			sourceKeyOwners[key] = entry.ID
+			owners.assign(key, entry.ID)
 		}
 	}
 
@@ -54,18 +54,18 @@ func PlanImportActions(
 				planned = append(planned, PlannedImport{Candidate: candidate, Action: ImportActionSkip})
 				continue
 			}
-			if sourceKeyTakenByOther(sourceKeyOwners, nextSourceKey, existing.ID) {
+			if owners.takenByOther(nextSourceKey, existing.ID) {
 				planned = append(planned, PlannedImport{Candidate: candidate, Action: ImportActionSkip})
 				continue
 			}
-			releaseSourceKeysForEntry(sourceKeyOwners, existing.ID)
+			owners.release(existing.ID)
 			planned = append(planned, PlannedImport{Candidate: candidate, Action: ImportActionUpdate, ExistingID: existing.ID})
-			sourceKeyOwners[nextSourceKey] = existing.ID
+			owners.assign(nextSourceKey, existing.ID)
 			continue
 		}
-		if sourceKeyTakenByOther(sourceKeyOwners, nextSourceKey, "") {
+		if owners.takenByOther(nextSourceKey, "") {
 			existing := existingBySourceKey[nextSourceKey]
-			ownerID := sourceKeyOwners[nextSourceKey]
+			ownerID := owners.byKey[nextSourceKey]
 			if candidate.ExternalKey != nil && *candidate.ExternalKey != "" && ownerID != "" && existing.ID != "" && existing.ID == ownerID && (existing.ExternalKey == nil || strings.TrimSpace(*existing.ExternalKey) == "") {
 				planned = append(planned, PlannedImport{Candidate: candidate, Action: ImportActionUpdate, ExistingID: existing.ID})
 				reservedExternal[*candidate.ExternalKey] = struct{}{}
@@ -74,7 +74,7 @@ func PlanImportActions(
 			planned = append(planned, PlannedImport{Candidate: candidate, Action: ImportActionSkip})
 			continue
 		}
-		sourceKeyOwners[nextSourceKey] = ""
+		owners.assign(nextSourceKey, "")
 		if candidate.ExternalKey != nil && *candidate.ExternalKey != "" {
 			reservedExternal[*candidate.ExternalKey] = struct{}{}
 		}
@@ -93,8 +93,35 @@ func hasKey(set map[string]struct{}, key string) bool {
 	return ok
 }
 
-func sourceKeyTakenByOther(owners map[string]string, key, exceptEntryID string) bool {
-	owner, ok := owners[key]
+// sourceKeyOwners tracks which existing entry owns each source key. A key owned
+// by "" was claimed by a row created earlier in the same import.
+//
+// keysByEntry indexes the keys each entry was assigned so that release does not
+// scan every key: an import updating n entries by external key would otherwise
+// cost O(n * keys). A key only changes owner after release has cleared it, so
+// the index never lists a key another entry owns; release still checks
+// ownership before deleting so a future caller cannot free someone else's key.
+type sourceKeyOwners struct {
+	byKey       map[string]string
+	keysByEntry map[string][]string
+}
+
+func newSourceKeyOwners(capacity int) *sourceKeyOwners {
+	return &sourceKeyOwners{
+		byKey:       make(map[string]string, capacity),
+		keysByEntry: make(map[string][]string, capacity),
+	}
+}
+
+func (o *sourceKeyOwners) assign(key, entryID string) {
+	o.byKey[key] = entryID
+	if entryID != "" {
+		o.keysByEntry[entryID] = append(o.keysByEntry[entryID], key)
+	}
+}
+
+func (o *sourceKeyOwners) takenByOther(key, exceptEntryID string) bool {
+	owner, ok := o.byKey[key]
 	if !ok {
 		return false
 	}
@@ -104,12 +131,14 @@ func sourceKeyTakenByOther(owners map[string]string, key, exceptEntryID string) 
 	return true
 }
 
-func releaseSourceKeysForEntry(owners map[string]string, entryID string) {
-	for key, owner := range owners {
-		if owner == entryID {
-			delete(owners, key)
+// release frees every source key entryID owns.
+func (o *sourceKeyOwners) release(entryID string) {
+	for _, key := range o.keysByEntry[entryID] {
+		if o.byKey[key] == entryID {
+			delete(o.byKey, key)
 		}
 	}
+	delete(o.keysByEntry, entryID)
 }
 
 // CountPlannedImportActions returns report counters for a dry-run plan.

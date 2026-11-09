@@ -9,6 +9,11 @@ go_library(
 
 go_test(
     name = "ironsession_test",
-    srcs = ["ironsession_test.go"],
+    srcs = [
+        "ironsession_benchmark_test.go",
+        "ironsession_fuzz_test.go",
+        "ironsession_test.go",
+    ],
+    data = glob(["testdata/**"]),
     embed = [":ironsession"],
 )

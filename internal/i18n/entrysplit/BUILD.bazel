@@ -1,10 +1,23 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "entrysplit",
     srcs = ["srx.go"],
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/entrysplit",
     visibility = ["//visibility:public"],
+    deps = [
+        "//internal/i18n/srx",
+        "//internal/i18n/translationfileparser",
+    ],
+)
+
+go_test(
+    name = "entrysplit_test",
+    srcs = [
+        "srx_more_test.go",
+        "srx_test.go",
+    ],
+    embed = [":entrysplit"],
     deps = [
         "//internal/i18n/srx",
         "//internal/i18n/translationfileparser",
