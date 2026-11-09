@@ -1,5 +1,5 @@
 {
-  "id": "89c113d9-ea4f-477d-849b-5948229a6b8e",
+  "id": "f0f0af12-1f6b-4a8a-8f96-c3903ab04428",
   "prevId": "60505cd8-a554-4a01-b738-82b47ad4f1dc",
   "version": "7",
   "dialect": "postgresql",
@@ -26047,27 +26047,6 @@
             },
             {
               "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_project_translations_origin": {
-          "name": "idx_project_translations_origin",
-          "columns": [
-            {
-              "expression": "project_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "origin",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

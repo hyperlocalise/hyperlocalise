@@ -2,8 +2,8 @@
 //
 // Provenance names the last writer and is overwritten by every save, so a person who approves
 // machine text unchanged would turn it into their own. Origin follows the text instead. Keep the
-// rules in step with apps/hyperlocalise-web/src/lib/projects/translations/translation-origin.ts
-// and the backfill in apps/hyperlocalise-web/drizzle/0177_grey_lila_cheney.sql.
+// rules in step with apps/hyperlocalise-web/src/lib/projects/translations/translation-origin-rule.ts
+// and the backfill in backfill-translation-origins.ts beside it.
 package translationorigin
 
 // Origin values, matching the project_translation_origin enum.
@@ -59,27 +59,4 @@ func Next(previous *Previous, writer, text string) string {
 		return MachinePostEdited
 	}
 	return Human
-}
-
-// WriterForProvenance maps a project_translation_provenance value to its writer kind.
-func WriterForProvenance(provenance string) string {
-	switch provenance {
-	case "translation_job", "agent":
-		return WriterMachine
-	case "import":
-		return WriterImport
-	}
-	return WriterPerson
-}
-
-// SQLNext is Next as a SQL expression, for statements that write many rows at once.
-// prevOrigin and prevText are expressions for the earlier row (NULL when there is none),
-// writer and text for the write. The result is text; cast it to project_translation_origin.
-func SQLNext(prevOrigin, prevText, writer, text string) string {
-	return `(case
-        when ` + writer + ` = 'machine' then 'machine'
-        when ` + prevOrigin + ` is not null and ` + prevText + ` = ` + text + ` then ` + prevOrigin + `::text
-        when ` + writer + ` = 'import' then 'unknown'
-        when ` + prevOrigin + `::text in ('machine', 'machine_post_edited') then 'machine_post_edited'
-        else 'human' end)`
 }

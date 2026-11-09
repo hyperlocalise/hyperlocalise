@@ -32,16 +32,3 @@ func TestNext(t *testing.T) {
 		})
 	}
 }
-
-func TestWriterForProvenance(t *testing.T) {
-	for provenance, want := range map[string]string{
-		"translation_job": WriterMachine,
-		"agent":           WriterMachine,
-		"import":          WriterImport,
-		"manual":          WriterPerson,
-	} {
-		if got := WriterForProvenance(provenance); got != want {
-			t.Fatalf("WriterForProvenance(%q) = %q, want %q", provenance, got, want)
-		}
-	}
-}

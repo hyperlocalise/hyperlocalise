@@ -19,6 +19,7 @@
     "test:eval": "vp test run --config vite.eval.config.ts",
     "workos:setup": "bun --env-file=.env src/lib/workos/run-workos-setup.ts",
     "crowdin:pat-test": "bun --env-file=.env src/lib/providers/adapters/crowdin/run-crowdin-pat-test.ts",
+    "translations:backfill-origin": "bun --preload ./scripts/bun-server-only-stub.ts --env-file=.env src/lib/projects/translations/run-backfill-translation-origins.ts",
     "reporting:summary": "bun --preload ./scripts/bun-server-only-stub.ts --env-file=.env src/lib/reporting/run-reporting-summary.ts"
   },
   "dependencies": {

@@ -12,36 +12,19 @@
  */
 import { type SQL, sql } from "drizzle-orm";
 
-import type { schema } from "@/lib/database/client";
-
-import type { TranslationOrigin, TranslationOriginWriter } from "./translation-origin-rule";
-
-// The rule's values must stay the enum's values.
-type SchemaOrigin = (typeof schema.projectTranslations.$inferSelect)["origin"];
-const originsMatchSchema: [SchemaOrigin, TranslationOrigin] extends [
-  TranslationOrigin,
-  SchemaOrigin,
-]
-  ? true
-  : never = true;
-void originsMatchSchema;
+import type { TranslationOriginWriter } from "./translation-origin-rule";
 
 /**
- * `nextTranslationOrigin` (see `translation-origin-rule.ts`) as SQL for a write that replaces the
- * current row's text with `text`, read against the row being written: an `UPDATE … SET`, or
- * `ON CONFLICT DO UPDATE` with `excluded.text` (see `translationOriginOnConflict`).
+ * `nextTranslationOrigin` (see `translation-origin-rule.ts`) as SQL for an upsert's
+ * `ON CONFLICT DO UPDATE SET`: the row being written holds the previous text and origin, and
+ * `excluded.text` is the new text.
  */
-export function translationOriginOnUpdate(writer: TranslationOriginWriter, text: SQL): SQL {
+export function translationOriginOnConflict(writer: TranslationOriginWriter): SQL {
   if (writer === "machine") return sql`'machine'::project_translation_origin`;
   const changed = writer === "import" ? sql`'unknown'` : sql`'human'`;
   const overMachine = writer === "import" ? sql`'unknown'` : sql`'machine_post_edited'`;
   return sql`(case
-    when "project_translations"."text" = ${text} then "project_translations"."origin"::text
+    when "project_translations"."text" = excluded."text" then "project_translations"."origin"::text
     when "project_translations"."origin" in ('machine', 'machine_post_edited') then ${overMachine}
     else ${changed} end)::project_translation_origin`;
-}
-
-/** `translationOriginOnUpdate` for an upsert's `ON CONFLICT DO UPDATE SET`. */
-export function translationOriginOnConflict(writer: TranslationOriginWriter): SQL {
-  return translationOriginOnUpdate(writer, sql.raw(`excluded."text"`));
 }

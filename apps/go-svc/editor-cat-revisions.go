@@ -231,7 +231,7 @@ func applyEditorCatRestore(ctx context.Context, tx pgx.Tx, actor editorCatActor,
         from saved
         join project_translation_keys k on k.id = saved.translation_key_id
         left join repository_source_files f on f.id = k.repository_source_file_id`,
-		before.id, actor.organizationID, target.text, target.status, target.provenance, target.sourceJobID, reviewedAt, reviewedBy, restoreOrigin(before, target),
+		before.id, actor.organizationID, target.text, target.status, target.provenance, target.sourceJobID, reviewedAt, reviewedBy, restoreOrigin(target),
 	).Scan(&id, &text, &status, &afterRevision, &occurrencePath)
 	if err != nil {
 		return editorCatTranslation{}, "", err
@@ -510,13 +510,13 @@ func (api *editorCatAPI) undoOperation(r *http.Request, actor editorCatActor, pr
 	}, 200, nil
 }
 
-// restoreOrigin is the origin a restore writes: the restored version's own, or, when the version
-// carries none (an undo back to an empty translation), the rule for a person's write.
-func restoreOrigin(before editorCatTranslationSnapshot, target editorCatRestoreTarget) string {
+// restoreOrigin is the origin a restore writes: the restored version's own. An undo back to no
+// earlier version leaves an empty translation, which nobody wrote, so it is unknown.
+func restoreOrigin(target editorCatRestoreTarget) string {
 	if translationorigin.Valid(target.origin) {
 		return target.origin
 	}
-	return translationorigin.Next(&translationorigin.Previous{Origin: before.origin, Text: before.text}, translationorigin.WriterPerson, target.text)
+	return translationorigin.Unknown
 }
 
 // originPrevious is the snapshot as the origin rule reads it, nil when there is no translation.

@@ -12,6 +12,8 @@
  */
 import { pgEnum } from "drizzle-orm/pg-core";
 
+import { translationOrigins } from "@/lib/projects/translations/translation-origin-rule";
+
 /**
  * Classifies the high-level work a job performs so workers, APIs, and UI views can route translation, review, sync, research, and asset-management workflows consistently.
  */
@@ -387,12 +389,10 @@ export const projectTranslationProvenanceEnum = pgEnum("project_translation_prov
  * person changed), `human` (a person's own text), `unknown` (imported, author not recorded).
  * Rules: `lib/projects/translations/translation-origin-rule.ts` and `internal/translationorigin` (Go).
  */
-export const projectTranslationOriginEnum = pgEnum("project_translation_origin", [
-  "machine",
-  "machine_post_edited",
-  "human",
-  "unknown",
-]);
+export const projectTranslationOriginEnum = pgEnum(
+  "project_translation_origin",
+  translationOrigins,
+);
 /**
  * Distinguishes regular CAT comments from review issues on native project strings.
  */

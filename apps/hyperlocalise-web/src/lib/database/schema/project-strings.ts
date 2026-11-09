@@ -139,7 +139,6 @@ export const projectTranslations = pgTable(
     uniqueIndex("project_translations_key_locale").on(table.translationKeyId, table.targetLocale),
     index("idx_project_translations_org_project").on(table.organizationId, table.projectId),
     index("idx_project_translations_status").on(table.projectId, table.status),
-    index("idx_project_translations_origin").on(table.projectId, table.origin),
   ],
 );
 

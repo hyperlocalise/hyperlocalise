@@ -14,7 +14,7 @@
  * Whether a machine or a person wrote a translation's text. Provenance names the last writer and
  * is overwritten by every save, so a person approving machine text unchanged would make it theirs;
  * origin follows the text instead. Keep in step with `internal/translationorigin` (Go) and the
- * backfill in `drizzle/0177_grey_lila_cheney.sql`. Safe to import from client code; the SQL forms
+ * backfill in `backfill-translation-origins.ts`. Safe to import from client code; the SQL forms
  * live in `translation-origin.ts`.
  */
 export const translationOrigins = ["machine", "machine_post_edited", "human", "unknown"] as const;
