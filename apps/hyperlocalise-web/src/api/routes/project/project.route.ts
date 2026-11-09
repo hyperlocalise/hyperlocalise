@@ -84,6 +84,7 @@ import {
   maxCatFilteredExportSegments,
 } from "@/lib/projects/content-editor/content-editor-filtered-export";
 import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
+import { listProjectKeyTags } from "@/lib/projects/jobs/key-job";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 
 import {
@@ -1426,6 +1427,17 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
       if (target.kind === "provider_unavailable") {
         return providerProjectUnavailableResponse(c, target);
+      }
+
+      if (target.kind === "native") {
+        if (!(await getOwnedProject(auth, target.projectId))) {
+          return projectNotFoundResponse(c);
+        }
+        const tags = await listProjectKeyTags(
+          auth.organization.localOrganizationId,
+          target.projectId,
+        );
+        return c.json({ labels: tags.map((tag) => ({ id: tag, title: tag })) }, 200);
       }
 
       if (target.kind !== "provider") {

@@ -24,6 +24,7 @@ import {
 
 import { ContentEditorSectionErrorBoundary } from "@/components/content-editor/workspace/content-editor-section-error-boundary";
 import {
+  ArrowSquareOutIcon,
   LightbulbIcon,
   DatabaseIcon,
   FileIcon,
@@ -444,6 +445,7 @@ export function ContentEditorIntelligencePanel({
   }, [scrollToTm, segmentId, isConcordanceLoading, intelligence.translationMemoryMatches]);
 
   const hasFileContext = Boolean(intelligence.productMeaning?.trim());
+  const keyTags = intelligence.keyTags ?? [];
   const agentBadges = [
     intelligence.locationBreadcrumb,
     intelligence.componentName,
@@ -587,6 +589,33 @@ export function ContentEditorIntelligencePanel({
                   <FormattedMessage {...contentEditorIntelligencePanelMessages.noFileContext} />
                 </p>
               )}
+              {keyTags.length > 0 ? (
+                <div className="mt-2 flex flex-wrap items-center gap-1">
+                  <span className="text-xs text-subtle-foreground">
+                    <FormattedMessage {...contentEditorIntelligencePanelMessages.keyTagsLabel} />
+                  </span>
+                  {keyTags.map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant="outline"
+                      className="h-5 px-1.5 text-[10px] font-medium"
+                    >
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+              {intelligence.designUrl ? (
+                <a
+                  href={intelligence.designUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1 text-sm text-primary underline-offset-4 hover:underline"
+                >
+                  <ArrowSquareOutIcon className="size-3.5" />
+                  <FormattedMessage {...contentEditorIntelligencePanelMessages.openDesign} />
+                </a>
+              ) : null}
             </PanelSection>
 
             {isConcordanceLoading ? (

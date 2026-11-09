@@ -364,7 +364,8 @@ describe("ContentEditorQueueToolbar", () => {
 
     expect(await screen.findByRole("dialog", { name: "Advanced Filter" })).toBeInTheDocument();
     expect(screen.queryByText("Screenshots")).not.toBeInTheDocument();
-    expect(screen.queryByText("Labels: Include All")).not.toBeInTheDocument();
+    // Native projects filter by their strings' tags through the labels fields.
+    expect(screen.getByText("Labels: Include All")).toBeInTheDocument();
 
     await user.click(screen.getByLabelText("String type"));
     await user.click(screen.getByRole("option", { name: "ICU" }));

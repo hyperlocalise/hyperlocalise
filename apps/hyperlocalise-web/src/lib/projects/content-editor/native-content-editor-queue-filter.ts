@@ -329,6 +329,30 @@ export function nativeQueueFilterCondition(input: {
     if (advanced.visibility === "visible") {
       fragments.push(sql`${schema.projectTranslationKeys.isHidden} = false`);
     }
+    // Native labels are the keys' tags.
+    const tags = schema.projectTranslationKeys.tags;
+    if (advanced.includeLabelIds?.length) {
+      const include = sql`array[${sql.join(
+        advanced.includeLabelIds.map((tag) => sql`${tag}`),
+        sql`, `,
+      )}]::text[]`;
+      fragments.push(
+        advanced.includeLabelMode === "include_any"
+          ? sql`${tags} && ${include}`
+          : sql`${tags} @> ${include}`,
+      );
+    }
+    if (advanced.excludeLabelIds?.length) {
+      const exclude = sql`array[${sql.join(
+        advanced.excludeLabelIds.map((tag) => sql`${tag}`),
+        sql`, `,
+      )}]::text[]`;
+      fragments.push(
+        advanced.excludeLabelMode === "exclude_any"
+          ? sql`not (${tags} && ${exclude})`
+          : sql`not (${tags} @> ${exclude})`,
+      );
+    }
   }
 
   if (fragments.length === 0) {

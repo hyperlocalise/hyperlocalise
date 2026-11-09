@@ -666,6 +666,16 @@ export const contentEditorIntelligencePanelMessages = defineMessages({
     id: "9RkSMcYnN2",
     description: "Accessible label for file-attached context markdown content",
   },
+  keyTagsLabel: {
+    defaultMessage: "Tags",
+    id: "8vCpYHi50M",
+    description: "Label before the tags of a string in the content editor's context panel",
+  },
+  openDesign: {
+    defaultMessage: "Open design",
+    id: "ZWQRslmNm4",
+    description: "Link to the design (such as a Figma frame) where the string appears",
+  },
   noFileContext: {
     defaultMessage: "No context is attached to this string in the source file.",
     id: "H3PhSgBYwu",

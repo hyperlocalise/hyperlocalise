@@ -161,3 +161,22 @@ describe("nativeQueueFilterCondition", () => {
     expect(filterSql({ ...scope, queueFilter: "hidden" })).toContain("true");
   });
 });
+
+describe("nativeQueueFilterCondition key tags", () => {
+  const scope = { organizationId: "org", projectId: "project", targetLocale: "fr" };
+
+  it("matches tags as labels", () => {
+    const sqlText = filterSql({
+      ...scope,
+      advancedFilter: {
+        includeLabelMode: "include_any",
+        includeLabelIds: ["checkout"],
+        excludeLabelIds: ["old"],
+      },
+    });
+
+    expect(sqlText).toContain("&& array[checkout]::text[]");
+    expect(sqlText).toContain("not (");
+    expect(sqlText).toContain("@> array[old]::text[]");
+  });
+});

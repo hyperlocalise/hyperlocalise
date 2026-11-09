@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  advancedQueueFilterSupportsLabels,
   compactAdvancedQueueFilter,
   croqlDateRangePredicate,
   croqlLabelPredicates,
@@ -130,5 +131,14 @@ describe("croql helpers", () => {
     );
     expect(compactAdvancedQueueFilter({ includeLabelIds: ids }).includeLabelIds).toHaveLength(50);
     expect(parseAdvancedQueueFilter(JSON.stringify({ includeLabelIds: ids }))).toBeUndefined();
+  });
+});
+
+describe("tag filters", () => {
+  it("offers labels on native projects, where they are the keys' tags", () => {
+    expect(advancedQueueFilterSupportsLabels(null)).toBe(true);
+    expect(advancedQueueFilterSupportsLabels("native")).toBe(true);
+    expect(advancedQueueFilterSupportsLabels("crowdin")).toBe(true);
+    expect(advancedQueueFilterSupportsLabels("phrase")).toBe(false);
   });
 });

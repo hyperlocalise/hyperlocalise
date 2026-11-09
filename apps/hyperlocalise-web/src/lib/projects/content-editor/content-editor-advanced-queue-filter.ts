@@ -196,8 +196,9 @@ export function isAdvancedQueueFilterSupportedForProvider(providerKind: string |
   return providerKind == null || providerKind === "native" || providerKind === "crowdin";
 }
 
+/** Crowdin labels, and on native projects the keys' tags. */
 export function advancedQueueFilterSupportsLabels(providerKind: string | null | undefined) {
-  return providerKind === "crowdin";
+  return providerKind == null || providerKind === "native" || providerKind === "crowdin";
 }
 
 export function advancedQueueFilterSupportsScreenshots(providerKind: string | null | undefined) {
