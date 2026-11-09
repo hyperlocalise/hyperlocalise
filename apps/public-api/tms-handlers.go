@@ -8,7 +8,9 @@ import (
 	"mime"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/keymeta"
 	"github.com/hyperlocalise/hyperlocalise/internal/sourcetext"
 	"github.com/hyperlocalise/hyperlocalise/internal/translationorigin"
 )
@@ -102,6 +104,7 @@ func (s apiServer) projectStrings(w http.ResponseWriter, r *http.Request) {
 	keys := values["key"]
 	filters := stringFilters{
 		Keys:     keys,
+		Tags:     values["tag"],
 		Search:   strings.TrimSpace(values.Get("search")),
 		FilePath: strings.TrimSpace(values.Get("filePath")),
 		Limit:    page.Limit,
@@ -113,7 +116,8 @@ func (s apiServer) projectStrings(w http.ResponseWriter, r *http.Request) {
 	for _, key := range keys {
 		validKeys = validKeys && key != "" && len(key) <= 1000
 	}
-	if !member(includeHidden, "", "true", "false") || len(filters.Search) > 200 || len(filters.FilePath) > 2048 || !validKeys {
+	if !member(includeHidden, "", "true", "false") || len(filters.Search) > 200 || len(filters.FilePath) > 2048 || !validKeys ||
+		!keymeta.ValidTags(filters.Tags, maxTagFilters) {
 		writeError(w, http.StatusBadRequest, "invalid_query", "One or more query filters are invalid")
 		return
 	}
@@ -366,14 +370,21 @@ func (s apiServer) projectTranslations(w http.ResponseWriter, r *http.Request) {
 		Locale: strings.TrimSpace(values.Get("locale")),
 		Status: values.Get("status"),
 		Origin: values.Get("origin"),
+		Keys:   values["key"],
 		Limit:  page.Limit,
 		Offset: page.Offset,
 	}
 	includeHidden := values.Get("includeHidden")
 	filters.IncludeHidden = includeHidden == "true"
+	validSince := true
+	if since := values.Get("updatedSince"); since != "" {
+		parsed, err := time.Parse(time.RFC3339, since)
+		filters.UpdatedSince, validSince = &parsed, err == nil
+	}
 	if !member(includeHidden, "", "true", "false") || len(filters.Locale) > maxLocaleLength ||
 		(filters.Status != "" && !member(filters.Status, translationStatuses...)) ||
-		(filters.Origin != "" && !translationorigin.Valid(filters.Origin)) {
+		(filters.Origin != "" && !translationorigin.Valid(filters.Origin)) ||
+		!validKeyNames(filters.Keys, 100) || !validSince {
 		writeError(w, http.StatusBadRequest, "invalid_query", "One or more query filters are invalid")
 		return
 	}

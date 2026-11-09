@@ -13,6 +13,7 @@ import (
 
 type fakeTMSStore struct {
 	fakeBilingualStore
+	fakeKeyStore
 	fakeJobStore
 	fakeProjectAdminStore
 	fakeMemoryInterchangeStore
