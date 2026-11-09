@@ -19,12 +19,16 @@ import {
   executeFileReadNode,
   executeFileWriteNode,
   type FileConvertDependencies,
+  type FileReadDependencies,
   type FileWriteDependencies,
   VISUAL_WORKFLOW_FILE_MAX_BYTES,
 } from "./file-nodes";
 import { selectNextEdges } from "./graph-index";
 
 const organizationId = "00000000-0000-4000-8000-000000000001";
+const visualWorkflowId = "00000000-0000-4000-8000-000000000002";
+
+type FileScope = { organizationId: string; projectId?: string | null; fileId: string };
 
 function body(content: Uint8Array | string) {
   const bytes = typeof content === "string" ? Buffer.from(content) : content;
@@ -42,10 +46,16 @@ function dependencies(input: {
   metadata?: Record<string, unknown>;
   missingFile?: boolean;
   missingObject?: boolean;
-  onFind?: (scope: { organizationId: string; fileId: string }) => void;
-}) {
+  actorProjectId?: string | null;
+  missingActor?: boolean;
+  onFind?: (scope: FileScope) => void;
+}): FileReadDependencies {
   return {
-    async findFile(scope: { organizationId: string; fileId: string }) {
+    async resolveActor() {
+      if (input.missingActor) return null;
+      return { userId: "user-1", projectId: input.actorProjectId ?? null };
+    },
+    async findFile(scope: FileScope) {
       input.onFind?.(scope);
       if (input.missingFile) return null;
       return {
@@ -71,9 +81,10 @@ function dependencies(input: {
 
 describe("File Read workflow node", () => {
   it("reads UTF-8 content and safe metadata in organization scope", async () => {
-    let requestedScope: { organizationId: string; fileId: string } | undefined;
+    let requestedScope: FileScope | undefined;
     const result = await executeFileReadNode({
       organizationId,
+      visualWorkflowId,
       fileId: "file_source",
       encoding: "utf-8",
       dependencies: dependencies({
@@ -85,7 +96,7 @@ describe("File Read workflow node", () => {
       }),
     });
 
-    expect(requestedScope).toEqual({ organizationId, fileId: "file_source" });
+    expect(requestedScope).toEqual({ organizationId, projectId: null, fileId: "file_source" });
     expect(result).toEqual({
       ok: true,
       switchCase: "success",
@@ -107,6 +118,7 @@ describe("File Read workflow node", () => {
     const content = Uint8Array.from([0, 255, 42]);
     const result = await executeFileReadNode({
       organizationId,
+      visualWorkflowId,
       fileId: "file_binary",
       encoding: "base64",
       dependencies: dependencies({ content }),
@@ -126,6 +138,7 @@ describe("File Read workflow node", () => {
     await expect(
       executeFileReadNode({
         organizationId,
+        visualWorkflowId,
         fileId,
         encoding: "utf-8",
         dependencies: dependencies({}),
@@ -136,6 +149,7 @@ describe("File Read workflow node", () => {
   it("returns a scoped not-found error without exposing the identifier", async () => {
     const result = await executeFileReadNode({
       organizationId,
+      visualWorkflowId,
       fileId: "file_private_name",
       encoding: "utf-8",
       dependencies: dependencies({ missingFile: true }),
@@ -153,6 +167,7 @@ describe("File Read workflow node", () => {
     await expect(
       executeFileReadNode({
         organizationId,
+        visualWorkflowId,
         fileId: "file_source",
         encoding: "utf-8",
         dependencies: dependencies({ missingObject: true }),
@@ -168,6 +183,7 @@ describe("File Read workflow node", () => {
     await expect(
       executeFileReadNode({
         organizationId,
+        visualWorkflowId,
         fileId: "file_large",
         encoding: "utf-8",
         dependencies: dependencies({ byteSize: VISUAL_WORKFLOW_FILE_MAX_BYTES + 1 }),
@@ -177,6 +193,7 @@ describe("File Read workflow node", () => {
     await expect(
       executeFileReadNode({
         organizationId,
+        visualWorkflowId,
         fileId: "file_large",
         encoding: "utf-8",
         dependencies: dependencies({
@@ -191,6 +208,7 @@ describe("File Read workflow node", () => {
     await expect(
       executeFileReadNode({
         organizationId,
+        visualWorkflowId,
         fileId: "file_binary",
         encoding: "utf-8",
         dependencies: dependencies({ content: Uint8Array.from([0xff]) }),
@@ -202,12 +220,53 @@ describe("File Read workflow node", () => {
     await expect(
       executeFileReadNode({
         organizationId,
+        visualWorkflowId,
         fileId: "file_source",
         encoding: "utf-8",
         signal: controller.signal,
         dependencies: dependencies({}),
       }),
     ).resolves.toMatchObject({ output: { error: { code: "cancelled" } } });
+  });
+
+  it("reads within the workflow project and requires a current actor", async () => {
+    let requestedScope: FileScope | undefined;
+    await executeFileReadNode({
+      organizationId,
+      visualWorkflowId,
+      fileId: "file_source",
+      encoding: "utf-8",
+      dependencies: dependencies({
+        actorProjectId: "project-1",
+        onFind: (scope) => {
+          requestedScope = scope;
+        },
+      }),
+    });
+    expect(requestedScope).toEqual({
+      organizationId,
+      projectId: "project-1",
+      fileId: "file_source",
+    });
+
+    await expect(
+      executeFileReadNode({
+        organizationId,
+        visualWorkflowId,
+        fileId: "file_source",
+        encoding: "utf-8",
+        dependencies: dependencies({ missingActor: true }),
+      }),
+    ).resolves.toMatchObject({ output: { error: { code: "file_actor_required" } } });
+
+    await expect(
+      executeFileReadNode({
+        organizationId,
+        fileId: "file_source",
+        encoding: "utf-8",
+        dependencies: dependencies({}),
+      }),
+    ).resolves.toMatchObject({ output: { error: { code: "file_actor_required" } } });
   });
 
   it("is wired into the production executor", async () => {
@@ -359,6 +418,34 @@ describe("File Write workflow node", () => {
 
     expect(state.creates).toHaveLength(1);
     expect(replay).toEqual(first);
+  });
+
+  it("returns the winning file when a concurrent attempt creates it first", async () => {
+    const { dependencies } = writeDependencies();
+    const losingAttempt: FileWriteDependencies = {
+      ...dependencies,
+      createFile: async (createInput) => {
+        await dependencies.createFile(createInput);
+        throw new Error("duplicate key value violates unique constraint");
+      },
+    };
+
+    await expect(
+      executeFileWriteNode(writeInput({ dependencies: losingAttempt })),
+    ).resolves.toMatchObject({ switchCase: "success", output: { filename: "messages.json" } });
+    await expect(
+      executeFileWriteNode(
+        writeInput({
+          idempotencyKey: "run:write-file:attempt-2",
+          dependencies: {
+            ...dependencies,
+            createFile: async () => {
+              throw new Error("storage unavailable");
+            },
+          },
+        }),
+      ),
+    ).resolves.toMatchObject({ output: { error: { code: "file_write_failed" } } });
   });
 
   it("rejects a changed payload for the same retry key", async () => {
@@ -611,6 +698,12 @@ describe("File Convert workflow node", () => {
     await expect(
       executeFileConvertNode(convertInput(malformed.dependencies)),
     ).resolves.toMatchObject({ output: { error: { code: "invalid_file_format" } } });
+
+    const scalarToArb = convertDependencies({ filename: "messages.yaml", content: "Hello\n" });
+    await expect(
+      executeFileConvertNode(convertInput(scalarToArb.dependencies, { targetFormat: "arb" })),
+    ).resolves.toMatchObject({ output: { error: { code: "unsupported_file_value" } } });
+    expect(scalarToArb.creates).toHaveLength(0);
   });
 
   it("rejects unsafe keys and YAML aliases", async () => {

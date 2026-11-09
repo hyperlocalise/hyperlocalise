@@ -2386,6 +2386,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "mLZuHpUnUy",
     description: "File conversion target format field label",
   },
+  fileConvertFilenamePlaceholder: {
+    defaultMessage: "Derived automatically",
+    id: "6RB0hyF0cE",
+    description: "Placeholder for the optional output filename of a file conversion",
+  },
+  fileConvertLocalePlaceholder: {
+    defaultMessage: "Preserve source locale",
+    id: "CIcsaiziRl",
+    description: "Placeholder for the optional locale of a file conversion",
+  },
   localizationTargetLocales: {
     defaultMessage: "Target locales",
     id: "fPRMssSpBS",

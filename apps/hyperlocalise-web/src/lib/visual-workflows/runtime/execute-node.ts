@@ -93,6 +93,7 @@ export async function executeVisualWorkflowNode(input: {
     case "action.file_read":
       return executeFileReadNode({
         organizationId: input.organizationId,
+        visualWorkflowId: input.visualWorkflowId,
         fileId: text(node.config.fileId),
         encoding: node.config.encoding,
         signal: input.signal,

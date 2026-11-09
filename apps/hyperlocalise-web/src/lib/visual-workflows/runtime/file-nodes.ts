@@ -32,8 +32,20 @@ type StoredFileForRead = {
   metadata: Record<string, unknown>;
 };
 
+type FileActor = { userId: string; projectId: string | null };
+
+type ResolveFileActor = (input: {
+  organizationId: string;
+  visualWorkflowId: string;
+}) => Promise<FileActor | null>;
+
 export type FileReadDependencies = {
-  findFile(input: { organizationId: string; fileId: string }): Promise<StoredFileForRead | null>;
+  resolveActor: ResolveFileActor;
+  findFile(input: {
+    organizationId: string;
+    projectId?: string | null;
+    fileId: string;
+  }): Promise<StoredFileForRead | null>;
   getObject(input: { keyOrUrl: string }): Promise<GetStoredObjectResult | null>;
 };
 
@@ -46,13 +58,8 @@ type StoredFileForWrite = {
   metadata: Record<string, unknown>;
 };
 
-type FileWriteActor = { userId: string; projectId: string | null };
-
 export type FileWriteDependencies = {
-  resolveActor(input: {
-    organizationId: string;
-    visualWorkflowId: string;
-  }): Promise<FileWriteActor | null>;
+  resolveActor: ResolveFileActor;
   findFile(input: {
     organizationId: string;
     projectId?: string | null;
@@ -79,36 +86,39 @@ export type FileConvertDependencies = Omit<FileReadDependencies, "findFile"> &
     }): Promise<(StoredFileForRead & StoredFileForWrite) | null>;
   };
 
+const resolveWorkflowFileActor: ResolveFileActor = async (input) => {
+  const [actor] = await db
+    .select({
+      userId: schema.visualWorkflows.authorUserId,
+      projectId: schema.visualWorkflows.projectId,
+    })
+    .from(schema.visualWorkflows)
+    .innerJoin(
+      schema.organizationMemberships,
+      and(
+        eq(schema.organizationMemberships.organizationId, input.organizationId),
+        eq(schema.organizationMemberships.userId, schema.visualWorkflows.authorUserId),
+      ),
+    )
+    .where(
+      and(
+        eq(schema.visualWorkflows.id, input.visualWorkflowId),
+        eq(schema.visualWorkflows.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  return actor?.userId ? { userId: actor.userId, projectId: actor.projectId } : null;
+};
+
 const defaultFileReadDependencies: FileReadDependencies = {
+  resolveActor: resolveWorkflowFileActor,
   findFile: (input) => getStoredFileForJobScope(input),
   getObject: (input) => getFileStorageAdapter().get(input),
 };
 
 const defaultFileWriteDependencies: FileWriteDependencies = {
-  async resolveActor(input) {
-    const [actor] = await db
-      .select({
-        userId: schema.visualWorkflows.authorUserId,
-        projectId: schema.visualWorkflows.projectId,
-      })
-      .from(schema.visualWorkflows)
-      .innerJoin(
-        schema.organizationMemberships,
-        and(
-          eq(schema.organizationMemberships.organizationId, input.organizationId),
-          eq(schema.organizationMemberships.userId, schema.visualWorkflows.authorUserId),
-        ),
-      )
-      .where(
-        and(
-          eq(schema.visualWorkflows.id, input.visualWorkflowId),
-          eq(schema.visualWorkflows.organizationId, input.organizationId),
-        ),
-      )
-      .limit(1);
-
-    return actor?.userId ? { userId: actor.userId, projectId: actor.projectId } : null;
-  },
+  resolveActor: resolveWorkflowFileActor,
   findFile: (input) => getStoredFileForJobScope(input),
   createFile: (input) =>
     createStoredFile({
@@ -379,6 +389,7 @@ async function readBoundedBody(
 
 export async function executeFileReadNode(input: {
   organizationId: string;
+  visualWorkflowId?: string;
   fileId: string;
   encoding: "utf-8" | "base64";
   signal?: AbortSignal;
@@ -388,6 +399,9 @@ export async function executeFileReadNode(input: {
   if (!/^file_[A-Za-z0-9_-]+$/.test(fileId)) {
     return fileReadError("invalid_file_reference", "Select a valid stored file.");
   }
+  if (!input.visualWorkflowId) {
+    return fileReadError("file_actor_required", "A workflow actor is required to read files.");
+  }
   if (input.signal?.aborted) {
     return fileReadError("cancelled", "File reading was cancelled.");
   }
@@ -395,8 +409,17 @@ export async function executeFileReadNode(input: {
   const dependencies = input.dependencies ?? defaultFileReadDependencies;
 
   try {
+    const actor = await dependencies.resolveActor({
+      organizationId: input.organizationId,
+      visualWorkflowId: input.visualWorkflowId,
+    });
+    if (!actor) {
+      return fileReadError("file_actor_required", "A current organization member must read files.");
+    }
+
     const file = await dependencies.findFile({
       organizationId: input.organizationId,
+      projectId: actor.projectId,
       fileId,
     });
     if (!file) {
@@ -532,12 +555,13 @@ export async function executeFileWriteNode(input: {
     const contentSha256 = await sha256Hex(decoded.content);
     const keyHash = await sha256Hex(Buffer.from(input.idempotencyKey, "utf8"));
     const fileId = `file_vw_${keyHash.slice(0, 32)}`;
-    const existing = await dependencies.findFile({
-      organizationId: input.organizationId,
-      projectId: actor.projectId,
-      fileId,
-    });
-    if (existing) {
+    const findExisting = () =>
+      dependencies.findFile({
+        organizationId: input.organizationId,
+        projectId: actor.projectId,
+        fileId,
+      });
+    const replayExisting = (existing: StoredFileForWrite) => {
       const matches =
         existing.sha256 === contentSha256 &&
         existing.filename === filename &&
@@ -549,7 +573,9 @@ export async function executeFileWriteNode(input: {
             "file_idempotency_conflict",
             "This retry key was already used for different file content.",
           );
-    }
+    };
+    const existing = await findExisting();
+    if (existing) return replayExisting(existing);
 
     if (input.signal?.aborted) return fileWriteError("cancelled", "File writing was cancelled.");
     const metadata = {
@@ -568,16 +594,24 @@ export async function executeFileWriteNode(input: {
           }
         : {}),
     };
-    const file = await dependencies.createFile({
-      id: fileId,
-      organizationId: input.organizationId,
-      projectId: actor.projectId,
-      createdByUserId: actor.userId,
-      filename,
-      contentType,
-      content: decoded.content,
-      metadata,
-    });
+    let file: StoredFileForWrite;
+    try {
+      file = await dependencies.createFile({
+        id: fileId,
+        organizationId: input.organizationId,
+        projectId: actor.projectId,
+        createdByUserId: actor.userId,
+        filename,
+        contentType,
+        content: decoded.content,
+        metadata,
+      });
+    } catch (error) {
+      // A concurrent attempt with the same retry key may have created the row first.
+      const concurrent = await findExisting();
+      if (concurrent) return replayExisting(concurrent);
+      throw error;
+    }
     return fileWriteOutput(file, { encoding: input.encoding, locale, sourceFileId });
   } catch {
     return fileWriteError("file_write_failed", "The stored file could not be written.");
@@ -605,6 +639,7 @@ export async function executeFileConvertNode(input: {
   };
   const read = await executeFileReadNode({
     organizationId: input.organizationId,
+    visualWorkflowId: input.visualWorkflowId,
     fileId: input.fileId,
     encoding: "utf-8",
     signal: input.signal,
@@ -626,6 +661,15 @@ export async function executeFileConvertNode(input: {
   }
   const parsed = parseConversionSource(sourceContent, sourceFormat);
   if (!parsed.ok) return fileConvertError(parsed.code, parsed.message);
+  if (
+    input.targetFormat === "arb" &&
+    (parsed.value === null || typeof parsed.value !== "object" || Array.isArray(parsed.value))
+  ) {
+    return fileConvertError(
+      "unsupported_file_value",
+      "ARB files must contain an object of messages.",
+    );
+  }
 
   let content: string;
   try {

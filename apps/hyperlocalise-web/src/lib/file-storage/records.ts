@@ -160,7 +160,9 @@ export async function createStoredFile(input: CreateStoredFileInput) {
   const key = storageKey({
     organizationId: input.organizationId,
     projectId: input.projectId,
-    id,
+    // Caller-chosen ids can be retried concurrently. A per-attempt key keeps a losing
+    // insert from overwriting or deleting the winning attempt's object.
+    id: input.id ? `${id}-${crypto.randomUUID()}` : id,
     filename: input.filename,
   });
   const uploaded = await adapter.put({

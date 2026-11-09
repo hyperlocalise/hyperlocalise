@@ -2172,7 +2172,7 @@ export function VisualWorkflowConfigPanel({
               onChange={(filename) =>
                 onChangeConfig({ ...config, filename: filename || undefined })
               }
-              placeholder="Derived automatically"
+              placeholder={intl.formatMessage(messages.fileConvertFilenamePlaceholder)}
             />
             <TextField
               id="vw-file-convert-locale"
@@ -2181,7 +2181,7 @@ export function VisualWorkflowConfigPanel({
               {...connectedInputProps("locale")}
               invalid={invalidFields.has("locale")}
               onChange={(locale) => onChangeConfig({ ...config, locale: locale || undefined })}
-              placeholder="Preserve source locale"
+              placeholder={intl.formatMessage(messages.fileConvertLocalePlaceholder)}
             />
           </div>
         ) : null}
