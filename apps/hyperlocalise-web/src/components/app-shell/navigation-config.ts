@@ -36,6 +36,7 @@ import {
   ChartBarIcon,
   ChatCircleIcon,
   CheckCircleIcon,
+  ClipboardTextIcon,
   CopyIcon,
   CubeIcon,
   SquaresFourIcon,
@@ -541,6 +542,15 @@ export function buildDomainNavigationItems(
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId, "search-console"),
       icon: ListMagnifyingGlassIcon,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Localisation audit",
+        id: "2rdPBn+ho/",
+        description: "Domain sidebar navigation item for the deep localisation audit",
+      }),
+      href: buildDomainPath(organizationSlug, linkedDomainId, "audit"),
+      icon: ClipboardTextIcon,
     },
   ];
 }

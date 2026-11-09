@@ -97,6 +97,35 @@ The country filter follows the selected market. To see how Google last crawled a
 
 If the view says the domain is not in Search Console, add and verify the property in Google Search Console, or reconnect with a different Google account. If it asks you to reconnect, the authorization expired.
 
+### Localisation audit
+
+Run the [localisation audit checks](/platform/research/localisation-audit-checks) across the whole verified domain, not just the 15-page public sample. The deep audit is private to your organization and never appears on the public leaderboard.
+
+```mermaid
+flowchart TD
+    A["Select Run deep audit"] --> B{"Domain verified?"}
+    B -- "No" --> B1["Verify the domain first"]
+    B -- "Yes" --> C["Render the homepage"]
+    C --> D{"Crawler blocked?"}
+    D -- "Yes" --> F["Run fails: allow HyperlocaliseAuditBot and retry"]
+    D -- "No" --> E["Pick up to 100 pages from sitemaps and links:<br/>every template, with its locale versions"]
+    E --> G["Render pages in batches of 20"]
+    G --> H{"Half a batch blocked?"}
+    H -- "Yes" --> S["Stop crawling, keep pages already rendered"]
+    H -- "No" --> I["Follow hreflang links to locale versions<br/>not yet rendered, up to the page limit"]
+    I --> J["Score every check on every page"]
+    S --> J
+    J --> K["Compare with the previous run"]
+    K --> L["Show score, checks, and findings<br/>marked New, Unchanged, or Fixed"]
+```
+
+1. Select **Run deep audit**. Hyperlocalise reads your sitemaps and homepage links, then renders up to 100 pages. It covers every page template, such as `/pricing` or `/blog/*`, and keeps each page's locale versions together.
+2. Wait for the run to finish. Progress shows how many pages have rendered. You can cancel a run while it is in progress.
+3. Review the score, the dimension scores, and each check. A check shows how many pages and templates it failed on. Select **View findings** to filter the findings to that check.
+4. Filter findings by severity, template, or locale. From the second run on, switch between **New**, **Unchanged**, and **Fixed** to see what changed since the previous audit.
+
+Only one deep audit runs per domain at a time. If the site blocks the crawler, allow `HyperlocaliseAuditBot` through your firewall, CDN, or bot protection and run the audit again. Running an audit requires permission to edit projects. Anyone who can see the domain can view results.
+
 ## Use research in localisation
 
 Research is most useful when it changes what you translate and how:

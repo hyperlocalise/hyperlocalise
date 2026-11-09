@@ -58,6 +58,8 @@ export async function runLocalisationAuditCredits(input: {
   pages: AuditCreditContext["pages"];
   focusLocales: string[];
   sitemap?: LocalisationAuditSitemapSignal;
+  /** Keep one finding per page instead of merging repeats. Deep audits diff per page. */
+  collapseFindings?: boolean;
 }): Promise<CreditRunResult> {
   const detectedLocales = detectLocales(input.pages);
   const context: AuditCreditContext = {
@@ -142,7 +144,7 @@ export async function runLocalisationAuditCredits(input: {
 
   return {
     credits,
-    findings: collapseRepeatedFindings(findings),
+    findings: input.collapseFindings === false ? findings : collapseRepeatedFindings(findings),
     detectedLocales,
     linguisticNotes: luna.linguisticNotes,
   };

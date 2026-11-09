@@ -90,6 +90,7 @@ type handler struct {
 	workspace            *workspaceAPI
 	reports              *reportingAPI
 	autumn               *autumn.Client
+	deepAudits           deepAuditStarter
 	knowledgeMemories    *knowledgeMemoryAPI
 	guidelineDocuments   *guidelineDocumentAPI
 	guidelineCheck       *guidelineCheckAPI
@@ -183,7 +184,7 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 		h.registerDomainResearch(mux, verifier)
 		h.registerDomainSearchConsole(mux, verifier)
 		h.registerHyperlab(mux, verifier)
-		(&linkedDomainAPI{workspace: h.workspace, research: h.research, autumn: h.autumn}).register(mux, verifier)
+		(&linkedDomainAPI{workspace: h.workspace, research: h.research, autumn: h.autumn, deepAudits: h.deepAudits}).register(mux, verifier)
 	}
 	if h.reports != nil {
 		h.reports.register(mux, verifier)

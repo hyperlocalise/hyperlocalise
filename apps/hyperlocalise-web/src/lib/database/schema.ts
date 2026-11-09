@@ -65,6 +65,7 @@ export * from "./schema/billing";
 export * from "./schema/localisation-audits";
 export * from "./schema/engine-setup";
 export * from "./schema/linked-domains";
+export * from "./schema/localisation-deep-audits";
 export * from "./schema/domain-research";
 export * from "./schema/experiments";
 export * from "./schema/activity-log";
