@@ -312,6 +312,7 @@ describe("visual workflow trigger matching", () => {
         [{ projectId: "proj-2" }, false],
         [{ eventTypes: ["job.status_changed"] }, true],
         [{ eventTypes: ["job.created"] }, false],
+        [{ eventTypes: ["job.assignee_changed"] }, false],
         [{ jobKinds: ["translation", "review"] }, true],
         [{ jobKinds: ["review"] }, false],
         [{ toStatuses: ["succeeded", "failed"] }, true],
@@ -322,6 +323,18 @@ describe("visual workflow trigger matching", () => {
           expected,
         );
       }
+    });
+
+    it("matches assignee changes when that event type is selected", () => {
+      expect(
+        visualWorkflowShouldDispatchOnJobChange(
+          jobChangedWorkflow({ eventTypes: ["job.assignee_changed"] }),
+          {
+            ...event,
+            type: "job.assignee_changed",
+          },
+        ),
+      ).toBe(true);
     });
 
     it("ignores inactive workflows and other triggers", () => {
@@ -351,6 +364,9 @@ describe("visual workflow trigger matching", () => {
       const workflow = jobChangedWorkflow({ projectId: "proj-1" });
       expect(validateActiveVisualWorkflowTrigger(workflow.definition)).toEqual({ ok: true });
       expect(resolveVisualWorkflowTriggerFingerprint(workflow)).toBe("job_changed:wf-1:proj-1");
+      expect(resolveVisualWorkflowTriggerFingerprint(jobChangedWorkflow({}))).toBe(
+        "job_changed:wf-1",
+      );
       expect(createDefaultConfig("trigger.job_changed")).toEqual({
         kind: "trigger.job_changed",
         eventTypes: ["job.status_changed"],

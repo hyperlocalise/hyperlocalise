@@ -326,6 +326,31 @@ func TestParseEditorCatQueueQuery(t *testing.T) {
 	require.Equal(t, "spelling", withExtras.queueFilterQualifier)
 	require.Equal(t, "icu", withExtras.advancedFilter.StringType)
 	require.Equal(t, "hidden", withExtras.advancedFilter.Visibility)
+	origin, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":           {"a.json"},
+		"targetLocale":         {"fr"},
+		"queueFilter":          {"origin"},
+		"queueFilterQualifier": {"machine_post_edited"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "origin", origin.queueFilter)
+	require.Equal(t, "machine_post_edited", origin.queueFilterQualifier)
+	originDropped, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":           {"a.json"},
+		"targetLocale":         {"fr"},
+		"queueFilter":          {"origin"},
+		"queueFilterQualifier": {"spelling"},
+	})
+	require.NoError(t, err)
+	require.Empty(t, originDropped.queueFilterQualifier)
+	originIgnoredOnQa, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":           {"a.json"},
+		"targetLocale":         {"fr"},
+		"queueFilter":          {"qa_issues"},
+		"queueFilterQualifier": {"human"},
+	})
+	require.NoError(t, err)
+	require.Empty(t, originIgnoredOnQa.queueFilterQualifier)
 	impossibleDate, err := parseEditorCatQueueQuery(map[string][]string{
 		"sourcePath":    {"a.json"},
 		"targetLocale":  {"fr"},
@@ -1126,6 +1151,7 @@ func TestEditorCatQueueFilterSQL(t *testing.T) {
 	require.True(t, editorCatQueueFilterBindsLocale("has_issues"))
 	require.True(t, editorCatQueueFilterBindsLocale("qa_issues"))
 	require.True(t, editorCatQueueFilterBindsLocale("machine_translated"))
+	require.True(t, editorCatQueueFilterBindsLocale("origin"))
 	require.True(t, editorCatQueueFilterBindsLocale("with_comments"))
 	require.False(t, editorCatQueueFilterBindsLocale("all"))
 	require.False(t, editorCatQueueFilterBindsLocale("hidden"))
@@ -1142,6 +1168,19 @@ func TestEditorCatQueueFilterSQL(t *testing.T) {
 		orgN, projectN, localeN, &[]any{"org", "project", "de-DE"},
 	)
 	require.Contains(t, mtAgent, "t.provenance=$4")
+
+	originHuman := editorCatPresetFilterSQL(
+		editorCatQueueQuery{queueFilter: "origin", queueFilterQualifier: "human"},
+		orgN, projectN, localeN, &[]any{"org", "project", "de-DE"},
+	)
+	require.Contains(t, originHuman, "t.origin::text=$4")
+	require.Contains(t, originHuman, "trim(t.text) != ''")
+
+	originAny := editorCatPresetFilterSQL(
+		editorCatQueueQuery{queueFilter: "origin"},
+		orgN, projectN, localeN, &[]any{"org", "project", "de-DE"},
+	)
+	require.NotContains(t, originAny, "t.origin::text=")
 
 	advancedSQL := editorCatAdvancedFilterSQL(&editorCatAdvancedFilter{
 		AddedFrom:         "2026-01-01",
