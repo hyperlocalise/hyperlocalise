@@ -69,6 +69,8 @@ function FilterSelect({
     <Select
       value={value ?? noneValue}
       onValueChange={(next) => onValueChange(!next || next === noneValue ? undefined : next)}
+      // Lets the trigger show the chosen option's wording instead of its value.
+      items={[{ value: noneValue, label: placeholder }, ...items]}
     >
       <SelectTrigger id={id} size="sm" className="w-full min-w-0">
         <SelectValue placeholder={placeholder} />
@@ -352,6 +354,10 @@ export function ContentEditorAdvancedQueueFilterDialog({
               <div className="grid grid-cols-[minmax(0,11rem)_minmax(0,1fr)] items-center gap-3">
                 <Select
                   value={draft.includeLabelMode ?? "include_all"}
+                  items={[
+                    { value: "include_all", label: intl.formatMessage(messages.includeAll) },
+                    { value: "include_any", label: intl.formatMessage(messages.includeAny) },
+                  ]}
                   onValueChange={(includeLabelMode) =>
                     setDraft((current) => ({
                       ...current,
@@ -383,6 +389,10 @@ export function ContentEditorAdvancedQueueFilterDialog({
               <div className="grid grid-cols-[minmax(0,11rem)_minmax(0,1fr)] items-center gap-3">
                 <Select
                   value={draft.excludeLabelMode ?? "exclude_all"}
+                  items={[
+                    { value: "exclude_all", label: intl.formatMessage(messages.excludeAll) },
+                    { value: "exclude_any", label: intl.formatMessage(messages.excludeAny) },
+                  ]}
                   onValueChange={(excludeLabelMode) =>
                     setDraft((current) => ({
                       ...current,
