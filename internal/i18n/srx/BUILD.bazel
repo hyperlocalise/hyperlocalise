@@ -15,6 +15,8 @@ go_test(
     name = "srx_test",
     srcs = [
         "skip_test.go",
+        "srx_decode_test.go",
+        "srx_fuzz_test.go",
         "srx_test.go",
         "templates_test.go",
     ],

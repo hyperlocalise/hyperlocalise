@@ -33,6 +33,7 @@ go_test(
         "message_format_test.go",
         "plural_test.go",
         "profile_test.go",
+        "qa_locale_test.go",
         "qa_test.go",
         "validate_test.go",
         "webvtt_markup_test.go",
