@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import { observer } from "mobx-react-lite";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -27,7 +28,10 @@ import {
 import { ContentEditorQueueToolbar } from "./content-editor-queue-toolbar";
 import { CAT_QUEUE_TOOLBAR_HOST_ID } from "./content-editor-queue-toolbar-host";
 import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
-import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
+import {
+  contentEditorNewTaskParam,
+  type ContentEditorAdvancedQueueFilter,
+} from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 
 export const ContentEditorQueueToolbarConnected = observer(
   function ContentEditorQueueToolbarConnected({
@@ -99,6 +103,22 @@ export const ContentEditorQueueToolbarConnected = observer(
 
     useEffect(() => {
       setHost(document.getElementById(CAT_QUEUE_TOOLBAR_HOST_ID));
+    }, []);
+
+    // Opened from the jobs page to make a task from strings: start with tick boxes on and say
+    // what to do next. Dismissing drops the flag from the address so a reload doesn't bring it back.
+    const startsNewTask = useSearchParams()?.get(contentEditorNewTaskParam) === "1";
+    const [showNewTaskHint, setShowNewTaskHint] = useState(startsNewTask);
+    useEffect(() => {
+      if (startsNewTask) {
+        store.setSelectionMode(true, { persist: false });
+      }
+    }, [startsNewTask, store]);
+    const dismissNewTaskHint = useCallback(() => {
+      setShowNewTaskHint(false);
+      const url = new URL(window.location.href);
+      url.searchParams.delete(contentEditorNewTaskParam);
+      window.history.replaceState(null, "", url);
     }, []);
 
     useEffect(() => {
@@ -176,6 +196,7 @@ export const ContentEditorQueueToolbarConnected = observer(
         onBulkLock={onBulkLock}
         onBulkUnlock={onBulkUnlock}
         onBulkCreateTask={onBulkCreateTask}
+        onDismissNewTaskHint={showNewTaskHint ? dismissNewTaskHint : undefined}
         onBulkEditTags={onBulkEditTags}
         isBulkActionPending={store.isBulkActionPending}
         bulkActionLocale={

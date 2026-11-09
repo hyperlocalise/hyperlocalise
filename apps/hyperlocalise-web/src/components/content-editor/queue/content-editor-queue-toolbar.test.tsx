@@ -418,3 +418,29 @@ describe("ContentEditorQueueToolbar key job scope", () => {
     expect(onQueueAdvancedChange).toHaveBeenLastCalledWith({ stringType: "plain" });
   });
 });
+
+describe("ContentEditorQueueToolbar new task hint", () => {
+  it("explains how to make a task while ticking, and hides on request", async () => {
+    const user = userEvent.setup();
+    const onDismissNewTaskHint = vi.fn();
+    const props = {
+      queueFilter: "all" as const,
+      onQueueFilterChange: vi.fn(),
+      onSelectionModeChange: vi.fn(),
+      onBulkCreateTask: vi.fn(),
+      onDismissNewTaskHint,
+    };
+
+    const { rerender } = renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar {...props} selectionMode={false} />,
+    );
+    expect(screen.queryByText(/Tick the strings for the new task/)).toBeNull();
+
+    rerender(<ContentEditorQueueToolbar {...props} selectionMode />);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Tick the strings for the new task, then choose More → Add to a task…",
+    );
+    await user.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(onDismissNewTaskHint).toHaveBeenCalledTimes(1);
+  });
+});

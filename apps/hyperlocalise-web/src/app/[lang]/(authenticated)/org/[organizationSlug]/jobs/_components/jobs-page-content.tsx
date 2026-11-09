@@ -14,16 +14,24 @@
  */
 import { observer } from "mobx-react-lite";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { PlusIcon, TranslateIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, PlusIcon, TranslateIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { apiClient } from "@/lib/api-client-instance";
 import type { GoSvcJobApi } from "@/lib/go-svc/go-svc-job-api";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
+import { contentEditorNewTaskParam } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { isNativeWorkspaceJob } from "@/lib/projects/workspace-resource-capabilities";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { readTmsProviderListResponse } from "@/lib/providers/jobs/tms-provider-list-fetch";
@@ -287,6 +295,7 @@ export const JobsPageContent = observer(function JobsPageContent({
       : nativeJobsQuery.isLoading;
 
   const canCreateJob = Boolean(projectId);
+  const router = useRouter();
   const sourceLocale = projectQuery.data?.sourceLocale?.trim() || "en";
   const targetLocales = projectQuery.data?.targetLocales ?? [];
 
@@ -299,12 +308,36 @@ export const JobsPageContent = observer(function JobsPageContent({
           hasActiveTmsConnection || tmsJobsQuery.isLoading || tmsJobsQuery.isFetching
         }
         headerActions={
-          canCreateJob ? (
+          !canCreateJob ? null : isProviderProjectScope ? (
             <Button type="button" size="sm" onClick={() => pageStore.setCreateJobOpen(true)}>
               <PlusIcon />
               <FormattedMessage {...jobsPageContentMessages.createJob} />
             </Button>
-          ) : null
+          ) : (
+            // Native projects can also make a task from chosen strings, which are picked in the
+            // content editor's queue rather than in this dialog.
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button type="button" size="sm" />}>
+                <PlusIcon />
+                <FormattedMessage {...jobsPageContentMessages.createJob} />
+                <CaretDownIcon className="size-3" aria-hidden />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuItem onClick={() => pageStore.setCreateJobOpen(true)}>
+                  <FormattedMessage {...jobsPageContentMessages.createJobFromFiles} />
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    router.push(
+                      `/org/${organizationSlug}/projects/${encodeURIComponent(projectId!)}/strings?${contentEditorNewTaskParam}=1`,
+                    )
+                  }
+                >
+                  <FormattedMessage {...jobsPageContentMessages.createJobFromStrings} />
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
         }
         isNativeLoading={isNativeLoading}
         isProviderProjectScope={isProviderProjectScope}

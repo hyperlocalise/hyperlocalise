@@ -30,6 +30,8 @@ export const nativeUnresolvedIssueQualifiers = [
 
 export const contentEditorWorkspaceQueueFilterQualifierParam = "queueFilterQualifier";
 export const contentEditorWorkspaceQueueAdvancedParam = "queueAdvanced";
+/** Set by the jobs page's "Task from strings": the editor starts with tick boxes on and a hint. */
+export const contentEditorNewTaskParam = "newTask";
 
 export const contentEditorLabelIncludeModes = ["include_all", "include_any"] as const;
 export const contentEditorLabelExcludeModes = ["exclude_all", "exclude_any"] as const;

@@ -96,6 +96,7 @@ export function ContentEditorQueueToolbar({
   onBulkUnlock,
   onBulkCreateTask,
   onBulkEditTags,
+  onDismissNewTaskHint,
   isBulkActionPending = false,
   bulkProgress,
   bulkActionLocale,
@@ -136,6 +137,8 @@ export function ContentEditorQueueToolbar({
   onBulkUnlock?: () => void;
   onBulkCreateTask?: () => void;
   onBulkEditTags?: () => void;
+  /** Set while the new-task hint shows; called when it is dismissed. */
+  onDismissNewTaskHint?: () => void;
   isBulkActionPending?: boolean;
   bulkProgress?: string;
   /**
@@ -232,6 +235,23 @@ export function ContentEditorQueueToolbar({
             }}
           >
             <FormattedMessage {...contentEditorQueuePanelMessages.keyJobShowAll} />
+          </Button>
+        </div>
+      ) : null}
+      {onDismissNewTaskHint && isSelecting && onBulkCreateTask ? (
+        <div
+          role="status"
+          className="flex w-full items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs"
+        >
+          <FormattedMessage {...contentEditorQueuePanelMessages.newTaskHint} />
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto px-0 text-xs"
+            onClick={onDismissNewTaskHint}
+          >
+            <FormattedMessage {...contentEditorQueuePanelMessages.newTaskHintDismiss} />
           </Button>
         </div>
       ) : null}

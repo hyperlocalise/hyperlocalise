@@ -274,6 +274,17 @@ export const contentEditorQueuePanelMessages = defineMessages({
     id: "ieniHtb4tT",
     description: "Notice above the queue when it is limited to a key job's strings",
   },
+  newTaskHint: {
+    defaultMessage: "Tick the strings for the new task, then choose More → Add to a task…",
+    id: "cGEOyVkohh",
+    description:
+      "Notice above the queue when the editor was opened from the jobs page to make a task from strings",
+  },
+  newTaskHintDismiss: {
+    defaultMessage: "Dismiss",
+    id: "3Yr0O98xb/",
+    description: "Hides the notice that explains how to make a task from strings",
+  },
   keyJobShowAll: {
     defaultMessage: "Show all strings",
     id: "3utulgy/hh",
