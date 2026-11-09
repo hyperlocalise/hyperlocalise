@@ -45,7 +45,7 @@ overrides:
   "@hono/node-server": "2.1.6"
   form-data: "4.0.6"
   "axios@^1.0.0": "1.21.0"
-  fast-uri: "3.1.9"
+  fast-uri: "4.2.3"
   # mammoth is built for the 0.8 line; 0.9 rejects parseFromString without a mimeType.
   "@xmldom/xmldom": "0.9.12"
   browserslist: "4.29.5"
