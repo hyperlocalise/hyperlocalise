@@ -132,7 +132,14 @@ export function selectNextEdges(input: {
   }
 
   if (
-    ["logic.json_parse", "logic.json_stringify", "logic.schema_validate"].includes(input.nodeType)
+    [
+      "logic.json_parse",
+      "logic.json_stringify",
+      "logic.schema_validate",
+      "action.file_read",
+      "action.file_write",
+      "action.file_convert",
+    ].includes(input.nodeType)
   ) {
     const handle = input.switchCase ?? "success";
     return input.outgoing.filter((edge) => edge.sourceHandle === handle);

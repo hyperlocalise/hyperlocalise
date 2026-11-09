@@ -38,6 +38,9 @@ export type VisualCatalogType =
   | "action.check_progress"
   | "action.run_qa"
   | "action.list_source_files"
+  | "action.file_read"
+  | "action.file_write"
+  | "action.file_convert"
   | "action.update_job"
   | "action.pick_assignee"
   | "action.crowdin_pre_translate"
@@ -295,6 +298,27 @@ export type VisualNodeConfig =
       /** Keeps only files whose path starts with this; empty lists every source file. */
       pathPrefix: string;
       onError?: VisualNodeErrorBehavior;
+    }
+  | {
+      kind: "action.file_read";
+      fileId: string;
+      encoding: "utf-8" | "base64";
+    }
+  | {
+      kind: "action.file_write";
+      content: string;
+      filename: string;
+      contentType: string;
+      encoding: "utf-8" | "base64";
+      locale?: string;
+      sourceFileId?: string;
+    }
+  | {
+      kind: "action.file_convert";
+      fileId: string;
+      targetFormat: "json" | "yaml" | "arb";
+      filename?: string;
+      locale?: string;
     }
   | {
       kind: "action.update_job";

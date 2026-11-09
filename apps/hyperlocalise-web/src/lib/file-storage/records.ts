@@ -26,6 +26,7 @@ type StoredFileRole = (typeof schema.storedFileRoleEnum.enumValues)[number];
 type StoredFileSourceKind = (typeof schema.storedFileSourceKindEnum.enumValues)[number];
 
 type CreateStoredFileInput = {
+  id?: string;
   organizationId: string;
   projectId?: string | null;
   createdByUserId?: string | null;
@@ -154,7 +155,7 @@ export function storageKey(input: {
 
 export async function createStoredFile(input: CreateStoredFileInput) {
   const adapter = input.adapter ?? getFileStorageAdapter();
-  const id = createStoredFileId();
+  const id = input.id ?? createStoredFileId();
   const content = bytesFromContent(input.content);
   const key = storageKey({
     organizationId: input.organizationId,

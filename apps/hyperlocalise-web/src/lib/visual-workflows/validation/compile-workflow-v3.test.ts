@@ -51,6 +51,113 @@ function definition(edges: VisualWorkflowV3Definition["edges"]): VisualWorkflowV
 }
 
 describe("compileVisualWorkflowV3Definition", () => {
+  it("compiles file references and preserves explicit file operation branches", () => {
+    const workflow = definition([]);
+    workflow.nodes[0]!.outputFields = [
+      { path: "sourceFileId", type: "string" },
+      { path: "content", type: "string" },
+    ];
+    workflow.nodes.splice(
+      1,
+      1,
+      {
+        id: "read",
+        type: "action.file_read",
+        config: { kind: "action.file_read", fileId: "", encoding: "utf-8" },
+      },
+      {
+        id: "write",
+        type: "action.file_write",
+        config: {
+          kind: "action.file_write",
+          content: "",
+          filename: "output.json",
+          contentType: "application/json",
+          encoding: "utf-8",
+        },
+      },
+      {
+        id: "convert",
+        type: "action.file_convert",
+        config: { kind: "action.file_convert", fileId: "", targetFormat: "yaml" },
+      },
+    );
+    workflow.edges.push(
+      {
+        id: "trigger-read",
+        kind: "execution",
+        source: "trigger",
+        target: "read",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "read-write",
+        kind: "execution",
+        source: "read",
+        target: "write",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "write-convert",
+        kind: "execution",
+        source: "write",
+        target: "convert",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "read-error-convert",
+        kind: "execution",
+        source: "read",
+        target: "convert",
+        sourcePortId: "error",
+        targetPortId: "input",
+      },
+      {
+        id: "trigger-file-read",
+        kind: "data",
+        source: "trigger",
+        target: "read",
+        sourcePortId: "sourceFileId",
+        targetPortId: "fileId",
+      },
+      {
+        id: "read-content-write",
+        kind: "data",
+        source: "read",
+        target: "write",
+        sourcePortId: "content",
+        targetPortId: "content",
+      },
+      {
+        id: "write-file-convert",
+        kind: "data",
+        source: "write",
+        target: "convert",
+        sourcePortId: "fileId",
+        targetPortId: "fileId",
+      },
+    );
+
+    const compiled = compileVisualWorkflowV3Definition(workflow);
+    const execution = toVisualWorkflowExecutionDefinition(compiled);
+
+    expect(compiled.issues).toEqual([]);
+    expect(compiled.definition.nodes[1]?.inputs?.fileId).toEqual({
+      kind: "reference",
+      nodeId: "trigger",
+      path: ["sourceFileId"],
+    });
+    expect(execution.edges).toContainEqual(
+      expect.objectContaining({ id: "read-error-convert", sourceHandle: "error" }),
+    );
+    expect(execution.edges).toContainEqual(
+      expect.objectContaining({ id: "write-convert", sourceHandle: "success" }),
+    );
+  });
+
   it("binds JSON data ports and rejects incompatible schema bindings", () => {
     const workflow = definition([]);
     workflow.nodes[0]!.outputFields = [{ path: "payload", type: "string" }];

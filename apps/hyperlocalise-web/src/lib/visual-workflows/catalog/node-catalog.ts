@@ -147,6 +147,24 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: FilesIcon,
   },
   {
+    type: "action.file_read",
+    category: "action",
+    enabled: true,
+    icon: FilesIcon,
+  },
+  {
+    type: "action.file_write",
+    category: "action",
+    enabled: true,
+    icon: FilesIcon,
+  },
+  {
+    type: "action.file_convert",
+    category: "localization",
+    enabled: true,
+    icon: TranslateIcon,
+  },
+  {
     type: "action.update_job",
     category: "localization",
     enabled: true,
@@ -425,6 +443,26 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       return { kind: "action.run_qa", projectId: "", onError: "stop" };
     case "action.list_source_files":
       return { kind: "action.list_source_files", projectId: "", pathPrefix: "", onError: "stop" };
+    case "action.file_read":
+      return { kind: "action.file_read", fileId: "", encoding: "utf-8" };
+    case "action.file_write":
+      return {
+        kind: "action.file_write",
+        content: "",
+        filename: "output.json",
+        contentType: "application/json",
+        encoding: "utf-8",
+        locale: "",
+        sourceFileId: "",
+      };
+    case "action.file_convert":
+      return {
+        kind: "action.file_convert",
+        fileId: "",
+        targetFormat: "json",
+        filename: "",
+        locale: "",
+      };
     case "action.update_job":
       return {
         kind: "action.update_job",
@@ -733,6 +771,12 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.projectId ? "Project QA" : "Select project";
     case "action.list_source_files":
       return config.pathPrefix.trim() || "All source files";
+    case "action.file_read":
+      return config.encoding === "base64" ? "Read as base64" : "Read as UTF-8";
+    case "action.file_write":
+      return config.filename.trim() || "Create stored file";
+    case "action.file_convert":
+      return `Convert to ${config.targetFormat.toUpperCase()}`;
     case "action.update_job":
       return config.assigneeWorkosUserId.trim() ? "Reassign job" : "Update job";
     case "action.pick_assignee":

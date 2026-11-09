@@ -2047,6 +2047,144 @@ export function VisualWorkflowConfigPanel({
             />
           </div>
         ) : null}
+        {config.kind === "action.file_read" ? (
+          <div className="grid gap-3">
+            <TextField
+              id="vw-file-read-id"
+              label={intl.formatMessage(messages.localizationSourceFileId)}
+              value={config.fileId}
+              {...connectedInputProps("fileId")}
+              invalid={invalidFields.has("fileId")}
+              onChange={(fileId) => onChangeConfig({ ...config, fileId })}
+              placeholder="file_…"
+            />
+            <SelectField
+              id="vw-file-read-encoding"
+              label={intl.formatMessage(messages.fileEncoding)}
+              value={config.encoding}
+              items={["utf-8", "base64"].map((encoding) => ({
+                value: encoding,
+                label: encoding,
+              }))}
+              onValueChange={(encoding) => {
+                if (encoding === "utf-8" || encoding === "base64") {
+                  onChangeConfig({ ...config, encoding });
+                }
+              }}
+            />
+          </div>
+        ) : null}
+        {config.kind === "action.file_write" ? (
+          <div className="grid gap-3">
+            <TextAreaField
+              id="vw-file-write-content"
+              label={intl.formatMessage(messages.fileContent)}
+              value={config.content}
+              {...connectedInputProps("content")}
+              invalid={invalidFields.has("content")}
+              onChange={(content) => onChangeConfig({ ...config, content })}
+            />
+            <TextField
+              id="vw-file-write-name"
+              label={intl.formatMessage(messages.fileName)}
+              value={config.filename}
+              {...connectedInputProps("filename")}
+              invalid={invalidFields.has("filename")}
+              onChange={(filename) => onChangeConfig({ ...config, filename })}
+              placeholder="messages.json"
+            />
+            <TextField
+              id="vw-file-write-content-type"
+              label={intl.formatMessage(messages.fileContentType)}
+              value={config.contentType}
+              {...connectedInputProps("contentType")}
+              invalid={invalidFields.has("contentType")}
+              onChange={(contentType) => onChangeConfig({ ...config, contentType })}
+              placeholder="application/json"
+            />
+            <SelectField
+              id="vw-file-write-encoding"
+              label={intl.formatMessage(messages.fileEncoding)}
+              value={config.encoding}
+              items={["utf-8", "base64"].map((encoding) => ({
+                value: encoding,
+                label: encoding,
+              }))}
+              onValueChange={(encoding) => {
+                if (encoding === "utf-8" || encoding === "base64") {
+                  onChangeConfig({ ...config, encoding });
+                }
+              }}
+            />
+            <TextField
+              id="vw-file-write-locale"
+              label={intl.formatMessage(messages.fileLocale)}
+              value={config.locale ?? ""}
+              {...connectedInputProps("locale")}
+              invalid={invalidFields.has("locale")}
+              onChange={(locale) => onChangeConfig({ ...config, locale: locale || undefined })}
+              placeholder="en-AU"
+            />
+            <TextField
+              id="vw-file-write-source"
+              label={intl.formatMessage(messages.localizationSourceFileIdOptional)}
+              value={config.sourceFileId ?? ""}
+              {...connectedInputProps("sourceFileId")}
+              invalid={invalidFields.has("sourceFileId")}
+              onChange={(sourceFileId) =>
+                onChangeConfig({ ...config, sourceFileId: sourceFileId || undefined })
+              }
+              placeholder="file_…"
+            />
+          </div>
+        ) : null}
+        {config.kind === "action.file_convert" ? (
+          <div className="grid gap-3">
+            <TextField
+              id="vw-file-convert-id"
+              label={intl.formatMessage(messages.localizationSourceFileId)}
+              value={config.fileId}
+              {...connectedInputProps("fileId")}
+              invalid={invalidFields.has("fileId")}
+              onChange={(fileId) => onChangeConfig({ ...config, fileId })}
+              placeholder="file_…"
+            />
+            <SelectField
+              id="vw-file-convert-format"
+              label={intl.formatMessage(messages.fileTargetFormat)}
+              value={config.targetFormat}
+              items={["json", "yaml", "arb"].map((format) => ({
+                value: format,
+                label: format.toUpperCase(),
+              }))}
+              onValueChange={(targetFormat) => {
+                if (targetFormat === "json" || targetFormat === "yaml" || targetFormat === "arb") {
+                  onChangeConfig({ ...config, targetFormat });
+                }
+              }}
+            />
+            <TextField
+              id="vw-file-convert-name"
+              label={intl.formatMessage(messages.fileName)}
+              value={config.filename ?? ""}
+              {...connectedInputProps("filename")}
+              invalid={invalidFields.has("filename")}
+              onChange={(filename) =>
+                onChangeConfig({ ...config, filename: filename || undefined })
+              }
+              placeholder="Derived automatically"
+            />
+            <TextField
+              id="vw-file-convert-locale"
+              label={intl.formatMessage(messages.fileLocale)}
+              value={config.locale ?? ""}
+              {...connectedInputProps("locale")}
+              invalid={invalidFields.has("locale")}
+              onChange={(locale) => onChangeConfig({ ...config, locale: locale || undefined })}
+              placeholder="Preserve source locale"
+            />
+          </div>
+        ) : null}
         {config.kind === "logic.for_each" ? (
           <TextAreaField
             id="vw-for-each-collection"

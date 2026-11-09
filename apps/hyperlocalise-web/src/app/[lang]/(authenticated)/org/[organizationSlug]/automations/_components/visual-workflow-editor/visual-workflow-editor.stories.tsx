@@ -2076,3 +2076,241 @@ export const JsonOperationsNarrow: Story = {
     await expect(canvas.getAllByText(/Ada/).length).toBeGreaterThan(0);
   },
 };
+
+const fileOperationNodes = [
+  {
+    id: "trigger-file",
+    type: "trigger.manual" as const,
+    position: { x: 60, y: 220 },
+    data: {
+      catalogType: "trigger.manual" as const,
+      config: { kind: "trigger.manual" as const },
+      outputFields: [{ path: "fileId", type: "string" as const }],
+      runStatus: "succeeded" as const,
+      lastOutput: { fileId: "file_source_messages" },
+    },
+  },
+  {
+    id: "read-file",
+    type: "action.file_read" as const,
+    position: { x: 390, y: 220 },
+    data: {
+      catalogType: "action.file_read" as const,
+      config: {
+        kind: "action.file_read" as const,
+        fileId: "file_source_messages",
+        encoding: "utf-8" as const,
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: {
+        fileId: "file_source_messages",
+        content: '{"hello":"Hello","@hello":{"description":"Greeting"}}',
+        filename: "messages.json",
+        contentType: "application/json",
+        byteSize: 58,
+        sha256: "source-sha256",
+        encoding: "utf-8",
+        locale: "en-AU",
+      },
+    },
+  },
+  {
+    id: "convert-file",
+    type: "action.file_convert" as const,
+    position: { x: 750, y: 90 },
+    data: {
+      catalogType: "action.file_convert" as const,
+      config: {
+        kind: "action.file_convert" as const,
+        fileId: "file_source_messages",
+        targetFormat: "yaml" as const,
+        filename: "messages.yaml",
+        locale: "en-AU",
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: {
+        fileId: "file_derived_yaml",
+        filename: "messages.yaml",
+        contentType: "application/yaml",
+        byteSize: 55,
+        sha256: "derived-sha256",
+        encoding: "utf-8",
+        locale: "en-AU",
+        sourceFileId: "file_source_messages",
+        sourceFormat: "json",
+        targetFormat: "yaml",
+      },
+    },
+  },
+  {
+    id: "write-file",
+    type: "action.file_write" as const,
+    position: { x: 750, y: 410 },
+    data: {
+      catalogType: "action.file_write" as const,
+      config: {
+        kind: "action.file_write" as const,
+        content: '{"hello":"Hello"}',
+        filename: "messages-copy.json",
+        contentType: "application/json",
+        encoding: "utf-8" as const,
+        locale: "en-AU",
+        sourceFileId: "file_source_messages",
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: {
+        fileId: "file_written_copy",
+        filename: "messages-copy.json",
+        contentType: "application/json",
+        byteSize: 17,
+        sha256: "written-sha256",
+        encoding: "utf-8",
+        locale: "en-AU",
+        sourceFileId: "file_source_messages",
+      },
+    },
+  },
+];
+
+const fileOperationEdges = [
+  {
+    id: "trigger-read-execution",
+    source: "trigger-file",
+    target: "read-file",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "trigger-read-file-id",
+    source: "trigger-file",
+    target: "read-file",
+    sourceHandle: "fileId",
+    targetHandle: "fileId",
+    data: { kind: "data" as const },
+  },
+  {
+    id: "read-convert-execution",
+    source: "read-file",
+    target: "convert-file",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "read-convert-file-id",
+    source: "read-file",
+    target: "convert-file",
+    sourceHandle: "fileId",
+    targetHandle: "fileId",
+    data: { kind: "data" as const },
+  },
+  {
+    id: "convert-write-execution",
+    source: "convert-file",
+    target: "write-file",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "read-write-content",
+    source: "read-file",
+    target: "write-file",
+    sourceHandle: "content",
+    targetHandle: "content",
+    data: { kind: "data" as const },
+  },
+  {
+    id: "convert-write-source",
+    source: "convert-file",
+    target: "write-file",
+    sourceHandle: "fileId",
+    targetHandle: "sourceFileId",
+    data: { kind: "data" as const },
+  },
+];
+
+export const FileOperationsConfigured: Story = {
+  name: "File Operations — configured and connected",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Reads a stored JSON file, creates a YAML derivative, and writes a second derived file using typed stored-file ports.",
+      },
+    },
+  },
+  args: {
+    initialName: "Read, convert, and write localisation files",
+    initialNodes: fileOperationNodes,
+    initialEdges: fileOperationEdges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText(
+        "Data output: content, string, optional",
+        {},
+        { timeout: 10_000 },
+      ),
+    ).toBeInTheDocument();
+    await expect(canvas.getAllByLabelText("Data output: fileId, string, optional")).toHaveLength(3);
+    await expect(canvas.getAllByLabelText("Error")).toHaveLength(3);
+
+    const convertInput = canvas.getAllByLabelText("Data input: fileId, string")[1]!;
+    await userEvent.click(convertInput.closest(".react-flow__node")!);
+    await expect(canvas.getByRole("combobox", { name: "Target format" })).toHaveTextContent("YAML");
+    await expect(canvas.getByRole("textbox", { name: "Filename" })).toHaveTextContent(
+      "messages.yaml",
+    );
+    await expect(canvas.getByRole("textbox", { name: "Locale" })).toHaveTextContent("en-AU");
+  },
+};
+
+export const FileOperationsValidationError: Story = {
+  name: "File Operations — validation error",
+  args: {
+    ...FileOperationsConfigured.args,
+    initialNodes: fileOperationNodes.map((node) =>
+      node.id === "read-file" && node.data.config.kind === "action.file_read"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: { ...node.data.config, fileId: "" },
+              runStatus: "failed" as const,
+              lastOutput: undefined,
+              lastError: {
+                code: "invalid_file_reference",
+                message: "Select a valid stored file.",
+              },
+            },
+          }
+        : node,
+    ),
+    initialEdges: fileOperationEdges.filter((edge) => edge.id !== "trigger-read-file-id"),
+  },
+  play: async ({ canvas }) => {
+    const readInput = (
+      await canvas.findAllByLabelText("Data input: fileId, string", {}, { timeout: 10_000 })
+    )[0]!;
+    await userEvent.click(readInput.closest(".react-flow__node")!);
+    await expect(canvas.getByRole("textbox", { name: "Source file ID" })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    await expect(canvas.getByText(/invalid_file_reference/)).toBeInTheDocument();
+  },
+};
+
+export const FileOperationsNarrow: Story = {
+  name: "File Operations — narrow",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: { ...FileOperationsConfigured.args },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findAllByText("Succeeded", {}, { timeout: 10_000 })).toHaveLength(4);
+    await expect(canvas.getAllByText(/messages\.yaml/).length).toBeGreaterThan(0);
+  },
+};

@@ -1767,6 +1767,75 @@ describe("VisualWorkflowConfigPanel", () => {
     );
     expect(fallback()).toHaveValue("7");
   });
+
+  it("shows editable settings for file read, write, and convert nodes", () => {
+    const fileNode = (
+      type: "action.file_read" | "action.file_write" | "action.file_convert",
+      config: VisualNodeConfig,
+    ): VisualWorkflowRfNode => ({
+      id: type,
+      type,
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions(type),
+      data: { catalogType: type, config, runStatus: "idle" },
+    });
+    const panel = (node: VisualWorkflowRfNode) => (
+      <VisualWorkflowConfigPanel
+        node={node}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />
+    );
+
+    const { rerender } = renderPanel(
+      panel(
+        fileNode("action.file_read", {
+          kind: "action.file_read",
+          fileId: "file_source",
+          encoding: "utf-8",
+        }),
+      ),
+    );
+    expect(screen.getByRole("textbox", { name: "Source file ID" })).toHaveTextContent(
+      "file_source",
+    );
+    expect(screen.getByRole("combobox", { name: "Encoding" })).toHaveTextContent("utf-8");
+
+    rerender(
+      panel(
+        fileNode("action.file_write", {
+          kind: "action.file_write",
+          content: "Hello",
+          filename: "messages.json",
+          contentType: "application/json",
+          encoding: "utf-8",
+          locale: "en-AU",
+        }),
+      ),
+    );
+    expect(screen.getByRole("textbox", { name: "Content" })).toHaveTextContent("Hello");
+    expect(screen.getByRole("textbox", { name: "Filename" })).toHaveTextContent("messages.json");
+    expect(screen.getByRole("textbox", { name: "Content type" })).toHaveTextContent(
+      "application/json",
+    );
+
+    rerender(
+      panel(
+        fileNode("action.file_convert", {
+          kind: "action.file_convert",
+          fileId: "file_source",
+          targetFormat: "yaml",
+          filename: "messages.yaml",
+          locale: "en-AU",
+        }),
+      ),
+    );
+    expect(screen.getByRole("combobox", { name: "Target format" })).toHaveTextContent("YAML");
+    expect(screen.getByRole("textbox", { name: "Filename" })).toHaveTextContent("messages.yaml");
+  });
 });
 
 describe("Test tab", () => {

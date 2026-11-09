@@ -101,6 +101,13 @@ describe("getAllowedExecutionSourceHandles", () => {
     expect(getPrimaryExecutionSourceHandle(canonical("logic.json_stringify"))).toBe("success");
     expect(getPrimaryExecutionSourceHandle(canonical("logic.schema_validate"))).toBe("success");
   });
+
+  it("exposes explicit success and error branches for file operations", () => {
+    for (const type of ["action.file_read", "action.file_write", "action.file_convert"] as const) {
+      expect(getAllowedExecutionSourceHandles(canonical(type))).toEqual(["success", "error"]);
+      expect(getPrimaryExecutionSourceHandle(canonical(type))).toBe("success");
+    }
+  });
 });
 
 describe("normalizeExecutionSourceHandle", () => {

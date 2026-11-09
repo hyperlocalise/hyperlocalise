@@ -165,6 +165,12 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeRunQa;
     case "action.list_source_files":
       return messages.nodeListSourceFiles;
+    case "action.file_read":
+      return messages.nodeFileRead;
+    case "action.file_write":
+      return messages.nodeFileWrite;
+    case "action.file_convert":
+      return messages.nodeFileConvert;
     case "action.update_job":
       return messages.nodeUpdateJob;
     case "action.pick_assignee":
@@ -258,6 +264,12 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeRunQaHint;
     case "action.list_source_files":
       return messages.nodeListSourceFilesHint;
+    case "action.file_read":
+      return messages.nodeFileReadHint;
+    case "action.file_write":
+      return messages.nodeFileWriteHint;
+    case "action.file_convert":
+      return messages.nodeFileConvertHint;
     case "action.update_job":
       return messages.nodeUpdateJobHint;
     case "action.pick_assignee":

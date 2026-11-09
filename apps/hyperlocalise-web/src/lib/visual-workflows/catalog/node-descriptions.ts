@@ -73,6 +73,18 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     purpose:
       "List a project's source files, optionally under a path, so a For each can translate or assign every file.",
   },
+  "action.file_read": {
+    title: "Read file",
+    purpose: "Read bounded content and metadata from an organization-scoped stored file.",
+  },
+  "action.file_write": {
+    title: "Write file",
+    purpose: "Create an idempotent stored file with actor and provenance metadata.",
+  },
+  "action.file_convert": {
+    title: "Convert file",
+    purpose: "Create a derived localisation file in a supported lossless format.",
+  },
   "action.update_job": {
     title: "Update job",
     purpose: "Reassign a job to a workspace member, rename it, or set its due date.",
