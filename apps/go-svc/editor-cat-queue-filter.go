@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +23,27 @@ type editorCatAdvancedFilter struct {
 	QaIssueType       string `json:"qaIssueType"`
 	Comments          string `json:"comments"`
 	Visibility        string `json:"visibility"`
+	// Native key tags, through the same label fields Crowdin labels use.
+	IncludeLabelMode string   `json:"includeLabelMode"`
+	IncludeLabelIDs  []string `json:"includeLabelIds"`
+	ExcludeLabelMode string   `json:"excludeLabelMode"`
+	ExcludeLabelIDs  []string `json:"excludeLabelIds"`
+	// Only the keys of this key job.
+	JobID string `json:"jobId"`
+}
+
+var editorCatTagPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+const editorCatMaxLabelFilter = 50
+
+func compactEditorCatTags(tags []string) []string {
+	out := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		if editorCatTagPattern.MatchString(tag) && !slices.Contains(out, tag) && len(out) < editorCatMaxLabelFilter {
+			out = append(out, tag)
+		}
+	}
+	return out
 }
 
 var editorCatAllowedQualifiers = map[string]struct{}{
@@ -127,6 +150,24 @@ func compactEditorCatAdvancedFilter(filter editorCatAdvancedFilter) *editorCatAd
 	switch filter.Visibility {
 	case "visible", "hidden":
 		out.Visibility = filter.Visibility
+		has = true
+	}
+	if tags := compactEditorCatTags(filter.IncludeLabelIDs); len(tags) > 0 {
+		out.IncludeLabelIDs, out.IncludeLabelMode = tags, "include_all"
+		if filter.IncludeLabelMode == "include_any" {
+			out.IncludeLabelMode = "include_any"
+		}
+		has = true
+	}
+	if tags := compactEditorCatTags(filter.ExcludeLabelIDs); len(tags) > 0 {
+		out.ExcludeLabelIDs, out.ExcludeLabelMode = tags, "exclude_all"
+		if filter.ExcludeLabelMode == "exclude_any" {
+			out.ExcludeLabelMode = "exclude_any"
+		}
+		has = true
+	}
+	if jobID := trimEditorCat(filter.JobID); jobID != "" && len(jobID) <= 128 {
+		out.JobID = jobID
 		has = true
 	}
 	if !has {
@@ -389,6 +430,26 @@ func editorCatAdvancedFilterSQL(filter *editorCatAdvancedFilter, orgN, projectN,
 	if filter.Visibility == "visible" {
 		sql += ` and k.is_hidden = false`
 	}
+	if len(filter.IncludeLabelIDs) > 0 {
+		*args = append(*args, filter.IncludeLabelIDs)
+		operator := "@>"
+		if filter.IncludeLabelMode == "include_any" {
+			operator = "&&"
+		}
+		sql += ` and k.tags ` + operator + ` $` + strconv.Itoa(len(*args)) + `::text[]`
+	}
+	if len(filter.ExcludeLabelIDs) > 0 {
+		*args = append(*args, filter.ExcludeLabelIDs)
+		operator := "@>"
+		if filter.ExcludeLabelMode == "exclude_any" {
+			operator = "&&"
+		}
+		sql += ` and not (k.tags ` + operator + ` $` + strconv.Itoa(len(*args)) + `::text[])`
+	}
+	if filter.JobID != "" {
+		*args = append(*args, filter.JobID)
+		sql += ` and exists (select 1 from translation_job_keys jk where jk.job_id = $` + strconv.Itoa(len(*args)) + ` and jk.translation_key_id = k.id)`
+	}
 	return sql
 }
 
@@ -400,6 +461,11 @@ func appendEditorCatQueueFilterSQL(where string, args []any, query editorCatQueu
 	}
 	where += editorCatPresetFilterSQL(query, orgN, projectN, localeN, &args)
 	where += editorCatAdvancedFilterSQL(query.advancedFilter, orgN, projectN, localeN, &args)
+	// A key job leaves out its hidden strings, as its progress does, unless they are asked for.
+	if advanced := query.advancedFilter; advanced != nil && advanced.JobID != "" &&
+		advanced.Visibility != "hidden" && query.queueFilter != "hidden" {
+		where += ` and k.is_hidden = false`
+	}
 	return where, args
 }
 
@@ -439,7 +505,7 @@ func editorCatWholeFileMatchesAdvanced(subject editorCatWholeFileSubject, filter
 	if filter.QaIssues == "with" || filter.QaIssueType != "" || filter.Comments == "with" {
 		return false
 	}
-	if filter.Visibility == "hidden" {
+	if filter.Visibility == "hidden" || len(filter.IncludeLabelIDs) > 0 || len(filter.ExcludeLabelIDs) > 0 || filter.JobID != "" {
 		return false
 	}
 	if !editorCatWholeFileDateMatches(subject.createdAt, filter.AddedFrom, filter.AddedTo) {

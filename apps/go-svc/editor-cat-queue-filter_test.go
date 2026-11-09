@@ -332,3 +332,48 @@ func TestEditorCatQueueKindAndDownloadPath(t *testing.T) {
 	path := editorCatGeneratedDownloadPath("acme/prod", "proj 1", "a b.json", "pt-BR")
 	require.Equal(t, "/api/orgs/acme%2Fprod/projects/proj%201/files/translations/download?sourcePath=a+b.json&locale=pt-BR", path)
 }
+
+func TestEditorCatAdvancedFilterTagsAndJob(t *testing.T) {
+	filter, err := parseEditorCatAdvancedFilter(`{
+		"includeLabelMode":"include_any",
+		"includeLabelIds":["checkout","checkout","has space","release-7"],
+		"excludeLabelIds":["old"],
+		"jobId":" job_1 "
+	}`)
+	require.NoError(t, err)
+	require.Equal(t, &editorCatAdvancedFilter{
+		IncludeLabelMode: "include_any",
+		IncludeLabelIDs:  []string{"checkout", "release-7"},
+		ExcludeLabelMode: "exclude_all",
+		ExcludeLabelIDs:  []string{"old"},
+		JobID:            "job_1",
+	}, filter)
+
+	args := []any{"org", "proj"}
+	sql := editorCatAdvancedFilterSQL(filter, 1, 2, 0, &args)
+	require.Equal(t, []any{"org", "proj", []string{"checkout", "release-7"}, []string{"old"}, "job_1"}, args)
+	require.Contains(t, sql, "k.tags && $3::text[]")
+	require.Contains(t, sql, "not (k.tags @> $4::text[])")
+	require.Contains(t, sql, "jk.job_id = $5 and jk.translation_key_id = k.id")
+	jobOnly := &editorCatAdvancedFilter{JobID: "job_1"}
+	where, _ := appendEditorCatQueueFilterSQL("", []any{"org", "proj"}, editorCatQueueQuery{advancedFilter: jobOnly}, 1, 2)
+	require.Contains(t, where, "k.is_hidden = false")
+	hiddenPreset, _ := appendEditorCatQueueFilterSQL("", []any{"org", "proj"}, editorCatQueueQuery{advancedFilter: jobOnly, queueFilter: "hidden"}, 1, 2)
+	require.Contains(t, hiddenPreset, "k.is_hidden = true")
+	require.NotContains(t, hiddenPreset, "k.is_hidden = false")
+	hiddenAdvanced, _ := appendEditorCatQueueFilterSQL("", []any{"org", "proj"}, editorCatQueueQuery{
+		advancedFilter: &editorCatAdvancedFilter{JobID: "job_1", Visibility: "hidden"},
+	}, 1, 2)
+	require.NotContains(t, hiddenAdvanced, "k.is_hidden = false")
+
+	allOf := editorCatAdvancedFilterSQL(&editorCatAdvancedFilter{
+		IncludeLabelIDs: []string{"a"}, IncludeLabelMode: "include_all",
+		ExcludeLabelIDs: []string{"b"}, ExcludeLabelMode: "exclude_any",
+	}, 1, 2, 0, &[]any{"org", "proj"})
+	require.Contains(t, allOf, "k.tags @> $3::text[]")
+	require.Contains(t, allOf, "not (k.tags && $4::text[])")
+
+	require.False(t, editorCatWholeFileMatchesAdvanced(editorCatWholeFileSubject{}, &editorCatAdvancedFilter{JobID: "job_1"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(editorCatWholeFileSubject{}, &editorCatAdvancedFilter{IncludeLabelIDs: []string{"a"}}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(editorCatWholeFileSubject{}, &editorCatAdvancedFilter{ExcludeLabelIDs: []string{"a"}}))
+}
