@@ -95,6 +95,7 @@ export function ContentEditorQueueToolbar({
   onBulkLock,
   onBulkUnlock,
   onBulkCreateTask,
+  onBulkTranslate,
   onBulkEditTags,
   onDismissNewTaskHint,
   isBulkActionPending = false,
@@ -136,6 +137,8 @@ export function ContentEditorQueueToolbar({
   onBulkLock?: () => void;
   onBulkUnlock?: () => void;
   onBulkCreateTask?: () => void;
+  /** Starts AI translation of the ticked strings (native projects). */
+  onBulkTranslate?: () => void;
   onBulkEditTags?: () => void;
   /** Set while the new-task hint shows; called when it is dismissed. */
   onDismissNewTaskHint?: () => void;
@@ -271,6 +274,7 @@ export function ContentEditorQueueToolbar({
           onBulkUnlock={onBulkUnlock}
           actionLocale={bulkActionLocale}
           onBulkCreateTask={onBulkCreateTask}
+          onBulkTranslate={onBulkTranslate}
           onBulkEditTags={onBulkEditTags}
           onDone={() => onSelectionModeChange?.(false)}
         />
@@ -450,6 +454,7 @@ function ContentEditorBulkBar({
   onBulkUnlock,
   actionLocale,
   onBulkCreateTask,
+  onBulkTranslate,
   onBulkEditTags,
   onDone,
 }: {
@@ -467,6 +472,7 @@ function ContentEditorBulkBar({
   onBulkUnlock?: () => void;
   actionLocale?: string;
   onBulkCreateTask?: () => void;
+  onBulkTranslate?: () => void;
   onBulkEditTags?: () => void;
   onDone: () => void;
 }) {
@@ -490,6 +496,11 @@ function ContentEditorBulkBar({
       key: "task",
       handler: onBulkCreateTask,
       message: messages.bulkCreateTask,
+    },
+    {
+      key: "translate",
+      handler: onBulkTranslate,
+      message: contentEditorQueuePanelMessages.bulkTranslate,
     },
     {
       key: "tags",

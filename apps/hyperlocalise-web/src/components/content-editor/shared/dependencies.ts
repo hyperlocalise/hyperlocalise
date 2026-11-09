@@ -98,6 +98,8 @@ export interface ContentEditorWorkspaceReview {
   onCreateKeyTask?: (segmentIds: string[], onSaved: () => void) => void;
   /** Opens the tag dialog for the ticked strings (native projects). */
   onEditKeyTags?: (segmentIds: string[], onSaved: () => void) => void;
+  /** Opens the AI translation dialog for the ticked strings (native projects). */
+  onTranslateKeys?: (segmentIds: string[], onStarted: () => void) => void;
 }
 
 export interface ContentEditorWorkspaceServices {

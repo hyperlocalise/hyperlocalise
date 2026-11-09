@@ -360,6 +360,18 @@ const ContentEditorWorkspaceContainerObserver = observer(
                   }
                 : undefined
             }
+            onBulkTranslate={
+              review?.onTranslateKeys
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    review.onTranslateKeys?.([...store.checkedSegmentIds], () =>
+                      store.clearChecked(),
+                    );
+                  }
+                : undefined
+            }
             onBulkEditTags={
               review?.onEditKeyTags
                 ? () => {
