@@ -216,4 +216,56 @@ describe("createStoredFile", () => {
       ),
     ]);
   });
+
+  it("uses a distinct object key per attempt for caller-chosen ids", async () => {
+    const uploadedKeys: string[] = [];
+    const adapter: FileStorageAdapter = {
+      provider: "vercel_blob",
+      put: async (input) => {
+        uploadedKeys.push(input.key);
+        return {
+          provider: "vercel_blob",
+          key: input.key,
+          url: `https://blob.example/${input.key}`,
+          downloadUrl: null,
+          contentType: input.contentType,
+          etag: null,
+        };
+      },
+      get: async () => null,
+      getSignedUrl: async () => "https://download.example/signed",
+      delete: async () => {},
+    };
+    const dbClient = {
+      insert: () => ({
+        values: (values: Record<string, unknown>) => ({
+          returning: async () => [values],
+        }),
+      }),
+    } as unknown as Parameters<typeof createStoredFile>[0]["db"];
+    const create = () =>
+      createStoredFile({
+        id: "file_vw_retry",
+        organizationId: "org_demo",
+        role: "output",
+        sourceKind: "job_output",
+        filename: "output.json",
+        contentType: "application/json",
+        content: Buffer.from("{}"),
+        adapter,
+        db: dbClient,
+      });
+
+    const [first, second] = await Promise.all([create(), create()]);
+
+    expect(first.id).toBe("file_vw_retry");
+    expect(second.id).toBe("file_vw_retry");
+    expect(uploadedKeys).toHaveLength(2);
+    expect(new Set(uploadedKeys).size).toBe(2);
+    for (const key of uploadedKeys) {
+      expect(key).toMatch(
+        /^organizations\/org_demo\/workspace\/files\/file_vw_retry-[0-9a-f-]{36}\/output\.json$/,
+      );
+    }
+  });
 });

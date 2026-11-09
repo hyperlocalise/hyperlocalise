@@ -63,16 +63,18 @@ describe("getYouTubeEmbedSrc", () => {
 
 describe("ProductPreviewVideo", () => {
   it("embeds the configured YouTube hero video", () => {
-    render(
+    const container = document.createElement("div");
+    const { getByTitle, queryByRole } = render(
       <IntlProvider locale="en" messages={{}}>
         <ProductPreviewVideo src={PRODUCT_PREVIEW_VIDEO_URL} />
       </IntlProvider>,
+      { container },
     );
 
-    const frame = screen.getByTitle("Illustrative product preview");
-    expect(frame).toBeInTheDocument();
+    const frame = getByTitle("Illustrative product preview");
+    expect(container).toContainElement(frame);
     expect(frame).toHaveAttribute("src", "https://www.youtube.com/embed/wjDelLf57OM");
-    expect(screen.queryByRole("video")).not.toBeInTheDocument();
+    expect(queryByRole("video")).not.toBeInTheDocument();
   });
 
   it("renders a file video when the url is not YouTube", () => {

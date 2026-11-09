@@ -270,6 +270,36 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "LSAb8ph9tQ",
     description: "Catalog description for the list source files node",
   },
+  nodeFileRead: {
+    defaultMessage: "Read file",
+    id: "4+YLajE++n",
+    description: "Catalog title for the stored file read node",
+  },
+  nodeFileReadHint: {
+    defaultMessage: "Read bounded content and metadata from a stored file.",
+    id: "7sT5Pqjjvw",
+    description: "Catalog description for the stored file read node",
+  },
+  nodeFileWrite: {
+    defaultMessage: "Write file",
+    id: "q+TRkEIOsF",
+    description: "Catalog title for the stored file write node",
+  },
+  nodeFileWriteHint: {
+    defaultMessage: "Create an idempotent stored file with provenance.",
+    id: "65k6GaEuoy",
+    description: "Catalog description for the stored file write node",
+  },
+  nodeFileConvert: {
+    defaultMessage: "Convert file",
+    id: "/PvtDEahT8",
+    description: "Catalog title for the localisation file conversion node",
+  },
+  nodeFileConvertHint: {
+    defaultMessage: "Create a derived file in a supported localisation format.",
+    id: "HoJLi2H4IT",
+    description: "Catalog description for the localisation file conversion node",
+  },
   nodeUpdateJob: {
     defaultMessage: "Update job",
     id: "QqqMJ6Bi0e",
@@ -2325,6 +2355,46 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "IT9fuYzCqC",
     description:
       "Optional source file setting on the progress step; empty checks the whole project",
+  },
+  fileContent: {
+    defaultMessage: "Content",
+    id: "Pl+u+xnyRi",
+    description: "File write node content field label",
+  },
+  fileName: {
+    defaultMessage: "Filename",
+    id: "jHz7qBLEBI",
+    description: "File operation filename field label",
+  },
+  fileContentType: {
+    defaultMessage: "Content type",
+    id: "+3SmR81C/v",
+    description: "File write node MIME content type field label",
+  },
+  fileEncoding: {
+    defaultMessage: "Encoding",
+    id: "GByeCLJS+6",
+    description: "File operation encoding field label",
+  },
+  fileLocale: {
+    defaultMessage: "Locale",
+    id: "ym88cOvbnb",
+    description: "File operation locale field label",
+  },
+  fileTargetFormat: {
+    defaultMessage: "Target format",
+    id: "mLZuHpUnUy",
+    description: "File conversion target format field label",
+  },
+  fileConvertFilenamePlaceholder: {
+    defaultMessage: "Derived automatically",
+    id: "6RB0hyF0cE",
+    description: "Placeholder for the optional output filename of a file conversion",
+  },
+  fileConvertLocalePlaceholder: {
+    defaultMessage: "Preserve source locale",
+    id: "CIcsaiziRl",
+    description: "Placeholder for the optional locale of a file conversion",
   },
   localizationTargetLocales: {
     defaultMessage: "Target locales",

@@ -32,6 +32,9 @@ export function getAllowedExecutionSourceHandles(
   if (node.type === "logic.json_stringify") {
     return ["success", "error"];
   }
+  if (["action.file_read", "action.file_write", "action.file_convert"].includes(node.type)) {
+    return ["success", "error"];
+  }
   if (node.config.kind === "logic.switch") {
     return ["default", ...node.config.cases.map((entry) => entry.id)];
   }
@@ -72,6 +75,9 @@ export function getPrimaryExecutionSourceHandle(node: VisualWorkflowHandleSource
     node.type === "logic.json_stringify" ||
     node.type === "logic.schema_validate"
   ) {
+    return "success";
+  }
+  if (["action.file_read", "action.file_write", "action.file_convert"].includes(node.type)) {
     return "success";
   }
   if (node.config.kind === "logic.switch") {

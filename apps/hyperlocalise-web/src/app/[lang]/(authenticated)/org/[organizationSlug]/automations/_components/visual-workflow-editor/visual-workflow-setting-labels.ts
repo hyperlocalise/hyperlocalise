@@ -85,6 +85,24 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     pathPrefix: messages.listFilesPathPrefix,
     ...ON_ERROR,
   },
+  "action.file_read": {
+    fileId: messages.localizationSourceFileId,
+    encoding: messages.fileEncoding,
+  },
+  "action.file_write": {
+    content: messages.fileContent,
+    filename: messages.fileName,
+    contentType: messages.fileContentType,
+    encoding: messages.fileEncoding,
+    locale: messages.fileLocale,
+    sourceFileId: messages.localizationSourceFileIdOptional,
+  },
+  "action.file_convert": {
+    fileId: messages.localizationSourceFileId,
+    targetFormat: messages.fileTargetFormat,
+    filename: messages.fileName,
+    locale: messages.fileLocale,
+  },
   "action.update_job": {
     jobId: messages.updateJobJobId,
     assigneeWorkosUserId: messages.updateJobAssignee,

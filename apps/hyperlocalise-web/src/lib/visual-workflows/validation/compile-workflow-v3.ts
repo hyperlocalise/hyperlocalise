@@ -167,6 +167,10 @@ function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> 
     return new Set(["success", "error"]);
   }
 
+  if (["action.file_read", "action.file_write", "action.file_convert"].includes(node.type)) {
+    return new Set(["success", "error"]);
+  }
+
   const portIds = new Set(["success"]);
 
   if ("onError" in node.config && node.config.onError === "branch") {

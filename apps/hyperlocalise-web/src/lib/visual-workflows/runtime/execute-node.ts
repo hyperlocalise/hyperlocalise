@@ -33,6 +33,7 @@ import type { CanonicalVisualWorkflowNode } from "../schema/types";
 import type { VisualWorkflowExecutionContext } from "./context";
 import { runPickAssigneeAction } from "./assignment-actions";
 import { executeLogicVisualWorkflowNode } from "./execute-logic-node";
+import { executeFileConvertNode, executeFileReadNode, executeFileWriteNode } from "./file-nodes";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 import { resolveVisualWorkflowTemplate } from "./expressions";
 import {
@@ -89,6 +90,42 @@ export async function executeVisualWorkflowNode(input: {
   }
 
   switch (node.config.kind) {
+    case "action.file_read":
+      return executeFileReadNode({
+        organizationId: input.organizationId,
+        visualWorkflowId: input.visualWorkflowId,
+        fileId: text(node.config.fileId),
+        encoding: node.config.encoding,
+        signal: input.signal,
+      });
+    case "action.file_write":
+      return executeFileWriteNode({
+        organizationId: input.organizationId,
+        visualWorkflowId: input.visualWorkflowId,
+        visualWorkflowRunId: input.visualWorkflowRunId,
+        nodeId: node.id,
+        idempotencyKey: input.idempotencyKey,
+        content: text(node.config.content),
+        filename: text(node.config.filename),
+        contentType: text(node.config.contentType),
+        encoding: node.config.encoding,
+        locale: node.config.locale ? text(node.config.locale) : undefined,
+        sourceFileId: node.config.sourceFileId ? text(node.config.sourceFileId) : undefined,
+        signal: input.signal,
+      });
+    case "action.file_convert":
+      return executeFileConvertNode({
+        organizationId: input.organizationId,
+        visualWorkflowId: input.visualWorkflowId,
+        visualWorkflowRunId: input.visualWorkflowRunId,
+        nodeId: node.id,
+        idempotencyKey: input.idempotencyKey,
+        fileId: text(node.config.fileId),
+        targetFormat: node.config.targetFormat,
+        filename: node.config.filename ? text(node.config.filename) : undefined,
+        locale: node.config.locale ? text(node.config.locale) : undefined,
+        signal: input.signal,
+      });
     case "action.http": {
       const httpConfig = node.config;
       const url = text(httpConfig.url).trim();

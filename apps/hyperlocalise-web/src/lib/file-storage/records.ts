@@ -26,6 +26,7 @@ type StoredFileRole = (typeof schema.storedFileRoleEnum.enumValues)[number];
 type StoredFileSourceKind = (typeof schema.storedFileSourceKindEnum.enumValues)[number];
 
 type CreateStoredFileInput = {
+  id?: string;
   organizationId: string;
   projectId?: string | null;
   createdByUserId?: string | null;
@@ -154,12 +155,14 @@ export function storageKey(input: {
 
 export async function createStoredFile(input: CreateStoredFileInput) {
   const adapter = input.adapter ?? getFileStorageAdapter();
-  const id = createStoredFileId();
+  const id = input.id ?? createStoredFileId();
   const content = bytesFromContent(input.content);
   const key = storageKey({
     organizationId: input.organizationId,
     projectId: input.projectId,
-    id,
+    // Caller-chosen ids can be retried concurrently. A per-attempt key keeps a losing
+    // insert from overwriting or deleting the winning attempt's object.
+    id: input.id ? `${id}-${crypto.randomUUID()}` : id,
     filename: input.filename,
   });
   const uploaded = await adapter.put({
