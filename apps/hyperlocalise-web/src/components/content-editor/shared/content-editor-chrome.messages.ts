@@ -113,9 +113,10 @@ export const contentEditorBulkBarMessages = defineMessages({
     description: "Number of strings selected in the Content Editor bulk action bar",
   },
   selectAllVisible: {
-    defaultMessage: "Select all visible ({count})",
-    id: "I8eNE+aJdj",
-    description: "Bulk action bar button that selects every loaded string",
+    defaultMessage: "Select all loaded ({count})",
+    id: "2WT/yGH514",
+    description:
+      "Bulk action bar button that ticks every string loaded so far, including ones scrolled out of view; count is how many are loaded",
   },
   more: {
     defaultMessage: "More",

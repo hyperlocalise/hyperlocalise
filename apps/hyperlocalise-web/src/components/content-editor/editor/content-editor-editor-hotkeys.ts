@@ -12,11 +12,18 @@
  */
 import { useHotkeys } from "react-hotkeys-hook";
 
+import { CONTENT_EDITOR_SEGMENT_CHECKBOX_ATTRIBUTE } from "@/components/content-editor/segment/content-editor-segment-checkbox";
+
 import { getCatShortcutHotkey } from "./content-editor-keyboard-shortcuts";
 
 function isCommentInputFocused() {
   const activeElement = document.activeElement;
   return activeElement instanceof HTMLElement && activeElement.dataset.catCommentInput === "true";
+}
+
+/** A ticked string's box keeps focus after a click; approving then would act on another string. */
+function isSegmentCheckboxFocused() {
+  return Boolean(document.activeElement?.hasAttribute(CONTENT_EDITOR_SEGMENT_CHECKBOX_ATTRIBUTE));
 }
 
 /** TipTap renders the target as contenteditable; these must fire while typing in it. */
@@ -93,7 +100,7 @@ export function useContentEditorEditorHotkeys({
   useHotkeys(
     getCatShortcutHotkey("approve"),
     (event) => {
-      if (isCommentInputFocused()) {
+      if (isCommentInputFocused() || isSegmentCheckboxFocused()) {
         return;
       }
 

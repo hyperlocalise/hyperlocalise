@@ -172,6 +172,9 @@ export const ContentEditorQueueToolbarConnected = observer(
         onBulkLock={onBulkLock}
         onBulkUnlock={onBulkUnlock}
         isBulkActionPending={store.isBulkActionPending}
+        bulkActionLocale={
+          store.ui.viewMode === "multilingual" ? store.fileContext.targetLocale : undefined
+        }
         bulkProgress={
           store.isBulkActionPending && store.bulkTotalCount > 0
             ? `${store.bulkCompletedCount}/${store.bulkTotalCount}`

@@ -54,6 +54,58 @@ function renderRow(overrides: Partial<Parameters<typeof ContentEditorSideBySideR
 }
 
 describe("ContentEditorSideBySideRow", () => {
+  it("shows no tick box outside Select mode", () => {
+    renderRow({ isFocused: false });
+
+    expect(screen.queryByRole("checkbox", { name: /^Select / })).not.toBeInTheDocument();
+  });
+
+  it("ticks the string in Select mode without opening it", async () => {
+    const user = userEvent.setup();
+    const onCheckedChange = vi.fn();
+    const { props } = renderRow({ isFocused: false, isDirty: false, onCheckedChange });
+
+    const checkbox = screen.getByRole("checkbox", { name: `Select ${props.segment.key}` });
+    expect(checkbox).not.toBeChecked();
+
+    await user.click(checkbox);
+
+    expect(onCheckedChange).toHaveBeenCalledWith(true);
+    expect(props.onFocus).not.toHaveBeenCalled();
+  });
+
+  it("toggles the tick box from the keyboard without opening the string", async () => {
+    const user = userEvent.setup();
+    const onCheckedChange = vi.fn();
+    const { props } = renderRow({
+      isFocused: false,
+      isDirty: false,
+      checkedSegmentIds: new Set(["seg-02"]),
+      onCheckedChange,
+    });
+
+    await user.tab();
+    const checkbox = screen.getByRole("checkbox", { name: `Select ${props.segment.key}` });
+    expect(checkbox).toHaveFocus();
+    expect(checkbox).toBeChecked();
+
+    await user.keyboard(" ");
+
+    expect(onCheckedChange).toHaveBeenCalledWith(false);
+    expect(props.onFocus).not.toHaveBeenCalled();
+  });
+
+  it("still opens the string when the row is clicked in Select mode", async () => {
+    const user = userEvent.setup();
+    const onCheckedChange = vi.fn();
+    const { props } = renderRow({ isFocused: false, isDirty: false, onCheckedChange });
+
+    await user.click(screen.getByRole("button", { name: props.segment.targetText }));
+
+    expect(props.onFocus).toHaveBeenCalled();
+    expect(onCheckedChange).not.toHaveBeenCalled();
+  });
+
   it("shows approve and save draft when the focused row is dirty", () => {
     renderRow();
 
@@ -184,6 +236,17 @@ describe("ContentEditorSideBySideRow", () => {
     await user.keyboard("{Control>}{Enter}{/Control}");
 
     expect(onApprove).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not approve the open string with Ctrl+Enter while its tick box has focus", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn();
+    const { props } = renderRow({ onApprove, onCheckedChange: vi.fn() });
+
+    await user.click(screen.getByRole("checkbox", { name: `Select ${props.segment.key}` }));
+    await user.keyboard("{Control>}{Enter}{/Control}");
+
+    expect(onApprove).not.toHaveBeenCalled();
   });
 
   it("calls onSaveDraft when Draft is clicked", async () => {
