@@ -1,0 +1,94 @@
+name: Public API Deploy
+
+on:
+  push:
+    branches:
+      - prod
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: public-api-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+  PUBLIC_API_IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+  ECR_REPOSITORY_PARAMETER_NAME: /hyperlocalise/prod/ecr/public-api/repository_name
+  ECS_CLUSTER_PARAMETER_NAME: /hyperlocalise/prod/ecs/cluster_name
+  ECS_SERVICE_PARAMETER_NAME: /hyperlocalise/prod/ecs/public-api/service_name
+  ECS_TASK_DEFINITION_PARAMETER_NAME: /hyperlocalise/prod/ecs/public-api/task_definition_arn
+
+jobs:
+  build-and-push:
+    name: Build and push public-api image
+    if: github.ref == 'refs/heads/prod'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Authenticate with AWS and ECR
+        id: auth
+        uses: ./.github/actions/aws-auth
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-public-api-deploy
+
+      - name: Read deployment parameters
+        id: params
+        uses: ./.github/actions/ssm-deployment-params
+        with:
+          ecr-parameter-name: ${{ env.ECR_REPOSITORY_PARAMETER_NAME }}
+          ecs-cluster-parameter-name: ${{ env.ECS_CLUSTER_PARAMETER_NAME }}
+          ecs-service-parameter-name: ${{ env.ECS_SERVICE_PARAMETER_NAME }}
+          task-definition-parameter-name: ${{ env.ECS_TASK_DEFINITION_PARAMETER_NAME }}
+
+      - name: Build and push image
+        id: build
+        uses: ./.github/actions/ecr-build-push
+        with:
+          registry: ${{ steps.auth.outputs.registry }}
+          repository: ${{ steps.params.outputs.ecr-repository }}
+          tag: ${{ env.PUBLIC_API_IMAGE_TAG }}
+          dockerfile: ./apps/public-api/Dockerfile
+
+    outputs:
+      ecs-cluster: ${{ steps.params.outputs.ecs-cluster }}
+      ecs-service: ${{ steps.params.outputs.ecs-service }}
+      image: ${{ steps.build.outputs.image }}
+
+  deploy:
+    name: Deploy public-api image to ECS
+    needs: build-and-push
+    if: github.ref == 'refs/heads/prod'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Authenticate with AWS
+        uses: ./.github/actions/aws-auth
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-public-api-deploy
+
+      - name: Deploy new image to ECS
+        uses: ./.github/actions/ecs-deploy
+        with:
+          ecs-service: ${{ needs.build-and-push.outputs.ecs-service }}
+          ecs-cluster: ${{ needs.build-and-push.outputs.ecs-cluster }}
+          image: ${{ needs.build-and-push.outputs.image }}
+          version: ${{ env.PUBLIC_API_IMAGE_TAG }}
+          container-name: public-api
+          base-task-definition-parameter-name: ${{ env.ECS_TASK_DEFINITION_PARAMETER_NAME }}
