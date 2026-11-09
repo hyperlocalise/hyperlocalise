@@ -29,6 +29,7 @@ import { getAccessibleProjectIds, hasOrganizationWideProjectAccess } from "@/api
 import { badRequestResponse } from "@/api/response.schema";
 import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import { db, schema } from "@/lib/database/client";
+import { insertJobs, updateJobs } from "@/lib/job-change-events/job-writes";
 import {
   formatUsageControlError,
   reserveUsageEvent,
@@ -187,20 +188,18 @@ async function findIdempotentPublicJob(organizationId: string, idempotency: Publ
 
 /** Claims a failed create-time enqueue so only one retry re-queues the job. */
 async function reclaimPublicJobAfterQueueFailure(jobId: string) {
-  const [updated] = await db
-    .update(schema.jobs)
-    .set({
+  const [updated] = await updateJobs(db, {
+    set: {
       status: "queued",
       lastError: null,
-    })
-    .where(
-      and(
-        eq(schema.jobs.id, jobId),
-        eq(schema.jobs.status, "failed"),
-        eq(schema.jobs.lastError, publicJobQueueUnavailableError),
-      ),
-    )
-    .returning({ id: schema.jobs.id });
+    },
+    where: and(
+      eq(schema.jobs.id, jobId),
+      eq(schema.jobs.status, "failed"),
+      eq(schema.jobs.lastError, publicJobQueueUnavailableError),
+    ),
+    returning: { id: schema.jobs.id },
+  });
   return updated ?? null;
 }
 
@@ -244,13 +243,13 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
       });
       return true;
     } catch {
-      await db
-        .update(schema.jobs)
-        .set({
+      await updateJobs(db, {
+        set: {
           status: "failed",
           lastError: publicJobQueueUnavailableError,
-        })
-        .where(eq(schema.jobs.id, input.jobId));
+        },
+        where: eq(schema.jobs.id, input.jobId),
+      });
 
       await enqueueJobFailedActivity({
         ...input.actor,
@@ -431,9 +430,8 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
                 })
               : null;
 
-          const [createdJob] = await tx
-            .insert(schema.jobs)
-            .values({
+          const [createdJob] = await insertJobs(tx, {
+            values: {
               id: jobId,
               organizationId,
               projectId: payload.projectId,
@@ -444,8 +442,9 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
               ownerUserId,
               assigneeType: ownerUserId ? "user" : null,
               dueAt: payload.dueAt ? new Date(payload.dueAt) : null,
-            })
-            .returning();
+            },
+            returning: "all",
+          });
 
           if (idempotency) {
             // A concurrent request with the same key waits here until the first commits, then

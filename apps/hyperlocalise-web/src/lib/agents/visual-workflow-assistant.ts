@@ -268,6 +268,7 @@ const PERSON_ONLY_SETTINGS: Partial<Record<VisualCatalogType, Readonly<Record<st
       "it is one of the repositories connected to the workspace, which the assistant cannot see",
   },
   "trigger.source_upload": { projectId: PROJECT_REASON },
+  "trigger.job_changed": { projectId: PROJECT_REASON },
   "action.http": {
     auth: "it signs the request in with one of the workspace's saved credentials, which the assistant cannot see",
   },

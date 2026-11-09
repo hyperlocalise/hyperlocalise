@@ -95,6 +95,7 @@ import type {
   VisualSubworkflowField,
   VisualTaskStep,
   VisualWorkflowGithubTriggerEvent,
+  VisualWorkflowJobChangedTriggerConfig,
   VisualWorkflowRfNode,
   VisualWorkflowValidationIssue,
   WorkflowValueType,
@@ -132,6 +133,14 @@ import {
 } from "./visual-workflow-resource-options";
 import { getVisualWorkflowWebhookUrl } from "../visual-workflows-api";
 import { deriveReusableWorkflowContract } from "@/lib/visual-workflows/validation/subworkflow-validation";
+import {
+  JOB_CHANGE_EVENT_TYPES,
+  JOB_KINDS,
+  JOB_STATUSES,
+  type JobChangeEventType,
+  type JobKind,
+  type JobStatus,
+} from "@/lib/job-change-events/job-change-events-contract";
 
 const ANY_PROJECT_VALUE = "__any_project__";
 const UNASSIGNED_VALUE = "__unassigned__";
@@ -2636,6 +2645,13 @@ export function VisualWorkflowConfigPanel({
             }}
           />
         ) : null}
+        {config.kind === "trigger.job_changed" ? (
+          <JobChangedTriggerFields
+            config={config}
+            projects={resources.projects}
+            onChangeConfig={onChangeConfig}
+          />
+        ) : null}
         {config.kind === "trigger.webhook" ? (
           <WebhookTriggerFields
             config={config}
@@ -4197,6 +4213,126 @@ function TextAreaField({
       />
       {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
     </div>
+  );
+}
+
+const JOB_CHANGE_EVENT_LABELS: Record<JobChangeEventType, MessageDescriptor> = {
+  "job.created": messages.jobChangedEventCreated,
+  "job.status_changed": messages.jobChangedEventStatusChanged,
+  "job.assignee_changed": messages.jobChangedEventAssigneeChanged,
+};
+const JOB_KIND_LABELS: Record<JobKind, MessageDescriptor> = {
+  translation: messages.jobKindTranslation,
+  research: messages.jobKindResearch,
+  review: messages.jobKindReview,
+  proofread: messages.jobKindProofread,
+  sync: messages.jobKindSync,
+  asset_management: messages.jobKindAssetManagement,
+};
+const JOB_STATUS_LABELS: Record<JobStatus, MessageDescriptor> = {
+  queued: messages.jobStatusQueued,
+  running: messages.jobStatusRunning,
+  succeeded: messages.jobStatusSucceeded,
+  failed: messages.jobStatusFailed,
+  waiting_for_review: messages.jobStatusWaitingForReview,
+  cancelled: messages.jobStatusCancelled,
+};
+
+function toggleFilterValue<T>(values: readonly T[] | undefined, value: T, checked: boolean) {
+  const current = values ?? [];
+  const next = checked
+    ? [...new Set([...current, value])]
+    : current.filter((entry) => entry !== value);
+  return next.length > 0 ? next : undefined;
+}
+
+function JobChangedFilterGroup<T extends string>(props: {
+  idPrefix: string;
+  label: MessageDescriptor;
+  options: readonly T[];
+  labels: Record<T, MessageDescriptor>;
+  values: readonly T[] | undefined;
+  onChange: (values: T[] | undefined) => void;
+}) {
+  const intl = useIntl();
+  return (
+    <div className="grid gap-2">
+      <Label>
+        <FormattedMessage {...props.label} />
+      </Label>
+      {props.options.map((option) => (
+        <CheckboxField
+          key={option}
+          id={`${props.idPrefix}-${option}`}
+          label={intl.formatMessage(props.labels[option])}
+          checked={props.values?.includes(option) ?? false}
+          onCheckedChange={(checked) =>
+            props.onChange(toggleFilterValue(props.values, option, checked))
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+function JobChangedTriggerFields({
+  config,
+  projects,
+  onChangeConfig,
+}: {
+  config: VisualWorkflowJobChangedTriggerConfig;
+  projects: { id: string; name: string }[];
+  onChangeConfig: (config: VisualNodeConfig) => void;
+}) {
+  const intl = useIntl();
+  return (
+    <>
+      <SelectField
+        id="vw-job-changed-project"
+        label={intl.formatMessage(messages.jobChangedProject)}
+        value={config.projectId ?? ANY_PROJECT_VALUE}
+        items={[
+          { value: ANY_PROJECT_VALUE, label: intl.formatMessage(messages.anyProject) },
+          ...projects.map((project) => ({ value: project.id, label: project.name })),
+        ]}
+        onValueChange={(value) => {
+          if (!value) {
+            return;
+          }
+          onChangeConfig({
+            ...config,
+            projectId: value === ANY_PROJECT_VALUE ? undefined : value,
+          });
+        }}
+      />
+      <JobChangedFilterGroup
+        idPrefix="vw-job-changed-event"
+        label={messages.jobChangedEventTypes}
+        options={JOB_CHANGE_EVENT_TYPES}
+        labels={JOB_CHANGE_EVENT_LABELS}
+        values={config.eventTypes}
+        onChange={(eventTypes) => onChangeConfig({ ...config, eventTypes })}
+      />
+      <JobChangedFilterGroup
+        idPrefix="vw-job-changed-kind"
+        label={messages.jobChangedJobKinds}
+        options={JOB_KINDS}
+        labels={JOB_KIND_LABELS}
+        values={config.jobKinds}
+        onChange={(jobKinds) => onChangeConfig({ ...config, jobKinds })}
+      />
+      <JobChangedFilterGroup
+        idPrefix="vw-job-changed-status"
+        label={messages.jobChangedToStatuses}
+        options={JOB_STATUSES}
+        labels={JOB_STATUS_LABELS}
+        values={config.toStatuses}
+        onChange={(toStatuses) => onChangeConfig({ ...config, toStatuses })}
+      />
+      <TypographyP className="text-xs text-muted-foreground">
+        <FormattedMessage {...messages.jobChangedFiltersHint} />
+      </TypographyP>
+    </>
   );
 }
 

@@ -13,6 +13,7 @@
 import { and, eq, isNull, ne, notExists, or, sql, type SQL } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { updateJobs } from "@/lib/job-change-events/job-writes";
 import { recordJobEvents } from "@/lib/job-events/job-events-writer";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import { captureJobStatus } from "@/lib/reporting/capture";
@@ -41,34 +42,32 @@ export async function markTaskDone(input: {
 }): Promise<Result<{ id: string }, MarkTaskDoneError>> {
   const database = input.database ?? db;
 
-  const [done] = await database
-    .update(schema.jobs)
-    .set({
+  const [done] = await updateJobs(database, {
+    set: {
       status: "succeeded",
       lastError: null,
       // No message: lists show an outcome message as a failure reason.
       outcomePayload: { code: "marked_done_by_user" },
       completedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(schema.jobs.id, input.jobId),
-        eq(schema.jobs.organizationId, input.organizationId),
-        input.accessWhere,
-        input.actorMayFinishAnyTask ? undefined : eq(schema.jobs.ownerUserId, input.actorUserId),
-        eq(schema.jobs.status, "waiting_for_review"),
-        eq(schema.jobs.kind, "proofread"),
-        sql`coalesce(${schema.jobs.inputPayload}->'metadata'->>'workflowTaskStep', '') <> ${POST_EDIT_WORKFLOW_TASK_STEP}`,
-        or(isNull(schema.jobs.assigneeType), ne(schema.jobs.assigneeType, "agent")),
-        notExists(
-          database
-            .select({ jobId: schema.externalJobDetails.jobId })
-            .from(schema.externalJobDetails)
-            .where(eq(schema.externalJobDetails.jobId, schema.jobs.id)),
-        ),
+    },
+    where: and(
+      eq(schema.jobs.id, input.jobId),
+      eq(schema.jobs.organizationId, input.organizationId),
+      input.accessWhere,
+      input.actorMayFinishAnyTask ? undefined : eq(schema.jobs.ownerUserId, input.actorUserId),
+      eq(schema.jobs.status, "waiting_for_review"),
+      eq(schema.jobs.kind, "proofread"),
+      sql`coalesce(${schema.jobs.inputPayload}->'metadata'->>'workflowTaskStep', '') <> ${POST_EDIT_WORKFLOW_TASK_STEP}`,
+      or(isNull(schema.jobs.assigneeType), ne(schema.jobs.assigneeType, "agent")),
+      notExists(
+        database
+          .select({ jobId: schema.externalJobDetails.jobId })
+          .from(schema.externalJobDetails)
+          .where(eq(schema.externalJobDetails.jobId, schema.jobs.id)),
       ),
-    )
-    .returning({ id: schema.jobs.id });
+    ),
+    returning: { id: schema.jobs.id },
+  });
 
   if (!done) {
     const [existing] = await database

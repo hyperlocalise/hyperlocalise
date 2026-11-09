@@ -52,6 +52,7 @@ const itemMessages = {
   "activity-logs": messages.activityLogs,
   account: messages.account,
   "api-keys": messages.apiKeys,
+  webhooks: messages.webhooks,
 } as const satisfies Record<SettingsNavItemId, typeof messages.general>;
 
 export function SettingsNav({

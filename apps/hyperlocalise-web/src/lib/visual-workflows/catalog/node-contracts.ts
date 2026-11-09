@@ -67,6 +67,26 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       deliveryId: "delivery_mock",
     },
   },
+  "trigger.job_changed": {
+    ...trigger,
+    outputs: [
+      ...trigger.outputs,
+      ...["eventId", "eventType", "jobId", "jobKind", "status"].map((name) => output(name)),
+      ...["projectId", "previousStatus", "assigneeType"].map((name) =>
+        output(name, "string", true),
+      ),
+    ],
+    mock: {
+      eventId: "00000000-0000-4000-8000-000000000000",
+      eventType: "job.status_changed",
+      jobId: "job_mock",
+      jobKind: "translation",
+      status: "succeeded",
+      previousStatus: "running",
+      projectId: "proj_mock",
+      assigneeType: "agent",
+    },
+  },
   "action.http": {
     inputs: [field("url"), field("body", "unknown", false)],
     outputs: [

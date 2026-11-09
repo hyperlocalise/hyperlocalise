@@ -33,6 +33,11 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     purpose:
       "Start when another system, such as a TMS, CMS or CI job, sends an HTTP POST to the workflow's webhook URL. The JSON body is available to later steps.",
   },
+  "trigger.job_changed": {
+    title: "Job changed",
+    purpose:
+      "Start when a job in the workspace is created, changes status, or is reassigned. Filters narrow it to a project, job kinds, or the status the job moved to. Later steps get the job's id, kind, project, new status and previous status.",
+  },
   "action.http": { title: "HTTP Request", purpose: "Call an HTTP endpoint." },
   "action.content_sync": {
     title: "Content sync",

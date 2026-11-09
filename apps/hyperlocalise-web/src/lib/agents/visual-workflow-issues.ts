@@ -33,6 +33,7 @@ export const VISUAL_WORKFLOW_STEP_RULES: Partial<Record<VisualCatalogType, strin
   "trigger.scheduled": TRIGGER_RULES,
   "trigger.github": TRIGGER_RULES,
   "trigger.source_upload": TRIGGER_RULES,
+  "trigger.job_changed": TRIGGER_RULES,
   "logic.for_each":
     "At least one step must be connected to Each item. Those steps run once per item and connect only to each other: none of them may connect to a step outside the loop. The flow carries on after the loop from Done, which runs once at the end. A Loop cannot sit inside another Loop or a Retry, nor hold a Retry.",
   "logic.retry":

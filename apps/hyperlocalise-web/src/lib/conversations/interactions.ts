@@ -19,6 +19,7 @@ import {
 } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
+import { updateJobs } from "@/lib/job-change-events/job-writes";
 
 const sourceFileIdPattern = /\bsourceFileId=/;
 
@@ -174,12 +175,13 @@ export async function linkJobToInteraction(input: {
     return;
   }
 
-  await db
-    .update(schema.jobs)
-    .set({ interactionId: input.interactionId })
-    .where(
-      and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
-    );
+  await updateJobs(db, {
+    set: { interactionId: input.interactionId },
+    where: and(
+      eq(schema.jobs.id, input.jobId),
+      eq(schema.jobs.organizationId, input.organizationId),
+    ),
+  });
 }
 
 export async function findInteractionBySourceThreadId(input: {

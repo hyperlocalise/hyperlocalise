@@ -1247,6 +1247,13 @@
       "when": 1794202921493,
       "tag": "0177_nasty_tyrannus",
       "breakpoints": true
+    },
+    {
+      "idx": 178,
+      "version": "7",
+      "when": 1794216036855,
+      "tag": "0178_wise_norrin_radd",
+      "breakpoints": true
     }
   ]
 }

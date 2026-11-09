@@ -820,6 +820,117 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "96dcZwdhGc",
     description: "Catalog description for the source upload trigger node",
   },
+  nodeJobChangedTrigger: {
+    defaultMessage: "Job changed",
+    id: "0Y+bOOsSA1",
+    description: "Catalog title for the job changed trigger node",
+  },
+  nodeJobChangedTriggerHint: {
+    defaultMessage: "Start when a job is created, changes status, or is reassigned.",
+    id: "2sNNxyCWxU",
+    description: "Catalog description for the job changed trigger node",
+  },
+  jobChangedProject: {
+    defaultMessage: "Project",
+    id: "AYk2MYcXaX",
+    description: "Project picker label for the job changed trigger",
+  },
+  jobChangedEventTypes: {
+    defaultMessage: "Changes",
+    id: "v1D5AwYN+5",
+    description: "Label above the job change type checkboxes on the job changed trigger",
+  },
+  jobChangedEventCreated: {
+    defaultMessage: "Job created",
+    id: "OzxhHflCxK",
+    description: "Checkbox on the job changed trigger for runs when a job is created",
+  },
+  jobChangedEventStatusChanged: {
+    defaultMessage: "Status changed",
+    id: "U9+1FmfAQd",
+    description: "Checkbox on the job changed trigger for runs when a job changes status",
+  },
+  jobChangedEventAssigneeChanged: {
+    defaultMessage: "Assignee changed",
+    id: "YQQTccmttg",
+    description: "Checkbox on the job changed trigger for runs when a job is reassigned",
+  },
+  jobChangedJobKinds: {
+    defaultMessage: "Job kinds",
+    id: "DIOqVd1e6E",
+    description: "Label above the job kind checkboxes on the job changed trigger",
+  },
+  jobChangedToStatuses: {
+    defaultMessage: "New status",
+    id: "HomH2bbon7",
+    description: "Label above the status checkboxes on the job changed trigger",
+  },
+  jobChangedFiltersHint: {
+    defaultMessage: "Leave a group unticked to match all of it.",
+    id: "7CQNMRs4uT",
+    description:
+      "Hint under the job changed trigger filters explaining that an empty group matches everything",
+  },
+  jobKindTranslation: {
+    defaultMessage: "Translation",
+    id: "sZQGYSlu1H",
+    description: "Job kind option on the job changed trigger",
+  },
+  jobKindResearch: {
+    defaultMessage: "Research",
+    id: "reIlcT0QRC",
+    description: "Job kind option on the job changed trigger",
+  },
+  jobKindReview: {
+    defaultMessage: "Review",
+    id: "O+emHrgUxr",
+    description: "Job kind option on the job changed trigger",
+  },
+  jobKindProofread: {
+    defaultMessage: "Proofread",
+    id: "T2vE02BwKa",
+    description: "Job kind option on the job changed trigger",
+  },
+  jobKindSync: {
+    defaultMessage: "Sync",
+    id: "y2+HBcJTpS",
+    description: "Job kind option on the job changed trigger",
+  },
+  jobKindAssetManagement: {
+    defaultMessage: "Asset management",
+    id: "sLTQn6B7e0",
+    description: "Job kind option on the job changed trigger",
+  },
+  jobStatusQueued: {
+    defaultMessage: "Queued",
+    id: "79V3a1PcwL",
+    description: "Job status option on the job changed trigger",
+  },
+  jobStatusRunning: {
+    defaultMessage: "Running",
+    id: "mJu4OMDjxt",
+    description: "Job status option on the job changed trigger",
+  },
+  jobStatusSucceeded: {
+    defaultMessage: "Succeeded",
+    id: "rzBQEN3n2o",
+    description: "Job status option on the job changed trigger",
+  },
+  jobStatusFailed: {
+    defaultMessage: "Failed",
+    id: "kGodH9H/M5",
+    description: "Job status option on the job changed trigger",
+  },
+  jobStatusWaitingForReview: {
+    defaultMessage: "Waiting for review",
+    id: "0G2aUMQEkR",
+    description: "Job status option on the job changed trigger",
+  },
+  jobStatusCancelled: {
+    defaultMessage: "Cancelled",
+    id: "Q1GxejEHOl",
+    description: "Job status option on the job changed trigger",
+  },
   nodeWebhookTrigger: {
     defaultMessage: "Webhook",
     id: "2kMmbwiZt+",
@@ -1920,8 +2031,9 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Toast when publishing a visual workflow fails because its graph has issues",
   },
   statusInvalidTrigger: {
-    defaultMessage: "Use a schedule, GitHub, source upload, or webhook trigger before activating.",
-    id: "TxnR8+WWRE",
+    defaultMessage:
+      "Use a schedule, GitHub, source upload, job changed, or webhook trigger before activating.",
+    id: "ZQ3jq911qr",
     description:
       "Toast when activating a visual workflow fails because its trigger only runs manually",
   },

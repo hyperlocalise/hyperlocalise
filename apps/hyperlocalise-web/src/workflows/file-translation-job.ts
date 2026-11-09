@@ -639,6 +639,7 @@ async function assembleFileTranslationContextStep(input: {
 
   const { and, eq } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database/client");
+  const { updateJobs } = await import("@/lib/job-change-events/job-writes");
   const { listGlossaryTermsForProject, FILE_TRANSLATION_GLOSSARY_PAIR_LIMIT } =
     await import("@/lib/glossary/query-glossary-terms");
   const { sourceContainsTerm } =
@@ -731,9 +732,8 @@ async function assembleFileTranslationContextStep(input: {
     customInstructions: Boolean(input.metadata?.instructions?.trim()),
   });
 
-  await db
-    .update(schema.jobs)
-    .set({
+  await updateJobs(db, {
+    set: {
       contextSnapshot: {
         assembledAt: new Date().toISOString(),
         project,
@@ -744,8 +744,9 @@ async function assembleFileTranslationContextStep(input: {
         },
         glossaryTerms,
       },
-    })
-    .where(and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.projectId, input.projectId)));
+    },
+    where: and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.projectId, input.projectId)),
+  });
 
   return context;
 }
