@@ -2,15 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/translationorigin"
 )
-
-var editorCatISODate = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
 type editorCatAdvancedFilter struct {
 	AddedFrom         string `json:"addedFrom"`
@@ -138,12 +135,39 @@ func compactEditorCatAdvancedFilter(filter editorCatAdvancedFilter) *editorCatAd
 	return &out
 }
 
+// validEditorCatISODate reports whether value is an ASCII YYYY-MM-DD string naming a real
+// proleptic Gregorian date. It must stay equivalent to time.Parse(time.DateOnly, value)
+// restricted to that exact shape; it avoids allocations because it runs on every queue query.
 func validEditorCatISODate(value string) bool {
-	if !editorCatISODate.MatchString(value) {
+	if len(value) != 10 || value[4] != '-' || value[7] != '-' {
 		return false
 	}
-	_, err := time.Parse(time.DateOnly, value)
-	return err == nil
+	y0, y1, y2, y3 := value[0]-'0', value[1]-'0', value[2]-'0', value[3]-'0'
+	m0, m1 := value[5]-'0', value[6]-'0'
+	d0, d1 := value[8]-'0', value[9]-'0'
+	if y0 > 9 || y1 > 9 || y2 > 9 || y3 > 9 || m0 > 9 || m1 > 9 || d0 > 9 || d1 > 9 {
+		return false
+	}
+	year := int(y0)*1000 + int(y1)*100 + int(y2)*10 + int(y3)
+	month := int(m0)*10 + int(m1)
+	day := int(d0)*10 + int(d1)
+	if month < 1 || month > 12 || day < 1 {
+		return false
+	}
+	switch month {
+	case 1, 3, 5, 7, 8, 10, 12:
+		return day <= 31
+	case 4, 6, 9, 11:
+		return day <= 30
+	case 2:
+		isLeap := (year%4 == 0 && year%100 != 0) || (year%400 == 0)
+		if isLeap {
+			return day <= 29
+		}
+		return day <= 28
+	default:
+		return false
+	}
 }
 
 func editorCatQueueNeedsLocale(query editorCatQueueQuery) bool {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -34,6 +35,15 @@ func TestParseEditorCatAdvancedFilter(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, compacted)
 
+	mixedDates, err := parseEditorCatAdvancedFilter(`{
+		"addedFrom":"2026-02-29",
+		"addedTo":"2026-02-28",
+		"updatedFrom":"2026-1-01",
+		"updatedTo":"2100-02-29"
+	}`)
+	require.NoError(t, err)
+	require.Equal(t, &editorCatAdvancedFilter{AddedTo: "2026-02-28"}, mixedDates)
+
 	filter, err := parseEditorCatAdvancedFilter(`{
 		"addedFrom":"2024-02-29",
 		"addedTo":"2026-03-01",
@@ -61,6 +71,117 @@ func TestParseEditorCatAdvancedFilter(t *testing.T) {
 		Comments:          "without",
 		Visibility:        "hidden",
 	}, filter)
+}
+
+func TestValidEditorCatISODate(t *testing.T) {
+	cases := []struct {
+		value string
+		want  bool
+	}{
+		{"2026-01-01", true},
+		{"2026-12-31", true},
+		{"0000-01-01", true},
+		{"9999-12-31", true},
+		{"2024-02-29", true},
+		{"2000-02-29", true},
+		{"1600-02-29", true},
+		{"2026-02-28", true},
+		{"2026-04-30", true},
+		{"2026-06-30", true},
+		{"2026-09-30", true},
+		{"2026-11-30", true},
+		{"2026-01-31", true},
+		{"2026-03-31", true},
+		{"2026-05-31", true},
+		{"2026-07-31", true},
+		{"2026-08-31", true},
+		{"2026-10-31", true},
+
+		{"2026-02-29", false},
+		{"1900-02-29", false},
+		{"2100-02-29", false},
+		{"2024-02-30", false},
+		{"2026-02-31", false},
+		{"2026-04-31", false},
+		{"2026-06-31", false},
+		{"2026-09-31", false},
+		{"2026-11-31", false},
+		{"2026-01-32", false},
+		{"2026-00-10", false},
+		{"2026-13-01", false},
+		{"2026-99-01", false},
+		{"2026-01-00", false},
+		{"2026-01-99", false},
+
+		{"", false},
+		{"2026-1-01", false},
+		{"2026-01-1", false},
+		{"26-01-01", false},
+		{"02026-01-01", false},
+		{"2026-01-011", false},
+		{" 2026-01-01", false},
+		{"2026-01-01 ", false},
+		{"2026/01/01", false},
+		{"2026_01_01", false},
+		{"20260-1-01", false},
+		{"2026--01-01", false},
+		{"+026-01-01", false},
+		{"-026-01-01", false},
+		{"2026-+1-01", false},
+		{"2026-01-+1", false},
+		{"2026-0a-01", false},
+		{"2026-01-0a", false},
+		{"20x6-01-01", false},
+		{"2026-01-01T00:00:00Z", false},
+		{"2026-01-01Z", false},
+		{"2026-01-/1", false},
+		{"2026-01-:1", false},
+		{"２026-01-01", false},
+		{"2026-01-0\x00", false},
+		{"2026-01-0\xff", false},
+	}
+	for _, tc := range cases {
+		require.Equalf(t, tc.want, validEditorCatISODate(tc.value), "value %q", tc.value)
+	}
+}
+
+func referenceEditorCatISODate(value string) bool {
+	if len(value) != 10 || value[4] != '-' || value[7] != '-' {
+		return false
+	}
+	for i := 0; i < len(value); i++ {
+		if i == 4 || i == 7 {
+			continue
+		}
+		if value[i] < '0' || value[i] > '9' {
+			return false
+		}
+	}
+	_, err := time.Parse(time.DateOnly, value)
+	return err == nil
+}
+
+func TestValidEditorCatISODateMatchesTimeParse(t *testing.T) {
+	years := []int{0, 1, 4, 100, 400, 1582, 1600, 1700, 1800, 1900, 1999, 2000, 2023, 2024, 2025, 2026, 2100, 2400, 9996, 9999}
+	for _, year := range years {
+		for month := 0; month <= 99; month++ {
+			for day := 0; day <= 99; day++ {
+				value := fmt.Sprintf("%04d-%02d-%02d", year, month, day)
+				require.Equalf(t, referenceEditorCatISODate(value), validEditorCatISODate(value), "value %q", value)
+			}
+		}
+	}
+}
+
+func FuzzValidEditorCatISODate(f *testing.F) {
+	for _, seed := range []string{"2024-02-29", "2026-02-29", "0000-01-01", "9999-12-31", "2026-13-01", "2026/01/01", "", "2026-01-0\xff"} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, value string) {
+		if got, want := validEditorCatISODate(value), referenceEditorCatISODate(value); got != want {
+			t.Fatalf("validEditorCatISODate(%q) = %v, want %v", value, got, want)
+		}
+	})
 }
 
 func TestParseEditorCatQueueFilterQualifier(t *testing.T) {
