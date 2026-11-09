@@ -257,6 +257,184 @@ describe("project job create", () => {
     expect(ensureAiFeaturesAllowedMock).not.toHaveBeenCalled();
   });
 
+  it("creates a key job as a task for people on the picked visible strings", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const [sourceFile] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({ organizationId: organization.id, projectId: project.id, sourcePath: "en.json" })
+      .returning({ id: schema.repositorySourceFiles.id });
+    const keyRows = await db
+      .insert(schema.projectTranslationKeys)
+      .values(
+        ["a", "b"].map((key) => ({
+          organizationId: organization.id,
+          projectId: project.id,
+          repositorySourceFileId: sourceFile!.id,
+          key,
+          sourceText: key,
+          normalizedSourceText: key,
+          isHidden: key === "b",
+        })),
+      )
+      .returning({ id: schema.projectTranslationKeys.id });
+    const request = (stringIds: string[]) =>
+      createClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$post(
+        {
+          param: {
+            organizationSlug: identity.organization.slug ?? "missing-slug",
+            projectId: project.id,
+          },
+          json: {
+            type: "keys",
+            title: "Checkout",
+            keysInput: { sourceLocale: "en-US", targetLocales: ["fr-FR"], stringIds },
+          },
+        },
+        { headers },
+      );
+
+    const response = await request(keyRows.map((row) => row.id));
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { job: { id: string; kind: string; status: string } };
+    expect(body.job).toMatchObject({ kind: "proofread", status: "waiting_for_review" });
+    const linked = await db
+      .select({ id: schema.translationJobKeys.translationKeyId })
+      .from(schema.translationJobKeys)
+      .where(eq(schema.translationJobKeys.jobId, body.job.id));
+    expect(linked).toEqual([{ id: keyRows[0]!.id }]);
+    expect(enqueueJob).not.toHaveBeenCalled();
+    expect(startTaskAnalysisMock).not.toHaveBeenCalled();
+
+    const hiddenOnly = await request([keyRows[1]!.id]);
+    expect(hiddenOnly.status).toBe(400);
+    await expect(hiddenOnly.json()).resolves.toMatchObject({ error: "no_strings_matched" });
+  });
+
+  it("adds strings to an open key job once, and refuses a closed one", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const [sourceFile] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({ organizationId: organization.id, projectId: project.id, sourcePath: "en.json" })
+      .returning({ id: schema.repositorySourceFiles.id });
+    const keyRows = await db
+      .insert(schema.projectTranslationKeys)
+      .values(
+        ["a", "b"].map((key) => ({
+          organizationId: organization.id,
+          projectId: project.id,
+          repositorySourceFileId: sourceFile!.id,
+          key,
+          sourceText: key,
+          normalizedSourceText: key,
+        })),
+      )
+      .returning({ id: schema.projectTranslationKeys.id });
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      projectId: project.id,
+    };
+    const created = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param,
+        json: {
+          type: "keys",
+          title: "Checkout",
+          keysInput: {
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            stringIds: [keyRows[0]!.id],
+          },
+        },
+      },
+      { headers },
+    );
+    const jobId = ((await created.json()) as { job: { id: string } }).job.id;
+    const add = () =>
+      createClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs[":jobId"].keys.$post(
+        { param: { ...param, jobId }, json: { stringIds: keyRows.map((row) => row.id) } },
+        { headers },
+      );
+
+    const first = await add();
+    expect(first.status).toBe(200);
+    await expect(first.json()).resolves.toEqual({ added: 1 });
+    const again = await add();
+    await expect(again.json()).resolves.toEqual({ added: 0 });
+
+    await db.update(schema.jobs).set({ status: "succeeded" }).where(eq(schema.jobs.id, jobId));
+    const closed = await add();
+    expect(closed.status).toBe(409);
+  });
+
+  it("refuses to add strings past the key job limit or to a job that isn't a key job", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const rows = await db.$client.query<{ id: string }>(
+      `WITH file AS (
+         INSERT INTO repository_source_files (organization_id, project_id, source_path)
+         VALUES ($1, $2, 'en.json') RETURNING id
+       )
+       INSERT INTO project_translation_keys (organization_id, project_id, repository_source_file_id, key, source_text, normalized_source_text)
+       SELECT $1, $2, file.id, 'k.' || n, 'x', 'x' FROM file, generate_series(1, 5001) n RETURNING project_translation_keys.id`,
+      [organization.id, project.id],
+    );
+    const ids = rows.rows.map((row) => row.id);
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      projectId: project.id,
+    };
+    const created = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param,
+        json: {
+          type: "keys",
+          title: "Big",
+          keysInput: {
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            stringIds: ids.slice(0, 1),
+          },
+        },
+      },
+      { headers },
+    );
+    const jobId = ((await created.json()) as { job: { id: string } }).job.id;
+
+    const tooMany = await createClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs[
+      ":jobId"
+    ].keys.$post({ param: { ...param, jobId }, json: { stringIds: ids.slice(1) } }, { headers });
+    expect(tooMany.status).toBe(400);
+    await expect(tooMany.json()).resolves.toMatchObject({ error: "too_many_strings" });
+    const linked = await db
+      .select({ id: schema.translationJobKeys.translationKeyId })
+      .from(schema.translationJobKeys)
+      .where(eq(schema.translationJobKeys.jobId, jobId));
+    expect(linked).toHaveLength(1);
+
+    const [aiJob] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      kind: "proofread",
+      status: "waiting_for_review",
+    });
+    await db.insert(schema.translationJobDetails).values({ jobId: aiJob!.id, type: "file" });
+    const notKeys = await createClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs[
+      ":jobId"
+    ].keys.$post(
+      { param: { ...param, jobId: aiJob!.id }, json: { stringIds: ids.slice(0, 1) } },
+      { headers },
+    );
+    expect(notKeys.status).toBe(409);
+    await expect(notKeys.json()).resolves.toMatchObject({ error: "not_key_job" });
+  });
+
   it("defaults file job metadata.title from filename and UTC time", async () => {
     const { identity, organization, project } = await createFixture.createStoredProjectFixture();
     const headers = await createFixture.authHeadersFor(identity);

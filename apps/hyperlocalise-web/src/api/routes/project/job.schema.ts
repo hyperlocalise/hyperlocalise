@@ -59,6 +59,41 @@ export const fileTranslationJobInputSchema = z.object({
   ignoreTranslationMemory: z.boolean().optional(),
 });
 
+export const maxKeyJobStrings = 5_000;
+const maxKeyJobTags = 10;
+
+/** A key tag: letters, digits, `_` and `-`, as the content editor's label filter accepts. */
+export const keyTagSchema = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
+
+/**
+ * A key job's strings, picked one way only: by id, by key name (in any file), or by tags (the
+ * strings carrying every tag at creation). The job stores its languages; the keys go in
+ * `translation_job_keys`.
+ */
+export const keysTranslationJobInputSchema = z
+  .object({
+    sourceLocale: z.string().trim().min(1).max(32),
+    targetLocales: z
+      .array(z.string().trim().min(1).max(32))
+      .min(1)
+      .max(maxTranslationTargetLocales),
+    metadata: metadataSchema,
+    stringIds: z.array(z.string().uuid()).min(1).max(maxKeyJobStrings).optional(),
+    keys: z.array(z.string().trim().min(1).max(1_000)).min(1).max(maxKeyJobStrings).optional(),
+    tags: z.array(keyTagSchema).min(1).max(maxKeyJobTags).optional(),
+  })
+  .refine(
+    (input) =>
+      [input.stringIds, input.keys, input.tags].filter((list) => list !== undefined).length === 1,
+    { message: "Pick strings with one of stringIds, keys, or tags" },
+  );
+
+export type KeysTranslationJobInput = z.infer<typeof keysTranslationJobInputSchema>;
+
+export const addKeyJobStringsBodySchema = z.object({
+  stringIds: z.array(z.string().uuid()).min(1).max(maxKeyJobStrings),
+});
+
 const jobDueAtSchema = z.string().datetime({ offset: true });
 
 const createJobSharedFields = {
@@ -79,6 +114,13 @@ export const createJobBodySchema = z.discriminatedUnion("type", [
     type: z.literal("file"),
     fileInput: fileTranslationJobInputSchema,
     ...createJobSharedFields,
+  }),
+  z.object({
+    type: z.literal("keys"),
+    keysInput: keysTranslationJobInputSchema,
+    ...createJobSharedFields,
+    // A key job is always a task for people.
+    kind: z.literal("proofread").optional(),
   }),
 ]);
 
