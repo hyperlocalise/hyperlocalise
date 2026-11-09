@@ -65,6 +65,7 @@ type RouteTitleKey =
   | "qa"
   | "reports"
   | "search-console"
+  | "audit"
   | "reviews"
   | "settings"
   | "strings"
@@ -139,6 +140,7 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "qa" ||
     value === "reports" ||
     value === "search-console" ||
+    value === "audit" ||
     value === "reviews" ||
     value === "settings" ||
     value === "strings" ||
@@ -362,6 +364,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         defaultMessage: "Search Console",
         id: "cb/1dHJtyC",
         description: "App shell breadcrumb title for domain Search Console",
+      });
+    case "audit":
+      return intl.formatMessage({
+        defaultMessage: "Localisation audit",
+        id: "b+xGFRqtJJ",
+        description: "App shell breadcrumb title for the domain deep localisation audit",
       });
     case "automations":
       return intl.formatMessage({

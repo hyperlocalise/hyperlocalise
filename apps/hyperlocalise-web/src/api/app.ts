@@ -64,11 +64,13 @@ import {
 import type {
   EngineSetupQueue,
   LocalisationAuditQueue,
+  LocalisationDeepAuditQueue,
   ProjectContentSyncQueue,
   TranslationQaScanQueue,
 } from "@/lib/workflow/types";
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
 import { createInternalTmsRoutes } from "./routes/internal-tms/internal-tms.route";
+import { createInternalDeepAuditRoutes } from "./routes/internal-deep-audits/internal-deep-audits.route";
 
 export type CreateAppOptions = {
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
@@ -85,6 +87,7 @@ export type CreateAppOptions = {
   translationQaScanQueue?: TranslationQaScanQueue;
   projectContentSyncQueue?: ProjectContentSyncQueue;
   engineSetupQueue?: EngineSetupQueue;
+  localisationDeepAuditQueue?: LocalisationDeepAuditQueue;
 };
 
 export function createApp(options: CreateAppOptions = {}): Hono<EvlogVariables> {
@@ -148,6 +151,10 @@ function createInternalRoutes(options: CreateAppOptions = {}) {
   return new Hono()
     .route("/health", healthRoutes)
     .route("/internal/tms", createInternalTmsRoutes())
+    .route(
+      "/internal/deep-audits",
+      createInternalDeepAuditRoutes({ queue: options.localisationDeepAuditQueue }),
+    )
     .route(
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),

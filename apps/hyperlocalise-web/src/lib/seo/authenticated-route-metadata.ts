@@ -26,6 +26,7 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "dashboard",
   "dictionaries",
   "dictionaryDetail",
+  "domainAudit",
   "domainBrand",
   "domainKeywords",
   "domainOverview",
@@ -319,6 +320,18 @@ const AUTHENTICATED_ROUTE_COPY = {
       defaultMessage: "Search rank tracking for this domain.",
       id: "FV4RX7GO1Z",
       description: "Document description for the domain rank tracking page",
+    },
+  },
+  domainAudit: {
+    title: {
+      defaultMessage: "Localisation audit",
+      id: "dAudMetaT1",
+      description: "Document title for the domain deep localisation audit page",
+    },
+    description: {
+      defaultMessage: "Localisation checks across every template and locale on this domain.",
+      id: "dAudMetaD1",
+      description: "Document description for the domain deep localisation audit page",
     },
   },
   domainSearchConsole: {

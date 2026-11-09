@@ -82,7 +82,8 @@ describe("research prototype catalog", () => {
     expect(DOMAIN_RESEARCH_SURFACES).toContain("search-console");
     expect(isDomainResearchSurface("keywords")).toBe(true);
     expect(isDomainResearchSurface("search-console")).toBe(true);
-    expect(isDomainResearchSurface("audit")).toBe(false);
+    expect(isDomainResearchSurface("audit")).toBe(true);
+    expect(isDomainResearchSurface("settings")).toBe(false);
   });
 
   it("maps markets to DataForSEO location codes", () => {

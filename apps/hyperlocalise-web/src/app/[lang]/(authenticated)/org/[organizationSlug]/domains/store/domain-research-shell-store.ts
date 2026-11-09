@@ -117,6 +117,15 @@ export class DomainResearchShellStore {
     return this.surface === "search-console" && !this.isPending && this.domain !== null;
   }
 
+  get showAuditSurface() {
+    return this.surface === "audit" && !this.isPending && this.domain !== null;
+  }
+
+  /** The deep audit covers every locale it finds, so the market picker does not apply. */
+  get showLocaleSelector() {
+    return this.surface !== "audit";
+  }
+
   setRequestedLocaleId(localeId: string | null) {
     this.requestedLocaleId = localeId;
   }

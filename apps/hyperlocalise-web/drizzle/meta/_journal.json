@@ -1240,6 +1240,13 @@
       "when": 1793938096960,
       "tag": "0176_source_text_editable",
       "breakpoints": true
+    },
+    {
+      "idx": 177,
+      "version": "7",
+      "when": 1794212379741,
+      "tag": "0177_small_moon_knight",
+      "breakpoints": true
     }
   ]
 }

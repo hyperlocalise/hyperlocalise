@@ -28,6 +28,7 @@ import type {
   IssueNotificationEmailQueue,
   EngineSetupQueue,
   LocalisationAuditQueue,
+  LocalisationDeepAuditQueue,
   LocalisationAuditReportEmailQueue,
   TranslationQaScanQueue,
   ProviderAgentCommentQueue,
@@ -214,6 +215,16 @@ export function createLocalisationAuditQueue(): LocalisationAuditQueue {
     async enqueue(event) {
       const { localisationAuditWorkflow } = await import("@/workflows/localisation-audit");
       const run = await start(localisationAuditWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createLocalisationDeepAuditQueue(): LocalisationDeepAuditQueue {
+  return {
+    async enqueue(event) {
+      const { localisationDeepAuditWorkflow } = await import("@/workflows/localisation-deep-audit");
+      const run = await start(localisationDeepAuditWorkflow, [event]);
       return { ids: [run.runId] };
     },
   };

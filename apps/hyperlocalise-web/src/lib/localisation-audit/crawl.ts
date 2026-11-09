@@ -48,7 +48,7 @@ const FETCH_TEXT_HEADERS: Record<string, string> = {
 const MAX_SITEMAP_URLS = 50;
 const MAX_NESTED_SITEMAPS = 3;
 
-function toAbsoluteUrl(base: string, href: string): string | null {
+export function toAbsoluteUrl(base: string, href: string): string | null {
   try {
     const url = new URL(href, base);
     if (url.protocol !== "http:" && url.protocol !== "https:") {
@@ -162,7 +162,7 @@ function parseSitemapAlternateHrefs(xml: string): string[] {
 }
 
 /** Same site, including locale subdomains such as fr.example.com for example.com. */
-function sameSiteOrLocaleSubdomain(originHost: string, url: string): boolean {
+export function sameSiteOrLocaleSubdomain(originHost: string, url: string): boolean {
   if (sameHost(originHost, url)) return true;
   try {
     const base = originHost.replace(/^www\./, "");
@@ -185,7 +185,34 @@ function parseRobotsSitemaps(robots: string): string[] {
 }
 
 async function fetchSitemapSignals(origin: string): Promise<LocalisationAuditSitemapSignal> {
+  return (await collectSitemap(origin)).signal;
+}
+
+export type SitemapCollectionLimits = {
+  /** Cap on localized URLs kept in the sitemap signal. */
+  maxLocalizedUrls: number;
+  maxNestedSitemaps: number;
+  /** Cap on all same-site page URLs returned for page discovery. 0 skips collection. */
+  maxSiteUrls: number;
+};
+
+const PUBLIC_SITEMAP_LIMITS: SitemapCollectionLimits = {
+  maxLocalizedUrls: MAX_SITEMAP_URLS,
+  maxNestedSitemaps: MAX_NESTED_SITEMAPS,
+  maxSiteUrls: 0,
+};
+
+/**
+ * Read robots.txt and sitemaps (including indexes and xhtml:link alternates).
+ * Returns the sitemap signal used by the sitemap check, plus same-site page
+ * URLs (locale subdomains included) for callers that discover pages.
+ */
+export async function collectSitemap(
+  origin: string,
+  limits: SitemapCollectionLimits = PUBLIC_SITEMAP_LIMITS,
+): Promise<{ signal: LocalisationAuditSitemapSignal; siteUrls: string[] }> {
   const originHost = new URL(origin).hostname;
+  const siteUrls = new Set<string>();
   const robotsUrl = new URL("/robots.txt", origin).toString();
   const robots = await fetchText(robotsUrl);
   const robotsFound = robots != null;
@@ -209,7 +236,7 @@ async function fetchSitemapSignals(origin: string): Promise<LocalisationAuditSit
   const localizedUrls: string[] = [];
   const nestedQueue = [...sitemapUrls];
   const fetchedSitemaps = new Set<string>();
-  while (nestedQueue.length > 0 && fetchedSitemaps.size < MAX_NESTED_SITEMAPS) {
+  while (nestedQueue.length > 0 && fetchedSitemaps.size < limits.maxNestedSitemaps) {
     const sitemapUrl = nestedQueue.shift();
     if (!sitemapUrl || fetchedSitemaps.has(sitemapUrl)) {
       continue;
@@ -232,18 +259,23 @@ async function fetchSitemapSignals(origin: string): Promise<LocalisationAuditSit
       if (looksLikeIndex) {
         if (
           sameHost(originHost, absolute) &&
-          nestedQueue.length + fetchedSitemaps.size < MAX_NESTED_SITEMAPS
+          nestedQueue.length + fetchedSitemaps.size < limits.maxNestedSitemaps
         ) {
           nestedQueue.push(absolute);
           sitemapUrls.add(absolute);
         }
         continue;
       }
+      if (!sameSiteOrLocaleSubdomain(originHost, absolute)) {
+        continue;
+      }
+      if (siteUrls.size < limits.maxSiteUrls) {
+        siteUrls.add(absolute);
+      }
       if (
-        sameSiteOrLocaleSubdomain(originHost, absolute) &&
         urlRoutingLocale(absolute) &&
         !localizedUrls.includes(absolute) &&
-        localizedUrls.length < MAX_SITEMAP_URLS
+        localizedUrls.length < limits.maxLocalizedUrls
       ) {
         localizedUrls.push(absolute);
       }
@@ -251,11 +283,14 @@ async function fetchSitemapSignals(origin: string): Promise<LocalisationAuditSit
   }
 
   return {
-    robotsFound,
-    robotsSitemapDirectives,
-    robotsHasRelativeSitemapDirective,
-    sitemapUrls: [...sitemapUrls],
-    localizedUrls,
+    signal: {
+      robotsFound,
+      robotsSitemapDirectives,
+      robotsHasRelativeSitemapDirective,
+      sitemapUrls: [...sitemapUrls],
+      localizedUrls,
+    },
+    siteUrls: [...siteUrls],
   };
 }
 
@@ -291,7 +326,7 @@ function scoreCandidate(url: string, origin: string): number {
   }
 }
 
-function pageFromRendered(rendered: RenderedHtmlPage): LocalisationAuditCrawledPage {
+export function pageFromRendered(rendered: RenderedHtmlPage): LocalisationAuditCrawledPage {
   return {
     ...crawledPageFromSignals({
       url: rendered.url,

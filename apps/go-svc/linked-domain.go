@@ -34,9 +34,10 @@ const (
 )
 
 type linkedDomainAPI struct {
-	workspace *workspaceAPI
-	research  researchService
-	autumn    *autumn.Client
+	workspace  *workspaceAPI
+	research   researchService
+	autumn     *autumn.Client
+	deepAudits deepAuditStarter
 }
 
 func (api *linkedDomainAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
@@ -54,6 +55,7 @@ func (api *linkedDomainAPI) register(mux *http.ServeMux, verifier SessionVerifie
 	route("PATCH "+linkedDomainBase+"/{linkedDomainId}/markets", write, api.updateMarkets)
 	route("PATCH "+linkedDomainBase+"/{linkedDomainId}/project", write, api.updateProject)
 	route("DELETE "+linkedDomainBase+"/{linkedDomainId}", write, api.cancel)
+	api.registerDeepAudits(route, read, write)
 }
 
 // handleWithWorkspace applies the same authentication and feature gate used by

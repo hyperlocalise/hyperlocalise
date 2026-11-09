@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Accepted. Rollout steps 1–3 are built: manual runs, 100 pages, Audit tab, findings and diffs. See [What shipped](#what-shipped).
 
 ## Context
 
@@ -56,12 +56,13 @@ New table `localisation_deep_audits` (Drizzle schema in `src/lib/database/schema
 | `status` | `queued` / `crawling` / `scoring` / `succeeded` / `failed` / `cancelled` |
 | `trigger` | `manual` / `scheduled` |
 | `requested_by_user_id` | nullable for scheduled runs |
-| `methodology_version` | integer, copied from `LOCALISATION_AUDIT_METHODOLOGY_VERSION` |
 | `page_limit` | integer, from the org's plan |
 | `score`, `dimension_scores` | same shapes as the public report |
 | `summary` | jsonb: credits, criteria counts, locale coverage, template groups |
 | `previous_run_id` | self FK, used for diffs |
 | `workflow_run_id`, `started_at`, `completed_at`, `error_code` | operational |
+
+Deep audits have no methodology version. Like a Lighthouse report, each run keeps its evidence: every page row stores the full crawled artifact (`LocalisationAuditCrawledPage`), so a run can be re-scored with the current checks instead of being labelled with the version that produced it. Comparing two runs means re-scoring both, not comparing version numbers.
 
 Child tables keep the large data out of the summary row:
 
@@ -124,6 +125,70 @@ Messages go in `*.messages.ts` files with `"use client"`. Data fetching goes thr
 - **Raise the public audit's page limit.** Rejected. It increases cost for anonymous traffic, and the public score must stay comparable across domains.
 - **Run the deep audit from go-svc.** Rejected. The crawler, scorers and sandbox browser are TypeScript, and duplicating them would let the two scores drift.
 - **Score the AI review in deep audits.** Rejected for now, for the same reason as methodology 2: model judgements vary between runs. Revisit once we can show run-to-run stability on a fixed corpus.
+
+## What shipped
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as Audit tab
+    participant Go as go-svc
+    participant DB as Postgres
+    participant Web as Web internal route
+    participant WF as Deep audit workflow
+    participant SB as Sandbox browser
+
+    UI->>Go: POST /deep-audits
+    Go->>DB: Insert run (queued)
+    Note over Go,DB: Partial unique index: 409 deep_audit_in_progress
+    Go->>Web: POST /api/internal/deep-audits/{runId}/start (service token)
+    Web->>WF: start({ runId })
+    Web->>DB: Store workflow_run_id
+    Go-->>UI: 202 run
+    WF->>DB: prepare: queued → crawling
+    WF->>SB: discover: render homepage, read sitemaps
+    WF->>WF: selectDeepAuditUrls (templates × locale clusters)
+    loop Batches of 20
+        WF->>SB: Render batch
+        WF->>DB: Insert pages (only while crawling)
+    end
+    WF->>SB: Second pass: unrendered hreflang alternates
+    WF->>DB: scoring: run checks, diff fingerprints vs previous run
+    WF->>DB: Insert findings, mark succeeded
+    loop Every 4s while in flight
+        UI->>Go: GET /deep-audits
+    end
+    UI->>Go: GET /deep-audits/{runId}?creditId&severity&templateKey&locale&diff
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued
+    queued --> crawling: prepare
+    crawling --> scoring: pages rendered
+    scoring --> succeeded: findings stored
+    queued --> failed: start failed / not verified
+    crawling --> failed: crawl_blocked / crawl_failed
+    scoring --> failed: no 2xx page / error
+    queued --> cancelled: DELETE
+    crawling --> cancelled: DELETE
+    scoring --> cancelled: DELETE
+    succeeded --> [*]
+    failed --> [*]
+    cancelled --> [*]
+```
+
+Steps 1–3 differ from the design above in these ways:
+
+- **Gate.** The existing `workspace-domains` flag, checked by `handleWithWorkspace`. There is no separate deep-audit flag.
+- **Page set.** `selectDeepAuditUrls` (`src/lib/localisation-audit/deep/page-set.ts`) groups candidates from the homepage, its hreflang links and sitemaps by template (`/blog/*`) and by cluster (the path after the locale prefix). It takes clusters round-robin across templates, homepage first, and keeps each page's locale versions together. A second pass renders hreflang alternates found on rendered pages while budget remains.
+- **Rendering.** Batches of 20 URLs, one sandbox per batch, at the public audit's 1440px and 390px. The crawl stops when half a batch is blocked. There is no 768px viewport and no screenshots yet.
+- **Scoring.** The same `runLocalisationAuditCredits` and `aggregateLocalisationAuditCredits` as the public audit, over every rendered page, with findings left uncollapsed. Per-check page and template counts are stored in `summary.creditStats`. There is no Search Console weighting yet.
+- **Diff.** A finding's fingerprint is `credit_id`, title, locale and the path without the locale prefix. `diff=fixed` returns the previous run's findings that are absent from this run.
+- **Cancellation.** `DELETE` sets the run to `cancelled`. Steps check the status before writing, so a cancelled run stops accepting pages and cannot be marked succeeded.
+- **One run at a time.** A partial unique index on `linked_domain_id` for in-flight statuses. go-svc returns 409 `deep_audit_in_progress`.
+
+Not built yet: schedules, plan-based page limits and quotas, Search Console weighting, glossary and TM scoring, screenshots, the 768px viewport, cluster-level hreflang checks, re-scoring stored runs, activity and inbox notifications.
 
 ## Rollout
 
