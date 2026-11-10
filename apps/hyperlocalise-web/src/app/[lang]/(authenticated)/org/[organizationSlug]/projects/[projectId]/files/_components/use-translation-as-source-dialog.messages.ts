@@ -174,6 +174,19 @@ export const useTranslationAsSourceDialogMessages = defineMessages({
     id: "kVuoK77keH",
     description: "Toast after a file's translation is sent to another project as its source",
   },
+  lastSent: {
+    defaultMessage: "Last sent to this project on {date}.",
+    id: "PIUF7roTXY",
+    description:
+      "Under the project picker: when this file's translation was last sent to the chosen project",
+  },
+  lastSentChanged: {
+    defaultMessage:
+      "Last sent to this project on {date}. The {language} translation has changed since, or the file was uploaded again.",
+    id: "l2JoVTDtKw",
+    description:
+      "Under the project picker: when this file was last sent to the chosen project, and that its translation in that language or the file itself changed afterwards",
+  },
   cancel: {
     defaultMessage: "Cancel",
     id: "maxFiy8OuS",

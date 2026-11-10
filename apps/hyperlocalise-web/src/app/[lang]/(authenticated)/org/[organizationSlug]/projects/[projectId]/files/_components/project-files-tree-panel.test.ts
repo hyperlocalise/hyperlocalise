@@ -44,6 +44,15 @@ vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
   }),
 }));
 
+vi.mock("./translation-as-source-sent-mark", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./translation-as-source-sent-mark")>();
+  return {
+    ...actual,
+    fetchTranslationAsSourceSends: async () => new Map(),
+    fetchTranslationAsSourceReceipts: async () => new Map(),
+  };
+});
+
 vi.mock("./project-files-tree", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./project-files-tree")>();
   return {

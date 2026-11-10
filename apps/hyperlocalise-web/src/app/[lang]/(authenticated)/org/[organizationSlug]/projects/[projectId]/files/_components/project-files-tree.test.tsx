@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { createProjectFileRecord } from "./project-files.fixture";
-import { ProjectFilesTree } from "./project-files-tree";
+import { ProjectFilesTree, type ProjectFilesTreeFileSends } from "./project-files-tree";
 
 vi.mock("@/lib/billing/use-ai-features-access", () => ({
   useAiFeaturesAccess: () => ({ status: "allowed" }),
@@ -187,5 +187,99 @@ describe("ProjectFilesTree context menu", () => {
       expect(menu?.textContent).toContain("Import translations");
       expect(menu?.textContent).toContain("Download");
     });
+  });
+});
+
+describe("ProjectFilesTree sent mark", () => {
+  it("marks a file once its sends to another project arrive", async () => {
+    const file = createProjectFileRecord({
+      sourcePath: "requests/report.docx",
+      storedFileId: "file_report",
+      provider: null,
+    });
+    const tree = (fileSends?: ProjectFilesTreeFileSends) => (
+      <IntlProvider locale="en" messages={{}}>
+        <div style={{ width: 640, height: 480 }}>
+          <ProjectFilesTree
+            files={[file]}
+            selectedSourcePath={null}
+            onSelectFile={vi.fn()}
+            fileSends={fileSends}
+          />
+        </div>
+      </IntlProvider>
+    );
+    const row = () =>
+      container
+        .querySelector("file-tree-container")
+        ?.shadowRoot?.querySelector('[data-item-path="requests/report.docx"]');
+
+    const { container, rerender } = render(tree());
+    // The file's latest job status until the sends arrive.
+    await waitFor(() => expect(row()?.textContent).toContain("running"));
+
+    rerender(
+      tree(
+        new Map([
+          [
+            file.sourcePath,
+            [
+              {
+                sourcePath: file.sourcePath,
+                destinationProjectId: "project_en",
+                destinationProjectName: "Requests (English)",
+                locale: "en",
+                sentAt: "2026-11-10T13:56:58.674Z",
+                changedSinceSent: true,
+                replacedInDestination: false,
+              },
+            ],
+          ],
+        ]),
+      ),
+    );
+
+    await waitFor(() => expect(row()?.textContent).toContain("running · Changed since sent"));
+    expect(row()?.innerHTML).toContain("Sent to Requests (English) on");
+  });
+
+  it("marks a file sent here from another project", async () => {
+    const file = createProjectFileRecord({
+      sourcePath: "requests/report.docx",
+      storedFileId: "file_report",
+      provider: null,
+      latestJob: null,
+    });
+    const { container } = render(
+      <IntlProvider locale="en" messages={{}}>
+        <div style={{ width: 640, height: 480 }}>
+          <ProjectFilesTree
+            files={[file]}
+            selectedSourcePath={null}
+            onSelectFile={vi.fn()}
+            fileReceipts={
+              new Map([
+                [
+                  file.sourcePath,
+                  {
+                    sourcePath: file.sourcePath,
+                    fromProjectName: "Requests (Chinese)",
+                    locale: "en",
+                    receivedAt: "2026-11-10T13:56:58.674Z",
+                    replaced: null,
+                  },
+                ],
+              ])
+            }
+          />
+        </div>
+      </IntlProvider>,
+    );
+    const row = () =>
+      container
+        .querySelector("file-tree-container")
+        ?.shadowRoot?.querySelector('[data-item-path="requests/report.docx"]');
+
+    await waitFor(() => expect(row()?.textContent).toContain("From Requests (Chinese)"));
   });
 });

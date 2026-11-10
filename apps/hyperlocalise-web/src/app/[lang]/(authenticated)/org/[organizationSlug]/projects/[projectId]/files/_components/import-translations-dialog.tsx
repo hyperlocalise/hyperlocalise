@@ -36,6 +36,7 @@ import {
 } from "@/lib/translation/file-formats";
 
 import { importTranslationsDialogMessages as messages } from "./import-translations-dialog.messages";
+import { translationAsSourceSendsQueryKey } from "./translation-as-source-sent-mark";
 
 const FILE_ACCEPT = getSupportedFileTranslationAccept();
 // .xls sources download as .xlsx, so translated workbooks come back in either format.
@@ -112,6 +113,10 @@ export function ImportTranslationsDialog({
         queryClient.invalidateQueries({ queryKey: ["project-files", organizationSlug, projectId] }),
         queryClient.invalidateQueries({
           queryKey: ["project-file-detail", organizationSlug, projectId, sourcePath],
+        }),
+        // Imported translations can change a sent file's mark.
+        queryClient.invalidateQueries({
+          queryKey: translationAsSourceSendsQueryKey(organizationSlug, projectId),
         }),
       ]);
       toast.success(intl.formatMessage(messages.importSuccess));

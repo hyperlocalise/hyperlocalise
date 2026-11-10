@@ -41,8 +41,15 @@ import { ProjectSectionTitle } from "../../_components/project-page-shell";
 import { ProjectFilesErrorBoundary } from "./project-files-error-boundary";
 import { ProjectFilesTree } from "./project-files-tree";
 import type { ProjectFileTreeActionsConfig } from "./project-file-tree-context-menu";
+import type { ProjectFilesTreeFileReceipts, ProjectFilesTreeFileSends } from "./project-files-tree";
 import { projectFilesTreePanelMessages as messages } from "./project-files-tree-panel.messages";
 import { dedupeProjectFilesBySourcePath } from "./project-files-shared";
+import {
+  fetchTranslationAsSourceReceipts,
+  fetchTranslationAsSourceSends,
+  translationAsSourceReceiptsQueryKey,
+  translationAsSourceSendsQueryKey,
+} from "./translation-as-source-sent-mark";
 
 export const PROJECT_FILES_PAGE_SIZE = 500;
 export const PROJECT_FILES_MAX_LIMIT = 1_000;
@@ -225,6 +232,8 @@ function ProjectFilesTreeBody({
   onActivateFile,
   contentEditorOpenHint,
   fileActions,
+  fileSends,
+  fileReceipts,
 }: {
   projectId: string;
   files: ProjectFileRecord[];
@@ -233,6 +242,8 @@ function ProjectFilesTreeBody({
   onActivateFile?: (sourcePath: string) => void;
   contentEditorOpenHint?: string | null;
   fileActions?: ProjectFileTreeActionsConfig;
+  fileSends?: ProjectFilesTreeFileSends;
+  fileReceipts?: ProjectFilesTreeFileReceipts;
 }) {
   const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
   const isProviderProject = projectCapabilities.isProviderProject;
@@ -273,6 +284,8 @@ function ProjectFilesTreeBody({
           onSelectFile={onSelectSourcePath}
           onActivateFile={onActivateFile}
           fileActions={fileActions}
+          fileSends={fileSends}
+          fileReceipts={fileReceipts}
         />
       </div>
     </div>
@@ -288,6 +301,8 @@ function ProjectFilesTreeQueryResult({
   onActivateFile,
   contentEditorOpenHint,
   fileActions,
+  fileSends,
+  fileReceipts,
 }: {
   error: unknown;
   projectId: string;
@@ -297,6 +312,8 @@ function ProjectFilesTreeQueryResult({
   onActivateFile?: (sourcePath: string) => void;
   contentEditorOpenHint?: string | null;
   fileActions?: ProjectFileTreeActionsConfig;
+  fileSends?: ProjectFilesTreeFileSends;
+  fileReceipts?: ProjectFilesTreeFileReceipts;
 }) {
   if (error) {
     throw error;
@@ -311,6 +328,8 @@ function ProjectFilesTreeQueryResult({
       onActivateFile={onActivateFile}
       contentEditorOpenHint={contentEditorOpenHint}
       fileActions={fileActions}
+      fileSends={fileSends}
+      fileReceipts={fileReceipts}
     />
   );
 }
@@ -364,6 +383,22 @@ export function ProjectFilesTreePanel({
         ? sourceFileIngestPollIntervalMs
         : false;
     },
+  });
+
+  // Files sent to another project as its source; a failure only leaves them unmarked.
+  const sendsQuery = useQuery({
+    queryKey: translationAsSourceSendsQueryKey(organizationSlug, projectId),
+    enabled: !parseProviderProjectId(projectId),
+    queryFn: () => fetchTranslationAsSourceSends(organizationSlug, projectId),
+    // Read again each time the page opens, so an approval made in the editor is seen.
+    staleTime: 0,
+  });
+  // Files sent here from another project; a failure only leaves them unmarked.
+  const receiptsQuery = useQuery({
+    queryKey: translationAsSourceReceiptsQueryKey(organizationSlug, projectId),
+    enabled: !parseProviderProjectId(projectId),
+    queryFn: () => fetchTranslationAsSourceReceipts(organizationSlug, projectId),
+    staleTime: 0,
   });
 
   const fetchedFiles = filesQuery.data ?? [];
@@ -474,6 +509,8 @@ export function ProjectFilesTreePanel({
             onActivateFile={onActivateFile}
             contentEditorOpenHint={contentEditorOpenHint}
             fileActions={fileActions}
+            fileSends={sendsQuery.data}
+            fileReceipts={receiptsQuery.data}
           />
           {hasMoreFiles ? (
             <div className="shrink-0 border-t border-border p-2">
