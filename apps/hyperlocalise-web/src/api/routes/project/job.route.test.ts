@@ -305,7 +305,14 @@ describe("project job create", () => {
       .where(eq(schema.translationJobKeys.jobId, body.job.id));
     expect(linked).toEqual([{ id: keyRows[0]!.id }]);
     expect(enqueueJob).not.toHaveBeenCalled();
-    expect(startTaskAnalysisMock).not.toHaveBeenCalled();
+    // Reports records the task's own strings, as it does a file's for a file task.
+    expect(startTaskAnalysisMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobId: body.job.id,
+        step: "review",
+        repositorySourceFileId: null,
+      }),
+    );
 
     const hiddenOnly = await request([keyRows[1]!.id]);
     expect(hiddenOnly.status).toBe(400);
@@ -417,6 +424,7 @@ describe("project job create", () => {
       { headers },
     );
     const jobId = ((await created.json()) as { job: { id: string } }).job.id;
+    startTaskAnalysisMock.mockClear();
     const add = () =>
       createClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs[":jobId"].keys.$post(
         { param: { ...param, jobId }, json: { stringIds: keyRows.map((row) => row.id) } },
@@ -426,8 +434,20 @@ describe("project job create", () => {
     const first = await add();
     expect(first.status).toBe(200);
     await expect(first.json()).resolves.toEqual({ added: 1 });
+    // The added string is counted for Reports too.
+    expect(startTaskAnalysisMock).toHaveBeenCalledTimes(1);
+    expect(startTaskAnalysisMock).toHaveBeenCalledWith({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId,
+      step: "review",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      repositorySourceFileId: null,
+    });
     const again = await add();
     await expect(again.json()).resolves.toEqual({ added: 0 });
+    expect(startTaskAnalysisMock).toHaveBeenCalledTimes(1);
 
     await db.update(schema.jobs).set({ status: "succeeded" }).where(eq(schema.jobs.id, jobId));
     const closed = await add();

@@ -237,6 +237,47 @@ describe("analyseTaskStrings", () => {
   });
 });
 
+describe("analyseTaskStrings for a task made of chosen strings", () => {
+  it("records only the task's own visible strings", async () => {
+    const { organization, project, sourceFile, createPersonTask } = await createFileWithStrings();
+    const task = await createPersonTask({ kind: "proofread" });
+    await db
+      .update(schema.translationJobDetails)
+      .set({ type: "keys", sourceFileVersionId: null })
+      .where(eq(schema.translationJobDetails.jobId, task.id));
+    const keys = await db
+      .select({ id: schema.projectTranslationKeys.id, key: schema.projectTranslationKeys.key })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id));
+    const idOf = (key: string) => keys.find((row) => row.key === key)!.id;
+    // "farewell" stays out of the task; "hidden" is in it but hidden.
+    await db.insert(schema.translationJobKeys).values([
+      { jobId: task.id, translationKeyId: idOf("greeting") },
+      { jobId: task.id, translationKeyId: idOf("hidden") },
+    ]);
+
+    const result = await analyseTaskStrings({
+      organizationId: organization.id,
+      projectId: project.id,
+      jobId: task.id,
+      step: "review",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      repositorySourceFileId: null,
+    });
+
+    expect(result.strings).toBe(1);
+    const analyses = await db
+      .select({
+        segmentId: schema.reportingAnalyses.segmentId,
+        words: schema.reportingAnalyses.words,
+      })
+      .from(schema.reportingAnalyses)
+      .where(eq(schema.reportingAnalyses.jobId, task.id));
+    expect(analyses).toEqual([{ segmentId: idOf("greeting"), words: 2 }]);
+  });
+});
+
 describe("analyseTaskLanguage", () => {
   it("notes its progress on the task's analysis, and records without bands when asked", async () => {
     const { organization, project, sourceFile, createPersonTask } = await createFileWithStrings();

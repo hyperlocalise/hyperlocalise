@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 
@@ -34,8 +34,11 @@ export type TaskAnalysisInput = {
   step: ReportStep;
   sourceLocale: string;
   targetLocales: string[];
-  /** The task's file: its strings are the file's visible keys in the content editor. */
-  repositorySourceFileId: string;
+  /**
+   * The task's file: its strings are the file's visible keys in the content editor. Null for a
+   * task made of chosen strings, whose strings are its own visible keys.
+   */
+  repositorySourceFileId: string | null;
 };
 
 export type TaskLanguageAnalysisInput = Omit<TaskAnalysisInput, "targetLocales"> & {
@@ -66,7 +69,15 @@ export async function analyseTaskLanguage(
       and(
         eq(schema.projectTranslationKeys.organizationId, input.organizationId),
         eq(schema.projectTranslationKeys.projectId, input.projectId),
-        eq(schema.projectTranslationKeys.repositorySourceFileId, input.repositorySourceFileId),
+        input.repositorySourceFileId
+          ? eq(schema.projectTranslationKeys.repositorySourceFileId, input.repositorySourceFileId)
+          : inArray(
+              schema.projectTranslationKeys.id,
+              db
+                .select({ id: schema.translationJobKeys.translationKeyId })
+                .from(schema.translationJobKeys)
+                .where(eq(schema.translationJobKeys.jobId, input.jobId)),
+            ),
         eq(schema.projectTranslationKeys.isHidden, false),
       ),
     );

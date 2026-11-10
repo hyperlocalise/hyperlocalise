@@ -121,7 +121,7 @@ export function TaskReport({
   jobId: string;
   /** The step the task is for: review on a proofread task, so the tab opens on its own work. */
   defaultStep?: ReportStep;
-  /** False for a task made of strings, whose words Reports does not count yet (D251). */
+  /** False for an AI translation of chosen strings, whose words Reports does not count yet. */
   wordsCounted?: boolean;
 }) {
   const intl = useIntl();

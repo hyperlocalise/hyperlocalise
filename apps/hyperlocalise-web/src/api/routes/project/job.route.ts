@@ -55,6 +55,7 @@ import {
   insertKeyJobKeys,
   KeyJobSelectionFailure,
   keyJobInputPayload,
+  restartKeyJobTaskAnalysis,
   keyJobSelectionMessages,
 } from "@/lib/projects/jobs/key-job";
 import { isErr } from "@/lib/primitives/result/results";
@@ -633,8 +634,9 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         status: job.status,
       });
 
-      // A proofread task runs no agent, so Reports records its strings now, in the background.
-      if (isProofreadJob && job.repositorySourceFileId) {
+      // A proofread task runs no agent, so Reports records its strings now, in the background:
+      // a file's strings, or the strings a task made of chosen strings was given.
+      if (isProofreadJob && (job.repositorySourceFileId || job.type === "keys")) {
         await startTaskAnalysis({
           organizationId: job.organizationId,
           projectId: params.projectId,
@@ -737,6 +739,13 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             default:
               return assertNever(added.error);
           }
+        }
+        if (added.value > 0) {
+          await restartKeyJobTaskAnalysis({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            jobId: params.jobId,
+          });
         }
         return c.json({ added: added.value }, 200);
       },

@@ -30,7 +30,7 @@
 
 ## Consequences
 
-- Reports does not count these jobs yet, as for proofread key jobs: its analysis and task fee are keyed on files.
+- Reports does not count these jobs' words or progress yet (their Report tab says so); their AI use shows under AI usage, keyed by job. Proofread key jobs get word counts and match bands since 2026-11-10.
 - One model call per string covers all of its languages. File jobs make one call per string per language (the CLI doesn't put several strings in one call), so this makes fewer calls than a file job for the same strings. Putting several strings in one call could lower it further later without changing the job.
 - Format checks are go-svc's, with the string file's settings; file jobs check formats inside the CLI. The two can disagree on a file format go-svc doesn't know.
 - A multi-word name meant to stay in English ("Google Analytics") is rejected as a copy on every run and shows as failed; translators fill it by hand. Each run's calls for it are charged.

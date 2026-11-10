@@ -409,12 +409,12 @@ describe("Task report", () => {
     ).toBeInTheDocument();
   });
 
-  it("says a task made of strings has no word counts yet, and still shows its time", async () => {
+  it("says an AI translation of chosen strings has no word counts yet, and still shows its time", async () => {
     renderReport({ wordsCounted: false });
 
     await screen.findByRole("table", { name: "Time logged on this task" });
     expect(
-      screen.getByText(/Reports doesn't count the words of a task made of strings yet/),
+      screen.getByText(/Reports doesn't count the words of an AI translation of chosen strings/),
     ).toBeInTheDocument();
     expect(screen.queryByText("Words to translate")).not.toBeInTheDocument();
     expect(screen.queryByRole("table", { name: "Task match analysis" })).not.toBeInTheDocument();

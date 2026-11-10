@@ -26,6 +26,7 @@ import { maxKeyJobStrings, type KeysTranslationJobInput } from "@/api/routes/pro
 import { db, schema, type DatabaseTransaction } from "@/lib/database/client";
 import { updateJobs } from "@/lib/job-change-events/job-writes";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { startTaskAnalysis } from "@/lib/reporting/task-analysis-start";
 
 export type KeyJobSelectionError = { code: "no_strings_matched" | "too_many_strings" };
 
@@ -208,6 +209,36 @@ export async function addKeyJobStrings(input: {
       }
       throw error;
     });
+}
+
+/**
+ * Records the strings of an open task made of chosen strings for Reports again, after strings
+ * were added, so its Report tab counts them too. Strings already recorded are not recorded twice.
+ * Never throws, like the analysis started when the task was created.
+ */
+export async function restartKeyJobTaskAnalysis(input: {
+  organizationId: string;
+  projectId: string;
+  jobId: string;
+}) {
+  const [job] = await db
+    .select({ inputPayload: schema.jobs.inputPayload })
+    .from(schema.jobs)
+    .where(
+      and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
+    )
+    .limit(1);
+  const payload = job?.inputPayload as { sourceLocale?: unknown; targetLocales?: unknown } | null;
+  if (typeof payload?.sourceLocale !== "string" || !Array.isArray(payload.targetLocales)) return;
+  await startTaskAnalysis({
+    ...input,
+    step: "review",
+    sourceLocale: payload.sourceLocale,
+    targetLocales: payload.targetLocales.filter(
+      (locale): locale is string => typeof locale === "string",
+    ),
+    repositorySourceFileId: null,
+  });
 }
 
 /**
