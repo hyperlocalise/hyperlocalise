@@ -743,6 +743,8 @@ export function AutomationDetailPageContent({
           mode="detail"
           organizationSlug={organizationSlug}
           automationId={automationId}
+          authorUserId={automation.authorUserId}
+          authorName={automation.authorName}
           form={form}
           errors={errors}
           knowledgeAvailable={knowledgeAvailable}

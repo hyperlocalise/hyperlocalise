@@ -377,6 +377,95 @@ describe("workspace automation routes", () => {
     expect(invalidResponse.status).toBe(400);
   });
 
+  it("lets an operator reassign the automation owner without versioning config", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const manager = fixture.createWorkosIdentityForOrganization(
+      admin.organization,
+      "localization_manager",
+    );
+    await fixture.authHeadersFor(manager);
+    const managerUserId = await fixture.getLocalUserId(manager.user.workosUserId);
+    const headers = await fixture.authHeadersFor(admin);
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+
+    const createdResponse = await client.api.orgs[":organizationSlug"].automations.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Owned automation",
+          instructions: "Keep the same config when the owner changes.",
+          triggerConfig: { mode: "manual" },
+          repositoryTarget: { kind: "none" },
+          toolConfig: {},
+        },
+      },
+      { headers },
+    );
+    expect(createdResponse.status).toBe(201);
+    const createdBody = (await createdResponse.json()) as {
+      automation: { id: string; authorUserId: string | null; configVersion: number };
+    };
+
+    const updatedResponse = await client.api.orgs[":organizationSlug"].automations[
+      ":automationId"
+    ].$patch(
+      {
+        param: { organizationSlug, automationId: createdBody.automation.id },
+        json: { authorUserId: managerUserId },
+      },
+      { headers },
+    );
+    expect(updatedResponse.status).toBe(200);
+    await expect(updatedResponse.json()).resolves.toMatchObject({
+      automation: {
+        id: createdBody.automation.id,
+        authorUserId: managerUserId,
+        authorName: manager.user.email,
+        instructions: "Keep the same config when the owner changes.",
+        configVersion: 1,
+      },
+    });
+  });
+
+  it("rejects an owner who cannot operate the workspace", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const developer = fixture.createWorkosIdentityForOrganization(admin.organization, "developer");
+    await fixture.authHeadersFor(developer);
+    const developerUserId = await fixture.getLocalUserId(developer.user.workosUserId);
+    const headers = await fixture.authHeadersFor(admin);
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+
+    const createdResponse = await client.api.orgs[":organizationSlug"].automations.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Owned automation",
+          instructions: "Keep the current owner.",
+          triggerConfig: { mode: "manual" },
+          repositoryTarget: { kind: "none" },
+          toolConfig: {},
+        },
+      },
+      { headers },
+    );
+    expect(createdResponse.status).toBe(201);
+    const createdBody = (await createdResponse.json()) as { automation: { id: string } };
+
+    const updatedResponse = await client.api.orgs[":organizationSlug"].automations[
+      ":automationId"
+    ].$patch(
+      {
+        param: { organizationSlug, automationId: createdBody.automation.id },
+        json: { authorUserId: developerUserId },
+      },
+      { headers },
+    );
+    expect(updatedResponse.status).toBe(400);
+    await expect(updatedResponse.json()).resolves.toMatchObject({
+      error: "author_not_found",
+    });
+  });
+
   it("denies automation management for non-operators", async () => {
     const identity = fixture.createWorkosIdentityWithRole("member");
     const headers = await fixture.authHeadersFor(identity);

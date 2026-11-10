@@ -28,9 +28,41 @@ import {
   intercomHelpCenterSummariesFixture,
 } from "./intercom-api.fixture";
 
+const automationEditorMembersFixture = [
+  {
+    userId: "user_001",
+    workosUserId: "user_ada",
+    email: "ada@example.com",
+    firstName: "Ada",
+    lastName: "Lovelace",
+    displayName: "Ada Lovelace",
+    avatarUrl: null,
+    role: "admin",
+    isCurrentUser: true,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    status: "active",
+  },
+  {
+    userId: "user_002",
+    workosUserId: "user_grace",
+    email: "grace@example.com",
+    firstName: "Grace",
+    lastName: "Hopper",
+    displayName: "Grace Hopper",
+    avatarUrl: null,
+    role: "localization_manager",
+    isCurrentUser: false,
+    createdAt: "2026-01-02T00:00:00.000Z",
+    status: "active",
+  },
+];
+
 export const automationEditorMswHandlers = [
   http.get("*/v1/orgs/:organizationSlug/projects", () =>
     HttpResponse.json({ projects: automationEditorNativeProjectsFixture }),
+  ),
+  http.get("*/v1/orgs/:organizationSlug/members", () =>
+    HttpResponse.json({ members: automationEditorMembersFixture }),
   ),
   http.get("/api/orgs/:organizationSlug/tms-provider/connection", () =>
     HttpResponse.json({
@@ -146,6 +178,9 @@ export const automationEditorMswHandlers = [
 export const automationEditorDisconnectedMswHandlers = [
   http.get("*/v1/orgs/:organizationSlug/projects", () =>
     HttpResponse.json({ projects: automationEditorNativeProjectsFixture }),
+  ),
+  http.get("*/v1/orgs/:organizationSlug/members", () =>
+    HttpResponse.json({ members: automationEditorMembersFixture }),
   ),
   http.get("/api/orgs/:organizationSlug/tms-provider/connection", () =>
     HttpResponse.json({ error: "no_active_tms_provider" }, { status: 404 }),

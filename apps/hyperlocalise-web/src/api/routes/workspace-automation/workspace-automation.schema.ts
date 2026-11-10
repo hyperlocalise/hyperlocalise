@@ -94,6 +94,7 @@ export const updateWorkspaceAutomationBodySchema = workspaceAutomationConfigSche
     model: workspaceAutomationModelSchema.optional(),
     nextRunAt: z.string().datetime().nullable().optional(),
     syncConfig: contentSyncConfigSchema.optional(),
+    authorUserId: z.string().uuid().optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
