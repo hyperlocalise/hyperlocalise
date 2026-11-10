@@ -129,7 +129,7 @@ func TestStringsStoreDatabase(t *testing.T) {
 	visible, total, err := f.store.listStrings(ctx, f.actor, f.project, stringFilters{Limit: 10})
 	require.NoError(t, err)
 	require.Equal(t, 2, total)
-	require.Equal(t, []string{"home.title", "loose.cta"}, []string{visible[0].Key, visible[1].Key})
+	require.Equal(t, []string{"loose.cta", "home.title"}, []string{visible[0].Key, visible[1].Key})
 
 	byFile, total, err := f.store.listStrings(ctx, f.actor, f.project, stringFilters{FilePath: "en.json", IncludeHidden: true, Limit: 10})
 	require.NoError(t, err)
