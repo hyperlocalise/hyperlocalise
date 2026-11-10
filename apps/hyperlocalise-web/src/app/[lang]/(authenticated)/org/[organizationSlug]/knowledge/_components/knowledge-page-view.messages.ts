@@ -20,4 +20,9 @@ export const knowledgePageViewMessages = defineMessages({
     id: "iOunGMNIui",
     description: "Page heading for the organization guideline page",
   },
+  addSources: {
+    defaultMessage: "Add sources",
+    id: "kI9LizWEXI",
+    description: "Button linking to the guideline upload page",
+  },
 });

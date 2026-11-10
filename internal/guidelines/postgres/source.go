@@ -1,4 +1,4 @@
-// Package postgres reads existing canonical workspace and project guidelines.
+// Package postgres reads existing guideline documents.
 package postgres
 
 import (
@@ -42,31 +42,14 @@ func (s *Source) Close() {
 	}
 }
 
-// currentQuery loads the typed workspace and project notes, which are always
-// mandatory, and ready uploaded documents in the same project and locale scope.
-// Uploaded documents use their own mandatory flag.
+// currentQuery loads ready guideline documents in the same project and
+// locale scope. Documents use their own mandatory flag.
 //
 // Org-scoped content uses assignment tables: empty assignment means every
-// project. Workspace notes check workspace_guideline_projects; org-wide
-// uploads (project_id IS NULL) check guideline_document_projects.
+// project. Org-wide uploads (project_id IS NULL) check guideline_document_projects.
 // Project-owned uploads skip assignment. An empty project scope ($2 = ”)
 // keeps all org-scoped content for org-level checks.
 const currentQuery = `
-        SELECT 'workspace:' || organization_id::text, revision_id::text, version, content, '' AS project_id, '' AS locale, true AS mandatory
-        FROM knowledge_memories
-        WHERE organization_id::text = $1
-          AND ($2 = '' OR NOT EXISTS (
-            SELECT 1 FROM workspace_guideline_projects w
-            WHERE w.organization_id::text = $1
-          ) OR EXISTS (
-            SELECT 1 FROM workspace_guideline_projects w
-            WHERE w.organization_id::text = $1 AND w.project_id = $2
-          ))
-        UNION ALL
-        SELECT 'project:' || m.project_id, m.revision_id::text, m.version, m.content, m.project_id, '', true
-        FROM project_knowledge_memories m JOIN projects p ON p.id = m.project_id
-        WHERE p.organization_id::text = $1 AND m.project_id = $2
-        UNION ALL
         SELECT 'doc:' || d.id::text, d.revision_id::text, d.version, d.content, coalesce(d.project_id, ''), coalesce(d.locale, ''), d.mandatory
         FROM guideline_documents d
         WHERE d.organization_id::text = $1 AND d.status = 'ready'
@@ -91,19 +74,19 @@ func (s *Source) Current(ctx context.Context, scope guidelines.Scope) ([]guideli
 	}
 	rows, err := s.pool.Query(ctx, currentQuery, scope.OrganizationID, scope.ProjectID, scope.Locale)
 	if err != nil {
-		return nil, fmt.Errorf("query canonical guidelines: %w", err)
+		return nil, fmt.Errorf("query guideline documents: %w", err)
 	}
 	defer rows.Close()
 	docs := make([]guidelines.Document, 0, 2)
 	for rows.Next() {
 		doc := guidelines.Document{Scope: guidelines.Scope{OrganizationID: scope.OrganizationID}}
 		if err := rows.Scan(&doc.ID, &doc.RevisionID, &doc.Version, &doc.Content, &doc.Scope.ProjectID, &doc.Scope.Locale, &doc.Mandatory); err != nil {
-			return nil, fmt.Errorf("read canonical guideline: %w", err)
+			return nil, fmt.Errorf("read guideline document: %w", err)
 		}
 		docs = append(docs, doc)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("read canonical guidelines: %w", err)
+		return nil, fmt.Errorf("read guideline documents: %w", err)
 	}
 	return docs, nil
 }

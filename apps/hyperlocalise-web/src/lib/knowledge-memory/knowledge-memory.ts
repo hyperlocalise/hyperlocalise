@@ -10,6 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+/**
+ * @deprecated Typed guideline notes are retired; guidelines are `guideline_documents`
+ * records now (uploaded `.md`/PDF/etc. or typed markdown saved as a document). The
+ * `knowledge_memories` / `project_knowledge_memories` tables stay in the schema
+ * unwritten. Do not add new callers; remaining reads are being removed.
+ */
 import { and, eq } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database/client";
@@ -70,29 +76,11 @@ async function getCurrentKnowledgeMemoryRow(
   return row;
 }
 
+/** @deprecated Typed org notes are retired; read guideline documents instead. */
 export async function getKnowledgeMemoryForOrganization(
   organizationId: string,
 ): Promise<KnowledgeMemoryRecord> {
   return toKnowledgeMemoryRecord(await getCurrentKnowledgeMemoryRow(db, organizationId));
-}
-
-/**
- * Whether the workspace guideline note applies to a project. Empty assignment
- * means every project. Used to gate typed workspace notes in translation and
- * automation prompts; go-svc Source.Current enforces the same rule for checks.
- */
-export async function isWorkspaceGuidelineAssignedToProject(
-  organizationId: string,
-  projectId: string,
-  database: DatabaseClient = db,
-): Promise<boolean> {
-  const assignments = await database
-    .select({ projectId: schema.workspaceGuidelineProjects.projectId })
-    .from(schema.workspaceGuidelineProjects)
-    .where(eq(schema.workspaceGuidelineProjects.organizationId, organizationId))
-    .limit(101);
-  if (assignments.length === 0) return true;
-  return assignments.some((row) => row.projectId === projectId);
 }
 
 // A function, not a module-level constant: accessing schema.knowledgeMemories.* at import time
@@ -109,12 +97,13 @@ function knowledgeMemoryHeadColumns() {
   };
 }
 
+/** @deprecated Typed org notes are retired; write guideline documents instead. */
 export async function commitKnowledgeMemoryForOrganization(input: {
   organizationId: string;
   content: string;
   summary?: string;
-  // Nullable: agent-authored commits via the save_memory tool have no human actor. Provenance
-  // for those goes in `summary` instead (see save_memory.ts).
+  // Nullable for backwards compatibility with agent-authored commits made before typed
+  // guideline notes were retired; provenance for those lives in `summary` instead.
   updatedByUserId: string | null;
   expectedRevisionId: string | null;
   forceNewRevision?: boolean;
@@ -227,12 +216,14 @@ function projectKnowledgeMemoryHeadColumns() {
   };
 }
 
+/** @deprecated Typed project notes are retired; read guideline documents instead. */
 export async function getKnowledgeMemoryForProject(
   projectId: string,
 ): Promise<KnowledgeMemoryRecord> {
   return toKnowledgeMemoryRecord(await getCurrentProjectKnowledgeMemoryRow(db, projectId));
 }
 
+/** @deprecated Typed project notes are retired; write guideline documents instead. */
 export async function commitKnowledgeMemoryForProject(input: {
   projectId: string;
   content: string;

@@ -20,7 +20,7 @@ const (
 	// OperationExtractIndex extracts a processing document, then indexes the
 	// row's current revision. A ready document is only re-indexed.
 	OperationExtractIndex Operation = "extract_index"
-	// OperationSync re-indexes the typed notes and scope-wide documents.
+	// OperationSync re-indexes a scope's current document revisions.
 	OperationSync Operation = "sync"
 	// OperationDelete removes a document's passages through Version.
 	OperationDelete Operation = "delete"

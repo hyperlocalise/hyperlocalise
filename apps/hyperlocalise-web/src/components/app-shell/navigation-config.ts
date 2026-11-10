@@ -384,6 +384,21 @@ export function buildProjectNavigationGroups(
   workspaceItems.push(
     {
       label: intl.formatMessage({
+        defaultMessage: "Guideline",
+        id: "6dq9jGfioL",
+        description: "Project sidebar navigation item for project guideline",
+      }),
+      href: project("knowledge"),
+      icon: BookmarkIcon,
+      description: intl.formatMessage({
+        defaultMessage: "Project guidance for agents and teams",
+        id: "+RGsVNsQWz",
+        description: "Sidebar description for the project Guideline navigation item",
+      }),
+      featureFlagKey: WORKSPACE_KNOWLEDGE_FLAG,
+    },
+    {
+      label: intl.formatMessage({
         defaultMessage: "Jobs",
         id: "8HNfmSDv7C",
         description: "Project sidebar navigation item for project jobs",

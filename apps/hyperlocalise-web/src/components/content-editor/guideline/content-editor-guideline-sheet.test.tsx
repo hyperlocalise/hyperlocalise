@@ -19,9 +19,15 @@ import type { ReactNode } from "react";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { useProjectPageQueryMock, getKnowledgeMemoryMock } = vi.hoisted(() => ({
+import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
+
+const { useProjectPageQueryMock, goSvcMocks } = vi.hoisted(() => ({
   useProjectPageQueryMock: vi.fn(),
-  getKnowledgeMemoryMock: vi.fn(),
+  goSvcMocks: {
+    listDocuments: vi.fn(),
+    getDocument: vi.fn(),
+    listAllDocumentAssignments: vi.fn(),
+  },
 }));
 
 vi.mock("next/link", () => ({
@@ -47,12 +53,18 @@ vi.mock(
   }),
 );
 
-vi.mock(
-  "@/app/[lang]/(authenticated)/org/[organizationSlug]/knowledge/_components/knowledge-memory-api",
-  () => ({
-    getKnowledgeMemory: (...args: unknown[]) => getKnowledgeMemoryMock(...args),
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    loading: false,
+    client: {
+      guidelines: {
+        listDocuments: goSvcMocks.listDocuments,
+        getDocument: goSvcMocks.getDocument,
+        listAllDocumentAssignments: goSvcMocks.listAllDocumentAssignments,
+      },
+    },
   }),
-);
+}));
 
 vi.mock("@/components/markdown-editor/markdown-editor", () => ({
   MarkdownPreview: ({ value }: { value: string }) => <div>{value}</div>,
@@ -60,16 +72,39 @@ vi.mock("@/components/markdown-editor/markdown-editor", () => ({
 
 import { ContentEditorGuidelineSheet } from "./content-editor-guideline-sheet";
 
+function guidelineDocument(overrides: Partial<GuidelineDocument> = {}): GuidelineDocument {
+  return {
+    id: "doc-1",
+    projectId: null,
+    locale: null,
+    title: "Voice guide",
+    filename: "voice.md",
+    contentType: "text/markdown",
+    byteSize: 128,
+    characterCount: 120,
+    truncated: false,
+    revisionId: "rev-1",
+    version: 1,
+    mandatory: false,
+    status: "ready",
+    errorCode: null,
+    indexed: true,
+    createdAt: "2026-10-10T00:00:00Z",
+    updatedAt: "2026-10-10T00:00:00Z",
+    ...overrides,
+  };
+}
+
 function renderSheet(
   project: { translationContextValue: string; source: "native" | "external_tms" } | undefined,
   options?: {
     isLoading?: boolean;
     isError?: boolean;
     canWriteProjects?: boolean;
-    getKnowledgeMemory?: (input: { projectId?: string }) => Promise<{
-      ok: boolean;
-      json?: () => Promise<{ knowledgeMemory?: { content: string } }>;
-    }>;
+    projectDocuments?: GuidelineDocument[];
+    workspaceDocuments?: GuidelineDocument[];
+    assignments?: { documentId: string; projectIds: string[] }[];
+    documentContent?: string;
   },
 ) {
   useProjectPageQueryMock.mockReturnValue({
@@ -78,12 +113,14 @@ function renderSheet(
     isError: options?.isError ?? false,
     data: project,
   });
-  getKnowledgeMemoryMock.mockImplementation(
-    options?.getKnowledgeMemory ??
-      (async () => ({
-        ok: true,
-        json: async () => ({ knowledgeMemory: { content: "" } }),
-      })),
+  goSvcMocks.listDocuments.mockImplementation(async (_org: string, projectId?: string) =>
+    projectId ? (options?.projectDocuments ?? []) : (options?.workspaceDocuments ?? []),
+  );
+  goSvcMocks.listAllDocumentAssignments.mockResolvedValue({
+    assignments: options?.assignments ?? [],
+  });
+  goSvcMocks.getDocument.mockImplementation(async () =>
+    guidelineDocument({ content: options?.documentContent ?? "# Voice" }),
   );
 
   function Wrapper({ children }: { children: ReactNode }) {
@@ -130,19 +167,61 @@ describe("ContentEditorGuidelineSheet", () => {
     expect(screen.queryByRole("link", { name: "Open workspace guideline" })).toBeNull();
   });
 
-  it("switches the document action to the selected guideline", async () => {
+  it("lists project documents and previews the selected one", async () => {
     const user = userEvent.setup();
-    renderSheet({ translationContextValue: "Keep names in English.", source: "native" });
+    renderSheet(
+      { translationContextValue: "Keep names in English.", source: "native" },
+      {
+        projectDocuments: [
+          guidelineDocument({ id: "doc-1", projectId: "project_1", title: "Voice" }),
+          guidelineDocument({ id: "doc-2", projectId: "project_1", title: "Tone" }),
+        ],
+      },
+    );
 
-    expect(screen.getByText("Keep names in English.")).toBeTruthy();
     await user.click(screen.getByRole("tab", { name: "Project guideline" }));
 
-    expect(await screen.findByText("No project guideline yet.")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Voice" })).toBeTruthy();
+    expect(await screen.findByText("# Voice")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Open project guideline" })).toHaveAttribute(
       "href",
       "/org/acme/projects/project_1/knowledge",
     );
     expect(screen.queryByRole("link", { name: "Edit in settings" })).toBeNull();
+  });
+
+  it("filters workspace documents by project assignment", async () => {
+    const user = userEvent.setup();
+    renderSheet(
+      { translationContextValue: "", source: "native" },
+      {
+        workspaceDocuments: [
+          guidelineDocument({ id: "doc-all", title: "For everyone" }),
+          guidelineDocument({ id: "doc-selected", title: "Selected for us" }),
+          guidelineDocument({ id: "doc-other", title: "Other project only" }),
+        ],
+        assignments: [
+          { documentId: "doc-selected", projectIds: ["project_1"] },
+          { documentId: "doc-other", projectIds: ["project_9"] },
+        ],
+      },
+    );
+
+    await user.click(screen.getByRole("tab", { name: "Workspace guideline" }));
+
+    expect(await screen.findByRole("button", { name: "For everyone" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Selected for us" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Other project only" })).toBeNull();
+  });
+
+  it("shows an empty state when there are no project documents", async () => {
+    const user = userEvent.setup();
+    renderSheet({ translationContextValue: "", source: "native" });
+
+    await user.click(screen.getByRole("tab", { name: "Project guideline" }));
+
+    expect(await screen.findByText("No project guideline yet.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open project guideline" })).toBeTruthy();
   });
 
   it("hides the style guide action when the viewer cannot edit it", () => {
@@ -150,29 +229,5 @@ describe("ContentEditorGuidelineSheet", () => {
 
     expect(screen.getByText("No style guide yet. Add one in project settings.")).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Edit in settings" })).toBeNull();
-  });
-
-  it("keeps the selected tab action when the guideline fails to load", async () => {
-    const user = userEvent.setup();
-    renderSheet(
-      { translationContextValue: "Keep names in English.", source: "native" },
-      {
-        getKnowledgeMemory: async ({ projectId }) => {
-          if (projectId) {
-            return { ok: false };
-          }
-          return { ok: true, json: async () => ({ knowledgeMemory: { content: "" } }) };
-        },
-      },
-    );
-
-    await user.click(screen.getByRole("tab", { name: "Project guideline" }));
-
-    expect(await screen.findByText("Unable to load this guideline.")).toBeTruthy();
-    expect(screen.getByRole("tabpanel")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Open project guideline" })).toHaveAttribute(
-      "href",
-      "/org/acme/projects/project_1/knowledge",
-    );
   });
 });

@@ -109,32 +109,24 @@ Provider-backed translation memories use entries already stored or synchronized 
 
 ### Knowledge memory
 
-`get_knowledge_memory` reads the guidance that an agent should follow before translating content or filing issues. It is read-only; hosted MCP does not expose knowledge-memory writes.
-
-Organization scope is the default:
+`get_knowledge_memory` searches the workspace and project guideline documents for passages relevant to a question. It is read-only.
 
 ```json
 {
+  "query": "How should buttons be capitalized?",
   "scope": "organization"
 }
 ```
 
-To read project-specific guidance, provide an accessible project ID:
+`query` is required. Organization scope is the default; to search project-specific documents, use `"scope": "project"` with an accessible `projectId`. Optional `targetLocale` narrows retrieval to locale-scoped documents.
 
-```json
-{
-  "scope": "project",
-  "projectId": "project-id"
-}
-```
-
-The response includes `scope`, `content`, `updatedAt`, `truncated`, and `projectId` for project-scoped reads. A knowledge memory that has not been created returns an empty `content` string and is not an error. Content longer than the MCP-safe response limit is truncated and returns `truncated: true`.
+The response includes `scope`, `found`, `text`, `documents`, and `projectId` for project-scoped reads. `found` is false and `text` is empty when no document matches, which is not an error.
 
 Project reads use the authenticated member's normal project access. Missing or inaccessible projects return `project_not_found` without exposing whether the project exists.
 
 ### Guideline checks
 
-`check_guidelines` reviews up to 50 segments against the workspace guideline, uploaded guideline documents, and, when `projectId` is set, the project's guidelines. Use it before saving a translation or to audit source copy.
+`check_guidelines` reviews up to 50 segments against the workspace and project guideline documents. Use it before saving a translation or to audit source copy.
 
 ```json
 {

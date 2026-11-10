@@ -12,9 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useId } from "react";
+import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { TrashIcon } from "@phosphor-icons/react";
+import { PencilSimpleIcon, TrashIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 import { toast } from "sonner";
 
@@ -46,6 +46,7 @@ import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { guidelineDocumentsSectionMessages as messages } from "./guideline-documents-section.messages";
+import { GuidelineTextDocumentDialog } from "./guideline-text-document-dialog";
 
 const PROCESSING_POLL_MS = 3000;
 const ENQUEUE_RECOVERY_POLL_MS = 15_000;
@@ -144,12 +145,21 @@ export function useGuidelineDocumentUpload(organizationSlug: string, projectId?:
   const { client } = useGoSvcClient();
 
   return useMutation({
-    mutationFn: (file: File) =>
-      client.guidelines.uploadDocument(organizationSlug, { file, filename: file.name }, projectId),
-    onSuccess: (_document, file) => {
+    mutationFn: (input: File | { file: File; title?: string }) => {
+      const file = input instanceof File ? input : input.file;
+      const title = input instanceof File ? undefined : input.title;
+      return client.guidelines.uploadDocument(
+        organizationSlug,
+        title === undefined ? { file, filename: file.name } : { file, filename: file.name, title },
+        projectId,
+      );
+    },
+    onSuccess: (_document, input) => {
+      const file = input instanceof File ? input : input.file;
       toast.success(intl.formatMessage(messages.uploadStarted, { filename: file.name }));
     },
-    onError: (error, file) => {
+    onError: (error, input) => {
+      const file = input instanceof File ? input : input.file;
       toast.error(intl.formatMessage(messages.uploadFailed, { filename: file.name }), {
         description: error.message,
       });
@@ -167,12 +177,14 @@ function GuidelineDocumentRow({
   projectId,
   document,
   canUpdate,
+  onEdit,
 }: {
   client: GoSvcClient;
   organizationSlug: string;
   projectId?: string;
   document: GuidelineDocument;
   canUpdate: boolean;
+  onEdit: (document: GuidelineDocument) => void;
 }) {
   const intl = useIntl();
   const switchId = useId();
@@ -242,6 +254,15 @@ function GuidelineDocumentRow({
             />
             <FormattedMessage {...messages.alwaysApply} />
           </label>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={intl.formatMessage(messages.edit)}
+            onClick={() => onEdit(document)}
+          >
+            <PencilSimpleIcon />
+          </Button>
           <AlertDialog>
             <AlertDialogTrigger
               render={
@@ -294,6 +315,7 @@ export function GuidelineDocumentsSection({
   canUpdate: boolean;
 }) {
   const { client, loading } = useGoSvcClient();
+  const [editingDocument, setEditingDocument] = useState<GuidelineDocument | null>(null);
   const query = useQuery({
     queryKey: guidelineDocumentsQueryKey(organizationSlug, projectId),
     enabled: !loading,
@@ -338,9 +360,21 @@ export function GuidelineDocumentsSection({
             projectId={projectId}
             document={document}
             canUpdate={canUpdate}
+            onEdit={setEditingDocument}
           />
         ))}
       </ItemGroup>
+      {canUpdate ? (
+        <GuidelineTextDocumentDialog
+          open={editingDocument != null}
+          onOpenChange={(open) => {
+            if (!open) setEditingDocument(null);
+          }}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          document={editingDocument}
+        />
+      ) : null}
     </section>
   );
 }

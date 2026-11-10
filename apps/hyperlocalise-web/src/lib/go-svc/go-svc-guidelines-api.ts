@@ -274,35 +274,6 @@ export class GoSvcGuidelinesApi {
     });
   }
 
-  listWorkspaceGuidelineProjects(organizationSlug: string, options: GoSvcRequestOptions = {}) {
-    return this.request.json<{ projects: GuidelineProjectAssignment[] }>(
-      orgPath(organizationSlug, "knowledge-memory", "projects"),
-      options,
-    );
-  }
-
-  attachWorkspaceGuidelineProject(
-    organizationSlug: string,
-    projectId: string,
-    options: GoSvcRequestOptions = {},
-  ) {
-    return this.request.json<{ projects: GuidelineProjectAssignment[] }>(
-      orgPath(organizationSlug, "knowledge-memory", "projects"),
-      { method: "POST", body: { projectId }, ...options },
-    );
-  }
-
-  detachWorkspaceGuidelineProject(
-    organizationSlug: string,
-    projectId: string,
-    options: GoSvcRequestOptions = {},
-  ) {
-    return this.request.empty(
-      orgPath(organizationSlug, "knowledge-memory", "projects", projectId),
-      { method: "DELETE", ...options },
-    );
-  }
-
   listDocumentProjects(
     organizationSlug: string,
     documentId: string,

@@ -59,11 +59,10 @@ describe("parseGenerationProvenance", () => {
     ).toBeNull();
   });
 
-  it("accepts an omitted mandatory document and a workspace guideline id", () => {
+  it("accepts an omitted mandatory document", () => {
     const provenance = {
       ...emptyProvenance,
       guidelines: {
-        workspace: { revisionId: "rev-ws", version: 0 },
         documents: [
           {
             documentId: "doc-1",

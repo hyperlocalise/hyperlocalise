@@ -163,8 +163,9 @@ export const projectKnowledgeMemoryRevisions = pgTable(
 );
 
 /**
- * Attaches the single workspace guideline note to selected projects. Empty for an
- * organization means the workspace note applies to every project in that org.
+ * @deprecated The typed workspace guideline note is retired; org-wide guideline
+ * documents use guideline_document_projects instead. The table stays (unwritten)
+ * so existing databases keep working without a migration.
  */
 export const workspaceGuidelineProjects = pgTable(
   "workspace_guideline_projects",

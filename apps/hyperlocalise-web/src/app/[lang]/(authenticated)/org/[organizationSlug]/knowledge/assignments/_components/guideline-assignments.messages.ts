@@ -5,24 +5,19 @@ import { defineMessages } from "react-intl";
 export const guidelineAssignmentsMessages = defineMessages({
   title: {
     defaultMessage: "Assign to projects",
-    id: "VoW1u80V5k",
-    description: "Title for the workspace guideline project assignment page",
+    id: "U3khFjoOoZ",
+    description: "Title for the guideline document assignment page",
   },
   description: {
     defaultMessage:
-      "Org-scoped guidelines apply to every project unless you select specific projects.",
-    id: "UFnpymWErV",
+      "Org-scoped guideline documents apply to every project unless you select specific projects.",
+    id: "PL0HtnBEiw",
     description: "Description for the guideline assignment page",
   },
   backToGuideline: {
     defaultMessage: "Back to Guideline",
-    id: "2Vbjc7dInq",
-    description: "Link back to the workspace Guideline page",
-  },
-  workspaceNote: {
-    defaultMessage: "Typed workspace note",
-    id: "j0NM4xi9du",
-    description: "Row label for the typed workspace guideline note",
+    id: "APcdnMv7h1",
+    description: "Link back to the Guideline page",
   },
   allProjects: {
     defaultMessage: "All projects",
@@ -34,14 +29,14 @@ export const guidelineAssignmentsMessages = defineMessages({
     id: "0jMUHyL955",
     description: "Badge when a guideline applies to selected projects",
   },
-  uploads: {
-    defaultMessage: "Org-wide uploads",
-    id: "LqgSgKlVNI",
-    description: "Section title for org-wide uploaded guideline documents",
+  documents: {
+    defaultMessage: "Org-wide documents",
+    id: "LXGU9NstON",
+    description: "Section title for org-wide guideline documents",
   },
-  noUploads: {
-    defaultMessage: "No org-wide uploads yet.",
-    id: "kbOifYsiMg",
+  noDocuments: {
+    defaultMessage: "No org-wide documents yet.",
+    id: "2X2wVWJ9Bz",
     description: "Empty state when there are no org-wide guideline documents",
   },
   selectProject: {

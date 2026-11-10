@@ -261,6 +261,7 @@ describe("path builders", () => {
       ["Content Editor", "/org/acme/projects/proj_1/strings"],
       ["Video Editor", "/org/acme/projects/proj_1/videos"],
       ["QA", "/org/acme/projects/proj_1/qa"],
+      ["Guideline", "/org/acme/projects/proj_1/knowledge"],
       ["Jobs", "/org/acme/projects/proj_1/jobs"],
       ["Queries", "/org/acme/projects/proj_1/issue-sheet"],
       ["Automations", "/org/acme/projects/proj_1/automations"],
@@ -297,6 +298,7 @@ describe("path builders", () => {
     ]);
     expect(groups[2]?.items.map((item) => item.label)).toEqual([
       "QA",
+      "Guideline",
       "Jobs",
       "Queries",
       "Automations",
@@ -535,6 +537,13 @@ describe("buildProjectNavigationItems", () => {
 
     expect(automationsItem?.href).toBe("/org/acme/automations");
     expect(automationsItem?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
+  });
+
+  it("includes a project Guideline item gated by the workspace knowledge flag", () => {
+    const items = buildProjectNavigationItems("acme", "proj_1", intl);
+    const guidelineItem = items.find((item) => item.label === "Guideline");
+    expect(guidelineItem?.href).toBe("/org/acme/projects/proj_1/knowledge");
+    expect(guidelineItem?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
   });
 
   it("includes an Automations item gated by the workspace automations flag", () => {

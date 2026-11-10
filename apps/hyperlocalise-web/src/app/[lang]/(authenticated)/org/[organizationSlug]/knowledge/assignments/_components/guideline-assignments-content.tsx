@@ -72,10 +72,14 @@ function ProjectPicker({
     queryKey: ["guideline-assignment-projects", organizationSlug],
     queryFn: async ({ signal }) => {
       const body = await client.project.list(organizationSlug, { signal });
-      return body.projects;
+      // Same Map shape as the parent query sharing this key, so both
+      // observers read identical cached data regardless of fetch order.
+      return new Map(body.projects.map((project) => [project.id, project.name] as const));
     },
   });
-  const available = (projectsQuery.data ?? []).filter((p) => !assignedIds.has(p.id));
+  const available = [...(projectsQuery.data ?? new Map<string, string>()).entries()]
+    .filter(([id]) => !assignedIds.has(id))
+    .map(([id, name]) => ({ id, name }));
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -182,16 +186,6 @@ export function GuidelineAssignmentsContent({
   const queryClient = useQueryClient();
   const { client, loading } = useGoSvcClient();
 
-  const workspaceQuery = useQuery({
-    queryKey: ["workspace-guideline-projects", organizationSlug],
-    enabled: !loading,
-    queryFn: async ({ signal }) => {
-      const body = await client.guidelines.listWorkspaceGuidelineProjects(organizationSlug, {
-        signal,
-      });
-      return body.projects;
-    },
-  });
   const documentsQuery = useQuery({
     queryKey: ["guideline-documents", organizationSlug],
     enabled: !loading,
@@ -217,39 +211,9 @@ export function GuidelineAssignmentsContent({
 
   const invalidate = () => {
     void queryClient.invalidateQueries({
-      queryKey: ["workspace-guideline-projects", organizationSlug],
-    });
-    void queryClient.invalidateQueries({
       queryKey: ["guideline-document-assignments", organizationSlug],
     });
   };
-
-  const attachWorkspace = useMutation({
-    mutationFn: async (projectId: string) => {
-      try {
-        await client.guidelines.attachWorkspaceGuidelineProject(organizationSlug, projectId);
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.assignFailed)), {
-          cause: error,
-        });
-      }
-    },
-    onSuccess: invalidate,
-    onError: (error) => toast.error(error.message),
-  });
-  const detachWorkspace = useMutation({
-    mutationFn: async (projectId: string) => {
-      try {
-        await client.guidelines.detachWorkspaceGuidelineProject(organizationSlug, projectId);
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.removeFailed)), {
-          cause: error,
-        });
-      }
-    },
-    onSuccess: invalidate,
-    onError: (error) => toast.error(error.message),
-  });
 
   const attachDocument = useMutation({
     mutationFn: async ({ documentId, projectId }: { documentId: string; projectId: string }) => {
@@ -278,10 +242,10 @@ export function GuidelineAssignmentsContent({
     onError: (error) => toast.error(error.message),
   });
 
-  if (loading || workspaceQuery.isPending || documentsQuery.isPending) {
+  if (loading || documentsQuery.isPending) {
     return <Skeleton className="h-32 w-full" />;
   }
-  if (workspaceQuery.isError || documentsQuery.isError || assignmentsQuery.isError) {
+  if (documentsQuery.isError || assignmentsQuery.isError) {
     return (
       <div className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground">
         <FormattedMessage {...messages.loadFailed} />
@@ -290,7 +254,6 @@ export function GuidelineAssignmentsContent({
           variant="outline"
           size="sm"
           onClick={() => {
-            void workspaceQuery.refetch();
             void documentsQuery.refetch();
             void assignmentsQuery.refetch();
           }}
@@ -329,23 +292,13 @@ export function GuidelineAssignmentsContent({
         </Button>
       </div>
 
-      <AssignmentRow
-        organizationSlug={organizationSlug}
-        title={intl.formatMessage(messages.workspaceNote)}
-        assigned={workspaceQuery.data ?? []}
-        canUpdate={canUpdate}
-        onAttach={(projectId) => attachWorkspace.mutate(projectId)}
-        onDetach={(projectId) => detachWorkspace.mutate(projectId)}
-        attachPending={attachWorkspace.isPending}
-      />
-
       <section className="flex flex-col gap-3">
         <TypographyP weight="medium">
-          <FormattedMessage {...messages.uploads} />
+          <FormattedMessage {...messages.documents} />
         </TypographyP>
         {orgWide.length === 0 ? (
           <TypographyP tone="subtle">
-            <FormattedMessage {...messages.noUploads} />
+            <FormattedMessage {...messages.noDocuments} />
           </TypographyP>
         ) : (
           orgWide.map((doc) => {

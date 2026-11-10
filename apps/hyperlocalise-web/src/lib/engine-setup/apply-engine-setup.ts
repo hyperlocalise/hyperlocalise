@@ -17,14 +17,9 @@ import { db, schema } from "@/lib/database/client";
 import type { Glossary as GlossaryRecord } from "@/lib/database/types";
 import type { GlossaryConceptImportEntry } from "@/lib/glossary/glossary";
 import { NativeGlossary } from "@/lib/glossary/native-glossary";
-import {
-  commitKnowledgeMemoryForOrganization,
-  getKnowledgeMemoryForOrganization,
-} from "@/lib/knowledge-memory/knowledge-memory";
-import { KNOWLEDGE_MEMORY_SUMMARY_MAX_LENGTH } from "@/lib/knowledge-memory/knowledge-memory.shared";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
-import { mergeEngineSetupKnowledge } from "./merge-knowledge-sections";
+import { upsertSetupGuidelineDocument } from "./setup-guideline-document";
 import {
   listEngineSetupSuggestions,
   markEngineSetupApplied,
@@ -38,14 +33,11 @@ import {
   type EngineVoicePayload,
 } from "./types";
 
-const KNOWLEDGE_COMMIT_ATTEMPTS = 2;
-
 export type ApplyEngineSetupError =
   | { code: "engine_setup_run_not_ready" }
   | { code: "engine_setup_nothing_to_apply" }
   | { code: "glossary_not_found" }
-  | { code: "knowledge_memory_too_long" }
-  | { code: "knowledge_memory_conflict" };
+  | { code: "setup_document_too_long" };
 
 export type ApplyEngineSetupResult = {
   run: EngineSetupRun;
@@ -63,12 +55,6 @@ function hostnameOf(url: string) {
   } catch {
     return url;
   }
-}
-
-function truncateSummary(summary: string) {
-  return summary.length > KNOWLEDGE_MEMORY_SUMMARY_MAX_LENGTH
-    ? `${summary.slice(0, KNOWLEDGE_MEMORY_SUMMARY_MAX_LENGTH - 1)}…`
-    : summary;
 }
 
 async function resolveTargetGlossary(input: {
@@ -133,49 +119,33 @@ function toConceptEntries(
   return entries;
 }
 
-async function commitKnowledge(input: {
-  auth: ApiAuthContext;
+async function commitSetupDocument(input: {
+  organizationSlug: string;
   run: EngineSetupRun;
   voice: EngineVoicePayload | null;
   rules: EngineRulePayload[];
 }): Promise<Result<string | null, ApplyEngineSetupError>> {
-  const organizationId = input.auth.organization.localOrganizationId;
-  const summary = truncateSummary(`Setup wizard: ${hostnameOf(input.run.sourceUrl)}`);
-
-  // Re-read and retry once if someone saved knowledge memory between our read and write.
-  for (let attempt = 0; attempt < KNOWLEDGE_COMMIT_ATTEMPTS; attempt++) {
-    const current = await getKnowledgeMemoryForOrganization(organizationId);
-    const merged = mergeEngineSetupKnowledge({
-      content: current.content,
-      voice: input.voice,
-      rules: input.rules,
-      sourceUrl: input.run.sourceUrl,
-    });
-    if (isErr(merged)) {
-      return err({ code: "knowledge_memory_too_long" });
-    }
-
-    const committed = await commitKnowledgeMemoryForOrganization({
-      organizationId,
-      content: merged.value,
-      summary,
-      updatedByUserId: input.auth.user.localUserId,
-      expectedRevisionId: current.revisionId,
-    });
-    if (!isErr(committed)) {
-      return ok(committed.value.changed ? committed.value.knowledgeMemory.revisionId : null);
-    }
+  const upserted = await upsertSetupGuidelineDocument({
+    organizationSlug: input.organizationSlug,
+    voice: input.voice,
+    rules: input.rules,
+    sourceUrl: input.run.sourceUrl,
+  });
+  if (isErr(upserted)) {
+    return err({ code: "setup_document_too_long" });
   }
-  return err({ code: "knowledge_memory_conflict" });
+  return ok(upserted.value.revisionId);
 }
 
 /**
  * Writes accepted suggestions into the engine: terms into a native glossary
- * (existing or newly created) and voice + rules into org knowledge memory.
- * Each writer dedupes, so re-applying after a partial failure is safe.
+ * (existing or newly created) and voice + rules into the wizard-managed setup
+ * guideline document. Each writer dedupes, so re-applying after a partial
+ * failure is safe.
  */
 export async function applyEngineSetup(input: {
   auth: ApiAuthContext;
+  organizationSlug: string;
   run: EngineSetupRun;
   glossaryId: string | null;
 }): Promise<Result<ApplyEngineSetupResult, ApplyEngineSetupError>> {
@@ -229,7 +199,12 @@ export async function applyEngineSetup(input: {
 
   let knowledgeRevisionId: string | null = null;
   if (voice || rules.length > 0) {
-    const committed = await commitKnowledge({ auth: input.auth, run: input.run, voice, rules });
+    const committed = await commitSetupDocument({
+      organizationSlug: input.organizationSlug,
+      run: input.run,
+      voice,
+      rules,
+    });
     if (isErr(committed)) return committed;
     knowledgeRevisionId = committed.value;
   }

@@ -26,7 +26,7 @@ import {
   type EngineSetupProgressStage,
 } from "@/lib/engine-setup/types";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
-import { getKnowledgeMemoryForOrganization } from "@/lib/knowledge-memory/knowledge-memory";
+import { readSetupGuidelineDocumentContentByOrganization } from "@/lib/engine-setup/setup-guideline-document";
 import { LOCALISATION_AUDIT_USER_AGENT_NAME } from "@/lib/localisation-audit/user-agent";
 import type { LocalisationAuditCrawlResult } from "@/lib/localisation-audit/types";
 import { isErr } from "@/lib/primitives/result/results";
@@ -132,14 +132,14 @@ export async function analyzeEngineSetupStep(input: {
   }
 
   await markEngineSetupRunProgress({ runId: input.runId, progressStage: "consolidating" });
-  const [glossaryTermKeys, knowledge] = await Promise.all([
+  const [glossaryTermKeys, knowledgeContent] = await Promise.all([
     loadExistingGlossaryTermKeys(input.organizationId),
-    getKnowledgeMemoryForOrganization(input.organizationId),
+    readSetupGuidelineDocumentContentByOrganization({ organizationId: input.organizationId }),
   ]);
   const drafts = consolidateEngineSuggestions({
     candidates: candidates.value,
     index: new PageCorpusIndex(corpora),
-    existing: { glossaryTermKeys, knowledgeContent: knowledge.content },
+    existing: { glossaryTermKeys, knowledgeContent },
   });
 
   const run = await completeEngineSetupRun({

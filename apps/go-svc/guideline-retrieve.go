@@ -29,9 +29,7 @@ type guidelineRetriever interface {
 	Retrieve(ctx context.Context, scope guidelines.Scope, text string, limit int) (guidelines.Result, error)
 }
 
-// guidelineRetrieveAPI returns uploaded guideline documents for translation
-// prompts. Typed workspace and project guidelines are excluded because the web
-// app already selects them.
+// guidelineRetrieveAPI returns guideline documents for translation prompts.
 type guidelineRetrieveAPI struct {
 	retriever guidelineRetriever
 	pool      *pgxpool.Pool
@@ -124,7 +122,7 @@ func (api *guidelineRetrieveAPI) retrieve(ctx context.Context, payload guideline
 		scope.ProjectID = projectID
 	}
 
-	// Typed guidelines share the ranking, so over-fetch before filtering them out.
+	// Rankings interleave locales, so over-fetch before filtering them out.
 	searchLimit := min(2*limit, 32)
 	results := make([]guidelines.Result, len(locales))
 	group, groupCtx := errgroup.WithContext(ctx)
@@ -188,7 +186,7 @@ func (c *collectedGuidelines) noteRevision(documentID, revisionID string) {
 	c.revisions[documentID] = revisionID
 }
 
-// collectUploaded keeps uploaded documents only. Mandatory documents are
+// collectUploaded keeps guideline documents only. Mandatory documents are
 // returned whole, so their passages are dropped; other passages interleave
 // the per-locale rankings.
 func collectUploaded(results []guidelines.Result, limit int) collectedGuidelines {

@@ -156,13 +156,14 @@ function uploadedGuidelineUses(
 }
 
 /**
- * Best effort: translation continues with typed guidelines when go-svc is
+ * Best effort: translation continues without guidelines when go-svc is
  * unavailable, so failures resolve to no text and no documents.
  */
 export async function loadUploadedGuidelinesContext(
   input: {
     organizationId: string;
-    projectId: string;
+    /** Omitted for workspace-wide reads with no project in scope. */
+    projectId?: string;
     targetLocales: string[];
     sourceText: string;
   },

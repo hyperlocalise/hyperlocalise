@@ -26,14 +26,12 @@ import { buildProjectPath } from "@/components/app-shell/navigation-config";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
-import { readApiError } from "@/lib/api-error";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { excerptGuidelineText } from "@/lib/knowledge-memory/knowledge-guideline-excerpt";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
-import { getKnowledgeMemory } from "./knowledge-memory-api";
 import { knowledgeProjectsSectionMessages as messages } from "./knowledge-projects-section.messages";
 
 type ProjectGuidelineRow = {
@@ -41,13 +39,12 @@ type ProjectGuidelineRow = {
   name: string;
   styleGuideExcerpt: string;
   styleGuideEmpty: boolean;
-  projectGuidelineExcerpt: string;
-  projectGuidelineEmpty: boolean;
+  projectGuidelineTitles: string[];
   settingsHref: string;
   knowledgeHref: string;
 };
 
-const PROJECT_GUIDELINE_MEMORY_CONCURRENCY = 5;
+const PROJECT_GUIDELINE_DOCUMENTS_CONCURRENCY = 5;
 
 async function loadProjectGuidelineRows(
   goSvcClient: GoSvcClient,
@@ -68,44 +65,26 @@ async function loadProjectGuidelineRows(
 
   const projects = [...tmsProjects, ...nativeProjects];
 
-  const guidelineByProjectId = await mapWithConcurrency(
+  const documentsByProjectId = await mapWithConcurrency(
     projects,
-    PROJECT_GUIDELINE_MEMORY_CONCURRENCY,
+    PROJECT_GUIDELINE_DOCUMENTS_CONCURRENCY,
     async (project) => {
-      const memoryResponse = await getKnowledgeMemory({
-        organizationSlug,
-        projectId: project.id,
-      });
-      if (memoryResponse.status === 404) {
-        return { projectId: project.id, content: "" };
-      }
-      if (!memoryResponse.ok) {
-        throw new Error(await readApiError(memoryResponse, "Failed to load project guideline"));
-      }
-      const memoryBody = await memoryResponse.json();
-      const content =
-        typeof memoryBody.knowledgeMemory?.content === "string"
-          ? memoryBody.knowledgeMemory.content
-          : "";
-      return { projectId: project.id, content };
+      const documents = await goSvcClient.guidelines.listDocuments(organizationSlug, project.id);
+      return { projectId: project.id, titles: documents.map((document) => document.title) };
     },
   );
 
-  const memoryContentById = new Map(
-    guidelineByProjectId.map((entry) => [entry.projectId, entry.content]),
-  );
+  const titlesById = new Map(documentsByProjectId.map((entry) => [entry.projectId, entry.titles]));
 
   return projects.map((project) => {
     const styleGuideValue = project.translationContextValue.trim();
-    const projectGuidelineValue = (memoryContentById.get(project.id) ?? "").trim();
 
     return {
       id: project.id,
       name: project.name,
       styleGuideExcerpt: excerptGuidelineText(styleGuideValue),
       styleGuideEmpty: styleGuideValue.length === 0,
-      projectGuidelineExcerpt: excerptGuidelineText(projectGuidelineValue),
-      projectGuidelineEmpty: projectGuidelineValue.length === 0,
+      projectGuidelineTitles: titlesById.get(project.id) ?? [],
       settingsHref: buildProjectPath(organizationSlug, project.id, "settings"),
       knowledgeHref: buildProjectPath(organizationSlug, project.id, "knowledge"),
     };
@@ -113,9 +92,10 @@ async function loadProjectGuidelineRows(
 }
 
 export function KnowledgeProjectsSection({ organizationSlug }: { organizationSlug: string }) {
-  const { client: goSvcClient } = useGoSvcClient();
+  const { client: goSvcClient, loading } = useGoSvcClient();
   const projectsQuery = useQuery({
     queryKey: ["knowledge-projects-section", organizationSlug],
+    enabled: !loading,
     queryFn: () => loadProjectGuidelineRows(goSvcClient, organizationSlug),
   });
 
@@ -199,12 +179,12 @@ export function KnowledgeProjectsSection({ organizationSlug }: { organizationSlu
                     </div>
                   </td>
                   <td className="px-4 py-3 align-top text-muted-foreground">
-                    {row.projectGuidelineEmpty ? (
+                    {row.projectGuidelineTitles.length === 0 ? (
                       <span className="text-muted-foreground">
                         <FormattedMessage {...messages.emptyProjectGuideline} />
                       </span>
                     ) : (
-                      <span className="line-clamp-2">{row.projectGuidelineExcerpt}</span>
+                      <span className="line-clamp-2">{row.projectGuidelineTitles.join(", ")}</span>
                     )}
                     <div className="mt-1">
                       <Link

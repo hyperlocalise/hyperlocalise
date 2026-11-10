@@ -144,8 +144,8 @@ The Iris editor localises its projects through these routes, all under
 
 | Method | Path | Operation |
 |--------|------|-----------|
-| POST | `/localise/lookup` | Glossary terms found in `texts` (with their `targetLocale` translation, forbidden flag and note), exact translation-memory matches, and the workspace knowledge memory. Reads only what the member's glossary and memory access allows. |
-| POST | `/localise/translate` | Translates up to 200 `messages` (`id`, `text`, `description`): approved memory matches first, then the translation model with the glossary, knowledge memory and `guidance` in the prompt. Results stay in request order. Translations that drop an ICU placeholder are left out. Billed as AI tokens. |
+| POST | `/localise/lookup` | Glossary terms found in `texts` (with their `targetLocale` translation, forbidden flag and note) and exact translation-memory matches. Reads only what the member's glossary and memory access allows. |
+| POST | `/localise/translate` | Translates up to 200 `messages` (`id`, `text`, `description`): approved memory matches first, then the translation model with the glossary and `guidance` in the prompt. Results stay in request order. Translations that drop an ICU placeholder are left out. Billed as AI tokens. |
 | POST | `/localise/memory` | Saves approved `entries` (`source`, `target`) into `memoryId`, or the oldest native memory, or a new "Iris" memory. Admins and localization managers only; existing pairs are skipped. |
 
 Localisation models on `/generate`: `elevenlabs-dubbing` (ElevenLabs Dubbing:
@@ -676,7 +676,7 @@ To enable guideline search, set `DATABASE_URL`, `TURBOPUFFER_API_KEY`,
 The prefix keeps development/staging/production indexes separate and must
 change if the embedding model or vector size changes. Use a US region;
 `google/gemini-embedding-2` inference is US-only. The PostgreSQL source reads
-the workspace/project knowledge memory notes and ready `guideline_documents` rows.
+ready `guideline_documents` rows.
 
 - `POST /v1/guidelines/sync`: `{organizationId, projectId?, locale?}`.
   Reindexes current canonical revisions. Call explicitly during adoption/rebuilds.
@@ -684,7 +684,7 @@ the workspace/project knowledge memory notes and ready `guideline_documents` row
   Limit is 1–32. Returns mandatory canonical documents, verified passages, and
   `searchAvailable`. Search is hybrid BM25 plus native Gemini Embedding 2; indexing and retrieval are separate.
 
-The app's existing lexical guideline selection is unchanged. An index must never
+An index must never be
 be the only retained copy of guideline content.
 
 Guideline documents are uploaded under `/v1/orgs/{org}/guidelines/documents` and
@@ -696,10 +696,8 @@ Uploads need object storage and `GUIDELINE_INGEST_SQS_QUEUE_URL`; without the
 queue they return 503. The `guideline-ingest` Lambda extracts and indexes each
 document, and `POST /internal/guidelines/sweep` republishes lost messages.
 
-Org-scoped assignment uses `workspace_guideline_projects` and
-`guideline_document_projects`: empty means every project. Typed workspace notes
-use `GET/POST /v1/orgs/{org}/knowledge-memory/projects` and
-`DELETE .../projects/{projectId}`. Org-wide uploads (project_id null) use
+Org-scoped assignment uses `guideline_document_projects`: empty means every
+project. Org-wide uploads (project_id null) use
 `GET/POST /v1/orgs/{org}/guidelines/documents/{documentId}/projects`,
 `DELETE .../projects/{projectId}`, and bulk `GET .../guidelines/documents/assignments`.
 
@@ -718,9 +716,8 @@ checks use mandatory guidelines only.
 - `POST /internal/guidelines/retrieve`:
   `{organizationId, projectId?, locales?, query, limit?}` for translation prompts.
   Retrieves once per locale (at most 8; none means locale-independent documents
-  only) and returns uploaded documents only: mandatory ones whole in `documents`,
-  others as up to `limit` (default 8, max 16) search `passages`. Typed workspace
-  and project guidelines are excluded because the web app already selects them.
+  only) and returns guideline documents: mandatory ones whole in `documents`,
+  others as up to `limit` (default 8, max 16) search `passages`.
   Service-token only.
 
 ## Activity logs
@@ -1096,39 +1093,17 @@ merging at 100, 5,000, and 20,000 unique words.
 
 ## Glossaries and translation memories
 
-### Knowledge memory
+### Knowledge memory (deprecated)
 
-go-svc mirrors the workspace and project knowledge-memory APIs with direct
-Postgres reads and writes. Every route requires an authenticated organization
-member and the WorkOS `workspace-knowledge` feature flag. Writes require the
-`workspace:update` capability; project routes also enforce organization and
-team access using persisted project rows. The Go service does not resolve live
-provider projects or decrypt credentials.
-
-Updates and restores require an `If-Match` ETag from the current read (for an
-empty memory, use `"0"`). A stale ETag returns `412` with the current memory and
-ETag. Content is normalized and versioned in Postgres, no-op updates retain the
-current revision, and revision history supports cursor pagination and restore.
-Preview uses the Go retrieval implementation and applies the same payload and
-selected-context size limits as the web API.
-
-All paths below are relative to `/v1/orgs/{organizationSlug}`:
-
-| Method | Path | Operation |
-|--------|------|-----------|
-| GET, PUT | `/knowledge-memory` | Read or update workspace memory |
-| POST | `/knowledge-memory/preview` | Preview selected workspace context |
-| GET | `/knowledge-memory/revisions` | List workspace revisions |
-| GET | `/knowledge-memory/revisions/{revisionId}` | Read a revision and its predecessor |
-| POST | `/knowledge-memory/revisions/{revisionId}/restore` | Restore a workspace revision |
-| GET, PUT | `/projects/{projectId}/knowledge-memory` | Read or update project memory |
-| POST | `/projects/{projectId}/knowledge-memory/preview` | Preview selected project context |
-| GET | `/projects/{projectId}/knowledge-memory/revisions` | List project revisions |
-| GET | `/projects/{projectId}/knowledge-memory/revisions/{revisionId}` | Read a project revision and its predecessor |
-| POST | `/projects/{projectId}/knowledge-memory/revisions/{revisionId}/restore` | Restore a project revision |
-
-These routes are covered by the `knowledge-memory` handler, revision, conflict,
-authorization, project-access, and selection tests in `apps/go-svc`.
+The typed workspace and project knowledge-memory notes are retired: every
+guideline is a `guideline_documents` record now (uploaded, or typed as a
+Markdown document). The `knowledge_memories`, `project_knowledge_memories`,
+and revision tables stay in the database, deprecated and unwritten, so existing
+deployments keep working without a migration. The `GET`/`PUT`/preview/revision
+routes and the workspace-note assignment endpoints have been removed; use the
+guideline document routes above instead. The shared `knowledgeMemoryAPI`
+handler wrapper, error helpers, and project-scope checks remain for those
+document routes.
 
 The browser can call `/api/go-svc/v1/orgs/{organizationSlug}/glossaries` and
 `/api/go-svc/v1/orgs/{organizationSlug}/translation-memories` for native library
@@ -1164,11 +1139,10 @@ They cover CSV/TBX/XLSX serialize and parse, TMX/CSV memory interchange,
 source-text normalization, and page-cursor decode at 100–5,000 units.
 
 Hot-path benches for Iris validation, CAT queue filters, reporting money,
-public translation marshal, native word count, knowledge-memory selection,
-and conversation sanitization:
+public translation marshal, native word count, and conversation sanitization:
 
 ```bash
-go test ./apps/go-svc -run '^$' -bench 'Benchmark(ValidateIris|AppendEditorCatQueue|ParseEditorCatAdvanced|WordCost|PublicTranslationMarshal|CountNative|SelectKnowledgeMemory|SanitizeConversation)' -benchmem
+go test ./apps/go-svc -run '^$' -bench 'Benchmark(ValidateIris|AppendEditorCatQueue|ParseEditorCatAdvanced|WordCost|PublicTranslationMarshal|CountNative|SanitizeConversation)' -benchmem
 ```
 
 All paths below are relative to `/v1/orgs/{organizationSlug}`:

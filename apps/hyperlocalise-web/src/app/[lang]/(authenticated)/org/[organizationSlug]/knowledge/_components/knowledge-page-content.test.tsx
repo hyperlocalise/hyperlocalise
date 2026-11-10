@@ -19,18 +19,9 @@ import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
-  getKnowledgeMemory: vi.fn(),
   listDocuments: vi.fn(),
+  listProjects: vi.fn(),
 }));
-
-vi.mock("./knowledge-memory-api", async () => {
-  const actual =
-    await vi.importActual<typeof import("./knowledge-memory-api")>("./knowledge-memory-api");
-  return {
-    ...actual,
-    getKnowledgeMemory: mocks.getKnowledgeMemory,
-  };
-});
 
 vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
   useGoSvcClient: () => ({
@@ -39,12 +30,19 @@ vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
       guidelines: {
         listDocuments: mocks.listDocuments,
       },
+      project: {
+        list: mocks.listProjects,
+      },
     },
   }),
 }));
 
-vi.mock("./knowledge-memory-editor", () => ({
-  KnowledgeMemoryEditor: () => <div>knowledge-editor</div>,
+vi.mock("next/link", () => ({
+  default: ({ href, children, ...props }: { href: string; children: ReactNode }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 const { KnowledgePageContent } = await import("./knowledge-page-content");
@@ -64,17 +62,8 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function emptyKnowledgeResponse() {
-  return {
-    ok: true,
-    headers: new Headers(),
-    json: async () => ({ knowledgeMemory: { content: "" } }),
-  };
-}
-
 describe("KnowledgePageContent", () => {
-  it("hides file upload controls for readers", async () => {
-    mocks.getKnowledgeMemory.mockResolvedValue(emptyKnowledgeResponse());
+  it("hides the upload link for readers", async () => {
     mocks.listDocuments.mockResolvedValue([]);
 
     render(
@@ -86,14 +75,11 @@ describe("KnowledgePageContent", () => {
       { wrapper },
     );
 
-    expect(await screen.findByText("knowledge-editor")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Guideline" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Add sources" })).toBeNull();
-    expect(screen.queryByText("Upload guideline")).toBeNull();
-    expect(screen.queryByRole("button", { name: /choose a file/i })).toBeNull();
   });
 
-  it("shows file upload controls for writers on an empty page", async () => {
-    mocks.getKnowledgeMemory.mockResolvedValue(emptyKnowledgeResponse());
+  it("links writers to the project upload page", async () => {
     mocks.listDocuments.mockResolvedValue([]);
 
     render(
@@ -105,7 +91,23 @@ describe("KnowledgePageContent", () => {
       { wrapper },
     );
 
-    expect(await screen.findByText("Upload guideline")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Add sources" })).toBeNull();
+    expect(await screen.findByRole("button", { name: "Add sources" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1/knowledge/upload",
+    );
+  });
+
+  it("links writers to the workspace upload page", async () => {
+    mocks.listDocuments.mockResolvedValue([]);
+    mocks.listProjects.mockResolvedValue({ projects: [] });
+
+    render(<KnowledgePageContent organizationSlug="acme" canUpdateKnowledgeMemory />, {
+      wrapper,
+    });
+
+    expect(await screen.findByRole("button", { name: "Add sources" })).toHaveAttribute(
+      "href",
+      "/org/acme/knowledge/upload",
+    );
   });
 });

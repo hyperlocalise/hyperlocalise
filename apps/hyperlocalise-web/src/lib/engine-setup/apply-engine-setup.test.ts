@@ -12,17 +12,12 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const {
-  listEngineSetupSuggestionsMock,
-  markEngineSetupAppliedMock,
-  getKnowledgeMemoryMock,
-  commitKnowledgeMemoryMock,
-} = vi.hoisted(() => ({
-  listEngineSetupSuggestionsMock: vi.fn(),
-  markEngineSetupAppliedMock: vi.fn(),
-  getKnowledgeMemoryMock: vi.fn(),
-  commitKnowledgeMemoryMock: vi.fn(),
-}));
+const { listEngineSetupSuggestionsMock, markEngineSetupAppliedMock, upsertSetupDocumentMock } =
+  vi.hoisted(() => ({
+    listEngineSetupSuggestionsMock: vi.fn(),
+    markEngineSetupAppliedMock: vi.fn(),
+    upsertSetupDocumentMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/database/client", () => ({
   db: {},
@@ -39,13 +34,11 @@ vi.mock("@/lib/engine-setup/store", () => ({
   recordEngineSetupGlossaryApplied: vi.fn(),
 }));
 
-vi.mock("@/lib/knowledge-memory/knowledge-memory", () => ({
-  getKnowledgeMemoryForOrganization: getKnowledgeMemoryMock,
-  commitKnowledgeMemoryForOrganization: commitKnowledgeMemoryMock,
+vi.mock("@/lib/engine-setup/setup-guideline-document", () => ({
+  upsertSetupGuidelineDocument: upsertSetupDocumentMock,
 }));
 
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH } from "@/lib/knowledge-memory/knowledge-memory.shared";
 import { err, isErr, isOk, ok } from "@/lib/primitives/result/results";
 
 import { applyEngineSetup } from "./apply-engine-setup";
@@ -154,31 +147,17 @@ const ruleSuggestion = suggestion({
   },
 });
 
-const knowledge = {
-  revisionId: "rev_1",
-  version: 1,
-  content: "Existing memory.",
-  summary: "Existing",
-  updatedAt: NOW.toISOString(),
-  updatedByUserId: "user_1",
-};
-
-const conflict = err({
-  code: "precondition_failed" as const,
-  current: knowledge,
-});
-
 beforeEach(() => {
   listEngineSetupSuggestionsMock.mockReset();
   markEngineSetupAppliedMock.mockReset();
-  getKnowledgeMemoryMock.mockReset();
-  commitKnowledgeMemoryMock.mockReset();
+  upsertSetupDocumentMock.mockReset();
 });
 
 describe("applyEngineSetup", () => {
   it("refuses a run that is not ready", async () => {
     const result = await applyEngineSetup({
       auth: auth(),
+      organizationSlug: "acme",
       run: readyRun({ status: "running" }),
       glossaryId: null,
     });
@@ -198,87 +177,77 @@ describe("applyEngineSetup", () => {
     ]);
     const result = await applyEngineSetup({
       auth: auth(),
+      organizationSlug: "acme",
       run: readyRun(),
       glossaryId: null,
     });
     expect(isErr(result) && result.error).toEqual({ code: "engine_setup_nothing_to_apply" });
-    expect(commitKnowledgeMemoryMock).not.toHaveBeenCalled();
+    expect(upsertSetupDocumentMock).not.toHaveBeenCalled();
   });
 
-  it("retries a knowledge conflict once, then fails closed", async () => {
+  it("upserts the setup guideline document and records the new revision", async () => {
     listEngineSetupSuggestionsMock.mockResolvedValue([voiceSuggestion, ruleSuggestion]);
-    getKnowledgeMemoryMock.mockResolvedValue(knowledge);
-    commitKnowledgeMemoryMock.mockResolvedValue(conflict);
-
-    const result = await applyEngineSetup({
-      auth: auth(),
-      run: readyRun(),
-      glossaryId: null,
-    });
-
-    expect(isErr(result) && result.error).toEqual({ code: "knowledge_memory_conflict" });
-    expect(getKnowledgeMemoryMock).toHaveBeenCalledTimes(2);
-    expect(commitKnowledgeMemoryMock).toHaveBeenCalledTimes(2);
-    expect(commitKnowledgeMemoryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        organizationId: "org_1",
-        expectedRevisionId: "rev_1",
-        updatedByUserId: "user_1",
-      }),
-    );
-    expect(markEngineSetupAppliedMock).not.toHaveBeenCalled();
-  });
-
-  it("applies on the second knowledge commit after a single conflict", async () => {
-    listEngineSetupSuggestionsMock.mockResolvedValue([ruleSuggestion]);
-    getKnowledgeMemoryMock
-      .mockResolvedValueOnce(knowledge)
-      .mockResolvedValueOnce({ ...knowledge, revisionId: "rev_2" });
-    commitKnowledgeMemoryMock.mockResolvedValueOnce(conflict).mockResolvedValueOnce(
-      ok({
-        changed: true,
-        knowledgeMemory: { ...knowledge, revisionId: "rev_3" },
-      }),
-    );
+    upsertSetupDocumentMock.mockResolvedValue(ok({ documentId: "doc_1", revisionId: "rev_9" }));
     markEngineSetupAppliedMock.mockResolvedValue(readyRun({ status: "applied" }));
 
     const result = await applyEngineSetup({
       auth: auth(),
+      organizationSlug: "acme",
       run: readyRun(),
       glossaryId: null,
     });
 
     expect(isOk(result) && result.value).toMatchObject({
       rulesApplied: 1,
-      voiceApplied: false,
-      knowledgeRevisionId: "rev_3",
+      voiceApplied: true,
+      knowledgeRevisionId: "rev_9",
     });
-    expect(commitKnowledgeMemoryMock).toHaveBeenCalledTimes(2);
-    expect(commitKnowledgeMemoryMock.mock.calls[1]![0]).toMatchObject({
-      expectedRevisionId: "rev_2",
+    expect(upsertSetupDocumentMock).toHaveBeenCalledWith({
+      organizationSlug: "acme",
+      voice: voiceSuggestion.payload.kind === "voice" ? voiceSuggestion.payload.voice : null,
+      rules: [ruleSuggestion.payload.kind === "rule" ? ruleSuggestion.payload.rule : null].filter(
+        Boolean,
+      ),
+      sourceUrl: "https://example.com",
     });
     expect(markEngineSetupAppliedMock).toHaveBeenCalledWith({
       runId: "run_1",
-      suggestionIds: ["sug_rule"],
+      suggestionIds: ["sug_voice", "sug_rule"],
       appliedByUserId: "user_1",
-      appliedKnowledgeRevisionId: "rev_3",
+      appliedKnowledgeRevisionId: "rev_9",
     });
   });
 
-  it("maps a merged knowledge document that is too long", async () => {
-    listEngineSetupSuggestionsMock.mockResolvedValue([voiceSuggestion]);
-    getKnowledgeMemoryMock.mockResolvedValue({
-      ...knowledge,
-      content: "x".repeat(KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH),
-    });
+  it("records a null revision when the setup document is unchanged", async () => {
+    listEngineSetupSuggestionsMock.mockResolvedValue([ruleSuggestion]);
+    upsertSetupDocumentMock.mockResolvedValue(ok({ documentId: "doc_1", revisionId: null }));
+    markEngineSetupAppliedMock.mockResolvedValue(readyRun({ status: "applied" }));
 
     const result = await applyEngineSetup({
       auth: auth(),
+      organizationSlug: "acme",
       run: readyRun(),
       glossaryId: null,
     });
 
-    expect(isErr(result) && result.error).toEqual({ code: "knowledge_memory_too_long" });
-    expect(commitKnowledgeMemoryMock).not.toHaveBeenCalled();
+    expect(isOk(result) && result.value).toMatchObject({ knowledgeRevisionId: null });
+    expect(markEngineSetupAppliedMock).toHaveBeenCalledWith(
+      expect.objectContaining({ appliedKnowledgeRevisionId: null }),
+    );
+  });
+
+  it("maps a setup document that is too long", async () => {
+    listEngineSetupSuggestionsMock.mockResolvedValue([voiceSuggestion]);
+    upsertSetupDocumentMock.mockResolvedValue(err({ code: "setup_document_too_long" }));
+
+    const result = await applyEngineSetup({
+      auth: auth(),
+      organizationSlug: "acme",
+      run: readyRun(),
+      glossaryId: null,
+    });
+
+    expect(isErr(result) && result.error).toEqual({ code: "setup_document_too_long" });
+    expect(markEngineSetupAppliedMock).not.toHaveBeenCalled();
   });
 });

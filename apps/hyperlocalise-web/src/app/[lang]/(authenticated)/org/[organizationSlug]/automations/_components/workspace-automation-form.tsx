@@ -58,7 +58,7 @@ import {
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
 import { IntegrationLogo } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/integration-logo";
-import { KnowledgeMemoryEditor } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/knowledge/_components/knowledge-memory-editor";
+import { buildOrganizationPath } from "@/components/app-shell/navigation-config";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -2280,7 +2280,6 @@ function SuggestionChips({
 
 function ToolsSettings({
   automationId,
-  canUpdateKnowledgeMemory,
   contentfulConnections,
   crowdinConnected,
   crowdinLiveProjects,
@@ -2316,7 +2315,6 @@ function ToolsSettings({
   mailchimpConnected,
 }: {
   automationId?: string;
-  canUpdateKnowledgeMemory: boolean;
   contentfulConnections: ContentfulConnectionOption[];
   crowdinConnected: boolean;
   crowdinLiveProjects: ProjectOption[];
@@ -2403,30 +2401,11 @@ function ToolsSettings({
                 <DeleteToolButton
                   disabled={disabled}
                   label={intl.formatMessage(workspaceAutomationFormMessages.removeMemoriesTool)}
-                  onClick={() =>
-                    onChange({ ...form, knowledgeEnabled: false, knowledgeAllowUpdates: false })
-                  }
+                  onClick={() => onChange({ ...form, knowledgeEnabled: false })}
                 />
               </>
             }
-          >
-            <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-              <span className="text-xs text-foreground">
-                <FormattedMessage {...workspaceAutomationFormMessages.allowMemoryUpdates} />
-              </span>
-              <Switch
-                size="sm"
-                checked={form.knowledgeAllowUpdates}
-                disabled={disabled || !knowledgeAvailable}
-                onCheckedChange={(checked) => onChange({ ...form, knowledgeAllowUpdates: checked })}
-              />
-            </label>
-            {form.knowledgeAllowUpdates ? (
-              <p className="mt-2 text-xs text-pretty text-muted-foreground">
-                <FormattedMessage {...workspaceAutomationFormMessages.allowMemoryUpdatesWarning} />
-              </p>
-            ) : null}
-          </EditorRow>
+          ></EditorRow>
         ) : null}
 
         {form.knowledgeFilesEnabled ? (
@@ -3949,10 +3928,20 @@ function ToolsSettings({
             </SheetDescription>
           </SheetHeader>
           <div className="px-6 pb-6">
-            <KnowledgeMemoryEditor
-              organizationSlug={organizationSlug}
-              canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
-            />
+            <p className="text-sm text-muted-foreground">
+              <FormattedMessage {...workspaceAutomationFormMessages.manageMemoriesDescription} />
+            </p>
+            <Button
+              type="button"
+              nativeButton={false}
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              render={<Link href={buildOrganizationPath(organizationSlug, "knowledge")} />}
+              onClick={() => setMemoriesOpen(false)}
+            >
+              <FormattedMessage {...workspaceAutomationFormMessages.openGuideline} />
+            </Button>
           </div>
         </SheetContent>
       </Sheet>
@@ -3967,7 +3956,6 @@ export function WorkspaceAutomationEditor({
   assistantHasUnsavedChanges,
   assistantInitialPrompt = null,
   automationId,
-  canUpdateKnowledgeMemory = false,
   disabled,
   errors,
   footer,
@@ -3994,7 +3982,6 @@ export function WorkspaceAutomationEditor({
   /** A request handed over from the automations page, which the assistant starts with. */
   assistantInitialPrompt?: string | null;
   automationId?: string;
-  canUpdateKnowledgeMemory?: boolean;
   disabled?: boolean;
   errors: Record<string, string | undefined>;
   /** Shown under the editor, in the same scrolling pane when the assistant is offered. */
@@ -4729,7 +4716,6 @@ export function WorkspaceAutomationEditor({
 
           <ToolsSettings
             automationId={automationId}
-            canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
             contentfulConnections={contentfulConnections}
             crowdinConnected={crowdinConnected}
             crowdinLiveProjects={crowdinLiveProjects}
@@ -4874,7 +4860,6 @@ export function WorkspaceAutomationForm(props: {
   errors: Record<string, string | undefined>;
   disabled?: boolean;
   knowledgeAvailable?: boolean;
-  canUpdateKnowledgeMemory?: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
 }) {
   return <WorkspaceAutomationEditor mode="create" {...props} />;

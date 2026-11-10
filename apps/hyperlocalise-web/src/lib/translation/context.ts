@@ -17,14 +17,6 @@ import { db, schema } from "@/lib/database/client";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { GlossaryMatchResolution } from "@/lib/providers/contracts/glossary-matcher";
 import type { TranslationMemoryMatchResolution } from "@/lib/providers/contracts/translation-memory-matcher";
-import { composeScopedKnowledgeMemory } from "@/lib/knowledge-memory/knowledge-memory-compose";
-import {
-  getKnowledgeMemoryForOrganization,
-  getKnowledgeMemoryForProject,
-  isWorkspaceGuidelineAssignedToProject,
-} from "@/lib/knowledge-memory/knowledge-memory";
-import { selectKnowledgeMemoryContext } from "@/lib/knowledge-memory/knowledge-memory-selection";
-import type { KnowledgeMemoryRecord } from "@/lib/knowledge-memory/knowledge-memory.types";
 import { loadUploadedGuidelinesContext } from "@/lib/knowledge-memory/uploaded-guidelines-context";
 import {
   NO_GUIDELINES_USED,
@@ -33,7 +25,6 @@ import {
   type GlossaryUse,
   type GuidelinesUsed,
   type TranslationMemoryUse,
-  type TypedGuidelineUse,
 } from "@/lib/translation/generation-provenance";
 import {
   TranslationContext,
@@ -76,16 +67,8 @@ export type TranslationGuidelines = {
 
 const NO_TRANSLATION_GUIDELINES: TranslationGuidelines = { text: "", used: NO_GUIDELINES_USED };
 
-function typedGuidelineUse(
-  memory: KnowledgeMemoryRecord,
-  selectedText: string,
-): TypedGuidelineUse | undefined {
-  if (!memory.revisionId || !selectedText.trim()) return undefined;
-  return { revisionId: memory.revisionId, version: memory.version };
-}
-
 /**
- * Selects the project, workspace and uploaded guidelines for a translation and records which of
+ * Loads the uploaded guideline documents for a translation and records which of
  * them reached the prompt.
  */
 export async function loadTranslationGuidelines(input: {
@@ -99,55 +82,16 @@ export async function loadTranslationGuidelines(input: {
   context?: string | null;
   metadata?: Record<string, string>;
 }): Promise<TranslationGuidelines> {
-  const [projectMemory, workspaceAssigned, uploadedGuidelines] = await Promise.all([
-    getKnowledgeMemoryForProject(input.project.id),
-    isWorkspaceGuidelineAssignedToProject(input.project.organizationId, input.project.id),
-    loadUploadedGuidelinesContext({
-      organizationId: input.project.organizationId,
-      projectId: input.project.id,
-      targetLocales: input.targetLocales,
-      sourceText: input.sourceText,
-    }),
-  ]);
-  const organizationMemory = workspaceAssigned
-    ? await getKnowledgeMemoryForOrganization(input.project.organizationId)
-    : {
-        revisionId: null,
-        version: 0,
-        content: "",
-        summary: null,
-        updatedAt: null,
-        updatedByUserId: null,
-      };
-  const selectionInput = {
-    sourceLocale: input.sourceLocale,
+  const uploadedGuidelines = await loadUploadedGuidelinesContext({
+    organizationId: input.project.organizationId,
+    projectId: input.project.id,
     targetLocales: input.targetLocales,
     sourceText: input.sourceText,
-    context: input.context ?? undefined,
-    metadata: input.metadata,
-    projectName: input.project.name,
-    projectTranslationContext: input.project.translationContext,
-  };
-  const projectGuideline = selectKnowledgeMemoryContext({
-    ...selectionInput,
-    content: projectMemory.content,
-  }).compactText;
-  const workspaceGuideline = selectKnowledgeMemoryContext({
-    ...selectionInput,
-    content: organizationMemory.content,
-  }).compactText;
-  const project = typedGuidelineUse(projectMemory, projectGuideline);
-  const workspace = typedGuidelineUse(organizationMemory, workspaceGuideline);
+  });
 
   return {
-    text: composeScopedKnowledgeMemory({
-      projectGuideline,
-      workspaceGuideline,
-      uploadedGuidelines: uploadedGuidelines.text,
-    }),
+    text: uploadedGuidelines.text,
     used: {
-      ...(project ? { project } : {}),
-      ...(workspace ? { workspace } : {}),
       documents: uploadedGuidelines.documents,
     },
   };

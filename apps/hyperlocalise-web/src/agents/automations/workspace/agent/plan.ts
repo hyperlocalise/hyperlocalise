@@ -79,7 +79,6 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "notify_email",
   "notify_github_comment",
   "recall_memory",
-  "save_memory",
 ] as const;
 
 export type WorkspaceOrchestratorToolName = (typeof WORKSPACE_ORCHESTRATOR_TOOL_NAMES)[number];
@@ -123,11 +122,11 @@ const NOTIFICATION_TOOLS: WorkspaceOrchestratorToolName[] = [
   "notify_github_comment",
 ];
 
-// Memory tools remain in the tool-name union while the retrieval redesign is pending, but they
-// must not be added to execution plans. The orchestrator forces every planned tool, so planning
-// recall_memory/save_memory made both calls mandatory on every run. Keeping them out of plans
-// disables automation memory execution without affecting the human editor or chat memory tools.
-const MEMORY_ONLY_TOOLS: WorkspaceOrchestratorToolName[] = ["recall_memory", "save_memory"];
+// recall_memory remains in the tool-name union but must not be added to execution plans: the
+// orchestrator forces every planned tool, and planning recall_memory would make the lookup call
+// mandatory on every run. Keeping it out of plans disables automation memory execution without
+// affecting read-only guideline lookups elsewhere.
+const MEMORY_ONLY_TOOLS: WorkspaceOrchestratorToolName[] = ["recall_memory"];
 
 function workflowToolEnabled(
   tool: WorkspaceOrchestratorToolName,
@@ -405,8 +404,8 @@ export function buildWorkspaceOrchestratorPlan(
 }
 
 /**
- * Whether the plan includes an actionable workflow or notification tool. Memory tools are
- * excluded defensively even though buildWorkspaceOrchestratorPlan no longer emits them.
+ * Whether the plan includes an actionable workflow or notification tool. The recall_memory tool
+ * is excluded defensively even though buildWorkspaceOrchestratorPlan no longer emits it.
  */
 export function planHasActionableTool(plan: WorkspaceOrchestratorPlan): boolean {
   return plan.tools.some((tool) => !MEMORY_ONLY_TOOLS.includes(tool));

@@ -61,13 +61,10 @@ import { setCatSegmentLocks } from "@/lib/projects/content-editor/content-editor
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { maxPublicUploadBytes } from "@/api/routes/public-files/public-files.schema";
-import {
-  commitKnowledgeMemoryForOrganization,
-  commitKnowledgeMemoryForProject,
-} from "@/lib/knowledge-memory/knowledge-memory";
 import { NativeGlossary } from "@/lib/glossary/native-glossary";
 import { err, ok } from "@/lib/primitives/result/results";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
+import type { UploadedGuidelinesContext } from "@/lib/knowledge-memory/uploaded-guidelines-context";
 
 const { resolveApiAuthContextFromSessionMock, workspaceKnowledgeFlagRunMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -110,6 +107,14 @@ vi.mock("@/lib/go-svc/go-svc-server-client", () => ({
   createGoSvcServerClient: () => ({
     guidelines: { internalCheck: guidelineInternalCheckMock },
   }),
+}));
+
+const loadUploadedGuidelinesContextMock = vi.hoisted(() =>
+  vi.fn(async (): Promise<UploadedGuidelinesContext> => ({ text: "", documents: [] })),
+);
+
+vi.mock("@/lib/knowledge-memory/uploaded-guidelines-context", () => ({
+  loadUploadedGuidelinesContext: loadUploadedGuidelinesContextMock,
 }));
 
 const { resolveMcpClientMetadataMock } = vi.hoisted(() => ({
@@ -339,6 +344,8 @@ describe("mcpRoutes", () => {
     workspaceKnowledgeFlagRunMock.mockReset();
     workspaceKnowledgeFlagRunMock.mockResolvedValue(true);
     guidelineInternalCheckMock.mockReset();
+    loadUploadedGuidelinesContextMock.mockReset();
+    loadUploadedGuidelinesContextMock.mockResolvedValue({ text: "", documents: [] });
   });
 
   afterEach(async () => {
@@ -9753,7 +9760,7 @@ describe("mcpRoutes", () => {
     });
   });
 
-  it("advertises get_knowledge_memory with bounded organization and project scopes", async () => {
+  it("advertises get_knowledge_memory with query and bounded organization and project scopes", async () => {
     const headers = await authenticatedMcpHeaders();
 
     const response = await mcpClient.mcp.$post(
@@ -9792,8 +9799,11 @@ describe("mcpRoutes", () => {
     const tool = body.result?.tools?.find(({ name }) => name === "get_knowledge_memory");
 
     expect(tool).toBeDefined();
-    expect(tool?.description).toContain("knowledge memory");
+    expect(tool?.description).toContain("guideline");
     expect(tool?.inputSchema?.properties).toMatchObject({
+      query: {
+        type: "string",
+      },
       scope: {
         type: "string",
         enum: ["organization", "project"],
@@ -9805,7 +9815,7 @@ describe("mcpRoutes", () => {
     });
   });
 
-  it("returns organization knowledge memory", async () => {
+  it("returns organization guideline documents", async () => {
     const headers = await authenticatedMcpHeaders();
     const auth = globalThis.__testApiAuthContext;
 
@@ -9813,61 +9823,59 @@ describe("mcpRoutes", () => {
       throw new Error("expected test auth context");
     }
 
-    const content = [
-      "# Organization guidelines",
-      "",
-      "- Do not translate Hyperlocalise.",
-      "- Use sentence case for headings.",
-    ].join("\n");
-
-    const committed = await commitKnowledgeMemoryForOrganization({
-      organizationId: auth.organization.localOrganizationId,
-      content,
-      summary: "Add organization translation guidelines",
-      updatedByUserId: auth.user.localUserId,
-      expectedRevisionId: null,
+    loadUploadedGuidelinesContextMock.mockResolvedValueOnce({
+      text: "### Brand guide\nNever translate Hyperlocalise.",
+      documents: [
+        {
+          documentId: "doc-1",
+          revisionId: "rev-1",
+          version: 1,
+          title: "Brand guide",
+          mandatory: true,
+        },
+      ],
     });
-
-    expect(committed.ok).toBe(true);
 
     const result = await readMcpToolResult(
       await callMcpTool(headers, "get_knowledge_memory", {
+        query: "How should the brand name be translated?",
         scope: "organization",
       }),
     );
 
     expect(result.isError).toBe(false);
-    expect(result.output).toMatchObject({
+    expect(loadUploadedGuidelinesContextMock).toHaveBeenCalledWith({
+      organizationId: auth.organization.localOrganizationId,
+      projectId: undefined,
+      targetLocales: [],
+      sourceText: "How should the brand name be translated?",
+    });
+    expect(result.output).toEqual({
       scope: "organization",
-      content,
-      updatedAt: expect.any(String),
-      truncated: false,
+      found: true,
+      text: "### Brand guide\nNever translate Hyperlocalise.",
+      documents: [
+        {
+          documentId: "doc-1",
+          revisionId: "rev-1",
+          version: 1,
+          title: "Brand guide",
+          mandatory: true,
+        },
+      ],
     });
 
     expect(result.output).not.toHaveProperty("projectId");
   });
 
-  it("does not read knowledge memory when Workspace Knowledge is disabled", async () => {
+  it("does not search guideline documents when Workspace Knowledge is disabled", async () => {
     const headers = await authenticatedMcpHeaders();
-    const auth = globalThis.__testApiAuthContext;
 
-    if (!auth) {
-      throw new Error("expected test auth context");
-    }
-
-    const committed = await commitKnowledgeMemoryForOrganization({
-      organizationId: auth.organization.localOrganizationId,
-      content: "Retained private guidance",
-      summary: "Add retained guidance",
-      updatedByUserId: auth.user.localUserId,
-      expectedRevisionId: null,
-    });
-
-    expect(committed.ok).toBe(true);
     workspaceKnowledgeFlagRunMock.mockResolvedValue(false);
 
     const result = await readMcpToolResult(
       await callMcpTool(headers, "get_knowledge_memory", {
+        query: "brand name",
         scope: "organization",
       }),
     );
@@ -9876,7 +9884,8 @@ describe("mcpRoutes", () => {
     expect(result.output).toMatchObject({
       error: "knowledge_memory_unavailable",
     });
-    expect(result.output).not.toHaveProperty("content");
+    expect(result.output).not.toHaveProperty("text");
+    expect(loadUploadedGuidelinesContextMock).not.toHaveBeenCalled();
   });
 
   it("fails closed when the Workspace Knowledge flag cannot be evaluated", async () => {
@@ -9886,6 +9895,7 @@ describe("mcpRoutes", () => {
 
     const result = await readMcpToolResult(
       await callMcpTool(headers, "get_knowledge_memory", {
+        query: "brand name",
         scope: "organization",
       }),
     );
@@ -9896,50 +9906,40 @@ describe("mcpRoutes", () => {
     });
   });
 
-  it("returns project knowledge memory", async () => {
+  it("returns project guideline documents", async () => {
     const stored = await fixture.createStoredProjectFixture();
     const headers = await authenticatedMcpHeaders(stored.identity);
-    const auth = globalThis.__testApiAuthContext;
 
-    if (!auth) {
-      throw new Error("expected test auth context");
-    }
-
-    const content = [
-      "# Project guidelines",
-      "",
-      "- Preserve ICU placeholders.",
-      "- Use formal Vietnamese.",
-    ].join("\n");
-
-    const committed = await commitKnowledgeMemoryForProject({
-      projectId: stored.project.id,
-      content,
-      summary: "Add project translation guidelines",
-      updatedByUserId: auth.user.localUserId,
-      expectedRevisionId: null,
+    loadUploadedGuidelinesContextMock.mockResolvedValueOnce({
+      text: "### Tone\nUse formal Vietnamese.",
+      documents: [],
     });
-
-    expect(committed.ok).toBe(true);
 
     const result = await readMcpToolResult(
       await callMcpTool(headers, "get_knowledge_memory", {
+        query: "Which tone for Vietnamese?",
         scope: "project",
         projectId: stored.project.id,
       }),
     );
 
     expect(result.isError).toBe(false);
-    expect(result.output).toMatchObject({
+    expect(loadUploadedGuidelinesContextMock).toHaveBeenCalledWith({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      targetLocales: [],
+      sourceText: "Which tone for Vietnamese?",
+    });
+    expect(result.output).toEqual({
       scope: "project",
       projectId: stored.project.id,
-      content,
-      updatedAt: expect.any(String),
-      truncated: false,
+      found: true,
+      text: "### Tone\nUse formal Vietnamese.",
+      documents: [],
     });
   });
 
-  it("returns project_not_found for an inaccessible project knowledge memory", async () => {
+  it("returns project_not_found for an inaccessible project", async () => {
     const accessible = await fixture.createStoredProjectFixture();
     const inaccessible = await fixture.createStoredProjectFixture();
 
@@ -9947,6 +9947,7 @@ describe("mcpRoutes", () => {
 
     const result = await readMcpToolResult(
       await callMcpTool(headers, "get_knowledge_memory", {
+        query: "tone",
         scope: "project",
         projectId: inaccessible.project.id,
       }),
@@ -10053,63 +10054,29 @@ describe("mcpRoutes", () => {
     });
   });
 
-  it("returns an empty organization knowledge memory without an error", async () => {
+  it("returns no guideline documents without an error when nothing matches", async () => {
     const headers = await authenticatedMcpHeaders();
-
-    const result = await readMcpToolResult(await callMcpTool(headers, "get_knowledge_memory", {}));
-
-    expect(result.isError).toBe(false);
-    expect(result.output).toEqual({
-      scope: "organization",
-      content: "",
-      updatedAt: null,
-      truncated: false,
-    });
-  });
-
-  it("truncates organization knowledge memory for the MCP response", async () => {
-    const headers = await authenticatedMcpHeaders();
-    const auth = globalThis.__testApiAuthContext;
-
-    if (!auth) {
-      throw new Error("expected test auth context");
-    }
-
-    const content = "a".repeat(40_000);
-
-    const committed = await commitKnowledgeMemoryForOrganization({
-      organizationId: auth.organization.localOrganizationId,
-      content,
-      summary: "Add long organization guidelines",
-      updatedByUserId: auth.user.localUserId,
-      expectedRevisionId: null,
-    });
-
-    expect(committed.ok).toBe(true);
 
     const result = await readMcpToolResult(
       await callMcpTool(headers, "get_knowledge_memory", {
-        scope: "organization",
+        query: "unrelated question",
       }),
     );
 
     expect(result.isError).toBe(false);
-    expect(result.output).toMatchObject({
+    expect(result.output).toEqual({
       scope: "organization",
-      updatedAt: expect.any(String),
-      truncated: true,
+      found: false,
+      text: "",
+      documents: [],
     });
-
-    const returnedContent = String(result.output.content);
-
-    expect(returnedContent).toHaveLength(32_000);
-    expect(returnedContent.endsWith("…")).toBe(true);
   });
 
-  it("rejects project knowledge memory requests without a project ID", async () => {
+  it("rejects project guideline requests without a project ID", async () => {
     const headers = await authenticatedMcpHeaders();
 
     const response = await callMcpTool(headers, "get_knowledge_memory", {
+      query: "tone",
       scope: "project",
     });
 

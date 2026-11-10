@@ -928,7 +928,7 @@ func (api *linkedDomainAPI) recommendMarkets(r *http.Request, a workspaceActor) 
 	}
 	ids := append([]string{}, defaultResearchMarketIDs...)
 	for id, m := range researchMarkets {
-		if languages[m.Language] && !containsString(ids, id) {
+		if languages[m.Language] && !containsResearchMarketID(ids, id) {
 			ids = append(ids, id)
 		}
 	}
@@ -977,6 +977,15 @@ func (api *linkedDomainAPI) recommendMarkets(r *http.Request, a workspaceActor) 
 		}
 	}
 	return map[string]any{"marketRecommendations": map[string]any{"candidates": candidates, "recommended": recommended}}, 200, nil
+}
+
+func containsResearchMarketID(ids []string, id string) bool {
+	for _, candidate := range ids {
+		if candidate == id {
+			return true
+		}
+	}
+	return false
 }
 
 func (api *linkedDomainAPI) researchMarket(ctx context.Context, domain string, market researchMarket) (researchMarketVisibilityResponse, error) {

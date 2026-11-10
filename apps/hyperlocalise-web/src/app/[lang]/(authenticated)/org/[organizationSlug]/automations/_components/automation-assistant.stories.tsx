@@ -169,7 +169,6 @@ function AssistantPage({
           assistantHasUnsavedChanges={workspaceAutomationFormHasChanges(form, startForm)}
           assistantInitialPrompt={initialPrompt}
           automationId={saved ? SAVED_AUTOMATION_ID : undefined}
-          canUpdateKnowledgeMemory
           errors={{}}
           form={form}
           knowledgeAvailable

@@ -15,12 +15,17 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { extractEngineSignalsMock } = vi.hoisted(() => ({
+const { extractEngineSignalsMock, readSetupDocumentContentMock } = vi.hoisted(() => ({
   extractEngineSignalsMock: vi.fn(),
+  readSetupDocumentContentMock: vi.fn(async () => ""),
 }));
 
 vi.mock("@/lib/engine-setup/extract-engine-signals", () => ({
   extractEngineSignals: extractEngineSignalsMock,
+}));
+
+vi.mock("@/lib/engine-setup/setup-guideline-document", () => ({
+  readSetupGuidelineDocumentContentByOrganization: readSetupDocumentContentMock,
 }));
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";

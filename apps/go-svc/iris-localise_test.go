@@ -128,7 +128,7 @@ func TestTranslateWithModelKeepsOnlySafeTranslations(t *testing.T) {
 	api := &irisGenerationAPI{text: text}
 	out, usage, err := api.translateWithModel(context.Background(), "en-US", "fr-FR",
 		[]irisLocaliseMessage{{ID: "title", Text: "Neon nights", Description: "Video title"}, {ID: "greet", Text: "Hello {name}"}, {ID: "cta", Text: "Watch"}},
-		[]irisGlossaryHit{{Term: "Neon", Translation: ptr("Néon"), Glossary: "Brand"}}, "Playful, confident.", "Under 20 characters.")
+		[]irisGlossaryHit{{Term: "Neon", Translation: ptr("Néon"), Glossary: "Brand"}}, "Under 20 characters.")
 	require.NoError(t, err)
 	require.Equal(t, []irisTranslatedMessage{{ID: "title", Text: "Nuits néon", Origin: "model"}}, out)
 	require.Equal(t, 10, usage.InputTokens)
@@ -138,7 +138,6 @@ func TestTranslateWithModelKeepsOnlySafeTranslations(t *testing.T) {
 	var prompt irisTranslatePrompt
 	require.NoError(t, json.Unmarshal([]byte(text.request.User), &prompt))
 	require.Equal(t, "fr-FR", prompt.TargetLocale)
-	require.Equal(t, "Playful, confident.", prompt.Knowledge)
 	require.Equal(t, "Under 20 characters.", prompt.Guidance)
 	require.Len(t, prompt.Glossary, 1)
 }
