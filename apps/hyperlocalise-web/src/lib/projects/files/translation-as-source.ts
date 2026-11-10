@@ -12,7 +12,9 @@
  */
 import path from "node:path";
 
-import type { schema } from "@/lib/database/client";
+import { sql } from "drizzle-orm";
+
+import { db, type schema } from "@/lib/database/client";
 import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -23,6 +25,7 @@ import {
 } from "@/lib/projects/files/office-translation-download";
 import { getRepositorySourceFileImportSettings } from "@/lib/projects/files/source-file-import-settings";
 import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-service";
+import { translationSourceFingerprintSql } from "@/lib/projects/files/translation-as-source-fingerprint";
 import {
   supportsTranslationAsSource,
   TRANSLATION_AS_SOURCE_UPLOAD_SURFACE,
@@ -294,6 +297,18 @@ export async function sendTranslationAsSource(input: {
     return err({ code: "source_file_not_ready" });
   }
 
+  // Read before the translations: a change made after it, even one the file then carries,
+  // makes the file read as changed since sent, never the reverse.
+  const fingerprinted = await db.execute<{ fingerprint: string }>(
+    sql`select ${translationSourceFingerprintSql({
+      organizationId: input.organizationId,
+      projectId: sourceProject.id,
+      repositorySourceFileId: sourceFile.id,
+      locale: input.locale,
+    })} as fingerprint`,
+  );
+  const fingerprint = fingerprinted.rows[0].fingerprint;
+
   const { strings, ...unapproved } = await loadFileStrings({
     organizationId: input.organizationId,
     projectId: sourceProject.id,
@@ -359,6 +374,7 @@ export async function sendTranslationAsSource(input: {
       projectId: sourceProject.id,
       locale: input.locale,
       sourceFileVersionId: version.id,
+      fingerprint,
     },
     deferAfterResponse: input.deferAfterResponse,
     fileStorageAdapter: input.fileStorageAdapter,

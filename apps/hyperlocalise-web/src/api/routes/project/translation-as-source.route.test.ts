@@ -390,6 +390,7 @@ describe("translation as source routes", () => {
         projectId: fixture.original.id,
         locale: PIVOT_LOCALE,
         sourceFileVersionId: fixture.version.id,
+        fingerprint: expect.stringMatching(/^[0-9a-f]{32}$/),
       },
     });
 

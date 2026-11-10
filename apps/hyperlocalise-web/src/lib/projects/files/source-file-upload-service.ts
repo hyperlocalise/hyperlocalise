@@ -76,6 +76,8 @@ export type SourceFileUploadInput = {
     projectId: string;
     locale: string;
     sourceFileVersionId: string;
+    /** What the send read (`translationSourceFingerprintSql`), read before the translations. */
+    fingerprint: string;
   };
   /** Replaces the file's import settings, for a file built to be read through them. */
   importSettings?: RepositorySourceFileImportSettings;
