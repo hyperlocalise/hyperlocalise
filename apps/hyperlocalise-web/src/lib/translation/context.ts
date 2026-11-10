@@ -21,6 +21,7 @@ import { composeScopedKnowledgeMemory } from "@/lib/knowledge-memory/knowledge-m
 import {
   getKnowledgeMemoryForOrganization,
   getKnowledgeMemoryForProject,
+  isWorkspaceGuidelineAssignedToProject,
 } from "@/lib/knowledge-memory/knowledge-memory";
 import { selectKnowledgeMemoryContext } from "@/lib/knowledge-memory/knowledge-memory-selection";
 import type { KnowledgeMemoryRecord } from "@/lib/knowledge-memory/knowledge-memory.types";
@@ -98,9 +99,9 @@ export async function loadTranslationGuidelines(input: {
   context?: string | null;
   metadata?: Record<string, string>;
 }): Promise<TranslationGuidelines> {
-  const [projectMemory, organizationMemory, uploadedGuidelines] = await Promise.all([
+  const [projectMemory, workspaceAssigned, uploadedGuidelines] = await Promise.all([
     getKnowledgeMemoryForProject(input.project.id),
-    getKnowledgeMemoryForOrganization(input.project.organizationId),
+    isWorkspaceGuidelineAssignedToProject(input.project.organizationId, input.project.id),
     loadUploadedGuidelinesContext({
       organizationId: input.project.organizationId,
       projectId: input.project.id,
@@ -108,6 +109,16 @@ export async function loadTranslationGuidelines(input: {
       sourceText: input.sourceText,
     }),
   ]);
+  const organizationMemory = workspaceAssigned
+    ? await getKnowledgeMemoryForOrganization(input.project.organizationId)
+    : {
+        revisionId: null,
+        version: 0,
+        content: "",
+        summary: null,
+        updatedAt: null,
+        updatedByUserId: null,
+      };
   const selectionInput = {
     sourceLocale: input.sourceLocale,
     targetLocales: input.targetLocales,

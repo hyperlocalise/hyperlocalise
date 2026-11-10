@@ -19,6 +19,7 @@ import { composeScopedKnowledgeMemory } from "@/lib/knowledge-memory/knowledge-m
 import {
   getKnowledgeMemoryForOrganization,
   getKnowledgeMemoryForProject,
+  isWorkspaceGuidelineAssignedToProject,
 } from "@/lib/knowledge-memory/knowledge-memory";
 import { selectKnowledgeMemoryContext } from "@/lib/knowledge-memory/knowledge-memory-selection";
 
@@ -61,7 +62,12 @@ export function createRecallMemoryTool(session: WorkspaceOrchestratorSession) {
 
       const projectId = session.automation.projectId?.trim() || null;
       const [organizationMemory, projectMemory] = await Promise.all([
-        getKnowledgeMemoryForOrganization(session.organizationId),
+        projectId
+          ? isWorkspaceGuidelineAssignedToProject(session.organizationId, projectId).then(
+              (assigned) =>
+                assigned ? getKnowledgeMemoryForOrganization(session.organizationId) : null,
+            )
+          : getKnowledgeMemoryForOrganization(session.organizationId),
         projectId ? getKnowledgeMemoryForProject(projectId) : Promise.resolve(null),
       ]);
 
@@ -79,7 +85,7 @@ export function createRecallMemoryTool(session: WorkspaceOrchestratorSession) {
 
       const compactText = composeScopedKnowledgeMemory({
         projectGuideline: projectMemory ? selectedGuideline(projectMemory.content) : "",
-        workspaceGuideline: selectedGuideline(organizationMemory.content),
+        workspaceGuideline: organizationMemory ? selectedGuideline(organizationMemory.content) : "",
       });
       const found = compactText.length > 0;
 

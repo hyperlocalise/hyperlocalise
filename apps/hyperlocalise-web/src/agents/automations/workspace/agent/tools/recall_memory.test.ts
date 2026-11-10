@@ -18,12 +18,14 @@ const getKnowledgeMemoryForOrganizationMock = vi.hoisted(() => {
   return vi.fn();
 });
 const getKnowledgeMemoryForProjectMock = vi.hoisted(() => vi.fn());
+const isWorkspaceGuidelineAssignedToProjectMock = vi.hoisted(() => vi.fn(async () => true));
 const selectKnowledgeMemoryContextMock = vi.hoisted(() => vi.fn());
 const resolveWorkspaceKnowledgeFlagMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/knowledge-memory/knowledge-memory", () => ({
   getKnowledgeMemoryForOrganization: getKnowledgeMemoryForOrganizationMock,
   getKnowledgeMemoryForProject: getKnowledgeMemoryForProjectMock,
+  isWorkspaceGuidelineAssignedToProject: isWorkspaceGuidelineAssignedToProjectMock,
 }));
 
 vi.mock("@/lib/knowledge-memory/knowledge-memory-selection", () => ({
@@ -105,6 +107,8 @@ describe("createRecallMemoryTool", () => {
   beforeEach(() => {
     getKnowledgeMemoryForOrganizationMock.mockReset();
     getKnowledgeMemoryForProjectMock.mockReset();
+    isWorkspaceGuidelineAssignedToProjectMock.mockReset();
+    isWorkspaceGuidelineAssignedToProjectMock.mockResolvedValue(true);
     selectKnowledgeMemoryContextMock.mockReset();
     resolveWorkspaceKnowledgeFlagMock.mockReset();
     resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(true);

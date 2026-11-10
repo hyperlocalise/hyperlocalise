@@ -19,6 +19,11 @@ The Postgres source returns two kinds of document:
   when `Scope.Locale` matches; a null locale applies to every locale.
 
 Project scopes include workspace documents as well as the project's own.
+Workspace notes check `workspace_guideline_projects`: empty means every
+project, otherwise only listed projects. Org-wide uploads
+(`project_id IS NULL`) check `guideline_document_projects` the same way.
+Project-owned uploads skip assignment. An empty project scope keeps all
+org-scoped content.
 
 ## Indexing
 

@@ -45,9 +45,23 @@ func (s *Source) Close() {
 // currentQuery loads the typed workspace and project notes, which are always
 // mandatory, and ready uploaded documents in the same project and locale scope.
 // Uploaded documents use their own mandatory flag.
+//
+// Org-scoped content uses assignment tables: empty assignment means every
+// project. Workspace notes check workspace_guideline_projects; org-wide
+// uploads (project_id IS NULL) check guideline_document_projects.
+// Project-owned uploads skip assignment. An empty project scope ($2 = ”)
+// keeps all org-scoped content for org-level checks.
 const currentQuery = `
         SELECT 'workspace:' || organization_id::text, revision_id::text, version, content, '' AS project_id, '' AS locale, true AS mandatory
-        FROM knowledge_memories WHERE organization_id::text = $1
+        FROM knowledge_memories
+        WHERE organization_id::text = $1
+          AND ($2 = '' OR NOT EXISTS (
+            SELECT 1 FROM workspace_guideline_projects w
+            WHERE w.organization_id::text = $1
+          ) OR EXISTS (
+            SELECT 1 FROM workspace_guideline_projects w
+            WHERE w.organization_id::text = $1 AND w.project_id = $2
+          ))
         UNION ALL
         SELECT 'project:' || m.project_id, m.revision_id::text, m.version, m.content, m.project_id, '', true
         FROM project_knowledge_memories m JOIN projects p ON p.id = m.project_id
@@ -56,7 +70,16 @@ const currentQuery = `
         SELECT 'doc:' || d.id::text, d.revision_id::text, d.version, d.content, coalesce(d.project_id, ''), coalesce(d.locale, ''), d.mandatory
         FROM guideline_documents d
         WHERE d.organization_id::text = $1 AND d.status = 'ready'
-          AND (d.project_id IS NULL OR d.project_id = $2)
+          AND (
+            (d.project_id IS NULL AND ($2 = '' OR NOT EXISTS (
+              SELECT 1 FROM guideline_document_projects g
+              WHERE g.document_id = d.id
+            ) OR EXISTS (
+              SELECT 1 FROM guideline_document_projects g
+              WHERE g.document_id = d.id AND g.project_id = $2
+            )))
+            OR d.project_id = $2
+          )
           AND (d.locale IS NULL OR d.locale = $3)
         ORDER BY 5, 1`
 

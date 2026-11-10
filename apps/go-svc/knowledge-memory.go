@@ -102,6 +102,10 @@ func (api *knowledgeMemoryAPI) register(mux *http.ServeMux, verifier SessionVeri
 	registerAuthenticated(mux, verifier, "GET "+projectPath+"/revisions", api.handle(false, api.listProjectRevisions))
 	registerAuthenticated(mux, verifier, "GET "+projectPath+"/revisions/{revisionId}", api.handle(false, api.getProjectRevision))
 	registerAuthenticated(mux, verifier, "POST "+projectPath+"/revisions/{revisionId}/restore", api.handle(true, api.restoreProjectRevision))
+
+	registerAuthenticated(mux, verifier, "GET "+workspacePath+"/projects", api.handle(false, api.listWorkspaceGuidelineProjects))
+	registerAuthenticated(mux, verifier, "POST "+workspacePath+"/projects", api.handle(true, api.attachWorkspaceGuidelineProject))
+	registerAuthenticated(mux, verifier, "DELETE "+workspacePath+"/projects/{projectId}", api.handle(true, api.detachWorkspaceGuidelineProject))
 }
 
 type knowledgeMemoryRouteHandler func(http.ResponseWriter, *http.Request, workspaceActor) (int, any, error)

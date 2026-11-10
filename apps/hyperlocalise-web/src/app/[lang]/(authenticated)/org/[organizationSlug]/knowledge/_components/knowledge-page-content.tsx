@@ -13,8 +13,11 @@
  * Version 2.0 or later.
  */
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
+import { buildOrganizationPath } from "@/components/app-shell/navigation-config";
+import { Button } from "@/components/ui/button";
 import { readApiError } from "@/lib/api-error";
 
 import {
@@ -94,17 +97,32 @@ export function KnowledgePageContent({
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
-      <KnowledgePageHeader
-        scope={projectId ? "project" : "organization"}
-        onAddSources={
-          canUpdateKnowledgeMemory && resolvedMode === "editor"
-            ? () => {
-                isAddingSources.current = true;
-                setViewMode("upload");
-              }
-            : undefined
-        }
-      />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <KnowledgePageHeader
+          scope={projectId ? "project" : "organization"}
+          onAddSources={
+            canUpdateKnowledgeMemory && resolvedMode === "editor"
+              ? () => {
+                  isAddingSources.current = true;
+                  setViewMode("upload");
+                }
+              : undefined
+          }
+        />
+        {!projectId ? (
+          <Button
+            type="button"
+            nativeButton={false}
+            variant="outline"
+            size="sm"
+            render={
+              <Link href={buildOrganizationPath(organizationSlug, "knowledge/assignments")} />
+            }
+          >
+            Assign to projects
+          </Button>
+        ) : null}
+      </div>
 
       {resolvedMode === "loading" ? <KnowledgePageSkeleton /> : null}
 

@@ -78,6 +78,17 @@ export type GuidelineCheckResult = {
   model: string;
 };
 
+export type GuidelineProjectAssignment = {
+  projectId: string;
+  projectName: string;
+  sourceLocale?: string;
+};
+
+export type GuidelineDocumentAssignment = {
+  documentId: string;
+  projectIds: string[];
+};
+
 export type GuidelineSweepResult = { scanned: number; republished: number; failed: number };
 
 export type GuidelineRetrieveRequest = {
@@ -261,5 +272,76 @@ export class GoSvcGuidelinesApi {
       method: "POST",
       ...options,
     });
+  }
+
+  listWorkspaceGuidelineProjects(organizationSlug: string, options: GoSvcRequestOptions = {}) {
+    return this.request.json<{ projects: GuidelineProjectAssignment[] }>(
+      orgPath(organizationSlug, "knowledge-memory", "projects"),
+      options,
+    );
+  }
+
+  attachWorkspaceGuidelineProject(
+    organizationSlug: string,
+    projectId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ projects: GuidelineProjectAssignment[] }>(
+      orgPath(organizationSlug, "knowledge-memory", "projects"),
+      { method: "POST", body: { projectId }, ...options },
+    );
+  }
+
+  detachWorkspaceGuidelineProject(
+    organizationSlug: string,
+    projectId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.empty(
+      orgPath(organizationSlug, "knowledge-memory", "projects", projectId),
+      { method: "DELETE", ...options },
+    );
+  }
+
+  listDocumentProjects(
+    organizationSlug: string,
+    documentId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ projects: GuidelineProjectAssignment[] }>(
+      orgPath(organizationSlug, "guidelines", "documents", documentId, "projects"),
+      options,
+    );
+  }
+
+  listAllDocumentAssignments(organizationSlug: string, options: GoSvcRequestOptions = {}) {
+    return this.request.json<{ assignments: GuidelineDocumentAssignment[] }>(
+      orgPath(organizationSlug, "guidelines", "documents", "assignments"),
+      options,
+    );
+  }
+
+  attachDocumentProject(
+    organizationSlug: string,
+    documentId: string,
+    projectId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ projects: GuidelineProjectAssignment[] }>(
+      orgPath(organizationSlug, "guidelines", "documents", documentId, "projects"),
+      { method: "POST", body: { projectId }, ...options },
+    );
+  }
+
+  detachDocumentProject(
+    organizationSlug: string,
+    documentId: string,
+    projectId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.empty(
+      orgPath(organizationSlug, "guidelines", "documents", documentId, "projects", projectId),
+      { method: "DELETE", ...options },
+    );
   }
 }

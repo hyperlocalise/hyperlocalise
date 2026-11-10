@@ -120,6 +120,40 @@ func TestCurrentReturnsScopedGuidelinesInOrder(t *testing.T) {
 	require.Empty(t, docs)
 }
 
+func TestCurrentRespectsProjectAssignment(t *testing.T) {
+	f, _ := newGuidelineFixture(t)
+	orgID := f.organization(t)
+	projectID := f.project(t, orgID)
+	siblingID := f.project(t, orgID)
+
+	workspaceRevision := uuid.NewString()
+	f.exec(t, `insert into knowledge_memories (organization_id, revision_id, version, content) values ($1, $2, 1, 'Workspace note')`, orgID, workspaceRevision)
+	orgDocID, _ := f.document(t, orgID, nil, nil, "ready", false, "Org-wide doc")
+
+	// Empty assignment means every project.
+	source := NewWithPool(f.pool)
+	docs, err := source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: projectID})
+	require.NoError(t, err)
+	require.Len(t, docs, 2)
+
+	// Assign both to the project; sibling loses them.
+	f.exec(t, `insert into workspace_guideline_projects (organization_id, project_id) values ($1, $2)`, orgID, projectID)
+	f.exec(t, `insert into guideline_document_projects (organization_id, document_id, project_id) values ($1, $2, $3)`, orgID, orgDocID, projectID)
+
+	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: projectID})
+	require.NoError(t, err)
+	require.Len(t, docs, 2)
+
+	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: siblingID})
+	require.NoError(t, err)
+	require.Empty(t, docs)
+
+	// Org-only scope keeps all org-scoped content regardless of assignment.
+	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID})
+	require.NoError(t, err)
+	require.Len(t, docs, 2)
+}
+
 func TestNewConnectsAndCloses(t *testing.T) {
 	_, url := newGuidelineFixture(t)
 	source, err := New(t.Context(), url)

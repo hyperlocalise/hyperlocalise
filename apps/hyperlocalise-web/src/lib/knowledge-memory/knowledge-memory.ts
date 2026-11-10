@@ -76,6 +76,25 @@ export async function getKnowledgeMemoryForOrganization(
   return toKnowledgeMemoryRecord(await getCurrentKnowledgeMemoryRow(db, organizationId));
 }
 
+/**
+ * Whether the workspace guideline note applies to a project. Empty assignment
+ * means every project. Used to gate typed workspace notes in translation and
+ * automation prompts; go-svc Source.Current enforces the same rule for checks.
+ */
+export async function isWorkspaceGuidelineAssignedToProject(
+  organizationId: string,
+  projectId: string,
+  database: DatabaseClient = db,
+): Promise<boolean> {
+  const assignments = await database
+    .select({ projectId: schema.workspaceGuidelineProjects.projectId })
+    .from(schema.workspaceGuidelineProjects)
+    .where(eq(schema.workspaceGuidelineProjects.organizationId, organizationId))
+    .limit(101);
+  if (assignments.length === 0) return true;
+  return assignments.some((row) => row.projectId === projectId);
+}
+
 // A function, not a module-level constant: accessing schema.knowledgeMemories.* at import time
 // breaks any test that mocks @/lib/database/client without a full knowledgeMemories shape, even
 // transitively (vi.mock hoisting runs before this module's top-level code either way).

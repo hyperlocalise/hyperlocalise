@@ -163,6 +163,63 @@ export const projectKnowledgeMemoryRevisions = pgTable(
 );
 
 /**
+ * Attaches the single workspace guideline note to selected projects. Empty for an
+ * organization means the workspace note applies to every project in that org.
+ */
+export const workspaceGuidelineProjects = pgTable(
+  "workspace_guideline_projects",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("workspace_guideline_projects_org_project_key").on(
+      table.organizationId,
+      table.projectId,
+    ),
+    index("idx_workspace_guideline_projects_org").on(table.organizationId),
+    index("idx_workspace_guideline_projects_project").on(table.projectId),
+  ],
+);
+
+/**
+ * Attaches an org-wide uploaded guideline document to selected projects. Empty
+ * for a document means it applies to every project in that org. Only documents
+ * with a null project_id can be attached; project-owned documents belong to
+ * one project already.
+ */
+export const guidelineDocumentProjects = pgTable(
+  "guideline_document_projects",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => guidelineDocuments.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("guideline_document_projects_document_project_key").on(
+      table.documentId,
+      table.projectId,
+    ),
+    index("idx_guideline_document_projects_org").on(table.organizationId),
+    index("idx_guideline_document_projects_project").on(table.projectId),
+  ],
+);
+
+/**
  * Stores uploaded guideline documents. Extraction and indexing run asynchronously
  * in the guideline ingest worker; `revisionId` identifies the content to index.
  */
