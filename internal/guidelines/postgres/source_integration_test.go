@@ -73,6 +73,8 @@ func TestCurrentReturnsScopedGuidelinesInOrder(t *testing.T) {
 	fr, de := "fr-FR", "de-DE"
 
 	orgDocID, orgDocRevision := f.document(t, orgID, nil, nil, "ready", false, "Org-wide doc")
+	// Org-wide documents apply to a project only when assigned.
+	f.exec(t, `insert into guideline_document_projects (organization_id, document_id, project_id) values ($1, $2, $3)`, orgID, orgDocID, projectID)
 	projectFrDocID, projectFrRevision := f.document(t, orgID, &projectID, &fr, "ready", true, "Project French doc")
 	f.document(t, orgID, &projectID, &de, "ready", true, "German doc")
 	f.document(t, orgID, &siblingID, nil, "ready", true, "Sibling doc")
@@ -117,11 +119,13 @@ func TestCurrentRespectsProjectAssignment(t *testing.T) {
 	orgDocID, _ := f.document(t, orgID, nil, nil, "ready", false, "Org-wide doc")
 
 	source := NewWithPool(f.pool)
+
+	// Unassigned org-wide documents apply to no project.
 	docs, err := source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: projectID})
 	require.NoError(t, err)
-	require.Len(t, docs, 1)
+	require.Empty(t, docs)
 
-	// Assign the document to the project; sibling loses it.
+	// Assign the document to the project; sibling still gets nothing.
 	f.exec(t, `insert into guideline_document_projects (organization_id, document_id, project_id) values ($1, $2, $3)`, orgID, orgDocID, projectID)
 
 	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: projectID})

@@ -13,10 +13,13 @@
  * Version 2.0 or later.
  */
 import { useId, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PencilSimpleIcon, TrashIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 import { toast } from "sonner";
+
+import { buildOrganizationPath, buildProjectPath } from "@/components/app-shell/navigation-config";
 
 import {
   AlertDialog,
@@ -206,12 +209,17 @@ function GuidelineDocumentRow({
   const mandatory = updateMandatory.isPending
     ? (updateMandatory.variables ?? document.mandatory)
     : document.mandatory;
+  const detailHref = projectId
+    ? buildProjectPath(organizationSlug, projectId, `knowledge/${encodeURIComponent(document.id)}`)
+    : buildOrganizationPath(organizationSlug, `knowledge/${encodeURIComponent(document.id)}`);
 
   return (
     <Item variant="outline" size="sm">
       <ItemContent className="min-w-0">
         <ItemTitle className="flex flex-wrap items-center gap-2">
-          <span className="truncate">{document.title}</span>
+          <Link href={detailHref} className="truncate hover:underline">
+            {document.title}
+          </Link>
           <StatusBadge status={guidelineDocumentDisplayStatus(document)} />
         </ItemTitle>
         <ItemDescription className="flex flex-wrap gap-x-2">

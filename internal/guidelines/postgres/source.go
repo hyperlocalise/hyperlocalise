@@ -45,19 +45,18 @@ func (s *Source) Close() {
 // currentQuery loads ready guideline documents in the same project and
 // locale scope. Documents use their own mandatory flag.
 //
-// Org-scoped content uses assignment tables: empty assignment means every
-// project. Org-wide uploads (project_id IS NULL) check guideline_document_projects.
-// Project-owned uploads skip assignment. An empty project scope ($2 = ”)
-// keeps all org-scoped content for org-level checks.
+// Org-scoped content uses assignment tables: an org-wide document applies to
+// a project only when guideline_document_projects lists it. Unassigned
+// org-wide documents apply to no project. Org-wide uploads (project_id IS
+// NULL) check guideline_document_projects. Project-owned uploads skip
+// assignment. An empty project scope ($2 = ”) keeps all org-scoped content
+// for org-level checks.
 const currentQuery = `
         SELECT 'doc:' || d.id::text, d.revision_id::text, d.version, d.content, coalesce(d.project_id, ''), coalesce(d.locale, ''), d.mandatory
         FROM guideline_documents d
         WHERE d.organization_id::text = $1 AND d.status = 'ready'
           AND (
-            (d.project_id IS NULL AND ($2 = '' OR NOT EXISTS (
-              SELECT 1 FROM guideline_document_projects g
-              WHERE g.document_id = d.id
-            ) OR EXISTS (
+            (d.project_id IS NULL AND ($2 = '' OR EXISTS (
               SELECT 1 FROM guideline_document_projects g
               WHERE g.document_id = d.id AND g.project_id = $2
             )))

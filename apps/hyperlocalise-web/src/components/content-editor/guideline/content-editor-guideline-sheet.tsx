@@ -330,8 +330,9 @@ export function ContentEditorGuidelineSheet({
   const assignments = assignmentsQuery.data ?? new Map<string, string[]>();
   const workspaceDocuments = (workspaceDocsQuery.data ?? []).filter((document) => {
     if (document.projectId != null) return false;
+    // Org-wide documents apply to a project only when assigned to it.
     const projectIds = assignments.get(document.id) ?? [];
-    return projectIds.length === 0 || projectIds.includes(projectId);
+    return projectIds.includes(projectId);
   });
 
   const close = () => onOpenChange(false);

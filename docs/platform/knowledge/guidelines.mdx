@@ -11,14 +11,14 @@ Every guideline is a document. Upload a file, or type Markdown text that Hyperlo
 
 Workspace **Guideline** stores shared context as org-wide documents with no project set. Project **Guideline** stores project-specific context as documents owned by that project. The workspace list only shows org-wide files. A project file is not visible on the workspace page, and one project never sees another project's files.
 
-Org-scoped documents apply to every project unless you assign them. Open workspace **Guideline**, then **Assign to projects** to limit an org-wide document to selected projects. Empty assignment means all projects. Assignment filters translation, guideline checks, and automation recall for that project. The project Guideline page does not change assignment.
+Org-wide documents apply to no project until you assign them. Open a document to assign it to specific projects in its **Projects** section. Assignment filters translation, guideline checks, and automation recall for that project. The project Guideline page does not change assignment.
 
 ## Write or upload a guideline
 
 1. Open workspace **Guideline** for shared context, or the project’s **Guideline** for project-specific context.
 2. Select **Add sources** to open the **Upload guideline** page, then drop a file or select **Markdown/Text** to type the guideline. Typed text is saved as a Markdown document.
 3. Wait for the document's status to change from **Processing** to **Ready** under **Uploaded guidelines**.
-4. Optional: open **Assign to projects** on the workspace page to limit an org-wide document to selected projects.
+4. Open the document and assign it to projects: an unassigned org-wide document is not used anywhere.
 
 To change a document later, open **Edit** on its row: editing the content saves a new revision, editing only the title updates it in place. Supported uploads are PDF, DOCX, Markdown, and plain text, up to 25 MB and one file at a time. Hyperlocalise extracts the text and indexes it for search. Scanned PDFs without a text layer show **Failed** with “No readable text was found”; export the document with selectable text and upload it again. Very long files are truncated, and the document shows a notice when that happens. Options marked **Coming soon**, such as connector-based imports, are not available upload paths.
 
@@ -32,7 +32,7 @@ Uploaded documents apply to every target locale, so state the market inside the 
 
 ### Setup wizard guidance
 
-The engine-setup wizard keeps a managed document titled **Setup wizard guidance** with the voice and rules it learned from your site. Edit it like any other document: the wizard merges into your edits instead of overwriting them, so your changes are preserved. Do not rename it; the wizard finds it by that exact title and creates a new one if it cannot.
+The engine-setup wizard keeps a managed document titled **Setup wizard guidance** with the voice and rules it learned from your site. Edit it like any other document: the wizard merges into your edits instead of overwriting them, so your changes are preserved. Do not rename it; the wizard finds it by that exact title and creates a new one if it cannot. Like every org-wide document, it applies to no project until you assign it on its page.
 
 ## What to include
 

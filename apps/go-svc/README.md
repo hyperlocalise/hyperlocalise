@@ -696,8 +696,9 @@ Uploads need object storage and `GUIDELINE_INGEST_SQS_QUEUE_URL`; without the
 queue they return 503. The `guideline-ingest` Lambda extracts and indexes each
 document, and `POST /internal/guidelines/sweep` republishes lost messages.
 
-Org-scoped assignment uses `guideline_document_projects`: empty means every
-project. Org-wide uploads (project_id null) use
+Org-scoped assignment uses `guideline_document_projects`: a document
+applies to a project only when listed, so an unassigned org-wide document
+applies to no project. Org-wide uploads (project_id null) use
 `GET/POST /v1/orgs/{org}/guidelines/documents/{documentId}/projects`,
 `DELETE .../projects/{projectId}`, and bulk `GET .../guidelines/documents/assignments`.
 

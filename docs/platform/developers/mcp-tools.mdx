@@ -109,7 +109,7 @@ Provider-backed translation memories use entries already stored or synchronized 
 
 ### Knowledge memory
 
-`get_knowledge_memory` searches the workspace and project guideline documents for passages relevant to a question. It is read-only.
+`get_knowledge_memory` searches the guideline documents in scope for passages relevant to a question. It is read-only. With a project in scope, org-wide documents are included only when assigned to that project; unassigned org-wide documents are ignored.
 
 ```json
 {
@@ -126,7 +126,7 @@ Project reads use the authenticated member's normal project access. Missing or i
 
 ### Guideline checks
 
-`check_guidelines` reviews up to 50 segments against the workspace and project guideline documents. Use it before saving a translation or to audit source copy.
+`check_guidelines` reviews up to 50 segments against the workspace and project guideline documents. Use it before saving a translation or to audit source copy. Org-wide documents apply only when assigned to the project.
 
 ```json
 {

@@ -190,18 +190,20 @@ describe("ContentEditorGuidelineSheet", () => {
     expect(screen.queryByRole("link", { name: "Edit in settings" })).toBeNull();
   });
 
-  it("filters workspace documents by project assignment", async () => {
+  it("shows only workspace documents assigned to the project", async () => {
     const user = userEvent.setup();
     renderSheet(
       { translationContextValue: "", source: "native" },
       {
         workspaceDocuments: [
-          guidelineDocument({ id: "doc-all", title: "For everyone" }),
+          guidelineDocument({ id: "doc-unassigned", title: "Not assigned" }),
           guidelineDocument({ id: "doc-selected", title: "Selected for us" }),
+          guidelineDocument({ id: "doc-selected-2", title: "Also selected" }),
           guidelineDocument({ id: "doc-other", title: "Other project only" }),
         ],
         assignments: [
           { documentId: "doc-selected", projectIds: ["project_1"] },
+          { documentId: "doc-selected-2", projectIds: ["project_1"] },
           { documentId: "doc-other", projectIds: ["project_9"] },
         ],
       },
@@ -209,8 +211,9 @@ describe("ContentEditorGuidelineSheet", () => {
 
     await user.click(screen.getByRole("tab", { name: "Workspace guideline" }));
 
-    expect(await screen.findByRole("button", { name: "For everyone" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Selected for us" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Not assigned" })).toBeNull();
+    expect(await screen.findByRole("button", { name: "Selected for us" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Also selected" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Other project only" })).toBeNull();
   });
 

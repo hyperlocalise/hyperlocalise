@@ -15,9 +15,10 @@ Only `ready` rows with extracted content are returned. A row with
 used. A row with a locale applies only when `Scope.Locale` matches; a null
 locale applies to every locale.
 
-Project scopes include org-wide documents as well as the project's own.
-Org-wide uploads (`project_id IS NULL`) check `guideline_document_projects`:
-empty assignment means every project, otherwise only listed projects.
+Project scopes include assigned org-wide documents as well as the
+project's own. Org-wide uploads (`project_id IS NULL`) check
+`guideline_document_projects`: a document applies to a project only when
+listed, so an unassigned org-wide document applies to no project.
 Project-owned uploads skip assignment. An empty project scope keeps all
 org-scoped content.
 

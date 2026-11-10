@@ -59,7 +59,9 @@ function storyClient(documents: {
             documents.workspace.find((document) => document.id === id)),
           content: "# Voice\n\nKeep product names in English.",
         }),
-      listAllDocumentAssignments: async () => ({ assignments: [] }),
+      listAllDocumentAssignments: async () => ({
+        assignments: [{ documentId: "doc-3", projectIds: ["project_1"] }],
+      }),
     },
   } as unknown as GoSvcClient;
 }

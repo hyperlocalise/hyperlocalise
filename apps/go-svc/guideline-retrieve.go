@@ -237,16 +237,15 @@ func collectUploaded(results []guidelines.Result, limit int) collectedGuidelines
 
 // mergeQuery reloads metadata only for rows that are still ready and in the
 // requested project and locale scope. An empty locale matches unscoped rows only.
-// Org-wide rows respect guideline_document_projects assignment: empty assignment
-// means every project, otherwise only listed projects.
+// Org-wide rows respect guideline_document_projects assignment: a document
+// applies to a project only when listed, so unassigned org-wide documents
+// apply to no project.
 const mergeQuery = `
         select id::text, revision_id::text, version, title, coalesce(locale, '')
         from guideline_documents
         where organization_id::text = $1 and id::text = any($2) and status = 'ready'
           and (
-            (project_id is null and ($3 = '' or not exists (
-              select 1 from guideline_document_projects g where g.document_id = guideline_documents.id
-            ) or exists (
+            (project_id is null and ($3 = '' or exists (
               select 1 from guideline_document_projects g
               where g.document_id = guideline_documents.id and g.project_id = $3
             )))

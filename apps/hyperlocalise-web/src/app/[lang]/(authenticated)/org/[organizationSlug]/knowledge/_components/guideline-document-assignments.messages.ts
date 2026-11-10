@@ -1,43 +1,25 @@
-"use client";
-
 import { defineMessages } from "react-intl";
 
-export const guidelineAssignmentsMessages = defineMessages({
-  title: {
-    defaultMessage: "Assign to projects",
-    id: "U3khFjoOoZ",
-    description: "Title for the guideline document assignment page",
+export const guidelineDocumentAssignmentsMessages = defineMessages({
+  sectionTitle: {
+    defaultMessage: "Projects",
+    id: "ZJhPtQTx1U",
+    description: "Section title for per-document project assignments",
   },
-  description: {
-    defaultMessage:
-      "Org-scoped guideline documents apply to every project unless you select specific projects.",
-    id: "PL0HtnBEiw",
-    description: "Description for the guideline assignment page",
+  sectionDescription: {
+    defaultMessage: "Org-wide documents apply to no project until you select specific projects.",
+    id: "HFXeKhiQQG",
+    description: "Description for per-document project assignments",
   },
-  backToGuideline: {
-    defaultMessage: "Back to Guideline",
-    id: "APcdnMv7h1",
-    description: "Link back to the Guideline page",
-  },
-  allProjects: {
-    defaultMessage: "All projects",
-    id: "sgEffgFAQO",
-    description: "Badge when a guideline applies to every project",
+  noProjects: {
+    defaultMessage: "No projects",
+    id: "omsGAEB6mX",
+    description: "Badge when a guideline applies to no project yet",
   },
   selectedProjects: {
     defaultMessage: "{count, plural, one {# project} other {# projects}}",
     id: "0jMUHyL955",
     description: "Badge when a guideline applies to selected projects",
-  },
-  documents: {
-    defaultMessage: "Org-wide documents",
-    id: "LXGU9NstON",
-    description: "Section title for org-wide guideline documents",
-  },
-  noDocuments: {
-    defaultMessage: "No org-wide documents yet.",
-    id: "2X2wVWJ9Bz",
-    description: "Empty state when there are no org-wide guideline documents",
   },
   selectProject: {
     defaultMessage: "Select a project",

@@ -152,6 +152,10 @@ describe("GuidelineDocumentsSection", () => {
     expect(screen.getByText("All locales")).toBeTruthy();
     expect(screen.getByText("No readable text was found in this file.")).toBeTruthy();
     expect(mocks.listDocuments).toHaveBeenCalledWith("acme", "project_1", expect.anything());
+    expect(screen.getByRole("link", { name: "French style guide" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1/knowledge/doc-1",
+    );
   });
 
   it("renders nothing when there are no documents", async () => {

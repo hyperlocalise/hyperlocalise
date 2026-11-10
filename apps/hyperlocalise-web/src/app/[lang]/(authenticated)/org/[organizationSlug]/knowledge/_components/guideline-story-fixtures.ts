@@ -12,6 +12,7 @@
  */
 import { http, HttpResponse } from "msw";
 
+import type { ProjectRecord } from "@/lib/go-svc/go-svc-client.types";
 import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
 
 export function storyGuidelineDocument(
@@ -150,6 +151,86 @@ export function createGuidelineDocumentsMswHandlers(
       if (index >= 0) {
         documents.splice(index, 1);
       }
+      return new HttpResponse(null, { status: 204 });
+    }),
+  ];
+}
+
+export function storyGuidelineProject(id: string, name: string): ProjectRecord {
+  return {
+    id,
+    organizationId: "org_1",
+    teamId: null,
+    createdByUserId: null,
+    name,
+    identifier: id,
+    description: "",
+    translationContext: "",
+    source: "native",
+    externalProviderKind: null,
+    externalProjectId: null,
+    sourceLocale: "en",
+    targetLocales: ["fr-FR"],
+    externalProjectUrl: null,
+    isActive: true,
+    lastSyncedAt: null,
+    lastSyncErrorAt: null,
+    lastSyncErrorMessage: null,
+    createdAt: "2026-10-10T00:00:00Z",
+    updatedAt: "2026-10-10T00:00:00Z",
+    openJobCount: 0,
+  };
+}
+
+/**
+ * In-memory MSW handlers for per-document project assignments plus the
+ * project list. Attach/detach mutations update the store so refetches
+ * reflect them, keeping stories interactive.
+ */
+export function createGuidelineAssignmentMswHandlers(
+  options: {
+    assignedProjectIds?: string[];
+  } = {},
+) {
+  const projects = [
+    storyGuidelineProject("project_1", "Mobile app"),
+    storyGuidelineProject("project_2", "Marketing site"),
+    storyGuidelineProject("project_3", "Help center"),
+  ];
+  const assignments = new Map<string, string[]>([
+    ["doc-brand", options.assignedProjectIds ?? ["project_1"]],
+  ]);
+
+  const projectName = (projectId: string) =>
+    projects.find((project) => project.id === projectId)?.name ?? projectId;
+
+  return [
+    http.get("*/v1/orgs/:organizationSlug/guidelines/documents/assignments", () =>
+      HttpResponse.json({
+        assignments: [...assignments.entries()].map(([documentId, projectIds]) => ({
+          documentId,
+          projectIds,
+        })),
+      }),
+    ),
+    http.get("*/v1/orgs/:organizationSlug/projects", () => HttpResponse.json({ projects })),
+    http.post("*/guidelines/documents/:documentId/projects", async ({ params, request }) => {
+      const body = (await request.json()) as { projectId: string };
+      const current = assignments.get(String(params.documentId)) ?? [];
+      if (!current.includes(body.projectId)) {
+        current.push(body.projectId);
+      }
+      assignments.set(String(params.documentId), current);
+      return HttpResponse.json({
+        projects: current.map((projectId) => ({ projectId, projectName: projectName(projectId) })),
+      });
+    }),
+    http.delete("*/guidelines/documents/:documentId/projects/:projectId", ({ params }) => {
+      const current = assignments.get(String(params.documentId)) ?? [];
+      assignments.set(
+        String(params.documentId),
+        current.filter((projectId) => projectId !== params.projectId),
+      );
       return new HttpResponse(null, { status: 204 });
     }),
   ];

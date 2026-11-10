@@ -7,26 +7,26 @@ import {
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
-import { GuidelineAssignmentsContent } from "./_components/guideline-assignments-content";
+import { GuidelineDocumentDetailContent } from "../_components/guideline-document-detail-content";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   return generateAuthenticatedPageMetadata(params, "guideline");
 }
 
-export default function GuidelineAssignmentsPage({
+export default function GuidelineDocumentPage({
   params,
 }: {
-  params: Promise<{ organizationSlug: string }>;
+  params: Promise<{ organizationSlug: string; documentId: string }>;
 }) {
-  return <GuidelineAssignmentsLoader params={params} />;
+  return <GuidelineDocumentLoader params={params} />;
 }
 
-async function GuidelineAssignmentsLoader({
+async function GuidelineDocumentLoader({
   params,
 }: {
-  params: Promise<{ organizationSlug: string }>;
+  params: Promise<{ organizationSlug: string; documentId: string }>;
 }) {
-  const { organizationSlug } = await params;
+  const { organizationSlug, documentId } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
   const knowledgeEnabled = await getWorkspaceFeatureFlagEnabled(workspaceKnowledgeFlag, auth);
 
@@ -35,8 +35,9 @@ async function GuidelineAssignmentsLoader({
   }
 
   return (
-    <GuidelineAssignmentsContent
+    <GuidelineDocumentDetailContent
       organizationSlug={organizationSlug}
+      documentId={documentId}
       canUpdate={hasCapability(auth.membership.role, "workspace:update")}
     />
   );
