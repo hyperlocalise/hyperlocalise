@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { ContentEditorSegmentCheckHandler } from "@/components/content-editor/segment/content-editor-segment-checkbox";
 import { ContentEditorMultilingualTable } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
 import { ContentEditorMultilingualImageGallery } from "@/components/content-editor/multilingual/content-editor-multilingual-image-gallery";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -136,8 +137,17 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   const isCommentsLoading = store.isCommentsLoading;
   const isSegmentTargetLoading = store.isSegmentTargetLoading;
   const checkedSegmentIds = store.checkedSegmentIds;
-  const onToggleSegmentChecked = (segmentId: string, checked: boolean) =>
-    store.toggleSegmentChecked(segmentId, checked);
+  // Every layout lists `queueSegments`, so a Shift-click range runs over them in that order.
+  const onToggleSegmentChecked: ContentEditorSegmentCheckHandler = (
+    segmentId,
+    checked,
+    extendRange,
+  ) =>
+    store.checkSegmentFromClick(
+      segmentId,
+      checked,
+      extendRange ? queueSegments.map((segment) => segment.id) : undefined,
+    );
   const viewMode = store.ui.viewMode;
   const isAdaptiveEnabled = store.ui.adaptiveWorkspaceEnabled;
   const isReviewerPersona = isAdaptiveEnabled && store.ui.isReviewerPersona;

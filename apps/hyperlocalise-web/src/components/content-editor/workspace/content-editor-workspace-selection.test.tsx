@@ -134,6 +134,62 @@ describe("ContentEditorWorkspaceContainer selection", () => {
     },
   );
 
+  it.each(["comfortable", "side-by-side", "multilingual"] as const)(
+    "ticks and unticks a range with Shift-click in the %s layout",
+    async (viewMode) => {
+      const user = userEvent.setup();
+      renderWorkspace({ initialViewMode: viewMode, review: { onBulkLock: vi.fn() } });
+      const box = (index: number) =>
+        screen.getByRole("checkbox", { name: `Select ${SEGMENT_KEYS[index]}` });
+      const shiftClick = async (element: HTMLElement) => {
+        await user.keyboard("{Shift>}");
+        await user.click(element);
+        await user.keyboard("{/Shift}");
+      };
+
+      await user.click(await screen.findByRole("checkbox", { name: `Select ${SEGMENT_KEYS[0]}` }));
+      await shiftClick(box(2));
+
+      const bar = screen.getByRole("toolbar", { name: /bulk/i });
+      expect(within(bar).getByText("3 selected")).toBeInTheDocument();
+      expect(box(1)).toBeChecked();
+
+      await shiftClick(box(1));
+      expect(box(0)).toBeChecked();
+      expect(box(1)).not.toBeChecked();
+      expect(box(2)).not.toBeChecked();
+      expect(within(bar).getByText("1 selected")).toBeInTheDocument();
+    },
+  );
+
+  it("runs a Shift-click range in the order shown when skipped strings sort last", async () => {
+    const user = userEvent.setup();
+    renderWorkspace({
+      initialState: createContentEditorWorkspaceState({
+        selectedSegmentId: "seg-02",
+        segments: contentEditorSegmentsFixture
+          .filter((segment) => ["seg-01", "seg-02", "seg-03"].includes(segment.id))
+          .map((segment) =>
+            segment.id === "seg-01" ? { ...segment, status: "skipped" as const } : segment,
+          ),
+      }),
+      queueSort: "untranslated_first",
+      review: { onBulkLock: vi.fn() },
+    });
+    const box = (index: number) =>
+      screen.getByRole("checkbox", { name: `Select ${SEGMENT_KEYS[index]}` });
+
+    // Shown as seg-02, seg-03, seg-01: from seg-01 to seg-03 leaves seg-02 out.
+    await user.click(await screen.findByRole("checkbox", { name: `Select ${SEGMENT_KEYS[0]}` }));
+    await user.keyboard("{Shift>}");
+    await user.click(box(2));
+    await user.keyboard("{/Shift}");
+
+    expect(box(0)).toBeChecked();
+    expect(box(1)).not.toBeChecked();
+    expect(box(2)).toBeChecked();
+  });
+
   it("does not approve with Ctrl+Enter in Comfortable while a ticked string's box has focus", async () => {
     const user = userEvent.setup();
     const onApprove = vi.fn().mockResolvedValue("reviewed");

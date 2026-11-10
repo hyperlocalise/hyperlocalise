@@ -193,7 +193,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   onToggleLocked?: () => void | Promise<void>;
   checkedSegmentIds?: ReadonlySet<string>;
   /** Shows the bulk-selection tick box when set (Select mode). */
-  onCheckedChange?: (checked: boolean) => void;
+  onCheckedChange?: (checked: boolean, extendRange: boolean) => void;
 }) {
   const intl = useIntl();
   const isMac = useIsMac();

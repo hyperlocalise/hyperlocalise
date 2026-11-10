@@ -207,7 +207,7 @@ describe("ContentEditorSideBySideVirtualList selection", () => {
 
     await user.click(screen.getByRole("checkbox", { name: `Select ${segments[2]!.key}` }));
 
-    expect(onToggleSegmentChecked).toHaveBeenCalledWith(segments[2]!.id, true);
+    expect(onToggleSegmentChecked).toHaveBeenCalledWith(segments[2]!.id, true, false);
     expect(onFocusSegment).not.toHaveBeenCalled();
   });
 

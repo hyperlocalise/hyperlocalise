@@ -34,7 +34,10 @@ import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.message
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
 import { useContentEditorSegmentTarget } from "@/components/content-editor/project-file/use-content-editor-segment-target";
 import { formatInternalMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-internal-markup";
-import { ContentEditorSegmentCheckbox } from "@/components/content-editor/segment/content-editor-segment-checkbox";
+import {
+  ContentEditorSegmentCheckbox,
+  type ContentEditorSegmentCheckHandler,
+} from "@/components/content-editor/segment/content-editor-segment-checkbox";
 import { multilingualMessages as messages } from "./content-editor-multilingual.messages";
 
 import { ContentEditorTargetEditor } from "../editor/content-editor-target-editor";
@@ -290,7 +293,7 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
   /** Ticks whole strings (every language) for the toolbar's bulk actions in Select mode. */
   checkedSegmentIds?: ReadonlySet<string>;
   showSelection?: boolean;
-  onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
+  onToggleSegmentChecked?: ContentEditorSegmentCheckHandler;
 }) {
   const intl = useIntl();
   const keyIdPrefix = useId();
@@ -501,7 +504,9 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
                       segmentId={segment.id}
                       segmentKey={segment.key}
                       checkedSegmentIds={checkedSegmentIds}
-                      onCheckedChange={(checked) => onToggleSegmentChecked(segment.id, checked)}
+                      onCheckedChange={(checked, extendRange) =>
+                        onToggleSegmentChecked(segment.id, checked, extendRange)
+                      }
                     />
                   ) : null}
                   <span id={`${keyIdPrefix}-${row.index}`} className="truncate">

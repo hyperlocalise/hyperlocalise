@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/primitives/cn";
 
+import type { ContentEditorSegmentCheckHandler } from "@/components/content-editor/segment/content-editor-segment-checkbox";
 import { resolveContentEditorQueueEmptyCopy } from "@/components/content-editor/queue/content-editor-queue-empty-copy";
 import { ContentEditorQueueSkeletonList } from "@/components/content-editor/queue/content-editor-queue-skeleton-list";
 import type { ContentEditorQueueFilter } from "@/components/content-editor/queue/content-editor-queue-filter";
@@ -318,7 +319,7 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
   checkedSegmentIds?: ReadonlySet<string>;
-  onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
+  onToggleSegmentChecked?: ContentEditorSegmentCheckHandler;
   showSelection?: boolean;
   hasPreviousSegment?: boolean;
   hasNextSegment?: boolean;

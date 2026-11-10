@@ -23,7 +23,10 @@ import { cn } from "@/lib/primitives/cn";
 import { formatInternalMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-internal-markup";
 import { ContentEditorHiddenStringBadge } from "@/components/content-editor/segment/content-editor-hidden-string-badge";
 import { ContentEditorLockedStringBadge } from "@/components/content-editor/segment/content-editor-locked-string-badge";
-import { ContentEditorSegmentCheckbox } from "@/components/content-editor/segment/content-editor-segment-checkbox";
+import {
+  ContentEditorSegmentCheckbox,
+  type ContentEditorSegmentCheckHandler,
+} from "@/components/content-editor/segment/content-editor-segment-checkbox";
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
 import { contentEditorQueuePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
@@ -51,7 +54,7 @@ export function ContentEditorQueueVirtualList({
   dirtySegmentIds?: ReadonlySet<string>;
   checkedSegmentIds?: ReadonlySet<string>;
   showSelection?: boolean;
-  onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
+  onToggleSegmentChecked?: ContentEditorSegmentCheckHandler;
   onSelectSegment: (segmentId: string) => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
@@ -135,7 +138,9 @@ export function ContentEditorQueueVirtualList({
                       segmentId={segment.id}
                       segmentKey={segment.key}
                       checkedSegmentIds={checkedSegmentIds}
-                      onCheckedChange={(checked) => onToggleSegmentChecked(segment.id, checked)}
+                      onCheckedChange={(checked, extendRange) =>
+                        onToggleSegmentChecked(segment.id, checked, extendRange)
+                      }
                     />
                   ) : null}
 
