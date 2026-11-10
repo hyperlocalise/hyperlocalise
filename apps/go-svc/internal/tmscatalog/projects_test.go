@@ -122,6 +122,103 @@ func TestLokaliseListFilesGroupsKeysByFilename(t *testing.T) {
 	}
 }
 
+func TestCrowdinFileProgressSkipsNilFileIDs(t *testing.T) {
+	t.Parallel()
+	fileID := 9
+	srv := serveJSON(t, map[string]any{
+		"/projects/7/languages/es-ES/progress": crowdinData(
+			map[string]any{"translationProgress": 10, "approvalProgress": 5, "phrases": map[string]int{"total": 2, "translated": 1, "approved": 0}},
+			map[string]any{"fileId": fileID, "translationProgress": 40, "approvalProgress": 20, "phrases": map[string]int{"total": 4, "translated": 2, "approved": 1}},
+		),
+	})
+	reader, err := NewProjectReader("crowdin", Credentials{BaseURL: srv.URL, HeaderName: "Authorization", HeaderValue: "Bearer x"}, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	empty, err := reader.FileProgress(context.Background(), "not-a-project", "es-ES")
+	if err != nil || len(empty) != 0 {
+		t.Fatalf("invalid id = %v, %v", empty, err)
+	}
+	blank, err := reader.FileProgress(context.Background(), "7", "  ")
+	if err != nil || len(blank) != 0 {
+		t.Fatalf("blank locale = %v, %v", blank, err)
+	}
+	got, err := reader.FileProgress(context.Background(), "7", "es-ES")
+	if err != nil {
+		t.Fatalf("FileProgress: %v", err)
+	}
+	if len(got) != 1 || got[0].ExternalResourceID != "9" || got[0].TranslationProgress != 40 || got[0].Phrases.Approved != 1 {
+		t.Fatalf("FileProgress = %+v", got)
+	}
+}
+
+func TestCrowdinHiddenFileIDsKeepsFilesWithNoVisibleStrings(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/projects/7/strings" {
+			http.NotFound(w, r)
+			return
+		}
+		croql := r.URL.Query().Get("croql")
+		items := []any{}
+		switch croql {
+		case "is hidden":
+			items = []any{
+				map[string]any{"fileId": 1},
+				map[string]any{"fileId": 2},
+				map[string]any{"fileId": 1},
+				map[string]any{},
+			}
+		case "id of file = 1 and not is hidden":
+			items = []any{map[string]any{"fileId": 1}}
+		case "id of file = 2 and not is hidden":
+			items = []any{}
+		default:
+			t.Errorf("unexpected croql %q", croql)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(crowdinData(items...))
+	}))
+	t.Cleanup(srv.Close)
+	reader, err := NewProjectReader("crowdin", Credentials{BaseURL: srv.URL, HeaderName: "Authorization", HeaderValue: "Bearer x"}, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	empty, err := reader.HiddenFileIDs(context.Background(), "0")
+	if err != nil || len(empty) != 0 {
+		t.Fatalf("invalid id = %v, %v", empty, err)
+	}
+	got, err := reader.HiddenFileIDs(context.Background(), "7")
+	if err != nil {
+		t.Fatalf("HiddenFileIDs: %v", err)
+	}
+	if len(got) != 1 || got[0] != "2" {
+		t.Fatalf("HiddenFileIDs = %v, want only file 2", got)
+	}
+}
+
+func TestNonCrowdinLiveProgressHelpersStayEmpty(t *testing.T) {
+	t.Parallel()
+	client := http.DefaultClient
+	lokalise := newLokalise(Credentials{BaseURL: "http://127.0.0.1", HeaderName: "X-Api-Token", HeaderValue: "x"}, client)
+	progress, err := lokalise.FileProgress(context.Background(), "p1", "fr")
+	if err != nil || len(progress) != 0 {
+		t.Fatalf("lokalise progress = %v, %v", progress, err)
+	}
+	hidden, err := lokalise.HiddenFileIDs(context.Background(), "p1")
+	if err != nil || len(hidden) != 0 {
+		t.Fatalf("lokalise hidden = %v, %v", hidden, err)
+	}
+	phrase, err := NewProjectReader("phrase", Credentials{BaseURL: "http://127.0.0.1", HeaderName: "Authorization", HeaderValue: "Bearer x"}, client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	progress, err = phrase.FileProgress(context.Background(), "p1", "fr")
+	if err != nil || len(progress) != 0 {
+		t.Fatalf("phrase progress = %v, %v", progress, err)
+	}
+}
+
 func TestPhrasePaths(t *testing.T) {
 	t.Parallel()
 	en := "en"
