@@ -5,7 +5,7 @@ import preact from "@preact/preset-vite";
 import { defineConfig, type Plugin } from "vite-plus";
 import { viteSingleFile } from "vite-plugin-singlefile";
 
-import { resolveHyperlocaliseAppUrlForBuild } from "./vite/load-env";
+import { hyperlocaliseAppUrlForMode } from "./vite/app-url";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const srcDir = path.join(rootDir, "src");
@@ -27,7 +27,7 @@ function createFigmaPluginSideEffectCss(): Plugin {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   fmt: {
     ignorePatterns: ["dist/**", "pnpm-lock.yaml"],
   },
@@ -53,7 +53,7 @@ export default defineConfig({
   },
   root: srcDir,
   define: {
-    HYPERLOCALISE_APP_URL: JSON.stringify(resolveHyperlocaliseAppUrlForBuild()),
+    HYPERLOCALISE_APP_URL: JSON.stringify(hyperlocaliseAppUrlForMode(mode)),
   },
   plugins: [createFigmaPluginSideEffectCss(), preact(), viteSingleFile()],
   resolve: {
@@ -75,4 +75,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
