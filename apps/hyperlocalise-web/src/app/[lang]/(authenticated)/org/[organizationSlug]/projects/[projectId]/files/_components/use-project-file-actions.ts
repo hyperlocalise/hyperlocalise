@@ -22,8 +22,10 @@ import {
 } from "@/lib/projects/project-file-content-editor-routing";
 import { sourcePathSupportsSrxSegmentation } from "@/lib/i18n/srx/format-supports";
 import { sourcePathImportKind } from "@/lib/projects/files/source-file-import-settings-schema";
+import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resource-capabilities";
 import {
   inferSupportedFileTranslationFileFormat,
+  inferSupportedOfficeTranslationFileFormat,
   isSupportedSourceUploadFormat,
 } from "@/lib/translation/file-formats";
 
@@ -38,8 +40,21 @@ export type ProjectFileActionCapabilities = {
   isNativeFile: boolean;
   canConfigureSegmentation: boolean;
   canConfigureImportSettings: boolean;
+  canUseTranslationAsSource: boolean;
   translateDisabledTitle: string | undefined;
 };
+
+/**
+ * Only Word files in projects that store their own files can send their translation to
+ * another project as its source; see the chained stages design record.
+ */
+export function canUseTranslationAsSource(projectId: string, file: ProjectFileRecord) {
+  return (
+    !file.provider &&
+    getProjectWorkspaceCapabilities({ projectId }).canUploadFiles &&
+    inferSupportedOfficeTranslationFileFormat(file.sourcePath) === "docx"
+  );
+}
 
 export function buildProjectFileActionCapabilities({
   organizationSlug,
@@ -84,6 +99,7 @@ export function buildProjectFileActionCapabilities({
     canTranslateWithAgent,
     canConfigureSegmentation: isNativeFile && sourcePathSupportsSrxSegmentation(file.sourcePath),
     canConfigureImportSettings: isNativeFile && sourcePathImportKind(file.sourcePath) !== null,
+    canUseTranslationAsSource: canUseTranslationAsSource(projectId, file),
     contentEditorHref,
     isNativeFile,
     translateDisabledTitle,

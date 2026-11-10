@@ -18,7 +18,7 @@ import { IntlProvider } from "react-intl";
 import { describe, expect, it } from "vite-plus/test";
 
 import { createProjectFileRecord, providerProjectFilesFixture } from "./project-files.fixture";
-import { useProjectFileActions } from "./use-project-file-actions";
+import { canUseTranslationAsSource, useProjectFileActions } from "./use-project-file-actions";
 
 function IntlWrapper({ children }: { children: ReactNode }) {
   return (
@@ -134,5 +134,27 @@ describe("useProjectFileActions", () => {
     expect(result.current.isNativeFile).toBe(true);
     expect(result.current.canTranslateWithAgent).toBe(true);
     expect(result.current.translateDisabledTitle).toBeUndefined();
+  });
+});
+
+describe("canUseTranslationAsSource", () => {
+  it("allows only Word files in projects that store their own files", () => {
+    const wordFile = createProjectFileRecord({ sourcePath: "docs/brief.docx" });
+
+    expect(canUseTranslationAsSource("project_website", wordFile)).toBe(true);
+    expect(canUseTranslationAsSource("project_website", createProjectFileRecord())).toBe(false);
+    expect(
+      canUseTranslationAsSource(
+        "project_website",
+        createProjectFileRecord({ sourcePath: "docs/sheet.xlsx" }),
+      ),
+    ).toBe(false);
+    expect(canUseTranslationAsSource("ext:crowdin:42", wordFile)).toBe(false);
+    expect(
+      canUseTranslationAsSource("project_website", {
+        ...providerProjectFilesFixture[0]!,
+        sourcePath: "crowdin/brief.docx",
+      }),
+    ).toBe(false);
   });
 });
