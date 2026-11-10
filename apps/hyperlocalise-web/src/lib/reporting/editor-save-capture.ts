@@ -27,8 +27,10 @@ import {
 import { personSave, textOrigins } from "./completion-source";
 import type { CompletionSource, ReportStep } from "./report-units";
 import {
+  keyTaskSpansForStrings,
   personTaskForSave,
   personTasksForString,
+  withKeyTasks,
   type PersonTaskLookup,
   type PersonTaskSave,
   type PersonTaskSpan,
@@ -467,15 +469,23 @@ async function recordSaves(
   // A save made while a task for people covers the string is that task's work, at the step
   // `personTaskForSave` says; otherwise it belongs to the task that produced the translation.
   // The tasks are read once per file, language and step, and each save is matched by its own time.
+  // Proofread tasks made of chosen strings, read once for the whole batch and merged with the
+  // file's tasks for each save.
+  const keyTasks = await keyTaskSpansForStrings(organizationId, keyIds);
   const personTasks = new Map<string, Promise<PersonTaskSpan[]>>();
-  const tasksFor = (lookup: PersonTaskLookup) => {
-    const lookupKey = `${lookup.projectId}:${lookup.repositorySourceFileId}:${lookup.targetLocale}:${lookup.step}`;
+  const tasksFor = async (lookup: PersonTaskLookup) => {
+    const { translationKeyId, ...byFile } = lookup;
+    const lookupKey = `${byFile.projectId}:${byFile.repositorySourceFileId}:${byFile.targetLocale}:${byFile.step}`;
     let tasks = personTasks.get(lookupKey);
     if (!tasks) {
-      tasks = personTasksForString(lookup);
+      tasks = personTasksForString(byFile);
       personTasks.set(lookupKey, tasks);
     }
-    return tasks;
+    return withKeyTasks(
+      await tasks,
+      translationKeyId ? keyTasks.get(translationKeyId) : undefined,
+      lookup,
+    );
   };
   const taskFor = (
     segment: SavedSegment,
@@ -487,6 +497,7 @@ async function recordSaves(
             organizationId,
             projectId: segment.projectId,
             repositorySourceFileId,
+            translationKeyId: segment.translationKeyId,
             targetLocale: segment.targetLocale,
             step: segment.step,
             savedAt: segment.occurredAt,

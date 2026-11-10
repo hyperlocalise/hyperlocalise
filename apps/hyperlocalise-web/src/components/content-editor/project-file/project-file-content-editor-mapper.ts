@@ -198,6 +198,19 @@ function intelligenceFor(
   };
 }
 
+/** Only http and https links are shown, so a stored link can't run script when clicked. */
+function safeDesignUrl(value: string | null | undefined) {
+  if (!value) {
+    return undefined;
+  }
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function segmentIntelligenceFor(
   contentEditorFile: ContentEditorFile,
   segment: ContentEditorFile["segments"][number],
@@ -210,6 +223,7 @@ function segmentIntelligenceFor(
     segment.maxLength != null && segment.maxLength > 0 ? segment.maxLength : undefined;
 
   const segmentFormat = segment.format?.trim() || undefined;
+  const designUrl = safeDesignUrl(segment.designUrl);
 
   return {
     intent: intl.formatMessage(projectFileCatMapperMessages.segmentIntent, {
@@ -227,6 +241,8 @@ function segmentIntelligenceFor(
     productMeaning: context || undefined,
     ...(segmentType ? { segmentType } : {}),
     ...(maxLength != null ? { maxLength } : {}),
+    ...(segment.tags && segment.tags.length > 0 ? { keyTags: segment.tags } : {}),
+    ...(designUrl ? { designUrl } : {}),
     reviewerPreference: contentEditorFile.canEditTranslations
       ? providerKind
         ? intl.formatMessage(projectFileCatMapperMessages.approveWritesToProvider)

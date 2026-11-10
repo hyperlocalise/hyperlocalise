@@ -1236,3 +1236,70 @@ func TestEditorCatQueueUntranslatedFirstBindsLocale(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.Len(t, body.ContentEditorQueue.Segments, 1)
 }
+
+func TestEditorCatSetTags(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "developer")
+	fileID := mustEditorCatSourceFile(t, scope, "a.json")
+	first := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
+	second := mustEditorCatKey(t, scope, fileID, "bye", "Bye")
+	path := editorCatPathFor(scope, "/files/detail/cat/strings/tags")
+
+	rec := editorCatRequestScope(api, scope, http.MethodPost, path, `{"sourcePath":"a.json","externalStringIds":["`+first+`","`+second+`"],"addTags":["release-7","checkout"]}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"updatedCount":2`)
+	require.Contains(t, rec.Body.String(), `"tags":["checkout","release-7"]`)
+
+	rec = editorCatRequestScope(api, scope, http.MethodPost, path, `{"sourcePath":"a.json","externalStringIds":["`+first+`"],"addTags":["release-7"],"removeTags":["checkout"]}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"updatedCount":1`)
+
+	queue := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=a.json&targetLocale=fr&queueFilter=all"), "")
+	require.Equal(t, http.StatusOK, queue.Code, queue.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(queue.Body.Bytes(), &body))
+	tags := map[string][]string{}
+	for _, segment := range body.ContentEditorQueue.Segments {
+		tags[segment.ExternalStringID] = segment.Tags
+	}
+	require.Equal(t, []string{"release-7"}, tags[first])
+	require.Equal(t, []string{"checkout", "release-7"}, tags[second])
+
+	for _, invalid := range []string{
+		`{"sourcePath":"a.json","externalStringIds":["` + first + `"],"addTags":["has space"]}`,
+		`{"sourcePath":"a.json","externalStringIds":["` + first + `"]}`,
+		`{"sourcePath":"a.json","externalStringIds":[],"addTags":["a"]}`,
+	} {
+		rec = editorCatRequestScope(api, scope, http.MethodPost, path, invalid)
+		require.Equal(t, http.StatusBadRequest, rec.Code, invalid)
+	}
+}
+
+func TestEditorCatSetTagsNeedsProjectsWrite(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "a.json")
+	keyID := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/strings/tags"), `{"sourcePath":"a.json","externalStringIds":["`+keyID+`"],"addTags":["a"]}`)
+	require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+	rec = editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/segments/"+keyID+"/design-url"), `{"sourcePath":"a.json","externalStringId":"`+keyID+`","designUrl":"https://example.com"}`)
+	require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+}
+
+func TestEditorCatSetDesignURL(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "localization_manager")
+	fileID := mustEditorCatSourceFile(t, scope, "a.json")
+	keyID := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
+	path := editorCatPathFor(scope, "/files/detail/cat/segments/"+keyID+"/design-url")
+
+	rec := editorCatRequestScope(api, scope, http.MethodPost, path, `{"sourcePath":"a.json","externalStringId":"`+keyID+`","designUrl":" https://www.figma.com/file/abc?node-id=1 "}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"designUrl":"https://www.figma.com/file/abc?node-id=1"`)
+
+	rec = editorCatRequestScope(api, scope, http.MethodPost, path, `{"sourcePath":"a.json","externalStringId":"`+keyID+`","designUrl":"javascript:alert(1)"}`)
+	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+
+	rec = editorCatRequestScope(api, scope, http.MethodPost, path, `{"sourcePath":"a.json","externalStringId":"`+keyID+`","designUrl":null}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"designUrl":null`)
+}

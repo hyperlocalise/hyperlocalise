@@ -161,3 +161,44 @@ describe("nativeQueueFilterCondition", () => {
     expect(filterSql({ ...scope, queueFilter: "hidden" })).toContain("true");
   });
 });
+
+describe("nativeQueueFilterCondition key tags and key jobs", () => {
+  const scope = { organizationId: "org", projectId: "project", targetLocale: "fr" };
+
+  it("matches tags as labels and scopes a key job to its visible strings", () => {
+    const sqlText = filterSql({
+      ...scope,
+      advancedFilter: {
+        includeLabelMode: "include_any",
+        includeLabelIds: ["checkout"],
+        excludeLabelIds: ["old"],
+        jobId: "job_1",
+      },
+    });
+
+    expect(sqlText).toContain("&& array[checkout]::text[]");
+    expect(sqlText).toContain("not (");
+    expect(sqlText).toContain("@> array[old]::text[]");
+    expect(sqlText).toContain("job_1");
+    expect(sqlText).toContain("= false");
+  });
+
+  it("keeps hidden strings of a key job when the hidden quick filter is chosen", () => {
+    const sqlText = filterSql({
+      ...scope,
+      queueFilter: "hidden",
+      advancedFilter: { jobId: "job_1" },
+    });
+    expect(sqlText).toContain("= true");
+    expect(sqlText).not.toContain("= false");
+  });
+
+  it("keeps hidden strings of a key job when they are asked for", () => {
+    const sqlText = filterSql({
+      ...scope,
+      advancedFilter: { jobId: "job_1", visibility: "hidden" },
+    });
+    expect(sqlText).toContain("= true");
+    expect(sqlText).not.toContain("= false");
+  });
+});

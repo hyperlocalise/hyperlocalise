@@ -26,8 +26,11 @@ type editorCatSegment struct {
 	Context          *string `json:"context"`
 	Type             *string `json:"type"`
 	MaxLength        *int    `json:"maxLength,omitempty"`
-	IsHidden         *bool   `json:"isHidden,omitempty"`
-	IsLocked         *bool   `json:"isLocked,omitempty"`
+	// The key's free tags and design link.
+	Tags      []string `json:"tags,omitempty"`
+	DesignURL *string  `json:"designUrl,omitempty"`
+	IsHidden  *bool    `json:"isHidden,omitempty"`
+	IsLocked  *bool    `json:"isLocked,omitempty"`
 	// Set when the string's file is one whose source text the platform can write back.
 	SourceTextEditable *bool   `json:"sourceTextEditable,omitempty"`
 	ContentKind        *string `json:"contentKind,omitempty"`
@@ -640,7 +643,7 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 	selectCols := `k.id, k.key, k.source_text, k.context, k.type, k.max_length, k.metadata, k.is_hidden, (` +
 		sourcetext.KeyEditableSQL("k") + ` and not exists (select 1 from project_cat_segment_locks sl
             where sl.organization_id = k.organization_id and sl.project_id = k.project_id
-                and sl.external_string_id = k.id::text))`
+                and sl.external_string_id = k.id::text)), k.tags, k.design_url`
 	if includeSourcePath {
 		selectCols += `, f.source_path, f.message_format, f.placeholder_patterns`
 	}
@@ -690,7 +693,7 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		var sourcePath, messageFormat *string
 		var placeholderPatterns []string
 		var occurrenceCount int
-		dest := []any{&segment.ExternalStringID, &segment.Key, &segment.SourceText, &context, &keyType, &maxLength, &metadata, &hidden, &sourceTextEditable}
+		dest := []any{&segment.ExternalStringID, &segment.Key, &segment.SourceText, &context, &keyType, &maxLength, &metadata, &hidden, &sourceTextEditable, &segment.Tags, &segment.DesignURL}
 		if includeSourcePath {
 			dest = append(dest, &sourcePath, &messageFormat, &placeholderPatterns)
 		}

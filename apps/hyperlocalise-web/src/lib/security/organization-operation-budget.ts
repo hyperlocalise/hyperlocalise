@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, notExists, sql } from "drizzle-orm";
 
 import { schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
@@ -44,6 +44,21 @@ async function countOrganizationJobBudgetUsage(client: DatabaseClient, organizat
         and(
           eq(schema.jobs.organizationId, organizationId),
           inArray(schema.jobs.status, [...OPEN_JOB_STATUSES]),
+          // Key jobs for people stay open for days and run nothing, so they don't hold back AI
+          // jobs; key jobs for AI translation count like any other. All count towards the
+          // hourly rate.
+          notExists(
+            client
+              .select({ jobId: schema.translationJobDetails.jobId })
+              .from(schema.translationJobDetails)
+              .where(
+                and(
+                  eq(schema.translationJobDetails.jobId, schema.jobs.id),
+                  eq(schema.translationJobDetails.type, "keys"),
+                  eq(schema.jobs.kind, "proofread"),
+                ),
+              ),
+          ),
         ),
       ),
     client
@@ -60,11 +75,14 @@ async function countOrganizationJobBudgetUsage(client: DatabaseClient, organizat
   };
 }
 
-function evaluateOrganizationJobBudgetUsage(counts: {
-  openJobs: number;
-  recentJobs: number;
-}): Result<void, OrganizationOperationBudgetError> {
-  if (counts.openJobs >= MAX_OPEN_JOBS_PER_ORGANIZATION) {
+function evaluateOrganizationJobBudgetUsage(
+  counts: {
+    openJobs: number;
+    recentJobs: number;
+  },
+  options: { checkOpenJobs: boolean } = { checkOpenJobs: true },
+): Result<void, OrganizationOperationBudgetError> {
+  if (options.checkOpenJobs && counts.openJobs >= MAX_OPEN_JOBS_PER_ORGANIZATION) {
     return err({
       code: "organization_job_budget_exceeded",
       message: `Organization has ${counts.openJobs} open jobs. Wait for jobs to finish before creating more.`,
@@ -91,8 +109,12 @@ export class OrganizationJobBudgetExceededError extends Error {
 export async function assertOrganizationCanEnqueueTranslationJobInTransaction(
   tx: DatabaseTransaction,
   organizationId: string,
+  options?: {
+    /** A key job for people doesn't count as open, so other open jobs don't hold it back; the rate does. */
+    isKeyJob?: boolean;
+  },
 ): Promise<Result<void, OrganizationOperationBudgetError>> {
   await lockOrganizationJobBudget(tx, organizationId);
   const counts = await countOrganizationJobBudgetUsage(tx, organizationId);
-  return evaluateOrganizationJobBudgetUsage(counts);
+  return evaluateOrganizationJobBudgetUsage(counts, { checkOpenJobs: !options?.isKeyJob });
 }

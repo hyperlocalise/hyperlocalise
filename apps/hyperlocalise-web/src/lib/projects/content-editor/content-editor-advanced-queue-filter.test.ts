@@ -13,6 +13,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  advancedQueueFilterSupportsLabels,
+  includedTagsOnly,
+  withIncludedTag,
+  withoutShownScope,
+  withoutIncludedTag,
   compactAdvancedQueueFilter,
   croqlDateRangePredicate,
   croqlLabelPredicates,
@@ -130,5 +135,53 @@ describe("croql helpers", () => {
     );
     expect(compactAdvancedQueueFilter({ includeLabelIds: ids }).includeLabelIds).toHaveLength(50);
     expect(parseAdvancedQueueFilter(JSON.stringify({ includeLabelIds: ids }))).toBeUndefined();
+  });
+});
+
+describe("key job and tag filters", () => {
+  it("round-trips a key job filter", () => {
+    const serialized = serializeAdvancedQueueFilter({ jobId: " job_1 " });
+    expect(parseAdvancedQueueFilter(serialized)).toEqual({ jobId: "job_1" });
+  });
+
+  it("offers labels on native projects, where they are the keys' tags", () => {
+    expect(advancedQueueFilterSupportsLabels(null)).toBe(true);
+    expect(advancedQueueFilterSupportsLabels("native")).toBe(true);
+    expect(advancedQueueFilterSupportsLabels("crowdin")).toBe(true);
+    expect(advancedQueueFilterSupportsLabels("phrase")).toBe(false);
+  });
+});
+
+describe("tag filter helpers", () => {
+  it("adds and removes included tags and keeps the rest of the filter", () => {
+    const withTag = withIncludedTag({ jobId: "job_1" }, "release-7");
+    expect(withTag).toEqual({
+      jobId: "job_1",
+      includeLabelIds: ["release-7"],
+      includeLabelMode: "include_all",
+    });
+    expect(withIncludedTag(withTag, "release-7")).toEqual(withTag);
+    expect(withoutIncludedTag(withTag, "release-7")).toEqual({ jobId: "job_1" });
+    expect(withoutIncludedTag({ includeLabelIds: ["a"] }, "a")).toBeUndefined();
+  });
+
+  it("keeps only the included tags for a quick filter", () => {
+    expect(
+      includedTagsOnly({
+        includeLabelIds: ["a"],
+        includeLabelMode: "include_any",
+        stringType: "plain",
+      }),
+    ).toEqual({ includeLabelIds: ["a"], includeLabelMode: "include_any" });
+    expect(includedTagsOnly({ stringType: "plain" })).toBeUndefined();
+  });
+
+  it("leaves out the task scope and, where shown as chips, the searched tags", () => {
+    const filter = { jobId: "job_1", includeLabelIds: ["a"], stringType: "plain" as const };
+    expect(withoutShownScope(filter, true)).toEqual({ stringType: "plain" });
+    expect(withoutShownScope(filter, false)).toEqual({
+      includeLabelIds: ["a"],
+      stringType: "plain",
+    });
   });
 });

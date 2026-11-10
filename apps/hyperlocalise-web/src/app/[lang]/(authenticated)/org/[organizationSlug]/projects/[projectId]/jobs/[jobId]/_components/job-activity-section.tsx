@@ -21,13 +21,19 @@ import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { buildJobDetailHref } from "../../../../../jobs/_components/jobs-view-helpers";
 import { buildJobActivity, hasTerminalJobEvent, shouldPollJobEvents } from "./build-job-activity";
 import { JobActivityView } from "./job-activity-view";
-import type { JobDetailRecord } from "./job-detail-types";
+import { isProviderBackedJob, type JobDetailRecord } from "./job-detail-types";
 import { isNativeFileTranslationJob } from "./native-job-detail-helpers";
 
 export const JOB_ACTIVITY_POLL_INTERVAL_MS = 3000;
 
 export function hasJobActivityFeed(job: JobDetailRecord) {
-  return isNativeFileTranslationJob(job);
+  // Tasks made of strings record the same events as file jobs.
+  return (
+    isNativeFileTranslationJob(job) ||
+    (!isProviderBackedJob(job) &&
+      job.type === "keys" &&
+      (job.kind === "translation" || job.kind === "proofread"))
+  );
 }
 
 export function JobActivitySection({

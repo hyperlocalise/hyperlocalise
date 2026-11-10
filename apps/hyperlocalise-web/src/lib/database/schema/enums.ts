@@ -41,7 +41,7 @@ export const jobAssigneeTypeEnum = pgEnum("job_assignee_type", ["user", "agent"]
 /**
  * Distinguishes string-based translation jobs from file-based translation jobs so job details can point at the right source inputs and outputs.
  */
-export const translationJobTypeEnum = pgEnum("translation_job_type", ["string", "file"]);
+export const translationJobTypeEnum = pgEnum("translation_job_type", ["string", "file", "keys"]);
 /**
  * Describes the terminal shape of a translation job result, allowing callers to branch between string output, file output, and error payloads.
  */

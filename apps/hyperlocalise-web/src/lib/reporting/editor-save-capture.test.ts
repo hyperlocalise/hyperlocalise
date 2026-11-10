@@ -452,6 +452,62 @@ describe("captureEditorSaves", () => {
     expect(analyses.every((row) => row.jobId === task.id && row.step === "review")).toBe(true);
   });
 
+  it("attributes a save to an open task made of chosen strings that holds the string", async () => {
+    const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
+    const [task] = await db
+      .insert(schema.jobs)
+      .values({
+        id: `job_${randomUUID()}`,
+        organizationId: organization.id,
+        projectId: project.id,
+        createdByUserId: user.id,
+        kind: "proofread",
+        status: "waiting_for_review",
+        inputPayload: { sourceLocale: "en-US", targetLocales: ["fr-FR"] },
+      })
+      .returning();
+    await db.insert(schema.translationJobDetails).values({ jobId: task!.id, type: "keys" });
+    // Only the first string is in the task.
+    await db
+      .insert(schema.translationJobKeys)
+      .values({ jobId: task!.id, translationKeyId: keyIds[0]! });
+
+    for (const segmentId of keyIds) {
+      await insertSaveEvent({
+        organizationId: organization.id,
+        projectId: project.id,
+        actorUserId: user.id,
+        segmentId,
+        eventType: "string_segment_approved",
+        nextStatus: "approved",
+      });
+    }
+    await captureEditorSaves({ now: LATER(), organizationIds: [organization.id] });
+
+    const completions = await db
+      .select({
+        jobId: schema.reportingActivity.jobId,
+        step: schema.reportingActivity.step,
+        segmentId: schema.reportingAnalyses.segmentId,
+      })
+      .from(schema.reportingActivity)
+      .innerJoin(
+        schema.reportingAnalyses,
+        eq(schema.reportingAnalyses.id, schema.reportingActivity.analysisId),
+      )
+      .where(
+        and(
+          eq(schema.reportingActivity.organizationId, organization.id),
+          eq(schema.reportingActivity.kind, "completion"),
+        ),
+      );
+    expect(completions.find((row) => row.segmentId === keyIds[0])).toMatchObject({
+      jobId: task!.id,
+      step: "review",
+    });
+    expect(completions.find((row) => row.segmentId === keyIds[1])?.jobId).not.toBe(task!.id);
+  });
+
   it("matches each save in a run to the task open at that save's own time", async () => {
     const { organization, project, user, keyIds } = await createProjectWithSavedOccurrences();
     const save = (segmentId: string, createdAt: Date, approve = false) =>

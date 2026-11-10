@@ -348,6 +348,30 @@ const ContentEditorWorkspaceContainerObserver = observer(
                   }
                 : undefined
             }
+            onBulkCreateTask={
+              review?.onCreateKeyTask
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    review.onCreateKeyTask?.([...store.checkedSegmentIds], () =>
+                      store.clearChecked(),
+                    );
+                  }
+                : undefined
+            }
+            onBulkEditTags={
+              review?.onEditKeyTags
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    review.onEditKeyTags?.([...store.checkedSegmentIds], () =>
+                      store.clearChecked(),
+                    );
+                  }
+                : undefined
+            }
             onDownloadFilteredView={onDownloadFilteredView}
             isDownloadingFilteredView={isDownloadingFilteredView}
             onImportBilingualFile={onImportBilingualFile}

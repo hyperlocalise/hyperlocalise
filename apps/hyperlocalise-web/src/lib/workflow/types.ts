@@ -19,7 +19,7 @@ export type JobEventData<Kind extends string, Type extends string = string> = {
   type: Type;
 };
 
-export type TranslationJobEventData = JobEventData<"translation", "string" | "file"> & {
+export type TranslationJobEventData = JobEventData<"translation", "string" | "file" | "keys"> & {
   knowledgeMemoryEnabled?: boolean;
 };
 

@@ -1069,6 +1069,9 @@ export const projectFileCatSegmentSchema = z.object({
   context: z.string().nullable(),
   type: z.string().nullable(),
   maxLength: z.number().int().positive().optional(),
+  /** Native key tags and design link, set through the public API. */
+  tags: z.array(z.string()).optional(),
+  designUrl: z.string().nullable().optional(),
   /** Hidden source string. Native TMS and Crowdin-style providers keep it visible to managers. */
   isHidden: z.boolean().optional(),
   /** Explicit CAT lock. Not derived from approved or hidden. */

@@ -141,5 +141,13 @@ export function mergeSegmentIntelligenceOnHydrate(input: {
     };
   }
 
+  // Tags and the design link come only from the server, so the fresh load wins over kept data.
+  if (nextConcordance && merged && merged !== nextConcordance) {
+    merged = {
+      ...merged,
+      keyTags: nextConcordance.keyTags,
+      designUrl: nextConcordance.designUrl,
+    };
+  }
   return merged;
 }

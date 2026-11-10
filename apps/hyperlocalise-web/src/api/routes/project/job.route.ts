@@ -49,6 +49,15 @@ import {
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
+import {
+  addKeyJobStrings,
+  keyJobKeyCountSql,
+  insertKeyJobKeys,
+  KeyJobSelectionFailure,
+  keyJobInputPayload,
+  restartKeyJobTaskAnalysis,
+  keyJobSelectionMessages,
+} from "@/lib/projects/jobs/key-job";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   enqueueJobCreatedActivity,
@@ -109,7 +118,9 @@ import {
   workspaceAgentRunParamsSchema,
 } from "./agent-run.schema";
 import {
+  addKeyJobStringsBodySchema,
   createJobBodySchema,
+  jobParamsSchema,
   jobProjectParamsSchema,
   updateJobBodySchema,
   workspaceJobParamsSchema,
@@ -176,6 +187,7 @@ const jobSelect = {
   createdAt: schema.jobs.createdAt,
   updatedAt: schema.jobs.updatedAt,
   completedAt: schema.jobs.completedAt,
+  keyCount: keyJobKeyCountSql,
 };
 
 const jobWithProjectSelect = {
@@ -373,11 +385,8 @@ const validateCreateJobBody = validator("json", (value, c) => {
 });
 
 export function createJobRoutes(options: CreateJobRoutesOptions) {
-  return new Hono<{ Variables: AuthVariables }>().post(
-    "/",
-    validateProjectParams,
-    validateCreateJobBody,
-    async (c) => {
+  return new Hono<{ Variables: AuthVariables }>()
+    .post("/", validateProjectParams, validateCreateJobBody, async (c) => {
       if (!isJobCreateAllowed(c.var.auth.membership.role)) {
         return projectForbiddenResponse(c);
       }
@@ -395,10 +404,19 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         return projectNotFoundResponse(c);
       }
 
-      const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
+      const inputPayload =
+        payload.type === "string"
+          ? payload.stringInput
+          : payload.type === "file"
+            ? payload.fileInput
+            : keyJobInputPayload(payload.keysInput);
       const title = payload.title?.trim();
       const description = payload.description?.trim();
-      const jobKind = payload.kind === "proofread" ? "proofread" : "translation";
+      // A key job is a task for people unless AI translation is asked for.
+      const jobKind =
+        payload.kind === "proofread" || (payload.type === "keys" && payload.kind !== "translation")
+          ? "proofread"
+          : "translation";
 
       let enrichedInputPayload = inputPayload;
       if (title || description) {
@@ -518,6 +536,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
             tx,
             c.var.auth.organization.localOrganizationId,
+            { isKeyJob: payload.type === "keys" && isProofreadJob },
           );
           if (isErr(jobBudget)) {
             throw new OrganizationJobBudgetExceededError(jobBudget.error);
@@ -558,6 +577,18 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             })
             .returning();
 
+          if (payload.type === "keys") {
+            const linked = await insertKeyJobKeys(tx, {
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              jobId,
+              selection: payload.keysInput,
+            });
+            if (isErr(linked)) {
+              throw new KeyJobSelectionFailure(linked.error);
+            }
+          }
+
           if (!isProofreadJob) {
             const usageEventResult = await reserveUsageEvent({
               db: tx,
@@ -585,6 +616,10 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         if (error instanceof OrganizationJobBudgetExceededError) {
           return c.json({ error: error.budgetError.code, message: error.budgetError.message }, 429);
         }
+        if (error instanceof KeyJobSelectionFailure) {
+          const { code } = error.selectionError;
+          return badRequestResponse(c, code, keyJobSelectionMessages[code]);
+        }
         throw error;
       }
 
@@ -599,8 +634,9 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         status: job.status,
       });
 
-      // A proofread task runs no agent, so Reports records its strings now, in the background.
-      if (isProofreadJob && job.repositorySourceFileId) {
+      // A proofread task runs no agent, so Reports records its strings now, in the background:
+      // a file's strings, or the strings a task made of chosen strings was given.
+      if (isProofreadJob && (job.repositorySourceFileId || job.type === "keys")) {
         await startTaskAnalysis({
           organizationId: job.organizationId,
           projectId: params.projectId,
@@ -618,7 +654,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             kind: "translation",
             jobId: job.id,
             projectId: job.projectId ?? params.projectId,
-            type: job.type,
+            type: payload.type,
           });
         } catch (error) {
           await updateJobs(db, {
@@ -652,8 +688,68 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       return c.json({ job: createdJob }, 201);
-    },
-  );
+    })
+    .post(
+      "/:jobId/keys",
+      validator("param", (value, c) => {
+        const parsed = jobParamsSchema.safeParse(value);
+        return parsed.success ? parsed.data : notFoundResponse(c, "job_not_found", "Job not found");
+      }),
+      validator("json", (value, c) => {
+        const parsed = addKeyJobStringsBodySchema.safeParse(value);
+        return parsed.success
+          ? parsed.data
+          : validationErrorResponse(
+              c,
+              "invalid_job_payload",
+              "Invalid job payload",
+              parsed.error.issues,
+            );
+      }),
+      async (c) => {
+        if (!isJobMutationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+        const params = c.req.valid("param");
+        const added = await addKeyJobStrings({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          jobId: params.jobId,
+          stringIds: c.req.valid("json").stringIds,
+          accessWhere: await buildAccessibleJobsWhere(c.var.auth),
+        });
+        if (isErr(added)) {
+          switch (added.error.code) {
+            case "job_not_found":
+              return notFoundResponse(c, "job_not_found", "Job not found");
+            case "not_key_job":
+            case "job_not_open":
+              return conflictResponse(
+                c,
+                added.error.code,
+                "Strings can only be added to an open key job",
+              );
+            case "no_strings_matched":
+            case "too_many_strings":
+              return badRequestResponse(
+                c,
+                added.error.code,
+                keyJobSelectionMessages[added.error.code],
+              );
+            default:
+              return assertNever(added.error);
+          }
+        }
+        if (added.value > 0) {
+          await restartKeyJobTaskAnalysis({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            jobId: params.jobId,
+          });
+        }
+        return c.json({ added: added.value }, 200);
+      },
+    );
 }
 
 export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOptions) {
@@ -1219,6 +1315,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         .select({
           id: schema.jobs.id,
           projectId: schema.jobs.projectId,
+          kind: schema.jobs.kind,
           type: schema.translationJobDetails.type,
         })
         .from(schema.jobs)
@@ -1241,7 +1338,8 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           : notFoundResponse(c, "job_not_found", "Job not found");
       }
 
-      if (!job.projectId || !job.type) {
+      // A key job for people has no run to retry; one for AI translation does.
+      if (!job.projectId || !job.type || (job.type === "keys" && job.kind !== "translation")) {
         return conflictResponse(c, "job_action_unavailable", "Job action is not available");
       }
 

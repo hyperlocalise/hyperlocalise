@@ -77,6 +77,16 @@ export const useContentEditorMutationsMessages = defineMessages({
     id: "dKnvI39kVF",
     description: "Fallback error when locking or unlocking CAT segments fails",
   },
+  failedToUpdateTags: {
+    defaultMessage: "Failed to update tags",
+    id: "NhGl4rmXJw",
+    description: "Fallback error when adding or removing tags on native strings fails",
+  },
+  failedToUpdateDesignUrl: {
+    defaultMessage: "Failed to update the design link",
+    id: "mPZhCM184R",
+    description: "Fallback error when setting or clearing a native string's design link fails",
+  },
   failedToUpdateMaxLength: {
     defaultMessage: "Failed to update character limit",
     id: "ElyQMTBOLz",

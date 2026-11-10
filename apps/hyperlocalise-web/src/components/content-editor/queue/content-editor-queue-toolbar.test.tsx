@@ -364,7 +364,8 @@ describe("ContentEditorQueueToolbar", () => {
 
     expect(await screen.findByRole("dialog", { name: "Advanced Filter" })).toBeInTheDocument();
     expect(screen.queryByText("Screenshots")).not.toBeInTheDocument();
-    expect(screen.queryByText("Labels: Include All")).not.toBeInTheDocument();
+    // Native projects filter by their strings' tags through the labels fields.
+    expect(screen.getByText("Labels: Include All")).toBeInTheDocument();
 
     await user.click(screen.getByLabelText("String type"));
     await user.click(screen.getByRole("option", { name: "ICU" }));
@@ -389,5 +390,57 @@ describe("ContentEditorQueueToolbar", () => {
 
     await user.click(screen.getByRole("button", { name: "Filter queue" }));
     expect(screen.queryByRole("menuitem", { name: "Advanced Filter…" })).not.toBeInTheDocument();
+  });
+});
+
+describe("ContentEditorQueueToolbar key job scope", () => {
+  it("keeps the task scope when a preset filter is chosen, and leaves it on request", async () => {
+    const user = userEvent.setup();
+    const onQueueAdvancedChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        queueFilter="all"
+        onQueueFilterChange={vi.fn()}
+        availableQueueFilters={["all", "hidden", "not_hidden"]}
+        queueAdvanced={{ jobId: "job_1", stringType: "plain" }}
+        onQueueAdvancedChange={onQueueAdvancedChange}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Showing the strings of one task");
+
+    await user.click(screen.getByRole("button", { name: /Filter queue|Advanced/ }));
+    await user.click(screen.getByRole("menuitem", { name: "Hidden" }));
+    expect(onQueueAdvancedChange).toHaveBeenLastCalledWith({ jobId: "job_1" });
+
+    await user.click(screen.getByRole("button", { name: "Show all strings" }));
+    expect(onQueueAdvancedChange).toHaveBeenLastCalledWith({ stringType: "plain" });
+  });
+});
+
+describe("ContentEditorQueueToolbar new task hint", () => {
+  it("explains how to make a task while ticking, and hides on request", async () => {
+    const user = userEvent.setup();
+    const onDismissNewTaskHint = vi.fn();
+    const props = {
+      queueFilter: "all" as const,
+      onQueueFilterChange: vi.fn(),
+      onSelectionModeChange: vi.fn(),
+      onBulkCreateTask: vi.fn(),
+      onDismissNewTaskHint,
+    };
+
+    const { rerender } = renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar {...props} selectionMode={false} />,
+    );
+    expect(screen.queryByText(/Tick the strings for the new task/)).toBeNull();
+
+    rerender(<ContentEditorQueueToolbar {...props} selectionMode />);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Tick the strings for the new task, then choose More → Add to a task…",
+    );
+    await user.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(onDismissNewTaskHint).toHaveBeenCalledTimes(1);
   });
 });

@@ -63,3 +63,9 @@ describe("wholeFileMatchesAdvancedQueueFilter", () => {
     ).toBe(false);
   });
 });
+
+describe("key job filter on whole files", () => {
+  it("leaves out whole files, which no key job holds", () => {
+    expect(wholeFileMatchesAdvancedQueueFilter(image, { jobId: "job_1" })).toBe(false);
+  });
+});
