@@ -22,10 +22,10 @@ import {
 } from "@/lib/projects/project-file-content-editor-routing";
 import { sourcePathSupportsSrxSegmentation } from "@/lib/i18n/srx/format-supports";
 import { sourcePathImportKind } from "@/lib/projects/files/source-file-import-settings-schema";
+import { supportsTranslationAsSource } from "@/lib/projects/files/translation-as-source-support";
 import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resource-capabilities";
 import {
   inferSupportedFileTranslationFileFormat,
-  inferSupportedOfficeTranslationFileFormat,
   isSupportedSourceUploadFormat,
 } from "@/lib/translation/file-formats";
 
@@ -45,14 +45,14 @@ export type ProjectFileActionCapabilities = {
 };
 
 /**
- * Only Word files in projects that store their own files can send their translation to
- * another project as its source; see the chained stages design record.
+ * Only Word and Excel files in projects that store their own files can send their translation
+ * to another project as its source; see the chained stages design record.
  */
 export function canUseTranslationAsSource(projectId: string, file: ProjectFileRecord) {
   return (
     !file.provider &&
     getProjectWorkspaceCapabilities({ projectId }).canUploadFiles &&
-    inferSupportedOfficeTranslationFileFormat(file.sourcePath) === "docx"
+    supportsTranslationAsSource(file.sourcePath)
   );
 }
 

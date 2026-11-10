@@ -138,17 +138,15 @@ describe("useProjectFileActions", () => {
 });
 
 describe("canUseTranslationAsSource", () => {
-  it("allows only Word files in projects that store their own files", () => {
+  it("allows only Word and Excel files in projects that store their own files", () => {
     const wordFile = createProjectFileRecord({ sourcePath: "docs/brief.docx" });
+    const file = (sourcePath: string) => createProjectFileRecord({ sourcePath });
 
     expect(canUseTranslationAsSource("project_website", wordFile)).toBe(true);
+    expect(canUseTranslationAsSource("project_website", file("docs/sheet.xlsx"))).toBe(true);
+    expect(canUseTranslationAsSource("project_website", file("docs/sheet.xls"))).toBe(true);
     expect(canUseTranslationAsSource("project_website", createProjectFileRecord())).toBe(false);
-    expect(
-      canUseTranslationAsSource(
-        "project_website",
-        createProjectFileRecord({ sourcePath: "docs/sheet.xlsx" }),
-      ),
-    ).toBe(false);
+    expect(canUseTranslationAsSource("project_website", file("docs/deck.pptx"))).toBe(false);
     expect(canUseTranslationAsSource("ext:crowdin:42", wordFile)).toBe(false);
     expect(
       canUseTranslationAsSource("project_website", {

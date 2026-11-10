@@ -14,7 +14,7 @@
  */
 import { useId, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
+import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -75,6 +75,15 @@ class TranslationsNotApprovedError extends Error {
     this.locale = locale;
   }
 }
+
+/** Refusals a person can reach from the dialog, by the route's error code. */
+const REFUSAL_MESSAGES: Partial<Record<string, MessageDescriptor>> = {
+  file_reads_differently: messages.readsDifferently,
+  source_file_not_ready: messages.notReady,
+  source_file_read_failed: messages.readFailed,
+  no_strings: messages.noStrings,
+  forbidden: messages.roleCannotSend,
+};
 
 function translationSourceApi() {
   return apiClient.api.orgs[":organizationSlug"].projects[":projectId"].files["translation-source"];
@@ -157,7 +166,9 @@ export function UseTranslationAsSourceDialog({
             throw new TranslationsNotApprovedError(refusal.data.details, target.sourceLocale);
           }
         }
-        throw await readApiResponseError(response, fallback);
+        const failure = await readApiResponseError(response, fallback);
+        const refusal = failure.code ? REFUSAL_MESSAGES[failure.code] : undefined;
+        throw refusal ? new ApiResponseError(intl.formatMessage(refusal), failure) : failure;
       } catch (error) {
         if (error instanceof ApiResponseError || error instanceof TranslationsNotApprovedError) {
           throw error;

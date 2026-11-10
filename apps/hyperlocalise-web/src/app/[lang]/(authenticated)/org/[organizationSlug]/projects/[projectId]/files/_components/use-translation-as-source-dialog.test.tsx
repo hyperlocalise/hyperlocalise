@@ -179,8 +179,8 @@ describe("UseTranslationAsSourceDialog", () => {
     apiMocks.send.mockResolvedValue(
       jsonResponse(
         {
-          error: "source_file_not_ready",
-          message: "The file is still being read. Try again in a moment.",
+          error: "project_not_native",
+          message: "Both projects must store their files in the workspace.",
         },
         400,
       ),
@@ -191,7 +191,22 @@ describe("UseTranslationAsSourceDialog", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Send" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "The file is still being read. Try again in a moment.",
+      "Both projects must store their files in the workspace.",
+    );
+  });
+
+  it("explains in its own words the refusals a person can reach", async () => {
+    apiMocks.getDestinations.mockResolvedValue(jsonResponse({ destinations: [englishProject] }));
+    apiMocks.send.mockResolvedValue(
+      jsonResponse({ error: "file_reads_differently", message: "Server wording." }, 400),
+    );
+
+    renderDialog();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Send" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "the other project would not read it as the same strings",
     );
   });
 

@@ -66,13 +66,18 @@ const REFUSAL_MESSAGES: Record<
   >,
   string
 > = {
-  unsupported_file_format: "Only Word files can be used as another project's source.",
+  unsupported_file_format: "Only Word and Excel files can be used as another project's source.",
   same_project: "Choose a different project.",
   project_not_native: "Both projects must store their files in the workspace.",
   locale_not_a_target: "The other project's source language is not a language of this project.",
   destination_source_locale_mismatch:
     "The other project's source language is not a language of this project.",
   source_file_not_ready: "The file is still being read. Try again in a moment.",
+  source_file_read_failed:
+    "The file's newest upload could not be read. Upload the file again, then send it.",
+  no_strings: "This file has no strings to send.",
+  file_reads_differently:
+    "This file was not sent, because the other project would not read it as the same strings.",
 };
 
 export function createTranslationAsSourceRoutes(

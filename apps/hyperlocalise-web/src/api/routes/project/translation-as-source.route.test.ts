@@ -13,6 +13,7 @@
 import { randomUUID } from "node:crypto";
 
 import { and, desc, eq } from "drizzle-orm";
+import * as XLSX from "xlsx";
 import { testClient } from "hono/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -26,12 +27,23 @@ import {
   ensureRepositorySourceFile,
   getStoredFileContent,
 } from "@/lib/file-storage/records";
-import { TRANSLATION_AS_SOURCE_UPLOAD_SURFACE } from "@/lib/projects/files/translation-as-source";
+import {
+  defaultRepositorySourceFileImportSettings,
+  normalizeImportSettings,
+  type RepositorySourceFileImportSettings,
+} from "@/lib/projects/files/source-file-import-settings-schema";
+import { TRANSLATION_AS_SOURCE_UPLOAD_SURFACE } from "@/lib/projects/files/translation-as-source-support";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import { DOCX_CONTENT_TYPE, readDocxEntries } from "@/lib/translation/ooxml/docx-document";
 import { ooxmlFixture } from "@/lib/translation/ooxml/ooxml.fixture";
+import { buildXlsxFixture } from "@/lib/translation/xlsx/xlsx-workbook.fixture";
+import {
+  loadXlsxWorkbook,
+  readXlsxEntries,
+  XLSX_CONTENT_TYPE,
+} from "@/lib/translation/xlsx/xlsx-workbook";
 
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 import { createProjectTestFixture } from "./project.fixture";
@@ -84,13 +96,82 @@ const app = createApp({ fileStorageAdapter });
 const client = testClient<AppType>(app);
 const projectFixture = createProjectTestFixture();
 
+type FixtureFile = {
+  sourcePath: string;
+  contentType: string;
+  content: Uint8Array;
+  entries: { key: string; text: string; context?: string | null }[];
+  importSettings?: RepositorySourceFileImportSettings;
+  /** The approved English of a string; `English for <key>` when left out. */
+  english?: (entry: { key: string; sourceText: string }) => string;
+};
+
+async function wordFile(): Promise<FixtureFile> {
+  const content = await ooxmlFixture("docx-basic");
+  const entries = await readDocxEntries(content);
+  if (!entries.ok) {
+    throw new Error(`could not read fixture entries: ${entries.error.code}`);
+  }
+  return {
+    sourcePath: SOURCE_PATH,
+    contentType: DOCX_CONTENT_TYPE,
+    content,
+    entries: entries.value,
+  };
+}
+
+type FixtureCells = Parameters<typeof buildXlsxFixture>[0][number]["cells"];
+
 /**
- * A workspace with a Chinese project whose Word file is fully approved in English. The file
- * is stored with the default adapter, which is where the download builder reads from.
+ * A workbook read the way ingest reads it for a Chinese project. `keyedInSandbox` reads it as
+ * an `.xlsx` file with import settings is read after the sandbox: with no source locale.
  */
-async function chainedProjectsFixture(role: OrganizationMembershipRole = "admin") {
+async function excelFile(
+  cells: FixtureCells,
+  options: Pick<FixtureFile, "importSettings" | "english"> & {
+    sourcePath?: string;
+    moreSheets?: Parameters<typeof buildXlsxFixture>[0];
+    keyedInSandbox?: boolean;
+  } = {},
+): Promise<FixtureFile> {
+  const content = buildXlsxFixture([{ name: "Sheet1", cells }, ...(options.moreSheets ?? [])]);
+  const workbook = await loadXlsxWorkbook(content);
+  if (!workbook.ok) {
+    throw new Error(`could not read fixture workbook: ${workbook.error.code}`);
+  }
+  return {
+    sourcePath: options.sourcePath ?? "requests/prices.xlsx",
+    contentType: XLSX_CONTENT_TYPE,
+    content,
+    entries: options.keyedInSandbox
+      ? readXlsxEntries(workbook.value, null, "", options.importSettings?.excel)
+      : readXlsxEntries(workbook.value, "zh-CN", "zh-CN", options.importSettings?.excel),
+    importSettings: options.importSettings,
+    english: options.english,
+  };
+}
+
+/** The cells of the sent file's first sheet, by address. */
+function sentCells(content: Uint8Array): Record<string, unknown> {
+  const sheet = XLSX.read(content, { type: "array" }).Sheets.Sheet1 ?? {};
+  return Object.fromEntries(
+    Object.entries(sheet)
+      .filter(([address]) => !address.startsWith("!"))
+      .map(([address, cell]) => [address, (cell as XLSX.CellObject).v]),
+  );
+}
+
+/**
+ * A workspace with a Chinese project whose file (a Word file unless given) is fully approved
+ * in English. The file is stored with the default adapter, which is where the download builder
+ * reads from.
+ */
+async function chainedProjectsFixture(
+  options: { role?: OrganizationMembershipRole; file?: FixtureFile } = {},
+) {
+  const file = options.file ?? (await wordFile());
   const { identity, organization, user } = await projectFixture.createLocalWorkosIdentity(
-    projectFixture.createWorkosIdentityWithRole(role),
+    projectFixture.createWorkosIdentityWithRole(options.role ?? "admin"),
   );
   const team = await ensureDefaultWorkspaceTeam(organization.id);
   const insertProject = async (values: {
@@ -129,37 +210,41 @@ async function chainedProjectsFixture(role: OrganizationMembershipRole = "admin"
     targetLocales: ["de-DE"],
   });
 
-  const content = await ooxmlFixture("docx-basic");
   const sourceFile = await ensureRepositorySourceFile({
     organizationId: organization.id,
     projectId: original.id,
-    sourcePath: SOURCE_PATH,
+    sourcePath: file.sourcePath,
   });
+  if (file.importSettings) {
+    await db
+      .update(schema.repositorySourceFiles)
+      .set({ importSettings: file.importSettings })
+      .where(eq(schema.repositorySourceFiles.id, sourceFile.id));
+  }
   const storedFile = await createStoredFile({
     organizationId: organization.id,
     projectId: original.id,
     createdByUserId: user.id,
     role: "source",
     sourceKind: "repository_file",
-    filename: "report.docx",
-    contentType: DOCX_CONTENT_TYPE,
-    content: Buffer.from(content),
+    filename: file.sourcePath.split("/").pop() ?? file.sourcePath,
+    contentType: file.contentType,
+    content: Buffer.from(file.content),
   });
-  const version = await createRepositorySourceFileVersion({ storedFile, sourcePath: SOURCE_PATH });
+  const version = await createRepositorySourceFileVersion({
+    storedFile,
+    sourcePath: file.sourcePath,
+  });
   await db
     .update(schema.repositorySourceFileVersions)
     .set({ ingestState: "ingested" })
     .where(eq(schema.repositorySourceFileVersions.id, version.id));
 
-  const entries = await readDocxEntries(content);
-  if (!entries.ok) {
-    throw new Error(`could not read fixture entries: ${entries.error.code}`);
-  }
   await upsertProjectTranslationKeysFromEntries({
     organizationId: organization.id,
     projectId: original.id,
     repositorySourceFileId: sourceFile.id,
-    entries: entries.value.map((entry) => ({ ...entry, context: entry.context ?? null })),
+    entries: file.entries.map((entry) => ({ ...entry, context: entry.context ?? null })),
   });
   const keys = await db
     .select({
@@ -175,7 +260,7 @@ async function chainedProjectsFixture(role: OrganizationMembershipRole = "admin"
       projectId: original.id,
       translationKeyId: key.id,
       targetLocale: PIVOT_LOCALE,
-      text: `English for ${key.key}`,
+      text: file.english?.(key) ?? `English for ${key.key}`,
       status: "approved" as const,
       provenance: "import" as const,
     })),
@@ -202,7 +287,7 @@ async function chainedProjectsFixture(role: OrganizationMembershipRole = "admin"
         {
           param,
           json: {
-            sourcePath: json.sourcePath ?? SOURCE_PATH,
+            sourcePath: json.sourcePath ?? file.sourcePath,
             destinationProjectId: json.destinationProjectId ?? destination.id,
           },
         },
@@ -219,6 +304,29 @@ async function chainedProjectsFixture(role: OrganizationMembershipRole = "admin"
           ),
         )
         .orderBy(desc(schema.repositorySourceFileVersions.createdAt)),
+    /** The newest file sent to the destination: its version, content and import settings. */
+    sentFile: async () => {
+      const [sentVersion] = await db
+        .select()
+        .from(schema.repositorySourceFileVersions)
+        .where(eq(schema.repositorySourceFileVersions.projectId, destination.id))
+        .orderBy(desc(schema.repositorySourceFileVersions.createdAt));
+      const [sentFile] = await db
+        .select({ importSettings: schema.repositorySourceFiles.importSettings })
+        .from(schema.repositorySourceFiles)
+        .where(eq(schema.repositorySourceFiles.id, sentVersion.repositorySourceFileId));
+      const stored = await getStoredFileContent({
+        organizationId: organization.id,
+        projectId: destination.id,
+        fileId: sentVersion.storedFileId,
+        adapter: fileStorageAdapter,
+      });
+      return {
+        version: sentVersion,
+        content: stored.content,
+        importSettings: normalizeImportSettings(sentFile.importSettings),
+      };
+    },
   };
 }
 
@@ -312,6 +420,17 @@ describe("translation as source routes", () => {
     });
   });
 
+  it("keeps the path as it is written, capital letters in the extension included", async () => {
+    const fixture = await chainedProjectsFixture({
+      file: { ...(await wordFile()), sourcePath: "requests/REPORT.DOCX" },
+    });
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(201);
+    expect((await fixture.sentFile()).version.sourcePath).toBe("requests/REPORT.DOCX");
+  });
+
   it("refuses while a string has no approved translation, and names it", async () => {
     const fixture = await chainedProjectsFixture();
     const [unapproved] = fixture.keys;
@@ -335,7 +454,7 @@ describe("translation as source routes", () => {
     expect(enqueueSourceFileIngestAfterUploadMock).not.toHaveBeenCalled();
   });
 
-  it("does not count hidden strings as missing", async () => {
+  it("counts a string hidden by hand as missing while the file still has it", async () => {
     const fixture = await chainedProjectsFixture();
     const [hidden] = fixture.keys;
     await db
@@ -348,7 +467,59 @@ describe("translation as source routes", () => {
 
     const response = await fixture.send();
 
-    expect(response.status).toBe(201);
+    // Its paragraph would arrive in the original language otherwise.
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      error: "translations_not_approved",
+      details: {
+        missingCount: 1,
+        missingStrings: [{ key: hidden.key, sourceText: hidden.sourceText }],
+      },
+    });
+    expect(await fixture.destinationVersions()).toEqual([]);
+  });
+
+  it("sends again under the same path and replaces the other project's import settings", async () => {
+    const fixture = await chainedProjectsFixture({
+      file: await excelFile({ A1: "姓名", A2: "张三" }),
+    });
+    expect((await fixture.send()).status).toBe(201);
+    const first = await fixture.sentFile();
+    // Settings saved in the other project would make it read the file differently.
+    await db
+      .update(schema.repositorySourceFiles)
+      .set({
+        importSettings: {
+          ...defaultRepositorySourceFileImportSettings(),
+          excel: { columns: { source: 3 } },
+        },
+      })
+      .where(eq(schema.repositorySourceFiles.id, first.version.repositorySourceFileId));
+
+    expect((await fixture.send()).status).toBe(201);
+
+    const versions = await fixture.destinationVersions();
+    expect(versions.map((version) => version.sourcePath)).toEqual([
+      "requests/prices.xlsx",
+      "requests/prices.xlsx",
+    ]);
+    expect(new Set(versions.map((version) => version.repositorySourceFileId)).size).toBe(1);
+    expect((await fixture.sentFile()).importSettings).toEqual(
+      defaultRepositorySourceFileImportSettings(),
+    );
+  });
+
+  it("refuses a file whose newest upload could not be read", async () => {
+    const fixture = await chainedProjectsFixture();
+    await db
+      .update(schema.repositorySourceFileVersions)
+      .set({ ingestState: "failed" })
+      .where(eq(schema.repositorySourceFileVersions.id, fixture.version.id));
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "source_file_read_failed" });
   });
 
   it("refuses a file whose newest version is still being read", async () => {
@@ -364,10 +535,192 @@ describe("translation as source routes", () => {
     expect(await response.json()).toMatchObject({ error: "source_file_not_ready" });
   });
 
-  it("refuses files that are not Word documents", async () => {
+  it("sends an Excel file read cell by cell with each cell's translation in place", async () => {
+    const fixture = await chainedProjectsFixture({
+      file: await excelFile({ A1: "姓名", B1: "部门", A2: "张三", B2: "销售", C2: 42 }),
+    });
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      file: { sourcePath: "requests/prices.xlsx", stringCount: 4 },
+    });
+    const sent = await fixture.sentFile();
+    expect(sentCells(sent.content)).toEqual({
+      A1: "English for Sheet1!A1",
+      B1: "English for Sheet1!B1",
+      A2: "English for Sheet1!A2",
+      B2: "English for Sheet1!B2",
+      C2: 42,
+    });
+    // Nothing to copy: the original has no import settings of its own.
+    expect(sent.importSettings).toEqual(defaultRepositorySourceFileImportSettings());
+  });
+
+  it("sends a sheet with a column per language with English in its column", async () => {
+    const fixture = await chainedProjectsFixture({
+      file: await excelFile({
+        A1: "Key",
+        B1: "zh-CN",
+        A2: "welcome.title",
+        B2: "欢迎",
+        A3: "welcome.body",
+        B3: "正文",
+      }),
+    });
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({ file: { stringCount: 2 } });
+    expect(sentCells((await fixture.sentFile()).content)).toEqual({
+      A1: "Key",
+      B1: "zh-CN",
+      C1: PIVOT_LOCALE,
+      A2: "welcome.title",
+      B2: "欢迎",
+      C2: "English for welcome.title",
+      A3: "welcome.body",
+      B3: "正文",
+      C3: "English for welcome.body",
+    });
+  });
+
+  it("writes an Excel file with its own columns through them and copies the settings", async () => {
+    const importSettings: RepositorySourceFileImportSettings = {
+      ...defaultRepositorySourceFileImportSettings(),
+      excel: { firstLineContainsHeader: true, columns: { identifier: 0, source: 1, context: 2 } },
+    };
+    const fixture = await chainedProjectsFixture({
+      file: await excelFile(
+        {
+          A1: "编号",
+          B1: "内容",
+          C1: "备注",
+          A2: "welcome.title",
+          B2: "欢迎",
+          C2: "首页",
+          A3: "welcome.body",
+          B3: "正文",
+        },
+        { importSettings },
+      ),
+    });
+    expect(fixture.keys.map((key) => key.key).sort()).toEqual(["welcome.body", "welcome.title"]);
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(201);
+    const sent = await fixture.sentFile();
+    expect(sentCells(sent.content)).toEqual({
+      A1: "编号",
+      B1: "内容",
+      C1: "备注",
+      A2: "welcome.title",
+      B2: "English for welcome.title",
+      C2: "首页",
+      A3: "welcome.body",
+      B3: "English for welcome.body",
+    });
+    expect(sent.importSettings).toEqual(importSettings);
+  });
+
+  it("refuses an Excel file whose translated first row would change how it is read", async () => {
+    // "English" in the first row makes an English-source project read the sheet by rows.
+    const fixture = await chainedProjectsFixture({
+      file: await excelFile(
+        { A1: "中文", B1: "英文", A2: "你好", B2: "问候" },
+        { english: (entry) => (entry.sourceText === "英文" ? "English" : `en ${entry.key}`) },
+      ),
+    });
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "file_reads_differently" });
+    expect(await fixture.destinationVersions()).toEqual([]);
+    expect(enqueueSourceFileIngestAfterUploadMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses an Excel file when a string would not arrive", async () => {
+    // The English column's formula is left alone, so "k1" has nowhere to be written.
+    const fixture = await chainedProjectsFixture({
+      file: await excelFile({
+        A1: "Key",
+        B1: "zh-CN",
+        C1: PIVOT_LOCALE,
+        A2: "k1",
+        B2: "欢迎",
+        C2: { formula: "B2", cached: "欢迎" },
+        A3: "k2",
+        B3: "正文",
+      }),
+    });
+    expect(fixture.keys.map((key) => key.key).sort()).toEqual(["k1", "k2"]);
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "file_reads_differently" });
+    expect(await fixture.destinationVersions()).toEqual([]);
+  });
+
+  it("refuses an Excel file whose import settings make the other project read every cell", async () => {
+    // Settings without a source column: the sheet with a Chinese column is written by rows,
+    // but the other project would read its cells, Chinese included.
+    const fixture = await chainedProjectsFixture({
+      file: await excelFile(
+        { A1: "Key", B1: "Chinese", C1: "Notes", A2: "home", B2: "首页" },
+        {
+          importSettings: {
+            ...defaultRepositorySourceFileImportSettings(),
+            excel: { columns: { context: 2 } },
+          },
+          moreSheets: [{ name: "Intro", cells: { A1: "说明" } }],
+          keyedInSandbox: true,
+        },
+      ),
+    });
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "file_reads_differently" });
+    expect(await fixture.destinationVersions()).toEqual([]);
+  });
+
+  it("sends an old .xls file as .xlsx", async () => {
+    const xlsx = await excelFile({ A1: "姓名", A2: "张三" });
+    const fixture = await chainedProjectsFixture({
+      file: {
+        ...xlsx,
+        sourcePath: "requests/prices.xls",
+        contentType: "application/vnd.ms-excel",
+        content: new Uint8Array(
+          XLSX.write(XLSX.read(xlsx.content, { type: "array" }), {
+            type: "array",
+            bookType: "biff8",
+          }) as ArrayBuffer,
+        ),
+      },
+    });
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(201);
+    const sent = await fixture.sentFile();
+    expect(sent.version.sourcePath).toBe("requests/prices.xlsx");
+    expect(sentCells(sent.content)).toEqual({
+      A1: "English for Sheet1!A1",
+      A2: "English for Sheet1!A2",
+    });
+  });
+
+  it("refuses files that are not Word or Excel files", async () => {
     const fixture = await chainedProjectsFixture();
 
-    const response = await fixture.send({ sourcePath: "requests/prices.xlsx" });
+    const response = await fixture.send({ sourcePath: "requests/deck.pptx" });
 
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ error: "unsupported_file_format" });
@@ -394,7 +747,7 @@ describe("translation as source routes", () => {
   });
 
   it("is refused for roles that may not upload files", async () => {
-    const fixture = await chainedProjectsFixture("translator");
+    const fixture = await chainedProjectsFixture({ role: "translator" });
 
     const response = await fixture.send();
 

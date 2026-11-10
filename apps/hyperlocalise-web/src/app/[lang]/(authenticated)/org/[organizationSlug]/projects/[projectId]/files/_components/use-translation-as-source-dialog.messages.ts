@@ -61,6 +61,34 @@ export const useTranslationAsSourceDialogMessages = defineMessages({
     id: "O50a0IrZ5J",
     description: "Ends the list of strings without an approved translation when it is cut short",
   },
+  readsDifferently: {
+    defaultMessage:
+      "This file was not sent, because the other project would not read it as the same strings. For an Excel file, the usual causes are a first-row cell that is just the name of that project's source language, a formula in that language's column, or Import filters saved without a source column. The Files guide lists the others.",
+    id: "XR2kKN8gAW",
+    description:
+      "Shown when a file cannot be sent because the other project would split it into different strings",
+  },
+  notReady: {
+    defaultMessage: "The file is still being read. Try again in a moment.",
+    id: "AyjfFUnUax",
+    description: "Shown when a file cannot be sent because its newest upload is still being read",
+  },
+  readFailed: {
+    defaultMessage:
+      "The file's newest upload could not be read. Upload the file again, then send it.",
+    id: "IVRboJxVhk",
+    description: "Shown when a file cannot be sent because its newest upload failed to be read",
+  },
+  noStrings: {
+    defaultMessage: "This file has no strings to send.",
+    id: "lzBzhUGbTB",
+    description: "Shown when a file cannot be sent because it has no strings",
+  },
+  roleCannotSend: {
+    defaultMessage: "Your role cannot send files to another project.",
+    id: "aVCtNPy4Tq",
+    description: "Shown when the person's workspace role may not send a file to another project",
+  },
   loadFailed: {
     defaultMessage: "Could not load projects.",
     id: "SfNt01DHX0",

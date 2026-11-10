@@ -16,8 +16,17 @@ import type { schema } from "@/lib/database/client";
 import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
-import { loadProjectOfficeTranslationDownload } from "@/lib/projects/files/office-translation-download";
+import { readOfficeSourceTexts } from "@/lib/projects/files/office-source-entries";
+import {
+  loadProjectOfficeTranslationDownload,
+  officeTranslationDownloadFilename,
+} from "@/lib/projects/files/office-translation-download";
+import { getRepositorySourceFileImportSettings } from "@/lib/projects/files/source-file-import-settings";
 import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-service";
+import {
+  supportsTranslationAsSource,
+  TRANSLATION_AS_SOURCE_UPLOAD_SURFACE,
+} from "@/lib/projects/files/translation-as-source-support";
 import {
   getProjectTranslationsByKeyIds,
   getRepositorySourceFileByPath,
@@ -25,10 +34,9 @@ import {
 } from "@/lib/projects/translations/project-translation-service";
 import { shouldPrefillTranslation } from "@/lib/projects/translations/translation-prefill";
 import { inferSupportedOfficeTranslationFileFormat } from "@/lib/translation/file-formats";
+import { ooxmlHasLetter } from "@/lib/translation/ooxml/ooxml-paragraph";
 
 type ProjectRecord = typeof schema.projects.$inferSelect;
-
-export const TRANSLATION_AS_SOURCE_UPLOAD_SURFACE = "translation_as_source";
 
 /** How many unapproved strings are listed in a refusal. */
 export const TRANSLATION_AS_SOURCE_MISSING_SAMPLE = 20;
@@ -39,6 +47,7 @@ const MISSING_SOURCE_TEXT_MAX_LENGTH = 200;
 export type TranslationAsSourceMissingString = { key: string; sourceText: string };
 
 const KEYS_PAGE_SIZE = 500;
+const KEY_ORDER = new Intl.Collator("en", { numeric: true });
 
 export type TranslationAsSourceError =
   | { code: "unsupported_file_format" }
@@ -48,6 +57,8 @@ export type TranslationAsSourceError =
   | { code: "destination_source_locale_mismatch" }
   | { code: "source_file_not_found" }
   | { code: "source_file_not_ready" }
+  | { code: "source_file_read_failed" }
+  | { code: "no_strings" }
   | {
       code: "translations_not_approved";
       missingCount: number;
@@ -55,6 +66,7 @@ export type TranslationAsSourceError =
       missingStrings: TranslationAsSourceMissingString[];
     }
   | { code: "file_build_failed" }
+  | { code: "file_reads_differently" }
   | { code: "upload_failed" };
 
 export type TranslationAsSourceResult = {
@@ -63,11 +75,6 @@ export type TranslationAsSourceResult = {
   sourceFileVersionId: string;
   stringCount: number;
 };
-
-/** Only Word files round-trip with the same keys so far; see the chained stages design record. */
-export function supportsTranslationAsSource(sourcePath: string): boolean {
-  return inferSupportedOfficeTranslationFileFormat(sourcePath) === "docx";
-}
 
 /** Whether `destination` can take `source`'s translations as its source text. */
 export function isTranslationSourceDestination(
@@ -83,8 +90,14 @@ export function isTranslationSourceDestination(
   );
 }
 
-/** Visible keys of the file without an approved translation in `locale`. */
-async function countUnapprovedKeys(input: {
+/** A string of the file as it is sent: its source text and the approved translation written over it. */
+type SentString = { sourceText: string; translation: string | null; isHidden: boolean };
+
+/**
+ * Every key of the file with its `locale` translation, and the visible ones without an
+ * approved translation.
+ */
+async function loadFileStrings(input: {
   organizationId: string;
   projectId: string;
   repositorySourceFileId: string;
@@ -93,10 +106,12 @@ async function countUnapprovedKeys(input: {
   totalCount: number;
   missingCount: number;
   missingStrings: TranslationAsSourceMissingString[];
+  strings: Map<string, SentString>;
 }> {
   let totalCount = 0;
   let missingCount = 0;
   const missingStrings: TranslationAsSourceMissingString[] = [];
+  const strings = new Map<string, SentString>();
 
   for (let offset = 0; ; offset += KEYS_PAGE_SIZE) {
     const keys = await listProjectTranslationKeysForFile({
@@ -121,24 +136,24 @@ async function countUnapprovedKeys(input: {
     );
 
     for (const key of keys) {
-      if (key.isHidden) {
-        continue;
-      }
-      totalCount += 1;
       const translation = translationByKeyId.get(key.id);
       const approved =
         translation?.status === "approved" &&
         shouldPrefillTranslation({ targetText: translation.text, status: translation.status });
+      strings.set(key.key, {
+        sourceText: key.sourceText,
+        translation: approved ? translation.text : null,
+        isHidden: key.isHidden,
+      });
+      if (key.isHidden) {
+        continue;
+      }
+      totalCount += 1;
       if (approved) {
         continue;
       }
       missingCount += 1;
-      if (missingStrings.length < TRANSLATION_AS_SOURCE_MISSING_SAMPLE) {
-        missingStrings.push({
-          key: key.key,
-          sourceText: key.sourceText.slice(0, MISSING_SOURCE_TEXT_MAX_LENGTH),
-        });
-      }
+      missingStrings.push(missingString(key.key, { ...key, translation: null }));
     }
 
     if (keys.length < KEYS_PAGE_SIZE) {
@@ -146,16 +161,90 @@ async function countUnapprovedKeys(input: {
     }
   }
 
-  return { totalCount, missingCount, missingStrings };
+  // Keys sort as text ("#10" before "#2"); numbers in them are ordered as numbers instead.
+  missingStrings.sort((left, right) => KEY_ORDER.compare(left.key, right.key));
+  return {
+    totalCount,
+    missingCount,
+    missingStrings: missingStrings.slice(0, TRANSLATION_AS_SOURCE_MISSING_SAMPLE),
+    strings,
+  };
+}
+
+function missingString(key: string, sent: SentString): TranslationAsSourceMissingString {
+  return { key, sourceText: sent.sourceText.slice(0, MISSING_SOURCE_TEXT_MAX_LENGTH) };
+}
+
+function sameText(left: string, right: string): boolean {
+  return left.replace(/\s+/g, " ").trim() === right.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * What stops the built file, read as the destination will read it, from being sent: a string
+ * still in the file without an approved translation (one hidden by hand), or a reading that is
+ * not the original's strings with their translations. A sheet whose first row names the
+ * destination's source language after translation is read by rows there, not by cells.
+ */
+function readBackProblem(
+  readBack: Readonly<Record<string, string>>,
+  strings: ReadonlyMap<string, SentString>,
+): Extract<
+  TranslationAsSourceError,
+  { code: "translations_not_approved" | "file_reads_differently" }
+> | null {
+  const differs = { code: "file_reads_differently" } as const;
+  const keys = Object.keys(readBack);
+  if (keys.length === 0) {
+    return differs;
+  }
+  const unapproved: TranslationAsSourceMissingString[] = [];
+  for (const key of keys) {
+    const sent = strings.get(key);
+    if (!sent) {
+      return differs;
+    }
+    if (sent.translation === null) {
+      unapproved.push(missingString(key, sent));
+    } else if (
+      sameText(readBack[key] ?? "", sent.sourceText) &&
+      !sameText(sent.translation, sent.sourceText)
+    ) {
+      // The original text where a translation was to be written.
+      return differs;
+    }
+  }
+  if (unapproved.length > 0) {
+    return {
+      code: "translations_not_approved",
+      missingCount: unapproved.length,
+      totalCount: keys.length,
+      missingStrings: unapproved.slice(0, TRANSLATION_AS_SOURCE_MISSING_SAMPLE),
+    };
+  }
+  // Every visible string arrives, unless its translation has no letters and so is no string.
+  for (const [key, sent] of strings) {
+    if (
+      !sent.isHidden &&
+      sent.translation !== null &&
+      ooxmlHasLetter(sent.translation) &&
+      !Object.hasOwn(readBack, key)
+    ) {
+      return differs;
+    }
+  }
+  return null;
 }
 
 /**
  * Builds `sourcePath` in `locale` from approved translations and uploads it to
- * `destinationProject` as a source file under the same path, so both projects key the file's
- * strings alike and a later send updates the same strings.
+ * `destinationProject` as a source file under the same path (`.xlsx` for an `.xls` file), so
+ * both projects key the file's strings alike and a later send updates the same strings. Each
+ * send gives the destination file the original's import settings, which the file was built
+ * through.
  *
- * Refused while any visible string lacks an approved translation: the Word writer keeps the
+ * Refused while any string in the file lacks an approved translation: the writers keep the
  * original text where a translation is missing, which the destination would read as source.
+ * Refused too when the destination would not read the built file as the original's strings.
  */
 export async function sendTranslationAsSource(input: {
   organizationId: string;
@@ -197,19 +286,22 @@ export async function sendTranslationAsSource(input: {
   if (!sourceFile || !version) {
     return err({ code: "source_file_not_found" });
   }
+  if (version.ingestState === "failed") {
+    return err({ code: "source_file_read_failed" });
+  }
   // Keys belong to the last ingested version; a newer one still being read may not match them.
   if (version.ingestState !== "ingested") {
     return err({ code: "source_file_not_ready" });
   }
 
-  const unapproved = await countUnapprovedKeys({
+  const { strings, ...unapproved } = await loadFileStrings({
     organizationId: input.organizationId,
     projectId: sourceProject.id,
     repositorySourceFileId: sourceFile.id,
     locale: input.locale,
   });
-  if (unapproved.totalCount === 0) {
-    return err({ code: "source_file_not_ready" });
+  if (strings.size === 0) {
+    return err({ code: "no_strings" });
   }
   if (unapproved.missingCount > 0) {
     return err({ code: "translations_not_approved", ...unapproved });
@@ -224,15 +316,42 @@ export async function sendTranslationAsSource(input: {
     return err({ code: "file_build_failed" });
   }
 
+  // The builder takes the newest version as its template, which must still be the one checked.
+  const builtFrom = await getLatestRepositorySourceFileVersion(scope);
+  if (builtFrom?.id !== version.id) {
+    return err({ code: "source_file_not_ready" });
+  }
+
+  // Only an .xls file changes its name; any other keeps its path as it is written.
+  const destinationPath =
+    inferSupportedOfficeTranslationFileFormat(version.sourcePath) === "xls"
+      ? officeTranslationDownloadFilename(version.sourcePath, built.value)
+      : version.sourcePath;
+  const importSettings = (await getRepositorySourceFileImportSettings(scope))?.importSettings;
+  const readBack = await readOfficeSourceTexts({
+    sourcePath: destinationPath,
+    content: built.value.content,
+    sourceLocale: input.locale,
+    importSettings,
+  });
+  if (isErr(readBack)) {
+    return err({ code: "file_reads_differently" });
+  }
+  const problem = readBackProblem(readBack.value, strings);
+  if (problem) {
+    return err(problem);
+  }
+
   const uploaded = await uploadSourceFile({
     organizationId: input.organizationId,
     project: destinationProject,
     file: {
-      filename: path.posix.basename(version.sourcePath),
+      filename: path.posix.basename(destinationPath),
       contentType: built.value.contentType,
       content: built.value.content,
     },
-    sourcePath: version.sourcePath,
+    sourcePath: destinationPath,
+    importSettings,
     uploadSurface: TRANSLATION_AS_SOURCE_UPLOAD_SURFACE,
     uploadedByUserId: input.actorUserId,
     actorUserId: input.actorUserId,
@@ -250,8 +369,8 @@ export async function sendTranslationAsSource(input: {
 
   return ok({
     destinationProjectId: destinationProject.id,
-    sourcePath: version.sourcePath,
+    sourcePath: destinationPath,
     sourceFileVersionId: uploaded.value.file.sourceFileVersionId,
-    stringCount: unapproved.totalCount,
+    stringCount: Object.keys(readBack.value).length,
   });
 }
