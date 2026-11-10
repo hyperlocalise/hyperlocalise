@@ -6,7 +6,8 @@ import { config as loadDotenv } from "dotenv";
 const pluginRootDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
 const LOCAL_HYPERLOCALISE_APP_URL = "http://localhost:3000";
-export const PRODUCTION_HYPERLOCALISE_APP_URL = "https://app.hyperlocalise.com";
+// Apex hyperlocalise.com 307s to www, and CORS preflight requests do not follow redirects.
+export const PRODUCTION_HYPERLOCALISE_APP_URL = "https://www.hyperlocalise.com";
 
 /** Baked into the UI bundle at build time via Vite `define`. */
 export function resolveHyperlocaliseAppUrlForBuild(options?: {

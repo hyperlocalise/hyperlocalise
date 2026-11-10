@@ -77,7 +77,7 @@ describe("figma hyperlocalise client", () => {
 
     await expect(
       fetchFigmaSession({
-        appUrl: "https://app.hyperlocalise.com",
+        appUrl: "https://www.hyperlocalise.com",
         auth: { connectionToken },
       }),
     ).resolves.toMatchObject({
@@ -89,7 +89,7 @@ describe("figma hyperlocalise client", () => {
   it("loads the current page job for a project", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(requestUrl(input)).toBe(
-        "https://app.hyperlocalise.com/api/integrations/figma/jobs/current?fileKey=file-1&pageId=page-1&projectId=proj_1",
+        "https://www.hyperlocalise.com/api/integrations/figma/jobs/current?fileKey=file-1&pageId=page-1&projectId=proj_1",
       );
       expectConnectionTokenOnly(requestHeaders(input, init));
       return jsonResponse({ job: pageJob });
@@ -98,7 +98,7 @@ describe("figma hyperlocalise client", () => {
 
     await expect(
       fetchCurrentFigmaJob({
-        appUrl: "https://app.hyperlocalise.com",
+        appUrl: "https://www.hyperlocalise.com",
         auth: { connectionToken },
         fileKey: "file-1",
         pageId: "page-1",
@@ -113,7 +113,7 @@ describe("figma hyperlocalise client", () => {
 
     await expect(
       fetchCurrentFigmaJob({
-        appUrl: "https://app.hyperlocalise.com",
+        appUrl: "https://www.hyperlocalise.com",
         auth: { connectionToken },
         fileKey: "file-1",
         pageId: "page-1",
@@ -125,7 +125,7 @@ describe("figma hyperlocalise client", () => {
   it("omits projectId from the current job query when unset", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       expect(requestUrl(input)).toBe(
-        "https://app.hyperlocalise.com/api/integrations/figma/jobs/current?fileKey=file-1&pageId=page-1",
+        "https://www.hyperlocalise.com/api/integrations/figma/jobs/current?fileKey=file-1&pageId=page-1",
       );
       return jsonResponse({ job: null });
     });
@@ -133,7 +133,7 @@ describe("figma hyperlocalise client", () => {
 
     await expect(
       fetchCurrentFigmaJob({
-        appUrl: "https://app.hyperlocalise.com",
+        appUrl: "https://www.hyperlocalise.com",
         auth: { connectionToken },
         fileKey: "file-1",
         pageId: "page-1",
@@ -152,7 +152,7 @@ describe("figma hyperlocalise client", () => {
 
     await expect(
       pullFigmaTranslations({
-        appUrl: "https://app.hyperlocalise.com",
+        appUrl: "https://www.hyperlocalise.com",
         auth: { connectionToken },
         projectId: "proj_1",
         fileKey: "file-1",
@@ -171,7 +171,7 @@ describe("figma hyperlocalise client", () => {
 
     await expect(
       pullFigmaTranslations({
-        appUrl: "https://app.hyperlocalise.com",
+        appUrl: "https://www.hyperlocalise.com",
         auth: { connectionToken },
         projectId: "proj_1",
         fileKey: "file-1",
@@ -191,7 +191,7 @@ describe("figma hyperlocalise client", () => {
 
     await expect(
       fetchFigmaSession({
-        appUrl: "https://app.hyperlocalise.com",
+        appUrl: "https://www.hyperlocalise.com",
         auth: { connectionToken },
       }),
     ).rejects.toMatchObject({
@@ -201,7 +201,7 @@ describe("figma hyperlocalise client", () => {
 
     try {
       await fetchFigmaSession({
-        appUrl: "https://app.hyperlocalise.com",
+        appUrl: "https://www.hyperlocalise.com",
         auth: { connectionToken },
       });
     } catch (error) {
