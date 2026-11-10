@@ -319,6 +319,138 @@ describe("project job create", () => {
     await expect(hiddenOnly.json()).resolves.toMatchObject({ error: "no_strings_matched" });
   });
 
+  it("creates a key job from key names or tags and skips hidden or file-less strings", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const [sourceFile, hiddenFile] = await db
+      .insert(schema.repositorySourceFiles)
+      .values([
+        { organizationId: organization.id, projectId: project.id, sourcePath: "en.json" },
+        { organizationId: organization.id, projectId: project.id, sourcePath: "hidden.json" },
+      ])
+      .returning({ id: schema.repositorySourceFiles.id });
+    const [visible] = await db
+      .insert(schema.projectTranslationKeys)
+      .values([
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          repositorySourceFileId: sourceFile!.id,
+          key: "cta.buy",
+          sourceText: "Buy",
+          normalizedSourceText: "buy",
+          tags: ["checkout", "web"],
+        },
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          repositorySourceFileId: hiddenFile!.id,
+          key: "cta.buy",
+          sourceText: "Hidden",
+          normalizedSourceText: "hidden",
+          isHidden: true,
+          tags: ["checkout", "web"],
+        },
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          repositorySourceFileId: sourceFile!.id,
+          key: "cta.cancel",
+          sourceText: "Cancel",
+          normalizedSourceText: "cancel",
+          tags: ["checkout"],
+        },
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          key: "cta.buy",
+          sourceText: "Orphan",
+          normalizedSourceText: "orphan",
+        },
+      ])
+      .returning({ id: schema.projectTranslationKeys.id });
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      projectId: project.id,
+    };
+    const byKeys = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param,
+        json: {
+          type: "keys",
+          title: "By key",
+          keysInput: {
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            keys: ["cta.buy"],
+            metadata: { workflowTaskStep: "edit", ticket: "T-9" },
+          },
+        },
+      },
+      { headers },
+    );
+    expect(byKeys.status).toBe(201);
+    const byKeysBody = (await byKeys.json()) as { job: { id: string } };
+    const linkedKeys = await db
+      .select({ id: schema.translationJobKeys.translationKeyId })
+      .from(schema.translationJobKeys)
+      .where(eq(schema.translationJobKeys.jobId, byKeysBody.job.id));
+    expect(linkedKeys).toEqual([{ id: visible!.id }]);
+    const [stored] = await db
+      .select({ inputPayload: schema.jobs.inputPayload })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, byKeysBody.job.id));
+    expect(stored?.inputPayload).toMatchObject({
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      metadata: { ticket: "T-9" },
+    });
+    expect(
+      (stored?.inputPayload as { metadata?: Record<string, string> } | undefined)?.metadata,
+    ).not.toHaveProperty("workflowTaskStep");
+
+    const byTags = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param,
+        json: {
+          type: "keys",
+          title: "By tags",
+          keysInput: {
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            tags: ["checkout", "web"],
+          },
+        },
+      },
+      { headers },
+    );
+    expect(byTags.status).toBe(201);
+    const byTagsBody = (await byTags.json()) as { job: { id: string } };
+    const linkedTags = await db
+      .select({ id: schema.translationJobKeys.translationKeyId })
+      .from(schema.translationJobKeys)
+      .where(eq(schema.translationJobKeys.jobId, byTagsBody.job.id));
+    expect(linkedTags).toEqual([{ id: visible!.id }]);
+
+    const none = await createClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$post(
+      {
+        param,
+        json: {
+          type: "keys",
+          title: "Missing",
+          keysInput: { sourceLocale: "en-US", targetLocales: ["fr-FR"], keys: ["does.not.exist"] },
+        },
+      },
+      { headers },
+    );
+    expect(none.status).toBe(400);
+    await expect(none.json()).resolves.toMatchObject({ error: "no_strings_matched" });
+  });
+
   it("creates a key job for AI translation that is queued, charged and counted as open", async () => {
     const { identity, organization, project } = await createFixture.createStoredProjectFixture();
     const headers = await createFixture.authHeadersFor(identity);

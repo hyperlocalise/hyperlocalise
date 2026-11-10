@@ -221,3 +221,66 @@ func TestGuidelineRetrieveValidation(t *testing.T) {
 	require.JSONEq(t, `{"documents":[],"passages":[],"searchAvailable":false}`, empty.Body.String())
 	require.Equal(t, []guidelines.Scope{{OrganizationID: org}}, retriever.scopes[len(retriever.scopes)-1:])
 }
+
+func TestGuidelineRetrieveHonorsDocumentProjectAssignments(t *testing.T) {
+	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
+	env := newGuidelineTestEnv(t, "admin")
+	assignedID := env.scope.MustProject(t, env.scope.ProjectID, "Assigned")
+	otherID := env.scope.MustProject(t, "project_other_"+env.scope.Slug, "Other")
+	workspacePath := env.scope.OrgPath("/guidelines/documents")
+
+	unassignedRow := seedReadyGuideline(t, env, workspacePath, "Applies everywhere.")
+	assignedRow := seedReadyGuideline(t, env, workspacePath, "Assigned project only.")
+	ownedRow := seedReadyGuideline(t, env, env.scope.OrgPath("/projects/"+otherID+"/guidelines/documents"), "Owned by other.")
+	attach := env.json(http.MethodPost, workspacePath+"/"+assignedRow+"/projects", `{"projectId":"`+assignedID+`"}`)
+	require.Equal(t, http.StatusOK, attach.Code, attach.Body.String())
+
+	chunk := func(rowID, name string) guidelines.Chunk {
+		return guidelines.Chunk{
+			ID: name, DocumentID: guidelinepg.UploadedDocumentID(rowID),
+			RevisionID: guidelineRevision(t, env, rowID), Text: name,
+		}
+	}
+	retriever := &fakeGuidelineRetriever{byLocale: map[string]guidelines.Result{
+		"": {
+			Passages: []guidelines.Chunk{
+				chunk(unassignedRow, "everywhere"),
+				chunk(assignedRow, "assigned"),
+				chunk(ownedRow, "owned"),
+			},
+			SearchAvailable: true,
+		},
+	}}
+	env.handler.guidelineRetrieve = &guidelineRetrieveAPI{retriever: retriever, pool: env.scope.Pool}
+
+	retrieve := func(projectID string) []string {
+		t.Helper()
+		body := `{"organizationId":"` + env.scope.OrganizationID + `","query":"rule"`
+		if projectID != "" {
+			body += `,"projectId":"` + projectID + `"`
+		}
+		body += `}`
+		rec := serveGuidelineRetrieve(env, body, true)
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		var result guidelineRetrieveResult
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &result))
+		ids := make([]string, 0, len(result.Documents))
+		for _, document := range result.Documents {
+			ids = append(ids, document.ID)
+		}
+		return ids
+	}
+
+	require.ElementsMatch(t, []string{
+		guidelinepg.UploadedDocumentID(unassignedRow),
+		guidelinepg.UploadedDocumentID(assignedRow),
+	}, retrieve(assignedID))
+	require.ElementsMatch(t, []string{
+		guidelinepg.UploadedDocumentID(unassignedRow),
+		guidelinepg.UploadedDocumentID(ownedRow),
+	}, retrieve(otherID))
+	require.ElementsMatch(t, []string{
+		guidelinepg.UploadedDocumentID(unassignedRow),
+		guidelinepg.UploadedDocumentID(assignedRow),
+	}, retrieve(""))
+}

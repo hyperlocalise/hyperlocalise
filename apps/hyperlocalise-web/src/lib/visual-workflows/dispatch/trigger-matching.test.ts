@@ -337,6 +337,43 @@ describe("visual workflow trigger matching", () => {
       ).toBe(true);
     });
 
+    it("matches due date and details changes only when those event types are selected", () => {
+      const dueDate = { ...event, type: "job.due_date_changed" as const };
+      const details = { ...event, type: "job.details_changed" as const };
+
+      expect(
+        visualWorkflowShouldDispatchOnJobChange(
+          jobChangedWorkflow({ eventTypes: ["job.due_date_changed"] }),
+          dueDate,
+        ),
+      ).toBe(true);
+      expect(
+        visualWorkflowShouldDispatchOnJobChange(
+          jobChangedWorkflow({ eventTypes: ["job.details_changed"] }),
+          details,
+        ),
+      ).toBe(true);
+      expect(
+        visualWorkflowShouldDispatchOnJobChange(
+          jobChangedWorkflow({ eventTypes: ["job.due_date_changed"] }),
+          details,
+        ),
+      ).toBe(false);
+      expect(
+        visualWorkflowShouldDispatchOnJobChange(
+          jobChangedWorkflow({ eventTypes: ["job.status_changed"] }),
+          dueDate,
+        ),
+      ).toBe(false);
+      expect(visualWorkflowShouldDispatchOnJobChange(jobChangedWorkflow({}), dueDate)).toBe(true);
+      expect(
+        resolveNodeSubtitle({
+          kind: "trigger.job_changed",
+          eventTypes: ["job.due_date_changed", "job.details_changed"],
+        }),
+      ).toBe("Due date changed, Title or description changed");
+    });
+
     it("ignores inactive workflows and other triggers", () => {
       expect(
         visualWorkflowShouldDispatchOnJobChange(
