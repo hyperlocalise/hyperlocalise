@@ -10,7 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { normalizeJsonc } from "@/lib/i18n/parse-jsonc-config";
 
 const SUPPORTED_LOCALISATION_EXTENSIONS = [".json", ".jsonc", ".arb"] as const;
 
@@ -65,22 +64,6 @@ function collectBucketFilePatterns(buckets: unknown): I18nBucketFilePatterns {
     sourcePatterns: [...sourcePatterns],
     targetPatterns: [...targetPatterns],
   };
-}
-
-export function extractI18nBucketFilePatternsFromConfigText(
-  configText: string,
-  filename: string,
-): I18nBucketFilePatterns | null {
-  try {
-    const jsonText = filename.endsWith(".jsonc") ? normalizeJsonc(configText) : configText;
-    const parsed = JSON.parse(jsonText) as Record<string, unknown>;
-    if (filename.endsWith(".yml") || filename.endsWith(".yaml")) {
-      return null;
-    }
-    return collectBucketFilePatterns(parsed.buckets);
-  } catch {
-    return null;
-  }
 }
 
 export function extractI18nBucketFilePatternsFromConfigJson(
