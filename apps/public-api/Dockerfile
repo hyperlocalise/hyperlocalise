@@ -5,6 +5,9 @@ FROM golang:1.27.3-bookworm AS builder
 WORKDIR /repo
 COPY go.mod go.sum ./
 COPY orchestrion.tool.go ./
+COPY third_party ./third_party
+# Copy all of internal/ so new shared packages compile without Dockerfile edits.
+COPY internal ./internal
 COPY apps/public-api ./apps/public-api
 RUN go mod download
 RUN go install github.com/DataDog/orchestrion@v1.14.0
