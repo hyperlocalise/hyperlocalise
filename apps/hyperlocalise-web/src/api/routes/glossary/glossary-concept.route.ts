@@ -26,7 +26,7 @@ import {
 import { glossaryUsesPersistedConceptStore } from "@/lib/glossary/glossary-persisted-id";
 import { db, schema } from "@/lib/database/client";
 import { NativeGlossary as NativeGlossaryProduct } from "@/lib/glossary/native-glossary";
-import { listGlossaryConceptAuthors, listGlossaryConceptsPage } from "./glossary-concept-page";
+import { listGlossaryConceptsPage } from "./glossary-concept-page";
 import { listGlossaryTermsPage } from "./glossary-term-page";
 import { listGlossaryHistoryPage } from "./glossary-history-page";
 import {
@@ -39,19 +39,14 @@ import {
 
 import {
   createGlossaryConceptBodySchema,
-  createGlossaryConceptTermBodySchema,
   glossaryConceptPageQuerySchema,
   glossaryConceptGetQuerySchema,
   glossaryTermPageQuerySchema,
   glossaryHistoryQuerySchema,
   glossaryIdParamsSchema,
   glossaryConceptIdParamsSchema,
-  glossaryConceptTermIdParamsSchema,
   updateGlossaryConceptBodySchema,
-  updateGlossaryConceptTermBodySchema,
-  type CreateGlossaryConceptTermBody,
   type UpdateGlossaryConceptBody,
-  type UpdateGlossaryConceptTermBody,
 } from "./glossary.schema";
 import {
   externalTmsGlossaryImmutableResponse,
@@ -62,23 +57,6 @@ import {
   invalidGlossaryPayloadResponse,
   nativeGlossaryConceptsOnlyResponse,
 } from "./glossary.shared";
-
-function crowdinStatus(status: string | undefined) {
-  switch (status) {
-    case "preferred":
-      return "preferred";
-    case "admitted":
-      return "admitted";
-    case "draft":
-      return "draft";
-    case "not_recommended":
-      return "not recommended";
-    case "obsolete":
-      return "obsolete";
-    default:
-      return "draft";
-  }
-}
 
 function localStatus(status: string | null | undefined) {
   const normalized = status?.toLowerCase();
@@ -276,14 +254,6 @@ function validateGlossaryParams(value: unknown, c: Parameters<typeof glossaryNot
   return parsed.success ? parsed.data : glossaryNotFoundResponse(c);
 }
 
-function validateConceptTermParams(
-  value: unknown,
-  c: Parameters<typeof glossaryNotFoundResponse>[0],
-) {
-  const parsed = glossaryConceptTermIdParamsSchema.safeParse(value);
-  return parsed.success ? parsed.data : glossaryNotFoundResponse(c);
-}
-
 function validateJson<T>(
   schemaToUse: { safeParse: (value: unknown) => { success: true; data: T } | { success: false } },
   value: unknown,
@@ -320,20 +290,6 @@ export function createGlossaryConceptRoutes() {
         return c.json(page, 200);
       },
     )
-    .get("/authors", validator("param", validateGlossaryParams), async (c) => {
-      const { glossaryId } = c.req.valid("param");
-      const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
-      if (!glossary) return glossaryNotFoundResponse(c);
-      if (glossary && !glossaryUsesPersistedConceptStore(glossary)) {
-        return badRequestResponse(
-          c,
-          "external_glossary_page_unsupported",
-          "Provider-backed glossaries do not expose the native management index",
-        );
-      }
-      const authors = await listGlossaryConceptAuthors(glossaryId);
-      return c.json({ authors }, 200);
-    })
     .get(
       "/history",
       validator("param", validateGlossaryParams),
@@ -600,147 +556,5 @@ export function createGlossaryConceptRoutes() {
       const deleted = await product.deleteConcept(conceptId);
       if (!deleted) return glossaryNotFoundResponse(c);
       return c.body(null, 204);
-    })
-    .get("/:conceptId/terms", validator("param", validateConceptParams), async (c) => {
-      const { glossaryId, conceptId } = c.req.valid("param");
-      const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
-      if (!glossary) return glossaryNotFoundResponse(c);
-      const product = getGlossaryPersistedReadProduct({ auth: c.var.auth, glossary });
-      if (!product) return nativeGlossaryConceptsOnlyResponse(c);
-      const concept = await product.getConcept(conceptId);
-      if (!concept) return glossaryNotFoundResponse(c);
-      const terms = toGlossaryConceptRecord(glossary, concept).terms;
-      return c.json({ terms, total: terms.length }, 200);
-    })
-    .post(
-      "/:conceptId/terms",
-      validator("param", validateConceptParams),
-      validator("json", (value, c) => validateJson(createGlossaryConceptTermBodySchema, value, c)),
-      async (c) => {
-        const { glossaryId, conceptId } = c.req.valid("param");
-        const payload = c.req.valid("json") as CreateGlossaryConceptTermBody;
-        const owned = await getContributableGlossary(c.var.auth, glossaryId);
-        if (owned.kind !== "ok") {
-          return owned.kind === "not_found"
-            ? glossaryNotFoundResponse(c)
-            : glossaryContributeForbiddenResponse(c, c.var.auth.membership.role, owned.glossary);
-        }
-        const { glossary } = owned;
-        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
-        if (!product) return externalTmsGlossaryImmutableResponse(c);
-        const concept = await product.getConcept(conceptId);
-        if (!concept) return glossaryNotFoundResponse(c);
-        let term;
-        try {
-          term = await product.createTerm(conceptId, {
-            locale: payload.locale,
-            text: payload.term,
-            description: payload.description,
-            note: payload.note,
-            partOfSpeech: payload.partOfSpeech,
-            status: crowdinStatus(payload.status),
-            type: payload.termType ?? undefined,
-            gender: payload.gender ?? undefined,
-            url: payload.url ?? undefined,
-            lemma: payload.lemma ?? undefined,
-          });
-        } catch (error) {
-          const response = glossaryValidationErrorResponse(c, error);
-          if (response) return response;
-          throw error;
-        }
-        if (term && "terms" in term) return conflictResponse(c, "glossary_term_create_failed");
-        if (!term)
-          return conflictResponse(
-            c,
-            "duplicate_glossary_concept_term",
-            "A term with this locale and text already exists",
-          );
-        return c.json({ term: toGlossaryTermRecord(glossary, conceptId, term) }, 201);
-      },
-    )
-    .patch(
-      "/:conceptId/terms/:termId",
-      validator("param", validateConceptTermParams),
-      validator("json", (value, c) => validateJson(updateGlossaryConceptTermBodySchema, value, c)),
-      async (c) => {
-        const { glossaryId, conceptId, termId } = c.req.valid("param");
-        const payload = c.req.valid("json") as UpdateGlossaryConceptTermBody;
-        const owned = await getContributableGlossary(c.var.auth, glossaryId);
-        if (owned.kind !== "ok") {
-          return owned.kind === "not_found"
-            ? glossaryNotFoundResponse(c)
-            : glossaryContributeForbiddenResponse(c, c.var.auth.membership.role, owned.glossary);
-        }
-        const { glossary } = owned;
-        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
-        if (!product) return externalTmsGlossaryImmutableResponse(c);
-        const current = await product.getConcept(conceptId);
-        const existing = current?.terms.find((term) => String(term.id) === termId);
-        if (!existing) return glossaryNotFoundResponse(c);
-        if (payload.locale && payload.locale !== existing.locale) {
-          const currentIsPrimary = existing.locale === glossary.sourceLocale;
-          if (currentIsPrimary) {
-            return badRequestResponse(
-              c,
-              "source_term_locale_immutable",
-              "The primary term must stay in the glossary source locale",
-            );
-          }
-        }
-        const nextPartOfSpeech = payload.partOfSpeech ?? existing.partOfSpeech ?? "";
-        let updatedTerm;
-        try {
-          updatedTerm = await product.updateTerm(conceptId, termId, {
-            locale: payload.locale ?? existing.locale,
-            text: payload.term ?? existing.text,
-            description: payload.description ?? existing.description ?? "",
-            note: payload.note ?? existing.note ?? "",
-            partOfSpeech: nextPartOfSpeech,
-            status: crowdinStatus(payload.status ?? localStatus(existing.status)),
-            type: payload.termType ?? existing.type ?? "",
-            gender: payload.gender ?? existing.gender ?? "",
-            url: payload.url ?? existing.url ?? "",
-            lemma: payload.lemma ?? existing.lemma ?? "",
-            forbidden: payload.forbidden ?? existing.forbidden ?? false,
-          });
-        } catch (error) {
-          const response = glossaryValidationErrorResponse(c, error);
-          if (response) return response;
-          throw error;
-        }
-        if (updatedTerm && "terms" in updatedTerm) return glossaryNotFoundResponse(c);
-        if (!updatedTerm) return glossaryNotFoundResponse(c);
-        return c.json({ term: toGlossaryTermRecord(glossary, conceptId, updatedTerm) }, 200);
-      },
-    )
-    .delete(
-      "/:conceptId/terms/:termId",
-      validator("param", validateConceptTermParams),
-      async (c) => {
-        const { glossaryId, conceptId, termId } = c.req.valid("param");
-        const owned = await getContributableGlossary(c.var.auth, glossaryId);
-        if (owned.kind !== "ok") {
-          return owned.kind === "not_found"
-            ? glossaryNotFoundResponse(c)
-            : glossaryContributeForbiddenResponse(c, c.var.auth.membership.role, owned.glossary);
-        }
-        const { glossary } = owned;
-        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
-        if (!product) return externalTmsGlossaryImmutableResponse(c);
-        const concept = await product.getConcept(conceptId);
-        const term = concept?.terms.find((candidate) => String(candidate.id) === termId);
-        if (!term) return glossaryNotFoundResponse(c);
-        if (term.locale === glossary.sourceLocale) {
-          return badRequestResponse(
-            c,
-            "primary_term_required",
-            "A concept must keep its primary source term",
-          );
-        }
-        const deleted = await product.deleteTerm(conceptId, termId);
-        if (!deleted) return glossaryNotFoundResponse(c);
-        return c.body(null, 204);
-      },
-    );
+    });
 }

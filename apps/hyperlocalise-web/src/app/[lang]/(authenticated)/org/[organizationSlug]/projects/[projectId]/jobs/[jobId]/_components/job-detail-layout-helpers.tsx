@@ -330,8 +330,10 @@ export function jobDetailTaskLayoutFromRecord(
     kind: job.kind,
     nativeTargetLocales: getInputPayloadStringArray(job, "targetLocales"),
     sourceFilesMetric:
-      sourcePath ??
-      (isProviderBackedJob(job) ? null : intl.formatMessage(messages.sourceFilesLinked)),
+      job.type === "keys" && job.keyCount != null
+        ? intl.formatMessage(messages.keyJobStrings, { count: job.keyCount })
+        : (sourcePath ??
+          (isProviderBackedJob(job) ? null : intl.formatMessage(messages.sourceFilesLinked))),
   };
 
   const { properties, secondaryProperties } = jobDetailTaskProperties(input, intl);

@@ -44,7 +44,8 @@ export function nativeJobToProjectFileRecord(job: JobDetailRecord): ProjectFileR
       id: job.id,
       status: job.status,
       createdAt: job.createdAt,
-      type: job.type ?? "file",
+      // Key jobs have no source file, so only string and file jobs reach here.
+      type: job.type === "string" ? "string" : "file",
     },
   };
 }

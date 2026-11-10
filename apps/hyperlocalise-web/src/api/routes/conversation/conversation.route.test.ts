@@ -15,11 +15,9 @@ import "dotenv/config";
 import { randomInt } from "node:crypto";
 
 import { eq } from "drizzle-orm";
-import { testClient } from "hono/testing";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
-import type { AppType } from "@/api/typed-app";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
@@ -90,9 +88,8 @@ vi.mock("@/lib/gitlab/repository-context", () => ({
 }));
 
 const app = createApp({ fileStorageAdapter: createMemoryFileStorageAdapter() });
-const client = testClient<AppType>(app);
 const { authHeadersFor, cleanup, createProjectViaApi, createWorkosIdentity } =
-  createProjectTestFixture(client);
+  createProjectTestFixture();
 
 async function createGithubRepositoryFixture(input: {
   organizationId: string;

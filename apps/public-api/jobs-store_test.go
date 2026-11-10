@@ -115,3 +115,33 @@ func TestJobStoreDatabase(t *testing.T) {
 	// Failed updates record nothing.
 	require.Len(t, f.activities(t, "job_updated"), 3)
 }
+
+func TestJobPatchHelpers(t *testing.T) {
+	t.Parallel()
+	owner := "user-1"
+	title := "Launch"
+	description := "Release"
+	due := time.Date(2026, 12, 1, 9, 0, 0, 0, time.UTC)
+	later := due.Add(time.Hour)
+
+	require.Equal(t, [2]string{"", ""}, jobAssignment{}.key())
+	require.Equal(t, [2]string{"user-1", "user"}, jobAssignment{OwnerUserID: &owner, AssigneeType: ptr("user")}.key())
+
+	require.True(t, sameTime(nil, nil))
+	require.False(t, sameTime(&due, nil))
+	require.True(t, sameTime(&due, ptr(due)))
+	require.False(t, sameTime(&due, &later))
+
+	require.True(t, sameString(nil, nil))
+	require.False(t, sameString(&title, nil))
+	require.True(t, sameString(&title, ptr("Launch")))
+	require.False(t, sameString(&title, &description))
+
+	require.Empty(t, jobPatch{}.changedFields())
+	require.Equal(t, []string{"title", "description", "dueAt", "owner"}, jobPatch{
+		Title:       &title,
+		Description: optionalString{Set: true, Value: &description},
+		DueAt:       optionalTime{Set: true, Value: &due},
+		OwnerEmail:  optionalString{Set: true},
+	}.changedFields())
+}

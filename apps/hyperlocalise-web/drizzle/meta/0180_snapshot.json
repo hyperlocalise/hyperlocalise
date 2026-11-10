@@ -1,5 +1,5 @@
 {
-  "id": "fdfaf9de-1a28-47ff-80b7-2cd66ef15700",
+  "id": "c8c19bc7-9684-4c45-98ca-f41d59fbdf20",
   "prevId": "6bd20d17-7f10-4992-933b-3b26e830cbb1",
   "version": "7",
   "dialect": "postgresql",
@@ -25465,6 +25465,19 @@
           "primaryKey": false,
           "notNull": false
         },
+        "tags": {
+          "name": "tags",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "design_url": {
+          "name": "design_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "is_hidden": {
           "name": "is_hidden",
           "type": "boolean",
@@ -25568,6 +25581,21 @@
           "isUnique": false,
           "concurrently": false,
           "method": "btree",
+          "with": {}
+        },
+        "idx_project_translation_keys_tags": {
+          "name": "idx_project_translation_keys_tags",
+          "columns": [
+            {
+              "expression": "tags",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
           "with": {}
         }
       },
@@ -29860,143 +29888,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.guideline_document_projects": {
-      "name": "guideline_document_projects",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "organization_id": {
-          "name": "organization_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "document_id": {
-          "name": "document_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "project_id": {
-          "name": "project_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "guideline_document_projects_document_project_key": {
-          "name": "guideline_document_projects_document_project_key",
-          "columns": [
-            {
-              "expression": "document_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "project_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_guideline_document_projects_org": {
-          "name": "idx_guideline_document_projects_org",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_guideline_document_projects_project": {
-          "name": "idx_guideline_document_projects_project",
-          "columns": [
-            {
-              "expression": "project_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "guideline_document_projects_organization_id_organizations_id_fk": {
-          "name": "guideline_document_projects_organization_id_organizations_id_fk",
-          "tableFrom": "guideline_document_projects",
-          "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "guideline_document_projects_document_id_guideline_documents_id_fk": {
-          "name": "guideline_document_projects_document_id_guideline_documents_id_fk",
-          "tableFrom": "guideline_document_projects",
-          "tableTo": "guideline_documents",
-          "columnsFrom": [
-            "document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "guideline_document_projects_project_id_projects_id_fk": {
-          "name": "guideline_document_projects_project_id_projects_id_fk",
-          "tableFrom": "guideline_document_projects",
-          "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.guideline_documents": {
       "name": "guideline_documents",
       "schema": "",
@@ -30730,124 +30621,6 @@
           "value": "\"project_knowledge_memory_revisions\".\"version\" >= 1"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.workspace_guideline_projects": {
-      "name": "workspace_guideline_projects",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "organization_id": {
-          "name": "organization_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "project_id": {
-          "name": "project_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "workspace_guideline_projects_org_project_key": {
-          "name": "workspace_guideline_projects_org_project_key",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "project_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_workspace_guideline_projects_org": {
-          "name": "idx_workspace_guideline_projects_org",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_workspace_guideline_projects_project": {
-          "name": "idx_workspace_guideline_projects_project",
-          "columns": [
-            {
-              "expression": "project_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "workspace_guideline_projects_organization_id_organizations_id_fk": {
-          "name": "workspace_guideline_projects_organization_id_organizations_id_fk",
-          "tableFrom": "workspace_guideline_projects",
-          "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "workspace_guideline_projects_project_id_projects_id_fk": {
-          "name": "workspace_guideline_projects_project_id_projects_id_fk",
-          "tableFrom": "workspace_guideline_projects",
-          "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.project_file_string_repository_contexts": {
@@ -31765,6 +31538,89 @@
           "value": "\"project_visual_context_screenshots\".\"content_type\" in ('image/png', 'image/jpeg', 'image/webp')"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.translation_job_keys": {
+      "name": "translation_job_keys",
+      "schema": "",
+      "columns": {
+        "job_id": {
+          "name": "job_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "translation_key_id": {
+          "name": "translation_key_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_translation_job_keys_translation_key": {
+          "name": "idx_translation_job_keys_translation_key",
+          "columns": [
+            {
+              "expression": "translation_key_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "translation_job_keys_job_id_jobs_id_fk": {
+          "name": "translation_job_keys_job_id_jobs_id_fk",
+          "tableFrom": "translation_job_keys",
+          "tableTo": "jobs",
+          "columnsFrom": [
+            "job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "translation_job_keys_translation_key_id_project_translation_keys_id_fk": {
+          "name": "translation_job_keys_translation_key_id_project_translation_keys_id_fk",
+          "tableFrom": "translation_job_keys",
+          "tableTo": "project_translation_keys",
+          "columnsFrom": [
+            "translation_key_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "translation_job_keys_job_id_translation_key_id_pk": {
+          "name": "translation_job_keys_job_id_translation_key_id_pk",
+          "columns": [
+            "job_id",
+            "translation_key_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.project_cat_string_overlays": {
@@ -39742,7 +39598,8 @@
       "schema": "public",
       "values": [
         "string",
-        "file"
+        "file",
+        "keys"
       ]
     },
     "public.usage_event_status": {

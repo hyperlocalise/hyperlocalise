@@ -57,7 +57,7 @@ export type ApiJob = {
   createdByUserId: string | null;
   assigneeType?: "user" | "agent" | null;
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
-  type: "string" | "file" | null;
+  type: "string" | "file" | "keys" | null;
   status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   createdAt: string;
   updatedAt: string;

@@ -85,6 +85,7 @@ import type {
 import { ContentEditorEditTmSegmentButton } from "./content-editor-edit-tm-segment";
 import { requiresLowMatchConfirmation } from "./tm-match-quality";
 import { ContentEditorLottieContextPanel } from "./content-editor-lottie-context-panel";
+import { ContentEditorKeyDetails } from "./content-editor-key-details";
 import {
   ContentEditorExpandableContent,
   ContentEditorShowLessButton,
@@ -444,6 +445,7 @@ export function ContentEditorIntelligencePanel({
   }, [scrollToTm, segmentId, isConcordanceLoading, intelligence.translationMemoryMatches]);
 
   const hasFileContext = Boolean(intelligence.productMeaning?.trim());
+  const keyTags = intelligence.keyTags ?? [];
   const agentBadges = [
     intelligence.locationBreadcrumb,
     intelligence.componentName,
@@ -587,6 +589,11 @@ export function ContentEditorIntelligencePanel({
                   <FormattedMessage {...contentEditorIntelligencePanelMessages.noFileContext} />
                 </p>
               )}
+              <ContentEditorKeyDetails
+                segmentId={segmentId}
+                tags={keyTags}
+                designUrl={intelligence.designUrl}
+              />
             </PanelSection>
 
             {isConcordanceLoading ? (

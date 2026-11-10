@@ -26,9 +26,9 @@ describe("createApiClient", () => {
     expect("notification-preferences" in org).toBe(false);
     expect("mentions" in org).toBe(false);
     expect(typeof org.conversations.$post).toBe("function");
-    expect(typeof org.glossaries.$get).toBe("function");
+    expect(typeof org.glossaries.$post).toBe("function");
     expect(typeof org["knowledge-memory"].$get).toBe("function");
-    expect(typeof org["translation-memories"].$get).toBe("function");
+    expect(typeof org["translation-memories"][":memoryId"].$get).toBe("function");
     expect(typeof org.projects.$get).toBe("function");
     expect("$get" in org.jobs).toBe(false);
     expect(typeof org.files.$post).toBe("function");
@@ -58,7 +58,7 @@ describe("createApiClient", () => {
     expect(typeof org.gitlab.projects.$get).toBe("function");
     expect(typeof org.intercom["help-centers"].$get).toBe("function");
     expect(typeof org.intercom["help-centers"][":helpCenterId"].collections.$get).toBe("function");
-    expect(typeof org.workspace.$get).toBe("function");
+    expect(typeof org.workspace.$patch).toBe("function");
     expect(typeof org.billing["resource-usage"].$get).toBe("function");
     expect("api-keys" in org).toBe(false);
     expect("overview" in org).toBe(false);

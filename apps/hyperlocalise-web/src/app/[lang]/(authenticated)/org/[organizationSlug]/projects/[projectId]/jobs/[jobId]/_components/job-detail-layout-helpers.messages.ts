@@ -30,6 +30,11 @@ export const jobDetailLayoutHelpersMessages = defineMessages({
     id: "M+N6SmzTI9",
     description: "Metric and property value while locale readiness is loading",
   },
+  keyJobStrings: {
+    defaultMessage: "{count, plural, one {# string} other {# strings}}",
+    id: "sXWeKaV7cz",
+    description: "Metric on a key job: how many strings the job holds",
+  },
   sourceFilesLinked: {
     defaultMessage: "Source files linked",
     id: "czsCIKk1f7",

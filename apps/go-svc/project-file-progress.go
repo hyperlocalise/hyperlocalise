@@ -23,6 +23,9 @@ type fileProgressStats struct {
 }
 
 func (api *projectAPI) fileProgressHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if id, live := parseLiveProjectID(r.PathValue("projectId")); live {
+		return api.liveFileProgress(r, actor, id)
+	}
 	projectID, err := normalizedNativeProjectID(r.PathValue("projectId"))
 	if err != nil {
 		return nil, 0, err

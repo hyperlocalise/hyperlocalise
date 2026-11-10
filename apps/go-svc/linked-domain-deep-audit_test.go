@@ -189,6 +189,84 @@ func TestDeepAuditFindingsFiltersAndFixedDiff(t *testing.T) {
 	require.Contains(t, pages.Body.String(), `"templateKey":"/a"`)
 }
 
+func deepAuditFindingRequest(rawQuery string) *http.Request {
+	return httptest.NewRequest(http.MethodGet, "/findings?"+rawQuery, nil)
+}
+
+func TestParseDeepAuditFindingFilter(t *testing.T) {
+	filter, err := parseDeepAuditFindingFilter(deepAuditFindingRequest(""))
+	require.NoError(t, err)
+	require.Equal(t, deepAuditFindingFilter{limit: deepAuditFindingsLimit}, filter)
+
+	filter, err = parseDeepAuditFindingFilter(deepAuditFindingRequest("diff=new&limit=1&offset=10&creditId=%20c1%20&severity=high&templateKey=/a&locale=fr"))
+	require.NoError(t, err)
+	require.Equal(t, deepAuditFindingFilter{
+		creditID:    "c1",
+		severity:    "high",
+		templateKey: "/a",
+		locale:      "fr",
+		diff:        "new",
+		limit:       1,
+		offset:      10,
+	}, filter)
+
+	for _, diff := range []string{"new", "unchanged", "fixed"} {
+		filter, err = parseDeepAuditFindingFilter(deepAuditFindingRequest("diff=" + diff))
+		require.NoError(t, err, diff)
+		require.Equal(t, diff, filter.diff)
+	}
+
+	_, err = parseDeepAuditFindingFilter(deepAuditFindingRequest("diff=bogus"))
+	require.True(t, isWorkspaceCode(err, "invalid_diff_filter"))
+	_, err = parseDeepAuditFindingFilter(deepAuditFindingRequest("limit=0"))
+	require.True(t, isWorkspaceCode(err, "invalid_limit"))
+	_, err = parseDeepAuditFindingFilter(deepAuditFindingRequest("limit=201"))
+	require.True(t, isWorkspaceCode(err, "invalid_limit"))
+	_, err = parseDeepAuditFindingFilter(deepAuditFindingRequest("limit=abc"))
+	require.True(t, isWorkspaceCode(err, "invalid_limit"))
+	filter, err = parseDeepAuditFindingFilter(deepAuditFindingRequest("limit=200"))
+	require.NoError(t, err)
+	require.Equal(t, 200, filter.limit)
+	_, err = parseDeepAuditFindingFilter(deepAuditFindingRequest("offset=-1"))
+	require.True(t, isWorkspaceCode(err, "invalid_offset"))
+	_, err = parseDeepAuditFindingFilter(deepAuditFindingRequest("offset=abc"))
+	require.True(t, isWorkspaceCode(err, "invalid_offset"))
+	filter, err = parseDeepAuditFindingFilter(deepAuditFindingRequest("offset=0"))
+	require.NoError(t, err)
+	require.Equal(t, 0, filter.offset)
+}
+
+func TestDeepAuditFindingsQuery(t *testing.T) {
+	run := deepAuditRun{ID: "run-current"}
+	sql, args := deepAuditFindingsQuery(run, deepAuditFindingFilter{limit: 50, offset: 0})
+	require.Contains(t, sql, "f.run_id=$1")
+	require.NotContains(t, sql, "f.diff_state=")
+	require.Contains(t, sql, "count(*) over()")
+	require.Contains(t, sql, "limit $2 offset $3")
+	require.Equal(t, []any{"run-current", 50, 0}, args)
+
+	sql, args = deepAuditFindingsQuery(run, deepAuditFindingFilter{
+		diff: "new", creditID: "c1", severity: "high", templateKey: "/a", locale: "fr", limit: 10, offset: 5,
+	})
+	require.Contains(t, sql, "f.diff_state=$2")
+	require.Contains(t, sql, "f.credit_id=$3")
+	require.Contains(t, sql, "f.severity=$4")
+	require.Contains(t, sql, "f.template_key=$5")
+	require.Contains(t, sql, "f.locale=$6")
+	require.Equal(t, []any{"run-current", "new", "c1", "high", "/a", "fr", 10, 5}, args)
+
+	prev := "run-prev"
+	run.PreviousRunID = &prev
+	sql, args = deepAuditFindingsQuery(run, deepAuditFindingFilter{diff: "fixed", limit: 25, offset: 1})
+	require.Contains(t, sql, "'fixed'")
+	require.Contains(t, sql, "not exists(select 1 from localisation_deep_audit_findings c")
+	require.Equal(t, []any{prev, "run-current", 25, 1}, args)
+
+	run.PreviousRunID = nil
+	_, args = deepAuditFindingsQuery(run, deepAuditFindingFilter{diff: "fixed", limit: 1, offset: 0})
+	require.Equal(t, []any{"", "run-current", 1, 0}, args)
+}
+
 func TestWebDeepAuditStarterSendsServiceToken(t *testing.T) {
 	t.Setenv("WORKOS_COOKIE_PASSWORD", "this-is-a-test-cookie-password-at-least-32-characters")
 	var gotPath, gotToken string

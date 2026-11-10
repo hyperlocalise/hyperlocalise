@@ -15,6 +15,17 @@
 import { defineMessages } from "react-intl";
 
 export const jobsPageContentMessages = defineMessages({
+  createJobFromFiles: {
+    defaultMessage: "From files…",
+    id: "GH+h0x5WtV",
+    description: "Create job menu item that opens the dialog for a job on whole files",
+  },
+  createJobFromStrings: {
+    defaultMessage: "From strings in the content editor",
+    id: "7DBmtiJjc3",
+    description:
+      "Create job menu item that opens the content editor to tick strings for a task made of strings",
+  },
   createJob: {
     defaultMessage: "Create job",
     id: "+imNjDj2UT",

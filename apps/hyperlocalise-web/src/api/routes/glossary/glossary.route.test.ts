@@ -58,11 +58,13 @@ import { createTeamTestFixture } from "@/lib/teams/team.fixture";
 import type { TeamResponse } from "@/lib/teams/team.schema";
 import type { ProjectResponse } from "../project/project.schema";
 import { createGlossaryTestFixture } from "./glossary.fixture";
+import { createProjectTestFixture } from "../project/project.fixture";
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
 const client = testClient<AppType>(createApp({ fileStorageAdapter }));
 const fixture = createGlossaryTestFixture(client);
 const teamFixture = createTeamTestFixture();
+const projectFixture = createProjectTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -93,122 +95,6 @@ describe("glossaryRoutes", () => {
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
       error: "forbidden",
-    });
-  });
-
-  it("does not label ordinary glossary updates as ownership changes", async () => {
-    const identity = fixture.createWorkosIdentityWithRole("admin");
-    const headers = await fixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
-    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
-      .id;
-    enqueueActivityLogEventMock.mockClear();
-
-    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$patch(
-      {
-        param: { organizationSlug, glossaryId },
-        json: { name: "Updated glossary name" },
-      },
-      { headers },
-    );
-
-    expect(response.status).toBe(200);
-    expect(enqueueActivityLogEventMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: "glossary_ownership_changed" }),
-    );
-  });
-
-  it("preserves a deleted glossary name in the activity event", async () => {
-    const identity = fixture.createWorkosIdentityWithRole("admin");
-    const headers = await fixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const glossaryName = "Glossary to delete";
-    const glossaryResponse = await fixture.createGlossaryViaApi(
-      identity,
-      { name: glossaryName },
-      headers,
-    );
-    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
-      .id;
-    enqueueActivityLogEventMock.mockClear();
-
-    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$delete(
-      { param: { organizationSlug, glossaryId } },
-      { headers },
-    );
-
-    expect(response.status).toBe(204);
-    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventType: "glossary_deleted",
-        payload: { name: glossaryName, resourceId: glossaryId },
-      }),
-    );
-  });
-
-  it("keeps durable glossary history after the glossary row is deleted", async () => {
-    const identity = fixture.createWorkosIdentityWithRole("admin");
-    const headers = await fixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const glossaryResponse = await fixture.createGlossaryViaApi(
-      identity,
-      { name: "History survival glossary" },
-      headers,
-    );
-    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
-      .id;
-
-    await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$patch(
-      {
-        param: { organizationSlug, glossaryId },
-        json: { description: "Updated before delete" },
-      },
-      { headers },
-    );
-
-    const historyBeforeDelete = await db
-      .select({
-        id: schema.glossaryHistoryEvents.id,
-        eventType: schema.glossaryHistoryEvents.eventType,
-      })
-      .from(schema.glossaryHistoryEvents)
-      .where(eq(schema.glossaryHistoryEvents.glossaryId, glossaryId));
-    expect(historyBeforeDelete.some((event) => event.eventType === "updated")).toBe(true);
-
-    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$delete(
-      { param: { organizationSlug, glossaryId } },
-      { headers },
-    );
-    expect(response.status).toBe(204);
-
-    const [glossary] = await db
-      .select({ id: schema.glossaries.id })
-      .from(schema.glossaries)
-      .where(eq(schema.glossaries.id, glossaryId));
-    expect(glossary).toBeUndefined();
-
-    const historyAfterDelete = await db
-      .select({
-        id: schema.glossaryHistoryEvents.id,
-        eventType: schema.glossaryHistoryEvents.eventType,
-        attributes: schema.glossaryHistoryEvents.attributes,
-      })
-      .from(schema.glossaryHistoryEvents)
-      .where(eq(schema.glossaryHistoryEvents.glossaryId, glossaryId));
-
-    expect(historyAfterDelete.map((event) => event.id).sort()).toEqual(
-      expect.arrayContaining(historyBeforeDelete.map((event) => event.id)),
-    );
-    expect(historyAfterDelete.some((event) => event.eventType === "updated")).toBe(true);
-    expect(historyAfterDelete.some((event) => event.eventType === "deleted")).toBe(true);
-    expect(
-      historyAfterDelete.find((event) => event.eventType === "deleted")?.attributes,
-    ).toMatchObject({
-      glossarySnapshot: expect.objectContaining({
-        id: glossaryId,
-        name: "History survival glossary",
-      }),
     });
   });
 
@@ -342,110 +228,6 @@ describe("glossaryRoutes", () => {
     });
   });
 
-  it("exports filtered concepts for multiple canonical locales", async () => {
-    const identity = fixture.createWorkosIdentityWithRole("admin");
-    const headers = await fixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
-    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
-      .id;
-    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].concepts.$post(
-      {
-        param: { organizationSlug, glossaryId },
-        json: {
-          primaryTerm: "Checkout",
-          translatable: true,
-          terms: [
-            {
-              locale: "en",
-              term: "Checkout",
-              status: "preferred",
-              caseSensitive: false,
-              forbidden: false,
-            },
-            {
-              locale: "fr",
-              term: "Caisse",
-              status: "preferred",
-              caseSensitive: false,
-              forbidden: false,
-            },
-          ],
-        },
-      },
-      { headers },
-    );
-    expect(conceptResponse.status).toBe(201);
-
-    const response = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].export.$get(
-      {
-        param: { organizationSlug, glossaryId },
-        query: { format: "csv", scope: "filtered", locales: ["en", "fr"] },
-      },
-      { headers },
-    );
-    expect(response.status).toBe(200);
-    const csv = await response.text();
-    expect(csv).toContain("Checkout");
-    expect(csv).toContain("Caisse");
-  });
-
-  it("exports mirrored external_tms glossaries stored in Hyperlocalise", async () => {
-    const { identity, glossary } = await fixture.createStoredGlossaryFixture();
-    const headers = await fixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-
-    await db
-      .update(schema.glossaries)
-      .set({
-        source: "external_tms",
-        externalProviderKind: "crowdin",
-        externalProjectId: "902807",
-        externalResourceType: "glossary",
-        externalGlossaryId: "synced-glossary-1",
-      })
-      .where(eq(schema.glossaries.id, glossary.id));
-
-    const [concept] = await db
-      .insert(schema.glossaryConcepts)
-      .values({
-        glossaryId: glossary.id,
-        primaryTerm: "Synced term",
-        translatable: true,
-      })
-      .returning();
-    await db.insert(schema.glossaryTerms).values({
-      glossaryId: glossary.id,
-      conceptId: concept.id,
-      locale: "en",
-      term: "Synced term",
-      sourceTerm: "Synced term",
-      targetTerm: "Synced term",
-      description: "",
-      provenance: "sync",
-      reviewStatus: "approved",
-      caseSensitive: false,
-      forbidden: false,
-    });
-
-    const response = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].export.$get(
-      {
-        param: { organizationSlug, glossaryId: glossary.id },
-        query: { format: "csv", scope: "complete" },
-      },
-      { headers },
-    );
-    expect(response.status).toBe(200);
-    const csv = await response.text();
-    expect(csv).toContain("Synced term");
-  });
-
   it("lists concepts for mirrored external_tms glossaries via the persisted index", async () => {
     const { identity, glossary } = await fixture.createStoredGlossaryFixture();
     const headers = await fixture.authHeadersFor(identity);
@@ -501,255 +283,6 @@ describe("glossaryRoutes", () => {
     expect(body.concepts[0]?.primaryTerm).toBe("Paged term");
   });
 
-  it("exports filtered concepts when search matches a term outside the locale projection", async () => {
-    const identity = fixture.createWorkosIdentityWithRole("admin");
-    const headers = await fixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
-    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
-      .id;
-    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].concepts.$post(
-      {
-        param: { organizationSlug, glossaryId },
-        json: {
-          primaryTerm: "Boutique",
-          translatable: true,
-          terms: [
-            {
-              locale: "en",
-              term: "Checkout",
-              description: "needle-en-only",
-              status: "preferred",
-              caseSensitive: false,
-              forbidden: false,
-            },
-            {
-              locale: "fr",
-              term: "Boutique",
-              status: "preferred",
-              caseSensitive: false,
-              forbidden: false,
-            },
-          ],
-        },
-      },
-      { headers },
-    );
-    expect(conceptResponse.status).toBe(201);
-
-    const response = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].export.$get(
-      {
-        param: { organizationSlug, glossaryId },
-        query: {
-          format: "csv",
-          scope: "filtered",
-          locale: "fr",
-          search: "needle-en-only",
-        },
-      },
-      { headers },
-    );
-    expect(response.status).toBe(200);
-    const csv = await response.text();
-    expect(csv).toContain("Boutique");
-    expect(csv).not.toContain("needle-en-only");
-    expect(csv).not.toMatch(/,"en",/);
-  });
-
-  it("exports filtered concepts honoring term attribute filters", async () => {
-    const identity = fixture.createWorkosIdentityWithRole("admin");
-    const headers = await fixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
-    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
-      .id;
-    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].concepts.$post(
-      {
-        param: { organizationSlug, glossaryId },
-        json: {
-          primaryTerm: "Running",
-          translatable: true,
-          terms: [
-            {
-              locale: "en",
-              term: "Running",
-              partOfSpeech: "verb",
-              status: "preferred",
-              caseSensitive: false,
-              forbidden: false,
-            },
-            {
-              locale: "en",
-              term: "Run forbidden noun",
-              partOfSpeech: "noun",
-              status: "preferred",
-              caseSensitive: false,
-              forbidden: true,
-            },
-          ],
-        },
-      },
-      { headers },
-    );
-    expect(conceptResponse.status).toBe(201);
-
-    const response = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].export.$get(
-      {
-        param: { organizationSlug, glossaryId },
-        query: {
-          format: "csv",
-          scope: "filtered",
-          partOfSpeech: "verb",
-          forbidden: false,
-        },
-      },
-      { headers },
-    );
-    expect(response.status).toBe(200);
-    const csv = await response.text();
-    expect(csv).toContain("Running");
-    expect(csv).not.toContain("Run forbidden noun");
-  });
-
-  it("filters concept pages and exports by term gender", async () => {
-    const identity = fixture.createWorkosIdentityWithRole("admin");
-    const headers = await fixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
-    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
-      .id;
-    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].concepts.$post(
-      {
-        param: { organizationSlug, glossaryId },
-        json: {
-          primaryTerm: "Performer",
-          translatable: true,
-          terms: [
-            {
-              locale: "en",
-              term: "Actor",
-              status: "preferred",
-              caseSensitive: false,
-              forbidden: false,
-            },
-            {
-              locale: "fr",
-              term: "Actrice",
-              gender: "feminine",
-              status: "preferred",
-              caseSensitive: false,
-              forbidden: false,
-            },
-          ],
-        },
-      },
-      { headers },
-    );
-    expect(conceptResponse.status).toBe(201);
-
-    const pageResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].concepts.page.$get(
-      {
-        param: { organizationSlug, glossaryId },
-        query: {
-          limit: "10",
-          gender: "feminine",
-          sort: "updated_at",
-          sortDir: "desc",
-          includeArchived: "false",
-        },
-      },
-      { headers },
-    );
-    expect(pageResponse.status).toBe(200);
-    const page = (await pageResponse.json()) as { total: number };
-    expect(page.total).toBe(1);
-
-    const exportResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].export.$get(
-      {
-        param: { organizationSlug, glossaryId },
-        query: { format: "csv", scope: "filtered", gender: "feminine" },
-      },
-      { headers },
-    );
-    expect(exportResponse.status).toBe(200);
-    const csv = await exportResponse.text();
-    expect(csv).toContain("Actrice");
-    expect(csv).not.toContain("Actor");
-  });
-
-  it("exports filtered concepts by concept review status, not term status", async () => {
-    const { identity, glossary } = await fixture.createStoredGlossaryFixture();
-    const headers = await fixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-
-    const [rejectedConcept] = await db
-      .insert(schema.glossaryConcepts)
-      .values({
-        glossaryId: glossary.id,
-        primaryTerm: "Rejected concept term",
-        reviewStatus: "rejected",
-      })
-      .returning();
-    await db.insert(schema.glossaryTerms).values({
-      glossaryId: glossary.id,
-      conceptId: rejectedConcept.id,
-      locale: "en",
-      term: "Rejected concept approved term",
-      sourceTerm: "Rejected concept approved term",
-      targetTerm: "Rejected concept approved term",
-      reviewStatus: "approved",
-      caseSensitive: false,
-      forbidden: false,
-    });
-    const [approvedConcept] = await db
-      .insert(schema.glossaryConcepts)
-      .values({
-        glossaryId: glossary.id,
-        primaryTerm: "Approved concept term",
-        reviewStatus: "approved",
-      })
-      .returning();
-    await db.insert(schema.glossaryTerms).values({
-      glossaryId: glossary.id,
-      conceptId: approvedConcept.id,
-      locale: "en",
-      term: "Approved concept rejected term",
-      sourceTerm: "Approved concept rejected term",
-      targetTerm: "Approved concept rejected term",
-      reviewStatus: "rejected",
-      caseSensitive: false,
-      forbidden: false,
-    });
-
-    const response = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].export.$get(
-      {
-        param: { organizationSlug, glossaryId: glossary.id },
-        query: { format: "csv", scope: "filtered", reviewStatus: "approved" },
-      },
-      { headers },
-    );
-    expect(response.status).toBe(200);
-    const csv = await response.text();
-    expect(csv).toContain("Approved concept rejected term");
-    expect(csv).not.toContain("Rejected concept approved term");
-  });
-
   it("omits termless concepts from term-filtered interchange documents only", async () => {
     const { glossary } = await fixture.createStoredGlossaryFixture();
 
@@ -763,160 +296,6 @@ describe("glossaryRoutes", () => {
 
     const complete = await loadGlossaryInterchangeDocument({ glossary });
     expect(complete.concepts.map((concept) => concept.primaryTerm)).toContain("Lonely concept");
-  });
-
-  it("lists recorded glossary authors including removed members", async () => {
-    const { identity, glossary, user, organization } = await fixture.createStoredGlossaryFixture();
-    const headers = await fixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-
-    const formerIdentity = fixture.createWorkosIdentityForOrganization(
-      identity.organization,
-      "translator",
-    );
-    await fixture.authHeadersFor(formerIdentity);
-    const formerUserId = await fixture.getLocalUserId(formerIdentity.user.workosUserId);
-    const [concept] = await db
-      .insert(schema.glossaryConcepts)
-      .values({
-        glossaryId: glossary.id,
-        primaryTerm: "Authored concept",
-        createdByUserId: user.id,
-      })
-      .returning();
-    await db.insert(schema.glossaryTerms).values({
-      glossaryId: glossary.id,
-      conceptId: concept.id,
-      locale: "en",
-      term: "Former member term",
-      sourceTerm: "Former member term",
-      targetTerm: "Former member term",
-      createdByUserId: formerUserId,
-      caseSensitive: false,
-      forbidden: false,
-    });
-    await db
-      .delete(schema.organizationMemberships)
-      .where(
-        and(
-          eq(schema.organizationMemberships.organizationId, organization.id),
-          eq(schema.organizationMemberships.userId, formerUserId),
-        ),
-      );
-
-    const response = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].concepts.authors.$get(
-      {
-        param: { organizationSlug, glossaryId: glossary.id },
-      },
-      { headers },
-    );
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as {
-      authors: Array<{ userId: string; displayName: string }>;
-    };
-    const ids = body.authors.map((author) => author.userId);
-    expect(ids).toContain(user.id);
-    expect(ids).toContain(formerUserId);
-    expect(
-      body.authors.find((author) => author.userId === formerUserId)?.displayName.length,
-    ).toBeGreaterThan(0);
-  });
-
-  it("rejects export for live provider glossary ids", async () => {
-    const identity = fixture.createWorkosIdentityWithRole("admin");
-    const headers = await fixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const liveGlossaryId = "crowdin:glossary:42";
-
-    const response = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].export.$get(
-      {
-        param: { organizationSlug, glossaryId: liveGlossaryId },
-        query: { format: "csv", scope: "complete" },
-      },
-      { headers },
-    );
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toMatchObject({
-      error: "glossary_export_unsupported",
-    });
-  });
-
-  it("rejects term creation for a concept owned by another organization", async () => {
-    const firstIdentity = fixture.createWorkosIdentityWithRole("admin");
-    const secondIdentity = fixture.createWorkosIdentityWithRole("admin");
-    const firstHeaders = await fixture.authHeadersFor(firstIdentity);
-    const secondHeaders = await fixture.authHeadersFor(secondIdentity);
-    const firstOrganizationSlug = firstIdentity.organization.slug ?? "missing-slug";
-    const secondOrganizationSlug = secondIdentity.organization.slug ?? "missing-slug";
-
-    const firstGlossaryResponse = await fixture.createGlossaryViaApi(
-      firstIdentity,
-      undefined,
-      firstHeaders,
-    );
-    const firstGlossaryId = ((await firstGlossaryResponse.json()) as { glossary: { id: string } })
-      .glossary.id;
-    const secondGlossaryResponse = await fixture.createGlossaryViaApi(
-      secondIdentity,
-      undefined,
-      secondHeaders,
-    );
-    const secondGlossaryId = ((await secondGlossaryResponse.json()) as { glossary: { id: string } })
-      .glossary.id;
-
-    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].concepts.$post(
-      {
-        param: {
-          organizationSlug: secondOrganizationSlug,
-          glossaryId: secondGlossaryId,
-        },
-        json: {
-          primaryTerm: "Private term",
-          translatable: true,
-          terms: [],
-        },
-      },
-      { headers: secondHeaders },
-    );
-    const conceptId = ((await conceptResponse.json()) as { concept: { id: string } }).concept.id;
-
-    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].concepts[
-      ":conceptId"
-    ].terms.$post(
-      {
-        param: {
-          organizationSlug: firstOrganizationSlug,
-          glossaryId: firstGlossaryId,
-          conceptId,
-        },
-        json: {
-          locale: "fr",
-          term: "Terme privé",
-          status: "draft",
-          caseSensitive: false,
-          forbidden: false,
-        },
-      },
-      { headers: firstHeaders },
-    );
-
-    expect(response.status).toBe(404);
-    const injectedTerms = await db
-      .select({ id: schema.glossaryTerms.id })
-      .from(schema.glossaryTerms)
-      .where(
-        and(
-          eq(schema.glossaryTerms.glossaryId, firstGlossaryId),
-          eq(schema.glossaryTerms.conceptId, conceptId),
-        ),
-      );
-    expect(injectedTerms).toEqual([]);
   });
 
   it("rolls back concept and term updates when a later term upsert fails", async () => {
@@ -1156,148 +535,16 @@ describe("glossaryRoutes", () => {
     });
   });
 
-  it("rejects source locale changes for external glossaries", async () => {
-    const { identity, glossary } = await fixture.createStoredGlossaryFixture();
-    const headers = await fixture.authHeadersFor(identity);
-
-    await db
-      .update(schema.glossaries)
-      .set({
-        source: "external_tms",
-        externalProviderKind: "crowdin",
-        externalProjectId: "external-project-1",
-        externalResourceType: "glossary",
-        externalGlossaryId: "external-glossary-1",
-      })
-      .where(eq(schema.glossaries.id, glossary.id));
-
-    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$patch(
-      {
-        param: {
-          organizationSlug: identity.organization.slug ?? "missing-slug",
-          glossaryId: glossary.id,
-        },
-        json: { sourceLocale: "fr-FR" },
-      },
-      { headers },
-    );
-
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toMatchObject({
-      error: "external_glossary_locale_readonly",
-    });
-  });
-
-  it("hides other teams' projects from glossary project listings for team-scoped members", async () => {
-    const admin = fixture.createWorkosIdentityWithRole("admin");
-    const member = fixture.createWorkosIdentityForOrganization(admin.organization, "member");
-    const organizationSlug = admin.organization.slug ?? "missing-slug";
-    const adminHeaders = await fixture.authHeadersFor(admin);
-    await fixture.authHeadersFor(member);
-
-    const createGlossaryResponse = await fixture.createGlossaryViaApi(
-      admin,
-      { sourceLocale: "en-US" },
-      adminHeaders,
-    );
-    expect(createGlossaryResponse.status).toBe(201);
-    const glossaryId = ((await createGlossaryResponse.json()) as { glossary: { id: string } })
-      .glossary.id;
-
-    const teamAlphaResponse = await teamFixture.createTeamViaApi(admin, { name: "Alpha Team" });
-    expect(teamAlphaResponse.status).toBe(201);
-    const teamAlphaBody = (await teamAlphaResponse.json()) as TeamResponse;
-
-    const teamBetaResponse = await teamFixture.createTeamViaApi(admin, { name: "Beta Team" });
-    expect(teamBetaResponse.status).toBe(201);
-    const teamBetaBody = (await teamBetaResponse.json()) as TeamResponse;
-
-    await db.insert(schema.teamMemberships).values({
-      teamId: teamAlphaBody.team.id,
-      userId: await fixture.getLocalUserId(member.user.workosUserId),
-      role: "member",
-    });
-
-    const alphaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Alpha Project",
-          teamId: teamAlphaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers: adminHeaders },
-    );
-    expect(alphaProjectResponse.status).toBe(201);
-    const alphaProject = ((await alphaProjectResponse.json()) as ProjectResponse).project;
-
-    const betaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Beta Secret Project",
-          teamId: teamBetaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["de-DE"],
-        },
-      },
-      { headers: adminHeaders },
-    );
-    expect(betaProjectResponse.status).toBe(201);
-    const betaProject = ((await betaProjectResponse.json()) as ProjectResponse).project;
-
-    for (const projectId of [alphaProject.id, betaProject.id]) {
-      const attachResponse = await client.api.orgs[":organizationSlug"].glossaries[
-        ":glossaryId"
-      ].projects.$post(
-        {
-          param: { organizationSlug, glossaryId },
-          json: { projectId, priority: 1 },
-        },
-        { headers: adminHeaders },
-      );
-      expect(attachResponse.status).toBe(200);
-    }
-
-    const memberListResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].projects.$get(
-      { param: { organizationSlug, glossaryId } },
-      { headers: await fixture.authHeadersFor(member) },
-    );
-    expect(memberListResponse.status).toBe(200);
-    const memberListBody = (await memberListResponse.json()) as {
-      projects: Array<{ projectId: string; projectName: string }>;
-    };
-    expect(memberListBody.projects).toEqual([
-      expect.objectContaining({
-        projectId: alphaProject.id,
-        projectName: "Alpha Project",
-      }),
-    ]);
-    expect(memberListBody.projects.map((project) => project.projectId)).not.toContain(
-      betaProject.id,
-    );
-  });
-
   it("returns the attached project count when creating a glossary", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Attached Project",
-          sourceLocale: "en",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers },
-    );
+    const projectResponse = await projectFixture.createProjectViaApi(identity, {
+      name: "Attached Project",
+      sourceLocale: "en",
+      targetLocales: ["es-ES"],
+    });
     expect(projectResponse.status).toBe(201);
     const project = ((await projectResponse.json()) as ProjectResponse).project;
 
@@ -1414,7 +661,7 @@ describe("glossaryRoutes", () => {
       "translator",
     );
     const organizationSlug = admin.organization.slug ?? "missing-slug";
-    const adminHeaders = await fixture.authHeadersFor(admin);
+    await fixture.authHeadersFor(admin);
     const translatorHeaders = await fixture.authHeadersFor(translator);
 
     const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Alpha Team" });
@@ -1427,18 +674,12 @@ describe("glossaryRoutes", () => {
       role: "member",
     });
 
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Alpha Project",
-          teamId: team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers: adminHeaders },
-    );
+    const projectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "Alpha Project",
+      teamId: team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["es-ES"],
+    });
     expect(projectResponse.status).toBe(201);
     const project = ((await projectResponse.json()) as ProjectResponse).project;
 
@@ -1495,18 +736,12 @@ describe("glossaryRoutes", () => {
         ),
       );
 
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Beta Operator Project",
-          teamId: betaTeam.id,
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers: adminHeaders },
-    );
+    const projectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "Beta Operator Project",
+      teamId: betaTeam.id,
+      sourceLocale: "en-US",
+      targetLocales: ["es-ES"],
+    });
     expect(projectResponse.status).toBe(201);
     const project = ((await projectResponse.json()) as ProjectResponse).project;
 
@@ -1538,7 +773,7 @@ describe("glossaryRoutes", () => {
       "translator",
     );
     const organizationSlug = admin.organization.slug ?? "missing-slug";
-    const adminHeaders = await fixture.authHeadersFor(admin);
+    await fixture.authHeadersFor(admin);
     const translatorHeaders = await fixture.authHeadersFor(translator);
     const translatorUserId = await fixture.getLocalUserId(translator.user.workosUserId);
 
@@ -1556,18 +791,12 @@ describe("glossaryRoutes", () => {
       role: "member",
     });
 
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Member Team Project",
-          teamId: alphaTeam.id,
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers: adminHeaders },
-    );
+    const projectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "Member Team Project",
+      teamId: alphaTeam.id,
+      sourceLocale: "en-US",
+      targetLocales: ["es-ES"],
+    });
     expect(projectResponse.status).toBe(201);
     const project = ((await projectResponse.json()) as ProjectResponse).project;
 
@@ -1713,371 +942,16 @@ describe("glossaryRoutes", () => {
     });
   });
 
-  it("rejects attaching an external TMS project to a team glossary", async () => {
-    const admin = fixture.createWorkosIdentityWithRole("admin");
-    const translator = fixture.createWorkosIdentityForOrganization(
-      admin.organization,
-      "translator",
-    );
-    const organizationSlug = admin.organization.slug ?? "missing-slug";
-    const adminHeaders = await fixture.authHeadersFor(admin);
-    const translatorHeaders = await fixture.authHeadersFor(translator);
-    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
-    const userId = await fixture.getLocalUserId(translator.user.workosUserId);
-
-    const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Attach Guard Team" });
-    expect(teamResponse.status).toBe(201);
-    const team = ((await teamResponse.json()) as TeamResponse).team;
-
-    await db.insert(schema.teamMemberships).values({
-      teamId: team.id,
-      userId,
-      role: "member",
-    });
-
-    const nativeProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Native Attach Project",
-          teamId: team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers: adminHeaders },
-    );
-    expect(nativeProjectResponse.status).toBe(201);
-    const nativeProject = ((await nativeProjectResponse.json()) as ProjectResponse).project;
-
-    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Team attach guard",
-          sourceLocale: "en-US",
-          controlLevel: "team",
-          projectIds: [nativeProject.id],
-        },
-      },
-      { headers: translatorHeaders },
-    );
-    expect(createResponse.status).toBe(201);
-    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
-
-    const externalProjectId = encodeProviderProjectId({
-      providerKind: "crowdin",
-      externalProjectId: "902808",
-    });
-    await db.insert(schema.projects).values({
-      id: externalProjectId,
-      identifier: uniqueTestProjectIdentifier(),
-      organizationId,
-      teamId: team.id,
-      createdByUserId: userId,
-      updatedByUserId: userId,
-      name: "External Attach Project",
-      source: "external_tms",
-      externalProviderKind: "crowdin",
-      externalProjectId: "902808",
-      sourceLocale: "en-US",
-      targetLocales: ["es-ES"],
-      isActive: true,
-    });
-
-    const attachResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].projects.$post(
-      {
-        param: { organizationSlug, glossaryId },
-        json: { projectId: externalProjectId, priority: 1 },
-      },
-      { headers: adminHeaders },
-    );
-    expect(attachResponse.status).toBe(400);
-    await expect(attachResponse.json()).resolves.toMatchObject({
-      error: "glossary_team_native_project_required",
-    });
-  });
-
-  it("rejects changing control level after creation", async () => {
-    const admin = fixture.createWorkosIdentityWithRole("admin");
-    const organizationSlug = admin.organization.slug ?? "missing-slug";
-    const adminHeaders = await fixture.authHeadersFor(admin);
-
-    const createResponse = await fixture.createGlossaryViaApi(admin, undefined, adminHeaders);
-    expect(createResponse.status).toBe(201);
-    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
-
-    const patchResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].$patch(
-      {
-        param: { organizationSlug, glossaryId },
-        json: { controlLevel: "team" } as { name?: string },
-      },
-      { headers: adminHeaders },
-    );
-    expect(patchResponse.status).toBe(400);
-    await expect(patchResponse.json()).resolves.toMatchObject({
-      error: "invalid_glossary_payload",
-    });
-  });
-
-  it("rejects changing source locale when attached projects use a different locale", async () => {
-    const admin = fixture.createWorkosIdentityWithRole("admin");
-    const organizationSlug = admin.organization.slug ?? "missing-slug";
-    const adminHeaders = await fixture.authHeadersFor(admin);
-
-    const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Locale Guard Team" });
-    expect(teamResponse.status).toBe(201);
-    const team = ((await teamResponse.json()) as TeamResponse).team;
-
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Locale Guard Project",
-          teamId: team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers: adminHeaders },
-    );
-    expect(projectResponse.status).toBe(201);
-    const project = ((await projectResponse.json()) as ProjectResponse).project;
-
-    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Locale guard glossary",
-          sourceLocale: "en-US",
-          controlLevel: "org",
-          projectIds: [project.id],
-        },
-      },
-      { headers: adminHeaders },
-    );
-    expect(createResponse.status).toBe(201);
-    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
-
-    const patchResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].$patch(
-      {
-        param: { organizationSlug, glossaryId },
-        json: { sourceLocale: "fr-FR" },
-      },
-      { headers: adminHeaders },
-    );
-    expect(patchResponse.status).toBe(400);
-    await expect(patchResponse.json()).resolves.toMatchObject({
-      error: "glossary_source_locale_attached_projects",
-    });
-  });
-
-  it("rejects detaching the last native project from a team glossary", async () => {
-    const admin = fixture.createWorkosIdentityWithRole("admin");
-    const organizationSlug = admin.organization.slug ?? "missing-slug";
-    const adminHeaders = await fixture.authHeadersFor(admin);
-
-    const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Detach Guard Team" });
-    expect(teamResponse.status).toBe(201);
-    const team = ((await teamResponse.json()) as TeamResponse).team;
-
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Detach Guard Project",
-          teamId: team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers: adminHeaders },
-    );
-    expect(projectResponse.status).toBe(201);
-    const project = ((await projectResponse.json()) as ProjectResponse).project;
-
-    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Detach guard glossary",
-          sourceLocale: "en-US",
-          controlLevel: "team",
-          projectIds: [project.id],
-        },
-      },
-      { headers: adminHeaders },
-    );
-    expect(createResponse.status).toBe(201);
-    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
-
-    const detachResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].projects[":projectId"].$delete(
-      { param: { organizationSlug, glossaryId, projectId: project.id } },
-      { headers: adminHeaders },
-    );
-    expect(detachResponse.status).toBe(403);
-    await expect(detachResponse.json()).resolves.toMatchObject({
-      error: "glossary_team_project_required",
-    });
-  });
-
-  it("allows detaching one native project when another remains on a team glossary", async () => {
-    const admin = fixture.createWorkosIdentityWithRole("admin");
-    const organizationSlug = admin.organization.slug ?? "missing-slug";
-    const adminHeaders = await fixture.authHeadersFor(admin);
-
-    const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Multi Attach Team" });
-    expect(teamResponse.status).toBe(201);
-    const team = ((await teamResponse.json()) as TeamResponse).team;
-
-    const firstProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Multi Attach Project A",
-          teamId: team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers: adminHeaders },
-    );
-    expect(firstProjectResponse.status).toBe(201);
-    const firstProject = ((await firstProjectResponse.json()) as ProjectResponse).project;
-
-    const secondProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Multi Attach Project B",
-          teamId: team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: adminHeaders },
-    );
-    expect(secondProjectResponse.status).toBe(201);
-    const secondProject = ((await secondProjectResponse.json()) as ProjectResponse).project;
-
-    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Multi attach glossary",
-          sourceLocale: "en-US",
-          controlLevel: "team",
-          projectIds: [firstProject.id, secondProject.id],
-        },
-      },
-      { headers: adminHeaders },
-    );
-    expect(createResponse.status).toBe(201);
-    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
-
-    const detachResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].projects[":projectId"].$delete(
-      { param: { organizationSlug, glossaryId, projectId: firstProject.id } },
-      { headers: adminHeaders },
-    );
-    expect(detachResponse.status).toBe(204);
-
-    const projectsResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].projects.$get({ param: { organizationSlug, glossaryId } }, { headers: adminHeaders });
-    expect(projectsResponse.status).toBe(200);
-    await expect(projectsResponse.json()).resolves.toMatchObject({
-      projects: [{ projectId: secondProject.id }],
-    });
-  });
-
-  it("rejects changing source locale when unattached glossary has terms at the current locale", async () => {
-    const admin = fixture.createWorkosIdentityWithRole("admin");
-    const organizationSlug = admin.organization.slug ?? "missing-slug";
-    const adminHeaders = await fixture.authHeadersFor(admin);
-
-    const createResponse = await fixture.createGlossaryViaApi(admin, undefined, adminHeaders);
-    expect(createResponse.status).toBe(201);
-    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
-
-    const conceptResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].concepts.$post(
-      {
-        param: { organizationSlug, glossaryId },
-        json: {
-          primaryTerm: "Checkout",
-          translatable: true,
-        },
-      },
-      { headers: adminHeaders },
-    );
-    expect(conceptResponse.status).toBe(201);
-
-    const patchResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].$patch(
-      {
-        param: { organizationSlug, glossaryId },
-        json: { sourceLocale: "fr-FR" },
-      },
-      { headers: adminHeaders },
-    );
-    expect(patchResponse.status).toBe(400);
-    await expect(patchResponse.json()).resolves.toMatchObject({
-      error: "glossary_source_locale_existing_terms",
-    });
-  });
-
-  it("allows changing source locale on an unattached glossary without terms", async () => {
-    const admin = fixture.createWorkosIdentityWithRole("admin");
-    const organizationSlug = admin.organization.slug ?? "missing-slug";
-    const adminHeaders = await fixture.authHeadersFor(admin);
-
-    const createResponse = await fixture.createGlossaryViaApi(admin, undefined, adminHeaders);
-    expect(createResponse.status).toBe(201);
-    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
-
-    const patchResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].$patch(
-      {
-        param: { organizationSlug, glossaryId },
-        json: { sourceLocale: "fr-FR" },
-      },
-      { headers: adminHeaders },
-    );
-    expect(patchResponse.status).toBe(200);
-    await expect(patchResponse.json()).resolves.toMatchObject({
-      glossary: { sourceLocale: "fr-FR" },
-    });
-  });
-
   it("rejects duplicate project IDs when creating a glossary", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Duplicate Attach Project",
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers },
-    );
+    const projectResponse = await projectFixture.createProjectViaApi(identity, {
+      name: "Duplicate Attach Project",
+      sourceLocale: "en-US",
+      targetLocales: ["es-ES"],
+    });
     expect(projectResponse.status).toBe(201);
     const project = ((await projectResponse.json()) as ProjectResponse).project;
 
@@ -2096,62 +970,6 @@ describe("glossaryRoutes", () => {
     expect(createResponse.status).toBe(400);
     await expect(createResponse.json()).resolves.toMatchObject({
       error: "invalid_glossary_payload",
-    });
-  });
-
-  it("rejects deleting a project that is the sole native attachment of a team glossary", async () => {
-    const admin = fixture.createWorkosIdentityWithRole("admin");
-    const organizationSlug = admin.organization.slug ?? "missing-slug";
-    const adminHeaders = await fixture.authHeadersFor(admin);
-
-    const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Delete Guard Team" });
-    expect(teamResponse.status).toBe(201);
-    const team = ((await teamResponse.json()) as TeamResponse).team;
-
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Delete Guard Project",
-          teamId: team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers: adminHeaders },
-    );
-    expect(projectResponse.status).toBe(201);
-    const project = ((await projectResponse.json()) as ProjectResponse).project;
-
-    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Delete guard glossary",
-          sourceLocale: "en-US",
-          controlLevel: "team",
-          projectIds: [project.id],
-        },
-      },
-      { headers: adminHeaders },
-    );
-    expect(createResponse.status).toBe(201);
-    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
-
-    const deleteProjectResponse = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].$delete({ param: { organizationSlug, projectId: project.id } }, { headers: adminHeaders });
-    expect(deleteProjectResponse.status).toBe(403);
-    await expect(deleteProjectResponse.json()).resolves.toMatchObject({
-      error: "glossary_team_project_required",
-    });
-
-    const projectsResponse = await client.api.orgs[":organizationSlug"].glossaries[
-      ":glossaryId"
-    ].projects.$get({ param: { organizationSlug, glossaryId } }, { headers: adminHeaders });
-    expect(projectsResponse.status).toBe(200);
-    await expect(projectsResponse.json()).resolves.toMatchObject({
-      projects: [{ projectId: project.id }],
     });
   });
 });

@@ -125,13 +125,17 @@ type PublicJobIdempotency = { key: string; requestHash: string };
 
 type ReplayedPublicJob = {
   id: string;
-  type: "string" | "file";
+  type: "string" | "file" | "keys";
   status: string;
   lastError: string | null;
   outcomeKind: string | null;
 };
 
-function publicJobCreateResult(job: { id: string; type: "string" | "file"; status: string }) {
+function publicJobCreateResult(job: {
+  id: string;
+  type: "string" | "file" | "keys";
+  status: string;
+}) {
   return { id: job.id, type: job.type, status: job.status };
 }
 

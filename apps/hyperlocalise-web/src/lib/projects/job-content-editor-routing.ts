@@ -16,6 +16,10 @@ import {
   canOpenNativeJobContentEditor,
   canOpenProviderJobContentEditor,
 } from "@/lib/projects/workspace-resource-capabilities";
+import {
+  contentEditorWorkspaceQueueAdvancedParam,
+  serializeAdvancedQueueFilter,
+} from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { resolveJobProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 export const jobContentEditorQueueFilterParam = "queueFilter";
@@ -24,7 +28,7 @@ export const jobCatSearchParam = "search";
 export type JobContentEditorTarget = {
   id: string;
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
-  type: "string" | "file" | null;
+  type: "string" | "file" | "keys" | null;
   status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   externalProviderKind: string | null;
   externalTargetLocales: string[] | null;
@@ -100,6 +104,19 @@ export function buildJobContentEditorHref(
 
   const params = new URLSearchParams();
   const isProviderJob = canOpenProviderJobContentEditor(job);
+
+  if (!isProviderJob && job.type === "keys") {
+    const targetLocale = getInputPayloadStringArray(job, "targetLocales")[0];
+    if (targetLocale) {
+      params.set("locale", targetLocale);
+    }
+    // Every string of the job, so people can translate as well as review.
+    params.set(
+      contentEditorWorkspaceQueueAdvancedParam,
+      serializeAdvancedQueueFilter({ jobId: job.id })!,
+    );
+    return `/org/${organizationSlug}/projects/${encodeURIComponent(resolvedProjectId)}/strings?${params.toString()}`;
+  }
 
   if (isProviderJob) {
     const targetLocale = job.externalTargetLocales?.[0] ?? job.reviewTargetLocale;

@@ -269,6 +269,37 @@ export const contentEditorQueuePanelMessages = defineMessages({
     description:
       "Bulk action in the multilingual table: unlock the selected strings' translations in one language",
   },
+  keyJobScope: {
+    defaultMessage: "Showing the strings of one task",
+    id: "ieniHtb4tT",
+    description: "Notice above the queue when it is limited to a key job's strings",
+  },
+  newTaskHint: {
+    defaultMessage: "Tick the strings for the new task, then choose More → Add to a task…",
+    id: "cGEOyVkohh",
+    description:
+      "Notice above the queue when the editor was opened from the jobs page to make a task from strings",
+  },
+  newTaskHintDismiss: {
+    defaultMessage: "Dismiss",
+    id: "3Yr0O98xb/",
+    description: "Hides the notice that explains how to make a task from strings",
+  },
+  keyJobShowAll: {
+    defaultMessage: "Show all strings",
+    id: "3utulgy/hh",
+    description: "Leaves the key job view and shows every string of the project",
+  },
+  bulkEditTags: {
+    defaultMessage: "Edit tags…",
+    id: "RSwnlVqhIH",
+    description: "Bulk action that adds or removes tags on the selected strings",
+  },
+  bulkCreateTask: {
+    defaultMessage: "Add to a task…",
+    id: "8DTgncaRKl",
+    description: "Bulk action that puts the selected strings into a new or open task for people",
+  },
   bulkSelectAll: {
     defaultMessage: "Select all visible",
     id: "1v2hbAXp/Y",

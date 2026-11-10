@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 
@@ -34,8 +34,11 @@ export type TaskAnalysisInput = {
   step: ReportStep;
   sourceLocale: string;
   targetLocales: string[];
-  /** The task's file: its strings are the file's visible keys in the content editor. */
-  repositorySourceFileId: string;
+  /**
+   * The task's file: its strings are the file's visible keys in the content editor. Null for a
+   * task made of chosen strings, whose strings are its own visible keys.
+   */
+  repositorySourceFileId: string | null;
 };
 
 export type TaskLanguageAnalysisInput = Omit<TaskAnalysisInput, "targetLocales"> & {
@@ -66,7 +69,15 @@ export async function analyseTaskLanguage(
       and(
         eq(schema.projectTranslationKeys.organizationId, input.organizationId),
         eq(schema.projectTranslationKeys.projectId, input.projectId),
-        eq(schema.projectTranslationKeys.repositorySourceFileId, input.repositorySourceFileId),
+        input.repositorySourceFileId
+          ? eq(schema.projectTranslationKeys.repositorySourceFileId, input.repositorySourceFileId)
+          : inArray(
+              schema.projectTranslationKeys.id,
+              db
+                .select({ id: schema.translationJobKeys.translationKeyId })
+                .from(schema.translationJobKeys)
+                .where(eq(schema.translationJobKeys.jobId, input.jobId)),
+            ),
         eq(schema.projectTranslationKeys.isHidden, false),
       ),
     );
@@ -136,6 +147,11 @@ export type PersonTaskLookup = {
   organizationId: string;
   projectId: string;
   repositorySourceFileId: string;
+  /**
+   * The saved string: proofread tasks made of chosen strings that hold it cover it too, for an
+   * approval or a person's edit inside one.
+   */
+  translationKeyId?: string;
   targetLocale: string;
   step: ReportStep;
 };
@@ -144,9 +160,9 @@ export type PersonTaskLookup = {
 export type PersonTaskSpan = { id: string; createdAt: Date; endedAt: Date | null };
 
 /**
- * The tasks for people that cover a string's file, language and step, newest first: proofread
- * or post-edit tasks for an approval, translate tasks for a translation. Jobs an agent ran are
- * not tasks for people.
+ * The tasks for people that cover a string's file (or, given the string, hold it), language and
+ * step, newest first: proofread or post-edit tasks for an approval, translate tasks for a
+ * translation. Jobs an agent ran are not tasks for people.
  */
 export async function personTasksForString(input: PersonTaskLookup): Promise<PersonTaskSpan[]> {
   const kind = input.step === "review" ? "proofread" : "translation";
@@ -164,11 +180,22 @@ export async function personTasksForString(input: PersonTaskLookup): Promise<Per
         else coalesce(j.completed_at, j.updated_at) end as "endedAt"
     from jobs j
     join translation_job_details d on d.job_id = j.id
-    join repository_source_file_versions v on v.id = d.source_file_version_id
+    left join repository_source_file_versions v on v.id = d.source_file_version_id
     where j.organization_id = ${input.organizationId} and j.project_id = ${input.projectId}
       and j.kind = ${kind} and j.workflow_run_id is null
       and (j.assignee_type is null or j.assignee_type = 'user')
-      and v.repository_source_file_id = ${input.repositorySourceFileId}
+      and (
+        v.repository_source_file_id = ${input.repositorySourceFileId}
+        ${
+          // Tasks made of chosen strings for people are proofread tasks; a key job of kind
+          // translation is an AI run, never a task for people.
+          input.translationKeyId && kind === "proofread"
+            ? sql`or (d.type = 'keys' and exists (
+                select 1 from translation_job_keys k
+                where k.job_id = j.id and k.translation_key_id = ${input.translationKeyId}))`
+            : sql``
+        }
+      )
       and j.input_payload -> 'targetLocales' ? ${input.targetLocale}
     order by j.created_at desc, j.id desc
   `);
@@ -177,6 +204,84 @@ export async function personTasksForString(input: PersonTaskLookup): Promise<Per
     createdAt: new Date(row.createdAt),
     endedAt: row.endedAt === null ? null : new Date(row.endedAt),
   }));
+}
+
+/** A proofread task made of chosen strings, as `personTasksForString` would list it. */
+export type KeyTaskSpan = PersonTaskSpan & { projectId: string; targetLocales: string[] };
+
+/**
+ * The proofread tasks for people made of chosen strings that hold each of the strings, read in
+ * one query for a batch of saves. `keyTasksAt` turns a string's list into the tasks covering one
+ * save, which the caller merges with the file's tasks.
+ */
+export async function keyTaskSpansForStrings(
+  organizationId: string,
+  translationKeyIds: string[],
+): Promise<Map<string, KeyTaskSpan[]>> {
+  const spans = new Map<string, KeyTaskSpan[]>();
+  if (translationKeyIds.length === 0) return spans;
+  const openStatuses = sql.join(
+    [...OPEN_TASK_STATUSES].map((status) => sql`${status}`),
+    sql`, `,
+  );
+  const result = await db.execute<{
+    keyId: string;
+    id: string;
+    projectId: string;
+    targetLocales: unknown;
+    createdAt: Date | string;
+    endedAt: Date | string | null;
+  }>(sql`
+    select k.translation_key_id as "keyId", j.id, j.project_id as "projectId",
+      j.input_payload -> 'targetLocales' as "targetLocales", j.created_at as "createdAt",
+      case when j.status in (${openStatuses}) then null
+        else coalesce(j.completed_at, j.updated_at) end as "endedAt"
+    from translation_job_keys k
+    join jobs j on j.id = k.job_id
+    join translation_job_details d on d.job_id = j.id and d.type = 'keys'
+    where j.organization_id = ${organizationId} and j.kind = 'proofread'
+      and j.workflow_run_id is null
+      and (j.assignee_type is null or j.assignee_type = 'user')
+      and k.translation_key_id in (${sql.join(
+        translationKeyIds.map((id) => sql`${id}`),
+        sql`, `,
+      )})
+  `);
+  for (const row of result.rows) {
+    const list = spans.get(row.keyId) ?? [];
+    list.push({
+      id: row.id,
+      projectId: row.projectId,
+      targetLocales: Array.isArray(row.targetLocales)
+        ? row.targetLocales.filter((locale): locale is string => typeof locale === "string")
+        : [],
+      createdAt: new Date(row.createdAt),
+      endedAt: row.endedAt === null ? null : new Date(row.endedAt),
+    });
+    spans.set(row.keyId, list);
+  }
+  return spans;
+}
+
+/** Merges a string's tasks into the file's, for one project, language and step, newest first. */
+export function withKeyTasks(
+  fileTasks: PersonTaskSpan[],
+  keyTasks: KeyTaskSpan[] | undefined,
+  lookup: Pick<PersonTaskLookup, "projectId" | "targetLocale" | "step">,
+): PersonTaskSpan[] {
+  if (lookup.step !== "review" || !keyTasks?.length) return fileTasks;
+  const matching = keyTasks.filter(
+    (task) =>
+      task.projectId === lookup.projectId && task.targetLocales.includes(lookup.targetLocale),
+  );
+  if (matching.length === 0) return fileTasks;
+  return [
+    ...fileTasks,
+    ...matching.map(({ id, createdAt, endedAt }) => ({ id, createdAt, endedAt })),
+  ].sort(
+    (left, right) =>
+      right.createdAt.getTime() - left.createdAt.getTime() || right.id.localeCompare(left.id),
+  );
 }
 
 /**

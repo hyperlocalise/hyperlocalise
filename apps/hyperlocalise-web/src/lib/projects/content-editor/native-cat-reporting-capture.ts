@@ -84,6 +84,7 @@ export async function captureNativeCatTranslationReporting(input: {
         organizationId: input.organizationId,
         projectId: input.projectId,
         repositorySourceFileId: sourceFile.id,
+        translationKeyId: key.id,
         targetLocale: input.targetLocale,
         step: savedStep,
         byPerson: provenance === "manual",

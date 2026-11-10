@@ -44,7 +44,9 @@ The editor header shows **Ingest** and **Push** only for the open file:
 
 Those actions stay hidden on other files and on the all-files queue. **Ingest** queues the same import as Automations **Run now**. Push writes copies or drafts to the connected service. Those actions do not publish. **Push to Braze** writes locale-suffixed email-template copies or campaign/Canvas translation maps, depending on the open file.
 
-Translators can prepare drafts; approval requires a reviewer, localization manager, or administrator with project access. See [Roles and permissions](/platform/workspace/roles).
+Translators can prepare drafts; approval requires a reviewer, localization manager, or administrator with project access. See [Roles and permissions](/platform/workspace/roles). Coming from Phrase Strings: a translation it calls **verified** is **Approved** here, and an **unverified** one is **Needs review**.
+
+On native projects, the context panel also shows a string's **Tags** and its design link (**Open design**), such as a Figma frame where the string appears. Admins, localization managers, and developers can add and remove tags and add, change, or remove the link there. To tag many strings at once, tick them, open the selection menu, and choose **Edit tags…**. A tag is up to 64 letters, digits, `_` or `-`.
 
 When a string's source text changes, from a new file upload, a repository sync, an integration import or the API, its approved translations stay approved unless the project's **When source text changes** setting is **Needs review**. Then they go back to **Needs review** with their text kept, so a reviewer can update it to the new source and approve it again. See [Update source content safely](/platform/guides/update-source-content#recheck-approved-wording).
 
@@ -70,7 +72,11 @@ Common filters:
 - **Not hidden** (native and Crowdin projects only)
 - **Unsaved translations**
 
-Provider-specific filters such as **QA issues** and **Machine translations** appear when the connected TMS supports them.
+Provider-specific filters such as **QA issues** and **Machine translations** appear when the connected TMS supports them. On native projects, the advanced filter's labels are the strings' tags. To filter by tag, type `tag:` and the tag's name in the search box and pick it from the suggestions, or click a tag in the context panel. Each tag shows as a pill inside the search box; remove it with its ×, or with Backspace in an empty box. Quick filters keep the tags, as they keep the search text.
+
+To put strings into a task for people, tick them, open the selection menu, and choose **Add to a task…**. The task takes only the ticked strings. The editor loads 50 strings at a time, so for a bigger task scroll to load more, then choose **Select all**. See [Tasks made of strings](/platform/translation/jobs#tasks-made-of-strings).
+
+To translate the ticked strings with AI, choose **Add to a task…** in the selection menu on a native project, set **Task type** to **AI translation** on the **New task** tab, pick the languages (the editor's language is ticked first), and choose **Translate**. The strings are translated in the background and their translations update as each one finishes. By default only missing translations are filled, along with Needs review translations that just repeat the source; tick **Also replace translations that are not approved yet** to redo all unapproved ones. Approved translations, locked strings, and hidden strings are never changed, and every result is **Needs review**. An answer that only repeats the source is not saved; it is sent back once like the problems below (one-word strings such as brand names, strings made only of placeholders, and languages that share the source's language, such as English (UK) from English (US), may stay the same). An answer that is empty, over the string's max length, misses a glossary term, or breaks a placeholder or the file's format is sent back to the AI once with what was wrong. If the second answer still breaks a placeholder or the format or is unusable, that language is left untranslated and listed as failed on the job; one that only misses a glossary term is saved for review. The work runs as a job you can follow from the toast's **Open job** or the project's **Jobs** page, and it is charged like a file translation job.
 
 ### Machine or human
 

@@ -30,6 +30,8 @@ export const nativeUnresolvedIssueQualifiers = [
 
 export const contentEditorWorkspaceQueueFilterQualifierParam = "queueFilterQualifier";
 export const contentEditorWorkspaceQueueAdvancedParam = "queueAdvanced";
+/** Set by the jobs page's "Task from strings": the editor starts with tick boxes on and a hint. */
+export const contentEditorNewTaskParam = "newTask";
 
 export const contentEditorLabelIncludeModes = ["include_all", "include_any"] as const;
 export const contentEditorLabelExcludeModes = ["exclude_all", "exclude_any"] as const;
@@ -127,6 +129,11 @@ const labelIdSchema = z
   .max(64)
   .regex(/^[A-Za-z0-9_-]+$/);
 
+/** A label id, which on native projects is a key tag: the rule internal/keymeta enforces. */
+export function isValidLabelId(value: string) {
+  return labelIdSchema.safeParse(value).success && value.trim() === value;
+}
+
 function capLabelIds(ids: readonly string[]) {
   return [...new Set(ids)].slice(0, contentEditorAdvancedQueueFilterLabelLimit);
 }
@@ -172,6 +179,8 @@ export const contentEditorAdvancedQueueFilterSchema = z
     comments: z.enum(contentEditorPresenceFilters).optional(),
     screenshots: z.enum(contentEditorPresenceFilters).optional(),
     visibility: z.enum(contentEditorVisibilityFilters).optional(),
+    /** Only the strings of this key job. */
+    jobId: z.string().trim().min(1).max(128).optional(),
   })
   .strict();
 
@@ -196,8 +205,9 @@ export function isAdvancedQueueFilterSupportedForProvider(providerKind: string |
   return providerKind == null || providerKind === "native" || providerKind === "crowdin";
 }
 
+/** Crowdin labels, and on native projects the keys' tags. */
 export function advancedQueueFilterSupportsLabels(providerKind: string | null | undefined) {
-  return providerKind === "crowdin";
+  return providerKind == null || providerKind === "native" || providerKind === "crowdin";
 }
 
 export function advancedQueueFilterSupportsScreenshots(providerKind: string | null | undefined) {
@@ -254,6 +264,7 @@ export function compactAdvancedQueueFilter(
   if (filter.comments) compacted.comments = filter.comments;
   if (filter.screenshots) compacted.screenshots = filter.screenshots;
   if (filter.visibility) compacted.visibility = filter.visibility;
+  if (filter.jobId) compacted.jobId = filter.jobId;
 
   return compacted;
 }
@@ -408,3 +419,59 @@ export type ContentEditorCatLabel = {
   id: string;
   title: string;
 };
+
+/** Adds a tag to the filter's included tags, keeping their mode (strings must carry all of them by default). */
+export function withIncludedTag(
+  filter: ContentEditorAdvancedQueueFilter | undefined,
+  tag: string,
+): ContentEditorAdvancedQueueFilter {
+  const current = filter ?? EMPTY_ADVANCED_QUEUE_FILTER;
+  const tags = current.includeLabelIds ?? [];
+  return compactAdvancedQueueFilter({
+    ...current,
+    includeLabelIds: tags.includes(tag) ? tags : [...tags, tag],
+  });
+}
+
+/** Removes a tag from the filter's included tags; undefined when nothing else is left. */
+export function withoutIncludedTag(
+  filter: ContentEditorAdvancedQueueFilter | undefined,
+  tag: string,
+): ContentEditorAdvancedQueueFilter | undefined {
+  const current = filter ?? EMPTY_ADVANCED_QUEUE_FILTER;
+  const next = compactAdvancedQueueFilter({
+    ...current,
+    includeLabelIds: (current.includeLabelIds ?? []).filter((id) => id !== tag),
+  });
+  return isCatQueueFilterEmpty(next) ? undefined : next;
+}
+
+/** The included tags alone, which a quick filter keeps as it keeps the search text. */
+export function includedTagsOnly(
+  filter: ContentEditorAdvancedQueueFilter | undefined,
+): ContentEditorAdvancedQueueFilter | undefined {
+  if (!filter?.includeLabelIds?.length) {
+    return undefined;
+  }
+  return compactAdvancedQueueFilter({
+    includeLabelIds: filter.includeLabelIds,
+    includeLabelMode: filter.includeLabelMode,
+  });
+}
+
+/** The filter without what the editor shows on its own: a key job's scope, and searched tags. */
+export function withoutShownScope(
+  filter: ContentEditorAdvancedQueueFilter | undefined,
+  tagsShown: boolean,
+): ContentEditorAdvancedQueueFilter | undefined {
+  if (!filter) {
+    return undefined;
+  }
+  const rest = { ...filter };
+  delete rest.jobId;
+  if (tagsShown) {
+    delete rest.includeLabelIds;
+    delete rest.includeLabelMode;
+  }
+  return rest;
+}

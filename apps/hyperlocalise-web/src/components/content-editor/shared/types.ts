@@ -257,6 +257,9 @@ export interface ContentEditorSegmentIntelligence {
   productMeaning?: string;
   segmentType?: string;
   maxLength?: number;
+  /** The key's own tags and design link (native projects). */
+  keyTags?: string[];
+  designUrl?: string;
   agentContext?: string | null;
   reviewerPreference?: string;
   constraints?: string;

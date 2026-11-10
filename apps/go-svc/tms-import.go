@@ -100,6 +100,16 @@ func (t *tmsImports) provider(ctx context.Context, db dictionaryDB, conn tmsConn
 	if !tmscatalog.Supported(conn.ProviderKind) {
 		return nil, &tmsFailure{http.StatusNotImplemented, "tms_provider_unsupported", fmt.Sprintf("Importing from %s isn't supported yet", conn.DisplayName)}
 	}
+	credentials, err := t.credentials(ctx, db, conn, organizationID, userID)
+	if err != nil {
+		return nil, err
+	}
+	return tmscatalog.New(conn.ProviderKind, credentials, t.http)
+}
+
+// credentials mints a short-lived token from the web app as the acting user.
+// go-svc never holds the stored credential or the key that encrypts it.
+func (t *tmsImports) credentials(ctx context.Context, db dictionaryDB, conn tmsConnection, organizationID, userID string) (tmscatalog.Credentials, error) {
 	token, err := t.tokens.Mint(ctx, tmsauth.MintRequest{
 		OrganizationID: organizationID,
 		ProviderKind:   conn.ProviderKind,
@@ -107,7 +117,7 @@ func (t *tmsImports) provider(ctx context.Context, db dictionaryDB, conn tmsConn
 		ActorUserID:    userID,
 	})
 	if err != nil {
-		return nil, tmsTokenFailure(conn, err)
+		return tmscatalog.Credentials{}, tmsTokenFailure(conn, err)
 	}
 	credentials := tmscatalog.Credentials{
 		BaseURL:     token.BaseURL,
@@ -121,10 +131,10 @@ func (t *tmsImports) provider(ctx context.Context, db dictionaryDB, conn tmsConn
 	if strings.EqualFold(conn.ProviderKind, "smartling") && credentials.AccountID == "" {
 		credentials.AccountID, credentials.ProjectID, err = smartlingProjectAccount(ctx, db, organizationID)
 		if err != nil {
-			return nil, err
+			return tmscatalog.Credentials{}, err
 		}
 	}
-	return tmscatalog.New(conn.ProviderKind, credentials, t.http)
+	return credentials, nil
 }
 
 // smartlingProjectAccount reads a synced Smartling project, as the web app does

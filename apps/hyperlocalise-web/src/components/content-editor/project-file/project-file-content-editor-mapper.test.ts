@@ -691,3 +691,38 @@ describe("segmentStatusFromTarget", () => {
     );
   });
 });
+
+describe("key tags and design links", () => {
+  it("keeps a key's tags and only http or https design links", () => {
+    const file = contentEditorFile({
+      provider: null,
+      segments: [
+        {
+          externalStringId: "tagged",
+          key: "checkout.title",
+          sourceText: "Checkout",
+          context: null,
+          type: null,
+          tags: ["checkout", "release-7"],
+          designUrl: "https://figma.com/file/abc",
+        },
+        {
+          externalStringId: "unsafe",
+          key: "checkout.cta",
+          sourceText: "Pay",
+          context: null,
+          type: null,
+          designUrl: "javascript:alert(1)",
+        },
+      ],
+    });
+    const state = projectFileCatToWorkspaceState(file, "en-US", testIntl);
+
+    expect(state.segmentIntelligence?.["tagged"]).toMatchObject({
+      keyTags: ["checkout", "release-7"],
+      designUrl: "https://figma.com/file/abc",
+    });
+    expect(state.segmentIntelligence?.["unsafe"]?.designUrl).toBeUndefined();
+    expect(state.segmentIntelligence?.["unsafe"]?.keyTags).toBeUndefined();
+  });
+});

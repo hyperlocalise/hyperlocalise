@@ -18,11 +18,8 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
 import { createAuthorizationCode } from "@/api/auth/mcp";
-import { createApp } from "@/api/app";
-import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
-import { testClient } from "hono/testing";
 
 import { createProjectTestFixture } from "../project/project.fixture";
 import { createTeamTestFixture } from "@/lib/teams/team.fixture";
@@ -60,10 +57,8 @@ vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
   };
 });
 
-const apiApp = createApp();
 const mcpApp = createMcpTestApp();
-const client = testClient<AppType>(apiApp);
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 const teamFixture = createTeamTestFixture();
 
 let trackedMemberLocalUserId: string | null = null;

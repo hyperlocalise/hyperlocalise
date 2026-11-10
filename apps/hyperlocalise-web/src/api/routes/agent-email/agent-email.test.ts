@@ -40,7 +40,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 const client = testClient<AppType>(app);
-const fixture = createProjectTestFixture(client);
+const fixture = createProjectTestFixture();
 
 describe("agentEmailRoutes", () => {
   beforeAll(async () => {

@@ -49,11 +49,13 @@ import { createTeamTestFixture } from "@/lib/teams/team.fixture";
 import type { TeamResponse } from "@/lib/teams/team.schema";
 import type { ProjectResponse } from "../project/project.schema";
 import { createGlossaryTestFixture } from "./glossary.fixture";
+import { createProjectTestFixture } from "../project/project.fixture";
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
 const client = testClient<AppType>(createApp({ fileStorageAdapter }));
 const fixture = createGlossaryTestFixture(client);
 const teamFixture = createTeamTestFixture();
+const projectFixture = createProjectTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -91,18 +93,12 @@ describe("glossary history ACL", () => {
       role: "member",
     });
 
-    const secretProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Secret Project",
-          teamId: secretTeam.id,
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers: adminHeaders },
-    );
+    const secretProjectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "Secret Project",
+      teamId: secretTeam.id,
+      sourceLocale: "en-US",
+      targetLocales: ["es-ES"],
+    });
     expect(secretProjectResponse.status).toBe(201);
     const secretProject = ((await secretProjectResponse.json()) as ProjectResponse).project;
 

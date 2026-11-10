@@ -1034,6 +1034,10 @@ export type WorkspaceAutomationConfigValidationError =
       message: "Add a skill or write instructions.";
     }
   | {
+      code: "author_not_found";
+      message: "Choose an active admin or localisation manager in this workspace.";
+    }
+  | {
       code: "project_required";
       message: "Choose a Hyperlocalise project for this automation.";
     }

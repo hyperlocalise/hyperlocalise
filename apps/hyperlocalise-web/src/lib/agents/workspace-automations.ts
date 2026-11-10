@@ -14,8 +14,13 @@ import "server-only";
 
 import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 
+import { isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import {
+  excludeReplacingWorkosMembershipSql,
+  isInvitedPlaceholderWorkosUserId,
+} from "@/lib/workos/constants";
 import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { getAhrefsPipesConnectionStatus, resolveAhrefsPipesWorkosUserId } from "@/lib/ahrefs/pipes";
 import { getBrazePipesConnectionStatus, resolveBrazePipesWorkosUserId } from "@/lib/braze/pipes";
@@ -1715,6 +1720,49 @@ async function loadAutomationAuthor(
   return user ?? null;
 }
 
+const AUTHOR_NOT_FOUND_ERROR: WorkspaceAutomationConfigValidationError = {
+  code: "author_not_found",
+  message: "Choose an active admin or localisation manager in this workspace.",
+};
+
+async function resolveAssignableAutomationAuthor(input: {
+  organizationId: string;
+  authorUserId: string;
+  database: DatabaseClient;
+}): Promise<Result<string, WorkspaceAutomationConfigValidationError>> {
+  const [member] = await input.database
+    .select({
+      userId: schema.users.id,
+      workosUserId: schema.users.workosUserId,
+      role: schema.organizationMemberships.role,
+      workosMembershipId: schema.organizationMemberships.workosMembershipId,
+    })
+    .from(schema.users)
+    .innerJoin(
+      schema.organizationMemberships,
+      eq(schema.organizationMemberships.userId, schema.users.id),
+    )
+    .where(
+      and(
+        eq(schema.users.id, input.authorUserId),
+        eq(schema.organizationMemberships.organizationId, input.organizationId),
+        isNotNull(schema.organizationMemberships.workosMembershipId),
+        excludeReplacingWorkosMembershipSql(schema.organizationMemberships.workosMembershipId),
+      ),
+    )
+    .limit(1);
+
+  if (
+    !member ||
+    isInvitedPlaceholderWorkosUserId(member.workosUserId) ||
+    !isWorkspaceOperatorRole(member.role)
+  ) {
+    return err(AUTHOR_NOT_FOUND_ERROR);
+  }
+
+  return ok(member.userId);
+}
+
 function serializeAutomationRun(row: AutomationRunRow): WorkspaceAutomationRunRecord {
   return {
     id: row.id,
@@ -2176,6 +2224,7 @@ export async function updateWorkspaceAutomation(input: {
   skillIds?: readonly string[];
   syncConfig?: ContentSyncConfig | null;
   nextRunAt?: Date | null;
+  authorUserId?: string;
   db?: DatabaseClient;
 }): Promise<Result<WorkspaceAutomationRecord | null, WorkspaceAutomationConfigValidationError>> {
   const existing = await getWorkspaceAutomationById({
@@ -2184,6 +2233,19 @@ export async function updateWorkspaceAutomation(input: {
   });
   if (!existing) {
     return ok(null);
+  }
+
+  let nextAuthorUserId: string | undefined;
+  if (input.authorUserId !== undefined && input.authorUserId !== existing.authorUserId) {
+    const author = await resolveAssignableAutomationAuthor({
+      organizationId: input.organizationId,
+      authorUserId: input.authorUserId,
+      database: input.db ?? db,
+    });
+    if (isErr(author)) {
+      return err(author.error);
+    }
+    nextAuthorUserId = author.value;
   }
 
   const configChanged =
@@ -2369,6 +2431,7 @@ export async function updateWorkspaceAutomation(input: {
         ...(input.nextRunAt !== undefined || configChanged || input.status !== undefined
           ? { nextRunAt: resolvedNextRunAt }
           : {}),
+        ...(nextAuthorUserId !== undefined ? { authorUserId: nextAuthorUserId } : {}),
         ...(configChanged
           ? { configVersion: sql`${schema.workspaceAutomations.configVersion} + 1` }
           : {}),

@@ -26,7 +26,7 @@ const (
 
 var (
 	jobKindValues         = []string{"translation", "research", "review", "proofread", "sync", "asset_management"}
-	jobTypeValues         = []string{"string", "file"}
+	jobTypeValues         = []string{"string", "file", "keys"}
 	jobStatusValues       = []string{"queued", "running", "succeeded", "failed", "waiting_for_review", "cancelled"}
 	jobRelationshipValues = []string{"assigned", "created"}
 
@@ -183,7 +183,10 @@ const jobRecordColumnsSQL = `j.id, j.organization_id::text, j.project_id, j.crea
             r.criteria, r.target_locale, r.config, s.connector_kind, s.direction, s.external_identifiers,
             a.asset_type, a.operation, a.config, e.provider_kind::text, e.external_job_id, e.external_task_id,
             e.external_status, e.title, e.due_date, e.target_locales, e.assigned_users, e.external_url,
-            e.sync_state, e.provider_payload, e.linked_job_id, j.created_at, j.updated_at, j.completed_at, j.due_at, p.name`
+            e.sync_state, e.provider_payload, e.linked_job_id, j.created_at, j.updated_at, j.completed_at, j.due_at, p.name,
+            case when t.type = 'keys' then (select count(*)::int from translation_job_keys jk
+                join project_translation_keys jkk on jkk.id = jk.translation_key_id and not jkk.is_hidden
+                where jk.job_id = j.id) end`
 
 const jobRecordFromSQL = `from jobs j
         left join translation_job_details t on t.job_id = j.id
@@ -235,6 +238,8 @@ type jobRecord struct {
 	CreatedAt               string          `json:"createdAt"`
 	UpdatedAt               string          `json:"updatedAt"`
 	CompletedAt             *string         `json:"completedAt"`
+	// Set on key jobs: how many keys the job holds.
+	KeyCount *int `json:"keyCount,omitempty"`
 	jobSourceFileDisplay
 }
 
@@ -380,7 +385,7 @@ func scanJobRecord(row pgx.Row) (jobWithProjectRecord, error) {
 		&job.ReviewCriteria, &job.ReviewTargetLocale, &job.ReviewConfig, &job.SyncConnectorKind, &job.SyncDirection, &job.SyncExternalIdentifiers,
 		&job.AssetType, &job.AssetOperation, &job.AssetConfig, &job.ExternalProviderKind, &job.ExternalJobID, &job.ExternalTaskID,
 		&job.ExternalStatus, &job.ExternalTitle, &dueDate, &job.ExternalTargetLocales, &job.ExternalAssignedUsers, &job.ExternalURL,
-		&job.ExternalSyncState, &job.ExternalProviderPayload, &job.LinkedJobID, &createdAt, &updatedAt, &completedAt, &dueAt, &job.ProjectName,
+		&job.ExternalSyncState, &job.ExternalProviderPayload, &job.LinkedJobID, &createdAt, &updatedAt, &completedAt, &dueAt, &job.ProjectName, &job.KeyCount,
 	)
 	if err != nil {
 		return jobWithProjectRecord{}, err

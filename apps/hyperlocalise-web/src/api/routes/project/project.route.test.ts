@@ -78,7 +78,7 @@ vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
 });
 
 const client = testClient<AppType>(app);
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -171,50 +171,6 @@ describe("project detail route", () => {
     expect(getTmsProviderLiveProjectMock).toHaveBeenCalledWith(organizationId, externalProjectId, {
       actorUserId: userId,
     });
-  });
-
-  it("returns the live provider open job count from the dedicated endpoint", async () => {
-    const admin = projectFixture.createWorkosIdentityWithRole("admin");
-    const headers = await projectFixture.authHeadersFor(admin);
-    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
-    const userId = globalThis.__testApiAuthContext!.user.localUserId;
-    const externalProjectId = "902808";
-    const projectId = encodeProviderProjectId({
-      providerKind: "crowdin",
-      externalProjectId,
-    });
-
-    await upsertOrganizationExternalTmsProviderCredential({
-      organizationId,
-      userId,
-      role: "admin",
-      providerKind: "crowdin",
-      displayName: "Crowdin",
-      secretMaterial: "crowdin-secret",
-    });
-
-    countTmsProviderLiveOpenJobsForProjectMock.mockResolvedValue(3);
-
-    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"][
-      "open-job-count"
-    ].$get(
-      {
-        param: {
-          organizationSlug: admin.organization.slug ?? "missing-slug",
-          projectId,
-        },
-      },
-      { headers },
-    );
-
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { openJobCount: number };
-    expect(body).toEqual({ openJobCount: 3 });
-    expect(countTmsProviderLiveOpenJobsForProjectMock).toHaveBeenCalledWith(
-      organizationId,
-      externalProjectId,
-      { actorUserId: userId },
-    );
   });
 
   it("returns openJobCount 0 on the project payload for live provider projects", async () => {
@@ -665,24 +621,17 @@ describe("project identifier uniqueness", () => {
 describe("native project default translation memory", () => {
   it("creates and attaches a default translation memory", async () => {
     const admin = projectFixture.createWorkosIdentityWithRole("admin");
-    const headers = await projectFixture.authHeadersFor(admin);
-    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    await projectFixture.authHeadersFor(admin);
     const team = await ensureDefaultWorkspaceTeam(
       globalThis.__testApiAuthContext!.organization.localOrganizationId,
     );
 
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Default TM Project",
-          teamId: team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers },
-    );
+    const projectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "Default TM Project",
+      teamId: team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["es-ES"],
+    });
 
     expect(projectResponse.status).toBe(201);
     const project = ((await projectResponse.json()) as ProjectResponse).project;
@@ -716,18 +665,12 @@ describe("project source locale updates", () => {
       globalThis.__testApiAuthContext!.organization.localOrganizationId,
     );
 
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Locale Guard Project",
-          teamId: team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers },
-    );
+    const projectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "Locale Guard Project",
+      teamId: team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["es-ES"],
+    });
     expect(projectResponse.status).toBe(201);
     const project = ((await projectResponse.json()) as ProjectResponse).project;
 

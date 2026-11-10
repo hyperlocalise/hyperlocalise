@@ -1003,6 +1003,7 @@ export function createWorkspaceAutomationRoutes(
           skillIds: payload.skillIds,
           syncConfig: payload.syncConfig,
           nextRunAt: parseNextRunAt(payload.nextRunAt),
+          authorUserId: payload.authorUserId,
         };
         const shouldEnforceAutomationLimit =
           existing.status === "archived" && payload.status && payload.status !== "archived";

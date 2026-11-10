@@ -103,6 +103,9 @@ export function wholeFileMatchesAdvancedQueueFilter(
   if ((filter.includeLabelIds?.length ?? 0) > 0 || (filter.excludeLabelIds?.length ?? 0) > 0) {
     return false;
   }
+  if (filter.jobId) {
+    return false;
+  }
   if (filter.visibility === "hidden") {
     return false;
   }

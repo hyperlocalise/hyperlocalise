@@ -72,7 +72,7 @@ export type GoSvcConversationJob = {
   id: string;
   projectId: string | null;
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
-  type: "string" | "file" | null;
+  type: "string" | "file" | "keys" | null;
   status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   outcomeKind: "string_result" | "file_result" | "error" | null;
   createdAt: string;

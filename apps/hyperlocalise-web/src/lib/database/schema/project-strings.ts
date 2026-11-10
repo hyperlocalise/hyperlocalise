@@ -63,6 +63,13 @@ export const projectTranslationKeys = pgTable(
     context: text("context"),
     type: text("type"),
     maxLength: integer("max_length"),
+    /** Free labels such as a feature or request name; letters, digits, `_` and `-`. */
+    tags: text("tags")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    /** Link to the design where the key appears, such as a Figma frame. */
+    designUrl: text("design_url"),
     /**
      * Crowdin-style hidden string. Managers still see the key in CAT;
      * translation jobs skip it.
@@ -95,6 +102,7 @@ export const projectTranslationKeys = pgTable(
     ),
     index("idx_project_translation_keys_org_project").on(table.organizationId, table.projectId),
     index("idx_project_translation_keys_file").on(table.repositorySourceFileId),
+    index("idx_project_translation_keys_tags").using("gin", table.tags),
   ],
 );
 

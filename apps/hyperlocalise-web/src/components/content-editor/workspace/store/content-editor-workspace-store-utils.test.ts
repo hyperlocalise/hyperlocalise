@@ -97,6 +97,33 @@ describe("collectSegmentsWithAgentContext", () => {
 describe("mergeSegmentIntelligenceOnHydrate", () => {
   const baseIntelligence = createContentEditorWorkspaceState().intelligence;
 
+  it("takes tags and the design link from the next snapshot while keeping cached matches", () => {
+    const merged = mergeSegmentIntelligenceOnHydrate({
+      nextInitialState: createContentEditorWorkspaceState({
+        segmentIntelligence: { "seg-02": { glossaryTerms: [], keyTags: ["release-7"] } },
+      }),
+      currentState: {
+        intelligence: baseIntelligence,
+        segmentIntelligence: {
+          "seg-02": {
+            glossaryTerms: [],
+            keyTags: ["release-7", "checkout"],
+            designUrl: "https://www.figma.com/file/a",
+            translationMemoryMatches: [
+              { id: "tm-1", sourceText: "Hi", targetText: "Salut", matchPercent: 100 },
+            ],
+          },
+        },
+      },
+      segmentId: "seg-02",
+      existing: undefined,
+    });
+
+    expect(merged?.translationMemoryMatches).toHaveLength(1);
+    expect(merged?.keyTags).toEqual(["release-7"]);
+    expect(merged?.designUrl).toBeUndefined();
+  });
+
   it("preserves current agent context when the next snapshot omits it", () => {
     const merged = mergeSegmentIntelligenceOnHydrate({
       nextInitialState: createContentEditorWorkspaceState({

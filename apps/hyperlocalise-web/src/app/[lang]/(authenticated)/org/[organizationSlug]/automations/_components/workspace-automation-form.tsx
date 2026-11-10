@@ -185,6 +185,7 @@ import {
   AutomationIconTile,
   type AutomationIconTone,
 } from "./automation-icon-tile";
+import { AutomationOwnerField } from "./automation-owner-field";
 import { WorkspaceAutomationKnowledgeFilesPanel } from "./workspace-automation-knowledge-files-panel";
 import {
   formatRepositoryOptionLabel,
@@ -3955,6 +3956,8 @@ export function WorkspaceAutomationEditor({
   assistantEnabled = false,
   assistantHasUnsavedChanges,
   assistantInitialPrompt = null,
+  authorName,
+  authorUserId,
   automationId,
   disabled,
   errors,
@@ -3981,6 +3984,8 @@ export function WorkspaceAutomationEditor({
   assistantHasUnsavedChanges?: boolean;
   /** A request handed over from the automations page, which the assistant starts with. */
   assistantInitialPrompt?: string | null;
+  authorName?: string | null;
+  authorUserId?: string | null;
   automationId?: string;
   disabled?: boolean;
   errors: Record<string, string | undefined>;
@@ -4603,6 +4608,18 @@ export function WorkspaceAutomationEditor({
               )}
             </span>
           </label>
+          {mode === "detail" && automationId ? (
+            <>
+              <span className="text-border">{METADATA_SEPARATOR}</span>
+              <AutomationOwnerField
+                organizationSlug={organizationSlug}
+                automationId={automationId}
+                authorUserId={authorUserId ?? null}
+                authorName={authorName}
+                disabled={disabled}
+              />
+            </>
+          ) : null}
           <span className="text-border">{METADATA_SEPARATOR}</span>
           <HeaderProjectSelector
             disabled={disabled}

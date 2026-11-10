@@ -163,6 +163,103 @@ func decodePublicJob(t *testing.T, rec *httptest.ResponseRecorder) map[string]an
 	return body.Job
 }
 
+func latestPublicJobRequest(values url.Values) *http.Request {
+	req := httptest.NewRequest(http.MethodGet, "/jobs/latest", nil)
+	req.URL.RawQuery = values.Encode()
+	return req
+}
+
+func TestParseLatestPublicJobQuery(t *testing.T) {
+	projectID, sourcePath, ok := parseLatestPublicJobQuery(latestPublicJobRequest(url.Values{
+		"projectId":  {"proj_1"},
+		"sourcePath": {"locales/en.json"},
+	}))
+	require.True(t, ok)
+	require.Equal(t, "proj_1", projectID)
+	require.Equal(t, "locales/en.json", sourcePath)
+
+	projectID, sourcePath, ok = parseLatestPublicJobQuery(latestPublicJobRequest(url.Values{
+		"projectId":  {"%70roj_1"},
+		"sourcePath": {" home.html "},
+	}))
+	require.True(t, ok)
+	require.Equal(t, "proj_1", projectID)
+	require.Equal(t, "home.html", sourcePath)
+
+	_, _, ok = parseLatestPublicJobQuery(latestPublicJobRequest(url.Values{"sourcePath": {"a.json"}}))
+	require.False(t, ok)
+	_, _, ok = parseLatestPublicJobQuery(latestPublicJobRequest(url.Values{"projectId": {"proj_1"}}))
+	require.False(t, ok)
+	_, _, ok = parseLatestPublicJobQuery(latestPublicJobRequest(url.Values{
+		"projectId":  {"a", "b"},
+		"sourcePath": {"a.json"},
+	}))
+	require.False(t, ok)
+	_, _, ok = parseLatestPublicJobQuery(latestPublicJobRequest(url.Values{
+		"projectId":  {"proj_1"},
+		"sourcePath": {"a.json", "b.json"},
+	}))
+	require.False(t, ok)
+	_, _, ok = parseLatestPublicJobQuery(latestPublicJobRequest(url.Values{
+		"projectId":  {" "},
+		"sourcePath": {"a.json"},
+	}))
+	require.False(t, ok)
+	_, _, ok = parseLatestPublicJobQuery(latestPublicJobRequest(url.Values{
+		"projectId":  {"proj_1"},
+		"sourcePath": {""},
+	}))
+	require.False(t, ok)
+
+	atProjectMax, _, ok := parseLatestPublicJobQuery(latestPublicJobRequest(url.Values{
+		"projectId":  {strings.Repeat("a", publicJobProjectIDMax)},
+		"sourcePath": {"a.json"},
+	}))
+	require.True(t, ok)
+	require.Len(t, atProjectMax, publicJobProjectIDMax)
+	_, _, ok = parseLatestPublicJobQuery(latestPublicJobRequest(url.Values{
+		"projectId":  {strings.Repeat("a", publicJobProjectIDMax+1)},
+		"sourcePath": {"a.json"},
+	}))
+	require.False(t, ok)
+	_, atSourceMax, ok := parseLatestPublicJobQuery(latestPublicJobRequest(url.Values{
+		"projectId":  {"proj_1"},
+		"sourcePath": {strings.Repeat("a", publicJobSourcePathMax)},
+	}))
+	require.True(t, ok)
+	require.Len(t, atSourceMax, publicJobSourcePathMax)
+	_, _, ok = parseLatestPublicJobQuery(latestPublicJobRequest(url.Values{
+		"projectId":  {"proj_1"},
+		"sourcePath": {strings.Repeat("a", publicJobSourcePathMax+1)},
+	}))
+	require.False(t, ok)
+	_, _, ok = parseLatestPublicJobQuery(latestPublicJobRequest(url.Values{
+		"projectId":  {strings.Repeat("😀", publicJobProjectIDMax/2+1)},
+		"sourcePath": {"a.json"},
+	}))
+	require.False(t, ok)
+}
+
+func TestParsePublicJobAnalysisUnit(t *testing.T) {
+	unit, ok := parsePublicJobAnalysisUnit(httptest.NewRequest(http.MethodGet, "/jobs/x/analysis", nil))
+	require.True(t, ok)
+	require.Equal(t, "words", unit)
+
+	for _, want := range reportingUnitOptions {
+		req := httptest.NewRequest(http.MethodGet, "/jobs/x/analysis?unit="+want, nil)
+		unit, ok = parsePublicJobAnalysisUnit(req)
+		require.True(t, ok, want)
+		require.Equal(t, want, unit)
+	}
+
+	_, ok = parsePublicJobAnalysisUnit(httptest.NewRequest(http.MethodGet, "/jobs/x/analysis?unit=pages", nil))
+	require.False(t, ok)
+	_, ok = parsePublicJobAnalysisUnit(httptest.NewRequest(http.MethodGet, "/jobs/x/analysis?unit=", nil))
+	require.False(t, ok)
+	_, ok = parsePublicJobAnalysisUnit(httptest.NewRequest(http.MethodGet, "/jobs/x/analysis?unit=words&unit=strings", nil))
+	require.False(t, ok)
+}
+
 func TestNormalizePublicJobSourcePath(t *testing.T) {
 	for input, want := range map[string]string{
 		"locales/en.json":   "locales/en.json",

@@ -202,7 +202,9 @@ describe("deliverDueWebhooks", () => {
     await dispatchJobChangeEvents({ organizationId });
     const { sender } = recordingSender(500);
 
-    let now = new Date();
+    // The first `nextAttemptAt` is Postgres `now()` with microsecond precision, so a
+    // millisecond JS clock can read as just before it. Start well past the queue time.
+    let now = new Date(Date.now() + 1_000);
     for (let attempt = 1; attempt <= WEBHOOK_MAX_ATTEMPTS; attempt += 1) {
       const result = await deliverDueWebhooks({ organizationId, sender, now });
       expect(result.attempted).toBe(1);
