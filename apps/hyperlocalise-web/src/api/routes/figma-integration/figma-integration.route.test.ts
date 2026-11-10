@@ -74,7 +74,7 @@ import { env } from "@/lib/env";
 
 const client = testClient<AppType>(createApp());
 const apiKeyFixture = createApiKeyTestFixture();
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 
 const sampleSegment = {
   key: "figma.k.01TESTSEGMENTKEY",

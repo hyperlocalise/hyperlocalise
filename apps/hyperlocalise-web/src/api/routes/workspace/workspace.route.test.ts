@@ -57,7 +57,6 @@ vi.mock("@/lib/workos/server-client", () => ({
 
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
-import { StaleOrganizationSlugError } from "@/api/auth/workos-session";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 
@@ -201,62 +200,5 @@ describe("workspaceRoutes", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: "workspace_slug_conflict",
     });
-  });
-
-  it("returns a clear stale slug response", async () => {
-    resolveApiAuthContextFromSessionMock.mockRejectedValueOnce(
-      new StaleOrganizationSlugError("old-workspace", "new-workspace"),
-    );
-
-    const response = await client.api.orgs[":organizationSlug"].workspace.$get(
-      { param: { organizationSlug: "old-workspace" } },
-      { headers: { cookie: "wos-session=test" } },
-    );
-
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toMatchObject({
-      error: "stale_organization_slug",
-      details: {
-        requestedSlug: "old-workspace",
-        currentSlug: "new-workspace",
-        redirectTo: "/org/new-workspace/dashboard",
-      },
-    });
-  });
-
-  it("archives workspaces instead of hard deleting them", async () => {
-    const identity = fixture.createWorkosIdentity();
-    const headers = await fixture.authHeadersFor(identity);
-
-    const response = await client.api.orgs[":organizationSlug"].workspace.$delete(
-      {
-        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
-      },
-      { headers },
-    );
-
-    expect(response.status).toBe(204);
-    expect(response.body).toBeNull();
-
-    const [storedOrganization] = await db
-      .select({
-        lifecycleStatus: schema.organizations.lifecycleStatus,
-        archivedAt: schema.organizations.archivedAt,
-      })
-      .from(schema.organizations)
-      .where(
-        eq(schema.organizations.workosOrganizationId, identity.organization.workosOrganizationId),
-      )
-      .limit(1);
-    expect(storedOrganization?.lifecycleStatus).toBe("archived");
-    expect(storedOrganization?.archivedAt).toBeInstanceOf(Date);
-    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        actorKind: "user",
-        eventType: "workspace_archived",
-        payload: { lifecycleStatus: "archived" },
-        targetKind: "organization",
-      }),
-    );
   });
 });

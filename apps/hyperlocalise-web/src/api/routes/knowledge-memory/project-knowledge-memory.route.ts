@@ -34,14 +34,12 @@ import {
   listKnowledgeMemoryRevisionsForProject,
   restoreKnowledgeMemoryRevisionForProject,
 } from "@/lib/knowledge-memory/knowledge-memory-revisions";
-import { selectKnowledgeMemoryContext } from "@/lib/knowledge-memory/knowledge-memory-selection";
 import type { KnowledgeMemoryRecord } from "@/lib/knowledge-memory/knowledge-memory.types";
 import { isErr } from "@/lib/primitives/result/results";
 
 import {
   knowledgeMemoryRevisionListQuerySchema,
   knowledgeMemoryRevisionParamsSchema,
-  previewKnowledgeMemoryBodySchema,
   updateKnowledgeMemoryBodySchema,
 } from "./knowledge-memory.schema";
 
@@ -52,19 +50,6 @@ const validateUpdateKnowledgeMemoryBody = validator("json", (value, c) => {
       c,
       "invalid_knowledge_memory_payload",
       "Knowledge memory payload is invalid",
-      parsed.error.issues,
-    );
-  }
-  return parsed.data;
-});
-
-const validatePreviewKnowledgeMemoryBody = validator("json", (value, c) => {
-  const parsed = previewKnowledgeMemoryBodySchema.safeParse(value);
-  if (!parsed.success) {
-    return validationErrorResponse(
-      c,
-      "invalid_knowledge_memory_preview_payload",
-      "Knowledge memory preview payload is invalid",
       parsed.error.issues,
     );
   }
@@ -237,29 +222,6 @@ export function createProjectKnowledgeMemoryRoutes() {
       setKnowledgeMemoryEtag(c, knowledgeMemory);
 
       return c.json({ knowledgeMemory }, 200);
-    })
-    .post("/preview", validatePreviewKnowledgeMemoryBody, async (c) => {
-      const project = await requireAccessibleProject(c);
-      if (!project) {
-        return projectNotFoundResponse(c);
-      }
-
-      const payload = c.req.valid("json");
-      const knowledgeMemory = await getKnowledgeMemoryForProject(project.id);
-      const memoryPreview = selectKnowledgeMemoryContext({
-        content: knowledgeMemory.content,
-        targetLocale: payload.targetLocale,
-        targetLocales: payload.targetLocales,
-        sourceLocale: payload.sourceLocale,
-        sourceText: payload.sourceText,
-        context: payload.context,
-        key: payload.key,
-        path: payload.path,
-        metadata: payload.metadata,
-        maxChars: payload.maxChars,
-      });
-
-      return c.json({ memoryPreview }, 200);
     })
     .get("/revisions", validateKnowledgeMemoryRevisionListQuery, async (c) => {
       const project = await requireAccessibleProject(c);

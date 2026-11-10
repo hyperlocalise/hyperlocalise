@@ -77,7 +77,7 @@ import { env } from "@/lib/env";
 
 const client = testClient<AppType>(createApp());
 const apiKeyFixture = createApiKeyTestFixture();
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 
 const SANITY_PROJECT_ID = "abc123";
 const SANITY_DATASET = "production";

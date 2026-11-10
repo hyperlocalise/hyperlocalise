@@ -10,10 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
@@ -32,29 +31,18 @@ import {
 import { createProjectKnowledgeMemoryRoutes } from "@/api/routes/knowledge-memory/project-knowledge-memory.route";
 import { createProjectQaReportScanRoutes } from "@/api/routes/project/qa-report-scan.route";
 import { createProjectContentSyncRoutes } from "@/api/routes/project/project-content-sync.route";
-import {
-  deleteProjectWithTeamGlossaryGuard,
-  glossaryTeamProjectRequiredResponse,
-} from "@/api/routes/glossary/glossary.shared";
 import { translationsNotFoundResponse } from "@/api/routes/public-translations/public-translations.shared";
-import {
-  withWorkspaceResourceLimit,
-  workspaceResourceFeatureIds,
-  workspaceResourceLimitErrorDetails,
-  workspaceResourceLimitMessage,
-} from "@/lib/billing/workspace-resource-limits";
 import {
   enqueueFileUploadedActivity,
   enqueueStringSegmentApprovedActivity,
   enqueueStringSegmentCommentedActivity,
   enqueueStringSegmentHiddenActivity,
   enqueueStringSegmentLockedActivity,
-  enqueueStringSegmentStatusChangedActivity,
   enqueueStringSegmentTranslationUpdatedActivity,
   sessionActivityActor,
 } from "@/lib/activity-log/file-segment-events";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
-import { db, schema, type DatabaseClient } from "@/lib/database/client";
+import { db, schema } from "@/lib/database/client";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
@@ -62,11 +50,7 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { isReleaseContentEditorAllFilesEnabled } from "@/lib/flags/release-flags";
 import { createLogger } from "@/lib/log";
-import { ensureDefaultNativeProjectMemory } from "@/lib/memory/ensure-default-native-project-memory";
-import {
-  insertWithAllocatedProjectIdentifier,
-  isProjectIdentifierTaken,
-} from "@/lib/projects/issue-identifier/allocate-issue-identifier";
+import { isProjectIdentifierTaken } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 import { projectIssueIdentifierSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import {
   createRepositorySourceFileVersion,
@@ -88,7 +72,6 @@ import { listProjectKeyTags } from "@/lib/projects/jobs/key-job";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 
 import {
-  countTmsProviderLiveOpenJobsForProject,
   getTmsProviderLiveContentEditorAllFiles,
   getTmsProviderLiveCatFile,
   getTmsProviderLiveCatLabels,
@@ -118,7 +101,6 @@ import {
   saveNativeProjectContentEditorTranslation,
   setNativeProjectContentEditorStringsHidden,
   setNativeProjectContentEditorKeyMaxLength,
-  updateNativeProjectTranslationStatus,
 } from "@/lib/projects/content-editor/native-content-editor-service";
 import {
   trackNativeCatCommentProductUsage,
@@ -225,7 +207,6 @@ import {
 } from "@/workflows/adapters";
 
 import {
-  createProjectBodySchema,
   maxProjectFileUploadBytes,
   projectFileCatSegmentParamsSchema,
   projectFileCatSegmentQuerySchema,
@@ -244,7 +225,6 @@ import {
   projectFileCatImageRegenerateBodySchema,
   projectFileCatImageStatusBodySchema,
   projectFileCatRecommendationBodySchema,
-  projectFileCatStatusBodySchema,
   projectFileCatTreatAsImageBodySchema,
   projectFileCatTreatAsVideoBodySchema,
   projectFileCatTranslationBodySchema,
@@ -265,7 +245,6 @@ import {
   projectIdParamsSchema,
   projectFileCatCommentIdParamsSchema,
   updateProjectBodySchema,
-  type CreateProjectBody,
   type ProjectFileContentEditorQuery,
   type ProjectFileContentEditorQueueFile,
   type UpdateProjectBody,
@@ -273,10 +252,7 @@ import {
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
 import { normalizeProjectLocalePatch, type ProjectLocalePatchError } from "@/lib/i18n/locales";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
-import {
-  ensureDefaultWorkspaceTeam,
-  ensureTeamMembership,
-} from "@/lib/teams/default-workspace-team";
+import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
@@ -297,12 +273,10 @@ import {
   isWriteBackTranslationAllowed,
 } from "@/api/auth/capability-guards";
 import {
-  buildAccessibleProjectsWhere,
   projectForbiddenResponse,
   getOwnedProject,
   getOwnedProjectRecord,
   invalidProjectPayloadResponse,
-  isProjectCreateAllowed,
   isProjectMutationAllowed,
   ownedProjectWhere,
   projectNotFoundResponse,
@@ -370,19 +344,12 @@ const projectLocalePatchErrorMessages: Record<
 };
 
 type ProjectStore = {
-  list(auth: ApiAuthContext): Promise<Project[]>;
-  create(
-    auth: ApiAuthContext,
-    payload: CreateProjectBody,
-    database?: DatabaseClient,
-  ): Promise<Project>;
   getById(auth: ApiAuthContext, projectId: string): Promise<Project | null>;
   update(
     auth: ApiAuthContext,
     projectId: string,
     payload: UpdateProjectBody,
   ): Promise<ProjectUpdateResult>;
-  delete(auth: ApiAuthContext, projectId: string): Promise<boolean>;
 };
 
 async function countOpenJobs(auth: ApiAuthContext, projectId: string): Promise<number> {
@@ -431,67 +398,6 @@ async function resolveProjectTeamId(auth: ApiAuthContext, requestedTeamId?: stri
 }
 
 const projectStore: ProjectStore = {
-  async list(auth) {
-    return db
-      .select()
-      .from(schema.projects)
-      .where(await buildAccessibleProjectsWhere(auth))
-      .orderBy(desc(schema.projects.createdAt));
-  },
-  async create(auth, payload, database = db) {
-    const teamId = await resolveProjectTeamId(auth, payload.teamId);
-    if (!teamId) {
-      throw new Error("invalid_project_team");
-    }
-
-    const [project] = await insertWithAllocatedProjectIdentifier({
-      organizationId: auth.organization.localOrganizationId,
-      name: payload.name,
-      database,
-      insert: async (identifier, attemptDb) => {
-        const created = await attemptDb
-          .insert(schema.projects)
-          .values({
-            id: `project_${randomUUID()}`,
-            organizationId: auth.organization.localOrganizationId,
-            teamId,
-            createdByUserId: auth.user.localUserId,
-            name: payload.name,
-            identifier,
-            description: payload.description ?? "",
-            translationContext: payload.translationContext ?? "",
-            source: "native",
-            sourceLocale: payload.sourceLocale,
-            targetLocales: payload.targetLocales,
-          })
-          .returning();
-        const createdProject = created[0];
-        if (createdProject) {
-          await ensureDefaultNativeProjectMemory({
-            organizationId: auth.organization.localOrganizationId,
-            projectId: createdProject.id,
-            projectName: createdProject.name,
-            createdByUserId: auth.user.localUserId,
-            database: attemptDb,
-          });
-        }
-        return created;
-      },
-    });
-
-    // Creators without teams:write only see projects on teams they belong to.
-    // Mirror team-create behavior so the new project is immediately listable.
-    if (!hasOrganizationWideProjectAccess(auth)) {
-      await ensureTeamMembership({
-        teamId,
-        userId: auth.user.localUserId,
-        role: "member",
-        database,
-      });
-    }
-
-    return project;
-  },
   async getById(auth, projectId) {
     const [project] = await db
       .select()
@@ -634,14 +540,6 @@ const projectStore: ProjectStore = {
       .returning();
 
     return ok(project ?? null);
-  },
-  async delete(auth, projectId) {
-    const deletedProjects = await db
-      .delete(schema.projects)
-      .where(await ownedProjectWhere(auth, projectId))
-      .returning({ id: schema.projects.id });
-
-    return deletedProjects.length > 0;
   },
 };
 
@@ -895,16 +793,6 @@ const validateProjectFileContentEditorRecommendationBody = validator("json", (va
   return parsed.data;
 });
 
-const validateProjectFileContentEditorStatusBody = validator("json", (value, c) => {
-  const parsed = projectFileCatStatusBodySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidProjectPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
 const validateProjectFileContentEditorHiddenStringsBody = validator("json", (value, c) => {
   const parsed = projectFileCatHiddenStringsBodySchema.safeParse(value);
 
@@ -1063,16 +951,6 @@ const validateProjectFilesQuery = validator("query", (value, c) => {
 
 const validateProjectFileProgressQuery = validator("query", (value, c) => {
   const parsed = projectFileProgressQuerySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidProjectPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateCreateProjectBody = validator("json", (value, c) => {
-  const parsed = createProjectBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -1281,63 +1159,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       const projects = await listOrganizationProjects(c.var.auth);
       return c.json({ projects }, 200);
     })
-    .post("/", validateCreateProjectBody, async (c) => {
-      if (!isProjectCreateAllowed(c.var.auth.membership.role)) {
-        return projectForbiddenResponse(c);
-      }
-
-      const payload = c.req.valid("json");
-
-      try {
-        const limitResult = await withWorkspaceResourceLimit(
-          {
-            organizationId: c.var.auth.organization.localOrganizationId,
-            featureId: workspaceResourceFeatureIds.projects,
-          },
-          async (tx) => projectStore.create(c.var.auth, payload, tx),
-        );
-        if (!limitResult.ok) {
-          if (limitResult.error.code === "workspace_resource_limit_check_failed") {
-            return serviceUnavailableResponse(
-              c,
-              limitResult.error.code,
-              "Unable to verify project limits. Try again later.",
-            );
-          }
-
-          return conflictResponse(
-            c,
-            limitResult.error.code,
-            workspaceResourceLimitMessage(limitResult.error.featureId),
-            workspaceResourceLimitErrorDetails(limitResult.error),
-          );
-        }
-
-        const project = limitResult.value;
-        await enqueueActivityLogEvent({
-          actorCredentialId: null,
-          actorKind: "user",
-          actorUserId: c.var.auth.user.localUserId,
-          eventType: "project_created",
-          organizationId: c.var.auth.organization.localOrganizationId,
-          payload: {
-            name: project.name,
-            providerKind: project.externalProviderKind ?? undefined,
-            resourceId: project.id,
-            source: project.source,
-          },
-          targetId: project.id,
-          targetKind: "project",
-        });
-        return c.json({ project: { ...project, openJobCount: 0 } }, 201);
-      } catch (error) {
-        if (error instanceof Error && error.message === "invalid_project_team") {
-          return invalidProjectPayloadResponse(c);
-        }
-
-        throw error;
-      }
-    })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
     .route("/:projectId/issue-sheet", createIssueSheetRoutes())
     .route("/:projectId/knowledge-memory", createProjectKnowledgeMemoryRoutes())
@@ -1455,42 +1276,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         return tmsProviderLiveErrorResponse(c, error);
       }
     })
-    .get(
-      "/:projectId/files/detail/cat",
-      validateProjectParams,
-      validateProjectFileContentEditorQuery,
-      async (c) => {
-        const params = c.req.valid("param");
-        const query = c.req.valid("query");
-        const result = await loadProjectFileContentEditorQueue(c.var.auth, params.projectId, query);
-
-        if (result.kind === "feature_unavailable") {
-          return sharedForbiddenResponse(
-            c,
-            "feature_unavailable",
-            "All Files CAT is not enabled for this organization",
-          );
-        }
-        if (result.kind === "provider_unavailable") {
-          return providerProjectUnavailableResponse(c, result.target);
-        }
-        if (result.kind === "project_not_found") {
-          return projectNotFoundResponse(c);
-        }
-        if (result.kind === "source_file_not_found") {
-          return badRequestResponse(
-            c,
-            "source_file_not_found",
-            "Source file not found for the given path",
-          );
-        }
-        if (result.kind === "provider_error") {
-          return tmsProviderLiveErrorResponse(c, result.error);
-        }
-
-        return c.json({ contentEditorFile: result.contentEditorQueue }, 200);
-      },
-    )
     .get(
       "/:projectId/files/detail/cat/segments/:externalStringId/target",
       validateProjectParams,
@@ -2278,86 +2063,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         );
 
         return c.json({ recommendation: result.value }, 200);
-      },
-    )
-    .post(
-      "/:projectId/files/detail/cat/translations/status",
-      validateProjectParams,
-      validateProjectFileContentEditorStatusBody,
-      async (c) => {
-        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-          return projectForbiddenResponse(c);
-        }
-
-        const params = c.req.valid("param");
-        const body = c.req.valid("json");
-        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
-        if (target.kind === "provider_unavailable") {
-          return providerProjectUnavailableResponse(c, target);
-        }
-
-        if (target.kind === "provider") {
-          return badRequestResponse(
-            c,
-            "provider_cat_unsupported",
-            "Native translation status updates are only available for workspace files.",
-          );
-        }
-
-        const project = await getOwnedProject(c.var.auth, params.projectId);
-        if (!project) {
-          return projectNotFoundResponse(c);
-        }
-
-        const lockedStatusResponse = await contentEditorSegmentLockedResponse(c, {
-          organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: params.projectId,
-          targetLocale: body.targetLocale,
-          externalStringId: body.externalStringId,
-        });
-        if (lockedStatusResponse) {
-          return lockedStatusResponse;
-        }
-
-        const translation = await updateNativeProjectTranslationStatus({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: params.projectId,
-          translationKeyId: body.externalStringId,
-          targetLocale: body.targetLocale,
-          status: body.status,
-          actorUserId: c.var.auth.user.localUserId,
-        });
-
-        if (!translation) {
-          return badRequestResponse(c, "translation_not_found", "Translation not found");
-        }
-
-        if (body.status === "approved") {
-          serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.contentEditorSegmentApproved, {
-            source: "native",
-            status: "approved",
-          });
-          await enqueueStringSegmentApprovedActivity({
-            ...sessionActivityActor(c.var.auth.user.localUserId),
-            organizationId: c.var.auth.organization.localOrganizationId,
-            projectId: params.projectId,
-            segmentId: body.externalStringId,
-            sourcePath: body.sourcePath,
-            targetLocale: body.targetLocale,
-          });
-        } else {
-          await enqueueStringSegmentStatusChangedActivity({
-            ...sessionActivityActor(c.var.auth.user.localUserId),
-            nextStatus: body.status,
-            organizationId: c.var.auth.organization.localOrganizationId,
-            projectId: params.projectId,
-            segmentId: body.externalStringId,
-            sourcePath: body.sourcePath,
-            targetLocale: body.targetLocale,
-          });
-        }
-
-        return c.json({ translation }, 200);
       },
     )
     .post(
@@ -4840,30 +4545,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
       return projectNotFoundResponse(c);
     })
-    .get("/:projectId/open-job-count", validateProjectParams, async (c) => {
-      const params = c.req.valid("param");
-      const organizationId = c.var.auth.organization.localOrganizationId;
-      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
-
-      if (target.kind === "provider_unavailable") {
-        return providerProjectUnavailableResponse(c, target);
-      }
-
-      if (target.kind === "provider") {
-        try {
-          const openJobCount = await countTmsProviderLiveOpenJobsForProject(
-            organizationId,
-            target.externalProjectId,
-            { actorUserId: c.var.auth.user.localUserId },
-          );
-          return c.json({ openJobCount }, 200);
-        } catch (error) {
-          return tmsProviderLiveErrorResponse(c, error);
-        }
-      }
-
-      return projectNotFoundResponse(c);
-    })
     .get("/:projectId", validateProjectParams, async (c) => {
       const rawPathProjectId = c.req.param("projectId");
       const params = c.req.valid("param");
@@ -5066,35 +4747,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
       const openJobCount = await countOpenJobs(c.var.auth, project.id);
       return c.json({ project: { ...project, openJobCount } }, 200);
-    })
-    .delete("/:projectId", validateProjectParams, async (c) => {
-      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-        return projectForbiddenResponse(c);
-      }
-
-      const params = c.req.valid("param");
-      const deleteResult = await deleteProjectWithTeamGlossaryGuard(c.var.auth, params.projectId);
-
-      if (deleteResult === "team_project_required") {
-        return glossaryTeamProjectRequiredResponse(c);
-      }
-
-      if (deleteResult === "not_found") {
-        return projectNotFoundResponse(c);
-      }
-
-      await enqueueActivityLogEvent({
-        actorCredentialId: null,
-        actorKind: "user",
-        actorUserId: c.var.auth.user.localUserId,
-        eventType: "project_deleted",
-        organizationId: c.var.auth.organization.localOrganizationId,
-        payload: { resourceId: params.projectId },
-        targetId: params.projectId,
-        targetKind: "project",
-      });
-
-      return c.body(null, 204);
     });
 }
 

@@ -88,7 +88,7 @@ vi.mock("@/lib/activity-log/job-automation-events", async (importOriginal) => ({
 }));
 
 const client = testClient<AppType>(app);
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -142,7 +142,7 @@ describe("project job create", () => {
       },
     }),
   );
-  const createFixture = createProjectTestFixture(createClient);
+  const createFixture = createProjectTestFixture();
 
   afterEach(async () => {
     vi.clearAllMocks();
@@ -1734,7 +1734,7 @@ describe("workspace job agent AI gates", () => {
       },
     }),
   );
-  const agentFixture = createProjectTestFixture(agentClient);
+  const agentFixture = createProjectTestFixture();
 
   afterEach(async () => {
     vi.clearAllMocks();
@@ -1876,66 +1876,6 @@ describe("workspace job agent AI gates", () => {
       organizationId: organization.id,
     });
     expect(enqueueProviderAgentTranslation).toHaveBeenCalledTimes(1);
-  });
-
-  it("rejects run-agent when AI features are not allowed", async () => {
-    ensureAiFeaturesAllowedMock.mockResolvedValue(
-      err({
-        code: AI_FEATURES_REQUIRED_CODE,
-        message: AI_FEATURES_REQUIRED_MESSAGE,
-      }),
-    );
-    const { identity, organization, project, user } =
-      await agentFixture.createStoredProjectFixture();
-    const headers = await agentFixture.authHeadersFor(identity);
-
-    const [job] = await insertNativeJob({
-      organizationId: organization.id,
-      projectId: project.id,
-      createdByUserId: user.id,
-      status: "failed",
-      inputPayload: {
-        sourceLocale: "en-US",
-        targetLocales: ["fr-FR"],
-        fileInput: {
-          sourceFileId: `file_${randomUUID()}`,
-          fileFormat: "json",
-        },
-      },
-    });
-    await db.insert(schema.translationJobDetails).values({
-      jobId: job.id,
-      type: "file",
-    });
-
-    const response = await agentClient.api.orgs[":organizationSlug"].jobs[":jobId"][
-      "run-agent"
-    ].$post(
-      {
-        param: {
-          organizationSlug: identity.organization.slug ?? "missing-slug",
-          jobId: job.id,
-        },
-      },
-      { headers },
-    );
-
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toMatchObject({
-      error: AI_FEATURES_REQUIRED_CODE,
-      message: AI_FEATURES_REQUIRED_MESSAGE,
-    });
-    expect(ensureAiFeaturesAllowedMock).toHaveBeenCalledWith({
-      organizationId: organization.id,
-    });
-    expect(enqueueJob).not.toHaveBeenCalled();
-
-    const [persisted] = await db
-      .select({ status: schema.jobs.status })
-      .from(schema.jobs)
-      .where(eq(schema.jobs.id, job.id))
-      .limit(1);
-    expect(persisted?.status).toBe("failed");
   });
 
   it("rejects retry when the AI credit is used up and leaves the job failed", async () => {

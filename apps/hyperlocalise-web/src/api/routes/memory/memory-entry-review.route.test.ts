@@ -12,6 +12,7 @@
  */
 import "dotenv/config";
 
+import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -34,12 +35,12 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
-import { db } from "@/lib/database/client";
+import { db, schema } from "@/lib/database/client";
 
 import { createMemoryTestFixture } from "./memory.fixture";
 
 const client = testClient<AppType>(createApp());
-const fixture = createMemoryTestFixture(client);
+const fixture = createMemoryTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -123,21 +124,11 @@ describe("memory entry review", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ bulkReview: { updated: 1 } });
 
-    const detail = await client.api.orgs[":organizationSlug"]["translation-memories"][
-      ":memoryId"
-    ].entries[":entryId"].$get(
-      {
-        param: {
-          organizationSlug: identity.organization.slug ?? "missing-slug",
-          memoryId: memory.id,
-          entryId: draft.id,
-        },
-      },
-      { headers },
-    );
-    expect(detail.status).toBe(200);
-    const body = (await detail.json()) as { memoryEntry: { reviewStatus: string } };
-    expect(body.memoryEntry.reviewStatus).toBe("approved");
+    const [reviewed] = await db
+      .select({ reviewStatus: schema.memoryEntries.reviewStatus })
+      .from(schema.memoryEntries)
+      .where(eq(schema.memoryEntries.id, draft.id));
+    expect(reviewed?.reviewStatus).toBe("approved");
   });
 
   it("deletes selected entries in bulk", async () => {
@@ -167,19 +158,11 @@ describe("memory entry review", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ bulkDelete: { deleted: 1 } });
 
-    const detail = await client.api.orgs[":organizationSlug"]["translation-memories"][
-      ":memoryId"
-    ].entries[":entryId"].$get(
-      {
-        param: {
-          organizationSlug: identity.organization.slug ?? "missing-slug",
-          memoryId: memory.id,
-          entryId: draft.id,
-        },
-      },
-      { headers },
-    );
-    expect(detail.status).toBe(404);
+    const remaining = await db
+      .select({ id: schema.memoryEntries.id })
+      .from(schema.memoryEntries)
+      .where(eq(schema.memoryEntries.id, draft.id));
+    expect(remaining).toEqual([]);
   });
 
   it("rejects bulk review when a selected draft changed after it was loaded", async () => {

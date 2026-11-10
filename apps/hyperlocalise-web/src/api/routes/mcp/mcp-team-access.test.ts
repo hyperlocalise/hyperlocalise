@@ -18,11 +18,8 @@ import { and, eq, inArray } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
 import { createAuthorizationCode } from "@/api/auth/mcp";
-import { createApp } from "@/api/app";
-import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { ensureRepositorySourceFileVersionForStoredFile } from "@/lib/file-storage/records";
-import { testClient } from "hono/testing";
 
 import { insertStoredSourceFile } from "../public-jobs/public-jobs.fixture";
 import { createProjectTestFixture } from "../project/project.fixture";
@@ -48,10 +45,8 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-const apiApp = createApp();
 const mcpApp = createMcpTestApp();
-const client = testClient<AppType>(apiApp);
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 const teamFixture = createTeamTestFixture();
 
 let trackedMemberLocalUserId: string | null = null;
@@ -178,32 +173,20 @@ describe("MCP team-scoped access", () => {
       role: "member",
     });
 
-    const adminHeaders = await projectFixture.authHeadersFor(admin);
+    await projectFixture.authHeadersFor(admin);
     const [alphaProjectResponse, betaProjectResponse] = await Promise.all([
-      client.api.orgs[":organizationSlug"].projects.$post(
-        {
-          param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-          json: {
-            name: "MCP Alpha Project",
-            teamId: teamAlphaBody.team.id,
-            sourceLocale: "en-US",
-            targetLocales: ["fr-FR"],
-          },
-        },
-        { headers: adminHeaders },
-      ),
-      client.api.orgs[":organizationSlug"].projects.$post(
-        {
-          param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-          json: {
-            name: "MCP Beta Project",
-            teamId: teamBetaBody.team.id,
-            sourceLocale: "en-US",
-            targetLocales: ["de-DE"],
-          },
-        },
-        { headers: adminHeaders },
-      ),
+      projectFixture.createProjectViaApi(admin, {
+        name: "MCP Alpha Project",
+        teamId: teamAlphaBody.team.id,
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      }),
+      projectFixture.createProjectViaApi(admin, {
+        name: "MCP Beta Project",
+        teamId: teamBetaBody.team.id,
+        sourceLocale: "en-US",
+        targetLocales: ["de-DE"],
+      }),
     ]);
     expect(alphaProjectResponse.status).toBe(201);
     expect(betaProjectResponse.status).toBe(201);
@@ -802,33 +785,21 @@ describe("MCP team-scoped access", () => {
       role: "member",
     });
 
-    const alphaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "MCP Job Alpha Project",
-          teamId: teamAlphaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: await projectFixture.authHeadersFor(admin) },
-    );
+    const alphaProjectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "MCP Job Alpha Project",
+      teamId: teamAlphaBody.team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
     expect(alphaProjectResponse.status).toBe(201);
     const alphaProjectBody = (await alphaProjectResponse.json()) as ProjectResponse;
 
-    const betaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "MCP Job Beta Project",
-          teamId: teamBetaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["de-DE"],
-        },
-      },
-      { headers: await projectFixture.authHeadersFor(admin) },
-    );
+    const betaProjectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "MCP Job Beta Project",
+      teamId: teamBetaBody.team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["de-DE"],
+    });
     expect(betaProjectResponse.status).toBe(201);
     const betaProjectBody = (await betaProjectResponse.json()) as ProjectResponse;
 
@@ -929,33 +900,21 @@ describe("MCP team-scoped access", () => {
       role: "member",
     });
 
-    const alphaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "MCP List Jobs Alpha Project",
-          teamId: teamAlphaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: await projectFixture.authHeadersFor(admin) },
-    );
+    const alphaProjectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "MCP List Jobs Alpha Project",
+      teamId: teamAlphaBody.team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
     expect(alphaProjectResponse.status).toBe(201);
     const alphaProjectBody = (await alphaProjectResponse.json()) as ProjectResponse;
 
-    const betaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "MCP List Jobs Beta Project",
-          teamId: teamBetaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["de-DE"],
-        },
-      },
-      { headers: await projectFixture.authHeadersFor(admin) },
-    );
+    const betaProjectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "MCP List Jobs Beta Project",
+      teamId: teamBetaBody.team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["de-DE"],
+    });
     expect(betaProjectResponse.status).toBe(201);
     const betaProjectBody = (await betaProjectResponse.json()) as ProjectResponse;
 

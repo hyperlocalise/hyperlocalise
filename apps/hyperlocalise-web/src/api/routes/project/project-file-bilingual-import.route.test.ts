@@ -17,10 +17,8 @@ import { randomUUID } from "node:crypto";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
-import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
-import { testClient } from "hono/testing";
 
 import { createProjectTestFixture } from "./project.fixture";
 
@@ -55,8 +53,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 const app = createApp();
-const client = testClient<AppType>(app);
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 
 async function createNativeProject(targetLocales: string[]) {
   const admin = projectFixture.createWorkosIdentityWithRole("admin");

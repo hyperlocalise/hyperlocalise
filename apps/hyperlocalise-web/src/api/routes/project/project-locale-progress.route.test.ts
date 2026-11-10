@@ -57,7 +57,7 @@ vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
 });
 
 const client = testClient<AppType>(app);
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");

@@ -99,26 +99,6 @@ function storeActiveOrganizationSlug(c: Parameters<typeof setCookie>[0], slug: s
 export function createWorkspaceRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
-    .get("/", async (c) => {
-      const [organization] = await db
-        .select({
-          id: schema.organizations.id,
-          workosOrganizationId: schema.organizations.workosOrganizationId,
-          name: schema.organizations.name,
-          slug: schema.organizations.slug,
-          lifecycleStatus: schema.organizations.lifecycleStatus,
-          archivedAt: schema.organizations.archivedAt,
-        })
-        .from(schema.organizations)
-        .where(eq(schema.organizations.id, c.var.auth.activeOrganization.localOrganizationId))
-        .limit(1);
-
-      if (!organization) {
-        return notFoundResponse(c, "workspace_not_found", "Workspace not found");
-      }
-
-      return c.json({ workspace: toWorkspaceResponse(organization) }, 200);
-    })
     .patch("/", validateUpdateWorkspaceBody, async (c) => {
       if (!canUpdateWorkspace(c.var.auth.membership.role)) {
         return forbiddenResponse(c, "forbidden", "Only workspace admins can update settings");
@@ -245,51 +225,6 @@ export function createWorkspaceRoutes() {
         },
         200,
       );
-    })
-    .delete("/", async (c) => {
-      if (!canUpdateWorkspace(c.var.auth.membership.role)) {
-        return forbiddenResponse(c, "forbidden", "Only workspace admins can archive workspaces");
-      }
-
-      const archivedAt = new Date();
-      const [archivedOrganization] = await db
-        .update(schema.organizations)
-        .set({
-          lifecycleStatus: "archived",
-          archivedAt,
-          updatedAt: archivedAt,
-        })
-        .where(
-          and(
-            eq(schema.organizations.id, c.var.auth.activeOrganization.localOrganizationId),
-            eq(schema.organizations.lifecycleStatus, "active"),
-          ),
-        )
-        .returning({
-          id: schema.organizations.id,
-          workosOrganizationId: schema.organizations.workosOrganizationId,
-          name: schema.organizations.name,
-          slug: schema.organizations.slug,
-          lifecycleStatus: schema.organizations.lifecycleStatus,
-          archivedAt: schema.organizations.archivedAt,
-        });
-
-      if (!archivedOrganization) {
-        return notFoundResponse(c, "workspace_not_found", "Workspace not found");
-      }
-
-      await enqueueActivityLogEvent({
-        actorCredentialId: null,
-        actorKind: "user",
-        actorUserId: c.var.auth.user.localUserId,
-        eventType: "workspace_archived",
-        organizationId: archivedOrganization.id,
-        payload: { lifecycleStatus: "archived" },
-        targetId: archivedOrganization.id,
-        targetKind: "organization",
-      });
-
-      return c.body(null, 204);
     });
 }
 

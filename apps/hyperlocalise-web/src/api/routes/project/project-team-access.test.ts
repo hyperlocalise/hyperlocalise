@@ -51,7 +51,7 @@ vi.mock("workflow/api", () => ({
 }));
 
 const client = testClient<AppType>(app);
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 const teamFixture = createTeamTestFixture();
 const {
   authHeadersFor,
@@ -91,33 +91,21 @@ describe("team-scoped project access", () => {
       role: "member",
     });
 
-    const alphaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "Alpha Project",
-          teamId: teamAlphaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: await authHeadersFor(admin) },
-    );
+    const alphaProjectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "Alpha Project",
+      teamId: teamAlphaBody.team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
     expect(alphaProjectResponse.status).toBe(201);
     const alphaProjectBody = (await alphaProjectResponse.json()) as ProjectResponse;
 
-    const betaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "Beta Project",
-          teamId: teamBetaBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["de-DE"],
-        },
-      },
-      { headers: await authHeadersFor(admin) },
-    );
+    const betaProjectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "Beta Project",
+      teamId: teamBetaBody.team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["de-DE"],
+    });
     expect(betaProjectResponse.status).toBe(201);
     const betaProjectBody = (await betaProjectResponse.json()) as ProjectResponse;
 
@@ -153,18 +141,12 @@ describe("team-scoped project access", () => {
     const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Ops Team" });
     const teamBody = (await teamResponse.json()) as TeamResponse;
 
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "Ops Project",
-          teamId: teamBody.team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: await authHeadersFor(admin) },
-    );
+    const projectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "Ops Project",
+      teamId: teamBody.team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
     const projectBody = (await projectResponse.json()) as ProjectResponse;
 
     const listResponse = await client.api.orgs[":organizationSlug"].projects.$get(
@@ -221,17 +203,11 @@ describe("team-scoped project access", () => {
     await authHeadersFor(admin);
     await authHeadersFor(developer);
 
-    const createResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
-        json: {
-          name: "Developer Created Project",
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      },
-      { headers: await authHeadersFor(developer) },
-    );
+    const createResponse = await projectFixture.createProjectViaApi(developer, {
+      name: "Developer Created Project",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
 
     expect(createResponse.status).toBe(201);
     const createBody = (await createResponse.json()) as ProjectResponse;

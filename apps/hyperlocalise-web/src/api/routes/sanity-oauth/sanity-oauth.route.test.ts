@@ -63,7 +63,7 @@ import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 const app = createApp();
 const client = testClient<AppType>(app);
 const apiKeyFixture = createApiKeyTestFixture();
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 
 const REDIRECT_URI = "http://localhost:3000/connect/sanity/oauth/callback";
 const VERIFIER = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";

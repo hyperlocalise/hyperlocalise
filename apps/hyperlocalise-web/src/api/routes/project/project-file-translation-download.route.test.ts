@@ -65,7 +65,7 @@ const LOCALE = "fr-FR";
 const fileStorageAdapter = createMemoryFileStorageAdapter();
 const app = createApp({ fileStorageAdapter });
 const client = testClient<AppType>(app);
-const { authHeadersFor, cleanup, createStoredProjectFixture } = createProjectTestFixture(client);
+const { authHeadersFor, cleanup, createStoredProjectFixture } = createProjectTestFixture();
 
 async function sourceFileFixture(sourcePath: string) {
   const fixture = await createStoredProjectFixture();
