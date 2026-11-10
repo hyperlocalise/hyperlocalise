@@ -27,6 +27,8 @@ type projectAPI struct {
 	membership  organizationMembershipLookup
 	autumn      *autumn.Client
 	activityLog activityLogPublisher
+	// tms reads live TMS projects; nil when the web app can't mint tokens.
+	tms *tmsImports
 
 	testBeforeUpdateWrite func()
 	testBeforeLocaleLock  func()
@@ -116,7 +118,10 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+project+"/content-editor-behavior", bindActor(api, (*projectAPI).contentEditorBehaviorHandler))
 	route("PATCH "+project+"/content-editor-behavior", bindActor(api, (*projectAPI).updateContentEditorBehaviorHandler))
 	route("GET "+project+"/content-editor-behavior/preview", bindActor(api, (*projectAPI).contentEditorBehaviorPreviewHandler))
+	route("GET "+orgRoutePrefix+"/tms/projects", bindActor(api, (*projectAPI).liveProjectsHandler))
 	route("GET "+project+"/files", bindActor(api, (*projectAPI).filesHandler))
+	route("GET "+project+"/files/branches", bindActor(api, (*projectAPI).fileBranchesHandler))
+	route("GET "+project+"/hidden-files", bindActor(api, (*projectAPI).hiddenFilesHandler))
 	route("GET "+project+"/file-progress", bindActor(api, (*projectAPI).fileProgressHandler))
 	route("GET "+project+"/jobs", bindActor(api, (*projectAPI).projectJobsListHandler))
 	route("GET "+project+"/jobs/{jobId}", bindActor(api, (*projectAPI).projectJobDetailHandler))
@@ -373,6 +378,9 @@ func parseProjectFilesQuery(values url.Values) (projectFilesQuery, error) {
 }
 
 func (api *projectAPI) filesHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if id, live := parseLiveProjectID(r.PathValue("projectId")); live {
+		return api.liveFiles(r, actor, id)
+	}
 	projectID, err := normalizedNativeProjectID(r.PathValue("projectId"))
 	if err != nil {
 		return nil, 0, err
