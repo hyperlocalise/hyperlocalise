@@ -43,6 +43,7 @@ import { reconcileSourceFileTranslationKeys } from "./reconcile-source-file-tran
 import { settleUnchangedSourceFile } from "./settle-unchanged-source-file";
 import { SYNC_REPORT_KEY_LIMIT } from "./source-file-sync-report";
 import { applyProjectSourceText } from "./source-text-editing";
+import { TRANSLATION_AS_SOURCE_UPLOAD_SURFACE } from "./translation-as-source-support";
 
 import {
   claimSourceFileIngest,
@@ -909,13 +910,14 @@ describe("reconcileSourceFileTranslationKeys for a GitLab sync", () => {
     projectId: string;
     entries: { key: string; text: string }[];
     runId: string;
+    uploadSurface?: string;
   }) {
     const version = await createSourceVersion({
       organizationId: input.organizationId,
       projectId: input.projectId,
       ingestState: "ingesting",
       ingestWorkflowRunId: input.runId,
-      uploadSurface: GITLAB_CONTENT_SYNC_UPLOAD_SURFACE,
+      uploadSurface: input.uploadSurface ?? GITLAB_CONTENT_SYNC_UPLOAD_SURFACE,
     });
     const result = await reconcileSourceFileTranslationKeys({
       organizationId: input.organizationId,
@@ -1004,6 +1006,48 @@ describe("reconcileSourceFileTranslationKeys for a GitLab sync", () => {
     keys = await keysByName(first.fileId);
     expect(keys.get("dropped")).toMatchObject({ isHidden: false, hiddenBySyncAt: null });
     expect(keys.get("manual")).toMatchObject({ isHidden: true, hiddenBySyncAt: null });
+  });
+
+  it("hides, and later shows again, keys a file built from translations no longer has", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const send = (runId: string, keys: string[]) =>
+      syncSnapshot({
+        organizationId: organization.id,
+        projectId: project.id,
+        runId,
+        uploadSurface: TRANSLATION_AS_SOURCE_UPLOAD_SURFACE,
+        entries: keys.map((key) => ({ key, text: key })),
+      });
+
+    const first = await send("run_sent_1", ["keep", "dropped"]);
+    const dropped = (await keysByName(first.fileId)).get("dropped")!;
+    await db.insert(schema.projectTranslations).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: dropped.id,
+      targetLocale: "de",
+      text: "Entfernt",
+      status: "approved",
+    });
+
+    const second = await send("run_sent_2", ["keep"]);
+    expect(second.storedReport).toEqual({ missingKeys: ["dropped"] });
+    expect((await keysByName(first.fileId)).get("dropped")).toMatchObject({
+      id: dropped.id,
+      isHidden: true,
+    });
+
+    await send("run_sent_3", ["keep", "dropped"]);
+    expect((await keysByName(first.fileId)).get("dropped")).toMatchObject({
+      id: dropped.id,
+      isHidden: false,
+      hiddenBySyncAt: null,
+    });
+    const translations = await db
+      .select({ text: schema.projectTranslations.text, status: schema.projectTranslations.status })
+      .from(schema.projectTranslations)
+      .where(eq(schema.projectTranslations.translationKeyId, dropped.id));
+    expect(translations).toEqual([{ text: "Entfernt", status: "approved" }]);
   });
 
   it("replaces source text edited in the platform while the setting is off", async () => {

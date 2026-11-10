@@ -19,6 +19,7 @@ import { ProjectTranslationService } from "@/lib/projects/translations/project-t
 
 import { hideKeysMissingFromSync, unhideKeysSyncHid } from "./hide-keys-missing-from-sync";
 import { SYNC_REPORT_KEY_LIMIT, type SourceFileSyncReport } from "./source-file-sync-report";
+import { TRANSLATION_AS_SOURCE_UPLOAD_SURFACE } from "./translation-as-source-support";
 
 export async function reconcileSourceFileTranslationKeys(input: {
   organizationId: string;
@@ -130,9 +131,13 @@ export async function reconcileSourceFileTranslationKeys(input: {
       tx,
     );
     let missingKeys: string[] = [];
-    if (uploadSurfaceKeepsMissingKeys(version.uploadSurface)) {
-      // A repository sync hides what the repository dropped, so nothing is lost if it comes
-      // back, and translation jobs skip hidden keys. Only keys a sync hid are unhidden.
+    const keepsMissingKeys =
+      uploadSurfaceKeepsMissingKeys(version.uploadSurface) ||
+      version.uploadSurface === TRANSLATION_AS_SOURCE_UPLOAD_SURFACE;
+    if (keepsMissingKeys) {
+      // A repository sync hides what the repository dropped, and so does a file built from
+      // another project's translations, so nothing is lost if it comes back, and translation
+      // jobs skip hidden keys. Only keys hidden this way are unhidden.
       missingKeys = await hideKeysMissingFromSync(tx, {
         organizationId: input.organizationId,
         projectId: input.projectId,
@@ -163,7 +168,7 @@ export async function reconcileSourceFileTranslationKeys(input: {
     // Clashes are kept whatever brought the file in, so the next sync can settle them; the
     // whole list, since settling needs each clash's file text.
     const syncReport: SourceFileSyncReport | null =
-      uploadSurfaceKeepsMissingKeys(version.uploadSurface) || clashes.length > 0
+      keepsMissingKeys || clashes.length > 0
         ? {
             ...(clashes.length > 0 ? { clashes } : {}),
             missingKeys: missingKeys.slice(0, SYNC_REPORT_KEY_LIMIT),
