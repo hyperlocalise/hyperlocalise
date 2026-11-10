@@ -1,0 +1,161 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { Hono } from "hono";
+import { validator } from "hono/validator";
+
+import type { AuthVariables } from "@/api/auth/workos";
+import {
+  badRequestResponse,
+  conflictResponse,
+  internalErrorResponse,
+  notFoundResponse,
+} from "@/api/response.schema";
+import type { FileStorageAdapter } from "@/lib/file-storage/types";
+import { isErr } from "@/lib/primitives/result/results";
+import {
+  isTranslationSourceDestination,
+  sendTranslationAsSource,
+  type TranslationAsSourceError,
+} from "@/lib/projects/files/translation-as-source";
+import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
+
+import { projectIdParamsSchema } from "./project.schema";
+import { sendTranslationAsSourceBodySchema } from "./translation-as-source.schema";
+import {
+  getOwnedProjectRecord,
+  isProjectMutationAllowed,
+  projectForbiddenResponse,
+  projectNotFoundResponse,
+} from "./project.shared";
+
+const validateParams = validator("param", (value, c) => {
+  const parsed = projectIdParamsSchema.safeParse(value);
+  if (!parsed.success) {
+    return projectNotFoundResponse(c);
+  }
+  return parsed.data;
+});
+
+const validateSendBody = validator("json", (value, c) => {
+  const parsed = sendTranslationAsSourceBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(c, "invalid_translation_as_source_payload");
+  }
+  return parsed.data;
+});
+
+type CreateTranslationAsSourceRoutesOptions = {
+  fileStorageAdapter?: FileStorageAdapter;
+  deferAfterResponse?: (task: () => Promise<unknown>) => void;
+};
+
+const REFUSAL_MESSAGES: Record<
+  Exclude<
+    TranslationAsSourceError["code"],
+    "translations_not_approved" | "source_file_not_found" | "file_build_failed" | "upload_failed"
+  >,
+  string
+> = {
+  unsupported_file_format: "Only Word files can be used as another project's source.",
+  same_project: "Choose a different project.",
+  project_not_native: "Both projects must store their files in the workspace.",
+  locale_not_a_target: "The other project's source language is not a language of this project.",
+  destination_source_locale_mismatch:
+    "The other project's source language is not a language of this project.",
+  source_file_not_ready: "The file is still being read. Try again in a moment.",
+};
+
+export function createTranslationAsSourceRoutes(
+  options: CreateTranslationAsSourceRoutesOptions = {},
+) {
+  return new Hono<{ Variables: AuthVariables }>()
+    .get("/destinations", validateParams, async (c) => {
+      const project = await getOwnedProjectRecord(c.var.auth, c.req.valid("param").projectId);
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      const projects = await listOrganizationProjects(c.var.auth, { source: "native" });
+      const destinations = projects
+        .filter((candidate) => isTranslationSourceDestination(project, candidate))
+        .map((candidate) => ({
+          id: candidate.id,
+          name: candidate.name,
+          sourceLocale: candidate.sourceLocale as string,
+          keepsApprovedOnSourceChange:
+            candidate.approvedTranslationsOnSourceChange !== "needs_review",
+        }));
+
+      return c.json({ destinations }, 200);
+    })
+    .post("/", validateParams, validateSendBody, async (c) => {
+      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+        return projectForbiddenResponse(c);
+      }
+
+      const body = c.req.valid("json");
+      const [sourceProject, destinationProject] = await Promise.all([
+        getOwnedProjectRecord(c.var.auth, c.req.valid("param").projectId),
+        getOwnedProjectRecord(c.var.auth, body.destinationProjectId),
+      ]);
+      if (!sourceProject) {
+        return projectNotFoundResponse(c);
+      }
+      if (!destinationProject) {
+        return notFoundResponse(c, "destination_project_not_found", "Project not found");
+      }
+      if (!destinationProject.sourceLocale) {
+        return badRequestResponse(
+          c,
+          "destination_source_locale_mismatch",
+          REFUSAL_MESSAGES.destination_source_locale_mismatch,
+        );
+      }
+
+      const sent = await sendTranslationAsSource({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        sourceProject,
+        destinationProject,
+        sourcePath: body.sourcePath,
+        locale: destinationProject.sourceLocale,
+        actorUserId: c.var.auth.user.localUserId,
+        deferAfterResponse: options.deferAfterResponse,
+        fileStorageAdapter: options.fileStorageAdapter,
+      });
+      if (isErr(sent)) {
+        const { error } = sent;
+        switch (error.code) {
+          case "translations_not_approved":
+            return conflictResponse(
+              c,
+              error.code,
+              "Some strings have no approved translation in this language yet.",
+              {
+                missingCount: error.missingCount,
+                totalCount: error.totalCount,
+                missingStrings: error.missingStrings,
+              },
+            );
+          case "source_file_not_found":
+            return notFoundResponse(c, error.code, "Source file not found");
+          case "file_build_failed":
+          case "upload_failed":
+            return internalErrorResponse(c, error.code, "Could not send the file. Try again.");
+          default:
+            return badRequestResponse(c, error.code, REFUSAL_MESSAGES[error.code]);
+        }
+      }
+
+      return c.json({ file: sent.value }, 201);
+    });
+}

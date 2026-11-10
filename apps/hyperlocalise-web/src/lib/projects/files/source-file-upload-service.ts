@@ -70,6 +70,12 @@ export type SourceFileUploadInput = {
   uploadSurface: string;
   /** Keep approved translations approved for this upload's source text changes. */
   keepApprovedTranslations?: boolean;
+  /** Set when the file was built from another project's translations. */
+  translationSource?: {
+    projectId: string;
+    locale: string;
+    sourceFileVersionId: string;
+  };
   uploadedByApiKeyId?: string | null;
   uploadedByUserId?: string | null;
   actorUserId?: string | null;
@@ -147,6 +153,7 @@ async function uploadNativeSourceFile(
           commitSha: input.commitSha ?? null,
           workflowRunId: input.workflowRunId ?? null,
           uploadSurface: input.uploadSurface,
+          ...(input.translationSource ? { translationSource: input.translationSource } : {}),
         },
         adapter,
         db: tx,
