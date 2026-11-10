@@ -6,6 +6,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
@@ -190,4 +191,26 @@ func TestGroupBilingualImportRows(t *testing.T) {
 	require.Equal(t, 4, skipped)
 	require.Equal(t, 3, countBilingualFiles(entries))
 }
+
+func FuzzGroupBilingualImportRows(f *testing.F) {
+	f.Add("a", "A", "fr", "en.json", "fr", true)
+	f.Add("", "x", "", "", "de", false)
+	f.Fuzz(func(t *testing.T, key, text, rowLocale, path, locale string, scoped bool) {
+		var filePath *string
+		if scoped {
+			filePath = &path
+		}
+		rows := []editor_export.Row{{Key: key, TargetText: text, TargetLocale: rowLocale, SourcePath: path}}
+		entries, skipped := groupBilingualImportRows(rows, locale, filePath)
+		require.Equal(t, 1, len(entries)+skipped)
+		for _, entry := range entries {
+			require.NotEmpty(t, strings.TrimSpace(entry.Key))
+			require.NotEmpty(t, strings.TrimSpace(entry.Text))
+			if filePath != nil {
+				require.Equal(t, *filePath, entry.Path)
+			}
+		}
+	})
+}
+
 func ptr[T any](value T) *T { return &value }

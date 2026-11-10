@@ -4,8 +4,11 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -68,4 +71,109 @@ func TestDuplicateTokensRejected(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	require.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestDocsRoute(t *testing.T) {
+	h := newHandler(authFunc(func(context.Context, string) (principal, error) {
+		t.Fatal("docs does not authenticate")
+		return principal{}, nil
+	}))
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/docs", nil))
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "no-store", w.Header().Get("Cache-Control"))
+	require.Contains(t, w.Header().Get("Content-Type"), "text/html")
+	require.Contains(t, w.Header().Get("Content-Security-Policy"), "cdn.jsdelivr.net")
+	require.Contains(t, w.Body.String(), `data-url="/openapi.yaml"`)
+
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/docs", nil))
+	require.Equal(t, http.StatusMethodNotAllowed, w.Code)
+}
+
+func TestParseQueryFilters(t *testing.T) {
+	t.Parallel()
+	okFilters := func(t *testing.T, values url.Values) queryFilters {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		filters, ok := parseQueryFilters(rec, values)
+		require.True(t, ok, rec.Body.String())
+		require.Equal(t, http.StatusOK, rec.Code)
+		return filters
+	}
+	reject := func(t *testing.T, values url.Values) {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		_, ok := parseQueryFilters(rec, values)
+		require.False(t, ok)
+		require.Equal(t, http.StatusBadRequest, rec.Code)
+	}
+
+	defaults := okFilters(t, url.Values{})
+	require.Equal(t, "status", defaults.Sort)
+	require.Equal(t, "asc", defaults.SortDir)
+	require.Equal(t, 50, defaults.Limit)
+
+	assignee := uuid.NewString()
+	filters := okFilters(t, url.Values{
+		"projectId": {"project_1"},
+		"status":    {"open"},
+		"issueType": {"qa_failure"},
+		"priority":  {"P0"},
+		"locale":    {"fr-FR"},
+		"assignee":  {assignee},
+		"search":    {"checkout"},
+		"sort":      {"created_at"},
+		"sortDir":   {"desc"},
+		"limit":     {"10"},
+		"offset":    {"5"},
+	})
+	require.Equal(t, assignee, filters.Assignee)
+	require.Equal(t, "qa_failure", filters.IssueType)
+	require.Equal(t, 10, filters.Limit)
+	require.Equal(t, 5, filters.Offset)
+
+	for name, values := range map[string]url.Values{
+		"status":    {"status": {"done"}},
+		"issueType": {"issueType": {"typo"}},
+		"priority":  {"priority": {"P4"}},
+		"sort":      {"sort": {"title"}},
+		"sortDir":   {"sortDir": {"up"}},
+		"assignee":  {"assignee": {"not-a-uuid"}},
+		"search":    {"search": {strings.Repeat("q", 201)}},
+		"locale":    {"locale": {strings.Repeat("f", 33)}},
+		"projectId": {"projectId": {strings.Repeat("p", 129)}},
+		"limit":     {"limit": {"0"}},
+		"offset":    {"offset": {"-1"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			reject(t, values)
+		})
+	}
+}
+
+func FuzzParseQueryFilters(f *testing.F) {
+	f.Add("open", "P1", "me", "status", "asc", "cart", "fr", "project_1")
+	f.Add("done", "P9", "nope", "title", "up", strings.Repeat("q", 201), strings.Repeat("f", 33), "")
+	f.Fuzz(func(t *testing.T, status, priority, assignee, sort, sortDir, search, locale, projectID string) {
+		rec := httptest.NewRecorder()
+		filters, ok := parseQueryFilters(rec, url.Values{
+			"status":    {status},
+			"priority":  {priority},
+			"assignee":  {assignee},
+			"sort":      {sort},
+			"sortDir":   {sortDir},
+			"search":    {search},
+			"locale":    {locale},
+			"projectId": {projectID},
+		})
+		if !ok {
+			require.Equal(t, http.StatusBadRequest, rec.Code)
+			return
+		}
+		require.LessOrEqual(t, len(filters.Search), 200)
+		require.LessOrEqual(t, len(filters.Locale), 32)
+		require.LessOrEqual(t, len(filters.ProjectID), 128)
+	})
 }
