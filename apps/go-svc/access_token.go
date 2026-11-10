@@ -31,7 +31,6 @@ type workosAccessTokenClaims struct {
 	jwt.RegisteredClaims
 	SessionID      string          `json:"sid"`
 	OrganizationID string          `json:"org_id"`
-	ClientID       string          `json:"client_id"`
 	Act            json.RawMessage `json:"act"`
 }
 
@@ -98,9 +97,9 @@ func (v *WorkOSSessionVerifier) VerifyAccessToken(ctx context.Context, accessTok
 		return AuthClaims{}, newAuthError("invalid_access_token", "invalid access token")
 	}
 
-	if !accessTokenAudienceAllowed(claims.Audience, claims.ClientID, v.clientID) {
-		return AuthClaims{}, newAuthError("invalid_access_token", "invalid access token")
-	}
+	// `iss` and the JWKS are shared by every WorkOS application in the
+	// environment, so they pin the token; `client_id` and `aud` only name the
+	// application (web or Iris desktop) and are not checked.
 	if !issuerAllowed(claims.Issuer, v.apiBaseURL, v.clientID) {
 		return AuthClaims{}, newAuthError("invalid_access_token", "invalid access token")
 	}
@@ -116,18 +115,6 @@ func (v *WorkOSSessionVerifier) VerifyAccessToken(ctx context.Context, accessTok
 		OrgID:     claims.OrganizationID,
 		SessionID: claims.SessionID,
 	}, nil
-}
-
-func accessTokenAudienceAllowed(audience jwt.ClaimStrings, clientID, expectedClientID string) bool {
-	if len(audience) > 0 {
-		for _, value := range audience {
-			if value == expectedClientID {
-				return true
-			}
-		}
-		return false
-	}
-	return clientID == expectedClientID
 }
 
 func issuerAllowed(issuer, apiBaseURL, clientID string) bool {
