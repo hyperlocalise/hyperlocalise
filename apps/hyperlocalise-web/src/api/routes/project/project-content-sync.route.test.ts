@@ -82,7 +82,7 @@ import { createProjectTestFixture } from "./project.fixture";
 
 const enqueue = vi.fn(async () => ({ ids: ["queued"] }));
 const client = testClient<AppType>(createApp({ projectContentSyncQueue: { enqueue } }));
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");

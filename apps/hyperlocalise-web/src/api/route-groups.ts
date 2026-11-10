@@ -141,7 +141,7 @@ export function createOrgKnowledgeRoutes(
         engineSetupQueue: options.engineSetupQueue ?? createEngineSetupQueue(),
       }),
     )
-    .route("/glossaries", createGlossaryRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
+    .route("/glossaries", createGlossaryRoutes())
     .route("/knowledge-memory", createKnowledgeMemoryRoutes())
     .route("/translation-memories", createMemoryRoutes());
 }

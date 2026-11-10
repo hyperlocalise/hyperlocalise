@@ -56,7 +56,7 @@ vi.mock("@/lib/billing/autumn-boolean-feature-access", () => ({
 }));
 
 const client = testClient<AppType>(app);
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 
 function issueSheet() {
   return client.api.orgs[":organizationSlug"].projects[":projectId"]["issue-sheet"];

@@ -132,11 +132,11 @@ export function createAuthTestFixture() {
     };
   }
 
-  async function authHeadersFor(identity: WorkosAuthIdentity) {
+  async function authContextFor(identity: WorkosAuthIdentity): Promise<ApiAuthContext> {
     const { user, organization, membership } = await syncWorkosIdentity(db, identity);
     const activeOrganization = toAuthOrganization(organization, membership);
 
-    const authContext = enrichAuthContextWithCapabilities({
+    return enrichAuthContextWithCapabilities({
       user: {
         workosUserId: user.workosUserId,
         localUserId: user.id,
@@ -151,6 +151,10 @@ export function createAuthTestFixture() {
       }),
       activeTeam: null,
     });
+  }
+
+  async function authHeadersFor(identity: WorkosAuthIdentity) {
+    const authContext = await authContextFor(identity);
     const sessionToken = `test_${randomUUID()}`;
     const records = currentTestRecords();
 
@@ -262,6 +266,7 @@ export function createAuthTestFixture() {
   }
 
   return {
+    authContextFor,
     authHeadersFor,
     authHeadersForOrganizations,
     cleanup,

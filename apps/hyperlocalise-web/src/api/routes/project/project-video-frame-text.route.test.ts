@@ -12,11 +12,9 @@
  */
 import "dotenv/config";
 
-import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
-import type { AppType } from "@/api/typed-app";
 import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import { extractImageText } from "@/lib/agents/image-text-extraction";
 import { db } from "@/lib/database/client";
@@ -50,8 +48,7 @@ vi.mock("@/api/billing/ai-features-response", async (importOriginal) => ({
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
 const app = createApp({ fileStorageAdapter });
-const client = testClient<AppType>(app);
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 const { authHeadersFor, cleanup, createStoredProjectFixture, createWorkosIdentityForOrganization } =
   projectFixture;
 const png =

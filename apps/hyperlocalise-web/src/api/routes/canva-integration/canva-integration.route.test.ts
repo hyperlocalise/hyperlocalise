@@ -93,7 +93,7 @@ import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 
 const client = testClient<AppType>(createApp());
 const apiKeyFixture = createApiKeyTestFixture();
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 
 describe("canvaIntegrationRoutes", () => {
   beforeAll(async () => {
