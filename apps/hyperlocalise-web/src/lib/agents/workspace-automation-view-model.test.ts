@@ -186,53 +186,23 @@ describe("workspace automation view model", () => {
 
     expect(formStateToWorkspaceAutomationPayload(form).toolConfig.knowledge).toEqual({
       enabled: true,
-      allowUpdates: false,
     });
   });
 
-  it("maps knowledgeAllowUpdates into the API payload alongside knowledgeEnabled", () => {
+  it("never serializes knowledge updates: the save path no longer exists", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),
-      name: "Memory-writing sync",
-      instructions: "Remember reviewer preferences.",
+      name: "Knowledge-aware sync",
+      instructions: "Follow brand guidance.",
       githubEnabled: true,
       githubMode: "agent" as const,
       githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
       knowledgeEnabled: true,
-      knowledgeAllowUpdates: true,
     };
 
-    expect(formStateToWorkspaceAutomationPayload(form).toolConfig.knowledge).toEqual({
-      enabled: true,
-      allowUpdates: true,
-    });
-  });
-
-  it("never serializes allowUpdates as true when knowledge itself is disabled", () => {
-    // Defense in depth: a stale/inconsistent form state (allowUpdates true but enabled false)
-    // must not leak through to the API payload — the UI keeps these in sync, but the serializer
-    // doesn't trust that alone.
-    const form = {
-      ...createDefaultWorkspaceAutomationFormState(),
-      name: "Inconsistent state",
-      githubEnabled: true,
-      githubMode: "agent" as const,
-      githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
-      knowledgeEnabled: false,
-      knowledgeAllowUpdates: true,
-    };
-
-    expect(formStateToWorkspaceAutomationPayload(form).toolConfig.knowledge).toBeUndefined();
-  });
-
-  it("hydrates knowledgeAllowUpdates from an existing automation record", () => {
-    const state = createWorkspaceAutomationFormStateFromRecord({
-      ...createAutomationSummary(),
-      toolConfig: { knowledge: { enabled: true, allowUpdates: true } },
-    });
-
-    expect(state.knowledgeEnabled).toBe(true);
-    expect(state.knowledgeAllowUpdates).toBe(true);
+    const knowledge = formStateToWorkspaceAutomationPayload(form).toolConfig.knowledge;
+    expect(knowledge).toEqual({ enabled: true });
+    expect(knowledge).not.toHaveProperty("allowUpdates");
   });
 
   it("hydrates Web Search provider from an existing automation record", () => {

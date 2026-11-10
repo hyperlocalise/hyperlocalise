@@ -148,31 +148,12 @@ export const automationEditorMswHandlers = [
       },
     }),
   ),
-  http.get("/api/orgs/:organizationSlug/knowledge-memory", () =>
-    HttpResponse.json({
-      knowledgeMemory: {
-        content: "# Brand\nUse sentence case for feature names.",
-        updatedAt: "2026-07-01T12:00:00.000Z",
-        updatedByUserId: "user_001",
-      },
-    }),
-  ),
   http.get("/api/orgs/:organizationSlug/intercom/help-centers", () =>
     HttpResponse.json({ restEndpoint: "us", helpCenters: intercomHelpCenterSummariesFixture }),
   ),
   http.get("/api/orgs/:organizationSlug/intercom/help-centers/:helpCenterId/collections", () =>
     HttpResponse.json({ collections: intercomCollectionSummariesFixture }),
   ),
-  http.put("/api/orgs/:organizationSlug/knowledge-memory", async ({ request }) => {
-    const body = (await request.json()) as { content?: string };
-    return HttpResponse.json({
-      knowledgeMemory: {
-        content: body.content ?? "",
-        updatedAt: "2026-07-17T12:00:00.000Z",
-        updatedByUserId: "user_001",
-      },
-    });
-  }),
 ];
 
 export const automationEditorDisconnectedMswHandlers = [

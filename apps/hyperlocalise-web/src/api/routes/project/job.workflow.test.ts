@@ -46,6 +46,13 @@ import type { TranslationJobEventData } from "@/lib/workflow/types";
 import { createProjectTestFixture } from "./project.fixture";
 
 const resolveWorkspaceReportsFlagMock = vi.hoisted(() => vi.fn(async () => false));
+const loadUploadedGuidelinesContextMock = vi.hoisted(() =>
+  vi.fn(async () => ({ text: "", documents: [] })),
+);
+
+vi.mock("@/lib/knowledge-memory/uploaded-guidelines-context", () => ({
+  loadUploadedGuidelinesContext: loadUploadedGuidelinesContextMock,
+}));
 
 vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
@@ -298,12 +305,11 @@ describe("translation job workflow helpers", () => {
     expect(activity.filter((row) => row.kind === "status")).toEqual([]);
   });
 
-  it("carries the knowledge memory capability from the event into translation context", async () => {
+  it("carries the guideline documents into translation context when the capability is on", async () => {
     const { organization, project, user } = await projectFixture.createStoredProjectFixture();
-    await db.insert(schema.knowledgeMemories).values({
-      organizationId: organization.id,
-      updatedByUserId: user.id,
-      content: "Always refer to Hyperlocalise as the product name.",
+    loadUploadedGuidelinesContextMock.mockResolvedValueOnce({
+      text: "### Brand guide\nNever translate Acme.",
+      documents: [],
     });
     const job = await insertJob({
       organizationId: organization.id,
@@ -336,7 +342,7 @@ describe("translation job workflow helpers", () => {
     expect(translateStringJob).toHaveBeenCalledWith(
       expect.objectContaining({
         contextSnapshot: expect.objectContaining({
-          knowledgeMemory: "Always refer to Hyperlocalise as the product name.",
+          knowledgeMemory: "### Brand guide\nNever translate Acme.",
         }),
       }),
     );

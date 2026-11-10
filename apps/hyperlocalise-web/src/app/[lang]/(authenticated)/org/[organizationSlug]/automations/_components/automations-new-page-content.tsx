@@ -60,7 +60,6 @@ export function AutomationsNewPageContent({
   projectId,
   initialForm = createDefaultWorkspaceAutomationFormState(),
   knowledgeAvailable = false,
-  canUpdateKnowledgeMemory = false,
   assistantEnabled = false,
   startsFromTemplate = false,
 }: {
@@ -68,7 +67,6 @@ export function AutomationsNewPageContent({
   projectId?: string;
   initialForm?: WorkspaceAutomationFormState;
   knowledgeAvailable?: boolean;
-  canUpdateKnowledgeMemory?: boolean;
   assistantEnabled?: boolean;
   /** A template was asked for by its link, so a request handed over from the list is dropped. */
   startsFromTemplate?: boolean;
@@ -253,7 +251,6 @@ export function AutomationsNewPageContent({
           form={form}
           errors={errors}
           knowledgeAvailable={knowledgeAvailable}
-          canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
           assistantEnabled={assistantEnabled}
           assistantHasUnsavedChanges={hasUnsavedChanges}
           assistantInitialPrompt={assistantInitialPrompt}

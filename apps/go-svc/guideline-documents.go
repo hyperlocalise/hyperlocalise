@@ -59,6 +59,12 @@ func (api *guidelineDocumentAPI) register(mux *http.ServeMux, verifier SessionVe
 		registerAuthenticated(mux, verifier, "PUT "+base+"/{documentId}", api.knowledge.handleWith(true, guidelineDocumentBodyLimit, guidelineDocumentTimeout, api.update))
 		registerAuthenticated(mux, verifier, "DELETE "+base+"/{documentId}", api.knowledge.handle(true, api.remove))
 	}
+	workspaceDocs := orgRoutePrefix + "/guidelines/documents/{documentId}/projects"
+	registerAuthenticated(mux, verifier, "GET "+workspaceDocs, api.knowledge.handle(false, api.listDocumentProjects))
+	registerAuthenticated(mux, verifier, "POST "+workspaceDocs, api.knowledge.handle(true, api.attachDocumentProject))
+	registerAuthenticated(mux, verifier, "DELETE "+workspaceDocs+"/{projectId}", api.knowledge.handle(true, api.detachDocumentProject))
+	workspaceAssignments := orgRoutePrefix + "/guidelines/documents/assignments"
+	registerAuthenticated(mux, verifier, "GET "+workspaceAssignments, api.knowledge.handle(false, api.listAllDocumentAssignments))
 }
 
 func (api *guidelineDocumentAPI) scope(ctx context.Context, r *http.Request, actor workspaceActor) (guidelineDocumentScope, error) {

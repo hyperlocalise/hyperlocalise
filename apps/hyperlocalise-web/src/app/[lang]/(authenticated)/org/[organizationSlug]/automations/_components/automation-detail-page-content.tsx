@@ -128,7 +128,6 @@ export function AutomationDetailPageContent({
   projectId,
   automationId,
   knowledgeAvailable = false,
-  canUpdateKnowledgeMemory = false,
 }: {
   /** Offers the automation assistant beside the form. */
   assistantEnabled?: boolean;
@@ -136,7 +135,6 @@ export function AutomationDetailPageContent({
   projectId?: string;
   automationId: string;
   knowledgeAvailable?: boolean;
-  canUpdateKnowledgeMemory?: boolean;
 }) {
   const intl = useIntl();
   const searchParams = useSearchParams();
@@ -748,7 +746,6 @@ export function AutomationDetailPageContent({
           form={form}
           errors={errors}
           knowledgeAvailable={knowledgeAvailable}
-          canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
           assistantEnabled={assistantEnabled}
           assistantHasUnsavedChanges={hasChanges}
           footer={

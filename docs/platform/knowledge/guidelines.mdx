@@ -5,23 +5,34 @@ description: "Give translators and agents the tone, audience, and product contex
 
 Use **Guideline** for instructions that cannot be expressed as a term pair: audience, voice, product context, market preferences, and examples. Put required term translations in a glossary and reusable sentence pairs in a translation memory.
 
+Every guideline is a document. Upload a file, or type Markdown text that Hyperlocalise saves as a document for you. There is no separate typed note: whatever you write becomes a document record with its own revisions.
+
+## Scope
+
+Workspace **Guideline** stores shared context as org-wide documents with no project set. Project **Guideline** stores project-specific context as documents owned by that project. The workspace list only shows org-wide files. A project file is not visible on the workspace page, and one project never sees another project's files.
+
+Org-wide documents with no project assignment apply to every project. Open a document to scope it down to specific projects in its **Projects** section: once the first project is assigned, the document applies only to listed projects. Assignment filters translation, guideline checks, and automation recall for that project. The project Guideline page does not change assignment.
+
 ## Write or upload a guideline
 
-A guideline can be text you write in the editor, uploaded documents, or both.
-
 1. Open workspace **Guideline** for shared context, or the project’s **Guideline** for project-specific context.
-2. Select **Markdown/Text** to write the guideline, or drop a file on **Upload guideline**. Use **Add sources** to upload more files later.
+2. Select **Add sources** to open the **Upload guideline** page, then drop a file or select **Markdown/Text** to type the guideline. Typed text is saved as a Markdown document.
 3. Wait for the document's status to change from **Processing** to **Ready** under **Uploaded guidelines**.
+4. Open the document and optionally scope it to projects: an unassigned org-wide document applies to every project; assigning a first project limits it to listed projects.
 
-Supported uploads are PDF, DOCX, Markdown, and plain text, up to 25 MB and one file at a time. Hyperlocalise extracts the text and indexes it for search. Scanned PDFs without a text layer show **Failed** with “No readable text was found”; export the document with selectable text and upload it again. Very long files are truncated, and the document shows a notice when that happens. Options marked **Coming soon**, such as connector-based imports, are not available upload paths.
+To change a document later, open **Edit** on its row: editing the content saves a new revision, editing only the title updates it in place. Supported uploads are PDF, DOCX, Markdown, and plain text, up to 25 MB and one file at a time. Hyperlocalise extracts the text and indexes it for search. Scanned PDFs without a text layer show **Failed** with “No readable text was found”; export the document with selectable text and upload it again. Very long files are truncated, and the document shows a notice when that happens. Options marked **Coming soon**, such as connector-based imports, are not available upload paths.
 
-Admins and localization managers can upload, delete, and change documents. Other members can view them.
+Admins and localization managers can upload, edit, delete, and assign documents. Other members can view them.
 
 ### Choose what always applies
 
-The text written in the editor always applies to translations. Uploaded documents are used for translations and guideline checks: Hyperlocalise searches them and keeps only the passages relevant to the text being translated or checked. Turn on **Always apply** for a short document that must be used in full every time, such as a list of banned words. Keep long reference material searchable so it does not crowd out more relevant guidance.
+Turn on **Always apply** for a short document that must be used in full every time, such as a list of banned words. Other documents are searched and Hyperlocalise keeps only the passages relevant to the text being translated or checked. Keep long reference material searchable so it does not crowd out more relevant guidance.
 
 Uploaded documents apply to every target locale, so state the market inside the document when a rule only applies to one language.
+
+### Setup wizard guidance
+
+The engine-setup wizard keeps a managed document titled **Setup wizard guidance** with the voice and rules it learned from your site. Edit it like any other document: the wizard merges into your edits instead of overwriting them, so your changes are preserved. Do not rename it; the wizard finds it by that exact title and creates a new one if it cannot. It is an unassigned org-wide document, so it applies to every project; assigning projects on its page scopes it down.
 
 ## What to include
 

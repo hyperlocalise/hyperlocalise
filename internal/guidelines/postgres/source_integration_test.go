@@ -70,18 +70,13 @@ func TestCurrentReturnsScopedGuidelinesInOrder(t *testing.T) {
 	otherOrgID := f.organization(t)
 	projectID := f.project(t, orgID)
 	siblingID := f.project(t, orgID)
-	foreignProjectID := f.project(t, otherOrgID)
 	fr, de := "fr-FR", "de-DE"
 
-	workspaceRevision := uuid.NewString()
-	f.exec(t, `insert into knowledge_memories (organization_id, revision_id, version, content) values ($1, $2, 3, 'Use sentence case.')`, orgID, workspaceRevision)
-	projectRevision := uuid.NewString()
-	f.exec(t, `insert into project_knowledge_memories (project_id, revision_id, version, content) values ($1, $2, 4, 'Say "cart", not "basket".')`, projectID, projectRevision)
-	f.exec(t, `insert into project_knowledge_memories (project_id, content) values ($1, 'Sibling note')`, siblingID)
-	f.exec(t, `insert into project_knowledge_memories (project_id, content) values ($1, 'Foreign note')`, foreignProjectID)
-	f.exec(t, `insert into knowledge_memories (organization_id, content) values ($1, 'Foreign workspace')`, otherOrgID)
-
 	orgDocID, orgDocRevision := f.document(t, orgID, nil, nil, "ready", false, "Org-wide doc")
+	// Org-wide documents with no assignment rows apply to every project;
+	// documents with assignments apply only to listed projects.
+	globalDocID, globalDocRevision := f.document(t, orgID, nil, nil, "ready", false, "Global doc")
+	f.exec(t, `insert into guideline_document_projects (organization_id, document_id, project_id) values ($1, $2, $3)`, orgID, orgDocID, projectID)
 	projectFrDocID, projectFrRevision := f.document(t, orgID, &projectID, &fr, "ready", true, "Project French doc")
 	f.document(t, orgID, &projectID, &de, "ready", true, "German doc")
 	f.document(t, orgID, &siblingID, nil, "ready", true, "Sibling doc")
@@ -92,12 +87,24 @@ func TestCurrentReturnsScopedGuidelinesInOrder(t *testing.T) {
 	source := NewWithPool(f.pool)
 	docs, err := source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: projectID, Locale: fr})
 	require.NoError(t, err)
-	require.Equal(t, []guidelines.Document{
-		{ID: UploadedDocumentID(orgDocID), RevisionID: orgDocRevision, Version: 2, Content: "Org-wide doc", Scope: guidelines.Scope{OrganizationID: orgID}, Mandatory: false},
-		{ID: "workspace:" + orgID, RevisionID: workspaceRevision, Version: 3, Content: "Use sentence case.", Scope: guidelines.Scope{OrganizationID: orgID}, Mandatory: true},
-		{ID: UploadedDocumentID(projectFrDocID), RevisionID: projectFrRevision, Version: 2, Content: "Project French doc", Scope: guidelines.Scope{OrganizationID: orgID, ProjectID: projectID, Locale: fr}, Mandatory: true},
-		{ID: "project:" + projectID, RevisionID: projectRevision, Version: 4, Content: `Say "cart", not "basket".`, Scope: guidelines.Scope{OrganizationID: orgID, ProjectID: projectID}, Mandatory: true},
-	}, docs)
+	require.Len(t, docs, 3)
+	byID := map[string]guidelines.Document{}
+	for _, doc := range docs {
+		byID[doc.ID] = doc
+	}
+	require.Equal(t, guidelines.Document{ID: UploadedDocumentID(orgDocID), RevisionID: orgDocRevision, Version: 2, Content: "Org-wide doc", Scope: guidelines.Scope{OrganizationID: orgID}, Mandatory: false}, byID[UploadedDocumentID(orgDocID)])
+	require.Equal(t, guidelines.Document{ID: UploadedDocumentID(globalDocID), RevisionID: globalDocRevision, Version: 2, Content: "Global doc", Scope: guidelines.Scope{OrganizationID: orgID}, Mandatory: false}, byID[UploadedDocumentID(globalDocID)])
+	require.Equal(t, guidelines.Document{ID: UploadedDocumentID(projectFrDocID), RevisionID: projectFrRevision, Version: 2, Content: "Project French doc", Scope: guidelines.Scope{OrganizationID: orgID, ProjectID: projectID, Locale: fr}, Mandatory: true}, byID[UploadedDocumentID(projectFrDocID)])
+
+	// Sibling sees the unassigned global doc but not the assigned scoped doc.
+	siblingDocs, err := source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: siblingID, Locale: fr})
+	require.NoError(t, err)
+	siblingIDs := make([]string, 0, len(siblingDocs))
+	for _, doc := range siblingDocs {
+		siblingIDs = append(siblingIDs, doc.ID)
+	}
+	require.Contains(t, siblingIDs, UploadedDocumentID(globalDocID))
+	require.NotContains(t, siblingIDs, UploadedDocumentID(orgDocID))
 
 	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID})
 	require.NoError(t, err)
@@ -105,19 +112,54 @@ func TestCurrentReturnsScopedGuidelinesInOrder(t *testing.T) {
 	for _, doc := range docs {
 		ids = append(ids, doc.ID)
 	}
-	require.Equal(t, []string{UploadedDocumentID(orgDocID), "workspace:" + orgID}, ids)
+	require.ElementsMatch(t, []string{UploadedDocumentID(orgDocID), UploadedDocumentID(globalDocID)}, ids)
 
 	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: otherOrgID, ProjectID: projectID, Locale: fr})
 	require.NoError(t, err)
 	for _, doc := range docs {
-		require.NotEqual(t, "project:"+projectID, doc.ID)
 		require.Equal(t, otherOrgID, doc.Scope.OrganizationID)
 	}
-	require.Len(t, docs, 2)
+	require.Len(t, docs, 1)
 
 	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: uuid.NewString()})
 	require.NoError(t, err)
 	require.Empty(t, docs)
+}
+
+func TestCurrentRespectsProjectAssignment(t *testing.T) {
+	f, _ := newGuidelineFixture(t)
+	orgID := f.organization(t)
+	projectID := f.project(t, orgID)
+	siblingID := f.project(t, orgID)
+
+	orgDocID, _ := f.document(t, orgID, nil, nil, "ready", false, "Org-wide doc")
+
+	source := NewWithPool(f.pool)
+
+	// Unassigned org-wide documents apply to every project.
+	docs, err := source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: projectID})
+	require.NoError(t, err)
+	require.Len(t, docs, 1)
+
+	siblingDocs, err := source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: siblingID})
+	require.NoError(t, err)
+	require.Len(t, siblingDocs, 1)
+
+	// Assigning the document to one project scopes it to listed projects only.
+	f.exec(t, `insert into guideline_document_projects (organization_id, document_id, project_id) values ($1, $2, $3)`, orgID, orgDocID, projectID)
+
+	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: projectID})
+	require.NoError(t, err)
+	require.Len(t, docs, 1)
+
+	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: siblingID})
+	require.NoError(t, err)
+	require.Empty(t, docs)
+
+	// Org-only scope keeps all org-scoped content regardless of assignment.
+	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID})
+	require.NoError(t, err)
+	require.Len(t, docs, 1)
 }
 
 func TestNewConnectsAndCloses(t *testing.T) {
@@ -129,5 +171,5 @@ func TestNewConnectsAndCloses(t *testing.T) {
 	require.Empty(t, docs)
 	source.Close()
 	_, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: uuid.NewString()})
-	require.ErrorContains(t, err, "query canonical guidelines")
+	require.ErrorContains(t, err, "query guideline documents")
 }

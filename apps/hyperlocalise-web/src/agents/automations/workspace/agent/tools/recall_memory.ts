@@ -15,34 +15,29 @@ import { z } from "zod";
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { hasWorkspaceAutomationKnowledgeTool } from "@/lib/agents/workspace-automation-types";
 import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
-import { composeScopedKnowledgeMemory } from "@/lib/knowledge-memory/knowledge-memory-compose";
-import {
-  getKnowledgeMemoryForOrganization,
-  getKnowledgeMemoryForProject,
-} from "@/lib/knowledge-memory/knowledge-memory";
-import { selectKnowledgeMemoryContext } from "@/lib/knowledge-memory/knowledge-memory-selection";
+import { loadUploadedGuidelinesContext } from "@/lib/knowledge-memory/uploaded-guidelines-context";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 
 /**
- * Looks up guidance from the organization's shared Memory.md relevant to a model-supplied query.
- * Replaces the old behaviour of silently pasting a fixed excerpt into the composed instructions
- * before the run started — the agent now asks a targeted question instead, reusing the same
- * query-aware excerpting (selectKnowledgeMemoryContext) that already exists for translation jobs.
+ * Looks up guidance from the organization's guideline documents relevant to a model-supplied
+ * query. Automation runs carry no locale context, so retrieval is locale-independent: only
+ * documents that apply to every locale are considered, mirroring translation jobs that exceed
+ * the per-request locale budget.
  *
- * Also re-checks the workspace-knowledge feature flag at call time, not just toolConfig — see
- * save_memory.ts's docstring for why a stored toolConfig alone isn't a reliable gate. recall_memory
- * is the first forced tool whenever Memory is planned at all, so this returning a nonfatal "not
- * found" instead of throwing when the flag is off matters even more here: a thrown error on the
- * very first step (whether from this or a transient flag-lookup failure) shouldn't be able to
- * threaten the workflow/notification tools planned after it — feature availability is an expected
- * condition callers should branch on, not an invariant failure (AGENTS.md's Result-pattern
- * guidance), so this is treated the same way as "Memory is empty".
+ * Also re-checks the workspace-knowledge feature flag at call time, not just toolConfig — a
+ * stored toolConfig alone isn't a reliable gate. recall_memory is the first forced tool whenever
+ * guideline lookup is planned at all, so this returning a nonfatal "not found" instead of
+ * throwing when the flag is off matters even more here: a thrown error on the very first step
+ * (whether from this or a transient flag-lookup failure) shouldn't be able to threaten the
+ * workflow/notification tools planned after it — feature availability is an expected condition
+ * callers should branch on, not an invariant failure (AGENTS.md's Result-pattern guidance), so
+ * this is treated the same way as "no document matched the query".
  */
 export function createRecallMemoryTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({
     description:
-      "Look up guidance from workspace and project Memory.md relevant to a specific question. Returns nothing found if Memory is empty or has no relevant content.",
+      "Look up workspace and project guideline documents relevant to a specific question. Returns nothing found if no document matches.",
     inputSchema: z.object({
       query: z.string().trim().min(1),
     }),
@@ -59,35 +54,21 @@ export function createRecallMemoryTool(session: WorkspaceOrchestratorSession) {
         return { found: false, content: null };
       }
 
-      const projectId = session.automation.projectId?.trim() || null;
-      const [organizationMemory, projectMemory] = await Promise.all([
-        getKnowledgeMemoryForOrganization(session.organizationId),
-        projectId ? getKnowledgeMemoryForProject(projectId) : Promise.resolve(null),
-      ]);
-
-      const selectedGuideline = (content: string) => {
-        if (!content.trim()) {
-          return "";
-        }
-
-        return selectKnowledgeMemoryContext({
-          content,
-          sourceText: query,
-          context: session.automation.name,
-        }).compactText;
-      };
-
-      const compactText = composeScopedKnowledgeMemory({
-        projectGuideline: projectMemory ? selectedGuideline(projectMemory.content) : "",
-        workspaceGuideline: selectedGuideline(organizationMemory.content),
+      const projectId = session.automation.projectId?.trim() || undefined;
+      const guidelines = await loadUploadedGuidelinesContext({
+        organizationId: session.organizationId,
+        projectId,
+        targetLocales: [],
+        sourceText: query,
       });
-      const found = compactText.length > 0;
+
+      const found = guidelines.text.length > 0;
 
       // Record only whether something was found, never the recalled text itself — matches the
       // repo's no-content-in-logs rule (AGENTS.md). The actual content only ever reaches the
       // model's own context via the return value below, not a persisted column.
       session.stepResults.recall_memory = { found };
-      return { found, content: found ? compactText : null };
+      return { found, content: found ? guidelines.text : null };
     },
   });
 }

@@ -24,6 +24,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type guidelineTestFlagsStub struct {
+	enabled bool
+	err     error
+}
+
+func (s guidelineTestFlagsStub) Enabled(context.Context, string, string, string) (bool, error) {
+	return s.enabled, s.err
+}
+
+func guidelineTestHandler(scope *testenv.Scope, role string, flags workspaceFlagChecker) *handler {
+	h := newHandler()
+	h.workspace = &workspaceAPI{
+		pool:       scope.Pool,
+		membership: scope.Membership(role),
+		flags:      flags,
+	}
+	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
+	return h
+}
+
 type recordingGuidelinePublisher struct {
 	mu        sync.Mutex
 	messages  []ingest.Message
@@ -68,7 +88,7 @@ type guidelineTestEnv struct {
 func newGuidelineTestEnv(t *testing.T, role string) *guidelineTestEnv {
 	t.Helper()
 	scope := testenv.Seed(t, testenv.Options{Role: role})
-	h := knowledgeMemoryHandler(scope, role, knowledgeMemoryFlagsStub{enabled: true})
+	h := guidelineTestHandler(scope, role, guidelineTestFlagsStub{enabled: true})
 	publisher := &recordingGuidelinePublisher{}
 	registry, err := objectstore.NewRegistry("r2-primary", map[string]objectstore.Store{"r2-primary": memory.New()})
 	require.NoError(t, err)
@@ -424,22 +444,4 @@ func TestGuidelineDocumentSweepRemarksEnqueueFailedWhenPublishFails(t *testing.T
 	require.NoError(t, pool.QueryRow(t.Context(), `select status, error_code from guideline_documents where id = $1`, id).Scan(&status, &errorCode))
 	require.Equal(t, "failed", status)
 	require.Equal(t, "guideline_ingest_enqueue_failed", errorCode)
-}
-
-func TestKnowledgeMemoryCommitPublishesGuidelineSync(t *testing.T) {
-	env := newGuidelineTestEnv(t, "admin")
-	req := httptest.NewRequest(http.MethodPut, env.scope.OrgPath("/knowledge-memory"), strings.NewReader(`{"content":"Be concise."}`))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("If-Match", `"0"`)
-	rec := env.serve(req)
-	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	require.Equal(t, ingest.Message{SchemaVersion: 1, Operation: ingest.OperationSync, OrganizationID: env.scope.OrganizationID}, env.publisher.last(t))
-
-	projectID := env.scope.MustProject(t, "", "Project")
-	req = httptest.NewRequest(http.MethodPut, env.scope.OrgPath("/projects/"+projectID+"/knowledge-memory"), strings.NewReader(`{"content":"Project rule."}`))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("If-Match", `"0"`)
-	rec = env.serve(req)
-	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	require.Equal(t, ingest.Message{SchemaVersion: 1, Operation: ingest.OperationSync, OrganizationID: env.scope.OrganizationID, ProjectID: projectID}, env.publisher.last(t))
 }

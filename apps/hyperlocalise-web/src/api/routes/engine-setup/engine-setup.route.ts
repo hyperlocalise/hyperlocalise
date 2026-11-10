@@ -307,6 +307,8 @@ export function createEngineSetupRoutes(options: { engineSetupQueue: EngineSetup
 
       const applied = await applyEngineSetup({
         auth: c.var.auth,
+        organizationSlug:
+          c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId,
         run,
         glossaryId: payload.glossaryId ?? null,
       });
@@ -323,18 +325,11 @@ export function createEngineSetupRoutes(options: { engineSetupQueue: EngineSetup
             return badRequestResponse(c, applied.error.code, "Accept at least one suggestion");
           case "glossary_not_found":
             return notFoundResponse(c, applied.error.code, "Glossary was not found");
-          case "knowledge_memory_too_long":
+          case "setup_document_too_long":
             return badRequestResponse(
               c,
               applied.error.code,
-              "Knowledge memory would exceed its size limit. Accept fewer rules.",
-            );
-          case "knowledge_memory_conflict":
-            return apiErrorResponse(
-              c,
-              409,
-              applied.error.code,
-              "Knowledge memory changed while applying. Try again.",
+              "Setup guidance would exceed its size limit. Accept fewer rules.",
             );
           default:
             return assertNever(applied.error);

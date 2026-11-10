@@ -190,9 +190,6 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 		h.reports.register(mux, verifier)
 		h.reports.registerInternal(mux)
 	}
-	if h.knowledgeMemories != nil {
-		h.knowledgeMemories.register(mux, verifier)
-	}
 	if h.guidelineDocuments != nil {
 		h.guidelineDocuments.register(mux, verifier)
 		mux.HandleFunc("POST /internal/guidelines/sweep", func(w http.ResponseWriter, r *http.Request) {

@@ -9,20 +9,22 @@ the embedding model or dimensions requires a new turbopuffer deployment prefix.
 
 ## Documents
 
-The Postgres source returns two kinds of document:
+The Postgres source returns ready rows in `guideline_documents` (`doc:<id>`).
+Only `ready` rows with extracted content are returned. A row with
+`mandatory = true` is returned in full; otherwise only its search hits are
+used. A row with a locale applies only when `Scope.Locale` matches; a null
+locale applies to every locale.
 
-- The workspace and project knowledge memory notes. They are always mandatory
-  and apply to every locale.
-- Uploaded rows in `guideline_documents` (`doc:<id>`). Only `ready` rows with
-  extracted content are returned. A row with `mandatory = true` is returned in
-  full; otherwise only its search hits are used. A row with a locale applies only
-  when `Scope.Locale` matches; a null locale applies to every locale.
-
-Project scopes include workspace documents as well as the project's own.
+Project scopes include assigned org-wide documents as well as the
+project's own. Org-wide uploads (`project_id IS NULL`) check
+`guideline_document_projects`: a document applies to a project only when
+listed, so an unassigned org-wide document applies to no project.
+Project-owned uploads skip assignment. An empty project scope keeps all
+org-scoped content.
 
 ## Indexing
 
-`Service.Sync` indexes the current workspace/project revisions. The turbopuffer
+`Service.Sync` re-indexes the current revisions in a scope. The turbopuffer
 adapter uses deterministic revision-specific chunk IDs, replaces same/older
 versions, and restricts queries to current document/revision pairs in a namespace
 isolated by organization. `Service.Delete` writes a versioned tombstone that
@@ -35,7 +37,7 @@ go-svc writes the row first and then publishes an `ingest.Message` to SQS.
 - `extract_index` reads the stored object, extracts text with
   `internal/textextract`, marks the row `ready` or `failed`, and indexes it.
   Every state change is guarded by `revision_id`, so a stale message is a no-op.
-- `sync` re-indexes a scope after a knowledge memory note commit.
+- `sync` re-indexes a scope after adoption, rebuilds, or a missed document write.
 - `delete` removes a document's chunks through its tombstone version.
 
 A lost publish is recovered by the `/internal/guidelines/sweep` route, which a
@@ -77,6 +79,5 @@ configured with `AI_GATEWAY_API_KEY`, optionally `AI_GATEWAY_BASE_URL`, and
 `GUIDELINE_CHECK_MODEL` (default `openai/gpt-6-luna`); without the key the routes
 return 503.
 
-Translation prompts get uploaded documents from `POST /internal/guidelines/retrieve`,
-which uses the same `Service.Retrieve` path. Typed workspace and project guidelines
-reach the prompt through the web app's lexical selection instead.
+Translation prompts get guideline documents from `POST /internal/guidelines/retrieve`,
+which uses the same `Service.Retrieve` path.

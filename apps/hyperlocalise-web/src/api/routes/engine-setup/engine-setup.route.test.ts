@@ -20,6 +20,7 @@ const {
   assertResolvablePublicHttpUrlMock,
   engineSetupEnqueueMock,
   resolveApiAuthContextFromSessionMock,
+  upsertSetupDocumentMock,
   workspaceKnowledgeFlagRunMock,
 } = vi.hoisted(() => ({
   assertResolvablePublicHttpUrlMock: vi.fn(),
@@ -29,6 +30,9 @@ const {
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
+  ),
+  upsertSetupDocumentMock: vi.fn(async () =>
+    ok({ documentId: "doc_setup_1", revisionId: "22222222-2222-2222-2222-222222222222" }),
   ),
   workspaceKnowledgeFlagRunMock: vi.fn(async () => true),
 }));
@@ -49,6 +53,10 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/engine-setup/setup-guideline-document", () => ({
+  upsertSetupGuidelineDocument: upsertSetupDocumentMock,
+}));
+
 vi.mock("@/lib/security/public-http-fetch", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/security/public-http-fetch")>();
   return {
@@ -63,7 +71,6 @@ import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 import { completeEngineSetupRun, markEngineSetupRunRunning } from "@/lib/engine-setup/store";
 import type { EngineSuggestionDraft } from "@/lib/engine-setup/types";
-import { getKnowledgeMemoryForOrganization } from "@/lib/knowledge-memory/knowledge-memory";
 import { ok } from "@/lib/primitives/result/results";
 
 const client = testClient<AppType>(
@@ -238,7 +245,7 @@ describe("engineSetupRoutes", () => {
     expect(run?.status).toBe("failed");
   });
 
-  it("reviews and applies suggestions into a new glossary and knowledge memory", async () => {
+  it("reviews and applies suggestions into a new glossary and the setup document", async () => {
     const identity = fixture.createWorkosIdentity();
     const headers = await fixture.authHeadersFor(identity);
     const slug = identity.organization.slug ?? "missing-slug";
@@ -309,10 +316,14 @@ describe("engineSetupRoutes", () => {
       );
     expect(concept).toEqual({ primaryTerm: "Flow Studio", translatable: false });
 
-    const knowledge = await getKnowledgeMemoryForOrganization(organizationId);
-    expect(knowledge.content).toContain("## Brand voice");
-    expect(knowledge.content).toContain("- Use sentence case for headings.");
-    expect(knowledge.summary).toBe("Setup wizard: example.com");
+    expect(upsertSetupDocumentMock).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationSlug: slug, sourceUrl: "https://example.com/" }),
+    );
+    const [stored] = await db
+      .select({ appliedKnowledgeRevisionId: schema.engineSetupRuns.appliedKnowledgeRevisionId })
+      .from(schema.engineSetupRuns)
+      .where(eq(schema.engineSetupRuns.id, runId));
+    expect(stored?.appliedKnowledgeRevisionId).toBe("22222222-2222-2222-2222-222222222222");
 
     const again = await engineSetupClient()[":runId"].apply.$post(
       { param: { organizationSlug: slug, runId }, json: {} },

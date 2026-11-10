@@ -19,8 +19,6 @@ import { BookOpenTextIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import { useProjectPageQuery } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/project-page-shell";
-import { getKnowledgeMemory } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/knowledge/_components/knowledge-memory-api";
-import { knowledgeMemoryPreviewQueryKey } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/knowledge/_components/knowledge-memory-query";
 import { buildOrganizationPath, buildProjectPath } from "@/components/app-shell/navigation-config";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { Button } from "@/components/ui/button";
@@ -33,7 +31,9 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { readApiError } from "@/lib/api-error";
+import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { contentEditorGuidelineSheetMessages as messages } from "./content-editor-guideline-sheet.messages";
 
@@ -69,19 +69,21 @@ function GuidelineLink({
   );
 }
 
-function GuidelineDocument({
-  value,
+function GuidelinePanel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-background shadow-md">
+      {children}
+    </div>
+  );
+}
+
+function GuidelineEmpty({
   emptyMessage,
-  isLoading,
-  isError,
   actionHref,
   actionLabel,
   onNavigate,
 }: {
-  value: string;
   emptyMessage: string;
-  isLoading: boolean;
-  isError: boolean;
   actionHref: string | null;
   actionLabel: MessageDescriptor | null;
   onNavigate: () => void;
@@ -92,59 +94,183 @@ function GuidelineDocument({
         href={actionHref}
         label={actionLabel}
         onNavigate={onNavigate}
-        variant={value.trim() ? "outline" : "default"}
+        variant="default"
+      />
+    ) : null;
+  return (
+    <GuidelinePanel>
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 py-16 text-center">
+        <div
+          className="flex size-10 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground"
+          aria-hidden="true"
+        >
+          <BookOpenTextIcon className="size-5" />
+        </div>
+        <p className="max-w-xs text-sm text-pretty text-muted-foreground">{emptyMessage}</p>
+        {action}
+      </div>
+    </GuidelinePanel>
+  );
+}
+
+function GuidelineError({
+  actionHref,
+  actionLabel,
+  onNavigate,
+}: {
+  actionHref: string | null;
+  actionLabel: MessageDescriptor | null;
+  onNavigate: () => void;
+}) {
+  const action =
+    actionHref && actionLabel ? (
+      <GuidelineLink
+        href={actionHref}
+        label={actionLabel}
+        onNavigate={onNavigate}
+        variant="default"
+      />
+    ) : null;
+  return (
+    <GuidelinePanel>
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 py-16 text-center">
+        <p className="text-sm text-pretty text-flame-100">
+          <FormattedMessage {...messages.loadError} />
+        </p>
+        {action}
+      </div>
+    </GuidelinePanel>
+  );
+}
+
+function GuidelineLoading() {
+  return (
+    <GuidelinePanel>
+      <div className="space-y-3 p-5" aria-busy="true">
+        <span className="sr-only">
+          <FormattedMessage {...messages.loading} />
+        </span>
+        <Skeleton className="h-4 w-2/5" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-11/12" />
+        <Skeleton className="h-4 w-3/4" />
+      </div>
+    </GuidelinePanel>
+  );
+}
+
+/**
+ * Lists guideline documents and previews the selected one. Document content is
+ * fetched on selection; the extracted text is what translators and agents see.
+ */
+function GuidelineDocumentViewer({
+  documents,
+  organizationSlug,
+  projectId,
+  client,
+  enabled,
+  emptyMessage,
+  actionHref,
+  actionLabel,
+  onNavigate,
+}: {
+  documents: GuidelineDocument[];
+  organizationSlug: string;
+  projectId?: string;
+  client: GoSvcClient;
+  enabled: boolean;
+  emptyMessage: string;
+  actionHref: string | null;
+  actionLabel: MessageDescriptor | null;
+  onNavigate: () => void;
+}) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = documents.find((document) => document.id === selectedId) ?? documents[0] ?? null;
+  const contentQuery = useQuery({
+    queryKey: ["guideline-sheet-document", organizationSlug, projectId, selected?.id],
+    enabled: enabled && selected != null,
+    queryFn: async ({ signal }) => {
+      const document = await client.guidelines.getDocument(
+        organizationSlug,
+        selected!.id,
+        projectId,
+        {
+          signal,
+        },
+      );
+      return document.content ?? "";
+    },
+  });
+
+  if (documents.length === 0) {
+    return (
+      <GuidelineEmpty
+        emptyMessage={emptyMessage}
+        actionHref={actionHref}
+        actionLabel={actionLabel}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  const action =
+    actionHref && actionLabel ? (
+      <GuidelineLink
+        href={actionHref}
+        label={actionLabel}
+        onNavigate={onNavigate}
+        variant={contentQuery.data?.trim() ? "outline" : "default"}
       />
     ) : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-background shadow-md">
-      {isLoading ? (
-        <div className="space-y-3 p-5" aria-busy="true">
-          <span className="sr-only">
-            <FormattedMessage {...messages.loading} />
-          </span>
-          <Skeleton className="h-4 w-2/5" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-11/12" />
-          <Skeleton className="h-4 w-3/4" />
+    <GuidelinePanel>
+      {documents.length > 1 ? (
+        <div className="flex flex-wrap gap-1.5 border-b border-border px-4 py-3">
+          {documents.map((document) => (
+            <Button
+              key={document.id}
+              type="button"
+              variant={selected?.id === document.id ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setSelectedId(document.id)}
+            >
+              {document.title}
+            </Button>
+          ))}
         </div>
       ) : null}
-
-      {isError ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 py-16 text-center">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+        {contentQuery.isPending ? (
+          <div className="space-y-3" aria-busy="true">
+            <span className="sr-only">
+              <FormattedMessage {...messages.loading} />
+            </span>
+            <Skeleton className="h-4 w-2/5" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-11/12" />
+          </div>
+        ) : null}
+        {contentQuery.isError ? (
           <p className="text-sm text-pretty text-flame-100">
             <FormattedMessage {...messages.loadError} />
           </p>
+        ) : null}
+        {contentQuery.data != null && !contentQuery.data.trim() ? (
+          <p className="text-sm text-pretty text-muted-foreground">
+            <FormattedMessage {...messages.previewUnavailable} />
+          </p>
+        ) : null}
+        {contentQuery.data?.trim() ? (
+          <MarkdownPreview value={contentQuery.data} chrome="minimal" className="bg-transparent" />
+        ) : null}
+      </div>
+      {action ? (
+        <div className="flex justify-end border-t border-border bg-muted/40 px-4 py-3">
           {action}
         </div>
       ) : null}
-
-      {!isLoading && !isError && value.trim() ? (
-        <>
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-            <MarkdownPreview value={value} chrome="minimal" className="bg-transparent" />
-          </div>
-          {action ? (
-            <div className="flex justify-end border-t border-border bg-muted/40 px-4 py-3">
-              {action}
-            </div>
-          ) : null}
-        </>
-      ) : null}
-
-      {!isLoading && !isError && !value.trim() ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 py-16 text-center">
-          <div
-            className="flex size-10 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground"
-            aria-hidden="true"
-          >
-            <BookOpenTextIcon className="size-5" />
-          </div>
-          <p className="max-w-xs text-sm text-pretty text-muted-foreground">{emptyMessage}</p>
-          {action}
-        </div>
-      ) : null}
-    </div>
+    </GuidelinePanel>
   );
 }
 
@@ -154,15 +280,20 @@ export function ContentEditorGuidelineSheet({
   open,
   onOpenChange,
   canWriteProjects = false,
+  client: clientProp,
 }: {
   organizationSlug: string;
   projectId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   canWriteProjects?: boolean;
+  client?: GoSvcClient;
 }) {
   const intl = useIntl();
   const [tab, setTab] = useState<GuidelineTab>("style-guide");
+  const { client: hookClient, loading: clientLoading } = useGoSvcClient();
+  const client = clientProp ?? hookClient;
+  const enabled = open && (clientProp != null || !clientLoading);
   const projectQuery = useProjectPageQuery(organizationSlug, projectId, { enabled: open });
   const project = projectQuery.data;
   const styleGuideContent = project?.translationContextValue ?? "";
@@ -171,69 +302,42 @@ export function ContentEditorGuidelineSheet({
   const projectKnowledgeHref = buildProjectPath(organizationSlug, projectId, "knowledge");
   const workspaceKnowledgeHref = buildOrganizationPath(organizationSlug, "knowledge");
 
-  const projectMemoryQuery = useQuery({
-    queryKey: knowledgeMemoryPreviewQueryKey(organizationSlug, projectId),
-    enabled: open,
-    queryFn: async () => {
-      const response = await getKnowledgeMemory({ organizationSlug, projectId });
-      if (!response.ok) {
-        throw new Error(await readApiError(response, "Unable to load project guideline"));
-      }
-      const body = await response.json();
-      return body.knowledgeMemory?.content ?? "";
+  const projectDocsQuery = useQuery({
+    queryKey: ["guideline-sheet-project-docs", organizationSlug, projectId],
+    enabled,
+    queryFn: ({ signal }) =>
+      client.guidelines.listDocuments(organizationSlug, projectId, { signal }),
+  });
+  const workspaceDocsQuery = useQuery({
+    queryKey: ["guideline-sheet-workspace-docs", organizationSlug],
+    enabled,
+    queryFn: ({ signal }) =>
+      client.guidelines.listDocuments(organizationSlug, undefined, { signal }),
+  });
+  const assignmentsQuery = useQuery({
+    queryKey: ["guideline-sheet-assignments", organizationSlug],
+    enabled,
+    queryFn: async ({ signal }) => {
+      const body = await client.guidelines.listAllDocumentAssignments(organizationSlug, { signal });
+      return new Map(
+        body.assignments.map(
+          (assignment) => [assignment.documentId, assignment.projectIds] as const,
+        ),
+      );
     },
   });
 
-  const workspaceMemoryQuery = useQuery({
-    queryKey: knowledgeMemoryPreviewQueryKey(organizationSlug),
-    enabled: open,
-    queryFn: async () => {
-      const response = await getKnowledgeMemory({ organizationSlug });
-      if (!response.ok) {
-        throw new Error(await readApiError(response, "Unable to load workspace guideline"));
-      }
-      const body = await response.json();
-      return body.knowledgeMemory?.content ?? "";
-    },
+  const assignments = assignmentsQuery.data ?? new Map<string, string[]>();
+  const workspaceDocuments = (workspaceDocsQuery.data ?? []).filter((document) => {
+    if (document.projectId != null) return false;
+    // Org-wide documents with no assignment rows apply to every project;
+    // once assignments exist the document applies only to listed projects.
+    const projectIds = assignments.get(document.id);
+    if (projectIds === undefined) return true;
+    return projectIds.includes(projectId);
   });
 
   const close = () => onOpenChange(false);
-  const documentByTab = {
-    "style-guide": {
-      value: styleGuideContent,
-      emptyMessage: intl.formatMessage(messages.emptyStyleGuide),
-      isLoading: projectQuery.isLoading,
-      isError: projectQuery.isError,
-      actionHref: canEditStyleGuide ? settingsHref : null,
-      actionLabel: canEditStyleGuide ? messages.editStyleGuide : null,
-    },
-    "project-guideline": {
-      value: projectMemoryQuery.data ?? "",
-      emptyMessage: intl.formatMessage(messages.emptyProjectGuideline),
-      isLoading: projectMemoryQuery.isLoading,
-      isError: projectMemoryQuery.isError,
-      actionHref: projectKnowledgeHref,
-      actionLabel: messages.editProjectGuideline,
-    },
-    "workspace-guideline": {
-      value: workspaceMemoryQuery.data ?? "",
-      emptyMessage: intl.formatMessage(messages.emptyWorkspaceGuideline),
-      isLoading: workspaceMemoryQuery.isLoading,
-      isError: workspaceMemoryQuery.isError,
-      actionHref: workspaceKnowledgeHref,
-      actionLabel: messages.editWorkspaceGuideline,
-    },
-  } satisfies Record<
-    GuidelineTab,
-    {
-      value: string;
-      emptyMessage: string;
-      isLoading: boolean;
-      isError: boolean;
-      actionHref: string | null;
-      actionLabel: MessageDescriptor | null;
-    }
-  >;
   const descriptionByTab = {
     "style-guide": messages.descriptionStyleGuide,
     "project-guideline": messages.descriptionProjectGuideline,
@@ -289,13 +393,90 @@ export function ContentEditorGuidelineSheet({
           </div>
 
           <TabsContent value="style-guide" className="flex min-h-0 flex-1 flex-col p-4">
-            <GuidelineDocument {...documentByTab["style-guide"]} onNavigate={close} />
+            {projectQuery.isLoading ? (
+              <GuidelineLoading />
+            ) : projectQuery.isError ? (
+              <GuidelineError
+                actionHref={canEditStyleGuide ? settingsHref : null}
+                actionLabel={canEditStyleGuide ? messages.editStyleGuide : null}
+                onNavigate={close}
+              />
+            ) : styleGuideContent.trim() ? (
+              <GuidelinePanel>
+                <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+                  <MarkdownPreview
+                    value={styleGuideContent}
+                    chrome="minimal"
+                    className="bg-transparent"
+                  />
+                </div>
+                {canEditStyleGuide ? (
+                  <div className="flex justify-end border-t border-border bg-muted/40 px-4 py-3">
+                    <GuidelineLink
+                      href={settingsHref}
+                      label={messages.editStyleGuide}
+                      onNavigate={close}
+                      variant="outline"
+                    />
+                  </div>
+                ) : null}
+              </GuidelinePanel>
+            ) : (
+              <GuidelineEmpty
+                emptyMessage={intl.formatMessage(messages.emptyStyleGuide)}
+                actionHref={canEditStyleGuide ? settingsHref : null}
+                actionLabel={canEditStyleGuide ? messages.editStyleGuide : null}
+                onNavigate={close}
+              />
+            )}
           </TabsContent>
           <TabsContent value="project-guideline" className="flex min-h-0 flex-1 flex-col p-4">
-            <GuidelineDocument {...documentByTab["project-guideline"]} onNavigate={close} />
+            {projectDocsQuery.isPending ? (
+              <GuidelineLoading />
+            ) : projectDocsQuery.isError ? (
+              <GuidelineError
+                actionHref={projectKnowledgeHref}
+                actionLabel={messages.editProjectGuideline}
+                onNavigate={close}
+              />
+            ) : (
+              <GuidelineDocumentViewer
+                key="project"
+                documents={projectDocsQuery.data}
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+                client={client}
+                enabled={enabled}
+                emptyMessage={intl.formatMessage(messages.emptyProjectGuideline)}
+                actionHref={projectKnowledgeHref}
+                actionLabel={messages.editProjectGuideline}
+                onNavigate={close}
+              />
+            )}
           </TabsContent>
           <TabsContent value="workspace-guideline" className="flex min-h-0 flex-1 flex-col p-4">
-            <GuidelineDocument {...documentByTab["workspace-guideline"]} onNavigate={close} />
+            {workspaceDocsQuery.isPending || assignmentsQuery.isPending ? (
+              <GuidelineLoading />
+            ) : workspaceDocsQuery.isError || assignmentsQuery.isError ? (
+              <GuidelineError
+                actionHref={workspaceKnowledgeHref}
+                actionLabel={messages.editWorkspaceGuideline}
+                onNavigate={close}
+              />
+            ) : (
+              <GuidelineDocumentViewer
+                key="workspace"
+                documents={workspaceDocuments}
+                organizationSlug={organizationSlug}
+                projectId={undefined}
+                client={client}
+                enabled={enabled}
+                emptyMessage={intl.formatMessage(messages.emptyWorkspaceGuideline)}
+                actionHref={workspaceKnowledgeHref}
+                actionLabel={messages.editWorkspaceGuideline}
+                onNavigate={close}
+              />
+            )}
           </TabsContent>
         </Tabs>
       </SheetContent>

@@ -17,11 +17,6 @@ import { z } from "zod";
  * passages, instructions and prompts never belong here, because the activity log copies it.
  */
 
-const typedGuidelineUseSchema = z.object({
-  revisionId: z.string().min(1),
-  version: z.number().int().nonnegative(),
-});
-
 const uploadedGuidelineUseSchema = z.object({
   documentId: z.string().min(1),
   revisionId: z.string().min(1),
@@ -34,8 +29,6 @@ const uploadedGuidelineUseSchema = z.object({
 });
 
 const guidelinesUsedSchema = z.object({
-  project: typedGuidelineUseSchema.optional(),
-  workspace: typedGuidelineUseSchema.optional(),
   documents: z.array(uploadedGuidelineUseSchema),
 });
 
@@ -78,7 +71,6 @@ export const generationProvenanceSchema = z.object({
   customInstructions: z.boolean(),
 });
 
-export type TypedGuidelineUse = z.infer<typeof typedGuidelineUseSchema>;
 export type UploadedGuidelineUse = z.infer<typeof uploadedGuidelineUseSchema>;
 export type GuidelinesUsed = z.infer<typeof guidelinesUsedSchema>;
 export type GenerationTrigger = z.infer<typeof generationTriggerSchema>;

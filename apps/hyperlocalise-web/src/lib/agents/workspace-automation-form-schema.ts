@@ -89,7 +89,6 @@ const formStateShape = {
   listIssuesEnabled: flag,
   createIssueEnabled: flag,
   knowledgeEnabled: flag,
-  knowledgeAllowUpdates: flag,
   knowledgeFilesEnabled: flag,
   mcpEnabled: flag,
   mcpConnectionId: text,

@@ -47,7 +47,6 @@ import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 function WorkspaceAutomationEditorStory({
   actions,
-  canUpdateKnowledgeMemory = true,
   disabled,
   errors: initialErrors = {},
   form: initialForm,
@@ -59,7 +58,6 @@ function WorkspaceAutomationEditorStory({
   runHistoryRefreshing,
 }: {
   actions?: ReactNode;
-  canUpdateKnowledgeMemory?: boolean;
   disabled?: boolean;
   errors?: Record<string, string | undefined>;
   form: WorkspaceAutomationFormState;
@@ -80,7 +78,6 @@ function WorkspaceAutomationEditorStory({
         authorName={mode === "detail" ? "Ada Lovelace" : undefined}
         authorUserId={mode === "detail" ? "user_001" : undefined}
         automationId={mode === "detail" ? "11111111-1111-4111-8111-111111111111" : undefined}
-        canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
         disabled={disabled}
         errors={errors}
         form={form}
@@ -147,7 +144,6 @@ function WorkspaceAutomationUndoStory({
         authorName={mode === "detail" ? "Ada Lovelace" : undefined}
         authorUserId={mode === "detail" ? "user_001" : undefined}
         automationId={mode === "detail" ? "11111111-1111-4111-8111-111111111111" : undefined}
-        canUpdateKnowledgeMemory
         errors={{}}
         form={form}
         knowledgeAvailable

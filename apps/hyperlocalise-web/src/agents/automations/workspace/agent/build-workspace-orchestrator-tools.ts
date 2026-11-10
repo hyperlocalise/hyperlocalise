@@ -46,7 +46,6 @@ import { createPushWebflowTranslationsTool } from "./tools/push_webflow_translat
 import { createPushGoogleDriveTranslationsTool } from "./tools/push_google_drive_translations";
 import { createRunContentfulTranslationTool } from "./tools/run_contentful_translation";
 import { createRunGithubWorkflowsTool } from "./tools/run_github_workflows";
-import { createSaveMemoryTool } from "./tools/save_memory";
 import { createUseAhrefsTool } from "./tools/use_ahrefs";
 import { createUseCrowdinTool } from "./tools/use_crowdin";
 import { createUseGithubRepositoryTool } from "./tools/use_github_repository";
@@ -98,7 +97,6 @@ const TOOL_BUILDERS: Record<
   notify_email: createNotifyEmailTool,
   notify_github_comment: createNotifyGithubCommentTool,
   recall_memory: createRecallMemoryTool,
-  save_memory: createSaveMemoryTool,
 };
 
 export function buildWorkspaceOrchestratorTools(session: WorkspaceOrchestratorSession): ToolSet {

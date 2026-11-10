@@ -52,5 +52,5 @@ func TestCurrentWrapsQueryErrors(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 	_, err := NewWithPool(unreachablePool(t)).Current(ctx, guidelines.Scope{OrganizationID: "org", ProjectID: "proj", Locale: "fr"})
-	require.ErrorContains(t, err, "query canonical guidelines")
+	require.ErrorContains(t, err, "query guideline documents")
 }

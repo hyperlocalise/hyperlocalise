@@ -23,7 +23,9 @@ import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
 
 const mocks = vi.hoisted(() => ({
   listDocuments: vi.fn(),
+  getDocument: vi.fn(),
   uploadDocument: vi.fn(),
+  replaceDocument: vi.fn(),
   updateDocument: vi.fn(),
   deleteDocument: vi.fn(),
   toastError: vi.fn(),
@@ -36,7 +38,9 @@ vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
     client: {
       guidelines: {
         listDocuments: mocks.listDocuments,
+        getDocument: mocks.getDocument,
         uploadDocument: mocks.uploadDocument,
+        replaceDocument: mocks.replaceDocument,
         updateDocument: mocks.updateDocument,
         deleteDocument: mocks.deleteDocument,
       },
@@ -148,6 +152,10 @@ describe("GuidelineDocumentsSection", () => {
     expect(screen.getByText("All locales")).toBeTruthy();
     expect(screen.getByText("No readable text was found in this file.")).toBeTruthy();
     expect(mocks.listDocuments).toHaveBeenCalledWith("acme", "project_1", expect.anything());
+    expect(screen.getByRole("link", { name: "French style guide" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1/knowledge/doc-1",
+    );
   });
 
   it("renders nothing when there are no documents", async () => {
@@ -197,6 +205,69 @@ describe("GuidelineDocumentsSection", () => {
     expect(await screen.findByText("French style guide")).toBeTruthy();
     expect(screen.queryByRole("switch")).toBeNull();
     expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+  });
+
+  it("saves title and content edits as a new revision for text documents", async () => {
+    const user = userEvent.setup();
+    mocks.listDocuments.mockResolvedValue([
+      guidelineDocument({ contentType: "text/markdown", filename: "voice.md" }),
+    ]);
+    mocks.getDocument.mockResolvedValue(
+      guidelineDocument({ contentType: "text/markdown", content: "# Voice" }),
+    );
+    mocks.replaceDocument.mockResolvedValue(guidelineDocument({ version: 2 }));
+
+    render(<GuidelineDocumentsSection organizationSlug="acme" canUpdate />, { wrapper });
+
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    const titleInput = await screen.findByLabelText("Title");
+    const contentInput = await screen.findByLabelText("Markdown content");
+    expect(titleInput).toHaveValue("French style guide");
+    expect(contentInput).toHaveValue("# Voice");
+
+    await user.clear(titleInput);
+    await user.type(titleInput, "Voice and tone");
+    await user.clear(contentInput);
+    await user.type(contentInput, "# Voice and tone");
+    await user.click(screen.getByRole("button", { name: "Save guideline" }));
+
+    await waitFor(() => expect(mocks.replaceDocument).toHaveBeenCalled());
+    const [org, id, upload, projectId] = mocks.replaceDocument.mock.calls[0]!;
+    expect(org).toBe("acme");
+    expect(id).toBe("doc-1");
+    expect(projectId).toBeUndefined();
+    expect((upload.file as File).name).toBe("voice-and-tone.md");
+    expect(upload.title).toBe("Voice and tone");
+    expect(mocks.updateDocument).not.toHaveBeenCalled();
+  });
+
+  it("saves title-only edits without replacing the file", async () => {
+    const user = userEvent.setup();
+    mocks.listDocuments.mockResolvedValue([
+      guidelineDocument({ contentType: "text/markdown", filename: "voice.md" }),
+    ]);
+    mocks.getDocument.mockResolvedValue(
+      guidelineDocument({ contentType: "text/markdown", content: "# Voice" }),
+    );
+
+    render(<GuidelineDocumentsSection organizationSlug="acme" canUpdate />, { wrapper });
+
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    const titleInput = await screen.findByLabelText("Title");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Voice");
+    await user.click(screen.getByRole("button", { name: "Save guideline" }));
+
+    await waitFor(() =>
+      expect(mocks.updateDocument).toHaveBeenCalledWith(
+        "acme",
+        "doc-1",
+        { title: "Voice" },
+        undefined,
+      ),
+    );
+    expect(mocks.replaceDocument).not.toHaveBeenCalled();
   });
 });
 

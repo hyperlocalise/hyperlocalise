@@ -12,50 +12,18 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const {
-  commitKnowledgeMemoryMock,
-  getKnowledgeMemoryMock,
-  commitProjectKnowledgeMemoryMock,
-  getProjectKnowledgeMemoryMock,
-  ensureOrganizationProjectRecordMock,
-} = vi.hoisted(() => ({
-  commitKnowledgeMemoryMock: vi.fn(),
-  getKnowledgeMemoryMock: vi.fn(),
-  commitProjectKnowledgeMemoryMock: vi.fn(),
-  getProjectKnowledgeMemoryMock: vi.fn(),
-  ensureOrganizationProjectRecordMock: vi.fn(),
-}));
+const loadUploadedGuidelinesContextMock = vi.hoisted(() =>
+  vi.fn(async (): Promise<UploadedGuidelinesContext> => ({ text: "", documents: [] })),
+);
 
-vi.mock("@/lib/knowledge-memory/knowledge-memory", () => ({
-  commitKnowledgeMemoryForOrganization: commitKnowledgeMemoryMock,
-  getKnowledgeMemoryForOrganization: getKnowledgeMemoryMock,
-  commitKnowledgeMemoryForProject: commitProjectKnowledgeMemoryMock,
-  getKnowledgeMemoryForProject: getProjectKnowledgeMemoryMock,
-}));
-
-vi.mock("@/lib/projects/organization/organization-project-service", () => ({
-  ensureOrganizationProjectRecord: (...args: unknown[]) =>
-    ensureOrganizationProjectRecordMock(...args),
+vi.mock("@/lib/knowledge-memory/uploaded-guidelines-context", () => ({
+  loadUploadedGuidelinesContext: loadUploadedGuidelinesContextMock,
 }));
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import { KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH } from "@/lib/knowledge-memory/knowledge-memory.shared";
-import { err, ok } from "@/lib/primitives/result/results";
+import type { UploadedGuidelinesContext } from "@/lib/knowledge-memory/uploaded-guidelines-context";
 
-import {
-  createGetKnowledgeMemoryTool,
-  createUpdateKnowledgeMemoryTool,
-  updateKnowledgeMemoryToolInputSchema,
-} from "./knowledge-memory-tools";
-
-const currentMemory = {
-  revisionId: "11111111-1111-4111-8111-111111111111",
-  version: 4,
-  content: "# Memory.md\n\n## Voice\nBe clear.\n\n## Legal\nPreserve legal text.",
-  summary: "Current guidance",
-  updatedAt: "2026-07-22T01:00:00.000Z",
-  updatedByUserId: "user_previous",
-};
+import { createGetKnowledgeMemoryTool } from "./knowledge-memory-tools";
 
 function createToolContext(overrides: Partial<ToolContext> = {}): ToolContext {
   return {
@@ -79,196 +47,104 @@ async function executeTool(tool: unknown, input: unknown) {
   return execute(input, { toolCallId: "tool_call_1", messages: [] });
 }
 
-describe("Knowledge Memory agent tools", () => {
+describe("get_knowledge_memory agent tool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getKnowledgeMemoryMock.mockResolvedValue(currentMemory);
-    getProjectKnowledgeMemoryMock.mockResolvedValue(currentMemory);
-    commitKnowledgeMemoryMock.mockResolvedValue(
-      ok({
-        changed: true,
-        knowledgeMemory: {
-          ...currentMemory,
-          revisionId: "22222222-2222-4222-8222-222222222222",
-          version: 5,
-          content: "# Memory.md\n\n## Voice\nBe concise.\n\n## Legal\nPreserve legal text.",
-          summary: "Tighten voice guidance",
-          updatedByUserId: "user_1",
-        },
-      }),
-    );
-    ensureOrganizationProjectRecordMock.mockImplementation(async (input: { projectId: string }) =>
-      ok(input.projectId),
-    );
+    loadUploadedGuidelinesContextMock.mockResolvedValue({ text: "", documents: [] });
   });
 
-  it("returns the complete organization document and revision metadata", async () => {
-    const result = await executeTool(createGetKnowledgeMemoryTool(createToolContext()), {});
+  it("returns matching organization guideline documents", async () => {
+    loadUploadedGuidelinesContextMock.mockResolvedValueOnce({
+      text: "### Brand guide\nNever translate Hyperlocalise.",
+      documents: [
+        {
+          documentId: "doc-1",
+          revisionId: "rev-1",
+          version: 1,
+          title: "Brand guide",
+          mandatory: true,
+        },
+      ],
+    });
+
+    const result = await executeTool(createGetKnowledgeMemoryTool(createToolContext()), {
+      query: "How should the brand name be translated?",
+    });
 
     expect(result).toEqual({
       success: true,
       scope: "organization",
-      knowledgeMemory: currentMemory,
+      found: true,
+      guidelines: {
+        text: "### Brand guide\nNever translate Hyperlocalise.",
+        documents: [
+          {
+            documentId: "doc-1",
+            revisionId: "rev-1",
+            version: 1,
+            title: "Brand guide",
+            mandatory: true,
+          },
+        ],
+      },
     });
-    expect(getKnowledgeMemoryMock).toHaveBeenCalledWith("organization_1");
+    expect(loadUploadedGuidelinesContextMock).toHaveBeenCalledWith({
+      organizationId: "organization_1",
+      projectId: undefined,
+      targetLocales: [],
+      sourceText: "How should the brand name be translated?",
+    });
   });
 
-  it("reads and updates project Memory.md when a project is in context", async () => {
-    getProjectKnowledgeMemoryMock.mockResolvedValue(currentMemory);
-    commitProjectKnowledgeMemoryMock.mockResolvedValue(
-      ok({
-        changed: true,
-        knowledgeMemory: {
-          ...currentMemory,
-          revisionId: "22222222-2222-4222-8222-222222222222",
-          version: 5,
-          content: "# Memory.md\n\n## Voice\nBe concise.\n\n## Legal\nPreserve legal text.",
-          summary: "Tighten project voice",
-          updatedByUserId: "user_1",
-        },
-      }),
+  it("searches project guideline documents when a project is in context", async () => {
+    const result = await executeTool(
+      createGetKnowledgeMemoryTool(createToolContext({ projectId: "project_1" })),
+      { query: "checkout tone", scope: "project" },
     );
 
-    const toolContext = createToolContext({ projectId: "project_1" });
-    const read = await executeTool(createGetKnowledgeMemoryTool(toolContext), {
-      scope: "project",
-    });
-    expect(read).toEqual({
-      success: true,
-      scope: "project",
-      knowledgeMemory: currentMemory,
-    });
-    expect(getProjectKnowledgeMemoryMock).toHaveBeenCalledWith("project_1");
-
-    const updated = await executeTool(createUpdateKnowledgeMemoryTool(toolContext), {
-      scope: "project",
-      expectedRevisionId: currentMemory.revisionId,
-      summary: "Tighten project voice",
-      edits: [{ operation: "replace", matchText: "Be clear.", replacementText: "Be concise." }],
-    });
-    expect(updated).toMatchObject({ success: true, scope: "project", changed: true, version: 5 });
-    expect(ensureOrganizationProjectRecordMock).toHaveBeenCalledWith({
+    expect(result).toMatchObject({ success: true, scope: "project", found: false });
+    expect(loadUploadedGuidelinesContextMock).toHaveBeenCalledWith({
       organizationId: "organization_1",
       projectId: "project_1",
-      userId: "user_1",
-    });
-    expect(commitProjectKnowledgeMemoryMock).toHaveBeenCalledWith({
-      projectId: "project_1",
-      updatedByUserId: "user_1",
-      expectedRevisionId: currentMemory.revisionId,
-      content: "# Memory.md\n\n## Voice\nBe concise.\n\n## Legal\nPreserve legal text.",
-      summary: "Tighten project voice",
+      targetLocales: [],
+      sourceText: "checkout tone",
     });
   });
 
-  it("does not write project Memory.md when the live project cannot be materialized", async () => {
-    ensureOrganizationProjectRecordMock.mockResolvedValueOnce(
-      err({
-        code: "project_not_found",
-        reason: "external_project_unavailable",
-        organizationId: "organization_1",
-        projectId: "ext:crowdin:42",
-      }),
-    );
-
-    const result = await executeTool(
-      createUpdateKnowledgeMemoryTool(createToolContext({ projectId: "ext:crowdin:42" })),
-      {
-        scope: "project",
-        expectedRevisionId: currentMemory.revisionId,
-        summary: "Add live project guidance",
-        edits: [{ operation: "append", insertText: "Keep checkout short." }],
-      },
-    );
-
-    expect(result).toMatchObject({
-      success: false,
-      code: "knowledge_memory_project_unavailable",
-    });
-    expect(commitProjectKnowledgeMemoryMock).not.toHaveBeenCalled();
-  });
-
-  it("does not treat organization Memory.md as project Memory.md", async () => {
+  it("does not search project documents without a project in context", async () => {
     const result = await executeTool(
       createGetKnowledgeMemoryTool(createToolContext({ projectId: null })),
-      { scope: "project" },
+      { query: "checkout tone", scope: "project" },
     );
 
     expect(result).toMatchObject({
       success: false,
       code: "knowledge_memory_project_unavailable",
     });
-    expect(getProjectKnowledgeMemoryMock).not.toHaveBeenCalled();
-    expect(getKnowledgeMemoryMock).not.toHaveBeenCalled();
+    expect(loadUploadedGuidelinesContextMock).not.toHaveBeenCalled();
   });
 
-  it("creates the first version from an empty organization document", async () => {
-    const emptyMemory = {
-      revisionId: null,
-      version: 0,
-      content: "",
-      summary: null,
-      updatedAt: null,
-      updatedByUserId: null,
-    };
-    getKnowledgeMemoryMock.mockResolvedValueOnce(emptyMemory);
-    commitKnowledgeMemoryMock.mockResolvedValueOnce(
-      ok({
-        changed: true,
-        knowledgeMemory: {
-          ...emptyMemory,
-          revisionId: "22222222-2222-4222-8222-222222222222",
-          version: 1,
-          content: "# Memory.md\n\nUse sentence case.",
-          summary: "Add initial style guidance",
-          updatedAt: "2026-07-22T02:00:00.000Z",
-          updatedByUserId: "user_1",
-        },
-      }),
-    );
-
-    const result = await executeTool(createUpdateKnowledgeMemoryTool(createToolContext()), {
-      expectedRevisionId: null,
-      summary: "Add initial style guidance",
-      edits: [{ operation: "append", insertText: "# Memory.md\n\nUse sentence case." }],
+  it("reports found: false without an error when no document matches", async () => {
+    const result = await executeTool(createGetKnowledgeMemoryTool(createToolContext()), {
+      query: "something unrelated",
     });
 
-    expect(result).toMatchObject({ success: true, changed: true, version: 1 });
-    expect(commitKnowledgeMemoryMock).toHaveBeenCalledWith({
-      organizationId: "organization_1",
-      updatedByUserId: "user_1",
-      expectedRevisionId: null,
-      content: "# Memory.md\n\nUse sentence case.",
-      summary: "Add initial style guidance",
+    expect(result).toEqual({
+      success: true,
+      scope: "organization",
+      found: false,
+      guidelines: { text: "", documents: [] },
     });
   });
 
-  it("uses the saved revision when adding to an active empty document", async () => {
-    getKnowledgeMemoryMock.mockResolvedValueOnce({ ...currentMemory, content: "" });
-
-    await executeTool(createUpdateKnowledgeMemoryTool(createToolContext()), {
-      expectedRevisionId: currentMemory.revisionId,
-      summary: "Add guidance after clearing memory",
-      edits: [{ operation: "append", insertText: "# Memory.md\n\nUse sentence case." }],
-    });
-
-    expect(commitKnowledgeMemoryMock).toHaveBeenCalledWith({
-      organizationId: "organization_1",
-      updatedByUserId: "user_1",
-      expectedRevisionId: currentMemory.revisionId,
-      content: "# Memory.md\n\nUse sentence case.",
-      summary: "Add guidance after clearing memory",
-    });
-  });
-
-  it("fails closed without reading when the capability is disabled or omitted", async () => {
+  it("fails closed without searching when the capability is disabled or omitted", async () => {
     const disabled = await executeTool(
       createGetKnowledgeMemoryTool(createToolContext({ knowledgeMemoryEnabled: false })),
-      {},
+      { query: "brand name" },
     );
     const omitted = await executeTool(
       createGetKnowledgeMemoryTool(createToolContext({ knowledgeMemoryEnabled: undefined })),
-      {},
+      { query: "brand name" },
     );
 
     expect(disabled).toMatchObject({
@@ -279,220 +155,6 @@ describe("Knowledge Memory agent tools", () => {
       success: false,
       code: "knowledge_memory_unavailable",
     });
-    expect(getKnowledgeMemoryMock).not.toHaveBeenCalled();
-  });
-
-  it.each([false, undefined])(
-    "fails closed without reading or committing an update when the capability is %s",
-    async (knowledgeMemoryEnabled) => {
-      const result = await executeTool(
-        createUpdateKnowledgeMemoryTool(createToolContext({ knowledgeMemoryEnabled })),
-        {
-          expectedRevisionId: currentMemory.revisionId,
-          summary: "Blocked update",
-          edits: [{ operation: "append", insertText: "Do not save this." }],
-        },
-      );
-
-      expect(result).toMatchObject({
-        success: false,
-        code: "knowledge_memory_unavailable",
-      });
-      expect(getKnowledgeMemoryMock).not.toHaveBeenCalled();
-      expect(commitKnowledgeMemoryMock).not.toHaveBeenCalled();
-    },
-  );
-
-  it("validates revision, summary, and edit-count boundaries", () => {
-    const validInput = {
-      expectedRevisionId: currentMemory.revisionId,
-      summary: "Add checkout guidance",
-      edits: [{ operation: "append" as const, insertText: "Use short checkout labels." }],
-    };
-
-    expect(updateKnowledgeMemoryToolInputSchema.safeParse(validInput).success).toBe(true);
-    expect(
-      updateKnowledgeMemoryToolInputSchema.safeParse({
-        ...validInput,
-        expectedRevisionId: "not-a-revision-id",
-      }).success,
-    ).toBe(false);
-    expect(
-      updateKnowledgeMemoryToolInputSchema.safeParse({ ...validInput, summary: "   " }).success,
-    ).toBe(false);
-    expect(
-      updateKnowledgeMemoryToolInputSchema.safeParse({
-        ...validInput,
-        edits: Array.from({ length: 11 }, () => validInput.edits[0]),
-      }).success,
-    ).toBe(false);
-  });
-
-  it.each(["admin", "localization_manager"] as const)(
-    "applies exact edits immediately for a %s and preserves unrelated markdown",
-    async (membershipRole) => {
-      const result = await executeTool(
-        createUpdateKnowledgeMemoryTool(createToolContext({ membershipRole })),
-        {
-          expectedRevisionId: currentMemory.revisionId,
-          summary: "Tighten voice guidance",
-          edits: [
-            {
-              operation: "replace",
-              matchText: "Be clear.",
-              replacementText: "Be concise.",
-            },
-          ],
-        },
-      );
-
-      expect(result).toEqual({
-        success: true,
-        scope: "organization",
-        changed: true,
-        revisionId: "22222222-2222-4222-8222-222222222222",
-        version: 5,
-        summary: "Tighten voice guidance",
-      });
-      expect(commitKnowledgeMemoryMock).toHaveBeenCalledWith({
-        organizationId: "organization_1",
-        updatedByUserId: "user_1",
-        expectedRevisionId: currentMemory.revisionId,
-        content: "# Memory.md\n\n## Voice\nBe concise.\n\n## Legal\nPreserve legal text.",
-        summary: "Tighten voice guidance",
-      });
-    },
-  );
-
-  it.each(["developer", "reviewer", "translator"] as const)(
-    "does not read or write for a %s update request",
-    async (membershipRole) => {
-      const result = await executeTool(
-        createUpdateKnowledgeMemoryTool(createToolContext({ membershipRole })),
-        {
-          expectedRevisionId: currentMemory.revisionId,
-          summary: "Unauthorized update",
-          edits: [{ operation: "append", insertText: "Do not save this." }],
-        },
-      );
-
-      expect(result).toMatchObject({
-        success: false,
-        code: "knowledge_memory_permission_denied",
-      });
-      expect(getKnowledgeMemoryMock).not.toHaveBeenCalled();
-      expect(commitKnowledgeMemoryMock).not.toHaveBeenCalled();
-    },
-  );
-
-  it("returns a no-op without inventing a new version", async () => {
-    commitKnowledgeMemoryMock.mockResolvedValueOnce(
-      ok({ changed: false, knowledgeMemory: currentMemory }),
-    );
-
-    const result = await executeTool(createUpdateKnowledgeMemoryTool(createToolContext()), {
-      expectedRevisionId: currentMemory.revisionId,
-      summary: "No effective change",
-      edits: [
-        {
-          operation: "replace",
-          matchText: "Be clear.",
-          replacementText: "Be clear.",
-        },
-      ],
-    });
-
-    expect(result).toMatchObject({
-      success: true,
-      changed: false,
-      revisionId: currentMemory.revisionId,
-      version: 4,
-    });
-  });
-
-  it("rejects a stale revision before applying or committing edits", async () => {
-    const result = await executeTool(createUpdateKnowledgeMemoryTool(createToolContext()), {
-      expectedRevisionId: "33333333-3333-4333-8333-333333333333",
-      summary: "Stale update",
-      edits: [{ operation: "append", insertText: "Do not save this." }],
-    });
-
-    expect(result).toMatchObject({
-      success: false,
-      code: "knowledge_memory_conflict",
-      currentRevisionId: currentMemory.revisionId,
-      currentVersion: 4,
-    });
-    expect(commitKnowledgeMemoryMock).not.toHaveBeenCalled();
-  });
-
-  it("maps a commit-time race to a conflict without retrying", async () => {
-    const latestMemory = {
-      ...currentMemory,
-      revisionId: "44444444-4444-4444-8444-444444444444",
-      version: 5,
-    };
-    commitKnowledgeMemoryMock.mockResolvedValueOnce(
-      err({ code: "precondition_failed", current: latestMemory }),
-    );
-
-    const result = await executeTool(createUpdateKnowledgeMemoryTool(createToolContext()), {
-      expectedRevisionId: currentMemory.revisionId,
-      summary: "Racing update",
-      edits: [{ operation: "append", insertText: "Do not overwrite the race." }],
-    });
-
-    expect(result).toMatchObject({
-      success: false,
-      code: "knowledge_memory_conflict",
-      currentRevisionId: latestMemory.revisionId,
-      currentVersion: 5,
-    });
-    expect(commitKnowledgeMemoryMock).toHaveBeenCalledTimes(1);
-  });
-
-  it.each([
-    {
-      matchText: "Missing text",
-      code: "knowledge_memory_edit_target_not_found",
-    },
-    {
-      matchText: "Memory.md",
-      code: "knowledge_memory_edit_target_ambiguous",
-      content: "Memory.md and Memory.md",
-    },
-  ])("does not commit when an exact edit target is invalid", async (fixture) => {
-    if (fixture.content) {
-      getKnowledgeMemoryMock.mockResolvedValueOnce({ ...currentMemory, content: fixture.content });
-    }
-
-    const result = await executeTool(createUpdateKnowledgeMemoryTool(createToolContext()), {
-      expectedRevisionId: currentMemory.revisionId,
-      summary: "Invalid exact edit",
-      edits: [{ operation: "delete", matchText: fixture.matchText }],
-    });
-
-    expect(result).toMatchObject({ success: false, code: fixture.code, editIndex: 0 });
-    expect(commitKnowledgeMemoryMock).not.toHaveBeenCalled();
-  });
-
-  it("does not commit when an edit would exceed the document limit", async () => {
-    getKnowledgeMemoryMock.mockResolvedValueOnce({
-      ...currentMemory,
-      content: "a".repeat(KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH),
-    });
-
-    const result = await executeTool(createUpdateKnowledgeMemoryTool(createToolContext()), {
-      expectedRevisionId: currentMemory.revisionId,
-      summary: "Oversized update",
-      edits: [{ operation: "append", insertText: "x" }],
-    });
-
-    expect(result).toMatchObject({
-      success: false,
-      code: "knowledge_memory_content_too_long",
-      editIndex: 0,
-    });
-    expect(commitKnowledgeMemoryMock).not.toHaveBeenCalled();
+    expect(loadUploadedGuidelinesContextMock).not.toHaveBeenCalled();
   });
 });

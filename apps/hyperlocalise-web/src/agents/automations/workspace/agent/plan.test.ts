@@ -511,7 +511,7 @@ describe("buildWorkspaceOrchestratorPlan", () => {
             validation: false,
           },
           slack: { enabled: true, channelId: "C123" },
-          knowledge: { enabled: true, allowUpdates: false },
+          knowledge: { enabled: true },
         },
       }),
     );
@@ -519,7 +519,7 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["run_github_workflows", "notify_slack"]);
   });
 
-  it("does not plan save_memory when knowledge updates are allowed", () => {
+  it("does not plan save_memory: the save tool no longer exists", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({
         projectId: "project-1",
@@ -532,7 +532,7 @@ describe("buildWorkspaceOrchestratorPlan", () => {
             validation: false,
           },
           slack: { enabled: true, channelId: "C123" },
-          knowledge: { enabled: true, allowUpdates: true },
+          knowledge: { enabled: true },
         },
       }),
     );
@@ -540,16 +540,16 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["run_github_workflows", "notify_slack"]);
   });
 
-  it("doesn't plan save_memory when allowUpdates is off", () => {
+  it("doesn't plan recall_memory when knowledge is enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({
         toolConfig: {
-          knowledge: { enabled: true, allowUpdates: false },
+          knowledge: { enabled: true },
         },
       }),
     );
 
-    expect(plan.tools).not.toContain("save_memory");
+    expect(plan.tools).not.toContain("recall_memory");
   });
 
   it("plans Mailchimp import by default and push when operation is push_approved", () => {
@@ -580,7 +580,7 @@ describe("buildWorkspaceOrchestratorPlan", () => {
 describe("planHasActionableTool", () => {
   it("is false when only knowledge recall is enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(
-      automation({ toolConfig: { knowledge: { enabled: true, allowUpdates: false } } }),
+      automation({ toolConfig: { knowledge: { enabled: true } } }),
     );
 
     expect(plan.tools).toEqual([]);
@@ -593,7 +593,7 @@ describe("planHasActionableTool", () => {
         projectId: "project-1",
         toolConfig: {
           slack: { enabled: true, channelId: "C123" },
-          knowledge: { enabled: true, allowUpdates: false },
+          knowledge: { enabled: true },
         },
       }),
     );
@@ -606,9 +606,9 @@ describe("planHasActionableTool", () => {
     expect(planHasActionableTool(buildWorkspaceOrchestratorPlan(automation()))).toBe(false);
   });
 
-  it("is false when knowledge recall and updates are enabled without another tool", () => {
+  it("is false when only knowledge recall is enabled, with no other tool", () => {
     const plan = buildWorkspaceOrchestratorPlan(
-      automation({ toolConfig: { knowledge: { enabled: true, allowUpdates: true } } }),
+      automation({ toolConfig: { knowledge: { enabled: true } } }),
     );
 
     expect(plan.tools).toEqual([]);

@@ -31,8 +31,8 @@ export const contentEditorGuidelineSheetMessages = defineMessages({
     description: "Description for the project guideline tab in the editor guideline sheet",
   },
   descriptionWorkspaceGuideline: {
-    defaultMessage: "Rules shared by every project in this workspace.",
-    id: "o4QwHRAiJ4",
+    defaultMessage: "Guideline documents available to this project.",
+    id: "s8ifgFmn2P",
     description: "Description for the workspace guideline tab in the editor guideline sheet",
   },
   tabStyleGuide: {
@@ -89,5 +89,10 @@ export const contentEditorGuidelineSheetMessages = defineMessages({
     defaultMessage: "Open workspace guideline",
     id: "h1H8ZqvX5J",
     description: "Link to workspace guideline page",
+  },
+  previewUnavailable: {
+    defaultMessage: "This document has no readable text yet.",
+    id: "XL3HPQrRJ1",
+    description: "Shown when a guideline document has no previewable content",
   },
 });

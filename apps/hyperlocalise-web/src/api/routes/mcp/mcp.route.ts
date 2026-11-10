@@ -159,10 +159,7 @@ import { mcpGetKnowledgeMemoryInputSchema } from "@/api/routes/mcp/mcp-get-knowl
 import { mcpCheckGuidelinesInputSchema } from "@/api/routes/mcp/mcp-check-guidelines.schema";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
-import {
-  getKnowledgeMemoryForOrganization,
-  getKnowledgeMemoryForProject,
-} from "@/lib/knowledge-memory/knowledge-memory";
+import { loadUploadedGuidelinesContext } from "@/lib/knowledge-memory/uploaded-guidelines-context";
 import { workspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 
 // upload_sources accepts up to maxPublicUploadBytes, possibly base64-encoded,
@@ -392,24 +389,6 @@ export function getMcpProtectedResourceMetadata(origin: string, apiBasePath = "/
     authorization_servers: [origin],
     scopes_supported: ["mcp"],
     bearer_methods_supported: ["header"],
-  };
-}
-
-const MAX_MCP_KNOWLEDGE_MEMORY_CONTENT_LENGTH = 32_000;
-
-function compactMcpKnowledgeMemoryContent(content: string) {
-  const characters = Array.from(content);
-
-  if (characters.length <= MAX_MCP_KNOWLEDGE_MEMORY_CONTENT_LENGTH) {
-    return {
-      content,
-      truncated: false,
-    };
-  }
-
-  return {
-    content: `${characters.slice(0, MAX_MCP_KNOWLEDGE_MEMORY_CONTENT_LENGTH - 1).join("")}…`,
-    truncated: true,
   };
 }
 
@@ -2816,10 +2795,10 @@ async function createMcpServerForRequest(
     {
       annotations: MCP_READ_ONLY_TOOL,
       description:
-        "Read organization or project knowledge memory guidelines before translating or filing issues.",
+        "Search workspace and project guideline documents for passages relevant to a question. Returns nothing found if no document matches.",
       inputSchema: mcpGetKnowledgeMemoryInputSchema,
     },
-    async ({ scope, projectId }) => {
+    async ({ query, scope, projectId, targetLocale }) => {
       if (!(await isMcpKnowledgeMemoryFeatureEnabled(apiAuth))) {
         return mcpToolError(
           "knowledge_memory_unavailable",
@@ -2827,52 +2806,38 @@ async function createMcpServerForRequest(
         );
       }
 
-      if (scope === "organization") {
-        const knowledgeMemory = await getKnowledgeMemoryForOrganization(
-          apiAuth.organization.localOrganizationId,
-        );
+      if (scope === "project") {
+        if (!projectId) {
+          return mcpToolError(
+            "invalid_knowledge_memory_request",
+            "projectId is required when scope is project",
+          );
+        }
 
-        const compactMemory = compactMcpKnowledgeMemoryContent(knowledgeMemory.content);
+        const ctx = mcpToolContext(apiAuth);
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                scope: "organization",
-                ...compactMemory,
-                updatedAt: knowledgeMemory.updatedAt,
-              }),
-            },
-          ],
-        };
+        if (!(await toolCanAccessProject(ctx, projectId))) {
+          return mcpToolError("project_not_found", "Project not found or inaccessible");
+        }
       }
 
-      if (!projectId) {
-        return mcpToolError(
-          "invalid_knowledge_memory_request",
-          "projectId is required when scope is project",
-        );
-      }
-
-      const ctx = mcpToolContext(apiAuth);
-
-      if (!(await toolCanAccessProject(ctx, projectId))) {
-        return mcpToolError("project_not_found", "Project not found or inaccessible");
-      }
-
-      const knowledgeMemory = await getKnowledgeMemoryForProject(projectId);
-      const compactMemory = compactMcpKnowledgeMemoryContent(knowledgeMemory.content);
+      const guidelines = await loadUploadedGuidelinesContext({
+        organizationId: apiAuth.organization.localOrganizationId,
+        projectId: scope === "project" ? projectId : undefined,
+        targetLocales: targetLocale ? [targetLocale] : [],
+        sourceText: query,
+      });
 
       return {
         content: [
           {
             type: "text",
             text: JSON.stringify({
-              scope: "project",
-              projectId,
-              ...compactMemory,
-              updatedAt: knowledgeMemory.updatedAt,
+              scope,
+              ...(scope === "project" ? { projectId } : {}),
+              found: guidelines.text.length > 0,
+              text: guidelines.text,
+              documents: guidelines.documents,
             }),
           },
         ],

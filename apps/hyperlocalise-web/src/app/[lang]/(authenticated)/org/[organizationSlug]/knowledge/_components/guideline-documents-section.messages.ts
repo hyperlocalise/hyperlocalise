@@ -75,6 +75,11 @@ export const guidelineDocumentsSectionMessages = defineMessages({
     id: "G8enB0YSsL",
     description: "Button to delete an uploaded guideline document",
   },
+  edit: {
+    defaultMessage: "Edit",
+    id: "ZrgfPj1ehM",
+    description: "Button to edit a guideline document",
+  },
   deleteTitle: {
     defaultMessage: "Delete this guideline?",
     id: "7I6/WHswGm",

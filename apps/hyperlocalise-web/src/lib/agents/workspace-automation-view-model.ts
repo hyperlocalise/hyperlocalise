@@ -113,7 +113,6 @@ export type WorkspaceAutomationFormState = {
   listIssuesEnabled: boolean;
   createIssueEnabled: boolean;
   knowledgeEnabled: boolean;
-  knowledgeAllowUpdates: boolean;
   knowledgeFilesEnabled: boolean;
   mcpEnabled: boolean;
   mcpConnectionId: string;
@@ -479,7 +478,6 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     listIssuesEnabled: false,
     createIssueEnabled: false,
     knowledgeEnabled: false,
-    knowledgeAllowUpdates: false,
     knowledgeFilesEnabled: false,
     mcpEnabled: false,
     mcpConnectionId: "",
@@ -683,7 +681,6 @@ export function createWorkspaceAutomationFormStateFromRecord(
     listIssuesEnabled: Boolean(listIssues?.enabled),
     createIssueEnabled: Boolean(createIssue?.enabled),
     knowledgeEnabled: Boolean(knowledge?.enabled),
-    knowledgeAllowUpdates: Boolean(knowledge?.allowUpdates),
     knowledgeFilesEnabled: Boolean(knowledgeFiles?.enabled),
     mcpEnabled: Boolean(mcp?.enabled),
     mcpConnectionId: mcp?.connectionId ?? "",
@@ -1253,9 +1250,6 @@ export function formStateToWorkspaceAutomationPayload(
       ? {
           knowledge: {
             enabled: true,
-            // Defense in depth: even if the UI's dependency between the two toggles ever drifts,
-            // updates can never be serialized as allowed without recall also being enabled.
-            allowUpdates: form.knowledgeAllowUpdates,
           },
         }
       : {}),

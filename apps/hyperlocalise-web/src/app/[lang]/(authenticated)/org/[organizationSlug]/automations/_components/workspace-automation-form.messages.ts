@@ -248,8 +248,8 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   manageMemories: {
     defaultMessage: "Manage",
-    id: "WNUkfqHAtJ",
-    description: "Button to open the knowledge memories editor from an automation",
+    id: "p5GBATu78J",
+    description: "Button to open the workspace guideline sheet from an automation",
   },
   manageMemoriesTitle: {
     defaultMessage: "Guideline",
@@ -257,25 +257,19 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Title for the workspace guideline management sheet",
   },
   manageMemoriesDescription: {
-    defaultMessage: "Edit the shared workspace guideline used by this automation.",
-    id: "rLqAlt6azb",
+    defaultMessage: "Manage the shared workspace guideline documents used by this automation.",
+    id: "gDQWtH8Qce",
     description: "Description for the workspace guideline management sheet",
+  },
+  openGuideline: {
+    defaultMessage: "Open Guideline",
+    id: "h+hl88hWgz",
+    description: "Button opening the workspace Guideline page from an automation",
   },
   removeMemoriesTool: {
     defaultMessage: "Remove memories tool",
     id: "axtydiBtML",
     description: "Accessible label to remove the knowledge memories tool",
-  },
-  allowMemoryUpdates: {
-    defaultMessage: "Allow memory updates",
-    id: "Bel9GZJcDc",
-    description: "Toggle label letting this automation append to organization Memory.md",
-  },
-  allowMemoryUpdatesWarning: {
-    defaultMessage:
-      "Allows this automation to append information to the organization's shared Memory.md. Changes are recorded in revision history and can be restored.",
-    id: "zLdcgO8mwD",
-    description: "Warning copy shown when the allow-memory-updates toggle is on",
   },
   enableKnowledgeFirstShortcut: {
     defaultMessage: "Enable first",

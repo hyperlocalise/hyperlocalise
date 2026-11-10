@@ -29,9 +29,7 @@ type guidelineRetriever interface {
 	Retrieve(ctx context.Context, scope guidelines.Scope, text string, limit int) (guidelines.Result, error)
 }
 
-// guidelineRetrieveAPI returns uploaded guideline documents for translation
-// prompts. Typed workspace and project guidelines are excluded because the web
-// app already selects them.
+// guidelineRetrieveAPI returns guideline documents for translation prompts.
 type guidelineRetrieveAPI struct {
 	retriever guidelineRetriever
 	pool      *pgxpool.Pool
@@ -124,7 +122,7 @@ func (api *guidelineRetrieveAPI) retrieve(ctx context.Context, payload guideline
 		scope.ProjectID = projectID
 	}
 
-	// Typed guidelines share the ranking, so over-fetch before filtering them out.
+	// Rankings interleave locales, so over-fetch before filtering them out.
 	searchLimit := min(2*limit, 32)
 	results := make([]guidelines.Result, len(locales))
 	group, groupCtx := errgroup.WithContext(ctx)
@@ -188,7 +186,7 @@ func (c *collectedGuidelines) noteRevision(documentID, revisionID string) {
 	c.revisions[documentID] = revisionID
 }
 
-// collectUploaded keeps uploaded documents only. Mandatory documents are
+// collectUploaded keeps guideline documents only. Mandatory documents are
 // returned whole, so their passages are dropped; other passages interleave
 // the per-locale rankings.
 func collectUploaded(results []guidelines.Result, limit int) collectedGuidelines {
@@ -239,11 +237,23 @@ func collectUploaded(results []guidelines.Result, limit int) collectedGuidelines
 
 // mergeQuery reloads metadata only for rows that are still ready and in the
 // requested project and locale scope. An empty locale matches unscoped rows only.
+// Org-wide rows respect guideline_document_projects assignment: an org-wide
+// document with no assignment rows applies to every project; when assignment
+// rows exist the document applies only to listed projects.
 const mergeQuery = `
         select id::text, revision_id::text, version, title, coalesce(locale, '')
         from guideline_documents
         where organization_id::text = $1 and id::text = any($2) and status = 'ready'
-          and (project_id is null or project_id = $3)
+          and (
+            (project_id is null and ($3 = '' or not exists (
+              select 1 from guideline_document_projects g
+              where g.document_id = guideline_documents.id
+            ) or exists (
+              select 1 from guideline_document_projects g
+              where g.document_id = guideline_documents.id and g.project_id = $3
+            )))
+            or project_id = $3
+          )
           and (locale is null or locale = any($4))`
 
 // merge adds titles and locales, dropping documents that were deleted, left

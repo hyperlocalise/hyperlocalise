@@ -263,11 +263,8 @@ const createIssueToolConfigSchema = z
 const knowledgeToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
-    // Lets the automation append to the shared organization Memory.md via the save_memory tool.
-    // Meaningless without `enabled`; callers must not treat this as authoritative on its own.
-    allowUpdates: z.boolean().default(false),
   })
-  .default({ enabled: false, allowUpdates: false });
+  .default({ enabled: false });
 
 const knowledgeFilesToolConfigSchema = z
   .object({
@@ -1241,13 +1238,6 @@ export function hasWorkspaceAutomationCreateIssueTool(toolConfig: WorkspaceAutom
 
 export function hasWorkspaceAutomationKnowledgeTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.knowledge?.enabled);
-}
-
-// Meaningless without hasWorkspaceAutomationKnowledgeTool — callers must check both, not just this.
-export function hasWorkspaceAutomationKnowledgeUpdatesAllowed(
-  toolConfig: WorkspaceAutomationToolConfig,
-) {
-  return Boolean(toolConfig.knowledge?.enabled && toolConfig.knowledge.allowUpdates);
 }
 
 export function hasWorkspaceAutomationKnowledgeFilesTool(
