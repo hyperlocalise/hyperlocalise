@@ -7,14 +7,15 @@ export const guidelineDocumentAssignmentsMessages = defineMessages({
     description: "Section title for per-document project assignments",
   },
   sectionDescription: {
-    defaultMessage: "Org-wide documents apply to no project until you select specific projects.",
-    id: "HFXeKhiQQG",
+    defaultMessage:
+      "Unassigned org-wide documents apply to every project. Select specific projects to scope this document down.",
+    id: "oHs8rf1U7k",
     description: "Description for per-document project assignments",
   },
   noProjects: {
-    defaultMessage: "No projects",
-    id: "omsGAEB6mX",
-    description: "Badge when a guideline applies to no project yet",
+    defaultMessage: "All projects",
+    id: "8w+jrEv9vl",
+    description: "Badge when a guideline applies to every project (no assignment yet)",
   },
   selectedProjects: {
     defaultMessage: "{count, plural, one {# project} other {# projects}}",

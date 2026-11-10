@@ -164,8 +164,9 @@ export const projectKnowledgeMemoryRevisions = pgTable(
 
 /**
  * @deprecated The typed workspace guideline note is retired; org-wide guideline
- * documents use guideline_document_projects instead. The table stays (unwritten)
- * so existing databases keep working without a migration.
+ * documents use guideline_document_projects instead. The table is created by
+ * migration 0181 so fresh databases match the historical shape, but nothing
+ * reads or writes it.
  */
 export const workspaceGuidelineProjects = pgTable(
   "workspace_guideline_projects",
@@ -190,8 +191,10 @@ export const workspaceGuidelineProjects = pgTable(
 );
 
 /**
- * Attaches an org-wide uploaded guideline document to selected projects. Empty
- * for a document means it applies to every project in that org. Only documents
+ * Attaches an org-wide uploaded guideline document to selected projects. An
+ * org-wide document with no assignment rows applies to every project in the
+ * org (this is how setup-wizard guidance stays global); once assignment rows
+ * exist the document applies only to listed projects. Only documents
  * with a null project_id can be attached; project-owned documents belong to
  * one project already.
  */

@@ -69,7 +69,10 @@ func listGuidelineAssignmentProjects(ctx context.Context, db dictionaryDB, actor
 func (api *guidelineDocumentAPI) listAllDocumentAssignments(_ http.ResponseWriter, r *http.Request, actor workspaceActor) (int, any, error) {
 	rows, err := api.knowledge.workspace.pool.Query(r.Context(), `select g.document_id::text, g.project_id from guideline_document_projects g
 		join guideline_documents d on d.id = g.document_id
-		where g.organization_id = $1 and d.organization_id = $1 and d.project_id is null`, actor.organizationID)
+		join projects p on p.id = g.project_id and p.organization_id = $1
+		where g.organization_id = $1 and d.organization_id = $1 and d.project_id is null
+		and `+formatQaProjectTeamAccessSQL(2, 3, 1),
+		actor.organizationID, actor.role == "admin" || actor.role == "localization_manager", actor.userID)
 	if err != nil {
 		return 0, nil, err
 	}

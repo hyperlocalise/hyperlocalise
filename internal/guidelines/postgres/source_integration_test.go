@@ -73,7 +73,9 @@ func TestCurrentReturnsScopedGuidelinesInOrder(t *testing.T) {
 	fr, de := "fr-FR", "de-DE"
 
 	orgDocID, orgDocRevision := f.document(t, orgID, nil, nil, "ready", false, "Org-wide doc")
-	// Org-wide documents apply to a project only when assigned.
+	// Org-wide documents with no assignment rows apply to every project;
+	// documents with assignments apply only to listed projects.
+	globalDocID, globalDocRevision := f.document(t, orgID, nil, nil, "ready", false, "Global doc")
 	f.exec(t, `insert into guideline_document_projects (organization_id, document_id, project_id) values ($1, $2, $3)`, orgID, orgDocID, projectID)
 	projectFrDocID, projectFrRevision := f.document(t, orgID, &projectID, &fr, "ready", true, "Project French doc")
 	f.document(t, orgID, &projectID, &de, "ready", true, "German doc")
@@ -85,10 +87,24 @@ func TestCurrentReturnsScopedGuidelinesInOrder(t *testing.T) {
 	source := NewWithPool(f.pool)
 	docs, err := source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: projectID, Locale: fr})
 	require.NoError(t, err)
-	require.Equal(t, []guidelines.Document{
-		{ID: UploadedDocumentID(orgDocID), RevisionID: orgDocRevision, Version: 2, Content: "Org-wide doc", Scope: guidelines.Scope{OrganizationID: orgID}, Mandatory: false},
-		{ID: UploadedDocumentID(projectFrDocID), RevisionID: projectFrRevision, Version: 2, Content: "Project French doc", Scope: guidelines.Scope{OrganizationID: orgID, ProjectID: projectID, Locale: fr}, Mandatory: true},
-	}, docs)
+	require.Len(t, docs, 3)
+	byID := map[string]guidelines.Document{}
+	for _, doc := range docs {
+		byID[doc.ID] = doc
+	}
+	require.Equal(t, guidelines.Document{ID: UploadedDocumentID(orgDocID), RevisionID: orgDocRevision, Version: 2, Content: "Org-wide doc", Scope: guidelines.Scope{OrganizationID: orgID}, Mandatory: false}, byID[UploadedDocumentID(orgDocID)])
+	require.Equal(t, guidelines.Document{ID: UploadedDocumentID(globalDocID), RevisionID: globalDocRevision, Version: 2, Content: "Global doc", Scope: guidelines.Scope{OrganizationID: orgID}, Mandatory: false}, byID[UploadedDocumentID(globalDocID)])
+	require.Equal(t, guidelines.Document{ID: UploadedDocumentID(projectFrDocID), RevisionID: projectFrRevision, Version: 2, Content: "Project French doc", Scope: guidelines.Scope{OrganizationID: orgID, ProjectID: projectID, Locale: fr}, Mandatory: true}, byID[UploadedDocumentID(projectFrDocID)])
+
+	// Sibling sees the unassigned global doc but not the assigned scoped doc.
+	siblingDocs, err := source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: siblingID, Locale: fr})
+	require.NoError(t, err)
+	siblingIDs := make([]string, 0, len(siblingDocs))
+	for _, doc := range siblingDocs {
+		siblingIDs = append(siblingIDs, doc.ID)
+	}
+	require.Contains(t, siblingIDs, UploadedDocumentID(globalDocID))
+	require.NotContains(t, siblingIDs, UploadedDocumentID(orgDocID))
 
 	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID})
 	require.NoError(t, err)
@@ -96,7 +112,7 @@ func TestCurrentReturnsScopedGuidelinesInOrder(t *testing.T) {
 	for _, doc := range docs {
 		ids = append(ids, doc.ID)
 	}
-	require.Equal(t, []string{UploadedDocumentID(orgDocID)}, ids)
+	require.ElementsMatch(t, []string{UploadedDocumentID(orgDocID), UploadedDocumentID(globalDocID)}, ids)
 
 	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: otherOrgID, ProjectID: projectID, Locale: fr})
 	require.NoError(t, err)
@@ -120,12 +136,16 @@ func TestCurrentRespectsProjectAssignment(t *testing.T) {
 
 	source := NewWithPool(f.pool)
 
-	// Unassigned org-wide documents apply to no project.
+	// Unassigned org-wide documents apply to every project.
 	docs, err := source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: projectID})
 	require.NoError(t, err)
-	require.Empty(t, docs)
+	require.Len(t, docs, 1)
 
-	// Assign the document to the project; sibling still gets nothing.
+	siblingDocs, err := source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: siblingID})
+	require.NoError(t, err)
+	require.Len(t, siblingDocs, 1)
+
+	// Assigning the document to one project scopes it to listed projects only.
 	f.exec(t, `insert into guideline_document_projects (organization_id, document_id, project_id) values ($1, $2, $3)`, orgID, orgDocID, projectID)
 
 	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: projectID})

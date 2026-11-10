@@ -205,6 +205,9 @@ export function GuidelineDocumentDetailContent({
           organizationSlug={organizationSlug}
           projectId={projectId}
           document={editing ? document : null}
+          onSaved={() => {
+            void documentQuery.refetch();
+          }}
         />
       ) : null}
     </div>

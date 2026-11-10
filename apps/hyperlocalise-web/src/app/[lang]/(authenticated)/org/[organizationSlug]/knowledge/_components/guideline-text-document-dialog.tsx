@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -88,6 +88,8 @@ export function GuidelineTextDocumentDialog({
   const [titleError, setTitleError] = useState<string | null>(null);
   const [contentError, setContentError] = useState<string | null>(null);
 
+  const contentSyncedForRef = useRef<string | null>(null);
+
   const contentQuery = useQuery({
     queryKey: ["guideline-document-content", organizationSlug, projectId, document?.id],
     enabled: open && editing && !loading,
@@ -103,14 +105,16 @@ export function GuidelineTextDocumentDialog({
       setContent("");
       setTitleError(null);
       setContentError(null);
+      contentSyncedForRef.current = null;
     }
   }, [open, document?.id, document?.title]);
 
   useEffect(() => {
-    if (open && editing && contentQuery.data) {
+    if (open && editing && contentQuery.data && contentSyncedForRef.current !== document?.id) {
       setContent(contentQuery.data.content ?? "");
+      contentSyncedForRef.current = document?.id ?? null;
     }
-  }, [open, editing, contentQuery.data]);
+  }, [open, editing, contentQuery.data, document?.id]);
 
   const uploadDocument = useGuidelineDocumentUpload(organizationSlug, projectId);
 
@@ -141,6 +145,14 @@ export function GuidelineTextDocumentDialog({
       void queryClient.invalidateQueries({
         queryKey: guidelineDocumentsQueryKey(organizationSlug, projectId),
       });
+      if (document?.id) {
+        void queryClient.invalidateQueries({
+          queryKey: ["guideline-document", organizationSlug, projectId, document.id],
+        });
+        void queryClient.invalidateQueries({
+          queryKey: ["guideline-document-content", organizationSlug, projectId, document.id],
+        });
+      }
       onOpenChange(false);
       onSaved?.();
     },
