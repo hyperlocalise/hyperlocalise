@@ -19,7 +19,7 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | Variable | Description |
 |----------|-------------|
 | `WORKOS_API_KEY` | WorkOS API key (`sk_test_...` or `sk_live_...`). |
-| `WORKOS_CLIENT_ID` | WorkOS client ID (`client_...`). Required to verify session access tokens (`aud`) and to refresh sealed sessions. |
+| `WORKOS_CLIENT_ID` | Client ID of the environment's default WorkOS application (`client_...`). Required to verify session access tokens (JWKS and `iss`) and to refresh sealed sessions. |
 
 ### Optional
 
@@ -589,7 +589,7 @@ req.Header.Set(token.HeaderName, token.HeaderValue)
 
 The web route is `POST /api/internal/tms/access-token`. It accepts the same service token as go-svc `/internal/*` routes. Browser health checks stay on Hono.
 
-Authenticated requests must include either the `wos-session` cookie from a signed-in Hyperlocalise user or `Authorization: Bearer` with that session's WorkOS access-token JWT. go-svc verifies Bearer tokens against the WorkOS JWKS for `WORKOS_CLIENT_ID` (`sub` is the user, `sid` is required). Agent JWTs are not accepted. If both a cookie and a Bearer token are present, the cookie wins. Server-call routes also require `X-Go-Svc-Research-Token`, an HMAC-SHA256 hex digest of `go-svc-research` keyed by `WORKOS_COOKIE_PASSWORD`. The browser cannot mint that header; only the web app should call these endpoints via `GO_SVC_URL`.
+Authenticated requests must include either the `wos-session` cookie from a signed-in Hyperlocalise user or `Authorization: Bearer` with that session's WorkOS access-token JWT. go-svc verifies Bearer tokens against the WorkOS JWKS and `iss` for `WORKOS_CLIENT_ID` (`sub` is the user, `sid` is required). Tokens from any application in the environment are accepted (the web app and Iris desktop each have their own); `client_id` and `aud` are not checked. Agent JWTs are not accepted. If both a cookie and a Bearer token are present, the cookie wins. Server-call routes also require `X-Go-Svc-Research-Token`, an HMAC-SHA256 hex digest of `go-svc-research` keyed by `WORKOS_COOKIE_PASSWORD`. The browser cannot mint that header; only the web app should call these endpoints via `GO_SVC_URL`.
 
 Browser callers from `https://hyperlocalise.com` and `https://hyperlocalize.com` (and `www`) may call session-auth `/v1` routes on `https://api.hyperlocalise.com`. Those origins receive CORS headers; mutating requests from other origins are rejected. Same-host `/api/go-svc` rewrites still pass the origin guard. Extra origins can be listed in `GO_SVC_CORS_ORIGINS`. CORS does not allow credentials: the web `GoSvcClient` sends a Bearer token and omits cookies.
 

@@ -25,8 +25,13 @@ Accept WorkOS User Management session access tokens on go-svc as
 `Authorization: Bearer` in addition to the sealed session cookie.
 
 - Verify RS256 signatures against `GET {WORKOS API}/sso/jwks/{WORKOS_CLIENT_ID}`.
-- Require `aud` = `WORKOS_CLIENT_ID`, `sub` (WorkOS user id), `sid`, and `exp`.
-- Allow `iss` of the WorkOS API base URL, or that URL plus `/{client_id}`.
+- Require `sub` (WorkOS user id), `sid`, and `exp`.
+- Allow `iss` of the WorkOS API base URL, or that URL plus `/{client_id}` or
+  `/user_management/{client_id}`.
+- Do not check `aud` or `client_id`. With multiple WorkOS applications (the web
+  app and Iris desktop), `iss` and the JWKS are shared by the environment and
+  name its default application, while `client_id` and `aud` name the
+  application the user signed in to. (Amended 2026-11-10.)
 - Reject tokens with an `act` claim so agent JWTs cannot reach go-svc.
 - Prefer a present `wos-session` cookie over Bearer. Do not fall through from
   an invalid cookie to a Bearer token.
