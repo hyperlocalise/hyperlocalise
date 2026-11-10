@@ -38,6 +38,29 @@ On a native file’s menu, **Import filters** control which strings ingest. HTML
 
 **Placeholder format** sets ICU, i18next, or auto-detect for QA and the Content Editor. Add **Custom placeholder patterns** (one regular expression per line) when the file uses extra placeholder syntax such as `[[name]]`. Import and export are not affected. See [i18next and interpolation placeholders](/platform/tutorials/i18next).
 
+## Translate through another language first
+
+Some content is translated into one language first, and into the others from that language. For example, Chinese documents go to English, and English is then the source for German and French. Use two projects:
+
+1. A project with the original language as its source and the in-between language as a target (Chinese to English).
+2. A project with the in-between language as its source and the remaining languages as targets (English to German and French).
+
+When every string of a Word or Excel file is approved in the first project, open the file's menu on **Files** and select **Use translation as source…**, then choose the second project. The approved translation is uploaded there as a source file with the same path, and that project's upload automations run as for any upload.
+
+- The action is refused while any string has no approved translation, and lists the strings that are missing. A string hidden in the editor needs an approved translation too when its original text would otherwise stay in the file.
+- The second project is offered only when its source language code is exactly one of the first project's language codes (`en-US` does not match `en`).
+- After a fix to the translation, send the file again. It updates the same strings in the second project, and replaces the file there even if someone uploaded another version by hand. Set **When source text changes** to **Needs review** in both projects' settings: in the second, so that approved translations of the changed strings go back to review; in the first, so that a changed original sends its translation back to review before the file can be sent again.
+- A string the file no longer has when you send it again is hidden in the second project, not deleted, so its translations are kept. It is shown again if a later send has it. Word paragraphs and Excel cells are matched by position, so removing one from the middle of a file moves the strings after it.
+- Admins, localization managers, and developers can send a file. Both projects must be in the same workspace.
+- Word (`.docx`) and Excel (`.xlsx`, `.xls`) files only. In Word files, links inserted as fields, tables of contents, and comments are not strings, so they keep the original language.
+- An Excel file's **Import filters** are copied to the second project each time it is sent, replacing any saved there. An `.xls` file arrives as `.xlsx`. Context and comment columns are not strings, so they keep the original language.
+- An Excel file is not sent when the second project would not read it as the same strings. This happens when:
+  - a first-row cell, once translated, is just the name of the second project's source language, such as `English`. Reword that translation (for example `English text`) and send again;
+  - a cell in that language's column holds a formula, so the translation cannot be written there;
+  - the file's **Import filters** were saved without a source column, even with only the header row choice changed, and a sheet's first row names the first project's source language;
+  - the **Import filters** set a source column, and the header row names the first project's source language in that same column.
+- A glossary is attached by its source language, so the second project needs a glossary in the in-between language.
+
 ## After upload
 
 Upload does not automatically generate translations unless a matching automation is active. [Start a translation](/platform/translation/start) or configure a [Source upload trigger](/platform/automation/create-automation).
