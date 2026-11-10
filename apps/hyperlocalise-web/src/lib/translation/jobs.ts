@@ -44,7 +44,7 @@ import type {
 export type ClaimedTranslationJob = {
   id: string;
   projectId: string;
-  // Key jobs are never queued; the executor refuses any type but string.
+  // Only AI key jobs are queued, and they run in keyTranslationJobWorkflow.
   type: "string" | "file" | "keys";
   inputPayload: unknown;
   workflowRunId: string;

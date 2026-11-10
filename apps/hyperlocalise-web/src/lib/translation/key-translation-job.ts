@@ -723,7 +723,8 @@ async function recordKeyTranslationAnalysis(
 
 /**
  * Marks the job succeeded and charges it once: the reserved translation job and the tokens of
- * every model call. A job that made no model call is not charged.
+ * every model call. A job that made no model call is not charged. Returns `completed: false`,
+ * charging nothing, when the job no longer runs under this workflow run (cancelled meanwhile).
  */
 export async function completeKeyTranslationJob(input: {
   jobId: string;
@@ -733,7 +734,7 @@ export async function completeKeyTranslationJob(input: {
   outcome: KeyTranslationJobOutcome;
   tokenUsage: KeyTranslationTokenUsage | null;
   madeModelCalls: boolean;
-}) {
+}): Promise<{ completed: boolean }> {
   const [updated] = await updateJobs(db, {
     set: {
       status: "succeeded",
@@ -750,14 +751,12 @@ export async function completeKeyTranslationJob(input: {
     returning: { id: schema.jobs.id },
   });
   if (!updated) {
-    throw new Error(
-      `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
-    );
+    return { completed: false };
   }
   // As for a file job: a fixed fee set on the task is charged and its days are worked out again.
   await captureJobStatus({ jobId: input.jobId, status: "succeeded" });
   if (!input.madeModelCalls) {
-    return;
+    return { completed: true };
   }
 
   const operationKey = `job:${input.jobId}:translation_jobs`;
@@ -779,31 +778,35 @@ export async function completeKeyTranslationJob(input: {
       error: formatUsageControlError(trackUsageResult.error),
     });
   }
+  return { completed: true };
 }
 
 /**
- * Charges the AI tokens of a run that ends failed although its model calls answered, as when
- * every answer failed the checks. The job itself is not charged; each run is charged once.
+ * Charges the AI tokens of a run that ends without succeeding although its model calls answered:
+ * every answer failed the checks, or the job was cancelled while it ran. The job itself is not
+ * charged; each run is charged once.
  */
 export async function chargeFailedKeyTranslationRun(input: {
   jobId: string;
   workflowRunId: string;
   organizationId: string;
   tokenUsage: KeyTranslationTokenUsage;
+  reason?: "failed" | "cancelled";
 }) {
   const parentOperationKey = `job:${input.jobId}:run:${input.workflowRunId}`;
   const result = await trackAiCreditUsageInAutumn({
     organizationId: input.organizationId,
     parentOperationKey,
     tokenUsage: input.tokenUsage,
-    source: "translation_job_failed",
+    source: input.reason === "cancelled" ? "translation_job_cancelled" : "translation_job_failed",
     modelId: input.tokenUsage.modelId,
     credentialSource: input.tokenUsage.credentialSource,
     jobId: input.jobId,
   });
   if (isErr(result)) {
-    console.error("[key-translation-job] AI credit tracking failed for a failed run", {
+    console.error("[key-translation-job] AI credit tracking failed for an unfinished run", {
       jobId: input.jobId,
+      reason: input.reason ?? "failed",
       operationKey: parentOperationKey,
       error: formatUsageControlError(result.error),
     });

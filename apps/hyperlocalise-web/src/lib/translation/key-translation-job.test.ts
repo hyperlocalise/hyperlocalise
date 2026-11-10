@@ -784,7 +784,7 @@ describe("completeKeyTranslationJob", () => {
     expect(mocks.completeAndTrackBillableUsage).not.toHaveBeenCalled();
   });
 
-  it("refuses a run that doesn't own the job", async () => {
+  it("leaves a job this run no longer owns as it is and charges nothing", async () => {
     const { jobId, organizationId, projectId } = await createJob([{ key: "a" }]);
 
     await expect(
@@ -794,9 +794,16 @@ describe("completeKeyTranslationJob", () => {
         workflowRunId: "run_2",
         organizationId,
         outcome: { kind: "key_translation_result", stringCount: 1, translated: {}, failed: {} },
-        tokenUsage: null,
-        madeModelCalls: false,
+        tokenUsage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+        madeModelCalls: true,
       }),
-    ).rejects.toThrow("is not owned by workflow run run_2");
+    ).resolves.toEqual({ completed: false });
+    expect(mocks.completeAndTrackBillableUsage).not.toHaveBeenCalled();
+    expect(mocks.captureJobStatus).not.toHaveBeenCalled();
+    const [stored] = await db
+      .select({ status: schema.jobs.status })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, jobId));
+    expect(stored?.status).toBe("running");
   });
 });

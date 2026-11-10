@@ -72,6 +72,7 @@ async function chargeFailedKeyTranslationRunStep(input: {
   workflowRunId: string;
   organizationId: string;
   tokenUsage: KeyTranslationTokenUsage;
+  reason: "failed" | "cancelled";
 }) {
   "use step";
   const { chargeFailedKeyTranslationRun } = await import("@/lib/translation/key-translation-job");
@@ -130,15 +131,25 @@ export async function keyTranslationJobWorkflow(event: TranslationJobEventData) 
   let totals: KeyTranslationBatchResult = { translated: {}, failed: {}, tokenUsage: null };
   let nextStart = 0;
 
-  // A run that fails after its model calls answered still pays for them.
-  const chargeTokens = async (current: KeyTranslationJobPlan) => {
+  // A run that fails or is cancelled after its model calls answered still pays for them, as the
+  // translations it saved stay.
+  const chargeTokens = async (
+    current: KeyTranslationJobPlan,
+    reason: "failed" | "cancelled" = "failed",
+  ) => {
     if (!totals.tokenUsage) return;
     await chargeFailedKeyTranslationRunStep({
       jobId: job.id,
       workflowRunId: job.workflowRunId,
       organizationId: current.organizationId,
       tokenUsage: totals.tokenUsage,
+      reason,
     });
+  };
+  // Cancelled, failed by hand or handed to a retry: whoever did that owns the job now.
+  const stop = async (current: KeyTranslationJobPlan) => {
+    await chargeTokens(current, "cancelled");
+    return { status: "stopped" as const };
   };
 
   // Succeeds with what was saved, charged once, or fails when nothing could be translated.
@@ -176,7 +187,7 @@ export async function keyTranslationJobWorkflow(event: TranslationJobEventData) 
       );
     }
 
-    await completeKeyTranslationJobStep({
+    const { completed } = await completeKeyTranslationJobStep({
       jobId: job.id,
       projectId: job.projectId,
       workflowRunId: job.workflowRunId,
@@ -190,6 +201,9 @@ export async function keyTranslationJobWorkflow(event: TranslationJobEventData) 
       tokenUsage,
       madeModelCalls: tokenUsage !== null || translatedTotal > 0,
     });
+    if (!completed) {
+      return stop(current);
+    }
     await recordEvents([
       {
         type: "job_succeeded",
@@ -252,8 +266,7 @@ export async function keyTranslationJobWorkflow(event: TranslationJobEventData) 
       totals = mergeKeyTranslationBatchResults([totals, batch]);
       nextStart = start + KEY_TRANSLATION_BATCH_SIZE;
       if (totals.stopped) {
-        // Cancelled, failed by hand or handed to a retry: whoever did that owns the job now.
-        return { status: "stopped" as const };
+        return await stop(plan);
       }
     }
 
