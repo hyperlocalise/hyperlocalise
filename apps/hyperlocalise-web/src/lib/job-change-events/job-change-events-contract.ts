@@ -15,12 +15,15 @@ import { jobKindEnum, jobStatusEnum } from "@/lib/database/schema/enums";
 
 /**
  * Job changes recorded in the same transaction as the write to `jobs`: by `insertJobs` and
- * `updateJobs` in `job-writes.ts`, and by the Go public API's job update.
+ * `updateJobs` in `job-writes.ts`, and by the Go public API's job update. `job.details_changed`
+ * is a new title or description.
  */
 export const JOB_CHANGE_EVENT_TYPES = [
   "job.created",
   "job.status_changed",
   "job.assignee_changed",
+  "job.due_date_changed",
+  "job.details_changed",
 ] as const;
 
 export type JobChangeEventType = (typeof JOB_CHANGE_EVENT_TYPES)[number];

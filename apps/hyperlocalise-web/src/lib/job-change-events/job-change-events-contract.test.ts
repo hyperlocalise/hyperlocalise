@@ -80,6 +80,8 @@ describe("isJobChangeEventType", () => {
       "job.created",
       "job.status_changed",
       "job.assignee_changed",
+      "job.due_date_changed",
+      "job.details_changed",
     ]);
     expect(isJobChangeEventType("job.assignee_changed")).toBe(true);
     expect(isJobChangeEventType("webhook.test")).toBe(false);

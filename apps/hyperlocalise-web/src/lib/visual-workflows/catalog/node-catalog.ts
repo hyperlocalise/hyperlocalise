@@ -719,6 +719,8 @@ const JOB_CHANGED_EVENT_LABELS: Record<string, string> = {
   "job.created": "Created",
   "job.status_changed": "Status changed",
   "job.assignee_changed": "Assignee changed",
+  "job.due_date_changed": "Due date changed",
+  "job.details_changed": "Title or description changed",
 };
 
 function jobChangedSubtitle(config: Extract<VisualNodeConfig, { kind: "trigger.job_changed" }>) {

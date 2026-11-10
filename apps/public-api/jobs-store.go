@@ -179,12 +179,15 @@ func (s *postgresStore) updateJob(ctx context.Context, actor principal, jobID st
 	var kind string
 	var external bool
 	var before jobAssignment
+	var beforeDetails jobDetails
 	err = tx.QueryRow(ctx, `SELECT j.project_id, j.kind::text, x.job_id IS NOT NULL,
-			j.owner_user_id::text, j.assignee_type::text
+			j.owner_user_id::text, j.assignee_type::text,
+			j.due_at, j.input_payload->'metadata'->>'title', j.input_payload->'metadata'->>'description'
 		FROM jobs j
 		LEFT JOIN external_job_details x ON x.job_id = j.id
 		WHERE `+jobAccessPredicate+` AND j.id = $3
-		FOR UPDATE OF j`, actor.OrganizationID, actor.UserID, jobID).Scan(&projectID, &kind, &external, &before.OwnerUserID, &before.AssigneeType)
+		FOR UPDATE OF j`, actor.OrganizationID, actor.UserID, jobID).Scan(&projectID, &kind, &external, &before.OwnerUserID, &before.AssigneeType,
+		&beforeDetails.DueAt, &beforeDetails.Title, &beforeDetails.Description)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return job{}, errJobNotFound
 	}
@@ -237,14 +240,27 @@ func (s *postgresStore) updateJob(ctx context.Context, actor principal, jobID st
 	args := append(set.args, actor.OrganizationID, jobID)
 	n := len(set.args)
 	var after jobAssignment
+	var afterDetails jobDetails
 	var status string
 	if err := tx.QueryRow(ctx, fmt.Sprintf(`UPDATE jobs SET %s WHERE organization_id = $%d AND id = $%d
-		RETURNING owner_user_id::text, assignee_type::text, status::text`,
-		strings.Join(set.conditions, ", "), n+1, n+2), args...).Scan(&after.OwnerUserID, &after.AssigneeType, &status); err != nil {
+		RETURNING owner_user_id::text, assignee_type::text, status::text,
+			due_at, input_payload->'metadata'->>'title', input_payload->'metadata'->>'description'`,
+		strings.Join(set.conditions, ", "), n+1, n+2), args...).Scan(&after.OwnerUserID, &after.AssigneeType, &status,
+		&afterDetails.DueAt, &afterDetails.Title, &afterDetails.Description); err != nil {
 		return job{}, fmt.Errorf("update job: %w", err)
 	}
+	var changes []string
 	if before.key() != after.key() {
-		if err := insertJobAssigneeChangedEvent(ctx, tx, actor.OrganizationID, jobID, *projectID, kind, status, after.AssigneeType); err != nil {
+		changes = append(changes, "job.assignee_changed")
+	}
+	if !sameTime(beforeDetails.DueAt, afterDetails.DueAt) {
+		changes = append(changes, "job.due_date_changed")
+	}
+	if !sameString(beforeDetails.Title, afterDetails.Title) || !sameString(beforeDetails.Description, afterDetails.Description) {
+		changes = append(changes, "job.details_changed")
+	}
+	for _, changeType := range changes {
+		if err := insertJobChangeEvent(ctx, tx, changeType, actor.OrganizationID, jobID, *projectID, kind, status, after.AssigneeType); err != nil {
 			return job{}, err
 		}
 	}
@@ -282,14 +298,34 @@ func (a jobAssignment) key() [2]string {
 	return [2]string{value(a.OwnerUserID), value(a.AssigneeType)}
 }
 
-// insertJobAssigneeChangedEvent records the change in the job change outbox in the update's
-// transaction, as the web app's updateJobs does, so outbound webhooks and Job changed workflows
-// hear about it.
-func insertJobAssigneeChangedEvent(ctx context.Context, tx pgx.Tx, organizationID, jobID, projectID, kind, status string, assigneeType *string) error {
+// jobDetails is a job's due date, title and description, compared before and after an update.
+type jobDetails struct {
+	DueAt       *time.Time
+	Title       *string
+	Description *string
+}
+
+func sameTime(a, b *time.Time) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Equal(*b)
+}
+
+func sameString(a, b *string) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+// insertJobChangeEvent records the change in the job change outbox in the update's transaction,
+// as the web app's updateJobs does, so outbound webhooks and Job changed workflows hear about it.
+func insertJobChangeEvent(ctx context.Context, tx pgx.Tx, changeType, organizationID, jobID, projectID, kind, status string, assigneeType *string) error {
 	if _, err := tx.Exec(ctx, `INSERT INTO job_change_events
 			(organization_id, job_id, project_id, kind, type, from_status, to_status, assignee_type)
-		VALUES ($1, $2, $3, $4::job_kind, 'job.assignee_changed', $5::job_status, $5::job_status, $6::job_assignee_type)`,
-		organizationID, jobID, projectID, kind, status, assigneeType); err != nil {
+		VALUES ($1, $2, $3, $4::job_kind, $7, $5::job_status, $5::job_status, $6::job_assignee_type)`,
+		organizationID, jobID, projectID, kind, status, assigneeType, changeType); err != nil {
 		return fmt.Errorf("record job change event: %w", err)
 	}
 	return nil

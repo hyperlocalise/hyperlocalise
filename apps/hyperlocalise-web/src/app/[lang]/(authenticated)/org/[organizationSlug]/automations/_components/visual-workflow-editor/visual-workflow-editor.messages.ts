@@ -856,8 +856,9 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Catalog title for the job changed trigger node",
   },
   nodeJobChangedTriggerHint: {
-    defaultMessage: "Start when a job is created, changes status, or is reassigned.",
-    id: "2sNNxyCWxU",
+    defaultMessage:
+      "Start when a job is created, changes status, is reassigned, or gets a new due date, title or description.",
+    id: "YUtxC0iqlQ",
     description: "Catalog description for the job changed trigger node",
   },
   jobChangedProject: {
@@ -884,6 +885,17 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Assignee changed",
     id: "YQQTccmttg",
     description: "Checkbox on the job changed trigger for runs when a job is reassigned",
+  },
+  jobChangedEventDueDateChanged: {
+    defaultMessage: "Due date changed",
+    id: "wPTA4YSzzl",
+    description: "Checkbox on the job changed trigger for runs when a job's due date changes",
+  },
+  jobChangedEventDetailsChanged: {
+    defaultMessage: "Title or description changed",
+    id: "9VyHOZMJ55",
+    description:
+      "Checkbox on the job changed trigger for runs when a job's title or description changes",
   },
   jobChangedJobKinds: {
     defaultMessage: "Job kinds",

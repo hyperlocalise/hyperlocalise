@@ -86,6 +86,8 @@ const EVENT_LABELS: Record<JobChangeEventType, MessageDescriptor> = {
   "job.created": messages.eventCreated,
   "job.status_changed": messages.eventStatusChanged,
   "job.assignee_changed": messages.eventAssigneeChanged,
+  "job.due_date_changed": messages.eventDueDateChanged,
+  "job.details_changed": messages.eventDetailsChanged,
 };
 
 const DELIVERY_STATUS_LABELS: Record<WebhookDeliverySummary["status"], MessageDescriptor> = {

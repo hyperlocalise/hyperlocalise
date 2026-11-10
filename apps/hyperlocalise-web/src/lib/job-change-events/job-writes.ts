@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { getTableColumns, inArray, type SQL } from "drizzle-orm";
+import { getTableColumns, inArray, sql, type SQL } from "drizzle-orm";
 import type { SelectedFieldsFlat } from "drizzle-orm/pg-core";
 import type { SelectResultFields } from "drizzle-orm/query-builders/select.types";
 
@@ -20,15 +20,19 @@ import type { JobChangeEventType } from "./job-change-events-contract";
 
 /**
  * The only way to write `jobs` rows. Each write records its job changes (creation, a new status,
- * a new assignee) in `job_change_events` in the same transaction, so a change is never lost and
- * never announced for a write that rolled back. `job-writes.guard.test.ts` fails on any other
- * `insert(schema.jobs)` or `update(schema.jobs)`. The Go public API does the same in
- * `apps/public-api/jobs-store.go`.
+ * assignee, due date, title or description) in `job_change_events` in the same transaction, so a
+ * change is never lost and never announced for a write that rolled back.
+ * `job-writes.guard.test.ts` fails on any other `insert(schema.jobs)` or `update(schema.jobs)`.
+ * The Go public API does the same in `apps/public-api/jobs-store.go`.
  */
 
 type JobRow = typeof schema.jobs.$inferSelect;
 type JobInsert = typeof schema.jobs.$inferInsert;
 type JobSet = Partial<Omit<JobInsert, "id">>;
+
+// Title and description live in the job's input metadata, as `updateNativeJob` writes them.
+const jobTitle = sql<string | null>`${schema.jobs.inputPayload}->'metadata'->>'title'`;
+const jobDescription = sql<string | null>`${schema.jobs.inputPayload}->'metadata'->>'description'`;
 
 const trackedColumns = {
   __jobId: schema.jobs.id,
@@ -38,15 +42,25 @@ const trackedColumns = {
   __status: schema.jobs.status,
   __ownerUserId: schema.jobs.ownerUserId,
   __assigneeType: schema.jobs.assigneeType,
+  __dueAt: schema.jobs.dueAt,
+  __title: jobTitle,
+  __description: jobDescription,
 };
 
 type TrackedRow = SelectResultFields<typeof trackedColumns>;
-type PreviousState = Pick<JobRow, "status" | "ownerUserId" | "assigneeType">;
+type PreviousState = Pick<JobRow, "status" | "ownerUserId" | "assigneeType" | "dueAt"> & {
+  title: string | null;
+  description: string | null;
+};
 
 /** Writes that leave these alone cannot change what an event reports, so they skip the lookup. */
 function touchesTrackedColumns(set: JobSet): boolean {
   return (
-    set.status !== undefined || set.ownerUserId !== undefined || set.assigneeType !== undefined
+    set.status !== undefined ||
+    set.ownerUserId !== undefined ||
+    set.assigneeType !== undefined ||
+    set.dueAt !== undefined ||
+    set.inputPayload !== undefined
   );
 }
 
@@ -60,6 +74,12 @@ function changeTypes(previous: PreviousState, current: TrackedRow): JobChangeEve
     previous.assigneeType !== current.__assigneeType
   ) {
     types.push("job.assignee_changed");
+  }
+  if (previous.dueAt?.getTime() !== current.__dueAt?.getTime()) {
+    types.push("job.due_date_changed");
+  }
+  if (previous.title !== current.__title || previous.description !== current.__description) {
+    types.push("job.details_changed");
   }
   return types;
 }
@@ -114,6 +134,9 @@ async function lockPreviousStates(tx: DatabaseTransaction, where: SQL | undefine
       status: schema.jobs.status,
       ownerUserId: schema.jobs.ownerUserId,
       assigneeType: schema.jobs.assigneeType,
+      dueAt: schema.jobs.dueAt,
+      title: jobTitle,
+      description: jobDescription,
     })
     .from(schema.jobs)
     .where(where)
@@ -123,7 +146,7 @@ async function lockPreviousStates(tx: DatabaseTransaction, where: SQL | undefine
 
 type UpdateJobsInput = { set: JobSet; where: SQL | undefined };
 
-/** `update jobs set … where …`, recording a status or assignee change for each row it changes. */
+/** `update jobs set … where …`, recording each change for each row it changes. */
 export async function updateJobs(database: DatabaseClient, input: UpdateJobsInput): Promise<void>;
 export async function updateJobs<TFields extends SelectedFieldsFlat>(
   database: DatabaseClient,
