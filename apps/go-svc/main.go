@@ -127,7 +127,7 @@ func main() {
 		log.Printf("configure visual context match publisher: %v", visualContextMatchErr)
 	}
 	h.contentEditor = &editorCatAPI{matchPublisher: visualContextMatchPublisher}
-	h.projects = &projectAPI{activityLog: activityLogPublisher}
+	h.projects = &projectAPI{activityLog: activityLogPublisher, tms: tms}
 	h.conversations = &conversationAPI{}
 	h.overview = &overviewAPI{}
 	h.publicTranslations = &publicTranslationsAPI{auth: newPublicAPIAuthFromEnv(nil, nil)}
