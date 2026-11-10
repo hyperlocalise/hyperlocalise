@@ -11387,9 +11387,6 @@
   "I21mr3bBqR": {
     "defaultMessage": "上一页"
   },
-  "I28Vekk8WA": {
-    "defaultMessage": "上次同步于 {when}"
-  },
   "I2X0NI6aJ0": {
     "defaultMessage": "搜索文章"
   },
@@ -14326,9 +14323,6 @@
   },
   "NQK86OKSk0": {
     "defaultMessage": "Slack · 2小时前"
-  },
-  "NQq3ItGutD": {
-    "defaultMessage": "连接 CLI 和 CI"
   },
   "NRH7Cv54cL": {
     "defaultMessage": "折叠 {status}"
@@ -22531,9 +22525,6 @@
   },
   "cDw6CT/CPx": {
     "defaultMessage": "切换项目"
-  },
-  "cE0bfQDgYq": {
-    "defaultMessage": "同步"
   },
   "cE93z6iT3O": {
     "defaultMessage": "最后修改时间"
@@ -34552,9 +34543,6 @@
   },
   "wk3PSCT0hz": {
     "defaultMessage": "状态"
-  },
-  "wk5x4r43TH": {
-    "defaultMessage": "尚未同步"
   },
   "wkANc2ZtGc": {
     "defaultMessage": "原文"

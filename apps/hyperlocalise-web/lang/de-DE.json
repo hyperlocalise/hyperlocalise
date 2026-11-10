@@ -11387,9 +11387,6 @@
   "I21mr3bBqR": {
     "defaultMessage": "Vorherige Seite"
   },
-  "I28Vekk8WA": {
-    "defaultMessage": "Zuletzt synchronisiert: {when}"
-  },
   "I2X0NI6aJ0": {
     "defaultMessage": "Artikel durchsuchen"
   },
@@ -14326,9 +14323,6 @@
   },
   "NQK86OKSk0": {
     "defaultMessage": "Slack · vor 2 Std."
-  },
-  "NQq3ItGutD": {
-    "defaultMessage": "CLI & CI verbinden"
   },
   "NRH7Cv54cL": {
     "defaultMessage": "{status} reduzieren"
@@ -22531,9 +22525,6 @@
   },
   "cDw6CT/CPx": {
     "defaultMessage": "Projekt wechseln"
-  },
-  "cE0bfQDgYq": {
-    "defaultMessage": "Synchronisieren"
   },
   "cE93z6iT3O": {
     "defaultMessage": "Zuletzt geändert"
@@ -34552,9 +34543,6 @@
   },
   "wk3PSCT0hz": {
     "defaultMessage": "Status"
-  },
-  "wk5x4r43TH": {
-    "defaultMessage": "Noch nicht synchronisiert"
   },
   "wkANc2ZtGc": {
     "defaultMessage": "Originaltext"

@@ -12887,10 +12887,6 @@
     "defaultMessage": "Built with ♥ from Sydney, Australia",
     "description": "Location attribution line in the marketing footer"
   },
-  "I28Vekk8WA": {
-    "defaultMessage": "Last synced {when}",
-    "description": "Last sync timestamp on project overview ship section"
-  },
   "I2X0NI6aJ0": {
     "defaultMessage": "Search articles",
     "description": "Accessible label for the Intercom article search field"
@@ -16218,10 +16214,6 @@
   "NQK86OKSk0": {
     "defaultMessage": "Slack · 2h ago",
     "description": "Inbox conversation meta in content ops mock"
-  },
-  "NQq3ItGutD": {
-    "defaultMessage": "Connect CLI & CI",
-    "description": "Link to project settings for CLI and CI setup"
   },
   "NRH7Cv54cL": {
     "defaultMessage": "Collapse {status}",
@@ -25470,10 +25462,6 @@
   "cDw6CT/CPx": {
     "defaultMessage": "Switch project",
     "description": "Menu label for the project switcher in the breadcrumb"
-  },
-  "cE0bfQDgYq": {
-    "defaultMessage": "Sync",
-    "description": "Section heading for native sync status on project overview"
   },
   "cE93z6iT3O": {
     "defaultMessage": "Last modified",
@@ -39022,10 +39010,6 @@
   "wk3PSCT0hz": {
     "defaultMessage": "Status",
     "description": "Label for experiment status"
-  },
-  "wk5x4r43TH": {
-    "defaultMessage": "Not synced yet",
-    "description": "Shown when a native project has never synced"
   },
   "wkANc2ZtGc": {
     "defaultMessage": "Original text",
