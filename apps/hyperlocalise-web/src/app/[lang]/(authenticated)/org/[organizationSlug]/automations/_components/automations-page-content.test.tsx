@@ -164,7 +164,7 @@ describe("AutomationsPageContent", () => {
 
     expect(screen.getByRole("heading", { name: "New automation" })).toBeTruthy();
     expect(screen.queryByText(EMPTY_LIST_TEXT)).toBeNull();
-    expect(screen.queryByText("Creator")).toBeNull();
+    expect(screen.queryByText("Owner")).toBeNull();
   });
 
   it("keeps the list when it could not be loaded", async () => {

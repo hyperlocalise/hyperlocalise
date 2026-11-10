@@ -77,6 +77,9 @@ function WorkspaceAutomationEditorStory({
     <WorkspacePageShell className="max-w-5xl">
       <WorkspaceAutomationEditor
         actions={actions}
+        authorName={mode === "detail" ? "Ada Lovelace" : undefined}
+        authorUserId={mode === "detail" ? "user_001" : undefined}
+        automationId={mode === "detail" ? "11111111-1111-4111-8111-111111111111" : undefined}
         canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
         disabled={disabled}
         errors={errors}
@@ -141,6 +144,9 @@ function WorkspaceAutomationUndoStory({
             onRedo={runRedo}
           />
         }
+        authorName={mode === "detail" ? "Ada Lovelace" : undefined}
+        authorUserId={mode === "detail" ? "user_001" : undefined}
+        automationId={mode === "detail" ? "11111111-1111-4111-8111-111111111111" : undefined}
         canUpdateKnowledgeMemory
         errors={{}}
         form={form}
@@ -527,6 +533,7 @@ export const DetailDefault: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByDisplayValue("Validate localisation on push")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Owner" })).toBeInTheDocument();
     await expect(canvas.getByRole("tab", { name: "Run History" })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Run now" })).not.toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
