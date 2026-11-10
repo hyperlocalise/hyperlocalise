@@ -15,6 +15,13 @@
 import { defineMessages } from "react-intl";
 
 export const taskReportMessages = defineMessages({
+  wordsNotCounted: {
+    id: "kzSnSzq5X4",
+    defaultMessage:
+      "Reports doesn't count the words of a task made of strings yet. Time logged on it and a fixed fee still count.",
+    description:
+      "Shown on a task's Report tab instead of word counts when the task is a set of strings rather than a file",
+  },
   intro: {
     id: "dnUl0UTxhs",
     defaultMessage:

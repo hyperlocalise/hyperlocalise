@@ -508,6 +508,7 @@ export function NativeJobDetailContent({
                   organizationSlug={organizationSlug}
                   jobId={jobId}
                   defaultStep={job.kind === "proofread" ? "review" : "translation"}
+                  wordsCounted={job.type !== "keys"}
                 />
               )
             : undefined
