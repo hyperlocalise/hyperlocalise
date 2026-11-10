@@ -13,6 +13,49 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
+func TestTMSFailureError(t *testing.T) {
+	t.Parallel()
+
+	err := &tmsFailure{http.StatusConflict, "tms_not_connected", "Reconnect Crowdin"}
+	if err.Error() != "Reconnect Crowdin" {
+		t.Fatalf("Error() = %q", err.Error())
+	}
+}
+
+func TestNewTMSImportsFromEnv(t *testing.T) {
+	t.Setenv("HYPERLOCALISE_WEB_INTERNAL_URL", "")
+	t.Setenv("HYPERLOCALISE_PUBLIC_APP_URL", "")
+	t.Setenv("WORKOS_COOKIE_PASSWORD", "")
+	if got := newTMSImportsFromEnv(); got != nil {
+		t.Fatalf("missing env: %#v", got)
+	}
+
+	t.Setenv("HYPERLOCALISE_PUBLIC_APP_URL", "https://app.example")
+	t.Setenv("WORKOS_COOKIE_PASSWORD", "cookie-password")
+	got := newTMSImportsFromEnv()
+	if got == nil || got.tokens == nil || got.http == nil {
+		t.Fatalf("configured: %#v", got)
+	}
+}
+
+func TestTMSImportContextDetachesFromRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "/from-tms", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := tmsImportContext(req)
+	defer cancel()
+	if ctx.Err() != nil {
+		t.Fatalf("detached context: %v", ctx.Err())
+	}
+	deadline, ok := ctx.Deadline()
+	if !ok || deadline.IsZero() {
+		t.Fatal("expected an export timeout")
+	}
+}
+
 func TestRequireTMSConnectionRejectsMissingIDs(t *testing.T) {
 	t.Parallel()
 

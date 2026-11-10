@@ -90,6 +90,40 @@ func TestWorkspaceQaReportIncludesPreviousSuccessfulCounts(t *testing.T) {
 	require.Equal(t, 2, previous.WarningCount)
 }
 
+func TestProjectQaReportRunAndPromoteHandlers(t *testing.T) {
+	t.Run("member cannot promote", func(t *testing.T) {
+		api, scope := qaReportTestAPI(t, "member")
+		rec := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/findings/promote"), `{"findingIds":[]}`)
+		require.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("invalid run id is not found", func(t *testing.T) {
+		api, scope := qaReportTestAPI(t, "admin")
+		rec := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/not-a-uuid"), "")
+		require.Equal(t, http.StatusNotFound, rec.Code)
+		require.Contains(t, rec.Body.String(), "not_found")
+	})
+
+	t.Run("returns the run and promotes its findings", func(t *testing.T) {
+		api, scope := qaReportTestAPI(t, "admin")
+		runID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 1, 1, 0)
+		findingID := mustQaFinding(t, scope, runID, scope.ProjectID, "checkout")
+
+		rec := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/"+runID), "")
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), `"id":"`+runID+`"`)
+
+		empty := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/findings/promote"), `{"findingIds":[]}`)
+		require.Equal(t, http.StatusOK, empty.Code, empty.Body.String())
+		require.JSONEq(t, `{"results":[]}`, empty.Body.String())
+
+		promote := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/findings/promote"),
+			`{"findingIds":["`+findingID+`"]}`)
+		require.Equal(t, http.StatusOK, promote.Code, promote.Body.String())
+		require.Contains(t, promote.Body.String(), `"created":true`)
+	})
+}
+
 func TestProjectQaReportFindsLastSuccessBeyondHistoryLimit(t *testing.T) {
 	api, scope := qaReportTestAPI(t, "admin")
 	succeededID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 1, 1, 0)

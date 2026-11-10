@@ -255,6 +255,27 @@ func TestLegacyDomainResearchProxyRoutesAreNotRegistered(t *testing.T) {
 	}
 }
 
+func TestDataForSEOResearchDelegatesToClient(t *testing.T) {
+	client, err := dataforseo.NewClient(dataforseo.Config{APIKey: "key"})
+	require.NoError(t, err)
+	svc := newDataForSEOResearch(client)
+	require.NotNil(t, svc)
+	ctx := t.Context()
+
+	_, err = svc.KeywordIdeas(ctx, dataforseo.KeywordIdeasInput{})
+	require.Error(t, err)
+	_, err = svc.DomainRankOverview(ctx, dataforseo.DomainRankOverviewInput{})
+	require.Error(t, err)
+	_, err = svc.RankedKeywords(ctx, dataforseo.RankedKeywordsInput{})
+	require.Error(t, err)
+	_, err = svc.RelevantPages(ctx, dataforseo.RelevantPagesInput{})
+	require.Error(t, err)
+	_, err = svc.LiveAdvanced(ctx, dataforseo.LiveSerpInput{})
+	require.Error(t, err)
+	_, err = svc.RankCheck(ctx, dataforseo.RankCheckSerpInput{})
+	require.Error(t, err)
+}
+
 func TestRankKeywordsUsesBoundedConcurrency(t *testing.T) {
 	var inFlight, maxInFlight atomic.Int32
 	h := newHandler()
