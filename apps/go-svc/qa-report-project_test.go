@@ -114,8 +114,8 @@ func TestProjectQaReportRunAndPromoteHandlers(t *testing.T) {
 		require.Contains(t, rec.Body.String(), `"id":"`+runID+`"`)
 
 		empty := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/findings/promote"), `{"findingIds":[]}`)
-		require.Equal(t, http.StatusOK, empty.Code, empty.Body.String())
-		require.JSONEq(t, `{"results":[]}`, empty.Body.String())
+		require.Equal(t, http.StatusBadRequest, empty.Code, empty.Body.String())
+		require.Contains(t, empty.Body.String(), "invalid_qa_findings_promote")
 
 		promote := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/findings/promote"),
 			`{"findingIds":["`+findingID+`"]}`)
