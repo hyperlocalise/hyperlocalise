@@ -12,6 +12,7 @@
  */
 import { GoSvcActivityLogApi } from "./go-svc-activity-log-api";
 import { GoSvcApiKeyApi } from "./go-svc-api-key-api";
+import { GoSvcBillingApi } from "./go-svc-billing-api";
 import { GoSvcCatApi } from "./go-svc-cat-api";
 import { GoSvcConversationApi } from "./go-svc-conversation-api";
 import { GoSvcDictionaryApi } from "./go-svc-dictionary-api";
@@ -39,6 +40,7 @@ import { GoSvcPlaintextApi } from "./go-svc-plaintext-api";
 import { GoSvcProjectApi } from "./go-svc-project-api";
 import { GoSvcTeamApi } from "./go-svc-team-api";
 import { GoSvcTranslationFileApi } from "./go-svc-translation-file-api";
+import { GoSvcWorkspaceApi } from "./go-svc-workspace-api";
 
 export { DEFAULT_GO_SVC_BASE_URL, GoSvcClientError, type GoSvcClientOptions };
 export type { HyperlabGoSvcClient };
@@ -47,6 +49,7 @@ export class GoSvcClient {
   readonly baseUrl: string;
   readonly activityLog: GoSvcActivityLogApi;
   readonly apiKey: GoSvcApiKeyApi;
+  readonly billing: GoSvcBillingApi;
   readonly cat: GoSvcCatApi;
   readonly conversation: GoSvcConversationApi;
   readonly dictionary: GoSvcDictionaryApi;
@@ -68,12 +71,14 @@ export class GoSvcClient {
   readonly reports: GoSvcReportsApi;
   readonly team: GoSvcTeamApi;
   readonly translationFile: GoSvcTranslationFileApi;
+  readonly workspace: GoSvcWorkspaceApi;
 
   constructor(options: GoSvcClientOptions) {
     const request = new GoSvcRequest(options);
     this.baseUrl = request.baseUrl;
     this.activityLog = new GoSvcActivityLogApi(request);
     this.apiKey = new GoSvcApiKeyApi(request);
+    this.billing = new GoSvcBillingApi(request);
     this.cat = new GoSvcCatApi(request);
     this.conversation = new GoSvcConversationApi(request);
     this.dictionary = new GoSvcDictionaryApi(request);
@@ -95,5 +100,6 @@ export class GoSvcClient {
     this.reports = new GoSvcReportsApi(request);
     this.team = new GoSvcTeamApi(request);
     this.translationFile = new GoSvcTranslationFileApi(request);
+    this.workspace = new GoSvcWorkspaceApi(request);
   }
 }

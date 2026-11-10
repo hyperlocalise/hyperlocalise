@@ -86,6 +86,33 @@ export type GoSvcErrorBody = {
   details?: unknown;
 };
 
+export type WorkspaceSettingsRecord = {
+  id: string;
+  workosOrganizationId: string;
+  name: string;
+  slug: string | null;
+  lifecycleStatus: "active" | "archived" | "deprecated";
+  archivedAt: string | null;
+  identityProvider: string;
+};
+
+export type UpdateWorkspaceBody = {
+  name?: string;
+  slug?: string;
+};
+
+export type UpdateWorkspaceResponse = {
+  workspace: WorkspaceSettingsRecord;
+  redirectTo: string;
+};
+
+export type WorkspaceResourceUsage = {
+  seats: number;
+  projects: number;
+  automations: number;
+  integrations: number;
+};
+
 export type DictionaryRecord = {
   id: string;
   organizationId: string;

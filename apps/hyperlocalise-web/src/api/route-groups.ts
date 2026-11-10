@@ -74,8 +74,6 @@ import { createExternalTmsProviderCredentialRoutes } from "./routes/external-tms
 import { createTmsProviderRoutes } from "./routes/tms-provider/tms-provider.route";
 import { createTmsAgentAutomationRoutes } from "./routes/tms-agent-automation/tms-agent-automation.route";
 import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/tms-dashboard-summary.route";
-import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
-import { createBillingRoutes } from "./routes/billing/billing.route";
 import { createWebhookEndpointRoutes } from "./routes/webhook-endpoint/webhook-endpoint.route";
 import { createHumanApprovalRoutes } from "./routes/human-approval/human-approval.route";
 
@@ -216,10 +214,7 @@ export function createOrgAgentsRoutes() {
 }
 
 export function createOrgWorkspaceRoutes() {
-  return new Hono()
-    .route("/workspace", createWorkspaceRoutes())
-    .route("/billing", createBillingRoutes())
-    .route("/webhook-endpoints", createWebhookEndpointRoutes());
+  return new Hono().route("/webhook-endpoints", createWebhookEndpointRoutes());
 }
 
 export function createOrgScopedAppRoutes(options: OrgScopedRouteOptions) {
