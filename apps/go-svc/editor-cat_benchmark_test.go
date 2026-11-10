@@ -1,7 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"strings"
 	"testing"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 )
 
 func BenchmarkParseEditorCatAdvancedFilter(b *testing.B) {
@@ -93,6 +97,52 @@ func BenchmarkParseEditorCatQueueQuery(b *testing.B) {
 		query, err := parseEditorCatQueueQuery(values)
 		if err != nil || query.advancedFilter == nil {
 			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkRewriteHashedHTMLSegmentKeys(b *testing.B) {
+	var html strings.Builder
+	html.WriteString("<html><body>")
+	for i := 0; i < 40; i++ {
+		fmt.Fprintf(&html, "<p>Paragraph %d with enough text to hash.</p>", i)
+	}
+	html.WriteString("</body></html>")
+	content := []byte(html.String())
+	mapping := translationfileparser.LegacyHTMLKeyToPathKey(content)
+	if len(mapping) == 0 {
+		b.Fatal("expected hashed keys")
+	}
+	template := make([]editorCatSegment, 0, len(mapping))
+	for legacy := range mapping {
+		template = append(template, editorCatSegment{Key: legacy})
+	}
+	b.ReportAllocs()
+	b.SetBytes(int64(len(content)))
+	for b.Loop() {
+		segments := append([]editorCatSegment(nil), template...)
+		rewriteHashedHTMLSegmentKeys(content, segments)
+	}
+}
+
+func BenchmarkUniqueEditorCatIDs(b *testing.B) {
+	ids := make([]string, 400)
+	for i := range ids {
+		switch i % 4 {
+		case 0:
+			ids[i] = fmt.Sprintf("AAAAAAAA-AAAA-4AAA-8AAA-%012X", i/4)
+		case 1:
+			ids[i] = fmt.Sprintf("aaaaaaaa-aaaa-4aaa-8aaa-%012x", i/4)
+		case 2:
+			ids[i] = "  " + ids[i-1]
+		default:
+			ids[i] = fmt.Sprintf("plain-%d", i)
+		}
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		if len(uniqueEditorCatIDs(ids, editorCatMaxHiddenBatch)) == 0 {
+			b.Fatal("expected ids")
 		}
 	}
 }

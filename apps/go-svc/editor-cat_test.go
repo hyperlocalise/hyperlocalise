@@ -399,6 +399,20 @@ func TestEditorCatRoles(t *testing.T) {
 	require.True(t, editorCatActor{role: "member"}.canRead())
 	require.False(t, editorCatActor{role: "translator"}.canWriteProjectTeam())
 	require.True(t, editorCatActor{role: "localization_manager"}.canManageGlossaries())
+	for _, tc := range []struct {
+		role string
+		ok   bool
+	}{
+		{"admin", true},
+		{"localization_manager", true},
+		{"developer", true},
+		{"translator", false},
+		{"reviewer", false},
+		{"member", false},
+		{"guest", false},
+	} {
+		require.Equal(t, tc.ok, editorCatActor{role: tc.role}.canEditKeyDetails(), tc.role)
+	}
 }
 
 func TestEditorCatWholeFileKind(t *testing.T) {
@@ -1106,6 +1120,11 @@ func TestFormatEditorCatAuthor(t *testing.T) {
 
 func TestUniqueEditorCatIDs(t *testing.T) {
 	require.Equal(t, []string{"a", "b"}, uniqueEditorCatIDs([]string{" a ", "", "a", "b", "c"}, 2))
+	require.Empty(t, uniqueEditorCatIDs(nil, 10))
+	require.Empty(t, uniqueEditorCatIDs([]string{"", "  "}, 10))
+	upper := "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"
+	canonical := "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	require.Equal(t, []string{canonical, "plain"}, uniqueEditorCatIDs([]string{" " + upper + " ", upper, "plain", "plain"}, 10))
 }
 
 func TestEditorCatQueueFilterSQL(t *testing.T) {

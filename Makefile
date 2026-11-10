@@ -111,6 +111,16 @@ bench-evalsvc: ## run focused evalsvc benchmarks
 	go test -run '^$$' -bench 'Benchmark(EvaluatorEvaluate|PlaceholderTokens|TokenF1|NormalizeText)' -benchmem -benchtime=20x ./apps/cli/internal/i18n/evalsvc/scoring
 
 
+.PHONY: bench-public-api
+bench-public-api: ## run focused public-api request-path benchmarks
+	go test -run '^$$' -bench 'Benchmark(GroupBilingual|NormalizeSource|EffectivePermissions|ParseQuery|ParsePagination|FileActivity|SQLFilter)' -benchmem -benchtime=20x ./apps/public-api
+
+
+.PHONY: bench-go-svc
+bench-go-svc: ## run focused go-svc request-path benchmarks
+	go test -run '^$$' -bench 'Benchmark(USDUnits|USDString|WordCost|ReportingCSVCell|ReportingNumber|RewriteHashedHTMLSegmentKeys|UniqueEditorCatIDs|ParseLatestPublicJobQuery|ParsePublicJobAnalysisUnit)' -benchmem -benchtime=20x ./apps/go-svc
+
+
 .PHONY: clean
 clean: ## clean up environment
 	@rm -rf coverage.out test-report.jsonl dist/ $(projectname)

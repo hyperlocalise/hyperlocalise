@@ -12,6 +12,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestWorkspaceActorCapabilities(t *testing.T) {
+	cases := []struct {
+		role                 string
+		read, write, orgWide bool
+	}{
+		{"admin", true, true, true},
+		{"localization_manager", true, true, true},
+		{"developer", true, true, false},
+		{"reviewer", true, false, false},
+		{"translator", true, false, false},
+		{"member", true, false, false},
+		{"guest", false, false, false},
+		{"", false, false, false},
+	}
+	for _, tc := range cases {
+		actor := workspaceActor{role: tc.role}
+		require.Equal(t, tc.read, actor.canReadProjects(), "read projects %s", tc.role)
+		require.Equal(t, tc.write, actor.canWriteProjects(), "write projects %s", tc.role)
+		require.Equal(t, tc.read, actor.canReadExperiments(), "read experiments %s", tc.role)
+		require.Equal(t, tc.write, actor.canWriteExperiments(), "write experiments %s", tc.role)
+		require.Equal(t, tc.orgWide, actor.orgWideProjectAccess(), "org wide %s", tc.role)
+	}
+}
+
 func TestCalculateAllocationRangesMatchesBuckets(t *testing.T) {
 	full := calculateAllocationRanges(10000, []int{10000})
 	require.Equal(t, &[2]int{0, 9999}, full[0])
