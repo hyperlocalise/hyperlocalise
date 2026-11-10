@@ -34,7 +34,7 @@ A key job made with **Add to a task…** runs no AI translation. Its page shows 
 
 **Add to a task…** in the Content Editor's selection menu, with **Task type** set to **AI translation**, makes a key job of kind translation instead, as **Translation** does for files. It runs right away: it fills missing translations of its strings in the chosen languages, and Needs review ones that only repeat the source (or, if asked, replaces all not approved yet), saves them as **Needs review**, and ends **Succeeded**, listing any languages where some strings failed, or **Failed** if none could be translated. A failed run can be retried; the retry skips strings already translated. It counts towards the workspace's open-job limit like other AI jobs, and is charged once, for the job and the AI it used.
 
-A key job for people gets its word counts and match bands on its **Report** tab, as a file task does, and again when strings are added to it. Reports does not yet count the edits people make in it as progress, nor the words of an AI translation of chosen strings.
+Reports counts key jobs as it counts file jobs. A key job for people gets its word counts and match bands when it is created, and again when strings are added to it; approvals and edits made inside it count as its review work. An AI translation of chosen strings counts the strings it plans to translate and each one it saves, and its AI use shows under AI usage.
 
 ## Reports on a job
 

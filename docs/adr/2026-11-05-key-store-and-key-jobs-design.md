@@ -41,7 +41,7 @@ Screenshots are attached one string at a time in the content editor, as before. 
 ## Consequences
 
 - A key hidden after it joined a job stays in the job, but its count and the editor queue leave it out like any hidden key. It comes back when it is shown again.
-- A key job has no source file, so Reports does not match editor saves to it: the match is keyed on files today. Its words and match bands are counted (2026-11-10): the task analysis reads the job's own visible strings instead of a file's, when the task is created and again when strings are added. A fixed task fee set on it is charged on Mark done, as for a file task.
+- A key job has no source file, so Reports reads its strings from the job (2026-11-10): the task analysis records the job's own visible strings, when the task is created and again when strings are added, and an approval or a person's edit of a string is credited to the newest open proofread key job holding it, as to a file task covering its file (the scheduled capture reads the batch's key jobs in one query and merges them with the file's tasks). A fixed task fee set on it is charged on Mark done, as for a file task.
 - A task bigger than the loaded rows needs scrolling until the later selection change lands.
 - No AI translation runs for a key job. Translations come from the existing file jobs, editor suggestions or people.
 - Tag and link changes are not in the activity log yet: an event type is a contract shared by two services.
