@@ -42,6 +42,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { contentEditorKeyTaskDialogMessages as messages } from "./content-editor-key-task-dialog.messages";
+import { invalidateProjectContentEditorData } from "./use-key-translation-job-refresh";
 
 type OpenKeyJob = { id: string; inputPayload: unknown };
 
@@ -56,9 +57,13 @@ function dueAtFromDate(value: string) {
   return value ? new Date(`${value}T23:59:59`).toISOString() : undefined;
 }
 
+type TaskKind = "proofread" | "ai";
+
 /**
- * Puts the ticked strings into a task for people: a new key job, or an open one of the project.
- * Hidden strings are left out by the server.
+ * Puts the ticked strings into a task: a new key job, or an open one of the project. A new task is
+ * either for people (proofread) or AI translation, which fills missing translations (or, if asked,
+ * unapproved ones) for review, as the file job dialog's task type does. Hidden strings are left out
+ * by the server.
  */
 export function ContentEditorKeyTaskDialog({
   open,
@@ -67,8 +72,10 @@ export function ContentEditorKeyTaskDialog({
   projectId,
   sourceLocale,
   targetLocales,
+  defaultLocale,
   stringIds,
   onSaved,
+  onAiTranslationStarted,
   onOpenTask,
 }: {
   open: boolean;
@@ -77,9 +84,13 @@ export function ContentEditorKeyTaskDialog({
   projectId: string;
   sourceLocale: string;
   targetLocales: string[];
+  /** The editor's language, the one ticked first for AI translation. */
+  defaultLocale: string;
   stringIds: string[];
   /** Called after the strings are saved into a task, for example to clear the selection. */
   onSaved?: () => void;
+  /** Called with the job of a started AI translation, so the editor can follow it. */
+  onAiTranslationStarted?: (jobId: string) => void;
   /** Opens a task's page, through the editor's leave guard. */
   onOpenTask: (href: string) => void;
 }) {
@@ -87,6 +98,8 @@ export function ContentEditorKeyTaskDialog({
   const queryClient = useQueryClient();
   const { client: goSvcClient } = useGoSvcClient();
   const [mode, setMode] = useState<"new" | "existing">("new");
+  const [kind, setKind] = useState<TaskKind>("proofread");
+  const [overwriteUnapproved, setOverwriteUnapproved] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -95,18 +108,32 @@ export function ContentEditorKeyTaskDialog({
   const [pending, setPending] = useState(false);
 
   // Reset when the dialog opens, not on every render that passes a new locales array.
-  const targetLocalesRef = useRef(targetLocales);
-  targetLocalesRef.current = targetLocales;
+  const defaultsRef = useRef({ targetLocales, defaultLocale });
+  defaultsRef.current = { targetLocales, defaultLocale };
+  // People get every language; AI starts with the editor's, as each language costs a model call.
+  const defaultLocales = (taskKind: TaskKind) => {
+    const { targetLocales: all, defaultLocale: current } = defaultsRef.current;
+    return taskKind === "ai" && all.includes(current) ? [current] : all;
+  };
   useEffect(() => {
     if (open) {
       setMode("new");
+      setKind("proofread");
+      setOverwriteUnapproved(false);
       setTitle("");
       setDescription("");
       setDueDate("");
-      setLocales(targetLocalesRef.current);
+      setLocales(defaultLocales("proofread"));
       setJobId("");
     }
   }, [open]);
+
+  function changeKind(next: TaskKind) {
+    setKind(next);
+    setLocales(defaultLocales(next));
+  }
+
+  const isAi = mode === "new" && kind === "ai";
 
   const openJobsQuery = useQuery({
     queryKey: ["content-editor-open-key-jobs", organizationSlug, projectId],
@@ -125,19 +152,26 @@ export function ContentEditorKeyTaskDialog({
   const canSubmit =
     !pending &&
     stringIds.length > 0 &&
-    (mode === "new" ? title.trim().length > 0 && locales.length > 0 : jobId.length > 0);
+    (mode === "new" ? (isAi || title.trim().length > 0) && locales.length > 0 : jobId.length > 0);
 
   async function submit() {
     setPending(true);
     try {
-      const job = mode === "new" ? await createTask() : await addToTask();
+      const job = isAi
+        ? await startAiTranslation()
+        : mode === "new"
+          ? await createTask()
+          : await addToTask();
       toast.success(
-        intl.formatMessage(mode === "new" ? messages.created : messages.added, {
-          count: job.count,
-        }),
+        intl.formatMessage(
+          isAi ? messages.aiStarted : mode === "new" ? messages.created : messages.added,
+          {
+            count: job.count,
+          },
+        ),
         {
           action: {
-            label: intl.formatMessage(messages.openTask),
+            label: intl.formatMessage(isAi ? messages.openJob : messages.openTask),
             onClick: () =>
               onOpenTask(
                 `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(job.id)}`,
@@ -150,11 +184,22 @@ export function ContentEditorKeyTaskDialog({
           queryKey: ["content-editor-open-key-jobs", organizationSlug, projectId],
         }),
         queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] }),
+        // A task view loaded before must show the strings just added to its task.
+        ...(mode === "existing"
+          ? [invalidateProjectContentEditorData(queryClient, organizationSlug, projectId)]
+          : []),
       ]);
+      if (isAi) {
+        onAiTranslationStarted?.(job.id);
+      }
       onOpenChange(false);
       onSaved?.();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : intl.formatMessage(messages.failed));
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : intl.formatMessage(isAi ? messages.aiFailed : messages.failed),
+      );
     } finally {
       setPending(false);
     }
@@ -181,6 +226,30 @@ export function ContentEditorKeyTaskDialog({
     return { id: body.job.id, count: body.job.keyCount ?? stringIds.length };
   }
 
+  async function startAiTranslation() {
+    const response = await apiClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post({
+      param: { organizationSlug, projectId },
+      json: {
+        type: "keys",
+        kind: "translation",
+        title: intl.formatMessage(messages.aiTaskTitle, { count: stringIds.length }),
+        keysInput: {
+          sourceLocale,
+          targetLocales: locales,
+          stringIds,
+          ...(overwriteUnapproved ? { overwriteUnapproved: true } : {}),
+        },
+      },
+    });
+    if (response.status !== 201) {
+      throw new Error(await readApiError(response, intl.formatMessage(messages.aiFailed)));
+    }
+    const body = (await response.json()) as { job: { id: string; keyCount?: number | null } };
+    return { id: body.job.id, count: body.job.keyCount ?? stringIds.length };
+  }
+
   async function addToTask() {
     const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs[
       ":jobId"
@@ -203,7 +272,10 @@ export function ContentEditorKeyTaskDialog({
             <FormattedMessage {...messages.title} />
           </DialogTitle>
           <DialogDescription>
-            <FormattedMessage {...messages.description} values={{ count: stringIds.length }} />
+            <FormattedMessage
+              {...(isAi ? messages.aiDescription : messages.description)}
+              values={{ count: stringIds.length }}
+            />
           </DialogDescription>
         </DialogHeader>
         <Tabs value={mode} onValueChange={(value) => setMode(value as "new" | "existing")}>
@@ -219,16 +291,45 @@ export function ContentEditorKeyTaskDialog({
         {mode === "new" ? (
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="key-task-title">
-                <FormattedMessage {...messages.taskTitle} />
+              <Label htmlFor="key-task-type">
+                <FormattedMessage {...messages.taskType} />
               </Label>
-              <Input
-                id="key-task-title"
-                value={title}
-                maxLength={256}
-                onChange={(event) => setTitle(event.target.value)}
-              />
+              <Select
+                value={kind}
+                onValueChange={(value) => {
+                  if (value === "proofread" || value === "ai") {
+                    changeKind(value);
+                  }
+                }}
+              >
+                <SelectTrigger id="key-task-type" className="w-full min-w-0">
+                  <SelectValue>
+                    {intl.formatMessage(isAi ? messages.taskTypeAi : messages.taskTypeProofread)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="proofread">
+                    <FormattedMessage {...messages.taskTypeProofread} />
+                  </SelectItem>
+                  <SelectItem value="ai">
+                    <FormattedMessage {...messages.taskTypeAi} />
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+            {isAi ? null : (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="key-task-title">
+                  <FormattedMessage {...messages.taskTitle} />
+                </Label>
+                <Input
+                  id="key-task-title"
+                  value={title}
+                  maxLength={256}
+                  onChange={(event) => setTitle(event.target.value)}
+                />
+              </div>
+            )}
             <fieldset className="flex flex-col gap-1.5">
               <legend className="mb-1.5 text-sm font-medium">
                 <FormattedMessage {...messages.languages} />
@@ -253,28 +354,40 @@ export function ContentEditorKeyTaskDialog({
                 ))}
               </div>
             </fieldset>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="key-task-due">
-                <FormattedMessage {...messages.dueDate} />
+            {isAi ? (
+              <Label className="flex items-center gap-2 font-normal">
+                <Checkbox
+                  checked={overwriteUnapproved}
+                  onCheckedChange={(checked) => setOverwriteUnapproved(checked === true)}
+                />
+                <FormattedMessage {...messages.overwriteUnapproved} />
               </Label>
-              <Input
-                id="key-task-due"
-                type="date"
-                value={dueDate}
-                onChange={(event) => setDueDate(event.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="key-task-description">
-                <FormattedMessage {...messages.taskDescription} />
-              </Label>
-              <Textarea
-                id="key-task-description"
-                value={description}
-                maxLength={2048}
-                onChange={(event) => setDescription(event.target.value)}
-              />
-            </div>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="key-task-due">
+                    <FormattedMessage {...messages.dueDate} />
+                  </Label>
+                  <Input
+                    id="key-task-due"
+                    type="date"
+                    value={dueDate}
+                    onChange={(event) => setDueDate(event.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="key-task-description">
+                    <FormattedMessage {...messages.taskDescription} />
+                  </Label>
+                  <Textarea
+                    id="key-task-description"
+                    value={description}
+                    maxLength={2048}
+                    onChange={(event) => setDescription(event.target.value)}
+                  />
+                </div>
+              </>
+            )}
           </div>
         ) : openJobsQuery.isError ? (
           <p className="p-6 text-center text-sm text-destructive">
@@ -321,7 +434,9 @@ export function ContentEditorKeyTaskDialog({
           </Button>
           <Button type="button" disabled={!canSubmit} onClick={() => void submit()}>
             {pending ? <Spinner /> : null}
-            <FormattedMessage {...(mode === "new" ? messages.create : messages.add)} />
+            <FormattedMessage
+              {...(isAi ? messages.translate : mode === "new" ? messages.create : messages.add)}
+            />
           </Button>
         </DialogFooter>
       </DialogContent>

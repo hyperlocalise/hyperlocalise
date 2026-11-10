@@ -113,4 +113,58 @@ export const contentEditorKeyTaskDialogMessages = defineMessages({
     id: "Jhrm9Be1fa",
     description: "Fallback error when creating or adding to a task fails",
   },
+  taskType: {
+    defaultMessage: "Task type",
+    id: "tQY42chiay",
+    description:
+      "Label of the choice between a task for people and AI translation of the ticked strings",
+  },
+  taskTypeProofread: {
+    defaultMessage: "Proofread",
+    id: "uuIjkOM24B",
+    description: "Task type option: people translate and review the ticked strings",
+  },
+  taskTypeAi: {
+    defaultMessage: "AI translation",
+    id: "CBJ++UvPFj",
+    description: "Task type option: AI translates the ticked strings in the background",
+  },
+  aiDescription: {
+    defaultMessage:
+      "{count, plural, one {The ticked string is} other {The # ticked strings are}} translated with AI in the background. Results need review. Approved translations, locked strings and hidden strings are left as they are.",
+    id: "ogYglCWKZA",
+    description: "Explains what AI translation does with the ticked strings",
+  },
+  overwriteUnapproved: {
+    defaultMessage: "Also replace translations that are not approved yet",
+    id: "sdQvRHgv8W",
+    description:
+      "Option to let AI translation replace existing translations that are not approved; by default it fills only missing ones",
+  },
+  translate: {
+    defaultMessage: "Translate",
+    id: "oa50ttNK+t",
+    description: "Starts AI translation of the ticked strings",
+  },
+  aiTaskTitle: {
+    defaultMessage: "AI translation of {count, plural, one {# string} other {# strings}}",
+    id: "VYNLQ4kVv7",
+    description: "Title given to the job that translates the ticked strings with AI",
+  },
+  aiStarted: {
+    defaultMessage:
+      "Translating {count, plural, one {# string} other {# strings}}. They update as each one finishes.",
+    id: "eeNMn0N1Hc",
+    description: "Toast after AI translation of the ticked strings starts",
+  },
+  openJob: {
+    defaultMessage: "Open job",
+    id: "XPVACICrP4",
+    description: "Toast action that opens the AI translation job's page",
+  },
+  aiFailed: {
+    defaultMessage: "AI translation could not be started",
+    id: "bj4SaG8kZ2",
+    description: "Fallback error when starting AI translation of the ticked strings fails",
+  },
 });

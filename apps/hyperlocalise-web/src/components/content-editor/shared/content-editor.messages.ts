@@ -295,11 +295,6 @@ export const contentEditorQueuePanelMessages = defineMessages({
     id: "RSwnlVqhIH",
     description: "Bulk action that adds or removes tags on the selected strings",
   },
-  bulkTranslate: {
-    defaultMessage: "Translate with AI…",
-    id: "deWGxz/Opi",
-    description: "Bulk action that translates the selected strings with AI in the background",
-  },
   bulkCreateTask: {
     defaultMessage: "Add to a task…",
     id: "8DTgncaRKl",

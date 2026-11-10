@@ -59,7 +59,6 @@ export const ContentEditorQueueToolbarConnected = observer(
     onBulkLock,
     onBulkUnlock,
     onBulkCreateTask,
-    onBulkTranslate,
     onBulkEditTags,
     onDownloadFilteredView,
     isDownloadingFilteredView = false,
@@ -91,7 +90,6 @@ export const ContentEditorQueueToolbarConnected = observer(
     onBulkLock?: () => void;
     onBulkUnlock?: () => void;
     onBulkCreateTask?: () => void;
-    onBulkTranslate?: () => void;
     onBulkEditTags?: () => void;
     onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
     isDownloadingFilteredView?: boolean;
@@ -199,7 +197,6 @@ export const ContentEditorQueueToolbarConnected = observer(
         onBulkUnlock={onBulkUnlock}
         onBulkCreateTask={onBulkCreateTask}
         onDismissNewTaskHint={showNewTaskHint ? dismissNewTaskHint : undefined}
-        onBulkTranslate={onBulkTranslate}
         onBulkEditTags={onBulkEditTags}
         isBulkActionPending={store.isBulkActionPending}
         bulkActionLocale={

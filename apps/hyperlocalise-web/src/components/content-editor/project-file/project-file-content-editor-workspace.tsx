@@ -20,7 +20,7 @@ import { invalidateContentEditorSanityPushQueries } from "@/components/content-e
 
 import { NativeTargetProvider } from "./content-editor-native-target-context";
 import { ContentEditorKeyTaskDialog } from "./content-editor-key-task-dialog";
-import { ContentEditorKeyTranslateDialog } from "./content-editor-key-translate-dialog";
+import { useKeyTranslationJobRefresh } from "./use-key-translation-job-refresh";
 import { ContentEditorKeyTagsDialog } from "./content-editor-key-tags-dialog";
 import {
   ContentEditorKeyDetailsEditingContext,
@@ -217,6 +217,11 @@ export function ProjectFileContentEditorWorkspace({
   const intl = useIntl();
   const queryClient = useQueryClient();
   const { client: goSvcClient } = useGoSvcClient();
+  const followKeyTranslationJob = useKeyTranslationJobRefresh({
+    organizationSlug,
+    projectId,
+    goSvcClient,
+  });
   const isExternalProject = isExternalTmsContentEditorProject({
     projectId,
     projectSource,
@@ -635,21 +640,6 @@ export function ProjectFileContentEditorWorkspace({
         return;
       }
       setKeyTask({ stringIds, onSaved });
-    },
-    [intl, keyStringIds],
-  );
-  const [keyTranslate, setKeyTranslate] = useState<{
-    stringIds: string[];
-    onStarted: () => void;
-  } | null>(null);
-  const openKeyTranslateDialog = useCallback(
-    (segmentIds: string[], onStarted: () => void) => {
-      const stringIds = keyStringIds(segmentIds);
-      if (stringIds.length === 0) {
-        toast.error(intl.formatMessage(projectFileCatWorkspaceMessages.noTaskStrings));
-        return;
-      }
-      setKeyTranslate({ stringIds, onStarted });
     },
     [intl, keyStringIds],
   );
@@ -1730,7 +1720,6 @@ export function ProjectFileContentEditorWorkspace({
                           ...(isNativeProject && contentEditorFile?.canEditTranslations
                             ? {
                                 onCreateKeyTask: openKeyTaskDialog,
-                                onTranslateKeys: openKeyTranslateDialog,
                               }
                             : {}),
                           ...(canEditKeyDetails ? { onEditKeyTags: openKeyTagsDialog } : {}),
@@ -1824,29 +1813,11 @@ export function ProjectFileContentEditorWorkspace({
                 projectId={projectId}
                 sourceLocale={sourceLocale}
                 targetLocales={targetLocales ?? []}
+                defaultLocale={targetLocale}
                 stringIds={keyTask?.stringIds ?? []}
                 onSaved={keyTask?.onSaved}
+                onAiTranslationStarted={followKeyTranslationJob}
                 onOpenTask={(href) =>
-                  attemptCatPageNavigation(resolvedPageNavigationGuardRef, () => router.push(href))
-                }
-              />
-            ) : null}
-            {isNativeProject ? (
-              <ContentEditorKeyTranslateDialog
-                open={keyTranslate != null}
-                onOpenChange={(open) => {
-                  if (!open) {
-                    setKeyTranslate(null);
-                  }
-                }}
-                organizationSlug={organizationSlug}
-                projectId={projectId}
-                sourceLocale={sourceLocale}
-                targetLocales={targetLocales ?? []}
-                defaultLocale={targetLocale}
-                stringIds={keyTranslate?.stringIds ?? []}
-                onStarted={keyTranslate?.onStarted}
-                onOpenJob={(href) =>
                   attemptCatPageNavigation(resolvedPageNavigationGuardRef, () => router.push(href))
                 }
               />
