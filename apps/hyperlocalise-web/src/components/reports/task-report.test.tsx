@@ -48,12 +48,12 @@ vi.mock("next/link", () => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-function renderReport({ wordsCounted }: { wordsCounted?: boolean } = {}) {
+function renderReport() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <IntlProvider locale="en" messages={{}}>
       <QueryClientProvider client={queryClient}>
-        <TaskReport organizationSlug="acme" jobId="job_release" wordsCounted={wordsCounted} />
+        <TaskReport organizationSlug="acme" jobId="job_release" />
       </QueryClientProvider>
     </IntlProvider>,
   );
@@ -407,17 +407,6 @@ describe("Task report", () => {
         "Work on this step has started, so its pricing can no longer change.",
       ),
     ).toBeInTheDocument();
-  });
-
-  it("says an AI translation of chosen strings has no word counts yet, and still shows its time", async () => {
-    renderReport({ wordsCounted: false });
-
-    await screen.findByRole("table", { name: "Time logged on this task" });
-    expect(
-      screen.getByText(/Reports doesn't count the words of an AI translation of chosen strings/),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Words to translate")).not.toBeInTheDocument();
-    expect(screen.queryByRole("table", { name: "Task match analysis" })).not.toBeInTheDocument();
   });
 
   it("edits and deletes a time entry", async () => {

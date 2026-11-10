@@ -28,12 +28,25 @@ import {
   ensureAiFeaturesAllowedStep,
   failTranslationJobStep,
   recordJobEventsStep,
+  resolveWorkspaceReportsFlagStep,
 } from "./steps/translation-job";
 
 async function planKeyTranslationJobStep(input: { jobId: string; projectId: string }) {
   "use step";
   const { planKeyTranslationJob } = await import("@/lib/translation/key-translation-job");
   return planKeyTranslationJob(input);
+}
+
+async function captureKeyTranslationAnalysisStep(input: {
+  jobId: string;
+  projectId: string;
+  organizationId: string;
+  sourceLocale: string;
+  items: KeyTranslationJobPlan["items"];
+}) {
+  "use step";
+  const { captureKeyTranslationAnalysis } = await import("@/lib/translation/key-translation-job");
+  await captureKeyTranslationAnalysis(input);
 }
 
 async function translateKeyBatchStep(input: {
@@ -46,6 +59,7 @@ async function translateKeyBatchStep(input: {
   overwriteUnapproved: boolean;
   knowledgeMemoryEnabled: boolean;
   recordProvenance: boolean;
+  reportsEnabled: boolean;
   items: KeyTranslationJobPlan["items"];
 }): Promise<KeyTranslationBatchResult> {
   "use step";
@@ -209,6 +223,17 @@ export async function keyTranslationJobWorkflow(event: TranslationJobEventData) 
         payload: { stringCount: plan.stringCount, localeCount: plan.targetLocales.length },
       },
     ]);
+    // Reports counts the strings to translate before the first is saved; read once for the run.
+    const reportsEnabled = await resolveWorkspaceReportsFlagStep(plan.organizationId);
+    if (reportsEnabled) {
+      await captureKeyTranslationAnalysisStep({
+        jobId: job.id,
+        projectId: job.projectId,
+        organizationId: plan.organizationId,
+        sourceLocale: plan.sourceLocale,
+        items: plan.items,
+      });
+    }
 
     for (let start = 0; start < plan.items.length; start += KEY_TRANSLATION_BATCH_SIZE) {
       const batch = await translateKeyBatchStep({
@@ -221,6 +246,7 @@ export async function keyTranslationJobWorkflow(event: TranslationJobEventData) 
         overwriteUnapproved: plan.overwriteUnapproved,
         knowledgeMemoryEnabled: plan.knowledgeMemoryEnabled || job.knowledgeMemoryEnabled,
         recordProvenance: start === 0,
+        reportsEnabled,
         items: plan.items.slice(start, start + KEY_TRANSLATION_BATCH_SIZE),
       });
       totals = mergeKeyTranslationBatchResults([totals, batch]);

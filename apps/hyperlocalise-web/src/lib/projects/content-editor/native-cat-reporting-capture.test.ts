@@ -134,6 +134,7 @@ describe("captureNativeCatTranslationReporting", () => {
       organizationId: "org_1",
       projectId: "project_1",
       repositorySourceFileId: "file_1",
+      translationKeyId: "key_1",
       targetLocale: "fr-FR",
       step: "review",
       byPerson: true,

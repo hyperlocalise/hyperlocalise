@@ -115,14 +115,11 @@ export function TaskReport({
   organizationSlug,
   jobId,
   defaultStep = "translation",
-  wordsCounted = true,
 }: {
   organizationSlug: string;
   jobId: string;
   /** The step the task is for: review on a proofread task, so the tab opens on its own work. */
   defaultStep?: ReportStep;
-  /** False for an AI translation of chosen strings, whose words Reports does not count yet. */
-  wordsCounted?: boolean;
 }) {
   const intl = useIntl();
   const csv = useReportCsv(organizationSlug);
@@ -188,11 +185,7 @@ export function TaskReport({
             </Link>
           </div>
           {/* Words, match bands and money are for the roles that see Reports; others see their time. */}
-          {!wordsCounted ? (
-            <p className="rounded-lg border p-4 text-sm text-muted-foreground">
-              {intl.formatMessage(messages.wordsNotCounted)}
-            </p>
-          ) : data.words ? (
+          {data.words ? (
             <>
               {/* Nothing to add up while the step's strings are being counted. */}
               {analysisOutcome(data.words, step, state) === "counting" ? null : (

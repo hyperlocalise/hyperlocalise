@@ -15,13 +15,6 @@
 import { defineMessages } from "react-intl";
 
 export const taskReportMessages = defineMessages({
-  wordsNotCounted: {
-    id: "oeu4YfFxr3",
-    defaultMessage:
-      "Reports doesn't count the words of an AI translation of chosen strings yet. Its AI use shows in Reports under AI usage.",
-    description:
-      "Shown on the Report tab of an AI translation of chosen strings instead of word counts, which Reports does not record for it yet",
-  },
   intro: {
     id: "dnUl0UTxhs",
     defaultMessage:

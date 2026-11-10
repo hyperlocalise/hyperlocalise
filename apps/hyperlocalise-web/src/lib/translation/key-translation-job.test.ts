@@ -25,6 +25,9 @@ const mocks = vi.hoisted(() => ({
   translateStringJob: vi.fn(),
   completeAndTrackBillableUsage: vi.fn(),
   trackAiCreditUsageInAutumn: vi.fn(),
+  captureAnalysis: vi.fn(async (_input: unknown) => undefined),
+  recordCompletions: vi.fn(async (_input: unknown) => undefined),
+  captureJobStatus: vi.fn(async (_input: unknown) => undefined),
   recordJobGenerationProvenance: vi.fn(async () => null),
   validateSegment: vi.fn(),
   glossaryTerms: [] as Array<{
@@ -68,6 +71,11 @@ vi.mock("@/lib/translation/context", () => ({
 vi.mock("@/lib/go-svc/go-svc-server-client", () => ({
   createGoSvcServerClient: () => ({ qaReport: { validateSegment: mocks.validateSegment } }),
 }));
+vi.mock("@/lib/reporting/capture", () => ({
+  captureAnalysis: mocks.captureAnalysis,
+  recordCompletions: mocks.recordCompletions,
+  captureJobStatus: mocks.captureJobStatus,
+}));
 vi.mock("@/lib/flags/workspace-flags", () => ({
   resolveWorkspaceKnowledgeFlag: async () => true,
 }));
@@ -83,6 +91,7 @@ vi.mock("@/lib/billing/usage-control", async (importOriginal) => ({
 import { StringTranslationOutputError } from "@/lib/translation/generation";
 
 import {
+  captureKeyTranslationAnalysis,
   chargeFailedKeyTranslationRun,
   completeKeyTranslationJob,
   planKeyTranslationJob,
@@ -103,6 +112,9 @@ afterEach(async () => {
   mocks.translateStringJob.mockReset();
   mocks.completeAndTrackBillableUsage.mockReset();
   mocks.trackAiCreditUsageInAutumn.mockReset();
+  mocks.captureAnalysis.mockClear();
+  mocks.recordCompletions.mockClear();
+  mocks.captureJobStatus.mockClear();
   mocks.recordJobGenerationProvenance.mockReset();
   mocks.validateSegment.mockReset();
   mocks.glossaryTerms.length = 0;
@@ -318,6 +330,7 @@ describe("translateKeyBatch", () => {
       overwriteUnapproved: false,
       knowledgeMemoryEnabled: false,
       recordProvenance: true,
+      reportsEnabled: true,
       items: [ids.a!, ids.b!, ids.c!].map((translationKeyId) => ({
         translationKeyId,
         targetLocales: ["fr-FR", "de-DE"],
@@ -339,6 +352,45 @@ describe("translateKeyBatch", () => {
     });
     await expect(readTranslation(ids.c!, "fr-FR")).resolves.toBeUndefined();
     expect(mocks.recordJobGenerationProvenance).toHaveBeenCalledTimes(1);
+    // Reports gets the saved strings as the AI's finished work, by language.
+    const finished: Record<string, Record<string, string>> = {};
+    for (const [call] of mocks.recordCompletions.mock.calls) {
+      const input = call as { targetLocale: string; sourceEntries: Record<string, string> };
+      finished[input.targetLocale] = { ...finished[input.targetLocale], ...input.sourceEntries };
+    }
+    expect(finished).toEqual({
+      "fr-FR": { [ids.a!]: "Text a" },
+      "de-DE": { [ids.a!]: "Text a", [ids.b!]: "Text b" },
+    });
+    expect(mocks.recordCompletions).toHaveBeenCalledWith(
+      expect.objectContaining({ jobId, provenance: "automated", source: "ai" }),
+    );
+  });
+
+  it("records the planned strings for Reports in each language they need", async () => {
+    const { jobId, organizationId, projectId, ids } = await createJob([{ key: "a" }, { key: "b" }]);
+
+    await captureKeyTranslationAnalysis({
+      jobId,
+      projectId,
+      organizationId,
+      sourceLocale: "en-US",
+      items: [
+        { translationKeyId: ids.a!, targetLocales: ["fr-FR", "de-DE"] },
+        { translationKeyId: ids.b!, targetLocales: ["de-DE"] },
+      ],
+    });
+
+    const analysed = Object.fromEntries(
+      mocks.captureAnalysis.mock.calls.map(([call]) => {
+        const input = call as { targetLocale: string; sourceEntries: Record<string, string> };
+        return [input.targetLocale, input.sourceEntries];
+      }),
+    );
+    expect(analysed).toEqual({
+      "fr-FR": { [ids.a!]: "Text a" },
+      "de-DE": { [ids.a!]: "Text a", [ids.b!]: "Text b" },
+    });
   });
 });
 
@@ -700,6 +752,11 @@ describe("completeKeyTranslationJob", () => {
     });
 
     expect(mocks.completeAndTrackBillableUsage).toHaveBeenCalledTimes(1);
+    // Reports closes the task, as for a file job (and charges a fixed fee set on it).
+    expect(mocks.captureJobStatus).toHaveBeenCalledWith({
+      jobId: charged.jobId,
+      status: "succeeded",
+    });
     expect(mocks.completeAndTrackBillableUsage).toHaveBeenCalledWith(
       expect.objectContaining({
         operationKey: `job:${charged.jobId}:translation_jobs`,

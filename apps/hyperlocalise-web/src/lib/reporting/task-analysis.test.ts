@@ -25,6 +25,7 @@ import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translat
 
 import { markSummaryDays, refreshPendingSummary } from "./summary";
 import {
+  personTasksForString,
   analyseTaskLanguage,
   analyseTaskStrings,
   openPersonTaskForString,
@@ -275,6 +276,45 @@ describe("analyseTaskStrings for a task made of chosen strings", () => {
       .from(schema.reportingAnalyses)
       .where(eq(schema.reportingAnalyses.jobId, task.id));
     expect(analyses).toEqual([{ segmentId: idOf("greeting"), words: 2 }]);
+  });
+});
+
+describe("personTasksForString with a task made of chosen strings", () => {
+  it("covers a string's approvals by a proofread task holding it, never by an AI run", async () => {
+    const { organization, project, sourceFile, createPersonTask } = await createFileWithStrings();
+    const [key] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
+          eq(schema.projectTranslationKeys.key, "greeting"),
+        ),
+      );
+    const proofread = await createPersonTask({ kind: "proofread" });
+    // A queued or cancelled AI run has no workflow run either, like a task for people.
+    const aiRun = await createPersonTask({ kind: "translation" });
+    for (const job of [proofread, aiRun]) {
+      await db
+        .update(schema.translationJobDetails)
+        .set({ type: "keys", sourceFileVersionId: null })
+        .where(eq(schema.translationJobDetails.jobId, job.id));
+      await db
+        .insert(schema.translationJobKeys)
+        .values({ jobId: job.id, translationKeyId: key!.id });
+    }
+    const lookup = {
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      translationKeyId: key!.id,
+      targetLocale: "fr-FR",
+    };
+
+    expect(
+      (await personTasksForString({ ...lookup, step: "review" })).map((task) => task.id),
+    ).toEqual([proofread.id]);
+    expect(await personTasksForString({ ...lookup, step: "translation" })).toEqual([]);
   });
 });
 

@@ -39,6 +39,7 @@ import {
 import { TranslationContextBuilder } from "@/lib/translation/context";
 import type { StringTranslationJobResult } from "@/lib/translation/domain";
 import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
+import { captureAnalysis, captureJobStatus, recordCompletions } from "@/lib/reporting/capture";
 import {
   OrganizationModelResolver,
   StringTranslationOutputError,
@@ -390,6 +391,8 @@ export async function translateKeyBatch(input: {
   overwriteUnapproved: boolean;
   knowledgeMemoryEnabled: boolean;
   recordProvenance: boolean;
+  /** Whether Reports is on for the workspace, read once for the run. */
+  reportsEnabled?: boolean;
   items: KeyTranslationJobPlan["items"];
 }): Promise<KeyTranslationBatchResult> {
   const result: KeyTranslationBatchResult = { translated: {}, failed: {}, tokenUsage: null };
@@ -597,6 +600,16 @@ export async function translateKeyBatch(input: {
       for (const locale of written) {
         result.translated[locale] = (result.translated[locale] ?? 0) + 1;
       }
+      // Recorded right after the save, so a step that dies later loses no finished strings.
+      if (input.reportsEnabled && written.length > 0) {
+        await recordKeyTranslationCompletions({
+          organizationId: input.organizationId,
+          jobId: input.jobId,
+          translationKeyId: key.id,
+          sourceText: key.sourceText,
+          locales: written,
+        });
+      }
       // A language with no accepted text failed; one kept because someone wrote it meanwhile did not.
       countFailed(item.targetLocales.filter((locale) => !accepted.has(locale)));
     } catch (error) {
@@ -610,6 +623,102 @@ export async function translateKeyBatch(input: {
   });
 
   return result;
+}
+
+/** Records a string's saved languages for Reports as the AI's finished work: no person's cost. */
+async function recordKeyTranslationCompletions(input: {
+  organizationId: string;
+  jobId: string;
+  translationKeyId: string;
+  sourceText: string;
+  locales: string[];
+}) {
+  for (const targetLocale of input.locales) {
+    try {
+      await recordCompletions({
+        organizationId: input.organizationId,
+        jobId: input.jobId,
+        targetLocale,
+        sourceEntries: { [input.translationKeyId]: input.sourceText },
+        provenance: "automated",
+        source: "ai",
+      });
+    } catch (error) {
+      console.warn("[key-translation-job] Reports completion failed", {
+        jobId: input.jobId,
+        translationKeyId: input.translationKeyId,
+        error: error instanceof Error ? error.message : "unknown error",
+      });
+    }
+  }
+}
+
+/**
+ * Records for Reports the strings the job will translate, in each language, with their words and
+ * match bands, as a file translation job does for its file when it starts. A no-op while Reports
+ * is off; never throws.
+ */
+export async function captureKeyTranslationAnalysis(input: {
+  jobId: string;
+  projectId: string;
+  organizationId: string;
+  sourceLocale: string;
+  items: KeyTranslationJobPlan["items"];
+}) {
+  if (input.items.length === 0) return;
+  try {
+    await recordKeyTranslationAnalysis(input);
+  } catch (error) {
+    console.warn("[key-translation-job] Reports analysis failed", {
+      jobId: input.jobId,
+      error: error instanceof Error ? error.message : "unknown error",
+    });
+  }
+}
+
+async function recordKeyTranslationAnalysis(
+  input: Parameters<typeof captureKeyTranslationAnalysis>[0],
+) {
+  const keys = await db
+    .select({
+      id: schema.projectTranslationKeys.id,
+      sourceText: schema.projectTranslationKeys.sourceText,
+    })
+    .from(schema.projectTranslationKeys)
+    .where(
+      and(
+        eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+        eq(schema.projectTranslationKeys.projectId, input.projectId),
+        inArray(
+          schema.projectTranslationKeys.id,
+          input.items.map((item) => item.translationKeyId),
+        ),
+      ),
+    );
+  const sourceTextById = new Map(keys.map((key) => [key.id, key.sourceText] as const));
+  const entriesByLocale = new Map<string, Record<string, string>>();
+  for (const item of input.items) {
+    const sourceText = sourceTextById.get(item.translationKeyId);
+    if (!sourceText?.trim()) continue;
+    for (const locale of item.targetLocales) {
+      let entries = entriesByLocale.get(locale);
+      if (!entries) {
+        entries = {};
+        entriesByLocale.set(locale, entries);
+      }
+      entries[item.translationKeyId] = sourceText;
+    }
+  }
+  for (const [targetLocale, sourceEntries] of entriesByLocale) {
+    await captureAnalysis({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      jobId: input.jobId,
+      sourceLocale: input.sourceLocale,
+      targetLocale,
+      sourceEntries,
+    });
+  }
 }
 
 /**
@@ -645,6 +754,8 @@ export async function completeKeyTranslationJob(input: {
       `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
     );
   }
+  // As for a file job: a fixed fee set on the task is charged and its days are worked out again.
+  await captureJobStatus({ jobId: input.jobId, status: "succeeded" });
   if (!input.madeModelCalls) {
     return;
   }
