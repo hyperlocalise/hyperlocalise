@@ -7,6 +7,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestVisualWorkflowPublishedDefinitionJSONNull(t *testing.T) {
+	t.Parallel()
+
+	raw, err := json.Marshal(visualWorkflowRecord{
+		ID:         "11111111-1111-4111-8111-111111111111",
+		Name:       "Draft",
+		Status:     "draft",
+		Definition: json.RawMessage(`{"schemaVersion":3}`),
+	})
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"publishedDefinition":null`)
+
+	var decoded visualWorkflowRecord
+	require.NoError(t, json.Unmarshal(raw, &decoded))
+	require.Nil(t, decoded.PublishedDefinition)
+}
+
 func TestEmptyVisualWorkflowDefinitionIsV3(t *testing.T) {
 	t.Parallel()
 

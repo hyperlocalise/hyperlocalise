@@ -35,21 +35,21 @@ var visualWorkflowUpdateKeys = map[string]struct{}{
 }
 
 type visualWorkflowRecord struct {
-	ID                  string          `json:"id"`
-	OrganizationID      string          `json:"organizationId"`
-	AuthorUserID        *string         `json:"authorUserId"`
-	ProjectID           *string         `json:"projectId"`
-	Status              string          `json:"status"`
-	Name                string          `json:"name"`
-	Definition          json.RawMessage `json:"definition"`
-	DefinitionVersion   int             `json:"definitionVersion"`
-	Revision            int             `json:"revision"`
-	PublishedVersion    *int            `json:"publishedVersion"`
-	PublishedDefinition json.RawMessage `json:"publishedDefinition"`
-	TriggerFingerprint  *string         `json:"triggerFingerprint"`
-	NextRunAt           *string         `json:"nextRunAt"`
-	CreatedAt           string          `json:"createdAt"`
-	UpdatedAt           string          `json:"updatedAt"`
+	ID                  string           `json:"id"`
+	OrganizationID      string           `json:"organizationId"`
+	AuthorUserID        *string          `json:"authorUserId"`
+	ProjectID           *string          `json:"projectId"`
+	Status              string           `json:"status"`
+	Name                string           `json:"name"`
+	Definition          json.RawMessage  `json:"definition"`
+	DefinitionVersion   int              `json:"definitionVersion"`
+	Revision            int              `json:"revision"`
+	PublishedVersion    *int             `json:"publishedVersion"`
+	PublishedDefinition *json.RawMessage `json:"publishedDefinition"`
+	TriggerFingerprint  *string          `json:"triggerFingerprint"`
+	NextRunAt           *string          `json:"nextRunAt"`
+	CreatedAt           string           `json:"createdAt"`
+	UpdatedAt           string           `json:"updatedAt"`
 }
 
 type visualWorkflowWrite struct {
@@ -142,7 +142,7 @@ func (api *automationAPI) patchVisualWorkflow(r *http.Request, actor automationA
 	if err := api.validateWorkspaceProject(r.Context(), actor.organizationID, write.projectID); err != nil {
 		return nil, 0, err
 	}
-	if write.status == "active" && len(bytesTrim(existing.PublishedDefinition)) == 0 {
+	if write.status == "active" && publishedDefinitionEmpty(existing.PublishedDefinition) {
 		return nil, 0, automationFailure(http.StatusBadRequest, "invalid_definition", "Publish a version before activating.")
 	}
 	record, err := api.updateVisualWorkflow(r.Context(), actor.organizationID, existing, write)
@@ -336,6 +336,14 @@ func parseVisualWorkflowUpdate(r *http.Request, existing visualWorkflowRecord) (
 	return write, nil
 }
 
+func publishedDefinitionEmpty(raw *json.RawMessage) bool {
+	if raw == nil {
+		return true
+	}
+	trimmed := bytesTrim(*raw)
+	return len(trimmed) == 0 || string(trimmed) == "null"
+}
+
 func invalidVisualWorkflowPayload() error {
 	return automationFailure(http.StatusBadRequest, "invalid_visual_workflow_payload", "Visual workflow payload is invalid.")
 }
@@ -382,7 +390,8 @@ func scanVisualWorkflow(scanner interface {
 	if len(bytesTrim(published)) == 0 || string(bytesTrim(published)) == "null" {
 		record.PublishedDefinition = nil
 	} else {
-		record.PublishedDefinition = json.RawMessage(append([]byte(nil), published...))
+		raw := json.RawMessage(append([]byte(nil), published...))
+		record.PublishedDefinition = &raw
 	}
 	record.TriggerFingerprint = fingerprint
 	record.NextRunAt = formatAutomationTimePtr(nextRunAt)
