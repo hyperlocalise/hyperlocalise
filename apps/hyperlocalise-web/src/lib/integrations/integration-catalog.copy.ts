@@ -969,7 +969,8 @@ export const integrationCatalogCopy = {
       description: "Braze integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Localize campaigns, in-app messages, and customer journeys in Braze.",
+      defaultMessage:
+        "Localize Braze email templates and Content Blocks. Campaigns and Canvas are upcoming.",
       id: "eENPAn2kRY",
       description: "Braze integration description on the integrations page",
     },
@@ -981,7 +982,7 @@ export const integrationCatalogCopy = {
       description: "Iterable integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Localize campaigns, journeys, and in-app messages in Iterable.",
+      defaultMessage: "Localize Iterable email, in-app, push, and SMS templates plus snippets.",
       id: "SO48T+V4po",
       description: "Iterable integration description on the integrations page",
     },
@@ -1005,8 +1006,9 @@ export const integrationCatalogCopy = {
       description: "HubSpot integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Localize marketing emails, landing pages, and CRM messages in HubSpot.",
-      id: "NCfwtZnJJa",
+      defaultMessage:
+        "Localize emails, forms, blog posts, landing pages, and website pages in HubSpot.",
+      id: "bfBd1OoAHf",
       description: "HubSpot integration description on the integrations page",
     },
   },
@@ -1017,7 +1019,7 @@ export const integrationCatalogCopy = {
       description: "Mailchimp integration name on the integrations page",
     },
     tagline: {
-      defaultMessage: "Localize audiences, campaigns, and automations in Mailchimp.",
+      defaultMessage: "Localize Mailchimp campaigns and code-your-own HTML templates.",
       id: "uzxy3XOTGJ",
       description: "Mailchimp integration description on the integrations page",
     },

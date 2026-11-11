@@ -20,17 +20,32 @@ export type VisualWorkflowHandleSource = {
 export function getAllowedExecutionSourceHandles(
   node: VisualWorkflowHandleSource,
 ): Array<string | null> {
+  if (["flow.stop", "flow.return", "flow.fail"].includes(node.type)) {
+    return [];
+  }
   if (node.type === "logic.if") {
     return ["true", "false"];
+  }
+  if (node.type === "logic.json_parse" || node.type === "logic.schema_validate") {
+    return ["success", "invalid"];
+  }
+  if (node.type === "logic.json_stringify") {
+    return ["success", "error"];
+  }
+  if (["action.file_read", "action.file_write", "action.file_convert"].includes(node.type)) {
+    return ["success", "error"];
   }
   if (node.config.kind === "logic.switch") {
     return ["default", ...node.config.cases.map((entry) => entry.id)];
   }
-  if (node.type === "logic.for_each") {
+  if (["logic.for_each", "logic.array_transform"].includes(node.type)) {
     return ["each", "done"];
   }
   if (node.type === "logic.retry") {
     return ["attempt", "succeeded", "exhausted"];
+  }
+  if (node.type === "flow.human_approval") {
+    return ["approved", "rejected", "changes_requested", "timed_out"];
   }
   if (node.type === "flow.wait") {
     return ["completed", "timed_out", "error"];
@@ -40,6 +55,9 @@ export function getAllowedExecutionSourceHandles(
   }
   if (node.config.kind === "logic.sequence") {
     return node.config.outputs.map((output) => output.id);
+  }
+  if (node.type === "logic.try_catch") {
+    return ["try", "success", "catch", "finally"];
   }
   return [
     null,
@@ -52,14 +70,27 @@ export function getPrimaryExecutionSourceHandle(node: VisualWorkflowHandleSource
   if (node.type === "logic.if") {
     return "true";
   }
+  if (
+    node.type === "logic.json_parse" ||
+    node.type === "logic.json_stringify" ||
+    node.type === "logic.schema_validate"
+  ) {
+    return "success";
+  }
+  if (["action.file_read", "action.file_write", "action.file_convert"].includes(node.type)) {
+    return "success";
+  }
   if (node.config.kind === "logic.switch") {
     return node.config.cases[0]?.id ?? "default";
   }
-  if (node.type === "logic.for_each") {
+  if (["logic.for_each", "logic.array_transform"].includes(node.type)) {
     return "each";
   }
   if (node.type === "logic.retry") {
     return "attempt";
+  }
+  if (node.type === "flow.human_approval") {
+    return "approved";
   }
   if (node.type === "flow.wait") {
     return "completed";
@@ -69,6 +100,9 @@ export function getPrimaryExecutionSourceHandle(node: VisualWorkflowHandleSource
   }
   if (node.config.kind === "logic.sequence") {
     return node.config.outputs[0]?.id ?? null;
+  }
+  if (node.type === "logic.try_catch") {
+    return "try";
   }
   return null;
 }

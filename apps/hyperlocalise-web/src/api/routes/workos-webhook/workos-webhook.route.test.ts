@@ -193,6 +193,7 @@ describe("workosWebhookRoutes", () => {
     expect(removePendingOrganizationMembershipForInvite).toHaveBeenCalledWith(expect.anything(), {
       workosOrganizationId: "org_123",
       email: "revoked@example.com",
+      recordActivity: true,
     });
   });
 

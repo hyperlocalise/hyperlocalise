@@ -71,7 +71,7 @@ func validateYAMLMarshalTemplate(root *yaml.Node) error {
 		capacity = 4
 	}
 	entries := make(map[string]string, capacity)
-	return flattenYAMLNode(entries, "", root)
+	return flattenYAMLNode(entries, nil, "", root, "")
 }
 
 func detectYAMLIndent(template []byte, fallback int) int {

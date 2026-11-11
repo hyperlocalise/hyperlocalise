@@ -29,7 +29,8 @@ export function peekDocumentAutosaveDraft(id: string) {
   return documentAutosaveDrafts.get(id);
 }
 
-export function forgetDocumentAutosaveDraft(id: string) {
+export function forgetDocumentAutosaveDraft(id: string | undefined) {
+  if (!id) return;
   documentAutosaveDrafts.delete(id);
 }
 
@@ -154,6 +155,7 @@ export function useDocumentAutosave({
 
   useEffect(() => {
     if (savedValueRef.current === null || value === savedValueRef.current) {
+      forgetDocumentAutosaveDraft(id);
       return;
     }
     rememberDocumentAutosaveDraft(id, { value, failed: failedRef.current });

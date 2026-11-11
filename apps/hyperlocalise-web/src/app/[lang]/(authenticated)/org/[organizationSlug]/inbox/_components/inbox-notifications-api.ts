@@ -11,8 +11,7 @@
  * Version 2.0 or later.
  */
 import type { IssueNotificationType } from "@/lib/database/schema/issue-sheet";
-import type { createApiClient } from "@/lib/api-client";
-import { readApiResponseError } from "@/lib/api-error";
+import type { GoSvcInboxApi } from "@/lib/go-svc/go-svc-inbox-api";
 import type { IssuePriority } from "@/lib/projects/issue-sheet/issue-list-constants";
 
 export type InboxIssueNotification = {
@@ -60,68 +59,39 @@ export type InboxNotificationsApi = {
   getById(organizationSlug: string, notificationId: string): Promise<InboxIssueNotification>;
 };
 
-type ApiClient = ReturnType<typeof createApiClient>;
-
-export function createInboxNotificationsApi(client: ApiClient): InboxNotificationsApi {
-  const notifications = client.api.orgs[":organizationSlug"].notifications;
-
+export function createInboxNotificationsApi(client: GoSvcInboxApi): InboxNotificationsApi {
   return {
     async list(organizationSlug, options = {}) {
-      const response = await notifications.$get({
-        param: { organizationSlug },
-        query: {
-          limit: String(options.limit ?? 50),
-          offset: String(options.offset ?? 0),
-          ...(options.unreadOnly ? { unreadOnly: "true" } : {}),
-        },
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load notifications");
-      }
-      return response.json();
+      return client.listNotifications<InboxIssueNotification>(organizationSlug, {
+        limit: options.limit ?? 50,
+        offset: options.offset ?? 0,
+        ...(options.unreadOnly ? { unreadOnly: true } : {}),
+      });
     },
 
     async unreadCount(organizationSlug) {
-      const response = await notifications["unread-count"].$get({
-        param: { organizationSlug },
-      });
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load unread notification count");
-      }
-      const body = await response.json();
+      const body = await client.unreadCount(organizationSlug);
       return body.unreadCount;
     },
 
     async markRead(organizationSlug, notificationId) {
-      const response = await notifications[":notificationId"].read.$post({
-        param: { organizationSlug, notificationId },
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to mark notification as read");
-      }
-      const body = await response.json();
+      const body = await client.markNotificationRead<{ id: string; readAt: string | null }>(
+        organizationSlug,
+        notificationId,
+      );
       return body.notification;
     },
 
     async markAllRead(organizationSlug) {
-      const response = await notifications["read-all"].$post({
-        param: { organizationSlug },
-      });
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to mark all notifications as read");
-      }
-      const body = await response.json();
+      const body = await client.markAllNotificationsRead(organizationSlug);
       return body.markedCount;
     },
 
     async getById(organizationSlug, notificationId) {
-      const response = await notifications[":notificationId"].$get({
-        param: { organizationSlug, notificationId },
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load notification");
-      }
-      const body = await response.json();
+      const body = await client.getNotification<InboxIssueNotification>(
+        organizationSlug,
+        notificationId,
+      );
       return body.notification;
     },
   };

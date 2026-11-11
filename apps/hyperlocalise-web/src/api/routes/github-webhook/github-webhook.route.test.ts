@@ -26,6 +26,7 @@ const { enqueueActivityLogEventMock } = vi.hoisted(() => ({
 
 vi.mock("@/lib/activity-log/activity-log-writer", () => ({
   enqueueActivityLogEvent: enqueueActivityLogEventMock,
+  enqueueActivityLogEvents: vi.fn().mockResolvedValue([]),
 }));
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";

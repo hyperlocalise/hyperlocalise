@@ -15,8 +15,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 export type IssueSearchResult = {
   issueId: string;
@@ -48,21 +48,23 @@ export function useIssueRelationshipSearch({
   query: string;
   enabled?: boolean;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
   const debouncedQuery = useDebouncedValue(query, 300);
 
   return useQuery({
     queryKey: ["issue-relationship-search", organizationSlug, excludeIssueId, debouncedQuery],
     enabled,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["issue-sheet"].search.$get({
-        param: { organizationSlug },
-        query: { q: debouncedQuery, excludeIssueId, limit: "20" },
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to search issues");
+      try {
+        const body = await goSvcClient.issueSheet.searchOrg(organizationSlug, {
+          q: debouncedQuery,
+          excludeIssueId,
+          limit: 20,
+        });
+        return body.issues as IssueSearchResult[];
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to search issues"), { cause: error });
       }
-      const body = await response.json();
-      return body.issues;
     },
   });
 }

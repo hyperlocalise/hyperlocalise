@@ -36,6 +36,7 @@ import {
   ChartBarIcon,
   ChatCircleIcon,
   CheckCircleIcon,
+  ClipboardTextIcon,
   CopyIcon,
   CubeIcon,
   SquaresFourIcon,
@@ -383,6 +384,21 @@ export function buildProjectNavigationGroups(
   workspaceItems.push(
     {
       label: intl.formatMessage({
+        defaultMessage: "Guideline",
+        id: "6dq9jGfioL",
+        description: "Project sidebar navigation item for project guideline",
+      }),
+      href: project("knowledge"),
+      icon: BookmarkIcon,
+      description: intl.formatMessage({
+        defaultMessage: "Project guidance for agents and teams",
+        id: "+RGsVNsQWz",
+        description: "Sidebar description for the project Guideline navigation item",
+      }),
+      featureFlagKey: WORKSPACE_KNOWLEDGE_FLAG,
+    },
+    {
+      label: intl.formatMessage({
         defaultMessage: "Jobs",
         id: "8HNfmSDv7C",
         description: "Project sidebar navigation item for project jobs",
@@ -411,6 +427,20 @@ export function buildProjectNavigationGroups(
       featureFlagKey: WORKSPACE_AUTOMATIONS_FLAG,
     },
   );
+
+  // Reports records work in native projects only.
+  if (!providerKind) {
+    workspaceItems.push({
+      label: intl.formatMessage({
+        defaultMessage: "Reports",
+        id: "/IWIHpUnhW",
+        description: "Project sidebar navigation item for the project's Reports page",
+      }),
+      href: project("reports"),
+      icon: ChartBarIcon,
+      featureFlagKey: WORKSPACE_REPORTS_FLAG,
+    });
+  }
 
   return [
     {
@@ -527,6 +557,15 @@ export function buildDomainNavigationItems(
       }),
       href: buildDomainPath(organizationSlug, linkedDomainId, "search-console"),
       icon: ListMagnifyingGlassIcon,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Localisation audit",
+        id: "2rdPBn+ho/",
+        description: "Domain sidebar navigation item for the deep localisation audit",
+      }),
+      href: buildDomainPath(organizationSlug, linkedDomainId, "audit"),
+      icon: ClipboardTextIcon,
     },
   ];
 }
@@ -674,6 +713,43 @@ export function parseGlossaryRoute(pathname: string | null) {
     subSection: subSegments[0] ?? null,
     subResourceId: subSegments[1] ?? null,
   };
+}
+
+export function parseGuidelineRoute(pathname: string | null) {
+  if (!pathname) return null;
+
+  const path = stripAppLocalePrefix(pathname);
+  const projectMatch = path.match(
+    /^\/org\/([^/]+)\/projects\/([^/]+)\/knowledge(?:\/([^/]+))?\/?$/,
+  );
+  if (projectMatch) {
+    const [, organizationSlug, projectIdSegment, detailSegment] = projectMatch;
+    return {
+      organizationSlug,
+      projectId: decodePathSegment(projectIdSegment),
+      ...guidelineRouteDetail(detailSegment),
+    };
+  }
+
+  const orgMatch = path.match(/^\/org\/([^/]+)\/knowledge(?:\/([^/]+))?\/?$/);
+  if (!orgMatch) return null;
+
+  const [, organizationSlug, detailSegment] = orgMatch;
+  return {
+    organizationSlug,
+    projectId: undefined,
+    ...guidelineRouteDetail(detailSegment),
+  };
+}
+
+function guidelineRouteDetail(detailSegment: string | undefined) {
+  if (!detailSegment) {
+    return { documentId: null as string | null, page: "list" as const };
+  }
+  if (detailSegment === "upload") {
+    return { documentId: null as string | null, page: "upload" as const };
+  }
+  return { documentId: decodePathSegment(detailSegment), page: "document" as const };
 }
 
 export function parseTranslationMemoryRoute(pathname: string | null) {

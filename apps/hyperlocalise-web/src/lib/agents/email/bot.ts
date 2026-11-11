@@ -22,8 +22,9 @@ import {
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
-import { AI_FEATURES_REQUIRED_MESSAGE, ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
+import { ensureAiFeaturesAllowed, formatAiFeaturesRefusal } from "@/lib/billing/ai-features";
 import { db, schema } from "@/lib/database/client";
+import { insertJobs, updateJobs } from "@/lib/job-change-events/job-writes";
 import {
   enqueueJobCreatedActivity,
   enqueueJobFailedActivity,
@@ -118,17 +119,17 @@ async function createEmailTranslationJob(input: CreateEmailTranslationJobInput) 
   };
 
   const [job] = await db.transaction(async (tx) => {
-    const [createdJob] = await tx
-      .insert(schema.jobs)
-      .values({
+    const [createdJob] = await insertJobs(tx, {
+      values: {
         id: jobId,
         organizationId: input.organizationId,
         kind: "translation",
         status: "queued",
         inputPayload,
         interactionId: input.conversationId ?? null,
-      })
-      .returning();
+      },
+      returning: "all",
+    });
 
     await tx.insert(schema.translationJobDetails).values({
       jobId,
@@ -175,12 +176,13 @@ async function setEmailTranslationJobWorkflowRun(input: {
   jobId: string;
   workflowRunId: string | null;
 }) {
-  await db
-    .update(schema.jobs)
-    .set({ workflowRunId: input.workflowRunId })
-    .where(
-      and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
-    );
+  await updateJobs(db, {
+    set: { workflowRunId: input.workflowRunId },
+    where: and(
+      eq(schema.jobs.id, input.jobId),
+      eq(schema.jobs.organizationId, input.organizationId),
+    ),
+  });
 }
 
 async function failEmailTranslationJobBeforeRun(input: {
@@ -188,9 +190,8 @@ async function failEmailTranslationJobBeforeRun(input: {
   jobId: string;
   reason: string;
 }) {
-  await db
-    .update(schema.jobs)
-    .set({
+  await updateJobs(db, {
+    set: {
       status: "failed",
       lastError: input.reason,
       outcomePayload: {
@@ -198,10 +199,12 @@ async function failEmailTranslationJobBeforeRun(input: {
         message: input.reason,
       },
       completedAt: new Date(),
-    })
-    .where(
-      and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
-    );
+    },
+    where: and(
+      eq(schema.jobs.id, input.jobId),
+      eq(schema.jobs.organizationId, input.organizationId),
+    ),
+  });
 
   await enqueueJobFailedActivity({
     actorCredentialId: null,
@@ -632,7 +635,7 @@ async function handlePendingClarification(input: {
   message: Message;
   pending: PendingEmailAgentTask;
   dependencies: EmailHandlerDependencies;
-  organizationId?: string;
+  organizationId: string;
   conversationId?: string;
 }) {
   const { thread, message, pending, dependencies, organizationId, conversationId } = input;
@@ -658,6 +661,7 @@ async function handlePendingClarification(input: {
 
   const intent = await dependencies.interpretClarificationReply({
     text: message.text,
+    organizationId,
   });
   log.info(
     {
@@ -840,7 +844,11 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
           organizationId: conversationOrganizationId,
         });
         if (!pendingAiFeatures.ok) {
-          await thread.post([AI_FEATURES_REQUIRED_MESSAGE, "", "—Hyperlocalise Agent"].join("\n"));
+          await thread.post(
+            [formatAiFeaturesRefusal(pendingAiFeatures.error), "", "—Hyperlocalise Agent"].join(
+              "\n",
+            ),
+          );
           return;
         }
 
@@ -877,7 +885,9 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
 
       const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: organization.id });
       if (!aiFeatures.ok) {
-        await thread.post([AI_FEATURES_REQUIRED_MESSAGE, "", "—Hyperlocalise Agent"].join("\n"));
+        await thread.post(
+          [formatAiFeaturesRefusal(aiFeatures.error), "", "—Hyperlocalise Agent"].join("\n"),
+        );
         return;
       }
 
@@ -923,6 +933,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
       const intent = await dependencies.interpretEmailRequest({
         subject: raw.subject ?? "",
         text: message.text,
+        organizationId: organization.id,
       });
       log.info(
         {

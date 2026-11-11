@@ -15,7 +15,7 @@ import type {
   ProjectFileRecord,
 } from "@/api/routes/project/project.schema";
 import { apiClient } from "@/lib/api-client-instance";
-import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import { GoSvcClientError, type GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import {
   parseProviderJobId,
@@ -175,7 +175,15 @@ async function fetchTmsProviderLiveJobFiles(input: {
   return body.files.map(tmsLiveFileToProjectFileRecord);
 }
 
-async function fetchJobDetail(organizationSlug: string, jobId: string) {
+async function fetchJobDetail(goSvcClient: GoSvcClient, organizationSlug: string, jobId: string) {
+  try {
+    const body = await goSvcClient.job.get<JobDetailRecord>(organizationSlug, jobId);
+    return body.job;
+  } catch (error) {
+    if (!(error instanceof GoSvcClientError) || error.status !== 404) {
+      throw error;
+    }
+  }
   const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].$get({
     param: { organizationSlug, jobId },
   });
@@ -241,6 +249,7 @@ export function mapSyncedProviderSourceFiles(input: {
 }
 
 export async function loadJobContentEditorSelectableTargetLocales(input: {
+  goSvcClient: GoSvcClient;
   organizationSlug: string;
   projectId: string;
   jobId: string;
@@ -268,7 +277,7 @@ export async function loadJobContentEditorSelectableTargetLocales(input: {
     });
   }
 
-  const job = await fetchJobDetail(input.organizationSlug, input.jobId);
+  const job = await fetchJobDetail(input.goSvcClient, input.organizationSlug, input.jobId);
   if (job.projectId !== input.projectId) {
     return [];
   }
@@ -277,6 +286,7 @@ export async function loadJobContentEditorSelectableTargetLocales(input: {
 }
 
 export async function loadJobContentEditorProviderJobFiles(input: {
+  goSvcClient: GoSvcClient;
   organizationSlug: string;
   projectId: string;
   jobId: string;
@@ -292,7 +302,8 @@ export async function loadJobContentEditorProviderJobFiles(input: {
     });
   }
 
-  const job = input.job ?? (await fetchJobDetail(input.organizationSlug, input.jobId));
+  const job =
+    input.job ?? (await fetchJobDetail(input.goSvcClient, input.organizationSlug, input.jobId));
   if (job.projectId !== input.projectId) {
     throw new Error("Task does not belong to this project");
   }
@@ -321,6 +332,7 @@ export async function loadJobContentEditorProviderJobFiles(input: {
 }
 
 export async function loadJobContentEditorJobSourceFiles(input: {
+  goSvcClient: GoSvcClient;
   organizationSlug: string;
   projectId: string;
   jobId: string;
@@ -330,7 +342,7 @@ export async function loadJobContentEditorJobSourceFiles(input: {
     return loadJobContentEditorProviderJobFiles(input);
   }
 
-  const job = await fetchJobDetail(input.organizationSlug, input.jobId);
+  const job = await fetchJobDetail(input.goSvcClient, input.organizationSlug, input.jobId);
   if (job.projectId !== input.projectId) {
     throw new Error("Task does not belong to this project");
   }

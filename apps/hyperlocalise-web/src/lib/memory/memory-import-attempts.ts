@@ -10,21 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createHash } from "node:crypto";
-
 import { and, count, desc, eq, inArray, lt, or } from "drizzle-orm";
 
-import { db, schema, type DatabaseClient } from "@/lib/database/client";
-import type {
-  MemoryImportAttemptCounts,
-  MemoryImportAttemptStatus,
-} from "@/lib/database/schema/translation-memory";
-import type { MemoryImportReport, TmxIssue } from "@/lib/memory/tmx/tmx-types";
-
-const DIAGNOSTIC_INSERT_BATCH_SIZE = 200;
-const MAX_DIAGNOSTIC_CODE_LENGTH = 100;
-const MAX_DIAGNOSTIC_MESSAGE_LENGTH = 2_000;
-const MAX_DIAGNOSTIC_TUID_LENGTH = 255;
+import { db, schema } from "@/lib/database/client";
+import type { TmxIssue } from "@/lib/memory/tmx/tmx-types";
 
 export type MemoryImportAttemptCursor = {
   createdAt: Date;
@@ -38,127 +27,6 @@ export type MemoryImportAttemptRecord = typeof schema.memoryImportAttempts.$infe
 function actorDisplayName(firstName: string | null, lastName: string | null): string | null {
   const name = [firstName, lastName].filter(Boolean).join(" ").trim();
   return name || null;
-}
-
-export function hashMemoryImportContent(content: string): string {
-  return createHash("sha256").update(content, "utf8").digest("hex");
-}
-
-export function sanitizeImportFilename(filename: string | undefined): string | null {
-  if (!filename) return null;
-  const basename = filename.replaceAll("\\", "/").split("/").at(-1)?.trim() ?? "";
-  return basename.slice(0, 255) || null;
-}
-
-export async function createMemoryImportAttempt(input: {
-  id: string;
-  organizationId: string;
-  memoryId: string;
-  createdByUserId: string;
-  format: "csv" | "tmx";
-  content: string;
-  sourceFilename?: string;
-  sourceByteSize?: number;
-  maxUnits?: number;
-  client?: DatabaseClient;
-}) {
-  const client = input.client ?? db;
-  const [attempt] = await client
-    .insert(schema.memoryImportAttempts)
-    .values({
-      id: input.id,
-      organizationId: input.organizationId,
-      memoryId: input.memoryId,
-      createdByUserId: input.createdByUserId,
-      format: input.format,
-      sourceFilename: sanitizeImportFilename(input.sourceFilename),
-      sourceByteSize: input.sourceByteSize ?? null,
-      sourceSha256: hashMemoryImportContent(input.content),
-      options: input.maxUnits === undefined ? {} : { maxUnits: input.maxUnits },
-    })
-    .returning();
-  if (!attempt) throw new Error("memory_import_attempt_create_failed");
-  return attempt;
-}
-
-function countsFromReport(report: MemoryImportReport): MemoryImportAttemptCounts {
-  return {
-    totalRead: report.totalRead,
-    created: report.created,
-    updated: report.updated,
-    variantCreated: report.variantCreated,
-    skipped: report.skipped,
-    warned: report.warned,
-    failed: report.failed,
-  };
-}
-
-export function statusFromMemoryImportReport(
-  report: MemoryImportReport,
-): Exclude<MemoryImportAttemptStatus, "running"> {
-  const applied = report.created + report.updated + report.variantCreated;
-  if (report.failed === 0) return "completed";
-  return applied > 0 ? "partially_successful" : "failed";
-}
-
-export async function finalizeMemoryImportAttempt(input: {
-  attemptId: string;
-  status: Exclude<MemoryImportAttemptStatus, "running">;
-  report?: MemoryImportReport;
-  failureCode?: string;
-  client?: DatabaseClient;
-}) {
-  const client = input.client ?? db;
-  return client.transaction(async (tx) => {
-    const [attempt] = await tx
-      .update(schema.memoryImportAttempts)
-      .set({
-        status: input.status,
-        counts: input.report ? countsFromReport(input.report) : null,
-        headerSrclang: input.report?.headerSrclang ?? null,
-        diagnosticsTruncated:
-          (input.report?.truncatedIssues ?? false) ||
-          (input.report?.issues.some((issue) => diagnosticIssueWasTruncated(issue)) ?? false),
-        failureCode: input.failureCode ?? null,
-        completedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(schema.memoryImportAttempts.id, input.attemptId),
-          eq(schema.memoryImportAttempts.status, "running"),
-        ),
-      )
-      .returning();
-    if (!attempt) throw new Error("memory_import_attempt_already_finalized");
-
-    const diagnostics = input.report?.issues ?? [];
-    for (let offset = 0; offset < diagnostics.length; offset += DIAGNOSTIC_INSERT_BATCH_SIZE) {
-      await tx.insert(schema.memoryImportAttemptDiagnostics).values(
-        diagnostics.slice(offset, offset + DIAGNOSTIC_INSERT_BATCH_SIZE).map((issue) => ({
-          attemptId: input.attemptId,
-          severity: issue.severity,
-          code: truncateDiagnosticValue(issue.code, MAX_DIAGNOSTIC_CODE_LENGTH),
-          message: truncateDiagnosticValue(issue.message, MAX_DIAGNOSTIC_MESSAGE_LENGTH),
-          unitIndex: issue.unitIndex ?? null,
-          tuid: issue.tuid ? truncateDiagnosticValue(issue.tuid, MAX_DIAGNOSTIC_TUID_LENGTH) : null,
-        })),
-      );
-    }
-    return attempt;
-  });
-}
-
-function truncateDiagnosticValue(value: string, maxLength: number) {
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength - 1)}…`;
-}
-
-function diagnosticIssueWasTruncated(issue: TmxIssue) {
-  return (
-    issue.code.length > MAX_DIAGNOSTIC_CODE_LENGTH ||
-    issue.message.length > MAX_DIAGNOSTIC_MESSAGE_LENGTH ||
-    (issue.tuid?.length ?? 0) > MAX_DIAGNOSTIC_TUID_LENGTH
-  );
 }
 
 export async function listMemoryImportAttempts(input: {

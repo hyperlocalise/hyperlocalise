@@ -3,13 +3,14 @@ package segmentvalidate
 import "strings"
 
 const (
-	QAModeSameAsSource   = "same_as_source"
-	QAModeWhitespaceOnly = "whitespace_only"
-	QAModeNotLocalized   = "not_localized"
-	QAModeEscapedChar    = "escaped_char_mismatch"
-	QAModeNumbers        = "numbers_mismatch"
-	QAModePunctuation    = "punctuation_mismatch"
-	QAModeCharacterCase  = "character_case_mismatch"
+	QAModeSameAsSource      = "same_as_source"
+	QAModeWhitespaceOnly    = "whitespace_only"
+	QAModeNotLocalized      = "not_localized"
+	QAModeEscapedChar       = "escaped_char_mismatch"
+	QAModeNumbers           = "numbers_mismatch"
+	QAModePunctuation       = "punctuation_mismatch"
+	QAModeCharacterCase     = "character_case_mismatch"
+	QAModeUnreachablePlural = "unreachable_plural_case"
 )
 
 // KnownQAModes lists supported optional QA mode identifiers.
@@ -22,6 +23,7 @@ func KnownQAModes() []string {
 		QAModeNumbers,
 		QAModePunctuation,
 		QAModeCharacterCase,
+		QAModeUnreachablePlural,
 	}
 }
 
@@ -32,7 +34,7 @@ func qaChecks(checks []Check, req Request) []Check {
 
 	// Parse active modes with local flags to avoid allocating a mode set.
 	var hasNotLocalized, hasWhitespaceOnly, hasSameAsSource, hasEscapedChar bool
-	var hasNumbers, hasPunctuation, hasCase bool
+	var hasNumbers, hasPunctuation, hasCase, hasUnreachablePlural bool
 	for _, mode := range req.Modes {
 		mode = strings.TrimSpace(mode)
 		switch mode {
@@ -50,10 +52,12 @@ func qaChecks(checks []Check, req Request) []Check {
 			hasPunctuation = true
 		case QAModeCharacterCase:
 			hasCase = true
+		case QAModeUnreachablePlural:
+			hasUnreachablePlural = true
 		}
 	}
 
-	if !hasNotLocalized && !hasWhitespaceOnly && !hasSameAsSource && !hasEscapedChar && !hasNumbers && !hasPunctuation && !hasCase {
+	if !hasNotLocalized && !hasWhitespaceOnly && !hasSameAsSource && !hasEscapedChar && !hasNumbers && !hasPunctuation && !hasCase && !hasUnreachablePlural {
 		return checks
 	}
 
@@ -94,7 +98,27 @@ func qaChecks(checks []Check, req Request) []Check {
 			checks = append(checks, check)
 		}
 	}
+	if hasUnreachablePlural {
+		if check, include := unreachablePluralCheck(req.TargetLocale, req.TargetText); include {
+			checks = append(checks, check)
+		}
+	}
 	return checks
+}
+
+func unreachablePluralCheck(locale, target string) (Check, bool) {
+	cases := UnreachablePluralCases(locale, target)
+	if len(cases) == 0 {
+		return Check{}, false
+	}
+	return Check{
+		ID:            "qa-unreachable-plural-case",
+		Label:         "Plural cases",
+		Status:        StatusFail,
+		Message:       UnreachablePluralMessage(locale, cases),
+		Category:      "qa",
+		RelatedTokens: cases,
+	}, true
 }
 
 func notLocalizedCheck(source, target string) (Check, bool) {

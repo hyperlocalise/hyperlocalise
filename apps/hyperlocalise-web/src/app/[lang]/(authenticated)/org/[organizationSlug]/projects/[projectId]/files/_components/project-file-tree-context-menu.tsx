@@ -15,7 +15,9 @@
 import { useEffect, useLayoutEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import {
+  BracketsCurlyIcon,
   DownloadSimpleIcon,
+  FunnelIcon,
   ListBulletsIcon,
   GearSixIcon,
   TranslateIcon,
@@ -45,6 +47,8 @@ export type ProjectFileTreeActionsConfig = {
   onImportFile?: (file: ProjectFileRecord) => void;
   onDownloadFile?: (file: ProjectFileRecord) => void;
   onSegmentationSettings?: (file: ProjectFileRecord) => void;
+  onMessageFormatSettings?: (file: ProjectFileRecord) => void;
+  onImportSettings?: (file: ProjectFileRecord) => void;
 };
 
 const MENU_MIN_WIDTH_PX = 208;
@@ -222,6 +226,37 @@ export function ProjectFileTreeContextMenu({
           >
             <GearSixIcon />
             <FormattedMessage {...messages.segmentationSettings} />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full justify-start"
+            onClick={() => {
+              closeMenu();
+              runAfterMenuClose(() => {
+                fileActions.onMessageFormatSettings?.(file);
+              });
+            }}
+          >
+            <BracketsCurlyIcon />
+            <FormattedMessage {...messages.messageFormatSettings} />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full justify-start"
+            disabled={!capabilities.canConfigureImportSettings}
+            onClick={() => {
+              closeMenu();
+              runAfterMenuClose(() => {
+                fileActions.onImportSettings?.(file);
+              });
+            }}
+          >
+            <FunnelIcon />
+            <FormattedMessage {...messages.importSettings} />
           </Button>
         </>
       ) : null}

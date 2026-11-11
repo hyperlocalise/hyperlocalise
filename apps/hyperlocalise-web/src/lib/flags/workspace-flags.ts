@@ -251,12 +251,12 @@ async function resolveWorkspaceOrganizationFlag(
  * workspace-automation tool calls. Mirrors resolveWorkspaceVisualMockFlag's DB-join-then-run-flag
  * shape, minus the user lookup those callers don't have either.
  *
- * knowledge-memory.route.ts already rejects every request when this flag is off, but that check
- * lives only on the human-facing HTTP route — nothing stopped an automation's stored toolConfig
- * (set once, possibly before the flag was disabled, or via direct API access that skips UI
- * validation) from reaching save_memory/recall_memory and mutating or reading Memory.md on a
- * schedule regardless of the flag. Call this at the point of use, not just at config-save time, so
- * disabling the flag actually stops in-flight automations too.
+ * The typed-note HTTP routes now answer 410 Gone, but that check lives only on the
+ * human-facing HTTP routes — nothing stopped an automation's stored toolConfig (set once,
+ * possibly before the flag was disabled, or via direct API access that skips UI validation)
+ * from reaching recall_memory and reading guideline documents on a schedule regardless of the
+ * flag. Call this at the point of use, not just at config-save time, so disabling the flag
+ * actually stops in-flight automations too.
  */
 export async function resolveWorkspaceKnowledgeFlag(input: {
   organizationId: string;

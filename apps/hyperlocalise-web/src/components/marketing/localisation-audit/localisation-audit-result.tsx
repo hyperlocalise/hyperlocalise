@@ -12,7 +12,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { CaretDownIcon, XIcon, ShareNetworkIcon, CheckIcon } from "@phosphor-icons/react";
+import {
+  CaretDownIcon,
+  CheckIcon,
+  ShareNetworkIcon,
+  WarningIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import Link from "next/link";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
@@ -28,12 +34,14 @@ import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typogra
 import { clientAnalytics } from "@/lib/analytics/client";
 import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
 import { isLocalisationAuditSignInCtaEnabled } from "@/lib/flags/localisation-audit-sign-in-ctas";
+import { LOCALISATION_AUDIT_METHODOLOGY_VERSION } from "@/lib/localisation-audit/credits/catalog";
 import {
   buildLocalisationAuditCriteria,
   groupLocalisationAuditCriteria,
   type LocalisationAuditCriterion,
 } from "@/lib/localisation-audit/criteria";
 import { sanitizeLocalisationAuditFindingUrl } from "@/lib/localisation-audit/finding-url";
+import { isSuccessfulLocalisationAuditPageStatus } from "@/lib/localisation-audit/report-coverage";
 import { LOCALISATION_AUDIT_USER_AGENT } from "@/lib/localisation-audit/user-agent";
 import {
   formatDimensionScore,
@@ -44,8 +52,8 @@ import {
 import type { LocalisationAuditStanding } from "@/lib/localisation-audit/store";
 import type {
   LocalisationAuditCompanyProfile,
-  LocalisationAuditCreditResult,
   LocalisationAuditFinding,
+  LocalisationAuditLocaleSignal,
   LocalisationAuditProgressStage,
   LocalisationAuditReport,
   LocalisationAuditTeaser,
@@ -54,12 +62,14 @@ import { cn } from "@/lib/primitives/cn";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 
+import { formatReportDate, formatRerunAvailableAt } from "./localisation-audit-format-date";
 import {
   getLocalisationAuditGuideHref,
   getLocalisationAuditResultCopy,
   interpretScore,
   interpretScoreCtaBand,
 } from "./localisation-audit-page-content";
+import { LocalisationAuditResultErrorBoundary } from "./localisation-audit-result-error-boundary";
 
 type AuditPayload = {
   id: string;
@@ -93,6 +103,16 @@ type LocalisationAuditResultProps = {
 
 const PROGRESS_STAGES = ["queued", "preparing", "crawling", "analyzing", "scoring"] as const;
 
+const EVIDENCE_PREVIEW_CHARS = 280;
+
+const CRITERION_STATUS_TONE = {
+  pass: "safe",
+  watch: "watch",
+  fail: "risk",
+  na: "neutral",
+} as const satisfies Record<LocalisationAuditCriterion["status"], LocalisationAuditTone>;
+const FIX_FIRST_LIMIT = 3;
+
 function auditToneTextClass(tone: LocalisationAuditTone) {
   switch (tone) {
     case "safe":
@@ -100,7 +120,7 @@ function auditToneTextClass(tone: LocalisationAuditTone) {
     case "watch":
       return "text-beam-900 dark:text-warning-foreground";
     case "risk":
-      return "text-destructive";
+      return "text-red-900";
     case "info":
       return "text-blue-1000 dark:text-blue-900";
     default:
@@ -113,9 +133,9 @@ function auditToneBadgeClass(tone: LocalisationAuditTone) {
     case "safe":
       return "border-grove-700/25 bg-grove-100 text-grove-900 dark:border-grove-500/30 dark:bg-grove-100 dark:text-grove-900";
     case "watch":
-      return "border-warning/25 bg-warning/10 text-warning-foreground dark:border-warning/30 dark:bg-warning/20 dark:text-warning-foreground";
+      return "border-beam-700/30 bg-beam-100 text-beam-900";
     case "risk":
-      return "border-destructive/25 bg-destructive/10 text-destructive dark:border-destructive/30 dark:bg-destructive/20 dark:text-destructive";
+      return "border-red-700/25 bg-red-100 text-red-900";
     case "info":
       return "border-blue-700/25 bg-blue-100 text-blue-1000 dark:border-blue-600/30 dark:bg-blue-100 dark:text-blue-900";
     default:
@@ -147,7 +167,7 @@ function DimensionScoreCircle({
       <span
         className={cn(
           "text-center text-pretty text-sm",
-          onMesh ? "text-white/70" : "text-muted-foreground",
+          onMesh ? "text-white/85" : "text-muted-foreground",
         )}
       >
         {label}
@@ -164,6 +184,85 @@ function FindingDetail({ label, children }: { label: string; children: ReactNode
       </p>
       <div className="mt-1.5 min-w-0">{children}</div>
     </div>
+  );
+}
+
+function findingAnchorId(finding: LocalisationAuditFinding) {
+  return `finding-${finding.id}`;
+}
+
+function FindingEvidence({
+  evidence,
+  copy,
+}: {
+  evidence: string;
+  copy: ReturnType<typeof getLocalisationAuditResultCopy>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const clipped = evidence.length > EVIDENCE_PREVIEW_CHARS && !expanded;
+
+  return (
+    <>
+      <p className="min-w-0 font-mono text-sm wrap-break-word whitespace-pre-wrap text-muted-foreground">
+        {clipped ? `${evidence.slice(0, EVIDENCE_PREVIEW_CHARS).trimEnd()}…` : evidence}
+      </p>
+      {evidence.length > EVIDENCE_PREVIEW_CHARS ? (
+        <button
+          type="button"
+          className="mt-1.5 text-sm font-medium underline-offset-4 hover:underline"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? copy.evidenceShowLess : copy.evidenceShowMore}
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+function FixFirstList({
+  findings,
+  linkableIds,
+  copy,
+}: {
+  findings: LocalisationAuditFinding[];
+  linkableIds: ReadonlySet<string>;
+  copy: ReturnType<typeof getLocalisationAuditResultCopy>;
+}) {
+  if (findings.length === 0) {
+    return <p className="text-muted-foreground">{copy.noFindings}</p>;
+  }
+
+  return (
+    <ol className="min-w-0 space-y-5">
+      {findings.map((finding, index) => (
+        <li key={finding.id} className="flex min-w-0 gap-4">
+          <span className="font-serif text-2xl leading-none text-muted-foreground tabular-nums">
+            {index + 1}
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant="outline"
+                className={cn("capitalize", auditToneBadgeClass(severityTone(finding.severity)))}
+              >
+                {finding.severity}
+              </Badge>
+              <p className="font-medium text-pretty">{finding.title}</p>
+            </div>
+            <p className="mt-1 text-pretty text-muted-foreground">{finding.summary}</p>
+            {linkableIds.has(finding.id) ? (
+              <a
+                href={`#${findingAnchorId(finding)}`}
+                className="mt-1.5 inline-block text-sm font-medium underline-offset-4 hover:underline"
+              >
+                {copy.fixFirstSeeDetails}
+              </a>
+            ) : null}
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -188,7 +287,8 @@ function FindingList({
         return (
           <li
             key={finding.id}
-            className="min-w-0 border-t border-border pt-6 first:border-t-0 first:pt-0"
+            id={findingAnchorId(finding)}
+            className="min-w-0 scroll-mt-24 border-t border-border pt-6 first:border-t-0 first:pt-0"
           >
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={cn("capitalize", auditToneBadgeClass(tone))}>
@@ -220,9 +320,7 @@ function FindingList({
             ) : null}
             {finding.evidence ? (
               <FindingDetail label={copy.findingEvidenceLabel}>
-                <p className="min-w-0 font-mono text-sm wrap-break-word whitespace-pre-wrap text-muted-foreground">
-                  {finding.evidence}
-                </p>
+                <FindingEvidence evidence={finding.evidence} copy={copy} />
               </FindingDetail>
             ) : null}
             {finding.advice ? (
@@ -264,6 +362,19 @@ function CriterionStatusIcon({ status }: { status: LocalisationAuditCriterion["s
       </span>
     );
   }
+  if (status === "watch") {
+    return (
+      <span
+        className={cn(
+          "flex size-6 shrink-0 items-center justify-center rounded-full",
+          auditToneBadgeClass("watch"),
+        )}
+        aria-hidden
+      >
+        <WarningIcon className="size-3.5" />
+      </span>
+    );
+  }
   return (
     <span
       className="flex size-6 shrink-0 items-center justify-center rounded-full border border-border text-xs text-muted-foreground"
@@ -287,14 +398,13 @@ function CriterionRow({
   domainKey: string;
   dimensionLabel: string;
 }) {
-  const statusLabel =
-    criterion.status === "pass"
-      ? copy.criteriaPassLabel
-      : criterion.status === "fail"
-        ? copy.criteriaFailLabel
-        : copy.criteriaNaLabel;
-  const badgeTone =
-    criterion.status === "pass" ? "safe" : criterion.status === "fail" ? "risk" : "neutral";
+  const statusLabel = {
+    pass: copy.criteriaPassLabel,
+    watch: copy.criteriaWatchLabel,
+    fail: copy.criteriaFailLabel,
+    na: copy.criteriaNaLabel,
+  }[criterion.status];
+  const badgeTone = CRITERION_STATUS_TONE[criterion.status];
 
   return (
     <li className="border-t border-border pt-4 first:border-t-0 first:pt-0">
@@ -314,6 +424,11 @@ function CriterionRow({
             <span className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
               {dimensionLabel}
             </span>
+            {criterion.scored ? (
+              <span className="text-xs text-muted-foreground">
+                {copy.criteriaWeightLabel({ weight: criterion.weight })}
+              </span>
+            ) : null}
           </div>
           <p className="mt-1 text-pretty text-sm text-muted-foreground">{criterion.rubric}</p>
           {showFindings && criterion.findings.length > 0 ? (
@@ -329,6 +444,7 @@ function CriterionRow({
 
 function CriteriaGroup({
   heading,
+  description,
   criteria,
   copy,
   showFindings,
@@ -339,6 +455,7 @@ function CriteriaGroup({
   collapseLabel,
 }: {
   heading: string;
+  description?: string;
   criteria: LocalisationAuditCriterion[];
   copy: ReturnType<typeof getLocalisationAuditResultCopy>;
   showFindings: boolean;
@@ -353,18 +470,25 @@ function CriteriaGroup({
   if (criteria.length === 0) return null;
 
   const list = (
-    <ul className="mt-4 space-y-4">
-      {criteria.map((criterion) => (
-        <CriterionRow
-          key={criterion.id}
-          criterion={criterion}
-          copy={copy}
-          showFindings={showFindings}
-          domainKey={domainKey}
-          dimensionLabel={dimensionLabels[criterion.dimension]}
-        />
-      ))}
-    </ul>
+    <>
+      {description ? (
+        <TypographyP className="mt-2 max-w-2xl" tone="subtle">
+          {description}
+        </TypographyP>
+      ) : null}
+      <ul className="mt-4 space-y-4">
+        {criteria.map((criterion) => (
+          <CriterionRow
+            key={criterion.id}
+            criterion={criterion}
+            copy={copy}
+            showFindings={showFindings}
+            domainKey={domainKey}
+            dimensionLabel={dimensionLabels[criterion.dimension]}
+          />
+        ))}
+      </ul>
+    </>
   );
 
   if (!expandLabel || !collapseLabel) {
@@ -390,22 +514,18 @@ function CriteriaGroup({
   );
 }
 
+type GroupedCriteria = ReturnType<typeof groupLocalisationAuditCriteria>;
+
 function AuditCriteriaList({
-  credits,
-  findings,
+  grouped,
   copy,
   domainKey,
-  unlocked,
 }: {
-  credits: LocalisationAuditCreditResult[];
-  findings: LocalisationAuditFinding[];
+  grouped: GroupedCriteria;
   copy: ReturnType<typeof getLocalisationAuditResultCopy>;
   domainKey: string;
-  unlocked: boolean;
 }) {
-  const { passed, failed, notApplicable } = groupLocalisationAuditCriteria(
-    buildLocalisationAuditCriteria(credits, findings),
-  );
+  const { passed, watch, failed, notApplicable, aiAssessed } = grouped;
   const dimensionLabels = {
     technical: copy.dimensionTechnicalShort,
     linguistic: copy.dimensionLinguisticShort,
@@ -418,20 +538,33 @@ function AuditCriteriaList({
       <TypographyP className="mt-4 max-w-2xl" tone="subtle">
         {copy.criteriaSummary({
           passed: passed.length,
+          watch: watch.length,
           failed: failed.length,
           na: notApplicable.length,
         })}
       </TypographyP>
 
-      <CriteriaGroup
-        heading={copy.criteriaNeedsAttentionHeading({ count: failed.length })}
-        criteria={failed}
-        copy={copy}
-        showFindings={unlocked}
-        domainKey={domainKey}
-        dimensionLabels={dimensionLabels}
-        defaultOpen
-      />
+      <div className="mt-10">
+        <CriteriaGroup
+          heading={copy.criteriaNeedsAttentionHeading({ count: failed.length })}
+          criteria={failed}
+          copy={copy}
+          showFindings
+          domainKey={domainKey}
+          dimensionLabels={dimensionLabels}
+          defaultOpen
+        />
+
+        <CriteriaGroup
+          heading={copy.criteriaWatchHeading({ count: watch.length })}
+          criteria={watch}
+          copy={copy}
+          showFindings
+          domainKey={domainKey}
+          dimensionLabels={dimensionLabels}
+          defaultOpen
+        />
+      </div>
 
       <CriteriaGroup
         heading={copy.criteriaPassedHeading({ count: passed.length })}
@@ -440,9 +573,22 @@ function AuditCriteriaList({
         showFindings={false}
         domainKey={domainKey}
         dimensionLabels={dimensionLabels}
-        defaultOpen={failed.length === 0}
+        defaultOpen={failed.length === 0 && watch.length === 0}
         expandLabel={copy.criteriaExpandPassed}
         collapseLabel={copy.criteriaCollapsePassed}
+      />
+
+      <CriteriaGroup
+        heading={copy.criteriaAiAssessedHeading({ count: aiAssessed.length })}
+        description={copy.criteriaAiAssessedBody}
+        criteria={aiAssessed}
+        copy={copy}
+        showFindings
+        domainKey={domainKey}
+        dimensionLabels={dimensionLabels}
+        defaultOpen={false}
+        expandLabel={copy.criteriaExpandAiAssessed}
+        collapseLabel={copy.criteriaCollapseAiAssessed}
       />
 
       <CriteriaGroup
@@ -457,6 +603,67 @@ function AuditCriteriaList({
         collapseLabel={copy.criteriaCollapseNa}
       />
     </div>
+  );
+}
+
+function SampledPagesList({
+  pages,
+  copy,
+  domainKey,
+}: {
+  pages: LocalisationAuditReport["pages"];
+  copy: ReturnType<typeof getLocalisationAuditResultCopy>;
+  domainKey: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <TypographyH2 className="pb-0">{copy.pagesHeading}</TypographyH2>
+        <CollapsibleTrigger className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          {open ? copy.pagesCollapse : copy.pagesExpand({ count: pages.length })}
+          <CaretDownIcon className={cn("size-4 transition-transform", open && "rotate-180")} />
+        </CollapsibleTrigger>
+      </div>
+      <CollapsibleContent>
+        <ul className="mt-6 divide-y divide-border text-sm">
+          {pages.map((page) => {
+            const href = sanitizeLocalisationAuditFindingUrl(page.url, domainKey);
+            const path = pagePathLabel(page.url);
+            return (
+              <li key={page.url} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium text-pretty">
+                    {page.title?.trim() || path}
+                  </span>
+                  {href ? (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block break-all text-muted-foreground underline-offset-2 hover:underline"
+                    >
+                      {path}
+                    </a>
+                  ) : (
+                    <span className="block break-all text-muted-foreground">{path}</span>
+                  )}
+                </span>
+                {page.htmlLang ? (
+                  <span className="text-xs text-muted-foreground">{page.htmlLang}</span>
+                ) : null}
+                {isSuccessfulLocalisationAuditPageStatus(page.status) ? null : (
+                  <Badge variant="outline" className={auditToneBadgeClass("risk")}>
+                    {copy.pagesHttpStatus({ status: page.status })}
+                  </Badge>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -537,7 +744,7 @@ function AuditProgressTrack({
               </span>
               <p
                 className={cn(
-                  "mt-2 text-center text-xs text-pretty",
+                  "mt-2 text-center text-xs text-pretty max-sm:sr-only",
                   current && "font-medium",
                   done && "text-foreground",
                   !done && !current && "text-muted-foreground",
@@ -565,7 +772,93 @@ function AuditProgressTrack({
 
 function prioritizeFindings(findings: LocalisationAuditFinding[]) {
   const weight = { critical: 0, high: 1, warning: 1, medium: 2, low: 3, info: 4 } as const;
-  return findings.toSorted((a, b) => weight[a.severity] - weight[b.severity]).slice(0, 3);
+  return findings
+    .toSorted((a, b) => weight[a.severity] - weight[b.severity])
+    .slice(0, FIX_FIRST_LIMIT);
+}
+
+type LocaleSource = LocalisationAuditLocaleSignal["source"];
+
+function groupDetectedLocales(signals: LocalisationAuditLocaleSignal[]) {
+  const byLocale = new Map<string, Set<LocaleSource>>();
+  for (const signal of signals) {
+    const key = signal.locale.trim();
+    if (!key) continue;
+    const sources = byLocale.get(key) ?? new Set<LocaleSource>();
+    sources.add(signal.source);
+    byLocale.set(key, sources);
+  }
+  return [...byLocale].map(([locale, sources]) => ({ locale, sources: [...sources] }));
+}
+
+function localeDisplayName(locale: string, displayLocale: string) {
+  try {
+    const names = new Intl.DisplayNames([displayLocale], { type: "language" });
+    const name = names.of(locale);
+    return name && name.toLowerCase() !== locale.toLowerCase() ? name : null;
+  } catch {
+    return null;
+  }
+}
+
+function dedupeSampledPages(pages: LocalisationAuditReport["pages"]) {
+  const seen = new Set<string>();
+  return pages.filter((page) => {
+    if (seen.has(page.url)) return false;
+    seen.add(page.url);
+    return true;
+  });
+}
+
+function pagePathLabel(url: string) {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.pathname}${parsed.search}` || "/";
+  } catch {
+    return url;
+  }
+}
+
+function IsolatedReportSection({
+  section,
+  children,
+  className,
+  resetKeys,
+}: {
+  section: string;
+  children: ReactNode;
+  className?: string;
+  resetKeys?: unknown[];
+}) {
+  return (
+    <LocalisationAuditResultErrorBoundary
+      scope="section"
+      section={section}
+      className={className}
+      resetKeys={resetKeys}
+    >
+      {children}
+    </LocalisationAuditResultErrorBoundary>
+  );
+}
+
+function RerunCooldownNote({
+  when,
+  locale,
+  copy,
+}: {
+  when: string;
+  locale: string;
+  copy: ReturnType<typeof getLocalisationAuditResultCopy>;
+}) {
+  const formatted = formatRerunAvailableAt(when, locale);
+  if (!formatted) {
+    return null;
+  }
+
+  return (
+    <p className="mt-4 text-sm text-muted-foreground">{copy.rerunCooldown({ when: formatted })}</p>
+  );
 }
 
 function companyMonogram(name: string | null | undefined, domainKey: string) {
@@ -583,6 +876,8 @@ function CompanyMark({
 }) {
   const [logoFailed, setLogoFailed] = useState(false);
   const showLogo = Boolean(profile?.logoUrl) && !logoFailed;
+  const siteLabel = (profile?.name ?? domainKey).trim() || domainKey;
+  const logoAlt = `${siteLabel} logo`;
 
   return (
     <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-sm sm:size-20">
@@ -590,7 +885,7 @@ function CompanyMark({
         // Arbitrary audited-site logos; next/image host allowlist cannot cover them.
         <img
           src={profile!.logoUrl!}
-          alt=""
+          alt={logoAlt}
           className="size-full object-contain p-2"
           onError={() => setLogoFailed(true)}
         />
@@ -758,7 +1053,7 @@ export function LocalisationAuditResult({
         <TypographyP className="mt-4 max-w-2xl text-white/80" size="large">
           {copy.staleBody}
         </TypographyP>
-        <p className="mt-6 text-sm text-white/65">{audit.domainKey}</p>
+        <p className="mt-6 text-sm text-white/80">{audit.domainKey}</p>
         {error ? <p className="mt-4 text-sm text-red-200">{error}</p> : null}
         <Button
           className="mt-8 bg-white text-black hover:bg-white/90"
@@ -780,8 +1075,8 @@ export function LocalisationAuditResult({
           <TypographyP className="mt-4 max-w-2xl text-white/80" size="large">
             {copy.runningBody}
           </TypographyP>
-          <p className="mt-2 text-sm text-white/65">{copy.expectedDuration}</p>
-          <p className="mt-6 text-sm text-white/65">{audit.domainKey}</p>
+          <p className="mt-2 text-sm text-white/80">{copy.expectedDuration}</p>
+          <p className="mt-6 text-sm text-white/80">{audit.domainKey}</p>
         </MeshWash>
         <section className="px-5 pb-20 sm:px-8 lg:px-10">
           <AuditProgressTrack activeIndex={activeIndex} copy={copy} />
@@ -827,8 +1122,8 @@ export function LocalisationAuditResult({
         <TypographyP className="mt-4 max-w-2xl text-white/80" size="large">
           {copy.failedBody}
         </TypographyP>
-        <TypographyP className="mt-2 max-w-2xl text-white/70">
-          {audit.errorMessage ?? audit.errorCode ?? copy.failedFallback}
+        <TypographyP className="mt-2 max-w-2xl text-white/80">
+          {audit.errorMessage ?? copy.failedFallback}
         </TypographyP>
         {error ? <p className="mt-4 text-sm text-red-200">{error}</p> : null}
         <Button
@@ -849,9 +1144,9 @@ export function LocalisationAuditResult({
         <TypographyP className="mt-4 max-w-2xl text-white/80" size="large">
           {copy.blockedBody}
         </TypographyP>
-        <TypographyP className="mt-2 max-w-2xl text-white/70">{copy.blockedGuidance}</TypographyP>
-        <p className="mt-5 max-w-2xl text-sm text-white/75">
-          <span className="text-white/55">{copy.blockedUserAgent}: </span>
+        <TypographyP className="mt-2 max-w-2xl text-white/80">{copy.blockedGuidance}</TypographyP>
+        <p className="mt-5 max-w-2xl text-sm text-white/85">
+          <span className="text-white/75">{copy.blockedUserAgent}: </span>
           <code className="break-all text-white">{LOCALISATION_AUDIT_USER_AGENT}</code>
         </p>
         {error ? <p className="mt-4 text-sm text-red-200">{error}</p> : null}
@@ -897,7 +1192,6 @@ export function LocalisationAuditResult({
               : null;
   const dimensionScores = report?.dimensionScores ?? teaser?.dimensionScores;
   const allFindings = report?.findings ?? teaser?.headlineFindings ?? [];
-  const fixFirst = prioritizeFindings(allFindings);
   const companyProfile = report?.companyProfile ?? teaser?.companyProfile ?? null;
   const displayName = companyProfile?.name?.trim() || audit.domainKey;
   const ctaBody =
@@ -907,340 +1201,450 @@ export function LocalisationAuditResult({
         ? copy.reauditBodyMid
         : copy.reauditBodyLow;
   const freshness = audit.completedAt ?? teaser?.completedAt ?? report?.completedAt ?? null;
+  const freshnessLabel = freshness ? formatReportDate(freshness, appLocale) : null;
   const credits = report?.credits ?? teaser?.credits ?? [];
-  const criteriaFindings = allFindings;
-  const detectedLocales = report?.detectedLocales ?? teaser?.detectedLocales ?? [];
+  const methodologyVersion = report?.methodologyVersion ?? teaser?.methodologyVersion ?? 1;
+  const coverageFactor = report?.localeCoverageFactor ?? teaser?.localeCoverageFactor ?? 1;
+  const coverageReductionPercent = Math.round((1 - coverageFactor) * 100);
+  const groupedCriteria = groupLocalisationAuditCriteria(
+    buildLocalisationAuditCriteria(credits, allFindings, { methodologyVersion }),
+  );
+  const findingsUnderCriteria = new Set(
+    [...groupedCriteria.failed, ...groupedCriteria.watch, ...groupedCriteria.aiAssessed].flatMap(
+      (criterion) => criterion.findings.map((finding) => finding.id),
+    ),
+  );
+  const unscoredCreditIds = new Set(groupedCriteria.aiAssessed.map((criterion) => criterion.id));
+  const fixFirst = prioritizeFindings(
+    allFindings.filter((finding) => !finding.creditId || !unscoredCreditIds.has(finding.creditId)),
+  );
+  const otherFindings = allFindings.filter((finding) => !findingsUnderCriteria.has(finding.id));
+  const hasCriteria = credits.length > 0;
+  const linkableFindingIds = new Set(allFindings.map((finding) => finding.id));
+  const detectedLocales = groupDetectedLocales(
+    report?.detectedLocales ?? teaser?.detectedLocales ?? [],
+  );
+  const localeSourceLabels: Record<LocaleSource, string> = {
+    hreflang: copy.localeSourceHreflang,
+    html_lang: copy.localeSourceHtmlLang,
+    url_prefix: copy.localeSourceUrlPrefix,
+    url_subdomain: copy.localeSourceUrlSubdomain,
+    focus: copy.localeSourceFocus,
+  };
+  const sampledPages = report?.pages ? dedupeSampledPages(report.pages) : [];
+  const sectionLinks = [
+    { id: "fix-first", label: copy.fixFirstHeading },
+    hasCriteria ? { id: "criteria", label: copy.creditsHeading } : null,
+    otherFindings.length > 0
+      ? {
+          id: "findings",
+          label: hasCriteria ? copy.otherFindingsHeading : copy.fullFindingsHeading,
+        }
+      : null,
+    { id: "locales", label: copy.localesHeading },
+    sampledPages.length > 0 ? { id: "pages", label: copy.pagesHeading } : null,
+  ].filter((link): link is { id: string; label: string } => link != null);
 
   return (
     <>
-      <MeshWash className={isWorkspace ? "px-0 pt-0 pb-8 sm:px-0 sm:pt-0 lg:px-0" : undefined}>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <p className="text-xs font-medium tracking-[0.18em] text-white/70 uppercase">
-            {copy.companyReportEyebrow}
-          </p>
-          {isWorkspace ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white"
-              onClick={copyShareLink}
-            >
-              <ShareNetworkIcon className="size-3.5" aria-hidden />
-              {copy.shareCopyLink}
-            </Button>
-          )}
-        </div>
+      <IsolatedReportSection section="hero" resetKeys={[audit.id, displayName, score]}>
+        <MeshWash className={isWorkspace ? "px-0 pt-0 pb-8 sm:px-0 sm:pt-0 lg:px-0" : undefined}>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <p className="text-xs font-medium tracking-[0.18em] text-white/80 uppercase">
+              {copy.companyReportEyebrow}
+            </p>
+            {isWorkspace ? null : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white"
+                onClick={copyShareLink}
+              >
+                <ShareNetworkIcon className="size-3.5" aria-hidden />
+                {copy.shareCopyLink}
+              </Button>
+            )}
+          </div>
 
-        <div className="mt-8 flex flex-col gap-6 sm:flex-row sm:items-start">
-          <CompanyMark profile={companyProfile} domainKey={audit.domainKey} />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="font-serif text-3xl tracking-tight text-balance text-white sm:text-4xl lg:text-5xl">
-                {displayName}
-              </h1>
-              {companyProfile?.industry ? (
-                <Badge
-                  variant="outline"
-                  className="border-white/25 bg-white/10 text-white capitalize"
-                >
-                  {companyProfile.industry}
-                </Badge>
+          <div className="mt-8 flex flex-col gap-6 sm:flex-row sm:items-start">
+            <CompanyMark profile={companyProfile} domainKey={audit.domainKey} />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="font-serif text-3xl tracking-tight text-balance text-white sm:text-4xl lg:text-5xl">
+                  {displayName}
+                </h1>
+                {companyProfile?.industry ? (
+                  <Badge
+                    variant="outline"
+                    className="border-white/25 bg-white/10 text-white capitalize"
+                  >
+                    {companyProfile.industry}
+                  </Badge>
+                ) : null}
+              </div>
+              <p className="mt-2 text-sm text-white/80">{audit.domainKey}</p>
+              {companyProfile?.productSummary ? (
+                <p className="mt-4 max-w-2xl text-pretty text-base text-white/90 sm:text-lg">
+                  <span className="text-white/75">{copy.companyProductLabel}: </span>
+                  {companyProfile.productSummary}
+                </p>
+              ) : null}
+              {companyProfile?.brandVoice ? (
+                <p className="mt-2 max-w-2xl text-pretty text-sm text-white/85">
+                  <span className="text-white/75">{copy.companyBrandVoiceLabel}: </span>
+                  {companyProfile.brandVoice}
+                </p>
               ) : null}
             </div>
-            <p className="mt-2 text-sm text-white/65">{audit.domainKey}</p>
-            {companyProfile?.productSummary ? (
-              <p className="mt-4 max-w-2xl text-pretty text-base text-white/85 sm:text-lg">
-                <span className="text-white/55">{copy.companyProductLabel}: </span>
-                {companyProfile.productSummary}
-              </p>
-            ) : null}
-            {companyProfile?.brandVoice ? (
-              <p className="mt-2 max-w-2xl text-pretty text-sm text-white/75">
-                <span className="text-white/55">{copy.companyBrandVoiceLabel}: </span>
-                {companyProfile.brandVoice}
-              </p>
-            ) : null}
           </div>
-        </div>
 
-        <div className="mt-10 border-t border-white/15 pt-8">
-          <p className="text-sm text-white/65">{copy.scoreLabel}</p>
-          <p className="mt-2 font-serif text-5xl tracking-tight text-white sm:text-6xl">
-            <span className="tabular-nums">{score ?? "—"}</span>
-            <span className="text-3xl text-white/55 sm:text-4xl">{copy.scoreOutOf}</span>
-          </p>
-          {ratingLabel ? (
-            <Badge
-              variant="outline"
-              className="mt-4 border-white/25 bg-white/10 text-white capitalize"
-            >
-              {ratingLabel}
-            </Badge>
-          ) : null}
-          <TypographyP className="mt-4 max-w-2xl text-white/80" wrapStyle="pretty" size="large">
-            {interpretation}
-          </TypographyP>
-          {dimensionScores ? (
-            <ul className="mt-8 grid max-w-2xl grid-cols-2 gap-6 sm:grid-cols-4">
-              <li>
-                <DimensionScoreCircle
-                  label={copy.dimensionTechnical}
-                  score={dimensionScores.technical}
-                  onMesh
-                />
-              </li>
-              <li>
-                <DimensionScoreCircle
-                  label={copy.dimensionLinguistic}
-                  score={dimensionScores.linguistic}
-                  onMesh
-                />
-              </li>
-              <li>
-                <DimensionScoreCircle
-                  label={copy.dimensionContextual}
-                  score={dimensionScores.contextual}
-                  onMesh
-                />
-              </li>
-              <li>
-                <DimensionScoreCircle
-                  label={copy.dimensionVisual}
-                  score={dimensionScores.visual}
-                  onMesh
-                />
-              </li>
-            </ul>
-          ) : null}
-          <div className="mt-6 flex flex-wrap gap-x-8 gap-y-2 text-sm text-white/65">
-            {freshness ? (
-              <span>
-                {copy.freshnessLabel}: {new Date(freshness).toLocaleDateString()}
-              </span>
+          <div className="mt-10 border-t border-white/15 pt-8">
+            <p className="text-sm text-white/80">{copy.scoreLabel}</p>
+            <p className="mt-2 font-serif text-5xl tracking-tight text-white sm:text-6xl">
+              <span className="tabular-nums">{score ?? "—"}</span>
+              <span className="text-3xl text-white/75 sm:text-4xl">{copy.scoreOutOf}</span>
+            </p>
+            {ratingLabel ? (
+              <Badge
+                variant="outline"
+                className="mt-4 border-white/25 bg-white/10 text-white capitalize"
+              >
+                {ratingLabel}
+              </Badge>
             ) : null}
-            <span>
-              {copy.scopeLabel}: {copy.scopeBody}
-            </span>
-            <span>
-              {copy.confidenceLabel}: {copy.confidenceBody}
-            </span>
+            <TypographyP className="mt-4 max-w-2xl text-white/80" wrapStyle="pretty" size="large">
+              {interpretation}
+            </TypographyP>
+            {coverageReductionPercent > 0 ? (
+              <p className="mt-2 max-w-2xl text-pretty text-sm text-white/75">
+                {copy.scoreCoverageAdjustment({ percent: coverageReductionPercent })}
+              </p>
+            ) : null}
+            {score != null && methodologyVersion < LOCALISATION_AUDIT_METHODOLOGY_VERSION ? (
+              <p className="mt-2 max-w-2xl text-pretty text-sm text-white/75">
+                {copy.scoreLegacyMethodology}
+              </p>
+            ) : null}
+            {dimensionScores ? (
+              <ul className="mt-8 grid max-w-2xl grid-cols-2 gap-6 sm:grid-cols-4">
+                <li>
+                  <DimensionScoreCircle
+                    label={copy.dimensionTechnical}
+                    score={dimensionScores.technical}
+                    onMesh
+                  />
+                </li>
+                <li>
+                  <DimensionScoreCircle
+                    label={copy.dimensionLinguistic}
+                    score={dimensionScores.linguistic}
+                    onMesh
+                  />
+                </li>
+                <li>
+                  <DimensionScoreCircle
+                    label={copy.dimensionContextual}
+                    score={dimensionScores.contextual}
+                    onMesh
+                  />
+                </li>
+                <li>
+                  <DimensionScoreCircle
+                    label={copy.dimensionVisual}
+                    score={dimensionScores.visual}
+                    onMesh
+                  />
+                </li>
+              </ul>
+            ) : null}
+            <div className="mt-6 flex flex-wrap gap-x-8 gap-y-2 text-sm text-white/80">
+              {freshnessLabel ? (
+                <span>
+                  {copy.freshnessLabel}: {freshnessLabel}
+                </span>
+              ) : null}
+              <span>
+                {copy.scopeLabel}: {copy.scopeBody}
+              </span>
+              <span>
+                {copy.confidenceLabel}: {copy.confidenceBody}
+              </span>
+            </div>
+            {shareMessage ? (
+              <p className="mt-4 text-sm text-white/85" aria-live="polite">
+                {shareMessage}
+              </p>
+            ) : null}
+            <TypographyP className="mt-4 max-w-2xl text-white/80">
+              {copy.sampledPages({
+                count: teaser?.pagesCrawled ?? report?.pagesCrawled ?? 0,
+              })}{" "}
+              <Link
+                href={getLocalisationAuditGuideHref(locale)}
+                className="font-medium text-white underline-offset-4 hover:underline"
+              >
+                {copy.methodologyLink}
+              </Link>
+            </TypographyP>
           </div>
-          {shareMessage ? <p className="mt-4 text-sm text-white/70">{shareMessage}</p> : null}
-          <TypographyP className="mt-4 max-w-2xl text-white/70">
-            {copy.sampledPages({
-              count: teaser?.pagesCrawled ?? report?.pagesCrawled ?? 0,
-            })}{" "}
-            <Link
-              href={getLocalisationAuditGuideHref(locale)}
-              className="font-medium text-white underline-offset-4 hover:underline"
-            >
-              {copy.methodologyLink}
-            </Link>
-          </TypographyP>
-        </div>
-      </MeshWash>
+        </MeshWash>
+      </IsolatedReportSection>
+
+      {sectionLinks.length > 2 ? (
+        <IsolatedReportSection
+          section="nav"
+          resetKeys={[audit.id, sectionLinks.map((link) => link.id).join("|")]}
+        >
+          <nav
+            aria-label={copy.reportNavLabel}
+            className={cn(
+              "flex flex-wrap gap-x-6 gap-y-2 text-sm",
+              isWorkspace ? "pb-6" : "px-5 pb-8 sm:px-8 lg:px-10",
+            )}
+          >
+            {sectionLinks.map((link) => (
+              <a
+                key={link.id}
+                href={`#${link.id}`}
+                className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
+        </IsolatedReportSection>
+      ) : null}
 
       {standing && !isWorkspace ? (
-        <section className={sectionClassName}>
-          <TypographyH2 className="pb-0">{copy.standingHeading}</TypographyH2>
-          <TypographyP className="mt-4 max-w-2xl" size="large" tone="subtle">
-            {copy.standingRank({ rank: standing.rank, total: standing.total })}
-          </TypographyP>
-          <div className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
-            <span>{copy.standingPercentile({ percentile: standing.percentile })}</span>
-            {standing.averageScore != null ? (
-              <span>{copy.standingAverage({ average: standing.averageScore })}</span>
-            ) : null}
-          </div>
-          <div className="mt-6">
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link href={`/${locale}/localisation-audit`} />}
-            >
-              {copy.standingCta}
-            </Button>
-          </div>
-        </section>
-      ) : null}
-
-      <section className={sectionClassName}>
-        <TypographyH2 className="pb-0">{copy.fixFirstHeading}</TypographyH2>
-        <div className="mt-8">
-          <FindingList findings={fixFirst} copy={copy} domainKey={audit.domainKey} />
-        </div>
-      </section>
-
-      {credits.length > 0 ? (
-        <section className={sectionClassName}>
-          <TypographyH2 className="pb-0">{copy.creditsHeading}</TypographyH2>
-          <AuditCriteriaList
-            credits={credits}
-            findings={criteriaFindings}
-            copy={copy}
-            domainKey={audit.domainKey}
-            unlocked
-          />
-        </section>
-      ) : null}
-
-      <section className={sectionClassName}>
-        <TypographyH2 className="pb-0">{copy.localesHeading}</TypographyH2>
-        <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-          {detectedLocales.map((localeSignal) => (
-            <span key={`${localeSignal.locale}-${localeSignal.source}`}>
-              {localeSignal.locale}{" "}
-              <span className="text-muted-foreground/70">({localeSignal.source})</span>
-            </span>
-          ))}
-        </div>
-      </section>
-
-      <section className={sectionClassName}>
-        <TypographyH2 className="pb-0">{copy.fullFindingsHeading}</TypographyH2>
-        <div className="mt-8">
-          <FindingList findings={allFindings} copy={copy} domainKey={audit.domainKey} />
-        </div>
-      </section>
-
-      {report?.linguisticNotes && report.linguisticNotes.length > 0 ? (
-        <section className={sectionClassName}>
-          <TypographyH2 className="pb-0">{copy.linguisticHeading}</TypographyH2>
-          <ul className="mt-8 space-y-8">
-            {report.linguisticNotes.map((note) => (
-              <li key={note.locale}>
-                <p className="text-lg font-medium">{note.locale}</p>
-                <p className="mt-2 text-muted-foreground">{note.summary}</p>
-                <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
-                  {note.samples.map((sample) => (
-                    <li key={`${note.locale}-${sample.text}`}>
-                      <p className="italic">“{sample.text}”</p>
-                      <p className="mt-1">{sample.note}</p>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {report?.pages && report.pages.length > 0 ? (
-        <section className={sectionClassName}>
-          <TypographyH2 className="pb-0">{copy.pagesHeading}</TypographyH2>
-          <ul className="mt-8 space-y-3 text-sm text-muted-foreground">
-            {report.pages.map((page) => (
-              <li key={page.url} className="break-all">
-                {page.status} · {page.url}
-                {page.htmlLang ? ` · lang=${page.htmlLang}` : ""}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {isWorkspace ? null : (
-        <section className={sectionClassName}>
-          <TypographyH2 className="pb-0">{copy.unlockHeading}</TypographyH2>
-          <TypographyP className="mt-4 max-w-2xl" tone="subtle">
-            {copy.unlockBody}
-          </TypographyP>
-          <form onSubmit={requestReportEmail} className="mt-8 max-w-md space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="localisation-audit-email">{copy.emailLabel}</Label>
-              <Input
-                id="localisation-audit-email"
-                type="email"
-                required
-                autoComplete="email"
-                placeholder={copy.emailPlaceholder}
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
+        <IsolatedReportSection section="standing" resetKeys={[standing.rank, standing.total]}>
+          <section className={sectionClassName}>
+            <TypographyH2 className="pb-0">{copy.standingHeading}</TypographyH2>
+            <TypographyP className="mt-4 max-w-2xl" size="large" tone="subtle">
+              {copy.standingRank({ rank: standing.rank, total: standing.total })}
+            </TypographyP>
+            <div className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
+              {standing.ahead > 0 ? (
+                <span>{copy.standingAhead({ ahead: standing.ahead })}</span>
+              ) : null}
+              {standing.averageScore != null ? (
+                <span>{copy.standingAverage({ average: standing.averageScore })}</span>
+              ) : null}
             </div>
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            {deliveryMessage ? (
-              <p className="text-sm text-muted-foreground">{deliveryMessage}</p>
-            ) : null}
-            <Button type="submit" disabled={pending}>
-              {pending ? copy.unlocking : copy.unlockSubmit}
-            </Button>
-          </form>
-        </section>
-      )}
-
-      {isWorkspace ? null : (
-        <section className={sectionClassName}>
-          <TypographyH2 className="pb-0">{copy.reauditHeading}</TypographyH2>
-          <TypographyP className="mt-4 max-w-2xl" tone="subtle">
-            {ctaBody}
-          </TypographyP>
-          <div className="mt-6 flex flex-wrap gap-3">
-            {audit.rerunnable ? (
-              <Button onClick={() => restartAudit(copy.rerunError)} disabled={rerunPending}>
-                {rerunPending ? copy.rerunning : copy.rerun}
-              </Button>
-            ) : null}
-            {showSignInCtas ? (
-              audit.claimed ? (
-                <Button
-                  nativeButton={false}
-                  render={
-                    <Link href={claimDomainHref} onClick={() => trackCta("open_claimed_domain")} />
-                  }
-                >
-                  {copy.openInWorkspace}
-                </Button>
-              ) : (
-                <Button
-                  nativeButton={false}
-                  render={
-                    <Link
-                      href={`/auth/sign-in?returnTo=${encodeURIComponent(claimDomainHref)}`}
-                      onClick={() => trackCta("claim_domain")}
-                    />
-                  }
-                >
-                  {copy.claimDomain}
-                </Button>
-              )
-            ) : null}
-            {showSignInCtas ? (
+            <div className="mt-6">
               <Button
                 variant="outline"
                 nativeButton={false}
-                render={<Link href="/auth/sign-in" onClick={() => trackCta("create_workspace")} />}
+                render={<Link href={`/${locale}/localisation-audit`} />}
               >
-                {band === "low" ? copy.createWorkspace : copy.deeperAudit}
+                {copy.standingCta}
               </Button>
-            ) : null}
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={
-                <a
-                  href={REQUEST_DEMO_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => trackCta("book_review")}
-                />
-              }
-            >
-              {copy.bookReview}
-            </Button>
+            </div>
+          </section>
+        </IsolatedReportSection>
+      ) : null}
+
+      <IsolatedReportSection section="fix-first" resetKeys={[audit.id, fixFirst.length]}>
+        <section id="fix-first" className={cn(sectionClassName, "scroll-mt-24")}>
+          <TypographyH2 className="pb-0">{copy.fixFirstHeading}</TypographyH2>
+          <div className="mt-8">
+            <FixFirstList findings={fixFirst} linkableIds={linkableFindingIds} copy={copy} />
           </div>
-          {!audit.rerunnable && audit.rerunAvailableAt ? (
-            <p className="mt-4 text-sm text-muted-foreground">
-              {copy.rerunCooldown({
-                when: new Date(audit.rerunAvailableAt).toLocaleString(locale, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                }),
-              })}
-            </p>
-          ) : null}
         </section>
+      </IsolatedReportSection>
+
+      {hasCriteria ? (
+        <IsolatedReportSection section="criteria" resetKeys={[audit.id, credits.length]}>
+          <section id="criteria" className={cn(sectionClassName, "scroll-mt-24")}>
+            <TypographyH2 className="pb-0">{copy.creditsHeading}</TypographyH2>
+            <AuditCriteriaList grouped={groupedCriteria} copy={copy} domainKey={audit.domainKey} />
+          </section>
+        </IsolatedReportSection>
+      ) : null}
+
+      {otherFindings.length > 0 ? (
+        <IsolatedReportSection section="findings" resetKeys={[audit.id, otherFindings.length]}>
+          <section id="findings" className={cn(sectionClassName, "scroll-mt-24")}>
+            <TypographyH2 className="pb-0">
+              {hasCriteria ? copy.otherFindingsHeading : copy.fullFindingsHeading}
+            </TypographyH2>
+            {hasCriteria ? (
+              <TypographyP className="mt-4 max-w-2xl" tone="subtle">
+                {copy.otherFindingsBody}
+              </TypographyP>
+            ) : null}
+            <div className="mt-8">
+              <FindingList findings={otherFindings} copy={copy} domainKey={audit.domainKey} />
+            </div>
+          </section>
+        </IsolatedReportSection>
+      ) : null}
+
+      <IsolatedReportSection section="locales" resetKeys={[audit.id, detectedLocales.length]}>
+        <section id="locales" className={cn(sectionClassName, "scroll-mt-24")}>
+          <TypographyH2 className="pb-0">{copy.localesHeading}</TypographyH2>
+          {detectedLocales.length === 0 ? (
+            <TypographyP className="mt-4" tone="subtle">
+              {copy.localesEmpty}
+            </TypographyP>
+          ) : (
+            <ul className="mt-6 flex flex-wrap gap-3">
+              {detectedLocales.map(({ locale: detected, sources }) => {
+                const name = localeDisplayName(detected, appLocale);
+                return (
+                  <li key={detected} className="rounded-lg border border-border px-3 py-2">
+                    <p className="text-sm font-medium">{name ?? detected}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {[
+                        name ? detected : null,
+                        ...sources.map((source) => localeSourceLabels[source]),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </IsolatedReportSection>
+
+      {report?.linguisticNotes && report.linguisticNotes.length > 0 ? (
+        <IsolatedReportSection
+          section="linguistic"
+          resetKeys={[audit.id, report.linguisticNotes.length]}
+        >
+          <section className={sectionClassName}>
+            <TypographyH2 className="pb-0">{copy.linguisticHeading}</TypographyH2>
+            <ul className="mt-8 space-y-8">
+              {report.linguisticNotes.map((note) => (
+                <li key={note.locale}>
+                  <p className="text-lg font-medium">{note.locale}</p>
+                  <p className="mt-2 text-muted-foreground">{note.summary}</p>
+                  <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
+                    {note.samples.map((sample) => (
+                      <li key={`${note.locale}-${sample.text}`}>
+                        <p className="italic">“{sample.text}”</p>
+                        <p className="mt-1">{sample.note}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </IsolatedReportSection>
+      ) : null}
+
+      {sampledPages.length > 0 ? (
+        <IsolatedReportSection section="pages" resetKeys={[audit.id, sampledPages.length]}>
+          <section id="pages" className={cn(sectionClassName, "scroll-mt-24")}>
+            <SampledPagesList pages={sampledPages} copy={copy} domainKey={audit.domainKey} />
+          </section>
+        </IsolatedReportSection>
+      ) : null}
+
+      {isWorkspace ? null : (
+        <IsolatedReportSection
+          section="cta"
+          resetKeys={[audit.rerunnable, audit.rerunAvailableAt, showSignInCtas]}
+        >
+          <section className={sectionClassName}>
+            <TypographyH2 className="pb-0">{copy.reauditHeading}</TypographyH2>
+            <TypographyP className="mt-4 max-w-2xl" tone="subtle">
+              {ctaBody}
+            </TypographyP>
+            <div className="mt-6 flex flex-wrap gap-3">
+              {showSignInCtas ? (
+                audit.claimed ? (
+                  <Button
+                    nativeButton={false}
+                    render={
+                      <Link
+                        href={claimDomainHref}
+                        onClick={() => trackCta("open_claimed_domain")}
+                      />
+                    }
+                  >
+                    {copy.openInWorkspace}
+                  </Button>
+                ) : (
+                  <Button
+                    nativeButton={false}
+                    render={
+                      <Link
+                        href={`/auth/sign-in?returnTo=${encodeURIComponent(claimDomainHref)}`}
+                        onClick={() => trackCta("claim_domain")}
+                      />
+                    }
+                  >
+                    {copy.claimDomain}
+                  </Button>
+                )
+              ) : null}
+              <Button
+                variant={showSignInCtas ? "outline" : "default"}
+                nativeButton={false}
+                render={
+                  <a
+                    href={REQUEST_DEMO_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackCta("book_review")}
+                  />
+                }
+              >
+                {copy.bookReview}
+              </Button>
+              {audit.rerunnable ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => restartAudit(copy.rerunError)}
+                  disabled={rerunPending}
+                >
+                  {rerunPending ? copy.rerunning : copy.rerun}
+                </Button>
+              ) : null}
+            </div>
+            {!audit.rerunnable && audit.rerunAvailableAt ? (
+              <RerunCooldownNote when={audit.rerunAvailableAt} locale={appLocale} copy={copy} />
+            ) : null}
+
+            <div className="mt-12 max-w-xl border-t border-border pt-8">
+              <h3 className="text-lg font-medium">{copy.unlockHeading}</h3>
+              <TypographyP className="mt-2" tone="subtle">
+                {copy.unlockBody}
+              </TypographyP>
+              <form
+                onSubmit={requestReportEmail}
+                className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"
+              >
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Label htmlFor="localisation-audit-email">{copy.emailLabel}</Label>
+                  <Input
+                    id="localisation-audit-email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    placeholder={copy.emailPlaceholder}
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                  />
+                </div>
+                <Button type="submit" variant="outline" disabled={pending}>
+                  {pending ? copy.unlocking : copy.unlockSubmit}
+                </Button>
+              </form>
+              {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+              {deliveryMessage ? (
+                <p className="mt-3 text-sm text-muted-foreground" aria-live="polite">
+                  {deliveryMessage}
+                </p>
+              ) : null}
+            </div>
+          </section>
+        </IsolatedReportSection>
       )}
     </>
   );

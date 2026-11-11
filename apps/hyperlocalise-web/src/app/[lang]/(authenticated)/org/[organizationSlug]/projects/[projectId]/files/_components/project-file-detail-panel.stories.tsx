@@ -74,6 +74,83 @@ export const EmptySelection: Story = {
   },
 };
 
+export const IngestPending: Story = {
+  args: {
+    file: createProjectFileRecord({
+      sourcePath: "pages/formatting-test.html",
+      filename: "formatting-test.html",
+      latestJob: null,
+      ingestState: "pending",
+    }),
+    requestedSourcePath: "pages/formatting-test.html",
+    highlightLocale: null,
+    detail: createProjectFileDetail(
+      createProjectFileRecord({
+        sourcePath: "pages/formatting-test.html",
+        filename: "formatting-test.html",
+        latestJob: null,
+        ingestState: "pending",
+      }),
+      {
+        versions: [
+          {
+            ...createProjectFileDetail().versions[0]!,
+            sourcePath: "pages/formatting-test.html",
+            filename: "formatting-test.html",
+            ingestState: "pending",
+            content: { sourceStrings: { truncated: false, entries: [] } },
+          },
+        ],
+        jobsByLocale: [],
+      },
+    ),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Extracting segments…")).toBeInTheDocument();
+  },
+};
+
+export const IngestFailed: Story = {
+  args: {
+    file: createProjectFileRecord({
+      sourcePath: "pages/formatting-test.html",
+      filename: "formatting-test.html",
+      latestJob: null,
+      ingestState: "failed",
+      ingestError: "sandbox install failed",
+    }),
+    requestedSourcePath: "pages/formatting-test.html",
+    highlightLocale: null,
+    detail: createProjectFileDetail(
+      createProjectFileRecord({
+        sourcePath: "pages/formatting-test.html",
+        filename: "formatting-test.html",
+        latestJob: null,
+        ingestState: "failed",
+        ingestError: "sandbox install failed",
+      }),
+      {
+        versions: [
+          {
+            ...createProjectFileDetail().versions[0]!,
+            sourcePath: "pages/formatting-test.html",
+            filename: "formatting-test.html",
+            ingestState: "failed",
+            ingestError: "sandbox install failed",
+            content: { sourceStrings: { truncated: false, entries: [] } },
+          },
+        ],
+        jobsByLocale: [],
+      },
+    ),
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByText("Segment extraction failed: sandbox install failed"),
+    ).toBeInTheDocument();
+  },
+};
+
 export const FileNotFound: Story = {
   args: {
     file: null,

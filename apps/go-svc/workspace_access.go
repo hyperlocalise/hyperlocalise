@@ -21,10 +21,11 @@ const (
 )
 
 type workspaceAPI struct {
-	pool       dictionaryPool
-	membership organizationMembershipLookup
-	flags      workspaceFlagChecker
-	pipes      pipeTokenSource
+	pool        dictionaryPool
+	membership  organizationMembershipLookup
+	flags       workspaceFlagChecker
+	pipes       pipeTokenSource
+	activityLog activityLogPublisher
 }
 
 type workspaceActor struct {

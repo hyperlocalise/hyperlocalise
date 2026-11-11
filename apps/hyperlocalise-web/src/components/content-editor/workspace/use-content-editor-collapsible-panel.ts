@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useCallback, useEffect, useRef } from "react";
-import { usePanelRef, type PanelSize } from "react-resizable-panels";
+import { usePanelRef, type PanelImperativeHandle, type PanelSize } from "react-resizable-panels";
 
 /** Width a collapsed content editor pane shrinks to. */
 export const CAT_PANEL_COLLAPSED_SIZE = "0px";
@@ -31,6 +31,13 @@ export function useContentEditorCollapsiblePanel({
 }) {
   const panelRef = usePanelRef();
   const collapsedRef = useRef(collapsed);
+  const applyingRef = useRef(false);
+  if (collapsed !== undefined && collapsedRef.current !== collapsed) {
+    // Mark the next resize as programmatic before children flush. Viewport
+    // pin/unpin changes `collapsed` while the pane is still at 0%, and that
+    // measurement must not be reported as a user drag.
+    applyingRef.current = true;
+  }
   collapsedRef.current = collapsed;
 
   const applyCollapsed = useCallback(
@@ -40,12 +47,19 @@ export function useContentEditorCollapsiblePanel({
         return;
       }
 
-      if (shouldCollapse && !panel.isCollapsed()) {
+      const isCollapsed = readPanelCollapsed(panel);
+      if (isCollapsed === undefined) {
+        return;
+      }
+
+      if (shouldCollapse && !isCollapsed) {
+        applyingRef.current = true;
         panel.collapse();
         return;
       }
 
-      if (!shouldCollapse && panel.isCollapsed()) {
+      if (!shouldCollapse && isCollapsed) {
+        applyingRef.current = true;
         panel.expand();
       }
     },
@@ -69,13 +83,13 @@ export function useContentEditorCollapsiblePanel({
 
       const isCollapsed = size.asPercentage === 0;
       if (isCollapsed === target) {
+        applyingRef.current = false;
         return;
       }
 
-      // The panel's imperative handle is a no-op until the group has computed
-      // its first layout, so an initially collapsed pane has to be applied on
-      // this first measurement rather than from the mount effect.
-      if (prevSize === undefined) {
+      // The mount effect runs before the group has a layout, so the initial
+      // target is applied on this first measurement instead.
+      if (prevSize === undefined || applyingRef.current) {
         applyCollapsed(target);
         return;
       }
@@ -86,4 +100,17 @@ export function useContentEditorCollapsiblePanel({
   );
 
   return { panelRef, onResize };
+}
+
+/**
+ * The imperative handle throws until the group has derived constraints for a
+ * newly mounted panel, e.g. when the file tree mounts into an existing layout.
+ * The panel's first `onResize` reapplies the target once it is registered.
+ */
+function readPanelCollapsed(panel: PanelImperativeHandle): boolean | undefined {
+  try {
+    return panel.isCollapsed();
+  } catch {
+    return undefined;
+  }
 }

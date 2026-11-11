@@ -12,8 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useNearEndPagination } from "../project-file/content-editor-near-end-pagination";
 import { useEditorPageWindow } from "../project-file/content-editor-page-window";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { reaction } from "mobx";
 import { observer } from "mobx-react-lite";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
@@ -33,6 +34,10 @@ import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.message
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
 import { useContentEditorSegmentTarget } from "@/components/content-editor/project-file/use-content-editor-segment-target";
 import { formatInternalMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-internal-markup";
+import {
+  ContentEditorSegmentCheckbox,
+  type ContentEditorSegmentCheckHandler,
+} from "@/components/content-editor/segment/content-editor-segment-checkbox";
 import { multilingualMessages as messages } from "./content-editor-multilingual.messages";
 
 import { ContentEditorTargetEditor } from "../editor/content-editor-target-editor";
@@ -70,6 +75,12 @@ export interface ContentEditorMultilingualConfig {
     text: string,
   ) => Promise<void>;
   onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
+  /** Generates the localised image for one locale; used by the multilingual image gallery. */
+  onRegenerateImage?: (
+    segment: ContentEditorSegment,
+    locale: string,
+    options?: { force?: boolean; signal?: AbortSignal },
+  ) => Promise<void>;
 }
 
 function GroupedTranslationCell(props: Parameters<typeof TranslationCell>[0]) {
@@ -193,8 +204,11 @@ const TranslationCell = observer(function TranslationCell({
       >
         <ContentEditorTargetEditor
           sourceText={segment.sourceText}
+          sourcePath={segment.sourcePath}
           value={draft.text}
           maxLength={segment.maxLength}
+          messageFormat={segment.messageFormat}
+          placeholderPatterns={segment.placeholderPatterns}
           onChange={(text) => draft.change(text)}
           compact
           inline
@@ -263,6 +277,9 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
   onLoadMore,
   drafts: providedDrafts,
   onOpenTranslation,
+  checkedSegmentIds,
+  showSelection = false,
+  onToggleSegmentChecked,
 }: {
   config: ContentEditorMultilingualConfig;
   segments: ContentEditorSegment[];
@@ -273,8 +290,13 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
   onLoadMore?: () => void;
   drafts?: MultilingualDrafts;
   onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
+  /** Ticks whole strings (every language) for the toolbar's bulk actions in Select mode. */
+  checkedSegmentIds?: ReadonlySet<string>;
+  showSelection?: boolean;
+  onToggleSegmentChecked?: ContentEditorSegmentCheckHandler;
 }) {
   const intl = useIntl();
+  const keyIdPrefix = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [localDrafts] = useState(() => new MultilingualDrafts());
   const drafts = providedDrafts ?? localDrafts;
@@ -362,20 +384,16 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
   const rows = rowVirtualizer.getVirtualItems();
   const virtualColumns = columnVirtualizer.getVirtualItems();
   const lastRow = rows.at(-1)?.index ?? -1;
-  const requestedLength = useRef<string | null>(null);
-  const pageEnd = segments.at(-1)?.id ?? "";
+  const checkForNearEnd = useNearEndPagination({
+    hasMore,
+    isLoadingMore: isLoading || isLoadingMore,
+    itemCount: segments.length,
+    prefetchDistance: 12,
+    onNearEnd: onLoadMore,
+  });
   useEffect(() => {
-    if (
-      hasMore &&
-      !isLoading &&
-      !isLoadingMore &&
-      lastRow >= segments.length - 12 &&
-      requestedLength.current !== pageEnd
-    ) {
-      requestedLength.current = pageEnd;
-      onLoadMore?.();
-    }
-  }, [hasMore, isLoading, isLoadingMore, lastRow, segments.length, pageEnd, onLoadMore]);
+    checkForNearEnd(lastRow < 0 ? [] : [{ index: lastRow }]);
+  }, [checkForNearEnd, lastRow]);
   const width = columnVirtualizer.getTotalSize();
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
@@ -413,7 +431,7 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
       </div>
       <div
         ref={scrollRef}
-        className="min-h-0 flex-1 overflow-auto"
+        className="min-h-0 flex-1 overflow-auto [overflow-anchor:none]"
         tabIndex={0}
         role="region"
         aria-label={intl.formatMessage(messages.title)}
@@ -475,11 +493,25 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
                 <div
                   role="rowheader"
                   aria-colindex={1}
+                  // In Select mode, named by the key alone, not the tick box's "Select …" label.
+                  aria-labelledby={showSelection ? `${keyIdPrefix}-${row.index}` : undefined}
                   title={segment.key}
                   className="sticky left-0 z-10 flex h-full items-center gap-1.5 border-r bg-background px-3 font-mono text-xs"
                   style={{ width: KEY_WIDTH }}
                 >
-                  <span className="truncate">{segment.key}</span>
+                  {showSelection && onToggleSegmentChecked ? (
+                    <ContentEditorSegmentCheckbox
+                      segmentId={segment.id}
+                      segmentKey={segment.key}
+                      checkedSegmentIds={checkedSegmentIds}
+                      onCheckedChange={(checked, extendRange) =>
+                        onToggleSegmentChecked(segment.id, checked, extendRange)
+                      }
+                    />
+                  ) : null}
+                  <span id={`${keyIdPrefix}-${row.index}`} className="truncate">
+                    {segment.key}
+                  </span>
                   {(segment.occurrenceCount ?? 0) > 1 ? (
                     <ContentEditorOccurrenceBadge
                       count={segment.occurrenceCount!}

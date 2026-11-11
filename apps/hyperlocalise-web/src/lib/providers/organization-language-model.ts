@@ -41,6 +41,17 @@ export type LoadedOrganizationProviderCredential =
       message: string;
     };
 
+/** Whether the organization has saved its own model key, without decrypting it. */
+export async function organizationHasOwnModelKey(organizationId: string): Promise<boolean> {
+  const [credential] = await db
+    .select({ id: schema.organizationLlmProviderCredentials.id })
+    .from(schema.organizationLlmProviderCredentials)
+    .where(eq(schema.organizationLlmProviderCredentials.organizationId, organizationId))
+    .limit(1);
+
+  return credential !== undefined;
+}
+
 export async function loadLatestOrganizationProviderCredential(
   organizationId: string,
 ): Promise<LoadedOrganizationProviderCredential> {

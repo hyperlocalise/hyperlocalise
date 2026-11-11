@@ -104,11 +104,25 @@ function CalloutView({ node, editor, updateAttributes }: NodeViewProps) {
     className: cn("size-4", style.iconClassName),
     weight: "fill",
   });
+  const intercomColors =
+    typeof node.attrs.backgroundColor === "string" && node.attrs.backgroundColor
+      ? {
+          backgroundColor: node.attrs.backgroundColor,
+          borderColor:
+            typeof node.attrs.borderColor === "string" ? node.attrs.borderColor : undefined,
+        }
+      : undefined;
   return (
     <NodeViewWrapper
       as="aside"
       data-callout={node.attrs.kind}
-      className={cn("my-4 flex gap-3 rounded-xl border px-4 py-3", style.className)}
+      data-background-color={node.attrs.backgroundColor || undefined}
+      data-border-color={node.attrs.borderColor || undefined}
+      className={cn(
+        "my-4 flex gap-3 rounded-xl border px-4 py-3",
+        !intercomColors && style.className,
+      )}
+      style={intercomColors}
     >
       <div contentEditable={false} className="pt-1">
         {editor.isEditable ? (

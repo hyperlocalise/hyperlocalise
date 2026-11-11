@@ -151,4 +151,14 @@ export const chatDockMessages = defineMessages({
     defaultMessage: "Close chat",
     description: "Button to collapse a failed chat dock panel",
   },
+  stopFailed: {
+    id: "JBIPxSmVnF",
+    defaultMessage: "Could not stop the reply. Try again.",
+    description: "Error when asking the agent to stop its current reply fails",
+  },
+  queuedSendFailed: {
+    id: "TuArP1icKe",
+    defaultMessage: "Could not send your queued message. It is still in the queue.",
+    description: "Error when sending a message that was queued while the agent answered fails",
+  },
 });

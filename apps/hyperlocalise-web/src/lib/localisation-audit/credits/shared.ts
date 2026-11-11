@@ -162,6 +162,47 @@ export function isWellFormedHtmlLang(value: string): boolean {
   }
 }
 
+const LANGUAGE_DISPLAY_NAMES =
+  typeof Intl !== "undefined" && "DisplayNames" in Intl
+    ? new Intl.DisplayNames(["en"], { type: "language", fallback: "none" })
+    : null;
+const REGION_DISPLAY_NAMES =
+  typeof Intl !== "undefined" && "DisplayNames" in Intl
+    ? new Intl.DisplayNames(["en"], { type: "region", fallback: "none" })
+    : null;
+
+function regionSubtag(locale: string): string | null {
+  return (
+    normalizeLocale(locale)
+      .split("-")
+      .slice(1)
+      .find((part) => /^[a-z]{2}$|^\d{3}$/.test(part)) ?? null
+  );
+}
+
+/**
+ * Whether an hreflang value is a known ISO 639-1 language with an optional
+ * ISO 3166-1 / UN M.49 region. Search engines ignore three-letter language
+ * subtags and deprecated region aliases such as `en-UK` (use `en-GB`).
+ */
+export function isValidHreflangCode(value: string): boolean {
+  const normalized = normalizeLocale(value);
+  if (normalized === "x-default") return true;
+  if (!isWellFormedHtmlLang(normalized)) return false;
+  const language = languageOf(normalized);
+  if (!/^[a-z]{2}$/.test(language)) return false;
+  if (LANGUAGE_DISPLAY_NAMES && !LANGUAGE_DISPLAY_NAMES.of(language)) {
+    return false;
+  }
+  const region = regionSubtag(normalized);
+  if (!region) return true;
+  if (REGION_DISPLAY_NAMES && !REGION_DISPLAY_NAMES.of(region.toUpperCase())) {
+    return false;
+  }
+  const canonical = Intl.getCanonicalLocales(normalized)[0];
+  return canonical != null && regionSubtag(canonical) === region;
+}
+
 /** Format a normalized locale as a conventional BCP 47 tag (e.g. en-AU, es-419). */
 export function formatBcp47Locale(locale: string): string {
   const normalized = normalizeLocale(locale);
@@ -305,6 +346,43 @@ export function clampScore(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
+/**
+ * Lighthouse-style ratio score: the share of inspected pages that pass.
+ * Unlike per-page deductions, this does not drift with crawl sample size.
+ */
+export function passingShareScore(inspected: number, failing: number): number {
+  if (inspected <= 0) return 100;
+  return clampScore(((inspected - Math.min(failing, inspected)) / inspected) * 100);
+}
+
+/** URL identity for comparing hreflang targets: no hash, no trailing slash. */
+export function comparableUrl(url: string, base?: string): string | null {
+  try {
+    const parsed = new URL(url, base);
+    parsed.hash = "";
+    const pathname = parsed.pathname.replace(/\/+$/, "") || "/";
+    return `${parsed.protocol}//${parsed.host.toLowerCase().replace(/^www\./, "")}${pathname}${parsed.search}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Locale carried by the URL itself, from a path prefix or a locale subdomain. */
+export function urlRoutingLocale(url: string): string | null {
+  const pathLocale = pathLocaleFromUrl(url);
+  if (pathLocale) return canonicalPathLocale(pathLocale);
+  try {
+    const hostMatch = new URL(url).hostname.match(LOCALE_SUBDOMAIN);
+    const token = hostMatch?.[1];
+    if (token && (!LANGUAGE_DISPLAY_NAMES || LANGUAGE_DISPLAY_NAMES.of(languageOf(token)))) {
+      return canonicalPathLocale(token);
+    }
+  } catch {
+    // ignore bad URLs
+  }
+  return null;
+}
+
 export function pathLocaleFromUrl(url: string): string | null {
   try {
     const match = new URL(url).pathname.match(LOCALE_PREFIX);
@@ -418,9 +496,12 @@ export function dominantScript(text: string): DominantScript {
   );
 }
 
+/**
+ * Locales evidenced by crawled pages only. Visitor-supplied focus locales steer
+ * the crawl but never count here, so they cannot change applicability or score.
+ */
 export function detectLocales(
   pages: LocalisationAuditCrawledPage[],
-  focusLocales: string[],
 ): LocalisationAuditLocaleSignal[] {
   const byLocale = new Map<string, LocalisationAuditLocaleSignal>();
   /** Bare language tags that appear as their own URL/subdomain market prefixes. */
@@ -447,13 +528,6 @@ export function detectLocales(
       bareLanguagesFromRouting.add(canonical);
     }
   };
-
-  for (const focus of focusLocales) {
-    const code = resolveFocusLocaleCode(focus);
-    if (code) {
-      add(code, "focus");
-    }
-  }
 
   for (const page of pages) {
     if (page.htmlLang) {

@@ -1,0 +1,279 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+// @vitest-environment happy-dom
+
+import { onlineManager, QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { render, renderHook, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { IntlProvider } from "react-intl";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+import { LogTimeDialog } from "./log-time-dialog";
+import { useLogTime } from "./reports-queries";
+import {
+  createReportsSettings,
+  reportsResponseBodies,
+  type ReportsApiCall,
+} from "./reports.fixture";
+
+const mocks = vi.hoisted(() => ({
+  calls: [] as ReportsApiCall[],
+  bodies: {} as Record<string, unknown>,
+  holds: undefined as Record<string, Promise<void>> | undefined,
+}));
+
+vi.mock("@/lib/go-svc/use-go-svc-client", async () => ({
+  useGoSvcClient: (await import("./reports.fixture")).reportsGoSvcClient(mocks),
+}));
+
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+
+function renderDialog(
+  onClose = vi.fn(),
+  task: { projectId: string | null; languages?: string[]; step?: "translation" | "review" } = {
+    projectId: null,
+  },
+) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <IntlProvider locale="en" messages={{}}>
+      <QueryClientProvider client={queryClient}>
+        <LogTimeDialog
+          organizationSlug="acme"
+          settings={createReportsSettings()}
+          projectId={task.projectId}
+          jobId="job_release"
+          languages={task.languages}
+          step={task.step}
+          onClose={onClose}
+        />
+      </QueryClientProvider>
+    </IntlProvider>,
+  );
+  return onClose;
+}
+
+async function choose(label: string, option: string) {
+  await userEvent.click(screen.getByRole("combobox", { name: label }));
+  await userEvent.click(await screen.findByRole("option", { name: option }));
+}
+
+beforeEach(() => {
+  mocks.calls.length = 0;
+  mocks.bodies = reportsResponseBodies();
+  mocks.holds = undefined;
+  mocks.bodies["post time-entries"] = {};
+});
+
+describe("Log time dialog", () => {
+  it("waits a few seconds for the reload, and no longer", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const queryClient = new QueryClient();
+      const { result } = renderHook(
+        () => {
+          useQuery({
+            queryKey: ["reports", "acme", "slow"],
+            queryFn: () => new Promise(() => {}),
+          });
+          return useLogTime("acme");
+        },
+        {
+          wrapper: ({ children }) => (
+            <IntlProvider locale="en" messages={{}}>
+              <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+            </IntlProvider>
+          ),
+        },
+      );
+      const saved = result.current.mutateAsync({
+        jobId: "job_release",
+        step: "translation",
+        targetLocale: "ja-JP",
+        workDate: "2026-10-21",
+        minutes: 30,
+      });
+      let finished = false;
+      void saved.then(() => (finished = true));
+      await vi.advanceTimersByTimeAsync(4_000);
+      expect(finished).toBe(false);
+      await vi.advanceTimersByTimeAsync(1_000);
+      await expect(saved).resolves.toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("fails a save that never answers, and stops waiting for it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mocks.holds = { "post time-entries": new Promise(() => {}) };
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const { result } = renderHook(() => useLogTime("acme"), {
+        wrapper: ({ children }) => (
+          <IntlProvider locale="en" messages={{}}>
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+          </IntlProvider>
+        ),
+      });
+      const saved = result.current
+        .mutateAsync({
+          jobId: "job_release",
+          step: "translation",
+          targetLocale: "ja-JP",
+          workDate: "2026-10-21",
+          minutes: 30,
+        })
+        .then(
+          () => null,
+          (error: unknown) => error,
+        );
+      await vi.advanceTimersByTimeAsync(39_000);
+      expect(mocks.calls.some((call) => call.endpoint === "time-entries")).toBe(true);
+      await vi.advanceTimersByTimeAsync(1_000);
+      await expect(saved).resolves.toMatchObject({ message: "This could not be saved." });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not fail later once a save has finished", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const rejections: unknown[] = [];
+    const onRejection = (reason: unknown) => rejections.push(reason);
+    process.on("unhandledRejection", onRejection);
+    try {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const { result } = renderHook(() => useLogTime("acme"), {
+        wrapper: ({ children }) => (
+          <IntlProvider locale="en" messages={{}}>
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+          </IntlProvider>
+        ),
+      });
+      await result.current.mutateAsync({
+        jobId: "job_release",
+        step: "translation",
+        targetLocale: "ja-JP",
+        workDate: "2026-10-21",
+        minutes: 30,
+      });
+      await vi.advanceTimersByTimeAsync(45_000);
+      expect(rejections).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onRejection);
+      vi.useRealTimers();
+    }
+  });
+
+  it("sends the time even when the browser says it is offline, instead of queuing it", async () => {
+    renderDialog();
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Language" })).not.toBeDisabled(),
+    );
+    await choose("Language", "ja-JP");
+    onlineManager.setOnline(false);
+    try {
+      await userEvent.click(screen.getByRole("button", { name: "Log time" }));
+      await waitFor(() =>
+        expect(mocks.calls.some((call) => call.endpoint === "time-entries")).toBe(true),
+      );
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
+  it("stays open only while the time is saving, so it cannot be logged twice", async () => {
+    let finish = () => {};
+    mocks.holds = {
+      "post time-entries": new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    };
+    const onClose = renderDialog();
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Language" })).not.toBeDisabled(),
+    );
+    await choose("Language", "ja-JP");
+    await userEvent.click(screen.getByRole("button", { name: "Log time" }));
+    expect(await screen.findByRole("button", { name: "Saving…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    await userEvent.keyboard("{Escape}");
+    expect(onClose).not.toHaveBeenCalled();
+    finish();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it("offers the task's project's languages when the task names none and has no Reports data", async () => {
+    // The task lookup finds only tasks with Reports strings.
+    mocks.bodies.jobs = { jobs: [] };
+    renderDialog(vi.fn(), { projectId: "project_web", languages: [] });
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Language" })).not.toBeDisabled(),
+    );
+    await userEvent.click(screen.getByRole("combobox", { name: "Language" }));
+    expect(await screen.findByRole("option", { name: "de-DE" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "ja-JP" })).toBeInTheDocument();
+  });
+
+  it("asks for a language and a time within a day before saving", async () => {
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Log time" }));
+    expect(await screen.findByText("Choose a language.")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Language" })).not.toBeDisabled(),
+    );
+    await choose("Language", "ja-JP");
+    await userEvent.clear(screen.getByLabelText("Hours"));
+    await userEvent.type(screen.getByLabelText("Hours"), "25");
+    await userEvent.click(screen.getByRole("button", { name: "Log time" }));
+    expect(await screen.findByText("Enter between 1 minute and 24 hours.")).toBeInTheDocument();
+    expect(mocks.calls.filter((call) => call.endpoint === "time-entries")).toEqual([]);
+  });
+
+  it("opens on the task's own step, so time on a proofread task lands on Review", async () => {
+    const onClose = renderDialog(vi.fn(), { projectId: null, step: "review" });
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Language" })).not.toBeDisabled(),
+    );
+    expect(screen.getByRole("combobox", { name: "Step" })).toHaveTextContent("Review");
+    await choose("Language", "ja-JP");
+    await userEvent.click(screen.getByRole("button", { name: "Log time" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(mocks.calls.find((call) => call.endpoint === "time-entries")?.args.json).toMatchObject({
+      step: "review",
+    });
+  });
+
+  it("logs the time in minutes on the chosen day and closes", async () => {
+    const onClose = renderDialog();
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Language" })).not.toBeDisabled(),
+    );
+    await choose("Language", "ja-JP");
+    await choose("Step", "Review");
+    await userEvent.clear(screen.getByLabelText("Minutes"));
+    await userEvent.type(screen.getByLabelText("Minutes"), "30");
+    await userEvent.type(screen.getByLabelText("Note"), "Checked UI length limits");
+    await userEvent.click(screen.getByRole("button", { name: "Log time" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(mocks.calls.find((call) => call.endpoint === "time-entries")?.args.json).toEqual({
+      jobId: "job_release",
+      step: "review",
+      targetLocale: "ja-JP",
+      workDate: "2026-10-21",
+      minutes: 90,
+      note: "Checked UI length limits",
+    });
+  });
+});

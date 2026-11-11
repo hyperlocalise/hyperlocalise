@@ -337,9 +337,10 @@ export const documentEditorMessages = defineMessages({
   },
   parseFallback: {
     defaultMessage:
-      "This file has MDX the page view can't read safely, so it opened as code to avoid changing it.",
-    id: "a/00MN41ob",
-    description: "Document editor: banner when an MDX file falls back to raw source",
+      "The page view can't keep this file as written, so it opened as code to avoid changing it.",
+    id: "HnpxT9SEMg",
+    description:
+      "Document editor: banner when parse/serialize would change the file, so it falls back to raw source",
   },
   saveAbandoned: {
     defaultMessage: "Couldn't save this document. Reopen it to retry.",

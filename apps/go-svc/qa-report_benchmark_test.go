@@ -82,3 +82,18 @@ func BenchmarkParseWorkspaceFindingsQuery(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkParseWorkspaceFindingsQueryEncoded(b *testing.B) {
+	req := httptest.NewRequest(
+		"GET",
+		"/v1/orgs/acme/qa-reports/findings?loc%61le=de-DE&check%54ype=not_localized&sev%65rity=error&project%49d=project_1&lim%69t=50&off%73et=100",
+		nil,
+	)
+	b.ReportAllocs()
+	for b.Loop() {
+		projectID, locale, checkType, severity, limit, offset, err := parseWorkspaceFindingsQuery(req)
+		if err != nil || projectID != "project_1" || locale != "de-DE" || checkType != "not_localized" || severity != "error" || limit != 50 || offset != 100 {
+			b.Fatal("unexpected query parse")
+		}
+	}
+}

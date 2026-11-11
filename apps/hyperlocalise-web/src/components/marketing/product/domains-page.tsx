@@ -37,6 +37,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import { DomainsAuditDashboard, DomainsMockUI, type DomainsAuditFocus } from "./domains-mock-ui";
 import { domainsPageMessages as messages } from "./domains-page.messages";
+import { ProductHowItWorksNarrativeSection } from "./product-how-it-works-narrative-section";
 
 const solutionIds = ["localisation", "seo", "aeo"] as const satisfies readonly DomainsAuditFocus[];
 
@@ -489,6 +490,8 @@ export function DomainsPage() {
             </span>
           </div>
         </section>
+
+        <ProductHowItWorksNarrativeSection narrative={messages.howItWorksNarrative} />
 
         <DomainsSolutions />
         <LiveSiteSection />

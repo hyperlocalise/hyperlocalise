@@ -1,0 +1,65 @@
+---
+title: "Sanity Studio plugin OAuth"
+description: "Configure Hyperlocalise as the OAuth authorization server for sanity-plugin-hyperlocalise."
+---
+
+Hyperlocalise acts as the OAuth 2.0 authorization server. The Studio plugin uses PKCE as a public client. There is no client secret.
+
+Implementation lives in `apps/hyperlocalise-web` (`/api/oauth/sanity/*`, `/api/integrations/sanity/*`) and the plugin in `apps/sanity-studio-plugin`. End-user workflow is in [Localize Sanity Studio documents](/platform/connections/sanity-studio-plugin).
+
+## Flow
+
+1. An editor chooses **Connect Hyperlocalise** in the Hyperlocalise editor view or bulk tool.
+2. The plugin opens `{ORIGIN}/api/oauth/sanity/authorize` with PKCE and `studio_origin={window.location.origin}`.
+3. Hyperlocalise signs the user in with WorkOS if needed, then shows consent at `/en/connect/sanity/oauth` to pick a workspace **Sanity Studio plugin** connection.
+4. The callback completes the handoff at `{ORIGIN}/connect/sanity/oauth/callback` → `/api/oauth/sanity/handoff/complete`.
+5. The plugin stores access and refresh tokens and calls `/api/integrations/sanity/*` with header `X-Hyperlocalise-Access-Token`.
+6. Integration routes verify that the request `Origin` matches the token's stored `studio_origin`.
+
+Create the connection under **Integrations → Sanity Studio plugin** before consent can list any option.
+
+## OAuth endpoints
+
+Replace `{ORIGIN}` with the public Hyperlocalise web origin (no trailing slash).
+
+| Setting | URL |
+| --- | --- |
+| Authorization | `{ORIGIN}/api/oauth/sanity/authorize` |
+| Token | `{ORIGIN}/api/oauth/sanity/token` |
+| Revocation | `{ORIGIN}/api/oauth/sanity/revoke` |
+| Discovery | `{ORIGIN}/api/oauth/sanity/.well-known/oauth-authorization-server` |
+| Integration health | `{ORIGIN}/api/integrations/sanity/health` |
+
+Redirect URI used by the plugin:
+
+- `{ORIGIN}/connect/sanity/oauth/callback`
+
+Verify discovery before production rollout:
+
+```bash
+curl -s "{ORIGIN}/api/oauth/sanity/.well-known/oauth-authorization-server" | jq .
+```
+
+## Environment variables
+
+### `apps/hyperlocalise-web`
+
+| Variable | Purpose |
+| --- | --- |
+| `SANITY_OAUTH_CLIENT_ID` | OAuth client id registered for the Studio plugin |
+| `SANITY_OAUTH_REDIRECT_URI` | Optional comma-separated extra redirect URIs |
+| `SANITY_CORS_ORIGINS` | Optional comma-separated Studio origins beyond defaults (`localhost:3333`, `*.sanity.studio`) |
+
+Local `.env` can omit `SANITY_OAUTH_CLIENT_ID`; `/api/integrations/sanity/health` reports `sanityOauthConfigured: false` until it is set.
+
+### `apps/sanity-studio-plugin`
+
+Build with `HYPERLOCALISE_APP_URL` when the default `http://localhost:3000` is wrong for your Studio users. The plugin reads the app URL from settings storage per Sanity project and dataset.
+
+## Package and CI
+
+- Source: `apps/sanity-studio-plugin` (npm name `sanity-plugin-hyperlocalise`).
+- CI: `.github/workflows/sanity-studio-plugin.yml`.
+- Publish: tag `sanity-studio-plugin-v*` triggers `.github/workflows/sanity-studio-plugin-publish.yml`.
+
+Design notes: [`docs/adr/2026-10-20-sanity-studio-plugin-inspector.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/docs/adr/2026-10-20-sanity-studio-plugin-inspector.md).

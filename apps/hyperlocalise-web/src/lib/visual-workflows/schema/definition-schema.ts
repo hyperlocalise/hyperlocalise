@@ -14,6 +14,11 @@ import { z } from "zod";
 
 import { contentSyncProviderSchema } from "@/lib/agents/content-sync/content-sync-types";
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
+import {
+  JOB_CHANGE_EVENT_TYPES,
+  JOB_KINDS,
+  JOB_STATUSES,
+} from "@/lib/job-change-events/job-change-events-contract";
 import { VISUAL_WORKFLOW_SCHEMA_VERSION, VISUAL_WORKFLOW_SCHEMA_V3_VERSION } from "./types";
 
 const httpMethodSchema = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]);
@@ -24,6 +29,20 @@ const visualKeyValuePairSchema = z.object({
 });
 
 const visualNodeErrorBehaviorSchema = z.enum(["stop", "continue", "branch"]);
+
+const visualTargetLocalesSchema = z.string().trim().max(2000);
+const visualIdListSchema = z.string().trim().max(2000);
+const visualCrowdinIdSchema = z.string().trim().max(256);
+const visualDueAtSchema = z.string().trim().max(256).optional();
+
+function isValidIntlLocale(locale: string): boolean {
+  try {
+    Intl.getCanonicalLocales(locale);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const httpAuthSchema = z.object({
   type: z.enum(["none", "bearer", "api_key"]),
@@ -46,27 +65,250 @@ const branchPatternSchema = z
   .max(255)
   .regex(/^[A-Za-z0-9._\-/*?]+$/);
 
-const visualCatalogTypeSchema = z.enum([
+export const visualCatalogTypeSchema = z.enum([
   "trigger.manual",
   "trigger.scheduled",
   "trigger.github",
   "trigger.source_upload",
+  "trigger.webhook",
+  "trigger.job_changed",
   "action.http",
   "action.content_sync",
   "action.notify_slack",
   "action.notify_email",
+  "action.machine_translate",
+  "action.create_task",
+  "action.check_progress",
+  "action.run_qa",
+  "action.list_source_files",
+  "action.file_read",
+  "action.file_write",
+  "action.file_convert",
+  "action.update_job",
+  "action.pick_assignee",
+  "action.crowdin_pre_translate",
+  "action.crowdin_create_task",
+  "action.crowdin_check_progress",
   "logic.if",
   "logic.switch",
   "logic.set",
+  "logic.create_object",
+  "logic.merge_objects",
+  "logic.select_path",
+  "logic.coalesce",
+  "logic.compare",
+  "logic.json_parse",
+  "logic.json_stringify",
+  "logic.schema_validate",
   "ai.agent",
   "logic.for_each",
+  "logic.array_transform",
   "logic.retry",
+  "flow.human_approval",
   "flow.wait",
+  "flow.stop",
+  "flow.return",
+  "flow.fail",
   "logic.merge",
   "logic.sequence",
+  "logic.try_catch",
+  "flow.call_workflow",
 ]);
 
-const visualNodeConfigSchema = z.discriminatedUnion("kind", [
+const visualMemberIdsSchema = z.array(z.string().trim().min(1).max(256)).max(50);
+
+const visualAssignmentRuleSchema = z
+  .object({
+    id: z.string().trim().min(1).max(128),
+    name: z.string().max(128),
+    locales: visualTargetLocalesSchema,
+    jobTypes: z.array(z.enum(["translate", "edit", "proofread"])).max(3),
+    minSize: z.number().int().min(0).optional(),
+    maxSize: z.number().int().min(0).optional(),
+    dueWithinHours: z.number().int().min(0).max(8760).optional(),
+    assigneeIds: visualMemberIdsSchema,
+  })
+  .refine(
+    (rule) =>
+      rule.minSize === undefined || rule.maxSize === undefined || rule.minSize <= rule.maxSize,
+    { message: "min_size_above_max_size", path: ["maxSize"] },
+  );
+
+const visualSubworkflowFieldSchema = z.object({
+  id: z.string().trim().min(1).max(128),
+  name: z.string().trim().min(1).max(128),
+  type: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+  required: z.boolean().optional(),
+});
+
+const visualSubworkflowFieldsSchema = z
+  .array(visualSubworkflowFieldSchema)
+  .max(32)
+  .superRefine((fields, context) => {
+    const ids = new Set<string>();
+    const names = new Set<string>();
+
+    for (const [index, field] of fields.entries()) {
+      if (ids.has(field.id)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "id"],
+          message: "duplicate_subworkflow_field_id",
+        });
+      }
+      if (names.has(field.name)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "name"],
+          message: "duplicate_subworkflow_field_name",
+        });
+      }
+      ids.add(field.id);
+      names.add(field.name);
+    }
+  });
+
+const visualObjectFieldsSchema = z
+  .array(
+    z.object({
+      id: z.string().trim().min(1).max(128),
+      name: z.string().trim().min(1).max(128),
+      type: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+      defaultValue: z.unknown().optional(),
+    }),
+  )
+  .max(100)
+  .superRefine((fields, context) => {
+    const ids = new Set<string>();
+    const names = new Set<string>();
+    for (const [index, field] of fields.entries()) {
+      if (ids.has(field.id)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "id"],
+          message: "duplicate_object_field_id",
+        });
+      }
+      if (names.has(field.name)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "name"],
+          message: "duplicate_object_field_name",
+        });
+      }
+      if (["__proto__", "prototype", "constructor"].includes(field.name)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "name"],
+          message: "unsafe_object_field_name",
+        });
+      }
+      if (Object.hasOwn(field, "defaultValue")) {
+        const value = field.defaultValue;
+        const matchesType =
+          field.type === "unknown" ||
+          (field.type === "array"
+            ? Array.isArray(value)
+            : field.type === "object"
+              ? value !== null && typeof value === "object" && !Array.isArray(value)
+              : typeof value === field.type);
+        if (!matchesType) {
+          context.addIssue({
+            code: "custom",
+            path: [index, "defaultValue"],
+            message: "invalid_object_field_default",
+          });
+        }
+      }
+      ids.add(field.id);
+      names.add(field.name);
+    }
+  });
+
+const visualObjectMergeInputsSchema = z
+  .array(
+    z.object({
+      id: z.string().trim().min(1).max(128),
+      name: z.string().trim().min(1).max(128),
+    }),
+  )
+  .min(2)
+  .max(32)
+  .superRefine((inputs, context) => {
+    const ids = new Set<string>();
+    const names = new Set<string>();
+    for (const [index, input] of inputs.entries()) {
+      if (ids.has(input.id)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "id"],
+          message: "duplicate_object_input_id",
+        });
+      }
+      if (names.has(input.name)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "name"],
+          message: "duplicate_object_input_name",
+        });
+      }
+      ids.add(input.id);
+      names.add(input.name);
+    }
+  });
+
+const visualCoalesceInputsSchema = z
+  .array(
+    z.object({
+      id: z.string().trim().min(1).max(128),
+      name: z.string().trim().min(1).max(128),
+      type: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+      defaultValue: z.unknown().optional(),
+    }),
+  )
+  .min(2)
+  .max(32)
+  .superRefine((inputs, context) => {
+    const ids = new Set<string>();
+    const names = new Set<string>();
+    for (const [index, input] of inputs.entries()) {
+      if (ids.has(input.id)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "id"],
+          message: "duplicate_coalesce_input_id",
+        });
+      }
+      if (names.has(input.name)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "name"],
+          message: "duplicate_coalesce_input_name",
+        });
+      }
+      if (Object.hasOwn(input, "defaultValue")) {
+        const value = input.defaultValue;
+        const matches =
+          input.type === "unknown" ||
+          (input.type === "array"
+            ? Array.isArray(value)
+            : input.type === "object"
+              ? value !== null && typeof value === "object" && !Array.isArray(value)
+              : typeof value === input.type);
+        if (!matches) {
+          context.addIssue({
+            code: "custom",
+            path: [index, "defaultValue"],
+            message: "invalid_coalesce_input_default",
+          });
+        }
+      }
+      ids.add(input.id);
+      names.add(input.name);
+    }
+  });
+
+const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("trigger.manual") }),
   z.object({
     kind: z.literal("trigger.scheduled"),
@@ -85,6 +327,20 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("trigger.source_upload"),
     projectId: z.string().trim().min(1).max(128).optional(),
+  }),
+  z.object({
+    kind: z.literal("trigger.webhook"),
+    tokenVersion: z.number().int().min(1).max(1_000_000),
+  }),
+  z.object({
+    kind: z.literal("trigger.job_changed"),
+    projectId: z.string().trim().min(1).max(128).optional(),
+    eventTypes: z
+      .array(z.enum(JOB_CHANGE_EVENT_TYPES))
+      .max(JOB_CHANGE_EVENT_TYPES.length)
+      .optional(),
+    jobKinds: z.array(z.enum(JOB_KINDS)).max(JOB_KINDS.length).optional(),
+    toStatuses: z.array(z.enum(JOB_STATUSES)).max(JOB_STATUSES.length).optional(),
   }),
   z.object({
     kind: z.literal("action.http"),
@@ -120,6 +376,8 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
       .trim()
       .max(512)
       .regex(/^[^\\:*?"<>|]*$/, "invalid_folder_path"),
+    branch: z.string().trim().max(256).optional(),
+    pathTemplate: z.string().trim().max(512).optional(),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({
@@ -136,6 +394,121 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
     recipients: z.string().trim().min(1).max(4000),
     subject: z.string().max(1000),
     message: z.string().max(4000),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.machine_translate"),
+    projectId: z.string().trim().max(128),
+    sourceFileId: z.string().trim().max(256),
+    targetLocales: visualTargetLocalesSchema,
+    useTranslationMemory: z.boolean().optional(),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.create_task"),
+    projectId: z.string().trim().max(128),
+    sourceFileId: z.string().trim().max(256),
+    targetLocales: visualTargetLocalesSchema,
+    step: z.enum(["translate", "edit", "proofread"]),
+    assigneeWorkosUserId: z.string().trim().max(256),
+    title: z.string().max(256),
+    dueAt: visualDueAtSchema,
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.check_progress"),
+    projectId: z.string().trim().max(128),
+    sourceFileId: z.string().trim().max(256),
+    targetLocales: visualTargetLocalesSchema,
+    jobId: z.string().trim().max(256),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.run_qa"),
+    projectId: z.string().trim().max(128),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.list_source_files"),
+    projectId: z.string().trim().max(128),
+    pathPrefix: z.string().trim().max(1024),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.file_read"),
+    fileId: z.string().trim().max(256),
+    encoding: z.enum(["utf-8", "base64"]),
+  }),
+  z.object({
+    kind: z.literal("action.file_write"),
+    content: z.string().max(7_000_000),
+    filename: z.string().trim().max(512),
+    contentType: z.string().trim().max(256),
+    encoding: z.enum(["utf-8", "base64"]),
+    locale: z.string().trim().max(64).optional(),
+    sourceFileId: z.string().trim().max(256).optional(),
+  }),
+  z.object({
+    kind: z.literal("action.file_convert"),
+    fileId: z.string().trim().max(256),
+    targetFormat: z.enum(["json", "yaml", "arb"]),
+    filename: z.string().trim().max(512).optional(),
+    locale: z.string().trim().max(64).optional(),
+  }),
+  z.object({
+    kind: z.literal("action.update_job"),
+    jobId: z.string().trim().max(256),
+    assigneeWorkosUserId: z.string().trim().max(256),
+    title: z.string().max(256),
+    dueAt: visualDueAtSchema,
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.pick_assignee"),
+    locale: visualTargetLocalesSchema,
+    jobType: z.string().trim().max(256),
+    size: z.string().trim().max(256),
+    dueAt: z.string().trim().max(256),
+    rules: z.array(visualAssignmentRuleSchema).max(50),
+    fallbackAssigneeIds: visualMemberIdsSchema,
+    strategy: z.enum(["first", "round_robin", "least_busy"]),
+    peopleSource: z.enum(["workspace", "crowdin"]).optional(),
+    crowdinProjectId: visualCrowdinIdSchema.optional(),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.crowdin_pre_translate"),
+    crowdinProjectId: visualCrowdinIdSchema,
+    fileIds: visualIdListSchema,
+    languageIds: visualTargetLocalesSchema,
+    method: z.enum(["tm", "mt", "ai"]),
+    engineId: visualCrowdinIdSchema,
+    aiPromptId: visualCrowdinIdSchema,
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.crowdin_create_task"),
+    crowdinProjectId: visualCrowdinIdSchema,
+    fileIds: visualIdListSchema,
+    languageIds: visualTargetLocalesSchema,
+    taskType: z.enum(["translate", "proofread"]),
+    assigneeIds: visualIdListSchema,
+    title: z.string().max(256),
+    description: z.string().max(4000),
+    dueAt: visualDueAtSchema,
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("action.crowdin_check_progress"),
+    crowdinProjectId: visualCrowdinIdSchema,
+    fileIds: visualIdListSchema,
+    languageIds: visualTargetLocalesSchema,
+    taskIds: visualIdListSchema,
+    preTranslationId: z.string().trim().max(256),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
     onError: visualNodeErrorBehaviorSchema.optional(),
   }),
   z.object({
@@ -178,6 +551,126 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
     assignments: z.array(visualKeyValuePairSchema).max(32),
   }),
   z.object({
+    kind: z.literal("logic.create_object"),
+    fields: visualObjectFieldsSchema,
+  }),
+  z.object({
+    kind: z.literal("logic.merge_objects"),
+    inputs: visualObjectMergeInputsSchema,
+    conflictPolicy: z.enum(["reject", "first_wins", "last_wins"]),
+  }),
+  z.object({
+    kind: z.literal("logic.select_path"),
+    path: z
+      .array(
+        z.union([
+          z
+            .string()
+            .min(1)
+            .max(256)
+            .refine(
+              (segment) => !["__proto__", "prototype", "constructor"].includes(segment),
+              "unsafe_path_segment",
+            ),
+          z.number().int().nonnegative().max(1_000_000),
+        ]),
+      )
+      .max(32),
+    outputType: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+    missingBehavior: z.enum(["error", "optional", "default"]),
+    defaultValue: z.unknown().optional(),
+  }),
+  z.object({
+    kind: z.literal("logic.coalesce"),
+    inputs: visualCoalesceInputsSchema,
+    treatNullAsMissing: z.boolean(),
+    treatEmptyStringAsMissing: z.boolean(),
+    treatEmptyArrayAsMissing: z.boolean(),
+    treatEmptyObjectAsMissing: z.boolean(),
+  }),
+  z
+    .object({
+      kind: z.literal("logic.compare"),
+      operator: z.enum([
+        "equal",
+        "not_equal",
+        "greater_than",
+        "greater_than_or_equal",
+        "less_than",
+        "less_than_or_equal",
+        "contains",
+        "starts_with",
+        "ends_with",
+        "and",
+        "or",
+        "not",
+      ]),
+      operands: z
+        .array(
+          z.object({
+            id: z.string().uuid(),
+            name: z.string().trim().min(1).max(128),
+            type: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+          }),
+        )
+        .min(1)
+        .max(12),
+      locale: z.string().trim().min(1).max(64).refine(isValidIntlLocale).optional(),
+      sensitivity: z.enum(["base", "accent", "case", "variant"]).optional(),
+    })
+    .superRefine((config, context) => {
+      const expectedCount = config.operator === "not" ? 1 : 2;
+      if (!["and", "or"].includes(config.operator) && config.operands.length !== expectedCount) {
+        context.addIssue({
+          code: "custom",
+          path: ["operands"],
+          message: "invalid_comparison_operand_count",
+        });
+      }
+      if (["and", "or", "not"].includes(config.operator)) {
+        config.operands.forEach((operand, index) => {
+          if (operand.type !== "boolean") {
+            context.addIssue({
+              code: "custom",
+              path: ["operands", index, "type"],
+              message: "boolean_operator_requires_boolean_operands",
+            });
+          }
+        });
+      }
+      const ids = new Set<string>();
+      config.operands.forEach((operand, index) => {
+        if (ids.has(operand.id)) {
+          context.addIssue({
+            code: "custom",
+            path: ["operands", index, "id"],
+            message: "duplicate_comparison_operand_id",
+          });
+        }
+        ids.add(operand.id);
+      });
+      if (config.sensitivity && !config.locale) {
+        context.addIssue({
+          code: "custom",
+          path: ["sensitivity"],
+          message: "comparison_sensitivity_requires_locale",
+        });
+      }
+    }),
+  z.object({
+    kind: z.literal("logic.json_parse"),
+    text: z.string().max(1_000_000),
+  }),
+  z.object({
+    kind: z.literal("logic.json_stringify"),
+    value: z.unknown(),
+  }),
+  z.object({
+    kind: z.literal("logic.schema_validate"),
+    value: z.unknown(),
+    schema: z.record(z.string(), z.unknown()),
+  }),
+  z.object({
     kind: z.literal("ai.agent"),
     prompt: z.string().max(20_000),
     onError: visualNodeErrorBehaviorSchema.optional(),
@@ -186,6 +679,24 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
     kind: z.literal("logic.for_each"),
     collection: z.string().max(2000),
   }),
+  z
+    .object({
+      kind: z.literal("logic.array_transform"),
+      operation: z.enum(["filter", "map", "reduce", "find"]),
+      collection: z.string().max(2000),
+      itemType: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+      resultType: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+      initialValue: z.unknown().optional(),
+    })
+    .superRefine((config, context) => {
+      if (config.operation === "reduce" && config.initialValue === undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["initialValue"],
+          message: "array_reduce_requires_initial_value",
+        });
+      }
+    }),
   z.object({
     kind: z.literal("logic.retry"),
     maxAttempts: z.number().int().min(1).max(10).optional(),
@@ -194,6 +705,15 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
     jitter: z.boolean().optional(),
     retryableErrorCodes: z.array(z.string().trim().min(1).max(64)).max(32).optional(),
     acknowledgeDuplicateRisk: z.boolean().optional(),
+  }),
+  z.object({
+    kind: z.literal("flow.human_approval"),
+    reviewerType: z.enum(["user", "team"]),
+    reviewerId: z.string().trim().max(256),
+    prompt: z.string().max(4_000),
+    artifactReference: z.string().trim().max(512).optional(),
+    jobReference: z.string().trim().max(256).optional(),
+    deadline: z.string().datetime({ offset: true }),
   }),
   z
     .object({
@@ -249,6 +769,61 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
       }
     }),
   z.object({
+    kind: z.literal("flow.stop"),
+    outcome: z.enum(["completed", "cancelled"]),
+    reason: z.string().trim().min(1).max(500).optional(),
+  }),
+  z.object({
+    kind: z.literal("flow.return"),
+    outputs: z
+      .array(
+        z.object({
+          id: z.string().trim().min(1).max(128),
+          name: z
+            .string()
+            .trim()
+            .min(1)
+            .max(128)
+            .regex(/^[A-Za-z_][A-Za-z0-9_]*$/, "invalid_return_output_name"),
+          type: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+        }),
+      )
+      .max(32)
+      .superRefine((outputs, context) => {
+        const ids = new Set<string>();
+        const names = new Set<string>();
+
+        for (const [index, output] of outputs.entries()) {
+          if (ids.has(output.id)) {
+            context.addIssue({
+              code: "custom",
+              path: [index, "id"],
+              message: "duplicate_return_output_id",
+            });
+          }
+          if (names.has(output.name)) {
+            context.addIssue({
+              code: "custom",
+              path: [index, "name"],
+              message: "duplicate_return_output_name",
+            });
+          }
+          ids.add(output.id);
+          names.add(output.name);
+        }
+      }),
+  }),
+  z.object({
+    kind: z.literal("flow.fail"),
+    errorCode: z
+      .string()
+      .trim()
+      .min(1)
+      .max(64)
+      .regex(/^[A-Z][A-Z0-9_]*$/, "invalid_workflow_error_code"),
+    message: z.string().trim().min(1).max(500),
+  }),
+  z.object({
     kind: z.literal("logic.merge"),
     mode: z.enum(["all", "any", "first_success"]),
     inputs: z
@@ -303,7 +878,55 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
         }
       }),
   }),
+  z.object({ kind: z.literal("logic.try_catch") }),
+  z.object({
+    kind: z.literal("flow.call_workflow"),
+    workflowId: z.string().uuid(),
+    version: z.number().int().positive(),
+    inputFields: visualSubworkflowFieldsSchema,
+    outputFields: visualSubworkflowFieldsSchema,
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
 ]);
+
+export const visualNodeConfigSchema = visualNodeConfigBaseSchema.superRefine((config, context) => {
+  if (config.kind !== "logic.select_path") return;
+
+  const hasDefault = Object.hasOwn(config, "defaultValue");
+  if (config.missingBehavior === "default" && !hasDefault) {
+    context.addIssue({
+      code: "custom",
+      path: ["defaultValue"],
+      message: "missing_path_default",
+    });
+    return;
+  }
+  if (config.missingBehavior !== "default" && hasDefault) {
+    context.addIssue({
+      code: "custom",
+      path: ["defaultValue"],
+      message: "unexpected_path_default",
+    });
+    return;
+  }
+  if (!hasDefault || config.outputType === "unknown") return;
+
+  const matchesType =
+    config.outputType === "array"
+      ? Array.isArray(config.defaultValue)
+      : config.outputType === "object"
+        ? config.defaultValue !== null &&
+          typeof config.defaultValue === "object" &&
+          !Array.isArray(config.defaultValue)
+        : typeof config.defaultValue === config.outputType;
+  if (!matchesType) {
+    context.addIssue({
+      code: "custom",
+      path: ["defaultValue"],
+      message: "incompatible_path_default",
+    });
+  }
+});
 
 export const workflowBindingSchema = z.intersection(
   z.discriminatedUnion("kind", [

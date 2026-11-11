@@ -39,8 +39,8 @@ import {
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { contentEditorLinkedIssuesDialogMessages as messages } from "./content-editor-linked-issues-dialog.messages";
 
@@ -68,6 +68,7 @@ export function ContentEditorLinkedIssuesDialog({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [linkPickerOpen, setLinkPickerOpen] = useState(false);
   const [linkSearch, setLinkSearch] = useState("");
@@ -84,26 +85,20 @@ export function ContentEditorLinkedIssuesDialog({
     queryKey: linkedQueryKey,
     enabled: open && Boolean(translationKeyId),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ].$get({
-        param: { organizationSlug, projectId },
-        query: {
+      try {
+        const body = await goSvcClient.issueSheet.list(organizationSlug, projectId, {
           translationKeyId: translationKeyId!,
           status: "all",
           sort: "updated_at",
           sortDir: "desc",
-          limit: "50",
-        },
-      } as never);
-      if (response.status !== 200) {
-        throw new Error(
-          (await readApiResponseError(response, intl.formatMessage(messages.requestFailed)))
-            .message || intl.formatMessage(messages.requestFailed),
-        );
+          limit: 50,
+        });
+        return body.issues;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.requestFailed)), {
+          cause: error,
+        });
       }
-      const body = await response.json();
-      return body.issues;
     },
   });
 
@@ -111,26 +106,20 @@ export function ContentEditorLinkedIssuesDialog({
     queryKey: ["cat-linkable-issues", organizationSlug, projectId, linkSearch],
     enabled: open && linkPickerOpen && canManageLinks,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ].$get({
-        param: { organizationSlug, projectId },
-        query: {
+      try {
+        const body = await goSvcClient.issueSheet.list(organizationSlug, projectId, {
           status: "all",
           sort: "updated_at",
           sortDir: "desc",
-          limit: "25",
+          limit: 25,
           ...(linkSearch.trim() ? { search: linkSearch.trim() } : {}),
-        },
-      } as never);
-      if (response.status !== 200) {
-        throw new Error(
-          (await readApiResponseError(response, intl.formatMessage(messages.requestFailed)))
-            .message || intl.formatMessage(messages.requestFailed),
-        );
+        });
+        return body.issues;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.requestFailed)), {
+          cause: error,
+        });
       }
-      const body = await response.json();
-      return body.issues;
     },
   });
 
@@ -143,25 +132,19 @@ export function ContentEditorLinkedIssuesDialog({
       if (!segment?.translationKeyId) {
         throw new Error(intl.formatMessage(messages.linkingUnavailable));
       }
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ][":issueId"].$patch({
-        param: { organizationSlug, projectId, issueId },
-        json: {
+      try {
+        return await goSvcClient.issueSheet.update(organizationSlug, projectId, issueId, {
           translationKeyId: segment.translationKeyId,
           segmentId: segment.segmentId,
           sourcePath: segment.sourcePath,
           targetLocale: segment.targetLocale,
           linkKind: "content_editor_segment",
-        },
-      } as never);
-      if (response.status !== 200) {
-        throw new Error(
-          (await readApiResponseError(response, intl.formatMessage(messages.linkFailed))).message ||
-            intl.formatMessage(messages.linkFailed),
-        );
+        });
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.linkFailed)), {
+          cause: error,
+        });
       }
-      return response.json();
     },
     onSuccess: async () => {
       toast.success(intl.formatMessage(messages.linked));
@@ -175,19 +158,15 @@ export function ContentEditorLinkedIssuesDialog({
 
   const unlinkIssue = useMutation({
     mutationFn: async (issueId: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ][":issueId"].$patch({
-        param: { organizationSlug, projectId, issueId },
-        json: { translationKeyId: null },
-      } as never);
-      if (response.status !== 200) {
-        throw new Error(
-          (await readApiResponseError(response, intl.formatMessage(messages.unlinkFailed)))
-            .message || intl.formatMessage(messages.unlinkFailed),
-        );
+      try {
+        return await goSvcClient.issueSheet.update(organizationSlug, projectId, issueId, {
+          translationKeyId: null,
+        });
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.unlinkFailed)), {
+          cause: error,
+        });
       }
-      return response.json();
     },
     onSuccess: async () => {
       toast.success(intl.formatMessage(messages.unlinked));

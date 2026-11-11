@@ -163,6 +163,75 @@ describe("ContentEditorQueueStore", () => {
     expect(queue.selectedSegmentId).toBe("seg-01");
     expect([...queue.checkedSegmentIds]).toEqual([]);
   });
+
+  describe("Shift-click ranges", () => {
+    const order = ["seg-01", "seg-02", "seg-03", "seg-04", "seg-05"];
+    const ticked = (queue: ContentEditorQueueStore) => [...queue.checkedSegmentIds].sort();
+
+    it("ticks every row from the last box clicked to the Shift-clicked one, either way round", () => {
+      const queue = new ContentEditorQueueStore();
+      queue.checkFromClick("seg-04", true);
+      queue.checkFromClick("seg-02", true, order);
+
+      expect(ticked(queue)).toEqual(["seg-02", "seg-03", "seg-04"]);
+    });
+
+    it("gives the range the clicked box's new state, so a Shift-click can untick", () => {
+      const queue = new ContentEditorQueueStore();
+      queue.selectAll(order);
+      queue.checkFromClick("seg-02", false);
+      queue.checkFromClick("seg-04", false, order);
+
+      expect(ticked(queue)).toEqual(["seg-01", "seg-05"]);
+    });
+
+    it("starts the next range at the last box clicked, Shift or not", () => {
+      const queue = new ContentEditorQueueStore();
+      queue.checkFromClick("seg-01", true);
+      queue.checkFromClick("seg-02", true, order);
+      queue.checkFromClick("seg-05", true, order);
+
+      expect(ticked(queue)).toEqual(order);
+      queue.checkFromClick("seg-03", false, order);
+      expect(ticked(queue)).toEqual(["seg-01", "seg-02"]);
+    });
+
+    it("ticks just the clicked row with no earlier click, or one no longer in the list", () => {
+      const queue = new ContentEditorQueueStore();
+      queue.checkFromClick("seg-03", true, order);
+      expect(ticked(queue)).toEqual(["seg-03"]);
+
+      // The list no longer shows seg-03, as after a search.
+      queue.checkFromClick("seg-05", true, ["seg-04", "seg-05"]);
+      expect(ticked(queue)).toEqual(["seg-03", "seg-05"]);
+    });
+
+    it.each([
+      ["the filter changes", (queue: ContentEditorQueueStore) => queue.setFilter("untranslated")],
+      ["the sort changes", (queue: ContentEditorQueueStore) => queue.setSort("untranslated_first")],
+      ["Select is turned off", (queue: ContentEditorQueueStore) => queue.setSelectionMode(false)],
+      [
+        "the file or language changes",
+        (queue: ContentEditorQueueStore) => queue.resetForFileScope(),
+      ],
+    ])("forgets the start when %s", (_case, change) => {
+      const queue = new ContentEditorQueueStore();
+      queue.checkFromClick("seg-01", true);
+      change(queue);
+      queue.checkFromClick("seg-04", true, order);
+
+      expect(ticked(queue)).toEqual(["seg-04"]);
+    });
+
+    it("keeps the start through a search that still lists it", () => {
+      const queue = new ContentEditorQueueStore();
+      queue.checkFromClick("seg-02", true);
+      queue.setSearch("second");
+      queue.checkFromClick("seg-05", true, ["seg-02", "seg-04", "seg-05"]);
+
+      expect(ticked(queue)).toEqual(["seg-02", "seg-04", "seg-05"]);
+    });
+  });
 });
 
 describe("ContentEditorSegmentDraft", () => {
@@ -333,9 +402,70 @@ describe("ContentEditorIntelligenceStore", () => {
     expect(intelligence.revealedAgentContextSegmentIds.has("seg-01")).toBe(true);
     expect(intelligence.contextLoadingSegmentIds.has("seg-01")).toBe(false);
   });
+
+  it("primes the add-to-glossary wizard and remembers created glossaries", () => {
+    const intelligence = new ContentEditorIntelligenceStore();
+
+    intelligence.setGlossaryDefinition("kept until remount");
+    intelligence.primeGlossaryWizard({
+      sourceTerm: "Dashboard",
+      targetTerm: "Bảng điều khiển",
+      selectedGlossaryId: "glossary-1",
+      defaultGlossaryName: "Shared with Product.",
+    });
+    intelligence.primeGlossaryWizard({
+      sourceTerm: "Later",
+      targetTerm: "Sau",
+      selectedGlossaryId: "glossary-2",
+      defaultGlossaryName: "Shared with Design.",
+    });
+
+    expect(intelligence.glossaryPrimaryTerm).toBe("Later");
+    expect(intelligence.glossaryTargetDraft).toBe("Sau");
+    expect(intelligence.glossarySelectedId).toBe("glossary-2");
+    expect(intelligence.glossaryNewName).toBe("Shared with Design.");
+    expect(intelligence.glossaryDefinition).toBe("");
+
+    intelligence.setGlossaryCreateDialogOpen(true, "Shared with Product.");
+    intelligence.rememberCreatedGlossary({
+      id: "glossary-created",
+      name: "Product team terms",
+      teamId: "team-product",
+    });
+
+    expect(intelligence.glossaryCreated).toEqual([
+      { id: "glossary-created", name: "Product team terms", teamId: "team-product" },
+    ]);
+    expect(intelligence.glossarySelectedId).toBe("glossary-created");
+    expect(intelligence.glossaryCreateDialogOpen).toBe(false);
+  });
 });
 
 describe("ContentEditorWorkspaceUiStore", () => {
+  it("tracks file-view dirty flags, source pane, and generate dialog", () => {
+    const ui = new ContentEditorWorkspaceUiStore();
+
+    ui.applyFileViewViewer("image");
+    expect(ui.fileViewSourcePaneVisible).toBe(true);
+
+    ui.setFileViewImageLayersDirty(true);
+    ui.setFileViewGenerateDialogOpen(true);
+    ui.toggleFileViewSourcePane();
+    expect(ui.fileViewImageLayersDirty).toBe(true);
+    expect(ui.fileViewGenerateDialogOpen).toBe(true);
+    expect(ui.fileViewSourcePaneVisible).toBe(false);
+
+    ui.applyFileViewViewer("markdown");
+    expect(ui.fileViewImageLayersDirty).toBe(false);
+    expect(ui.fileViewGenerateDialogOpen).toBe(false);
+    expect(ui.fileViewDocumentReviewBlocked).toBe(true);
+    expect(ui.fileViewSourcePaneVisible).toBe(false);
+
+    ui.applyFileViewViewer("markdown");
+    ui.setFileViewDocumentReviewBlocked(false);
+    expect(ui.fileViewDocumentReviewBlocked).toBe(false);
+  });
+
   it("opens one toolbar dialog at a time and keeps the export format across openings", () => {
     const ui = new ContentEditorWorkspaceUiStore();
 
@@ -344,6 +474,9 @@ describe("ContentEditorWorkspaceUiStore", () => {
 
     ui.openChromeDialog("export");
     ui.setExportFormat("xliff");
+    ui.openChromeDialog("import");
+    expect(ui.chromeDialog).toBe("import");
+
     ui.openChromeDialog("shortcuts");
     expect(ui.chromeDialog).toBe("shortcuts");
 
@@ -666,6 +799,38 @@ describe("ContentEditorWorkspaceUiStore", () => {
       expect(ui.workspacePersona).toBe("designer");
       expect(ui.resolvedPersona).toBe("designer");
       expect(store.get("content-editor-workspace-persona:v1:image")).toBe("designer");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("maps native markdown segment views to translator and reviewer personas", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => store.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => store.set(key, value)),
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.applyFileFamily("document");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+
+      ui.setViewMode("comfortable");
+      expect(ui.workspacePersona).toBe("translator");
+      expect(ui.viewMode).toBe("comfortable");
+
+      ui.setViewMode("side-by-side");
+      expect(ui.workspacePersona).toBe("reviewer");
+      expect(ui.viewMode).toBe("side-by-side");
+
+      ui.setViewMode("file");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
     } finally {
       vi.unstubAllGlobals();
     }

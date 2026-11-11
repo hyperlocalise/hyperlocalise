@@ -32,14 +32,8 @@ type memoryInterchangeDownloadResponse struct {
 }
 
 func (api *memoryAPI) createMemoryImportUploadHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
-	if !actor.canWriteMemories() {
-		return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
-	}
-	if err := requireNativeMemory(m); err != nil {
+	if denied, err := api.denyMemoryAction(r.Context(), actor, m, "import", true, true); denied {
 		return nil, 0, err
-	}
-	if m.Status == "archived" {
-		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
 	}
 	if api.objects == nil {
 		return nil, 0, memoryFailure(503, "object_storage_unavailable", "Memory object storage is unavailable")
@@ -63,7 +57,7 @@ func (api *memoryAPI) createMemoryImportUploadHandler(r *http.Request, actor mem
 	if payload.ContentType != nil && strings.TrimSpace(*payload.ContentType) != "" {
 		contentType = strings.TrimSpace(*payload.ContentType)
 	}
-	_, err = api.pool.Exec(r.Context(), `insert into memory_import_attempts (id, organization_id, memory_id, created_by_user_id, operation, status, mode, format, source_filename, source_object_location, source_object_key) values ($1,$2,$3,$4,'import','upload_pending','preview',$5,$6,$7,$8)`, attemptID, actor.organizationID, m.ID, actor.userID, format, payload.SourceFilename, location, key)
+	_, err = api.pool.Exec(r.Context(), `insert into memory_import_attempts (id, organization_id, memory_id, created_by_user_id, operation, status, mode, format, source_filename, source_object_location, source_object_key) values ($1,$2,$3,$4,'import','upload_pending','apply',$5,$6,$7,$8)`, attemptID, actor.organizationID, m.ID, actor.userID, format, payload.SourceFilename, location, key)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -89,16 +83,32 @@ func (api *memoryAPI) finalizeMemoryImport(ctx context.Context, actor memoryActo
 	if m.Status == "archived" {
 		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
 	}
+	if payload.DryRun != nil && *payload.DryRun {
+		return nil, 0, memoryFailure(400, "memory_import_dry_run_unsupported", "Translation memory import dry-run is no longer supported. Upload the file and queue a preview instead.")
+	}
 	mode := strings.TrimSpace(payload.Mode)
 	if mode == "" {
-		if payload.DryRun != nil && *payload.DryRun {
-			mode = "preview"
-		} else {
-			mode = "apply"
-		}
+		mode = "apply"
 	}
-	if mode != "preview" && mode != "apply" {
+	if mode != "apply" && mode != "preview" && mode != "cancel" {
 		return nil, 0, invalidMemory()
+	}
+	var format, location, key, status, currentMode string
+	err := api.pool.QueryRow(ctx, `select format, source_object_location, source_object_key, status, mode from memory_import_attempts where id=$1 and organization_id=$2 and memory_id=$3 and created_by_user_id=$4 and operation='import'`, payload.AttemptID, actor.organizationID, m.ID, actor.userID).Scan(&format, &location, &key, &status, &currentMode)
+	if err != nil {
+		return nil, 0, err
+	}
+	if mode == "cancel" {
+		// Abandoned upload sessions (browser PUT or queueing failed) are failed
+		// explicitly without requiring object storage or the interchange queue.
+		cancelled, err := api.pool.Exec(ctx, `update memory_import_attempts set status='failed', failure_code='memory_import_cancelled', completed_at=now() where id=$1 and status='upload_pending'`, payload.AttemptID)
+		if err != nil {
+			return nil, 0, err
+		}
+		if cancelled.RowsAffected() == 0 {
+			return nil, 0, memoryFailure(409, "memory_import_not_cancellable", "The memory import cannot be cancelled")
+		}
+		return map[string]any{"attemptId": payload.AttemptID, "operation": "import", "mode": mode, "status": "failed"}, http.StatusOK, nil
 	}
 	if api.interchange == nil {
 		return nil, 0, memoryFailure(503, "memory_interchange_unavailable", "Memory interchange processing is unavailable")
@@ -106,12 +116,16 @@ func (api *memoryAPI) finalizeMemoryImport(ctx context.Context, actor memoryActo
 	if api.objects == nil {
 		return nil, 0, memoryFailure(503, "object_storage_unavailable", "Memory object storage is unavailable")
 	}
-	var format, location, key, status, currentMode string
-	err := api.pool.QueryRow(ctx, `select format, source_object_location, source_object_key, status, mode from memory_import_attempts where id=$1 and organization_id=$2 and memory_id=$3 and created_by_user_id=$4 and operation='import'`, payload.AttemptID, actor.organizationID, m.ID, actor.userID).Scan(&format, &location, &key, &status, &currentMode)
-	if err != nil {
-		return nil, 0, err
+	var sourceByteSize *int32
+	queueFromUpload := status == "upload_pending" && (mode == "preview" || mode == "apply")
+	queueFromPreview := mode == "apply" && status == "preview_completed"
+	if mode == "preview" && status != "upload_pending" {
+		return nil, 0, memoryFailure(409, "memory_import_not_queueable", "The memory import is not ready to preview")
 	}
-	if status == "upload_pending" {
+	if mode == "apply" && !queueFromUpload && !queueFromPreview {
+		return nil, 0, memoryFailure(409, "memory_import_not_queueable", "The memory import is not ready to apply")
+	}
+	if queueFromUpload {
 		store, resolveErr := api.objects.Resolve(location)
 		if resolveErr != nil {
 			return nil, 0, resolveErr
@@ -123,16 +137,27 @@ func (api *memoryAPI) finalizeMemoryImport(ctx context.Context, actor memoryActo
 		if info.Size <= 0 || info.Size > MEMORY_INTERCHANGE_MAX_BYTES {
 			return nil, 0, memoryFailure(413, "memory_import_upload_too_large", "The memory import upload is empty or exceeds the 100 MB limit")
 		}
-	}
-	if mode == "apply" && status != "preview_completed" && status != "queued" {
-		return nil, 0, memoryFailure(409, "memory_import_not_queueable", "The memory import is not ready to apply")
+		// Persist the trusted object-store size so the report shows the file
+		// size. The upload path no longer sends a client-provided size.
+		size := int32(info.Size)
+		sourceByteSize = &size
 	}
 	options, _ := json.Marshal(map[string]any{"maxUnits": payload.MaxUnits, "mode": mode})
-	updated, err := api.pool.Exec(ctx, `update memory_import_attempts set mode=$2, options=$3::jsonb, status='queued' where id=$1 and status in ('upload_pending','preview_completed')`, payload.AttemptID, mode, options)
-	if err != nil {
-		return nil, 0, err
+	var rowsAffected int64
+	if queueFromPreview {
+		tag, execErr := api.pool.Exec(ctx, `update memory_import_attempts set mode=$2, options=$3::jsonb, status='queued', completed_at=null, failure_code=null, failure_message=null where id=$1 and status='preview_completed'`, payload.AttemptID, mode, options)
+		if execErr != nil {
+			return nil, 0, execErr
+		}
+		rowsAffected = tag.RowsAffected()
+	} else {
+		tag, execErr := api.pool.Exec(ctx, `update memory_import_attempts set mode=$2, options=$3::jsonb, status='queued', source_byte_size=coalesce($4, source_byte_size) where id=$1 and status='upload_pending'`, payload.AttemptID, mode, options, sourceByteSize)
+		if execErr != nil {
+			return nil, 0, execErr
+		}
+		rowsAffected = tag.RowsAffected()
 	}
-	if updated.RowsAffected() == 0 {
+	if rowsAffected == 0 {
 		return nil, 0, memoryFailure(409, "memory_import_not_queueable", "The memory import is already queued or complete")
 	}
 	if err := api.interchange.Publish(ctx, memoryInterchangeMessage{SchemaVersion: 1, AttemptID: payload.AttemptID, Operation: "import"}); err != nil {
@@ -173,6 +198,14 @@ func (api *memoryAPI) createMemoryExportHandler(r *http.Request, actor memoryAct
 		_, _ = api.pool.Exec(context.Background(), `update memory_import_attempts set status='failed', failure_code='memory_interchange_enqueue_failed', completed_at=now() where id=$1`, attemptID)
 		return nil, 0, err
 	}
+	api.publishActivity(r.Context(), activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "translation_memory_exported",
+		OrganizationID: actor.organizationID,
+		Payload:        map[string]any{"resourceId": m.ID},
+		TargetID:       m.ID,
+		TargetKind:     "translation_memory",
+	})
 	return map[string]any{"attemptId": attemptID, "operation": "export", "status": "queued"}, http.StatusAccepted, nil
 }
 

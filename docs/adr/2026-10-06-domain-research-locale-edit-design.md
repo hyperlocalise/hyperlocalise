@@ -38,10 +38,11 @@ domain detail page.
 
 ### Entry points
 
-Show **Edit locales** beside the Research locale selector on every research
-view, and on each verified row in the domain list. Point the detail page's
-existing edit button at the same dialog. Hide the action while the domain is
-pending.
+Show **Edit locales** beside the Research locale selector on research views
+that use a locale (overview, keywords, ranks, brand, prompts, Search Console),
+and on each verified row in the domain list. Hide the action while the domain
+is pending. The audit view does not use a locale picker, so it does not show
+the action.
 
 The research shell already holds `LinkedDomainPublic` from the research
 query. The domain list query currently maps each record to

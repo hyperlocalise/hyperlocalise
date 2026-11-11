@@ -323,6 +323,10 @@ func expandUnrealRichTextPlaceholders(rendered string) string {
 }
 
 func poValuesHaveUnrealPlaceholders(values map[string]string) bool {
+	// BOLT OPTIMIZATION: Early return fast-path if values is empty to skip map iteration overhead.
+	if len(values) == 0 {
+		return false
+	}
 	for _, value := range values {
 		if strings.Contains(value, unrealRichTextSentinelMarker) {
 			return true

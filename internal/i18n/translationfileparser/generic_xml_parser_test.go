@@ -56,6 +56,34 @@ func TestGenericXMLParserParsesResxStyleDataValues(t *testing.T) {
 	}
 }
 
+func TestGenericXMLParserParseWithContextUsesResxComments(t *testing.T) {
+	content := []byte(`<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="home.title" xml:space="preserve">
+    <value>Welcome home</value>
+    <comment>Main heading</comment>
+  </data>
+  <data name="home.cta" xml:space="preserve">
+    <comment>Checkout button</comment>
+    <value>Continue</value>
+  </data>
+</root>`)
+
+	got, contextByKey, err := GenericXMLParser{}.ParseWithContext(content)
+	if err != nil {
+		t.Fatalf("parse resx-style xml: %v", err)
+	}
+	if got["home.title"] != "Welcome home" || got["home.cta"] != "Continue" {
+		t.Fatalf("unexpected values: %#v", got)
+	}
+	if contextByKey["home.title"] != "Main heading" {
+		t.Fatalf("unexpected home.title context: %q", contextByKey["home.title"])
+	}
+	if contextByKey["home.cta"] != "Checkout button" {
+		t.Fatalf("unexpected home.cta context: %q", contextByKey["home.cta"])
+	}
+}
+
 func TestGenericXMLParserFallsBackPastEmptyKeyAttributes(t *testing.T) {
 	content := []byte(`<locale><data key="" name="home.title">Welcome home</data></locale>`)
 

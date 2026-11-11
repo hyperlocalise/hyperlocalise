@@ -15,6 +15,7 @@
 import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import {
@@ -22,12 +23,14 @@ import {
   getResearchPrototypeDomain,
   type DomainResearchCatalog,
 } from "@/lib/domains/research-prototype";
+import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 import { DomainResearchShell } from "./domain-research-shell";
 
 const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   search: "locale=france-fr",
   catalog: null as DomainResearchCatalog | null,
+  linkedDomain: undefined as LinkedDomainPublic | undefined,
   isPending: false,
   isError: false,
 }));
@@ -47,10 +50,16 @@ vi.mock("@/lib/navigation/use-org-router", () => ({
 vi.mock("./use-live-domain-research", () => ({
   useLiveDomainResearch: () => ({
     live: true,
-    data: mocks.catalog ? { catalog: mocks.catalog } : { catalog: null },
+    data: mocks.catalog
+      ? { catalog: mocks.catalog, linkedDomain: mocks.linkedDomain }
+      : { catalog: null, linkedDomain: mocks.linkedDomain },
     isPending: mocks.isPending,
     isError: mocks.isError,
   }),
+}));
+
+vi.mock("./add-domain-dialog", () => ({
+  AddDomainDialog: ({ open }: { open: boolean }) => (open ? <div>edit locales dialog</div> : null),
 }));
 
 function renderShell(ui: ReactElement) {
@@ -70,6 +79,7 @@ describe("domain research locale URL", () => {
     mocks.search = "locale=france-fr";
     mocks.isPending = false;
     mocks.isError = false;
+    mocks.linkedDomain = undefined;
     mocks.catalog = getResearchPrototypeCatalog("hyperlocalise-com", "france-fr");
   });
 
@@ -136,4 +146,75 @@ describe("domain research locale URL", () => {
     expect(screen.getByText("search console body")).toBeInTheDocument();
     expect(screen.queryByText("No research for this locale yet")).not.toBeInTheDocument();
   });
+
+  it("opens Edit locales from research when the domain is verified", async () => {
+    const domain = getResearchPrototypeDomain("hyperlocalise-com")!;
+    mocks.linkedDomain = linkedDomainFixture(domain.id, domain.domainKey, ["france-fr"]);
+    renderShell(
+      <DomainResearchShell
+        organizationSlug="acme"
+        linkedDomainId="hyperlocalise-com"
+        surface="overview"
+        canEditLocales
+      >
+        research
+      </DomainResearchShell>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Edit locales" }));
+    expect(screen.getByText("edit locales dialog")).toBeInTheDocument();
+  });
+
+  it("shows an empty-locale state with Edit locales", () => {
+    const domain = getResearchPrototypeDomain("hyperlocalise-com")!;
+    mocks.catalog = {
+      ...mocks.catalog!,
+      domain: { ...domain, locales: [] },
+    };
+    mocks.linkedDomain = linkedDomainFixture(domain.id, domain.domainKey, []);
+    renderShell(
+      <DomainResearchShell
+        organizationSlug="acme"
+        linkedDomainId="hyperlocalise-com"
+        surface="overview"
+        canEditLocales
+      >
+        research
+      </DomainResearchShell>,
+    );
+
+    expect(screen.getByText("No research locales yet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit locales" })).toBeInTheDocument();
+    expect(screen.queryByText("research")).not.toBeInTheDocument();
+  });
 });
+
+function linkedDomainFixture(
+  id: string,
+  domainKey: string,
+  marketIds: string[],
+): LinkedDomainPublic {
+  return {
+    id,
+    organizationId: "org_acme",
+    domainKey,
+    domainSlug: "hyperlocalise-com",
+    sourceUrl: `https://${domainKey}`,
+    marketIds,
+    status: "verified",
+    preferredMethod: null,
+    verifiedMethod: "dns_txt",
+    verifiedAt: "2026-01-01T00:00:00.000Z",
+    localisationAuditId: null,
+    projectId: null,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    challenges: {
+      token: "t",
+      dnsTxt: { host: "_hyperlocalise-verify", value: "t" },
+      htmlFile: { path: "/p", url: "https://x/p", body: "t" },
+      metaTag: { html: "<meta />" },
+    },
+    auditScore: null,
+  };
+}

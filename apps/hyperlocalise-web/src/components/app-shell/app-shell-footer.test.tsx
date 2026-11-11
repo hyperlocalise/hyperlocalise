@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -25,6 +25,10 @@ import {
   EMPTY_CAT_ISSUE_GUIDANCE_STATUS,
   setCatIssueGuidanceStatus,
 } from "@/components/content-editor/issues/content-editor-issue-guidance-event";
+import {
+  EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS,
+  setCatGlossaryGuidanceStatus,
+} from "@/components/content-editor/intelligence/content-editor-glossary-guidance-event";
 import { planUsagePrimaryFeatureId } from "@/lib/billing/plan-usage";
 
 const autumnMocks = vi.hoisted(() => ({
@@ -60,6 +64,7 @@ afterEach(() => {
   autumnMocks.useCustomer.mockReset();
   autumnMocks.useListPlans.mockReset();
   setCatIssueGuidanceStatus(EMPTY_CAT_ISSUE_GUIDANCE_STATUS);
+  setCatGlossaryGuidanceStatus(EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS);
 });
 
 function renderFooter(
@@ -71,6 +76,7 @@ function renderFooter(
     showIssueGuidance?: boolean;
     showStyleGuide?: boolean;
     showGuideline?: boolean;
+    showGlossaryGuidance?: boolean;
   } = {},
 ) {
   const {
@@ -78,6 +84,7 @@ function renderFooter(
     projectId = null,
     showPlan = true,
     withChat = false,
+    showGlossaryGuidance = false,
     showIssueGuidance = false,
     showStyleGuide = false,
     showGuideline = false,
@@ -91,6 +98,7 @@ function renderFooter(
             organizationSlug={organizationSlug}
             projectId={projectId}
             showPlan={showPlan}
+            showGlossaryGuidance={showGlossaryGuidance}
             showIssueGuidance={showIssueGuidance}
             showStyleGuide={showStyleGuide}
             showGuideline={showGuideline}
@@ -151,6 +159,28 @@ describe("AppShellFooter", () => {
     );
   });
 
+  it.each(["Open billing", "See all plans"])(
+    "closes plan usage after following %s",
+    async (linkName) => {
+      const user = userEvent.setup();
+      autumnMocks.useCustomer.mockReturnValue({
+        data: { subscriptions: [], balances: {} },
+        isLoading: false,
+        error: null,
+      });
+      autumnMocks.useListPlans.mockReturnValue({ data: [], isLoading: false, error: null });
+
+      renderFooter({ showPlan: true });
+
+      await user.click(screen.getByRole("button", { name: /Open plan usage/ }));
+      const link = screen.getByRole("link", { name: linkName });
+      link.addEventListener("click", (event) => event.preventDefault());
+      await user.click(link);
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    },
+  );
+
   it("keeps support available without billing access", () => {
     renderFooter({ showPlan: false });
 
@@ -208,6 +238,39 @@ describe("AppShellFooter", () => {
     } finally {
       window.removeEventListener(CAT_ISSUE_GUIDANCE_OPEN_EVENT, openListener);
     }
+  });
+
+  it("shows the glossary concept match count", () => {
+    setCatGlossaryGuidanceStatus({ isLoading: false, matchCount: 1, notRecommendedCount: 0 });
+
+    renderFooter({ showPlan: false, showGlossaryGuidance: true });
+
+    const glossary = screen.getByRole("button", { name: "Glossary guidance 1 concept match" });
+    expect(glossary.querySelector("[data-glossary-guidance-match-count]")).toHaveTextContent("1");
+    expect(glossary.querySelector("[data-glossary-guidance-not-recommended-count]")).toBeNull();
+  });
+
+  it("flags not-recommended glossary terms next to the match count", () => {
+    setCatGlossaryGuidanceStatus({ isLoading: false, matchCount: 3, notRecommendedCount: 2 });
+
+    renderFooter({ showPlan: false, showGlossaryGuidance: true });
+
+    expect(
+      screen.getByRole("button", {
+        name: "Glossary guidance 3 concept matches 2 terms not recommended",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("shows a loading indicator while glossary matches load", () => {
+    setCatGlossaryGuidanceStatus({ isLoading: true, matchCount: 0, notRecommendedCount: 0 });
+
+    renderFooter({ showPlan: false, showGlossaryGuidance: true });
+
+    const glossary = screen.getByRole("button", { name: /Glossary guidance/ });
+    expect(glossary).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("status", { name: "Checking for glossary matches" })).toBeTruthy();
+    expect(glossary.querySelector("[data-glossary-guidance-match-count]")).toBeNull();
   });
 
   it("opens the guideline sheet when the knowledge flag is enabled", async () => {

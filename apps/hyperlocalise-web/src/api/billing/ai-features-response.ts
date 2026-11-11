@@ -11,11 +11,13 @@
  * Version 2.0 or later.
  */
 import {
+  AI_CREDIT_EXHAUSTED_CODE,
   AI_FEATURES_CHECK_FAILED_CODE,
   ensureAiFeaturesAllowed,
   type AiFeaturesError,
 } from "@/lib/billing/ai-features";
 import {
+  apiErrorResponse,
   forbiddenResponse,
   serviceUnavailableResponse,
   type JsonContext,
@@ -24,6 +26,10 @@ import {
 export function aiFeaturesErrorResponse(c: JsonContext, error: AiFeaturesError) {
   if (error.code === AI_FEATURES_CHECK_FAILED_CODE) {
     return serviceUnavailableResponse(c, error.code, error.message);
+  }
+
+  if (error.code === AI_CREDIT_EXHAUSTED_CODE) {
+    return apiErrorResponse(c, 402, error.code, error.message);
   }
 
   return forbiddenResponse(c, error.code, error.message);

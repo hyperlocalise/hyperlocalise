@@ -14,7 +14,7 @@ import (
 
 func TestMarshalTargetFileUnsupportedExtension(t *testing.T) {
 	svc := newTestService()
-	_, _, err := svc.marshalTargetFile("/tmp/out.txt", "/tmp/src.txt", "en", "fr", map[string]string{"hello": "Bonjour"}, nil, nil)
+	_, _, err := svc.marshalTargetFile("/tmp/out.xyz", "/tmp/src.xyz", "en", "fr", map[string]string{"hello": "Bonjour"}, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "unsupported target file extension") {
 		t.Fatalf("expected unsupported extension error, got %v", err)
 	}

@@ -12,15 +12,22 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useState, useSyncExternalStore, type ReactNode } from "react";
+import { EyeIcon, EyeSlashIcon, MagnifyingGlassIcon, StackIcon } from "@phosphor-icons/react";
 import { useDefaultLayout } from "react-resizable-panels";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import type {
+  ProjectFileProgressRecord,
+  ProjectFileRecord,
+} from "@/api/routes/project/project.schema";
 import { ContentEditorRepositorySelect } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/content-editor-header-pickers";
 import { contentEditorHeaderPickersMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/content-editor-header-pickers.messages";
 import { ProjectFilesTree } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files-tree";
+import { projectFilesTreeMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files-tree.messages";
+import { projectFilesTreeCollapsedFoldersStorageKey } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/use-project-files-tree-collapsed-folders";
 import { Button } from "@/components/ui/button";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import {
   CAT_PANEL_COLLAPSED_SIZE,
@@ -41,10 +48,17 @@ export function ContentEditorFilesSidebar({
   repositoryFullNames,
   selectedRepositoryFullName = null,
   onRepositoryChange,
+  hiddenFilesHidden = false,
+  onHiddenFilesHiddenChange,
+  fileProgress,
   footer,
   className,
+  collapsedFoldersScope,
 }: {
   files: ProjectFileRecord[];
+  /** Remembers collapsed folders per scope (e.g. org and project) across reloads. */
+  collapsedFoldersScope?: string;
+  fileProgress?: readonly ProjectFileProgressRecord[];
   selectedSourcePath: string | null;
   onSelectFile: (sourcePath: string) => void;
   allFilesSelected?: boolean;
@@ -52,11 +66,16 @@ export function ContentEditorFilesSidebar({
   repositoryFullNames?: readonly string[];
   selectedRepositoryFullName?: string | null;
   onRepositoryChange?: (repositoryFullName: string, destinationSourcePath: string) => void;
+  hiddenFilesHidden?: boolean;
+  /** Offers the hidden-files toggle. Omit when no file is hidden. */
+  onHiddenFilesHiddenChange?: (hidden: boolean) => void;
   footer?: ReactNode;
   className?: string;
 }) {
   const intl = useIntl();
-  const showRepositorySelect = Boolean(repositoryFullNames && repositoryFullNames.length > 0);
+  const [searchQuery, setSearchQuery] = useState("");
+  // A single repository is auto-selected, so the switcher only earns space with a real choice.
+  const showRepositorySelect = Boolean(repositoryFullNames && repositoryFullNames.length > 1);
 
   const commitRepositorySelection = (destinationSourcePath: string) => {
     if (!onRepositoryChange || !selectedRepositoryFullName) {
@@ -98,23 +117,10 @@ export function ContentEditorFilesSidebar({
         className,
       )}
     >
-      <div className="space-y-3 border-b border-border px-3 py-3">
-        <h2 className="text-sm font-semibold text-foreground">
-          <FormattedMessage {...contentEditorFilesSidebarMessages.filesTitle} />
-        </h2>
-
-        {onSelectAllFiles ? (
-          <Button
-            type="button"
-            variant={allFilesSelected ? "default" : "outline"}
-            size="sm"
-            className="h-8 w-full justify-start"
-            onClick={handleSelectAllFiles}
-          >
-            <FormattedMessage {...contentEditorHeaderPickersMessages.allFiles} />
-          </Button>
-        ) : null}
-
+      <h2 className="sr-only">
+        <FormattedMessage {...contentEditorFilesSidebarMessages.filesTitle} />
+      </h2>
+      <div className="space-y-2 border-b border-border px-3 py-2.5">
         {showRepositorySelect && repositoryFullNames ? (
           <ContentEditorRepositorySelect
             repositoryFullNames={repositoryFullNames}
@@ -122,17 +128,85 @@ export function ContentEditorFilesSidebar({
             onRepositoryChange={handleRepositoryChange}
           />
         ) : null}
+
+        <div className="flex items-center gap-1">
+          <InputGroup className="h-8 min-w-0 flex-1">
+            <InputGroupAddon>
+              <MagnifyingGlassIcon className="size-4" aria-hidden />
+            </InputGroupAddon>
+            <InputGroupInput
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.currentTarget.value)}
+              placeholder={intl.formatMessage(projectFilesTreeMessages.searchFiles)}
+              aria-label={intl.formatMessage(projectFilesTreeMessages.searchFiles)}
+            />
+          </InputGroup>
+          {onHiddenFilesHiddenChange ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="size-8 shrink-0 text-muted-foreground"
+              aria-pressed={hiddenFilesHidden}
+              aria-label={intl.formatMessage(
+                hiddenFilesHidden
+                  ? contentEditorFilesSidebarMessages.showHiddenFiles
+                  : contentEditorFilesSidebarMessages.hideHiddenFiles,
+              )}
+              title={intl.formatMessage(
+                hiddenFilesHidden
+                  ? contentEditorFilesSidebarMessages.showHiddenFiles
+                  : contentEditorFilesSidebarMessages.hideHiddenFiles,
+              )}
+              onClick={() => onHiddenFilesHiddenChange(!hiddenFilesHidden)}
+            >
+              {hiddenFilesHidden ? (
+                <EyeSlashIcon className="size-4" aria-hidden />
+              ) : (
+                <EyeIcon className="size-4" aria-hidden />
+              )}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
-      <div className="min-h-0 flex-1 px-2 py-2">
-        <ProjectFilesTree
-          files={files}
-          selectedSourcePath={allFilesSelected ? "" : (selectedSourcePath ?? "")}
-          onSelectFile={handleSelectFile}
-          onActivateFile={handleSelectFile}
-          ariaLabel={intl.formatMessage(contentEditorFilesSidebarMessages.sourceFilesAriaLabel)}
-          fillHeight
-        />
+      <div className="flex min-h-0 flex-1 flex-col px-2 py-2">
+        {onSelectAllFiles ? (
+          <button
+            type="button"
+            aria-pressed={allFilesSelected}
+            className={cn(
+              "flex h-7 w-full shrink-0 items-center gap-2 rounded-md px-2 text-start text-[13px] outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring",
+              allFilesSelected
+                ? "bg-muted font-medium text-foreground"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+            )}
+            onClick={handleSelectAllFiles}
+          >
+            <StackIcon className="size-4 shrink-0" aria-hidden />
+            <FormattedMessage {...contentEditorHeaderPickersMessages.allFiles} />
+          </button>
+        ) : null}
+        <div className="min-h-0 flex-1">
+          <ProjectFilesTree
+            files={files}
+            selectedSourcePath={allFilesSelected ? "" : (selectedSourcePath ?? "")}
+            onSelectFile={handleSelectFile}
+            onActivateFile={handleSelectFile}
+            ariaLabel={intl.formatMessage(contentEditorFilesSidebarMessages.sourceFilesAriaLabel)}
+            fillHeight
+            fileProgress={fileProgress}
+            searchQuery={searchQuery}
+            collapsedFoldersStorageKey={
+              collapsedFoldersScope
+                ? projectFilesTreeCollapsedFoldersStorageKey(
+                    `content-editor:${collapsedFoldersScope}`,
+                  )
+                : undefined
+            }
+          />
+        </div>
       </div>
 
       {footer ? <div className="border-t border-border">{footer}</div> : null}
@@ -150,22 +224,31 @@ const WORKSPACE_MIN_SIZE = "28rem";
 /** Complement of the compact workspace breakpoint in `content-editor-workspace.tsx`. */
 const FILES_SIDEBAR_QUERY = "(min-width: 1024px)";
 
+function subscribeFilesSidebarAvailable(onStoreChange: () => void) {
+  const mediaQuery = window.matchMedia(FILES_SIDEBAR_QUERY);
+  mediaQuery.addEventListener("change", onStoreChange);
+  return () => mediaQuery.removeEventListener("change", onStoreChange);
+}
+
+function getFilesSidebarAvailable() {
+  return window.matchMedia(FILES_SIDEBAR_QUERY).matches;
+}
+
+/** Desktop-first so hydration does not start the pane collapsed. */
+function getFilesSidebarAvailableServerSnapshot() {
+  return true;
+}
+
 /**
  * The file tree is only offered from the `lg` breakpoint up; narrower viewports
  * reach files through the header picker instead.
  */
 function useFilesSidebarAvailable() {
-  const [isAvailable, setIsAvailable] = useState(false);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(FILES_SIDEBAR_QUERY);
-    const sync = () => setIsAvailable(mediaQuery.matches);
-    sync();
-    mediaQuery.addEventListener("change", sync);
-    return () => mediaQuery.removeEventListener("change", sync);
-  }, []);
-
-  return isAvailable;
+  return useSyncExternalStore(
+    subscribeFilesSidebarAvailable,
+    getFilesSidebarAvailable,
+    getFilesSidebarAvailableServerSnapshot,
+  );
 }
 
 export function ContentEditorPageBody({

@@ -13,30 +13,42 @@ var memberSettingsRoleOrder = []string{
 // (src/api/auth/policy.ts) that go-svc checks. Keep entries in step with it.
 var organizationCapabilityByRole = map[string]map[string]struct{}{
 	"admin": {
-		"workspace:read": {}, "members:invite": {}, "teams:write": {},
+		"workspace:read": {}, "workspace:update": {}, "members:invite": {}, "teams:write": {},
 		"projects:read": {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
+		"memories:read": {}, "memories:write": {},
 		"api_keys:read": {}, "api_keys:write": {},
+		"integrations:write": {},
+		"ai_actions:run":     {}, "billing:read": {}, "billing:write": {},
 	},
 	"localization_manager": {
-		"workspace:read": {}, "members:invite": {}, "teams:write": {},
+		"workspace:read": {}, "workspace:update": {}, "members:invite": {}, "teams:write": {},
 		"projects:read": {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
+		"memories:read": {}, "memories:write": {},
 		"api_keys:read": {}, "api_keys:write": {},
+		"integrations:write": {},
+		"ai_actions:run":     {}, "billing:read": {},
 	},
 	"developer": {
 		"workspace:read": {},
 		"projects:read":  {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
+		"memories:read":  {},
+		"ai_actions:run": {},
 	},
 	"reviewer": {
 		"workspace:read": {},
 		"projects:read":  {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
+		"memories:read":  {},
+		"ai_actions:run": {},
 	},
 	"translator": {
 		"workspace:read": {},
 		"projects:read":  {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
+		"memories:read":  {},
+		"ai_actions:run": {},
 	},
 	"member": {
 		"workspace:read": {},
-		"projects:read":  {}, "jobs:read": {},
+		"projects:read":  {}, "jobs:read": {}, "memories:read": {},
 	},
 }
 

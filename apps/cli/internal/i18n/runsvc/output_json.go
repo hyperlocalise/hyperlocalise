@@ -355,7 +355,42 @@ type jsonPathCursor struct {
 	hasParent bool
 }
 
+func setExistingLiteralKey(node map[string]any, key, value string) bool {
+	if existing, ok := node[key]; ok {
+		if _, isString := existing.(string); isString {
+			node[key] = value
+			return true
+		}
+	}
+	for i := 0; i < len(key); i++ {
+		if key[i] != '.' {
+			continue
+		}
+		prefix := key[:i]
+		suffix := key[i+1:]
+		if prefix == "" || suffix == "" {
+			continue
+		}
+		child, ok := node[prefix]
+		if !ok {
+			continue
+		}
+		childMap, ok := child.(map[string]any)
+		if !ok {
+			continue
+		}
+		if setExistingLiteralKey(childMap, suffix, value) {
+			return true
+		}
+	}
+	return false
+}
+
 func setNestedValue(payload map[string]any, dottedKey, value string) {
+	if setExistingLiteralKey(payload, dottedKey, value) {
+		return
+	}
+
 	segments, err := parseJSONPath(dottedKey)
 	if err != nil {
 		return

@@ -13,8 +13,9 @@
 /**
  * Smartling API client for authentication and project discovery.
  *
- * This module intentionally implements only the endpoints required for
- * credential validation, TMS connector scans, terminology resources, and job-scoped content pull/write-back.
+ * This module implements the endpoints required for credential validation,
+ * TMS connector scans, terminology resources, official glossary/TM admin,
+ * and job-scoped content pull/write-back.
  */
 
 import { requireProviderBaseUrl } from "@/lib/providers/shared/provider-url-safety";
@@ -129,6 +130,74 @@ export function uniqueLocales(locales: string[]) {
 
   return result;
 }
+
+function toArrayBuffer(content: Uint8Array): ArrayBuffer {
+  return content.buffer.slice(
+    content.byteOffset,
+    content.byteOffset + content.byteLength,
+  ) as ArrayBuffer;
+}
+
+function fileExtension(filename: string) {
+  const trimmed = filename.trim();
+  const separator = trimmed.lastIndexOf(".");
+  return separator >= 0 ? trimmed.slice(separator).toLowerCase() : "";
+}
+
+export function normalizeSmartlingGlossaryExportFormat(
+  format: string,
+): SmartlingGlossaryExportFormat {
+  const normalized = format.trim().toLowerCase();
+  if (normalized === "csv" || normalized === "xlsx" || normalized === "tbx") {
+    return normalized;
+  }
+  throw new Error("smartling_glossary_export_format_invalid");
+}
+
+export function normalizeSmartlingGlossaryExportTbxVersion(
+  format: SmartlingGlossaryExportFormat,
+  version?: string,
+) {
+  const trimmed = version?.trim().toLowerCase() ?? "";
+  if (format !== "tbx") {
+    if (trimmed) {
+      throw new Error("smartling_glossary_tbx_version_invalid");
+    }
+    return "";
+  }
+  if (!trimmed || trimmed === "v3" || trimmed === "tbxcorestructv03") {
+    return "TBXcoreStructV03";
+  }
+  if (trimmed === "v2" || trimmed === "tbxcorestructv02") {
+    return "TBXcoreStructV02";
+  }
+  throw new Error("smartling_glossary_tbx_version_invalid");
+}
+
+export function glossaryImportMediaType(filename: string, override?: string) {
+  const mediaType = override?.trim();
+  if (mediaType) {
+    return mediaType;
+  }
+  switch (fileExtension(filename)) {
+    case ".csv":
+      return "text/csv";
+    case ".tbx":
+    case ".xml":
+      return "text/xml";
+    case ".xlsx":
+      return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    default:
+      throw new Error("smartling_glossary_import_file_type_invalid");
+  }
+}
+
+function waitForSmartlingPoll(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 const DEFAULT_AUTH_BASE_URL = "https://api.smartling.com/auth-api/v2";
 const DEFAULT_ACCOUNTS_BASE_URL = "https://api.smartling.com/accounts-api/v2";
 const DEFAULT_PROJECTS_BASE_URL = "https://api.smartling.com/projects-api/v2";
@@ -138,7 +207,23 @@ const DEFAULT_JOBS_BASE_URL = "https://api.smartling.com/jobs-api/v3";
 const DEFAULT_GLOSSARY_BASE_URL = "https://api.smartling.com/glossary-api/v2";
 const DEFAULT_GLOSSARY_V3_BASE_URL = "https://api.smartling.com/glossary-api/v3";
 const DEFAULT_TM_BASE_URL = "https://api.smartling.com/translation-memory-api/v2";
+const DEFAULT_TM_GRAPHQL_BASE_URL = "https://api.smartling.com/tm-graphql-api/v2";
+const DEFAULT_TMX_BASE_URL = "https://api.smartling.com/tm-tmx-api/v2";
 const DEFAULT_ISSUES_BASE_URL = "https://api.smartling.com/issues-api/v2";
+const GLOSSARY_IMPORT_STATUS_PENDING = "PENDING";
+const GLOSSARY_IMPORT_STATUS_IN_PROGRESS = "IN_PROGRESS";
+const GLOSSARY_IMPORT_STATUS_SUCCESSFUL = "SUCCESSFUL";
+const GLOSSARY_IMPORT_STATUS_FAILED = "FAILED";
+const GLOSSARY_IMPORT_MAX_POLLS = 120;
+const GLOSSARY_IMPORT_POLL_INTERVAL_MS = 1_000;
+const CREATE_TM_GRAPHQL_QUERY = `mutation createTm($createTm: CreateTm!) {
+  createTm(createTm: $createTm) {
+    tmUid
+    name
+    description
+    sourceLocaleId
+  }
+}`;
 const DEFAULT_CONTEXT_BASE_URL = "https://api.smartling.com/context-api/v2";
 const DEFAULT_WEBHOOKS_BASE_URL = "https://api.smartling.com/webhooks-api/v2";
 const TOKEN_REFRESH_SKEW_MS = 60_000;
@@ -157,6 +242,8 @@ export interface SmartlingApiClientOptions {
   glossaryBaseUrl?: string;
   glossaryV3BaseUrl?: string;
   tmBaseUrl?: string;
+  tmGraphQLBaseUrl?: string;
+  tmxBaseUrl?: string;
   issuesBaseUrl?: string;
   contextBaseUrl?: string;
   webhooksBaseUrl?: string;
@@ -237,6 +324,72 @@ export interface SmartlingTranslationMemoryEntry {
 export interface SmartlingTranslationMemoryTranslation {
   targetLocaleId: string;
   translationText: string;
+}
+
+export type SmartlingGlossaryExportFormat = "csv" | "xlsx" | "tbx";
+
+export interface SmartlingGlossaryCreateInput {
+  accountUid: string;
+  name: string;
+  localeIds: string[];
+  description?: string;
+}
+
+export interface SmartlingGlossaryExportInput {
+  accountUid: string;
+  glossaryUid: string;
+  format: SmartlingGlossaryExportFormat;
+  localeIds?: string[];
+  tbxVersion?: string;
+}
+
+export interface SmartlingGlossaryExportResult {
+  content: Uint8Array;
+  contentType: string;
+  bytes: number;
+}
+
+export interface SmartlingGlossaryImportInput {
+  accountUid: string;
+  glossaryUid: string;
+  filename: string;
+  content: Uint8Array;
+  contentType?: string;
+  archiveMode?: boolean;
+}
+
+export interface SmartlingGlossaryImportResult {
+  importUid: string;
+  importStatus: string;
+}
+
+export interface SmartlingTranslationMemoryCreateInput {
+  accountUid: string;
+  name: string;
+  sourceLocaleId: string;
+  description?: string;
+}
+
+export interface SmartlingTranslationMemoryCreateResult {
+  translationMemoryUid: string;
+  name: string;
+  description: string | null;
+  sourceLocaleId: string | null;
+}
+
+export interface SmartlingTranslationMemoryImportInput {
+  accountUid: string;
+  translationMemoryUid: string;
+  filename: string;
+  content: Uint8Array;
+  fileUri?: string;
+}
+
+export interface SmartlingTranslationMemoryImportResult {
+  jobUid: string;
+  tmxUid: string;
+  stringCount: number;
+  wordCount: number;
 }
 
 export interface SmartlingAuthTokens {
@@ -463,6 +616,8 @@ export class SmartlingApiClient {
   private readonly glossaryBaseUrl: string;
   private readonly glossaryV3BaseUrl: string;
   private readonly tmBaseUrl: string;
+  private readonly tmGraphQLBaseUrl: string;
+  private readonly tmxBaseUrl: string;
   private readonly issuesBaseUrl: string;
   private readonly contextBaseUrl: string;
   private readonly webhooksBaseUrl: string;
@@ -506,6 +661,14 @@ export class SmartlingApiClient {
     this.tmBaseUrl = normalizeServiceBaseUrl(
       options.tmBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "translation-memory"),
       DEFAULT_TM_BASE_URL,
+    );
+    this.tmGraphQLBaseUrl = normalizeServiceBaseUrl(
+      options.tmGraphQLBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "tm-graphql"),
+      DEFAULT_TM_GRAPHQL_BASE_URL,
+    );
+    this.tmxBaseUrl = normalizeServiceBaseUrl(
+      options.tmxBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "tm-tmx"),
+      DEFAULT_TMX_BASE_URL,
     );
     this.issuesBaseUrl = normalizeServiceBaseUrl(
       options.issuesBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "issues"),
@@ -1259,6 +1422,343 @@ export class SmartlingApiClient {
     return entries;
   }
 
+  async searchAccountGlossaries(
+    accountUid: string,
+    query = "",
+  ): Promise<SmartlingGlossarySummary[]> {
+    const glossaries: SmartlingGlossarySummary[] = [];
+    const trimmedQuery = query.trim();
+
+    await paginateSmartlingList({
+      fetchPage: async (offset, limit) => {
+        const token = await this.getAccessToken();
+        const data = await this.post<{
+          items?: Array<Record<string, unknown>>;
+          totalCount?: number;
+        }>(
+          `${this.glossaryV3BaseUrl}/accounts/${encodeURIComponent(accountUid)}/glossaries/search`,
+          token,
+          {
+            query: trimmedQuery,
+            paging: { offset, limit },
+          },
+        );
+        return {
+          items: (data.items ?? []).map(normalizeSmartlingGlossarySummary),
+          totalCount: data.totalCount,
+        };
+      },
+      onPage: (page) => glossaries.push(...page),
+    });
+
+    return glossaries;
+  }
+
+  async getGlossary(accountUid: string, glossaryUid: string): Promise<SmartlingGlossarySummary> {
+    const token = await this.getAccessToken();
+    const data = await this.get<Record<string, unknown>>(
+      `${this.glossaryV3BaseUrl}/accounts/${encodeURIComponent(accountUid)}/glossaries/${encodeURIComponent(glossaryUid)}`,
+      token,
+    );
+    const glossary = normalizeSmartlingGlossarySummary(data);
+    if (!glossary.glossaryUid) {
+      throw new SmartlingApiError(
+        "Smartling glossary get returned no glossary uid.",
+        200,
+        "smartling_response_invalid",
+        data,
+      );
+    }
+    return glossary;
+  }
+
+  async createGlossary(input: SmartlingGlossaryCreateInput): Promise<SmartlingGlossarySummary> {
+    const accountUid = input.accountUid.trim();
+    const name = input.name.trim();
+    const localeIds = uniqueLocales(input.localeIds);
+    if (!accountUid) {
+      throw new Error("smartling_account_uid_required");
+    }
+    if (!name) {
+      throw new Error("smartling_glossary_name_required");
+    }
+    if (localeIds.length === 0) {
+      throw new Error("smartling_glossary_locale_required");
+    }
+
+    const token = await this.getAccessToken();
+    const payload: Record<string, unknown> = { glossaryName: name, localeIds };
+    const description = input.description?.trim();
+    if (description) {
+      payload.description = description;
+    }
+
+    const data = await this.post<Record<string, unknown>>(
+      `${this.glossaryV3BaseUrl}/accounts/${encodeURIComponent(accountUid)}/glossaries`,
+      token,
+      payload,
+    );
+    const glossary = normalizeSmartlingGlossarySummary(data);
+    if (!glossary.glossaryUid) {
+      throw new SmartlingApiError(
+        "Smartling glossary create returned no glossary uid.",
+        200,
+        "smartling_response_invalid",
+        data,
+      );
+    }
+    return glossary;
+  }
+
+  async exportGlossary(
+    input: SmartlingGlossaryExportInput,
+  ): Promise<SmartlingGlossaryExportResult> {
+    const accountUid = input.accountUid.trim();
+    const glossaryUid = input.glossaryUid.trim();
+    if (!accountUid) {
+      throw new Error("smartling_account_uid_required");
+    }
+    if (!glossaryUid) {
+      throw new Error("smartling_glossary_uid_required");
+    }
+
+    const format = normalizeSmartlingGlossaryExportFormat(input.format);
+    let localeIds = uniqueLocales(input.localeIds ?? []);
+    if (localeIds.length === 0) {
+      const glossary = await this.getGlossary(accountUid, glossaryUid);
+      localeIds = glossary.localeIds;
+    }
+    if (localeIds.length === 0) {
+      throw new Error("smartling_glossary_locale_required");
+    }
+    const tbxVersion = normalizeSmartlingGlossaryExportTbxVersion(format, input.tbxVersion);
+
+    const token = await this.getAccessToken();
+    const payload: Record<string, unknown> = {
+      format: format.toUpperCase(),
+      localeIds,
+      filter: {
+        paging: { offset: 0, limit: 5000 },
+      },
+    };
+    if (tbxVersion) {
+      payload.tbxVersion = tbxVersion;
+    }
+
+    const { content, contentType } = await this.postDownload(
+      `${this.glossaryV3BaseUrl}/accounts/${encodeURIComponent(accountUid)}/glossaries/${encodeURIComponent(glossaryUid)}/entries/download`,
+      token,
+      payload,
+    );
+    return { content, contentType, bytes: content.byteLength };
+  }
+
+  async importGlossary(
+    input: SmartlingGlossaryImportInput,
+  ): Promise<SmartlingGlossaryImportResult> {
+    const accountUid = input.accountUid.trim();
+    const glossaryUid = input.glossaryUid.trim();
+    const filename = input.filename.trim();
+    if (!accountUid) {
+      throw new Error("smartling_account_uid_required");
+    }
+    if (!glossaryUid) {
+      throw new Error("smartling_glossary_uid_required");
+    }
+    if (!filename) {
+      throw new Error("smartling_glossary_file_required");
+    }
+
+    const mediaType = glossaryImportMediaType(filename, input.contentType);
+    const token = await this.getAccessToken();
+    const form = new FormData();
+    form.append("importFileName", filename);
+    form.append("importFileMediaType", mediaType);
+    form.append("archiveMode", input.archiveMode ? "true" : "false");
+    form.append(
+      "importFile",
+      new Blob([toArrayBuffer(input.content)], { type: mediaType }),
+      filename,
+    );
+
+    const uploaded = await this.postMultipart<{
+      glossaryImport?: { importUid?: string; importStatus?: string };
+      importUid?: string;
+      importStatus?: string;
+    }>(
+      `${this.glossaryV3BaseUrl}/accounts/${encodeURIComponent(accountUid)}/glossaries/${encodeURIComponent(glossaryUid)}/import`,
+      token,
+      form,
+    );
+    const importUid = (uploaded.glossaryImport?.importUid ?? uploaded.importUid ?? "").trim();
+    if (!importUid) {
+      throw new SmartlingApiError(
+        "Smartling glossary import returned no import uid.",
+        200,
+        "smartling_response_invalid",
+        uploaded,
+      );
+    }
+
+    await this.post<Record<string, never>>(
+      `${this.glossaryV3BaseUrl}/accounts/${encodeURIComponent(accountUid)}/glossaries/${encodeURIComponent(glossaryUid)}/import/${encodeURIComponent(importUid)}/confirm`,
+      token,
+      {},
+    );
+
+    const statusUrl = `${this.glossaryV3BaseUrl}/accounts/${encodeURIComponent(accountUid)}/glossaries/${encodeURIComponent(glossaryUid)}/import/${encodeURIComponent(importUid)}`;
+    for (let attempt = 0; attempt < GLOSSARY_IMPORT_MAX_POLLS; attempt += 1) {
+      const statusPayload = await this.get<{
+        importUid?: string;
+        importStatus?: string;
+      }>(statusUrl, token);
+      const importStatus = (statusPayload.importStatus ?? "").trim().toUpperCase();
+      if (importStatus === GLOSSARY_IMPORT_STATUS_SUCCESSFUL) {
+        return {
+          importUid,
+          importStatus: statusPayload.importStatus ?? GLOSSARY_IMPORT_STATUS_SUCCESSFUL,
+        };
+      }
+      if (importStatus === GLOSSARY_IMPORT_STATUS_FAILED) {
+        throw new SmartlingApiError(
+          `Smartling glossary import ${importUid} failed.`,
+          200,
+          "smartling_request_failed",
+          statusPayload,
+        );
+      }
+      if (
+        importStatus === GLOSSARY_IMPORT_STATUS_PENDING ||
+        importStatus === GLOSSARY_IMPORT_STATUS_IN_PROGRESS ||
+        importStatus === ""
+      ) {
+        await waitForSmartlingPoll(GLOSSARY_IMPORT_POLL_INTERVAL_MS);
+        continue;
+      }
+      await waitForSmartlingPoll(GLOSSARY_IMPORT_POLL_INTERVAL_MS);
+    }
+
+    throw new SmartlingApiError(
+      `Smartling glossary import ${importUid} timed out.`,
+      200,
+      "smartling_request_failed",
+      { importUid },
+    );
+  }
+
+  async createTranslationMemory(
+    input: SmartlingTranslationMemoryCreateInput,
+  ): Promise<SmartlingTranslationMemoryCreateResult> {
+    const accountUid = input.accountUid.trim();
+    const name = input.name.trim();
+    const sourceLocaleIds = uniqueLocales([input.sourceLocaleId]);
+    if (!accountUid) {
+      throw new Error("smartling_account_uid_required");
+    }
+    if (!name) {
+      throw new Error("smartling_translation_memory_name_required");
+    }
+    if (sourceLocaleIds.length === 0) {
+      throw new Error("smartling_translation_memory_source_locale_required");
+    }
+
+    const createInput: Record<string, unknown> = {
+      name,
+      sourceLocaleId: sourceLocaleIds[0],
+    };
+    const description = input.description?.trim();
+    if (description) {
+      createInput.description = description;
+    }
+
+    const token = await this.getAccessToken();
+    const data = await this.postGraphQL<{
+      createTm?: {
+        tmUid?: string;
+        name?: string;
+        description?: string;
+        sourceLocaleId?: string;
+      };
+    }>(`${this.tmGraphQLBaseUrl}/accounts/${encodeURIComponent(accountUid)}/graphql`, token, {
+      query: CREATE_TM_GRAPHQL_QUERY,
+      variables: { createTm: createInput },
+    });
+
+    const created = data.createTm;
+    const translationMemoryUid = created?.tmUid?.trim() ?? "";
+    if (!translationMemoryUid) {
+      throw new SmartlingApiError(
+        "Smartling TM create returned no translation memory uid.",
+        200,
+        "smartling_response_invalid",
+        data,
+      );
+    }
+
+    return {
+      translationMemoryUid,
+      name: created?.name?.trim() || name,
+      description: created?.description?.trim() || null,
+      sourceLocaleId: created?.sourceLocaleId?.trim() || sourceLocaleIds[0],
+    };
+  }
+
+  async importTranslationMemory(
+    input: SmartlingTranslationMemoryImportInput,
+  ): Promise<SmartlingTranslationMemoryImportResult> {
+    const accountUid = input.accountUid.trim();
+    const translationMemoryUid = input.translationMemoryUid.trim();
+    const filename = input.filename.trim();
+    if (!accountUid) {
+      throw new Error("smartling_account_uid_required");
+    }
+    if (!translationMemoryUid) {
+      throw new Error("smartling_translation_memory_uid_required");
+    }
+    if (!filename) {
+      throw new Error("smartling_translation_memory_file_required");
+    }
+    if (!filename.toLowerCase().endsWith(".tmx")) {
+      throw new Error("smartling_translation_memory_file_must_be_tmx");
+    }
+
+    const fileUri = input.fileUri?.trim() || filename;
+    const token = await this.getAccessToken();
+    const form = new FormData();
+    form.append("tmUid", translationMemoryUid);
+    form.append("fileUri", fileUri);
+    form.append(
+      "file",
+      new Blob([toArrayBuffer(input.content)], { type: "application/xml" }),
+      filename,
+    );
+
+    const uploaded = await this.postMultipart<{
+      jobUid?: string;
+      tmxUid?: string;
+      stringCount?: number;
+      wordCount?: number;
+    }>(`${this.tmxBaseUrl}/accounts/${encodeURIComponent(accountUid)}/tmx/file`, token, form);
+
+    const jobUid = uploaded.jobUid?.trim() ?? "";
+    const tmxUid = uploaded.tmxUid?.trim() ?? "";
+    if (!jobUid && !tmxUid) {
+      throw new SmartlingApiError(
+        "Smartling TM import returned no job uid.",
+        200,
+        "smartling_response_invalid",
+        uploaded,
+      );
+    }
+
+    return {
+      jobUid,
+      tmxUid,
+      stringCount: typeof uploaded.stringCount === "number" ? uploaded.stringCount : 0,
+      wordCount: typeof uploaded.wordCount === "number" ? uploaded.wordCount : 0,
+    };
+  }
+
   async listIssues(
     projectId: string,
     filter: SmartlingIssuesListFilter,
@@ -1424,6 +1924,109 @@ export class SmartlingApiClient {
     return parseSmartlingResponse<T>(response, url);
   }
 
+  private async postMultipart<T>(url: string, token: string, form: FormData): Promise<T> {
+    const response = await this.fetchFn(url, {
+      method: "POST",
+      redirect: "error",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: form,
+    });
+
+    return parseSmartlingResponse<T>(response, url);
+  }
+
+  private async postDownload(
+    url: string,
+    token: string,
+    payload: unknown,
+  ): Promise<{ content: Uint8Array; contentType: string }> {
+    const response = await this.fetchFn(url, {
+      method: "POST",
+      redirect: "error",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!response.ok) {
+      let body: unknown = null;
+      try {
+        body = await response.json();
+      } catch {
+        body = await response.text().catch(() => null);
+      }
+      const classified = classifySmartlingHttpError(response.status, body);
+      throw new SmartlingApiError(classified.message, response.status, classified.errorCode, body);
+    }
+
+    if (contentType.toLowerCase().startsWith("application/json")) {
+      const body = await response.json().catch(() => null);
+      throw new SmartlingApiError(
+        "Smartling returned JSON instead of a glossary file.",
+        response.status,
+        "smartling_response_invalid",
+        body,
+      );
+    }
+
+    const buffer = await response.arrayBuffer();
+    return { content: new Uint8Array(buffer), contentType };
+  }
+
+  private async postGraphQL<T>(url: string, token: string, payload: unknown): Promise<T> {
+    const response = await this.fetchFn(url, {
+      method: "POST",
+      redirect: "error",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    let body: unknown = null;
+    try {
+      body = await response.json();
+    } catch {
+      body = await response.text().catch(() => null);
+    }
+
+    if (!response.ok) {
+      const classified = classifySmartlingHttpError(response.status, body);
+      throw new SmartlingApiError(classified.message, response.status, classified.errorCode, body);
+    }
+
+    const envelope = body as {
+      data?: T | null;
+      errors?: Array<{ message?: string }>;
+    };
+    const messages = (envelope.errors ?? [])
+      .map((error) => error.message?.trim() ?? "")
+      .filter(Boolean);
+    if (messages.length > 0) {
+      throw new SmartlingApiError(
+        messages.join("; "),
+        response.status,
+        "smartling_request_failed",
+        body,
+      );
+    }
+    if (envelope.data == null) {
+      throw new SmartlingApiError(
+        `Smartling GraphQL returned no data for ${url}`,
+        response.status,
+        "smartling_response_invalid",
+        body,
+      );
+    }
+    return envelope.data;
+  }
+
   private async put<T>(url: string, token: string, payload: unknown): Promise<T> {
     const response = await this.fetchFn(url, {
       method: "PUT",
@@ -1502,6 +2105,8 @@ export function deriveServiceBaseUrl(
     | "glossary"
     | "glossary-v3"
     | "translation-memory"
+    | "tm-graphql"
+    | "tm-tmx"
     | "issues"
     | "context"
     | "webhooks",
@@ -1516,7 +2121,11 @@ export function deriveServiceBaseUrl(
           ? "glossary"
           : service === "translation-memory"
             ? "translation-memory"
-            : service;
+            : service === "tm-graphql"
+              ? "tm-graphql"
+              : service === "tm-tmx"
+                ? "tm-tmx"
+                : service;
     return normalized.replace(/\/auth-api\/v\d+/, `/${apiName}-api/${version}`);
   }
 
@@ -1537,6 +2146,10 @@ export function deriveServiceBaseUrl(
       return DEFAULT_GLOSSARY_V3_BASE_URL;
     case "translation-memory":
       return DEFAULT_TM_BASE_URL;
+    case "tm-graphql":
+      return DEFAULT_TM_GRAPHQL_BASE_URL;
+    case "tm-tmx":
+      return DEFAULT_TMX_BASE_URL;
     case "issues":
       return DEFAULT_ISSUES_BASE_URL;
     case "context":
@@ -1723,7 +2336,8 @@ function normalizeSmartlingGlossarySummary(
   item: Record<string, unknown>,
 ): SmartlingGlossarySummary {
   const glossaryUid = readSmartlingUid(item, "glossaryUid", "uid", "glossaryUID");
-  const name = readSmartlingString(item, "name") ?? glossaryUid;
+  const name =
+    readSmartlingString(item, "name") ?? readSmartlingString(item, "glossaryName") ?? glossaryUid;
   return {
     glossaryUid,
     name,
@@ -1771,6 +2385,7 @@ function normalizeSmartlingTranslationMemorySummary(
     "translationMemoryUid",
     "uid",
     "translationMemoryUID",
+    "tmUid",
   );
   const name = readSmartlingString(item, "name") ?? translationMemoryUid;
   return {

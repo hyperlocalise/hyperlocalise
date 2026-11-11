@@ -79,6 +79,7 @@ func ApplyToIngestEntries(
 				Path:        entry.Path,
 				Kind:        entry.Kind,
 				Format:      entry.Format,
+				Context:     entry.Context,
 			}
 		}
 	}

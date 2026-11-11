@@ -14,7 +14,6 @@
  */
 import { useEffect, useEffectEvent, useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { InferResponseType } from "hono/client";
 import { useRouter } from "next/navigation";
 import { FormattedMessage, useIntl } from "react-intl";
 import { XIcon, PlusIcon } from "@phosphor-icons/react";
@@ -31,8 +30,8 @@ import {
 import { isOpenIssueStatus } from "@/components/content-editor/queue/content-editor-queue-filter";
 import { emptyStateSourceLabel } from "@/components/content-editor/shared/empty-state-source-label";
 import { Button } from "@/components/ui/button";
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import {
   CAT_ISSUE_GUIDANCE_OPEN_EVENT,
@@ -41,10 +40,17 @@ import {
 } from "./content-editor-issue-guidance-event";
 import { contentEditorEditorIssuesSectionMessages as messages } from "./content-editor-editor-issues-section.messages";
 
-type ContentEditorIssueSheetListResponse = InferResponseType<
-  (typeof apiClient.api.orgs)[":organizationSlug"]["projects"][":projectId"]["issue-sheet"]["$get"],
-  200
->;
+type ContentEditorIssueSheetIssue = {
+  id: string;
+  identifier: string;
+  title: string;
+  status: string;
+  targetLocale: string | null;
+  assignee: string | null;
+  assigneeUserId: string | null;
+  updatedAt: string;
+  values?: Record<string, unknown>;
+};
 
 /** Maximum accepted by the issue sheet list endpoint. */
 const SEGMENT_ISSUE_PAGE_SIZE = 100;
@@ -90,6 +96,7 @@ export function ContentEditorEditorIssuesSection({
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const [createOpen, setCreateOpen] = useState(false);
   const requestFailed = intl.formatMessage(messages.requestFailed);
   const openIssueGuidance = useEffectEvent(() => {
@@ -119,11 +126,18 @@ export function ContentEditorEditorIssuesSection({
   // A translation key is shared across locales, so scope to the locale being
   // edited to match the segment the panel is showing.
   const apiQuery = useMemo(() => {
-    const query: Record<string, string> = {
+    const query: {
+      status: "all";
+      sort: "status";
+      sortDir: "asc";
+      limit: number;
+      translationKeyId?: string;
+      locale?: string;
+    } = {
       status: "all",
       sort: "status",
       sortDir: "asc",
-      limit: String(SEGMENT_ISSUE_PAGE_SIZE),
+      limit: SEGMENT_ISSUE_PAGE_SIZE,
     };
     if (translationKeyId) {
       query.translationKeyId = translationKeyId;
@@ -149,29 +163,22 @@ export function ContentEditorEditorIssuesSection({
     // the segment's filtered `total` is covered rather than showing a truncated
     // first page as if it were everything.
     queryFn: async () => {
-      const issues: ContentEditorIssueSheetListResponse["issues"] = [];
+      const issues: ContentEditorIssueSheetIssue[] = [];
 
       for (let page = 0; page < SEGMENT_ISSUE_MAX_PAGES; page += 1) {
-        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-          "issue-sheet"
-        ].$get({
-          param: { organizationSlug, projectId },
-          query: {
+        try {
+          const body = await goSvcClient.issueSheet.list(organizationSlug, projectId, {
             ...apiQuery,
-            offset: String(page * SEGMENT_ISSUE_PAGE_SIZE),
-          },
-        } as never);
-        if (response.status !== 200) {
-          throw new Error(
-            (await readApiResponseError(response, requestFailed)).message || requestFailed,
-          );
-        }
-        const body = await response.json();
-        issues.push(...body.issues);
+            offset: page * SEGMENT_ISSUE_PAGE_SIZE,
+          });
+          issues.push(...(body.issues as ContentEditorIssueSheetIssue[]));
 
-        const total = body.total ?? issues.length;
-        if (body.issues.length === 0 || issues.length >= total) {
-          break;
+          const total = body.total ?? issues.length;
+          if (body.issues.length === 0 || issues.length >= total) {
+            break;
+          }
+        } catch (error) {
+          throw new Error(goSvcErrorMessage(error, requestFailed), { cause: error });
         }
       }
 

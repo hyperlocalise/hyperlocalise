@@ -31,6 +31,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
+import { isAiCreditExhaustedError } from "@/lib/billing/ai-credit-refusal";
 import { cn } from "@/lib/primitives/cn";
 
 import type { DocumentAssistantServices } from "./document-editor-assistant.types";
@@ -84,6 +86,7 @@ export function useDocumentTranslation({
       const sourceContent = sourceDoc.content ?? [];
       let done = 0;
       let failed = 0;
+      let refused = false;
       setProgress({ done, total: tasks.length });
 
       await mapWithConcurrency(tasks, TRANSLATE_CONCURRENCY, async (task) => {
@@ -117,8 +120,9 @@ export function useDocumentTranslation({
             expectedOriginalText: requestOriginalText,
           });
           if (suggestion) addDocumentSuggestions(editor, [suggestion]);
-        } catch {
+        } catch (error) {
           failed += 1;
+          refused ||= isAiCreditExhaustedError(error);
         } finally {
           done += 1;
           if (!controller.signal.aborted) setProgress({ done, total: tasks.length });
@@ -130,7 +134,11 @@ export function useDocumentTranslation({
         setProgress(null);
       }
       if (failed > 0 && !controller.signal.aborted) {
-        toast.error(intl.formatMessage(messages.translateFailed, { count: failed }));
+        toast.error(
+          refused
+            ? intl.formatMessage(aiCreditExhaustedMessages.exhausted)
+            : intl.formatMessage(messages.translateFailed, { count: failed }),
+        );
       }
     },
     [editor, intl, services, sourceDoc, sourceManager],

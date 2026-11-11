@@ -10,7 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-export const translationQaCheckTypes = [
+import type { MessageFormat } from "@/lib/i18n/message-format";
+
+/** Checks a project scan can store. Guideline review runs in the editor only. */
+export const translationQaScanCheckTypes = [
   "not_localized",
   "whitespace_only",
   "same_as_source",
@@ -23,7 +26,10 @@ export const translationQaCheckTypes = [
   "numbers_mismatch",
   "punctuation_mismatch",
   "character_case_mismatch",
+  "unreachable_plural_case",
 ] as const;
+
+export const translationQaCheckTypes = [...translationQaScanCheckTypes, "guideline"] as const;
 
 export type TranslationQaCheckType = (typeof translationQaCheckTypes)[number];
 
@@ -58,6 +64,9 @@ export type TranslationQaSegmentInput = {
   maxLength?: number | null;
   targetLocale: string;
   glossaryTerms?: readonly TranslationQaGlossaryTerm[];
+  messageFormat?: MessageFormat | null;
+  /** The file's custom placeholder regular expressions. */
+  placeholderPatterns?: readonly string[] | null;
 };
 
 export type TranslationQaCheck = {

@@ -92,27 +92,48 @@ function collectSchemaConfigIssues(
   }
 
   const issues: VisualWorkflowValidationIssue[] = [];
-  const seenNodeIds = new Set<string>();
+  const seen = new Set<string>();
 
   for (const issue of parsed.error.issues) {
     const nodeIndex =
       issue.path[0] === "nodes" && typeof issue.path[1] === "number" ? issue.path[1] : null;
     const node = nodeIndex !== null ? definition.nodes[nodeIndex] : undefined;
     const nodeId = node?.id;
-    if (nodeId && seenNodeIds.has(nodeId)) {
+    // The setting at fault, when the problem is inside the step's settings.
+    const field =
+      node && issue.path[2] === "config" && typeof issue.path[3] === "string"
+        ? issue.path[3]
+        : undefined;
+    const key = `${nodeId}:${field ?? ""}`;
+    if (nodeId && seen.has(key)) {
       continue;
     }
     if (nodeId) {
-      seenNodeIds.add(nodeId);
+      seen.add(key);
     }
 
     issues.push({
       code: node && isTriggerType(node.type) ? "invalid_trigger_config" : "invalid_node_config",
       nodeId,
+      ...(node && field
+        ? {
+            field,
+            reason: isBlankSetting((node.config as Record<string, unknown>)[field])
+              ? "required"
+              : "invalid",
+          }
+        : {}),
     });
   }
 
   return issues;
+}
+
+function isBlankSetting(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.trim() === "";
+  }
+  return value === undefined || value === null || (Array.isArray(value) && value.length === 0);
 }
 
 export function validateVisualWorkflowDefinition(
@@ -146,7 +167,7 @@ export function validateVisualWorkflowDefinition(
   const graph = buildVisualWorkflowGraphIndex(definition);
   if (graph) {
     for (const node of definition.nodes) {
-      if (node.type !== "logic.for_each") {
+      if (!["logic.for_each", "logic.array_transform"].includes(node.type)) {
         continue;
       }
 
@@ -156,7 +177,7 @@ export function validateVisualWorkflowDefinition(
       });
       for (const bodyNodeId of bodyNodeIds) {
         const bodyNode = graph.nodesById.get(bodyNodeId);
-        if (bodyNode?.type === "logic.for_each") {
+        if (["logic.for_each", "logic.array_transform"].includes(bodyNode?.type ?? "")) {
           issues.push({ code: "nested_for_each", nodeId: bodyNodeId });
         }
         if (bodyNode?.type === "logic.retry") {
@@ -170,7 +191,7 @@ export function validateVisualWorkflowDefinition(
       }
       for (const bodyNodeId of node.bodyNodeIds ?? []) {
         const bodyNode = graph.nodesById.get(bodyNodeId);
-        if (bodyNode?.type === "logic.for_each") {
+        if (["logic.for_each", "logic.array_transform"].includes(bodyNode?.type ?? "")) {
           issues.push({ code: "retry_foreach_nesting", nodeId: bodyNodeId });
         }
       }

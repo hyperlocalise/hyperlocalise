@@ -209,10 +209,12 @@ export const ReadOnly: Story = {
     await expect(canvas.getAllByRole("button", { name: "View only" }).length).toBeGreaterThan(0);
 
     await userEvent.click(canvas.getByRole("tab", { name: "Customer engagement" }));
-    await userEvent.click(canvas.getByRole("button", { name: "View only" }));
-    await expect(canvas.getByTestId("workos-pipes-widget")).toHaveTextContent(
-      "intercom Pipes widget",
-    );
+    await expect(canvas.getByText("Intercom")).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Connect" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Manage" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Disconnect" })).not.toBeInTheDocument();
+    await expect(canvas.queryByTestId("workos-pipes-widget")).not.toBeInTheDocument();
+    await expect(canvas.getAllByText("Admins can connect").length).toBeGreaterThan(0);
   },
 };
 

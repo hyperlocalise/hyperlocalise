@@ -20,7 +20,7 @@ import { createGlossaryTestFixture } from "@/api/routes/glossary/glossary.fixtur
 import { db, schema } from "@/lib/database/client";
 import type { NormalizedGlossaryMatch } from "@/lib/providers/contracts/glossary-match";
 import type { GlossaryImportDocument } from "./interchange/glossary-interchange";
-import { applyNativeGlossaryImport } from "./interchange/native-glossary-import";
+import { seedGlossaryImportDocumentCreate } from "./interchange/seed-glossary-import-document";
 import { searchGlossaryConcordance } from "./glossary-concordance";
 import recording from "./fixtures/ota-concordance-recording.json";
 
@@ -229,19 +229,19 @@ describe("native glossary concordance against Crowdin recording", () => {
       .set({ name: otaFixture.name })
       .where(eq(schema.glossaries.id, glossary.id));
 
-    const importResult = await applyNativeGlossaryImport({
+    const importResult = await seedGlossaryImportDocumentCreate({
       glossaryId: glossary.id,
-      mode: "create",
+      createdByUserId: glossary.createdByUserId,
       document: importDocument(),
     });
 
-    expect(importResult.counts.conceptsCreated).toBe(otaFixture.concepts.length);
-    expect(importResult.counts.termsCreated).toBeGreaterThanOrEqual(250);
+    expect(importResult.conceptsCreated).toBe(otaFixture.concepts.length);
+    expect(importResult.termsCreated).toBeGreaterThanOrEqual(250);
     console.info("seeded native glossary concordance fixture", {
       organizationId: glossary.organizationId,
       glossaryId: glossary.id,
-      concepts: importResult.counts.conceptsCreated,
-      terms: importResult.counts.termsCreated,
+      concepts: importResult.conceptsCreated,
+      terms: importResult.termsCreated,
     });
   });
 
@@ -367,12 +367,12 @@ describe("native glossary concordance against Crowdin recording", () => {
       ],
     };
 
-    const importResult = await applyNativeGlossaryImport({
+    const importResult = await seedGlossaryImportDocumentCreate({
       glossaryId: seededGlossary.id,
-      mode: "create",
+      createdByUserId: seededGlossary.createdByUserId,
       document,
     });
-    expect(importResult.counts.conceptsCreated).toBe(rejectedCandidateCount + 1);
+    expect(importResult.conceptsCreated).toBe(rejectedCandidateCount + 1);
 
     const native = await searchGlossaryConcordance({
       organizationId: seededGlossary.organizationId,

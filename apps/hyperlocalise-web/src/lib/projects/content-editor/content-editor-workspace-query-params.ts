@@ -23,6 +23,14 @@ import type {
   ContentEditorQueueSort,
 } from "@/components/content-editor/queue/content-editor-queue-filter";
 import { isServerQueueFilter } from "@/components/content-editor/queue/content-editor-queue-filter";
+import {
+  contentEditorWorkspaceQueueAdvancedParam,
+  contentEditorWorkspaceQueueFilterQualifierParam,
+  parseAdvancedQueueFilter,
+  parseQueueFilterQualifier,
+  serializeAdvancedQueueFilter,
+  type ContentEditorAdvancedQueueFilter,
+} from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 
 /** Shared CAT workspace query keys for filter + sort + segment search. */
 export const contentEditorWorkspaceQueueFilterParam = "queueFilter";
@@ -55,12 +63,22 @@ export function parseCatWorkspaceSearchParam(value: string | undefined | null): 
   return value?.trim() ? value.trim() : "";
 }
 
+export function parseCatWorkspaceQueueFilterQualifierParam(value: string | undefined | null) {
+  return parseQueueFilterQualifier(value);
+}
+
+export function parseCatWorkspaceQueueAdvancedParam(value: string | undefined | null) {
+  return parseAdvancedQueueFilter(value);
+}
+
 export function applyCatWorkspaceQueryParams(
   params: URLSearchParams,
   input: {
     queueFilter?: ContentEditorQueueFilter | null;
     queueSort?: ContentEditorQueueSort | null;
     search?: string | null;
+    queueFilterQualifier?: string | null;
+    queueAdvanced?: ContentEditorAdvancedQueueFilter | null;
   },
 ) {
   const next = new URLSearchParams(params);
@@ -87,6 +105,24 @@ export function applyCatWorkspaceQueryParams(
       next.delete(contentEditorWorkspaceSearchParam);
     } else {
       next.set(contentEditorWorkspaceSearchParam, trimmed);
+    }
+  }
+
+  if (input.queueFilterQualifier !== undefined) {
+    const qualifier = parseQueueFilterQualifier(input.queueFilterQualifier);
+    if (!qualifier) {
+      next.delete(contentEditorWorkspaceQueueFilterQualifierParam);
+    } else {
+      next.set(contentEditorWorkspaceQueueFilterQualifierParam, qualifier);
+    }
+  }
+
+  if (input.queueAdvanced !== undefined) {
+    const serialized = serializeAdvancedQueueFilter(input.queueAdvanced);
+    if (!serialized) {
+      next.delete(contentEditorWorkspaceQueueAdvancedParam);
+    } else {
+      next.set(contentEditorWorkspaceQueueAdvancedParam, serialized);
     }
   }
 

@@ -2,6 +2,7 @@ package editor_export
 
 import (
 	"fmt"
+	"path"
 	"strings"
 )
 
@@ -35,4 +36,13 @@ func ParseFormat(raw string) (Format, error) {
 	default:
 		return "", fmt.Errorf("unsupported export format")
 	}
+}
+
+// FormatFromFilename infers a bilingual export format from a file name or path.
+func FormatFromFilename(name string) (Format, error) {
+	ext := strings.ToLower(strings.TrimPrefix(path.Ext(strings.TrimSpace(name)), "."))
+	if ext == "" {
+		return "", fmt.Errorf("unsupported export format")
+	}
+	return ParseFormat(ext)
 }

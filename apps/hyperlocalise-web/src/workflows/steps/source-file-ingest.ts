@@ -71,11 +71,15 @@ export async function writeSourceIngestFileStep(
 export async function extractSourceIngestEntriesStep(
   sandboxId: string,
   filePath: string,
-  options?: { srx?: string },
+  options?: { srx?: string; sourceLocale?: string; locale?: string },
 ) {
   "use step";
   const { extractSandboxEntries } = await import("@/lib/translation/sandbox");
-  const result = await extractSandboxEntries(sandboxId, filePath, { srx: options?.srx });
+  const result = await extractSandboxEntries(sandboxId, filePath, {
+    srx: options?.srx,
+    sourceLocale: options?.sourceLocale,
+    locale: options?.locale,
+  });
   if (!result.ok) {
     throw new Error(`failed to extract entries for ${filePath}: exitCode=${result.exitCode}`);
   }
@@ -91,6 +95,17 @@ export async function loadSourceFileSegmentationStep(input: {
   const { loadSegmentationForIngest } =
     await import("@/lib/projects/files/source-file-segmentation");
   return loadSegmentationForIngest(input);
+}
+
+export async function loadSourceFileImportSettingsStep(input: {
+  organizationId: string;
+  projectId: string;
+  repositorySourceFileId: string;
+}) {
+  "use step";
+  const { loadImportSettingsForIngest } =
+    await import("@/lib/projects/files/source-file-import-settings");
+  return loadImportSettingsForIngest(input);
 }
 
 export async function writeSourceFileSegmentationSrxStep(
@@ -114,10 +129,71 @@ export async function writeSourceFileSegmentationSrxStep(
 
 export async function parseHlEntriesStep(
   extractedEntries: HlEntriesPayload,
+  options?: {
+    sourcePath?: string;
+    sourceContent?: unknown;
+    importSettings?: import("@/lib/projects/files/source-file-import-settings-schema").RepositorySourceFileImportSettings;
+  },
 ): Promise<ProjectSourceStringEntry[]> {
   "use step";
   const { entriesFromHlOutput } = await import("@/lib/projects/files/source-file-ingest");
-  return entriesFromHlOutput(extractedEntries, true);
+  const { applyHtmlIngestEntryKeys, utf8FromStoredFileContent } =
+    await import("@/lib/projects/files/html-ingest-entries");
+  const { applyJsonIngestEntries } = await import("@/lib/projects/files/json-ingest-entries");
+  const { importSettingsAreActive, normalizeImportSettings } =
+    await import("@/lib/projects/files/source-file-import-settings-schema");
+  const sourceText = utf8FromStoredFileContent(options?.sourceContent);
+  const settings = normalizeImportSettings(options?.importSettings);
+  let payload = extractedEntries;
+  if (options?.sourcePath && sourceText) {
+    payload = applyHtmlIngestEntryKeys(options.sourcePath, sourceText, payload, {
+      excludedElements: settings.html.excludedElements,
+      icuSubfilter: settings.html.icuSubfilter,
+    });
+    if (importSettingsAreActive(settings)) {
+      payload = applyJsonIngestEntries(options.sourcePath, sourceText, payload, settings.json);
+    }
+  }
+  if (options?.sourcePath && options.sourceContent && importSettingsAreActive(settings)) {
+    const { applyXlsxIngestEntries } = await import("@/lib/projects/files/xlsx-ingest-entries");
+    payload = await applyXlsxIngestEntries(
+      options.sourcePath,
+      options.sourceContent,
+      payload,
+      settings.excel,
+    );
+  }
+  return entriesFromHlOutput(payload, true);
+}
+
+export async function extractOfficeSourceEntriesStep(input: {
+  organizationId: string;
+  projectId: string;
+  storedFileId: string;
+  sourcePath: string;
+  excelImportSettings?: import("@/lib/projects/files/source-file-import-settings-schema").ExcelImportSettings;
+}): Promise<ProjectSourceStringEntry[]> {
+  "use step";
+  const { loadProjectOfficeSourceEntries } =
+    await import("@/lib/projects/files/office-source-entries");
+  const entries = await loadProjectOfficeSourceEntries(input);
+  if (!entries.ok) {
+    throw new Error(`failed to extract entries from the Office file: ${entries.error.code}`);
+  }
+  return entries.value;
+}
+
+export async function getProjectSourceLocaleStep(input: {
+  organizationId: string;
+  projectId: string;
+}): Promise<string | null> {
+  "use step";
+  const { getProjectSourceLocale } = await import("@/lib/projects/files/office-source-entries");
+  const sourceLocale = await getProjectSourceLocale(input);
+  if (!sourceLocale.ok) {
+    throw new Error(`project ${input.projectId} not found`);
+  }
+  return sourceLocale.value;
 }
 
 export async function stopSourceIngestSandboxStep(sandboxId: string) {

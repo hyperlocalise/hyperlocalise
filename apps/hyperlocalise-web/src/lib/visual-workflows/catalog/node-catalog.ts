@@ -25,11 +25,25 @@ import {
   UploadSimpleIcon,
   BracketsCurlyIcon,
   GitMergeIcon,
+  TranslateIcon,
+  UserCheckIcon,
+  ChartBarIcon,
+  SealCheckIcon,
+  WebhooksLogoIcon,
+  ListChecksIcon,
+  FilesIcon,
+  UserSwitchIcon,
+  UsersThreeIcon,
 } from "@phosphor-icons/react/ssr";
 
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
-import type { VisualCatalogCategory, VisualCatalogType, VisualNodeConfig } from "../schema/types";
+import type {
+  VisualAssignmentRule,
+  VisualCatalogCategory,
+  VisualCatalogType,
+  VisualNodeConfig,
+} from "../schema/types";
 import { createSwitchCaseId } from "../schema/switch-cases";
 
 export type CatalogIcon = Icon;
@@ -67,6 +81,18 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: UploadSimpleIcon,
   },
   {
+    type: "trigger.webhook",
+    category: "trigger",
+    enabled: true,
+    icon: WebhooksLogoIcon,
+  },
+  {
+    type: "trigger.job_changed",
+    category: "trigger",
+    enabled: true,
+    icon: ListChecksIcon,
+  },
+  {
     type: "action.http",
     category: "action",
     enabled: true,
@@ -91,6 +117,84 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: EnvelopeIcon,
   },
   {
+    type: "action.machine_translate",
+    category: "localization",
+    enabled: true,
+    icon: TranslateIcon,
+  },
+  {
+    type: "action.create_task",
+    category: "localization",
+    enabled: true,
+    icon: UserCheckIcon,
+  },
+  {
+    type: "action.check_progress",
+    category: "localization",
+    enabled: true,
+    icon: ChartBarIcon,
+  },
+  {
+    type: "action.run_qa",
+    category: "localization",
+    enabled: true,
+    icon: SealCheckIcon,
+  },
+  {
+    type: "action.list_source_files",
+    category: "localization",
+    enabled: true,
+    icon: FilesIcon,
+  },
+  {
+    type: "action.file_read",
+    category: "action",
+    enabled: true,
+    icon: FilesIcon,
+  },
+  {
+    type: "action.file_write",
+    category: "action",
+    enabled: true,
+    icon: FilesIcon,
+  },
+  {
+    type: "action.file_convert",
+    category: "localization",
+    enabled: true,
+    icon: TranslateIcon,
+  },
+  {
+    type: "action.update_job",
+    category: "localization",
+    enabled: true,
+    icon: UserSwitchIcon,
+  },
+  {
+    type: "action.pick_assignee",
+    category: "localization",
+    enabled: true,
+    icon: UsersThreeIcon,
+  },
+  {
+    type: "action.crowdin_pre_translate",
+    category: "localization",
+    enabled: true,
+    icon: TranslateIcon,
+  },
+  {
+    type: "action.crowdin_create_task",
+    category: "localization",
+    enabled: true,
+    icon: UserCheckIcon,
+  },
+  {
+    type: "action.crowdin_check_progress",
+    category: "localization",
+    enabled: true,
+    icon: ChartBarIcon,
+  },
+  {
     type: "logic.if",
     category: "logic",
     enabled: true,
@@ -109,6 +213,54 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: BracketsCurlyIcon,
   },
   {
+    type: "logic.create_object",
+    category: "logic",
+    enabled: true,
+    icon: BracketsCurlyIcon,
+  },
+  {
+    type: "logic.merge_objects",
+    category: "logic",
+    enabled: true,
+    icon: GitMergeIcon,
+  },
+  {
+    type: "logic.select_path",
+    category: "logic",
+    enabled: true,
+    icon: PathIcon,
+  },
+  {
+    type: "logic.coalesce",
+    category: "logic",
+    enabled: true,
+    icon: GitMergeIcon,
+  },
+  {
+    type: "logic.compare",
+    category: "logic",
+    enabled: true,
+    icon: CheckSquareIcon,
+  },
+  {
+    type: "logic.json_parse",
+    category: "logic",
+    enabled: true,
+    icon: BracketsCurlyIcon,
+  },
+  {
+    type: "logic.json_stringify",
+    category: "logic",
+    enabled: true,
+    icon: BracketsCurlyIcon,
+  },
+  {
+    type: "logic.schema_validate",
+    category: "logic",
+    enabled: true,
+    icon: SealCheckIcon,
+  },
+  {
     type: "ai.agent",
     category: "ai",
     enabled: true,
@@ -121,16 +273,46 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: CheckSquareIcon,
   },
   {
+    type: "logic.array_transform",
+    category: "flow",
+    enabled: true,
+    icon: BracketsCurlyIcon,
+  },
+  {
     type: "logic.retry",
     category: "flow",
     enabled: true,
     icon: ArrowClockwiseIcon,
   },
   {
+    type: "flow.human_approval",
+    category: "flow",
+    enabled: true,
+    icon: UserCheckIcon,
+  },
+  {
     type: "flow.wait",
     category: "flow",
     enabled: true,
     icon: ClockIcon,
+  },
+  {
+    type: "flow.stop",
+    category: "flow",
+    enabled: true,
+    icon: CheckSquareIcon,
+  },
+  {
+    type: "flow.return",
+    category: "flow",
+    enabled: true,
+    icon: PathIcon,
+  },
+  {
+    type: "flow.fail",
+    category: "flow",
+    enabled: true,
+    icon: LightningIcon,
   },
   {
     type: "logic.merge",
@@ -144,11 +326,24 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     enabled: true,
     icon: PathIcon,
   },
+  {
+    type: "logic.try_catch",
+    category: "flow",
+    enabled: true,
+    icon: GitBranchIcon,
+  },
+  {
+    type: "flow.call_workflow",
+    category: "flow",
+    enabled: true,
+    icon: PathIcon,
+  },
 ];
 
 export const VISUAL_CATALOG_CATEGORY_ORDER: readonly VisualCatalogCategory[] = [
   "trigger",
   "action",
+  "localization",
   "logic",
   "ai",
   "flow",
@@ -174,6 +369,10 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       };
     case "trigger.source_upload":
       return { kind: "trigger.source_upload" };
+    case "trigger.webhook":
+      return { kind: "trigger.webhook", tokenVersion: 1 };
+    case "trigger.job_changed":
+      return { kind: "trigger.job_changed", eventTypes: ["job.status_changed"] };
     case "action.http":
       return {
         kind: "action.http",
@@ -210,6 +409,117 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         message: "",
         onError: "stop",
       };
+    case "action.machine_translate":
+      return {
+        kind: "action.machine_translate",
+        projectId: "",
+        sourceFileId: "",
+        targetLocales: "",
+        useTranslationMemory: true,
+        onError: "stop",
+      };
+    case "action.create_task":
+      return {
+        kind: "action.create_task",
+        projectId: "",
+        sourceFileId: "",
+        targetLocales: "",
+        step: "edit",
+        assigneeWorkosUserId: "",
+        title: "",
+        dueAt: "",
+        onError: "stop",
+      };
+    case "action.check_progress":
+      return {
+        kind: "action.check_progress",
+        projectId: "",
+        sourceFileId: "",
+        targetLocales: "",
+        jobId: "",
+        onError: "stop",
+      };
+    case "action.run_qa":
+      return { kind: "action.run_qa", projectId: "", onError: "stop" };
+    case "action.list_source_files":
+      return { kind: "action.list_source_files", projectId: "", pathPrefix: "", onError: "stop" };
+    case "action.file_read":
+      return { kind: "action.file_read", fileId: "", encoding: "utf-8" };
+    case "action.file_write":
+      return {
+        kind: "action.file_write",
+        content: "",
+        filename: "output.json",
+        contentType: "application/json",
+        encoding: "utf-8",
+        locale: "",
+        sourceFileId: "",
+      };
+    case "action.file_convert":
+      return {
+        kind: "action.file_convert",
+        fileId: "",
+        targetFormat: "json",
+        filename: "",
+        locale: "",
+      };
+    case "action.update_job":
+      return {
+        kind: "action.update_job",
+        jobId: "",
+        assigneeWorkosUserId: "",
+        title: "",
+        dueAt: "",
+        onError: "stop",
+      };
+    case "action.pick_assignee":
+      return {
+        kind: "action.pick_assignee",
+        locale: "",
+        jobType: "",
+        size: "",
+        dueAt: "",
+        rules: [createAssignmentRule()],
+        fallbackAssigneeIds: [],
+        strategy: "least_busy",
+        peopleSource: "workspace",
+        crowdinProjectId: "",
+        onError: "stop",
+      };
+    case "action.crowdin_pre_translate":
+      return {
+        kind: "action.crowdin_pre_translate",
+        crowdinProjectId: "",
+        fileIds: "",
+        languageIds: "",
+        method: "mt",
+        engineId: "",
+        aiPromptId: "",
+        onError: "stop",
+      };
+    case "action.crowdin_create_task":
+      return {
+        kind: "action.crowdin_create_task",
+        crowdinProjectId: "",
+        fileIds: "",
+        languageIds: "",
+        taskType: "proofread",
+        assigneeIds: "",
+        title: "",
+        description: "",
+        dueAt: "",
+        onError: "stop",
+      };
+    case "action.crowdin_check_progress":
+      return {
+        kind: "action.crowdin_check_progress",
+        crowdinProjectId: "",
+        fileIds: "",
+        languageIds: "",
+        taskIds: "",
+        preTranslationId: "",
+        onError: "stop",
+      };
     case "logic.if":
       return { kind: "logic.if", condition: "" };
     case "logic.switch":
@@ -223,10 +533,63 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       };
     case "logic.set":
       return { kind: "logic.set", assignments: [{ key: "", value: "" }] };
+    case "logic.create_object":
+      return { kind: "logic.create_object", fields: [] };
+    case "logic.merge_objects":
+      return {
+        kind: "logic.merge_objects",
+        inputs: [
+          { id: createObjectPortId(), name: "Object 1" },
+          { id: createObjectPortId(), name: "Object 2" },
+        ],
+        conflictPolicy: "reject",
+      };
+    case "logic.select_path":
+      return {
+        kind: "logic.select_path",
+        path: [],
+        outputType: "unknown",
+        missingBehavior: "error",
+      };
+    case "logic.coalesce":
+      return {
+        kind: "logic.coalesce",
+        inputs: [
+          { id: createCoalesceInputId(), name: "Value 1", type: "unknown" },
+          { id: createCoalesceInputId(), name: "Value 2", type: "unknown" },
+        ],
+        treatNullAsMissing: true,
+        treatEmptyStringAsMissing: false,
+        treatEmptyArrayAsMissing: false,
+        treatEmptyObjectAsMissing: false,
+      };
+    case "logic.compare":
+      return {
+        kind: "logic.compare",
+        operator: "equal",
+        operands: [
+          { id: createComparisonOperandId(), name: "Left", type: "unknown" },
+          { id: createComparisonOperandId(), name: "Right", type: "unknown" },
+        ],
+      };
+    case "logic.json_parse":
+      return { kind: "logic.json_parse", text: "{}" };
+    case "logic.json_stringify":
+      return { kind: "logic.json_stringify", value: null };
+    case "logic.schema_validate":
+      return { kind: "logic.schema_validate", value: null, schema: {} };
     case "ai.agent":
       return { kind: "ai.agent", prompt: "", onError: "stop" };
     case "logic.for_each":
       return { kind: "logic.for_each", collection: "[]" };
+    case "logic.array_transform":
+      return {
+        kind: "logic.array_transform",
+        operation: "map",
+        collection: "[]",
+        itemType: "unknown",
+        resultType: "unknown",
+      };
     case "logic.retry":
       return {
         kind: "logic.retry",
@@ -236,11 +599,29 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         jitter: true,
         acknowledgeDuplicateRisk: false,
       };
+    case "flow.human_approval":
+      return {
+        kind: "flow.human_approval",
+        reviewerType: "user",
+        reviewerId: "",
+        prompt: "",
+        deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      };
     case "flow.wait":
       return {
         kind: "flow.wait",
         mode: "duration",
         durationMs: 60_000,
+      };
+    case "flow.stop":
+      return { kind: "flow.stop", outcome: "completed" };
+    case "flow.return":
+      return { kind: "flow.return", outputs: [] };
+    case "flow.fail":
+      return {
+        kind: "flow.fail",
+        errorCode: "WORKFLOW_FAILED",
+        message: "Workflow failed",
       };
     case "logic.merge":
       return {
@@ -258,6 +639,17 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
           { id: createSequenceOutputId(), label: "Output 1" },
           { id: createSequenceOutputId(), label: "Output 2" },
         ],
+      };
+    case "logic.try_catch":
+      return { kind: "logic.try_catch" };
+    case "flow.call_workflow":
+      return {
+        kind: "flow.call_workflow",
+        workflowId: "",
+        version: 1,
+        inputFields: [],
+        outputFields: [],
+        onError: "stop",
       };
     default:
       return assertNever(type);
@@ -283,11 +675,17 @@ export function getVisualNodeDimensions(
   if (type === "logic.retry") {
     return { width: 280, height: 140 };
   }
+  if (type === "logic.array_transform") {
+    return { width: 280, height: 140 };
+  }
   if (type.startsWith("trigger.")) {
     return { width: 280, height: 120 };
   }
-  if (type === "flow.wait") {
+  if (type === "flow.human_approval" || type === "flow.wait") {
     return { width: 280, height: 140 };
+  }
+  if (["flow.stop", "flow.return", "flow.fail"].includes(type)) {
+    return { width: 280, height: 120 };
   }
   if (type === "logic.merge") {
     return { width: 280, height: 140 };
@@ -295,6 +693,12 @@ export function getVisualNodeDimensions(
   if (type === "logic.sequence") {
     const outputCount = config?.kind === "logic.sequence" ? config.outputs.length : 2;
     return { width: 280, height: Math.max(140, 56 + outputCount * 32) };
+  }
+  if (type === "logic.try_catch") {
+    return { width: 280, height: 156 };
+  }
+  if (type === "flow.call_workflow") {
+    return { width: 280, height: 140 };
   }
   return { width: 280, height: 104 };
 }
@@ -311,6 +715,28 @@ export function catalogItemByType(type: VisualCatalogType): VisualNodeCatalogIte
   return item;
 }
 
+const JOB_CHANGED_EVENT_LABELS: Record<string, string> = {
+  "job.created": "Created",
+  "job.status_changed": "Status changed",
+  "job.assignee_changed": "Assignee changed",
+  "job.due_date_changed": "Due date changed",
+  "job.details_changed": "Title or description changed",
+};
+
+function jobChangedSubtitle(config: Extract<VisualNodeConfig, { kind: "trigger.job_changed" }>) {
+  const parts: string[] = [];
+  if (config.eventTypes?.length) {
+    parts.push(config.eventTypes.map((type) => JOB_CHANGED_EVENT_LABELS[type] ?? type).join(", "));
+  }
+  if (config.jobKinds?.length) {
+    parts.push(config.jobKinds.join(", "));
+  }
+  if (config.toStatuses?.length) {
+    parts.push(config.toStatuses.join(", "));
+  }
+  return parts.length > 0 ? parts.join(" · ") : "Any job change";
+}
+
 export function resolveNodeSubtitle(config: VisualNodeConfig): string {
   switch (config.kind) {
     case "trigger.manual":
@@ -321,6 +747,10 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.branches[0] ?? "GitHub";
     case "trigger.source_upload":
       return config.projectId ? "Project upload" : "Any project";
+    case "trigger.webhook":
+      return "Incoming HTTP POST";
+    case "trigger.job_changed":
+      return jobChangedSubtitle(config);
     case "action.http":
       return config.method;
     case "action.content_sync":
@@ -329,6 +759,42 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.channelId ? "Slack" : "Slack channel";
     case "action.notify_email":
       return config.from ? config.provider : "Email";
+    case "action.machine_translate":
+      return config.targetLocales.trim() || "All target locales";
+    case "action.create_task":
+      return config.step === "translate"
+        ? "Translate"
+        : config.step === "edit"
+          ? "Post-edit"
+          : "Proofread";
+    case "action.check_progress":
+      return config.jobId.trim() ? "Job and strings" : "Strings";
+    case "action.run_qa":
+      return config.projectId ? "Project QA" : "Select project";
+    case "action.list_source_files":
+      return config.pathPrefix.trim() || "All source files";
+    case "action.file_read":
+      return config.encoding === "base64" ? "Read as base64" : "Read as UTF-8";
+    case "action.file_write":
+      return config.filename.trim() || "Create stored file";
+    case "action.file_convert":
+      return `Convert to ${config.targetFormat.toUpperCase()}`;
+    case "action.update_job":
+      return config.assigneeWorkosUserId.trim() ? "Reassign job" : "Update job";
+    case "action.pick_assignee":
+      return `${config.rules.length === 1 ? "1 rule" : `${config.rules.length} rules`} · ${
+        config.strategy === "first"
+          ? "first listed"
+          : config.strategy === "round_robin"
+            ? "round-robin"
+            : "least busy"
+      }${config.peopleSource === "crowdin" ? " · Crowdin" : ""}`;
+    case "action.crowdin_pre_translate":
+      return config.method === "tm" ? "Translation memory" : config.method === "mt" ? "MT" : "AI";
+    case "action.crowdin_create_task":
+      return config.taskType === "translate" ? "Translate" : "Proofread";
+    case "action.crowdin_check_progress":
+      return config.taskIds.trim() ? "Tasks and strings" : "Strings";
     case "logic.if":
       return config.condition.trim() ? "1 condition" : "No condition";
     case "logic.switch":
@@ -337,15 +803,37 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.assignments.length > 0
         ? `${config.assignments.length} fields`
         : "No assignments";
+    case "logic.create_object":
+      return config.fields.length === 1 ? "1 field" : `${config.fields.length} fields`;
+    case "logic.merge_objects":
+      return `${config.inputs.length} objects · ${config.conflictPolicy.replace("_", " ")}`;
+    case "logic.select_path":
+      return config.path.length > 0
+        ? config.path.map((segment) => String(segment)).join(" › ")
+        : "No path selected";
+    case "logic.coalesce":
+      return `${config.inputs.length} ordered values`;
+    case "logic.compare":
+      return config.operator.replaceAll("_", " ");
+    case "logic.json_parse":
+      return "JSON text to value";
+    case "logic.json_stringify":
+      return "Value to JSON text";
+    case "logic.schema_validate":
+      return "Validate JSON value";
     case "ai.agent":
       return "Tools agent";
     case "logic.for_each":
       return "For each item";
+    case "logic.array_transform":
+      return `${config.operation} array`;
     case "logic.retry":
       return config.maxAttempts ? `${config.maxAttempts} attempts` : "Retry policy";
+    case "flow.human_approval":
+      return config.reviewerId ? `Approval by ${config.reviewerType}` : "Select reviewer or team";
     case "flow.wait":
       if (config.mode === "duration") {
-        return `${config.durationMs ?? 0} ms`;
+        return formatWaitDuration(config.durationMs ?? 0);
       }
 
       if (config.mode === "timestamp") {
@@ -353,13 +841,39 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       }
 
       return "Wait until condition";
+    case "flow.stop":
+      return config.outcome === "completed" ? "Complete workflow" : "Cancel workflow";
+    case "flow.return":
+      return config.outputs.length === 1 ? "1 returned output" : `${config.outputs.length} outputs`;
+    case "flow.fail":
+      return config.errorCode;
     case "logic.merge":
       return `${config.inputs.length} inputs · ${config.mode.replace("_", " ")}`;
     case "logic.sequence":
       return config.outputs.length === 1 ? "1 output" : `${config.outputs.length} outputs`;
+    case "logic.try_catch":
+      return "Try / Catch boundary";
+    case "flow.call_workflow":
+      return config.workflowId ? `Version ${config.version}` : "Select workflow";
     default:
       return assertNever(config);
   }
+}
+
+const WAIT_DURATION_UNITS: readonly (readonly [ms: number, unit: string])[] = [
+  [86_400_000, "d"],
+  [3_600_000, "h"],
+  [60_000, "min"],
+  [1000, "s"],
+];
+
+export function formatWaitDuration(durationMs: number): string {
+  for (const [unitMs, unit] of WAIT_DURATION_UNITS) {
+    if (durationMs >= unitMs && durationMs % unitMs === 0) {
+      return `Wait ${durationMs / unitMs} ${unit}`;
+    }
+  }
+  return `Wait ${durationMs} ms`;
 }
 
 export function createMergeInputId(): string {
@@ -368,4 +882,30 @@ export function createMergeInputId(): string {
 
 export function createSequenceOutputId(): string {
   return crypto.randomUUID();
+}
+
+export function createReturnOutputId(): string {
+  return crypto.randomUUID();
+}
+
+export function createObjectPortId(): string {
+  return crypto.randomUUID();
+}
+
+export function createCoalesceInputId(): string {
+  return crypto.randomUUID();
+}
+
+export function createComparisonOperandId(): string {
+  return crypto.randomUUID();
+}
+
+export function createAssignmentRule(): VisualAssignmentRule {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    locales: "",
+    jobTypes: [],
+    assigneeIds: [],
+  };
 }

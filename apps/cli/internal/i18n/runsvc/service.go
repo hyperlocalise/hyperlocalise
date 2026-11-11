@@ -41,6 +41,12 @@ type Input struct {
 	Prune         bool
 	PruneLimit    int
 	PruneForce    bool
+	// KeepCompletedOnFailure leaves successful lock entries in place when a
+	// sibling key in the same target fails. The default rolls those entries
+	// back so the next run retries the whole target. A failed target file
+	// write still rolls back this run's entries for every target that was
+	// not written.
+	KeepCompletedOnFailure bool
 	// MaxTranslations caps how many executable tasks run in this session after lock
 	// filtering and prefill. 0 means unlimited. Deferred tasks remain unlocked so a
 	// later run without --force can continue.
@@ -654,6 +660,9 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						}
 						for _, key := range keys {
 							sourceText := sourceEntries[key]
+							if strings.TrimSpace(sourceText) == "" {
+								continue
+							}
 							task := Task{
 								SourceLocale:             cfg.Locales.Source,
 								TargetLocale:             target,
@@ -1146,17 +1155,21 @@ func taskIdentity(targetPath, entryKey string) string {
 
 func taskIdentityCandidates(task Task, projectRoot string) []string {
 	identities := []string{
+		taskLockIdentity(projectRoot, task.TargetPath, task.TargetLocale, task.EntryKey),
 		preferredTaskIdentity(projectRoot, task.TargetPath, task.EntryKey),
 		taskIdentity(task.TargetPath, task.EntryKey),
 	}
 	if rel, ok := relativizeProjectPath(projectRoot, task.TargetPath); ok {
+		identities = append(identities, taskLockIdentity(projectRoot, rel, task.TargetLocale, task.EntryKey))
 		identities = append(identities, taskIdentity(rel, task.EntryKey))
 	}
 	if isMarkdownEntryKey(task.EntryKey) {
 		for _, entryKey := range legacyMarkdownEntryKeyCandidates(task.EntryKey) {
+			identities = append(identities, taskLockIdentity(projectRoot, task.TargetPath, task.TargetLocale, entryKey))
 			identities = append(identities, preferredTaskIdentity(projectRoot, task.TargetPath, entryKey))
 			identities = append(identities, taskIdentity(task.TargetPath, entryKey))
 			if rel, ok := relativizeProjectPath(projectRoot, task.TargetPath); ok {
+				identities = append(identities, taskLockIdentity(projectRoot, rel, task.TargetLocale, entryKey))
 				identities = append(identities, taskIdentity(rel, entryKey))
 			}
 		}

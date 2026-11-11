@@ -145,4 +145,33 @@ export const automationsFixture: WorkspaceAutomationRecord[] = [
     authorName: null,
     createdAt: "2026-05-20T14:30:00.000Z",
   }),
+  createAutomationSummary({
+    id: "55555555-5555-4555-8555-555555555555",
+    name: "Publish Contentful locales",
+    status: "active",
+    triggerConfig: { mode: "contentful" },
+    repositoryTarget: { kind: "none" },
+    toolConfig: {
+      github: {
+        enabled: false,
+        mode: "sync",
+        pushSource: false,
+        pullTranslations: false,
+        validation: false,
+      },
+      slack: {
+        enabled: false,
+      },
+      email: {
+        enabled: false,
+        provider: "resend",
+      },
+      contentful: {
+        ...disabledContentfulToolConfig,
+        enabled: true,
+      },
+    },
+    createdAt: "2026-05-18T10:00:00.000Z",
+    authorName: "Ada Lovelace",
+  }),
 ];

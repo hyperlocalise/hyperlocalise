@@ -65,6 +65,11 @@ export const projectSettingsNavMessages = defineMessages({
     id: "+zgK4PjtCI",
     description: "Project settings nav item for translation and content editor behavior",
   },
+  sync: {
+    defaultMessage: "Sync",
+    id: "QG9yuQhA60",
+    description: "Project settings nav item for syncing files with a repository",
+  },
   cli: {
     defaultMessage: "CLI & CI",
     id: "P3FTUn97ec",

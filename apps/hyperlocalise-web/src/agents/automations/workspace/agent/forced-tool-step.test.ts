@@ -48,21 +48,14 @@ describe("forcedWorkspaceOrchestratorStep", () => {
     });
   });
 
-  it("forces save_memory like any other planned tool, positioned before notifications", () => {
-    // Regression for a Codex finding: an "auto" save_memory step let the loop end when the model
-    // skipped it, so the notify_slack step planned after it never ran.
-    const planTools = [
-      "recall_memory",
-      "run_github_workflows",
-      "save_memory",
-      "notify_slack",
-    ] as const;
+  it("forces recall_memory like any other planned tool, positioned before notifications", () => {
+    const planTools = ["recall_memory", "run_github_workflows", "notify_slack"] as const;
 
-    expect(forcedWorkspaceOrchestratorStep(planTools, 2)).toEqual({
-      activeTools: ["save_memory"],
-      toolChoice: { type: "tool", toolName: "save_memory" },
+    expect(forcedWorkspaceOrchestratorStep(planTools, 0)).toEqual({
+      activeTools: ["recall_memory"],
+      toolChoice: { type: "tool", toolName: "recall_memory" },
     });
-    expect(forcedWorkspaceOrchestratorStep(planTools, 3)).toEqual({
+    expect(forcedWorkspaceOrchestratorStep(planTools, 2)).toEqual({
       activeTools: ["notify_slack"],
       toolChoice: { type: "tool", toolName: "notify_slack" },
     });

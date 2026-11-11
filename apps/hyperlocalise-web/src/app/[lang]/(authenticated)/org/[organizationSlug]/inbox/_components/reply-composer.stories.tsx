@@ -122,7 +122,7 @@ export const WithProjects: Story = {
       },
       {
         id: "ext:crowdin:42",
-        name: "Crowdin App",
+        name: "Crowdin Project",
         source: "external_tms",
         externalProviderKind: "crowdin",
       },

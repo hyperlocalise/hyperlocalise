@@ -42,6 +42,12 @@ describe("inferAttachmentContentType", () => {
   });
 
   it("marks supported text translation outputs with explicit UTF-8 content types", () => {
+    expect(inferAttachmentContentType("messages.po")).toBe(
+      "text/x-gettext-translation; charset=utf-8",
+    );
+    expect(inferAttachmentContentType("messages.pot")).toBe(
+      "text/x-gettext-translation-template; charset=utf-8",
+    );
     expect(inferAttachmentContentType("messages.csv")).toBe("text/csv; charset=utf-8");
     expect(inferAttachmentContentType("guide.mdx")).toBe("text/markdown; charset=utf-8");
     expect(inferAttachmentContentType("Localizable.strings")).toBe("text/plain; charset=utf-8");

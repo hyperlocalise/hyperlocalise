@@ -20,6 +20,21 @@ export const contentEditorWorkspaceMessages = defineMessages({
     id: "WrdM0sMy06",
     description: "Empty state when the CAT translation queue has no segments",
   },
+  extractingSegments: {
+    defaultMessage: "Extracting segments…",
+    id: "LSOvRPa3l7",
+    description: "Empty CAT queue while source-file ingest is still extracting keys",
+  },
+  ingestFailed: {
+    defaultMessage: "Segment extraction failed.",
+    id: "UmTWkWzuia",
+    description: "Empty CAT queue when source-file ingest failed without a stored error",
+  },
+  ingestFailedWithReason: {
+    defaultMessage: "Segment extraction failed: {error}",
+    id: "mmKO3H+Z1c",
+    description: "Empty CAT queue when source-file ingest failed with a stored error",
+  },
   tabEdit: {
     defaultMessage: "Edit",
     id: "HrB9mIwARt",
@@ -105,9 +120,14 @@ export const contentEditorQueuePanelMessages = defineMessages({
     description: "Accessible label for queue row indicator when a segment has unsaved edits",
   },
   filterAll: {
-    defaultMessage: "All strings",
-    id: "V+8wDWpBnh",
-    description: "CAT queue filter option showing every segment",
+    defaultMessage: "Show all",
+    id: "aggh0s0fXQ",
+    description: "CAT queue filter option showing every segment in file order",
+  },
+  filterAllUntranslatedFirst: {
+    defaultMessage: "All, untranslated first",
+    id: "BhgOPviIC8",
+    description: "CAT queue filter that shows every segment with untranslated strings first",
   },
   filterUntranslated: {
     defaultMessage: "Untranslated",
@@ -115,8 +135,8 @@ export const contentEditorQueuePanelMessages = defineMessages({
     description: "CAT queue filter option for segments without a target translation",
   },
   filterNeedsReview: {
-    defaultMessage: "Needs review",
-    id: "cMuLE7Fon0",
+    defaultMessage: "Not approved",
+    id: "rH4ldF4MqE",
     description: "CAT queue filter option for translated segments awaiting review",
   },
   filterReviewed: {
@@ -125,8 +145,8 @@ export const contentEditorQueuePanelMessages = defineMessages({
     description: "CAT queue filter option for approved segments",
   },
   filterHasIssues: {
-    defaultMessage: "Has issues",
-    id: "U+tI5HA1qo",
+    defaultMessage: "With unresolved issues",
+    id: "beHJ/K7bHj",
     description: "CAT queue filter option for segments with open issue comments",
   },
   filterSkipped: {
@@ -138,6 +158,11 @@ export const contentEditorQueuePanelMessages = defineMessages({
     defaultMessage: "Hidden",
     id: "FEprezMr/U",
     description: "CAT queue filter option for hidden source strings",
+  },
+  filterNotHidden: {
+    defaultMessage: "Not hidden",
+    id: "lhCQmBN6w4",
+    description: "CAT queue filter option that excludes hidden source strings",
   },
   filterUnsaved: {
     defaultMessage: "Unsaved translations",
@@ -154,10 +179,26 @@ export const contentEditorQueuePanelMessages = defineMessages({
     id: "p/GrdJcH5A",
     description: "CAT queue filter option for Crowdin pre-translated strings",
   },
+  filterOrigin: {
+    defaultMessage: "Machine or human",
+    id: "EEDujIUcvK",
+    description:
+      "CAT queue filter: narrows strings by whether a machine or a person wrote the translation",
+  },
   filterWithComments: {
     defaultMessage: "With comments",
     id: "DU3T9+E0+x",
     description: "CAT queue filter option for Crowdin strings that have comments",
+  },
+  filterAdvanced: {
+    defaultMessage: "Advanced Filter…",
+    id: "hdRdVbVgtJ",
+    description: "CAT queue filter option that opens the advanced filter dialog",
+  },
+  filterSubmenuAll: {
+    defaultMessage: "All",
+    id: "nIiT/eaRfU",
+    description: "Submenu option that applies a CAT filter without a more specific qualifier",
   },
   sortQueueAria: {
     defaultMessage: "Sort queue",
@@ -209,6 +250,55 @@ export const contentEditorQueuePanelMessages = defineMessages({
     defaultMessage: "Unlock selected",
     id: "RdS22zCv6k",
     description: "Bulk action to unlock selected CAT segments so they can be edited",
+  },
+  bulkApproveInLanguage: {
+    defaultMessage: "Approve in {language}",
+    id: "NM+znbA1FV",
+    description:
+      "Bulk action in the multilingual table: approve the selected strings' translations in one language, named by the toolbar's language picker",
+  },
+  bulkLockInLanguage: {
+    defaultMessage: "Lock in {language}",
+    id: "K+XUbo+2o8",
+    description:
+      "Bulk action in the multilingual table: lock the selected strings' translations in one language against edits",
+  },
+  bulkUnlockInLanguage: {
+    defaultMessage: "Unlock in {language}",
+    id: "MpFVCAtnHS",
+    description:
+      "Bulk action in the multilingual table: unlock the selected strings' translations in one language",
+  },
+  keyJobScope: {
+    defaultMessage: "Showing the strings of one task",
+    id: "ieniHtb4tT",
+    description: "Notice above the queue when it is limited to a key job's strings",
+  },
+  newTaskHint: {
+    defaultMessage: "Tick the strings for the new task, then choose More → Add to a task…",
+    id: "cGEOyVkohh",
+    description:
+      "Notice above the queue when the editor was opened from the jobs page to make a task from strings",
+  },
+  newTaskHintDismiss: {
+    defaultMessage: "Dismiss",
+    id: "3Yr0O98xb/",
+    description: "Hides the notice that explains how to make a task from strings",
+  },
+  keyJobShowAll: {
+    defaultMessage: "Show all strings",
+    id: "3utulgy/hh",
+    description: "Leaves the key job view and shows every string of the project",
+  },
+  bulkEditTags: {
+    defaultMessage: "Edit tags…",
+    id: "RSwnlVqhIH",
+    description: "Bulk action that adds or removes tags on the selected strings",
+  },
+  bulkCreateTask: {
+    defaultMessage: "Add to a task…",
+    id: "8DTgncaRKl",
+    description: "Bulk action that puts the selected strings into a new or open task for people",
   },
   bulkSelectAll: {
     defaultMessage: "Select all visible",
@@ -298,6 +388,26 @@ export const contentEditorLockedStringMessages = defineMessages({
     defaultMessage: "This string is locked. Unlock it to edit.",
     id: "BLCf0utxhq",
     description: "Banner shown in the CAT editor when the current string is locked",
+  },
+  lockTooltip: {
+    defaultMessage: "Lock string to prevent edits",
+    id: "IpKvraNyFr",
+    description: "Tooltip and accessible label for the button that locks the current string",
+  },
+  unlockTooltip: {
+    defaultMessage: "Unlock string to allow edits",
+    id: "EyL7n26FZN",
+    description: "Tooltip and accessible label for the button that unlocks the current string",
+  },
+  lockFailed: {
+    defaultMessage: "Could not lock this string. Try again.",
+    id: "xYZMz3piZI",
+    description: "Toast shown when locking a string fails",
+  },
+  unlockFailed: {
+    defaultMessage: "Could not unlock this string. Try again.",
+    id: "wW270rE3pJ",
+    description: "Toast shown when unlocking a string fails",
   },
 });
 
@@ -622,6 +732,11 @@ export const contentEditorIntelligencePanelMessages = defineMessages({
     id: "h6wm+58u19",
     description: "Description for the glossary guidance dialog",
   },
+  glossaryGuidanceLoading: {
+    defaultMessage: "Checking the glossary for matches",
+    id: "5E00egt9p4",
+    description: "Accessible label for the loading state of the glossary guidance panel",
+  },
   glossaryGuidanceClose: {
     defaultMessage: "Close glossary guidance",
     id: "pQttDyq4Mr",
@@ -851,6 +966,77 @@ export const contentEditorIntelligencePanelMessages = defineMessages({
     defaultMessage: "Use",
     id: "rHDcSl4Kt4",
     description: "Button to apply a translation memory match to the target field",
+  },
+  editTmSegment: {
+    defaultMessage: "Edit TM segment",
+    id: "jEjjYeEzuW",
+    description: "Button and dialog title for editing a translation memory unit",
+  },
+  editTmSegmentSave: {
+    defaultMessage: "Save",
+    id: "33oBuvwkTx",
+    description: "Save button on the edit TM segment dialog",
+  },
+  editTmSegmentCancel: {
+    defaultMessage: "Cancel",
+    id: "ltNQ+N6Q+g",
+    description: "Cancel button on the edit TM segment dialog",
+  },
+  editTmSegmentSaved: {
+    defaultMessage: "TM segment saved",
+    id: "cqINPDvh7d",
+    description: "Toast after a TM segment is saved from the content editor",
+  },
+  editTmSegmentSaveFailed: {
+    defaultMessage: "Unable to save the TM segment",
+    id: "fDkFUuHkmb",
+    description: "Fallback error when saving a TM segment from the content editor fails",
+  },
+  editTmSegmentLoadFailed: {
+    defaultMessage: "Unable to load the TM segment",
+    id: "VVZYa9dYk2",
+    description: "Error when the edit TM segment dialog cannot load locale variants",
+  },
+  editTmSegmentSourceRequired: {
+    defaultMessage: "Source text is required",
+    id: "Ctyr+N+gMR",
+    description: "Validation error when the TM source locale field is empty",
+  },
+  editTmSegmentTargetLocale: {
+    defaultMessage: "Language",
+    id: "dNHH1fTCnU",
+    description: "Label for the language picker on the edit TM segment dialog",
+  },
+  deleteTmLocale: {
+    defaultMessage: "Delete locale",
+    id: "BtlJ9IYjPk",
+    description: "Accessible label for deleting one locale from a TM segment",
+  },
+  deleteTmLocaleTitle: {
+    defaultMessage: "Delete this locale from the TM?",
+    id: "T0qDIxKkjq",
+    description: "Confirmation title before deleting one locale from a TM segment",
+  },
+  deleteTmLocaleDescription: {
+    defaultMessage:
+      "This removes the {locale} text from the translation memory. It does not change the current segment.",
+    id: "OM0OXDv6BN",
+    description: "Confirmation body before deleting one locale from a TM segment",
+  },
+  deleteTmLocaleConfirm: {
+    defaultMessage: "Delete",
+    id: "kEyZj9At7C",
+    description: "Confirm button for deleting one locale from a TM segment",
+  },
+  deleteTmLocaleDeleted: {
+    defaultMessage: "Locale removed from the TM",
+    id: "ocmWKpLcUN",
+    description: "Toast after a TM locale is deleted from the content editor",
+  },
+  deleteTmLocaleFailed: {
+    defaultMessage: "Unable to delete this locale from the TM",
+    id: "ZQSArkDg/X",
+    description: "Fallback error when deleting a TM locale from the content editor fails",
   },
   copyGlossaryTerm: {
     defaultMessage: "Copy",
@@ -1320,23 +1506,111 @@ export const contentEditorLottieContextPanelMessages = defineMessages({
 export const contentEditorVisualContextPanelMessages = defineMessages({
   title: {
     defaultMessage: "Visual Context",
-    id: "tJeeSJ6Rq1",
-    description: "Section heading for TMS screenshot context in the CAT intelligence panel",
+    id: "yg5wvpMvk6",
+    description: "Section heading for screenshot context in the CAT intelligence panel",
   },
   description: {
-    defaultMessage: "Screenshots attached in your TMS for this string.",
-    id: "3Td/QL9gLC",
-    description: "Supporting copy for TMS screenshot context in the CAT intelligence panel",
+    defaultMessage: "Screenshots that show where this string appears.",
+    id: "oHvAH+qWap",
+    description: "Supporting copy for screenshot context in the CAT intelligence panel",
   },
   empty: {
-    defaultMessage: "No screenshots are attached to this string in the provider.",
-    id: "ISCo8PAGGI",
-    description: "Empty state when a TMS string has no screenshot context",
+    defaultMessage: "No screenshots are attached to this string.",
+    id: "YSEvWFKZ+S",
+    description: "Empty state when a string has no screenshot context",
   },
   screenshotAltFallback: {
     defaultMessage: "Screenshot context for this string",
-    id: "jORzWMtK+S",
-    description: "Accessible fallback label for a TMS screenshot preview image",
+    id: "2/f6DOJ16h",
+    description: "Accessible fallback label for a screenshot preview image",
+  },
+  openInFigma: {
+    defaultMessage: "Open in Figma",
+    id: "KNtGEEzfY/",
+    description: "Link from a visual context screenshot to the Figma frame it was synced from",
+  },
+  upload: {
+    defaultMessage: "Upload screenshot",
+    id: "kWMaY8JWYA",
+    description: "Button label for uploading a visual context screenshot",
+  },
+  uploading: {
+    defaultMessage: "Uploading screenshot…",
+    id: "7pcrbzwv6o",
+    description: "Status shown while a visual context screenshot is uploading",
+  },
+  uploadFailed: {
+    defaultMessage: "Failed to upload screenshot.",
+    id: "L60aKO1/cW",
+    description: "Error when a visual context screenshot upload fails",
+  },
+  invalidFile: {
+    defaultMessage: "Screenshots must be PNG, JPEG, or WebP.",
+    id: "HmiZVn+TeY",
+    description: "Error when an unsupported visual context screenshot type is selected",
+  },
+  fileTooLarge: {
+    defaultMessage: "Screenshots must be 10 MB or smaller.",
+    id: "QRPmcpjd59",
+    description: "Error when a visual context screenshot exceeds the upload size limit",
+  },
+  dropIdle: {
+    defaultMessage: "Drag a screenshot here",
+    id: "3OmQiHHUCs",
+    description: "Idle label for the visual context screenshot dropzone",
+  },
+  dropOver: {
+    defaultMessage: "Drop to upload",
+    id: "9ho74TKeF3",
+    description: "Hover label when a screenshot is held over the visual context dropzone",
+  },
+  dropHint: {
+    defaultMessage: "PNG, JPEG, or WebP · up to 10 MB",
+    id: "JgOQxBC9to",
+    description: "Accepted types and size limit under the visual context dropzone",
+  },
+});
+
+export const contentEditorUnicodePanelMessages = defineMessages({
+  title: {
+    defaultMessage: "Unicode table",
+    id: "PpU1kY1S8O",
+    description: "Section heading for the CAT unicode character table",
+  },
+  category: {
+    defaultMessage: "Commonly used",
+    id: "MFyr6tzoKS",
+    description: "Category label for translator-essential unicode characters",
+  },
+  searchPlaceholder: {
+    defaultMessage: "Search symbols",
+    id: "JXQ6OP7JfI",
+    description: "Placeholder for filtering the CAT unicode character table",
+  },
+  searchAria: {
+    defaultMessage: "Search unicode symbols",
+    id: "aQyJu30/D6",
+    description: "Accessible label for the CAT unicode character search field",
+  },
+  emptySearch: {
+    defaultMessage: "No symbols match “{query}”.",
+    id: "fzFR5CZA1L",
+    description: "Empty state when unicode character search has no matches",
+  },
+  insertAria: {
+    defaultMessage: "Insert {name} ({code})",
+    id: "8W1Ri/FiXa",
+    description: "Accessible label for a unicode character button in the CAT table",
+  },
+  expandAria: {
+    defaultMessage: "Show unicode characters",
+    id: "quty5keh4e",
+    description: "Accessible label to expand the collapsed CAT unicode table",
+  },
+  collapseAria: {
+    defaultMessage: "Hide unicode characters",
+    id: "P1e3b+MNYt",
+    description: "Accessible label to collapse the CAT unicode table",
   },
 });
 
@@ -1356,6 +1630,11 @@ export const contentEditorPanelErrorBoundaryMessages = defineMessages({
     id: "W5kKZQXtt1",
     description: "Error boundary title when the CAT intelligence panel crashes",
   },
+  filesPanelTitle: {
+    defaultMessage: "Files panel failed to load",
+    id: "Ix5lU5trmn",
+    description: "Error boundary title when the Content Editor files sidebar crashes",
+  },
   workspaceTitle: {
     defaultMessage: "Content Editor failed to load",
     id: "X8XWn3q89C",
@@ -1371,6 +1650,11 @@ export const contentEditorPanelErrorBoundaryMessages = defineMessages({
     defaultMessage: "Try again",
     id: "27qrEmB3yO",
     description: "Button label to retry rendering a crashed CAT panel",
+  },
+  sectionDescription: {
+    defaultMessage: "This section couldn't load. The rest of the editor still works.",
+    id: "+Si+Oa4YaR",
+    description: "Inline error shown when one section inside a CAT panel crashes",
   },
 });
 
@@ -1403,6 +1687,11 @@ export const contentEditorWorkspaceViewModeMessages = defineMessages({
 });
 
 export const contentEditorSideBySidePanelMessages = defineMessages({
+  noTranslation: {
+    defaultMessage: "No translation yet",
+    id: "2JTdlEzKQS",
+    description: "Placeholder shown in a locked side-by-side row that has no translation",
+  },
   statusColumn: {
     defaultMessage: "Status",
     id: "02MXJJxV6e",
@@ -1447,6 +1736,16 @@ export const contentEditorSideBySidePanelMessages = defineMessages({
     defaultMessage: "Comments",
     id: "eHtPlX55/J",
     description: "Tab in the CAT details panel listing comments on the focused string",
+  },
+  activityTab: {
+    defaultMessage: "Activity",
+    id: "yppbhxn60H",
+    description: "Tab in the CAT details panel listing activity on the focused string",
+  },
+  detailsTabsLabel: {
+    defaultMessage: "String details sections",
+    id: "IkLXA6UrR5",
+    description: "Accessible label for the vertical tab rail in the CAT details panel",
   },
   keyField: {
     defaultMessage: "Key",

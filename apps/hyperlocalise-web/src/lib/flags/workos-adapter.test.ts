@@ -45,6 +45,61 @@ vi.mock("@/lib/workos/config", () => ({
   }),
 }));
 
+describe("waitForWorkosFeatureFlags", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    waitUntilReady.mockReset();
+  });
+
+  it("resolves once the flags are downloaded, with the caller's time limit", async () => {
+    waitUntilReady.mockResolvedValue(undefined);
+
+    const { waitForWorkosFeatureFlags } = await import("./workos-adapter");
+
+    await expect(waitForWorkosFeatureFlags({ timeoutMs: 10_000 })).resolves.toBe(true);
+    expect(waitUntilReady).toHaveBeenCalledWith({ timeoutMs: 10_000 });
+  });
+
+  it("rejects when the flags cannot be downloaded in time", async () => {
+    waitUntilReady.mockRejectedValue(new Error("waitUntilReady timed out"));
+
+    const { waitForWorkosFeatureFlags } = await import("./workos-adapter");
+
+    await expect(waitForWorkosFeatureFlags({ timeoutMs: 10 })).rejects.toThrow("timed out");
+  });
+});
+
+describe("readWorkosFeatureFlag", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    isEnabled.mockReset();
+  });
+
+  it("asks the runtime client with the organization and user ids", async () => {
+    isEnabled.mockResolvedValue(true);
+
+    const { readWorkosFeatureFlag } = await import("./workos-adapter");
+
+    await expect(
+      readWorkosFeatureFlag(WORKSPACE_KNOWLEDGE_FLAG, { organization: { id: "org_123" } }),
+    ).resolves.toBe(true);
+    expect(isEnabled).toHaveBeenCalledWith(WORKSPACE_KNOWLEDGE_FLAG, {
+      organizationId: "org_123",
+      userId: undefined,
+    });
+  });
+
+  it("lets a failed check through instead of answering false", async () => {
+    isEnabled.mockRejectedValue(new Error("evaluation failed"));
+
+    const { readWorkosFeatureFlag } = await import("./workos-adapter");
+
+    await expect(
+      readWorkosFeatureFlag(WORKSPACE_KNOWLEDGE_FLAG, { organization: { id: "org_123" } }),
+    ).rejects.toThrow("evaluation failed");
+  });
+});
+
 describe("workosAdapter", () => {
   beforeEach(() => {
     vi.resetModules();

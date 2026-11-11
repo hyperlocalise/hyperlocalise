@@ -17,6 +17,7 @@ import {
   EraserIcon,
   ImageIcon,
   FloppyDiskIcon,
+  LockIcon,
   TranslateIcon,
   VideoIcon,
 } from "@phosphor-icons/react";
@@ -68,11 +69,17 @@ import {
   SegmentStatusBadge,
   shouldShowSegmentStatusBadge,
 } from "@/components/content-editor/segment/content-editor-segment-status";
+import {
+  CONTENT_EDITOR_SEGMENT_CHECKBOX_ATTRIBUTE,
+  ContentEditorSegmentCheckbox,
+} from "@/components/content-editor/segment/content-editor-segment-checkbox";
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
 import { ContentEditorSegmentTags } from "@/components/content-editor/segment/content-editor-segment-tags";
 import { ContentEditorSegmentActionsMenu } from "@/components/content-editor/segment/content-editor-segment-actions-menu";
+import { ContentEditorSegmentLockToggle } from "@/components/content-editor/segment/content-editor-segment-lock-toggle";
 import {
   contentEditorEditorPanelMessages,
+  contentEditorLockedStringMessages,
   contentEditorSideBySidePanelMessages,
 } from "@/components/content-editor/shared/content-editor.messages";
 import type {
@@ -83,7 +90,9 @@ import type {
 
 import { ContentEditorSideBySideAiSuggestion } from "./content-editor-side-by-side-ai-suggestion";
 import {
+  SIDE_BY_SIDE_CHECK_AREA_CLASS_NAME,
   SIDE_BY_SIDE_GRID_CLASS_NAME,
+  SIDE_BY_SIDE_SELECTION_GRID_CLASS_NAME,
   SIDE_BY_SIDE_SOURCE_AREA_CLASS_NAME,
   SIDE_BY_SIDE_STATUS_AREA_CLASS_NAME,
   SIDE_BY_SIDE_TARGET_AREA_CLASS_NAME,
@@ -126,9 +135,11 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
   isImageBusy = false,
+  isImageGenerating = false,
   canUseAiRecommendation = false,
   intelligence = null,
   aiRecommendationError,
+  aiRecommendationCreditExhausted = false,
   formatChecks = [],
   primaryActionLabel,
   segmentShareUrl = null,
@@ -143,6 +154,9 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   onTreatAsVideo,
   onRegenerateImage,
   onUploadImage,
+  onToggleLocked,
+  checkedSegmentIds,
+  onCheckedChange,
 }: {
   segment: ContentEditorSegment;
   isFocused: boolean;
@@ -157,9 +171,11 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
   isImageBusy?: boolean;
+  isImageGenerating?: boolean;
   canUseAiRecommendation?: boolean;
   intelligence?: ContentEditorSegmentIntelligence | null;
   aiRecommendationError?: string;
+  aiRecommendationCreditExhausted?: boolean;
   formatChecks?: ContentEditorFormatCheck[];
   primaryActionLabel?: string;
   segmentShareUrl?: string | null;
@@ -174,6 +190,10 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   onTreatAsVideo?: (treatAsVideo: boolean) => void;
   onRegenerateImage?: () => void;
   onUploadImage?: (file: File) => void;
+  onToggleLocked?: () => void | Promise<void>;
+  checkedSegmentIds?: ReadonlySet<string>;
+  /** Shows the bulk-selection tick box when set (Select mode). */
+  onCheckedChange?: (checked: boolean, extendRange: boolean) => void;
 }) {
   const intl = useIntl();
   const isMac = useIsMac();
@@ -189,8 +209,14 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   const showVideoSource = isVideoSegment || Boolean(segment.looksLikeVideoUrl);
   const showImageSource = isImageSegment || Boolean(segment.looksLikeImageUrl);
   const sourceMessageAnalysis = useMemo(
-    () => (isAssetSegment ? null : analyzeCatMessageFormat(segment.sourceText)),
-    [isAssetSegment, segment.sourceText],
+    () =>
+      isAssetSegment
+        ? null
+        : analyzeCatMessageFormat(segment.sourceText, {
+            messageFormat: segment.messageFormat,
+            placeholderPatterns: segment.placeholderPatterns,
+          }),
+    [isAssetSegment, segment.messageFormat, segment.placeholderPatterns, segment.sourceText],
   );
   const hasApprovingTarget = isAssetSegment
     ? hasAssetTarget(segment)
@@ -245,7 +271,10 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
     isFocused && !isAssetSegment && (isFormatChecksLoading || qaIssues.length > 0);
   const showStringMenu =
     isFocused && (Boolean(segmentShareUrl) || showIssueSheetAction || Boolean(openActivity));
-  const showActionBar = showReviewActions || showStringMenu;
+  const showLockToggle = isFocused && canEdit && Boolean(onToggleLocked);
+  const isLockedTextTarget = Boolean(segment.isLocked) && !isAssetSegment;
+  const showToolbarLockToggle = showLockToggle && !isLockedTextTarget;
+  const showActionBar = showReviewActions || showStringMenu || showToolbarLockToggle;
   const copySourceLabel = intl.formatMessage(contentEditorEditorPanelMessages.copySource);
   const clearTargetLabel = intl.formatMessage(contentEditorEditorPanelMessages.clearTarget);
   const segmentTags = segment.tags ?? [];
@@ -329,7 +358,8 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
       const activeElement = document.activeElement;
       if (
         activeElement instanceof HTMLElement &&
-        activeElement.dataset.contentEditorCommentInput === "true"
+        (activeElement.dataset.contentEditorCommentInput === "true" ||
+          activeElement.hasAttribute(CONTENT_EDITOR_SEGMENT_CHECKBOX_ATTRIBUTE))
       ) {
         return;
       }
@@ -401,17 +431,60 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
         {primaryActions}
         <div className="ms-auto flex items-center gap-0.5">
           {trigger}
+          {showToolbarLockToggle && onToggleLocked ? (
+            <ContentEditorSegmentLockToggle
+              isLocked={Boolean(segment.isLocked)}
+              onToggle={onToggleLocked}
+              disabled={isActionBlocked}
+            />
+          ) : null}
           {secondaryActions}
         </div>
       </div>
     );
   };
   const reviewActions = renderTargetToolbar(null);
+  const lockedTextTarget = (
+    <Rows spacing="1.5u">
+      <div className={cn(CELL_BOX_CLASS_NAME, "bg-muted/40")}>
+        {segment.targetText.trim() ? (
+          <Text size="small" wrapStyle="pretty">
+            <ContentEditorMessagePreview
+              message={segment.targetText}
+              placeholderPatterns={segment.placeholderPatterns}
+              companionMessage={segment.sourceText}
+            />
+          </Text>
+        ) : (
+          <Text size="small" tone="subtle">
+            <FormattedMessage {...contentEditorSideBySidePanelMessages.noTranslation} />
+          </Text>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <LockIcon className="size-3.5 text-muted-foreground" aria-hidden />
+        <Text size="xsmall" tone="subtle">
+          <FormattedMessage {...contentEditorLockedStringMessages.lockedBanner} />
+        </Text>
+        <div className="ms-auto flex items-center gap-0.5">
+          {showLockToggle && onToggleLocked ? (
+            <ContentEditorSegmentLockToggle
+              isLocked
+              showLabel
+              onToggle={onToggleLocked}
+              disabled={isActionBlocked}
+            />
+          ) : null}
+          {secondaryActions}
+        </div>
+      </div>
+    </Rows>
+  );
 
   return (
     <div
       className={cn(
-        SIDE_BY_SIDE_GRID_CLASS_NAME,
+        onCheckedChange ? SIDE_BY_SIDE_SELECTION_GRID_CLASS_NAME : SIDE_BY_SIDE_GRID_CLASS_NAME,
         "group/row gap-y-2 border-b border-border px-4 py-3 transition-colors",
         isFocused ? "bg-primary/5" : isActive && "bg-muted/40",
       )}
@@ -419,6 +492,15 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
       onMouseLeave={() => setIsPointerHovered(false)}
       onFocus={onFocus}
     >
+      {onCheckedChange ? (
+        <ContentEditorSegmentCheckbox
+          className={SIDE_BY_SIDE_CHECK_AREA_CLASS_NAME}
+          segmentId={segment.id}
+          segmentKey={segment.key}
+          checkedSegmentIds={checkedSegmentIds}
+          onCheckedChange={onCheckedChange}
+        />
+      ) : null}
       <div className={SIDE_BY_SIDE_STATUS_AREA_CLASS_NAME}>{statusBadges}</div>
 
       <div className={SIDE_BY_SIDE_SOURCE_AREA_CLASS_NAME}>
@@ -467,7 +549,11 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
           ) : (
             <div className={CELL_BOX_CLASS_NAME}>
               <Text size="small" wrapStyle="pretty">
-                <ContentEditorMessagePreview message={segment.sourceText} />
+                <ContentEditorMessagePreview
+                  message={segment.sourceText}
+                  placeholderPatterns={segment.placeholderPatterns}
+                  companionMessage={segment.targetText}
+                />
               </Text>
             </div>
           )}
@@ -517,6 +603,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                     segment={segment}
                     canEdit={canEditTarget}
                     isBusy={isImageBusy}
+                    isGenerating={isImageGenerating}
                     isLoading={isTargetLoading}
                     onUpload={onUploadImage}
                     onRegenerate={onRegenerateImage}
@@ -525,6 +612,8 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                 </Rows>
               ) : isTargetLoading && !segment.targetText.trim() ? (
                 <Skeleton className="h-10 w-full rounded-lg" />
+              ) : isLockedTextTarget ? (
+                lockedTextTarget
               ) : (
                 <ContentEditorGroupVariantsGate
                   segment={segment}
@@ -535,6 +624,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                           intelligence,
                           isLoading: Boolean(isAiSuggestionLoading),
                           error: aiRecommendationError,
+                          aiCreditExhausted: aiRecommendationCreditExhausted,
                           onGenerateAiRecommendation,
                         }
                       : undefined
@@ -546,6 +636,8 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                       sourceText={segment.sourceText}
                       value={segment.targetText}
                       maxLength={segment.maxLength}
+                      messageFormat={segment.messageFormat}
+                      placeholderPatterns={segment.placeholderPatterns}
                       compact
                       highlightTokens={highlightTokens}
                       highlightStatus={highlightStatus}
@@ -569,6 +661,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                         intelligence={intelligence}
                         isLoading={isAiSuggestionLoading}
                         error={aiRecommendationError}
+                        aiCreditExhausted={aiRecommendationCreditExhausted}
                         onUseAiSuggestion={onUseAiSuggestion}
                         onGenerateAiRecommendation={onGenerateAiRecommendation}
                         renderToolbar={renderTargetToolbar}
@@ -643,6 +736,8 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                     <Text size="small" wrapStyle="pretty">
                       <ContentEditorMessagePreview
                         message={segment.targetText}
+                        placeholderPatterns={segment.placeholderPatterns}
+                        companionMessage={segment.sourceText}
                         highlightTokens={highlightTokens}
                         highlightStatus={highlightStatus}
                         highlightWholeTerm={highlightWholeTerm}

@@ -98,7 +98,7 @@ describe("pricing model catalog", () => {
               "Gemini transcription",
             ],
             [
-              "openai/gpt-image-2.5-flare",
+              "openai/gpt-image-2.6-flare",
               "GPT Image",
             ],
             [

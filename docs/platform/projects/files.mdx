@@ -30,7 +30,13 @@ Use a consistent source path for content you update regularly. Repository and CL
 
 ## Connected TMS projects
 
-Provider-backed projects browse files from the connected TMS. Upload or organize provider-owned files in that system. For GitHub sources in a native project, configure [content sync](/platform/automation/content-sync) after connecting the repository.
+Provider-backed projects browse files from the connected TMS. Upload or organize provider-owned files in that system. For GitHub sources in a native project, configure [content sync](/platform/automation/content-sync) after connecting the repository. For Intercom Help Center articles, a [Help Center automation](/platform/connections/intercom) writes markdown sources at `intercom/{help-center-slug}/{article-title-slug}.md`. For Braze email templates, a [Braze Email Templates automation](/platform/connections/braze#braze-email-templates) writes HTML sources at `braze/templates/{template-slug}.html` and `braze/content-blocks/{block-slug}.html`. For campaigns and Canvas, a [Braze Campaigns & Canvas automation](/platform/connections/braze#braze-campaigns-and-canvas) writes JSON translation maps at `braze/campaigns/{campaign-slug}/{variation-slug}.json` and `braze/canvas/{canvas-slug}/{step-slug}/{variation-slug}.json`. For Canva, the [Hyperlocalise Canva app](/platform/connections/canva) writes one JSON source per collected page at `canva/designs/<design-slug>/page-<n>.json`, starting at `page-1.json`.
+
+## Import filters and placeholders
+
+On a native file’s menu, **Import filters** control which strings ingest. HTML can skip extra tags. JSON and JSONC can include or exclude key paths, copy sibling fields as context or character limits, and mark HTML or ICU values. Excel can map key, source, context, and limit columns. Saving re-reads the file.
+
+**Placeholder format** sets ICU, i18next, or auto-detect for QA and the Content Editor. Add **Custom placeholder patterns** (one regular expression per line) when the file uses extra placeholder syntax such as `[[name]]`. Import and export are not affected. See [i18next and interpolation placeholders](/platform/tutorials/i18next).
 
 ## After upload
 

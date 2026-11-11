@@ -9,14 +9,15 @@ import (
 func TestGrantableAPIKeyPermissionsByRole(t *testing.T) {
 	t.Parallel()
 
-	all := []string{"jobs:read", "jobs:write", "files:read", "files:write"}
+	all := []string{"jobs:read", "jobs:write", "files:read", "files:write", "memories:read", "memories:write"}
+	contributors := []string{"jobs:read", "jobs:write", "files:read", "files:write", "memories:read"}
 	cases := map[string][]string{
 		"admin":                all,
 		"localization_manager": all,
-		"developer":            all,
-		"reviewer":             all,
-		"translator":           all,
-		"member":               {"jobs:read", "files:read"},
+		"developer":            contributors,
+		"reviewer":             contributors,
+		"translator":           contributors,
+		"member":               {"jobs:read", "files:read", "memories:read"},
 		"unknown":              {},
 		"":                     {},
 	}
@@ -64,15 +65,24 @@ func TestOrganizationCapabilityMapKeepsMemberCapabilities(t *testing.T) {
 		require.True(t, hasOrganizationCapability(role, "workspace:read"), role)
 		require.True(t, hasOrganizationCapability(role, "projects:read"), role)
 		require.True(t, hasOrganizationCapability(role, "jobs:read"), role)
+		require.True(t, hasOrganizationCapability(role, "memories:read"), role)
+		require.Equal(t, managers[role], hasOrganizationCapability(role, "memories:write"), role)
+		require.Equal(t, managers[role], hasOrganizationCapability(role, "workspace:update"), role)
 		require.Equal(t, managers[role], hasOrganizationCapability(role, "members:invite"), role)
 		require.Equal(t, managers[role], hasOrganizationCapability(role, "teams:write"), role)
 		require.Equal(t, managers[role], hasOrganizationCapability(role, "api_keys:read"), role)
 		require.Equal(t, managers[role], hasOrganizationCapability(role, "api_keys:write"), role)
+		require.Equal(t, managers[role], hasOrganizationCapability(role, "integrations:write"), role)
 		require.Equal(t, jobWriters[role], hasOrganizationCapability(role, "jobs:create"), role)
 		require.Equal(t, jobWriters[role], hasOrganizationCapability(role, "jobs:write"), role)
+		require.Equal(t, jobWriters[role], hasOrganizationCapability(role, "ai_actions:run"), role)
 	}
 	require.False(t, hasOrganizationCapability("member", "jobs:create"))
 	require.False(t, hasOrganizationCapability("member", "jobs:write"))
+	require.False(t, hasOrganizationCapability("member", "memories:write"))
+	require.False(t, hasOrganizationCapability("developer", "memories:write"))
+	require.False(t, hasOrganizationCapability("member", "ai_actions:run"))
+	require.False(t, hasOrganizationCapability("unknown", "ai_actions:run"))
 	require.False(t, hasOrganizationCapability("developer", "api_keys:read"))
 	require.False(t, hasOrganizationCapability("unknown", "workspace:read"))
 	require.False(t, hasOrganizationCapability("admin", "not-a-capability"))

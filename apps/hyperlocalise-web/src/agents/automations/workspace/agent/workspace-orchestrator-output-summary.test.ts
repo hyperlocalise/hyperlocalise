@@ -12,7 +12,31 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildWorkspaceOrchestratorOutputSummary } from "./workspace-orchestrator-output-summary";
+import {
+  buildWorkspaceOrchestratorOutputSummary,
+  readImportBrazeCampaigns,
+  readImportBrazeTemplates,
+  readImportCustomerIoCampaigns,
+  readImportGoogleDriveFiles,
+  readImportHubspotContent,
+  readImportIntercomArticles,
+  readImportIterableTemplates,
+  readImportLoopsEmails,
+  readImportMailchimpContent,
+  readImportSanityDocuments,
+  readImportWebflowItems,
+  readPushBrazeCampaigns,
+  readPushBrazeTemplates,
+  readPushCustomerIoCampaigns,
+  readPushGoogleDriveTranslations,
+  readPushHubspotContent,
+  readPushIntercomTranslations,
+  readPushIterableTemplates,
+  readPushLoopsEmails,
+  readPushMailchimpContent,
+  readPushSanityTranslations,
+  readPushWebflowTranslations,
+} from "./workspace-orchestrator-output-summary";
 
 describe("buildWorkspaceOrchestratorOutputSummary", () => {
   it("preserves contentfulTranslationRunId from current step results", () => {
@@ -148,5 +172,535 @@ describe("buildWorkspaceOrchestratorOutputSummary", () => {
         message: "GitHub comment failed.",
       },
     ]);
+  });
+
+  it("preserves Intercom import and push results from the current step", () => {
+    const outputSummary = buildWorkspaceOrchestratorOutputSummary(
+      { orchestratorEnqueuedAt: "2026-10-07T00:00:00.000Z" },
+      {
+        import_intercom_articles: {
+          imported: 0,
+          failed: 0,
+          status: "succeeded",
+        },
+        push_intercom_translations: {
+          pushedLocales: 0,
+          failedLocales: 0,
+          status: "succeeded",
+        },
+      },
+    );
+
+    expect(outputSummary.importIntercomArticles).toEqual({
+      imported: 0,
+      failed: 0,
+      status: "succeeded",
+    });
+    expect(outputSummary.pushIntercomTranslations).toEqual({
+      pushedLocales: 0,
+      failedLocales: 0,
+      status: "succeeded",
+    });
+  });
+
+  it("preserves Sanity import and push results from the current step", () => {
+    const outputSummary = buildWorkspaceOrchestratorOutputSummary(
+      { orchestratorEnqueuedAt: "2026-10-07T00:00:00.000Z" },
+      {
+        import_sanity_documents: {
+          imported: 2,
+          failed: 0,
+          status: "succeeded",
+        },
+        push_sanity_translations: {
+          pushedLocales: 1,
+          failedLocales: 0,
+          status: "succeeded",
+        },
+      },
+    );
+
+    expect(outputSummary.importSanityDocuments).toEqual({
+      imported: 2,
+      failed: 0,
+      status: "succeeded",
+    });
+    expect(outputSummary.pushSanityTranslations).toEqual({
+      pushedLocales: 1,
+      failedLocales: 0,
+      status: "succeeded",
+    });
+  });
+});
+
+describe("readImportIntercomArticles", () => {
+  it("prefers the current step over a persisted summary", () => {
+    expect(
+      readImportIntercomArticles(
+        {
+          importIntercomArticles: { imported: 4, status: "stale" },
+        },
+        {
+          import_intercom_articles: { imported: 0, failed: 2, status: "partial" },
+        },
+      ),
+    ).toEqual({ imported: 0, failed: 2, status: "partial" });
+  });
+
+  it("falls back to prior orchestrator step results", () => {
+    expect(
+      readImportIntercomArticles(
+        {
+          orchestratorStepResults: {
+            import_intercom_articles: { imported: 3, status: "succeeded" },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ imported: 3, status: "succeeded" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportIntercomArticles(
+        { importIntercomArticles: { status: "succeeded", failed: 0 } },
+        { import_intercom_articles: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readImportBrazeCampaigns", () => {
+  it("prefers the current step, then the persisted summary, then prior step results", () => {
+    expect(
+      readImportBrazeCampaigns(
+        { importBrazeCampaigns: { imported: 4, status: "stale" } },
+        { import_braze_campaigns: { imported: 0, failed: 2 } },
+      ),
+    ).toEqual({ imported: 0, failed: 2 });
+    expect(
+      readImportBrazeCampaigns({ importBrazeCampaigns: { imported: 3, skipped: 1 } }, {}),
+    ).toEqual({ imported: 3, skipped: 1 });
+    expect(
+      readImportBrazeCampaigns(
+        {
+          orchestratorStepResults: {
+            import_braze_campaigns: { imported: 2, status: "succeeded" },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ imported: 2, status: "succeeded" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportBrazeCampaigns(
+        { importBrazeCampaigns: { status: "succeeded", failed: 0 } },
+        { import_braze_campaigns: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readImportBrazeTemplates", () => {
+  it("treats imported 0 as a completed idempotent result", () => {
+    expect(
+      readImportBrazeTemplates({}, { import_braze_templates: { imported: 0, failed: 0 } }),
+    ).toEqual({ imported: 0, failed: 0 });
+  });
+});
+
+describe("readPushBrazeCampaigns", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushBrazeCampaigns({}, { push_braze_campaigns: { pushedLocales: 0, failedLocales: 1 } }),
+    ).toEqual({ pushedLocales: 0, failedLocales: 1 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(readPushBrazeCampaigns({ pushBrazeCampaigns: { status: "succeeded" } }, {})).toBeNull();
+  });
+});
+
+describe("readPushBrazeTemplates", () => {
+  it("reads prior orchestrator step results when the current step is empty", () => {
+    expect(
+      readPushBrazeTemplates(
+        {
+          orchestratorStepResults: {
+            push_braze_templates: { pushedLocales: 2, failedLocales: 0 },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ pushedLocales: 2, failedLocales: 0 });
+  });
+});
+
+describe("readImportSanityDocuments", () => {
+  it("prefers the current step over a persisted summary", () => {
+    expect(
+      readImportSanityDocuments(
+        {
+          importSanityDocuments: { imported: 4, status: "stale" },
+        },
+        {
+          import_sanity_documents: { imported: 0, failed: 2, status: "partial" },
+        },
+      ),
+    ).toEqual({ imported: 0, failed: 2, status: "partial" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportSanityDocuments(
+        { importSanityDocuments: { status: "succeeded", failed: 0 } },
+        { import_sanity_documents: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushSanityTranslations", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushSanityTranslations(
+        {},
+        { push_sanity_translations: { pushedLocales: 0, failedLocales: 0 } },
+      ),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(
+      readPushSanityTranslations({ pushSanityTranslations: { status: "succeeded" } }, {}),
+    ).toBeNull();
+  });
+});
+
+describe("readImportWebflowItems", () => {
+  it("prefers the current step over a persisted summary", () => {
+    expect(
+      readImportWebflowItems(
+        {
+          importWebflowItems: { imported: 4, status: "stale" },
+        },
+        {
+          import_webflow_items: { imported: 0, failed: 2, status: "partial" },
+        },
+      ),
+    ).toEqual({ imported: 0, failed: 2, status: "partial" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportWebflowItems(
+        { importWebflowItems: { status: "succeeded", failed: 0 } },
+        { import_webflow_items: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushWebflowTranslations", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushWebflowTranslations(
+        {},
+        { push_webflow_translations: { pushedLocales: 0, failedLocales: 0 } },
+      ),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(
+      readPushWebflowTranslations({ pushWebflowTranslations: { status: "succeeded" } }, {}),
+    ).toBeNull();
+  });
+});
+
+describe("readPushIntercomTranslations", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushIntercomTranslations(
+        {},
+        { push_intercom_translations: { pushedLocales: 0, failedLocales: 0 } },
+      ),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(
+      readPushIntercomTranslations({ pushIntercomTranslations: { status: "succeeded" } }, {}),
+    ).toBeNull();
+  });
+});
+
+describe("readImportGoogleDriveFiles", () => {
+  it("prefers the current step, then the persisted summary, then prior step results", () => {
+    expect(
+      readImportGoogleDriveFiles(
+        { importGoogleDriveFiles: { imported: 4, status: "stale" } },
+        { import_google_drive_files: { imported: 0, failed: 2 } },
+      ),
+    ).toEqual({ imported: 0, failed: 2 });
+    expect(
+      readImportGoogleDriveFiles({ importGoogleDriveFiles: { imported: 3, skipped: 1 } }, {}),
+    ).toEqual({ imported: 3, skipped: 1 });
+    expect(
+      readImportGoogleDriveFiles(
+        {
+          orchestratorStepResults: {
+            import_google_drive_files: { imported: 2, status: "succeeded" },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ imported: 2, status: "succeeded" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportGoogleDriveFiles(
+        { importGoogleDriveFiles: { status: "succeeded", failed: 0 } },
+        { import_google_drive_files: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushGoogleDriveTranslations", () => {
+  it("treats pushed 0 as a completed idempotent result", () => {
+    expect(
+      readPushGoogleDriveTranslations(
+        {},
+        { push_google_drive_translations: { pushed: 0, failed: 1 } },
+      ),
+    ).toEqual({ pushed: 0, failed: 1 });
+  });
+
+  it("rejects a persisted object missing pushed", () => {
+    expect(
+      readPushGoogleDriveTranslations({ pushGoogleDriveTranslations: { status: "succeeded" } }, {}),
+    ).toBeNull();
+  });
+});
+
+describe("readImportLoopsEmails", () => {
+  it("prefers the current step, then the persisted summary, then prior step results", () => {
+    expect(
+      readImportLoopsEmails(
+        { importLoopsEmails: { imported: 4, status: "stale" } },
+        { import_loops_emails: { imported: 0, failed: 2 } },
+      ),
+    ).toEqual({ imported: 0, failed: 2 });
+    expect(readImportLoopsEmails({ importLoopsEmails: { imported: 3, skipped: 1 } }, {})).toEqual({
+      imported: 3,
+      skipped: 1,
+    });
+    expect(
+      readImportLoopsEmails(
+        {
+          orchestratorStepResults: {
+            import_loops_emails: { imported: 2, status: "succeeded" },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ imported: 2, status: "succeeded" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportLoopsEmails(
+        { importLoopsEmails: { status: "succeeded", failed: 0 } },
+        { import_loops_emails: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushLoopsEmails", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushLoopsEmails({}, { push_loops_emails: { pushedLocales: 0, failedLocales: 0 } }),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(readPushLoopsEmails({ pushLoopsEmails: { status: "succeeded" } }, {})).toBeNull();
+  });
+});
+
+describe("readImportIterableTemplates", () => {
+  it("prefers the current step, then the persisted summary, then prior step results", () => {
+    expect(
+      readImportIterableTemplates(
+        { importIterableTemplates: { imported: 4, status: "stale" } },
+        { import_iterable_templates: { imported: 0, failed: 2 } },
+      ),
+    ).toEqual({ imported: 0, failed: 2 });
+    expect(
+      readImportIterableTemplates({ importIterableTemplates: { imported: 3, skipped: 1 } }, {}),
+    ).toEqual({
+      imported: 3,
+      skipped: 1,
+    });
+    expect(
+      readImportIterableTemplates(
+        {
+          orchestratorStepResults: {
+            import_iterable_templates: { imported: 2, status: "succeeded" },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ imported: 2, status: "succeeded" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportIterableTemplates(
+        { importIterableTemplates: { status: "succeeded", failed: 0 } },
+        { import_iterable_templates: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushIterableTemplates", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushIterableTemplates(
+        {},
+        { push_iterable_templates: { pushedLocales: 0, failedLocales: 0 } },
+      ),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(
+      readPushIterableTemplates({ pushIterableTemplates: { status: "succeeded" } }, {}),
+    ).toBeNull();
+  });
+});
+
+describe("readImportCustomerIoCampaigns", () => {
+  it("prefers the current step over a persisted summary", () => {
+    expect(
+      readImportCustomerIoCampaigns(
+        { importCustomerIoCampaigns: { imported: 4, status: "stale" } },
+        { import_customer_io_campaigns: { imported: 0, failed: 2, status: "partial" } },
+      ),
+    ).toEqual({ imported: 0, failed: 2, status: "partial" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportCustomerIoCampaigns(
+        { importCustomerIoCampaigns: { status: "succeeded", failed: 0 } },
+        { import_customer_io_campaigns: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushCustomerIoCampaigns", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushCustomerIoCampaigns(
+        {},
+        { push_customer_io_campaigns: { pushedLocales: 0, failedLocales: 0 } },
+      ),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(
+      readPushCustomerIoCampaigns({ pushCustomerIoCampaigns: { status: "succeeded" } }, {}),
+    ).toBeNull();
+  });
+});
+
+describe("readImportHubspotContent", () => {
+  it("prefers the current step over a persisted summary", () => {
+    expect(
+      readImportHubspotContent(
+        { importHubspotContent: { imported: 4, status: "stale" } },
+        { import_hubspot_content: { imported: 0, failed: 2, status: "partial" } },
+      ),
+    ).toEqual({ imported: 0, failed: 2, status: "partial" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportHubspotContent(
+        { importHubspotContent: { status: "succeeded", failed: 0 } },
+        { import_hubspot_content: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushHubspotContent", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushHubspotContent({}, { push_hubspot_content: { pushedLocales: 0, failedLocales: 0 } }),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(readPushHubspotContent({ pushHubspotContent: { status: "succeeded" } }, {})).toBeNull();
+  });
+});
+
+describe("readImportMailchimpContent", () => {
+  it("prefers the current step over a persisted summary", () => {
+    expect(
+      readImportMailchimpContent(
+        { importMailchimpContent: { imported: 4, status: "stale" } },
+        { import_mailchimp_content: { imported: 0, failed: 2, status: "partial" } },
+      ),
+    ).toEqual({ imported: 0, failed: 2, status: "partial" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportMailchimpContent(
+        { importMailchimpContent: { status: "succeeded", failed: 0 } },
+        { import_mailchimp_content: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+
+  it("falls back to a prior orchestrator step when the current step is empty", () => {
+    expect(
+      readImportMailchimpContent(
+        {
+          orchestratorStepResults: {
+            import_mailchimp_content: { imported: 3, skipped: 1 },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ imported: 3, skipped: 1 });
+  });
+});
+
+describe("readPushMailchimpContent", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushMailchimpContent(
+        {},
+        { push_mailchimp_content: { pushedLocales: 0, failedLocales: 0 } },
+      ),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(
+      readPushMailchimpContent({ pushMailchimpContent: { status: "succeeded" } }, {}),
+    ).toBeNull();
   });
 });

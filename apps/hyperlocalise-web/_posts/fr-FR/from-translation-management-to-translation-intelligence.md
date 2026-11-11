@@ -24,7 +24,7 @@ Depuis plus de deux décennies, les technologies de localisation se sont concent
 
 Les systèmes de gestion de la traduction ont aidé les organisations à remplacer les feuilles de calcul, les échanges d’e-mails, les fournisseurs déconnectés et les échanges manuels de fichiers par des flux de travail structurés. Ils ont centralisé les contenus multilingues, coordonné les traducteurs et les réviseurs, assuré la cohérence terminologique, réutilisé les traductions précédentes et suivi les livraisons sur différents marchés.
 
-Ce fut une évolution importante. La traduction est devenue plus facile à gouverner, à mesurer et à intégrer aux opérations de contenu plus larges. [RWS](https://www.rws.com/glossary/translation-management/) décrit la gestion de la traduction comme la coordination des personnes, des processus et des technologies nécessaires pour traduire du contenu efficacement et de manière cohérente dans plusieurs langues.
+This was an important evolution. Translation became easier to govern, measure, and integrate into broader content operations. [RWS](https://www.rws.com/glossary/translation-management/) describes translation management as the coordination of people, processes, and technology required to translate content efficiently and consistently across languages.
 
 Mais l’environnement dans lequel la localisation s’effectue a changé.
 
@@ -86,7 +86,7 @@ Mais la fluidité ne doit pas être confondue avec l’exactitude.
 
 Une traduction générée par l’IA peut sembler naturelle tout en comprenant mal le produit, en sélectionnant le mauvais terme approuvé, en enfreignant une contrainte de l’interface ou en ne préservant pas l’intention du message source.
 
-Les recherches sur la traduction automatique continuent de montrer que la qualité de la traduction dépend de bien plus que de la fluidité au niveau de la phrase. [Le contexte du document, les connaissances du domaine, le discours, la terminologie et l’usage prévu](https://www.sciencedirect.com/science/article/pii/S2589004224021035) peuvent tous influer sur l’adéquation d’une traduction.
+Research into machine translation continues to show that translation quality depends on more than sentence-level fluency. [Document context, domain knowledge, discourse, terminology, and intended use](https://www.sciencedirect.com/science/article/pii/S2589004224021035) can all affect whether a translation is appropriate.
 
 Cette distinction devient d’autant plus importante que les résultats générés par l’IA deviennent plus convaincants.
 
@@ -96,9 +96,9 @@ La question importante n’est donc pas simplement de savoir si l’IA peut trad
 
 Il s’agit de savoir si le système peut fournir au bon modèle ou à la bonne personne les preuves, instructions, contraintes et connaissances organisationnelles appropriées.
 
-C’est le rôle de Translation Intelligence.
+C’est le rôle de l’intelligence de traduction.
 
-## Qu’est-ce que l’intelligence de traduction ?
+## Qu’est-ce que l’intelligence de traduction ?
 
 L’intelligence de traduction est l’infrastructure qui transforme les connaissances produit, de marque, linguistiques, de marché et des réviseurs en de meilleures décisions de localisation.
 
@@ -126,7 +126,7 @@ Pour un libellé de produit, cela peut signifier la capture d’écran la plus r
 
 Translation Intelligence rend le contexte opérationnel plutôt que facultatif.
 
-Comme nous l’avons vu dans [Qu’est-ce que l’intelligence de traduction ?](/blog/what-is-translation-intelligence), il devient de plus en plus facile de générer des traductions. La capacité la plus difficile à développer et la plus défendable consiste à comprendre quelles connaissances doivent influencer le résultat.
+As explored in [What Is Translation Intelligence?](/blog/what-is-translation-intelligence), translation itself is becoming easier to generate. The harder and more defensible capability is understanding which knowledge should influence the result.
 
 ## De l’automatisation des flux de travail à l’investigation intelligente
 
@@ -140,7 +140,7 @@ Un système plus intelligent peut inspecter le contenu source, identifier la fon
 
 C’est là que les agents d’IA deviennent particulièrement précieux.
 
-Au lieu d’attendre que les équipes de localisation rassemblent manuellement les informations, les [agents](/product/agents-automation) peuvent recueillir le contexte à partir des systèmes connectés et le rendre directement disponible dans le flux de traduction.
+Instead of waiting for localisation teams to manually assemble information, [agents](/product/agents-automation) can gather context from connected systems and make it available directly inside the translation workflow.
 
 Un agent pourrait aider à répondre :
 
@@ -280,7 +280,7 @@ Des ressources linguistiques statiques aux connaissances auto-évolutives.
 
 De la gestion des traductions à l’intelligence de traduction.
 
-Hyperlocalise construit cet avenir grâce à des [agents d’IA](/product/agents-automation), une [expérience CAT de nouvelle génération](/product/next-gen-cat-tool) et un [moteur de contexte auto-évolutif](/product/guidelines) conçus pour aider les équipes internationales à produire de meilleures traductions avec moins de recherches manuelles.
+Hyperlocalise is building toward this future through [AI agents](/product/agents-automation), a [next-generation CAT experience](/product/next-gen-cat-tool), and a [self-evolving context engine](/product/guidelines) designed to help global teams produce better translations with less manual investigation.
 
 La prochaine génération de logiciels de localisation ne se contentera pas de gérer la traduction.
 
@@ -288,8 +288,9 @@ Cela rendra l’organisation plus intelligente dans sa manière de communiquer s
 
 ## Lectures complémentaires
 
-- [Qu’est-ce que l’intelligence de traduction ?](/blog/what-is-translation-intelligence)
+- [What Is Translation Intelligence?](/blog/what-is-translation-intelligence)
+- [Comment choisir un flux de travail de localisation continue](/blog/how-to-choose-a-continuous-localisation-workflow)
 - [Hyperlocalise](/)
-- [Présentation de la gestion des traductions — RWS](https://www.rws.com/glossary/translation-management/)
-- [Recherche sur la traduction automatique contextuelle — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)
-- [Évaluation humaine et contexte au niveau du document dans la traduction automatique — arXiv](https://arxiv.org/abs/2104.14478)
+- [Translation management overview — RWS](https://www.rws.com/glossary/translation-management/)
+- [Context-aware machine translation research — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)
+- [Human evaluation and document-level context in machine translation — arXiv](https://arxiv.org/abs/2104.14478)

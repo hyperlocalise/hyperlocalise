@@ -17,10 +17,14 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { IntlProvider } from "react-intl";
 
+import { IRIS_LAUNCH_YOUTUBE_WATCH_URL } from "@/lib/iris/iris-waitlist";
+
 import { UpdateAnnouncer } from "./update-announcer";
 import {
+  UPDATE_ANNOUNCEMENTS,
   getNextUpdateAnnouncementScheduleAt,
   getUpdateAnnouncementStorageKey,
+  isExternalAnnouncementHref,
   selectUpdateAnnouncement,
   type UpdateAnnouncement,
 } from "./update-announcements";
@@ -56,6 +60,22 @@ describe("UpdateAnnouncer", () => {
     expect(screen.getByRole("link", { name: "Try it now" }).getAttribute("href")).toBe(
       "/org/acme/qa",
     );
+  });
+
+  it("opens an external teaser in a new tab", async () => {
+    renderAnnouncer([
+      {
+        ...announcement,
+        title: { id: "iris.title", defaultMessage: "Iris, the AI localisation engine" },
+        buildHref: () => IRIS_LAUNCH_YOUTUBE_WATCH_URL,
+        cta: { id: "iris.cta", defaultMessage: "Watch the film" },
+      },
+    ]);
+
+    const link = await screen.findByRole("link", { name: "Watch the film" });
+    expect(link.getAttribute("href")).toBe(IRIS_LAUNCH_YOUTUBE_WATCH_URL);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
   });
 
   it("stays hidden after it is dismissed", async () => {
@@ -126,6 +146,22 @@ describe("UpdateAnnouncer", () => {
 
 beforeEach(() => {
   vi.useRealTimers();
+});
+
+describe("UPDATE_ANNOUNCEMENTS", () => {
+  it("teases Iris with the launch film first", () => {
+    expect(UPDATE_ANNOUNCEMENTS[0]).toMatchObject({
+      id: "2026-10-iris-launch",
+    });
+    expect(UPDATE_ANNOUNCEMENTS[0]?.buildHref("acme")).toBe(IRIS_LAUNCH_YOUTUBE_WATCH_URL);
+  });
+});
+
+describe("isExternalAnnouncementHref", () => {
+  it("treats http(s) URLs as external", () => {
+    expect(isExternalAnnouncementHref(IRIS_LAUNCH_YOUTUBE_WATCH_URL)).toBe(true);
+    expect(isExternalAnnouncementHref("/org/acme/projects")).toBe(false);
+  });
 });
 
 describe("selectUpdateAnnouncement", () => {

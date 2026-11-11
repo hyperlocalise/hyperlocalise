@@ -92,6 +92,7 @@ describe("fetchCatSegmentValidation", () => {
             "same_as_source",
             "escaped_char_mismatch",
             "spelling",
+            "unreachable_plural_case",
           ],
         }),
       }),
@@ -402,7 +403,13 @@ describe("fetchCatSegmentValidation", () => {
       targetText: "Bonjour",
       sourcePath: "/messages/en.json",
       targetLocale: "invalid_locale_format",
-      modes: ["not_localized", "whitespace_only", "same_as_source", "escaped_char_mismatch"],
+      modes: [
+        "not_localized",
+        "whitespace_only",
+        "same_as_source",
+        "escaped_char_mismatch",
+        "unreachable_plural_case",
+      ],
     });
   });
 
@@ -430,7 +437,13 @@ describe("fetchCatSegmentValidation", () => {
       sourceText: "Hello",
       targetText: "Bonjour",
       sourcePath: "/messages/en.json",
-      modes: ["not_localized", "whitespace_only", "same_as_source", "escaped_char_mismatch"],
+      modes: [
+        "not_localized",
+        "whitespace_only",
+        "same_as_source",
+        "escaped_char_mismatch",
+        "unreachable_plural_case",
+      ],
     });
   });
 
@@ -465,6 +478,7 @@ describe("fetchCatSegmentValidation", () => {
         "same_as_source",
         "escaped_char_mismatch",
         "spelling",
+        "unreachable_plural_case",
       ],
     });
   });

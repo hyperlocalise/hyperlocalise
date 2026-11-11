@@ -61,7 +61,7 @@ export function LocalisationAuditPage({ locale, leaderboard }: LocalisationAudit
 
         <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
           <TypographyH2 className="pb-0">{copy.methodologyHeading}</TypographyH2>
-          <div className="mt-10 grid gap-10 md:grid-cols-3">
+          <div className="mt-10 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
             {copy.notices.map((notice) => (
               <div key={notice.title} className="space-y-3">
                 <TypographyH3 className="pb-0 md:text-2xl" size="xlarge">

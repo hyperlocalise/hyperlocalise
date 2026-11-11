@@ -51,6 +51,9 @@ export type VisualWorkflowInterpreterResult =
       ok: true;
       context: VisualWorkflowExecutionContext;
       nodeResults: Record<string, Record<string, unknown>>;
+      terminal?:
+        | { kind: "completed"; nodeId: string }
+        | { kind: "returned"; nodeId: string; outputs: Record<string, unknown> };
     }
   | {
       ok: false;
@@ -158,9 +161,51 @@ function sequenceHoldBlocksMerge(input: {
 }
 
 type SequenceHoldFrame = {
+  kind: "sequence" | "try_catch";
   heldEdges: CanonicalVisualWorkflowEdge[];
   activeReleasedEdge: CanonicalVisualWorkflowEdge | null;
+  deferredTerminal: boolean;
 };
+
+function resolveTryCatchAttemptMetadata(
+  definition: VisualWorkflowDefinition,
+  boundaryNodeId: string,
+  iteration: number | undefined,
+): Record<string, never> | { number: number } {
+  if (iteration === undefined) return {};
+
+  const belongsToRetry = definition.nodes.some(
+    (node) => node.type === "logic.retry" && node.bodyNodeIds?.includes(boundaryNodeId),
+  );
+  return { number: belongsToRetry ? iteration : iteration + 1 };
+}
+
+type TryCatchDeferredResult = {
+  nodeId: string;
+  error: Record<string, unknown>;
+};
+
+function readTerminatedTryCatchResult(
+  output: Record<string, unknown>,
+): TryCatchDeferredResult | null {
+  if (output.boundaryStatus !== "terminated") return null;
+  if (typeof output.terminalNodeId !== "string" || output.terminalNodeId.length === 0) {
+    return null;
+  }
+  if (!output.terminalError || typeof output.terminalError !== "object") return null;
+  return {
+    nodeId: output.terminalNodeId,
+    error: output.terminalError as Record<string, unknown>,
+  };
+}
+
+function buildTerminatedTryCatchOutput(result: TryCatchDeferredResult): Record<string, unknown> {
+  return {
+    boundaryStatus: "terminated",
+    terminalNodeId: result.nodeId,
+    terminalError: result.error,
+  };
+}
 
 function collectReachableNodeIds(
   startNodeIds: readonly string[],
@@ -296,6 +341,13 @@ export async function runVisualWorkflowInterpreter(input: {
     // Nested Sequences each keep their own hold frame so an inner Sequence
     // cannot replace the outer Sequence's later outputs.
     const sequenceHoldStack: SequenceHoldFrame[] = [];
+    const deferredTryCatch = {
+      result: null as {
+        frame: SequenceHoldFrame;
+        nodeId: string;
+        error: Record<string, unknown>;
+      } | null,
+    };
     const incomingByNodeId = new Map<string, CanonicalVisualWorkflowEdge[]>();
     for (const edge of definition.edges) {
       if (!ids.has(edge.source) || !ids.has(edge.target)) continue;
@@ -350,6 +402,50 @@ export async function runVisualWorkflowInterpreter(input: {
       [...mergeResumes.values()].sort(
         (left, right) => Date.parse(left.wakeAt) - Date.parse(right.wakeAt),
       )[0] ?? null;
+    const deferTryCatchResultUntilFinally = (
+      nodeId: string,
+      error: Record<string, unknown>,
+    ): boolean => {
+      for (let index = sequenceHoldStack.length - 1; index >= 0; index--) {
+        const frame = sequenceHoldStack[index]!;
+        if (
+          frame.kind !== "try_catch" ||
+          frame.deferredTerminal ||
+          frame.activeReleasedEdge?.sourceHandle === "finally"
+        ) {
+          continue;
+        }
+
+        const finallyEdges = frame.heldEdges.filter((edge) => edge.sourceHandle === "finally");
+        if (finallyEdges.length === 0) return false;
+
+        for (const nestedFrame of sequenceHoldStack.splice(index + 1)) {
+          for (const heldEdge of nestedFrame.heldEdges) states.set(heldEdge.id, "skipped");
+        }
+        for (const heldEdge of frame.heldEdges) {
+          if (heldEdge.sourceHandle !== "finally") states.set(heldEdge.id, "skipped");
+        }
+
+        const [firstFinallyEdge, ...remainingFinallyEdges] = finallyEdges;
+        frame.activeReleasedEdge = firstFinallyEdge!;
+        frame.heldEdges = remainingFinallyEdges;
+        frame.deferredTerminal = true;
+        states.set(
+          firstFinallyEdge!.id,
+          selectedEdgeSettlement({
+            sourceHandle: firstFinallyEdge!.sourceHandle,
+            executionSucceeded: true,
+          }),
+        );
+        priorityNodeIds = collectSequencePriorityNodeIds(
+          [firstFinallyEdge!],
+          graph.outgoingByNodeId,
+        );
+        deferredTryCatch.result = { frame, nodeId, error };
+        return true;
+      }
+      return false;
+    };
     const releaseHeldSequenceEdges = () => {
       while (sequenceHoldStack.length > 0) {
         const frame = sequenceHoldStack[sequenceHoldStack.length - 1]!;
@@ -389,6 +485,12 @@ export async function runVisualWorkflowInterpreter(input: {
           ? input.mergeResume.mergeNodeId
           : null;
       releaseHeldSequenceEdges();
+      if (deferredTryCatch.result && !sequenceHoldStack.includes(deferredTryCatch.result.frame)) {
+        return {
+          nodeId: deferredTryCatch.result.nodeId,
+          error: deferredTryCatch.result.error,
+        };
+      }
       const prioritizedIds = priorityNodeIds.filter((id) => ids.has(id));
       priorityNodeIds = [];
 
@@ -606,7 +708,14 @@ export async function runVisualWorkflowInterpreter(input: {
           };
         }
         let retryExitHandle: "succeeded" | "exhausted" | null = null;
-        if (execution.ok && node.type !== "logic.for_each" && node.type !== "logic.retry") {
+        let tryCatchExitHandles: Array<"success" | "catch" | "finally"> | null = null;
+        let pendingTryCatchTerminal: TryCatchDeferredResult | null = null;
+        if (
+          execution.ok &&
+          node.type !== "logic.for_each" &&
+          node.type !== "logic.array_transform" &&
+          node.type !== "logic.retry"
+        ) {
           for (const field of getWorkflowOutputFields(node)) {
             const value = readWorkflowPath(execution.output, field.path.split("."));
             if (value === undefined && field.optional) continue;
@@ -658,7 +767,10 @@ export async function runVisualWorkflowInterpreter(input: {
           await emit(node, behavior === "stop" ? "failed" : "handled_error", iteration, {
             error: execution.error,
           });
-          if (behavior === "stop") return { nodeId: id, error: execution.error };
+          if (behavior === "stop") {
+            if (deferTryCatchResultUntilFinally(id, execution.error)) break;
+            return { nodeId: id, error: execution.error };
+          }
           if (scopeOptions?.failOnHandledErrors && behavior === "continue") {
             return { nodeId: id, error: execution.error };
           }
@@ -697,7 +809,11 @@ export async function runVisualWorkflowInterpreter(input: {
                   failure.error.code !== "yield_execution" &&
                   failure.error.code !== "retry_backoff" &&
                   failure.error.code !== "wait_suspended" &&
-                  failure.error.code !== "merge_suspended"
+                  failure.error.code !== "merge_suspended" &&
+                  failure.error.code !== "workflow_completed" &&
+                  failure.error.code !== "workflow_returned" &&
+                  failure.error.code !== "cancelled" &&
+                  failure.error.terminal !== true
                 )
                   await emit(node, "failed", iteration, { error: failure.error });
                 return failure;
@@ -725,6 +841,143 @@ export async function runVisualWorkflowInterpreter(input: {
             setNodeOutput(context, id, execution.output);
             nodeResults[id] = execution.output;
           }
+          if (node.type === "logic.array_transform") {
+            if (node.config.kind !== "logic.array_transform") {
+              return {
+                nodeId: id,
+                error: {
+                  code: "invalid_node_config",
+                  message: "Array Transform config is invalid.",
+                },
+              };
+            }
+            const items = execution.output.items;
+            if (!Array.isArray(items) || items.length > WORKFLOW_LIMITS.loopItems) {
+              return {
+                nodeId: id,
+                error: {
+                  code: "loop_limit",
+                  message: "Array Transform requires an array with at most 100 items.",
+                },
+              };
+            }
+            const failTransform = async (error: { code: string; message: string }) => {
+              await emit(node, "failed", iteration, { error });
+              return { nodeId: id, error };
+            };
+            const resultBinding = node.collect?.result;
+            if (!resultBinding) {
+              return failTransform({
+                code: "invalid_array_transform_result",
+                message: "Array Transform requires a collected body result.",
+              });
+            }
+            let accumulator = execution.output.initialValue;
+            if (
+              node.config.operation === "reduce" &&
+              !matchesWorkflowType(accumulator, node.config.resultType)
+            ) {
+              return failTransform({
+                code: "invalid_array_transform_input",
+                message: "Reduce initial value does not match the declared result type.",
+              });
+            }
+            const transformedItems: unknown[] = [];
+            let found = false;
+            let foundValue: unknown;
+            for (let index = 0; index < items.length; index += 1) {
+              const item = items[index];
+              if (!matchesWorkflowType(item, node.config.itemType)) {
+                return failTransform({
+                  code: "invalid_array_transform_input",
+                  message: "Collection item does not match the declared item type.",
+                });
+              }
+              for (const bodyId of node.bodyNodeIds ?? []) {
+                delete context.nodes[bodyId];
+                delete nodeResults[bodyId];
+              }
+              setNodeOutput(context, id, {
+                item,
+                index,
+                count: items.length,
+                ...(node.config.operation === "reduce" ? { accumulator } : {}),
+              });
+              const body = new Set(node.bodyNodeIds ?? []);
+              const starts = new Set(
+                (graph.outgoingByNodeId.get(id) ?? [])
+                  .filter((edge) => edge.sourceHandle === "each")
+                  .map((edge) => edge.target),
+              );
+              const failure = await runScope(body, starts, index);
+              if (failure) {
+                if (
+                  failure.error.code !== "yield_execution" &&
+                  failure.error.code !== "retry_backoff" &&
+                  failure.error.code !== "wait_suspended" &&
+                  failure.error.code !== "merge_suspended" &&
+                  failure.error.code !== "workflow_completed" &&
+                  failure.error.code !== "workflow_returned" &&
+                  failure.error.code !== "cancelled" &&
+                  failure.error.terminal !== true
+                ) {
+                  await emit(node, "failed", iteration, { error: failure.error });
+                }
+                return failure;
+              }
+              let bodyResult: unknown;
+              try {
+                bodyResult = resolveWorkflowBinding(resultBinding, context);
+              } catch {
+                const error = {
+                  code: "invalid_array_transform_result",
+                  message: "The collected Array Transform body result is missing.",
+                };
+                await emit(node, "failed", iteration, { error });
+                return { nodeId: id, error };
+              }
+              if (node.config.operation === "filter" || node.config.operation === "find") {
+                if (typeof bodyResult !== "boolean") {
+                  return failTransform({
+                    code: "invalid_array_transform_result",
+                    message: "Filter and Find body results must be boolean.",
+                  });
+                }
+                if (bodyResult && node.config.operation === "filter") transformedItems.push(item);
+                if (bodyResult && node.config.operation === "find") {
+                  found = true;
+                  foundValue = item;
+                  break;
+                }
+              } else {
+                if (!matchesWorkflowType(bodyResult, node.config.resultType)) {
+                  return failTransform({
+                    code: "invalid_array_transform_result",
+                    message: "Body result does not match the declared result type.",
+                  });
+                }
+                if (node.config.operation === "map") transformedItems.push(bodyResult);
+                else accumulator = bodyResult;
+              }
+            }
+            for (const bodyId of node.bodyNodeIds ?? []) {
+              delete context.nodes[bodyId];
+              delete nodeResults[bodyId];
+            }
+            const output =
+              node.config.operation === "filter" || node.config.operation === "map"
+                ? { count: items.length, items: transformedItems }
+                : node.config.operation === "reduce"
+                  ? { count: items.length, value: accumulator }
+                  : {
+                      count: items.length,
+                      found,
+                      ...(found ? { value: foundValue } : {}),
+                    };
+            execution = { ok: true, output };
+            setNodeOutput(context, id, output);
+            nodeResults[id] = output;
+          }
           if (node.type === "logic.retry") {
             const resolvedRetry = resolveWorkflowNodeInputs(node, context);
             const resume = input.retryBackoff?.retryNodeId === node.id ? input.retryBackoff : null;
@@ -741,27 +994,145 @@ export async function runVisualWorkflowInterpreter(input: {
             if (!retryResult.ok) {
               if (
                 retryResult.error.code !== "yield_execution" &&
-                retryResult.error.code !== "retry_backoff"
+                retryResult.error.code !== "retry_backoff" &&
+                retryResult.error.code !== "workflow_completed" &&
+                retryResult.error.code !== "workflow_returned" &&
+                retryResult.error.code !== "cancelled" &&
+                retryResult.error.terminal !== true
               ) {
                 await emit(node, "failed", iteration, { error: retryResult.error });
               }
-              return { nodeId: id, error: retryResult.error };
+              return {
+                nodeId:
+                  typeof retryResult.error.terminalNodeId === "string"
+                    ? retryResult.error.terminalNodeId
+                    : id,
+                error: retryResult.error,
+              };
             }
             retryExitHandle = retryResult.exitHandle;
             execution = { ok: true, output: retryResult.output };
             setNodeOutput(context, id, retryResult.output);
             nodeResults[id] = retryResult.output;
           }
+          if (node.type === "logic.try_catch") {
+            const bodyIds = node.bodyNodeIds ?? [];
+            const body = new Set(bodyIds);
+            const starts = new Set(
+              (graph.outgoingByNodeId.get(node.id) ?? [])
+                .filter((edge) => edge.sourceHandle === "try")
+                .map((edge) => edge.target),
+            );
+            const tryCatchOutput = execution.ok ? execution.output : {};
+            const cachedBoundaryStatus =
+              tryCatchOutput.boundaryStatus === "succeeded" ||
+              tryCatchOutput.boundaryStatus === "caught"
+                ? tryCatchOutput.boundaryStatus
+                : null;
+            const cachedTerminated = readTerminatedTryCatchResult(tryCatchOutput);
+            const regionFailure =
+              cachedBoundaryStatus || cachedTerminated
+                ? null
+                : await runScope(body, starts, iteration, { failOnHandledErrors: true });
+
+            if (cachedBoundaryStatus) {
+              tryCatchExitHandles = [
+                cachedBoundaryStatus === "caught" ? "catch" : "success",
+                "finally",
+              ];
+            } else if (cachedTerminated) {
+              tryCatchExitHandles = ["finally"];
+              pendingTryCatchTerminal = cachedTerminated;
+            } else if (regionFailure) {
+              const errorCode =
+                typeof regionFailure.error.code === "string"
+                  ? regionFailure.error.code
+                  : "node_execution_failed";
+              if (
+                [
+                  "yield_execution",
+                  "needs_attention",
+                  "cancelled",
+                  "retry_backoff",
+                  "wait_suspended",
+                  "merge_suspended",
+                ].includes(errorCode)
+              ) {
+                return regionFailure;
+              }
+
+              const isTerminal =
+                ["workflow_completed", "workflow_returned"].includes(errorCode) ||
+                regionFailure.error.terminal === true;
+
+              if (isTerminal) {
+                pendingTryCatchTerminal = regionFailure;
+                execution = {
+                  ok: true,
+                  output: buildTerminatedTryCatchOutput(regionFailure),
+                };
+                tryCatchExitHandles = ["finally"];
+              } else {
+                execution = {
+                  ok: true,
+                  output: {
+                    errorCode,
+                    errorMessage: "The protected workflow region failed.",
+                    failedNodeId: regionFailure.nodeId,
+                    attempt: resolveTryCatchAttemptMetadata(definition, node.id, iteration),
+                    boundaryStatus: "caught",
+                  },
+                };
+                tryCatchExitHandles = ["catch", "finally"];
+              }
+            } else {
+              execution = { ok: true, output: { boundaryStatus: "succeeded" } };
+              tryCatchExitHandles = ["success", "finally"];
+            }
+
+            for (const bodyId of bodyIds) {
+              delete context.nodes[bodyId];
+              delete nodeResults[bodyId];
+            }
+            setNodeOutput(context, id, execution.output);
+            nodeResults[id] = execution.output;
+          }
           await emit(node, "succeeded", iteration, {
             outputSnapshot: execution.output,
             error: null,
           });
+          if (node.config.kind === "flow.stop") {
+            const terminalResult = {
+              nodeId: id,
+              error: {
+                code: "workflow_completed",
+                message: "Workflow completed by a Stop node.",
+              },
+            };
+            if (deferTryCatchResultUntilFinally(terminalResult.nodeId, terminalResult.error)) break;
+            return terminalResult;
+          }
+          if (node.config.kind === "flow.return") {
+            const terminalResult = {
+              nodeId: id,
+              error: {
+                code: "workflow_returned",
+                message: "Workflow completed with returned outputs.",
+                outputs: execution.output.returnedOutputs ?? {},
+              },
+            };
+            if (deferTryCatchResultUntilFinally(terminalResult.nodeId, terminalResult.error)) break;
+            return terminalResult;
+          }
         }
-        const next =
-          node.type === "logic.for_each"
-            ? outgoing.filter((edge) => edge.sourceHandle === "done")
-            : node.type === "logic.retry" && retryExitHandle
-              ? outgoing.filter((edge) => edge.sourceHandle === retryExitHandle)
+        const next = ["logic.for_each", "logic.array_transform"].includes(node.type)
+          ? outgoing.filter((edge) => edge.sourceHandle === "done")
+          : node.type === "logic.retry" && retryExitHandle
+            ? outgoing.filter((edge) => edge.sourceHandle === retryExitHandle)
+            : node.type === "logic.try_catch" && tryCatchExitHandles
+              ? tryCatchExitHandles.flatMap((handle) =>
+                  outgoing.filter((edge) => edge.sourceHandle === handle),
+                )
               : node.type === "logic.merge" && mergeExitHandle
                 ? outgoing.filter((edge) => edge.sourceHandle === mergeExitHandle)
                 : node.type === "flow.wait" && waitExitHandle
@@ -778,9 +1149,10 @@ export async function runVisualWorkflowInterpreter(input: {
                           : undefined,
                     });
         const selectedIds = new Set(next.map((edge) => edge.id));
-        const sequenceReleaseEdge =
-          node.config.kind === "logic.sequence" ? (next[0] ?? null) : null;
-        const sequenceHeldEdges = node.config.kind === "logic.sequence" ? next.slice(1) : [];
+        const holdsOrderedExits =
+          node.config.kind === "logic.sequence" || node.config.kind === "logic.try_catch";
+        const sequenceReleaseEdge = holdsOrderedExits ? (next[0] ?? null) : null;
+        const sequenceHeldEdges = holdsOrderedExits ? next.slice(1) : [];
 
         for (const edge of outgoing) {
           if (!selectedIds.has(edge.id)) {
@@ -788,11 +1160,7 @@ export async function runVisualWorkflowInterpreter(input: {
             continue;
           }
 
-          if (
-            node.config.kind === "logic.sequence" &&
-            sequenceReleaseEdge &&
-            edge.id !== sequenceReleaseEdge.id
-          ) {
+          if (holdsOrderedExits && sequenceReleaseEdge && edge.id !== sequenceReleaseEdge.id) {
             // Defer settlement until earlier Sequence paths fully propagate.
             continue;
           }
@@ -805,11 +1173,21 @@ export async function runVisualWorkflowInterpreter(input: {
           const target = graph.nodesById.get(edge.target);
           if (target?.config.kind === "logic.merge") armMergeTimeout(target);
         }
-        if (node.config.kind === "logic.sequence") {
-          sequenceHoldStack.push({
+        if (holdsOrderedExits) {
+          const frame: SequenceHoldFrame = {
+            kind: node.config.kind === "logic.try_catch" ? "try_catch" : "sequence",
             heldEdges: sequenceHeldEdges,
             activeReleasedEdge: sequenceReleaseEdge,
-          });
+            deferredTerminal: pendingTryCatchTerminal != null,
+          };
+          sequenceHoldStack.push(frame);
+          if (pendingTryCatchTerminal) {
+            deferredTryCatch.result = {
+              frame,
+              nodeId: pendingTryCatchTerminal.nodeId,
+              error: pendingTryCatchTerminal.error,
+            };
+          }
           priorityNodeIds = sequenceReleaseEdge
             ? collectSequencePriorityNodeIds([sequenceReleaseEdge], graph.outgoingByNodeId)
             : [];
@@ -857,12 +1235,43 @@ export async function runVisualWorkflowInterpreter(input: {
         };
       }
     }
+    releaseHeldSequenceEdges();
+    if (deferredTryCatch.result && !sequenceHoldStack.includes(deferredTryCatch.result.frame)) {
+      return {
+        nodeId: deferredTryCatch.result.nodeId,
+        error: deferredTryCatch.result.error,
+      };
+    }
     return null;
   };
   const failure = await runScope(
     new Set(definition.nodes.filter((node) => !bodyIds.has(node.id)).map((node) => node.id)),
     new Set([graph.triggerNodeId]),
   );
+  if (failure && ["workflow_completed", "workflow_returned"].includes(String(failure.error.code))) {
+    for (const node of definition.nodes)
+      if (!settledIds.has(node.id)) await emit(node, "cancelled");
+
+    if (failure.error.code === "workflow_returned") {
+      const outputs =
+        failure.error.outputs && typeof failure.error.outputs === "object"
+          ? (failure.error.outputs as Record<string, unknown>)
+          : {};
+      return {
+        ok: true,
+        context,
+        nodeResults,
+        terminal: { kind: "returned", nodeId: failure.nodeId, outputs },
+      };
+    }
+
+    return {
+      ok: true,
+      context,
+      nodeResults,
+      terminal: { kind: "completed", nodeId: failure.nodeId },
+    };
+  }
   if (
     failure &&
     failure.error.code !== "yield_execution" &&
@@ -872,7 +1281,12 @@ export async function runVisualWorkflowInterpreter(input: {
   )
     for (const node of definition.nodes)
       if (!settledIds.has(node.id))
-        await emit(node, failure.error.code === "cancelled" ? "cancelled" : "blocked");
+        await emit(
+          node,
+          failure.error.code === "cancelled" || failure.error.terminal === true
+            ? "cancelled"
+            : "blocked",
+        );
   if (!failure)
     for (const node of definition.nodes) if (!settledIds.has(node.id)) await emit(node, "skipped");
   return failure ? fail(failure.nodeId, failure.error) : { ok: true, context, nodeResults };

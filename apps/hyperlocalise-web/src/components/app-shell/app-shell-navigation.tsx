@@ -30,7 +30,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
 import {
   createInboxNotificationsApi,
@@ -66,8 +65,6 @@ import {
 } from "./navigation-config";
 import { useAppShellStore } from "./store/app-shell-store-context";
 import { createElement } from "react";
-
-const inboxNotificationsApi = createInboxNotificationsApi(apiClient);
 
 type AppShellNavigationProps = {
   organizationSlug: string;
@@ -520,6 +517,8 @@ function NavigationGroupItems({
   itemSearch?: string;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
+  const inboxNotificationsApi = createInboxNotificationsApi(goSvcClient.inbox);
   const inboxHref = buildOrganizationPath(organizationSlug, "inbox");
   const unreadCountQuery = useQuery({
     queryKey: notificationsUnreadCountQueryKey(organizationSlug),

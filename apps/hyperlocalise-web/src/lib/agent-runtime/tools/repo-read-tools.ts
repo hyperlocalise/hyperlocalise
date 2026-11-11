@@ -19,7 +19,7 @@ import { normalizeJsonc } from "@/lib/i18n/parse-jsonc-config";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate } from "./workspace/redact";
-import type { RepoToolContext } from "./workspace/types";
+import { REPO_BASH_TIMEOUT_EXIT_CODE, type RepoToolContext } from "./workspace/types";
 import {
   bindGitClone,
   resolveGitCloneRoot,
@@ -1141,6 +1141,14 @@ export function createRunHyperlocaliseCliTool(ctx: RepoToolContext) {
 
       const commandArgs = commandArgsResult.value;
       const result = await ctx.bash.exec("hl", { args: commandArgs });
+
+      if (result.exitCode === REPO_BASH_TIMEOUT_EXIT_CODE) {
+        return {
+          success: false,
+          timedOut: true,
+          error: `hl ${subcommand} timed out and was stopped. Do not retry the same command; narrow it with --file, --locale, --group or --bucket, or report that the check could not complete.`,
+        };
+      }
 
       const redactedStdout = redact(result.stdout);
       const redactedStderr = redact(result.stderr);

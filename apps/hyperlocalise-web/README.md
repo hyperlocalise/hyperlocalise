@@ -8,17 +8,20 @@ For API conventions, Hono route layout, Drizzle migrations, and agent-specific n
 
 ## Prerequisites
 
-- Docker (PostgreSQL for local development)
+- Docker (PostgreSQL and Valkey for local development)
 - [`vp`](https://vite.plus) — install with `curl -fsSL https://vite.plus | bash`, then run `vp env setup`
 - Repository bootstrap from the monorepo root: `make bootstrap`
 
-Start Postgres from the repository root:
+Start Postgres and Valkey from the **monorepo root** (`hyperlocalise/docker-compose.yml`, not this app folder):
 
 ```bash
 sudo dockerd &>/tmp/dockerd.log &
 sudo chmod 666 /var/run/docker.sock
+cd ../..   # from apps/hyperlocalise-web → repo root
 docker compose up -d
 ```
+
+For go-svc, set `VALKEY_URL=redis://localhost:6379` in `apps/go-svc/.env`. Full steps: [`apps/go-svc/README.md`](../go-svc/README.md#local-development).
 
 ## Setup
 
@@ -43,6 +46,17 @@ WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
 NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
 WORKOS_COOKIE_PASSWORD=this-is-a-test-cookie-password-at-least-32-characters
 AUTUMN_API_KEY=am_sk_test_placeholder
+```
+
+Optional Canva integration and OAuth (see [Canva app OAuth](../../docs/contributing/canva-app-oauth.mdx)):
+
+```bash
+HYPERLOCALISE_PUBLIC_APP_URL=http://localhost:3000
+CANVA_APP_ID=
+CANVA_APP_ORIGIN=http://localhost:8080
+CANVA_OAUTH_CLIENT_ID=
+CANVA_OAUTH_CLIENT_SECRET=
+CANVA_OAUTH_REDIRECT_URI=https://www.canva.com/apps/oauth/authorized
 ```
 
 Production SQS publishing uses Vercel OIDC credentials. Configure the role to
@@ -71,6 +85,15 @@ vp run dev
 ```
 
 The app listens on `http://localhost:3000` by default. Pass a port through the script if needed.
+
+### go-svc locally
+
+Run Postgres, Valkey, and migrations (see **Prerequisites**), then start go-svc and point the web app at it:
+
+1. Configure and run go-svc — [`apps/go-svc/README.md`](../go-svc/README.md#local-development).
+2. In this app’s `.env`: `GO_SVC_URL=http://127.0.0.1:8080` and `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8080` (same WorkOS keys as go-svc).
+
+Many Cloud surfaces (projects, dictionaries, CAT validation, domains, and others) call go-svc from the browser or via `GO_SVC_URL` server proxies.
 
 ### Domains research locally
 

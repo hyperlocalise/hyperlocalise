@@ -22,9 +22,30 @@ import { createNotifyEmailTool } from "./tools/notify_email";
 import { createNotifyGithubCommentTool } from "./tools/notify_github_comment";
 import { createNotifySlackTool } from "./tools/notify_slack";
 import { createRecallMemoryTool } from "./tools/recall_memory";
+import { createImportBrazeCampaignsTool } from "./tools/import_braze_campaigns";
+import { createImportHubspotContentTool } from "./tools/import_hubspot_content";
+import { createImportLoopsEmailsTool } from "./tools/import_loops_emails";
+import { createImportCustomerIoCampaignsTool } from "./tools/import_customer_io_campaigns";
+import { createImportBrazeTemplatesTool } from "./tools/import_braze_templates";
+import { createImportIterableTemplatesTool } from "./tools/import_iterable_templates";
+import { createPushIterableTemplatesTool } from "./tools/push_iterable_templates";
+import { createImportIntercomArticlesTool } from "./tools/import_intercom_articles";
+import { createImportSanityDocumentsTool } from "./tools/import_sanity_documents";
+import { createImportWebflowItemsTool } from "./tools/import_webflow_items";
+import { createImportGoogleDriveFilesTool } from "./tools/import_google_drive_files";
+import { createPushBrazeCampaignsTool } from "./tools/push_braze_campaigns";
+import { createPushHubspotContentTool } from "./tools/push_hubspot_content";
+import { createImportMailchimpContentTool } from "./tools/import_mailchimp_content";
+import { createPushMailchimpContentTool } from "./tools/push_mailchimp_content";
+import { createPushLoopsEmailsTool } from "./tools/push_loops_emails";
+import { createPushCustomerIoCampaignsTool } from "./tools/push_customer_io_campaigns";
+import { createPushBrazeTemplatesTool } from "./tools/push_braze_templates";
+import { createPushIntercomTranslationsTool } from "./tools/push_intercom_translations";
+import { createPushSanityTranslationsTool } from "./tools/push_sanity_translations";
+import { createPushWebflowTranslationsTool } from "./tools/push_webflow_translations";
+import { createPushGoogleDriveTranslationsTool } from "./tools/push_google_drive_translations";
 import { createRunContentfulTranslationTool } from "./tools/run_contentful_translation";
 import { createRunGithubWorkflowsTool } from "./tools/run_github_workflows";
-import { createSaveMemoryTool } from "./tools/save_memory";
 import { createUseAhrefsTool } from "./tools/use_ahrefs";
 import { createUseCrowdinTool } from "./tools/use_crowdin";
 import { createUseGithubRepositoryTool } from "./tools/use_github_repository";
@@ -41,6 +62,28 @@ const TOOL_BUILDERS: Record<
   use_gitlab_repository: createUseGitlabRepositoryTool,
   run_github_workflows: createRunGithubWorkflowsTool,
   run_contentful_translation: createRunContentfulTranslationTool,
+  import_intercom_articles: createImportIntercomArticlesTool,
+  push_intercom_translations: createPushIntercomTranslationsTool,
+  import_sanity_documents: createImportSanityDocumentsTool,
+  push_sanity_translations: createPushSanityTranslationsTool,
+  import_webflow_items: createImportWebflowItemsTool,
+  push_webflow_translations: createPushWebflowTranslationsTool,
+  import_google_drive_files: createImportGoogleDriveFilesTool,
+  push_google_drive_translations: createPushGoogleDriveTranslationsTool,
+  import_braze_templates: createImportBrazeTemplatesTool,
+  push_braze_templates: createPushBrazeTemplatesTool,
+  import_iterable_templates: createImportIterableTemplatesTool,
+  push_iterable_templates: createPushIterableTemplatesTool,
+  import_braze_campaigns: createImportBrazeCampaignsTool,
+  push_braze_campaigns: createPushBrazeCampaignsTool,
+  import_customer_io_campaigns: createImportCustomerIoCampaignsTool,
+  push_customer_io_campaigns: createPushCustomerIoCampaignsTool,
+  import_loops_emails: createImportLoopsEmailsTool,
+  push_loops_emails: createPushLoopsEmailsTool,
+  import_hubspot_content: createImportHubspotContentTool,
+  push_hubspot_content: createPushHubspotContentTool,
+  import_mailchimp_content: createImportMailchimpContentTool,
+  push_mailchimp_content: createPushMailchimpContentTool,
   create_native_tms_job: createNativeTmsJobTool,
   assign_translate_with_agent: createAssignTranslateWithAgentTool,
   list_issues: createListIssuesTool,
@@ -54,7 +97,6 @@ const TOOL_BUILDERS: Record<
   notify_email: createNotifyEmailTool,
   notify_github_comment: createNotifyGithubCommentTool,
   recall_memory: createRecallMemoryTool,
-  save_memory: createSaveMemoryTool,
 };
 
 export function buildWorkspaceOrchestratorTools(session: WorkspaceOrchestratorSession): ToolSet {

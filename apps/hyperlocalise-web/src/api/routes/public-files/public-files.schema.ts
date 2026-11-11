@@ -25,6 +25,7 @@ export const uploadBodySchema = z.object({
   sourceLocale: z.string().trim().min(1).max(32).optional(),
   format: z.string().trim().min(1).max(64).optional(),
   branch: z.string().trim().min(1).max(256).optional(),
+  keepApproved: z.enum(["true", "false"]).optional(),
 });
 
 export const fileParamsSchema = z.object({

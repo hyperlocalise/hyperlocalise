@@ -135,7 +135,7 @@ export default async function BlogPostRoute({ params }: BlogPostRouteProps) {
     notFound();
   }
 
-  const htmlContent = await markdownToHtml(post.content);
+  const htmlContent = await markdownToHtml(post.content, { locale });
   const jsonLd = buildArticleJsonLd(post, locale);
   const relatedPosts = getRelevantPosts(slug, locale);
 

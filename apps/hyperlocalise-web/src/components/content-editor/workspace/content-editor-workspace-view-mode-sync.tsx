@@ -47,13 +47,15 @@ export const ContentEditorWorkspaceViewModeSync = observer(
           return {
             sourcePath: selected?.sourcePath ?? store.fileContext.sourcePath,
             contentKind: selected?.contentKind,
+            providerKind: store.fileContext.providerKind,
             multilingualViewAvailable: store.ui.multilingualViewAvailable,
           };
         },
-        ({ sourcePath, contentKind, multilingualViewAvailable }) => {
+        ({ sourcePath, contentKind, providerKind, multilingualViewAvailable }) => {
           const capabilities = resolveCatFileViewCapabilities({
             sourcePath,
             contentKind,
+            providerKind,
             multilingualViewAvailable,
           });
           store.ui.applyFileFamily(capabilities.family);

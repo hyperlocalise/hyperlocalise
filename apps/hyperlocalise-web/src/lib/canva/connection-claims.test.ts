@@ -12,7 +12,6 @@
  */
 import "dotenv/config";
 
-import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
@@ -32,8 +31,6 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-import { createApp } from "@/api/app";
-import type { AppType } from "@/api/typed-app";
 import { createApiKeyTestFixture } from "@/api/routes/api-key/api-key.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db } from "@/lib/database/client";
@@ -45,9 +42,8 @@ import {
 } from "./connection-claims";
 import { createCanvaConnection, getCanvaConnectionByToken } from "./connections";
 
-const client = testClient<AppType>(createApp());
 const apiKeyFixture = createApiKeyTestFixture();
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 
 describe("completeCanvaConnectionClaim", () => {
   beforeAll(async () => {
@@ -80,8 +76,6 @@ describe("completeCanvaConnectionClaim", () => {
       displayName: "Race Canva",
       apiKeyId: apiKey.id,
       projectId: projectBody.project.id,
-      sourceLocale: "en",
-      targetLocales: ["es"],
     });
     const claim = await createCanvaConnectionClaim();
 

@@ -31,6 +31,26 @@ func TestMappedImportLocale(t *testing.T) {
 	}
 }
 
+func TestCanonicalGlossaryImportLocale(t *testing.T) {
+	tests := []struct {
+		raw  string
+		want string
+		ok   bool
+	}{
+		{raw: "de-DE", want: "de-DE", ok: true},
+		{raw: "en-us", want: "en-US", ok: true},
+		{raw: "", ok: false},
+		{raw: "source", ok: false},
+		{raw: "123", ok: false},
+	}
+	for _, test := range tests {
+		got, ok := canonicalGlossaryImportLocale(test.raw)
+		if ok != test.ok || (test.ok && got != test.want) {
+			t.Fatalf("canonicalGlossaryImportLocale(%q) = (%q, %t), want (%q, %t)", test.raw, got, ok, test.want, test.ok)
+		}
+	}
+}
+
 func TestContainsConfiguredLocaleIsCaseInsensitive(t *testing.T) {
 	if !containsConfiguredLocale("EN-us", []string{"en-US"}) {
 		t.Fatal("expected locale to match case-insensitively")

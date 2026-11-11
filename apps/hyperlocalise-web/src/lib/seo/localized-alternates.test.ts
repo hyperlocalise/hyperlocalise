@@ -44,11 +44,9 @@ describe("getLocalizedAlternates", () => {
 
     expect(alternates.canonical).toBe(`${SITE_URL}/vi-VN/product/agents`);
     expect(alternates.languages).toEqual({
-      en: `${SITE_URL}/en/product/agents`,
-      "zh-CN": `${SITE_URL}/zh-CN/product/agents`,
-      "vi-VN": `${SITE_URL}/vi-VN/product/agents`,
-      "de-DE": `${SITE_URL}/de-DE/product/agents`,
-      "fr-FR": `${SITE_URL}/fr-FR/product/agents`,
+      ...Object.fromEntries(
+        SUPPORTED_APP_LOCALES.map((locale) => [locale, `${SITE_URL}/${locale}/product/agents`]),
+      ),
       "x-default": `${SITE_URL}/en/product/agents`,
     });
     expect(Object.keys(alternates.languages ?? {}).filter((key) => key !== "x-default")).toEqual(

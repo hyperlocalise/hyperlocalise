@@ -14,8 +14,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 export type IssueRelationshipPresentedKind =
   | "related"
@@ -50,20 +50,22 @@ export function useIssueRelationshipsQuery({
   projectId: string | undefined;
   issueId: string | undefined;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
+
   return useQuery({
     queryKey: issueRelationshipsQueryKey(organizationSlug, projectId ?? "", issueId ?? ""),
     enabled: Boolean(projectId && issueId),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ][":issueId"].relationships.$get({
-        param: { organizationSlug, projectId: projectId!, issueId: issueId! },
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load relationships");
+      try {
+        const body = (await goSvcClient.issueSheet.relationships.list(
+          organizationSlug,
+          projectId!,
+          issueId!,
+        )) as { relationships: IssueRelationship[] };
+        return body.relationships;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load relationships"), { cause: error });
       }
-      const body = await response.json();
-      return body.relationships;
     },
   });
 }

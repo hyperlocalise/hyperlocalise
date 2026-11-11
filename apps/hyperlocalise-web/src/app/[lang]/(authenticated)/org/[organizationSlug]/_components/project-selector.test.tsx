@@ -50,7 +50,7 @@ describe("ProjectSelector", () => {
           createProject({ id: "proj_web", name: "Website" }),
           createProject({
             id: "ext:crowdin:42",
-            name: "Crowdin App",
+            name: "Crowdin Project",
             source: "external_tms",
             externalProviderKind: "crowdin",
           }),
@@ -64,7 +64,7 @@ describe("ProjectSelector", () => {
     );
 
     await user.click(screen.getByRole("button", { name: /project/i }));
-    await user.click(await screen.findByText("Crowdin App"));
+    await user.click(await screen.findByText("Crowdin Project"));
 
     expect(onSelectProject).toHaveBeenCalledWith("ext:crowdin:42");
   });

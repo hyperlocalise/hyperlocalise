@@ -15,11 +15,12 @@ type CheckRequest struct {
 
 // Balance is a subset of Autumn balance fields returned by Check.
 type Balance struct {
-	FeatureID string   `json:"feature_id"`
-	Granted   *float64 `json:"granted"`
-	Usage     *float64 `json:"usage"`
-	Remaining *float64 `json:"remaining"`
-	Unlimited bool     `json:"unlimited"`
+	FeatureID   string   `json:"feature_id"`
+	Granted     *float64 `json:"granted"`
+	Usage       *float64 `json:"usage"`
+	Remaining   *float64 `json:"remaining"`
+	Unlimited   bool     `json:"unlimited"`
+	NextResetAt *int64   `json:"next_reset_at"`
 }
 
 // CheckResponse is the subset of balances.check used for gating.

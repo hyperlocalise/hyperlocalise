@@ -319,7 +319,7 @@ msgstr[1] "many <Gold>coins</>"
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	value := got["one <Gold>coin</>"]
+	value := got["one <Gold>coin</>||one"]
 	if strings.Contains(value, "<Gold>") || strings.Contains(value, "</>") {
 		t.Fatalf("expected plural msgstr[0] tags placeholdered, got %q", value)
 	}

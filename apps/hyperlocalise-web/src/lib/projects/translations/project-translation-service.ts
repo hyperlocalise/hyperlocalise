@@ -11,17 +11,27 @@
  * Version 2.0 or later.
  */
 import { and, count, eq, ilike, inArray, or, sql } from "drizzle-orm";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import type {
   ProjectFileContentEditorQueueFilter,
   ProjectFileContentEditorQueueSort,
   ProjectSourceStringEntry,
 } from "@/api/routes/project/project.schema";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
+import { nativeQueueFilterCondition } from "@/lib/projects/content-editor/native-content-editor-queue-filter";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecycle";
+import type { SourceFileSyncClash } from "@/lib/projects/files/source-file-sync-report";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { translationKeysQueueOrderBy } from "@/lib/projects/translations/project-translation-queue-order";
+import { translationOriginOnConflict } from "@/lib/projects/translations/translation-origin";
+import {
+  projectTranslationRevisionColumns,
+  recordProjectTranslationRevisions,
+  writeProjectTranslations,
+  type TranslationRevisionActor,
+} from "@/lib/projects/translations/project-translation-revisions";
 import { shouldRetrySameAsSourcePrefill } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
 import { shouldPrefillTranslation } from "@/lib/projects/translations/translation-prefill";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
@@ -51,6 +61,19 @@ function sourceTextHash(sourceText: string) {
   return createHash("sha256").update(sourceText, "utf8").digest("hex");
 }
 
+export function excludeMarkdownCalloutFenceKeys() {
+  return sql`(
+    (
+      ${schema.projectTranslationKeys.key} not like 'md.%'
+      and ${schema.projectTranslationKeys.key} not like 'frontmatter/%'
+    )
+    or (
+      trim(${schema.projectTranslationKeys.sourceText}) <> ':::'
+      and trim(${schema.projectTranslationKeys.sourceText}) not like ':::callout%'
+    )
+  )`;
+}
+
 function translationKeysFileConditions(input: {
   organizationId: string;
   projectId: string;
@@ -60,6 +83,7 @@ function translationKeysFileConditions(input: {
     eq(schema.projectTranslationKeys.organizationId, input.organizationId),
     eq(schema.projectTranslationKeys.projectId, input.projectId),
     eq(schema.projectTranslationKeys.repositorySourceFileId, input.repositorySourceFileId),
+    excludeMarkdownCalloutFenceKeys(),
   );
 }
 
@@ -67,6 +91,7 @@ function translationKeysProjectConditions(input: ProjectKeysScopeInput) {
   return and(
     eq(schema.projectTranslationKeys.organizationId, input.organizationId),
     eq(schema.projectTranslationKeys.projectId, input.projectId),
+    excludeMarkdownCalloutFenceKeys(),
   );
 }
 
@@ -123,101 +148,131 @@ function translationKeysSearchCondition(input: {
 function translationKeysQueueFilterCondition(input: {
   organizationId: string;
   projectId: string;
-  targetLocale: string;
+  targetLocale?: string;
   queueFilter?: ProjectFileContentEditorQueueFilter;
+  queueFilterQualifier?: string;
+  advancedFilter?: ContentEditorAdvancedQueueFilter;
 }) {
-  const filter = input.queueFilter;
-  if (!filter || filter === "all") {
-    return undefined;
+  if (!input.targetLocale) {
+    // Hidden / not hidden are source-key flags, independent of the CAT locale.
+    switch (input.queueFilter) {
+      case "hidden":
+        return eq(schema.projectTranslationKeys.isHidden, true);
+      case "not_hidden":
+        return eq(schema.projectTranslationKeys.isHidden, false);
+      default:
+        return undefined;
+    }
   }
 
-  const translationMatch = sql`
-    ${schema.projectTranslations.translationKeyId} = ${schema.projectTranslationKeys.id}
-    and ${schema.projectTranslations.organizationId} = ${input.organizationId}
-    and ${schema.projectTranslations.projectId} = ${input.projectId}
-    and ${schema.projectTranslations.targetLocale} = ${input.targetLocale}
-  `;
+  return nativeQueueFilterCondition({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    targetLocale: input.targetLocale,
+    queueFilter: input.queueFilter,
+    queueFilterQualifier: input.queueFilterQualifier,
+    advancedFilter: input.advancedFilter,
+  });
+}
 
-  switch (filter) {
-    case "untranslated":
-      return sql`not exists (
-        select 1
-        from ${schema.projectTranslations}
-        where ${translationMatch}
-          and trim(${schema.projectTranslations.text}) != ''
-      )`;
-    case "reviewed":
-      return sql`exists (
-        select 1
-        from ${schema.projectTranslations}
-        where ${translationMatch}
-          and ${schema.projectTranslations.status} = 'approved'
-      )`;
-    case "needs_review":
-      return sql`exists (
-        select 1
-        from ${schema.projectTranslations}
-        where ${translationMatch}
-          and trim(${schema.projectTranslations.text}) != ''
-          and ${schema.projectTranslations.status} != 'approved'
-      )`;
-    case "has_issues":
-      // Sheet issues are the source of truth for new native CAT issues. Also keep
-      // unmirrored legacy `type='issue'` comments (pre-sheet / failed mirror) so
-      // the Has issues queue does not hide open work after the Issues migration.
-      // Mirrored comments are excluded: resolving the sheet leaves the comment
-      // unresolved, and counting those would pin segments in this filter forever.
-      return sql`(
-        exists (
-          select 1
-          from ${schema.issueSheetIssues}
-          where ${schema.issueSheetIssues.translationKeyId} = ${schema.projectTranslationKeys.id}
-            and ${schema.issueSheetIssues.organizationId} = ${input.organizationId}
-            and ${schema.issueSheetIssues.projectId} = ${input.projectId}
-            and ${schema.issueSheetIssues.targetLocale} = ${input.targetLocale}
-            and ${schema.issueSheetIssues.status} in ('open', 'in_progress')
+/**
+ * Moves the approved translations of keys whose source text changed back to `needs_review`,
+ * keeping their text, so out-of-date text is not delivered as reviewed. Records a revision for
+ * each. A locked translation stays approved: a lock refuses status changes, so it could not be
+ * approved again without unlocking. Pass the transaction that changed the source.
+ */
+async function sendApprovedTranslationsToReview(
+  database: DatabaseClient,
+  input: { organizationId: string; projectId: string; translationKeyIds: string[] },
+) {
+  const approved: Array<{ id: string; translationKeyId: string; targetLocale: string }> = [];
+  for (const keyIds of chunkItems(input.translationKeyIds, PROJECT_TRANSLATION_WRITE_BATCH_SIZE)) {
+    approved.push(
+      ...(await database
+        .select({
+          id: schema.projectTranslations.id,
+          translationKeyId: schema.projectTranslations.translationKeyId,
+          targetLocale: schema.projectTranslations.targetLocale,
+        })
+        .from(schema.projectTranslations)
+        .where(
+          and(
+            eq(schema.projectTranslations.organizationId, input.organizationId),
+            eq(schema.projectTranslations.projectId, input.projectId),
+            inArray(schema.projectTranslations.translationKeyId, keyIds),
+            eq(schema.projectTranslations.status, "approved"),
+            sql`not exists (
+              select 1 from ${schema.projectContentEditorSegmentLocks} locks
+              where locks.organization_id = ${schema.projectTranslations.organizationId}
+                and locks.project_id = ${schema.projectTranslations.projectId}
+                and locks.target_locale = ${schema.projectTranslations.targetLocale}
+                and locks.external_string_id = ${schema.projectTranslations.translationKeyId}::text
+            )`,
+          ),
         )
-        or exists (
-          select 1
-          from ${schema.projectTranslationComments}
-          where ${schema.projectTranslationComments.translationKeyId} = ${schema.projectTranslationKeys.id}
-            and ${schema.projectTranslationComments.organizationId} = ${input.organizationId}
-            and ${schema.projectTranslationComments.projectId} = ${input.projectId}
-            and ${schema.projectTranslationComments.targetLocale} = ${input.targetLocale}
-            and ${schema.projectTranslationComments.type} = 'issue'
-            and ${schema.projectTranslationComments.status} = 'unresolved'
-            and not exists (
-              select 1
-              from ${schema.issueSheetIssues}
-              where ${schema.issueSheetIssues.linkedCommentId} = ${schema.projectTranslationComments.id}
-            )
-        )
-      )`;
-    case "qa_issues":
-      return sql`exists (
-        select 1
-        from ${schema.translationQaFindings}
-        where ${schema.translationQaFindings.translationKeyId} = ${schema.projectTranslationKeys.id}
-          and ${schema.translationQaFindings.organizationId} = ${input.organizationId}
-          and ${schema.translationQaFindings.projectId} = ${input.projectId}
-          and ${schema.translationQaFindings.targetLocale} = ${input.targetLocale}
-          and ${schema.translationQaFindings.status} = 'open'
-          and ${schema.translationQaFindings.runId} = (
-            select ${schema.translationQaRuns.id}
-            from ${schema.translationQaRuns}
-            where ${schema.translationQaRuns.organizationId} = ${input.organizationId}
-              and ${schema.translationQaRuns.projectId} = ${input.projectId}
-              and ${schema.translationQaRuns.status} = 'succeeded'
-            order by ${schema.translationQaRuns.completedAt} desc nulls last,
-              ${schema.translationQaRuns.createdAt} desc
-            limit 1
+        // Keeps each batch to few keys, since a batch snapshots its keys in every locale.
+        .orderBy(schema.projectTranslations.translationKeyId)),
+    );
+  }
+  // Batches by translation, not key: one key can have a translation in every target locale.
+  for (const batch of chunkItems(approved, PROJECT_TRANSLATION_WRITE_BATCH_SIZE)) {
+    await writeProjectTranslations(
+      database,
+      {
+        organizationId: input.organizationId,
+        translationKeyIds: batch.map((row) => row.translationKeyId),
+        targetLocales: batch.map((row) => row.targetLocale),
+      },
+      async (tx, before) => {
+        const saved = await tx
+          .update(schema.projectTranslations)
+          .set({ status: "needs_review", reviewedByUserId: null, reviewedAt: null })
+          .where(
+            and(
+              inArray(
+                schema.projectTranslations.id,
+                batch.map((row) => row.id),
+              ),
+              eq(schema.projectTranslations.status, "approved"),
+            ),
           )
-      )`;
-    case "hidden":
-      return eq(schema.projectTranslationKeys.isHidden, true);
-    default:
-      return undefined;
+          .returning(projectTranslationRevisionColumns);
+        await recordProjectTranslationRevisions(tx, {
+          before,
+          saved,
+          actor: { actorKind: "system", actorUserId: null },
+        });
+      },
+    );
   }
+}
+
+/**
+ * Which source text an import leaves on an existing key. The last imported text is the common
+ * ancestor; with none recorded the platform's text stands in, so the import takes the file's
+ * text. Texts are compared exactly.
+ */
+export function decideImportedSourceText(input: {
+  fileText: string;
+  platformText: string;
+  lastImportedText: string | null;
+  sourceTextEditable: boolean;
+}): { text: string; clash: boolean } {
+  if (!input.sourceTextEditable) {
+    return { text: input.fileText, clash: false };
+  }
+  const base = input.lastImportedText ?? input.platformText;
+  if (input.fileText === base || input.fileText === input.platformText) {
+    return { text: input.platformText, clash: false };
+  }
+  if (input.platformText === base) {
+    return { text: input.fileText, clash: false };
+  }
+  return { text: input.platformText, clash: true };
+}
+
+function translationTextKey(row: { translationKeyId: string; targetLocale: string; text: string }) {
+  return JSON.stringify([row.translationKeyId, row.targetLocale, row.text]);
 }
 
 export class ProjectTranslationService extends ProjectServiceBase {
@@ -234,6 +289,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
       .select({
         id: schema.repositorySourceFiles.id,
         sourcePath: schema.repositorySourceFiles.sourcePath,
+        createdAt: schema.repositorySourceFiles.createdAt,
+        updatedAt: schema.repositorySourceFiles.updatedAt,
       })
       .from(schema.repositorySourceFiles)
       .where(
@@ -248,6 +305,13 @@ export class ProjectTranslationService extends ProjectServiceBase {
     return row ?? null;
   }
 
+  /**
+   * Writes a file's keys. With `sourceTextEditable` off the file's text replaces the platform's,
+   * as every upload does. On, each existing key follows a three-way rule between the file's text,
+   * the platform's and the text last imported (`decideImportedSourceText`): a change on one side
+   * only wins, and a change on both sides is a clash that keeps the platform's text. Every import
+   * records the file's text as the last imported text, except on a clash. Returns the clashes.
+   */
   async upsertKeysFromEntries(
     input: {
       organizationId: string;
@@ -256,12 +320,17 @@ export class ProjectTranslationService extends ProjectServiceBase {
       sourceFileVersionId?: string | null;
       entries: ProjectSourceStringEntry[];
       preserveEmptySourceText?: boolean;
+      /** Move approved translations of keys whose source text changed back to `needs_review`. */
+      sendApprovedToReviewOnSourceChange?: boolean;
+      /** Keep source text edited in the platform, by the three-way rule. */
+      sourceTextEditable?: boolean;
     },
     database: DatabaseClient = this.database,
-  ) {
+  ): Promise<{ imported: number; updated: number; clashes: SourceFileSyncClash[] }> {
     if (input.entries.length > PROJECT_TRANSLATION_WRITE_BATCH_SIZE) {
       let imported = 0;
       let updated = 0;
+      const clashes: SourceFileSyncClash[] = [];
       for (const entries of chunkItems(input.entries, PROJECT_TRANSLATION_WRITE_BATCH_SIZE)) {
         const result = await this.upsertKeysFromEntries(
           {
@@ -272,8 +341,9 @@ export class ProjectTranslationService extends ProjectServiceBase {
         );
         imported += result.imported;
         updated += result.updated;
+        clashes.push(...result.clashes);
       }
-      return { imported, updated };
+      return { imported, updated, clashes };
     }
     const entries = input.entries
       .map((entry) => ({
@@ -292,12 +362,15 @@ export class ProjectTranslationService extends ProjectServiceBase {
       );
 
     if (entries.length === 0) {
-      return { imported: 0, updated: 0 };
+      return { imported: 0, updated: 0, clashes: [] };
     }
 
-    const existing = await database
+    const existingQuery = database
       .select({
+        id: schema.projectTranslationKeys.id,
         key: schema.projectTranslationKeys.key,
+        sourceText: schema.projectTranslationKeys.sourceText,
+        importedSourceText: schema.projectTranslationKeys.importedSourceText,
       })
       .from(schema.projectTranslationKeys)
       .where(
@@ -310,26 +383,63 @@ export class ProjectTranslationService extends ProjectServiceBase {
           ),
         ),
       );
+    // Locked before comparing, so a string edit cannot change the source text between this
+    // comparison and the upsert; id order within each batch, as translation writers lock keys.
+    const existing =
+      input.sendApprovedToReviewOnSourceChange || input.sourceTextEditable
+        ? await existingQuery.orderBy(schema.projectTranslationKeys.id).for("no key update")
+        : await existingQuery;
 
-    const existingKeys = new Set(existing.map((row) => row.key));
+    const existingByKey = new Map(existing.map((row) => [row.key, row]));
     let updated = 0;
-    for (const entry of entries) {
-      if (existingKeys.has(entry.key)) {
-        updated += 1;
+    const sourceChangedKeyIds: string[] = [];
+    const clashes: SourceFileSyncClash[] = [];
+    const rows = entries.map((entry) => {
+      const row = existingByKey.get(entry.key);
+      if (!row) {
+        return { ...entry, importedSourceText: entry.sourceText };
       }
-    }
+      updated += 1;
+      const decision = decideImportedSourceText({
+        fileText: entry.sourceText,
+        platformText: row.sourceText,
+        lastImportedText: row.importedSourceText,
+        sourceTextEditable: input.sourceTextEditable ?? false,
+      });
+      if (decision.clash) {
+        clashes.push({ key: entry.key, fileText: entry.sourceText });
+      }
+      // Only text this import writes counts as a source change; a kept edit leaves translations.
+      if (
+        input.sendApprovedToReviewOnSourceChange &&
+        row.sourceText.trim() !== decision.text.trim()
+      ) {
+        sourceChangedKeyIds.push(row.id);
+      }
+      return {
+        ...entry,
+        // A clash keeps its base, so it is reported on every import until one side gives way.
+        importedSourceText: decision.clash ? row.importedSourceText : entry.sourceText,
+        sourceText: decision.text,
+        normalizedSourceText:
+          decision.text === entry.sourceText
+            ? entry.normalizedSourceText
+            : normalizeTranslationMemorySourceText(decision.text),
+      };
+    });
     const imported = entries.length - updated;
 
     await database
       .insert(schema.projectTranslationKeys)
       .values(
-        entries.map((entry) => ({
+        rows.map((entry) => ({
           organizationId: input.organizationId,
           projectId: input.projectId,
           repositorySourceFileId: input.repositorySourceFileId,
           key: entry.key,
           sourceText: entry.sourceText,
           normalizedSourceText: entry.normalizedSourceText,
+          importedSourceText: entry.importedSourceText,
           context: entry.context,
           type: entry.type,
           maxLength: entry.maxLength,
@@ -345,13 +455,20 @@ export class ProjectTranslationService extends ProjectServiceBase {
         set: {
           sourceText: sql`excluded.source_text`,
           normalizedSourceText: sql`excluded.normalized_source_text`,
+          importedSourceText: sql`excluded.imported_source_text`,
           context: sql`excluded.context`,
           type: sql`excluded.type`,
           maxLength: sql`coalesce(excluded.max_length, ${schema.projectTranslationKeys.maxLength})`,
           sourceFileVersionId: sql`excluded.source_file_version_id`,
-          updatedAt: sql`now()`,
+          // Settling an unchanged file revisits keys without changing them; those keep their time.
+          updatedAt: sql`case when ${schema.projectTranslationKeys.sourceText} is distinct from excluded.source_text or ${schema.projectTranslationKeys.importedSourceText} is distinct from excluded.imported_source_text or ${schema.projectTranslationKeys.context} is distinct from excluded.context or ${schema.projectTranslationKeys.type} is distinct from excluded.type or ${schema.projectTranslationKeys.maxLength} is distinct from coalesce(excluded.max_length, ${schema.projectTranslationKeys.maxLength}) or ${schema.projectTranslationKeys.sourceFileVersionId} is distinct from excluded.source_file_version_id then now() else ${schema.projectTranslationKeys.updatedAt} end`,
         },
       });
+    await sendApprovedTranslationsToReview(database, {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      translationKeyIds: sourceChangedKeyIds,
+    });
 
     this.log.info(
       {
@@ -360,12 +477,13 @@ export class ProjectTranslationService extends ProjectServiceBase {
         repositorySourceFileId: input.repositorySourceFileId,
         imported,
         updated,
+        clashes: clashes.length,
         total: entries.length,
       },
       "upserted project translation keys",
     );
 
-    return { imported, updated };
+    return { imported, updated, clashes };
   }
 
   async setKeyMaxLength(input: {
@@ -418,6 +536,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
       .update(schema.projectTranslationKeys)
       .set({
         isHidden: input.isHidden,
+        // A person's choice, so a sync no longer owns the hidden state.
+        hiddenBySyncAt: null,
         updatedAt: new Date(),
       })
       .where(
@@ -508,6 +628,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     targetLocale?: string;
     search?: string;
     queueFilter?: ProjectFileContentEditorQueueFilter;
+    queueFilterQualifier?: string;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
   }) {
     const [row] = await this.database
       .select({ total: count() })
@@ -516,14 +638,14 @@ export class ProjectTranslationService extends ProjectServiceBase {
         and(
           translationKeysFileConditions(input),
           translationKeysSearchCondition(input),
-          input.targetLocale
-            ? translationKeysQueueFilterCondition({
-                organizationId: input.organizationId,
-                projectId: input.projectId,
-                targetLocale: input.targetLocale,
-                queueFilter: input.queueFilter,
-              })
-            : undefined,
+          translationKeysQueueFilterCondition({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            targetLocale: input.targetLocale,
+            queueFilter: input.queueFilter,
+            queueFilterQualifier: input.queueFilterQualifier,
+            advancedFilter: input.advancedFilter,
+          }),
         ),
       );
 
@@ -539,6 +661,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     offset?: number;
     search?: string;
     queueFilter?: ProjectFileContentEditorQueueFilter;
+    queueFilterQualifier?: string;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
     queueSort?: ProjectFileContentEditorQueueSort;
   }) {
     const limit = input.limit ?? 2_000;
@@ -560,14 +684,14 @@ export class ProjectTranslationService extends ProjectServiceBase {
         and(
           translationKeysFileConditions(input),
           translationKeysSearchCondition(input),
-          input.targetLocale
-            ? translationKeysQueueFilterCondition({
-                organizationId: input.organizationId,
-                projectId: input.projectId,
-                targetLocale: input.targetLocale,
-                queueFilter: input.queueFilter,
-              })
-            : undefined,
+          translationKeysQueueFilterCondition({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            targetLocale: input.targetLocale,
+            queueFilter: input.queueFilter,
+            queueFilterQualifier: input.queueFilterQualifier,
+            advancedFilter: input.advancedFilter,
+          }),
         ),
       )
       .orderBy(
@@ -588,6 +712,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     targetLocale?: string;
     search?: string;
     queueFilter?: ProjectFileContentEditorQueueFilter;
+    queueFilterQualifier?: string;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
     sourcePaths?: readonly string[] | null;
   }) {
     const [row] = await this.database
@@ -602,14 +728,14 @@ export class ProjectTranslationService extends ProjectServiceBase {
           translationKeysProjectConditions(input),
           translationKeysSourcePathFilter(input.sourcePaths),
           translationKeysSearchCondition(input),
-          input.targetLocale
-            ? translationKeysQueueFilterCondition({
-                organizationId: input.organizationId,
-                projectId: input.projectId,
-                targetLocale: input.targetLocale,
-                queueFilter: input.queueFilter,
-              })
-            : undefined,
+          translationKeysQueueFilterCondition({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            targetLocale: input.targetLocale,
+            queueFilter: input.queueFilter,
+            queueFilterQualifier: input.queueFilterQualifier,
+            advancedFilter: input.advancedFilter,
+          }),
         ),
       );
 
@@ -624,6 +750,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     offset?: number;
     search?: string;
     queueFilter?: ProjectFileContentEditorQueueFilter;
+    queueFilterQualifier?: string;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
     queueSort?: ProjectFileContentEditorQueueSort;
     sourcePaths?: readonly string[] | null;
   }) {
@@ -652,14 +780,14 @@ export class ProjectTranslationService extends ProjectServiceBase {
           translationKeysProjectConditions(input),
           translationKeysSourcePathFilter(input.sourcePaths),
           translationKeysSearchCondition(input),
-          input.targetLocale
-            ? translationKeysQueueFilterCondition({
-                organizationId: input.organizationId,
-                projectId: input.projectId,
-                targetLocale: input.targetLocale,
-                queueFilter: input.queueFilter,
-              })
-            : undefined,
+          translationKeysQueueFilterCondition({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            targetLocale: input.targetLocale,
+            queueFilter: input.queueFilter,
+            queueFilterQualifier: input.queueFilterQualifier,
+            advancedFilter: input.advancedFilter,
+          }),
         ),
       )
       .orderBy(
@@ -720,22 +848,33 @@ export class ProjectTranslationService extends ProjectServiceBase {
       return [];
     }
 
-    return this.database
-      .select({
-        id: schema.projectTranslations.id,
-        translationKeyId: schema.projectTranslations.translationKeyId,
-        text: schema.projectTranslations.text,
-        status: schema.projectTranslations.status,
-      })
-      .from(schema.projectTranslations)
-      .where(
-        and(
-          eq(schema.projectTranslations.organizationId, input.organizationId),
-          eq(schema.projectTranslations.projectId, input.projectId),
-          eq(schema.projectTranslations.targetLocale, input.targetLocale),
-          inArray(schema.projectTranslations.translationKeyId, input.translationKeyIds),
-        ),
+    const batches = [];
+    for (const translationKeyIds of chunkItems(
+      input.translationKeyIds,
+      PROJECT_TRANSLATION_WRITE_BATCH_SIZE,
+    )) {
+      batches.push(
+        await this.database
+          .select({
+            id: schema.projectTranslations.id,
+            translationKeyId: schema.projectTranslations.translationKeyId,
+            text: schema.projectTranslations.text,
+            status: schema.projectTranslations.status,
+            provenance: schema.projectTranslations.provenance,
+            updatedAt: schema.projectTranslations.updatedAt,
+          })
+          .from(schema.projectTranslations)
+          .where(
+            and(
+              eq(schema.projectTranslations.organizationId, input.organizationId),
+              eq(schema.projectTranslations.projectId, input.projectId),
+              eq(schema.projectTranslations.targetLocale, input.targetLocale),
+              inArray(schema.projectTranslations.translationKeyId, translationKeyIds),
+            ),
+          ),
       );
+    }
+    return batches.flat();
   }
 
   async loadAsPrefilledEntries(input: {
@@ -747,6 +886,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     includeAllSourceKeys?: boolean;
     /** When true, omit source-text fallbacks and keep only ready translations. */
     readyTranslationsOnly?: boolean;
+    /** When true, keep only translations whose status is approved. */
+    approvedTranslationsOnly?: boolean;
   }): Promise<{
     prefilled: Record<string, string>;
     retryKeys: string[];
@@ -803,10 +944,12 @@ export class ProjectTranslationService extends ProjectServiceBase {
 
       for (const key of keys) {
         const translation = translationByKeyId.get(key.id);
-        const canPrefill = shouldPrefillTranslation({
-          targetText: translation?.text,
-          status: translation?.status,
-        });
+        const canPrefill =
+          shouldPrefillTranslation({
+            targetText: translation?.text,
+            status: translation?.status,
+          }) &&
+          (!input.approvedTranslationsOnly || translation?.status === "approved");
 
         if (key.isHidden) {
           if (canPrefill) {
@@ -1081,6 +1224,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
       text: translation.text,
       status: "needs_review" as const,
       provenance: "translation_job" as const,
+      origin: "machine" as const,
       sourceJobId: input.jobId,
     }));
 
@@ -1088,24 +1232,37 @@ export class ProjectTranslationService extends ProjectServiceBase {
       return;
     }
 
-    await this.database
-      .insert(schema.projectTranslations)
-      .values(translationValues)
-      .onConflictDoUpdate({
-        target: [
-          schema.projectTranslations.translationKeyId,
-          schema.projectTranslations.targetLocale,
-        ],
-        set: {
-          text: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.text ELSE excluded.text END`,
-          status: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.status ELSE excluded.status END`,
-          provenance: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.provenance ELSE excluded.provenance END`,
-          sourceJobId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.source_job_id ELSE excluded.source_job_id END`,
-          reviewedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_at ELSE NULL END`,
-          reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
-          updatedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.updated_at ELSE now() END`,
-        },
-      });
+    await writeProjectTranslations(
+      this.database,
+      {
+        organizationId: input.organizationId,
+        translationKeyIds: [key.id],
+        targetLocales: translationValues.map((translation) => translation.targetLocale),
+      },
+      async (tx, before) => {
+        const saved = await tx
+          .insert(schema.projectTranslations)
+          .values(translationValues)
+          .onConflictDoUpdate({
+            target: [
+              schema.projectTranslations.translationKeyId,
+              schema.projectTranslations.targetLocale,
+            ],
+            set: {
+              text: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.text ELSE excluded.text END`,
+              status: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.status ELSE excluded.status END`,
+              provenance: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.provenance ELSE excluded.provenance END`,
+              origin: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.origin ELSE excluded.origin END`,
+              sourceJobId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.source_job_id ELSE excluded.source_job_id END`,
+              reviewedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_at ELSE NULL END`,
+              reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
+              updatedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.updated_at ELSE now() END`,
+            },
+          })
+          .returning(projectTranslationRevisionColumns);
+        await recordProjectTranslationRevisions(tx, { before, saved });
+      },
+    );
   }
 
   async persistFileJobTranslations(input: {
@@ -1181,6 +1338,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           text: targetText,
           status: "needs_review" as const,
           provenance: "translation_job" as const,
+          origin: "machine" as const,
           sourceJobId: input.jobId,
         },
       ];
@@ -1194,24 +1352,37 @@ export class ProjectTranslationService extends ProjectServiceBase {
       translationValues,
       PROJECT_TRANSLATION_WRITE_BATCH_SIZE,
     )) {
-      await this.database
-        .insert(schema.projectTranslations)
-        .values(translationBatch)
-        .onConflictDoUpdate({
-          target: [
-            schema.projectTranslations.translationKeyId,
-            schema.projectTranslations.targetLocale,
-          ],
-          set: {
-            text: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.text ELSE excluded.text END`,
-            status: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.status ELSE excluded.status END`,
-            provenance: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.provenance ELSE excluded.provenance END`,
-            sourceJobId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.source_job_id ELSE excluded.source_job_id END`,
-            reviewedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_at ELSE NULL END`,
-            reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
-            updatedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.updated_at ELSE now() END`,
-          },
-        });
+      await writeProjectTranslations(
+        this.database,
+        {
+          organizationId: input.organizationId,
+          translationKeyIds: translationBatch.map((translation) => translation.translationKeyId),
+          targetLocales: [input.targetLocale],
+        },
+        async (tx, before) => {
+          const saved = await tx
+            .insert(schema.projectTranslations)
+            .values(translationBatch)
+            .onConflictDoUpdate({
+              target: [
+                schema.projectTranslations.translationKeyId,
+                schema.projectTranslations.targetLocale,
+              ],
+              set: {
+                text: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.text ELSE excluded.text END`,
+                status: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.status ELSE excluded.status END`,
+                provenance: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.provenance ELSE excluded.provenance END`,
+                origin: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.origin ELSE excluded.origin END`,
+                sourceJobId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.source_job_id ELSE excluded.source_job_id END`,
+                reviewedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_at ELSE NULL END`,
+                reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
+                updatedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.updated_at ELSE now() END`,
+              },
+            })
+            .returning(projectTranslationRevisionColumns);
+          await recordProjectTranslationRevisions(tx, { before, saved });
+        },
+      );
     }
   }
 
@@ -1250,6 +1421,26 @@ export class ProjectTranslationService extends ProjectServiceBase {
       return { matched: 0, imported: 0, skipped: entryKeys.length };
     }
 
+    // An integration import that only brings back a translation's current text has not reviewed
+    // it, so a translation in review stays there (a source change sends approved ones there with
+    // their text kept). An import by a person (a bilingual or translation file) approves.
+    let keepUnchangedInReview = false;
+    if (!input.actorUserId) {
+      const [project] = await this.database
+        .select({
+          approvedTranslationsOnSourceChange: schema.projects.approvedTranslationsOnSourceChange,
+        })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.id, input.projectId),
+            eq(schema.projects.organizationId, input.organizationId),
+          ),
+        )
+        .limit(1);
+      keepUnchangedInReview = project?.approvedTranslationsOnSourceChange === "needs_review";
+    }
+
     const keys: Array<{ id: string; key: string }> = [];
     for (const keyBatch of chunkItems(entryKeys, PROJECT_TRANSLATION_WRITE_BATCH_SIZE)) {
       const rows = await this.database
@@ -1286,6 +1477,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
           text,
           status: "approved" as const,
           provenance: "import" as const,
+          // An import does not say who wrote the text.
+          origin: "unknown" as const,
           reviewedAt,
           reviewedByUserId,
         },
@@ -1300,28 +1493,57 @@ export class ProjectTranslationService extends ProjectServiceBase {
       return { matched, imported, skipped };
     }
 
+    const operationId = `import:${randomUUID()}`;
+    const actor: TranslationRevisionActor = {
+      actorKind: reviewedByUserId ? "user" : "system",
+      actorUserId: reviewedByUserId,
+    };
     for (const translationBatch of chunkItems(
       translationValues,
       PROJECT_TRANSLATION_WRITE_BATCH_SIZE,
     )) {
-      await this.database
-        .insert(schema.projectTranslations)
-        .values(translationBatch)
-        .onConflictDoUpdate({
-          target: [
-            schema.projectTranslations.translationKeyId,
-            schema.projectTranslations.targetLocale,
-          ],
-          set: {
-            text: sql`excluded.text`,
-            status: sql`excluded.status`,
-            provenance: sql`excluded.provenance`,
-            sourceJobId: sql`NULL`,
-            reviewedAt: sql`excluded.reviewed_at`,
-            reviewedByUserId: sql`excluded.reviewed_by_user_id`,
-            updatedAt: sql`now()`,
-          },
-        });
+      await writeProjectTranslations(
+        this.database,
+        {
+          organizationId: input.organizationId,
+          translationKeyIds: translationBatch.map((translation) => translation.translationKeyId),
+          targetLocales: [input.targetLocale],
+        },
+        async (tx, before) => {
+          const unchangedInReview = new Set(
+            [...before.values()]
+              .filter((row) => keepUnchangedInReview && row.status === "needs_review")
+              .map((row) => translationTextKey(row)),
+          );
+          const values = translationBatch.filter(
+            (row) => !unchangedInReview.has(translationTextKey(row)),
+          );
+          // Kept rows still count as imported: the platform holds the remote text, and
+          // integrations read a shortfall as a language left to translate.
+          if (values.length === 0) return;
+          const saved = await tx
+            .insert(schema.projectTranslations)
+            .values(values)
+            .onConflictDoUpdate({
+              target: [
+                schema.projectTranslations.translationKeyId,
+                schema.projectTranslations.targetLocale,
+              ],
+              set: {
+                text: sql`excluded.text`,
+                status: sql`excluded.status`,
+                provenance: sql`excluded.provenance`,
+                origin: translationOriginOnConflict("import"),
+                sourceJobId: sql`NULL`,
+                reviewedAt: sql`excluded.reviewed_at`,
+                reviewedByUserId: sql`excluded.reviewed_by_user_id`,
+                updatedAt: sql`now()`,
+              },
+            })
+            .returning(projectTranslationRevisionColumns);
+          await recordProjectTranslationRevisions(tx, { before, saved, actor, operationId });
+        },
+      );
     }
 
     this.log.info(

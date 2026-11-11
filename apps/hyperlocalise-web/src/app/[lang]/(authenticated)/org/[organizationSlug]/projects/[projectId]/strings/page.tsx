@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import {
   isReleaseCatAdaptiveWorkspaceEnabled,
@@ -18,7 +19,9 @@ import {
 import { CONTENT_EDITOR_ALL_FILES_SOURCE_PATH } from "@/lib/projects/content-editor-all-files";
 import { parseProjectFileContentEditorSearchParams } from "@/lib/projects/project-file-content-editor-routing";
 import {
+  parseCatWorkspaceQueueAdvancedParam,
   parseCatWorkspaceQueueFilterParam,
+  parseCatWorkspaceQueueFilterQualifierParam,
   parseCatWorkspaceQueueSortParam,
   parseCatWorkspaceSearchParam,
 } from "@/lib/projects/content-editor/content-editor-workspace-query-params";
@@ -50,6 +53,8 @@ export default function ProjectStringsPage({
     queueFilter?: string;
     queueSort?: string;
     search?: string;
+    queueFilterQualifier?: string;
+    queueAdvanced?: string;
   }>;
 }) {
   return <ProjectStringsPageLoader params={params} searchParams={searchParams} />;
@@ -71,6 +76,8 @@ async function ProjectStringsPageLoader({
     queueFilter?: string;
     queueSort?: string;
     search?: string;
+    queueFilterQualifier?: string;
+    queueAdvanced?: string;
   }>;
 }) {
   const { organizationSlug, projectId } = await params;
@@ -110,10 +117,15 @@ async function ProjectStringsPageLoader({
       initialQueueFilter={parseCatWorkspaceQueueFilterParam(rawSearchParams.queueFilter) ?? "all"}
       initialQueueSort={parseCatWorkspaceQueueSortParam(rawSearchParams.queueSort) ?? "file_order"}
       initialSearch={parseCatWorkspaceSearchParam(rawSearchParams.search)}
+      initialQueueFilterQualifier={parseCatWorkspaceQueueFilterQualifierParam(
+        rawSearchParams.queueFilterQualifier,
+      )}
+      initialQueueAdvanced={parseCatWorkspaceQueueAdvancedParam(rawSearchParams.queueAdvanced)}
       externalResourceId={parsedSearchParams.externalResourceId}
       resourceType={parsedSearchParams.resourceType}
       branch={parsedSearchParams.branch}
       sourcePaths={parsedSearchParams.sourcePaths}
+      canManageAutomations={isWorkspaceOperatorRole(auth.membership.role)}
     />
   );
 }

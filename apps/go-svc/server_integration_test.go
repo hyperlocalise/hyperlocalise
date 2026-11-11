@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -68,7 +69,9 @@ func startTestServer(t *testing.T, h *handler) (baseURL string, server *http.Ser
 	}()
 	t.Cleanup(func() {
 		_ = srv.Close()
-		<-serveErrCh
+		if err := <-serveErrCh; err != nil && !errors.Is(err, http.ErrServerClosed) {
+			t.Errorf("server exited with unexpected error: %v", err)
+		}
 	})
 
 	return "http://" + listener.Addr().String(), srv

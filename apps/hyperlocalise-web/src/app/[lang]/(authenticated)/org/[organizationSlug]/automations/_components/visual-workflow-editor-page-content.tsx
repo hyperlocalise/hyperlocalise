@@ -12,21 +12,27 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { useRouter } from "next/navigation";
 import { useState, useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage } from "react-intl";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
-import { useOrgRouter } from "@/lib/navigation/use-org-router";
-import { fromVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
+import { ApiResponseError } from "@/lib/api-error";
+import {
+  fromVisualWorkflowV3Definition,
+  toVisualWorkflowV3Definition,
+} from "@/lib/visual-workflows/schema/serializers";
+import {
+  EMPTY_VISUAL_WORKFLOW_TEST_SETUP,
+  type VisualWorkflowTestSetup,
+} from "@/lib/visual-workflows/editor/visual-workflow-test-data";
 import type { VisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
 
+import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { VisualWorkflowDeleteDialog } from "./visual-workflow-delete-dialog";
 import {
   publishWorkflowVersion,
@@ -39,20 +45,56 @@ import { visualWorkflowsPageMessages } from "./visual-workflows-page.messages";
 
 const visualWorkflowsApi = createVisualWorkflowsApi();
 
+/** Says why publishing or pausing failed, from the error code the API answered with. */
+function showStatusChangeError(error: unknown) {
+  const code = error instanceof ApiResponseError ? error.code : null;
+  if (code === "version_conflict") {
+    toast.error(<FormattedMessage {...visualWorkflowEditorMessages.statusConflict} />, {
+      action: {
+        label: <FormattedMessage {...visualWorkflowEditorMessages.statusReload} />,
+        onClick: () => window.location.reload(),
+      },
+    });
+    return;
+  }
+  if (code === "invalid_graph") {
+    toast.error(<FormattedMessage {...visualWorkflowEditorMessages.statusInvalidGraph} />);
+    return;
+  }
+  if (code === "invalid_active_trigger") {
+    toast.error(<FormattedMessage {...visualWorkflowEditorMessages.statusInvalidTrigger} />);
+    return;
+  }
+  toast.error(<FormattedMessage {...visualWorkflowEditorMessages.statusUpdateFailed} />, {
+    description: error instanceof Error ? error.message : undefined,
+  });
+}
+
 export function VisualWorkflowEditorPageContent({
+  assistantEnabled = false,
   organizationSlug,
+  projectName = null,
   workflow,
+  testSetup = EMPTY_VISUAL_WORKFLOW_TEST_SETUP,
   visualWorkflowsApi: injectedApi = visualWorkflowsApi,
 }: {
+  /** Whether the person may use the automation assistant on this workflow. */
+  assistantEnabled?: boolean;
   organizationSlug: string;
+  /** Name of the project the workflow belongs to, for the assistant. */
+  projectName?: string | null;
   workflow: VisualWorkflowRecord;
+  /** The test data and test run choices saved with the draft. */
+  testSetup?: VisualWorkflowTestSetup;
   visualWorkflowsApi?: VisualWorkflowsApi;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const revision = useRef(workflow.revision);
-  const orgRouter = useOrgRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const workflowTitle = workflow.name.trim();
+  // The breadcrumb shows the name as last saved, so a rename appears there once it is saved.
+  const [savedName, setSavedName] = useState(workflow.name);
+  const workflowTitle = savedName.trim();
   useAppShellBreadcrumbAppend({
     id: "visual-workflow-detail",
     label: workflowTitle || undefined,
@@ -63,10 +105,18 @@ export function VisualWorkflowEditorPageContent({
     ...workflow.definition,
     name: workflow.name,
   });
+  // The workflow as the editor writes it, so that an untouched graph compares as saved.
+  const [savedDefinition, setSavedDefinition] = useState(() =>
+    toVisualWorkflowV3Definition(editorState),
+  );
+  const [savedTestSetup, setSavedTestSetup] = useState(testSetup);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(hasUnsavedChanges);
 
   const persistMutation = useMutation({
     mutationFn: (input: {
       definition: VisualWorkflowV3Definition;
+      testSetup?: VisualWorkflowTestSetup;
       status?: VisualWorkflowRecord["status"];
     }) =>
       injectedApi
@@ -74,19 +124,24 @@ export function VisualWorkflowEditorPageContent({
           expectedRevision: revision.current,
           name: input.definition.name,
           definition: input.definition,
+          ...(input.testSetup ? { testSetup: input.testSetup } : {}),
           ...(input.status ? { status: input.status } : {}),
         })
         .then((record) => {
           revision.current = record.revision;
+          setSavedName(record.name);
+          setSavedDefinition(input.definition);
+          if (input.testSetup) setSavedTestSetup(input.testSetup);
+          void queryClient.invalidateQueries({ queryKey: ["visual-workflows", organizationSlug] });
           return record;
         }),
   });
 
   const saveMutation = {
     ...persistMutation,
-    mutate: (definition: VisualWorkflowV3Definition) => {
+    mutate: (definition: VisualWorkflowV3Definition, testSetup: VisualWorkflowTestSetup) => {
       persistMutation.mutate(
-        { definition },
+        { definition, testSetup },
         {
           onSuccess: () => {
             toast.success(<FormattedMessage {...visualWorkflowEditorMessages.saved} />);
@@ -105,27 +160,36 @@ export function VisualWorkflowEditorPageContent({
     mutationFn: () => injectedApi.deleteVisualWorkflow(organizationSlug, workflow.id),
     onSuccess: () => {
       toast.success(<FormattedMessage {...visualWorkflowsPageMessages.deleteSuccess} />);
-      orgRouter.push(`/org/${organizationSlug}/automations/visual-workflows`);
+      // The workflow is gone, so its unsaved changes are not asked about.
+      leaveTo(`/org/${organizationSlug}/automations/visual-workflows`);
     },
     onError: () => {
       toast.error(<FormattedMessage {...visualWorkflowsPageMessages.deleteFailed} />);
     },
   });
 
+  const [statusChanging, setStatusChanging] = useState(false);
   const handleStatusChange = async (active: boolean, definition: VisualWorkflowV3Definition) => {
+    setStatusChanging(true);
     try {
-      await persistMutation.mutateAsync({
-        definition,
-        ...(active ? {} : { status: "paused" as const }),
-      });
       if (active) {
+        // Publishing goes live with the graph on screen, so it is saved first.
+        await persistMutation.mutateAsync({ definition });
         const published = await publishWorkflowVersion(
           organizationSlug,
           workflow.id,
           revision.current,
         );
         revision.current = published.revision;
+      } else {
+        // Pausing changes only the status; unsaved edits stay unsaved.
+        const paused = await injectedApi.updateVisualWorkflow(organizationSlug, workflow.id, {
+          expectedRevision: revision.current,
+          status: "paused",
+        });
+        revision.current = paused.revision;
       }
+      void queryClient.invalidateQueries({ queryKey: ["visual-workflows", organizationSlug] });
       router.refresh();
       toast.success(
         active ? (
@@ -134,39 +198,33 @@ export function VisualWorkflowEditorPageContent({
           <FormattedMessage {...visualWorkflowEditorMessages.paused} />
         ),
       );
-    } catch {
-      toast.error(<FormattedMessage {...visualWorkflowEditorMessages.activateFailed} />);
+    } catch (error) {
+      showStatusChangeError(error);
+    } finally {
+      setStatusChanging(false);
     }
   };
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-4 py-2">
-        <Button
-          nativeButton={false}
-          render={<OrgNavLink href={`/org/${organizationSlug}/automations/visual-workflows`} />}
-          variant="ghost"
-          size="sm"
-        >
-          <FormattedMessage
-            defaultMessage="Back to workflows"
-            id="kv8FmMqNvG"
-            description="Link from the visual workflow editor back to the list page"
-          />
-        </Button>
-      </div>
+    <div className="-mx-4 -my-4 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
       <VisualWorkflowEditor
         initialName={editorState.name}
         initialNodes={editorState.nodes}
         initialEdges={editorState.edges}
-        onSave={(definition) => saveMutation.mutate(definition)}
+        initialTestSetup={testSetup}
+        onSave={(definition, nextTestSetup) => saveMutation.mutate(definition, nextTestSetup)}
         isSaving={saveMutation.isPending}
+        savedDefinition={savedDefinition}
+        savedTestSetup={savedTestSetup}
+        onUnsavedChangesChange={setHasUnsavedChanges}
         organizationSlug={organizationSlug}
         visualWorkflowId={workflow.id}
         visualWorkflowsApi={injectedApi}
+        assistantEnabled={assistantEnabled}
+        projectName={projectName}
         workflowStatus={workflow.status}
         onStatusChange={handleStatusChange}
-        statusUpdating={saveMutation.isPending}
+        statusUpdating={saveMutation.isPending || statusChanging}
         onDelete={() => {
           if (saveMutation.isPending || deleteMutation.isPending) {
             return;
@@ -187,6 +245,7 @@ export function VisualWorkflowEditorPageContent({
           deleteMutation.mutate();
         }}
       />
+      {leaveGuardDialog}
     </div>
   );
 }

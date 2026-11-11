@@ -44,6 +44,26 @@ import {
   sortJobContentEditorProviderFiles,
 } from "./select-job-content-editor-repository";
 import { jobCatPageContentMessages } from "./job-content-editor-page-content.messages";
+import { ContentEditorBrazeIngestButton } from "@/components/content-editor/page/content-editor-braze-ingest-button";
+import { ContentEditorBrazePushButton } from "@/components/content-editor/page/content-editor-braze-push-button";
+import { ContentEditorCustomerIoIngestButton } from "@/components/content-editor/page/content-editor-customer-io-ingest-button";
+import { ContentEditorCustomerIoPushButton } from "@/components/content-editor/page/content-editor-customer-io-push-button";
+import { ContentEditorIterableIngestButton } from "@/components/content-editor/page/content-editor-iterable-ingest-button";
+import { ContentEditorIterablePushButton } from "@/components/content-editor/page/content-editor-iterable-push-button";
+import { ContentEditorGoogleDriveIngestButton } from "@/components/content-editor/page/content-editor-google-drive-ingest-button";
+import { ContentEditorGoogleDrivePushButton } from "@/components/content-editor/page/content-editor-google-drive-push-button";
+import { ContentEditorIntercomIngestButton } from "@/components/content-editor/page/content-editor-intercom-ingest-button";
+import { ContentEditorIntercomPushButton } from "@/components/content-editor/page/content-editor-intercom-push-button";
+import { ContentEditorHubspotIngestButton } from "@/components/content-editor/page/content-editor-hubspot-ingest-button";
+import { ContentEditorHubspotPushButton } from "@/components/content-editor/page/content-editor-hubspot-push-button";
+import { ContentEditorMailchimpIngestButton } from "@/components/content-editor/page/content-editor-mailchimp-ingest-button";
+import { ContentEditorMailchimpPushButton } from "@/components/content-editor/page/content-editor-mailchimp-push-button";
+import { ContentEditorLoopsIngestButton } from "@/components/content-editor/page/content-editor-loops-ingest-button";
+import { ContentEditorLoopsPushButton } from "@/components/content-editor/page/content-editor-loops-push-button";
+import { ContentEditorSanityIngestButton } from "@/components/content-editor/page/content-editor-sanity-ingest-button";
+import { ContentEditorSanityPushButton } from "@/components/content-editor/page/content-editor-sanity-push-button";
+import { ContentEditorWebflowIngestButton } from "@/components/content-editor/page/content-editor-webflow-ingest-button";
+import { ContentEditorWebflowPushButton } from "@/components/content-editor/page/content-editor-webflow-push-button";
 import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
 import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
@@ -56,6 +76,7 @@ import {
   type ContentEditorQueueFilter,
   type ContentEditorQueueSort,
 } from "@/components/content-editor/queue/content-editor-queue-filter";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import {
   jobContentEditorQueueFilterParam,
   jobCatSearchParam,
@@ -191,9 +212,12 @@ export function JobContentEditorPageContent({
   initialQueueFilter = "untranslated",
   initialQueueSort = "file_order",
   initialSearch = "",
+  initialQueueFilterQualifier,
+  initialQueueAdvanced,
   contentEditorAllFilesEnabled = false,
   adaptiveWorkspaceEnabled = false,
   canWriteDictionaries = false,
+  canManageAutomations = false,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -206,15 +230,162 @@ export function JobContentEditorPageContent({
   initialQueueFilter?: ContentEditorQueueFilter;
   initialQueueSort?: ContentEditorQueueSort;
   initialSearch?: string;
+  initialQueueFilterQualifier?: string;
+  initialQueueAdvanced?: ContentEditorAdvancedQueueFilter;
   contentEditorAllFilesEnabled?: boolean;
   adaptiveWorkspaceEnabled?: boolean;
   canWriteDictionaries?: boolean;
+  canManageAutomations?: boolean;
 }) {
   const intl = useIntl();
   const router = useRouter();
   const { client: goSvcClient } = useGoSvcClient();
   const pageNavigationGuardRef = useRef<ContentEditorPageNavigationGuardRef["current"]>(null);
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
+  const intercomPushHeaderTrailing = canManageAutomations ? (
+    <>
+      <ContentEditorIntercomIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorIntercomPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorSanityIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorSanityPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorWebflowIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorWebflowPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorBrazeIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorBrazePushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorCustomerIoIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorCustomerIoPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorIterableIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorLoopsIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorIterablePushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorLoopsPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorHubspotIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorHubspotPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorMailchimpIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorMailchimpPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorGoogleDriveIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorGoogleDrivePushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+    </>
+  ) : null;
   const canUseAllFiles = contentEditorAllFilesEnabled;
   const requestedAllFiles = isContentEditorAllFilesSourcePath(sourcePath) && Boolean(sourcePath);
   const allFiles = canUseAllFiles && requestedAllFiles;
@@ -231,6 +402,7 @@ export function JobContentEditorPageContent({
     enabled: !hasFileReference || allFiles,
     queryFn: async () => {
       const files = await loadJobContentEditorJobSourceFiles({
+        goSvcClient,
         organizationSlug,
         projectId,
         jobId,
@@ -270,14 +442,25 @@ export function JobContentEditorPageContent({
     queryKey: projectJobContentEditorProviderFilesQueryKey(organizationSlug, projectId, jobId),
     enabled: (hasFileReference && !isNativeJob) || allFiles,
     queryFn: () =>
-      loadJobContentEditorProviderJobFiles({ organizationSlug, projectId, jobId, targetLocale }),
+      loadJobContentEditorProviderJobFiles({
+        goSvcClient,
+        organizationSlug,
+        projectId,
+        jobId,
+        targetLocale,
+      }),
   });
 
   const jobLocalesQuery = useQuery({
     queryKey: projectJobContentEditorSelectableLocalesQueryKey(organizationSlug, projectId, jobId),
     enabled: hasFileReference || allFiles,
     queryFn: () =>
-      loadJobContentEditorSelectableTargetLocales({ organizationSlug, projectId, jobId }),
+      loadJobContentEditorSelectableTargetLocales({
+        goSvcClient,
+        organizationSlug,
+        projectId,
+        jobId,
+      }),
   });
 
   const repositoriesQuery = useQuery({
@@ -670,11 +853,13 @@ export function JobContentEditorPageContent({
           onLocaleChange: handleAllFilesLocaleChange,
           onRepositoryChange: handleRepositoryChange,
         }}
+        headerTrailing={intercomPushHeaderTrailing}
         banners={repositoryBanner}
       >
         <ProjectFileContentEditorWorkspace
           organizationSlug={organizationSlug}
           projectId={projectId}
+          projectSource={projectQuery.data?.source}
           sourceLocale={sourceLocale}
           sourcePath={CONTENT_EDITOR_ALL_FILES_SOURCE_PATH}
           targetLocale={selectedTargetLocale}
@@ -688,6 +873,8 @@ export function JobContentEditorPageContent({
           initialQueueFilter={initialQueueFilter}
           initialQueueSort={initialQueueSort}
           initialSearch={initialSearch}
+          initialQueueFilterQualifier={initialQueueFilterQualifier}
+          initialQueueAdvanced={initialQueueAdvanced}
           sourcePathsFilter={serializeCatSourcePathsFilter(jobSourcePaths)}
           layout="fullscreen"
           className="min-h-0 flex-1"
@@ -843,11 +1030,13 @@ export function JobContentEditorPageContent({
           onLocaleChange: handleLocaleChange,
           onRepositoryChange: handleRepositoryChange,
         }}
+        headerTrailing={intercomPushHeaderTrailing}
         banners={repositoryBanner}
       >
         <ProjectFileContentEditorWorkspace
           organizationSlug={organizationSlug}
           projectId={projectId}
+          projectSource={projectQuery.data?.source}
           sourceLocale={sourceLocale}
           sourcePath={selectedFile.sourcePath}
           targetLocale={activeTargetLocale}
@@ -861,6 +1050,8 @@ export function JobContentEditorPageContent({
           initialQueueFilter={initialQueueFilter}
           initialQueueSort={initialQueueSort}
           initialSearch={initialSearch}
+          initialQueueFilterQualifier={initialQueueFilterQualifier}
+          initialQueueAdvanced={initialQueueAdvanced}
           layout="fullscreen"
           className="min-h-0 flex-1"
           pageNavigationGuardRef={pageNavigationGuardRef}
@@ -968,11 +1159,13 @@ export function JobContentEditorPageContent({
         onLocaleChange: handleLocaleChange,
         onRepositoryChange: handleRepositoryChange,
       }}
+      headerTrailing={intercomPushHeaderTrailing}
       banners={repositoryBanner}
     >
       <ProjectFileContentEditorWorkspace
         organizationSlug={organizationSlug}
         projectId={projectId}
+        projectSource={projectQuery.data?.source}
         sourceLocale={sourceLocale}
         sourcePath={selectedFile.sourcePath}
         externalResourceId={selectedFile.provider.externalResourceId}
@@ -987,6 +1180,8 @@ export function JobContentEditorPageContent({
         initialQueueFilter={initialQueueFilter}
         initialQueueSort={initialQueueSort}
         initialSearch={initialSearch}
+        initialQueueFilterQualifier={initialQueueFilterQualifier}
+        initialQueueAdvanced={initialQueueAdvanced}
         layout="fullscreen"
         className="min-h-0 flex-1"
         pageNavigationGuardRef={pageNavigationGuardRef}

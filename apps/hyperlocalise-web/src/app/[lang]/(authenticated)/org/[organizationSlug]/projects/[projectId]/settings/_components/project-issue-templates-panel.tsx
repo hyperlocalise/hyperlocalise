@@ -24,8 +24,8 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   issueSheetTemplateLabel,
   issueSheetTemplates,
@@ -89,6 +89,7 @@ export function ProjectIssueTemplatesPanel({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const configQuery = useIssueSheetTemplateConfigQuery({ organizationSlug, projectId });
   const membersQuery = useAssignableIssueMembersQuery({ organizationSlug, projectId });
 
@@ -135,22 +136,21 @@ export function ProjectIssueTemplatesPanel({
           return !isUnchangedStaleAssignee(serverBindingByTemplate.get(templateKey), userId);
         }),
       );
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ]["template-config"].$put({
-        param: { organizationSlug, projectId },
-        json: {
-          defaultTemplateKey,
-          assigneeByTemplate: assigneeByTemplateToSave,
-        },
-      } as never);
-      if (response.status !== 200) {
-        throw new Error(
-          (await readApiResponseError(response, intl.formatMessage(messages.saveError))).message,
-        );
+      try {
+        const body = (await goSvcClient.issueSheet.templateConfig.update(
+          organizationSlug,
+          projectId,
+          {
+            defaultTemplateKey,
+            assigneeByTemplate: assigneeByTemplateToSave,
+          },
+        )) as { templateConfig: IssueSheetTemplateConfig };
+        return body.templateConfig;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.saveError)), {
+          cause: error,
+        });
       }
-      const body = await response.json();
-      return body.templateConfig;
     },
     onSuccess: (templateConfig) => {
       queryClient.setQueryData(

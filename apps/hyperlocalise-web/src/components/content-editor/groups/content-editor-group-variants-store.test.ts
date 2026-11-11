@@ -280,6 +280,33 @@ describe("ContentEditorGroupVariants", () => {
     expect(first.isCheckingFormat).toBe(false);
   });
 
+  it("keeps a guideline warning when a format check fails", async () => {
+    vi.useFakeTimers();
+    const validateFormat = vi.fn(async (_segment: ContentEditorSegment, value: string) => {
+      if (value === "Membre actif") {
+        throw new Error("format failed");
+      }
+      return [];
+    });
+    const { group } = createGroup({ services: { validateFormat } });
+    await vi.runAllTimersAsync();
+
+    const first = group.variants[0]!;
+    const guidelineWarning: ContentEditorFormatCheck = {
+      id: "guideline-0",
+      label: "Guideline",
+      status: "warn",
+      category: "qa",
+      message: "Address the reader as bạn.",
+    };
+    first.formatChecks = [guidelineWarning];
+    first.change("Membre actif");
+    await vi.runAllTimersAsync();
+
+    expect(first.qaIssues).toEqual([guidelineWarning]);
+    expect(first.isCheckingFormat).toBe(false);
+  });
+
   it("does not apply an in-flight format check after a later edit is scheduled", async () => {
     vi.useFakeTimers();
     const deferred: Array<(checks: ContentEditorFormatCheck[]) => void> = [];

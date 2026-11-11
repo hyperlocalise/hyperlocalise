@@ -13,12 +13,21 @@
 // @vitest-environment happy-dom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+
 import { ProjectIssueTemplatesPanel } from "./project-issue-templates-panel";
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: new GoSvcClient({ getAccessToken: () => "access-token" }),
+    loading: false,
+  }),
+}));
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -104,6 +113,13 @@ describe("ProjectIssueTemplatesPanel", () => {
   });
 
   afterEach(() => {
+    // Test files in a worker share one document (isolate: false), and the
+    // shared setup's cleanup can reference a different Testing Library module
+    // instance that does not track this file's containers. Unmount with this
+    // file's own instance and clear the body so queries never match renders
+    // leaked from earlier tests.
+    cleanup();
+    document.body.replaceChildren();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });

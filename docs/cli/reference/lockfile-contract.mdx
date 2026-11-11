@@ -80,6 +80,8 @@ New writes use a **32-character** lowercase hex prefix of SHA-512 for fingerprin
 - Reads `.hyperlocalise.lock.json` when planning tasks.
 - Skips work already marked complete in `run_completed`.
 - Persists successful tasks back to `run_completed`.
+- Rolls back this run's `run_completed` entries for a target when a sibling key fails, unless you pass `--keep-completed-on-failure`.
+- Still rolls back this run's entries for every target that was not written when a target-file write fails.
 
 ### `hyperlocalise sync pull`
 

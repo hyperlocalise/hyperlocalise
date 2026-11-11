@@ -1,0 +1,3 @@
+ALTER TABLE "projects" ADD COLUMN "approved_translations_on_source_change" text DEFAULT 'stay_approved' NOT NULL;--> statement-breakpoint
+ALTER TABLE "repository_source_file_versions" ADD COLUMN "keep_approved_translations" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "projects" ADD CONSTRAINT "projects_approved_translations_on_source_change_check" CHECK ("projects"."approved_translations_on_source_change" in ('stay_approved', 'needs_review'));

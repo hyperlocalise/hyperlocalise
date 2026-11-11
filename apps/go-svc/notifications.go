@@ -191,10 +191,18 @@ func (api *notificationsAPI) listNotificationsHandler(r *http.Request, actor not
 
 	listArgs := append(append([]any{}, args...), query.limit, query.offset)
 	rows, err := api.pool.Query(r.Context(), `
-        select n.id, n.organization_id, n.project_id, n.issue_id, n.qa_run_id, n.type, n.payload, n.read_at, n.created_at,
+        select n.id, n.organization_id, n.project_id, n.issue_id, n.qa_run_id,
+               priority_values.value #>> '{}', n.type, n.payload, n.read_at, n.created_at,
                n.actor_user_id, u.first_name, u.last_name, u.email, u.avatar_url
         from issue_notifications n
         join projects p on p.id = n.project_id
+        left join issue_sheet_columns priority_columns
+          on priority_columns.organization_id = n.organization_id
+         and priority_columns.project_id = n.project_id
+         and priority_columns.key = 'priority'
+        left join issue_sheet_row_values priority_values
+          on priority_values.issue_id = n.issue_id
+         and priority_values.column_id = priority_columns.id
         left join users u on u.id = n.actor_user_id
         where `+where+`
         order by n.created_at desc, n.id desc
@@ -237,7 +245,7 @@ func (api *notificationsAPI) unreadCountHandler(r *http.Request, actor notificat
 func scanNotificationRow(rows pgx.Rows) (map[string]any, error) {
 	var (
 		id, organizationID, projectID, notifType       string
-		issueID, qaRunID                               *string
+		issueID, qaRunID, priority                     *string
 		payloadRaw                                     []byte
 		readAt                                         *time.Time
 		createdAt                                      time.Time
@@ -245,7 +253,7 @@ func scanNotificationRow(rows pgx.Rows) (map[string]any, error) {
 		actorAvatar                                    *string
 	)
 	if err := rows.Scan(
-		&id, &organizationID, &projectID, &issueID, &qaRunID, &notifType, &payloadRaw, &readAt, &createdAt,
+		&id, &organizationID, &projectID, &issueID, &qaRunID, &priority, &notifType, &payloadRaw, &readAt, &createdAt,
 		&actorUserID, &actorFirst, &actorLast, &actorEmail, &actorAvatar,
 	); err != nil {
 		return nil, err
@@ -256,12 +264,20 @@ func scanNotificationRow(rows pgx.Rows) (map[string]any, error) {
 		"projectId":      projectID,
 		"issueId":        issueID,
 		"qaRunId":        qaRunID,
+		"priority":       normalizedNotificationPriority(priority),
 		"type":           notifType,
 		"payload":        json.RawMessage(payloadRaw),
 		"actor":          formatNotificationActor(actorUserID, actorFirst, actorLast, actorEmail, actorAvatar),
 		"readAt":         readAt,
 		"createdAt":      createdAt,
 	}, nil
+}
+
+func normalizedNotificationPriority(value *string) *string {
+	if value != nil && (*value == "P0" || *value == "P1" || *value == "P2") {
+		return value
+	}
+	return nil
 }
 
 func formatNotificationActor(userID, first, last, email, avatarURL *string) map[string]any {

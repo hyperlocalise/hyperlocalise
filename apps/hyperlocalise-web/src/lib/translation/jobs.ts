@@ -16,6 +16,7 @@ import { stringTranslationJobInputSchema } from "@/api/routes/project/job.schema
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
+import { updateJobs } from "@/lib/job-change-events/job-writes";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
   isProjectTranslationKeyHidden,
@@ -26,12 +27,15 @@ import {
   formatUsageControlError,
 } from "@/lib/billing/usage-control";
 import { isErr } from "@/lib/primitives/result/results";
+import { captureAnalysis, captureCompletions, captureJobStatus } from "@/lib/reporting/capture";
 import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
 } from "@/lib/providers/capabilities/match-resolution";
 import { TranslationContextBuilder } from "@/lib/translation/context";
 import { OrganizationModelResolver } from "@/lib/translation/generation";
+import { generationModelFromGatewayId } from "@/lib/translation/generation-provenance";
+import { recordJobGenerationProvenance } from "@/lib/translation/generation-provenance-store";
 import type {
   StringTranslationGenerator,
   StringTranslationJobResult,
@@ -40,7 +44,8 @@ import type {
 export type ClaimedTranslationJob = {
   id: string;
   projectId: string;
-  type: "string" | "file";
+  // Only AI key jobs are queued, and they run in keyTranslationJobWorkflow.
+  type: "string" | "file" | "keys";
   inputPayload: unknown;
   workflowRunId: string;
   knowledgeMemoryEnabled: boolean;
@@ -68,6 +73,51 @@ export type TranslationJobExecutionResult =
     };
 
 type StoredTranslationJob = NonNullable<Awaited<ReturnType<TranslationJobRepository["getStored"]>>>;
+
+/**
+ * Records a finished string job for Reports: the word count and match band of its one source
+ * string for every requested target locale, then a completion for each requested locale that got
+ * a translation. Locales the model left out still count as workload, and locales it was not asked
+ * for are ignored. The analysis is written here, just before the completions that need it, rather
+ * than before translating, so it never delays the job. AI cost is not recorded here: billing
+ * prices it (`completeAndTrackBillableUsage`).
+ */
+async function recordStringJobReporting(input: {
+  organizationId: string;
+  projectId: string;
+  jobId: string;
+  sourceLocale: string;
+  sourceText: string;
+  segmentId: string;
+  targetLocales: string[];
+  translations: StringTranslationJobResult["translations"];
+}) {
+  const sourceEntries = { [input.segmentId]: input.sourceText };
+  const translated = new Set(
+    input.translations
+      .filter((translation) => translation.text.trim())
+      .map((translation) => translation.locale),
+  );
+  for (const targetLocale of new Set(input.targetLocales)) {
+    await captureAnalysis({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      jobId: input.jobId,
+      sourceLocale: input.sourceLocale,
+      targetLocale,
+      sourceEntries,
+    });
+    if (!translated.has(targetLocale)) continue;
+    await captureCompletions({
+      organizationId: input.organizationId,
+      jobId: input.jobId,
+      targetLocale,
+      sourceEntries,
+      provenance: "automated",
+      source: "ai",
+    });
+  }
+}
 
 class TranslationJobRepository {
   async getStored(jobId: string, projectId: string) {
@@ -105,55 +155,52 @@ class TranslationJobRepository {
     event: TranslationJobEventData;
     runId: string;
   }): Promise<ClaimTranslationJobResult> {
-    const attachedJob = await db
-      .update(schema.jobs)
-      .set({ workflowRunId: input.runId })
-      .where(
-        and(
-          eq(schema.jobs.kind, "translation"),
-          eq(schema.jobs.id, input.event.jobId),
-          eq(schema.jobs.projectId, input.event.projectId),
-          isNull(schema.jobs.workflowRunId),
-        ),
-      )
-      .returning({
+    const attachedJob = await updateJobs(db, {
+      set: { workflowRunId: input.runId },
+      where: and(
+        eq(schema.jobs.kind, "translation"),
+        eq(schema.jobs.id, input.event.jobId),
+        eq(schema.jobs.projectId, input.event.projectId),
+        isNull(schema.jobs.workflowRunId),
+      ),
+      returning: {
         id: schema.jobs.id,
         projectId: schema.jobs.projectId,
         runId: schema.jobs.workflowRunId,
-      })
-      .then(async ([job]) => {
-        if (job) {
-          const storedJob = await this.getStored(job.id, job.projectId ?? input.event.projectId);
-          if (!storedJob) {
-            throw new Error(
-              `translation job ${input.event.jobId} was not found in project ${input.event.projectId}`,
-            );
-          }
-
-          return {
-            id: storedJob.id,
-            projectId: storedJob.projectId,
-            type: storedJob.type,
-            runId: input.runId,
-            ownedByCurrentRun: true,
-          };
-        }
-
-        const existingJob = await this.getStored(input.event.jobId, input.event.projectId);
-        if (!existingJob) {
+      },
+    }).then(async ([job]) => {
+      if (job) {
+        const storedJob = await this.getStored(job.id, job.projectId ?? input.event.projectId);
+        if (!storedJob) {
           throw new Error(
             `translation job ${input.event.jobId} was not found in project ${input.event.projectId}`,
           );
         }
 
         return {
-          id: existingJob.id,
-          projectId: existingJob.projectId,
-          type: existingJob.type,
-          runId: existingJob.workflowRunId,
-          ownedByCurrentRun: existingJob.workflowRunId === input.runId,
+          id: storedJob.id,
+          projectId: storedJob.projectId,
+          type: storedJob.type,
+          runId: input.runId,
+          ownedByCurrentRun: true,
         };
-      });
+      }
+
+      const existingJob = await this.getStored(input.event.jobId, input.event.projectId);
+      if (!existingJob) {
+        throw new Error(
+          `translation job ${input.event.jobId} was not found in project ${input.event.projectId}`,
+        );
+      }
+
+      return {
+        id: existingJob.id,
+        projectId: existingJob.projectId,
+        type: existingJob.type,
+        runId: existingJob.workflowRunId,
+        ownedByCurrentRun: existingJob.workflowRunId === input.runId,
+      };
+    });
 
     if (!attachedJob.runId) {
       throw new Error(
@@ -172,28 +219,26 @@ class TranslationJobRepository {
       return { kind: "skipped", job: existingJob };
     }
 
-    const [claimedJob] = await db
-      .update(schema.jobs)
-      .set({
+    const [claimedJob] = await updateJobs(db, {
+      set: {
         status: "running",
         lastError: null,
         outcomePayload: null,
         completedAt: null,
-      })
-      .where(
-        and(
-          eq(schema.jobs.kind, "translation"),
-          eq(schema.jobs.id, input.event.jobId),
-          eq(schema.jobs.projectId, input.event.projectId),
-          or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "running")),
-          eq(schema.jobs.workflowRunId, attachedJob.runId),
-        ),
-      )
-      .returning({
+      },
+      where: and(
+        eq(schema.jobs.kind, "translation"),
+        eq(schema.jobs.id, input.event.jobId),
+        eq(schema.jobs.projectId, input.event.projectId),
+        or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "running")),
+        eq(schema.jobs.workflowRunId, attachedJob.runId),
+      ),
+      returning: {
         id: schema.jobs.id,
         projectId: schema.jobs.projectId,
         inputPayload: schema.jobs.inputPayload,
-      });
+      },
+    });
 
     if (!claimedJob) {
       const existingJob = await this.getStored(input.event.jobId, input.event.projectId);
@@ -285,12 +330,17 @@ class TranslationJobExecutor {
       };
     }
 
-    await db
-      .update(schema.jobs)
-      .set({ contextSnapshot: contextResult.context.toSnapshot() })
-      .where(
-        and(eq(schema.jobs.id, claimedJob.id), eq(schema.jobs.projectId, claimedJob.projectId)),
-      );
+    await updateJobs(db, {
+      set: { contextSnapshot: contextResult.context.toSnapshot() },
+      where: and(
+        eq(schema.jobs.id, claimedJob.id),
+        eq(schema.jobs.projectId, claimedJob.projectId),
+      ),
+    });
+    await captureJobStatus({
+      jobId: claimedJob.id,
+      status: "running",
+    });
 
     if (translateStringJobOverride) {
       const result = await translateStringJobOverride(
@@ -311,6 +361,15 @@ class TranslationJobExecutor {
         message: organizationGenerator.message,
       };
     }
+
+    await recordJobGenerationProvenance(claimedJob.id, {
+      model: generationModelFromGatewayId(
+        organizationGenerator.modelId,
+        organizationGenerator.credentialSource,
+      ),
+      ...contextResult.use,
+      customInstructions: Boolean(parsedInput.data.context?.trim()),
+    });
 
     const result = await organizationGenerator.translateStringJob(
       contextResult.context.toStringTranslationInput(
@@ -333,23 +392,21 @@ class TranslationJobCompletionService {
     result: StringTranslationJobResult;
   }) {
     const didSucceed = await db.transaction(async (tx) => {
-      const [updatedJob] = await tx
-        .update(schema.jobs)
-        .set({
+      const [updatedJob] = await updateJobs(tx, {
+        set: {
           status: "succeeded",
           outcomePayload: input.result,
           lastError: null,
           completedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(schema.jobs.kind, "translation"),
-            eq(schema.jobs.id, input.jobId),
-            eq(schema.jobs.projectId, input.projectId),
-            eq(schema.jobs.workflowRunId, input.workflowRunId),
-          ),
-        )
-        .returning({ id: schema.jobs.id });
+        },
+        where: and(
+          eq(schema.jobs.kind, "translation"),
+          eq(schema.jobs.id, input.jobId),
+          eq(schema.jobs.projectId, input.projectId),
+          eq(schema.jobs.workflowRunId, input.workflowRunId),
+        ),
+        returning: { id: schema.jobs.id },
+      });
 
       if (!updatedJob) {
         return false;
@@ -399,8 +456,22 @@ class TranslationJobCompletionService {
             error,
           });
         }
+        await recordStringJobReporting({
+          organizationId: project.organizationId,
+          projectId: input.projectId,
+          jobId: input.jobId,
+          sourceLocale: parsedInput.data.sourceLocale,
+          sourceText: parsedInput.data.sourceText,
+          segmentId: parsedInput.data.translationKeyId ?? "source",
+          targetLocales: parsedInput.data.targetLocales,
+          translations: input.result.translations,
+        });
       }
     }
+    await captureJobStatus({
+      jobId: input.jobId,
+      status: "succeeded",
+    });
 
     const operationKey = `job:${input.jobId}:translation_jobs`;
     const tokenUsage =
@@ -450,25 +521,32 @@ class TranslationJobCompletionService {
     workflowRunId: string;
     code: string;
     message: string;
+    failedLocales?: string[];
+    followUpJobId?: string | null;
   }) {
     const didFail = await db.transaction(async (tx) => {
-      const [updatedJob] = await tx
-        .update(schema.jobs)
-        .set({
+      const [updatedJob] = await updateJobs(tx, {
+        set: {
           status: "failed",
-          outcomePayload: { code: input.code, message: input.message },
+          outcomePayload: {
+            code: input.code,
+            message: input.message,
+            ...(input.failedLocales && input.failedLocales.length > 0
+              ? { failedLocales: input.failedLocales }
+              : {}),
+            ...(input.followUpJobId ? { followUpJobId: input.followUpJobId } : {}),
+          },
           lastError: input.message,
           completedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(schema.jobs.kind, "translation"),
-            eq(schema.jobs.id, input.jobId),
-            eq(schema.jobs.projectId, input.projectId),
-            eq(schema.jobs.workflowRunId, input.workflowRunId),
-          ),
-        )
-        .returning({ id: schema.jobs.id });
+        },
+        where: and(
+          eq(schema.jobs.kind, "translation"),
+          eq(schema.jobs.id, input.jobId),
+          eq(schema.jobs.projectId, input.projectId),
+          eq(schema.jobs.workflowRunId, input.workflowRunId),
+        ),
+        returning: { id: schema.jobs.id },
+      });
 
       if (!updatedJob) {
         return false;
@@ -487,6 +565,11 @@ class TranslationJobCompletionService {
         `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
       );
     }
+    // A job that stopped holds its unfinished strings no more, so Reports recounts its days.
+    await captureJobStatus({
+      jobId: input.jobId,
+      status: "failed",
+    });
 
     serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobFailed, {
       status: "failed",
@@ -533,6 +616,8 @@ export class TranslationJobService {
     workflowRunId: string;
     code: string;
     message: string;
+    failedLocales?: string[];
+    followUpJobId?: string | null;
   }) {
     return this.completion.fail(input);
   }
@@ -569,6 +654,8 @@ export async function failTranslationJob(input: {
   workflowRunId: string;
   code: string;
   message: string;
+  failedLocales?: string[];
+  followUpJobId?: string | null;
 }) {
   return defaultJobService.fail(input);
 }

@@ -20,6 +20,8 @@ import type {
   ContentEditorSegmentStatus,
 } from "@/components/content-editor/shared/types";
 
+import { ApiResponseError } from "@/lib/api-error";
+
 import { createCatWorkspace } from "../content-editor-workspace-orchestrator";
 import { ContentEditorReviewController } from "./content-editor-review-controller";
 
@@ -407,6 +409,44 @@ describe("ContentEditorReviewController", () => {
       expect(workspace.segmentFormatChecks["seg-02"]).toEqual(
         expect.arrayContaining([expect.objectContaining({ id: "format-1" })]),
       );
+    });
+
+    it("marks a suggestion refused for used-up AI credit and words it for people", async () => {
+      const validateFormat = vi.fn().mockResolvedValue([]);
+      const generateAiRecommendation = vi
+        .fn()
+        .mockRejectedValue(
+          new ApiResponseError("server wording", { code: "ai_credit_exhausted", status: 402 }),
+        );
+      const { controller, workspace } = createController(undefined, {
+        services: { validateFormat, generateAiRecommendation },
+      });
+
+      await controller.runReview("seg-02", { includeAi: true });
+
+      expect(workspace.segmentFormatChecks["seg-02"]?.[0]).toMatchObject({
+        id: "ai-recommendation-failed-seg-02",
+        status: "fail",
+        aiCreditExhausted: true,
+        message: expect.stringContaining("Your workspace has used all of its AI credit."),
+      });
+    });
+
+    it("keeps the server's message for other suggestion failures", async () => {
+      const validateFormat = vi.fn().mockResolvedValue([]);
+      const generateAiRecommendation = vi.fn().mockRejectedValue(new Error("Model unavailable"));
+      const { controller, workspace } = createController(undefined, {
+        services: { validateFormat, generateAiRecommendation },
+      });
+
+      await controller.runReview("seg-02", { includeAi: true });
+
+      const [failure] = workspace.segmentFormatChecks["seg-02"] ?? [];
+      expect(failure).toMatchObject({
+        id: "ai-recommendation-failed-seg-02",
+        message: "Model unavailable",
+      });
+      expect(failure).not.toHaveProperty("aiCreditExhausted");
     });
   });
 
@@ -1149,6 +1189,69 @@ describe("ContentEditorReviewController", () => {
       expect(workspace.getSegmentView("seg-02")?.isLocked).toBeUndefined();
       expect(workspace.isBulkActionPending).toBe(false);
     });
+  });
+
+  it("adds guideline warnings for the selected segment after the text settles", async () => {
+    vi.useFakeTimers();
+    const validateFormat = vi
+      .fn()
+      .mockResolvedValue([
+        { id: "length", label: "Length", status: "pass" as const, message: "ok" },
+      ]);
+    const runGuidelineCheck = vi.fn().mockResolvedValue([
+      {
+        id: "guideline-0",
+        label: "Guideline",
+        status: "warn" as const,
+        category: "qa" as const,
+        message: "Use vous.",
+        relatedTokens: ["tu", "vous"],
+      },
+    ]);
+    const workspace = createTestWorkspace({ selectedSegmentId: "seg-01" });
+    const controller = new ContentEditorReviewController(workspace, {
+      intl,
+      services: { validateFormat, runGuidelineCheck },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+    controller.start();
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(runGuidelineCheck).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(runGuidelineCheck).toHaveBeenCalledTimes(1);
+    expect(runGuidelineCheck).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "seg-01", targetText: "Premier" }),
+      "Premier",
+      { signal: expect.any(AbortSignal) },
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(workspace.segmentFormatChecks["seg-01"]?.map((check) => check.id)).toEqual([
+      "length",
+      "guideline-0",
+    ]);
+    controller.dispose();
+  });
+
+  it("does not run a guideline check for an empty translation", async () => {
+    vi.useFakeTimers();
+    const validateFormat = vi.fn().mockResolvedValue([]);
+    const runGuidelineCheck = vi.fn().mockResolvedValue([]);
+    const workspace = createTestWorkspace({ selectedSegmentId: "seg-02" });
+    const controller = new ContentEditorReviewController(workspace, {
+      intl,
+      services: { validateFormat, runGuidelineCheck },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+    controller.start();
+
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(runGuidelineCheck).not.toHaveBeenCalled();
+    controller.dispose();
   });
 
   describe("setLocked", () => {

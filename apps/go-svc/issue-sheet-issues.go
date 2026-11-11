@@ -615,6 +615,16 @@ func (api *issueSheetAPI) deleteIssue(ctx context.Context, actor issueSheetActor
 	if err != nil {
 		return nil, 0, err
 	}
+	var identifier string
+	if err := api.pool.QueryRow(ctx, `
+        select identifier from issue_sheet_issues
+        where organization_id = $1 and project_id = $2 and id = $3`,
+		actor.organizationID, project.ID, issueID).Scan(&identifier); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, 0, missingIssueSheetIssue()
+		}
+		return nil, 0, err
+	}
 	tag, err := api.pool.Exec(ctx, `
         delete from issue_sheet_issues
         where organization_id = $1 and project_id = $2 and id = $3`,
@@ -625,6 +635,19 @@ func (api *issueSheetAPI) deleteIssue(ctx context.Context, actor issueSheetActor
 	if tag.RowsAffected() == 0 {
 		return nil, 0, missingIssueSheetIssue()
 	}
+	api.publishActivity(ctx, activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "query_deleted",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"identifier": identifier,
+			"name":       identifier,
+			"projectId":  project.ID,
+			"queryId":    issueID,
+		},
+		TargetID:   issueID,
+		TargetKind: "query",
+	})
 	return nil, http.StatusNoContent, nil
 }
 
@@ -800,6 +823,20 @@ func (api *issueSheetAPI) createIssue(ctx context.Context, actor issueSheetActor
 	if err != nil {
 		return nil, 0, err
 	}
+	api.publishActivity(ctx, activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "query_created",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"identifier": identifier,
+			"name":       identifier,
+			"projectId":  project.ID,
+			"queryId":    issueID,
+			"source":     "manual",
+		},
+		TargetID:   issueID,
+		TargetKind: "query",
+	})
 	return map[string]any{"issue": issue}, 201, nil
 }
 
@@ -834,15 +871,19 @@ func (api *issueSheetAPI) updateIssue(ctx context.Context, actor issueSheetActor
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	var previousStatus, previousIssueType string
+	var previousStatus, previousIssueType, issueTitle string
 	var previousAssignee *string
+	var statusChanged bool
+	var assigneeChanged bool
+	var nextStatusValue string
+	var nextAssigneeValue *string
 	if err := tx.QueryRow(ctx, `
-        select status, issue_type, assignee_user_id
+        select status, issue_type, assignee_user_id, title
         from issue_sheet_issues
         where organization_id = $1 and project_id = $2 and id = $3
         for update`,
 		actor.organizationID, project.ID, issueID,
-	).Scan(&previousStatus, &previousIssueType, &previousAssignee); err != nil {
+	).Scan(&previousStatus, &previousIssueType, &previousAssignee, &issueTitle); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, 0, issueSheetFailure(400, "issue_sheet_issue_not_found", "Issue not found")
 		}
@@ -912,6 +953,8 @@ func (api *issueSheetAPI) updateIssue(ctx context.Context, actor issueSheetActor
 	}
 
 	if body.Status != nil && *body.Status != previousStatus {
+		statusChanged = true
+		nextStatusValue = *body.Status
 		payload, _ := json.Marshal(map[string]string{
 			"previousStatus": previousStatus,
 			"nextStatus":     *body.Status,
@@ -939,7 +982,8 @@ func (api *issueSheetAPI) updateIssue(ctx context.Context, actor issueSheetActor
 	}
 	if body.AssigneeUserID.Present {
 		nextAssignee := body.AssigneeUserID.Value
-		assigneeChanged := (previousAssignee == nil) != (nextAssignee == nil) ||
+		nextAssigneeValue = nextAssignee
+		assigneeChanged = (previousAssignee == nil) != (nextAssignee == nil) ||
 			(previousAssignee != nil && nextAssignee != nil && *previousAssignee != *nextAssignee)
 		if assigneeChanged {
 			payload, _ := json.Marshal(map[string]any{
@@ -968,6 +1012,18 @@ func (api *issueSheetAPI) updateIssue(ctx context.Context, actor issueSheetActor
 	if err := tx.Commit(ctx); err != nil {
 		return nil, 0, err
 	}
+
+	if statusChanged {
+		api.safeNotify(r, "status_changed", func() error {
+			return api.notifyStatusChanged(ctx, api.pool, actor.organizationID, project.ID, issueID, actor.userID, issueTitle, previousStatus, nextStatusValue)
+		})
+	}
+	if assigneeChanged {
+		api.safeNotify(r, "assignee_changed", func() error {
+			return api.notifyAssigneeChanged(ctx, api.pool, actor.organizationID, project.ID, issueID, actor.userID, issueTitle, previousAssignee, nextAssigneeValue)
+		})
+	}
+
 	issue, err := api.loadIssue(ctx, actor, project, issueID)
 	if err != nil {
 		return nil, 0, err

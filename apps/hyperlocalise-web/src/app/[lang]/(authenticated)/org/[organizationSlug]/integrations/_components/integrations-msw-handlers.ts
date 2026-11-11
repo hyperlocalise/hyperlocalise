@@ -75,11 +75,25 @@ function createIntegrationsGetHandlers({
     http.get("/api/orgs/:organizationSlug/contentful-connections", () =>
       HttpResponse.json({ contentfulConnections }),
     ),
+    http.get("/api/orgs/:organizationSlug/webflow-connections", () =>
+      HttpResponse.json({ webflowConnections: [] }),
+    ),
     http.get("/api/orgs/:organizationSlug/intercom-connections", () =>
       HttpResponse.json({ intercomConnections }),
     ),
+    http.get("/api/orgs/:organizationSlug/intercom/help-centers", () =>
+      HttpResponse.json({
+        restEndpoint: "us",
+        helpCenters: [
+          { id: "123", displayName: "Customer Support", defaultLocale: "en", locales: ["en"] },
+        ],
+      }),
+    ),
     http.get("/api/orgs/:organizationSlug/canva-connections", () =>
       HttpResponse.json({ canvaConnections: [] }),
+    ),
+    http.get("/api/orgs/:organizationSlug/figma-connections", () =>
+      HttpResponse.json({ figmaConnections: [] }),
     ),
     http.get("/api/orgs/:organizationSlug/semrush-connections", () =>
       HttpResponse.json({ semrushConnections: [] }),
@@ -93,6 +107,29 @@ function createIntegrationsGetHandlers({
     http.get("/api/orgs/:organizationSlug/ahrefs-connections", () =>
       HttpResponse.json({ ahrefsConnections: [] }),
     ),
+    http.get("/api/orgs/:organizationSlug/braze", () => HttpResponse.json({ braze: null })),
+    http.put("/api/orgs/:organizationSlug/braze", async ({ request }) => {
+      const body = (await request.json()) as { restEndpoint?: string };
+      return HttpResponse.json({ braze: { restEndpoint: body.restEndpoint ?? "iad-03" } });
+    }),
+    http.delete("/api/orgs/:organizationSlug/braze", () => new HttpResponse(null, { status: 204 })),
+    http.get("/api/orgs/:organizationSlug/customer-io", () =>
+      HttpResponse.json({ customerIo: null }),
+    ),
+    http.put("/api/orgs/:organizationSlug/customer-io", async ({ request }) => {
+      const body = (await request.json()) as { region?: string };
+      return HttpResponse.json({ customerIo: { region: body.region ?? "us" } });
+    }),
+    http.delete(
+      "/api/orgs/:organizationSlug/customer-io",
+      () => new HttpResponse(null, { status: 204 }),
+    ),
+    http.get("/api/orgs/:organizationSlug/gitlab/connection", () =>
+      HttpResponse.json({ gitlabConnection: null }),
+    ),
+    http.get("/api/orgs/:organizationSlug/gitlab/connections", () =>
+      HttpResponse.json({ gitlabConnections: [] }),
+    ),
     http.get("/api/orgs/:organizationSlug/pipes/:provider", ({ params }) =>
       HttpResponse.json({
         pipe: {
@@ -102,6 +139,15 @@ function createIntegrationsGetHandlers({
           apiKeyLast4: params.provider === "intercom" ? "abcd" : null,
         },
       }),
+    ),
+    http.get("/api/orgs/:organizationSlug/pipes/:provider/authorize-url", () =>
+      HttpResponse.json({
+        url: "https://api.workos.com/data-integrations/intercom/authorize-redirect",
+      }),
+    ),
+    http.delete(
+      "/api/orgs/:organizationSlug/pipes/:provider",
+      () => new HttpResponse(null, { status: 204 }),
     ),
     http.get("/api/orgs/:organizationSlug/mcp-server-connections", () =>
       HttpResponse.json({ mcpServerConnections: [] }),
@@ -199,6 +245,10 @@ export const integrationsLoadingMswHandlers = [
     await delay("infinite");
     return HttpResponse.json({ canvaConnections: [] });
   }),
+  http.get("/api/orgs/:organizationSlug/figma-connections", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ figmaConnections: [] });
+  }),
   http.get("/api/orgs/:organizationSlug/semrush-connections", async () => {
     await delay("infinite");
     return HttpResponse.json({ semrushConnections: [] });
@@ -211,9 +261,21 @@ export const integrationsLoadingMswHandlers = [
     await delay("infinite");
     return HttpResponse.json({ projects: [] });
   }),
+  http.get("/api/orgs/:organizationSlug/gitlab/connection", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ gitlabConnection: null });
+  }),
+  http.get("/api/orgs/:organizationSlug/gitlab/connections", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ gitlabConnections: [] });
+  }),
   http.get("/api/orgs/:organizationSlug/ahrefs-connections", async () => {
     await delay("infinite");
     return HttpResponse.json({ ahrefsConnections: [] });
+  }),
+  http.get("/api/orgs/:organizationSlug/braze", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ braze: null });
   }),
   http.get("/api/orgs/:organizationSlug/pipes/:provider", async () => {
     await delay("infinite");

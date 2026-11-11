@@ -452,6 +452,3 @@ export function IssueListToolbar({
     </div>
   );
 }
-
-/** @deprecated Use IssueListToolbar */
-export const IssueListFiltersBar = IssueListToolbar;

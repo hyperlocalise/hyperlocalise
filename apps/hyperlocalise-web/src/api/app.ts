@@ -29,14 +29,17 @@ import { createApiTranslationJobQueue } from "./queues/api-translation-job-queue
 import { handleUnexpectedError, notFoundHandler } from "./errors";
 import { createCanvaIntegrationRoutes } from "./routes/canva-integration/canva-integration.route";
 import { createCanvaOauthRoutes } from "./routes/canva-oauth/canva-oauth.route";
+import { createFigmaOauthRoutes } from "./routes/figma-oauth/figma-oauth.route";
 import { createFigmaIntegrationRoutes } from "./routes/figma-integration/figma-integration.route";
-import { createCrowdinAppRoutes } from "./routes/crowdin-app/crowdin-app.route";
+import { createSanityOauthRoutes } from "./routes/sanity-oauth/sanity-oauth.route";
+import { createSanityIntegrationRoutes } from "./routes/sanity-integration/sanity-integration.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
 import { healthRoutes } from "./routes/health";
 import { createPublicMediaRoutes } from "./routes/public-media/public-media.route";
 import { createResendWebhookRoutes } from "./routes/resend-webhook/resend-webhook.route";
 import { createSlackWebhookRoutes } from "./routes/slack-webhook/slack-webhook.route";
+import { createVisualWorkflowWebhookRoutes } from "./routes/visual-workflow-webhook/visual-workflow-webhook.route";
 import { createWebChatRoutes } from "./routes/web-chat/web-chat.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
 import { createAutumnRoutes } from "./routes/autumn/autumn.route";
@@ -45,7 +48,11 @@ import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/gi
 import { createSandboxCleanupRoutes } from "./routes/cron/sandbox-cleanup.route";
 import { createSnapshotCleanupRoutes } from "./routes/cron/snapshot-cleanup.route";
 import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notification-digest.route";
+import { createReportingCaptureRoutes } from "./routes/cron/reporting-capture.route";
 import { createTranslationQaScanRoutes } from "./routes/cron/translation-qa-scan.route";
+import { createGuidelineIngestSweepRoutes } from "./routes/cron/guideline-ingest-sweep.route";
+import { createProjectContentSyncCronRoutes } from "./routes/cron/project-content-sync.route";
+import { createJobChangeEventsCronRoutes } from "./routes/cron/job-change-events.route";
 import { createLocalisationAuditRoutes } from "./routes/localisation-audit/localisation-audit.route";
 import {
   createLocalisationAuditQueue,
@@ -55,8 +62,16 @@ import {
   createProviderAgentTranslationQueue,
   createProviderAgentWritebackQueue,
 } from "@/workflows/adapters";
-import type { LocalisationAuditQueue, TranslationQaScanQueue } from "@/lib/workflow/types";
+import type {
+  EngineSetupQueue,
+  LocalisationAuditQueue,
+  LocalisationDeepAuditQueue,
+  ProjectContentSyncQueue,
+  TranslationQaScanQueue,
+} from "@/lib/workflow/types";
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
+import { createInternalTmsRoutes } from "./routes/internal-tms/internal-tms.route";
+import { createInternalDeepAuditRoutes } from "./routes/internal-deep-audits/internal-deep-audits.route";
 
 export type CreateAppOptions = {
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
@@ -71,6 +86,9 @@ export type CreateAppOptions = {
   translationFileImportQueue?: TranslationFileImportQueue;
   localisationAuditQueue?: LocalisationAuditQueue;
   translationQaScanQueue?: TranslationQaScanQueue;
+  projectContentSyncQueue?: ProjectContentSyncQueue;
+  engineSetupQueue?: EngineSetupQueue;
+  localisationDeepAuditQueue?: LocalisationDeepAuditQueue;
 };
 
 export function createApp(options: CreateAppOptions = {}): Hono<EvlogVariables> {
@@ -121,9 +139,11 @@ export function createApp(options: CreateAppOptions = {}): Hono<EvlogVariables> 
     )
     .route("/integrations/canva", createCanvaIntegrationRoutes({ ...options, jobQueue }))
     .route("/integrations/figma", createFigmaIntegrationRoutes({ ...options, jobQueue }))
-    .route("/crowdin-app", createCrowdinAppRoutes())
+    .route("/integrations/sanity", createSanityIntegrationRoutes({ ...options, jobQueue }))
     .route("/webhooks", createWebhookRoutes(options))
-    .route("/oauth/canva", createCanvaOauthRoutes());
+    .route("/oauth/canva", createCanvaOauthRoutes())
+    .route("/oauth/figma", createFigmaOauthRoutes())
+    .route("/oauth/sanity", createSanityOauthRoutes());
 }
 
 export const app = createApp();
@@ -131,6 +151,11 @@ export const app = createApp();
 function createInternalRoutes(options: CreateAppOptions = {}) {
   return new Hono()
     .route("/health", healthRoutes)
+    .route("/internal/tms", createInternalTmsRoutes())
+    .route(
+      "/internal/deep-audits",
+      createInternalDeepAuditRoutes({ queue: options.localisationDeepAuditQueue }),
+    )
     .route(
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),
@@ -138,10 +163,19 @@ function createInternalRoutes(options: CreateAppOptions = {}) {
     .route("/cron/sandbox-cleanup", createSandboxCleanupRoutes())
     .route("/cron/snapshot-cleanup", createSnapshotCleanupRoutes())
     .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes())
+    .route("/cron/reporting-capture", createReportingCaptureRoutes())
+    .route("/cron/guideline-ingest-sweep", createGuidelineIngestSweepRoutes())
+    .route("/cron/job-change-events", createJobChangeEventsCronRoutes())
     .route(
       "/cron/translation-qa-scan",
       createTranslationQaScanRoutes({
         translationQaScanQueue: options.translationQaScanQueue ?? createTranslationQaScanQueue(),
+      }),
+    )
+    .route(
+      "/cron/project-content-sync",
+      createProjectContentSyncCronRoutes({
+        projectContentSyncQueue: options.projectContentSyncQueue,
       }),
     );
 }
@@ -162,5 +196,6 @@ function createWebhookRoutes(options: CreateAppOptions) {
       }),
     )
     .route("/contentful", createContentfulWebhookRoutes())
-    .route("/slack", createSlackWebhookRoutes());
+    .route("/slack", createSlackWebhookRoutes())
+    .route("/visual-workflows", createVisualWorkflowWebhookRoutes());
 }

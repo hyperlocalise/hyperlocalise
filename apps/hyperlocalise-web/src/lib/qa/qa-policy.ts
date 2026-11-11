@@ -29,7 +29,13 @@ export const DEFAULT_QA_POLICY: QaCheckPolicy = {
   numbers_mismatch: { enabled: false, severity: "warning" },
   punctuation_mismatch: { enabled: false, severity: "warning" },
   character_case_mismatch: { enabled: false, severity: "warning" },
+  unreachable_plural_case: { enabled: true, severity: "error" },
+  guideline: { enabled: false, severity: "warning" },
 };
+
+export function resolveQaPolicy(policy?: Partial<QaCheckPolicy> | null): QaCheckPolicy {
+  return { ...DEFAULT_QA_POLICY, ...policy };
+}
 
 export function applyQaPolicy(checks: readonly TranslationQaCheck[], policy: QaCheckPolicy) {
   return checks.flatMap((check) => {
@@ -47,6 +53,7 @@ const EDITOR_CHECK_TYPES: Record<string, TranslationQaCheckType> = {
   "qa-numbers-mismatch": "numbers_mismatch",
   "qa-punctuation-mismatch": "punctuation_mismatch",
   "qa-character-case-mismatch": "character_case_mismatch",
+  "qa-unreachable-plural-case": "unreachable_plural_case",
   length: "length",
 };
 

@@ -557,7 +557,9 @@ export const contentEditorIntelligenceFixture: ContentEditorSegmentIntelligence 
 };
 
 export function createContentEditorWorkspaceState(
-  overrides: Partial<ContentEditorWorkspaceState> = {},
+  overrides: Omit<Partial<ContentEditorWorkspaceState>, "fileContext"> & {
+    fileContext?: Partial<ContentEditorFileContext>;
+  } = {},
 ): ContentEditorWorkspaceState {
   const segments = overrides.segments ?? contentEditorSegmentsFixture;
   const queueSegments = overrides.queueSegments ?? segments.map(toQueueSegment);

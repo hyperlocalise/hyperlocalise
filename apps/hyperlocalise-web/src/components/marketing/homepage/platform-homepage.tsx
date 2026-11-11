@@ -24,12 +24,18 @@ import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 import { cn } from "@/lib/primitives/cn";
 import { REQUEST_DEMO_URL } from "../request-demo";
 import { heroSectionMessages } from "../hero-section.messages";
+import { TRUSTED_BY_LOGOS } from "../trusted-by-logos";
 import { ContentOpsMockStage } from "../content-ops/content-ops-mock-stage";
 import { homepageMessages as m } from "./homepage.messages";
 import { AgentChannelPreview } from "./agent-channel-preview";
 import { McpClientLogos } from "./mcp-client-logos";
 import { ConnectedCampaign } from "./connected-campaign";
-import { hasProductPreviewVideoUrl, PRODUCT_PREVIEW_VIDEO_URL, PRODUCTS } from "./product-preview";
+import {
+  hasProductPreviewVideoUrl,
+  PRODUCT_PREVIEW_VIDEO_URL,
+  ProductPreviewVideo,
+  PRODUCTS,
+} from "./product-preview";
 import {
   BLUSH_MESH_GRADIENT_SRC,
   LAVENDER_MESH_GRADIENT_SRC,
@@ -43,45 +49,6 @@ const HOME_STYLE = {
   "--home-ink": "#123c3b",
   "--home-paper": "#e5eee5",
 } as CSSProperties;
-
-const TRUSTED_BY_LOGOS = [
-  {
-    id: "heidi-health",
-    href: "https://www.heidihealth.com",
-    src: "/images/customers/heidi-health-logo.png",
-    alt: heroSectionMessages.heidiHealthAlt,
-    width: 800,
-    height: 332,
-    className: "h-7 sm:h-8",
-  },
-  {
-    id: "tourfinder",
-    href: "https://tourfinder.vn",
-    src: "/images/customers/tourfinder-logo.png",
-    alt: heroSectionMessages.tourfinderAlt,
-    width: 1177,
-    height: 294,
-    className: "h-6 sm:h-7",
-  },
-  {
-    id: "tourmatic",
-    href: "https://tourmatic.io",
-    src: "/images/customers/tourmatic-logo.svg",
-    alt: heroSectionMessages.tourmaticAlt,
-    width: 315,
-    height: 58,
-    className: "h-6 sm:h-7",
-  },
-  {
-    id: "weex",
-    href: "https://www.weex.com",
-    src: "/images/customers/weex-logo.svg",
-    alt: heroSectionMessages.weexAlt,
-    width: 134,
-    height: 28,
-    className: "h-6 sm:h-7",
-  },
-] as const;
 
 function SectionHeading({
   eyebrow,
@@ -176,22 +143,6 @@ function CustomerLogos({ onDark }: { onDark?: boolean }) {
           </li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-function ProductPreviewVideo({ src }: { src: string }) {
-  const intl = useIntl();
-  return (
-    <div className="mx-auto mt-12 max-w-5xl rounded-2xl bg-white/10 p-2 sm:mt-16 sm:p-3">
-      <video
-        className="aspect-video w-full rounded-xl border border-white/15 bg-black/25"
-        src={src}
-        controls
-        playsInline
-        preload="metadata"
-        aria-label={intl.formatMessage(m.preview)}
-      />
     </div>
   );
 }

@@ -35,10 +35,12 @@ export const contentEditorQueueFilterValues: ContentEditorQueueFilter[] = [
   "unsaved",
   "qa_issues",
   "machine_translated",
+  "origin",
   "with_comments",
   "has_issues",
   "skipped",
   "hidden",
+  "not_hidden",
 ];
 
 export const contentEditorQueueSortValues: ContentEditorQueueSort[] = [
@@ -56,16 +58,26 @@ export function isQueueFilterSupportedForProvider(
   filter: ContentEditorQueueFilter,
   providerKind: string | null | undefined,
 ) {
-  if (filter === "hidden" || filter === "qa_issues") {
+  if (filter === "hidden" || filter === "not_hidden" || filter === "qa_issues") {
     return providerKind == null || providerKind === "native" || providerKind === "crowdin";
   }
 
   if (filter === "has_issues") {
-    return providerKind === "crowdin" || providerKind === "smartling" || providerKind === null;
+    return (
+      providerKind === "crowdin" ||
+      providerKind === "smartling" ||
+      providerKind === "native" ||
+      providerKind === null
+    );
+  }
+
+  if (filter === "origin") {
+    // Origin is recorded on native translations only.
+    return providerKind === "native" || providerKind === null;
   }
 
   if (filter === "machine_translated" || filter === "with_comments") {
-    return providerKind === "crowdin";
+    return providerKind === "crowdin" || providerKind === "native" || providerKind === null;
   }
 
   if (
@@ -200,8 +212,11 @@ export function segmentMatchesQueueFilterFromInput(
       return input.status === "skipped";
     case "hidden":
       return Boolean(input.isHidden);
+    case "not_hidden":
+      return !input.isHidden;
     case "qa_issues":
     case "machine_translated":
+    case "origin":
     case "with_comments":
       // The server (Crowdin CroQL or the latest native QA scan) is the source of truth;
       // keep locally overridden rows visible.

@@ -247,7 +247,8 @@ function useHomeHeroNavTone() {
   const pathSegments = pathname.split("/").filter(Boolean);
   const isMarketingHome = pathSegments.length === 1;
   const isStartupsPage = pathSegments.length === 2 && pathSegments[1] === "startups";
-  const usesFullBleedHero = isMarketingHome || isStartupsPage;
+  const isIrisPage = pathSegments.length === 2 && pathSegments[1] === "iris";
+  const usesFullBleedHero = isMarketingHome || isStartupsPage || isIrisPage;
   const [onHero, setOnHero] = useState(usesFullBleedHero);
 
   useEffect(() => {
@@ -432,7 +433,11 @@ function MobileNavigation({ auth, locale }: { auth: NavbarAuthState; locale: App
 
 function DesktopNavigation({ locale }: { locale: AppLocale }) {
   return (
-    <NavigationMenu className="mx-auto hidden max-w-none md:flex">
+    // The header is sticky, so its triggers stay put in the viewport while the page scrolls.
+    // Fixed positioning keeps the popup's coordinates constant too; the default absolute
+    // positioning changes them on every scroll frame and the positioner's transition then
+    // makes the popup trail behind the header.
+    <NavigationMenu positionMethod="fixed" className="mx-auto hidden max-w-none md:flex">
       <NavigationMenuList className="gap-1">
         <NavigationMenuItem>
           <NavigationMenuTrigger className="px-3 py-2 font-medium text-muted-foreground hover:text-foreground data-popup-open:text-foreground data-open:text-foreground">

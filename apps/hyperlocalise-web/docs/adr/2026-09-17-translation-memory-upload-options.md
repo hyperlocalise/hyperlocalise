@@ -12,7 +12,7 @@ Import already existed on the memory detail page, but it was easy to miss: creat
 
 ## Constraints
 
-- Reuse the existing `/entries/import` route, dry-run preview, and size/unit limits.
+- Reuse the existing `/entries/import` route (inline content or upload finalize with `mode: apply`) and size/unit limits.
 - Reject files that are not `.tmx` or `.csv`.
 - If import fails after create, keep the new memory and send the user to its detail page.
 - Do not add upload for live provider memories.

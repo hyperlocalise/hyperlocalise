@@ -16,7 +16,12 @@ import { observer } from "mobx-react-lite";
 import { useId } from "react";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
-import { getCatShortcutKeys } from "@/components/content-editor/editor/content-editor-keyboard-shortcuts";
+import {
+  CONTENT_EDITOR_SHORTCUT_GROUPS,
+  getCatShortcutDialogRows,
+  getModKeyLabel,
+  type ContentEditorShortcutGroup,
+} from "@/components/content-editor/editor/content-editor-keyboard-shortcuts";
 import { contentEditorShortcutsDialogMessages as messages } from "@/components/content-editor/shared/content-editor-chrome.messages";
 import { useOptionalCatWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
 import {
@@ -28,8 +33,25 @@ import {
 } from "@/components/ui/dialog";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { useIsMac } from "@/hooks/use-is-mac";
+
+const GROUP_LABELS: Record<ContentEditorShortcutGroup, MessageDescriptor> = {
+  editing: messages.groupEditing,
+  navigation: messages.groupNavigation,
+  workspace: messages.groupWorkspace,
+};
+
+function ShortcutKeys({ keys }: { keys: readonly string[] }) {
+  return (
+    <KbdGroup className="inline-flex items-center gap-1">
+      {keys.map((key, index) => (
+        <Kbd key={`${key}-${index}`}>{key}</Kbd>
+      ))}
+    </KbdGroup>
+  );
+}
 
 export const ContentEditorShortcutsDialog = observer(function ContentEditorShortcutsDialog({
   open,
@@ -42,18 +64,10 @@ export const ContentEditorShortcutsDialog = observer(function ContentEditorShort
   const isMac = useIsMac();
   const store = useOptionalCatWorkspace();
   const hintSwitchId = useId();
-  const rows: Array<{ label: MessageDescriptor; keys: string[] }> = [
-    { label: messages.approve, keys: getCatShortcutKeys(isMac, "approve") },
-    { label: messages.previous, keys: getCatShortcutKeys(isMac, "previous") },
-    { label: messages.next, keys: getCatShortcutKeys(isMac, "next") },
-    { label: messages.findContext, keys: getCatShortcutKeys(isMac, "findContext") },
-    { label: messages.exitSelection, keys: ["Esc"] },
-    { label: messages.openShortcuts, keys: ["?"] },
-  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             <FormattedMessage {...messages.title} />
@@ -63,20 +77,44 @@ export const ContentEditorShortcutsDialog = observer(function ContentEditorShort
           </DialogDescription>
         </DialogHeader>
 
-        <dl className="divide-y divide-border">
-          {rows.map(({ label, keys }) => (
-            <div key={label.id} className="flex items-center justify-between gap-4 py-2.5">
-              <dt className="text-sm text-foreground">{intl.formatMessage(label)}</dt>
-              <dd>
-                <KbdGroup className="inline-flex items-center gap-1">
-                  {keys.map((key, index) => (
-                    <Kbd key={`${key}-${index}`}>{key}</Kbd>
-                  ))}
-                </KbdGroup>
-              </dd>
-            </div>
-          ))}
-        </dl>
+        <ScrollArea className="max-h-[60vh] pe-3">
+          <div className="space-y-5">
+            {CONTENT_EDITOR_SHORTCUT_GROUPS.map((group) => (
+              <section key={group}>
+                <h3 className="mb-1 text-xs font-medium text-muted-foreground">
+                  {intl.formatMessage(GROUP_LABELS[group])}
+                </h3>
+                <dl className="divide-y divide-border">
+                  {getCatShortcutDialogRows(isMac, group).map(
+                    ({ id, label, keys, alternateKeys }) => (
+                      <div key={id} className="flex items-center justify-between gap-4 py-2">
+                        <dt className="text-sm text-foreground">{intl.formatMessage(label)}</dt>
+                        <dd className="flex shrink-0 items-center gap-1.5">
+                          <ShortcutKeys keys={keys} />
+                          {alternateKeys ? (
+                            <>
+                              <span className="text-xs text-muted-foreground">
+                                <FormattedMessage {...messages.alternateShortcut} />
+                              </span>
+                              <ShortcutKeys keys={alternateKeys} />
+                            </>
+                          ) : null}
+                        </dd>
+                      </div>
+                    ),
+                  )}
+                </dl>
+              </section>
+            ))}
+          </div>
+        </ScrollArea>
+
+        <p className="text-xs text-muted-foreground">
+          <FormattedMessage
+            {...messages.holdToReveal}
+            values={{ key: <Kbd>{getModKeyLabel(isMac)}</Kbd> }}
+          />
+        </p>
 
         {store ? (
           <div className="flex items-center justify-between gap-4 border-t border-border pt-4">

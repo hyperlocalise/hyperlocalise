@@ -257,4 +257,27 @@ describe("analyzeLocalisationAuditStep company profile", () => {
     expect(creditsMock).not.toHaveBeenCalled();
     expect(completeMock).not.toHaveBeenCalled();
   });
+
+  it("fails without scoring when no crawled page returned 2xx", async () => {
+    const result = await analyzeLocalisationAuditStep({
+      auditId: "audit-1",
+      attemptNumber: 2,
+      domainKey: "acme.example",
+      domainSlug: "acme-example",
+      sourceUrl: "https://acme.example/",
+      focusLocales: [],
+      pages: [
+        emptyCrawledPage({ url: "https://acme.example/", status: 500 }),
+        emptyCrawledPage({ url: "https://acme.example/pricing", status: 404 }),
+      ],
+      sitemap: EMPTY_SITEMAP_SIGNAL,
+    });
+
+    expect(result).toEqual({ ok: false, code: "crawl_failed" });
+    expect(failMock).toHaveBeenCalledWith(
+      expect.objectContaining({ auditId: "audit-1", errorCode: "crawl_failed" }),
+    );
+    expect(creditsMock).not.toHaveBeenCalled();
+    expect(completeMock).not.toHaveBeenCalled();
+  });
 });

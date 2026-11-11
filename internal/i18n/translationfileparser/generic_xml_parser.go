@@ -16,6 +16,7 @@ type GenericXMLParser struct{}
 type genericXMLEntry struct {
 	key         string
 	sourceValue string
+	context     string
 	valueStart  int
 	valueEnd    int
 }
@@ -44,6 +45,8 @@ type genericXMLFrame struct {
 	inMetadata        bool
 	contentStart      int
 	value             strings.Builder
+	pendingContext    string
+	childKeys         []string
 	hasElementChild   bool
 	hasText           bool
 	hasNonWhitespace  bool
@@ -51,16 +54,27 @@ type genericXMLFrame struct {
 }
 
 func (p GenericXMLParser) Parse(content []byte) (map[string]string, error) {
+	values, _, err := p.ParseWithContext(content)
+	return values, err
+}
+
+func (p GenericXMLParser) ParseWithContext(content []byte) (map[string]string, map[string]string, error) {
 	doc, err := parseGenericXMLDocument(content)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	// BOLT OPTIMIZATION: Use capacity hint for the output map.
 	out := make(map[string]string, len(doc.entries))
+	var contextByKey map[string]string
 	for _, entry := range doc.entries {
 		out[entry.key] = entry.sourceValue
+		if context := strings.TrimSpace(entry.context); context != "" {
+			if contextByKey == nil {
+				contextByKey = make(map[string]string, len(doc.entries))
+			}
+			contextByKey[entry.key] = context
+		}
 	}
-	return out, nil
+	return out, contextByKey, nil
 }
 
 // MarshalGenericXML renders translated generic XML values into template.
@@ -146,6 +160,9 @@ func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 				return genericXMLDocument{}, fmt.Errorf("generic XML parser: mismatched closing element </%s> for <%s>", token.Name.Local, frame.name)
 			}
 			if frame.inMetadata {
+				if isGenericXMLContextMetadataElement(frame.name) {
+					attachGenericXMLMetadataContext(&doc, stack, strings.TrimSpace(frame.value.String()))
+				}
 				stack = stack[:len(stack)-1]
 				continue
 			}
@@ -183,9 +200,16 @@ func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 				return genericXMLDocument{}, fmt.Errorf("generic XML parser: duplicate key %q", key)
 			}
 			seenKeys[key] = struct{}{}
+			context := ""
+			if len(stack) >= 2 {
+				parent := stack[len(stack)-2]
+				context = strings.TrimSpace(parent.pendingContext)
+				parent.childKeys = append(parent.childKeys, key)
+			}
 			doc.entries = append(doc.entries, genericXMLEntry{
 				key:         key,
 				sourceValue: value,
+				context:     context,
 				valueStart:  frame.contentStart,
 				valueEnd:    tokenStart,
 			})
@@ -573,6 +597,46 @@ func isGenericXMLValueElement(name string) bool {
 	}
 
 	return strings.EqualFold(strings.TrimSpace(name), "value")
+}
+
+func isGenericXMLContextMetadataElement(name string) bool {
+	switch name {
+	case "comment", "comments", "description", "descriptions", "note", "notes", "context", "extracomment", "developercomment":
+		return true
+	}
+
+	trimmed := strings.TrimSpace(name)
+	switch {
+	case strings.EqualFold(trimmed, "comment"),
+		strings.EqualFold(trimmed, "comments"),
+		strings.EqualFold(trimmed, "description"),
+		strings.EqualFold(trimmed, "descriptions"),
+		strings.EqualFold(trimmed, "note"),
+		strings.EqualFold(trimmed, "notes"),
+		strings.EqualFold(trimmed, "context"),
+		strings.EqualFold(trimmed, "extracomment"),
+		strings.EqualFold(trimmed, "developercomment"):
+		return true
+	default:
+		return false
+	}
+}
+
+func attachGenericXMLMetadataContext(doc *genericXMLDocument, stack []*genericXMLFrame, context string) {
+	if doc == nil || context == "" || len(stack) < 2 {
+		return
+	}
+	parent := stack[len(stack)-2]
+	for _, key := range parent.childKeys {
+		for i := range doc.entries {
+			if doc.entries[i].key != key {
+				continue
+			}
+			doc.entries[i].context = joinParserContext(doc.entries[i].context, context)
+			break
+		}
+	}
+	parent.pendingContext = joinParserContext(parent.pendingContext, context)
 }
 
 func isGenericXMLSpecializedRoot(name string) bool {

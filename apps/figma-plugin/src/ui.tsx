@@ -1,8 +1,8 @@
-import { createRoot } from "react-dom/client";
+import { render } from "preact";
 
 import { App } from "./app";
 
 const rootElement = document.getElementById("react-page");
 if (rootElement) {
-  createRoot(rootElement).render(<App />);
+  render(<App />, rootElement);
 }

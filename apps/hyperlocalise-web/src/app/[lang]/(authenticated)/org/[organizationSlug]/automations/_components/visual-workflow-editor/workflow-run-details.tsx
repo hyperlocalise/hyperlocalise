@@ -97,7 +97,7 @@ export function WorkflowRunDetails({
                 edge.kind === "data"
                   ? `${edge.sourcePortId} → ${edge.targetPortId}`
                   : edge.sourcePortId,
-              style: edge.kind === "data" ? { strokeDasharray: "5 4" } : undefined,
+              style: edge.kind === "data" ? undefined : { strokeWidth: 2 },
             }))}
             nodesDraggable={false}
             nodesConnectable={false}

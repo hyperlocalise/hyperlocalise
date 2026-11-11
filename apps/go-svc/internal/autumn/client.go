@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,6 +19,12 @@ const (
 
 	// QueriesBoard is the Autumn feature ID for issue-sheet / Queries.
 	QueriesBoard = "queries-board"
+	// AIFeatures is the boolean plan gate for model-backed actions.
+	AIFeatures = "ai_features"
+	// AITokens is the USD AI-credit balance (customer = local organization id).
+	AITokens = "ai_tokens"
+	// AgentRuns counts one successful agent/generation job.
+	AgentRuns = "agent_runs"
 )
 
 // HTTPDoer is the subset of http.Client used by Client.
@@ -85,6 +92,14 @@ func (e *apiError) Error() string {
 		return fmt.Sprintf("autumn: HTTP %d", e.StatusCode)
 	}
 	return fmt.Sprintf("autumn: HTTP %d: %s", e.StatusCode, e.Body)
+}
+
+func HTTPStatus(err error) (int, bool) {
+	var ae *apiError
+	if errors.As(err, &ae) {
+		return ae.StatusCode, true
+	}
+	return 0, false
 }
 
 func (c *Client) post(ctx context.Context, path, apiVersion string, payload any, out any) error {

@@ -18,10 +18,11 @@ import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { getResearchPrototypeDomain } from "@/lib/domains/research-prototype";
+import { getResearchPrototypeCatalog } from "@/lib/domains/research-prototype";
 import { getPrototypeSearchConsoleSnapshot } from "@/lib/gsc/prototype";
 import type { GscPerformanceSnapshot } from "@/lib/gsc/types";
 
+import { DomainResearchShellStore } from "../store/domain-research-shell-store";
 import { DomainSearchConsoleView } from "./domain-search-console-view";
 
 const mocks = vi.hoisted(() => ({
@@ -29,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   live: false,
   isPending: false,
   isError: false,
+  store: null as unknown,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -67,12 +69,7 @@ vi.mock("./use-domain-search-console", () => ({
 }));
 
 vi.mock("../store/domains-store-context", () => ({
-  useDomainResearchShellStore: () => ({
-    organizationSlug: "acme",
-    linkedDomainId: "hyperlocalise-com",
-    localeId: "france-fr",
-    domain: getResearchPrototypeDomain("hyperlocalise-com"),
-  }),
+  useDomainResearchShellStore: () => mocks.store as DomainResearchShellStore,
 }));
 
 vi.mock("./domain-search-console-connect", () => ({
@@ -113,6 +110,14 @@ describe("DomainSearchConsoleView", () => {
     mocks.live = false;
     mocks.isPending = false;
     mocks.isError = false;
+    const store = new DomainResearchShellStore({
+      organizationSlug: "acme",
+      linkedDomainId: "hyperlocalise-com",
+      surface: "search-console",
+      requestedLocaleId: "france-fr",
+    });
+    store.setResearchData({ catalog: getResearchPrototypeCatalog("hyperlocalise-com") });
+    mocks.store = store;
   });
 
   afterEach(() => {

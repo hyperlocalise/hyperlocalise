@@ -10,7 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { LocalisationAuditFinding } from "../../types";
+import type {
+  LocalisationAuditCrawledPage,
+  LocalisationAuditFinding,
+  LocalisationAuditLayoutElement,
+  LocalisationAuditLayoutViewport,
+} from "../../types";
 import {
   clampScore,
   clipFindingEvidence,
@@ -26,79 +31,102 @@ import {
   languageOf,
   looksPrimarilyEnglish,
   pageLocale,
+  passingShareScore,
   pathWithoutLocale,
   sourceLanguage,
   textHasCjkScript,
   textHasHangul,
   westernNameFields,
 } from "../shared";
-import type { HeuristicCreditOutcome, HeuristicScorer } from "../types";
+import type { AuditCreditContext, HeuristicCreditOutcome, HeuristicScorer } from "../types";
+
+/** Target copy at or above this share of the source length is flagged. */
+const TEXT_EXPANSION_FLAG_PERCENT = 160;
+const LONG_HEADING_CHARS = 80;
+/** Ignore sub-pixel rounding when measuring horizontal overflow. */
+const HORIZONTAL_OVERFLOW_TOLERANCE_PX = 2;
+/** Widths at or below this are treated as the mobile viewport. */
+const MOBILE_VIEWPORT_MAX_WIDTH = 480;
 
 function scored(score: number, findings: LocalisationAuditFinding[]): HeuristicCreditOutcome {
   return { status: "scored", score: clampScore(score), findings };
 }
 
+function targetPages(context: AuditCreditContext): LocalisationAuditCrawledPage[] {
+  const source = sourceLanguage(context.detectedLocales);
+  return context.pages.filter((page) => {
+    const locale = pageLocale(page);
+    return locale != null && languageOf(locale) !== source;
+  });
+}
+
+function sourceSiblingByPath(
+  context: AuditCreditContext,
+): Map<string, LocalisationAuditCrawledPage> {
+  const source = sourceLanguage(context.detectedLocales);
+  const sourcePages = groupPagesByLanguage(context.pages).get(source) ?? [];
+  return new Map(sourcePages.map((page) => [pathWithoutLocale(page.url) ?? page.url, page]));
+}
+
 const scoreTextExpansion: HeuristicScorer = (context) => {
   const source = sourceLanguage(context.detectedLocales);
   const grouped = groupPagesByLanguage(context.pages);
-  const sourcePages = grouped.get(source) ?? [];
-  if (sourcePages.length === 0 || grouped.size < 2) {
+  if ((grouped.get(source) ?? []).length === 0 || grouped.size < 2) {
     return { status: "na" };
   }
   const findings: LocalisationAuditFinding[] = [];
-  const sourceByPath = new Map(
-    sourcePages.map((page) => [pathWithoutLocale(page.url) ?? page.url, page]),
-  );
-  for (const [language, pages] of grouped) {
-    if (language === source) continue;
-    for (const page of pages) {
-      const sibling = sourceByPath.get(pathWithoutLocale(page.url) ?? "");
-      if (!sibling) continue;
-      const pairs: Array<{ sourceText: string; targetText: string; tag: string }> = [
-        ...zip(sibling.buttons, page.buttons).map(([sourceText, targetText]) => ({
-          sourceText,
-          targetText,
-          tag: "<button>",
-        })),
-        ...zip(sibling.headings, page.headings).map(([sourceText, targetText]) => ({
-          sourceText,
-          targetText,
-          tag: "heading",
-        })),
-      ];
-      for (const { sourceText, targetText, tag } of pairs) {
-        if (sourceText.length < 8 || targetText.length < 8) continue;
-        const percent = Math.round((targetText.length / sourceText.length) * 100);
-        if (percent >= 160) {
-          findings.push(
-            creditFinding({
-              id: `expansion-${findings.length}`,
-              creditId: "text-expansion",
-              category: "visual",
-              severity: "medium",
-              title: "Localized text is much longer than the source",
-              summary: `A ${language} string is ${percent}% the length of the source, which often causes overflow.`,
-              where: formatFindingWhere({
-                section: tag === "<button>" ? "Control" : "Heading",
-                tag,
-              }),
-              url: page.url,
-              evidence: clipFindingEvidence(
-                `${source.toUpperCase()} "${sourceText}" → ${language.toUpperCase()} "${targetText}" (${percent}%)`,
-              ),
-              advice:
-                "Shorten the translation or give the control more room so the longer copy does not overflow.",
-              confidence: 88,
-            }),
-          );
-        }
-      }
+  const sourceByPath = sourceSiblingByPath(context);
+  let inspected = 0;
+  const failingPages = new Set<string>();
+  for (const page of targetPages(context)) {
+    const language = languageOf(pageLocale(page)!);
+    const sibling = sourceByPath.get(pathWithoutLocale(page.url) ?? "");
+    if (!sibling) continue;
+    const pairs: Array<{ sourceText: string; targetText: string; tag: string }> = [
+      ...zip(sibling.buttons, page.buttons).map(([sourceText, targetText]) => ({
+        sourceText,
+        targetText,
+        tag: "<button>",
+      })),
+      ...zip(sibling.headings, page.headings).map(([sourceText, targetText]) => ({
+        sourceText,
+        targetText,
+        tag: "heading",
+      })),
+    ].filter((pair) => pair.sourceText.length >= 8 && pair.targetText.length >= 8);
+    if (pairs.length === 0) continue;
+    inspected += 1;
+    for (const { sourceText, targetText, tag } of pairs) {
+      const percent = Math.round((targetText.length / sourceText.length) * 100);
+      if (percent < TEXT_EXPANSION_FLAG_PERCENT) continue;
+      failingPages.add(page.url);
+      findings.push(
+        creditFinding({
+          id: `expansion-${findings.length}`,
+          creditId: "text-expansion",
+          category: "visual",
+          severity: "medium",
+          title: "Localized text is much longer than the source",
+          summary: `A ${language} string is ${percent}% the length of the source, which often causes overflow.`,
+          where: formatFindingWhere({
+            section: tag === "<button>" ? "Control" : "Heading",
+            tag,
+          }),
+          url: page.url,
+          evidence: clipFindingEvidence(
+            `${source.toUpperCase()} "${sourceText}" → ${language.toUpperCase()} "${targetText}" (${percent}%)`,
+          ),
+          advice:
+            "Shorten the translation or give the control more room so the longer copy does not overflow.",
+          confidence: 88,
+        }),
+      );
     }
   }
-  if (findings.length === 0) {
-    return scored(90, []);
+  if (inspected === 0) {
+    return { status: "na" };
   }
-  return scored(Math.max(40, 78 - findings.length * 8), findings);
+  return scored(passingShareScore(inspected, failingPages.size), findings);
 };
 
 function zip(a: string[], b: string[]): Array<[string, string]> {
@@ -120,13 +148,13 @@ const scoreRtlSupport: HeuristicScorer = (context) => {
   }
 
   const findings: LocalisationAuditFinding[] = [];
-  let score = 100;
+  const failingPages = new Set<string>();
 
   const missingDir = rtlPages.filter((page) => page.dir !== "rtl");
+  for (const page of missingDir) failingPages.add(page.url);
   if (missingDir.length > 0) {
     const sample = missingDir[0]!;
     const lang = sample.htmlLang ?? pageLocale(sample) ?? "ar";
-    score -= 45;
     findings.push(
       creditFinding({
         id: "rtl-missing-dir",
@@ -147,7 +175,7 @@ const scoreRtlSupport: HeuristicScorer = (context) => {
   for (const page of rtlPages) {
     const directions = page.directionValues.map((value) => value.toLowerCase());
     if (directions.some((value) => value.includes("ltr"))) {
-      score -= 30;
+      failingPages.add(page.url);
       findings.push(
         creditFinding({
           id: `rtl-css-direction-ltr-${findings.length}`,
@@ -165,18 +193,18 @@ const scoreRtlSupport: HeuristicScorer = (context) => {
       );
     }
 
+    // Physical CSS is a risk signal, not proof of a broken mirror, so it does not fail the page.
     if (
       page.physicalHorizontalCss.length > 0 &&
       page.logicalHorizontalCss.length === 0 &&
       !directions.some((value) => value.includes("rtl"))
     ) {
-      score -= 18;
       findings.push(
         creditFinding({
           id: `rtl-css-physical-${findings.length}`,
           creditId: "rtl-support",
           category: "visual",
-          severity: "medium",
+          severity: "low",
           title: "RTL page uses physical left/right CSS",
           summary:
             "Sampled CSS uses float/margin/padding/left/right without logical inline properties, so layout may not mirror in RTL.",
@@ -191,16 +219,14 @@ const scoreRtlSupport: HeuristicScorer = (context) => {
     }
   }
 
-  if (findings.length === 0) {
-    return scored(92, []);
-  }
-  return scored(score, findings);
+  return scored(passingShareScore(rtlPages.length, failingPages.size), findings);
 };
 
 const GENERIC_FONTS = new Set(["arial", "helvetica", "sans-serif", "serif", "system-ui", "tahoma"]);
 
 const scoreFontAndScript: HeuristicScorer = (context) => {
   const findings: LocalisationAuditFinding[] = [];
+  const failingPages = new Set<string>();
   let inspected = 0;
   for (const page of context.pages) {
     const locale = pageLocale(page);
@@ -209,6 +235,7 @@ const scoreFontAndScript: HeuristicScorer = (context) => {
     const text = page.textSample;
     const tofu = findTofuGlyphs(text);
     if (tofu.length > 0) {
+      failingPages.add(page.url);
       findings.push(
         creditFinding({
           id: `font-tofu-${findings.length}`,
@@ -234,6 +261,7 @@ const scoreFontAndScript: HeuristicScorer = (context) => {
     const onlyGeneric = families.every((family) => GENERIC_FONTS.has(family));
     const needsCjkFont = isCjkLanguage(locale) && textHasCjkScript(text);
     if (onlyGeneric || (needsCjkFont && !fontStackLooksCjkCapable(page.fontFamilies))) {
+      failingPages.add(page.url);
       findings.push(
         creditFinding({
           id: `font-generic-${findings.length}`,
@@ -259,7 +287,7 @@ const scoreFontAndScript: HeuristicScorer = (context) => {
   if (inspected === 0) {
     return { status: "na" };
   }
-  return scored(findings.length > 0 ? Math.max(35, 90 - findings.length * 14) : 90, findings);
+  return scored(passingShareScore(inspected, failingPages.size), findings);
 };
 
 const scoreCjkTypography: HeuristicScorer = (context) => {
@@ -272,7 +300,7 @@ const scoreCjkTypography: HeuristicScorer = (context) => {
   }
 
   const findings: LocalisationAuditFinding[] = [];
-  let score = 100;
+  const failingPages = new Set<string>();
 
   for (const page of cjkPages) {
     const locale = pageLocale(page)!;
@@ -282,7 +310,7 @@ const scoreCjkTypography: HeuristicScorer = (context) => {
     if (language === "ko" && textHasHangul(text)) {
       const wordBreaks = page.wordBreakValues.map((value) => value.toLowerCase());
       if (wordBreaks.some((value) => value.includes("break-all"))) {
-        score -= 28;
+        failingPages.add(page.url);
         findings.push(
           creditFinding({
             id: `cjk-wordbreak-breakall-${findings.length}`,
@@ -300,7 +328,7 @@ const scoreCjkTypography: HeuristicScorer = (context) => {
           }),
         );
       } else if (wordBreaks.length > 0 && !wordBreaks.some((value) => value.includes("keep-all"))) {
-        score -= 14;
+        failingPages.add(page.url);
         findings.push(
           creditFinding({
             id: `cjk-wordbreak-missing-keepall-${findings.length}`,
@@ -317,8 +345,7 @@ const scoreCjkTypography: HeuristicScorer = (context) => {
           }),
         );
       } else if (wordBreaks.length === 0 && page.fontFamilies.length > 0) {
-        // Only warn when we clearly sampled embedded CSS but saw no keep-all rule.
-        score -= 8;
+        // Absence in sampled CSS is weak evidence (rules may live in external sheets).
         findings.push(
           creditFinding({
             id: `cjk-wordbreak-unspecified-${findings.length}`,
@@ -340,7 +367,7 @@ const scoreCjkTypography: HeuristicScorer = (context) => {
 
     const westernNames = westernNameFields(page.formFieldLabels);
     if (westernNames.length > 0) {
-      score -= 16;
+      failingPages.add(page.url);
       findings.push(
         creditFinding({
           id: `cjk-naming-${findings.length}`,
@@ -364,77 +391,81 @@ const scoreCjkTypography: HeuristicScorer = (context) => {
     }
   }
 
-  if (findings.length === 0) {
-    return scored(92, []);
-  }
-  return scored(score, findings);
+  return scored(passingShareScore(cjkPages.length, failingPages.size), findings);
 };
 
 const scoreLocalizedImages: HeuristicScorer = (context) => {
   const findings: LocalisationAuditFinding[] = [];
+  const failingPages = new Set<string>();
+  let inspected = 0;
   let latinAmbiguous = false;
   for (const page of context.pages) {
     const locale = pageLocale(page);
-    if (!locale || languageOf(locale) === "en") continue;
-    for (const image of page.altTexts) {
-      if (isCjkLanguage(locale) || isRtlLanguage(locale)) {
-        if (looksPrimarilyEnglish(image.alt) || /[-_/](en|english)[-_./]/i.test(image.src)) {
-          findings.push(
-            creditFinding({
-              id: `image-unlocalized-${findings.length}`,
-              creditId: "localized-images",
-              category: "visual",
-              severity: "medium",
-              title: "Image still looks like the source locale",
-              summary: `Alt text or filename on a ${locale} page appears to be English.`,
-              where: formatFindingWhere({ section: "Page body", tag: "<img alt>" }),
-              url: page.url,
-              evidence: clipFindingEvidence(`alt="${image.alt}" src="${image.src}"`),
-              advice: "Localize the image asset and alt text for this page locale.",
-            }),
-          );
-        }
-      } else {
-        latinAmbiguous = true;
-      }
+    if (!locale || languageOf(locale) === "en" || page.altTexts.length === 0) continue;
+    // English alt text cannot be told apart from Latin-script target copy by script alone.
+    if (!isCjkLanguage(locale) && !isRtlLanguage(locale)) {
+      latinAmbiguous = true;
+      continue;
     }
+    inspected += 1;
+    const image = page.altTexts.find(
+      (item) => looksPrimarilyEnglish(item.alt) || /[-_/](en|english)[-_./]/i.test(item.src),
+    );
+    if (!image) continue;
+    failingPages.add(page.url);
+    findings.push(
+      creditFinding({
+        id: `image-unlocalized-${findings.length}`,
+        creditId: "localized-images",
+        category: "visual",
+        severity: "medium",
+        title: "Image still looks like the source locale",
+        summary: `Alt text or filename on a ${locale} page appears to be English.`,
+        where: formatFindingWhere({ section: "Page body", tag: "<img alt>" }),
+        url: page.url,
+        evidence: clipFindingEvidence(`alt="${image.alt}" src="${image.src}"`),
+        advice: "Localize the image asset and alt text for this page locale.",
+      }),
+    );
   }
-  if (latinAmbiguous && findings.length === 0) {
-    return { status: "inconclusive", evidence: { reason: "latin_image_alts" } };
+  if (inspected === 0) {
+    return latinAmbiguous
+      ? { status: "inconclusive", evidence: { reason: "latin_image_alts" } }
+      : { status: "na" };
   }
-  if (context.pages.every((page) => page.altTexts.length === 0)) {
-    return { status: "na" };
-  }
-  return scored(findings.length > 0 ? 58 : 88, findings);
+  return scored(passingShareScore(inspected, failingPages.size), findings);
 };
 
 const scoreVisualHierarchy: HeuristicScorer = (context) => {
   const findings: LocalisationAuditFinding[] = [];
-  for (const page of context.pages) {
-    for (const heading of page.headings) {
-      if (heading.length >= 80) {
-        findings.push(
-          creditFinding({
-            id: `hierarchy-heading-${findings.length}`,
-            creditId: "visual-hierarchy",
-            category: "visual",
-            severity: "low",
-            title: "Heading is excessively long",
-            summary: "A localized heading may crowd the visual hierarchy.",
-            where: formatFindingWhere({ section: "Page body", tag: "heading" }),
-            url: page.url,
-            evidence: clipFindingEvidence(heading),
-            advice: "Shorten the heading so it does not crowd the visual hierarchy.",
-            confidence: 80,
-          }),
-        );
-      }
-    }
+  const failingPages = new Set<string>();
+  let inspected = 0;
+  for (const page of targetPages(context)) {
+    if (page.headings.length === 0) continue;
+    inspected += 1;
+    const heading = page.headings.find((item) => item.length >= LONG_HEADING_CHARS);
+    if (!heading) continue;
+    failingPages.add(page.url);
+    findings.push(
+      creditFinding({
+        id: `hierarchy-heading-${findings.length}`,
+        creditId: "visual-hierarchy",
+        category: "visual",
+        severity: "low",
+        title: "Heading is excessively long",
+        summary: "A localized heading may crowd the visual hierarchy.",
+        where: formatFindingWhere({ section: "Page body", tag: "heading" }),
+        url: page.url,
+        evidence: clipFindingEvidence(heading),
+        advice: "Shorten the heading so it does not crowd the visual hierarchy.",
+        confidence: 80,
+      }),
+    );
   }
-  if (findings.length > 0) {
-    return scored(Math.max(55, 82 - findings.length * 6), findings);
+  if (inspected === 0) {
+    return { status: "na" };
   }
-  return { status: "na" };
+  return scored(passingShareScore(inspected, failingPages.size), findings);
 };
 
 const scoreComponentConsistency: HeuristicScorer = (context) => {
@@ -467,10 +498,181 @@ const scoreComponentConsistency: HeuristicScorer = (context) => {
   return { status: "na" };
 };
 
-const lunaProxy: HeuristicScorer = () => ({
-  status: "inconclusive",
-  evidence: { reason: "no_rendered_layout" },
-});
+type ViewportPick = "desktop" | "mobile";
+
+function pickViewport(
+  page: LocalisationAuditCrawledPage,
+  pick: ViewportPick,
+): LocalisationAuditLayoutViewport | null {
+  const viewports = page.layout?.viewports ?? [];
+  if (viewports.length === 0) return null;
+  const sorted = viewports.toSorted((a, b) => a.width - b.width);
+  if (pick === "mobile") {
+    const mobile = sorted[0]!;
+    return mobile.width <= MOBILE_VIEWPORT_MAX_WIDTH ? mobile : null;
+  }
+  return sorted.at(-1) ?? null;
+}
+
+type LayoutProblem = {
+  count: number;
+  sample: LocalisationAuditLayoutElement | null;
+  overflowPx: number;
+};
+
+function clippedProblem(viewport: LocalisationAuditLayoutViewport): LayoutProblem {
+  return {
+    count: viewport.clippedText.length,
+    sample: viewport.clippedText[0] ?? null,
+    overflowPx: 0,
+  };
+}
+
+function breakageProblem(viewport: LocalisationAuditLayoutViewport): LayoutProblem {
+  const overflowPx =
+    viewport.horizontalOverflowPx > HORIZONTAL_OVERFLOW_TOLERANCE_PX
+      ? viewport.horizontalOverflowPx
+      : 0;
+  return {
+    count: viewport.offscreen.length + (overflowPx > 0 ? 1 : 0),
+    sample: viewport.offscreen[0] ?? null,
+    overflowPx,
+  };
+}
+
+/**
+ * Score a rendered-layout problem on localized pages. A problem only counts
+ * against localisation when both the localized page and its source-language
+ * sibling have the requested viewport and the source page is cleaner. Pages
+ * without a comparable source measurement are skipped.
+ */
+function scoreRenderedLayout(
+  context: AuditCreditContext,
+  input: {
+    creditId: string;
+    viewport: ViewportPick;
+    measure: (viewport: LocalisationAuditLayoutViewport) => LayoutProblem;
+    finding: (
+      page: LocalisationAuditCrawledPage,
+      problem: LayoutProblem,
+      width: number,
+    ) => {
+      title: string;
+      summary: string;
+      where: string;
+      evidence: string;
+      advice: string;
+      severity: LocalisationAuditFinding["severity"];
+    };
+  },
+): HeuristicCreditOutcome {
+  const sourceByPath = sourceSiblingByPath(context);
+  const findings: LocalisationAuditFinding[] = [];
+  const failingPages = new Set<string>();
+  let inspected = 0;
+  for (const page of targetPages(context)) {
+    if (page.status < 200 || page.status >= 400) continue;
+    const viewport = pickViewport(page, input.viewport);
+    if (!viewport) continue;
+    const sibling = sourceByPath.get(pathWithoutLocale(page.url) ?? "");
+    const siblingViewport = sibling ? pickViewport(sibling, input.viewport) : null;
+    if (!siblingViewport) continue;
+    inspected += 1;
+    const problem = input.measure(viewport);
+    if (problem.count === 0) continue;
+    if (input.measure(siblingViewport).count >= problem.count) continue;
+    failingPages.add(page.url);
+    const detail = input.finding(page, problem, viewport.width);
+    findings.push(
+      creditFinding({
+        id: `${input.creditId}-${findings.length}`,
+        creditId: input.creditId,
+        category: "visual",
+        severity: detail.severity,
+        title: detail.title,
+        summary: detail.summary,
+        where: detail.where,
+        url: page.url,
+        evidence: clipFindingEvidence(detail.evidence),
+        advice: detail.advice,
+        confidence: 95,
+      }),
+    );
+  }
+  if (inspected === 0) {
+    return { status: "na" };
+  }
+  return scored(passingShareScore(inspected, failingPages.size), findings);
+}
+
+function describeElement(element: LocalisationAuditLayoutElement | null): string {
+  return element ? `<${element.tag}> "${element.text}"` : "page content";
+}
+
+const scoreTextOverflow: HeuristicScorer = (context) =>
+  scoreRenderedLayout(context, {
+    creditId: "text-overflow",
+    viewport: "desktop",
+    measure: clippedProblem,
+    finding: (page, problem, width) => ({
+      severity: "high",
+      title: "Localized text is clipped",
+      summary: `${problem.count} control or heading label${problem.count === 1 ? " is" : "s are"} cut off on this ${pageLocale(page)} page at ${width}px, more than on the source page.`,
+      where: formatFindingWhere({
+        section: "Rendered layout",
+        tag: problem.sample ? `<${problem.sample.tag}>` : "text",
+      }),
+      evidence: `Clipped at ${width}px: ${describeElement(problem.sample)}`,
+      advice:
+        "Let the control grow with its label (avoid fixed widths and overflow: hidden), or shorten the translation.",
+    }),
+  });
+
+const scoreLayoutBreakage: HeuristicScorer = (context) =>
+  scoreRenderedLayout(context, {
+    creditId: "layout-breakage",
+    viewport: "desktop",
+    measure: breakageProblem,
+    finding: (page, problem, width) => ({
+      severity: "high",
+      title: "Localized layout overflows the viewport",
+      summary: `This ${pageLocale(page)} page pushes content past the ${width}px desktop viewport, which the source page does not.`,
+      where: formatFindingWhere({ section: "Rendered layout", tag: "document" }),
+      evidence:
+        problem.overflowPx > 0
+          ? `Horizontal overflow of ${problem.overflowPx}px at ${width}px; e.g. ${describeElement(problem.sample)}`
+          : `Off-screen at ${width}px: ${describeElement(problem.sample)}`,
+      advice:
+        "Allow navigation and grids to wrap, and remove fixed widths that cannot fit longer translations.",
+    }),
+  });
+
+const scoreResponsiveLocalisation: HeuristicScorer = (context) =>
+  scoreRenderedLayout(context, {
+    creditId: "responsive-localisation",
+    viewport: "mobile",
+    measure: (viewport) => {
+      const breakage = breakageProblem(viewport);
+      const clipped = clippedProblem(viewport);
+      return {
+        count: breakage.count + clipped.count,
+        sample: breakage.sample ?? clipped.sample,
+        overflowPx: breakage.overflowPx,
+      };
+    },
+    finding: (page, problem, width) => ({
+      severity: "high",
+      title: "Localized page breaks on mobile",
+      summary: `At ${width}px this ${pageLocale(page)} page scrolls sideways or clips labels, more than the source page.`,
+      where: formatFindingWhere({ section: "Rendered layout · mobile", tag: "document" }),
+      evidence:
+        problem.overflowPx > 0
+          ? `Horizontal overflow of ${problem.overflowPx}px at ${width}px; e.g. ${describeElement(problem.sample)}`
+          : `At ${width}px: ${describeElement(problem.sample)}`,
+      advice:
+        "Test translated copy at mobile widths and let long labels wrap instead of forcing a single line.",
+    }),
+  });
 
 export const visualHeuristicScorers: Record<string, HeuristicScorer> = {
   "text-expansion": scoreTextExpansion,
@@ -480,7 +682,7 @@ export const visualHeuristicScorers: Record<string, HeuristicScorer> = {
   "localized-images": scoreLocalizedImages,
   "visual-hierarchy": scoreVisualHierarchy,
   "component-consistency": scoreComponentConsistency,
-  "text-overflow": lunaProxy,
-  "layout-breakage": lunaProxy,
-  "responsive-localisation": lunaProxy,
+  "text-overflow": scoreTextOverflow,
+  "layout-breakage": scoreLayoutBreakage,
+  "responsive-localisation": scoreResponsiveLocalisation,
 };

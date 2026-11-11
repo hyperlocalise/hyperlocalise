@@ -129,6 +129,12 @@ export const contentEditorFileViewMessages = defineMessages({
     description:
       "Placeholder for AI prompt when generating a translated Markdown/MDX document in CAT file view",
   },
+  generatePromptPlaceholderHtml: {
+    defaultMessage: "e.g. Keep product names in English and preserve HTML structure.",
+    id: "D9fXWFcqNL",
+    description:
+      "Placeholder for AI prompt when generating a translated HTML document in CAT file view",
+  },
   generatePromptPlaceholderDocx: {
     defaultMessage: "e.g. Preserve heading styles and leave company names untranslated.",
     id: "IbH+KBJEVh",
@@ -181,6 +187,13 @@ export const contentEditorFileViewMessages = defineMessages({
     defaultMessage: "No translated file yet",
     id: "3wxYCVb3wu",
     description: "Empty state when the CAT File view target preview has no file",
+  },
+  targetUntranslatedHint: {
+    defaultMessage:
+      "No translated file yet — showing the source text as a starting point. Edit and save before approving.",
+    id: "TBfAG1U1q6",
+    description:
+      "Banner when a plain-text file has no translated target and the source text is prefilled",
   },
   documentLoadFailed: {
     defaultMessage: "Could not load the translated file",
@@ -254,6 +267,109 @@ export const contentEditorFileViewMessages = defineMessages({
     id: "NxK3anx/eE",
     description: "Label indicating the localized or target asset locale in Designer mode metadata",
   },
+  officeSegmentsHeading: {
+    defaultMessage: "Text",
+    id: "2w737Ot4Fa",
+    description:
+      "Heading for the list of editable paragraphs or cells beside an Office file preview",
+  },
+  officeSegmentsHint: {
+    defaultMessage: "Edits save as drafts. The preview is rebuilt from the saved text.",
+    id: "B+2R+CguDm",
+    description: "Hint above the editable paragraphs or cells of an Office file in File view",
+  },
+  officeSaveDrafts: {
+    defaultMessage: "{count, plural, one {Save # draft} other {Save # drafts}}",
+    id: "Qbj8FRFVfp",
+    description: "Button that saves edited Office paragraphs or cells as draft translations",
+  },
+  officeSaveDraftsFailed: {
+    defaultMessage:
+      "{count, plural, one {# edit was not saved.} other {# edits were not saved.}} Check the highlighted fields.",
+    id: "fuGS+tbzu0",
+    description: "Error after saving Office File view edits when some drafts failed to save",
+  },
+  officeLoadMoreSegments: {
+    defaultMessage: "Load more text",
+    id: "IkjX3objbn",
+    description: "Button that loads more paragraphs or cells into the Office File view list",
+  },
+  officeGroupSlide: {
+    defaultMessage: "Slide {number}",
+    id: "TV/xfNXFY0",
+    description: "Group heading for paragraphs on a PowerPoint slide",
+  },
+  officeGroupNotes: {
+    defaultMessage: "Speaker notes, slide {number}",
+    id: "3NV0GFE6VT",
+    description: "Group heading for paragraphs in PowerPoint speaker notes",
+  },
+  officeGroupDocument: {
+    defaultMessage: "Document",
+    id: "fmDOQaEtb/",
+    description: "Group heading for paragraphs in the body of a Word document",
+  },
+  officeGroupHeader: {
+    defaultMessage: "Header {number}",
+    id: "YVSpc4Fgtj",
+    description: "Group heading for paragraphs in a Word page header",
+  },
+  officeGroupFooter: {
+    defaultMessage: "Footer {number}",
+    id: "kbAlbZYGxZ",
+    description: "Group heading for paragraphs in a Word page footer",
+  },
+  officeGroupFootnotes: {
+    defaultMessage: "Footnotes",
+    id: "w7GEIfNjc0",
+    description: "Group heading for Word footnotes",
+  },
+  officeGroupEndnotes: {
+    defaultMessage: "Endnotes",
+    id: "tCdxVUY0DH",
+    description: "Group heading for Word endnotes",
+  },
+  officeGroupComments: {
+    defaultMessage: "Comments",
+    id: "whMSAtiplz",
+    description: "Group heading for Word comments",
+  },
+  officeGroupOther: {
+    defaultMessage: "Other text",
+    id: "NNpUXptuVe",
+    description: "Group heading for Office text that is not on a slide, sheet, or Word part",
+  },
+  officeParagraph: {
+    defaultMessage: "Paragraph {number}",
+    id: "MM2Ni9bZuS",
+    description: "Label for one editable paragraph of a Word or PowerPoint file",
+  },
+  officeGroupPage: {
+    defaultMessage: "Page {number}",
+    id: "eoEHqDK2SZ",
+    description: "Group heading for PDF text blocks on one page",
+  },
+  pdfBlock: {
+    defaultMessage: "Block {number}",
+    id: "B/d0rdoVJ/",
+    description: "Label for one editable text block in a PDF file view",
+  },
+  pdfTargetNotReady: {
+    defaultMessage: "No translated PDF yet. Showing the source file.",
+    id: "Bmh0Lmd2wi",
+    description: "Hint when the PDF preview falls back to the source file",
+  },
+  pdfOverflowWarning: {
+    defaultMessage:
+      "{count, plural, one {# block was shrunk or clipped to fit the layout.} other {# blocks were shrunk or clipped to fit the layout.}}",
+    id: "JlI/Chw0Gc",
+    description: "Warning when MarshalPDF could not fit some translated blocks",
+  },
+  pdfScriptUnsupported: {
+    defaultMessage: "This PDF preview cannot render the target script yet.",
+    id: "dwmJPhGlWT",
+    description: "Error when the translated PDF uses an unsupported script",
+  },
 });
 
 export function contentEditorFileGeneratePromptPlaceholderMessage(
@@ -266,6 +382,8 @@ export function contentEditorFileGeneratePromptPlaceholderMessage(
       return contentEditorFileViewMessages.generatePromptPlaceholderVideo;
     case "markdown":
       return contentEditorFileViewMessages.generatePromptPlaceholderDocument;
+    case "html":
+      return contentEditorFileViewMessages.generatePromptPlaceholderHtml;
     case "docx":
       return contentEditorFileViewMessages.generatePromptPlaceholderDocx;
     case "xlsx":

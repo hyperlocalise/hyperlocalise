@@ -20,6 +20,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { Marked } from "marked";
 
 import { DocumentCallout } from "./document-editor-callout";
+import { DocumentHeading } from "./document-editor-heading";
 import { MdxComponent, MdxInline, MdxRaw } from "./document-editor-mdx";
 
 export type DocumentEditorSyntax = "markdown" | "mdx";
@@ -31,6 +32,10 @@ export function isMdxFilename(filename: string) {
 export function isAsciidocFilename(filename: string) {
   const lower = filename.toLowerCase();
   return lower.endsWith(".adoc") || lower.endsWith(".asciidoc") || lower.endsWith(".asc");
+}
+
+export function isPlainTextFilename(filename: string) {
+  return filename.toLowerCase().endsWith(".txt");
 }
 
 /**
@@ -59,13 +64,14 @@ export function createDocumentSchemaExtensions(
   return [
     StarterKit.configure({
       underline: false,
+      heading: false,
       link: { openOnClick: false, linkOnPaste: true, HTMLAttributes: { target: null } },
-      heading: { levels: [1, 2, 3, 4] },
     }),
+    DocumentHeading.configure({ levels: [1, 2, 3, 4] }),
     TaskList.configure({ HTMLAttributes: { class: "document-task-list" } }),
     TaskItem.configure({ nested: true, HTMLAttributes: { class: "document-task-item" } }),
     Image.configure({ inline: false, allowBase64: false }),
-    TableKit.configure({ table: { resizable: false } }),
+    TableKit.configure({ table: { resizable: false, renderWrapper: true } }),
     nodes.callout,
     ...(syntax === "mdx" ? [nodes.mdxRaw, nodes.mdxComponent, nodes.mdxInline] : []),
     Markdown.configure({ marked: new Marked() as never }),
@@ -74,16 +80,122 @@ export function createDocumentSchemaExtensions(
 
 const FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})/;
 
+function isGfmTableSeparatorLine(line: string) {
+  const trimmed = line.trim();
+  return trimmed.includes("|") && /^[\s|:-]+$/.test(trimmed) && trimmed.includes("-");
+}
+
+function isGfmTableRowLine(line: string) {
+  return line.trim().includes("|");
+}
+
+function normalizeGfmTableDelimiter(cell: string) {
+  const trimmed = cell.trim();
+  if (!/^:?-{3,}:?$/.test(trimmed)) {
+    return trimmed;
+  }
+  const leftColon = trimmed.startsWith(":");
+  const rightColon = trimmed.endsWith(":") && !/^:-+$/.test(trimmed);
+  return `${leftColon ? ":" : ""}---${rightColon ? ":" : ""}`;
+}
+
+function parseGfmTableCells(line: string, columnCount?: number) {
+  const trimmed = line.trim();
+  const hasLeadingPipe = trimmed.startsWith("|");
+  const hasTrailingPipe = trimmed.endsWith("|");
+  let parts = trimmed.split("|").map((cell) => cell.trim());
+  if (hasLeadingPipe && parts[0] === "") {
+    parts = parts.slice(1);
+  }
+  if (hasTrailingPipe && parts.at(-1) === "") {
+    const bodyParts = parts.slice(0, -1);
+    const shouldStripTrailingEmpty =
+      columnCount !== undefined
+        ? parts.length > columnCount
+        : hasLeadingPipe || (bodyParts.length >= 2 && bodyParts.every((part) => part !== ""));
+    if (shouldStripTrailingEmpty) {
+      parts = parts.slice(0, -1);
+    }
+  }
+  return parts;
+}
+
+function countGfmTableColumns(headerLine: string) {
+  return parseGfmTableCells(headerLine).length;
+}
+
+function normalizeGfmTableRow(line: string, columnCount?: number) {
+  const parts = parseGfmTableCells(line, columnCount);
+  if (parts.length === 0) {
+    return line;
+  }
+  if (parts.every((part) => /^:?-{3,}:?$/.test(part))) {
+    return `| ${parts.map(normalizeGfmTableDelimiter).join(" | ")} |`;
+  }
+  return `| ${parts.join(" | ")} |`;
+}
+
+/** Collapses GFM table column padding so TipTap serialize width changes are not treated as lossy. */
+export function normalizeGfmTablesInMarkdown(markdown: string) {
+  const lines = markdown.split("\n");
+  const output: string[] = [];
+  let fence: string | null = null;
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index];
+    const fenceMatch = FENCE_PATTERN.exec(line);
+    if (fenceMatch) {
+      const marker = fenceMatch[1];
+      if (fence === null) {
+        fence = marker;
+      } else if (marker[0] === fence[0] && marker.length >= fence.length) {
+        fence = null;
+      }
+      output.push(line);
+      index += 1;
+      continue;
+    }
+    if (fence !== null) {
+      output.push(line);
+      index += 1;
+      continue;
+    }
+    const nextLine = lines[index + 1];
+    if (isGfmTableRowLine(line) && nextLine !== undefined && isGfmTableSeparatorLine(nextLine)) {
+      const columnCount = countGfmTableColumns(line);
+      while (index < lines.length && isGfmTableRowLine(lines[index])) {
+        output.push(normalizeGfmTableRow(lines[index], columnCount));
+        index += 1;
+      }
+      continue;
+    }
+    output.push(line);
+    index += 1;
+  }
+  return output.join("\n");
+}
+
 /** True when page-view parse/serialize would change Markdown or MDX that must stay as written. */
 export function isLossyDocumentRoundTrip(
   _syntax: DocumentEditorSyntax,
   original: string,
   normalized: string,
 ) {
-  return normalized !== normalizeDocumentMarkdown(original);
+  const plainOriginal = normalizeDocumentMarkdown(original);
+  if (normalized === plainOriginal) {
+    return false;
+  }
+  const tableComparableOriginal = normalizeDocumentMarkdown(normalizeGfmTablesInMarkdown(original));
+  const tableComparableNormalized = normalizeDocumentMarkdown(
+    normalizeGfmTablesInMarkdown(normalized),
+  );
+  if (tableComparableNormalized === tableComparableOriginal) {
+    return false;
+  }
+  return true;
 }
 
-/** Collapses runs of blank lines that renderers leave around blocks, outside code fences. */
+/** Collapses extra blank lines around blocks, including a leading blank, outside code fences. */
 export function normalizeDocumentMarkdown(markdown: string) {
   const lines = markdown.split("\n");
   const output: string[] = [];
@@ -98,7 +210,7 @@ export function normalizeDocumentMarkdown(markdown: string) {
         fence = null;
       }
     }
-    if (fence === null && !line.trim() && output.length > 0 && !output.at(-1)?.trim()) {
+    if (fence === null && !line.trim() && (output.length === 0 || !output.at(-1)?.trim())) {
       continue;
     }
     output.push(fence === null && !line.trim() ? "" : line);

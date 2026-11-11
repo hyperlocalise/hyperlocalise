@@ -12,16 +12,26 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
+import { observer } from "mobx-react-lite";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { PlusIcon, TranslateIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, PlusIcon, TranslateIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import type { GoSvcJobApi } from "@/lib/go-svc/go-svc-job-api";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { cn } from "@/lib/primitives/cn";
+import { contentEditorNewTaskParam } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { isNativeWorkspaceJob } from "@/lib/projects/workspace-resource-capabilities";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { readTmsProviderListResponse } from "@/lib/providers/jobs/tms-provider-list-fetch";
@@ -44,7 +54,21 @@ import {
 import { jobsPageContentMessages } from "./jobs-page-content.messages";
 import { useJobsListUrlState } from "./use-jobs-list-url-state";
 
-function renderProductionJobLink({ href, kind, children }: Parameters<JobsLinkRenderer>[0]) {
+function renderProductionJobLink({
+  href,
+  kind,
+  children,
+  className,
+  ariaLabel,
+}: Parameters<JobsLinkRenderer>[0]) {
+  if (kind === "card") {
+    return (
+      <Link href={href} className={className} aria-label={ariaLabel}>
+        {children}
+      </Link>
+    );
+  }
+
   if (kind === "title") {
     return (
       <Button
@@ -60,7 +84,12 @@ function renderProductionJobLink({ href, kind, children }: Parameters<JobsLinkRe
 
   if (kind === "content-editor") {
     return (
-      <Button nativeButton={false} render={<Link href={href} />} size="sm" className="w-fit">
+      <Button
+        nativeButton={false}
+        render={<Link href={href} aria-label={ariaLabel} />}
+        size="sm"
+        className={cn("w-fit", className)}
+      >
         <TranslateIcon />
         {children}
       </Button>
@@ -116,46 +145,30 @@ function toNativeJobRows(jobs: JobRow[]): JobRow[] {
 }
 
 async function fetchNativeWorkspaceJobs(
+  jobApi: GoSvcJobApi,
   organizationSlug: string,
   statusFilter: JobsStatusFilter,
-  loadJobsFailedMessage: string,
   relationship?: "assigned" | "created",
 ) {
-  const response = await apiClient.api.orgs[":organizationSlug"].jobs.$get({
-    param: { organizationSlug },
-    query: {
-      limit: "100",
-      ...(relationship ? { relationship } : {}),
-      ...(statusFilter === "all" ? {} : { status: statusFilter }),
-    },
+  const body = await jobApi.list<JobListResponse>(organizationSlug, {
+    limit: 100,
+    ...(relationship ? { relationship } : {}),
+    ...(statusFilter === "all" ? {} : { status: statusFilter }),
   });
-  if (!response.ok) {
-    throw await readApiResponseError(response, loadJobsFailedMessage);
-  }
-
-  const body = await response.json();
-  return body.jobs as JobListResponse[];
+  return body.jobs;
 }
 
 async function fetchNativeProjectJobs(
+  jobApi: GoSvcJobApi,
   organizationSlug: string,
   projectId: string,
   statusFilter: JobsStatusFilter,
-  loadJobsFailedMessage: string,
 ) {
-  const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$get({
-    param: { organizationSlug, projectId },
-    query: {
-      limit: "100",
-      ...(statusFilter === "all" ? {} : { status: statusFilter }),
-    },
+  const body = await jobApi.listProject<JobListResponse>(organizationSlug, projectId, {
+    limit: 100,
+    ...(statusFilter === "all" ? {} : { status: statusFilter }),
   });
-  if (!response.ok) {
-    throw await readApiResponseError(response, loadJobsFailedMessage);
-  }
-
-  const body = await response.json();
-  return body.jobs as JobListResponse[];
+  return body.jobs;
 }
 
 async function fetchTmsWorkspaceJobs(
@@ -187,7 +200,7 @@ async function fetchTmsProjectJobs(
   return readTmsProviderListResponse<JobListResponse>(response, "jobs", loadTmsJobsFailedMessage);
 }
 
-export function JobsPageContent({
+export const JobsPageContent = observer(function JobsPageContent({
   organizationSlug,
   scope = "all",
   projectId,
@@ -197,9 +210,9 @@ export function JobsPageContent({
   projectId?: string;
 }) {
   const intl = useIntl();
-  const { state, searchDraft, setSearchDraft, updateState, clearFilters } = useJobsListUrlState();
-  const statusFilter = state.status;
-  const [createJobOpen, setCreateJobOpen] = useState(false);
+  const { client: goSvcClient } = useGoSvcClient();
+  const pageStore = useJobsListUrlState(projectId);
+  const statusFilter = pageStore.statusFilter;
   const parsedProviderProject = projectId ? parseProviderProjectId(projectId) : null;
   const isProviderProjectScope = Boolean(parsedProviderProject);
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
@@ -207,7 +220,6 @@ export function JobsPageContent({
   const projectQuery = useProjectPageQuery(organizationSlug, projectId ?? "", {
     enabled: Boolean(projectId),
   });
-  const loadJobsFailedMessage = intl.formatMessage(jobsPageContentMessages.loadJobsFailed);
   const loadTmsJobsFailedMessage = intl.formatMessage(jobsPageContentMessages.loadTmsJobsFailed);
 
   const nativeJobsQueryKey = [
@@ -231,28 +243,23 @@ export function JobsPageContent({
     enabled: !isProviderProjectScope && (scope !== "personal" || !projectId),
     queryFn: async () => {
       if (projectId) {
-        return fetchNativeProjectJobs(
-          organizationSlug,
-          projectId,
-          statusFilter,
-          loadJobsFailedMessage,
-        );
+        return fetchNativeProjectJobs(goSvcClient.job, organizationSlug, projectId, statusFilter);
       }
 
-      return fetchNativeWorkspaceJobs(organizationSlug, statusFilter, loadJobsFailedMessage);
+      return fetchNativeWorkspaceJobs(goSvcClient.job, organizationSlug, statusFilter);
     },
   });
   const assignedNativeJobsQuery = useQuery({
     queryKey: [...nativeJobsQueryKey, "assigned"],
     enabled: scope === "personal" && !projectId,
     queryFn: async () =>
-      fetchNativeWorkspaceJobs(organizationSlug, statusFilter, loadJobsFailedMessage, "assigned"),
+      fetchNativeWorkspaceJobs(goSvcClient.job, organizationSlug, statusFilter, "assigned"),
   });
   const createdNativeJobsQuery = useQuery({
     queryKey: [...nativeJobsQueryKey, "created"],
     enabled: scope === "personal" && !projectId,
     queryFn: async () =>
-      fetchNativeWorkspaceJobs(organizationSlug, statusFilter, loadJobsFailedMessage, "created"),
+      fetchNativeWorkspaceJobs(goSvcClient.job, organizationSlug, statusFilter, "created"),
   });
   const tmsJobsQuery = useQuery({
     queryKey: tmsJobsQueryKey,
@@ -288,6 +295,7 @@ export function JobsPageContent({
       : nativeJobsQuery.isLoading;
 
   const canCreateJob = Boolean(projectId);
+  const router = useRouter();
   const sourceLocale = projectQuery.data?.sourceLocale?.trim() || "en";
   const targetLocales = projectQuery.data?.targetLocales ?? [];
 
@@ -300,35 +308,55 @@ export function JobsPageContent({
           hasActiveTmsConnection || tmsJobsQuery.isLoading || tmsJobsQuery.isFetching
         }
         headerActions={
-          canCreateJob ? (
-            <Button type="button" size="sm" onClick={() => setCreateJobOpen(true)}>
+          !canCreateJob ? null : isProviderProjectScope ? (
+            <Button type="button" size="sm" onClick={() => pageStore.setCreateJobOpen(true)}>
               <PlusIcon />
               <FormattedMessage {...jobsPageContentMessages.createJob} />
             </Button>
-          ) : null
+          ) : (
+            // Native projects can also make a task from chosen strings, which are picked in the
+            // content editor's queue rather than in this dialog.
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button type="button" size="sm" />}>
+                <PlusIcon />
+                <FormattedMessage {...jobsPageContentMessages.createJob} />
+                <CaretDownIcon className="size-3" aria-hidden />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuItem onClick={() => pageStore.setCreateJobOpen(true)}>
+                  <FormattedMessage {...jobsPageContentMessages.createJobFromFiles} />
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    router.push(
+                      `/org/${organizationSlug}/projects/${encodeURIComponent(projectId!)}/strings?${contentEditorNewTaskParam}=1`,
+                    )
+                  }
+                >
+                  <FormattedMessage {...jobsPageContentMessages.createJobFromStrings} />
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
         }
         isNativeLoading={isNativeLoading}
         isProviderProjectScope={isProviderProjectScope}
         isTmsLoading={tmsJobsQuery.isLoading && !tmsJobsQuery.data}
         nativeError={nativeError}
         nativeJobs={nativeJobs}
-        onClearFilters={clearFilters}
-        onSearchDraftChange={setSearchDraft}
-        onStatusFilterChange={(nextStatus) => updateState({ status: nextStatus })}
+        pageStore={pageStore}
         organizationSlug={organizationSlug}
         projectId={projectId}
         renderError={renderProductionJobsError}
         renderJobLink={renderProductionJobLink}
         scope={scope}
-        searchDraft={searchDraft}
-        statusFilter={statusFilter}
         tmsError={tmsJobsQuery.error}
         tmsJobs={tmsJobs}
       />
       {projectId ? (
         <CreateJobDialog
-          open={createJobOpen}
-          onOpenChange={setCreateJobOpen}
+          open={pageStore.createJobOpen}
+          onOpenChange={(open) => pageStore.setCreateJobOpen(open)}
           organizationSlug={organizationSlug}
           projectId={projectId}
           sourceLocale={sourceLocale}
@@ -340,4 +368,4 @@ export function JobsPageContent({
       ) : null}
     </>
   );
-}
+});

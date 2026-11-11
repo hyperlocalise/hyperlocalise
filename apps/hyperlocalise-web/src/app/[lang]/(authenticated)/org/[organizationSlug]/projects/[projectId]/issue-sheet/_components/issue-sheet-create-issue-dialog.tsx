@@ -67,8 +67,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
 
 import { IssueAssigneePicker } from "../../../../_components/issue-detail/issue-assignee-picker";
@@ -211,6 +211,7 @@ export function IssueSheetCreateIssueDialog({
   initialTemplateKey?: string | null;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const [selectedProjectId, setSelectedProjectId] = useState(projectId ?? "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -656,19 +657,13 @@ export function IssueSheetCreateIssueDialog({
             ...(values ? { values } : {}),
             ...(templateKey ? { templateKey } : {}),
           };
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ].$post({
-        param: { organizationSlug, projectId: resolvedProjectId },
-        json,
-      } as never);
-      if (response.status !== 201) {
-        throw new Error(
-          (await readApiResponseError(response, intl.formatMessage(messages.requestFailed)))
-            .message || intl.formatMessage(messages.requestFailed),
-        );
+      try {
+        return await goSvcClient.issueSheet.create(organizationSlug, resolvedProjectId, json);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.requestFailed)), {
+          cause: error,
+        });
       }
-      return response.json();
     },
     onSuccess: async () => {
       toast.success(intl.formatMessage(messages.issueAdded));

@@ -25,6 +25,12 @@ export const projectOverviewPageContentMessages = defineMessages({
     id: "LPgS5mUnwV",
     description: "Button on project overview linking to the project Content Editor page",
   },
+  translateLocaleWithAgent: {
+    defaultMessage: "Translate with agent",
+    id: "Mxs48RKo9T",
+    description:
+      "Button on a locale progress row that queues the AI agent for untranslated strings",
+  },
   projectOverviewFallbackTitle: {
     defaultMessage: "Project overview",
     id: "mehTxJuesM",
@@ -154,26 +160,6 @@ export const projectOverviewPageContentMessages = defineMessages({
     defaultMessage: "Edit",
     id: "4/O19yxuqg",
     description: "Link to edit the style guide in project settings",
-  },
-  shipTitle: {
-    defaultMessage: "Sync",
-    id: "cE0bfQDgYq",
-    description: "Section heading for native sync status on project overview",
-  },
-  shipLastSynced: {
-    defaultMessage: "Last synced {when}",
-    id: "I28Vekk8WA",
-    description: "Last sync timestamp on project overview ship section",
-  },
-  shipNeverSynced: {
-    defaultMessage: "Not synced yet",
-    id: "wk5x4r43TH",
-    description: "Shown when a native project has never synced",
-  },
-  shipConnectCli: {
-    defaultMessage: "Connect CLI & CI",
-    id: "NQq3ItGutD",
-    description: "Link to project settings for CLI and CI setup",
   },
   viewSettings: {
     defaultMessage: "View settings",

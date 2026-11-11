@@ -39,12 +39,14 @@ describe("getAppShellTitle", () => {
     ["/org/acme/projects/proj_1/context", "Context"],
     ["/org/acme/projects/proj_1/locales", "Locales"],
     ["/org/acme/projects/proj_1/qa", "QA"],
+    ["/org/acme/projects/proj_1/reports", "Reports"],
     ["/org/acme/projects/proj_1/reviews", "Reviews"],
     ["/org/acme/projects/proj_1/settings", "Settings"],
     ["/org/acme/my-work", "My Jobs"],
     ["/org/acme/my-jobs", "My Jobs"],
     ["/org/acme/knowledge", "Guideline"],
     ["/org/acme/automations", "Automations"],
+    ["/org/acme/reports", "Reports"],
     ["/org/acme/ai-engine", "AI Engine"],
     ["/org/acme/domains", "Domains"],
     ["/org/acme/domains/ld_1", "ld_1"],
@@ -157,6 +159,48 @@ describe("getAppShellBreadcrumbs", () => {
       { label: "Product terms", href: "/org/acme/glossaries/glos_1" },
       { label: "Import/export history", href: "/org/acme/glossaries/glos_1/imports" },
       { label: "Interchange report" },
+    ]);
+  });
+
+  it("returns guideline breadcrumbs for detail and upload pages", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/knowledge", intl)).toEqual([{ label: "Guideline" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/knowledge/upload", intl)).toEqual([
+      { label: "Guideline", href: "/org/acme/knowledge" },
+      { label: "Upload guideline" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/knowledge/doc_1", intl)).toEqual([
+      { label: "Guideline", href: "/org/acme/knowledge" },
+      { label: "doc_1" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/knowledge/doc_1", intl, {
+        guidelineDocumentTitle: "Brand voice",
+      }),
+    ).toEqual([{ label: "Guideline", href: "/org/acme/knowledge" }, { label: "Brand voice" }]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/knowledge/doc_1", intl, {
+        guidelineDocumentTitleLoading: true,
+      }),
+    ).toEqual([
+      { label: "Guideline", href: "/org/acme/knowledge" },
+      { label: "", isLoading: true },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/projects/proj_1/knowledge/doc_1", intl)).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "proj_1", href: "/org/acme/projects/proj_1" },
+      { label: "Guideline", href: "/org/acme/projects/proj_1/knowledge" },
+      { label: "doc_1" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1/knowledge/doc_1", intl, {
+        projectName: "Checkout",
+        guidelineDocumentTitle: "Brand voice",
+      }),
+    ).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "Checkout", href: "/org/acme/projects/proj_1" },
+      { label: "Guideline", href: "/org/acme/projects/proj_1/knowledge" },
+      { label: "Brand voice" },
     ]);
   });
 

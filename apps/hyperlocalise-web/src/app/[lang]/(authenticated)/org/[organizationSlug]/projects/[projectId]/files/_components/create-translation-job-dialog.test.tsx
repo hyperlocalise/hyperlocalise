@@ -50,26 +50,38 @@ vi.mock("sonner", () => ({
   },
 }));
 
-function renderDialog() {
-  const queryClient = new QueryClient({
+function createQueryClient() {
+  return new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
+}
 
-  return render(
+function dialogTree(
+  queryClient: QueryClient,
+  {
+    open = true,
+    targetLocales = ["fr-FR", "de-DE"],
+  }: { open?: boolean; targetLocales?: string[] } = {},
+) {
+  return (
     <QueryClientProvider client={queryClient}>
       <IntlProvider locale="en" messages={{}}>
         <CreateTranslationJobDialog
-          open
+          open={open}
           onOpenChange={() => undefined}
           organizationSlug="acme"
           projectId="project_1"
           file={createProjectFileRecord()}
           sourceLocale="en-US"
-          targetLocales={["fr-FR", "de-DE"]}
+          targetLocales={targetLocales}
         />
       </IntlProvider>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+}
+
+function renderDialog() {
+  return render(dialogTree(createQueryClient()));
 }
 
 describe("CreateTranslationJobDialog", () => {
@@ -121,6 +133,97 @@ describe("CreateTranslationJobDialog", () => {
           type: "file",
           fileInput: expect.objectContaining({
             ignoreTranslationMemory: false,
+          }),
+        },
+      }),
+    );
+  });
+
+  it("lets the user search and narrow the selected target locales", async () => {
+    apiMocks.jobsPost.mockResolvedValue(
+      new Response(JSON.stringify({ job: { id: "job_1" } }), { status: 200 }),
+    );
+
+    renderDialog();
+
+    expect(screen.getByText("fr-FR")).toBeInTheDocument();
+    expect(screen.getByText("de-DE")).toBeInTheDocument();
+    expect(screen.getByText("🇫🇷")).toBeInTheDocument();
+    expect(screen.getByText("🇩🇪")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(screen.getByRole("button", { name: "Translate with agent" })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Select all" }));
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+
+    const localeSearch = screen.getByPlaceholderText("Search locales…");
+    await userEvent.click(localeSearch);
+    await userEvent.type(localeSearch, "french");
+    await userEvent.click(await screen.findByRole("option", { name: /French \(France\)/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Translate with agent" }));
+
+    expect(apiMocks.jobsPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: {
+          type: "file",
+          fileInput: expect.objectContaining({
+            targetLocales: ["fr-FR"],
+          }),
+        },
+      }),
+    );
+  });
+
+  it("keeps the chosen target locales when its parent re-renders", async () => {
+    apiMocks.jobsPost.mockResolvedValue(
+      new Response(JSON.stringify({ job: { id: "job_1" } }), { status: 200 }),
+    );
+    const queryClient = createQueryClient();
+    const targetLocales = ["fr-FR", "de-DE"];
+    const view = render(dialogTree(queryClient, { targetLocales }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Remove de-DE" }));
+    view.rerender(dialogTree(queryClient, { targetLocales }));
+
+    expect(screen.queryByText("de-DE")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Translate with agent" }));
+
+    expect(apiMocks.jobsPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: {
+          type: "file",
+          fileInput: expect.objectContaining({
+            targetLocales: ["fr-FR"],
+          }),
+        },
+      }),
+    );
+  });
+
+  it("resets to the current target locales when reopened", async () => {
+    apiMocks.jobsPost.mockResolvedValue(
+      new Response(JSON.stringify({ job: { id: "job_1" } }), { status: 200 }),
+    );
+    const queryClient = createQueryClient();
+    const view = render(dialogTree(queryClient, { targetLocales: ["vi", "fr-FR"] }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Remove vi" }));
+    view.rerender(dialogTree(queryClient, { open: false, targetLocales: ["vi", "fr-FR"] }));
+    view.rerender(dialogTree(queryClient, { targetLocales: ["de-DE"] }));
+
+    expect(screen.queryByText("vi")).not.toBeInTheDocument();
+    expect(screen.getByText("de-DE")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Translate with agent" }));
+
+    expect(apiMocks.jobsPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: {
+          type: "file",
+          fileInput: expect.objectContaining({
+            targetLocales: ["de-DE"],
           }),
         },
       }),

@@ -17,11 +17,14 @@ import type {
   LocalisationAuditFinding,
 } from "./types";
 
-/** Lighthouse-style binary outcome for a scored credit. */
-export type LocalisationAuditCriterionStatus = "pass" | "fail" | "na";
+/** Lighthouse-style outcome for a scored credit. `watch` is close to passing, not broken. */
+export type LocalisationAuditCriterionStatus = "pass" | "watch" | "fail" | "na";
 
 /** Pass threshold matches the Excellent score band (90–100). */
 export const LOCALISATION_AUDIT_CRITERION_PASS_SCORE = 90;
+
+/** Scores from here up to the pass threshold read as "worth a look" rather than failures. */
+export const LOCALISATION_AUDIT_CRITERION_WATCH_SCORE = 75;
 
 export type LocalisationAuditCriterion = {
   id: string;
@@ -31,8 +34,21 @@ export type LocalisationAuditCriterion = {
   status: LocalisationAuditCriterionStatus;
   score: number | null;
   method: LocalisationAuditCreditResult["method"];
+  /** Relative weight within the overall score. */
+  weight: number;
+  /** False for AI-assessed results, which are shown for review but do not affect scores. */
+  scored: boolean;
   findings: LocalisationAuditFinding[];
 };
+
+/** Methodology 1 averaged AI-assessed credits into the score; later versions do not. */
+function creditCountsTowardScore(
+  credit: LocalisationAuditCreditResult,
+  methodologyVersion: number,
+): boolean {
+  if (credit.method === "na" || credit.score == null) return false;
+  return methodologyVersion < 2 || credit.method === "heuristic";
+}
 
 export function creditCriterionStatus(
   credit: LocalisationAuditCreditResult,
@@ -42,6 +58,9 @@ export function creditCriterionStatus(
   }
   if (credit.score >= LOCALISATION_AUDIT_CRITERION_PASS_SCORE) {
     return "pass";
+  }
+  if (credit.score >= LOCALISATION_AUDIT_CRITERION_WATCH_SCORE) {
+    return "watch";
   }
   return "fail";
 }
@@ -53,7 +72,9 @@ export function creditCriterionStatus(
 export function buildLocalisationAuditCriteria(
   credits: LocalisationAuditCreditResult[],
   findings: LocalisationAuditFinding[] = [],
+  options?: { methodologyVersion?: number },
 ): LocalisationAuditCriterion[] {
+  const methodologyVersion = options?.methodologyVersion ?? 1;
   const findingsByCredit = new Map<string, LocalisationAuditFinding[]>();
   for (const finding of findings) {
     if (!finding.creditId) continue;
@@ -79,6 +100,8 @@ export function buildLocalisationAuditCriteria(
           status: creditCriterionStatus(credit),
           score: credit.score,
           method: credit.method,
+          weight: definition.weight,
+          scored: creditCountsTowardScore(credit, methodologyVersion),
           findings: findingsByCredit.get(credit.id) ?? [],
         } satisfies LocalisationAuditCriterion,
       ];
@@ -88,18 +111,24 @@ export function buildLocalisationAuditCriteria(
 
 export function groupLocalisationAuditCriteria(criteria: LocalisationAuditCriterion[]) {
   const passed: LocalisationAuditCriterion[] = [];
+  const watch: LocalisationAuditCriterion[] = [];
   const failed: LocalisationAuditCriterion[] = [];
   const notApplicable: LocalisationAuditCriterion[] = [];
+  const aiAssessed: LocalisationAuditCriterion[] = [];
 
   for (const criterion of criteria) {
-    if (criterion.status === "pass") {
-      passed.push(criterion);
-    } else if (criterion.status === "fail") {
-      failed.push(criterion);
-    } else {
+    if (criterion.status === "na") {
       notApplicable.push(criterion);
+    } else if (!criterion.scored) {
+      aiAssessed.push(criterion);
+    } else if (criterion.status === "pass") {
+      passed.push(criterion);
+    } else if (criterion.status === "watch") {
+      watch.push(criterion);
+    } else {
+      failed.push(criterion);
     }
   }
 
-  return { passed, failed, notApplicable };
+  return { passed, watch, failed, notApplicable, aiAssessed };
 }

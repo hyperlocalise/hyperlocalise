@@ -6,6 +6,8 @@ description: "Set source and target locales and diagnose a missing language in t
 
 Project locales determine which languages you can select for translation and download. A locale can include a region, such as `pt-BR`; choose the locale your application or publishing workflow expects.
 
+Integrations read this list from the native project: the [Sanity Studio plugin](/platform/connections/sanity-studio-plugin#project-locales-list) session API returns `sourceLocale` and `targetLocales` for each accessible project; [Sanity automations](/platform/connections/sanity) and other connections expect Sanity or provider tags to map onto the same tags. After you change locales here, reload the integration (for example **Change** project in Studio) so the UI picks up the new list.
+
 ## Change locales
 
 1. Open the project’s **Settings**.

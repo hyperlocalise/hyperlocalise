@@ -22,6 +22,28 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOLS = [
   "use_crowdin",
   "use_web_search",
   "run_contentful_translation",
+  "import_intercom_articles",
+  "push_intercom_translations",
+  "import_sanity_documents",
+  "push_sanity_translations",
+  "import_webflow_items",
+  "push_webflow_translations",
+  "import_google_drive_files",
+  "push_google_drive_translations",
+  "import_braze_templates",
+  "push_braze_templates",
+  "import_braze_campaigns",
+  "push_braze_campaigns",
+  "import_customer_io_campaigns",
+  "push_customer_io_campaigns",
+  "import_iterable_templates",
+  "push_iterable_templates",
+  "import_loops_emails",
+  "push_loops_emails",
+  "import_hubspot_content",
+  "push_hubspot_content",
+  "import_mailchimp_content",
+  "push_mailchimp_content",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -58,10 +80,21 @@ const PULL_REQUEST_KEYWORDS = ["pull request", "pr"] as const;
 /** Shared by everything that reads a repository, so naming a repository alone suggests nothing. */
 export const REPOSITORY_KEYWORDS = ["github", "repo", "repository"] as const;
 
+export const WORKSPACE_AUTOMATION_SKILL_CATEGORIES = [
+  "review",
+  "research",
+  "translate",
+  "report",
+] as const;
+/** What the skill does for the run: check your content, look outside it, translate, or send results out. */
+export type WorkspaceAutomationSkillCategory =
+  (typeof WORKSPACE_AUTOMATION_SKILL_CATEGORIES)[number];
+
 export type WorkspaceAutomationSkill = {
   /** Also the file name of the procedure under the workspace agent's skills folder. */
   id: string;
   name: string;
+  category: WorkspaceAutomationSkillCategory;
   description: string;
   /** Plain statement of what attaching the skill lets the automation touch. */
   grants: string;
@@ -87,6 +120,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "review-translation-changes",
     name: "Review translation changes",
+    category: "review",
     description:
       "Review recent repository changes key by key for localisation and translation risk.",
     grants: "Reads the connected GitHub repository. Changes nothing.",
@@ -110,6 +144,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "summarize-localisation-changes",
     name: "Summarise localisation changes",
+    category: "review",
     description: "Write a short digest of localisation-related changes in the repository.",
     grants: "Reads the connected GitHub repository. Changes nothing.",
     tools: ["use_github_repository"],
@@ -132,6 +167,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "check-crowdin-concordance",
     name: "Check against Crowdin",
+    category: "review",
     description:
       "Check strings under review against the Crowdin glossary, translation memory and style guide.",
     grants: "Reads your Crowdin project. Changes nothing.",
@@ -150,6 +186,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "research-web",
     name: "Research the web",
+    category: "research",
     description:
       "Search the live web for competitor, market and localisation changes, with sources.",
     grants: "Searches the public web. Changes nothing.",
@@ -169,6 +206,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "translate-uploaded-source",
     name: "Translate uploaded source files",
+    category: "translate",
     description:
       "Create a translation job for each uploaded source file and translate it with the Hyperlocalise agent.",
     grants: "Creates translation jobs in the project and assigns them to the Hyperlocalise agent.",
@@ -186,8 +224,193 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     },
   },
   {
+    id: "translate-webflow-items",
+    name: "Translate Webflow CMS items",
+    category: "translate",
+    description:
+      "Import Webflow CMS collection items into a project, open native translation jobs, and push approved translations on demand.",
+    grants:
+      "Reads Webflow CMS items through Pipes, writes JSON source files and native jobs. Push writes staged localized variants when you run Push to Webflow.",
+    tools: ["import_webflow_items", "push_webflow_translations"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["webflow", "cms"],
+      weak: ["collection", "items", "import", "translate"],
+    },
+  },
+  {
+    id: "translate-sanity-documents",
+    name: "Translate Sanity documents",
+    category: "translate",
+    description:
+      "Import Sanity documents into a project, open native translation jobs, and push approved translations on demand.",
+    grants:
+      "Reads Sanity documents through Pipes, writes JSON source files and native jobs. Push writes Sanity drafts when you run Push to Sanity.",
+    tools: ["import_sanity_documents", "push_sanity_translations"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["sanity", "headless cms"],
+      weak: ["document", "documents", "cms", "import", "translate"],
+    },
+  },
+  {
+    id: "translate-google-drive-files",
+    name: "Translate Google Drive files",
+    category: "translate",
+    description:
+      "Import Google Docs, Sheets, Slides, and other Hyperlocalise source files from connected Drive folders or files into a project and push translations back using the chosen Translation output.",
+    grants:
+      "Reads and writes Google Drive files through Pipes for connected folders. Imports source files into the Content editor and writes copies as [vi-VN] overview.docx, overview [vi-VN].docx, overview_vi-VN.docx, or vi-VN/overview.docx.",
+    tools: ["import_google_drive_files", "push_google_drive_translations"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["google drive", "drive folder", "google docs"],
+      weak: ["docx", "sheet", "slides", "import", "translate"],
+    },
+  },
+  {
+    id: "translate-intercom-articles",
+    name: "Translate Intercom Help Center articles",
+    category: "translate",
+    description:
+      "Import Intercom Help Center articles into a project, open native translation jobs, and push approved translations on demand.",
+    grants:
+      "Reads Intercom articles through Pipes, writes markdown source files and native jobs. Push writes Intercom drafts when you run Push to Intercom.",
+    tools: ["import_intercom_articles", "push_intercom_translations"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["intercom", "help center", "help centre"],
+      weak: ["article", "articles", "knowledge base", "import", "translate"],
+    },
+  },
+  {
+    id: "translate-braze-email-templates",
+    name: "Translate Braze Email Templates",
+    category: "translate",
+    description:
+      "Import Braze email templates and Content Blocks into a native project, translate HTML, and push locale-suffixed library copies.",
+    grants:
+      "Reads Braze templates through Pipes, writes HTML source files and native jobs. Push creates locale-suffixed copies and never changes the source template.",
+    tools: ["import_braze_templates", "push_braze_templates"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["braze", "email template", "content block"],
+      weak: ["template", "email", "import", "translate"],
+    },
+  },
+  {
+    id: "translate-braze-campaigns",
+    name: "Translate Braze Campaigns & Canvas",
+    category: "translate",
+    description:
+      "Import tagged draft campaign and Canvas message variations as JSON, then push approved locales through the Braze Translation API.",
+    grants:
+      "Reads Braze campaigns and Canvas through Pipes, writes JSON translation maps and native jobs. Push writes approved locales only and never publishes.",
+    tools: ["import_braze_campaigns", "push_braze_campaigns"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["braze campaign", "braze canvas", "translation tag", "canvas step"],
+      weak: ["campaign", "canvas", "import", "translate"],
+    },
+  },
+  {
+    id: "translate-iterable-templates",
+    name: "Translate Iterable Templates & Snippets",
+    category: "translate",
+    description:
+      "Import Iterable email, in-app, push, and SMS templates plus snippets, then push approved locales back to Iterable.",
+    grants:
+      "Reads Iterable templates through Pipes, writes source files and native jobs. Push updates template locales or locale-suffixed snippets and never sends campaigns.",
+    tools: ["import_iterable_templates", "push_iterable_templates"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["iterable", "snippet", "in-app template"],
+      weak: ["email template", "push template", "sms", "import", "translate"],
+    },
+  },
+  {
+    id: "translate-customer-io-campaigns",
+    name: "Translate Customer.io Campaigns, Broadcasts, Newsletters & Transactional",
+    category: "translate",
+    description:
+      "Import Customer.io campaign, broadcast, newsletter, and transactional message actions as JSON, then push approved locales back to Customer.io.",
+    grants:
+      "Reads Customer.io campaigns, broadcasts, newsletters, and transactional messages through Pipes, writes JSON translation maps and native jobs. Push writes approved locales only and never publishes or sends.",
+    tools: ["import_customer_io_campaigns", "push_customer_io_campaigns"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["customer.io", "customerio", "broadcast", "newsletter"],
+      weak: ["campaign", "transactional", "import", "translate"],
+    },
+  },
+  {
+    id: "translate-loops-emails",
+    name: "Translate Loops Emails",
+    category: "translate",
+    description:
+      "Import Loops transactional, campaign, and workflow emails as HTML, then push approved locales as unpublished locale copies.",
+    grants:
+      "Reads Loops emails through Pipes, writes HTML source files and native jobs. Push creates unpublished locale copies and never changes the source email.",
+    tools: ["import_loops_emails", "push_loops_emails"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["loops", "loops email", "transactional email"],
+      weak: ["campaign", "workflow", "email", "import", "translate"],
+    },
+  },
+  {
+    id: "translate-mailchimp-content",
+    name: "Translate Mailchimp content",
+    category: "translate",
+    description:
+      "Import Mailchimp campaigns and HTML user templates, then push approved locales as draft copies.",
+    grants:
+      "Reads Mailchimp campaigns and importable HTML templates through Pipes, writes HTML source files and native jobs. Drag-and-drop saved templates are skipped (use campaign import). Push creates draft campaigns or HTML templates named with the locale suffix and never sends or schedules.",
+    tools: ["import_mailchimp_content", "push_mailchimp_content"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["mailchimp", "mailchimp campaign", "mailchimp template"],
+      weak: ["email", "newsletter", "import", "translate"],
+    },
+  },
+  {
+    id: "translate-hubspot-content",
+    name: "Translate HubSpot content",
+    category: "translate",
+    description:
+      "Import HubSpot marketing emails, forms, blog posts, landing pages, and website pages, then push approved locales as unpublished copies.",
+    grants:
+      "Reads HubSpot emails, forms, blog posts, landing pages, and website pages through Pipes, writes source files and native jobs. Push creates locale copies and never changes or publishes the source.",
+    tools: ["import_hubspot_content", "push_hubspot_content"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: [
+        "hubspot",
+        "hubspot email",
+        "hubspot form",
+        "hubspot blog",
+        "landing page",
+        "website page",
+        "message template",
+      ],
+      weak: ["email", "form", "blog", "import", "translate"],
+    },
+  },
+  {
     id: "translate-contentful-entries",
     name: "Translate Contentful entries",
+    category: "translate",
     description: "Translate Contentful entries, run QA and write localized drafts for review.",
     grants: "Reads Contentful entries and writes localized drafts. Never publishes.",
     tools: ["run_contentful_translation"],
@@ -208,6 +431,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "file-issues-for-findings",
     name: "File issues for findings",
+    category: "report",
     description:
       "Check the project's open Queries issues, then file one issue for each new finding.",
     grants: "Reads and creates Queries issues in the project, up to 20 in a run.",
@@ -226,6 +450,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "post-to-slack",
     name: "Post results to Slack",
+    category: "report",
     description: "Post the outcome of each run to a Slack channel.",
     grants: "Posts messages to the Slack channel you choose.",
     tools: ["notify_slack"],
@@ -240,6 +465,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "email-results",
     name: "Email results",
+    category: "report",
     description: "Email the outcome of each run to the people you list.",
     grants: "Sends email from your connected sender to the recipients you list.",
     tools: ["notify_email"],
@@ -255,6 +481,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "comment-on-pull-request",
     name: "Comment on the pull request",
+    category: "report",
     description: "Post findings as one pull request comment and keep it up to date.",
     grants: "Posts one comment on the pull request and updates it in place.",
     tools: ["notify_github_comment"],
@@ -268,6 +495,40 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
 ];
 
 export const MAX_WORKSPACE_AUTOMATION_SKILLS = WORKSPACE_AUTOMATION_SKILLS.length;
+
+/** Document/CMS translation skills that each take over the orchestrator plan. */
+export const CMS_TRANSLATION_SKILL_IDS = [
+  "translate-webflow-items",
+  "translate-sanity-documents",
+  "translate-google-drive-files",
+  "translate-intercom-articles",
+  "translate-braze-email-templates",
+  "translate-braze-campaigns",
+  "translate-customer-io-campaigns",
+  "translate-iterable-templates",
+  "translate-hubspot-content",
+  "translate-mailchimp-content",
+  "translate-loops-emails",
+  "translate-contentful-entries",
+] as const;
+
+export function isCmsTranslationSkillId(skillId: string): boolean {
+  return (CMS_TRANSLATION_SKILL_IDS as readonly string[]).includes(skillId);
+}
+
+export function hasConflictingCmsTranslationSkills(skillIds: readonly string[]): boolean {
+  return new Set(skillIds.filter(isCmsTranslationSkillId)).size > 1;
+}
+
+export function cmsTranslationSkillConflictsWith(
+  skillIds: readonly string[],
+  skillId: string,
+): boolean {
+  if (!isCmsTranslationSkillId(skillId)) {
+    return false;
+  }
+  return skillIds.some((attached) => attached !== skillId && isCmsTranslationSkillId(attached));
+}
 
 export function getWorkspaceAutomationSkill(skillId: string): WorkspaceAutomationSkill | null {
   return WORKSPACE_AUTOMATION_SKILLS.find((skill) => skill.id === skillId) ?? null;
@@ -287,6 +548,16 @@ export type WorkspaceAutomationSkillIntegration =
   | "github"
   | "crowdin"
   | "contentful"
+  | "intercom"
+  | "google_drive"
+  | "sanity"
+  | "webflow"
+  | "braze"
+  | "customer_io"
+  | "iterable"
+  | "loops"
+  | "hubspot"
+  | "mailchimp"
   | "slack"
   | "email";
 
@@ -298,6 +569,28 @@ const SKILL_TOOL_INTEGRATIONS: Record<
   use_crowdin: "crowdin",
   use_web_search: null,
   run_contentful_translation: "contentful",
+  import_intercom_articles: "intercom",
+  push_intercom_translations: "intercom",
+  import_sanity_documents: "sanity",
+  push_sanity_translations: "sanity",
+  import_webflow_items: "webflow",
+  push_webflow_translations: "webflow",
+  import_google_drive_files: "google_drive",
+  push_google_drive_translations: "google_drive",
+  import_braze_templates: "braze",
+  push_braze_templates: "braze",
+  import_braze_campaigns: "braze",
+  push_braze_campaigns: "braze",
+  import_customer_io_campaigns: "customer_io",
+  push_customer_io_campaigns: "customer_io",
+  import_iterable_templates: "iterable",
+  push_iterable_templates: "iterable",
+  import_loops_emails: "loops",
+  push_loops_emails: "loops",
+  import_hubspot_content: "hubspot",
+  push_hubspot_content: "hubspot",
+  import_mailchimp_content: "mailchimp",
+  push_mailchimp_content: "mailchimp",
   create_native_tms_job: null,
   assign_translate_with_agent: null,
   list_issues: null,
@@ -359,7 +652,8 @@ export function listWorkspaceAutomationSkillTools(
 export type WorkspaceAutomationSkillValidationCode =
   | "skill_not_found"
   | "skill_trigger_incompatible"
-  | "skill_tools_required";
+  | "skill_tools_required"
+  | "cms_translation_skills_exclusive";
 
 /** First problem with the attached skills, or null when they fit the trigger and tool config. */
 export function validateWorkspaceAutomationSkills(input: {
@@ -367,6 +661,10 @@ export function validateWorkspaceAutomationSkills(input: {
   triggerMode: WorkspaceAutomationSkillTrigger;
   toolConfig: WorkspaceAutomationToolConfig;
 }): WorkspaceAutomationSkillValidationCode | null {
+  if (hasConflictingCmsTranslationSkills(input.skillIds)) {
+    return "cms_translation_skills_exclusive";
+  }
+
   for (const skillId of input.skillIds) {
     const skill = getWorkspaceAutomationSkill(skillId);
     if (!skill) {
@@ -396,6 +694,39 @@ export function workspaceAutomationSkillToolEnabled(
       return Boolean(toolConfig.webSearch?.enabled);
     case "run_contentful_translation":
       return Boolean(toolConfig.contentful?.enabled);
+    case "import_intercom_articles":
+    case "push_intercom_translations":
+      return Boolean(toolConfig.intercom?.enabled);
+    case "import_sanity_documents":
+    case "push_sanity_translations":
+      return Boolean(toolConfig.sanity?.enabled);
+    case "import_webflow_items":
+    case "push_webflow_translations":
+      return Boolean(toolConfig.webflow?.enabled);
+    case "import_google_drive_files":
+    case "push_google_drive_translations":
+      return Boolean(toolConfig.googleDrive?.enabled);
+    case "import_braze_templates":
+    case "push_braze_templates":
+      return Boolean(toolConfig.braze?.enabled);
+    case "import_braze_campaigns":
+    case "push_braze_campaigns":
+      return Boolean(toolConfig.brazeCampaigns?.enabled);
+    case "import_customer_io_campaigns":
+    case "push_customer_io_campaigns":
+      return Boolean(toolConfig.customerIo?.enabled);
+    case "import_iterable_templates":
+    case "push_iterable_templates":
+      return Boolean(toolConfig.iterable?.enabled);
+    case "import_loops_emails":
+    case "push_loops_emails":
+      return Boolean(toolConfig.loops?.enabled);
+    case "import_hubspot_content":
+    case "push_hubspot_content":
+      return Boolean(toolConfig.hubspot?.enabled);
+    case "import_mailchimp_content":
+    case "push_mailchimp_content":
+      return Boolean(toolConfig.mailchimp?.enabled);
     case "create_native_tms_job":
       return Boolean(toolConfig.createNativeTmsJob?.enabled);
     case "assign_translate_with_agent":

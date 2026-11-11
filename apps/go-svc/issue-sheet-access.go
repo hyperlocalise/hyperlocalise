@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const activeOrgMembershipSQL = `m.workos_membership_id is not null and m.workos_membership_id not in ('', 'replacing')`
+const activeOrgMembershipSQL = `m.workos_membership_id is not null and m.workos_membership_id not in ('', 'replacing') and m.workos_membership_id not like 'replacing:%'`
 
 // optionalNullableString distinguishes omitted JSON fields from explicit null.
 type optionalNullableString struct {

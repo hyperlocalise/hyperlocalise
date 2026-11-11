@@ -18,7 +18,7 @@ Review the planned files and locales before generation, then review the target d
 ## Usage
 
 ```bash
-hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--file <path>] [--locale <locale>] [--dry-run] [--workers <count>] [--output <report.json>] [--srx <default|html|markdown|path>] [--experimental-context-memory] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
+hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--file <path>] [--locale <locale>] [--dry-run] [--keep-completed-on-failure] [--workers <count>] [--output <report.json>] [--srx <default|html|markdown|path>] [--experimental-context-memory] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
 ```
 
 ## Behavior
@@ -28,6 +28,8 @@ hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--file <
 3. skip tasks already in `.hyperlocalise.lock.json`,
 4. execute remaining tasks,
 5. persist successful tasks to lock state.
+
+A key whose source text is empty or whitespace is skipped. It is not sent to a provider.
 
 For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/cli/reference/lockfile-contract).
 
@@ -42,7 +44,7 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/cli
 - `.arb`
 - `.xlf`, `.xlif`, and `.xliff`
 - `.po`
-- `.html`
+- `.html` and `.htm`
 - `.liquid`
 - `.md`
 - `.mdx`
@@ -97,11 +99,13 @@ For Markdown and MDX (`.md`, `.mdx`), `run` translates extracted prose and prese
 - MDX `import` and `export` lines
 - JSX/MDX component tags and attribute values
 
-For HTML (`.html`), `run` translates text content inside block-level elements:
+For HTML (`.html`, `.htm`), `run` translates visible text nodes and keeps tags as structure:
 
-- `<script>`, `<style>`, `<pre>`, and `<head>` content is never translated and is preserved verbatim
-- inline tags within translatable segments (`<strong>`, `<em>`, `<a>`, etc.) — tag markup is protected as placeholders and restored verbatim after translation, but the surrounding prose **is** translated
-- `<img alt="...">` — the `alt` attribute value is extracted as its own translation unit; the rest of the tag (src, class, etc.) is preserved verbatim
+- Keys are dotted tag paths (`html.body.h1`, `html.p`, `html.p.strong`, `html.p.strong.2`)
+- Inline tags (`<strong>`, `<em>`, `<a>`, and others) start a new path segment; the markup stays in the file
+- Punctuation-only text and entity-only cells such as `&nbsp;` are skipped
+- `<script>`, `<style>`, `<pre>`, and `<head>` content is never translated and is preserved verbatim, including `<title>`
+- `<img alt="...">` — the `alt` attribute value is extracted as `html.*.img.alt`; the rest of the tag is preserved verbatim
 - HTML entities (`&amp;`, `&lt;`, etc.) are preserved as-is through the translation round-trip
 - HTML comments are preserved verbatim
 
@@ -208,6 +212,7 @@ For generic XML (`.xml`, `.resx`, `.resw`), `run` translates text-only leaf elem
 - `--locale`: run only tasks for the given target locale (repeatable); `--target-locale` is an alias
 - `--dry-run`: print plan only, do not translate or write files
 - `--force`: rerun all planned tasks and ignore lockfile skip state
+- `--keep-completed-on-failure`: keep lockfile entries for successful keys when other keys in the same target fail; still rolls back if the target file cannot be written
 - `--prune`: remove target keys that no longer exist in source files
 - `--prune-max-deletions`: maximum stale keys deleted in one run before requiring an explicit override (default `100`)
 - `--prune-force`: bypass the prune deletion safety limit
@@ -287,6 +292,14 @@ Use `--force` to ignore lockfile skip state and execute every planned task again
 
 ```bash
 hyperlocalise run --group tests --force
+```
+
+## Keep successful keys after a partial failure
+
+By default, a failed key rolls back every lockfile entry for that target, so the next `hl run` retranslates successes too. Pass `--keep-completed-on-failure` to leave successful keys in `.hyperlocalise.lock.json` and retry only leftover keys. A failed target-file write still rolls back this run's entries for every target that was not written.
+
+```bash
+hyperlocalise run --keep-completed-on-failure
 ```
 
 ## Output fields

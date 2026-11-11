@@ -20,10 +20,13 @@ import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
+import { chatDockMessages } from "@/components/app-shell/chat-dock/chat-dock.messages";
+import { buildChatTurnControls } from "@/components/app-shell/chat-dock/chat-dock-turn-controls";
 import { getChatStreamManager } from "@/components/app-shell/chat-dock/chat-stream-manager";
 import { isInboxNewRequestPath } from "@/components/app-shell/navigation-config";
 import { normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { apiClient } from "@/lib/api-client-instance";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { InboxPageStoreProvider, useInboxPageStore } from "../store/inbox-page-store-context";
 import { conversationPanelMessages } from "./conversation-panel.messages";
@@ -43,9 +46,6 @@ import {
 } from "./inbox-notifications-api";
 import { InboxPageView } from "./inbox-page-view";
 import type { InboxCurrentUser, StreamedAssistantMessage } from "./inbox-types";
-
-const inboxApi = createInboxApi(apiClient);
-const notificationsApi = createInboxNotificationsApi(apiClient);
 
 const NOTIFICATIONS_PAGE_SIZE = 50;
 
@@ -69,8 +69,8 @@ export function InboxPageContent({
   currentUser,
   organizationSlug,
   canDeleteQueries = false,
-  inboxApi: injectedInboxApi = inboxApi,
-  notificationsApi: injectedNotificationsApi = notificationsApi,
+  inboxApi: injectedInboxApi,
+  notificationsApi: injectedNotificationsApi,
 }: {
   currentUser: InboxCurrentUser;
   organizationSlug: string;
@@ -78,14 +78,24 @@ export function InboxPageContent({
   inboxApi?: InboxApi;
   notificationsApi?: InboxNotificationsApi;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
+  const notificationsApi = useMemo(
+    () => injectedNotificationsApi ?? createInboxNotificationsApi(goSvcClient.inbox),
+    [goSvcClient, injectedNotificationsApi],
+  );
+  const inboxApi = useMemo(
+    () => injectedInboxApi ?? createInboxApi(apiClient, goSvcClient.conversation),
+    [goSvcClient, injectedInboxApi],
+  );
+
   return (
     <InboxPageStoreProvider organizationSlug={organizationSlug}>
       <InboxPageContentObserver
         currentUser={currentUser}
         organizationSlug={organizationSlug}
         canDeleteQueries={canDeleteQueries}
-        inboxApi={injectedInboxApi}
-        notificationsApi={injectedNotificationsApi}
+        inboxApi={inboxApi}
+        notificationsApi={notificationsApi}
       />
     </InboxPageStoreProvider>
   );
@@ -193,6 +203,10 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
 
   const selectedConversationId = selection?.kind === "conversation" ? selection.id : "";
   const selectedNotificationId = selection?.kind === "notification" ? selection.id : "";
+  const selectedReplyDraft =
+    selection?.kind === "conversation" ? store.getReplyDraft(selection.id) : undefined;
+  const composerDraft =
+    selection?.kind === "new" ? store.composeDraft : (selectedReplyDraft?.text ?? "");
 
   const selectedConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === selectedConversationId),
@@ -240,6 +254,7 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
         responseToMessageId: streamSnapshot.responseToMessageId,
         message: streamSnapshot.message,
         status: streamSnapshot.status,
+        aiCreditExhausted: streamSnapshot.aiCreditExhausted,
       }
     : null;
 
@@ -300,6 +315,17 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
   const createConversationAsync = createConversationMutation.mutateAsync;
   const onSendMessage = useCallback(
     async (text: string, files: File[], options?: ChatComposerSendOptions) => {
+      // The agent is still answering: hold the message and send it when the turn ends.
+      if (
+        selection?.kind === "conversation" &&
+        selectedConversationId &&
+        streamManager.isStreaming(selectedConversationId)
+      ) {
+        chatDock.enqueueMessage(selectedConversationId, { text, files, options });
+        store.setReplyDraft(selectedConversationId, { text: "" });
+        return;
+      }
+
       if (selection?.kind === "new") {
         try {
           const result = await createConversationAsync({ text, files, ...options });
@@ -321,14 +347,17 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       await mutateAsync({ text, files, ...options });
     },
     [
+      chatDock,
       createConversationAsync,
       intl,
       mutateAsync,
       organizationSlug,
       queryClient,
       router,
+      selectedConversationId,
       selection,
       store,
+      streamManager,
     ],
   );
 
@@ -415,7 +444,9 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       conversationsIsError={conversationsQuery.isError}
       conversationsIsLoading={conversationsQuery.isLoading}
       currentUser={currentUser}
-      draft={store.composeDraft}
+      draft={composerDraft}
+      draftProjectId={selectedReplyDraft?.projectId}
+      draftRepositoryKey={selectedReplyDraft?.repositoryKey}
       filters={store.filters}
       hasMoreNotifications={hasMoreNotifications}
       isLoadingMoreNotifications={notificationsQuery.isFetchingNextPage}
@@ -430,7 +461,25 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       notifications={notifications}
       notificationsIsError={notificationsQuery.isError}
       notificationsIsLoading={notificationsQuery.isLoading}
-      onDraftChange={(draft) => store.setComposeDraft(draft)}
+      onDraftChange={(draft) => {
+        if (selection?.kind === "new") {
+          store.setComposeDraft(draft);
+          return;
+        }
+        if (selection?.kind === "conversation") {
+          store.setReplyDraft(selection.id, { text: draft });
+        }
+      }}
+      onDraftProjectChange={(projectId) => {
+        if (selection?.kind === "conversation") {
+          store.setReplyDraft(selection.id, { projectId });
+        }
+      }}
+      onDraftRepositoryChange={(repositoryKey) => {
+        if (selection?.kind === "conversation") {
+          store.setReplyDraft(selection.id, { repositoryKey });
+        }
+      }}
       onFiltersChange={(nextFilters) => store.setFilters(nextFilters)}
       onLoadMoreNotifications={onLoadMoreNotifications}
       onMarkAllRead={onMarkAllRead}
@@ -448,6 +497,17 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       }
       selection={selection}
       streamedAssistant={streamedAssistant}
+      turnControls={
+        selection?.kind === "conversation" && selectedConversationId
+          ? buildChatTurnControls({
+              conversationId: selectedConversationId,
+              store: chatDock,
+              streamManager,
+              onEditText: (text) => store.setReplyDraft(selectedConversationId, { text }),
+              onStopFailed: () => toast.error(intl.formatMessage(chatDockMessages.stopFailed)),
+            })
+          : undefined
+      }
       unreadNotificationCount={unreadCountQuery.data ?? 0}
     />
   );

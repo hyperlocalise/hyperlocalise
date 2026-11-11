@@ -27,6 +27,7 @@ export type ContentEditorPanelErrorBoundaryScope =
   | "queue"
   | "editor"
   | "intelligence"
+  | "files"
   | "workspace";
 
 type ContentEditorPanelErrorBoundaryProps = {
@@ -40,6 +41,7 @@ const panelTitleMessageByScope = {
   queue: contentEditorPanelErrorBoundaryMessages.queuePanelTitle,
   editor: contentEditorPanelErrorBoundaryMessages.editorPanelTitle,
   intelligence: contentEditorPanelErrorBoundaryMessages.intelligencePanelTitle,
+  files: contentEditorPanelErrorBoundaryMessages.filesPanelTitle,
   workspace: contentEditorPanelErrorBoundaryMessages.workspaceTitle,
 } as const;
 

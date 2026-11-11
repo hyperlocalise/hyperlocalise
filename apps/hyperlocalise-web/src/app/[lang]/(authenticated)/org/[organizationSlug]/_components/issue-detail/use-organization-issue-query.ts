@@ -14,8 +14,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 export function organizationIssueQueryKey(organizationSlug: string, issueId: string) {
   return ["organization-issue", organizationSlug, issueId] as const;
@@ -30,20 +30,18 @@ export function useOrganizationIssueQuery({
   issueId: string | undefined;
   enabled?: boolean;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
+
   return useQuery({
     queryKey: organizationIssueQueryKey(organizationSlug, issueId ?? ""),
     enabled: enabled && Boolean(issueId),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["issue-sheet"][
-        ":issueId"
-      ].$get({
-        param: { organizationSlug, issueId: issueId! },
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load issue");
+      try {
+        const body = await goSvcClient.issueSheet.getOrg(organizationSlug, issueId!);
+        return body.issue;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load issue"), { cause: error });
       }
-      const body = await response.json();
-      return body.issue;
     },
   });
 }

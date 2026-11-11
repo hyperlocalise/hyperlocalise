@@ -12,12 +12,8 @@
  */
 import type { Metadata } from "next";
 
-import {
-  buildPricingFaqJsonLd,
-  getPricingFaqItems,
-} from "@/components/marketing/pricing/pricing-faq-content";
+import { getPricingFaqItems } from "@/components/marketing/pricing/pricing-faq-content";
 import { PricingPage } from "@/components/marketing/pricing/pricing-page";
-import { JsonLd } from "@/components/seo/json-ld";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
@@ -50,12 +46,6 @@ export default async function PricingRoutePage({ params }: PricingRouteProps) {
   const { lang } = await params;
   const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
   const faqItems = getPricingFaqItems(locale);
-  const faqJsonLd = buildPricingFaqJsonLd(locale, faqItems);
 
-  return (
-    <>
-      <JsonLd data={faqJsonLd} />
-      <PricingPage locale={locale} faqItems={faqItems} />
-    </>
-  );
+  return <PricingPage locale={locale} faqItems={faqItems} />;
 }

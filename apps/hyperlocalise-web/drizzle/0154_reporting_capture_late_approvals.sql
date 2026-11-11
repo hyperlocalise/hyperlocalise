@@ -1,0 +1,2 @@
+ALTER TABLE "reporting_capture_cursors" ADD COLUMN "started_at" timestamp with time zone DEFAULT now() NOT NULL;--> statement-breakpoint
+CREATE INDEX "reporting_analysis_segment" ON "reporting_analyses" USING btree ("organization_id","segment_id","target_locale","step");

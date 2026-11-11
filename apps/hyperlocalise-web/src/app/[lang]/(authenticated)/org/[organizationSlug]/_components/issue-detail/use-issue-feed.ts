@@ -14,8 +14,8 @@
  */
 import { useInfiniteQuery } from "@tanstack/react-query";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import type { IssueComment } from "./use-issue-comments";
 import type { IssueActivity } from "./use-issue-activities";
@@ -51,24 +51,21 @@ export function useIssueFeedQuery({
   issueId: string;
   enabled?: boolean;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
+
   return useInfiniteQuery({
     queryKey: issueFeedQueryKey(organizationSlug, projectId, issueId),
     enabled: Boolean(organizationSlug && projectId && issueId && enabled),
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ][":issueId"].feed.$get({
-        param: { organizationSlug, projectId, issueId },
-        query: {
-          limit: String(ISSUE_FEED_PAGE_SIZE),
+      try {
+        return (await goSvcClient.issueSheet.feed(organizationSlug, projectId, issueId, {
+          limit: ISSUE_FEED_PAGE_SIZE,
           ...(pageParam ? { cursor: pageParam } : {}),
-        },
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load issue feed");
+        })) as IssueFeedPage;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load issue feed"), { cause: error });
       }
-      return response.json();
     },
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });

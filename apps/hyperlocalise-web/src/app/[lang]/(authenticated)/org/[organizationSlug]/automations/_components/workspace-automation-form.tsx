@@ -18,7 +18,6 @@ import {
   PlusIcon,
   CaretDownIcon,
   BrainIcon,
-  ClockIcon,
   ChatTextIcon,
   TrashIcon,
   FoldersIcon,
@@ -26,11 +25,16 @@ import {
   GlobeIcon,
   EnvelopeIcon,
   MagnifyingGlassIcon,
-  SlackLogoIcon,
   SparkleIcon,
   CheckSquareIcon,
   UploadSimpleIcon,
   XIcon,
+  BinocularsIcon,
+  ListMagnifyingGlassIcon,
+  MegaphoneIcon,
+  TranslateIcon,
+  ArrowClockwiseIcon,
+  type Icon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
@@ -45,11 +49,16 @@ import {
   siMeta,
   siSemrush,
   siCrowdin,
+  siContentful,
+  siIntercom,
+  siSanity,
+  siWebflow,
+  siGoogledrive,
 } from "simple-icons";
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
 import { IntegrationLogo } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/integration-logo";
-import { KnowledgeMemoryEditor } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/knowledge/_components/knowledge-memory-editor";
+import { buildOrganizationPath } from "@/components/app-shell/navigation-config";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -97,14 +106,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
 import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
+import { BRAZE_PIPES_SLUG } from "@/lib/braze/constants";
+import { CUSTOMER_IO_PIPES_SLUG } from "@/lib/customer-io/constants";
+import { HUBSPOT_PIPES_SLUG } from "@/lib/hubspot/constants";
+import { MAILCHIMP_PIPES_SLUG } from "@/lib/mailchimp/constants";
+import { ITERABLE_PIPES_SLUG } from "@/lib/iterable/constants";
+import { LOOPS_PIPES_SLUG } from "@/lib/loops/constants";
+import { INTERCOM_PIPES_SLUG } from "@/lib/intercom/constants";
+import { SANITY_PIPES_SLUG } from "@/lib/sanity/constants";
+import { GOOGLE_DRIVE_PIPES_SLUG } from "@/lib/google-drive/constants";
+import { WorkspaceAutomationGoogleDriveSettings } from "./workspace-automation-google-drive-settings";
+import type { WorkspaceAutomationEditorTab } from "@/lib/navigation/workspace-automation-editor-tab";
 import { GITLAB_PIPES_SLUG } from "@/lib/gitlab/constants";
+import { useGitLabServerConnection } from "../../integrations/_components/use-gitlab-server-connection";
 import { createApiClient } from "@/lib/api-client";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
-import {
-  AUTOMATION_WEEKDAY_OPTIONS,
-  addBranchPattern,
-} from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model";
 import { AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model.messages";
 import { useActiveTmsProvider } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-active-tms-provider";
 import { useTmsLiveProjects } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-tms-live-projects";
@@ -113,12 +131,10 @@ import {
   isCrowdinAutomationConnected,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-crowdin";
 import { SlackChannelSelect } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/slack-channel-select";
-import { AutomationTimeZoneSelect } from "@/components/automation/automation-time-zone-select";
 import { workspaceAutomationFormMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-form.messages";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import {
   WORKSPACE_AUTOMATION_MODELS,
-  type WorkspaceAutomationGithubTriggerEvent,
   type WorkspaceAutomationRunRecord,
 } from "@/lib/agents/workspace-automation-types";
 import {
@@ -135,6 +151,10 @@ import {
   WORKSPACE_AUTOMATION_SKILLS,
   type WorkspaceAutomationSkillConnections,
   type WorkspaceAutomationSkillIntegration,
+  WORKSPACE_AUTOMATION_SKILL_CATEGORIES,
+  type WorkspaceAutomationSkill,
+  type WorkspaceAutomationSkillCategory,
+  type WorkspaceAutomationSkillTool,
 } from "@/lib/agents/workspace-automation-skills";
 import {
   addSuggestedToolToWorkspaceAutomationForm,
@@ -148,12 +168,42 @@ import {
   selectableAutomationRepositories,
   workspaceAutomationFormCanActivate,
 } from "@/lib/agents/workspace-automation-view-model";
-import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat-url";
 import { cn } from "@/lib/primitives/cn";
 import type { ApiProject } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/_components/project-list";
 
-import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
+import { RunHistoryTable } from "./workspace-automation-run-history";
+import type { ContentfulConnectionOption } from "./workspace-automation-contentful-trigger";
+import {
+  AutomationAssistantLayout,
+  AutomationAssistantOpenButton,
+} from "./automation-assistant-panel";
+import type { AutomationAssistantApi } from "./automation-assistant-api";
+import { AutomationAssistantProvider } from "./automation-assistant-provider";
+import { AutomationAssistantSummary } from "./automation-assistant-summary";
+import {
+  AUTOMATION_ICON_GLYPH_TONES,
+  AutomationIconTile,
+  type AutomationIconTone,
+} from "./automation-icon-tile";
+import { AutomationOwnerField } from "./automation-owner-field";
 import { WorkspaceAutomationKnowledgeFilesPanel } from "./workspace-automation-knowledge-files-panel";
+import {
+  formatRepositoryOptionLabel,
+  selectedRepositoryLabel,
+  TriggerSettings,
+  type GithubRepositoryOption,
+} from "./workspace-automation-trigger-settings";
+import { WorkspaceAutomationBrazeCampaignsSettings } from "./workspace-automation-braze-campaigns-settings";
+import { WorkspaceAutomationCustomerIoSettings } from "./workspace-automation-customer-io-settings";
+import { WorkspaceAutomationBrazeSettings } from "./workspace-automation-braze-settings";
+import { WorkspaceAutomationHubspotSettings } from "./workspace-automation-hubspot-settings";
+import { WorkspaceAutomationMailchimpSettings } from "./workspace-automation-mailchimp-settings";
+import { WorkspaceAutomationIterableSettings } from "./workspace-automation-iterable-settings";
+import { WorkspaceAutomationIntercomSettings } from "./workspace-automation-intercom-settings";
+import { WorkspaceAutomationSanitySettings } from "./workspace-automation-sanity-settings";
+import { WorkspaceAutomationWebflowSettings } from "./workspace-automation-webflow-settings";
+import type { WebflowConnectionSummary } from "@/lib/webflow/types";
+import { useScrollToFirstFieldError } from "./use-scroll-to-first-field-error";
 
 const api = createApiClient();
 
@@ -164,13 +214,6 @@ type ProjectOption = {
   externalProviderKind?: string | null;
   sourceLocale: string | null;
   targetLocales: string[];
-};
-type GithubRepositoryOption = {
-  id: string;
-  fullName: string;
-  enabled: boolean;
-  archived: boolean;
-  defaultBranch: string | null;
 };
 type GitlabProjectOption = {
   id: number;
@@ -198,14 +241,6 @@ type ZernioConnectionOption = {
   enabled: boolean;
   validationStatus: string;
 };
-type ContentfulConnectionOption = {
-  id: string;
-  displayName: string;
-  contentTypeIds: string[];
-  enabled: boolean;
-};
-
-type AutomationEditorTab = "settings" | "history";
 
 type ComingSoonAutomationTool = {
   id: string;
@@ -216,7 +251,6 @@ type ComingSoonAutomationTool = {
 const COMING_SOON_GOOGLE_MENU_LABEL = "Google";
 const COMING_SOON_LINEAR_MENU_LABEL = "Linear";
 const METADATA_SEPARATOR = "|";
-const EMPTY_CELL = "—";
 
 const COMING_SOON_SERP_TOOLS: readonly ComingSoonAutomationTool[] = [
   { id: "meta-ads-library", name: "Meta Ads Library", icon: siMeta },
@@ -255,13 +289,70 @@ const AUTOMATION_MODEL_MESSAGES = {
   "google/gemini-3.1-pro-preview": workspaceAutomationFormMessages.modelGemini31ProPreview,
 } as const;
 
+/** Brand marks keep their colour, except in a disabled menu item, where they go grey. */
+const BRAND_ICON_CLASS = "size-4 in-data-disabled:grayscale";
+
+const BUILT_IN_MENU_ICON_CLASS = cn("size-4", AUTOMATION_ICON_GLYPH_TONES.builtIn);
+
 function ZernioToolIcon() {
-  return <IntegrationLogo src="/images/zernio-logo.svg" className="size-4" />;
+  return <IntegrationLogo src="/images/zernio-logo.svg" className={BRAND_ICON_CLASS} />;
 }
 
-function AutomationToolMenuIcon({ icon }: { icon?: SimpleIcon }) {
+function BrazeToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/braze-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
+  );
+}
+
+function CustomerIoToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo
+      src="/images/customerio-logo.svg"
+      className={cn(BRAND_ICON_CLASS, className)}
+    />
+  );
+}
+
+function IterableToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/iterable-logo.png" className={cn(BRAND_ICON_CLASS, className)} />
+  );
+}
+
+function LoopsToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/loops-logo.png" className={cn(BRAND_ICON_CLASS, className)} />
+  );
+}
+
+function HubspotToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/hubspot-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
+  );
+}
+
+function MailchimpToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/mailchimp-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
+  );
+}
+
+function SlackToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/slack-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
+  );
+}
+
+function AutomationToolMenuIcon({
+  colored = true,
+  icon,
+}: {
+  /** Off for a tool that cannot be used yet. */
+  colored?: boolean;
+  icon?: SimpleIcon;
+}) {
   if (icon) {
-    return <SimpleBrandIcon icon={icon} colored={false} className="size-4" />;
+    return <SimpleBrandIcon icon={icon} colored={colored} className={BRAND_ICON_CLASS} />;
   }
 
   return <MagnifyingGlassIcon className="size-4" />;
@@ -296,58 +387,38 @@ function FieldError({ message }: { message?: string }) {
     return null;
   }
 
-  return <p className="text-xs text-destructive">{message}</p>;
-}
-
-function toggleGithubEvent(
-  events: WorkspaceAutomationGithubTriggerEvent[],
-  event: WorkspaceAutomationGithubTriggerEvent,
-  enabled: boolean,
-): WorkspaceAutomationGithubTriggerEvent[] {
-  if (enabled) {
-    return events.includes(event) ? events : [...events, event];
-  }
-
-  return events.filter((value) => value !== event);
-}
-
-function GithubEventSwitch({
-  checked,
-  disabled,
-  label,
-  onCheckedChange,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  label: ReactNode;
-  onCheckedChange: (checked: boolean) => void;
-}) {
   return (
-    <label className="flex items-center gap-2 text-xs text-foreground">
-      <Switch size="sm" checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
-      <span>{label}</span>
-    </label>
+    <p data-slot="field-error" className="text-xs text-destructive">
+      {message}
+    </p>
   );
 }
 
 function EditorSection({
   title,
   titleAside,
+  titleEnd,
   children,
 }: {
   title: string;
+  /** Shown after the title, wrapping onto further lines when it is long. */
   titleAside?: ReactNode;
+  /** Kept at the right end of the title's own line, whatever wraps beside it. */
+  titleEnd?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-2">
-      {titleAside === undefined ? (
+      {titleAside === undefined && titleEnd === undefined ? (
         <h2 className="px-2 text-xs font-medium text-muted-foreground">{title}</h2>
       ) : (
-        // As tall as a suggestion chip, so the content below stays put when one appears.
-        <div className="flex min-h-7.5 flex-wrap items-center gap-x-3 gap-y-2 px-2">
-          <h2 className="text-xs font-medium text-muted-foreground">{title}</h2>
-          {titleAside}
+        <div className="flex items-start gap-x-3 px-2">
+          {/* As tall as a suggestion chip, so the content below stays put when one appears. */}
+          <div className="flex min-h-7.5 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+            <h2 className="text-xs font-medium text-muted-foreground">{title}</h2>
+            {titleAside}
+          </div>
+          {titleEnd ? <div className="flex h-7.5 shrink-0 items-center">{titleEnd}</div> : null}
         </div>
       )}
       {children}
@@ -370,8 +441,11 @@ function EditorRow({
   children,
   action,
   className,
+  tone,
 }: {
   icon: ReactNode;
+  /** What the icon's colour says about the row; left out, the icon stays grey. */
+  tone?: AutomationIconTone;
   title: ReactNode;
   description?: ReactNode;
   children?: ReactNode;
@@ -386,9 +460,7 @@ function EditorRow({
       )}
     >
       <div className="flex min-w-0 flex-1 items-start gap-3 md:items-center">
-        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center text-muted-foreground md:mt-0">
-          {icon}
-        </span>
+        <AutomationIconTile tone={tone}>{icon}</AutomationIconTile>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-foreground">
             {title}
@@ -448,7 +520,7 @@ function DeleteToolButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+      className="size-8 rounded-lg text-muted-foreground hover:text-destructive"
     >
       <TrashIcon className="size-4" />
     </Button>
@@ -467,9 +539,8 @@ function triggerSummary(
 ) {
   if (form.triggerMode === "scheduled") {
     if (form.scheduledCadence === "hourly") {
-      return intl.formatMessage(workspaceAutomationFormMessages.scheduledTriggerHourly, {
-        timezone: form.scheduledTimezone,
-      });
+      // Hourly runs start on the hour whatever the timezone, so the summary leaves it out.
+      return intl.formatMessage(workspaceAutomationFormMessages.scheduledTriggerHourly);
     }
 
     if (form.scheduledCadence === "weekly") {
@@ -556,33 +627,9 @@ function toolCount(form: WorkspaceAutomationFormState) {
     Number(form.semrushEnabled) +
     Number(form.zernioEnabled) +
     Number(form.ahrefsEnabled) +
+    Number(form.intercomEnabled) +
+    Number(form.sanityEnabled) +
     Number(form.webSearchEnabled)
-  );
-}
-
-function formatRepositoryOptionLabel(intl: IntlShape, repository: GithubRepositoryOption) {
-  if (repository.enabled) {
-    return repository.fullName;
-  }
-
-  return intl.formatMessage(workspaceAutomationFormMessages.repositoryDisabledSuffix, {
-    name: repository.fullName,
-  });
-}
-
-function selectedRepositoryLabel(
-  intl: IntlShape,
-  repositoryId: string,
-  repositories: GithubRepositoryOption[],
-  placeholder?: string,
-) {
-  if (!repositoryId) {
-    return placeholder ?? intl.formatMessage(workspaceAutomationFormMessages.selectRepository);
-  }
-
-  return (
-    repositories.find((repository) => repository.id === repositoryId)?.fullName ??
-    intl.formatMessage(workspaceAutomationFormMessages.unknownRepository)
   );
 }
 
@@ -704,12 +751,14 @@ function GitlabProjectSelect({
   disabled,
   error,
   form,
+  loadFailed,
   onChange,
   projects,
 }: {
   disabled?: boolean;
   error?: string;
   form: WorkspaceAutomationFormState;
+  loadFailed?: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
   projects: GitlabProjectOption[];
 }) {
@@ -738,7 +787,11 @@ function GitlabProjectSelect({
         <SelectTrigger className="h-8 w-full rounded-lg">
           <span className="truncate">
             {projects.length === 0
-              ? intl.formatMessage(workspaceAutomationFormMessages.connectGitlabForProject)
+              ? intl.formatMessage(
+                  loadFailed
+                    ? workspaceAutomationFormMessages.gitlabProjectsLoadFailed
+                    : workspaceAutomationFormMessages.connectGitlabForProject,
+                )
               : selectedValue
                 ? projects.find((project) => gitlabProjectPickerValue(project) === selectedValue)
                   ? formatGitlabProjectOptionLabel(
@@ -934,562 +987,6 @@ function HeaderProjectSelector({
   );
 }
 
-function formatBranchPatternLabel(intl: IntlShape, branches: string[]) {
-  if (branches.length === 0) {
-    return intl.formatMessage(workspaceAutomationFormMessages.branchesPlaceholder);
-  }
-
-  if (branches.length === 1) {
-    return branches[0]!;
-  }
-
-  if (branches.length === 2) {
-    return branches.join(", ");
-  }
-
-  return `${branches[0]!} +${branches.length - 1}`;
-}
-
-function BranchPatternSelector({
-  branches,
-  disabled,
-  error,
-  onChange,
-}: {
-  branches: string[];
-  disabled?: boolean;
-  error?: string;
-  onChange: (branches: string[]) => void;
-}) {
-  const intl = useIntl();
-  const [branchInput, setBranchInput] = useState("");
-  const [inputError, setInputError] = useState<string | undefined>();
-
-  function handleAdd() {
-    const result = addBranchPattern(intl, branches, branchInput);
-    if (result.error) {
-      setInputError(result.error);
-      return;
-    }
-
-    onChange(result.branches);
-    setBranchInput("");
-    setInputError(undefined);
-  }
-
-  return (
-    <div className="min-w-0 md:min-w-36 md:max-w-xs md:flex-1">
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          disabled={disabled}
-          render={
-            <Button
-              type="button"
-              variant="outline"
-              className="h-8 w-full justify-between gap-2 rounded-lg border border-input bg-input/30 px-3 text-sm font-normal text-foreground hover:bg-input/50 disabled:opacity-50"
-            />
-          }
-        >
-          <span className="truncate">{formatBranchPatternLabel(intl, branches)}</span>
-          <CaretDownIcon className="size-3.5 shrink-0 opacity-60" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="min-w-56" align="start">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>
-              <FormattedMessage {...workspaceAutomationFormMessages.branchPatternsMenu} />
-            </DropdownMenuLabel>
-            {branches.length === 0 ? (
-              <DropdownMenuItem disabled>
-                <FormattedMessage {...workspaceAutomationFormMessages.noBranchesAdded} />
-              </DropdownMenuItem>
-            ) : (
-              branches.map((branch) => (
-                <DropdownMenuItem
-                  key={branch}
-                  onClick={() => onChange(branches.filter((value) => value !== branch))}
-                >
-                  <span className="min-w-0 flex-1 truncate">{branch}</span>
-                  <DropdownMenuHint>
-                    <FormattedMessage {...workspaceAutomationFormMessages.removeShortcut} />
-                  </DropdownMenuHint>
-                </DropdownMenuItem>
-              ))
-            )}
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <div
-            className="flex gap-2 p-2"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <Input
-              aria-label={intl.formatMessage(
-                workspaceAutomationFormMessages.branchPatternAriaLabel,
-              )}
-              value={branchInput}
-              disabled={disabled}
-              placeholder="main"
-              className="h-8 min-w-0 flex-1 rounded-lg"
-              onChange={(event) => {
-                setBranchInput(event.target.value);
-                setInputError(undefined);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  handleAdd();
-                }
-              }}
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={disabled}
-              className="h-8 shrink-0"
-              onClick={handleAdd}
-            >
-              <FormattedMessage {...workspaceAutomationFormMessages.addBranch} />
-            </Button>
-          </div>
-          {inputError ? <p className="px-2 pb-2 text-xs text-destructive">{inputError}</p> : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <FieldError message={error} />
-    </div>
-  );
-}
-
-function AddTriggerMenu({
-  contentfulConnected,
-  disabled,
-  form,
-  githubConnected,
-  onChange,
-  repositories,
-}: {
-  contentfulConnected: boolean;
-  disabled?: boolean;
-  form: WorkspaceAutomationFormState;
-  githubConnected: boolean;
-  onChange: (next: WorkspaceAutomationFormState) => void;
-  repositories: GithubRepositoryOption[];
-}) {
-  return (
-    <div className="w-full">
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          className="w-full"
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={disabled}
-              className="flex h-10 w-full shrink justify-start rounded-none px-3 text-muted-foreground hover:bg-muted hover:text-foreground"
-            />
-          }
-        >
-          <PlusIcon className="size-4" />
-          <FormattedMessage {...workspaceAutomationFormMessages.addTrigger} />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-72" align="start" sideOffset={2}>
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>
-              <FormattedMessage {...workspaceAutomationFormMessages.supportedTriggers} />
-            </DropdownMenuLabel>
-            <DropdownMenuItem
-              disabled={form.triggerMode === "manual"}
-              onClick={() => onChange({ ...form, triggerMode: "manual" })}
-            >
-              <ClockIcon className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.manualRun} />
-              {form.triggerMode === "manual" ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuHint>
-              ) : null}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={form.triggerMode === "scheduled"}
-              onClick={() => onChange({ ...form, triggerMode: "scheduled" })}
-            >
-              <ClockIcon className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.scheduled} />
-              {form.triggerMode === "scheduled" ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuHint>
-              ) : null}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={form.triggerMode === "github" || !githubConnected}
-              onClick={() => {
-                const defaultRepositoryId =
-                  form.githubInstallationRepositoryId ||
-                  repositories.find((repository) => repository.enabled)?.id ||
-                  repositories[0]?.id ||
-                  "";
-
-                onChange({
-                  ...form,
-                  triggerMode: "github",
-                  githubEnabled: true,
-                  githubEvents: form.githubEvents.length > 0 ? form.githubEvents : ["push"],
-                  repositoryTargetKind: "github",
-                  githubInstallationRepositoryId: defaultRepositoryId,
-                  validationEnabled:
-                    form.githubMode === "agent"
-                      ? form.validationEnabled
-                      : form.pushSourceEnabled || form.pullTranslationsEnabled
-                        ? form.validationEnabled
-                        : true,
-                });
-              }}
-            >
-              <GitBranchIcon className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.githubPush} />
-              {form.triggerMode === "github" ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuHint>
-              ) : !githubConnected ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                </DropdownMenuHint>
-              ) : null}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={form.triggerMode === "contentful" || !contentfulConnected}
-              onClick={() =>
-                onChange({
-                  ...form,
-                  triggerMode: "contentful",
-                  contentfulEnabled: true,
-                })
-              }
-            >
-              <MagnifyingGlassIcon className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.contentfulWebhook} />
-              {form.triggerMode === "contentful" ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuHint>
-              ) : !contentfulConnected ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                </DropdownMenuHint>
-              ) : null}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={form.triggerMode === "source_upload"}
-              onClick={() =>
-                onChange({
-                  ...form,
-                  triggerMode: "source_upload",
-                  createNativeTmsJobEnabled: true,
-                  createNativeTmsJobUseProjectTargetLocales: true,
-                  assignTranslateWithAgentEnabled: true,
-                })
-              }
-            >
-              <UploadSimpleIcon className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.sourceUpload} />
-              {form.triggerMode === "source_upload" ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuHint>
-              ) : null}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={form.triggerMode === "web_chat"}
-              onClick={() => onChange({ ...form, triggerMode: "web_chat" })}
-            >
-              <ChatTextIcon className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.webChat} />
-              {form.triggerMode === "web_chat" ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuHint>
-              ) : null}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
-}
-
-function TriggerSettings({
-  automationId,
-  contentfulConnected,
-  disabled,
-  errors,
-  form,
-  githubConnected,
-  onChange,
-  organizationSlug,
-  repositories,
-}: {
-  automationId?: string;
-  contentfulConnected: boolean;
-  disabled?: boolean;
-  errors: Record<string, string | undefined>;
-  form: WorkspaceAutomationFormState;
-  githubConnected: boolean;
-  onChange: (next: WorkspaceAutomationFormState) => void;
-  organizationSlug: string;
-  repositories: GithubRepositoryOption[];
-}) {
-  const intl = useIntl();
-
-  return (
-    <EditorSection title={intl.formatMessage(workspaceAutomationFormMessages.triggersSection)}>
-      <EditorPanel>
-        {form.triggerMode === "scheduled" ? (
-          <EditorRow
-            icon={<ClockIcon className="size-4" />}
-            title={
-              <>
-                <span>
-                  <FormattedMessage {...workspaceAutomationFormMessages.every} />
-                </span>
-                <Select
-                  value={form.scheduledCadence}
-                  onValueChange={(value) =>
-                    onChange({
-                      ...form,
-                      scheduledCadence: value as typeof form.scheduledCadence,
-                    })
-                  }
-                  disabled={disabled}
-                >
-                  <SelectTrigger size="sm" className="h-8 min-w-28">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="hourly">
-                      <FormattedMessage {...workspaceAutomationFormMessages.cadenceHour} />
-                    </SelectItem>
-                    <SelectItem value="daily">
-                      <FormattedMessage {...workspaceAutomationFormMessages.cadenceDay} />
-                    </SelectItem>
-                    <SelectItem value="weekly">
-                      <FormattedMessage {...workspaceAutomationFormMessages.cadenceWeek} />
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                {form.scheduledCadence === "weekly" ? (
-                  <Select
-                    value={String(form.scheduledDayOfWeek)}
-                    onValueChange={(value) =>
-                      onChange({
-                        ...form,
-                        scheduledDayOfWeek: Number(value),
-                      })
-                    }
-                    disabled={disabled}
-                  >
-                    <SelectTrigger size="sm" className="h-8 min-w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {AUTOMATION_WEEKDAY_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={String(option.value)}>
-                          {intl.formatMessage(AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE[option.value])}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : null}
-                {form.scheduledCadence !== "hourly" ? (
-                  <>
-                    <span>
-                      <FormattedMessage {...workspaceAutomationFormMessages.at} />
-                    </span>
-                    <Select
-                      value={String(form.scheduledHourUtc)}
-                      onValueChange={(value) =>
-                        onChange({
-                          ...form,
-                          scheduledHourUtc: Number(value),
-                        })
-                      }
-                      disabled={disabled}
-                    >
-                      <SelectTrigger size="sm" className="h-8 min-w-24">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-72">
-                        {Array.from({ length: 24 }, (_, hour) => (
-                          <SelectItem key={hour} value={String(hour)}>
-                            {formatHour(hour)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </>
-                ) : null}
-                <AutomationTimeZoneSelect
-                  size="sm"
-                  aria-label={intl.formatMessage(
-                    workspaceAutomationFormMessages.scheduleTimezoneAriaLabel,
-                  )}
-                  value={form.scheduledTimezone}
-                  disabled={disabled}
-                  className="h-8 min-w-52"
-                  onValueChange={(value) =>
-                    onChange({
-                      ...form,
-                      scheduledTimezone: value,
-                    })
-                  }
-                />
-              </>
-            }
-          />
-        ) : null}
-
-        {form.triggerMode === "github" ? (
-          <EditorRow
-            icon={<GitBranchIcon className="size-4" />}
-            title={<FormattedMessage {...workspaceAutomationFormMessages.githubPush} />}
-            className="md:items-center"
-          >
-            <div className="flex w-full min-w-0 flex-col gap-1.5">
-              <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2">
-                <Select
-                  value={form.githubInstallationRepositoryId || null}
-                  onValueChange={(value) => {
-                    if (!value) {
-                      return;
-                    }
-                    onChange({
-                      ...form,
-                      triggerMode: "github",
-                      githubEnabled: true,
-                      repositoryTargetKind: "github",
-                      githubInstallationRepositoryId: value,
-                    });
-                  }}
-                  disabled={disabled}
-                >
-                  <SelectTrigger className="h-8 w-full rounded-lg md:min-w-44 md:max-w-xs">
-                    <span className="truncate">
-                      {selectedRepositoryLabel(
-                        intl,
-                        form.githubInstallationRepositoryId,
-                        repositories,
-                        intl.formatMessage(workspaceAutomationFormMessages.repositoryLabel),
-                      )}
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {repositories.map((repository) => (
-                      <SelectItem
-                        key={repository.id}
-                        value={repository.id}
-                        label={formatRepositoryOptionLabel(intl, repository)}
-                      >
-                        {formatRepositoryOptionLabel(intl, repository)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <BranchPatternSelector
-                  branches={form.pushBranches}
-                  disabled={disabled}
-                  error={errors.pushBranches}
-                  onChange={(pushBranches) => onChange({ ...form, pushBranches })}
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <GithubEventSwitch
-                  checked={form.githubEvents.includes("push")}
-                  disabled={disabled}
-                  label={<FormattedMessage {...workspaceAutomationFormMessages.githubEventPush} />}
-                  onCheckedChange={(checked) =>
-                    onChange({
-                      ...form,
-                      githubEvents: toggleGithubEvent(form.githubEvents, "push", checked),
-                    })
-                  }
-                />
-                <GithubEventSwitch
-                  checked={form.githubEvents.includes("pull_request")}
-                  disabled={disabled}
-                  label={
-                    <FormattedMessage {...workspaceAutomationFormMessages.githubEventPullRequest} />
-                  }
-                  onCheckedChange={(checked) =>
-                    onChange({
-                      ...form,
-                      githubEvents: toggleGithubEvent(form.githubEvents, "pull_request", checked),
-                    })
-                  }
-                />
-              </div>
-              <FieldError message={errors.githubRepository} />
-              <FieldError message={errors.githubEvents} />
-            </div>
-          </EditorRow>
-        ) : null}
-
-        {form.triggerMode === "manual" ? (
-          <EditorRow
-            icon={<ClockIcon className="size-4" />}
-            title={<FormattedMessage {...workspaceAutomationFormMessages.manualOnlyTitle} />}
-            description={
-              <FormattedMessage {...workspaceAutomationFormMessages.manualOnlyDescription} />
-            }
-          />
-        ) : null}
-
-        {form.triggerMode === "contentful" ? (
-          <EditorRow
-            icon={<MagnifyingGlassIcon className="size-4" />}
-            title={<FormattedMessage {...workspaceAutomationFormMessages.contentfulWebhook} />}
-            description={
-              contentfulConnected ? (
-                <FormattedMessage
-                  {...workspaceAutomationFormMessages.contentfulWebhookConnectedDescription}
-                />
-              ) : (
-                <FormattedMessage
-                  {...workspaceAutomationFormMessages.contentfulWebhookDisconnectedDescription}
-                />
-              )
-            }
-          />
-        ) : null}
-
-        {form.triggerMode === "source_upload" ? (
-          <EditorRow
-            icon={<UploadSimpleIcon className="size-4" />}
-            title={<FormattedMessage {...workspaceAutomationFormMessages.sourceUpload} />}
-            description={
-              <FormattedMessage {...workspaceAutomationFormMessages.sourceUploadDescription} />
-            }
-          />
-        ) : null}
-
-        {form.triggerMode === "web_chat" ? (
-          <WebChatTriggerRow automationId={automationId} organizationSlug={organizationSlug} />
-        ) : null}
-
-        <AddTriggerMenu
-          contentfulConnected={contentfulConnected}
-          disabled={disabled}
-          form={form}
-          githubConnected={githubConnected}
-          onChange={onChange}
-          repositories={repositories}
-        />
-      </EditorPanel>
-      <FieldError message={errors.trigger} />
-    </EditorSection>
-  );
-}
-
 function AddToolMenu({
   contentfulConnected,
   crowdinConnected,
@@ -1504,6 +1001,16 @@ function AddToolMenu({
   onChange,
   repositories,
   ahrefsConnected,
+  intercomConnected,
+  sanityConnected,
+  webflowConnected,
+  brazeConnected,
+  customerIoConnected,
+  iterableConnected,
+  loopsConnected,
+  hubspotConnected,
+  mailchimpConnected,
+  projectSourceLocale,
   semrushConnected,
   zernioConnected,
   slackConnected,
@@ -1522,6 +1029,16 @@ function AddToolMenu({
   onChange: (next: WorkspaceAutomationFormState) => void;
   repositories: GithubRepositoryOption[];
   ahrefsConnected: boolean;
+  intercomConnected: boolean;
+  sanityConnected: boolean;
+  webflowConnected: boolean;
+  brazeConnected: boolean;
+  customerIoConnected: boolean;
+  iterableConnected: boolean;
+  loopsConnected: boolean;
+  hubspotConnected: boolean;
+  mailchimpConnected: boolean;
+  projectSourceLocale?: string | null;
   semrushConnected: boolean;
   zernioConnected: boolean;
   slackConnected: boolean;
@@ -1557,7 +1074,7 @@ function AddToolMenu({
               disabled={form.knowledgeEnabled || !knowledgeAvailable}
               onClick={() => onChange({ ...form, knowledgeEnabled: true })}
             >
-              <BrainIcon className="size-4" />
+              <BrainIcon className={BUILT_IN_MENU_ICON_CLASS} />
               <FormattedMessage {...workspaceAutomationFormMessages.memories} />
               {form.knowledgeEnabled ? (
                 <DropdownMenuHint>
@@ -1575,7 +1092,7 @@ function AddToolMenu({
               disabled={form.knowledgeFilesEnabled}
               onClick={() => onChange({ ...form, knowledgeFilesEnabled: true })}
             >
-              <FoldersIcon className="size-4" />
+              <FoldersIcon className={BUILT_IN_MENU_ICON_CLASS} />
               <FormattedMessage {...workspaceAutomationFormMessages.knowledgeFiles} />
               {form.knowledgeFilesEnabled ? (
                 <DropdownMenuHint>
@@ -1730,7 +1247,7 @@ function AddToolMenu({
               disabled={form.slackEnabled || !slackConnected}
               onClick={() => onChange({ ...form, slackEnabled: true })}
             >
-              <SlackLogoIcon className="size-4" />
+              <SlackToolIcon />
               <FormattedMessage {...workspaceAutomationFormMessages.sendToSlack} />
               {form.slackEnabled ? (
                 <DropdownMenuHint>
@@ -1746,7 +1263,7 @@ function AddToolMenu({
               disabled={form.emailEnabled || !emailConnected}
               onClick={() => onChange({ ...form, emailEnabled: true })}
             >
-              <EnvelopeIcon className="size-4" />
+              <EnvelopeIcon className={BUILT_IN_MENU_ICON_CLASS} />
               <FormattedMessage {...workspaceAutomationFormMessages.sendEmail} />
               {form.emailEnabled ? (
                 <DropdownMenuHint>
@@ -1770,7 +1287,7 @@ function AddToolMenu({
                 })
               }
             >
-              <MagnifyingGlassIcon className="size-4" />
+              <AutomationToolMenuIcon icon={siContentful} />
               <FormattedMessage {...workspaceAutomationFormMessages.contentfulTranslate} />
               {form.contentfulEnabled ? (
                 <DropdownMenuHint>
@@ -1780,6 +1297,322 @@ function AddToolMenu({
                 <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
                 </DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.intercomEnabled || !intercomConnected}
+              onClick={() => onChange({ ...form, intercomEnabled: true })}
+            >
+              <AutomationToolMenuIcon icon={siIntercom} />
+              Intercom Help Center
+              {form.intercomEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !intercomConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.sanityEnabled || !sanityConnected}
+              onClick={() => onChange({ ...form, sanityEnabled: true })}
+            >
+              <AutomationToolMenuIcon icon={siSanity} />
+              Sanity documents
+              {form.sanityEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !sanityConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.webflowEnabled || !webflowConnected}
+              onClick={() => onChange({ ...form, webflowEnabled: true })}
+            >
+              <AutomationToolMenuIcon icon={siWebflow} />
+              Webflow CMS items
+              {form.webflowEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !webflowConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.iterableEnabled ||
+                form.loopsEnabled ||
+                form.hubspotEnabled ||
+                !brazeConnected
+              }
+              onClick={() =>
+                onChange({
+                  ...form,
+                  brazeEnabled: true,
+                  brazeCampaignsEnabled: false,
+                  iterableEnabled: false,
+                  loopsEnabled: false,
+                  hubspotEnabled: false,
+                })
+              }
+            >
+              <BrazeToolIcon />
+              Braze Email Templates
+              {form.brazeEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !brazeConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.brazeCampaignsEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.brazeCampaignsEnabled ||
+                form.brazeEnabled ||
+                form.iterableEnabled ||
+                form.loopsEnabled ||
+                form.hubspotEnabled ||
+                !brazeConnected
+              }
+              onClick={() =>
+                onChange({
+                  ...form,
+                  brazeCampaignsEnabled: true,
+                  brazeEnabled: false,
+                  iterableEnabled: false,
+                  loopsEnabled: false,
+                  hubspotEnabled: false,
+                })
+              }
+            >
+              <BrazeToolIcon />
+              Braze Campaigns & Canvas
+              {form.brazeCampaignsEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !brazeConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.brazeEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.customerIoEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.iterableEnabled ||
+                form.loopsEnabled ||
+                form.hubspotEnabled ||
+                !customerIoConnected
+              }
+              onClick={() =>
+                onChange({
+                  ...form,
+                  customerIoEnabled: true,
+                  brazeEnabled: false,
+                  brazeCampaignsEnabled: false,
+                  iterableEnabled: false,
+                  loopsEnabled: false,
+                  hubspotEnabled: false,
+                })
+              }
+            >
+              <CustomerIoToolIcon />
+              Customer.io Campaigns, Broadcasts, Newsletters & Transactional
+              {form.customerIoEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !customerIoConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.iterableEnabled ||
+                form.loopsEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.iterableEnabled ||
+                form.loopsEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                !iterableConnected
+              }
+              onClick={() =>
+                onChange({
+                  ...form,
+                  iterableEnabled: true,
+                  iterableSourceLocale:
+                    form.iterableSourceLocale.trim() || projectSourceLocale?.trim() || "",
+                  loopsEnabled: false,
+                  brazeEnabled: false,
+                  brazeCampaignsEnabled: false,
+                  customerIoEnabled: false,
+                })
+              }
+            >
+              <IterableToolIcon />
+              Iterable templates & snippets
+              {form.iterableEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !iterableConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.loopsEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.loopsEnabled ||
+                form.iterableEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.hubspotEnabled ||
+                !loopsConnected
+              }
+              onClick={() =>
+                onChange({
+                  ...form,
+                  loopsEnabled: true,
+                  iterableEnabled: false,
+                  brazeEnabled: false,
+                  brazeCampaignsEnabled: false,
+                  customerIoEnabled: false,
+                  hubspotEnabled: false,
+                })
+              }
+            >
+              <LoopsToolIcon />
+              Loops Transactional, Campaigns & Workflows
+              {form.loopsEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !loopsConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.iterableEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.hubspotEnabled ||
+                form.mailchimpEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.loopsEnabled ||
+                !hubspotConnected
+              }
+              onClick={() =>
+                onChange({
+                  ...form,
+                  hubspotEnabled: true,
+                  mailchimpEnabled: false,
+                  brazeEnabled: false,
+                  brazeCampaignsEnabled: false,
+                  customerIoEnabled: false,
+                  loopsEnabled: false,
+                })
+              }
+            >
+              <HubspotToolIcon />
+              HubSpot emails, forms, pages, and blog posts
+              {form.hubspotEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !hubspotConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.loopsEnabled ||
+                form.mailchimpEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={
+                form.mailchimpEnabled ||
+                form.hubspotEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.iterableEnabled ||
+                form.loopsEnabled ||
+                !mailchimpConnected
+              }
+              onClick={() =>
+                onChange({
+                  ...form,
+                  mailchimpEnabled: true,
+                  hubspotEnabled: false,
+                  brazeEnabled: false,
+                  brazeCampaignsEnabled: false,
+                  customerIoEnabled: false,
+                  iterableEnabled: false,
+                  loopsEnabled: false,
+                })
+              }
+            >
+              <MailchimpToolIcon />
+              Mailchimp campaigns and templates
+              {form.mailchimpEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !mailchimpConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.hubspotEnabled ||
+                form.brazeEnabled ||
+                form.brazeCampaignsEnabled ||
+                form.customerIoEnabled ||
+                form.iterableEnabled ||
+                form.loopsEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -1806,7 +1639,7 @@ function AddToolMenu({
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <UploadSimpleIcon className="size-4" />
+                <UploadSimpleIcon className={BUILT_IN_MENU_ICON_CLASS} />
                 <span className="min-w-0 flex-1">
                   <FormattedMessage {...workspaceAutomationFormMessages.jobsToolsMenu} />
                 </span>
@@ -1824,7 +1657,7 @@ function AddToolMenu({
                     })
                   }
                 >
-                  <UploadSimpleIcon className="size-4" />
+                  <UploadSimpleIcon className={BUILT_IN_MENU_ICON_CLASS} />
                   <FormattedMessage {...workspaceAutomationFormMessages.createJob} />
                   {form.createNativeTmsJobEnabled ? (
                     <DropdownMenuHint>
@@ -1847,7 +1680,7 @@ function AddToolMenu({
                     })
                   }
                 >
-                  <BrainIcon className="size-4" />
+                  <BrainIcon className={BUILT_IN_MENU_ICON_CLASS} />
                   <FormattedMessage {...workspaceAutomationFormMessages.translateWithAgent} />
                   {form.assignTranslateWithAgentEnabled ? (
                     <DropdownMenuHint>
@@ -1859,7 +1692,7 @@ function AddToolMenu({
             </DropdownMenuSub>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <CheckSquareIcon className="size-4" />
+                <CheckSquareIcon className={BUILT_IN_MENU_ICON_CLASS} />
                 <span className="min-w-0 flex-1">
                   <FormattedMessage {...workspaceAutomationFormMessages.issuesToolsMenu} />
                 </span>
@@ -1869,7 +1702,7 @@ function AddToolMenu({
                   disabled={form.listIssuesEnabled}
                   onClick={() => onChange({ ...form, listIssuesEnabled: true })}
                 >
-                  <CheckSquareIcon className="size-4" />
+                  <CheckSquareIcon className={BUILT_IN_MENU_ICON_CLASS} />
                   <FormattedMessage {...workspaceAutomationFormMessages.listIssues} />
                   {form.listIssuesEnabled ? (
                     <DropdownMenuHint>
@@ -1881,7 +1714,7 @@ function AddToolMenu({
                   disabled={form.createIssueEnabled}
                   onClick={() => onChange({ ...form, createIssueEnabled: true })}
                 >
-                  <CheckSquareIcon className="size-4" />
+                  <CheckSquareIcon className={BUILT_IN_MENU_ICON_CLASS} />
                   <FormattedMessage {...workspaceAutomationFormMessages.createIssue} />
                   {form.createIssueEnabled ? (
                     <DropdownMenuHint>
@@ -1959,7 +1792,7 @@ function AddToolMenu({
               disabled={form.webSearchEnabled}
               onClick={() => onChange({ ...form, webSearchEnabled: true })}
             >
-              <GlobeIcon className="size-4" />
+              <GlobeIcon className={BUILT_IN_MENU_ICON_CLASS} />
               <FormattedMessage {...workspaceAutomationFormMessages.webSearch} />
               {form.webSearchEnabled ? (
                 <DropdownMenuHint>
@@ -1982,7 +1815,7 @@ function AddToolMenu({
             ))}
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <AutomationToolMenuIcon icon={siGoogle} />
+                <AutomationToolMenuIcon icon={siGoogle} colored={false} />
                 <span className="min-w-0 flex-1">{COMING_SOON_GOOGLE_MENU_LABEL}</span>
                 <ComingSoonBadge className="ms-0" />
               </DropdownMenuSubTrigger>
@@ -2075,6 +1908,16 @@ const SKILL_INTEGRATION_LABELS: Record<WorkspaceAutomationSkillIntegration, Mess
   github: workspaceAutomationFormMessages.skillIntegrationGithub,
   crowdin: workspaceAutomationFormMessages.skillIntegrationCrowdin,
   contentful: workspaceAutomationFormMessages.skillIntegrationContentful,
+  intercom: workspaceAutomationFormMessages.skillIntegrationIntercom,
+  sanity: workspaceAutomationFormMessages.skillIntegrationSanity,
+  webflow: workspaceAutomationFormMessages.skillIntegrationWebflow,
+  google_drive: workspaceAutomationFormMessages.skillIntegrationGoogleDrive,
+  braze: workspaceAutomationFormMessages.skillIntegrationBraze,
+  customer_io: workspaceAutomationFormMessages.skillIntegrationCustomerIo,
+  iterable: workspaceAutomationFormMessages.skillIntegrationIterable,
+  loops: workspaceAutomationFormMessages.skillIntegrationLoops,
+  hubspot: workspaceAutomationFormMessages.skillIntegrationHubspot,
+  mailchimp: workspaceAutomationFormMessages.skillIntegrationMailchimp,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
 };
@@ -2089,6 +1932,84 @@ function formatSkillConnectFirstHint(
       { type: "conjunction" },
     ),
   });
+}
+
+const SKILL_CATEGORY_LABELS: Record<WorkspaceAutomationSkillCategory, MessageDescriptor> = {
+  review: workspaceAutomationFormMessages.skillCategoryReview,
+  research: workspaceAutomationFormMessages.skillCategoryResearch,
+  translate: workspaceAutomationFormMessages.skillCategoryTranslate,
+  report: workspaceAutomationFormMessages.skillCategoryReport,
+};
+
+const SKILL_CATEGORY_ICONS: Record<WorkspaceAutomationSkillCategory, Icon> = {
+  review: ListMagnifyingGlassIcon,
+  research: BinocularsIcon,
+  translate: TranslateIcon,
+  report: MegaphoneIcon,
+};
+
+const SKILL_BRAND_ICONS: Partial<Record<WorkspaceAutomationSkillTool, SimpleIcon>> = {
+  use_github_repository: siGithub,
+  notify_github_comment: siGithub,
+  use_crowdin: siCrowdin,
+  run_contentful_translation: siContentful,
+  import_intercom_articles: siIntercom,
+  push_intercom_translations: siIntercom,
+  import_sanity_documents: siSanity,
+  push_sanity_translations: siSanity,
+  import_webflow_items: siWebflow,
+  push_webflow_translations: siWebflow,
+};
+
+const SKILL_TOOL_ICONS: Partial<Record<WorkspaceAutomationSkillTool, Icon>> = {
+  use_web_search: GlobeIcon,
+  create_native_tms_job: UploadSimpleIcon,
+  list_issues: CheckSquareIcon,
+  notify_email: EnvelopeIcon,
+};
+
+/** Whether the skill works through an outside service or is part of Hyperlocalise. */
+function skillIconTone(skill: WorkspaceAutomationSkill): AutomationIconTone {
+  const tool = skill.tools[0];
+  return tool && (tool === "notify_slack" || SKILL_BRAND_ICONS[tool]) ? "external" : "builtIn";
+}
+
+/** The integration or surface the skill touches, the same icon its tool row uses. */
+function SkillIcon({ className, skill }: { className?: string; skill: WorkspaceAutomationSkill }) {
+  const tool = skill.tools[0];
+  if (
+    tool === "import_braze_templates" ||
+    tool === "push_braze_templates" ||
+    tool === "import_braze_campaigns" ||
+    tool === "push_braze_campaigns"
+  ) {
+    return <BrazeToolIcon className={className} />;
+  }
+  if (tool === "import_customer_io_campaigns" || tool === "push_customer_io_campaigns") {
+    return <CustomerIoToolIcon className={className} />;
+  }
+  if (tool === "import_iterable_templates" || tool === "push_iterable_templates") {
+    return <IterableToolIcon className={className} />;
+  }
+  if (tool === "import_loops_emails" || tool === "push_loops_emails") {
+    return <LoopsToolIcon className={className} />;
+  }
+  if (tool === "import_hubspot_content" || tool === "push_hubspot_content") {
+    return <HubspotToolIcon className={className} />;
+  }
+  if (tool === "import_mailchimp_content" || tool === "push_mailchimp_content") {
+    return <MailchimpToolIcon className={className} />;
+  }
+  if (tool === "notify_slack") {
+    return <SlackToolIcon className={className} />;
+  }
+  const brand = tool ? SKILL_BRAND_ICONS[tool] : undefined;
+  if (brand) {
+    return <SimpleBrandIcon icon={brand} colored className={cn(BRAND_ICON_CLASS, className)} />;
+  }
+
+  const ToolIcon = (tool ? SKILL_TOOL_ICONS[tool] : undefined) ?? SparkleIcon;
+  return <ToolIcon className={cn(BUILT_IN_MENU_ICON_CLASS, className)} />;
 }
 
 function SkillsSettings({
@@ -2120,7 +2041,8 @@ function SkillsSettings({
         {attachedSkills.map((skill) => (
           <EditorRow
             key={skill.id}
-            icon={<SparkleIcon className="size-4" />}
+            icon={<SkillIcon skill={skill} />}
+            tone={skillIconTone(skill)}
             title={skill.name}
             description={`${skill.description} ${skill.grants}`}
             action={
@@ -2149,49 +2071,83 @@ function SkillsSettings({
             <PlusIcon className="size-4" />
             <FormattedMessage {...workspaceAutomationFormMessages.addSkill} />
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="max-h-(--available-height) w-96 overflow-y-auto"
-            align="start"
-            sideOffset={2}
-          >
-            {WORKSPACE_AUTOMATION_SKILLS.map((skill) => {
-              const availability = resolveWorkspaceAutomationSkillAvailability(form, skill);
-              const missingIntegrations =
-                availability === "available"
-                  ? listMissingWorkspaceAutomationSkillIntegrations(skill, connections)
-                  : [];
+          <DropdownMenuContent className="w-56" align="start" sideOffset={2}>
+            {WORKSPACE_AUTOMATION_SKILL_CATEGORIES.map((category) => {
+              const CategoryIcon = SKILL_CATEGORY_ICONS[category];
               return (
-                <DropdownMenuItem
-                  key={skill.id}
-                  disabled={availability !== "available" || missingIntegrations.length > 0}
-                  className="items-start"
-                  onClick={() => onAddSkill(skill.id)}
-                >
-                  <SparkleIcon className="mt-0.5 size-4 shrink-0" />
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span>{skill.name}</span>
-                    {/* Under the name: beside it, the wording squeezes the name onto two lines. */}
-                    {availability === "trigger_mismatch" ? (
-                      <span className="text-xs font-medium">
-                        <FormattedMessage
-                          {...workspaceAutomationFormMessages.skillNotApplicableHint}
-                        />
-                      </span>
-                    ) : missingIntegrations.length > 0 ? (
-                      <span className="text-xs font-medium">
-                        {formatSkillConnectFirstHint(intl, missingIntegrations)}
-                      </span>
-                    ) : null}
-                    <span className="text-xs text-pretty text-muted-foreground">
-                      {skill.description}
+                <DropdownMenuSub key={category}>
+                  <DropdownMenuSubTrigger className="gap-2.5">
+                    <CategoryIcon className="size-4" />
+                    <span className="flex-1">
+                      <FormattedMessage {...SKILL_CATEGORY_LABELS[category]} />
                     </span>
-                  </span>
-                  {availability === "attached" ? (
-                    <DropdownMenuHint>
-                      <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                    </DropdownMenuHint>
-                  ) : null}
-                </DropdownMenuItem>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-72">
+                    {WORKSPACE_AUTOMATION_SKILLS.filter((skill) => skill.category === category).map(
+                      (skill) => {
+                        const availability = resolveWorkspaceAutomationSkillAvailability(
+                          form,
+                          skill,
+                        );
+                        const missingIntegrations =
+                          availability === "available"
+                            ? listMissingWorkspaceAutomationSkillIntegrations(skill, connections)
+                            : [];
+                        return (
+                          <Tooltip key={skill.id}>
+                            {/* The wrapper takes the hover: a disabled item ignores the pointer. */}
+                            <TooltipTrigger render={<div />}>
+                              <DropdownMenuItem
+                                disabled={
+                                  availability !== "available" || missingIntegrations.length > 0
+                                }
+                                className="items-start"
+                                onClick={() => onAddSkill(skill.id)}
+                              >
+                                <SkillIcon skill={skill} className="mt-0.5 shrink-0" />
+                                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                  <span>{skill.name}</span>
+                                  {/* Under the name: beside it, the wording squeezes the name onto two lines. */}
+                                  {availability === "trigger_mismatch" ? (
+                                    <span className="text-xs font-medium">
+                                      <FormattedMessage
+                                        {...workspaceAutomationFormMessages.skillNotApplicableHint}
+                                      />
+                                    </span>
+                                  ) : availability === "skill_exclusive" ? (
+                                    <span className="text-xs font-medium">
+                                      <FormattedMessage
+                                        {...workspaceAutomationFormMessages.skillExclusiveHint}
+                                      />
+                                    </span>
+                                  ) : missingIntegrations.length > 0 ? (
+                                    <span className="text-xs font-medium">
+                                      {formatSkillConnectFirstHint(intl, missingIntegrations)}
+                                    </span>
+                                  ) : null}
+                                </span>
+                                {availability === "attached" ? (
+                                  <DropdownMenuHint>
+                                    <FormattedMessage
+                                      {...workspaceAutomationFormMessages.addedShortcut}
+                                    />
+                                  </DropdownMenuHint>
+                                ) : null}
+                              </DropdownMenuItem>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="right"
+                              sideOffset={8}
+                              className="max-w-64 py-2 text-pretty"
+                            >
+                              {skill.description}
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      },
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
               );
             })}
           </DropdownMenuContent>
@@ -2235,11 +2191,13 @@ function SuggestionChip({
   const unavailableHint =
     suggestion.availability === "trigger_mismatch"
       ? intl.formatMessage(workspaceAutomationFormMessages.skillNotApplicableHint)
-      : suggestion.availability !== "connect_first"
-        ? null
-        : suggestion.kind === "skill"
-          ? formatSkillConnectFirstHint(intl, suggestion.missingIntegrations)
-          : intl.formatMessage(workspaceAutomationFormMessages.connectFirstShortcut);
+      : suggestion.availability === "skill_exclusive"
+        ? intl.formatMessage(workspaceAutomationFormMessages.skillExclusiveHint)
+        : suggestion.availability !== "connect_first"
+          ? null
+          : suggestion.kind === "skill"
+            ? formatSkillConnectFirstHint(intl, suggestion.missingIntegrations)
+            : intl.formatMessage(workspaceAutomationFormMessages.connectFirstShortcut);
 
   return (
     <span
@@ -2260,7 +2218,7 @@ function SuggestionChip({
         onClick={() => onAdd(suggestion)}
       >
         {suggestion.kind === "skill" ? (
-          <SparkleIcon className="size-3.5" />
+          <SkillIcon skill={suggestion.skill} className="size-3.5" />
         ) : (
           <PlusIcon className="size-3.5" />
         )}
@@ -2323,7 +2281,6 @@ function SuggestionChips({
 
 function ToolsSettings({
   automationId,
-  canUpdateKnowledgeMemory,
   contentfulConnections,
   crowdinConnected,
   crowdinLiveProjects,
@@ -2335,6 +2292,7 @@ function ToolsSettings({
   githubConnected,
   gitlabConnected,
   gitlabProjects,
+  gitlabProjectsFailed,
   knowledgeAvailable,
   mcpServerConnections,
   onChange,
@@ -2342,12 +2300,22 @@ function ToolsSettings({
   projects,
   repositories,
   ahrefsConnected,
+  intercomConnected,
+  googleDriveConnected,
+  sanityConnected,
+  webflowConnected,
+  webflowConnections,
+  brazeConnected,
+  customerIoConnected,
+  iterableConnected,
   semrushConnections,
   zernioConnections,
   slackConnected,
+  loopsConnected,
+  hubspotConnected,
+  mailchimpConnected,
 }: {
   automationId?: string;
-  canUpdateKnowledgeMemory: boolean;
   contentfulConnections: ContentfulConnectionOption[];
   crowdinConnected: boolean;
   crowdinLiveProjects: ProjectOption[];
@@ -2359,6 +2327,7 @@ function ToolsSettings({
   githubConnected: boolean;
   gitlabConnected: boolean;
   gitlabProjects: GitlabProjectOption[];
+  gitlabProjectsFailed: boolean;
   knowledgeAvailable: boolean;
   mcpServerConnections: McpServerConnectionOption[];
   onChange: (next: WorkspaceAutomationFormState) => void;
@@ -2366,6 +2335,17 @@ function ToolsSettings({
   projects: ProjectOption[];
   repositories: GithubRepositoryOption[];
   ahrefsConnected: boolean;
+  intercomConnected: boolean;
+  googleDriveConnected: boolean;
+  sanityConnected: boolean;
+  webflowConnected: boolean;
+  webflowConnections: WebflowConnectionSummary[];
+  brazeConnected: boolean;
+  customerIoConnected: boolean;
+  iterableConnected: boolean;
+  loopsConnected: boolean;
+  hubspotConnected: boolean;
+  mailchimpConnected: boolean;
   semrushConnections: SemrushConnectionOption[];
   zernioConnections: ZernioConnectionOption[];
   slackConnected: boolean;
@@ -2400,6 +2380,7 @@ function ToolsSettings({
         {form.knowledgeEnabled ? (
           <EditorRow
             icon={<BrainIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.memories} />}
             description={
               knowledgeAvailable
@@ -2421,35 +2402,17 @@ function ToolsSettings({
                 <DeleteToolButton
                   disabled={disabled}
                   label={intl.formatMessage(workspaceAutomationFormMessages.removeMemoriesTool)}
-                  onClick={() =>
-                    onChange({ ...form, knowledgeEnabled: false, knowledgeAllowUpdates: false })
-                  }
+                  onClick={() => onChange({ ...form, knowledgeEnabled: false })}
                 />
               </>
             }
-          >
-            <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-              <span className="text-xs text-foreground">
-                <FormattedMessage {...workspaceAutomationFormMessages.allowMemoryUpdates} />
-              </span>
-              <Switch
-                size="sm"
-                checked={form.knowledgeAllowUpdates}
-                disabled={disabled || !knowledgeAvailable}
-                onCheckedChange={(checked) => onChange({ ...form, knowledgeAllowUpdates: checked })}
-              />
-            </label>
-            {form.knowledgeAllowUpdates ? (
-              <p className="mt-2 text-xs text-pretty text-muted-foreground">
-                <FormattedMessage {...workspaceAutomationFormMessages.allowMemoryUpdatesWarning} />
-              </p>
-            ) : null}
-          </EditorRow>
+          ></EditorRow>
         ) : null}
 
         {form.knowledgeFilesEnabled ? (
           <EditorRow
             icon={<FoldersIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.knowledgeFiles} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.knowledgeFilesDescription} />
@@ -2473,6 +2436,7 @@ function ToolsSettings({
         {form.githubEnabled && form.githubMode === "agent" ? (
           <EditorRow
             icon={<GitBranchIcon className="size-4" />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.useGithubRepo} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.useGithubRepoDescription} />
@@ -2508,6 +2472,7 @@ function ToolsSettings({
         {form.gitlabEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siGitlab} />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.useGitlabRepo} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.useGitlabRepoDescription} />
@@ -2532,6 +2497,7 @@ function ToolsSettings({
               disabled={disabled}
               error={errors.gitlabRepository}
               form={form}
+              loadFailed={gitlabProjectsFailed}
               onChange={onChange}
               projects={gitlabProjects}
             />
@@ -2541,6 +2507,7 @@ function ToolsSettings({
         {form.githubEnabled && form.githubMode === "sync" ? (
           <EditorRow
             icon={<GitBranchIcon className="size-4" />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.githubSyncWorkflows} />}
             description={
               <FormattedMessage
@@ -2624,6 +2591,7 @@ function ToolsSettings({
         {form.githubCommentEnabled ? (
           <EditorRow
             icon={<ChatTextIcon className="size-4" />}
+            tone="external"
             title={
               <>
                 <span>
@@ -2677,7 +2645,8 @@ function ToolsSettings({
 
         {form.slackEnabled ? (
           <EditorRow
-            icon={<SlackLogoIcon className="size-4" />}
+            icon={<SlackToolIcon />}
+            tone="external"
             title={
               <>
                 <span>
@@ -2724,6 +2693,7 @@ function ToolsSettings({
         {form.emailEnabled ? (
           <EditorRow
             icon={<EnvelopeIcon className="size-4" />}
+            tone="builtIn"
             title={
               <>
                 <span>
@@ -2841,7 +2811,8 @@ function ToolsSettings({
 
         {form.contentfulEnabled ? (
           <EditorRow
-            icon={<MagnifyingGlassIcon className="size-4" />}
+            icon={<AutomationToolMenuIcon icon={siContentful} />}
+            tone="external"
             title={
               <>
                 <span>
@@ -3021,9 +2992,392 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.intercomEnabled ? (
+          <EditorRow
+            icon={<AutomationToolMenuIcon icon={siIntercom} />}
+            tone="external"
+            title={
+              <>
+                <span>Intercom Help Center</span>
+                {!intercomConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import articles on a schedule, translate in Jobs, then push approved translations when you are ready."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_intercom_articles")}
+                label="Remove Intercom"
+                onClick={() => onChange({ ...form, intercomEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationIntercomSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              errors={errors}
+              intercomConnected={intercomConnected}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
+              onChange={onChange}
+            />
+            <FieldError message={errors.intercom} />
+          </EditorRow>
+        ) : null}
+
+        {form.googleDriveEnabled ? (
+          <EditorRow
+            icon={<AutomationToolMenuIcon icon={siGoogledrive} />}
+            tone="external"
+            title={
+              <>
+                <span>Google Drive files</span>
+                {!googleDriveConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import selected Drive folders and files into the project, translate in the Content editor, then push locale copies back to Drive."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_google_drive_files")}
+                label="Remove Google Drive"
+                onClick={() => onChange({ ...form, googleDriveEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationGoogleDriveSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              setForm={onChange}
+              fieldErrors={errors}
+            />
+            <FieldError message={errors.googleDrive} />
+          </EditorRow>
+        ) : null}
+
+        {form.sanityEnabled ? (
+          <EditorRow
+            icon={<AutomationToolMenuIcon icon={siSanity} />}
+            tone="external"
+            title={
+              <>
+                <span>Sanity documents</span>
+                {!sanityConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import documents on a schedule, translate in Jobs, then push approved translations when you are ready."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_sanity_documents")}
+                label="Remove Sanity"
+                onClick={() => onChange({ ...form, sanityEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationSanitySettings
+              organizationSlug={organizationSlug}
+              form={form}
+              errors={errors}
+              sanityConnected={sanityConnected}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
+              onChange={onChange}
+            />
+            <FieldError message={errors.sanity} />
+          </EditorRow>
+        ) : null}
+
+        {form.webflowEnabled ? (
+          <EditorRow
+            icon={<AutomationToolMenuIcon icon={siWebflow} />}
+            tone="external"
+            title={
+              <>
+                <span>Webflow CMS items</span>
+                {!webflowConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import collection items on a schedule, translate in Jobs, then push approved translations when you are ready."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_webflow_items")}
+                label="Remove Webflow"
+                onClick={() => onChange({ ...form, webflowEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationWebflowSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              errors={errors}
+              webflowConnected={webflowConnected}
+              connections={webflowConnections}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
+              onChange={onChange}
+            />
+            <FieldError message={errors.webflow} />
+          </EditorRow>
+        ) : null}
+
+        {form.brazeEnabled ? (
+          <EditorRow
+            icon={<BrazeToolIcon />}
+            title={
+              <>
+                <span>Braze Email Templates</span>
+                {!brazeConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import templates on a schedule, translate in Jobs, then push approved locales as library copies."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_braze_templates")}
+                label="Remove Braze"
+                onClick={() => onChange({ ...form, brazeEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationBrazeSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              errors={errors}
+              brazeConnected={brazeConnected}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
+              onChange={onChange}
+            />
+            <FieldError message={errors.braze} />
+          </EditorRow>
+        ) : null}
+
+        {form.brazeCampaignsEnabled ? (
+          <EditorRow
+            icon={<BrazeToolIcon />}
+            title={
+              <>
+                <span>Braze Campaigns & Canvas</span>
+                {!brazeConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import tagged draft campaigns and Canvas as JSON, translate in Jobs, then push approved locales through the Translation API."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_braze_campaigns")}
+                label="Remove Braze"
+                onClick={() => onChange({ ...form, brazeCampaignsEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationBrazeCampaignsSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              errors={errors}
+              brazeConnected={brazeConnected}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
+              onChange={onChange}
+            />
+            <FieldError message={errors.braze} />
+          </EditorRow>
+        ) : null}
+
+        {form.customerIoEnabled ? (
+          <EditorRow
+            icon={<CustomerIoToolIcon />}
+            title={
+              <>
+                <span>Customer.io Campaigns, Broadcasts, Newsletters & Transactional</span>
+                {!customerIoConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import campaigns, broadcasts, newsletters, and transactional messages as JSON, translate in Jobs, then push approved locales back to Customer.io."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_customer_io_campaigns")}
+                label="Remove Customer.io"
+                onClick={() => onChange({ ...form, customerIoEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationCustomerIoSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              customerIoConnected={customerIoConnected}
+              onChange={onChange}
+            />
+            <FieldError message={errors.customerIo} />
+          </EditorRow>
+        ) : null}
+
+        {form.iterableEnabled ? (
+          <EditorRow
+            icon={<IterableToolIcon />}
+            title={
+              <>
+                <span>Iterable templates & snippets</span>
+                {!iterableConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import Iterable templates and snippets on a schedule, translate in Jobs, then push approved locales back to Iterable."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_iterable_templates")}
+                label="Remove Iterable"
+                onClick={() => onChange({ ...form, iterableEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationIterableSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              errors={errors}
+              iterableConnected={iterableConnected}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
+              onChange={onChange}
+            />
+            <FieldError message={errors.iterable} />
+          </EditorRow>
+        ) : null}
+
+        {form.loopsEnabled ? (
+          <EditorRow
+            icon={<LoopsToolIcon />}
+            title={
+              <>
+                <span>Loops Transactional, Campaigns & Workflows</span>
+                {!loopsConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import Loops emails as HTML, translate in Jobs, then push approved locales as separate unpublished Loops copies."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_loops_emails")}
+                label="Remove Loops"
+                onClick={() => onChange({ ...form, loopsEnabled: false })}
+              />
+            }
+          >
+            <FieldError message={errors.loops} />
+          </EditorRow>
+        ) : null}
+
+        {form.hubspotEnabled ? (
+          <EditorRow
+            icon={<HubspotToolIcon />}
+            title={
+              <>
+                <span>HubSpot emails, forms, pages, and blog posts</span>
+                {!hubspotConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import HubSpot marketing emails, forms, blog posts, landing pages, and website pages, translate in Jobs, then push approved locales as unpublished copies."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_hubspot_content")}
+                label="Remove HubSpot"
+                onClick={() => onChange({ ...form, hubspotEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationHubspotSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              hubspotConnected={hubspotConnected}
+              disabled={disabled}
+              onChange={onChange}
+            />
+            <FieldError message={errors.hubspot} />
+          </EditorRow>
+        ) : null}
+
+        {form.mailchimpEnabled ? (
+          <EditorRow
+            icon={<MailchimpToolIcon />}
+            tone="external"
+            title={
+              <>
+                <span>Mailchimp campaigns and templates</span>
+                {!mailchimpConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import Mailchimp campaigns and user templates, translate in Jobs, then push approved locales as draft copies."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_mailchimp_content")}
+                label="Remove Mailchimp"
+                onClick={() => onChange({ ...form, mailchimpEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationMailchimpSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              mailchimpConnected={mailchimpConnected}
+              disabled={disabled}
+              onChange={onChange}
+            />
+          </EditorRow>
+        ) : null}
+
         {form.crowdinEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siCrowdin} />}
+            tone="external"
             title={
               <>
                 <span>
@@ -3103,6 +3457,7 @@ function ToolsSettings({
         {form.createNativeTmsJobEnabled ? (
           <EditorRow
             icon={<UploadSimpleIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.createJob} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.createJobDescription} />
@@ -3177,6 +3532,7 @@ function ToolsSettings({
         {form.assignTranslateWithAgentEnabled ? (
           <EditorRow
             icon={<BrainIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.translateWithAgent} />}
             description={
               <FormattedMessage
@@ -3202,6 +3558,7 @@ function ToolsSettings({
         {form.listIssuesEnabled ? (
           <EditorRow
             icon={<CheckSquareIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.listIssues} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.listIssuesDescription} />
@@ -3220,6 +3577,7 @@ function ToolsSettings({
         {form.createIssueEnabled ? (
           <EditorRow
             icon={<CheckSquareIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.createIssue} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.createIssueDescription} />
@@ -3238,6 +3596,7 @@ function ToolsSettings({
         {form.mcpEnabled ? (
           <EditorRow
             icon={<FoldersIcon className="size-4" />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.mcpServer} />}
             description={
               mcpConnected
@@ -3306,6 +3665,7 @@ function ToolsSettings({
         {form.semrushEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siSemrush} />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.semrush} />}
             description={
               semrushConnected
@@ -3372,6 +3732,7 @@ function ToolsSettings({
         {form.zernioEnabled ? (
           <EditorRow
             icon={<ZernioToolIcon />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.zernio} />}
             description={
               zernioConnected
@@ -3438,6 +3799,7 @@ function ToolsSettings({
         {form.ahrefsEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.ahrefs} />}
             description={
               ahrefsConnected
@@ -3464,6 +3826,7 @@ function ToolsSettings({
         {form.webSearchEnabled ? (
           <EditorRow
             icon={<GlobeIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.webSearch} />}
             description={intl.formatMessage(workspaceAutomationFormMessages.webSearchDescription)}
             action={
@@ -3539,6 +3902,16 @@ function ToolsSettings({
           onChange={onChange}
           repositories={repositories}
           ahrefsConnected={ahrefsConnected}
+          intercomConnected={intercomConnected}
+          sanityConnected={sanityConnected}
+          webflowConnected={webflowConnected}
+          brazeConnected={brazeConnected}
+          customerIoConnected={customerIoConnected}
+          iterableConnected={iterableConnected}
+          loopsConnected={loopsConnected}
+          hubspotConnected={hubspotConnected}
+          mailchimpConnected={mailchimpConnected}
+          projectSourceLocale={selectedProject?.sourceLocale}
           semrushConnected={semrushConnected}
           zernioConnected={zernioConnected}
           slackConnected={slackConnected}
@@ -3556,10 +3929,20 @@ function ToolsSettings({
             </SheetDescription>
           </SheetHeader>
           <div className="px-6 pb-6">
-            <KnowledgeMemoryEditor
-              organizationSlug={organizationSlug}
-              canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
-            />
+            <p className="text-sm text-muted-foreground">
+              <FormattedMessage {...workspaceAutomationFormMessages.manageMemoriesDescription} />
+            </p>
+            <Button
+              type="button"
+              nativeButton={false}
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              render={<Link href={buildOrganizationPath(organizationSlug, "knowledge")} />}
+              onClick={() => setMemoriesOpen(false)}
+            >
+              <FormattedMessage {...workspaceAutomationFormMessages.openGuideline} />
+            </Button>
           </div>
         </SheetContent>
       </Sheet>
@@ -3567,160 +3950,76 @@ function ToolsSettings({
   );
 }
 
-function formatRunStatus(intl: IntlShape, status: string) {
-  const statusMessages = {
-    queued: workspaceAutomationFormMessages.runStatusQueued,
-    running: workspaceAutomationFormMessages.runStatusRunning,
-    succeeded: workspaceAutomationFormMessages.runStatusSucceeded,
-    failed: workspaceAutomationFormMessages.runStatusFailed,
-    cancelled: workspaceAutomationFormMessages.runStatusCancelled,
-    skipped: workspaceAutomationFormMessages.runStatusSkipped,
-  } as const;
-
-  const message = statusMessages[status as keyof typeof statusMessages];
-  return message ? intl.formatMessage(message) : status;
-}
-
-function formatTriggerSource(intl: IntlShape, triggerSource: string) {
-  const triggerMessages = {
-    manual: workspaceAutomationFormMessages.triggerSourceManual,
-    scheduled: workspaceAutomationFormMessages.triggerSourceScheduled,
-    github: workspaceAutomationFormMessages.triggerSourceGithub,
-    contentful: workspaceAutomationFormMessages.triggerSourceContentful,
-    source_upload: workspaceAutomationFormMessages.triggerSourceSourceUpload,
-    web_chat: workspaceAutomationFormMessages.triggerSourceWebChat,
-  } as const;
-
-  const message = triggerMessages[triggerSource as keyof typeof triggerMessages];
-  return message ? intl.formatMessage(message) : triggerSource;
-}
-
-function RunHistoryTable({ runs }: { runs: WorkspaceAutomationRunRecord[] }) {
-  const intl = useIntl();
-
-  if (runs.length === 0) {
-    return (
-      <EditorPanel className="px-4 py-10">
-        <p className="text-sm text-muted-foreground">
-          <FormattedMessage {...workspaceAutomationFormMessages.noRunsYet} />
-        </p>
-      </EditorPanel>
-    );
-  }
-
-  return (
-    <EditorPanel>
-      <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 border-b border-border px-4 py-3 text-xs font-medium text-muted-foreground">
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historyStatus} />
-        </span>
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historyTrigger} />
-        </span>
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historySummary} />
-        </span>
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historyCompleted} />
-        </span>
-      </div>
-      {runs.map((run) => (
-        <div
-          key={run.id}
-          className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 border-b border-border px-4 py-4 text-sm last:border-b-0"
-        >
-          <Badge variant="outline" className="w-fit">
-            {formatRunStatus(intl, run.status)}
-          </Badge>
-          <span>{formatTriggerSource(intl, run.triggerSource)}</span>
-          <span className="truncate text-muted-foreground">
-            {Object.keys(run.outputSummary).length > 0
-              ? JSON.stringify(run.outputSummary)
-              : EMPTY_CELL}
-          </span>
-          <span className="text-muted-foreground">
-            {run.completedAt ? new Date(run.completedAt).toLocaleString() : EMPTY_CELL}
-          </span>
-        </div>
-      ))}
-    </EditorPanel>
-  );
-}
-
-function WebChatTriggerRow({
-  automationId,
-  organizationSlug,
-}: {
-  automationId?: string;
-  organizationSlug: string;
-}) {
-  const intl = useIntl();
-  const chatHref = automationId
-    ? buildWorkspaceAutomationWebChatHref({
-        organizationSlug,
-        automationId,
-        locale: intl.locale,
-      })
-    : null;
-
-  return (
-    <EditorRow
-      icon={<ChatTextIcon className="size-4" />}
-      title={<FormattedMessage {...workspaceAutomationFormMessages.webChat} />}
-      description={<FormattedMessage {...workspaceAutomationFormMessages.webChatDescription} />}
-      action={
-        chatHref ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 rounded-full px-3"
-            nativeButton={false}
-            render={<Link href={chatHref} target="_blank" rel="noreferrer" />}
-          >
-            <FormattedMessage {...workspaceAutomationFormMessages.openChat} />
-          </Button>
-        ) : null
-      }
-    >
-      {automationId ? (
-        <WebChatUrlCopyField automationId={automationId} organizationSlug={organizationSlug} />
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          <FormattedMessage {...workspaceAutomationFormMessages.webChatUrlPending} />
-        </p>
-      )}
-    </EditorRow>
-  );
-}
-
 export function WorkspaceAutomationEditor({
   actions,
+  assistantApi,
+  assistantEnabled = false,
+  assistantHasUnsavedChanges,
+  assistantInitialPrompt = null,
+  authorName,
+  authorUserId,
   automationId,
-  canUpdateKnowledgeMemory = false,
   disabled,
   errors,
+  footer,
   form,
   knowledgeAvailable = false,
   mode,
+  onAssistantChange,
+  onAssistantSessionChange,
+  onAssistantWorkingChange,
   onChange,
   organizationSlug,
   runHistory,
+  runHistoryRefreshing,
+  onRefreshRunHistory,
+  initialEditorTab,
 }: {
   actions?: ReactNode;
+  /** The assistant's calls in place of the server's, for a story. */
+  assistantApi?: AutomationAssistantApi;
+  /** Offers the automation assistant beside the form. */
+  assistantEnabled?: boolean;
+  /** Whether the page holds anything unsaved, so the assistant stops calling saved changes unsaved. */
+  assistantHasUnsavedChanges?: boolean;
+  /** A request handed over from the automations page, which the assistant starts with. */
+  assistantInitialPrompt?: string | null;
+  authorName?: string | null;
+  authorUserId?: string | null;
   automationId?: string;
-  canUpdateKnowledgeMemory?: boolean;
   disabled?: boolean;
   errors: Record<string, string | undefined>;
+  /** Shown under the editor, in the same scrolling pane when the assistant is offered. */
+  footer?: ReactNode;
   form: WorkspaceAutomationFormState;
   knowledgeAvailable?: boolean;
   mode: "create" | "detail";
+  /**
+   * Called with the form after each change the assistant makes, and the turn that made it;
+   * `onChange` when absent.
+   */
+  onAssistantChange?: (next: WorkspaceAutomationFormState, turn: string) => void;
+  /** Called when the assistant's session for this page starts or ends. */
+  onAssistantSessionChange?: (sessionId: string | null) => void;
+  /** Called when a turn of the assistant's starts or stops running. */
+  onAssistantWorkingChange?: (working: boolean) => void;
   onChange: (next: WorkspaceAutomationFormState) => void;
+  onRefreshRunHistory?: () => void;
   organizationSlug: string;
   runHistory?: WorkspaceAutomationRunRecord[];
+  runHistoryRefreshing?: boolean;
+  initialEditorTab?: WorkspaceAutomationEditorTab;
 }) {
   const intl = useIntl();
-  const [activeTab, setActiveTab] = useState<AutomationEditorTab>("settings");
+  const [activeTab, setActiveTab] = useState<WorkspaceAutomationEditorTab>(
+    initialEditorTab ?? "settings",
+  );
+  useEffect(() => {
+    if (initialEditorTab) {
+      setActiveTab(initialEditorTab);
+    }
+  }, [initialEditorTab]);
+  const editorRef = useScrollToFirstFieldError(errors, activeTab, setActiveTab);
   const [dismissedSuggestions, setDismissedSuggestions] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -3857,6 +4156,20 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const webflowConnectionsQuery = useQuery({
+    queryKey: ["webflow-connections", organizationSlug],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"]["webflow-connections"].$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Webflow connections");
+      }
+      const body = await response.json();
+      return body.webflowConnections as WebflowConnectionSummary[];
+    },
+  });
+
   const mcpServerConnectionsQuery = useQuery({
     queryKey: ["mcp-server-connections", organizationSlug],
     queryFn: async () => {
@@ -3899,6 +4212,161 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const brazePipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, BRAZE_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: BRAZE_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Braze connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
+  const customerIoPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, CUSTOMER_IO_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: CUSTOMER_IO_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Customer.io connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
+  const iterablePipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, ITERABLE_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: ITERABLE_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Iterable connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
+  const loopsPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, LOOPS_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: LOOPS_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Loops connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
+  const hubspotPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, HUBSPOT_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: HUBSPOT_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load HubSpot connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
+  const mailchimpPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, MAILCHIMP_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: MAILCHIMP_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Mailchimp connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
+  const intercomPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, INTERCOM_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: INTERCOM_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Intercom connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+        apiKeyLast4: string | null;
+      };
+    },
+  });
+
+  const sanityPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, SANITY_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: SANITY_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Sanity connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+        apiKeyLast4: string | null;
+      };
+    },
+  });
+
+  const googleDrivePipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, GOOGLE_DRIVE_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: GOOGLE_DRIVE_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Google Drive connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
   const ahrefsPipesQuery = useQuery({
     queryKey: ["pipes", organizationSlug, AHREFS_PIPES_SLUG],
     queryFn: async () => {
@@ -3935,6 +4403,7 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const gitlabServerConnectionQuery = useGitLabServerConnection(organizationSlug);
   const gitlabProjectsQuery = useQuery({
     queryKey: ["gitlab-projects", organizationSlug],
     queryFn: async () => {
@@ -3942,7 +4411,7 @@ export function WorkspaceAutomationEditor({
         param: { organizationSlug },
       });
       if (!response.ok) {
-        return [] as GitlabProjectOption[];
+        throw new Error("Failed to load GitLab projects");
       }
       const body = await response.json();
       return body.projects as GitlabProjectOption[];
@@ -3967,12 +4436,25 @@ export function WorkspaceAutomationEditor({
     Boolean(resendPipesQuery.data?.connected) || Boolean(sendgridPipesQuery.data?.connected);
   const contentfulConnections = contentfulConnectionsQuery.data ?? [];
   const contentfulConnected = contentfulConnections.length > 0;
+  const webflowConnections = webflowConnectionsQuery.data ?? [];
+  const webflowConnected = webflowConnections.length > 0;
   const mcpServerConnections = mcpServerConnectionsQuery.data ?? [];
   const semrushConnections = semrushConnectionsQuery.data ?? [];
   const zernioConnections = zernioConnectionsQuery.data ?? [];
   const ahrefsConnected = Boolean(ahrefsPipesQuery.data?.connected);
-  const gitlabConnected = Boolean(gitlabPipesQuery.data?.connected);
+  const intercomConnected = Boolean(intercomPipesQuery.data?.connected);
+  const sanityConnected = Boolean(sanityPipesQuery.data?.connected);
+  const googleDriveConnected = Boolean(googleDrivePipesQuery.data?.connected);
+  const brazeConnected = Boolean(brazePipesQuery.data?.connected);
+  const customerIoConnected = Boolean(customerIoPipesQuery.data?.connected);
+  const iterableConnected = Boolean(iterablePipesQuery.data?.connected);
+  const loopsConnected = Boolean(loopsPipesQuery.data?.connected);
+  const hubspotConnected = Boolean(hubspotPipesQuery.data?.connected);
+  const mailchimpConnected = Boolean(mailchimpPipesQuery.data?.connected);
+  const gitlabConnected =
+    Boolean(gitlabPipesQuery.data?.connected) || Boolean(gitlabServerConnectionQuery.data);
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
+  const gitlabProjectsFailed = gitlabProjectsQuery.isError;
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
   const hasHistory = mode === "detail";
   const skillDefaults: WorkspaceAutomationSkillDefaults = {
@@ -3983,6 +4465,7 @@ export function WorkspaceAutomationEditor({
     ),
     contentfulConnectionId:
       contentfulConnections.length === 1 ? contentfulConnections[0]?.id : undefined,
+    webflowConnectionId: webflowConnections.length === 1 ? webflowConnections[0]?.id : undefined,
   };
   const usableSemrushConnections = semrushConnections.filter(
     (connection) => connection.enabled && connection.validationStatus === "valid",
@@ -3995,6 +4478,16 @@ export function WorkspaceAutomationEditor({
     github: githubInstallationQuery.isSuccess ? githubConnected : undefined,
     crowdin: tmsProviderQuery.isSuccess ? crowdinConnected : undefined,
     contentful: contentfulConnectionsQuery.isSuccess ? contentfulConnected : undefined,
+    intercom: intercomPipesQuery.isSuccess ? intercomConnected : undefined,
+    sanity: sanityPipesQuery.isSuccess ? sanityConnected : undefined,
+    webflow: webflowConnectionsQuery.isSuccess ? webflowConnected : undefined,
+    google_drive: googleDrivePipesQuery.isSuccess ? googleDriveConnected : undefined,
+    braze: brazePipesQuery.isSuccess ? brazeConnected : undefined,
+    customer_io: customerIoPipesQuery.isSuccess ? customerIoConnected : undefined,
+    iterable: iterablePipesQuery.isSuccess ? iterableConnected : undefined,
+    loops: loopsPipesQuery.isSuccess ? loopsConnected : undefined,
+    hubspot: hubspotPipesQuery.isSuccess ? hubspotConnected : undefined,
+    mailchimp: mailchimpPipesQuery.isSuccess ? mailchimpConnected : undefined,
     slack: slackQuery.isSuccess ? slackConnected : undefined,
     email: emailConnected
       ? true
@@ -4049,11 +4542,32 @@ export function WorkspaceAutomationEditor({
     );
   };
 
-  return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+  // The assistant waits for these before its first turn, so it knows what is connected.
+  const skillConnectionsSettled =
+    !projectsQuery.isPending &&
+    !githubInstallationQuery.isPending &&
+    !(githubConnected && repositoriesQuery.isPending) &&
+    !tmsProviderQuery.isPending &&
+    !(crowdinConnected && tmsLiveProjectsQuery.isPending) &&
+    !contentfulConnectionsQuery.isPending &&
+    !slackQuery.isPending &&
+    !resendPipesQuery.isPending &&
+    !sendgridPipesQuery.isPending &&
+    !intercomPipesQuery.isPending &&
+    !sanityPipesQuery.isPending &&
+    !webflowConnectionsQuery.isPending &&
+    !brazePipesQuery.isPending &&
+    !customerIoPipesQuery.isPending &&
+    !iterablePipesQuery.isPending &&
+    !loopsPipesQuery.isPending &&
+    !hubspotPipesQuery.isPending;
+
+  const editor = (
+    <div ref={editorRef} className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <section className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0 flex-1">
+        {/* The actions drop under the name when both do not fit, as with the assistant open. */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-64 flex-1">
             <Label htmlFor="automation-name" className="sr-only">
               <FormattedMessage {...workspaceAutomationFormMessages.automationNameLabel} />
             </Label>
@@ -4070,7 +4584,7 @@ export function WorkspaceAutomationEditor({
             <FieldError message={errors.name} />
           </div>
           {actions ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+            <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">{actions}</div>
           ) : null}
         </div>
 
@@ -4094,6 +4608,18 @@ export function WorkspaceAutomationEditor({
               )}
             </span>
           </label>
+          {mode === "detail" && automationId ? (
+            <>
+              <span className="text-border">{METADATA_SEPARATOR}</span>
+              <AutomationOwnerField
+                organizationSlug={organizationSlug}
+                automationId={automationId}
+                authorUserId={authorUserId ?? null}
+                authorName={authorName}
+                disabled={disabled}
+              />
+            </>
+          ) : null}
           <span className="text-border">{METADATA_SEPARATOR}</span>
           <HeaderProjectSelector
             disabled={disabled}
@@ -4127,22 +4653,35 @@ export function WorkspaceAutomationEditor({
         <FieldError message={errors.form} />
       </section>
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AutomationEditorTab)}>
-        <TabsList>
-          <TabsTrigger value="settings">
-            <FormattedMessage {...workspaceAutomationFormMessages.settingsTab} />
-          </TabsTrigger>
-          {hasHistory ? (
-            <TabsTrigger value="history">
-              <FormattedMessage {...workspaceAutomationFormMessages.runHistoryTab} />
-            </TabsTrigger>
-          ) : null}
-        </TabsList>
+      <AutomationAssistantSummary organizationSlug={organizationSlug} />
 
-        <TabsContent value="settings" className="mt-4 flex flex-col gap-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as WorkspaceAutomationEditorTab)}
+      >
+        {/* A new automation has settings only, and one tab is no choice to offer. */}
+        {hasHistory ? (
+          // The rule runs the editor's width, and the active tab's underline sits on it.
+          <div className="border-b border-border">
+            <TabsList variant="line" className="-ms-[3px]">
+              <TabsTrigger value="settings">
+                <FormattedMessage {...workspaceAutomationFormMessages.settingsTab} />
+              </TabsTrigger>
+              <TabsTrigger value="history">
+                <FormattedMessage {...workspaceAutomationFormMessages.runHistoryTab} />
+              </TabsTrigger>
+            </TabsList>
+          </div>
+        ) : null}
+
+        <TabsContent
+          value="settings"
+          className={cn("flex flex-col gap-6", hasHistory ? "mt-4" : undefined)}
+        >
           <TriggerSettings
             automationId={automationId}
             contentfulConnected={contentfulConnected}
+            contentfulConnections={contentfulConnections}
             disabled={disabled}
             errors={errors}
             form={form}
@@ -4165,25 +4704,21 @@ export function WorkspaceAutomationEditor({
                 }
               />
             }
+            // Above the right edge of the text box it helps to fill in.
+            titleEnd={assistantEnabled ? <AutomationAssistantOpenButton /> : undefined}
           >
-            <div className="relative rounded-xl">
-              <Textarea
-                id="automation-instructions"
-                value={form.instructions}
-                disabled={disabled}
-                className="relative z-0 min-h-80 resize-y rounded-xl border-border bg-muted pb-10 font-sans text-sm leading-6"
-                placeholder={intl.formatMessage(
-                  form.skillIds.length > 0
-                    ? workspaceAutomationFormMessages.instructionsWithSkillsPlaceholder
-                    : workspaceAutomationFormMessages.instructionsPlaceholder,
-                )}
-                onChange={(event) => onChange({ ...form, instructions: event.target.value })}
-              />
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-px bottom-px z-10 h-11 rounded-b-[calc(0.75rem-1px)] bg-linear-to-t from-gray-alpha-200 via-gray-alpha-100 to-transparent backdrop-blur-sm"
-              />
-            </div>
+            <Textarea
+              id="automation-instructions"
+              value={form.instructions}
+              disabled={disabled}
+              className="min-h-80 resize-y rounded-xl border-border bg-muted font-sans text-sm leading-6"
+              placeholder={intl.formatMessage(
+                form.skillIds.length > 0
+                  ? workspaceAutomationFormMessages.instructionsWithSkillsPlaceholder
+                  : workspaceAutomationFormMessages.instructionsPlaceholder,
+              )}
+              onChange={(event) => onChange({ ...form, instructions: event.target.value })}
+            />
             <FieldError message={errors.instructions} />
           </EditorSection>
 
@@ -4198,7 +4733,6 @@ export function WorkspaceAutomationEditor({
 
           <ToolsSettings
             automationId={automationId}
-            canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
             contentfulConnections={contentfulConnections}
             crowdinConnected={crowdinConnected}
             crowdinLiveProjects={crowdinLiveProjects}
@@ -4210,6 +4744,7 @@ export function WorkspaceAutomationEditor({
             githubConnected={githubConnected}
             gitlabConnected={gitlabConnected}
             gitlabProjects={gitlabProjects}
+            gitlabProjectsFailed={gitlabProjectsFailed}
             knowledgeAvailable={knowledgeAvailable}
             mcpServerConnections={mcpServerConnections}
             onChange={onChange}
@@ -4217,6 +4752,17 @@ export function WorkspaceAutomationEditor({
             projects={projectsQuery.data ?? []}
             repositories={repositories}
             ahrefsConnected={ahrefsConnected}
+            intercomConnected={intercomConnected}
+            googleDriveConnected={googleDriveConnected}
+            sanityConnected={sanityConnected}
+            webflowConnected={webflowConnected}
+            webflowConnections={webflowConnections}
+            brazeConnected={brazeConnected}
+            customerIoConnected={customerIoConnected}
+            iterableConnected={iterableConnected}
+            loopsConnected={loopsConnected}
+            hubspotConnected={hubspotConnected}
+            mailchimpConnected={mailchimpConnected}
             semrushConnections={semrushConnections}
             zernioConnections={zernioConnections}
             slackConnected={slackConnected}
@@ -4224,7 +4770,21 @@ export function WorkspaceAutomationEditor({
         </TabsContent>
 
         {hasHistory ? (
-          <TabsContent value="history" className="mt-4">
+          <TabsContent value="history" className="mt-4 flex flex-col gap-3">
+            {onRefreshRunHistory ? (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={runHistoryRefreshing}
+                  onClick={onRefreshRunHistory}
+                >
+                  {runHistoryRefreshing ? <Spinner className="size-3.5" /> : <ArrowClockwiseIcon />}
+                  <FormattedMessage {...workspaceAutomationFormMessages.refreshRunHistory} />
+                </Button>
+              </div>
+            ) : null}
             <RunHistoryTable runs={runHistory ?? []} />
           </TabsContent>
         ) : null}
@@ -4266,6 +4826,49 @@ export function WorkspaceAutomationEditor({
       </AlertDialog>
     </div>
   );
+
+  if (!assistantEnabled) {
+    return (
+      <>
+        {editor}
+        {footer}
+      </>
+    );
+  }
+
+  return (
+    <AutomationAssistantProvider
+      api={assistantApi}
+      automationId={automationId}
+      connections={skillConnections}
+      connectionsSettled={skillConnectionsSettled}
+      contentfulConnectionIds={contentfulConnections.map((connection) => connection.id)}
+      crowdinProjectIds={collectCrowdinProjects(projectsQuery.data ?? [], crowdinLiveProjects).map(
+        (project) => project.id,
+      )}
+      form={form}
+      hasUnsavedChanges={assistantHasUnsavedChanges}
+      initialPrompt={assistantInitialPrompt}
+      mode={mode}
+      onChange={onAssistantChange ?? onChange}
+      onSessionChange={onAssistantSessionChange}
+      onWorkingChange={onAssistantWorkingChange}
+      organizationSlug={organizationSlug}
+      projectName={
+        (projectsQuery.data ?? []).find((project) => project.id === form.projectId)?.name ?? null
+      }
+      repositories={repositories.map((repository) => ({
+        id: repository.id,
+        name: repository.fullName,
+        selectable: repository.enabled && !repository.archived,
+      }))}
+    >
+      <AutomationAssistantLayout>
+        {editor}
+        {footer}
+      </AutomationAssistantLayout>
+    </AutomationAssistantProvider>
+  );
 }
 
 export function WorkspaceAutomationForm(props: {
@@ -4274,7 +4877,6 @@ export function WorkspaceAutomationForm(props: {
   errors: Record<string, string | undefined>;
   disabled?: boolean;
   knowledgeAvailable?: boolean;
-  canUpdateKnowledgeMemory?: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
 }) {
   return <WorkspaceAutomationEditor mode="create" {...props} />;

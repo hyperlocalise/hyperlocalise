@@ -19,7 +19,7 @@ export type JobEventData<Kind extends string, Type extends string = string> = {
   type: Type;
 };
 
-export type TranslationJobEventData = JobEventData<"translation", "string" | "file"> & {
+export type TranslationJobEventData = JobEventData<"translation", "string" | "file" | "keys"> & {
   knowledgeMemoryEnabled?: boolean;
 };
 
@@ -155,6 +155,8 @@ export type SourceFileIngestEventData = {
   storedFileId: string;
   sourcePath: string;
   targetAutomationId?: string;
+  /** Re-keys an existing upload, so upload automations must not run again. */
+  reingest?: boolean;
 };
 
 export type SourceFileIngestQueue = JobQueue<SourceFileIngestEventData>;
@@ -189,6 +191,14 @@ export type LocalisationAuditQueue = JobQueue<{
   attemptNumber: number;
 }>;
 
+export type LocalisationDeepAuditQueue = JobQueue<{
+  runId: string;
+}>;
+
+export type EngineSetupQueue = JobQueue<{
+  runId: string;
+}>;
+
 export type TranslationQaScanEventData = {
   runId: string;
   organizationId: string;
@@ -196,6 +206,13 @@ export type TranslationQaScanEventData = {
 };
 
 export type TranslationQaScanQueue = JobQueue<TranslationQaScanEventData>;
+
+export type ProjectContentSyncEventData = {
+  organizationId: string;
+  runId: string;
+};
+
+export type ProjectContentSyncQueue = JobQueue<ProjectContentSyncEventData>;
 
 export type LocalisationAuditReportEmailQueue = JobQueue<{
   leadId: string;

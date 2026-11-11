@@ -4,6 +4,12 @@ Hyperlocalise exports TBX 3 using the ISO 30042 namespace, `TBX-Basic`, and
 DCA style. Concepts are `conceptEntry` elements, locales are `langSec`
 elements, and every term is a separate `termSec` under its concept and locale.
 
+Imports also accept Phrase TBX 2 (`martif`, `termEntry`, `langSet`, `tig`,
+`ntig`) including DOCTYPE preambles. Forbidden terms are read from Phrase
+`termNote` (`forbidden`, `status`, or `administrativeStatus=forbiddenTerm`)
+as well as Hyperlocalise `descrip type="forbidden"`. A document that contains
+term entries but yields none is reported as an import error.
+
 The interchange model is shared by the TBX, XLSX, and CSV codecs. XLSX uses a
 `Concepts` sheet and a `Terms` sheet: one row represents one concept or term,
 so synonyms never overwrite one another. CSV uses one row per term with

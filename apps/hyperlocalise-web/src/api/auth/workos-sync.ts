@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray, isNull, like, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 
 import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -18,6 +18,7 @@ import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { db, type DatabaseClient } from "@/lib/database/client";
 import { enqueueActivityLogEvents } from "@/lib/activity-log/activity-log-writer";
 import type { ActivityLogEventInput } from "@/lib/activity-log/activity-log-contract";
+import { organizationApiKeyRevokedActivity } from "@/lib/activity-log/organization-api-key-events";
 import {
   ACCESS_TOKEN_REVOKE_REASONS,
   emitPatRevoked,
@@ -28,7 +29,9 @@ import {
 import {
   INVITED_WORKOS_USER_ID_PREFIX,
   isInvitedPlaceholderWorkosUserId,
+  isReplacingWorkosMembership,
   REPLACING_WORKOS_MEMBERSHIP_ID,
+  replacingWorkosMembershipId,
 } from "@/lib/workos/constants";
 
 export type WorkosUserSync = {
@@ -74,11 +77,76 @@ export type WorkosSyncResult = {
   };
 };
 
+function isActiveWorkosMembershipId(workosMembershipId: string | null | undefined) {
+  return Boolean(workosMembershipId) && !isReplacingWorkosMembership(workosMembershipId);
+}
+
+function membershipSyncActivityEvents(input: {
+  organizationId: string;
+  userId: string;
+  membershipId: string;
+  previous: { role: OrganizationMembershipRole; workosMembershipId: string | null } | undefined;
+  nextRole: OrganizationMembershipRole;
+  nextWorkosMembershipId: string | null;
+}): ActivityLogEventInput[] {
+  const joined =
+    isActiveWorkosMembershipId(input.nextWorkosMembershipId) &&
+    !isActiveWorkosMembershipId(input.previous?.workosMembershipId);
+
+  if (joined) {
+    return [
+      {
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: input.userId,
+        eventType: "member_joined",
+        organizationId: input.organizationId,
+        payload: {
+          memberUserId: input.userId,
+          membershipId: input.membershipId,
+          role: input.nextRole,
+        },
+        targetId: input.membershipId,
+        targetKind: "membership",
+      },
+    ];
+  }
+
+  if (input.previous && input.previous.role !== input.nextRole) {
+    return [
+      {
+        actorCredentialId: null,
+        actorKind: "system",
+        actorUserId: null,
+        eventType: "member_role_changed",
+        organizationId: input.organizationId,
+        payload: {
+          memberUserId: input.userId,
+          membershipId: input.membershipId,
+          nextRole: input.nextRole,
+          previousRole: input.previous.role,
+        },
+        targetId: input.membershipId,
+        targetKind: "membership",
+      },
+    ];
+  }
+
+  return [];
+}
+
+/**
+ * Pass `recordActivity` from paths that mirror WorkOS state (webhook, login reconcile)
+ * so joins and WorkOS-side role changes reach the activity log. In-app role changes
+ * update the local row before WorkOS, so they never look like a change here.
+ */
 export async function syncWorkosIdentity(
   database: DatabaseClient,
   identity: WorkosIdentitySyncInput,
+  options: { recordActivity?: boolean } = {},
 ): Promise<WorkosSyncResult> {
-  return database.transaction(async (tx) => {
+  const activityLogEvents: ActivityLogEventInput[] = [];
+  const result = await database.transaction(async (tx) => {
     const now = new Date();
 
     const [user] = await tx
@@ -128,6 +196,22 @@ export async function syncWorkosIdentity(
         workosOrganizationId: schema.organizations.workosOrganizationId,
       });
 
+    const [previousMembership] = options.recordActivity
+      ? await tx
+          .select({
+            role: schema.organizationMemberships.role,
+            workosMembershipId: schema.organizationMemberships.workosMembershipId,
+          })
+          .from(schema.organizationMemberships)
+          .where(
+            and(
+              eq(schema.organizationMemberships.organizationId, organization.id),
+              eq(schema.organizationMemberships.userId, user.id),
+            ),
+          )
+          .limit(1)
+      : [];
+
     const [membership] = await tx
       .insert(schema.organizationMemberships)
       .values({
@@ -148,16 +232,37 @@ export async function syncWorkosIdentity(
         },
       })
       .returning({
+        id: schema.organizationMemberships.id,
         role: schema.organizationMemberships.role,
         workosMembershipId: schema.organizationMemberships.workosMembershipId,
       });
 
+    if (options.recordActivity) {
+      activityLogEvents.push(
+        ...membershipSyncActivityEvents({
+          organizationId: organization.id,
+          userId: user.id,
+          membershipId: membership.id,
+          previous: previousMembership,
+          nextRole: membership.role,
+          nextWorkosMembershipId: membership.workosMembershipId,
+        }),
+      );
+    }
+
     return {
       user,
       organization,
-      membership,
+      membership: {
+        role: membership.role,
+        workosMembershipId: membership.workosMembershipId,
+      },
     };
   });
+
+  await enqueueActivityLogEvents(activityLogEvents);
+
+  return result;
 }
 
 export async function promoteInvitedPlaceholderUser(
@@ -276,7 +381,7 @@ export async function markPendingMembershipReplacingInvitation(
 ): Promise<boolean> {
   const result = await database
     .update(schema.organizationMemberships)
-    .set({ workosMembershipId: REPLACING_WORKOS_MEMBERSHIP_ID })
+    .set({ workosMembershipId: replacingWorkosMembershipId(membershipId) })
     .where(
       and(
         eq(schema.organizationMemberships.id, membershipId),
@@ -297,14 +402,20 @@ export async function clearPendingMembershipReplacingInvitation(
     .where(
       and(
         eq(schema.organizationMemberships.id, membershipId),
-        eq(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
+        or(
+          eq(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
+          eq(
+            schema.organizationMemberships.workosMembershipId,
+            replacingWorkosMembershipId(membershipId),
+          ),
+        ),
       ),
     );
 }
 
 export async function removePendingOrganizationMembershipForInvite(
   database: DatabaseClient,
-  input: { workosOrganizationId: string; email: string },
+  input: { workosOrganizationId: string; email: string; recordActivity?: boolean },
 ): Promise<number> {
   const normalizedEmail = input.email.trim().toLowerCase();
 
@@ -331,7 +442,7 @@ export async function removePendingOrganizationMembershipForInvite(
     return 0;
   }
 
-  const result = await database
+  const revokedInvitations = await database
     .delete(schema.organizationMemberships)
     .where(
       and(
@@ -339,9 +450,25 @@ export async function removePendingOrganizationMembershipForInvite(
         eq(schema.organizationMemberships.userId, user.id),
         isNull(schema.organizationMemberships.workosMembershipId),
       ),
-    );
+    )
+    .returning({ id: schema.organizationMemberships.id });
 
-  if (isInvitedPlaceholderWorkosUserId(user.workosUserId) && Number(result.rowCount ?? 0) > 0) {
+  if (input.recordActivity) {
+    await enqueueActivityLogEvents(
+      revokedInvitations.map((invitation) => ({
+        actorCredentialId: null,
+        actorKind: "system",
+        actorUserId: null,
+        eventType: "member_invite_revoked",
+        organizationId: organization.id,
+        payload: { invitationId: invitation.id },
+        targetId: invitation.id,
+        targetKind: "invitation",
+      })),
+    );
+  }
+
+  if (isInvitedPlaceholderWorkosUserId(user.workosUserId) && revokedInvitations.length > 0) {
     await database.delete(schema.users).where(
       and(
         eq(schema.users.id, user.id),
@@ -355,7 +482,7 @@ export async function removePendingOrganizationMembershipForInvite(
     );
   }
 
-  return Number(result.rowCount ?? 0);
+  return revokedInvitations.length;
 }
 
 export async function removeWorkosMembership(
@@ -432,6 +559,9 @@ export type RevokeOrganizationMembershipAccessResult = {
   teamMembershipsDeleted: number;
   mcpSessionsDeleted: number;
   apiKeysRevoked: number;
+  figmaOauthTokensRevoked: number;
+  canvaOauthTokensRevoked: number;
+  sanityOauthTokensRevoked: number;
 };
 
 export type MembershipRevocationActor = {
@@ -460,8 +590,8 @@ async function resolveRevocationTarget(
     if (membership) {
       return membership;
     }
-
-    return null;
+    // Dashboard offboard deletes the membership row first. The later WorkOS
+    // webhook still carries organization_id and user_id for leftover tokens.
   }
 
   if (!input.workosOrganizationId || !input.workosUserId) {
@@ -513,6 +643,7 @@ async function revokeOrganizationApiKeysForUser(
     .returning({
       id: schema.organizationApiKeys.id,
       keyPrefix: schema.organizationApiKeys.keyPrefix,
+      name: schema.organizationApiKeys.name,
       organizationId: schema.organizationApiKeys.organizationId,
       createdByUserId: schema.organizationApiKeys.createdByUserId,
     });
@@ -529,24 +660,75 @@ async function revokeOrganizationApiKeysForUser(
       keyPrefix: token.keyPrefix,
       reason: ACCESS_TOKEN_REVOKE_REASONS.membershipRemoved,
     });
-    activityLogEvents?.push({
-      actorCredentialId: null,
-      actorKind: actor.type === "user" ? "user" : "system",
-      actorUserId: actor.type === "user" ? actor.id : null,
-      eventType: "personal_access_token_revoked",
-      organizationId: token.organizationId,
-      payload: {
+    activityLogEvents?.push(
+      organizationApiKeyRevokedActivity({
+        actorCredentialId: null,
+        actorKind: actor.type === "user" ? "user" : "system",
+        actorUserId: actor.type === "user" ? actor.id : null,
+        apiKeyId: token.id,
         keyPrefix: token.keyPrefix,
+        name: token.name,
+        organizationId: token.organizationId,
         reason: "membership_removed",
-        tokenId: token.id,
-      },
-      targetId: token.id,
-      targetKind: "personal_access_token",
-    });
+      }),
+    );
   }
 
   return {
     apiKeysRevoked: revokedKeys.length,
+  };
+}
+
+async function revokePluginOauthTokensForUser(
+  database: DatabaseClient,
+  target: RevocationTarget,
+): Promise<
+  Pick<
+    RevokeOrganizationMembershipAccessResult,
+    "figmaOauthTokensRevoked" | "canvaOauthTokensRevoked" | "sanityOauthTokensRevoked"
+  >
+> {
+  const now = new Date();
+  const figmaRevoked = await database
+    .update(schema.figmaOauthTokens)
+    .set({ revokedAt: now })
+    .where(
+      and(
+        eq(schema.figmaOauthTokens.userId, target.userId),
+        eq(schema.figmaOauthTokens.organizationId, target.organizationId),
+        isNull(schema.figmaOauthTokens.revokedAt),
+      ),
+    )
+    .returning({ id: schema.figmaOauthTokens.id });
+
+  const canvaRevoked = await database
+    .update(schema.canvaOauthTokens)
+    .set({ revokedAt: now })
+    .where(
+      and(
+        eq(schema.canvaOauthTokens.userId, target.userId),
+        eq(schema.canvaOauthTokens.organizationId, target.organizationId),
+        isNull(schema.canvaOauthTokens.revokedAt),
+      ),
+    )
+    .returning({ id: schema.canvaOauthTokens.id });
+
+  const sanityRevoked = await database
+    .update(schema.sanityOauthTokens)
+    .set({ revokedAt: now })
+    .where(
+      and(
+        eq(schema.sanityOauthTokens.userId, target.userId),
+        eq(schema.sanityOauthTokens.organizationId, target.organizationId),
+        isNull(schema.sanityOauthTokens.revokedAt),
+      ),
+    )
+    .returning({ id: schema.sanityOauthTokens.id });
+
+  return {
+    figmaOauthTokensRevoked: figmaRevoked.length,
+    canvaOauthTokensRevoked: canvaRevoked.length,
+    sanityOauthTokensRevoked: sanityRevoked.length,
   };
 }
 
@@ -619,6 +801,7 @@ async function revokeMembershipAccessForTarget(
   }
 
   const dependentDeletes = await deleteTeamMembershipsAndMcpSessions(database, target);
+  const pluginOauthRevocation = await revokePluginOauthTokensForUser(database, target);
   const apiKeyRevocation = await revokeOrganizationApiKeysForUser(
     database,
     target,
@@ -630,6 +813,7 @@ async function revokeMembershipAccessForTarget(
   return {
     organizationMembershipsDeleted: deletedMemberships.length,
     ...dependentDeletes,
+    ...pluginOauthRevocation,
     ...apiKeyRevocation,
   };
 }
@@ -658,6 +842,9 @@ export async function revokeOrganizationMembershipAccess(
       teamMembershipsDeleted: 0,
       mcpSessionsDeleted: 0,
       apiKeysRevoked: 0,
+      figmaOauthTokensRevoked: 0,
+      canvaOauthTokensRevoked: 0,
+      sanityOauthTokensRevoked: 0,
     };
   }
 

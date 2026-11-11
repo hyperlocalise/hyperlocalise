@@ -51,6 +51,13 @@ describe("getAllowedExecutionSourceHandles", () => {
     expect(getAllowedExecutionSourceHandles(canonical("logic.for_each"))).toEqual(["each", "done"]);
   });
 
+  it("lists Array Transform each and done handles", () => {
+    expect(getAllowedExecutionSourceHandles(canonical("logic.array_transform"))).toEqual([
+      "each",
+      "done",
+    ]);
+  });
+
   it("lists Retry attempt, succeeded, and exhausted handles", () => {
     expect(getAllowedExecutionSourceHandles(canonical("logic.retry"))).toEqual([
       "attempt",
@@ -74,6 +81,32 @@ describe("getAllowedExecutionSourceHandles", () => {
         }),
       ),
     ).toEqual([null, "success", "error"]);
+  });
+
+  it("exposes JSON success, invalid, and error branches", () => {
+    expect(getAllowedExecutionSourceHandles(canonical("logic.json_parse"))).toEqual([
+      "success",
+      "invalid",
+    ]);
+    expect(getAllowedExecutionSourceHandles(canonical("logic.json_stringify"))).toEqual([
+      "success",
+      "error",
+    ]);
+    expect(getAllowedExecutionSourceHandles(canonical("logic.schema_validate"))).toEqual([
+      "success",
+      "invalid",
+    ]);
+
+    expect(getPrimaryExecutionSourceHandle(canonical("logic.json_parse"))).toBe("success");
+    expect(getPrimaryExecutionSourceHandle(canonical("logic.json_stringify"))).toBe("success");
+    expect(getPrimaryExecutionSourceHandle(canonical("logic.schema_validate"))).toBe("success");
+  });
+
+  it("exposes explicit success and error branches for file operations", () => {
+    for (const type of ["action.file_read", "action.file_write", "action.file_convert"] as const) {
+      expect(getAllowedExecutionSourceHandles(canonical(type))).toEqual(["success", "error"]);
+      expect(getPrimaryExecutionSourceHandle(canonical(type))).toBe("success");
+    }
   });
 });
 
@@ -121,6 +154,12 @@ describe("normalizeExecutionSourceHandle", () => {
     expect(normalizeExecutionSourceHandle(node, "done")).toEqual({ ok: true, handle: "done" });
   });
 
+  it("keeps Array Transform each and done", () => {
+    const node = canonical("logic.array_transform");
+    expect(normalizeExecutionSourceHandle(node, "each")).toEqual({ ok: true, handle: "each" });
+    expect(normalizeExecutionSourceHandle(node, "done")).toEqual({ ok: true, handle: "done" });
+  });
+
   it("keeps Retry attempt, succeeded, and exhausted", () => {
     const node = canonical("logic.retry");
     expect(normalizeExecutionSourceHandle(node, "attempt")).toEqual({
@@ -141,6 +180,7 @@ describe("normalizeExecutionSourceHandle", () => {
   it("does not invent a primary handle for missing multi-output pins", () => {
     expect(getPrimaryExecutionSourceHandle(canonical("logic.if"))).toBe("true");
     expect(getPrimaryExecutionSourceHandle(canonical("logic.for_each"))).toBe("each");
+    expect(getPrimaryExecutionSourceHandle(canonical("logic.array_transform"))).toBe("each");
     expect(
       getPrimaryExecutionSourceHandle(
         canonical("logic.switch", {
@@ -168,6 +208,18 @@ describe("normalizeExecutionSourceHandle", () => {
 
   it("uses completed as the primary Wait handle", () => {
     expect(getPrimaryExecutionSourceHandle(canonical("flow.wait"))).toBe("completed");
+  });
+
+  it("exposes Human Approval decision handles", () => {
+    const approval = canonical("flow.human_approval");
+
+    expect(getAllowedExecutionSourceHandles(approval)).toEqual([
+      "approved",
+      "rejected",
+      "changes_requested",
+      "timed_out",
+    ]);
+    expect(getPrimaryExecutionSourceHandle(approval)).toBe("approved");
   });
 
   it("exposes Merge completion handles", () => {
@@ -206,4 +258,24 @@ describe("normalizeExecutionSourceHandle", () => {
     expect(getAllowedExecutionSourceHandles(sequence)).toEqual([]);
     expect(getPrimaryExecutionSourceHandle(sequence)).toBeNull();
   });
+
+  it("exposes Try, Success, Catch, and Finally handles for an error boundary", () => {
+    const boundary = canonical("logic.try_catch");
+
+    expect(getAllowedExecutionSourceHandles(boundary)).toEqual([
+      "try",
+      "success",
+      "catch",
+      "finally",
+    ]);
+    expect(getPrimaryExecutionSourceHandle(boundary)).toBe("try");
+  });
+
+  it.each(["flow.stop", "flow.return", "flow.fail"] as const)(
+    "does not expose execution outputs for %s",
+    (type) => {
+      expect(getAllowedExecutionSourceHandles(canonical(type))).toEqual([]);
+      expect(getPrimaryExecutionSourceHandle(canonical(type))).toBeNull();
+    },
+  );
 });

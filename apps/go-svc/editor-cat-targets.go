@@ -93,8 +93,13 @@ func (api *editorCatAPI) getSegmentTargets(r *http.Request, actor editorCatActor
 func (api *editorCatAPI) loadSegmentTargets(r *http.Request, actor editorCatActor, project editorCatProject, body editorCatTargetsBody) ([]editorCatTargetRow, error) {
 	ids, paths, kinds := make([]string, len(body.Segments)), make([]string, len(body.Segments)), make([]string, len(body.Segments))
 	result := make([]editorCatTargetRow, len(body.Segments))
+	sourceFileIDs := map[string]string{}
 	for i, segment := range body.Segments {
-		ids[i], paths[i], kinds[i] = segment.ExternalStringID, segment.SourcePath, string(editorCatSourceKind(segment.SourcePath))
+		kind, err := api.resolvedEditorCatTargetKind(r, actor, project, segment.SourcePath, segment.ExternalStringID, sourceFileIDs)
+		if err != nil {
+			return nil, err
+		}
+		ids[i], paths[i], kinds[i] = segment.ExternalStringID, segment.SourcePath, string(kind)
 		result[i] = editorCatTargetRow{editorCatTargetIdentity: segment, Targets: make(map[string]*editorCatTranslation)}
 	}
 	rows, err := api.pool.Query(r.Context(), `
@@ -103,7 +108,7 @@ func (api *editorCatAPI) loadSegmentTargets(r *http.Request, actor editorCatActo
         ), cells as (
             select r.ordinal, l.locale, t.id::text, t.text, t.status::text,
                    coalesce(k.metadata->>'contentKind', 'text') as kind, null::text as stored_file_id,
-                   t.updated_at::text as revision
+                   t.updated_at::text as revision, t.origin::text as origin
             from requested r
             join project_translation_keys k on k.id = case when r.kind='text' then r.id::uuid end
                 and k.organization_id=$1 and k.project_id=$2
@@ -113,7 +118,7 @@ func (api *editorCatAPI) loadSegmentTargets(r *http.Request, actor editorCatActo
                 and t.organization_id=$1 and t.project_id=$2
             where r.kind='text' and (r.path='*' or f.source_path=r.path)
             union all
-            select r.ordinal, l.locale, v.id::text, ''::text, v.status::text, r.kind, v.stored_file_id::text, v.updated_at::text
+            select r.ordinal, l.locale, v.id::text, ''::text, v.status::text, r.kind, v.stored_file_id::text, v.updated_at::text, null::text
             from requested r
             join repository_source_files f on f.organization_id=$1 and f.project_id=$2 and f.source_path=r.path
                 and (r.id=f.id::text or r.id in ('binary:'||r.path, 'image:'||r.path, 'video:'||r.path))
@@ -122,7 +127,7 @@ func (api *editorCatAPI) loadSegmentTargets(r *http.Request, actor editorCatActo
                 and v.source_path=r.path and v.target_locale=l.locale
             where r.kind not in ('text', 'video_file')
             union all
-            select r.ordinal, l.locale, v.id::text, ''::text, v.status::text, r.kind, v.stored_file_id::text, v.updated_at::text
+            select r.ordinal, l.locale, v.id::text, ''::text, v.status::text, r.kind, v.stored_file_id::text, v.updated_at::text, null::text
             from requested r
             join repository_source_files f on f.organization_id=$1 and f.project_id=$2 and f.source_path=r.path
                 and (r.id=f.id::text or r.id in ('binary:'||r.path, 'video:'||r.path))
@@ -130,7 +135,7 @@ func (api *editorCatAPI) loadSegmentTargets(r *http.Request, actor editorCatActo
             left join project_video_variants v on v.organization_id=$1 and v.project_id=$2
                 and v.source_path=r.path and v.target_locale=l.locale
             where r.kind='video_file'
-        ) select ordinal, locale, id, text, status, kind, stored_file_id, revision from cells`,
+        ) select ordinal, locale, id, text, status, kind, stored_file_id, revision, origin from cells`,
 		actor.organizationID, project.ID, ids, paths, kinds, body.TargetLocales)
 	if err != nil {
 		return nil, err
@@ -139,8 +144,8 @@ func (api *editorCatAPI) loadSegmentTargets(r *http.Request, actor editorCatActo
 	for rows.Next() {
 		var ordinal int
 		var locale, kind string
-		var id, text, status, storedFileID, revision *string
-		if err := rows.Scan(&ordinal, &locale, &id, &text, &status, &kind, &storedFileID, &revision); err != nil {
+		var id, text, status, storedFileID, revision, origin *string
+		if err := rows.Scan(&ordinal, &locale, &id, &text, &status, &kind, &storedFileID, &revision, &origin); err != nil {
 			return nil, err
 		}
 		var target *editorCatTranslation
@@ -151,6 +156,9 @@ func (api *editorCatAPI) loadSegmentTargets(r *http.Request, actor editorCatActo
 			}
 			if status != nil {
 				target.Status, target.IsApproved = *status, *status == "approved"
+			}
+			if origin != nil {
+				target.Origin = *origin
 			}
 			if kind != "text" {
 				target.ContentKind = &kind
@@ -176,4 +184,30 @@ func (api *editorCatAPI) loadSegmentTargets(r *http.Request, actor editorCatActo
 		}
 	}
 	return result, nil
+}
+
+// Documents without ingested keys queue on the source-file UUID. Resolve that
+// UUID against the file table so batch targets match getSegmentTarget.
+func (api *editorCatAPI) resolvedEditorCatTargetKind(r *http.Request, actor editorCatActor, project editorCatProject, sourcePath, id string, sourceFileIDs map[string]string) (editorCatFileKind, error) {
+	kind := editorCatTargetKind(sourcePath, id)
+	if kind != editorCatKindText || !isEditorCatSegmentedFile(sourcePath) {
+		return kind, nil
+	}
+	sourceFileID, cached := sourceFileIDs[sourcePath]
+	if !cached {
+		lookedUp, err := api.sourceFileID(r, actor, project, sourcePath)
+		if err != nil {
+			if catErr, ok := err.(*editorCatError); ok && catErr.code == "source_file_not_found" {
+				sourceFileIDs[sourcePath] = ""
+				return kind, nil
+			}
+			return kind, err
+		}
+		sourceFileIDs[sourcePath] = lookedUp
+		sourceFileID = lookedUp
+	}
+	if sourceFileID != "" && id == sourceFileID {
+		return editorCatSourceKind(sourcePath), nil
+	}
+	return kind, nil
 }

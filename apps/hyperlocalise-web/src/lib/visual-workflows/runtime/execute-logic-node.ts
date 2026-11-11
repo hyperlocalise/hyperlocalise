@@ -13,11 +13,16 @@
 import type { CanonicalVisualWorkflowNode } from "../schema/types";
 import type { VisualWorkflowExecutionContext } from "./context";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
+import { executeCoalesce } from "./coalesce-node";
+import { executeCompare } from "./compare-node";
 import {
   evaluateVisualWorkflowCondition,
   resolveVisualWorkflowCollection,
   resolveVisualWorkflowTemplate,
 } from "./expressions";
+import { executeCreateObject, executeMergeObjects } from "./object-nodes";
+import { executeSelectPath } from "./select-path-node";
+import { executeJsonParse, executeJsonStringify, executeSchemaValidate } from "./json-nodes";
 
 export function executeLogicVisualWorkflowNode(input: {
   node: CanonicalVisualWorkflowNode;
@@ -30,7 +35,9 @@ export function executeLogicVisualWorkflowNode(input: {
     case "trigger.manual":
     case "trigger.scheduled":
     case "trigger.github":
-    case "trigger.source_upload": {
+    case "trigger.source_upload":
+    case "trigger.webhook":
+    case "trigger.job_changed": {
       const triggeredAt =
         typeof context.trigger.triggeredAt === "string"
           ? context.trigger.triggeredAt
@@ -111,6 +118,50 @@ export function executeLogicVisualWorkflowNode(input: {
         output,
       };
     }
+    case "logic.create_object":
+      return executeCreateObject({
+        fields: node.config.fields,
+        resolvedConfig: node.config as unknown as Record<string, unknown>,
+      });
+    case "logic.merge_objects":
+      return executeMergeObjects({
+        inputs: node.config.inputs,
+        conflictPolicy: node.config.conflictPolicy,
+        resolvedConfig: node.config as unknown as Record<string, unknown>,
+      });
+    case "logic.select_path": {
+      const resolvedConfig = node.config as unknown as Record<string, unknown>;
+      return executeSelectPath({
+        value: resolvedConfig.value,
+        path: node.config.path,
+        outputType: node.config.outputType,
+        missingBehavior: node.config.missingBehavior,
+        defaultValue: node.config.defaultValue,
+      });
+    }
+    case "logic.coalesce":
+      return executeCoalesce({
+        inputs: node.config.inputs,
+        resolvedConfig: node.config as unknown as Record<string, unknown>,
+        treatNullAsMissing: node.config.treatNullAsMissing,
+        treatEmptyStringAsMissing: node.config.treatEmptyStringAsMissing,
+        treatEmptyArrayAsMissing: node.config.treatEmptyArrayAsMissing,
+        treatEmptyObjectAsMissing: node.config.treatEmptyObjectAsMissing,
+      });
+    case "logic.compare":
+      return executeCompare({
+        operator: node.config.operator,
+        operands: node.config.operands,
+        resolvedConfig: node.config as unknown as Record<string, unknown>,
+        locale: node.config.locale,
+        sensitivity: node.config.sensitivity,
+      });
+    case "logic.json_parse":
+      return executeJsonParse(node.config.text);
+    case "logic.json_stringify":
+      return executeJsonStringify(node.config.value);
+    case "logic.schema_validate":
+      return executeSchemaValidate(node.config.value, node.config.schema);
     case "logic.for_each": {
       const items = resolveVisualWorkflowCollection(node.config.collection, context);
       return {
@@ -118,6 +169,17 @@ export function executeLogicVisualWorkflowNode(input: {
         output: {
           items,
           count: items.length,
+        },
+      };
+    }
+    case "logic.array_transform": {
+      const items = resolveVisualWorkflowCollection(node.config.collection, context);
+      return {
+        ok: true,
+        output: {
+          items,
+          count: items.length,
+          initialValue: node.config.initialValue,
         },
       };
     }
@@ -134,6 +196,41 @@ export function executeLogicVisualWorkflowNode(input: {
         ok: true,
         output: {
           dispatchedOutputIds: node.config.outputs.map((output) => output.id),
+        },
+      };
+    case "logic.try_catch":
+      return { ok: true, output: {} };
+    case "flow.stop":
+      return node.config.outcome === "cancelled"
+        ? {
+            ok: false,
+            error: {
+              code: "cancelled",
+              message: node.config.reason ?? "Workflow cancelled by a Stop node.",
+              terminal: true,
+            },
+          }
+        : {
+            ok: true,
+            output: {
+              outcome: "completed",
+              ...(node.config.reason ? { reason: node.config.reason } : {}),
+            },
+          };
+    case "flow.return": {
+      const resolvedConfig = node.config as unknown as Record<string, unknown>;
+      const returnedOutputs = Object.fromEntries(
+        node.config.outputs.map((output) => [output.name, resolvedConfig[`value.${output.id}`]]),
+      );
+      return { ok: true, output: { returnedOutputs } };
+    }
+    case "flow.fail":
+      return {
+        ok: false,
+        error: {
+          code: node.config.errorCode,
+          message: node.config.message,
+          terminal: true,
         },
       };
     default:

@@ -27,7 +27,6 @@ func TestEditorCatSkippedRoutes(t *testing.T) {
 		fn   func(*http.Request, editorCatActor, editorCatProject) (any, int, error)
 		code string
 	}{
-		{"visual", api.skipVisualContext, "visual_context_deferred"},
 		{"recommendation", api.skipRecommendation, "ai_recommendation_deferred"},
 		{"regenerate", api.skipImageRegenerate, "image_regenerate_deferred"},
 		{"upload", api.skipImageUpload, "image_upload_deferred"},
@@ -111,7 +110,7 @@ func TestLoadConcordance(t *testing.T) {
 
 	api.pool = &scriptPool{steps: []dbStep{
 		{op: opQuery, table: [][]any{{"term-1", "hello", "bonjour", false}}},
-		{op: opQuery, table: [][]any{{"mem-1", "hello", "bonjour", 90}}},
+		{op: opQuery, table: [][]any{{"mem-1", "lib-1", "hello", "bonjour", 90, "Product TM"}}},
 	}}
 	body, status, err := api.loadConcordance(catReq(http.MethodPost, "/", `{"sourceLocale":"en","targetLocale":"fr","sourceText":"hello"}`), actor, native)
 	require.NoError(t, err)
@@ -122,6 +121,9 @@ func TestLoadConcordance(t *testing.T) {
 	require.Equal(t, "bonjour", terms[0].Target)
 	matches := concordance["translationMemoryMatches"].([]editorCatMemoryMatch)
 	require.Equal(t, 90, matches[0].MatchPercent)
+	require.True(t, matches[0].CanEdit)
+	require.True(t, matches[0].CanDelete)
+	require.Equal(t, &editorCatTmSegmentRef{Kind: "native", MemoryID: "lib-1", EntryID: "mem-1"}, matches[0].SegmentRef)
 
 	api.pool = &scriptPool{steps: []dbStep{
 		{op: opQuery, table: [][]any{{"bad"}}},

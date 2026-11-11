@@ -74,7 +74,8 @@ contains a [CLI version pin](/cli/configuration/i18n-config#cli-version-pin).
 
 A missing target key produces a `not_localized` error. A missing target file
 produces `missing_target_file`. Invalid translated ICU structures can produce
-`icu_shape_mismatch`.
+`icu_shape_mismatch`. A plural category the locale never selects produces
+`unreachable_plural_case`.
 
 Inspect the job summary and inline annotations where source locations are
 available. Download `check-report.json` and `check-summary.txt` from the uploaded

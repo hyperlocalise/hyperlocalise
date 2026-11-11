@@ -8,6 +8,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestValidQaPolicyRequiresGuidelineWarning(t *testing.T) {
+	checks := make(map[string]qaCheckSetting, len(qaPolicyCheckTypes))
+	for key := range qaPolicyCheckTypes {
+		checks[key] = qaCheckSetting{Enabled: true, Severity: "warning"}
+	}
+	require.True(t, validQaPolicy(checks))
+
+	delete(checks, "guideline")
+	require.True(t, validQaPolicy(checks))
+	require.Equal(t, "warning", checks["guideline"].Severity)
+
+	checks["guideline"] = qaCheckSetting{Enabled: true, Severity: "error"}
+	require.False(t, validQaPolicy(checks))
+}
+
 func TestProjectQaReportRejectsProviderProject(t *testing.T) {
 	api, scope := qaReportTestAPI(t, "admin")
 	_, err := scope.Pool.Exec(t.Context(), `update projects set source='external_tms' where id=$1`, scope.ProjectID)
@@ -88,6 +103,40 @@ func TestWorkspaceQaReportIncludesPreviousSuccessfulCounts(t *testing.T) {
 	require.NotNil(t, previous)
 	require.Equal(t, 5, previous.ErrorCount)
 	require.Equal(t, 2, previous.WarningCount)
+}
+
+func TestProjectQaReportRunAndPromoteHandlers(t *testing.T) {
+	t.Run("member cannot promote", func(t *testing.T) {
+		api, scope := qaReportTestAPI(t, "member")
+		rec := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/findings/promote"), `{"findingIds":[]}`)
+		require.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("invalid run id is not found", func(t *testing.T) {
+		api, scope := qaReportTestAPI(t, "admin")
+		rec := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/not-a-uuid"), "")
+		require.Equal(t, http.StatusNotFound, rec.Code)
+		require.Contains(t, rec.Body.String(), "not_found")
+	})
+
+	t.Run("returns the run and promotes its findings", func(t *testing.T) {
+		api, scope := qaReportTestAPI(t, "admin")
+		runID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 1, 1, 0)
+		findingID := mustQaFinding(t, scope, runID, scope.ProjectID, "checkout")
+
+		rec := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/"+runID), "")
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), `"id":"`+runID+`"`)
+
+		empty := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/findings/promote"), `{"findingIds":[]}`)
+		require.Equal(t, http.StatusBadRequest, empty.Code, empty.Body.String())
+		require.Contains(t, empty.Body.String(), "invalid_qa_findings_promote")
+
+		promote := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/"+scope.ProjectID+"/qa-reports/findings/promote"),
+			`{"findingIds":["`+findingID+`"]}`)
+		require.Equal(t, http.StatusOK, promote.Code, promote.Body.String())
+		require.Contains(t, promote.Body.String(), `"created":true`)
+	})
 }
 
 func TestProjectQaReportFindsLastSuccessBeyondHistoryLimit(t *testing.T) {

@@ -60,6 +60,11 @@ export const contentEditorActivityLogMessages = defineMessages({
     id: "rttw694uiK",
     description: "Retry button for the file editor activity dialog",
   },
+  segmentEmptyDescription: {
+    defaultMessage: "Edits, approvals, and comments on this string will appear here.",
+    id: "CJ7kzW0wpl",
+    description: "Empty state description for the segment activity tab in the CAT details panel",
+  },
   loadMore: {
     defaultMessage: "Load more",
     id: "l1mlJzFoj/",

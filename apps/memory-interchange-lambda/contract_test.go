@@ -41,6 +41,33 @@ func TestPermanentMemoryInterchangeFailure(t *testing.T) {
 	}
 }
 
+func TestCanonicalizeMemoryLocaleFilter(t *testing.T) {
+	tests := []struct {
+		name      string
+		value     any
+		want      string
+		wantApply bool
+	}{
+		{name: "underscore locale", value: "en_US", want: "en-US", wantApply: true},
+		{name: "already canonical", value: "fr-FR", want: "fr-FR", wantApply: true},
+		{name: "trims spaces", value: "  de_DE  ", want: "de-DE", wantApply: true},
+		{name: "blank", value: "   ", wantApply: false},
+		{name: "non string", value: 12, wantApply: false},
+		{name: "nil", value: nil, wantApply: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := canonicalizeMemoryLocaleFilter(tt.value)
+			if ok != tt.wantApply {
+				t.Fatalf("canonicalizeMemoryLocaleFilter(%v) ok = %v, want %v", tt.value, ok, tt.wantApply)
+			}
+			if got != tt.want {
+				t.Fatalf("canonicalizeMemoryLocaleFilter(%v) = %q, want %q", tt.value, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestExportSlug(t *testing.T) {
 	tests := []struct {
 		name string

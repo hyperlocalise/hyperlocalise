@@ -14,6 +14,7 @@ import (
 	"net/netip"
 	"net/url"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -33,9 +34,10 @@ const (
 )
 
 type linkedDomainAPI struct {
-	workspace *workspaceAPI
-	research  researchService
-	autumn    *autumn.Client
+	workspace  *workspaceAPI
+	research   researchService
+	autumn     *autumn.Client
+	deepAudits deepAuditStarter
 }
 
 func (api *linkedDomainAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
@@ -53,6 +55,7 @@ func (api *linkedDomainAPI) register(mux *http.ServeMux, verifier SessionVerifie
 	route("PATCH "+linkedDomainBase+"/{linkedDomainId}/markets", write, api.updateMarkets)
 	route("PATCH "+linkedDomainBase+"/{linkedDomainId}/project", write, api.updateProject)
 	route("DELETE "+linkedDomainBase+"/{linkedDomainId}", write, api.cancel)
+	api.registerDeepAudits(route, read, write)
 }
 
 // handleWithWorkspace applies the same authentication and feature gate used by
@@ -326,6 +329,11 @@ func (api *linkedDomainAPI) create(r *http.Request, a workspaceActor) (any, int,
 	if err != nil {
 		return nil, 0, err
 	}
+	api.publishLinkedDomainActivity(r.Context(), a, "linked_domain_created", created, map[string]any{
+		"name":       created.DomainKey,
+		"resourceId": created.ID,
+		"status":     created.Status,
+	})
 	return map[string]any{"linkedDomain": created.public()}, 201, nil
 }
 
@@ -492,6 +500,15 @@ func (api *linkedDomainAPI) verify(r *http.Request, a workspaceActor) (any, int,
 	if err != nil {
 		return nil, 0, err
 	}
+	payload := map[string]any{
+		"name":       updated.DomainKey,
+		"resourceId": updated.ID,
+		"status":     updated.Status,
+	}
+	if updated.VerifiedMethod != nil {
+		payload["verifiedMethod"] = *updated.VerifiedMethod
+	}
+	api.publishLinkedDomainActivity(r.Context(), a, "linked_domain_verified", updated, payload)
 	return map[string]any{"linkedDomain": updated.public()}, 200, nil
 }
 
@@ -668,6 +685,20 @@ func deriveLinkedDomainProjectIdentifier(domainKey string) string {
 	return identifier
 }
 
+func (api *linkedDomainAPI) publishLinkedDomainActivity(ctx context.Context, a workspaceActor, eventType string, d linkedDomainRow, payload map[string]any) {
+	if api.workspace == nil {
+		return
+	}
+	api.workspace.publishActivity(ctx, activityLogEventInput{
+		ActorUserID:    a.userID,
+		EventType:      eventType,
+		OrganizationID: a.organizationID,
+		Payload:        payload,
+		TargetID:       d.ID,
+		TargetKind:     "linked_domain",
+	})
+}
+
 func (api *linkedDomainAPI) recordProjectCreated(ctx context.Context, a workspaceActor, projectID, name string) {
 	payload, err := json.Marshal(map[string]any{
 		"name":       name,
@@ -782,6 +813,9 @@ func (api *linkedDomainAPI) updateMarkets(r *http.Request, a workspaceActor) (an
 	if len(markets) == 0 && d.LocalisationAuditID == nil {
 		return nil, 0, workspaceFailure(400, "invalid_market_selection", "Select supported markets.")
 	}
+	if slices.Equal(normalizedMarketIDs(d.MarketIDs), markets) {
+		return map[string]any{"linkedDomain": d.public()}, 200, nil
+	}
 	_, err = api.workspace.pool.Exec(r.Context(), `update linked_domains set market_ids=$2,updated_at=now() where id=$1`, d.ID, markets)
 	if err != nil {
 		return nil, 0, err
@@ -790,6 +824,12 @@ func (api *linkedDomainAPI) updateMarkets(r *http.Request, a workspaceActor) (an
 	if err != nil {
 		return nil, 0, err
 	}
+	api.publishLinkedDomainActivity(r.Context(), a, "linked_domain_markets_changed", updated, map[string]any{
+		"name":              updated.DomainKey,
+		"nextMarketIds":     stringSlice(updated.MarketIDs),
+		"previousMarketIds": stringSlice(d.MarketIDs),
+		"resourceId":        updated.ID,
+	})
 	return map[string]any{"linkedDomain": updated.public()}, 200, nil
 }
 
@@ -838,6 +878,11 @@ func (api *linkedDomainAPI) cancel(r *http.Request, a workspaceActor) (any, int,
 	if tag.RowsAffected() == 0 {
 		return nil, 0, workspaceFailure(404, "linked_domain_not_found", "Linked domain was not found.")
 	}
+	api.publishLinkedDomainActivity(r.Context(), a, "linked_domain_cancelled", d, map[string]any{
+		"name":       d.DomainKey,
+		"resourceId": d.ID,
+		"status":     "cancelled",
+	})
 	return nil, http.StatusNoContent, nil
 }
 
@@ -883,7 +928,7 @@ func (api *linkedDomainAPI) recommendMarkets(r *http.Request, a workspaceActor) 
 	}
 	ids := append([]string{}, defaultResearchMarketIDs...)
 	for id, m := range researchMarkets {
-		if languages[m.Language] && !containsString(ids, id) {
+		if languages[m.Language] && !containsResearchMarketID(ids, id) {
 			ids = append(ids, id)
 		}
 	}
@@ -932,6 +977,15 @@ func (api *linkedDomainAPI) recommendMarkets(r *http.Request, a workspaceActor) 
 		}
 	}
 	return map[string]any{"marketRecommendations": map[string]any{"candidates": candidates, "recommended": recommended}}, 200, nil
+}
+
+func containsResearchMarketID(ids []string, id string) bool {
+	for _, candidate := range ids {
+		if candidate == id {
+			return true
+		}
+	}
+	return false
 }
 
 func (api *linkedDomainAPI) researchMarket(ctx context.Context, domain string, market researchMarket) (researchMarketVisibilityResponse, error) {

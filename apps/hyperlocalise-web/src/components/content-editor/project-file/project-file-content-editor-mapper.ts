@@ -15,6 +15,8 @@ import type {
   ProjectFileContentEditorQueueFile,
   ProjectFileContentEditorTranslation,
 } from "@/api/routes/project/project.schema";
+import { recoverMarkdownMarkupTokens } from "@/components/content-editor/message-format/content-editor-markdown-markup";
+import { isMarkdownCalloutFenceEntry } from "@/lib/markdown/markdown-callout-fence";
 import {
   analyzeCatMessageFormat,
   compareCatMessageFormats,
@@ -112,8 +114,13 @@ export function formatCheckForSegment(
   glossaryTerms: ContentEditorGlossaryTerm[] = [],
 ): ContentEditorFormatCheck[] {
   const checks: ContentEditorFormatCheck[] = [];
-  const sourceAnalysis = analyzeCatMessageFormat(segment.sourceText);
-  const targetAnalysis = analyzeCatMessageFormat(value);
+  const formatOptions = {
+    messageFormat: segment.messageFormat,
+    placeholderPatterns: segment.placeholderPatterns,
+  };
+  const sourceAnalysis = analyzeCatMessageFormat(segment.sourceText, formatOptions);
+  const recoveredValue = recoverMarkdownMarkupTokens(segment.sourceText, value) ?? value;
+  const targetAnalysis = analyzeCatMessageFormat(recoveredValue, formatOptions);
   const parityIssues = compareCatMessageFormats(sourceAnalysis, targetAnalysis);
 
   if (parityIssues.length === 0) {
@@ -191,6 +198,19 @@ function intelligenceFor(
   };
 }
 
+/** Only http and https links are shown, so a stored link can't run script when clicked. */
+function safeDesignUrl(value: string | null | undefined) {
+  if (!value) {
+    return undefined;
+  }
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function segmentIntelligenceFor(
   contentEditorFile: ContentEditorFile,
   segment: ContentEditorFile["segments"][number],
@@ -203,6 +223,7 @@ function segmentIntelligenceFor(
     segment.maxLength != null && segment.maxLength > 0 ? segment.maxLength : undefined;
 
   const segmentFormat = segment.format?.trim() || undefined;
+  const designUrl = safeDesignUrl(segment.designUrl);
 
   return {
     intent: intl.formatMessage(projectFileCatMapperMessages.segmentIntent, {
@@ -220,6 +241,8 @@ function segmentIntelligenceFor(
     productMeaning: context || undefined,
     ...(segmentType ? { segmentType } : {}),
     ...(maxLength != null ? { maxLength } : {}),
+    ...(segment.tags && segment.tags.length > 0 ? { keyTags: segment.tags } : {}),
+    ...(designUrl ? { designUrl } : {}),
     reviewerPreference: contentEditorFile.canEditTranslations
       ? providerKind
         ? intl.formatMessage(projectFileCatMapperMessages.approveWritesToProvider)
@@ -260,6 +283,13 @@ function fileContextFor(
     ...(contentEditorFile.lottieSourceUrl
       ? { lottieSourceUrl: contentEditorFile.lottieSourceUrl }
       : {}),
+    ...(contentEditorFile.documentView ? { documentView: contentEditorFile.documentView } : {}),
+    ...(contentEditorFile.ingestState ? { ingestState: contentEditorFile.ingestState } : {}),
+    ...(contentEditorFile.ingestError ? { ingestError: contentEditorFile.ingestError } : {}),
+    ...(contentEditorFile.messageFormat ? { messageFormat: contentEditorFile.messageFormat } : {}),
+    ...(contentEditorFile.placeholderPatterns?.length
+      ? { placeholderPatterns: contentEditorFile.placeholderPatterns }
+      : {}),
   };
 }
 
@@ -270,32 +300,38 @@ export function projectFileCatToWorkspaceState(
 ): ContentEditorWorkspaceState {
   const fileContext = fileContextFor(contentEditorFile, sourceLocale);
   const segmentOffset = contentEditorFile.pagination?.offset ?? 0;
-  const segments: ContentEditorQueueSegment[] = contentEditorFile.segments.map(
-    (segment, index) => ({
-      id: segment.externalStringId,
-      index: segmentOffset + index + 1,
-      key: segment.key,
-      sourceText: segment.sourceText,
-      ...(segment.contentKind ? { contentKind: segment.contentKind } : {}),
-      ...(segment.sourceAssetUrl !== undefined ? { sourceAssetUrl: segment.sourceAssetUrl } : {}),
-      ...(segment.targetAssetUrl !== undefined ? { targetAssetUrl: segment.targetAssetUrl } : {}),
-      ...(segment.imageVariantId !== undefined ? { imageVariantId: segment.imageVariantId } : {}),
-      ...(segment.looksLikeImageUrl !== undefined
-        ? { looksLikeImageUrl: segment.looksLikeImageUrl }
-        : {}),
-      ...(segment.looksLikeVideoUrl !== undefined
-        ? { looksLikeVideoUrl: segment.looksLikeVideoUrl }
-        : {}),
-      ...(segment.isHidden ? { isHidden: true } : {}),
-      ...(segment.isLocked ? { isLocked: true } : {}),
-      ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
-      ...(segment.externalResourceId ? { externalResourceId: segment.externalResourceId } : {}),
-      ...(segment.resourceType ? { resourceType: segment.resourceType } : {}),
-      ...(segment.occurrenceCount ? { occurrenceCount: segment.occurrenceCount } : {}),
-      ...(segment.groupStatus ? { groupStatus: segment.groupStatus } : {}),
-      ...(segment.divergentLocales?.length ? { divergentLocales: segment.divergentLocales } : {}),
-    }),
+  const visibleFileSegments = contentEditorFile.segments.filter(
+    (segment) => !isMarkdownCalloutFenceEntry(segment.key, segment.sourceText),
   );
+  const segments: ContentEditorQueueSegment[] = visibleFileSegments.map((segment, index) => ({
+    id: segment.externalStringId,
+    index: segmentOffset + index + 1,
+    key: segment.key,
+    sourceText: segment.sourceText,
+    ...(segment.contentKind ? { contentKind: segment.contentKind } : {}),
+    ...(segment.sourceAssetUrl !== undefined ? { sourceAssetUrl: segment.sourceAssetUrl } : {}),
+    ...(segment.targetAssetUrl !== undefined ? { targetAssetUrl: segment.targetAssetUrl } : {}),
+    ...(segment.imageVariantId !== undefined ? { imageVariantId: segment.imageVariantId } : {}),
+    ...(segment.looksLikeImageUrl !== undefined
+      ? { looksLikeImageUrl: segment.looksLikeImageUrl }
+      : {}),
+    ...(segment.looksLikeVideoUrl !== undefined
+      ? { looksLikeVideoUrl: segment.looksLikeVideoUrl }
+      : {}),
+    ...(segment.isHidden ? { isHidden: true } : {}),
+    ...(segment.isLocked ? { isLocked: true } : {}),
+    ...(segment.sourceTextEditable ? { sourceTextEditable: true } : {}),
+    ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
+    ...(segment.messageFormat ? { messageFormat: segment.messageFormat } : {}),
+    ...(segment.placeholderPatterns?.length
+      ? { placeholderPatterns: segment.placeholderPatterns }
+      : {}),
+    ...(segment.externalResourceId ? { externalResourceId: segment.externalResourceId } : {}),
+    ...(segment.resourceType ? { resourceType: segment.resourceType } : {}),
+    ...(segment.occurrenceCount ? { occurrenceCount: segment.occurrenceCount } : {}),
+    ...(segment.groupStatus ? { groupStatus: segment.groupStatus } : {}),
+    ...(segment.divergentLocales?.length ? { divergentLocales: segment.divergentLocales } : {}),
+  }));
 
   return {
     fileContext,
@@ -305,7 +341,7 @@ export function projectFileCatToWorkspaceState(
     segmentFormatChecks: {},
     intelligence: intelligenceFor(contentEditorFile, intl),
     segmentIntelligence: Object.fromEntries(
-      contentEditorFile.segments.map((segment) => [
+      visibleFileSegments.map((segment) => [
         segment.externalStringId,
         segmentIntelligenceFor(contentEditorFile, segment, intl),
       ]),

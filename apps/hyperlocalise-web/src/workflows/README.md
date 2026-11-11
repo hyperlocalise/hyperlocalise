@@ -6,11 +6,10 @@ Agent packages live under [`src/agents/`](../agents/README.md).
 
 Current agent scope:
 
-- Hyperlocalise conversational agent (`hyperlocalise/agent`) translates uploaded files and delegates to subagents.
+- Hyperlocalise conversational agent (`hyperlocalise/agent`) translates uploaded files.
 - Repository subagent reads repository context for localized messages or strings.
 - Workspace automations run via `automations/workspace/agent` orchestrator ToolLoopAgent.
 - Contentful translation is invoked inline by the workspace orchestrator via `automations/contentful/agent`.
-- TMS/provider agent workflows use `automations/provider-tms/agent` executors.
 
 ## Queue Adapter
 
@@ -22,6 +21,7 @@ apps/hyperlocalise-web/src/workflows/adapters.ts
         |
         +-- createTranslationJobEventQueue()
         |       +-- file event ----> fileTranslationJobWorkflow
+        |       +-- keys event ----> keyTranslationJobWorkflow
         |       `-- other event ---> translationJobWorkflow
         |
         +-- createEmailAgentTaskQueue()

@@ -60,6 +60,17 @@ export const contentEditorViewMenuMessages = defineMessages({
     id: "qbyieDePtF",
     description: "View menu toggle that shows or hides the string details panel",
   },
+  filesLabel: {
+    defaultMessage: "Files",
+    id: "tzsKa8xL6Z",
+    description: "View menu section label for file list options",
+  },
+  showHiddenFiles: {
+    defaultMessage: "Show hidden files",
+    id: "eGiW70wkpJ",
+    description:
+      "View menu toggle that shows or hides files whose strings are all hidden from translators",
+  },
 });
 
 export const contentEditorOverflowMenuMessages = defineMessages({
@@ -72,6 +83,11 @@ export const contentEditorOverflowMenuMessages = defineMessages({
     defaultMessage: "Download filtered view…",
     id: "cx3+OxbAb3",
     description: "Overflow menu item that opens the filtered export dialog",
+  },
+  importBilingualFile: {
+    defaultMessage: "Import bilingual file…",
+    id: "cxb+FsoLJb",
+    description: "Overflow menu item that opens the bilingual file re-import dialog",
   },
   fileActivity: {
     defaultMessage: "File activity",
@@ -97,9 +113,10 @@ export const contentEditorBulkBarMessages = defineMessages({
     description: "Number of strings selected in the Content Editor bulk action bar",
   },
   selectAllVisible: {
-    defaultMessage: "Select all visible ({count})",
-    id: "I8eNE+aJdj",
-    description: "Bulk action bar button that selects every loaded string",
+    defaultMessage: "Select all loaded ({count})",
+    id: "2WT/yGH514",
+    description:
+      "Bulk action bar button that ticks every string loaded so far, including ones scrolled out of view; count is how many are loaded",
   },
   more: {
     defaultMessage: "More",
@@ -146,6 +163,69 @@ export const contentEditorExportDialogMessages = defineMessages({
   },
 });
 
+export const contentEditorImportDialogMessages = defineMessages({
+  title: {
+    defaultMessage: "Import bilingual file",
+    id: "VzLClJsLg0",
+    description: "Title of the Content Editor bilingual import dialog",
+  },
+  description: {
+    defaultMessage:
+      "Re-import a CSV, TMX, XLF, XLIFF, or XLSX file exported from this queue to apply tag and translation fixes for {locale}. Matching keys are updated. Empty targets are skipped.",
+    id: "KrcMVcci8Z",
+    description:
+      "Description of the Content Editor bilingual import dialog. {locale} is the current target locale",
+  },
+  fileLabel: {
+    defaultMessage: "Bilingual file",
+    id: "EOTMIMF/c9",
+    description: "Label for the bilingual file picker in the import dialog",
+  },
+  chooseFile: {
+    defaultMessage: "Choose file",
+    id: "MyCHJKVL+S",
+    description: "Button that opens the bilingual file picker",
+  },
+  noFileSelected: {
+    defaultMessage: "No file selected",
+    id: "14fjm7KS5p",
+    description: "Placeholder when no bilingual file has been chosen",
+  },
+  cancel: {
+    defaultMessage: "Cancel",
+    id: "/846Cme9F7",
+    description: "Closes the bilingual import dialog without uploading",
+  },
+  import: {
+    defaultMessage: "Import",
+    id: "jPLbJdtewx",
+    description: "Starts the bilingual file import",
+  },
+  importFailed: {
+    defaultMessage: "Could not import the bilingual file.",
+    id: "57vdPa03Kj",
+    description: "Toast when bilingual import fails",
+  },
+  noneImported: {
+    defaultMessage: "No matching translations were imported.",
+    id: "R7DirRTdeG",
+    description: "Toast when bilingual import matches no keys",
+  },
+  importSuccess: {
+    defaultMessage:
+      "{imported, plural, one {Imported # translation.} other {Imported # translations.}}",
+    id: "h7ecP3kpVa",
+    description: "Toast after bilingual import. {imported} is the number of saved translations",
+  },
+  importSkipped: {
+    defaultMessage:
+      "{skipped, plural, one {Skipped # unmatched or empty row.} other {Skipped # unmatched or empty rows.}}",
+    id: "kzjEnGFmtM",
+    description:
+      "Follow-on toast text after bilingual import. {skipped} is unmatched or empty rows",
+  },
+});
+
 export const contentEditorShortcutsDialogMessages = defineMessages({
   title: {
     defaultMessage: "Keyboard shortcuts",
@@ -156,6 +236,11 @@ export const contentEditorShortcutsDialogMessages = defineMessages({
     defaultMessage: "Shortcuts work while you edit a string.",
     id: "ZJeMLihOyK",
     description: "Description of the Content Editor keyboard shortcuts dialog",
+  },
+  alternateShortcut: {
+    defaultMessage: "or",
+    id: "fC5ypafpDV",
+    description: "Separator between two key combinations that trigger the same shortcut",
   },
   approve: {
     defaultMessage: "Approve string",
@@ -192,6 +277,79 @@ export const contentEditorShortcutsDialogMessages = defineMessages({
     id: "wSzothE8ek",
     description: "Toggle in the shortcuts dialog for the editor shortcut hint strip",
   },
+  holdToReveal: {
+    defaultMessage: "Hold {key} to see shortcuts next to buttons.",
+    id: "omy5y6OpyC",
+    description:
+      "Tip in the shortcuts dialog. {key} is the Command key on Mac or Ctrl elsewhere, held down to reveal shortcut badges",
+  },
+  groupEditing: {
+    defaultMessage: "Editing",
+    id: "EX5VTr5svf",
+    description: "Keyboard shortcuts dialog section for actions on the current translation",
+  },
+  groupNavigation: {
+    defaultMessage: "Navigation",
+    id: "1oPWgOArxL",
+    description: "Keyboard shortcuts dialog section for moving between strings",
+  },
+  groupWorkspace: {
+    defaultMessage: "Workspace",
+    id: "kmJ1dyJfEZ",
+    description: "Keyboard shortcuts dialog section for panels, search, and dialogs",
+  },
+  saveDraft: {
+    defaultMessage: "Save as draft",
+    id: "SjMR/pn7Sj",
+    description: "Keyboard shortcuts dialog row for saving the current translation as a draft",
+  },
+  previousUntranslated: {
+    defaultMessage: "Previous untranslated string",
+    id: "Ew6icN4mB3",
+    description:
+      "Keyboard shortcuts dialog row for jumping back to the previous untranslated string",
+  },
+  nextUntranslated: {
+    defaultMessage: "Next untranslated string",
+    id: "geJeKohJDH",
+    description: "Keyboard shortcuts dialog row for jumping to the next untranslated string",
+  },
+  copySource: {
+    defaultMessage: "Copy source into translation",
+    id: "2naYn8OhpC",
+    description: "Keyboard shortcuts dialog row for copying the source text into the translation",
+  },
+  clearTarget: {
+    defaultMessage: "Clear translation",
+    id: "eWNRKPdE2G",
+    description: "Keyboard shortcuts dialog row for clearing the current translation",
+  },
+  useSuggestion: {
+    defaultMessage: "Use translation memory match 1–3",
+    id: "hEZ5a5ZO9w",
+    description:
+      "Keyboard shortcuts dialog row for applying one of the first three translation memory matches",
+  },
+  searchStrings: {
+    defaultMessage: "Search strings",
+    id: "iBeDAhz+Sv",
+    description: "Keyboard shortcuts dialog row for focusing the string search box",
+  },
+  toggleFilesPanel: {
+    defaultMessage: "Show or hide files panel",
+    id: "5e9bzaPtZE",
+    description: "Keyboard shortcuts dialog row for toggling the file tree panel",
+  },
+  toggleDetailsPanel: {
+    defaultMessage: "Show or hide details panel",
+    id: "Sdt1zO7EDS",
+    description: "Keyboard shortcuts dialog row for toggling the string details panel",
+  },
+  addComment: {
+    defaultMessage: "Write a comment",
+    id: "+F5FHObn7V",
+    description: "Keyboard shortcuts dialog row for focusing the comment box",
+  },
 });
 
 export const contentEditorSegmentActionsMessages = defineMessages({
@@ -214,16 +372,6 @@ export const contentEditorSegmentActionsMessages = defineMessages({
     defaultMessage: "Could not copy link",
     id: "99GL6BjW2r",
     description: "Toast when copying a link to a string fails",
-  },
-  lock: {
-    defaultMessage: "Lock string",
-    id: "DREQo1UjtT",
-    description: "Per-string menu item that locks the string",
-  },
-  unlock: {
-    defaultMessage: "Unlock string",
-    id: "wYm1Av6k2L",
-    description: "Per-string menu item that unlocks the string",
   },
   activity: {
     defaultMessage: "View activity",

@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { observer } from "mobx-react-lite";
 import { KanbanIcon, ListIcon, CrosshairIcon, TranslateIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
@@ -20,6 +21,11 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
+import {
+  formatJobFailureReason,
+  readJobFailureDetails,
+  shouldShowJobFailureDetails,
+} from "@/lib/projects/jobs/job-failure-details";
 import { nativeJobSourceFileDisplayLabel } from "@/lib/projects/jobs/native-job-source-file-display";
 import { TmsProviderBrandMark } from "@/lib/providers/shared/tms-provider-brand-mark";
 import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
@@ -27,6 +33,7 @@ import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-bran
 import { JobsGroupedList } from "./jobs-grouped-list";
 import { JobsKanbanBoard } from "./jobs-kanban-board";
 import { JobsListToolbar } from "./jobs-list-toolbar";
+import type { JobsPageStore } from "./jobs-page-store";
 import {
   buildJobDetailHref,
   readJobsViewMode,
@@ -36,11 +43,7 @@ import {
 import { jobsPageViewMessages } from "./jobs-page-view.messages";
 import { formatLocaleList, getCrowdinTargetLocales } from "./provider-crowdin-job-display";
 
-import {
-  PageHeader,
-  WorkspacePageShell,
-  type Tone,
-} from "../../_components/workspace-resource-shared";
+import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import {
   ProjectPageShell,
   ProjectSectionHeader,
@@ -54,7 +57,7 @@ export type ApiJob = {
   createdByUserId: string | null;
   assigneeType?: "user" | "agent" | null;
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
-  type: "string" | "file" | null;
+  type: "string" | "file" | "keys" | null;
   status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   createdAt: string;
   updatedAt: string;
@@ -76,6 +79,7 @@ export type ApiJob = {
   externalStatus: string | null;
   externalTitle: string | null;
   externalDueDate: string | null;
+  dueAt?: string | null;
   externalTargetLocales: string[] | null;
   externalAssignedUsers: string[] | null;
   externalSyncState: string | null;
@@ -99,12 +103,14 @@ export const jobsStatusOptions = [
 
 export type JobsStatusFilter = (typeof jobsStatusOptions)[number];
 
-type JobLinkKind = "title" | "details" | "content-editor";
+type JobLinkKind = "title" | "card" | "details" | "content-editor";
 
 export type JobsLinkRenderer = (props: {
   href: string;
   kind: JobLinkKind;
   children: ReactNode;
+  className?: string;
+  ariaLabel?: string;
 }) => ReactNode;
 
 export type JobsErrorRenderer = (props: { error: unknown; organizationSlug: string }) => ReactNode;
@@ -120,20 +126,6 @@ const jobStatusLabels = {
 
 export function formatJobStatusLabel(status: ApiJob["status"]) {
   return jobStatusLabels[status];
-}
-
-export function jobTone(status: ApiJob["status"]): Tone {
-  switch (status) {
-    case "succeeded":
-      return "safe";
-    case "failed":
-      return "risk";
-    case "queued":
-    case "waiting_for_review":
-      return "watch";
-    default:
-      return "info";
-  }
 }
 
 const RELATIVE_TIME_FORMATTER = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
@@ -306,6 +298,7 @@ function jobMatchesFilters(job: JobRow, input: { search: string; statusFilter: J
       job.kind,
       job.externalProviderKind,
       job.externalStatus,
+      job.lastError,
       targetLocales(job),
       assignees(job),
     ]
@@ -315,25 +308,65 @@ function jobMatchesFilters(job: JobRow, input: { search: string; statusFilter: J
   return matchesStatus && matchesSearch;
 }
 
-export function taskDetailSummary(job: ApiJob, intl?: IntlShape) {
+export function getJobTargetLocaleIds(job: ApiJob) {
   const fallbackTargetLocales = job.externalTargetLocales?.length
     ? job.externalTargetLocales
     : job.reviewTargetLocale
       ? [job.reviewTargetLocale]
       : getInputPayloadStringArray(job, "targetLocales");
-  const locales = formatLocaleList(getCrowdinTargetLocales(null, fallbackTargetLocales));
-  const people = assignees(job, intl);
-  if (locales === "—" && people === "—") {
-    return intl
-      ? intl.formatMessage(jobsPageViewMessages.noLocalesOrAssignees)
-      : "No locales or assignees";
-  }
-  if (locales === "—") return people;
-  if (people === "—") return locales;
-  return `${locales} · ${people}`;
+  return getCrowdinTargetLocales(null, fallbackTargetLocales);
 }
 
-function defaultRenderJobLink({ href, kind, children }: Parameters<JobsLinkRenderer>[0]) {
+export function taskDetailSummary(job: ApiJob, intl?: IntlShape) {
+  const locales = formatLocaleList(getJobTargetLocaleIds(job));
+  const people = assignees(job, intl);
+  const assignmentSummary =
+    locales === "—" && people === "—"
+      ? intl
+        ? intl.formatMessage(jobsPageViewMessages.noLocalesOrAssignees)
+        : "No locales or assignees"
+      : locales === "—"
+        ? people
+        : people === "—"
+          ? locales
+          : `${locales} · ${people}`;
+  const failure = readJobFailureDetails(job);
+  const failureParts = shouldShowJobFailureDetails(job, failure)
+    ? [
+        failure.reason ? formatJobFailureReason(failure.reason) : null,
+        failure.failedLocales.length > 0
+          ? intl
+            ? intl.formatMessage(jobsPageViewMessages.unfinishedLocales, {
+                locales: failure.failedLocales.join(", "),
+              })
+            : `Unfinished: ${failure.failedLocales.join(", ")}`
+          : null,
+      ].filter((part): part is string => Boolean(part))
+    : [];
+  if (failureParts.length === 0) {
+    return assignmentSummary;
+  }
+  if (locales === "—" && people === "—") {
+    return failureParts.join(" · ");
+  }
+  return `${assignmentSummary} · ${failureParts.join(" · ")}`;
+}
+
+function defaultRenderJobLink({
+  href,
+  kind,
+  children,
+  className,
+  ariaLabel,
+}: Parameters<JobsLinkRenderer>[0]) {
+  if (kind === "card") {
+    return (
+      <a href={href} className={className} aria-label={ariaLabel}>
+        {children}
+      </a>
+    );
+  }
+
   if (kind === "title") {
     return (
       <Button
@@ -349,7 +382,12 @@ function defaultRenderJobLink({ href, kind, children }: Parameters<JobsLinkRende
 
   if (kind === "content-editor") {
     return (
-      <Button nativeButton={false} render={<a href={href} />} size="sm" className="w-fit">
+      <Button
+        nativeButton={false}
+        render={<a href={href} aria-label={ariaLabel} />}
+        size="sm"
+        className={cn("w-fit", className)}
+      >
         <TranslateIcon />
         {children}
       </Button>
@@ -545,7 +583,7 @@ function JobsResourceSection({
   );
 }
 
-export function JobsPageView({
+export const JobsPageView = observer(function JobsPageView({
   assignedNativeJobs = [],
   buildJobDetailHref: buildDetailHref = buildJobDetailHref,
   createdNativeJobs = [],
@@ -562,6 +600,7 @@ export function JobsPageView({
   onClearFilters,
   onSearchDraftChange,
   onStatusFilterChange,
+  pageStore,
   organizationSlug,
   projectId,
   renderError = ({ error }) => <JobsPageErrorMessage error={error} />,
@@ -588,6 +627,7 @@ export function JobsPageView({
   onClearFilters?: () => void;
   onSearchDraftChange?: (value: string) => void;
   onStatusFilterChange?: (statusFilter: JobsStatusFilter) => void;
+  pageStore?: JobsPageStore;
   organizationSlug: string;
   projectId?: string;
   renderError?: JobsErrorRenderer;
@@ -601,35 +641,75 @@ export function JobsPageView({
   const intl = useIntl();
   const isSearchControlled = onSearchDraftChange != null;
   const [uncontrolledSearch, setUncontrolledSearch] = useState(initialSearch);
-  const search = isSearchControlled ? (controlledSearchDraft ?? "") : uncontrolledSearch;
-  const setSearch = isSearchControlled ? onSearchDraftChange : setUncontrolledSearch;
-  const [viewMode, setViewMode] = useState<JobsViewMode>(projectId ? "kanban" : "row");
+  const search =
+    pageStore?.searchDraft ??
+    (isSearchControlled ? (controlledSearchDraft ?? "") : uncontrolledSearch);
+  const setSearch = (value: string) => {
+    if (pageStore) {
+      pageStore.setSearchDraft(value);
+    } else if (isSearchControlled) {
+      onSearchDraftChange?.(value);
+    } else {
+      setUncontrolledSearch(value);
+    }
+  };
+  const [localViewMode, setViewMode] = useState<JobsViewMode>(projectId ? "kanban" : "row");
+  const viewMode = pageStore?.viewMode ?? localViewMode;
+  const [isViewModeRestored, setIsViewModeRestored] = useState(false);
   const [uncontrolledStatusFilter, setUncontrolledStatusFilter] =
     useState<JobsStatusFilter>(initialStatusFilter);
-  const statusFilter = controlledStatusFilter ?? uncontrolledStatusFilter;
+  const selectedStatusFilter =
+    pageStore?.statusFilter ?? controlledStatusFilter ?? uncontrolledStatusFilter;
   const listViewMode = projectId ? viewMode : "row";
+  const isBoardView = listViewMode === "kanban";
+  const statusFilter: JobsStatusFilter = isBoardView ? "all" : selectedStatusFilter;
   const activeStatus = statusFilter === "all" ? undefined : statusFilter;
 
+  const handleStatusFilterChange = useCallback(
+    (nextStatusFilter: JobsStatusFilter) => {
+      if (pageStore) {
+        pageStore.setStatusFilter(nextStatusFilter);
+        return;
+      }
+      if (controlledStatusFilter === undefined) {
+        setUncontrolledStatusFilter(nextStatusFilter);
+      }
+      onStatusFilterChange?.(nextStatusFilter);
+    },
+    [controlledStatusFilter, onStatusFilterChange, pageStore],
+  );
+
   useEffect(() => {
-    if (!projectId) {
+    if (!projectId || pageStore) {
       return;
     }
     setViewMode(readJobsViewMode());
-  }, [projectId]);
+    setIsViewModeRestored(true);
+  }, [pageStore, projectId]);
+
+  useEffect(() => {
+    if (!pageStore && isViewModeRestored && isBoardView && selectedStatusFilter !== "all") {
+      handleStatusFilterChange("all");
+    }
+  }, [handleStatusFilterChange, isBoardView, isViewModeRestored, pageStore, selectedStatusFilter]);
 
   const handleViewModeChange = (nextViewMode: JobsViewMode) => {
+    if (pageStore) {
+      pageStore.selectViewMode(nextViewMode);
+      return;
+    }
+    if (nextViewMode === "kanban" && selectedStatusFilter !== "all") {
+      handleStatusFilterChange("all");
+    }
     setViewMode(nextViewMode);
     writeJobsViewMode(nextViewMode);
   };
 
-  const handleStatusFilterChange = (nextStatusFilter: JobsStatusFilter) => {
-    if (controlledStatusFilter === undefined) {
-      setUncontrolledStatusFilter(nextStatusFilter);
-    }
-    onStatusFilterChange?.(nextStatusFilter);
-  };
-
   const handleClearFilters = () => {
+    if (pageStore) {
+      pageStore.clearFilters();
+      return;
+    }
     if (onClearFilters) {
       onClearFilters();
       return;
@@ -679,9 +759,12 @@ export function JobsPageView({
       <JobsListToolbar
         searchDraft={search}
         onSearchDraftChange={setSearch}
-        statusFilter={statusFilter}
+        statusFilter={selectedStatusFilter}
         onStatusFilterChange={handleStatusFilterChange}
         onClearFilters={handleClearFilters}
+        showStatusFilter={
+          pageStore?.showStatusFilter ?? (!isBoardView || selectedStatusFilter !== "all")
+        }
         trailing={
           projectId ? (
             <JobsViewModeToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
@@ -823,4 +906,4 @@ export function JobsPageView({
       {jobsSection}
     </WorkspacePageShell>
   );
-}
+});

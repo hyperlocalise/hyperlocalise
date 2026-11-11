@@ -67,7 +67,6 @@ export type UseCasePageContent = {
   cta: {
     headlineKey: UseCaseMessageKey;
     descriptionKey: UseCaseMessageKey;
-    primaryLabelKey: "ctaRequestDemo";
   };
 };
 
@@ -183,7 +182,6 @@ export const useCasePages: UseCasePageContent[] = [
     cta: {
       headlineKey: "productLocalisationCtaHeadline",
       descriptionKey: "productLocalisationCtaDescription",
-      primaryLabelKey: "ctaRequestDemo",
     },
   },
   {
@@ -297,7 +295,6 @@ export const useCasePages: UseCasePageContent[] = [
     cta: {
       headlineKey: "marketingLocalisationCtaHeadline",
       descriptionKey: "marketingLocalisationCtaDescription",
-      primaryLabelKey: "ctaRequestDemo",
     },
   },
   {
@@ -411,7 +408,6 @@ export const useCasePages: UseCasePageContent[] = [
     cta: {
       headlineKey: "helpCenterLocalisationCtaHeadline",
       descriptionKey: "helpCenterLocalisationCtaDescription",
-      primaryLabelKey: "ctaRequestDemo",
     },
   },
   {
@@ -525,7 +521,6 @@ export const useCasePages: UseCasePageContent[] = [
     cta: {
       headlineKey: "githubReleaseLocalisationCtaHeadline",
       descriptionKey: "githubReleaseLocalisationCtaDescription",
-      primaryLabelKey: "ctaRequestDemo",
     },
   },
   {
@@ -639,7 +634,6 @@ export const useCasePages: UseCasePageContent[] = [
     cta: {
       headlineKey: "localisationQualityMonitoringCtaHeadline",
       descriptionKey: "localisationQualityMonitoringCtaDescription",
-      primaryLabelKey: "ctaRequestDemo",
     },
   },
   {
@@ -753,7 +747,6 @@ export const useCasePages: UseCasePageContent[] = [
     cta: {
       headlineKey: "localisationOperationsCtaHeadline",
       descriptionKey: "localisationOperationsCtaDescription",
-      primaryLabelKey: "ctaRequestDemo",
     },
   },
 ];

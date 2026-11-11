@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -349,7 +350,7 @@ func TestActivityLogUserActorFilter(t *testing.T) {
 		otherUserID, "user_"+otherUserID, otherUserID+"@example.com")
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		_, _ = scope.Pool.Exec(t.Context(), `delete from users where id=$1`, otherUserID)
+		_, _ = scope.Pool.Exec(context.Background(), `delete from users where id=$1`, otherUserID)
 	})
 	mustActivityEvent(t, scope, "user", "project_deleted", "project", scope.ProjectID, []byte(`{"name":"Other App"}`), testActivityTime.Add(time.Minute), &otherUserID)
 
@@ -439,7 +440,7 @@ func TestActivityLogMembershipPayloadFallback(t *testing.T) {
 		memberUserID, "user_"+memberUserID, memberUserID+"@example.com")
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		_, _ = scope.Pool.Exec(t.Context(), `delete from users where id=$1`, memberUserID)
+		_, _ = scope.Pool.Exec(context.Background(), `delete from users where id=$1`, memberUserID)
 	})
 	payload := []byte(`{"memberUserId":"` + memberUserID + `"}`)
 	mustActivityEvent(t, scope, "system", "member_removed", "membership", testActivityTargetID, payload, testActivityTime, nil)
@@ -488,6 +489,8 @@ func TestPayloadTargetDisplayName(t *testing.T) {
 	require.Equal(t, "phrase", *payloadTargetDisplayName(map[string]any{"integrationKind": "phrase"}))
 	require.Equal(t, "hl_AbCd", *payloadTargetDisplayName(map[string]any{"keyPrefix": "hl_AbCd"}))
 	require.Equal(t, "en.json", *payloadTargetDisplayName(map[string]any{"fileName": "en.json"}))
+	require.Equal(t, "en.json", *payloadTargetDisplayName(map[string]any{"name": "   ", "fileName": "en.json"}))
+	require.Equal(t, "crowdin", *payloadTargetDisplayName(map[string]any{"name": "", "fileName": "  ", "integrationKind": "crowdin"}))
 	require.Nil(t, payloadTargetDisplayName(map[string]any{"resourceId": "resource_123"}))
 }
 
@@ -589,6 +592,64 @@ func TestActivityLogGlossaryMemoryAutomationAndOrgJobTargets(t *testing.T) {
 					id, scope.OrganizationID)
 				require.NoError(t, err)
 				return id, "Nightly sync", "/org/" + scope.Slug + "/automations/" + id
+			},
+		},
+		{
+			name:       "visual_workflow",
+			targetKind: "visual_workflow",
+			eventType:  "visual_workflow_published",
+			seed: func(t *testing.T, scope *testenv.Scope) (string, string, string) {
+				id := uuid.NewString()
+				_, err := scope.Pool.Exec(t.Context(), `
+                    insert into visual_workflows (id, organization_id, name, definition)
+                    values ($1, $2, 'Campaign pages', '{}'::jsonb)`,
+					id, scope.OrganizationID)
+				require.NoError(t, err)
+				return id, "Campaign pages", "/org/" + scope.Slug + "/automations/visual-workflows/" + id
+			},
+		},
+		{
+			name:       "dictionary",
+			targetKind: "dictionary",
+			eventType:  "dictionary_created",
+			seed: func(t *testing.T, scope *testenv.Scope) (string, string, string) {
+				id := scope.MustDictionary(t, "", "Brand names")
+				return id, "Brand names", "/org/" + scope.Slug + "/dictionaries/" + id
+			},
+		},
+		{
+			name:       "linked_domain",
+			targetKind: "linked_domain",
+			eventType:  "linked_domain_created",
+			seed: func(t *testing.T, scope *testenv.Scope) (string, string, string) {
+				id := uuid.NewString()
+				_, err := scope.Pool.Exec(t.Context(), `
+                    insert into linked_domains (
+                        id, organization_id, created_by_user_id, domain_key, domain_slug,
+                        source_url, market_ids, status, verification_token
+                    ) values ($1, $2, $3, 'example.com', 'example-com-aaaaaa',
+                        'https://example.com/', array['france-fr'], 'pending_verification', 'token')`,
+					id, scope.OrganizationID, scope.UserID)
+				require.NoError(t, err)
+				return id, "example.com", "/org/" + scope.Slug + "/domains/" + id
+			},
+		},
+		{
+			name:       "query",
+			targetKind: "query",
+			eventType:  "query_created",
+			seed: func(t *testing.T, scope *testenv.Scope) (string, string, string) {
+				id := uuid.NewString()
+				var prefix string
+				require.NoError(t, scope.Pool.QueryRow(t.Context(), `select identifier from projects where id=$1`, scope.ProjectID).Scan(&prefix))
+				identifier := prefix + "-21"
+				_, err := scope.Pool.Exec(t.Context(), `
+                    insert into issue_sheet_issues (
+                        id, organization_id, project_id, number, identifier, title
+                    ) values ($1, $2, $3, 21, $4, 'Context needed')`,
+					id, scope.OrganizationID, scope.ProjectID, identifier)
+				require.NoError(t, err)
+				return id, identifier, "/org/" + scope.Slug + "/projects/" + scope.ProjectID + "/issue-sheet/" + identifier
 			},
 		},
 		{

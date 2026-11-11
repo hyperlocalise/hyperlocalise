@@ -61,7 +61,8 @@ export class GoSvcRequest {
       throw new TypeError("Choose session or service authentication");
     this.getAccessToken = options.getAccessToken;
     this.getServiceToken = options.getServiceToken;
-    this.fetch = options.fetch ?? globalThis.fetch;
+    // Called as a method below, and the browser's own fetch refuses to run on anything but window.
+    this.fetch = options.fetch ?? ((input, init) => globalThis.fetch(input, init));
   }
 
   async response(path: string, request: GoSvcJsonRequest = {}): Promise<Response> {
@@ -86,7 +87,9 @@ export class GoSvcRequest {
       headers.set("Authorization", `Bearer ${token}`);
     }
     let body: BodyInit | undefined;
-    if (request.body !== undefined) {
+    if (request.body instanceof FormData) {
+      body = request.body;
+    } else if (request.body !== undefined) {
       headers.set("Content-Type", "application/json");
       body = JSON.stringify(request.body);
     }
@@ -147,7 +150,9 @@ export class GoSvcRequest {
 
   private async send(path: string, request: GoSvcJsonRequest): Promise<Response> {
     const response = await this.response(path, request);
-    if (!response.ok) {
+    // 207 Multi-Status is in the 2xx window, but Crowdin job create uses it for a
+    // partial failure. Treat it like an error so callers see createdCount/jobs.
+    if (!response.ok || response.status === 207) {
       throw await responseError(response);
     }
     return response;
@@ -184,6 +189,10 @@ export function issueSheetPath(
   ...segments: string[]
 ): string {
   return orgPath(organizationSlug, "projects", projectId, "issue-sheet", ...segments);
+}
+
+export function orgIssueSheetPath(organizationSlug: string, ...segments: string[]): string {
+  return orgPath(organizationSlug, "issue-sheet", ...segments);
 }
 
 export function catPath(
@@ -225,8 +234,21 @@ async function responseError(response: Response): Promise<GoSvcClientError> {
         ? body.message
         : `go-svc request failed with status ${response.status}`,
     status: response.status,
-    details: body.details,
+    details: errorDetails(body),
   });
+}
+
+function errorDetails(body: GoSvcErrorBody): unknown {
+  if (body.details !== undefined) {
+    return body.details;
+  }
+  if (body.createdCount === undefined && body.jobs === undefined) {
+    return undefined;
+  }
+  return {
+    ...(body.createdCount !== undefined ? { createdCount: body.createdCount } : {}),
+    ...(body.jobs !== undefined ? { jobs: body.jobs } : {}),
+  };
 }
 
 function isErrorEnvelope(value: unknown): value is GoSvcErrorBody {

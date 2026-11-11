@@ -147,10 +147,40 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeGithubTrigger;
     case "trigger.source_upload":
       return messages.nodeSourceUploadTrigger;
+    case "trigger.webhook":
+      return messages.nodeWebhookTrigger;
+    case "trigger.job_changed":
+      return messages.nodeJobChangedTrigger;
     case "action.http":
       return messages.nodeHttp;
     case "action.content_sync":
       return messages.nodeContentSync;
+    case "action.machine_translate":
+      return messages.nodeMachineTranslate;
+    case "action.create_task":
+      return messages.nodeCreateTask;
+    case "action.check_progress":
+      return messages.nodeCheckProgress;
+    case "action.run_qa":
+      return messages.nodeRunQa;
+    case "action.list_source_files":
+      return messages.nodeListSourceFiles;
+    case "action.file_read":
+      return messages.nodeFileRead;
+    case "action.file_write":
+      return messages.nodeFileWrite;
+    case "action.file_convert":
+      return messages.nodeFileConvert;
+    case "action.update_job":
+      return messages.nodeUpdateJob;
+    case "action.pick_assignee":
+      return messages.nodePickAssignee;
+    case "action.crowdin_pre_translate":
+      return messages.nodeCrowdinPreTranslate;
+    case "action.crowdin_create_task":
+      return messages.nodeCrowdinCreateTask;
+    case "action.crowdin_check_progress":
+      return messages.nodeCrowdinCheckProgress;
     case "action.notify_slack":
       return messages.nodeNotifySlack;
     case "action.notify_email":
@@ -161,18 +191,48 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeSwitch;
     case "logic.set":
       return messages.nodeSet;
+    case "logic.create_object":
+      return messages.nodeCreateObject;
+    case "logic.merge_objects":
+      return messages.nodeMergeObjects;
+    case "logic.select_path":
+      return messages.nodeSelectPath;
+    case "logic.coalesce":
+      return messages.nodeCoalesce;
+    case "logic.compare":
+      return messages.nodeCompare;
+    case "logic.json_parse":
+      return messages.nodeJsonParse;
+    case "logic.json_stringify":
+      return messages.nodeJsonStringify;
+    case "logic.schema_validate":
+      return messages.nodeSchemaValidate;
     case "ai.agent":
       return messages.nodeAi;
     case "logic.for_each":
       return messages.nodeLoop;
+    case "logic.array_transform":
+      return messages.nodeArrayTransform;
     case "logic.retry":
       return messages.nodeRetry;
+    case "flow.human_approval":
+      return messages.nodeHumanApproval;
     case "flow.wait":
       return messages.nodeWait;
+    case "flow.stop":
+      return messages.nodeStop;
+    case "flow.return":
+      return messages.nodeReturn;
+    case "flow.fail":
+      return messages.nodeFail;
     case "logic.merge":
       return messages.nodeMerge;
     case "logic.sequence":
       return messages.nodeSequence;
+    case "logic.try_catch":
+      return messages.nodeTryCatch;
+    case "flow.call_workflow":
+      return messages.nodeCallWorkflow;
   }
 }
 
@@ -186,10 +246,40 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeGithubTriggerHint;
     case "trigger.source_upload":
       return messages.nodeSourceUploadTriggerHint;
+    case "trigger.webhook":
+      return messages.nodeWebhookTriggerHint;
+    case "trigger.job_changed":
+      return messages.nodeJobChangedTriggerHint;
     case "action.http":
       return messages.nodeHttpHint;
     case "action.content_sync":
       return messages.nodeContentSyncHint;
+    case "action.machine_translate":
+      return messages.nodeMachineTranslateHint;
+    case "action.create_task":
+      return messages.nodeCreateTaskHint;
+    case "action.check_progress":
+      return messages.nodeCheckProgressHint;
+    case "action.run_qa":
+      return messages.nodeRunQaHint;
+    case "action.list_source_files":
+      return messages.nodeListSourceFilesHint;
+    case "action.file_read":
+      return messages.nodeFileReadHint;
+    case "action.file_write":
+      return messages.nodeFileWriteHint;
+    case "action.file_convert":
+      return messages.nodeFileConvertHint;
+    case "action.update_job":
+      return messages.nodeUpdateJobHint;
+    case "action.pick_assignee":
+      return messages.nodePickAssigneeHint;
+    case "action.crowdin_pre_translate":
+      return messages.nodeCrowdinPreTranslateHint;
+    case "action.crowdin_create_task":
+      return messages.nodeCrowdinCreateTaskHint;
+    case "action.crowdin_check_progress":
+      return messages.nodeCrowdinCheckProgressHint;
     case "action.notify_slack":
       return messages.nodeNotifySlackHint;
     case "action.notify_email":
@@ -200,18 +290,48 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeSwitchHint;
     case "logic.set":
       return messages.nodeSetHint;
+    case "logic.create_object":
+      return messages.nodeCreateObjectHint;
+    case "logic.merge_objects":
+      return messages.nodeMergeObjectsHint;
+    case "logic.select_path":
+      return messages.nodeSelectPathHint;
+    case "logic.coalesce":
+      return messages.nodeCoalesceHint;
+    case "logic.compare":
+      return messages.nodeCompareHint;
+    case "logic.json_parse":
+      return messages.nodeJsonParseHint;
+    case "logic.json_stringify":
+      return messages.nodeJsonStringifyHint;
+    case "logic.schema_validate":
+      return messages.nodeSchemaValidateHint;
     case "ai.agent":
       return messages.nodeAiHint;
     case "logic.for_each":
       return messages.nodeLoopHint;
+    case "logic.array_transform":
+      return messages.nodeArrayTransformHint;
     case "logic.retry":
       return messages.nodeRetryHint;
+    case "flow.human_approval":
+      return messages.nodeHumanApprovalHint;
     case "flow.wait":
       return messages.nodeWaitHint;
+    case "flow.stop":
+      return messages.nodeStopHint;
+    case "flow.return":
+      return messages.nodeReturnHint;
+    case "flow.fail":
+      return messages.nodeFailHint;
     case "logic.merge":
       return messages.nodeMergeHint;
     case "logic.sequence":
       return messages.nodeSequenceHint;
+    case "logic.try_catch":
+      return messages.nodeTryCatchHint;
+    case "flow.call_workflow":
+      return messages.nodeCallWorkflowHint;
   }
 }
 
@@ -221,6 +341,8 @@ function categoryMessage(category: VisualCatalogCategory) {
       return messages.categoryTrigger;
     case "action":
       return messages.categoryAction;
+    case "localization":
+      return messages.categoryLocalization;
     case "logic":
       return messages.categoryLogic;
     case "ai":
@@ -229,3 +351,6 @@ function categoryMessage(category: VisualCatalogCategory) {
       return messages.categoryFlow;
   }
 }
+
+/** The catalogue title of a node type, for places that name nodes outside the picker. */
+export { titleFor as visualWorkflowNodeTitleMessage };

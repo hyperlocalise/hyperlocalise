@@ -74,7 +74,14 @@ func memoryPage(r *http.Request, defaultLimit, maxLimit int) (int, int, error) {
 }
 
 func (api *memoryAPI) getMemoryHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
-	return map[string]any{"memory": m}, 200, nil
+	records := []memoryRecord{m}
+	if err := api.attachNativeMemoryEntryStats(r.Context(), records); err != nil {
+		return nil, 0, err
+	}
+	if err := api.attachMemoryProjectCounts(r.Context(), actor, records); err != nil {
+		return nil, 0, err
+	}
+	return map[string]any{"memory": records[0]}, 200, nil
 }
 
 func (api *memoryAPI) patchMemoryHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
@@ -105,6 +112,11 @@ func (api *memoryAPI) listMemories(r *http.Request, actor memoryActor) (any, int
 		args = append(args, projectID)
 		where += ` and exists(select 1 from project_memories pm where pm.memory_id=m.id and pm.organization_id=$1 and pm.project_id=$` + strconv.Itoa(len(args)) + `)`
 	}
+	source := trimMemoryInput(r.URL.Query().Get("source"))
+	if source == "native" || source == "external_tms" {
+		args = append(args, source)
+		where += ` and m.source=$` + strconv.Itoa(len(args))
+	}
 	limitPos := len(args) + 1
 	offsetPos := len(args) + 2
 	args = append(args, limit, offset)
@@ -123,6 +135,12 @@ func (api *memoryAPI) listMemories(r *http.Request, actor memoryActor) (any, int
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	if err := api.attachNativeMemoryEntryStats(r.Context(), records); err != nil {
+		return nil, 0, err
+	}
+	if err := api.attachMemoryProjectCounts(r.Context(), actor, records); err != nil {
 		return nil, 0, err
 	}
 	countArgs := args[:len(args)-2]
@@ -147,14 +165,41 @@ func (api *memoryAPI) createMemory(r *http.Request, actor memoryActor) (any, int
 		description = *payload.Description
 	}
 	m, err := scanMemory(api.pool.QueryRow(r.Context(), `insert into memories as m (organization_id, created_by_user_id, name, description) values ($1,$2,$3,$4) returning `+memoryColumns, actor.organizationID, actor.userID, *payload.Name, description), actor)
-	return map[string]any{"memory": m}, 201, err
+	if err != nil {
+		return nil, 0, err
+	}
+	createdPayload := map[string]any{
+		"name":       m.Name,
+		"resourceId": m.ID,
+		"source":     m.Source,
+	}
+	if m.ExternalProviderKind != nil {
+		createdPayload["providerKind"] = *m.ExternalProviderKind
+	}
+	api.trackMemoryCreated(r.Context())
+	api.publishActivity(r.Context(), activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "translation_memory_created",
+		OrganizationID: actor.organizationID,
+		Payload:        createdPayload,
+		TargetID:       m.ID,
+		TargetKind:     "translation_memory",
+	})
+	return map[string]any{"memory": m}, 201, nil
+}
+
+func (api *memoryAPI) trackMemoryCreated(ctx context.Context) {
+	if api == nil || api.analytics == nil {
+		return
+	}
+	api.analytics.Track(ctx, productUsageMemoryCreatedEvent, map[string]string{
+		"status": productUsageMemoryCreatedStatus,
+		"source": productUsageMemoryCreatedSource,
+	})
 }
 
 func (api *memoryAPI) patchMemory(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
-	if !actor.canWriteMemories() {
-		return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
-	}
-	if err := requireNativeMemory(m); err != nil {
+	if denied, err := api.denyMemoryAction(r.Context(), actor, m, "edit", true, false); denied {
 		return nil, 0, err
 	}
 	var payload memoryPayload
@@ -172,17 +217,25 @@ func (api *memoryAPI) patchMemory(r *http.Request, actor memoryActor, m memoryRe
 }
 
 func (api *memoryAPI) deleteMemory(ctx context.Context, actor memoryActor, m memoryRecord) (any, int, error) {
-	if !actor.canWriteMemories() {
-		return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
-	}
-	if err := requireNativeMemory(m); err != nil {
+	if denied, err := api.denyMemoryAction(ctx, actor, m, "delete", true, true); denied {
 		return nil, 0, err
 	}
-	if m.Status == "archived" {
-		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
-	}
 	_, err := api.pool.Exec(ctx, `delete from memories where id=$1 and organization_id=$2 and source='native'`, m.ID, actor.organizationID)
-	return nil, 204, err
+	if err != nil {
+		return nil, 0, err
+	}
+	api.publishActivity(ctx, activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "translation_memory_deleted",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"name":       m.Name,
+			"resourceId": m.ID,
+		},
+		TargetID:   m.ID,
+		TargetKind: "translation_memory",
+	})
+	return nil, 204, nil
 }
 
 func normalizeMemoryProjectID(raw string) string {
@@ -261,10 +314,7 @@ func (api *memoryAPI) listMemoryProjects(r *http.Request, actor memoryActor, m m
 }
 
 func (api *memoryAPI) attachMemoryProject(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
-	if !actor.canWriteMemories() {
-		return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
-	}
-	if err := requireNativeMemory(m); err != nil {
+	if denied, err := api.denyMemoryAction(r.Context(), actor, m, "edit", true, true); denied {
 		return nil, 0, err
 	}
 	var payload memoryAttachmentPayload
@@ -287,23 +337,177 @@ func (api *memoryAPI) attachMemoryProject(r *http.Request, actor memoryActor, m 
 	if err != nil {
 		return nil, 0, err
 	}
+	api.publishActivity(ctx, activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "translation_memory_project_attached",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"projectId":  projectID,
+			"resourceId": m.ID,
+		},
+		TargetID:   projectID,
+		TargetKind: "project",
+	})
 	return api.listMemoryProjects(r, actor, m)
 }
 
 func (api *memoryAPI) detachMemoryProject(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
-	if !actor.canWriteMemories() {
-		return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
-	}
-	if err := requireNativeMemory(m); err != nil {
+	if denied, err := api.denyMemoryAction(r.Context(), actor, m, "edit", true, true); denied {
 		return nil, 0, err
-	}
-	if m.Status == "archived" {
-		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
 	}
 	projectID, err := api.ownedMemoryProject(r.Context(), actor, r.PathValue("projectId"))
 	if err != nil {
 		return nil, 0, err
 	}
-	_, err = api.pool.Exec(r.Context(), `delete from project_memories where memory_id=$1 and project_id=$2 and organization_id=$3`, m.ID, projectID, actor.organizationID)
-	return nil, 204, err
+	tag, err := api.pool.Exec(r.Context(), `delete from project_memories where memory_id=$1 and project_id=$2 and organization_id=$3`, m.ID, projectID, actor.organizationID)
+	if err != nil {
+		return nil, 0, err
+	}
+	if tag.RowsAffected() > 0 {
+		api.publishActivity(r.Context(), activityLogEventInput{
+			ActorUserID:    actor.userID,
+			EventType:      "translation_memory_project_detached",
+			OrganizationID: actor.organizationID,
+			Payload: map[string]any{
+				"projectId":  projectID,
+				"resourceId": m.ID,
+			},
+			TargetID:   projectID,
+			TargetKind: "project",
+		})
+	}
+	return nil, 204, nil
+}
+
+func (api *memoryAPI) denyMemoryAction(ctx context.Context, actor memoryActor, m memoryRecord, action string, requireNative, rejectArchived bool) (bool, error) {
+	if !actor.canWriteMemories() {
+		return true, api.rejectMemoryAction(ctx, actor, m, action, "unauthorized", memoryFailure(403, "forbidden", "Insufficient permissions"))
+	}
+	if requireNative {
+		if err := requireNativeMemory(m); err != nil {
+			return true, api.rejectMemoryAction(ctx, actor, m, action, "read_only", err)
+		}
+	}
+	if rejectArchived && m.Status == "archived" {
+		return true, api.rejectMemoryAction(ctx, actor, m, action, "archived", memoryFailure(403, "memory_action_archived", "This translation memory is archived"))
+	}
+	return false, nil
+}
+
+func (api *memoryAPI) rejectMemoryAction(ctx context.Context, actor memoryActor, m memoryRecord, action, reason string, err error) error {
+	api.publishActivity(ctx, activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "translation_memory_action_rejected",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"action":     action,
+			"reason":     reason,
+			"resourceId": m.ID,
+		},
+		TargetID:   m.ID,
+		TargetKind: "translation_memory",
+	})
+	return err
+}
+
+func (api *memoryAPI) attachNativeMemoryEntryStats(ctx context.Context, records []memoryRecord) error {
+	nativeIDs := make([]string, 0, len(records))
+	for _, record := range records {
+		if record.Source == "native" {
+			nativeIDs = append(nativeIDs, record.ID)
+		}
+	}
+	if len(nativeIDs) == 0 {
+		return nil
+	}
+
+	countByMemory := make(map[string]int, len(nativeIDs))
+	localeCoverageByMemory := make(map[string][]string, len(nativeIDs))
+	for _, id := range nativeIDs {
+		countByMemory[id] = 0
+		localeCoverageByMemory[id] = []string{}
+	}
+
+	rows, err := api.pool.Query(ctx, `
+		with locale_union as (
+			select memory_id, source_locale as locale
+			from memory_entries
+			where memory_id = any($1::uuid[]) and source_locale <> ''
+			union
+			select memory_id, target_locale as locale
+			from memory_entries
+			where memory_id = any($1::uuid[]) and target_locale <> ''
+		),
+		locale_agg as (
+			select memory_id, array_agg(distinct locale order by locale) as locale_coverage
+			from locale_union
+			group by memory_id
+		),
+		count_agg as (
+			select memory_id, count(*)::int as segment_count
+			from memory_entries
+			where memory_id = any($1::uuid[])
+			group by memory_id
+		)
+		select c.memory_id, c.segment_count, coalesce(l.locale_coverage, '{}'::text[])
+		from count_agg c
+		left join locale_agg l using (memory_id)`, nativeIDs)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var memoryID string
+		var count int
+		var localeCoverage []string
+		if scanErr := rows.Scan(&memoryID, &count, &localeCoverage); scanErr != nil {
+			return scanErr
+		}
+		countByMemory[memoryID] = count
+		if localeCoverage == nil {
+			localeCoverage = []string{}
+		}
+		localeCoverageByMemory[memoryID] = localeCoverage
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for i := range records {
+		if records[i].Source != "native" {
+			continue
+		}
+		count := countByMemory[records[i].ID]
+		records[i].SegmentCount = &count
+		records[i].LocaleCoverage = localeCoverageByMemory[records[i].ID]
+	}
+	return nil
+}
+
+func (api *memoryAPI) attachMemoryProjectCounts(ctx context.Context, actor memoryActor, records []memoryRecord) error {
+	if len(records) == 0 {
+		return nil
+	}
+	ids := make([]string, len(records))
+	index := make(map[string]int, len(records))
+	for i, record := range records {
+		ids[i] = record.ID
+		index[record.ID] = i
+	}
+	rows, err := api.pool.Query(ctx, `select a.memory_id, count(*) from project_memories a join projects p on p.id=a.project_id where a.memory_id=any($1::uuid[]) and a.organization_id=$2 and p.organization_id=$2 and ($3 or exists(select 1 from team_memberships m join teams t on t.id=m.team_id where m.user_id=$4 and t.organization_id=$2 and (t.id=p.team_id or (p.team_id is null and t.slug='default')))) group by a.memory_id`, ids, actor.organizationID, actor.orgWideAccess(), actor.userID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var memoryID string
+		var count int
+		if scanErr := rows.Scan(&memoryID, &count); scanErr != nil {
+			return scanErr
+		}
+		if i, ok := index[memoryID]; ok {
+			records[i].ProjectCount = count
+		}
+	}
+	return rows.Err()
 }

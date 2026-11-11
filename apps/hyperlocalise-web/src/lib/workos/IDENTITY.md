@@ -13,13 +13,13 @@ Hyperlocalise treats WorkOS as the authoritative source for organization members
 
 ## Access vs cached profile data
 
-| Data                                                    | Source of truth                                       | Used for                                  |
-| ------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------- |
-| Organization membership (active)                        | WorkOS `organization_membership` with `status=active` | API/app authorization                     |
-| Membership role                                         | WorkOS membership role slug (1:1)                     | Capability checks after reconcile/webhook |
-| User email, name, avatar                                | WorkOS user profile (cached in `users`)               | Display and audit only                    |
-| Pending invite rows (`workos_membership_id IS NULL`)    | Local workflow state                                  | Member list UI, not access                |
-| Replacing sentinel (`workos_membership_id = replacing`) | Local workflow state                                  | In-flight invite replacement, not access  |
+| Data                                                    | Source of truth                                       | Used for                                       |
+| ------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------- |
+| Organization membership (active)                        | WorkOS `organization_membership` with `status=active` | API/app authorization                          |
+| Membership role                                         | WorkOS membership role slug (1:1)                     | Capability checks after reconcile/webhook      |
+| User email, name, avatar                                | WorkOS user profile (cached in `users`)               | Display and audit only                         |
+| Pending invite rows (`workos_membership_id IS NULL`)    | Local workflow state                                  | Member list and picker invitations, not access |
+| Replacing sentinel (`workos_membership_id = replacing`) | Local workflow state                                  | In-flight invite replacement, not access       |
 
 Role slugs and the product capability matrix:
 [`src/api/auth/LOCALIZATION_ROLES.md`](../../api/auth/LOCALIZATION_ROLES.md).
@@ -86,8 +86,10 @@ token credentials, trusted permissions matching PAT scopes plus `mcp`. See
 
 Human WorkOS session access tokens (the JWT inside an AuthKit session) are a
 second credential for go-svc. Verify them against the WorkOS User Management
-JWKS (`/sso/jwks/{client_id}`), not AuthKit agent JWKS. Reject tokens that
-carry `act` so agent credentials cannot reach dictionary, team, or CAT routes.
+JWKS (`/sso/jwks/{client_id}`), not AuthKit agent JWKS. Require `sub` to be a
+WorkOS user id (`user_...`). Accept `act` only in the impersonation shape
+(`act.sub` is the admin's email) and reject `act.sub` values that are user ids,
+so agent credentials cannot reach dictionary, team, or CAT routes.
 See [`docs/adr/2026-09-20-go-svc-workos-access-token-design.md`](../../../../docs/adr/2026-09-20-go-svc-workos-access-token-design.md).
 
 ## Placeholder users

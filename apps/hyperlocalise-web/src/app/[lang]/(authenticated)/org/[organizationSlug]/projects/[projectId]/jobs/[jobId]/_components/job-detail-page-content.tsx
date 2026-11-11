@@ -15,6 +15,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api-client-instance";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   parseProviderJobId,
   resolveEncodedProviderJobId,
@@ -33,6 +35,8 @@ export function JobDetailPageContent({
   organizationSlug,
   projectId,
   canEditJobFields,
+  canMarkAnyTaskDone = false,
+  currentUserId,
   canEditSharedCredentialProviderJobFields = false,
   reportsEnabled = false,
 }: {
@@ -40,9 +44,12 @@ export function JobDetailPageContent({
   organizationSlug: string;
   projectId: string;
   canEditJobFields: boolean;
+  canMarkAnyTaskDone?: boolean;
+  currentUserId?: string;
   canEditSharedCredentialProviderJobFields?: boolean;
   reportsEnabled?: boolean;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
   const encodedProviderJobFromRoute = parseProviderJobId(jobId);
 
@@ -50,6 +57,14 @@ export function JobDetailPageContent({
     queryKey: ["job-routing", organizationSlug, projectId, jobId],
     enabled: !encodedProviderJobFromRoute,
     queryFn: async () => {
+      try {
+        const body = await goSvcClient.job.get<JobDetailRecord>(organizationSlug, jobId);
+        return body.job.projectId === projectId ? body.job : null;
+      } catch (error) {
+        if (!(error instanceof GoSvcClientError) || error.status !== 404) {
+          throw error;
+        }
+      }
       const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].$get({
         param: { organizationSlug, jobId },
       });
@@ -110,6 +125,8 @@ export function JobDetailPageContent({
       organizationSlug={organizationSlug}
       projectId={projectId}
       canEditJobFields={canEditJobFields}
+      canMarkAnyTaskDone={canMarkAnyTaskDone}
+      currentUserId={currentUserId}
       reportsEnabled={reportsEnabled}
     />
   );

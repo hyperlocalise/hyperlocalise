@@ -69,6 +69,11 @@ configured target path and updates the lockfile.
 
 - Strict FormatJS catalogs are detected automatically: `defaultMessage` is translated and `description` supplies context. See [FormatJS](/cli/reference/formats/formatjs).
 
+- `hl entries messages.json --import-settings settings.json` can keep only
+  `json.keyPaths`, drop `json.excludeKeyPaths`, copy sibling
+  `json.contextFields` or `json.characterLimitFields`, and mark HTML or ICU
+  string values with `json.htmlSubfilter` or `json.icuSubfilter`.
+
 ## Next steps
 
 - [Check translations](/cli/commands/check) before committing generated files.
@@ -79,4 +84,5 @@ configured target path and updates the lockfile.
 
 - [JSONC localization](/cli/reference/formats/jsonc)
 - [FormatJS and React Intl catalogs](/cli/reference/formats/formatjs)
+- [next-intl and ICU messages](/platform/tutorials/next-intl)
 - [YAML localization](/cli/reference/formats/yaml)

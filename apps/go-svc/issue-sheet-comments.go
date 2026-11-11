@@ -58,7 +58,8 @@ func (api *issueSheetAPI) createComment(ctx context.Context, actor issueSheetAct
 		depth = parentDepth + 1
 	}
 
-	mentionedUsers, _ := json.Marshal(uniqueStrings(body.MentionedUserIDs))
+	mentionedUserIDs := uniqueStrings(body.MentionedUserIDs)
+	mentionedUsers, _ := json.Marshal(mentionedUserIDs)
 	mentionedIssues, _ := json.Marshal(uniqueStrings(body.MentionedIssueIDs))
 
 	tx, err := api.pool.Begin(ctx)
@@ -105,10 +106,17 @@ func (api *issueSheetAPI) createComment(ctx context.Context, actor issueSheetAct
 		actor.organizationID, project.ID, issueID, actor.userID); err != nil {
 		return nil, 0, err
 	}
+	if err := subscribeUsersToIssue(ctx, tx, actor.organizationID, project.ID, issueID, mentionedUserIDs, true); err != nil {
+		return nil, 0, err
+	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, 0, err
 	}
+
+	api.safeNotify(r, "comment_created", func() error {
+		return api.notifyCommentCreated(ctx, api.pool, actor.organizationID, project.ID, issueID, actor.userID, commentID, body.Body, mentionedUserIDs)
+	})
 
 	comment, err := api.loadCommentByID(ctx, actor, commentID)
 	if err != nil {
@@ -175,10 +183,11 @@ func (api *issueSheetAPI) updateComment(ctx context.Context, actor issueSheetAct
 		return nil, 0, err
 	}
 	var authorUserID *string
+	var previousMentionedRaw []byte
 	err = api.pool.QueryRow(ctx, `
-        select author_user_id from issue_sheet_comments
+        select author_user_id, mentioned_user_ids from issue_sheet_comments
         where id = $1 and issue_id = $2 and organization_id = $3 and project_id = $4`,
-		commentID, issueID, actor.organizationID, project.ID).Scan(&authorUserID)
+		commentID, issueID, actor.organizationID, project.ID).Scan(&authorUserID, &previousMentionedRaw)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, issueSheetFailure(404, "comment_not_found", "Comment not found")
 	}
@@ -192,7 +201,8 @@ func (api *issueSheetAPI) updateComment(ctx context.Context, actor issueSheetAct
 	if !canMutateIssueComment(author, actor.userID, actor.role) {
 		return nil, 0, issueSheetFailure(403, "forbidden", "Not allowed to modify this comment")
 	}
-	mentionedUsers, _ := json.Marshal(uniqueStrings(body.MentionedUserIDs))
+	mentionedUserIDs := uniqueStrings(body.MentionedUserIDs)
+	mentionedUsers, _ := json.Marshal(mentionedUserIDs)
 	mentionedIssues, _ := json.Marshal(uniqueStrings(body.MentionedIssueIDs))
 	_, err = api.pool.Exec(ctx, `
         update issue_sheet_comments
@@ -202,6 +212,26 @@ func (api *issueSheetAPI) updateComment(ctx context.Context, actor issueSheetAct
 	if err != nil {
 		return nil, 0, err
 	}
+	if err := subscribeUsersToIssue(ctx, api.pool, actor.organizationID, project.ID, issueID, mentionedUserIDs, true); err != nil {
+		return nil, 0, err
+	}
+
+	var previousMentioned []string
+	_ = json.Unmarshal(previousMentionedRaw, &previousMentioned)
+	previousMentionedSet := make(map[string]bool, len(previousMentioned))
+	for _, userID := range previousMentioned {
+		previousMentionedSet[userID] = true
+	}
+	addedMentionedUserIDs := make([]string, 0, len(mentionedUserIDs))
+	for _, userID := range mentionedUserIDs {
+		if !previousMentionedSet[userID] {
+			addedMentionedUserIDs = append(addedMentionedUserIDs, userID)
+		}
+	}
+	api.safeNotify(r, "comment_mentions_added", func() error {
+		return api.notifyMentions(ctx, api.pool, actor.organizationID, project.ID, issueID, actor.userID, commentID, body.Body, addedMentionedUserIDs)
+	})
+
 	comment, err := api.loadCommentByID(ctx, actor, commentID)
 	if err != nil {
 		return nil, 0, err

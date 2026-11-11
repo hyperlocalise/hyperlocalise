@@ -105,9 +105,8 @@ export const aiEnginePageContentMessages = defineMessages({
     description: "Hyperlocalise Agent Translation capability name",
   },
   capabilityTranslationDescription: {
-    defaultMessage:
-      "File and string translation jobs, batch localization, and translation subagents.",
-    id: "nqV2qZ+dzM",
+    defaultMessage: "Translates strings in chat and creates file and batch translation jobs.",
+    id: "9EZj17Y9iS",
     description: "Hyperlocalise Agent Translation capability description",
   },
   capabilityCodingName: {

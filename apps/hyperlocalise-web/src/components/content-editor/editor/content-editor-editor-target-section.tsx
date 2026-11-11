@@ -30,6 +30,7 @@ import {
   ContentEditorIcuStructureSummary,
   ContentEditorTargetEditor,
 } from "./content-editor-target-editor";
+import { ContentEditorShortcutHint } from "./content-editor-shortcut-hints";
 
 export function ContentEditorEditorTargetSection({
   segment,
@@ -47,8 +48,12 @@ export function ContentEditorEditorTargetSection({
   onClearTarget: () => void;
 }) {
   const sourceMessageAnalysis = useMemo(
-    () => analyzeCatMessageFormat(segment.sourceText),
-    [segment.sourceText],
+    () =>
+      analyzeCatMessageFormat(segment.sourceText, {
+        messageFormat: segment.messageFormat,
+        placeholderPatterns: segment.placeholderPatterns,
+      }),
+    [segment.messageFormat, segment.placeholderPatterns, segment.sourceText],
   );
 
   return (
@@ -67,18 +72,27 @@ export function ContentEditorEditorTargetSection({
         ) : null}
         {canEditTarget ? (
           <div className="flex flex-wrap items-center gap-1">
-            <Button variant="ghost" size="xs" onClick={onCopySource} disabled={isLoading}>
+            <Button
+              variant="ghost"
+              size="xs"
+              className="relative"
+              onClick={onCopySource}
+              disabled={isLoading}
+            >
               <CopyIcon className="size-3" aria-hidden />
               <FormattedMessage {...contentEditorEditorPanelMessages.copySource} />
+              <ContentEditorShortcutHint shortcut="copySource" />
             </Button>
             <Button
               variant="ghost"
               size="xs"
+              className="relative"
               onClick={onClearTarget}
               disabled={isLoading || segment.targetText.length === 0}
             >
               <EraserIcon className="size-3" aria-hidden />
               <FormattedMessage {...contentEditorEditorPanelMessages.clearTarget} />
+              <ContentEditorShortcutHint shortcut="clearTarget" />
             </Button>
           </div>
         ) : null}
@@ -89,8 +103,11 @@ export function ContentEditorEditorTargetSection({
         <ContentEditorTargetEditor
           key={segment.id}
           sourceText={segment.sourceText}
+          sourcePath={segment.sourcePath}
           value={segment.targetText}
           maxLength={segment.maxLength}
+          messageFormat={segment.messageFormat}
+          placeholderPatterns={segment.placeholderPatterns}
           onChange={onTargetChange}
           disabled={!canEditTarget}
         />

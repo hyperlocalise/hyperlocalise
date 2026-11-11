@@ -81,7 +81,7 @@ async function seedExternalProject(input: { organizationId: string; userId: stri
       identifier: uniqueTestProjectIdentifier(),
       organizationId: input.organizationId,
       createdByUserId: input.userId,
-      name: "Crowdin App",
+      name: "Crowdin Project",
       source: "external_tms",
       externalProviderKind: "crowdin",
       externalProjectId: `crowdin_${crypto.randomUUID()}`,

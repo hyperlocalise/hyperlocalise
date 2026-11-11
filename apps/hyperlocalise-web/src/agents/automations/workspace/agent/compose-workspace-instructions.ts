@@ -23,21 +23,17 @@ export function composeWorkspaceAutomationInstructions(input: {
   triggerMode: WorkspaceAutomationTriggerConfig["mode"];
   plan: WorkspaceOrchestratorPlan;
 }) {
-  // Org Memory access is a tool call, not text pasted into these instructions — see
-  // recall_memory.ts / save_memory.ts. These two lines are only a nudge so the agent knows the
-  // tools exist and when to reach for them; the actual guidance never lands in the prompt here.
+  // Guideline lookup is a tool call, not text pasted into these instructions — see
+  // recall_memory.ts. These two lines are only a nudge so the agent knows the tool exists and
+  // when to reach for it; the actual guidance never lands in the prompt here.
   const hasRecallMemory = input.plan.tools.includes("recall_memory");
-  const hasSaveMemory = input.plan.tools.includes("save_memory");
 
   const enabledToolsSection = [
     "## Enabled tools",
     `Trigger mode: ${input.triggerMode}.`,
     `Execution plan: ${input.plan.tools.map((tool) => `\`${tool}\``).join(" → ") || "none"}.`,
     hasRecallMemory
-      ? "You have a recall_memory tool for workspace and project guidance. Call it when relevant to this automation's task."
-      : null,
-    hasSaveMemory
-      ? "You have a save_memory tool. Use it only when this automation's own instructions say to remember something."
+      ? "You have a recall_memory tool for workspace and project guideline documents. Call it when relevant to this automation's task."
       : null,
     input.plan.tools.includes("use_crowdin")
       ? "After use_crowdin, merge per-key Crowdin evidence into the Translation review report before notify. Do not append a separate Crowdin section."

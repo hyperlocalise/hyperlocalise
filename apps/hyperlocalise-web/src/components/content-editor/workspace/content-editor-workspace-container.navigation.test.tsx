@@ -211,7 +211,7 @@ describe("ContentEditorWorkspaceContainer queue navigation", () => {
     await user.click(targetEditor);
     await user.keyboard(" unsaved");
     await user.click(await screen.findByRole("button", { name: "Filter queue" }));
-    await user.click(await screen.findByRole("menuitemradio", { name: "Approved" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Approved" }));
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Filter queue" })).toHaveTextContent("Approved");

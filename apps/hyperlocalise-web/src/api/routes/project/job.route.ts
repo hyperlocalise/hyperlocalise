@@ -17,7 +17,6 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import {
-  isAiActionAllowed,
   isJobCreateAllowed,
   isJobMutationAllowed,
   isJobProviderActionAllowed,
@@ -37,6 +36,8 @@ import {
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
+import { insertJobs, updateJobs } from "@/lib/job-change-events/job-writes";
+import { startTaskAnalysis } from "@/lib/reporting/task-analysis-start";
 import {
   ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
@@ -47,21 +48,30 @@ import {
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
+import {
+  addKeyJobStrings,
+  keyJobKeyCountSql,
+  insertKeyJobKeys,
+  KeyJobSelectionFailure,
+  keyJobInputPayload,
+  restartKeyJobTaskAnalysis,
+  keyJobSelectionMessages,
+} from "@/lib/projects/jobs/key-job";
 import { isErr } from "@/lib/primitives/result/results";
 import {
-  enqueueJobCancelledActivity,
   enqueueJobCreatedActivity,
   enqueueJobFailedActivity,
+} from "@/lib/activity-log/job-automation-events";
+import { recordJobEvents } from "@/lib/job-events/job-events-writer";
+import {
+  enqueueJobUpdatedActivity,
+  jobUpdatedFields,
 } from "@/lib/activity-log/job-automation-events";
 import {
   assertOrganizationCanEnqueueTranslationJobInTransaction,
   OrganizationJobBudgetExceededError,
 } from "@/lib/security/organization-operation-budget";
-import {
-  getOrganizationJobById,
-  listOrganizationJobs,
-  listOrganizationProjectJobs,
-} from "@/lib/projects/jobs/organization-job-query-service";
+import { getOrganizationJobById } from "@/lib/projects/jobs/organization-job-query-service";
 import { mergeNativeFileTranslationJobMetadata } from "@/lib/projects/jobs/enqueue-file-translation-job";
 import { enrichJobWithSourceFileDisplay } from "@/lib/projects/jobs/enrich-jobs-with-source-file-names";
 import type {
@@ -77,11 +87,8 @@ import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales
 
 import {
   projectForbiddenResponse,
-  getOwnedProject,
   getOwnedProjectRecord,
   projectNotFoundResponse,
-  providerProjectUnavailableResponse,
-  resolveProjectResourceTarget,
   scheduleProjectNotFoundDiagnostics,
 } from "./project.shared";
 import {
@@ -110,14 +117,18 @@ import {
   workspaceAgentRunParamsSchema,
 } from "./agent-run.schema";
 import {
+  addKeyJobStringsBodySchema,
   createJobBodySchema,
-  jobListQuerySchema,
   jobParamsSchema,
   jobProjectParamsSchema,
   updateJobBodySchema,
   workspaceJobParamsSchema,
 } from "./job.schema";
 import { updateNativeJob } from "@/lib/projects/jobs/update-native-job";
+import { cancelNativeJob } from "@/lib/projects/jobs/cancel-native-job";
+import { markTaskDone } from "@/lib/projects/jobs/mark-task-done";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
+import { hasCapability } from "@/api/auth/policy";
 
 type CreateJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
@@ -165,6 +176,7 @@ const jobSelect = {
   externalStatus: schema.externalJobDetails.externalStatus,
   externalTitle: schema.externalJobDetails.title,
   externalDueDate: schema.externalJobDetails.dueDate,
+  dueAt: schema.jobs.dueAt,
   externalTargetLocales: schema.externalJobDetails.targetLocales,
   externalAssignedUsers: schema.externalJobDetails.assignedUsers,
   externalUrl: schema.externalJobDetails.externalUrl,
@@ -174,6 +186,7 @@ const jobSelect = {
   createdAt: schema.jobs.createdAt,
   updatedAt: schema.jobs.updatedAt,
   completedAt: schema.jobs.completedAt,
+  keyCount: keyJobKeyCountSql,
 };
 
 const jobWithProjectSelect = {
@@ -213,8 +226,8 @@ async function activeJobWhere(auth: ApiAuthContext, jobId: string) {
     eq(schema.jobs.id, jobId),
     await buildAccessibleJobsWhere(auth),
     // Include waiting_for_review so native proofread jobs (and review-gated
-    // translation jobs) can be cancelled or marked failed — they count toward
-    // the open-job budget and otherwise have no completion path.
+    // translation jobs) can be cancelled — they count toward the open-job
+    // budget and otherwise have no completion path.
     or(
       eq(schema.jobs.status, "queued"),
       eq(schema.jobs.status, "running"),
@@ -232,21 +245,15 @@ async function activeJobWhere(auth: ApiAuthContext, jobId: string) {
   );
 }
 
+async function agentActiveJobWhere(auth: ApiAuthContext, jobId: string) {
+  return and(await activeJobWhere(auth, jobId), eq(schema.jobs.assigneeType, "agent"));
+}
+
 const validateProjectParams = validator("param", (value, c) => {
   const parsed = jobProjectParamsSchema.safeParse(value);
 
   if (!parsed.success) {
     return projectNotFoundResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateJobParams = validator("param", (value, c) => {
-  const parsed = jobParamsSchema.safeParse(value);
-
-  if (!parsed.success) {
-    return notFoundResponse(c, "job_not_found", "Job not found");
   }
 
   return parsed.data;
@@ -376,47 +383,8 @@ const validateCreateJobBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-const validateJobListQuery = validator("query", (value, c) => {
-  const parsed = jobListQuerySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return validationErrorResponse(
-      c,
-      "invalid_job_query",
-      "Invalid job query parameters",
-      parsed.error.issues,
-    );
-  }
-
-  return parsed.data;
-});
-
 export function createJobRoutes(options: CreateJobRoutesOptions) {
   return new Hono<{ Variables: AuthVariables }>()
-    .get("/", validateProjectParams, validateJobListQuery, async (c) => {
-      const params = c.req.valid("param");
-      const query = c.req.valid("query");
-      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
-      if (target.kind === "provider_unavailable") {
-        return providerProjectUnavailableResponse(c, target);
-      }
-
-      if (target.kind === "native") {
-        const project = await getOwnedProject(c.var.auth, params.projectId);
-
-        if (!project) {
-          scheduleProjectNotFoundDiagnostics({
-            auth: c.var.auth,
-            projectId: params.projectId,
-            route: "project.jobs.list",
-          });
-          return projectNotFoundResponse(c);
-        }
-      }
-
-      const jobs = await listOrganizationProjectJobs(c.var.auth, params.projectId, query);
-      return c.json({ jobs }, 200);
-    })
     .post("/", validateProjectParams, validateCreateJobBody, async (c) => {
       if (!isJobCreateAllowed(c.var.auth.membership.role)) {
         return projectForbiddenResponse(c);
@@ -435,10 +403,19 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         return projectNotFoundResponse(c);
       }
 
-      const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
+      const inputPayload =
+        payload.type === "string"
+          ? payload.stringInput
+          : payload.type === "file"
+            ? payload.fileInput
+            : keyJobInputPayload(payload.keysInput);
       const title = payload.title?.trim();
       const description = payload.description?.trim();
-      const jobKind = payload.kind === "proofread" ? "proofread" : "translation";
+      // A key job is a task for people unless AI translation is asked for.
+      const jobKind =
+        payload.kind === "proofread" || (payload.type === "keys" && payload.kind !== "translation")
+          ? "proofread"
+          : "translation";
 
       let enrichedInputPayload = inputPayload;
       if (title || description) {
@@ -558,6 +535,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
             tx,
             c.var.auth.organization.localOrganizationId,
+            { isKeyJob: payload.type === "keys" && isProofreadJob },
           );
           if (isErr(jobBudget)) {
             throw new OrganizationJobBudgetExceededError(jobBudget.error);
@@ -573,9 +551,8 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
                 })
               : null;
 
-          const [createdJob] = await tx
-            .insert(schema.jobs)
-            .values({
+          const [createdJob] = await insertJobs(tx, {
+            values: {
               id: jobId,
               organizationId: c.var.auth.organization.localOrganizationId,
               projectId: params.projectId,
@@ -585,8 +562,10 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
               kind: jobKind,
               status: isProofreadJob ? "waiting_for_review" : "queued",
               inputPayload: enrichedInputPayload,
-            })
-            .returning();
+              dueAt: payload.dueAt ? new Date(payload.dueAt) : null,
+            },
+            returning: "all",
+          });
 
           const [details] = await tx
             .insert(schema.translationJobDetails)
@@ -596,6 +575,18 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
               sourceFileVersionId: sourceFileVersion?.id ?? null,
             })
             .returning();
+
+          if (payload.type === "keys") {
+            const linked = await insertKeyJobKeys(tx, {
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              jobId,
+              selection: payload.keysInput,
+            });
+            if (isErr(linked)) {
+              throw new KeyJobSelectionFailure(linked.error);
+            }
+          }
 
           if (!isProofreadJob) {
             const usageEventResult = await reserveUsageEvent({
@@ -612,11 +603,21 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             }
           }
 
-          return [{ ...createdJob, type: details.type }];
+          return [
+            {
+              ...createdJob,
+              type: details.type,
+              repositorySourceFileId: sourceFileVersion?.repositorySourceFileId ?? null,
+            },
+          ];
         });
       } catch (error) {
         if (error instanceof OrganizationJobBudgetExceededError) {
           return c.json({ error: error.budgetError.code, message: error.budgetError.message }, 429);
+        }
+        if (error instanceof KeyJobSelectionFailure) {
+          const { code } = error.selectionError;
+          return badRequestResponse(c, code, keyJobSelectionMessages[code]);
         }
         throw error;
       }
@@ -632,23 +633,37 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         status: job.status,
       });
 
+      // A proofread task runs no agent, so Reports records its strings now, in the background:
+      // a file's strings, or the strings a task made of chosen strings was given.
+      if (isProofreadJob && (job.repositorySourceFileId || job.type === "keys")) {
+        await startTaskAnalysis({
+          organizationId: job.organizationId,
+          projectId: params.projectId,
+          jobId: job.id,
+          step: "review",
+          sourceLocale: enrichedInputPayload.sourceLocale,
+          targetLocales: enrichedInputPayload.targetLocales,
+          repositorySourceFileId: job.repositorySourceFileId,
+        });
+      }
+
       if (!isProofreadJob) {
         try {
           await options.jobQueue.enqueue({
             kind: "translation",
             jobId: job.id,
             projectId: job.projectId ?? params.projectId,
-            type: job.type,
+            type: payload.type,
           });
         } catch (error) {
-          await db
-            .update(schema.jobs)
-            .set({
+          await updateJobs(db, {
+            set: {
               status: "failed",
               lastError:
                 error instanceof Error ? error.message : "translation job queue unavailable",
-            })
-            .where(and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, job.id)));
+            },
+            where: and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, job.id)),
+          });
 
           await enqueueJobFailedActivity({
             actorCredentialId: null,
@@ -673,81 +688,81 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
 
       return c.json({ job: createdJob }, 201);
     })
-    .get("/:jobId", validateJobParams, async (c) => {
-      const params = c.req.valid("param");
-      const project = await getOwnedProject(c.var.auth, params.projectId);
-
-      if (!project) {
-        scheduleProjectNotFoundDiagnostics({
-          auth: c.var.auth,
+    .post(
+      "/:jobId/keys",
+      validator("param", (value, c) => {
+        const parsed = jobParamsSchema.safeParse(value);
+        return parsed.success ? parsed.data : notFoundResponse(c, "job_not_found", "Job not found");
+      }),
+      validator("json", (value, c) => {
+        const parsed = addKeyJobStringsBodySchema.safeParse(value);
+        return parsed.success
+          ? parsed.data
+          : validationErrorResponse(
+              c,
+              "invalid_job_payload",
+              "Invalid job payload",
+              parsed.error.issues,
+            );
+      }),
+      async (c) => {
+        if (!isJobMutationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+        const params = c.req.valid("param");
+        const added = await addKeyJobStrings({
+          organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
-          route: "project.jobs.detail",
+          jobId: params.jobId,
+          stringIds: c.req.valid("json").stringIds,
+          accessWhere: await buildAccessibleJobsWhere(c.var.auth),
         });
-        return projectNotFoundResponse(c);
-      }
-
-      const job = await getOwnedJob(params.projectId, params.jobId);
-
-      if (!job) {
-        return notFoundResponse(c, "job_not_found", "Job not found");
-      }
-
-      return c.json({ job }, 200);
-    })
-    .get("/:jobId/status", validateJobParams, async (c) => {
-      const params = c.req.valid("param");
-      const project = await getOwnedProject(c.var.auth, params.projectId);
-
-      if (!project) {
-        scheduleProjectNotFoundDiagnostics({
-          auth: c.var.auth,
-          projectId: params.projectId,
-          route: "project.jobs.status",
-        });
-        return projectNotFoundResponse(c);
-      }
-
-      const [job] = await db
-        .select({
-          id: schema.jobs.id,
-          projectId: schema.jobs.projectId,
-          kind: schema.jobs.kind,
-          type: schema.translationJobDetails.type,
-          status: schema.jobs.status,
-          createdAt: schema.jobs.createdAt,
-          updatedAt: schema.jobs.updatedAt,
-          completedAt: schema.jobs.completedAt,
-          lastError: schema.jobs.lastError,
-        })
-        .from(schema.jobs)
-        .leftJoin(
-          schema.translationJobDetails,
-          eq(schema.translationJobDetails.jobId, schema.jobs.id),
-        )
-        .where(and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, params.jobId)))
-        .limit(1);
-
-      if (!job) {
-        return notFoundResponse(c, "job_not_found", "Job not found");
-      }
-
-      return c.json({ job }, 200);
-    });
+        if (isErr(added)) {
+          switch (added.error.code) {
+            case "job_not_found":
+              return notFoundResponse(c, "job_not_found", "Job not found");
+            case "not_key_job":
+            case "job_not_open":
+              return conflictResponse(
+                c,
+                added.error.code,
+                "Strings can only be added to an open key job",
+              );
+            case "no_strings_matched":
+            case "too_many_strings":
+              return badRequestResponse(
+                c,
+                added.error.code,
+                keyJobSelectionMessages[added.error.code],
+              );
+            default:
+              return assertNever(added.error);
+          }
+        }
+        if (added.value > 0) {
+          await restartKeyJobTaskAnalysis({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            jobId: params.jobId,
+          });
+        }
+        return c.json({ added: added.value }, 200);
+      },
+    );
 }
 
 export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOptions) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
-    .get("/", validateJobListQuery, async (c) => {
-      const query = c.req.valid("query");
-      const jobs = await listOrganizationJobs(c.var.auth, query);
-      return c.json({ jobs }, 200);
-    })
     .get("/:jobId", validateWorkspaceJobParams, async (c) => {
       const params = c.req.valid("param");
       const job = await getOrganizationJobById(c.var.auth, params.jobId);
 
       if (!job) {
+        return notFoundResponse(c, "job_not_found", "Job not found");
+      }
+
+      if (!job.externalProviderKind) {
         return notFoundResponse(c, "job_not_found", "Job not found");
       }
 
@@ -945,28 +960,6 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return c.json({ agentRun: serializeAgentRun(updatedRun) }, 200);
       },
     )
-    .get("/:jobId/provider-actions", validateWorkspaceJobParams, async (c) => {
-      const params = c.req.valid("param");
-
-      const [job] = await db
-        .select({
-          externalProviderKind: schema.externalJobDetails.providerKind,
-        })
-        .from(schema.jobs)
-        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
-        .limit(1);
-
-      if (!job) {
-        return notFoundResponse(c, "job_not_found", "Job not found");
-      }
-
-      if (!job.externalProviderKind) {
-        return c.json({ actions: [] }, 200);
-      }
-
-      return c.json({ actions: getJobProviderActionAvailability(job.externalProviderKind) }, 200);
-    })
     .post(
       "/:jobId/agent-runs",
       validateWorkspaceJobParams,
@@ -1142,155 +1135,6 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return c.json({ agentRun: serializeAgentRun(agentRun) }, 201);
       },
     )
-    .post("/:jobId/run-agent", validateWorkspaceJobParams, async (c) => {
-      if (!isAiActionAllowed(c.var.auth.membership.role)) {
-        return projectForbiddenResponse(c);
-      }
-
-      const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(
-        c,
-        c.var.auth.organization.localOrganizationId,
-      );
-      if (aiFeaturesDenied) {
-        return aiFeaturesDenied;
-      }
-
-      const params = c.req.valid("param");
-      const [job] = await db
-        .select({
-          id: schema.jobs.id,
-          projectId: schema.jobs.projectId,
-          kind: schema.jobs.kind,
-          type: schema.translationJobDetails.type,
-          status: schema.jobs.status,
-          externalProviderKind: schema.externalJobDetails.providerKind,
-        })
-        .from(schema.jobs)
-        .leftJoin(
-          schema.translationJobDetails,
-          eq(schema.translationJobDetails.jobId, schema.jobs.id),
-        )
-        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
-        .limit(1);
-
-      if (!job) {
-        return notFoundResponse(c, "job_not_found", "Job not found");
-      }
-
-      if (job.externalProviderKind) {
-        return conflictResponse(
-          c,
-          "native_job_required",
-          "Use agent runs for provider-backed jobs",
-        );
-      }
-
-      if (job.kind !== "translation" || job.type !== "file" || !job.projectId) {
-        return conflictResponse(
-          c,
-          "file_translation_job_required",
-          "Agent runs are only available for native file translation jobs",
-        );
-      }
-
-      if (job.status === "running" || job.status === "queued") {
-        return conflictResponse(c, "job_already_running", "Job is already queued or running");
-      }
-
-      const projectId = job.projectId;
-      const type = job.type;
-
-      const restartedJob = await db.transaction(async (tx) => {
-        const [updatedJob] = await tx
-          .update(schema.jobs)
-          .set({
-            status: "queued",
-            workflowRunId: null,
-            lastError: null,
-            completedAt: null,
-          })
-          .where(
-            and(
-              eq(schema.jobs.id, params.jobId),
-              await buildAccessibleJobsWhere(c.var.auth),
-              or(eq(schema.jobs.status, "failed"), eq(schema.jobs.status, "succeeded")),
-            ),
-          )
-          .returning({ id: schema.jobs.id, projectId: schema.jobs.projectId });
-
-        if (!updatedJob) {
-          return null;
-        }
-
-        await tx
-          .update(schema.translationJobDetails)
-          .set({ outcomeKind: null })
-          .where(eq(schema.translationJobDetails.jobId, params.jobId));
-
-        return { id: updatedJob.id, projectId, type };
-      });
-
-      if (!restartedJob) {
-        return conflictResponse(c, "job_action_unavailable", "Job action is not available");
-      }
-
-      try {
-        const result = await options.jobQueue.enqueue({
-          kind: "translation",
-          jobId: restartedJob.id,
-          projectId: restartedJob.projectId,
-          type: restartedJob.type,
-        });
-
-        await db
-          .update(schema.jobs)
-          .set({ workflowRunId: result.ids[0] ?? null })
-          .where(eq(schema.jobs.id, restartedJob.id));
-      } catch (error) {
-        await db
-          .update(schema.jobs)
-          .set({
-            status: "failed",
-            lastError: error instanceof Error ? error.message : "translation job queue unavailable",
-            completedAt: new Date(),
-          })
-          .where(eq(schema.jobs.id, restartedJob.id));
-
-        await enqueueJobFailedActivity({
-          actorCredentialId: null,
-          actorKind: "user",
-          actorUserId: c.var.auth.user.localUserId,
-          errorCode: "queue_unavailable",
-          jobId: restartedJob.id,
-          kind: "translation",
-          organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: restartedJob.projectId,
-          status: "failed",
-        });
-
-        return serviceUnavailableResponse(c, "job_queue_unavailable", "Job queue is unavailable");
-      }
-
-      const [updatedJob] = await db
-        .select(jobWithProjectSelect)
-        .from(schema.jobs)
-        .leftJoin(
-          schema.translationJobDetails,
-          eq(schema.translationJobDetails.jobId, schema.jobs.id),
-        )
-        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
-        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
-        .leftJoin(
-          schema.assetManagementJobDetails,
-          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
-        )
-        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-        .where(eq(schema.jobs.id, restartedJob.id))
-        .limit(1);
-
-      return c.json({ job: updatedJob ?? restartedJob }, 200);
-    })
     .post("/:jobId/retry", validateWorkspaceJobParams, async (c) => {
       if (!isJobMutationAllowed(c.var.auth.membership.role)) {
         return projectForbiddenResponse(c);
@@ -1301,6 +1145,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         .select({
           id: schema.jobs.id,
           projectId: schema.jobs.projectId,
+          kind: schema.jobs.kind,
           type: schema.translationJobDetails.type,
         })
         .from(schema.jobs)
@@ -1323,25 +1168,34 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           : notFoundResponse(c, "job_not_found", "Job not found");
       }
 
-      if (!job.projectId || !job.type) {
+      // A key job for people has no run to retry; one for AI translation does.
+      if (!job.projectId || !job.type || (job.type === "keys" && job.kind !== "translation")) {
         return conflictResponse(c, "job_action_unavailable", "Job action is not available");
+      }
+
+      const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(
+        c,
+        c.var.auth.organization.localOrganizationId,
+      );
+      if (aiFeaturesDenied) {
+        return aiFeaturesDenied;
       }
 
       const projectId = job.projectId;
       const type = job.type;
 
       const retriedJob = await db.transaction(async (tx) => {
-        const [updatedJob] = await tx
-          .update(schema.jobs)
-          .set({
+        const [updatedJob] = await updateJobs(tx, {
+          set: {
             status: "queued",
             workflowRunId: null,
             lastError: null,
             outcomePayload: null,
             completedAt: null,
-          })
-          .where(await retryableJobWhere(c.var.auth, params.jobId))
-          .returning({ id: schema.jobs.id, projectId: schema.jobs.projectId });
+          },
+          where: await retryableJobWhere(c.var.auth, params.jobId),
+          returning: { id: schema.jobs.id, projectId: schema.jobs.projectId },
+        });
 
         if (!updatedJob) {
           return null;
@@ -1359,6 +1213,12 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return conflictResponse(c, "job_action_unavailable", "Job action is not available");
       }
 
+      await recordJobEvents({
+        jobId: retriedJob.id,
+        actorUserId: c.var.auth.user.localUserId,
+        events: [{ type: "job_retried", payload: {} }],
+      });
+
       try {
         await options.jobQueue.enqueue({
           kind: "translation",
@@ -1368,17 +1228,18 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         });
       } catch (error) {
         await db.transaction(async (tx) => {
-          await tx
-            .update(schema.jobs)
-            .set({
+          await updateJobs(tx, {
+            set: {
               status: "failed",
               lastError:
                 error instanceof Error ? error.message : "translation job queue unavailable",
               completedAt: new Date(),
-            })
-            .where(
-              and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)),
-            );
+            },
+            where: and(
+              eq(schema.jobs.id, params.jobId),
+              await buildAccessibleJobsWhere(c.var.auth),
+            ),
+          });
 
           await tx
             .update(schema.translationJobDetails)
@@ -1439,9 +1300,8 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
 
       const params = c.req.valid("param");
       const updatedJob = await db.transaction(async (tx) => {
-        const [job] = await tx
-          .update(schema.jobs)
-          .set({
+        const [job] = await updateJobs(tx, {
+          set: {
             status: "failed",
             workflowRunId: null,
             lastError: "Marked failed by user",
@@ -1450,9 +1310,10 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
               message: "Marked failed by user",
             },
             completedAt: new Date(),
-          })
-          .where(await activeJobWhere(c.var.auth, params.jobId))
-          .returning({ id: schema.jobs.id, kind: schema.jobs.kind });
+          },
+          where: await agentActiveJobWhere(c.var.auth, params.jobId),
+          returning: { id: schema.jobs.id, kind: schema.jobs.kind },
+        });
 
         if (job?.kind === "translation") {
           await tx
@@ -1475,6 +1336,12 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
           : notFoundResponse(c, "job_not_found", "Job not found");
       }
+
+      await recordJobEvents({
+        jobId: updatedJob.id,
+        actorUserId: c.var.auth.user.localUserId,
+        events: [{ type: "job_marked_failed", payload: {} }],
+      });
 
       await enqueueJobFailedActivity({
         actorCredentialId: null,
@@ -1570,6 +1437,17 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return notFoundResponse(c, "job_not_found", "Job not found");
       }
 
+      await enqueueJobUpdatedActivity({
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: c.var.auth.user.localUserId,
+        changedFields: jobUpdatedFields(body),
+        jobId: job.id,
+        kind: job.kind,
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: job.projectId,
+      });
+
       return c.json({ job }, 200);
     })
     .post("/:jobId/cancel", validateWorkspaceJobParams, async (c) => {
@@ -1578,46 +1456,71 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       }
 
       const params = c.req.valid("param");
-      const updatedJob = await db.transaction(async (tx) => {
-        const [job] = await tx
-          .update(schema.jobs)
-          .set({
-            status: "cancelled",
-            workflowRunId: null,
-            lastError: null,
-            outcomePayload: {
-              code: "cancelled_by_user",
-              message: "Cancelled by user",
-            },
-            completedAt: new Date(),
-          })
-          .where(await activeJobWhere(c.var.auth, params.jobId))
-          .returning({ id: schema.jobs.id, kind: schema.jobs.kind });
-
-        return job;
+      const cancelled = await cancelNativeJob({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        jobId: params.jobId,
+        actorUserId: c.var.auth.user.localUserId,
+        accessWhere: await buildAccessibleJobsWhere(c.var.auth),
       });
 
-      if (!updatedJob) {
-        const [existingJob] = await db
-          .select({ id: schema.jobs.id })
-          .from(schema.jobs)
-          .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
-          .limit(1);
-
-        return existingJob
+      if (isErr(cancelled)) {
+        return cancelled.error.code === "job_action_unavailable"
           ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
           : notFoundResponse(c, "job_not_found", "Job not found");
       }
 
-      await enqueueJobCancelledActivity({
-        actorCredentialId: null,
-        actorKind: "user",
-        actorUserId: c.var.auth.user.localUserId,
-        jobId: updatedJob.id,
-        kind: updatedJob.kind,
+      const [job] = await db
+        .select(jobWithProjectSelect)
+        .from(schema.jobs)
+        .leftJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
+        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.assetManagementJobDetails,
+          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.projects,
+          and(
+            eq(schema.projects.id, schema.jobs.projectId),
+            eq(schema.projects.organizationId, schema.jobs.organizationId),
+          ),
+        )
+        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
+        .limit(1);
+
+      return c.json({ job }, 200);
+    })
+    .post("/:jobId/mark-done", validateWorkspaceJobParams, async (c) => {
+      if (!isJobMutationAllowed(c.var.auth.membership.role)) {
+        return projectForbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const done = await markTaskDone({
         organizationId: c.var.auth.organization.localOrganizationId,
-        status: "cancelled",
+        jobId: params.jobId,
+        actorUserId: c.var.auth.user.localUserId,
+        actorMayFinishAnyTask: hasCapability(c.var.auth.membership.role, "reviews:approve"),
+        accessWhere: await buildAccessibleJobsWhere(c.var.auth),
       });
+
+      if (isErr(done)) {
+        switch (done.error.code) {
+          case "job_action_unavailable":
+            return conflictResponse(c, "job_action_unavailable", "Job action is not available");
+          case "not_task_assignee":
+            return projectForbiddenResponse(c);
+          case "job_not_found":
+            return notFoundResponse(c, "job_not_found", "Job not found");
+          default:
+            return assertNever(done.error);
+        }
+      }
 
       const [job] = await db
         .select(jobWithProjectSelect)

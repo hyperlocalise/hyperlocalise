@@ -13,6 +13,7 @@
 // @vitest-environment happy-dom
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it } from "vite-plus/test";
@@ -62,5 +63,25 @@ describe("ProjectLocaleProgressList", () => {
     expect(screen.getByText("🇫🇷")).toBeInTheDocument();
     expect(screen.getByText("ES")).toBeInTheDocument();
     expect(screen.queryByText("FR")).not.toBeInTheDocument();
+  });
+
+  it("renders the agent action only for expanded locales with untranslated work", async () => {
+    const translatedRow: ProjectLocaleProgressRow = {
+      ...localeRow("de-DE"),
+      translationProgress: 100,
+      words: { total: 10, translated: 10, approved: 0 },
+      phrases: { total: 4, translated: 4, approved: 0 },
+    };
+    renderList({
+      locales: [localeRow("fr-FR"), translatedRow],
+      settingsHref: "/org/acme/projects/p1/settings",
+      renderAgentAction: (row) => <button type="button">{`Agent ${row.locale}`}</button>,
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Show French (France) details" }));
+    await userEvent.click(screen.getByRole("button", { name: "Show German (Germany) details" }));
+
+    expect(screen.getByRole("button", { name: "Agent fr-FR" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Agent de-DE" })).not.toBeInTheDocument();
   });
 });

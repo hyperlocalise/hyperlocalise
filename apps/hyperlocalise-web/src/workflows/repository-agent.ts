@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { getWorkflowMetadata } from "workflow";
+import { FatalError, getWorkflowMetadata } from "workflow";
 
 import type {
   RepositoryAgentGitHubContext,
@@ -56,8 +56,10 @@ async function runRepositoryAgentStep(input: {
 
   const { ToolLoopAgent } = await import("ai");
   const { db } = await import("@/lib/database/client");
-  const { buildHyperlocaliseAgentInstructions, getHyperlocaliseAgentModel } =
+  const { buildHyperlocaliseAgentInstructions } =
     await import("@/lib/agent-runtime/loops/hyperlocalise-agent");
+  const { resolveHyperlocaliseAgentLanguageModel } =
+    await import("@/lib/providers/organization-language-model");
   const { WORKFLOW_AGENT_TIMEOUT } = await import("@/lib/agent-runtime/subagents/constants");
   const { buildRepositoryGitHubContextInstructions } =
     await import("@/lib/agents/repository-context");
@@ -89,8 +91,14 @@ async function runRepositoryAgentStep(input: {
 
   ensureAgentSession(toolContext);
   const tools = filterToolSetByNames(buildTools(toolContext), [...repositoryWorkspaceToolNames]);
+  // A stored key that cannot be loaded fails the same way on every retry.
+  const languageModel = await resolveHyperlocaliseAgentLanguageModel({
+    organizationId: task.organizationId,
+  }).catch((error: unknown) => {
+    throw new FatalError(error instanceof Error ? error.message : String(error));
+  });
   const agent = new ToolLoopAgent({
-    model: getHyperlocaliseAgentModel(),
+    model: languageModel.model,
     tools,
     stopWhen: [(step) => step.steps.length >= agentStepLimit],
     timeout: WORKFLOW_AGENT_TIMEOUT,
@@ -125,6 +133,8 @@ async function runRepositoryAgentStep(input: {
       project_id: task.projectId,
     },
     extractTokenUsage: extractGenerateResultTokenUsage,
+    aiCreditModelId: languageModel.modelId,
+    aiCreditCredentialSource: languageModel.source === "gateway" ? "gateway" : "byok",
     run: () =>
       agent.generate({
         messages: [{ role: "user", content: task.instructions }],

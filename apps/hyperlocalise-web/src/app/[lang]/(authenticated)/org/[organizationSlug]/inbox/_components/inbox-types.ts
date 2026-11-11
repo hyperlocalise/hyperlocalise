@@ -22,7 +22,13 @@ import { inboxTypesMessages } from "./inbox-types.messages";
 export type Conversation = {
   id: string;
   title: string;
-  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent" | "web_chat";
+  source:
+    | "chat_ui"
+    | "email_agent"
+    | "github_agent"
+    | "slack_agent"
+    | "web_chat"
+    | "workflow_approval";
   status: "active" | "archived";
   projectId: string | null;
   lastMessageAt: string;
@@ -57,7 +63,7 @@ export type LinkedJob = {
   id: string;
   projectId: string | null;
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
-  type: "string" | "file" | null;
+  type: "string" | "file" | "keys" | null;
   status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   outcomeKind: "string_result" | "file_result" | "error" | null;
   createdAt: string;
@@ -69,6 +75,8 @@ export type StreamedAssistantMessage = {
   responseToMessageId: string;
   message: UIMessage;
   status: "streaming" | "complete" | "error";
+  /** The server refused the reply because the workspace's AI credit is used up. */
+  aiCreditExhausted?: boolean;
 };
 
 export type InboxCurrentUser = {
@@ -114,6 +122,8 @@ export function getSourceLabel(source: Conversation["source"], intl: IntlShape) 
       return intl.formatMessage(inboxTypesMessages.sourceSlack);
     case "web_chat":
       return intl.formatMessage(inboxTypesMessages.sourceWebChat);
+    case "workflow_approval":
+      return intl.formatMessage(inboxTypesMessages.sourceWorkflowApproval);
     default:
       return assertNever(source);
   }

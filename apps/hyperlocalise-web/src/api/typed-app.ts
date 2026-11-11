@@ -18,8 +18,10 @@ import { createApiTranslationJobQueue } from "./queues/api-translation-job-queue
 import { handleUnexpectedError, notFoundHandler } from "./errors";
 import { createCanvaIntegrationRoutes } from "./routes/canva-integration/canva-integration.route";
 import { createCanvaOauthRoutes } from "./routes/canva-oauth/canva-oauth.route";
+import { createFigmaOauthRoutes } from "./routes/figma-oauth/figma-oauth.route";
 import { createFigmaIntegrationRoutes } from "./routes/figma-integration/figma-integration.route";
-import { createCrowdinAppRoutes } from "./routes/crowdin-app/crowdin-app.route";
+import { createSanityIntegrationRoutes } from "./routes/sanity-integration/sanity-integration.route";
+import { createSanityOauthRoutes } from "./routes/sanity-oauth/sanity-oauth.route";
 import { createPublicMediaRoutes } from "./routes/public-media/public-media.route";
 import { createWebChatRoutes } from "./routes/web-chat/web-chat.route";
 import { createAutumnRoutes } from "./routes/autumn/autumn.route";
@@ -34,6 +36,7 @@ import {
   createProviderAgentWritebackQueue,
 } from "@/workflows/adapters";
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
+import { createInternalTmsRoutes } from "./routes/internal-tms/internal-tms.route";
 import type { CreateAppOptions } from "./app";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
@@ -45,7 +48,11 @@ import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/gi
 import { createSandboxCleanupRoutes } from "./routes/cron/sandbox-cleanup.route";
 import { createSnapshotCleanupRoutes } from "./routes/cron/snapshot-cleanup.route";
 import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notification-digest.route";
+import { createReportingCaptureRoutes } from "./routes/cron/reporting-capture.route";
 import { createTranslationQaScanRoutes } from "./routes/cron/translation-qa-scan.route";
+import { createGuidelineIngestSweepRoutes } from "./routes/cron/guideline-ingest-sweep.route";
+import { createJobChangeEventsCronRoutes } from "./routes/cron/job-change-events.route";
+import { createProjectContentSyncCronRoutes } from "./routes/cron/project-content-sync.route";
 
 /**
  * Chained Hono schema for `testClient`. Keep this out of Next's typecheck
@@ -100,9 +107,11 @@ export function createTypedApp(options: CreateAppOptions = {}) {
     )
     .route("/integrations/canva", createCanvaIntegrationRoutes({ ...options, jobQueue }))
     .route("/integrations/figma", createFigmaIntegrationRoutes({ ...options, jobQueue }))
-    .route("/crowdin-app", createCrowdinAppRoutes())
+    .route("/integrations/sanity", createSanityIntegrationRoutes({ ...options, jobQueue }))
     .route("/webhooks", createWebhookRoutes(options))
-    .route("/oauth/canva", createCanvaOauthRoutes());
+    .route("/oauth/canva", createCanvaOauthRoutes())
+    .route("/oauth/figma", createFigmaOauthRoutes())
+    .route("/oauth/sanity", createSanityOauthRoutes());
 }
 
 export type AppType = ReturnType<typeof createTypedApp>;
@@ -110,6 +119,7 @@ export type AppType = ReturnType<typeof createTypedApp>;
 function createInternalRoutes(options: CreateAppOptions = {}) {
   return new Hono()
     .route("/health", healthRoutes)
+    .route("/internal/tms", createInternalTmsRoutes())
     .route(
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),
@@ -117,10 +127,19 @@ function createInternalRoutes(options: CreateAppOptions = {}) {
     .route("/cron/sandbox-cleanup", createSandboxCleanupRoutes())
     .route("/cron/snapshot-cleanup", createSnapshotCleanupRoutes())
     .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes())
+    .route("/cron/reporting-capture", createReportingCaptureRoutes())
+    .route("/cron/guideline-ingest-sweep", createGuidelineIngestSweepRoutes())
+    .route("/cron/job-change-events", createJobChangeEventsCronRoutes())
     .route(
       "/cron/translation-qa-scan",
       createTranslationQaScanRoutes({
         translationQaScanQueue: options.translationQaScanQueue ?? createTranslationQaScanQueue(),
+      }),
+    )
+    .route(
+      "/cron/project-content-sync",
+      createProjectContentSyncCronRoutes({
+        projectContentSyncQueue: options.projectContentSyncQueue,
       }),
     );
 }

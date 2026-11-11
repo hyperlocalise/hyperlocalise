@@ -1,0 +1,469 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { describe, expect, it } from "vite-plus/test";
+
+import {
+  applyHtmlIngestEntryKeys,
+  applyHtmlIngestTranslations,
+  extractHtmlIngestEntries,
+  htmlCliPrefillsFromPathEntries,
+  htmlCompletedPathKeysFromLock,
+  htmlSourceFallbackPathKeys,
+  isHashedHtmlEntryKey,
+  isHtmlTranslationSourcePath,
+  legacyHtmlSegmentKey,
+  rewriteHashedHtmlSegmentKey,
+  rewriteHashedHtmlSegmentKeys,
+  utf8FromStoredFileContent,
+} from "./html-ingest-entries";
+
+const formattingFixture = readFileSync(
+  join(
+    dirname(fileURLToPath(import.meta.url)),
+    "../../../../../../tests/html/formatting-test.html",
+  ),
+  "utf8",
+);
+
+describe("extractHtmlIngestEntries", () => {
+  it("assigns dotted tag-path keys like markdown slots", () => {
+    const got = extractHtmlIngestEntries(`<html><head><title>Page Title</title></head><body>
+<h1>Welcome</h1>
+<p>First</p>
+<p>Second</p>
+<img alt="A red cat">
+<table><tr><th>Name</th><td>Value</td></tr></table>
+</body></html>`);
+
+    expect(got).toMatchObject({
+      "html.body.h1": "Welcome",
+      "html.body.p": "First",
+      "html.body.p.2": "Second",
+      "html.body.img.alt": "A red cat",
+      "html.body.table.tr.th": "Name",
+      "html.body.table.tr.td": "Value",
+    });
+    expect(got["html.head.title"]).toBeUndefined();
+  });
+
+  it("extracts Mailchimp envelope metadata from head", () => {
+    const got = extractHtmlIngestEntries(`<!doctype html><html><head>
+<title data-hl-mailchimp-field="subject">Campaign subject</title>
+<meta data-hl-mailchimp-field="previewText" name="description" content="Preview line">
+<meta data-hl-mailchimp-field="fromName" name="author" content="Brand">
+</head><body><div data-hl-mailchimp-field="htmlBody"><p>Shop the sale</p></div></body></html>`);
+
+    expect(got["html.head.title"]).toBe("Campaign subject");
+    expect(got["html.head.meta.description"]).toBe("Preview line");
+    expect(got["html.head.meta.author"]).toBe("Brand");
+    expect(got["html.body.div.p"]).toBe("Shop the sale");
+  });
+
+  it("skips extra excluded tags", () => {
+    const got = extractHtmlIngestEntries(
+      `<html><body><nav>Menu</nav><p>Hello</p><footer>Legal</footer></body></html>`,
+      { excludedElements: ["nav", "footer"] },
+    );
+    expect(got["html.body.p"]).toBe("Hello");
+    expect(Object.values(got)).not.toContain("Menu");
+    expect(Object.values(got)).not.toContain("Legal");
+  });
+
+  it("marks ICU arguments when the HTML ICU sub-filter is on", () => {
+    const got = applyHtmlIngestEntryKeys(
+      "pages/home.html",
+      `<html><body><nav>Menu</nav><p>Hello {name}</p></body></html>`,
+      { leftover: "from cli" },
+      { excludedElements: ["nav"], icuSubfilter: true },
+    );
+    expect(got).toEqual({
+      "html.body.p": { text: "Hello {name}", format: "icu" },
+    });
+  });
+
+  it("extracts the formatting fixture with table and list paths", () => {
+    const got = extractHtmlIngestEntries(formattingFixture);
+    expect(got["html.body.h1"]).toBe("HTML Formatting Test");
+    expect(got["html.body.p"]).toContain("This page tests ");
+    expect(got["html.body.p.strong"]).toContain("tables");
+    expect(got["html.body.p.strong.2"]).toContain("bullet lists");
+    expect(got["html.body.p"]).not.toContain("<strong>");
+    expect(got["tables"]).toBeUndefined();
+    expect(got["html.body.table.thead.tr.th"]).toBe("ID");
+    expect(got["html.body.ul.li"]).toBe("First bullet item");
+    expect(got["html.body.ul.li.ul.li"]).toBe("Nested bullet item A");
+    expect(Object.keys(got).some((key) => isHashedHtmlEntryKey(key))).toBe(false);
+  });
+
+  it("splits inline tags into path keys", () => {
+    const got = extractHtmlIngestEntries("<p>Hello <strong>world</strong>!</p>");
+    expect(got["html.p"]).toContain("Hello ");
+    expect(got["html.p.strong"]).toContain("world");
+    expect(got["html.p"]).not.toContain("<strong>");
+    expect(got["html.p.strong"]).not.toContain("<strong>");
+  });
+
+  it("splits a paragraph with multiple inline tags into path keys", () => {
+    const html =
+      "<p>This page tests <strong>tables</strong>, <strong>bullet lists</strong>, numbered lists, and basic HTML styling.</p>";
+    const got = extractHtmlIngestEntries(html);
+    expect(got["html.p"]).toContain("This page tests ");
+    expect(got["html.p.strong"]).toContain("tables");
+    expect(got["html.p.strong.2"]).toContain("bullet lists");
+    expect(got["html.p.2"]).toContain("numbered lists, and basic HTML styling.");
+    expect(got["html.p"]).not.toContain("<strong>");
+  });
+
+  it("keeps paragraphs after a script that contains comparisons", () => {
+    const got = extractHtmlIngestEntries(
+      "<p>Before</p><script>if (a < b) { return a; }</script><p>After</p>",
+    );
+    expect(got).toMatchObject({
+      "html.p": "Before",
+      "html.p.2": "After",
+    });
+  });
+
+  it("decodes named and numeric alt entities", () => {
+    expect(extractHtmlIngestEntries(`<img alt="caf&eacute; &#233;">`)["html.img.alt"]).toBe(
+      "café é",
+    );
+  });
+
+  it("folds inline tags when requested", () => {
+    const got = extractHtmlIngestEntries("<p>Hello <strong>world</strong>!</p>", {
+      foldInline: true,
+    });
+    expect(Object.keys(got)).toEqual(["html.p"]);
+    expect(got["html.p"]).toContain("Hello ");
+    expect(got["html.p"]).toContain("world");
+    expect(got["html.p"]).not.toContain("<strong>");
+  });
+
+  it("skips pre, script, style, and punctuation-only chunks", () => {
+    const got = extractHtmlIngestEntries(
+      "<p>Keep</p><pre>code</pre><style>p{}</style><script>x</script><p>!!!</p><p>After</p>",
+    );
+    expect(got).toEqual({
+      "html.p": "Keep",
+      "html.p.2": "After",
+    });
+  });
+
+  it("skips entity-only cells so spacer markup is not a segment", () => {
+    const html =
+      "<table><tr><td>&nbsp;</td><td>Hello</td><td>&amp;</td><td>&#160;</td></tr></table>";
+    const got = extractHtmlIngestEntries(html);
+    expect(Object.values(got)).toEqual(["Hello"]);
+    expect(applyHtmlIngestTranslations(html, { [Object.keys(got)[0]!]: "Bonjour" })).toBe(
+      "<table><tr><td>&nbsp;</td><td>Bonjour</td><td>&amp;</td><td>&#160;</td></tr></table>",
+    );
+  });
+
+  it("treats Design Studio x- components as fold boundaries", () => {
+    const html =
+      "<x-base><x-section><x-heading-1>Welcome! Confirm your email</x-heading-1></x-section>" +
+      "<x-section><x-paragraph>Hi {{customer.first_name}},</x-paragraph>" +
+      '<x-cta href="https://example.com">Confirm Email Address</x-cta>' +
+      '<x-spacer :size="16" /><x-paragraph>If you did not create an account, ignore this.</x-paragraph>' +
+      "</x-section></x-base>";
+    const got = extractHtmlIngestEntries(html, { foldInline: true });
+
+    const texts = Object.values(got);
+    expect(texts).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Welcome! Confirm your email"),
+        expect.stringContaining("Confirm Email Address"),
+        expect.stringContaining("ignore this."),
+      ]),
+    );
+    // One entry per component: heading, greeting, CTA, and closing paragraph.
+    expect(Object.keys(got)).toHaveLength(4);
+    // Inline markup and Liquid stay folded inside their component.
+    expect(got["html.x-base.x-section.x-paragraph"]).toContain("{{customer.first_name}}");
+  });
+
+  it("round-trips Design Studio markup through applyHtmlIngestTranslations", () => {
+    const html =
+      "<x-base><x-paragraph>Hello</x-paragraph><x-hr /><x-paragraph>Bye</x-paragraph></x-base>";
+    const entries = extractHtmlIngestEntries(html, { foldInline: true });
+    const keys = Object.keys(entries);
+    expect(keys).toHaveLength(2);
+
+    const translated = applyHtmlIngestTranslations(html, { [keys[0] as string]: "Bonjour" });
+    expect(translated).toContain("Bonjour");
+    expect(translated).toContain("Bye");
+    // Void components survive the rewrite unchanged.
+    expect(translated).toContain("<x-hr />");
+  });
+});
+
+describe("html key shape helpers", () => {
+  it("recognizes HTML source paths including .htm", () => {
+    expect(isHtmlTranslationSourcePath("pages/home.html")).toBe(true);
+    expect(isHtmlTranslationSourcePath("pages/home.HTM")).toBe(true);
+    expect(isHtmlTranslationSourcePath("locales/en.json")).toBe(false);
+  });
+
+  it("matches hashed keys including occurrence and SRX suffixes", () => {
+    expect(isHashedHtmlEntryKey("html.0123456789abcdef")).toBe(true);
+    expect(isHashedHtmlEntryKey("html.0123456789abcdef.2")).toBe(true);
+    expect(isHashedHtmlEntryKey("html.0123456789abcdef#srx.0")).toBe(true);
+    expect(isHashedHtmlEntryKey("html.0123456789abcdef.2#srx.1")).toBe(true);
+    expect(isHashedHtmlEntryKey("html.p")).toBe(false);
+    expect(isHashedHtmlEntryKey("html.body.p")).toBe(false);
+    expect(isHashedHtmlEntryKey("html.0123456789abcde")).toBe(false);
+  });
+});
+
+describe("htmlSourceFallbackPathKeys", () => {
+  const html = "<p>Hello <strong>world</strong>!</p><div>Other</div>";
+
+  it("flags folded units rendered entirely as source", () => {
+    const target = "<p>Hello <strong>world</strong>!</p><div>Autre</div>";
+    const fallbacks = htmlSourceFallbackPathKeys(html, extractHtmlIngestEntries(target));
+    expect(fallbacks.has("html.p")).toBe(true);
+    expect(fallbacks.has("html.p.strong")).toBe(true);
+    expect(fallbacks.has("html.div")).toBe(false);
+  });
+
+  it("keeps a unit when any of its path keys changed", () => {
+    const target = "<p>Bonjour <strong>world</strong>!</p><div>Autre</div>";
+    const fallbacks = htmlSourceFallbackPathKeys(html, extractHtmlIngestEntries(target));
+    expect([...fallbacks]).toEqual([]);
+  });
+});
+
+describe("htmlCompletedPathKeysFromLock", () => {
+  it("maps a folded CLI hash onto split path keys", () => {
+    const html = "<p>Hello <strong>world</strong>!</p>";
+    const folded = extractHtmlIngestEntries(html, { foldInline: true });
+    const hash = legacyHtmlSegmentKey(folded["html.p"] ?? "", new Map());
+    expect(htmlCompletedPathKeysFromLock(html, [hash])).toEqual(["html.p", "html.p.strong"]);
+  });
+
+  it("keeps later sibling path suffixes when a later paragraph has inline tags", () => {
+    const html = "<p>Welcome</p><p>Click <strong>here</strong> now.</p>";
+    const folded = extractHtmlIngestEntries(html, { foldInline: true });
+    const occurrences = new Map<string, number>();
+    const firstHash = legacyHtmlSegmentKey(folded["html.p"] ?? "", occurrences);
+    const secondHash = legacyHtmlSegmentKey(folded["html.p.2"] ?? "", occurrences);
+
+    expect(htmlCompletedPathKeysFromLock(html, [firstHash])).toEqual(["html.p"]);
+    expect(htmlCompletedPathKeysFromLock(html, [secondHash])).toEqual([
+      "html.p.2",
+      "html.p.strong",
+      "html.p.3",
+    ]);
+    expect(htmlCompletedPathKeysFromLock(html, [firstHash, secondHash])).toEqual([
+      "html.p",
+      "html.p.2",
+      "html.p.strong",
+      "html.p.3",
+    ]);
+  });
+
+  it("does not treat an earlier sibling leftover as a completed path", () => {
+    const html = "<p>Welcome</p><p>Click <strong>here</strong> now.</p>";
+    const folded = extractHtmlIngestEntries(html, { foldInline: true });
+    const occurrences = new Map<string, number>();
+    legacyHtmlSegmentKey(folded["html.p"] ?? "", occurrences);
+    const secondHash = legacyHtmlSegmentKey(folded["html.p.2"] ?? "", occurrences);
+    expect(htmlCompletedPathKeysFromLock(html, [secondHash])).not.toContain("html.p");
+  });
+
+  it("strips #srx suffixes and occurrence suffixes before mapping", () => {
+    const html = "<p>Same</p><div>Same</div>";
+    const occurrences = new Map<string, number>();
+    const first = legacyHtmlSegmentKey("Same", occurrences);
+    const second = legacyHtmlSegmentKey("Same", occurrences);
+    expect(htmlCompletedPathKeysFromLock(html, [`${first}#srx.0`])).toEqual(["html.p"]);
+    expect(htmlCompletedPathKeysFromLock(html, [second])).toEqual(["html.div"]);
+  });
+
+  it("keeps CLI 1.13.4 tag-path lock keys", () => {
+    const html = "<p>Hello <strong>world</strong>!</p>";
+    expect(htmlCompletedPathKeysFromLock(html, ["html.p", "html.p.strong"])).toEqual([
+      "html.p",
+      "html.p.strong",
+    ]);
+  });
+
+  it("strips #srx from tag-path lock keys", () => {
+    const html = "<p>Hello</p>";
+    expect(htmlCompletedPathKeysFromLock(html, ["html.p#srx.0"])).toEqual(["html.p"]);
+  });
+
+  it("maps hashed keys and keeps path keys from the same lock", () => {
+    const html = "<p>Hello <strong>world</strong>!</p><div>Other</div>";
+    const folded = extractHtmlIngestEntries(html, { foldInline: true });
+    const hash = legacyHtmlSegmentKey(folded["html.p"] ?? "", new Map());
+    expect(htmlCompletedPathKeysFromLock(html, [hash, "html.div"])).toEqual([
+      "html.p",
+      "html.p.strong",
+      "html.div",
+    ]);
+  });
+});
+
+describe("htmlCliPrefillsFromPathEntries", () => {
+  it("converts complete path-key prefills into a folded CLI hash", () => {
+    const html = "<p>Hello <strong>world</strong>!</p>";
+    const folded = extractHtmlIngestEntries(html, { foldInline: true });
+    const hash = legacyHtmlSegmentKey(folded["html.p"] ?? "", new Map());
+    const prefills = htmlCliPrefillsFromPathEntries(html, {
+      "html.p": "Bonjour ",
+      "html.p.strong": "monde",
+    });
+    expect(Object.keys(prefills)).toEqual([hash]);
+    expect(prefills[hash]).toContain("Bonjour ");
+    expect(prefills[hash]).toContain("monde");
+  });
+
+  it("omits a folded unit when any child path key is missing", () => {
+    expect(
+      htmlCliPrefillsFromPathEntries("<p>Hello <strong>world</strong>!</p>", {
+        "html.p.strong": "monde",
+      }),
+    ).toEqual({});
+  });
+
+  it("keeps occurrence suffixes when only a later duplicate block is prefilled", () => {
+    const html = "<p>Same</p><div>Same</div>";
+    const occurrences = new Map<string, number>();
+    const first = legacyHtmlSegmentKey("Same", occurrences);
+    const second = legacyHtmlSegmentKey("Same", occurrences);
+    const prefills = htmlCliPrefillsFromPathEntries(html, { "html.div": "Même" });
+    expect(prefills[first]).toBeUndefined();
+    expect(prefills[second]).toBe("Même");
+  });
+});
+
+describe("utf8FromStoredFileContent", () => {
+  it("decodes strings, bytes, and serialized Node buffers without Buffer", () => {
+    expect(utf8FromStoredFileContent("<p>Hello</p>")).toBe("<p>Hello</p>");
+    expect(utf8FromStoredFileContent(new TextEncoder().encode("<p>Hello</p>"))).toBe(
+      "<p>Hello</p>",
+    );
+    expect(utf8FromStoredFileContent({ type: "Buffer", data: [60, 112, 62] })).toBe("<p>");
+  });
+
+  it("decodes ArrayBuffer views and drops unknown payloads", () => {
+    const bytes = new TextEncoder().encode("<p>Hi</p>");
+    expect(utf8FromStoredFileContent(bytes.buffer)).toBe("<p>Hi</p>");
+    expect(utf8FromStoredFileContent(new DataView(bytes.buffer))).toBe("<p>Hi</p>");
+    expect(utf8FromStoredFileContent({ not: "bytes" })).toBe("");
+    expect(utf8FromStoredFileContent(null)).toBe("");
+  });
+});
+
+describe("applyHtmlIngestEntryKeys", () => {
+  it("replaces hashed sandbox keys with tag-path keys", () => {
+    const html = "<html><body><h1>Welcome</h1><p>Hello world.</p></body></html>";
+    const hashedTitle = legacyHtmlSegmentKey("Welcome", new Map());
+    const hashedBody = legacyHtmlSegmentKey("Hello world.", new Map());
+
+    expect(
+      applyHtmlIngestEntryKeys("pages/home.html", html, {
+        [hashedTitle]: "Welcome",
+        [hashedBody]: "Hello world.",
+      }),
+    ).toEqual({
+      "html.body.h1": "Welcome",
+      "html.body.p": "Hello world.",
+    });
+  });
+
+  it("leaves non-HTML payloads unchanged", () => {
+    expect(applyHtmlIngestEntryKeys("locales/en.json", "{}", { "hello.title": "Hi" })).toEqual({
+      "hello.title": "Hi",
+    });
+  });
+
+  it("leaves the payload unchanged when source text is empty or has no extractable keys", () => {
+    expect(applyHtmlIngestEntryKeys("pages/home.html", "", { "html.p": "Hi" })).toEqual({
+      "html.p": "Hi",
+    });
+    expect(
+      applyHtmlIngestEntryKeys("pages/home.html", "<html></html>", { "html.p": "Hi" }),
+    ).toEqual({ "html.p": "Hi" });
+  });
+
+  it("returns extracted source text for hashed keys without SRX, not payload translations", () => {
+    const html = "<html><body><p>Hello world.</p></body></html>";
+    const hashed = legacyHtmlSegmentKey("Hello world.", new Map());
+    expect(
+      applyHtmlIngestEntryKeys("pages/home.html", html, {
+        [hashed]: "Bonjour le monde.",
+      }),
+    ).toEqual({
+      "html.body.p": "Hello world.",
+    });
+  });
+
+  it("remaps hashed SRX payload keys onto tag paths and keeps translated values", () => {
+    const html = "<html><body><p>Hello world.</p></body></html>";
+    const hashed = legacyHtmlSegmentKey("Hello world.", new Map());
+    expect(
+      applyHtmlIngestEntryKeys("pages/home.html", html, {
+        [`${hashed}#srx.0`]: "Bonjour",
+        [`${hashed}#srx.1`]: "le monde.",
+        leftover: "keep",
+      }),
+    ).toEqual({
+      "html.body.p#srx.0": "Bonjour",
+      "html.body.p#srx.1": "le monde.",
+      leftover: "keep",
+    });
+  });
+
+  it("keeps unmatched hashed SRX keys so a missing mapping cannot drop translations", () => {
+    const unknown = "html.0123456789abcdef#srx.0";
+    expect(
+      applyHtmlIngestEntryKeys("pages/home.html", "<html><body><p>Hello world.</p></body></html>", {
+        [unknown]: "Bonjour",
+      }),
+    ).toEqual({
+      [unknown]: "Bonjour",
+    });
+  });
+});
+
+describe("rewriteHashedHtmlSegmentKeys", () => {
+  it("rewrites a hashed key by stored hash or source text fallback", () => {
+    const html = "<html><body><h1>Welcome</h1><p>Hello world.</p></body></html>";
+    const hashedTitle = legacyHtmlSegmentKey("Welcome", new Map());
+    expect(rewriteHashedHtmlSegmentKey(html, hashedTitle, "Welcome")).toBe("html.body.h1");
+    expect(rewriteHashedHtmlSegmentKey(html, "html.deadbeefdeadbeef", "Hello world.")).toBe(
+      "html.body.p",
+    );
+    expect(rewriteHashedHtmlSegmentKey(html, "html.deadbeefdeadbeef", "Missing")).toBe(
+      "html.deadbeefdeadbeef",
+    );
+  });
+
+  it("does not assign the same path key to two hashed segments", () => {
+    const html = "<p>Hello</p>";
+    const hashed = legacyHtmlSegmentKey("Hello", new Map());
+    expect(
+      rewriteHashedHtmlSegmentKeys(html, [
+        { key: hashed, sourceText: "Hello" },
+        { key: "html.deadbeefdeadbeef", sourceText: "Hello" },
+      ]),
+    ).toEqual(["html.p", "html.deadbeefdeadbeef"]);
+  });
+});

@@ -12,8 +12,15 @@
  */
 import { openDesign } from "@canva/design";
 
-import { segmentKey } from "./segment-file";
-import type { DesignPageInfo, DesignSegment, ExtractedDesignContent } from "./types";
+import { normalizeSegmentText } from "./segment-file";
+import type {
+  ApplyResult,
+  CanvaPullEntry,
+  CanvaPullPage,
+  DesignPageInfo,
+  DesignSegment,
+  ExtractedDesignContent,
+} from "./types";
 
 type RichtextRange = {
   readPlaintext: () => string;
@@ -21,22 +28,27 @@ type RichtextRange = {
   replaceText: (range: { index: number; length: number }, text: string) => void;
 };
 
-type DesignElementNode = {
+interface DesignElementNode {
   type: string;
   locked?: boolean;
   text?: RichtextRange;
-  contents?: {
-    toArray: () => DesignElementNode[];
-  };
-};
+  contents?: ElementCollection;
+}
 
-type PageElementList = {
-  toArray: () => DesignElementNode[];
-};
+interface ElementCollection {
+  forEach?: (callback: (element: DesignElementNode) => void) => void;
+  toArray?: () => readonly DesignElementNode[];
+}
 
 type PageRef = {
   type: string;
   locked: boolean;
+};
+
+type OpenedPage = {
+  type?: string;
+  locked?: boolean;
+  elements: ElementCollection;
 };
 
 type AllPagesSession = {
@@ -46,29 +58,11 @@ type AllPagesSession = {
   helpers: {
     openPage: (
       pageRef: PageRef,
-      callback: (result: { page: { elements: PageElementList } }) => Promise<void>,
-    ) => Promise<{ status: string }>;
+      callback: (result: { page: OpenedPage }) => Promise<void>,
+    ) => Promise<{ status: string; reason?: string }>;
   };
   sync: () => Promise<void>;
 };
-
-function findRegionOffsets(plaintext: string, regions: Array<{ text: string }>): number[] {
-  const offsets: number[] = [];
-  let searchFrom = 0;
-
-  for (const region of regions) {
-    const regionIndex = plaintext.indexOf(region.text, searchFrom);
-    if (regionIndex === -1) {
-      offsets.push(searchFrom);
-      searchFrom += region.text.length;
-    } else {
-      offsets.push(regionIndex);
-      searchFrom = regionIndex + region.text.length;
-    }
-  }
-
-  return offsets;
-}
 
 async function openAllPages(callback: (session: AllPagesSession) => Promise<void>): Promise<void> {
   await openDesign(
@@ -77,13 +71,35 @@ async function openAllPages(callback: (session: AllPagesSession) => Promise<void
   );
 }
 
+function eachElement(
+  elements: ElementCollection | readonly DesignElementNode[] | DesignElementNode[],
+  visitor: (element: DesignElementNode) => void,
+): void {
+  if (Array.isArray(elements)) {
+    for (const element of elements) {
+      visitor(element);
+    }
+    return;
+  }
+
+  const collection = elements as ElementCollection;
+  if (typeof collection.forEach === "function") {
+    collection.forEach(visitor);
+    return;
+  }
+
+  for (const element of collection.toArray?.() ?? []) {
+    visitor(element);
+  }
+}
+
 function walkTextElements(
-  elements: DesignElementNode[],
+  elements: ElementCollection | readonly DesignElementNode[] | DesignElementNode[],
   visitor: (range: RichtextRange) => void,
 ): void {
-  for (const element of elements) {
+  eachElement(elements, (element) => {
     if (element.locked) {
-      continue;
+      return;
     }
 
     if (element.type === "text" && element.text) {
@@ -91,90 +107,63 @@ function walkTextElements(
     }
 
     if (element.type === "group" && element.contents) {
-      walkTextElements(element.contents.toArray(), visitor);
+      walkTextElements(element.contents, visitor);
+    }
+  });
+}
+
+export function buildApplyTextIndex(entries: CanvaPullEntry[]): Map<string, CanvaPullEntry> {
+  const index = new Map<string, CanvaPullEntry>();
+  const ambiguous = new Set<string>();
+
+  for (const entry of entries) {
+    const sourceNorm = normalizeSegmentText(entry.source);
+    if (sourceNorm) {
+      index.set(sourceNorm, entry);
     }
   }
-}
 
-export function extractSegmentsFromRange(
-  range: RichtextRange,
-  pageIndex: number,
-  contentIndex: number,
-  preserveFormatting: boolean,
-): DesignSegment[] {
-  if (preserveFormatting) {
-    return range.readTextRegions().flatMap((region, regionIndex) => {
-      if (region.text.length === 0) {
-        return [];
-      }
-
-      return [
-        {
-          key: segmentKey(pageIndex, contentIndex, regionIndex),
-          pageIndex,
-          contentIndex,
-          regionIndex,
-          text: region.text,
-        },
-      ];
-    });
-  }
-
-  const plaintext = range.readPlaintext();
-  if (plaintext.length === 0) {
-    return [];
-  }
-
-  return [
-    {
-      key: segmentKey(pageIndex, contentIndex, 0),
-      pageIndex,
-      contentIndex,
-      regionIndex: 0,
-      text: plaintext,
-    },
-  ];
-}
-
-export function applyTranslationsToRange(
-  range: RichtextRange,
-  translations: Record<string, string>,
-  pageIndex: number,
-  contentIndex: number,
-  preserveFormatting: boolean,
-): void {
-  if (preserveFormatting) {
-    const regions = range.readTextRegions();
-    const plaintext = range.readPlaintext();
-    const offsets = findRegionOffsets(plaintext, regions);
-
-    for (let regionIndex = regions.length - 1; regionIndex >= 0; regionIndex -= 1) {
-      const region = regions[regionIndex];
-      const translatedText = translations[segmentKey(pageIndex, contentIndex, regionIndex)];
-      const offset = offsets[regionIndex];
-
-      if (!region || translatedText == null || offset == null) {
+  for (const entry of entries) {
+    const extras = [...entry.knownTexts];
+    if (entry.target != null) {
+      extras.push(entry.target);
+    }
+    for (const text of extras) {
+      const norm = normalizeSegmentText(text);
+      if (!norm || ambiguous.has(norm)) {
         continue;
       }
-
-      range.replaceText(
-        {
-          index: offset,
-          length: region.text.length,
-        },
-        translatedText,
-      );
+      const existing = index.get(norm);
+      if (existing && existing.key !== entry.key) {
+        index.delete(norm);
+        ambiguous.add(norm);
+        continue;
+      }
+      if (!existing) {
+        index.set(norm, entry);
+      }
     }
+  }
+
+  return index;
+}
+
+function applyEntryToRange(range: RichtextRange, entry: CanvaPullEntry, result: ApplyResult): void {
+  if (entry.target == null) {
+    result.untranslated += 1;
     return;
   }
 
   const plaintext = range.readPlaintext();
-  const translatedText = translations[segmentKey(pageIndex, contentIndex, 0)];
-  if (translatedText == null || plaintext.length === 0) {
+  if (plaintext === entry.target) {
+    result.alreadyApplied += 1;
     return;
   }
 
-  range.replaceText({ index: 0, length: plaintext.length }, translatedText);
+  // One Hyperlocalise string per text box: replace the full plaintext range even when Canva
+  // exposes multiple styled runs (e.g. "Buy " + "Now"), so the complete translation is applied.
+  range.replaceText({ index: 0, length: plaintext.length }, entry.target);
+  result.replaced += 1;
 }
 
 export function buildPageSummaries(pageRefs: PageRef[]): DesignPageInfo[] {
@@ -198,9 +187,10 @@ export async function listDesignPages(): Promise<DesignPageInfo[]> {
 
 export async function extractDesignContent(
   pageIndices: number[],
-  preserveFormatting: boolean,
+  sourcePages: CanvaPullPage[] = [],
 ): Promise<ExtractedDesignContent> {
   const selectedPages = new Set(pageIndices);
+  const sourceByPage = new Map(sourcePages.map((page) => [page.pageIndex, page]));
   const segments: DesignSegment[] = [];
 
   await openAllPages(async (session) => {
@@ -210,22 +200,19 @@ export async function extractDesignContent(
       if (!selectedPages.has(pageIndex) || pageRef.type !== "absolute" || pageRef.locked) {
         continue;
       }
+      const sourcePage = sourceByPage.get(pageIndex);
+      const textIndex =
+        sourcePage && !sourcePage.needsReupload ? buildApplyTextIndex(sourcePage.entries) : null;
 
       await session.helpers.openPage(pageRef, async (pageResult) => {
-        let contentIndex = 0;
-
-        walkTextElements(pageResult.page.elements.toArray(), (range) => {
-          const pageSegments = extractSegmentsFromRange(
-            range,
-            pageIndex,
-            contentIndex,
-            preserveFormatting,
-          );
-
-          if (pageSegments.length > 0) {
-            segments.push(...pageSegments);
-            contentIndex += 1;
+        walkTextElements(pageResult.page.elements, (range) => {
+          const text = range.readPlaintext();
+          const norm = normalizeSegmentText(text);
+          if (!norm) {
+            return;
           }
+          const entry = textIndex?.get(norm);
+          segments.push({ pageIndex, text: entry?.source ?? text });
         });
       });
     }
@@ -234,51 +221,79 @@ export async function extractDesignContent(
   return {
     segments,
     pageIndices,
-    preserveFormatting,
   };
 }
 
-export async function applyTranslationsToDesign(
-  translations: Record<string, string>,
-  pageIndices: number[],
-  preserveFormatting: boolean,
-): Promise<void> {
-  const selectedPages = new Set(pageIndices);
+export async function applyTranslationsToDesign(pages: CanvaPullPage[]): Promise<ApplyResult> {
+  const result: ApplyResult = {
+    replaced: 0,
+    alreadyApplied: 0,
+    skipped: 0,
+    untranslated: 0,
+    pagesNeedingUpload: [],
+    appliedPageIndices: [],
+  };
+  const pagesByIndex = new Map<number, CanvaPullPage>();
+  for (const page of pages) {
+    if (page.needsReupload) {
+      result.pagesNeedingUpload.push(page.pageIndex);
+      continue;
+    }
+    pagesByIndex.set(page.pageIndex, page);
+  }
 
-  await openAllPages(async (session) => {
-    const pageRefs = session.pageRefs.toArray();
+  let openedPages = 0;
+  const requestedApplyPages = pages.filter((page) => !page.needsReupload);
 
-    for (const [pageIndex, pageRef] of pageRefs.entries()) {
-      if (!selectedPages.has(pageIndex) || pageRef.type !== "absolute" || pageRef.locked) {
-        continue;
-      }
+  if (requestedApplyPages.length > 0) {
+    await openAllPages(async (session) => {
+      const pageRefs = session.pageRefs.toArray();
 
-      await session.helpers.openPage(pageRef, async (pageResult) => {
-        let contentIndex = 0;
+      for (const [pageIndex, pageRef] of pageRefs.entries()) {
+        const page = pagesByIndex.get(pageIndex);
+        if (!page || pageRef.type !== "absolute" || pageRef.locked) {
+          continue;
+        }
+        const index = buildApplyTextIndex(page.entries);
 
-        walkTextElements(pageResult.page.elements.toArray(), (range) => {
-          const plaintext = range.readPlaintext();
-          const regions = range.readTextRegions();
-          const hasContent = preserveFormatting
-            ? regions.some((region) => region.text.length > 0)
-            : plaintext.length > 0;
-
-          if (!hasContent) {
+        const opened = await session.helpers.openPage(pageRef, async (pageResult) => {
+          if (pageResult.page.type === "unsupported" || pageResult.page.locked) {
             return;
           }
 
-          applyTranslationsToRange(
-            range,
-            translations,
-            pageIndex,
-            contentIndex,
-            preserveFormatting,
-          );
-          contentIndex += 1;
+          const matchedBefore = result.replaced + result.alreadyApplied;
+          walkTextElements(pageResult.page.elements, (range) => {
+            const plaintext = range.readPlaintext();
+            const norm = normalizeSegmentText(plaintext);
+            if (!norm) {
+              return;
+            }
+            const entry = index.get(norm);
+            if (!entry) {
+              result.skipped += 1;
+              return;
+            }
+            applyEntryToRange(range, entry, result);
+          });
+          if (result.replaced + result.alreadyApplied > matchedBefore) {
+            result.appliedPageIndices.push(pageIndex);
+          }
         });
-      });
-    }
 
-    await session.sync();
-  });
+        if (opened.status === "executed") {
+          openedPages += 1;
+        }
+      }
+
+      if (result.replaced > 0) {
+        await session.sync();
+      }
+    });
+  }
+
+  if (requestedApplyPages.length > 0 && openedPages === 0 && result.replaced === 0) {
+    throw new Error("Canva skipped those pages. Open an editable page, then apply again.");
+  }
+
+  return result;
 }

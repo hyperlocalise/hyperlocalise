@@ -49,6 +49,9 @@ vi.mock("@/lib/env", () => ({
   },
 }));
 
+// The writer builds its SQS client at import time, before clearMocks runs.
+const credentialsProviderCallsAtImport = [...awsCredentialsProviderMock.mock.calls];
+
 function projectCreatedEvent(organizationId = "org-1"): ActivityLogEventInput {
   return {
     actorCredentialId: null,
@@ -79,10 +82,12 @@ describe("enqueueActivityLogEvent", () => {
 
     expect(result).toMatchObject({ ok: true });
     expect(sendMock).toHaveBeenCalledTimes(1);
-    expect(awsCredentialsProviderMock).toHaveBeenCalledWith({
-      audience: "sts.amazonaws.com",
-      roleArn: "arn:aws:iam::123456789012:role/test-role",
-    });
+    expect(credentialsProviderCallsAtImport).toContainEqual([
+      {
+        audience: "sts.amazonaws.com",
+        roleArn: "arn:aws:iam::123456789012:role/test-role",
+      },
+    ]);
     expect(sendMock).toHaveBeenCalledWith(
       {
         MessageBody: expect.any(String),

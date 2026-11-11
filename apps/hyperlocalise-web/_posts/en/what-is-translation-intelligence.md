@@ -196,4 +196,4 @@ Missing context is.
 
 Translation intelligence is how modern localisation teams close that gap.
 
-For the broader shift from translation to market-ready communication, see [Hyperlocalisation: Why Global Growth Needs More Than Translation](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation).
+For the broader shift from translation to market-ready communication, see [Hyperlocalisation: Why Global Growth Needs More Than Translation](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation). For how to apply these ideas when evaluating platforms, see [How to Choose a Continuous Localisation Workflow](/blog/how-to-choose-a-continuous-localisation-workflow).

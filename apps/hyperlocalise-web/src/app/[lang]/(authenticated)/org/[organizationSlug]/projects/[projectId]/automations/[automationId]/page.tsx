@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { hasCapability } from "@/api/auth/policy";
+import { canUseWorkspaceAutomationAssistant } from "@/lib/agents/workspace-automation-assistant-access";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import {
   evaluateWorkspaceFeatureFlags,
@@ -47,7 +47,10 @@ async function ProjectAutomationDetailPageLoader({
     return <FeatureTeaserPage feature="automations" scope="project" />;
   }
 
-  const flags = await evaluateWorkspaceFeatureFlags(auth);
+  const [flags, assistantEnabled] = await Promise.all([
+    evaluateWorkspaceFeatureFlags(auth),
+    canUseWorkspaceAutomationAssistant(auth),
+  ]);
 
   return (
     <AutomationDetailPageContent
@@ -55,7 +58,7 @@ async function ProjectAutomationDetailPageLoader({
       projectId={projectId}
       automationId={automationId}
       knowledgeAvailable={flags.knowledge}
-      canUpdateKnowledgeMemory={hasCapability(auth.membership.role, "workspace:update")}
+      assistantEnabled={assistantEnabled}
     />
   );
 }

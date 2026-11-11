@@ -241,6 +241,29 @@ func TestLockTaskHashReusesCachedNonMarkdownContextFingerprint(t *testing.T) {
 	}
 }
 
+func TestLockTaskHashKeepsPlainTextLockContextOverCachedFingerprint(t *testing.T) {
+	task := baseLockTask()
+	task.TargetPath = "/tmp/out.txt"
+	task.SourcePath = "/tmp/source.txt"
+	task.EntryKey = "txt.0001"
+	task.SourceText = "Keep this translated."
+	task.ParserMode = "other"
+	task.SourceContext = strings.Join([]string{
+		"Plain text paragraph. Preserve line breaks inside the paragraph exactly.",
+		"Structural path: paragraph[2]",
+	}, "\n")
+	precomputeStableTaskCacheFields(&task)
+
+	got := lockTaskHash(task)
+	if got == lockTaskHashWithContextFingerprint(task, task.sourceContextFingerprint, false, true) {
+		t.Fatalf("expected plain text lock hash to ignore cached prompt context fingerprint")
+	}
+	want := lockTaskHashWithContextFingerprint(task, sourceContextFingerprintForLock(task), false, true)
+	if got != want {
+		t.Fatalf("expected plain text lock hash to use lock-specific context fingerprint")
+	}
+}
+
 func TestLockTaskHashKeepsMarkdownLockContextOverCachedFingerprint(t *testing.T) {
 	task := baseLockTask()
 	task.TargetPath = "/tmp/out.md"

@@ -4,6 +4,7 @@
 
 - Run `make bootstrap` before working if dependencies are not installed yet.
 - For web-related work, also check [`apps/hyperlocalise-web/AGENTS.md`](apps/hyperlocalise-web/AGENTS.md).
+- Mailchimp connects with **OAuth only** (WorkOS Pipes slug `mailchimp`); the web app calls Marketing API 3.0 over REST (`fetch`), not the TypeScript SDK. See [`docs/platform/connections/mailchimp.mdx`](docs/platform/connections/mailchimp.mdx) and [Mailchimp developer docs](https://mailchimp.com/developer/llms.txt).
 
 ## Commit Messages
 
@@ -26,6 +27,14 @@ In apps/hyperlocalise-web, if we change these folders:
 - Run `vp check --fix`
 
 Do not finalize work until all commands complete successfully.
+
+## Lambda deployment (CI)
+
+Production Go Lambdas deploy from [`.github/workflows/lambda-deploy.yml`](.github/workflows/lambda-deploy.yml) on every push to `prod` and via **Lambda Deploy** (`workflow_dispatch`). The same applies to `go-svc-deploy.yml` and the `prod` push of `sandbox-image.yml`.
+
+- **No path filters on prod deploys.** Every push to `prod` deploys every Lambda. Path filters drift from the Go import graph and silently skip deploys.
+- **Concurrency:** use a separate `concurrency` group on each deploy job (`lambda-deploy-<worker>-${{ github.ref }}`). Push deploy jobs call `ensure-deploy-main-tip` after checkout; it skips an older run when `prod` has moved past its commit, because the newer run deploys everything.
+- When adding a lambda: extend the workflow only (new deploy job, concurrency group, `ensure-deploy-main-tip` step). Every deploy job uses `role-session-name: github-actions-lambda-deploy` on `prod`; do not add per-worker session names or change existing jobs’ session names. See [docs/contributing/lambda-deploy.mdx](docs/contributing/lambda-deploy.mdx) and [`.agents/skills/create-sqs-lambda-worker/SKILL.md`](.agents/skills/create-sqs-lambda-worker/SKILL.md).
 
 ## Cursor Cloud specific instructions
 
@@ -80,7 +89,7 @@ Enable Agent Registration on the WorkOS environment (account team if the feature
 
 - Methods: **Service auth** on, **Anonymous** off.
 - Credential type: short-lived **access token** JWT.
-- Trusted (post-claim) permissions: the same PAT scopes as `/api/v1` (`files:read`, `files:write`, `jobs:read`, `jobs:write`) plus `mcp`.
+- Trusted (post-claim) permissions: the same PAT scopes as `/api/v1` (`files:read`, `files:write`, `jobs:read`, `jobs:write`, `memories:read`, `memories:write`) plus `mcp`.
 - Host `auth.md`: copy the AuthKit hostname into `WORKOS_AUTHKIT_DOMAIN` (no scheme). The app rewrites `/auth.md` to `https://$WORKOS_AUTHKIT_DOMAIN/agent/auth.md`.
 - OAuth well-known: protected resource is Hyperlocalise (`/api/v1`). Authorization server is AuthKit. Do not add AuthKit as the first authorization server on MCP protected-resource metadata.
 

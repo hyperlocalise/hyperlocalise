@@ -19,6 +19,7 @@ import {
   overviewTriageLookbackCutoff,
 } from "@/api/routes/project/job.schema";
 import { buildAccessibleJobsWhere, buildOrganizationJobsListWhere } from "@/api/auth/team-access";
+import { keyJobKeyCountSql } from "@/lib/projects/jobs/key-job";
 import { db, schema } from "@/lib/database/client";
 import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/jobs/tms-provider-assignee-candidates";
 import { providerAssignedUsersMatch } from "@/lib/providers/jobs/tms-provider-assignee-match";
@@ -64,6 +65,7 @@ const jobWithProjectSelect = {
   externalStatus: schema.externalJobDetails.externalStatus,
   externalTitle: schema.externalJobDetails.title,
   externalDueDate: schema.externalJobDetails.dueDate,
+  dueAt: schema.jobs.dueAt,
   externalTargetLocales: schema.externalJobDetails.targetLocales,
   externalAssignedUsers: schema.externalJobDetails.assignedUsers,
   externalUrl: schema.externalJobDetails.externalUrl,
@@ -73,12 +75,13 @@ const jobWithProjectSelect = {
   createdAt: schema.jobs.createdAt,
   updatedAt: schema.jobs.updatedAt,
   completedAt: schema.jobs.completedAt,
+  keyCount: keyJobKeyCountSql,
   projectName: schema.projects.name,
 };
 
 type JobListQuery = {
   kind?: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
-  type?: "string" | "file";
+  type?: "string" | "file" | "keys";
   status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   open?: boolean;
   triage?: boolean;

@@ -20,6 +20,11 @@ import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
 import { mediaLocalizationOperationKey } from "@/lib/billing/media-localization-operation-key";
 import { ManagedAiCreditAccessError } from "@/lib/billing/managed-ai-credit";
 import { db, schema } from "@/lib/database/client";
+import {
+  recordProjectTranslationRevisions,
+  revisionActorForProvenance,
+  writeProjectTranslations,
+} from "@/lib/projects/translations/project-translation-revisions";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { fetchImageBytesFromUrl } from "@/lib/projects/files/image-variant-service";
 import { publicMediaAssetUrl, publicMediaMetadata } from "@/lib/projects/files/public-media";
@@ -38,7 +43,8 @@ export type ImageUrlContentKindError =
     }
   | { code: "ai_credit_unavailable"; message: string }
   | { code: "localization_failed"; message: string }
-  | { code: "approved_locked" };
+  | { code: "approved_locked" }
+  | { code: "aborted" };
 
 export function isImageUrlContentKind(metadata: Record<string, unknown> | null | undefined) {
   return metadata?.contentKind === IMAGE_URL_CONTENT_KIND;
@@ -96,6 +102,7 @@ export async function localizeImageUrlTranslation(input: {
   instructions?: string | null;
   actorUserId?: string | null;
   force?: boolean;
+  signal?: AbortSignal;
 }): Promise<
   Result<
     {
@@ -137,8 +144,11 @@ export async function localizeImageUrlTranslation(input: {
     return err({ code: "approved_locked" });
   }
 
-  const fetched = await fetchImageBytesFromUrl(key.sourceText);
+  const fetched = await fetchImageBytesFromUrl(key.sourceText, { signal: input.signal });
   if (!fetched.ok) {
+    if (fetched.error.code === "aborted") {
+      return err({ code: "aborted" });
+    }
     if (fetched.error.code === "fetch_failed") {
       return err({ code: "fetch_failed", message: fetched.error.message });
     }
@@ -181,9 +191,13 @@ export async function localizeImageUrlTranslation(input: {
           target_locale: input.targetLocale,
         },
       },
+      { signal: input.signal },
     );
     localized = { image: result.image, mimeType: result.mimeType || "image/png" };
   } catch (error) {
+    if (input.signal?.aborted) {
+      return err({ code: "aborted" });
+    }
     if (error instanceof ManagedAiCreditAccessError) {
       return err({ code: "ai_credit_unavailable", message: error.message });
     }
@@ -191,6 +205,11 @@ export async function localizeImageUrlTranslation(input: {
       code: "localization_failed",
       message: error instanceof Error ? error.message : "image localization failed",
     });
+  }
+
+  // The caller may have moved on (or started a newer generation) while the model ran.
+  if (input.signal?.aborted) {
+    return err({ code: "aborted" });
   }
 
   const stored = await createStoredFile({
@@ -226,40 +245,63 @@ export async function localizeImageUrlTranslation(input: {
     .set({ metadata, updatedAt: new Date() })
     .where(eq(schema.projectTranslationKeys.id, key.id));
 
-  const [translation] = await db
-    .insert(schema.projectTranslations)
-    .values({
+  const translation = await writeProjectTranslations(
+    db,
+    {
       organizationId: input.organizationId,
-      projectId: input.projectId,
-      translationKeyId: key.id,
-      targetLocale: input.targetLocale,
-      text: assetUrl,
-      status: "needs_review",
-      provenance: "agent",
-      metadata: {
-        contentKind: IMAGE_URL_CONTENT_KIND,
-        storedFileId: stored.id,
-      },
-    })
-    .onConflictDoUpdate({
-      target: [
-        schema.projectTranslations.translationKeyId,
-        schema.projectTranslations.targetLocale,
-      ],
-      set: {
-        text: assetUrl,
-        status: "needs_review",
-        provenance: "agent",
-        reviewedByUserId: null,
-        reviewedAt: null,
-        metadata: {
-          contentKind: IMAGE_URL_CONTENT_KIND,
-          storedFileId: stored.id,
-        },
-        updatedAt: new Date(),
-      },
-    })
-    .returning();
+      translationKeyIds: [key.id],
+      targetLocales: [input.targetLocale],
+    },
+    async (tx, before) => {
+      const [translation] = await tx
+        .insert(schema.projectTranslations)
+        .values({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          translationKeyId: key.id,
+          targetLocale: input.targetLocale,
+          text: assetUrl,
+          status: "needs_review",
+          provenance: "agent",
+          origin: "machine",
+          metadata: {
+            contentKind: IMAGE_URL_CONTENT_KIND,
+            storedFileId: stored.id,
+          },
+        })
+        .onConflictDoUpdate({
+          target: [
+            schema.projectTranslations.translationKeyId,
+            schema.projectTranslations.targetLocale,
+          ],
+          set: {
+            text: assetUrl,
+            status: "needs_review",
+            provenance: "agent",
+            origin: "machine",
+            reviewedByUserId: null,
+            reviewedAt: null,
+            metadata: {
+              contentKind: IMAGE_URL_CONTENT_KIND,
+              storedFileId: stored.id,
+            },
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      if (translation) {
+        await recordProjectTranslationRevisions(tx, {
+          before,
+          saved: [translation],
+          actor: {
+            actorKind: revisionActorForProvenance(translation.provenance).actorKind,
+            actorUserId: input.actorUserId ?? null,
+          },
+        });
+      }
+      return translation;
+    },
+  );
 
   if (!translation) {
     return err({ code: "key_not_found" });
@@ -348,40 +390,65 @@ export async function replaceImageUrlTranslationBytes(input: {
     .set({ metadata, updatedAt: new Date() })
     .where(eq(schema.projectTranslationKeys.id, key.id));
 
-  const [translation] = await db
-    .insert(schema.projectTranslations)
-    .values({
+  const translation = await writeProjectTranslations(
+    db,
+    {
       organizationId: input.organizationId,
-      projectId: input.projectId,
-      translationKeyId: key.id,
-      targetLocale: input.targetLocale,
-      text: assetUrl,
-      status: "needs_review",
-      provenance: "manual",
-      metadata: {
-        contentKind: IMAGE_URL_CONTENT_KIND,
-        storedFileId: stored.id,
-      },
-    })
-    .onConflictDoUpdate({
-      target: [
-        schema.projectTranslations.translationKeyId,
-        schema.projectTranslations.targetLocale,
-      ],
-      set: {
-        text: assetUrl,
-        status: "needs_review",
-        provenance: "manual",
-        reviewedByUserId: null,
-        reviewedAt: null,
-        metadata: {
-          contentKind: IMAGE_URL_CONTENT_KIND,
-          storedFileId: stored.id,
-        },
-        updatedAt: new Date(),
-      },
-    })
-    .returning();
+      translationKeyIds: [key.id],
+      targetLocales: [input.targetLocale],
+    },
+    async (tx, before) => {
+      const [translation] = await tx
+        .insert(schema.projectTranslations)
+        .values({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          translationKeyId: key.id,
+          targetLocale: input.targetLocale,
+          text: assetUrl,
+          status: "needs_review",
+          provenance: "manual",
+          // A person's own asset: always new text, so human.
+          origin: "human",
+          metadata: {
+            contentKind: IMAGE_URL_CONTENT_KIND,
+            storedFileId: stored.id,
+          },
+        })
+        .onConflictDoUpdate({
+          target: [
+            schema.projectTranslations.translationKeyId,
+            schema.projectTranslations.targetLocale,
+          ],
+          set: {
+            text: assetUrl,
+            status: "needs_review",
+            provenance: "manual",
+            // A person's own asset: always new text, so human.
+            origin: "human",
+            reviewedByUserId: null,
+            reviewedAt: null,
+            metadata: {
+              contentKind: IMAGE_URL_CONTENT_KIND,
+              storedFileId: stored.id,
+            },
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      if (translation) {
+        await recordProjectTranslationRevisions(tx, {
+          before,
+          saved: [translation],
+          actor: {
+            actorKind: revisionActorForProvenance(translation.provenance).actorKind,
+            actorUserId: input.actorUserId ?? null,
+          },
+        });
+      }
+      return translation;
+    },
+  );
 
   if (!translation) {
     return err({ code: "key_not_found" });

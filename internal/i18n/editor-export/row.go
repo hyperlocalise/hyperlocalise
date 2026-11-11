@@ -8,4 +8,7 @@ type Row struct {
 	SourceLocale string `json:"sourceLocale"`
 	TargetLocale string `json:"targetLocale"`
 	SourcePath   string `json:"sourcePath,omitempty"`
+	// Origin says whether a machine or a person wrote TargetText ("machine",
+	// "machine_post_edited", "human", "unknown"). XLIFF marks machine text; other formats ignore it.
+	Origin string `json:"origin,omitempty"`
 }

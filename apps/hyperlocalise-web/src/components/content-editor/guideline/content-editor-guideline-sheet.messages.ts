@@ -25,30 +25,20 @@ export const contentEditorGuidelineSheetMessages = defineMessages({
     id: "9e9a/69ACn",
     description: "Description for the style guide tab in the editor guideline sheet",
   },
-  descriptionProjectGuideline: {
-    defaultMessage: "Rules translators follow on this project.",
-    id: "qBKA0q2hmg",
-    description: "Description for the project guideline tab in the editor guideline sheet",
-  },
-  descriptionWorkspaceGuideline: {
-    defaultMessage: "Rules shared by every project in this workspace.",
-    id: "o4QwHRAiJ4",
-    description: "Description for the workspace guideline tab in the editor guideline sheet",
+  descriptionGuideline: {
+    defaultMessage: "Documents in scope for this project.",
+    id: "s0KZePn4lW",
+    description: "Description for the guideline tab in the editor guideline sheet",
   },
   tabStyleGuide: {
     defaultMessage: "Style guide",
     id: "RL5AevpFPI",
     description: "Tab label for project style guide in the editor guideline sheet",
   },
-  tabProjectGuideline: {
-    defaultMessage: "Project guideline",
-    id: "s/GoCU62Nn",
-    description: "Tab label for project Memory.md in the editor guideline sheet",
-  },
-  tabWorkspaceGuideline: {
-    defaultMessage: "Workspace guideline",
-    id: "ImIdtgoe9w",
-    description: "Tab label for organization Memory.md in the editor guideline sheet",
+  tabGuideline: {
+    defaultMessage: "Guideline",
+    id: "q+WK+cU/ej",
+    description: "Tab label for guideline documents in the editor guideline sheet",
   },
   loading: {
     defaultMessage: "Loading…",
@@ -65,29 +55,54 @@ export const contentEditorGuidelineSheetMessages = defineMessages({
     id: "9ll1eHub6k",
     description: "Empty state for style guide tab",
   },
-  emptyProjectGuideline: {
-    defaultMessage: "No project guideline yet.",
-    id: "qaNqVpKpDy",
-    description: "Empty state for project guideline tab",
-  },
-  emptyWorkspaceGuideline: {
-    defaultMessage: "No workspace guideline yet.",
-    id: "fG2qcdhBlw",
-    description: "Empty state for workspace guideline tab",
+  emptyGuideline: {
+    defaultMessage: "No guideline for this project yet.",
+    id: "CZ4vxLK47b",
+    description: "Empty state for the guideline tab in the editor guideline sheet",
   },
   editStyleGuide: {
     defaultMessage: "Edit in settings",
     id: "mBQ9xkM/3m",
     description: "Link to project settings from style guide tab",
   },
-  editProjectGuideline: {
-    defaultMessage: "Open project guideline",
-    id: "VT7w1Xk0pf",
-    description: "Link to project guideline page",
-  },
-  editWorkspaceGuideline: {
+  openKnowledge: {
     defaultMessage: "Open workspace guideline",
-    id: "h1H8ZqvX5J",
-    description: "Link to workspace guideline page",
+    id: "UBgmYJVhxF",
+    description: "Link from the editor guideline sheet to workspace guidelines",
+  },
+  showDocument: {
+    defaultMessage: "Show {title}",
+    id: "XCeIO0kKvi",
+    description: "Button that expands a guideline document in the editor sheet",
+  },
+  hideDocument: {
+    defaultMessage: "Hide {title}",
+    id: "jzHn8+99pe",
+    description: "Button that collapses a guideline document in the editor sheet",
+  },
+  allLocales: {
+    defaultMessage: "All locales",
+    id: "HdjslZ2CfZ",
+    description: "Label for a guideline document that applies to every target locale",
+  },
+  alwaysApply: {
+    defaultMessage: "Always apply",
+    id: "kXyIYUDGHZ",
+    description: "Badge for a guideline document that is always included in full",
+  },
+  processing: {
+    defaultMessage: "Processing",
+    id: "XVzHC8py80",
+    description: "Status badge for a guideline document that is still being read",
+  },
+  failed: {
+    defaultMessage: "Failed",
+    id: "F8dRl91XI1",
+    description: "Status badge for a guideline document that could not be read",
+  },
+  previewUnavailable: {
+    defaultMessage: "This document has no readable text yet.",
+    id: "XL3HPQrRJ1",
+    description: "Shown when a guideline document has no previewable content",
   },
 });

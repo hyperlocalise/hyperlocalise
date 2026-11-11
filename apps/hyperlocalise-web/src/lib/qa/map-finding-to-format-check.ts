@@ -23,6 +23,7 @@ const CHECK_LABELS: Record<TranslationQaCheckType, string> = {
   numbers_mismatch: "Numbers",
   punctuation_mismatch: "Punctuation",
   character_case_mismatch: "Capitalization",
+  unreachable_plural_case: "Plural cases",
   not_localized: "Translation",
   whitespace_only: "Whitespace",
   same_as_source: "Same as source",
@@ -30,6 +31,7 @@ const CHECK_LABELS: Record<TranslationQaCheckType, string> = {
   length: "Length",
   placeholder_mismatch: "Placeholders",
   glossary_violation: "Glossary",
+  guideline: "Guideline",
 };
 
 const CHECK_CATEGORIES: Record<TranslationQaCheckType, ContentEditorFormatCheckCategory> = {
@@ -38,6 +40,7 @@ const CHECK_CATEGORIES: Record<TranslationQaCheckType, ContentEditorFormatCheckC
   numbers_mismatch: "qa",
   punctuation_mismatch: "qa",
   character_case_mismatch: "qa",
+  unreachable_plural_case: "qa",
   not_localized: "qa",
   whitespace_only: "qa",
   same_as_source: "qa",
@@ -45,6 +48,7 @@ const CHECK_CATEGORIES: Record<TranslationQaCheckType, ContentEditorFormatCheckC
   length: "length",
   placeholder_mismatch: "placeholder",
   glossary_violation: "glossary",
+  guideline: "qa",
 };
 
 /** IDs that match go-svc so CAT can dedupe live and scan rows. */
@@ -54,6 +58,7 @@ export const SCAN_FORMAT_CHECK_IDS: Record<TranslationQaCheckType, string> = {
   numbers_mismatch: "qa-numbers-mismatch",
   punctuation_mismatch: "qa-punctuation-mismatch",
   character_case_mismatch: "qa-character-case-mismatch",
+  unreachable_plural_case: "qa-unreachable-plural-case",
   not_localized: "qa-not-localized",
   whitespace_only: "qa-whitespace-only",
   same_as_source: "qa-same-as-source",
@@ -61,6 +66,7 @@ export const SCAN_FORMAT_CHECK_IDS: Record<TranslationQaCheckType, string> = {
   length: "length",
   placeholder_mismatch: "scan-placeholder-mismatch",
   glossary_violation: "scan-glossary-violation",
+  guideline: "guideline",
 };
 
 export type TranslationQaFindingLike = {

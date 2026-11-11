@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/smartling"
@@ -32,6 +34,7 @@ type smartlingGlossaryImportOptions struct {
 	accountUID     string
 	glossaryUID    string
 	filePath       string
+	archiveMode    bool
 	userIdentifier string
 	userSecret     string
 	userSecretEnv  string
@@ -81,7 +84,7 @@ func newSmartlingGlossaryImportCmd() *cobra.Command {
 	o := smartlingGlossaryImportOptions{}
 	cmd := &cobra.Command{
 		Use:          "import",
-		Short:        "import Smartling's official glossary CSV",
+		Short:        "import Smartling's official glossary CSV, XLSX, or TBX",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return executeSmartlingGlossaryImport(cmd, o)
@@ -89,7 +92,8 @@ func newSmartlingGlossaryImportCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&o.accountUID, "account-uid", "", "Smartling account UID")
 	cmd.Flags().StringVar(&o.glossaryUID, "glossary-uid", "", "Smartling glossary UID")
-	cmd.Flags().StringVar(&o.filePath, "file", "", "official Smartling glossary import CSV path")
+	cmd.Flags().StringVar(&o.filePath, "file", "", "official Smartling glossary import file (.csv, .xlsx, or .tbx)")
+	cmd.Flags().BoolVar(&o.archiveMode, "archive-mode", false, "archive glossary entries missing from the import file")
 	addSmartlingCredentialFlags(cmd, &o.userIdentifier, &o.userSecret, &o.userSecretEnv)
 	_ = cmd.MarkFlagRequired("account-uid")
 	_ = cmd.MarkFlagRequired("glossary-uid")
@@ -172,10 +176,113 @@ func executeSmartlingGlossaryImport(cmd *cobra.Command, o smartlingGlossaryImpor
 		AccountUID:  strings.TrimSpace(o.accountUID),
 		GlossaryUID: strings.TrimSpace(o.glossaryUID),
 		FilePath:    strings.TrimSpace(o.filePath),
+		ArchiveMode: o.archiveMode,
 	})
 	if err != nil {
 		return wrapSmartlingCommandError(action, err)
 	}
 	_, err = fmt.Fprintf(cmd.OutOrStdout(), "import_uid=%s status=%s\n", result.ImportUID, result.ImportStatus)
 	return err
+}
+
+func executeSmartlingGlossaryDownload(cmd *cobra.Command, o smartlingGlossaryDownloadOptions) error {
+	const action = "smartling glossary download"
+	format, official, err := normalizeSmartlingGlossaryDownloadFormat(o.format, o.official)
+	if err != nil {
+		return fmt.Errorf("%s: %w", action, err)
+	}
+
+	cfg, err := resolveSmartlingCLICredentials(o.userIdentifier, o.userSecret, o.userSecretEnv, action)
+	if err != nil {
+		return err
+	}
+	client, err := smartling.NewHTTPClient(cfg)
+	if err != nil {
+		return err
+	}
+
+	outputPath := strings.TrimSpace(o.outputPath)
+	out := cmd.OutOrStdout()
+	var closeOut func() error
+	var tempPath string
+	if outputPath != "" {
+		file, err := os.CreateTemp(filepath.Dir(outputPath), "."+filepath.Base(outputPath)+".*.tmp")
+		if err != nil {
+			return fmt.Errorf("create temporary glossary output: %w", err)
+		}
+		out = file
+		tempPath = file.Name()
+		closeOut = file.Close
+	}
+
+	var (
+		entries int
+		bytes   int
+	)
+	if official {
+		result, content, exportErr := client.ExportGlossary(backgroundContext(), smartling.GlossaryExportInput{
+			AccountUID:  o.accountUID,
+			GlossaryUID: o.glossaryUID,
+			Format:      smartling.GlossaryExportFormat(format),
+			LocaleIDs:   o.languages,
+			TbxVersion:  o.tbxVersion,
+		})
+		err = exportErr
+		if err == nil {
+			if _, writeErr := out.Write(content); writeErr != nil {
+				err = writeErr
+			}
+			bytes = result.Bytes
+		}
+	} else {
+		result, writeErr := client.WriteGlossaryCSV(backgroundContext(), smartling.GlossaryDownloadRequest{
+			AccountUID:  o.accountUID,
+			GlossaryUID: o.glossaryUID,
+			Languages:   o.languages,
+		}, out)
+		err = writeErr
+		entries = result.Entries
+	}
+
+	if closeOut != nil {
+		if closeErr := closeOut(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close glossary output: %w", closeErr)
+		}
+	}
+
+	if err != nil {
+		if tempPath != "" {
+			_ = os.Remove(tempPath)
+		}
+		return wrapSmartlingCommandError(action, err)
+	}
+
+	if outputPath != "" {
+		if err := os.Rename(tempPath, outputPath); err != nil {
+			_ = os.Remove(tempPath)
+			return fmt.Errorf("replace glossary output: %w", err)
+		}
+		if official {
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "wrote %s format=%s bytes=%d\n", outputPath, format, bytes)
+			return err
+		}
+		_, err = fmt.Fprintf(cmd.OutOrStdout(), "wrote %s entries=%d\n", outputPath, entries)
+		return err
+	}
+	return nil
+}
+
+func normalizeSmartlingGlossaryDownloadFormat(format string, official bool) (string, bool, error) {
+	normalized := strings.ToLower(strings.TrimSpace(format))
+	if normalized == "" {
+		normalized = "csv"
+	}
+	switch normalized {
+	case "csv":
+		return normalized, official, nil
+	case "xlsx", "tbx":
+		return normalized, true, nil
+	default:
+		return "", false, fmt.Errorf("unsupported --format %q; expected csv, xlsx, or tbx", format)
+	}
 }

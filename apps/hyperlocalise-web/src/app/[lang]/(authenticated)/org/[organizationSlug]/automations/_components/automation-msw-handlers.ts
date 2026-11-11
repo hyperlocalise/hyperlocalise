@@ -14,6 +14,8 @@ import { delay, http, HttpResponse } from "msw";
 
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 
+import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automation-types";
+
 import {
   automationEditorContentfulConnectionsFixture,
   automationEditorCrowdinProjectsFixture,
@@ -21,10 +23,46 @@ import {
   automationEditorRepositoriesFixture,
   automationEditorSlackChannelsFixture,
 } from "./automation-editor.fixture";
+import {
+  intercomCollectionSummariesFixture,
+  intercomHelpCenterSummariesFixture,
+} from "./intercom-api.fixture";
+
+const automationEditorMembersFixture = [
+  {
+    userId: "user_001",
+    workosUserId: "user_ada",
+    email: "ada@example.com",
+    firstName: "Ada",
+    lastName: "Lovelace",
+    displayName: "Ada Lovelace",
+    avatarUrl: null,
+    role: "admin",
+    isCurrentUser: true,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    status: "active",
+  },
+  {
+    userId: "user_002",
+    workosUserId: "user_grace",
+    email: "grace@example.com",
+    firstName: "Grace",
+    lastName: "Hopper",
+    displayName: "Grace Hopper",
+    avatarUrl: null,
+    role: "localization_manager",
+    isCurrentUser: false,
+    createdAt: "2026-01-02T00:00:00.000Z",
+    status: "active",
+  },
+];
 
 export const automationEditorMswHandlers = [
   http.get("*/v1/orgs/:organizationSlug/projects", () =>
     HttpResponse.json({ projects: automationEditorNativeProjectsFixture }),
+  ),
+  http.get("*/v1/orgs/:organizationSlug/members", () =>
+    HttpResponse.json({ members: automationEditorMembersFixture }),
   ),
   http.get("/api/orgs/:organizationSlug/tms-provider/connection", () =>
     HttpResponse.json({
@@ -80,6 +118,9 @@ export const automationEditorMswHandlers = [
   http.get("/api/orgs/:organizationSlug/contentful-connections", () =>
     HttpResponse.json({ contentfulConnections: automationEditorContentfulConnectionsFixture }),
   ),
+  http.get("/api/orgs/:organizationSlug/gitlab/connection", () =>
+    HttpResponse.json({ gitlabConnection: null }),
+  ),
   http.get("/api/orgs/:organizationSlug/gitlab/projects", () =>
     HttpResponse.json({
       projects: [
@@ -98,36 +139,29 @@ export const automationEditorMswHandlers = [
     HttpResponse.json({
       pipe: {
         provider: params.provider,
-        connected: params.provider === "gitlab" || params.provider === "resend",
+        connected:
+          params.provider === "gitlab" ||
+          params.provider === "resend" ||
+          params.provider === "intercom",
         needsReauthorization: false,
         apiKeyLast4: null,
       },
     }),
   ),
-  http.get("/api/orgs/:organizationSlug/knowledge-memory", () =>
-    HttpResponse.json({
-      knowledgeMemory: {
-        content: "# Brand\nUse sentence case for feature names.",
-        updatedAt: "2026-07-01T12:00:00.000Z",
-        updatedByUserId: "user_001",
-      },
-    }),
+  http.get("/api/orgs/:organizationSlug/intercom/help-centers", () =>
+    HttpResponse.json({ restEndpoint: "us", helpCenters: intercomHelpCenterSummariesFixture }),
   ),
-  http.put("/api/orgs/:organizationSlug/knowledge-memory", async ({ request }) => {
-    const body = (await request.json()) as { content?: string };
-    return HttpResponse.json({
-      knowledgeMemory: {
-        content: body.content ?? "",
-        updatedAt: "2026-07-17T12:00:00.000Z",
-        updatedByUserId: "user_001",
-      },
-    });
-  }),
+  http.get("/api/orgs/:organizationSlug/intercom/help-centers/:helpCenterId/collections", () =>
+    HttpResponse.json({ collections: intercomCollectionSummariesFixture }),
+  ),
 ];
 
 export const automationEditorDisconnectedMswHandlers = [
   http.get("*/v1/orgs/:organizationSlug/projects", () =>
     HttpResponse.json({ projects: automationEditorNativeProjectsFixture }),
+  ),
+  http.get("*/v1/orgs/:organizationSlug/members", () =>
+    HttpResponse.json({ members: automationEditorMembersFixture }),
   ),
   http.get("/api/orgs/:organizationSlug/tms-provider/connection", () =>
     HttpResponse.json({ error: "no_active_tms_provider" }, { status: 404 }),
@@ -164,6 +198,12 @@ export const automationEditorDisconnectedMswHandlers = [
   http.get("/api/orgs/:organizationSlug/contentful-connections", () =>
     HttpResponse.json({ contentfulConnections: [] }),
   ),
+  http.get("/api/orgs/:organizationSlug/webflow-connections", () =>
+    HttpResponse.json({ webflowConnections: [] }),
+  ),
+  http.get("/api/orgs/:organizationSlug/gitlab/connection", () =>
+    HttpResponse.json({ gitlabConnection: null }),
+  ),
   http.get("/api/orgs/:organizationSlug/gitlab/projects", () =>
     HttpResponse.json({ projects: [] }),
   ),
@@ -177,6 +217,12 @@ export const automationEditorDisconnectedMswHandlers = [
       },
     }),
   ),
+  http.get("/api/orgs/:organizationSlug/intercom/help-centers", () =>
+    HttpResponse.json({ restEndpoint: "us", helpCenters: [] }),
+  ),
+  http.get("/api/orgs/:organizationSlug/intercom/help-centers/:helpCenterId/collections", () =>
+    HttpResponse.json({ collections: [] }),
+  ),
 ];
 
 export function createAutomationDetailMswHandlers(
@@ -184,12 +230,41 @@ export function createAutomationDetailMswHandlers(
   options?: {
     patchDelay?: number | "infinite";
     deleteDelay?: number | "infinite";
+    recentRuns?: WorkspaceAutomationRunRecord[];
+    brazePush?: {
+      eligibleLocaleCount: number;
+      mappedItemCount: number;
+      pushRunInProgress: boolean;
+    } | null;
+    intercomPush?: {
+      eligibleLocaleCount: number;
+      mappedArticleCount: number;
+      pushRunInProgress: boolean;
+      articles?: Array<{
+        articleId: string;
+        sourcePath: string;
+        status: "active" | "push_failed";
+        eligibleLocaleCount: number;
+        targetLocaleCount: number;
+        eligibleLocales: string[];
+        locales: Array<{
+          locale: string;
+          translationProgress: number;
+          approvalProgress: number;
+        }>;
+        lastPushedAt: string | null;
+        lastError: string | null;
+      }>;
+    } | null;
   },
 ) {
+  const recentRuns = options?.recentRuns ?? [];
+  const intercomPush = options?.intercomPush ?? null;
+  const brazePush = options?.brazePush ?? null;
   return [
     ...automationEditorMswHandlers,
     http.get("/api/orgs/:organizationSlug/automations/:automationId", () =>
-      HttpResponse.json({ automation, recentRuns: [] }),
+      HttpResponse.json({ automation, recentRuns, intercomPush, brazePush }),
     ),
     http.patch("/api/orgs/:organizationSlug/automations/:automationId", async ({ request }) => {
       if (options?.patchDelay !== undefined) {

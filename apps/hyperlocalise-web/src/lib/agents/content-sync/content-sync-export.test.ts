@@ -18,6 +18,7 @@ import {
   buildContentSyncPushCandidate,
   isContentSyncJsonCompatiblePath,
   isContentSyncLottieCompatiblePath,
+  isContentSyncOfficeCompatiblePath,
   shouldExportContentSyncTranslations,
 } from "./content-sync-export";
 
@@ -31,6 +32,12 @@ describe("content sync export", () => {
     expect(isContentSyncJsonCompatiblePath("copy.xliff")).toBe(false);
     expect(isContentSyncLottieCompatiblePath("animations/intro.lottie")).toBe(true);
     expect(isContentSyncLottieCompatiblePath("locales/messages.json")).toBe(false);
+    expect(isContentSyncOfficeCompatiblePath("copy/strings.xlsx")).toBe(true);
+    expect(isContentSyncOfficeCompatiblePath("copy/strings.XLSX")).toBe(true);
+    expect(isContentSyncOfficeCompatiblePath("copy/legacy.xls")).toBe(true);
+    expect(isContentSyncOfficeCompatiblePath("docs/guide.docx")).toBe(true);
+    expect(isContentSyncOfficeCompatiblePath("decks/pitch.pptx")).toBe(true);
+    expect(isContentSyncOfficeCompatiblePath("locales/messages.json")).toBe(false);
   });
 
   it("inserts the locale before the source extension", () => {

@@ -14,7 +14,7 @@
 import Image from "next/image";
 import { FormattedMessage, defineMessages, useIntl } from "react-intl";
 
-import { heroSectionMessages } from "@/components/marketing/hero-section.messages";
+import { TRUSTED_BY_LOGOS } from "@/components/marketing/trusted-by-logos";
 
 const messages = defineMessages({
   label: {
@@ -23,36 +23,6 @@ const messages = defineMessages({
     description: "Integration strip label on the agents-automation hero",
   },
 });
-
-const TRUSTED_BY_LOGOS = [
-  {
-    id: "heidi-health",
-    href: "https://www.heidihealth.com",
-    src: "/images/customers/heidi-health-logo.png",
-    altKey: "heidiHealthAlt" as const,
-    width: 800,
-    height: 332,
-    className: "h-7 sm:h-8",
-  },
-  {
-    id: "tourfinder",
-    href: "https://tourfinder.vn",
-    src: "/images/customers/tourfinder-logo.png",
-    altKey: "tourfinderAlt" as const,
-    width: 1177,
-    height: 294,
-    className: "h-6 sm:h-7",
-  },
-  {
-    id: "tourmatic",
-    href: "https://tourmatic.io",
-    src: "/images/customers/tourmatic-logo.svg",
-    altKey: "tourmaticAlt" as const,
-    width: 315,
-    height: 58,
-    className: "h-6 sm:h-7",
-  },
-] as const;
 
 export function IntegrationStripSection() {
   const intl = useIntl();
@@ -73,7 +43,8 @@ export function IntegrationStripSection() {
           >
             <Image
               src={logo.src}
-              alt={intl.formatMessage(heroSectionMessages[logo.altKey])}
+              alt={intl.formatMessage(logo.alt)}
+              unoptimized={logo.src.endsWith(".svg")}
               width={logo.width}
               height={logo.height}
               className={logo.className + " w-auto object-contain"}

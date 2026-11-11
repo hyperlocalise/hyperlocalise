@@ -41,6 +41,57 @@ describe("validateTranslationSegment", () => {
     expect(checks.map((check) => check.checkType)).toEqual(["not_localized", "whitespace_only"]);
   });
 
+  describe("messageFormat", () => {
+    const placeholderChecks = (
+      sourceText: string,
+      targetText: string,
+      messageFormat?: "auto" | "icu" | "i18next",
+    ) =>
+      validateTranslationSegment({ sourceText, targetText, targetLocale: "fr-FR", messageFormat })
+        .filter((check) => check.checkType === "placeholder_mismatch")
+        .flatMap((check) => check.relatedTokens);
+
+    it("checks single braces outside i18next mode", () => {
+      expect(placeholderChecks("Hi {name}", "Salut")).toEqual(["{name}"]);
+      expect(placeholderChecks("Hi {name}", "Salut", "icu")).toEqual(["{name}"]);
+    });
+
+    it("treats single braces as text in i18next mode", () => {
+      expect(placeholderChecks("Hi {name}", "Salut", "i18next")).toEqual([]);
+      expect(placeholderChecks("Hi {{name}}", "Salut", "i18next")).toEqual(["{{name}}"]);
+    });
+
+    it("treats i18next nesting as text in icu mode", () => {
+      expect(placeholderChecks("See $t(common.more)", "Voir")).toEqual(["$t(common.more)"]);
+      expect(placeholderChecks("See $t(common.more)", "Voir", "icu")).toEqual([]);
+    });
+  });
+
+  describe("placeholderPatterns", () => {
+    const placeholderChecks = (sourceText: string, targetText: string) =>
+      validateTranslationSegment({
+        sourceText,
+        targetText,
+        targetLocale: "fr-FR",
+        placeholderPatterns: ["\\[\\[\\w+\\]\\]", "%\\w+%"],
+      })
+        .filter((check) => check.checkType === "placeholder_mismatch")
+        .flatMap((check) => check.relatedTokens);
+
+    it("reports custom placeholders missing from the target", () => {
+      expect(placeholderChecks("Hi [[name]]", "Salut")).toEqual(["[[name]]"]);
+      expect(placeholderChecks("Hi [[name]]", "Salut [[name]]")).toEqual([]);
+    });
+
+    it("reports custom placeholders the target introduces", () => {
+      expect(placeholderChecks("Hi", "Salut %user%")).toEqual(["%user%"]);
+    });
+
+    it("does not count a custom match twice as a built-in placeholder", () => {
+      expect(placeholderChecks("Hi %user%", "Salut %user%")).toEqual([]);
+    });
+  });
+
   it("warns when the target matches the source", () => {
     const checks = validateTranslationSegment({
       sourceText: "Save",
@@ -142,6 +193,30 @@ describe("validateTranslationSegment", () => {
     ]);
   });
 
+  it("fails when the target drops a Word formatting token", () => {
+    const open = "\x1eHLOXPH_6F30_0\x1f";
+    const close = "\x1eHLOXPH_6330_1\x1f";
+    const checks = validateTranslationSegment({
+      sourceText: `Read the ${open}terms${close} first.`,
+      targetText: `Lisez d'abord les ${open}conditions.`,
+      targetLocale: "fr-FR",
+    });
+
+    expect(checks).toEqual([
+      expect.objectContaining({
+        checkType: "placeholder_mismatch",
+        relatedTokens: ["OX#1"],
+      }),
+    ]);
+    expect(
+      validateTranslationSegment({
+        sourceText: `Read the ${open}terms${close} first.`,
+        targetText: `Lisez d'abord les ${open}conditions${close}.`,
+        targetLocale: "fr-FR",
+      }).filter((check) => check.checkType === "placeholder_mismatch"),
+    ).toEqual([]);
+  });
+
   it("fails missing placeholders", () => {
     const checks = validateTranslationSegment({
       sourceText: "Hello {name}",
@@ -155,6 +230,31 @@ describe("validateTranslationSegment", () => {
         relatedTokens: ["{name}"],
       }),
     ]);
+  });
+
+  it("fails missing i18next interpolations", () => {
+    const checks = validateTranslationSegment({
+      sourceText: "Hello {{name, uppercase}}",
+      targetText: "Bonjour",
+      targetLocale: "fr-FR",
+    });
+
+    expect(checks).toEqual([
+      expect.objectContaining({
+        checkType: "placeholder_mismatch",
+        relatedTokens: ["{{name, uppercase}}"],
+      }),
+    ]);
+  });
+
+  it("accepts matching i18next interpolations and nesting", () => {
+    expect(
+      validateTranslationSegment({
+        sourceText: "See {{name}} $t(help.link)",
+        targetText: "Voir {{name}} $t(help.link)",
+        targetLocale: "fr-FR",
+      }).filter((check) => check.checkType === "placeholder_mismatch"),
+    ).toEqual([]);
   });
 
   it("reports glossary misses and forbidden terms", () => {

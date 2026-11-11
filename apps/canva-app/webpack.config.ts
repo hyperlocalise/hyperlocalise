@@ -44,6 +44,9 @@ export function buildConfig({
   inHarness?: boolean;
 } = {}): Configuration & DevServerConfiguration {
   const mode = devConfig ? "development" : "production";
+  // cssnano 9 + caniuse-api 4 crash under tsx/Node 24 (`isSupported` is undefined).
+  // Skip minification in the Canva preview server; still minify production bundles.
+  const minify = mode === "production";
 
   if (!backendHost) {
     console.warn(
@@ -105,23 +108,7 @@ export function buildConfig({
         {
           test: /\.css$/,
           exclude: /node_modules/,
-          use: [
-            "style-loader",
-            {
-              loader: "css-loader",
-              options: {
-                modules: true,
-              },
-            },
-            {
-              loader: "postcss-loader",
-              options: {
-                postcssOptions: {
-                  plugins: [require("cssnano")({ preset: "default" })],
-                },
-              },
-            },
-          ],
+          use: cssLoaders({ modules: true, minify }),
         },
         {
           test: /\.(png|jpg|jpeg)$/i,
@@ -152,18 +139,7 @@ export function buildConfig({
         {
           test: /\.css$/,
           include: /node_modules/,
-          use: [
-            "style-loader",
-            "css-loader",
-            {
-              loader: "postcss-loader",
-              options: {
-                postcssOptions: {
-                  plugins: [require("cssnano")({ preset: "default" })],
-                },
-              },
-            },
-          ],
+          use: cssLoaders({ minify }),
         },
       ],
     },
@@ -188,12 +164,39 @@ export function buildConfig({
     plugins: [
       new DefinePlugin({
         BACKEND_HOST: JSON.stringify(backendHost),
+        IS_LOCAL_DEVELOPMENT: JSON.stringify(mode === "development"),
       }),
       // Apps can only submit a single JS file via the Developer Portal
       new optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
     ].filter(Boolean),
     ...buildDevConfig(devConfig),
   };
+}
+
+function cssLoaders(options: { modules?: boolean; minify: boolean }) {
+  return [
+    "style-loader",
+    options.modules
+      ? {
+          loader: "css-loader",
+          options: {
+            modules: true,
+          },
+        }
+      : "css-loader",
+    ...(options.minify
+      ? [
+          {
+            loader: "postcss-loader",
+            options: {
+              postcssOptions: {
+                plugins: [require("cssnano")({ preset: "default" })],
+              },
+            },
+          },
+        ]
+      : []),
+  ];
 }
 
 function buildDevConfig(options?: DevConfig): {

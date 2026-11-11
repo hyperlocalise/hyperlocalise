@@ -99,7 +99,11 @@ function succeededAudit(overrides: Record<string, unknown> = {}) {
     score: 82,
     focusLocales: [],
     teaser: { score: 82, headlineFindings: [], findingsCount: 0 },
-    report: { score: 82, findings: [] },
+    report: {
+      score: 82,
+      findings: [],
+      pages: [{ url: "https://example.com/", status: 200, htmlLang: "en", title: "Example" }],
+    },
     errorCode: null,
     errorMessage: null,
     createdAt: new Date("2026-07-25T00:00:00.000Z"),
@@ -471,15 +475,16 @@ describe("localisation audit routes", () => {
     expect(response.headers.get("location")).toBe("/en/localisation-audit/example-com");
   });
 
-  it("rejects expired verify tokens", async () => {
+  it("sends expired verify tokens to the public report", async () => {
     verifyTokenMock.mockResolvedValue(null);
     const { createLocalisationAuditRoutes } = await import("./localisation-audit.route");
     const routes = createLocalisationAuditRoutes();
 
-    const response = await routes.request("/example-com/verify?token=used", {
+    const response = await routes.request("/example-com/verify?token=used&locale=en", {
       method: "GET",
     });
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/en/localisation-audit/example-com");
   });
 });

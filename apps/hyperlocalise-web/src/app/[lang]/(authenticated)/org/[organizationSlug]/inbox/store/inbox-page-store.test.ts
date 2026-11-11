@@ -13,7 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { DEFAULT_INBOX_LIST_FILTERS } from "../_components/inbox-list-filters";
-import { InboxPageStore } from "./inbox-page-store";
+import { EMPTY_REPLY_DRAFT, InboxPageStore } from "./inbox-page-store";
 
 describe("InboxPageStore", () => {
   it("keeps compose draft until it is reset", () => {
@@ -48,5 +48,49 @@ describe("InboxPageStore", () => {
 
     store.clearPendingSelection();
     expect(store.pendingSelection).toBeUndefined();
+  });
+
+  it("keeps reply drafts per conversation until they are reset", () => {
+    const store = new InboxPageStore("acme");
+    store.setReplyDraft("c-1", {
+      text: "Follow up on French",
+      repositoryKey: "github:acme/web",
+      projectId: "proj_website",
+    });
+    store.setReplyDraft("c-2", { text: "German glossary" });
+
+    expect(store.getReplyDraft("c-1")).toEqual({
+      text: "Follow up on French",
+      repositoryKey: "github:acme/web",
+      projectId: "proj_website",
+    });
+    expect(store.getReplyDraft("c-2")).toEqual({
+      text: "German glossary",
+      repositoryKey: "",
+      projectId: "",
+    });
+    expect(store.getReplyDraft("c-missing")).toEqual(EMPTY_REPLY_DRAFT);
+
+    store.setReplyDraft("c-1", { text: "" });
+    expect(store.getReplyDraft("c-1")).toEqual({
+      text: "",
+      repositoryKey: "github:acme/web",
+      projectId: "proj_website",
+    });
+
+    store.resetReplyDraft("c-1");
+    expect(store.getReplyDraft("c-1")).toEqual(EMPTY_REPLY_DRAFT);
+    expect(store.getReplyDraft("c-2").text).toBe("German glossary");
+  });
+
+  it("drops empty reply drafts without touching compose draft", () => {
+    const store = new InboxPageStore("acme");
+    store.setComposeDraft("New request");
+    store.setReplyDraft("c-1", { text: "Keep me", repositoryKey: "github:acme/web" });
+    store.setReplyDraft("c-1", { text: "", repositoryKey: "" });
+
+    expect(store.replyDrafts.has("c-1")).toBe(false);
+    expect(store.getReplyDraft("c-1")).toEqual(EMPTY_REPLY_DRAFT);
+    expect(store.composeDraft).toBe("New request");
   });
 });

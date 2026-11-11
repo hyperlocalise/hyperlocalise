@@ -18,10 +18,19 @@ import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+
 import {
   IssueSheetCreateIssueDialog,
   type IssueSheetCreateStringLink,
 } from "./issue-sheet-create-issue-dialog";
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: new GoSvcClient({ getAccessToken: () => "access-token" }),
+    loading: false,
+  }),
+}));
 import {
   issueSheetAssignableMembersFixture,
   issueSheetColumnsFixture,

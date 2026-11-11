@@ -53,6 +53,7 @@ const {
       initialSearch?: string;
       onOpenTranslationLocale?: (locale: string, key: string) => void;
       adaptiveWorkspaceEnabled?: boolean;
+      projectSource?: "native" | "external_tms";
     }) => (
       <div
         data-testid="content-editor-workspace"
@@ -101,6 +102,11 @@ vi.mock("./project-files-tree-panel", () => ({
   fetchProjectFiles: (...args: unknown[]) => fetchProjectFilesMock(...args),
   findCachedProjectFiles: vi.fn(() => undefined),
   projectFilesQueryKey: () => ["project-files"],
+  fetchProjectFileProgress: vi.fn(async () => []),
+  projectFileProgressQueryKey: () => ["project-file-progress"],
+  fetchProjectHiddenFileIds: vi.fn(async () => new Set()),
+  projectHiddenFilesQueryKey: () => ["project-hidden-files"],
+  markHiddenProjectFiles: (files: unknown[]) => files,
   sortFilesByPath: (files: unknown[]) => files,
   PROJECT_FILES_MAX_LIMIT: 1000,
 }));
@@ -147,6 +153,7 @@ vi.mock("@/components/content-editor/project-file/project-file-content-editor-wo
     targetLocale: string;
     targetLocales?: string[];
     adaptiveWorkspaceEnabled?: boolean;
+    projectSource?: "native" | "external_tms";
   }) => ProjectFileContentEditorWorkspaceMock(props),
 }));
 
@@ -214,7 +221,7 @@ function mockReadyProjectQuery() {
     isLoading: false,
     isError: false,
     isSuccess: true,
-    data: { sourceLocale: "en", targetLocales: ["vi", "fr-FR"] },
+    data: { source: "native", sourceLocale: "en", targetLocales: ["vi", "fr-FR"] },
     error: null,
   });
 }
@@ -336,6 +343,29 @@ describe("ProjectFileContentEditorPageContent CAT shell", () => {
     await screen.findByTestId("content-editor-workspace");
     const props = ProjectFileContentEditorWorkspaceMock.mock.calls.at(-1)?.[0];
     expect(props?.adaptiveWorkspaceEnabled).toBe(true);
+  });
+
+  it("tells the workspace when the project is a connected TMS", async () => {
+    useProjectPageQueryMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      data: { source: "external_tms", sourceLocale: "en", targetLocales: ["fr"] },
+      error: null,
+    });
+    render(
+      <ContentEditorTestProviders>
+        <ProjectFileContentEditorPageContent
+          organizationSlug="acme"
+          projectId="ext:crowdin:902807"
+          sourcePath="en-US.json"
+          highlightLocale="fr"
+        />
+      </ContentEditorTestProviders>,
+    );
+    await screen.findByTestId("content-editor-workspace");
+    const props = ProjectFileContentEditorWorkspaceMock.mock.calls.at(-1)?.[0];
+    expect(props?.projectSource).toBe("external_tms");
   });
 
   it("keeps the file list mounted and cached when selecting another file or going back", async () => {
@@ -636,7 +666,7 @@ describe("ProjectFileContentEditorPageContent CAT shell", () => {
         "acme/web",
       );
     });
-    expect(screen.getByLabelText("GitHub repository")).toBeDisabled();
+    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
   });
 
   it("saves the chosen repository under the destination file preference key", async () => {

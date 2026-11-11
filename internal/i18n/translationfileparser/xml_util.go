@@ -83,6 +83,42 @@ func isXMLCharacterRange(r rune) bool {
 		(r >= 0x10000 && r <= 0x10FFFF)
 }
 
+// scanXMLCharSize returns the byte length of the XML Char at value[i], or 0 if
+// the byte sequence is not a legal XML character.
+func scanXMLCharSize(value string, i int) int {
+	c := value[i]
+	if c < 0x80 {
+		if c == 0x09 || c == 0x0A || c == 0x0D || c >= 0x20 {
+			return 1
+		}
+		return 0
+	}
+	r, size := utf8.DecodeRuneInString(value[i:])
+	if r == utf8.RuneError && size == 1 {
+		return 0
+	}
+	if !isXMLCharacterRange(r) {
+		return 0
+	}
+	return size
+}
+
+// isXMLPlainCharData reports whether value is legal XML 1.0 character data.
+// It rejects the CDATA terminator "]]>" and code points outside the Char production.
+func isXMLPlainCharData(value string) bool {
+	if strings.Contains(value, "]]>") {
+		return false
+	}
+	for i := 0; i < len(value); {
+		size := scanXMLCharSize(value, i)
+		if size <= 0 {
+			return false
+		}
+		i += size
+	}
+	return true
+}
+
 func isValidXMLCharacterReferenceDigits(s string, base int) bool {
 	if s == "" {
 		return false

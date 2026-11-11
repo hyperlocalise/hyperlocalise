@@ -105,6 +105,46 @@ describe("ContentEditorSideBySideIntelligencePanel", () => {
     expect(screen.queryByRole("button", { name: /Find context/i })).not.toBeInTheDocument();
   });
 
+  it("hides unicode insertion for image segments", () => {
+    const onInsertCharacter = vi.fn();
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      contentKind: "image_url" as const,
+      targetText: "https://cdn.example.com/hero.png",
+    };
+
+    renderIntelligencePanel({ segment, onInsertCharacter });
+
+    expect(screen.queryByRole("tab", { name: "Unicode table" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Unicode table" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Show unicode characters" }),
+    ).not.toBeInTheDocument();
+    expect(onInsertCharacter).not.toHaveBeenCalled();
+  });
+
+  it("puts the unicode table in a tab next to Comments", async () => {
+    const user = userEvent.setup();
+
+    renderIntelligencePanel();
+
+    expect(screen.queryByRole("heading", { name: "Unicode table" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Search unicode symbols")).not.toBeInTheDocument();
+
+    const commentsTab = screen.getByRole("tab", { name: /Comments/i });
+    const unicodeTab = screen.getByRole("tab", { name: "Unicode table" });
+    expect(commentsTab.compareDocumentPosition(unicodeTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+
+    await user.click(unicodeTab);
+
+    expect(unicodeTab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("Search unicode symbols")).toBeInTheDocument();
+    expect(document.querySelector("[data-inspector-unicode]")).toHaveClass("overflow-y-auto");
+  });
+
   it("puts translation memory before character limit and shows a pencil", () => {
     renderIntelligencePanel({
       showMaxLengthEditor: true,

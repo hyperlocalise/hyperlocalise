@@ -44,14 +44,31 @@ func (c glossaryCacheHook) Del(ctx context.Context, key string) error {
 	return c.inner.Del(ctx, key)
 }
 
+func mustLoadGlossary(t *testing.T, api *glossaryAPI, id string) glossaryRecord {
+	t.Helper()
+	g, err := scanGlossary(api.pool.QueryRow(t.Context(), `select `+glossaryColumns+` from glossaries g where g.id=$1`, id))
+	require.NoError(t, err)
+	return g
+}
+
+func TestGlossaryContentVersionKeysCache(t *testing.T) {
+	g := glossaryRecord{UpdatedAt: "2026-01-01T00:00:00.000000Z"}
+	require.Equal(t, "u2026-01-01T00:00:00.000000Z", glossaryContentVersion(g))
+	require.Equal(t,
+		glossaryCacheKey("org", "gl", 4, "u2026-01-01T00:00:00.000000Z", "term-count"),
+		glossaryVersionedCacheKey("org", "gl", 4, g, "term-count"),
+	)
+}
+
 func TestGlossaryTermCountCacheHit(t *testing.T) {
 	api, scope := glossaryTestAPI(t, "admin")
 	id := scope.MustGlossary(t, "", "Product terms", "en-US")
 	scope.MustProject(t, scope.ProjectID, "Project")
 	mustAttachGlossary(t, scope, scope.ProjectID, id)
+	g := mustLoadGlossary(t, api, id)
 	ctx := t.Context()
 	require.NoError(t, scope.Valkey.Set(ctx, glossaryRevisionKey(scope.OrganizationID, id), "1", time.Hour))
-	require.NoError(t, scope.Valkey.Set(ctx, glossaryCacheKey(scope.OrganizationID, id, 1, "term-count"), "3", time.Hour))
+	require.NoError(t, scope.Valkey.Set(ctx, glossaryVersionedCacheKey(scope.OrganizationID, id, 1, g, "term-count"), "3", time.Hour))
 	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id), "")
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"termCount":3`)
@@ -68,10 +85,11 @@ func TestGlossaryTermCountCacheMissWrites(t *testing.T) {
 	mustGlossaryTerm(t, scope, id, concept, "en-US", "One")
 	mustGlossaryTerm(t, scope, id, concept, "fr-FR", "Deux")
 	mustGlossaryTerm(t, scope, id, concept, "de-DE", "Drei")
+	g := mustLoadGlossary(t, api, id)
 	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id), "")
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"termCount":3`)
-	raw, err := scope.Valkey.Get(t.Context(), glossaryCacheKey(scope.OrganizationID, id, 1, "term-count"))
+	raw, err := scope.Valkey.Get(t.Context(), glossaryVersionedCacheKey(scope.OrganizationID, id, 1, g, "term-count"))
 	require.NoError(t, err)
 	require.Equal(t, "3", raw)
 }
@@ -92,9 +110,10 @@ func TestGlossaryReadCacheHits(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			api, scope := glossaryTestAPI(t, "admin")
 			id := scope.MustGlossary(t, "", "Product terms", "en-US")
+			g := mustLoadGlossary(t, api, id)
 			ctx := t.Context()
 			require.NoError(t, scope.Valkey.Set(ctx, glossaryRevisionKey(scope.OrganizationID, id), "4", time.Hour))
-			require.NoError(t, scope.Valkey.Set(ctx, glossaryCacheKey(scope.OrganizationID, id, 4, tc.keyParts...), tc.body, time.Hour))
+			require.NoError(t, scope.Valkey.Set(ctx, glossaryVersionedCacheKey(scope.OrganizationID, id, 4, g, tc.keyParts...), tc.body, time.Hour))
 			rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id+tc.path), "")
 			require.Equal(t, 200, rec.Code, rec.Body.String())
 			require.JSONEq(t, tc.body, rec.Body.String())
@@ -212,12 +231,34 @@ func TestGlossaryCacheMalformedFallsBack(t *testing.T) {
 		c := mustGlossaryConcept(t, scope, id, "Term"+strings.Repeat("y", i+1), "", "")
 		mustGlossaryTerm(t, scope, id, c, "en-US", "Word"+strings.Repeat("y", i+1))
 	}
+	g := mustLoadGlossary(t, api, id)
 	ctx := t.Context()
 	require.NoError(t, scope.Valkey.Set(ctx, glossaryRevisionKey(scope.OrganizationID, id), "1", time.Hour))
-	require.NoError(t, scope.Valkey.Set(ctx, glossaryCacheKey(scope.OrganizationID, id, 1, "term-count"), `{"nope":true}`, time.Hour))
+	require.NoError(t, scope.Valkey.Set(ctx, glossaryVersionedCacheKey(scope.OrganizationID, id, 1, g, "term-count"), `{"nope":true}`, time.Hour))
 	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id), "")
 	require.Equal(t, 200, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"termCount":8`)
+}
+
+func TestGlossaryReadCacheIgnoresStaleContentVersion(t *testing.T) {
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	scope.MustProject(t, scope.ProjectID, "Project")
+	mustAttachGlossary(t, scope, scope.ProjectID, id)
+	concept := mustGlossaryConcept(t, scope, id, "A", "", "")
+	mustGlossaryTerm(t, scope, id, concept, "en-US", "One")
+	mustGlossaryTerm(t, scope, id, concept, "fr-FR", "Deux")
+	mustGlossaryTerm(t, scope, id, concept, "de-DE", "Drei")
+	g := mustLoadGlossary(t, api, id)
+	ctx := t.Context()
+	require.NoError(t, scope.Valkey.Set(ctx, glossaryRevisionKey(scope.OrganizationID, id), "1", time.Hour))
+	require.NoError(t, scope.Valkey.Set(ctx, glossaryVersionedCacheKey(scope.OrganizationID, id, 1, g, "term-count"), "99", time.Hour))
+	_, err := scope.Pool.Exec(ctx, `update glossaries set updated_at = now() + interval '1 second' where id=$1`, id)
+	require.NoError(t, err)
+	rec := glossaryRequest(api, scope, "GET", scope.OrgPath("/glossaries/"+id), "")
+	require.Equal(t, 200, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"termCount":3`)
+	require.NotContains(t, rec.Body.String(), `"termCount":99`)
 }
 
 func TestGlossarySourceLocalePatchBumpsCache(t *testing.T) {

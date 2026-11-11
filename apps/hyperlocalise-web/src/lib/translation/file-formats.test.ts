@@ -13,15 +13,19 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  availableFileTranslationFileFormats,
   getLocaleScanExtensions,
+  inferSupportedSegmentedSpreadsheetTranslationFileFormat,
   getSupportedFileTranslationAccept,
   getSupportedSourceUploadAccept,
   inferSupportedFileTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedPdfTranslationFileFormat,
   inferSupportedSourceUploadFormat,
   inferSupportedTranslationFileFormat,
   isBinaryTranslationFileFormat,
+  isPdfTranslationFileFormat,
   inferSupportedDocumentTranslationFileFormat,
   isDocumentTranslationFileFormat,
   isImageTranslationFileFormat,
@@ -47,6 +51,8 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("copy.xlif")).toBe("xliff");
     expect(inferSupportedTranslationFileFormat("copy.xliff")).toBe("xliff");
     expect(inferSupportedTranslationFileFormat("messages.po")).toBe("po");
+    expect(inferSupportedTranslationFileFormat("messages.pot")).toBe("po");
+    expect(inferSupportedSourceUploadFormat("locale/messages.pot")).toBe("po");
     expect(inferSupportedTranslationFileFormat("translations/app_de.ts")).toBe("qt-ts");
     expect(inferSupportedFileTranslationFileFormat("app_fr.ts")).toBe("qt-ts");
     expect(inferSupportedTranslationFileFormat("page.html")).toBe("html");
@@ -144,6 +150,19 @@ describe("translation file formats", () => {
     expect(looksLikeVideoUrl("not-a-url")).toBe(false);
   });
 
+  it("infers PDF as a keyed translation format, not binary or document", () => {
+    expect(inferSupportedTranslationFileFormat("brief.pdf")).toBe("pdf");
+    expect(inferSupportedPdfTranslationFileFormat("handbook.pdf")).toBe("pdf");
+    expect(inferSupportedSourceUploadFormat("brief.pdf")).toBe("pdf");
+    expect(isSupportedSourceUploadFormat("brief.pdf")).toBe(true);
+    expect(isPdfTranslationFileFormat("pdf")).toBe(true);
+    expect(isBinaryTranslationFileFormat("pdf")).toBe(false);
+    expect(isDocumentTranslationFileFormat("pdf")).toBe(false);
+    expect(isWholeFileTranslationFileFormat("pdf")).toBe(false);
+    expect(inferSupportedFileTranslationFileFormat("brief.pdf")).toBe("pdf");
+    expect(getLocaleScanExtensions()).not.toContain("pdf");
+  });
+
   it("infers office formats as binary translation sources", () => {
     expect(inferSupportedTranslationFileFormat("brief.docx")).toBe("docx");
     expect(inferSupportedTranslationFileFormat("spreadsheet.xlsx")).toBe("xlsx");
@@ -152,28 +171,50 @@ describe("translation file formats", () => {
     expect(inferSupportedOfficeTranslationFileFormat("deck.pptx")).toBe("pptx");
     expect(inferSupportedSourceUploadFormat("brief.docx")).toBe("docx");
     expect(isSupportedSourceUploadFormat("deck.pptx")).toBe(true);
-    expect(inferSupportedFileTranslationFileFormat("brief.docx")).toBeNull();
     expect(isOfficeTranslationFileFormat("docx")).toBe(true);
     expect(isBinaryTranslationFileFormat("xlsx")).toBe(true);
     expect(isBinaryTranslationFileFormat("png")).toBe(true);
     expect(isBinaryTranslationFileFormat("json")).toBe(false);
   });
 
-  it("treats markdown, mdx, and asciidoc as whole-file documents, not binary", () => {
+  it("accepts office files for file translation once the sandbox CLI parses them", () => {
+    for (const filename of ["brief.docx", "copy.xlsx", "legacy.XLS", "deck.pptx"]) {
+      expect(inferSupportedFileTranslationFileFormat(filename, false)).toBeNull();
+      expect(inferSupportedFileTranslationFileFormat(filename, true)).not.toBeNull();
+    }
+    expect(inferSupportedFileTranslationFileFormat("messages.json", false)).toBe("json");
+    expect(availableFileTranslationFileFormats(false)).not.toContain("docx");
+    expect(availableFileTranslationFileFormats(true)).toEqual(
+      expect.arrayContaining(["json", "docx", "xlsx", "xls", "pptx"]),
+    );
+    expect(inferSupportedSegmentedSpreadsheetTranslationFileFormat("legacy.xls")).toBe("xls");
+    expect(inferSupportedSegmentedSpreadsheetTranslationFileFormat("deck.pptx")).toBeNull();
+  });
+
+  it("treats html, markdown, mdx, asciidoc, and txt as whole-file documents, not binary", () => {
+    expect(inferSupportedDocumentTranslationFileFormat("page.html")).toBe("html");
+    expect(inferSupportedDocumentTranslationFileFormat("page.htm")).toBe("html");
     expect(inferSupportedDocumentTranslationFileFormat("readme.md")).toBe("markdown");
     expect(inferSupportedDocumentTranslationFileFormat("page.mdx")).toBe("mdx");
     expect(inferSupportedDocumentTranslationFileFormat("guide.adoc")).toBe("asciidoc");
+    expect(inferSupportedDocumentTranslationFileFormat("notes.txt")).toBe("txt");
+    expect(isDocumentTranslationFileFormat("html")).toBe(true);
     expect(isDocumentTranslationFileFormat("markdown")).toBe(true);
     expect(isDocumentTranslationFileFormat("mdx")).toBe(true);
     expect(isDocumentTranslationFileFormat("asciidoc")).toBe(true);
+    expect(isDocumentTranslationFileFormat("txt")).toBe(true);
     expect(isDocumentTranslationFileFormat("json")).toBe(false);
+    expect(isWholeFileTranslationFileFormat("html")).toBe(true);
     expect(isWholeFileTranslationFileFormat("markdown")).toBe(true);
     expect(isWholeFileTranslationFileFormat("mdx")).toBe(true);
     expect(isWholeFileTranslationFileFormat("asciidoc")).toBe(true);
+    expect(isWholeFileTranslationFileFormat("txt")).toBe(true);
     expect(isWholeFileTranslationFileFormat("json")).toBe(false);
+    expect(isBinaryTranslationFileFormat("html")).toBe(false);
     expect(isBinaryTranslationFileFormat("markdown")).toBe(false);
     expect(isBinaryTranslationFileFormat("mdx")).toBe(false);
     expect(isBinaryTranslationFileFormat("asciidoc")).toBe(false);
+    expect(isBinaryTranslationFileFormat("txt")).toBe(false);
   });
 
   it("builds a source-upload accept list including office and images", () => {
@@ -206,6 +247,8 @@ describe("translation file formats", () => {
         ".js",
         ".htm",
         ".markdown",
+        ".txt",
+        ".pdf",
       ]),
     );
   });
@@ -227,11 +270,13 @@ describe("translation file formats", () => {
         ".svg",
       ]),
     );
-    expect(accept.split(",")).not.toEqual(expect.arrayContaining([".png", ".mp4", ".docx"]));
+    expect(accept.split(",")).not.toEqual(
+      expect.arrayContaining([".png", ".mp4", ".docx", ".pdf"]),
+    );
   });
 
   it("rejects unsupported file extensions", () => {
-    expect(inferSupportedTranslationFileFormat("brief.pdf")).toBeNull();
+    expect(inferSupportedTranslationFileFormat("brief.rtf")).toBeNull();
     expect(inferSupportedTranslationFileFormat("no-extension")).toBeNull();
   });
 

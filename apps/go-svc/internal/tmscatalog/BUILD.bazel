@@ -1,0 +1,28 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "tmscatalog",
+    srcs = [
+        "catalog.go",
+        "crowdin.go",
+        "crowdin_projects.go",
+        "export.go",
+        "lokalise_projects.go",
+        "phrase.go",
+        "phrase_projects.go",
+        "projects.go",
+        "smartling.go",
+        "smartling_projects.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/tmscatalog",
+    visibility = ["//apps/go-svc:__pkg__"],
+)
+
+go_test(
+    name = "tmscatalog_test",
+    srcs = [
+        "catalog_test.go",
+        "projects_test.go",
+    ],
+    embed = [":tmscatalog"],
+)

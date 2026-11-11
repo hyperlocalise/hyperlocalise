@@ -34,21 +34,22 @@ worker, or a new Lambda artifact under `apps/`.
      the worker contract;
    - propagates context and bounds external calls with timeouts;
    - logs IDs, counts, phases, and durations without payload secrets.
-4. Add shared-secret metadata configuration. The infrastructure supplies only:
+4. Wire Secrets Manager metadata (values stay in AWS; Lambda gets ARN, JSON key,
+   and cache TTL only). Never mutate `os.Environ` with loaded secret values.
 
-   - `<NAME>_ARN`
-   - `<NAME>_KEY`
-   - `<NAME>_CACHE_TTL_SECONDS`
+   **Postgres / shared database (default for new queue workers):** match
+   activity-log, glossary-interchange, and memory-interchange. Use
+   `secretsmanager.ConfigFromEnv()` and `NewLoader`. Infrastructure should use
+   `secret_references.database_url_secret` plus explicit
+   `DATABASE_SECRET_KEY = "DATABASE_URL"` in `environment_variables`. See
+   [references/worker-contract.md](references/worker-contract.md#postgres--shared-runtime-database-default).
 
-   Call `secretsmanager.ConfigsFromEnv("NAME", ...)`, create a
-   `secretsmanager.Collection`, and map named values into a typed runtime
-   config. Never mutate `os.Environ` with loaded values.
-
-   The existing activity-log Lambda is a compatibility exception: the merged
-   infrastructure wrapper still supplies `DATABASE_URL_SECRET_ARN`,
-   `DATABASE_SECRET_KEY`, and `DATABASE_URL_SECRET_CACHE_TTL_SECONDS`, so that
-   worker continues to use `secretsmanager.ConfigFromEnv` until infrastructure
-   changes its wrapper contract.
+   **Extra secrets beyond Postgres:** infrastructure supplies
+   `<NAME>_ARN`, `<NAME>_KEY`, and `<NAME>_CACHE_TTL_SECONDS` per
+   `secret_references` entry. Use `ConfigsFromEnv("NAME", ...)` and
+   `Collection`. Do not use `ConfigsFromEnv("DATABASE")` for Postgres unless
+   infra uses the map key `database` (emits `DATABASE_ARN`), not
+   `database_url_secret`.
 5. Add table-driven tests for valid messages, malformed messages, partial
    failures, context cancellation, secret loading, cache behavior, and safe
    logging. Use fakes for AWS and external dependencies.
@@ -57,11 +58,17 @@ worker, or a new Lambda artifact under `apps/`.
 7. Add or update deployment workflow configuration using
    `.github/actions/deploy-lambda-artifact` with the build command, binary path,
    artifact key, artifact-bucket SSM parameter, and function-name SSM parameter.
-   Follow the existing `.github/workflows/lambda-deploy.yml` pattern: preserve
-   the changed-path detector and deploy job, and make the smallest possible
-   change—normally only the Lambda source path and the worker-specific test,
-   build, binary, artifact, and function-parameter values. Do not refactor the
-   workflow into a different upload/provision structure.
+   Follow the existing `.github/workflows/lambda-deploy.yml` pattern: copy an
+   existing deploy job and make the smallest possible change—test command,
+   build command, binary path, artifact key, function SSM parameter, and
+   job-level `concurrency` group. Do not add path filters; every push to
+   `prod` deploys every Lambda. Do not refactor upload/provision structure.
+   Set `role-session-name: github-actions-lambda-deploy` on
+   `configure-aws-credentials` (required for every deploy job on `prod`; do
+   not introduce per-worker session names). Do not change concurrency groups
+   or deploy steps on existing Lambda jobs when adding a worker. See
+   [docs/contributing/lambda-deploy.mdx](../../../docs/contributing/lambda-deploy.mdx)
+   (including “Do not change when launching a new Lambda”) and root `AGENTS.md`.
 8. Document required non-sensitive environment metadata and the local test
    command. Do not require LocalStack for unit tests.
 9. For an ECS producer, document the infra-owned task-definition/configuration

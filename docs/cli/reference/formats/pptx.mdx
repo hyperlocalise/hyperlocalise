@@ -1,0 +1,75 @@
+---
+title: "Translate PowerPoint decks with Hyperlocalise"
+sidebarTitle: "PowerPoint decks"
+description: "Translate PowerPoint .pptx slides paragraph by paragraph while keeping layouts, formatting, and images."
+---
+
+Hyperlocalise translates PowerPoint decks one paragraph at a time and writes the
+translations into a copy of the source deck, so layouts, themes, and images are
+kept.
+
+Supported extension: `.pptx`. Legacy `.ppt` files are not parsed; save them as
+`.pptx` first.
+
+## What is translated
+
+- Paragraphs in slide text boxes, placeholders, and table cells, in
+  presentation order.
+- Speaker notes, layouts, masters, charts, and SmartArt are copied unchanged.
+- Paragraphs without letters, such as slide numbers, are skipped.
+
+Each paragraph is keyed by its slide part and its position among that slide's
+paragraphs, for example `ppt/slides/slide3.xml#4`. Keys follow the slide file,
+not the slide's current position, so reordering slides does not change keys.
+
+## Formatting placeholders
+
+A paragraph is translated in the formatting that covers most of its text. Text
+in other formatting, links, and objects that are not text are sent to the model
+as placeholders. The model is told to keep them, and the writer puts the
+original formatting back around the translated text.
+
+Each entry's context names its slide and shape, for example
+`Slide 3, Title 1` or `Slide 3, table cell`.
+
+## Configure your files
+
+```yaml
+locales:
+    source: en
+    targets:
+        - fr
+        - ja
+
+buckets:
+    decks:
+        files:
+            - from: decks/en/launch.pptx
+              to: decks/{{target}}/launch.pptx
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+## Behavior and limitations
+
+- An existing target deck is updated in place: paragraphs already translated
+  are kept, and a run fills only entries that are missing or changed.
+- Untranslated paragraphs keep their source text.
+- Translated text can be longer than the source. Check slides for overflow,
+  especially in fixed-size text boxes.
+- `hl entries launch.pptx` prints each paragraph with its key and context.

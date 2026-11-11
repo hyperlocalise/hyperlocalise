@@ -24,7 +24,7 @@ Trong hơn hai thập kỷ, công nghệ bản địa hóa đã tập trung vào
 
 Hệ thống quản lý dịch thuật đã giúp các tổ chức thay thế bảng tính, chuỗi email, các nhà cung cấp rời rạc và việc trao đổi tệp thủ công bằng những quy trình làm việc có cấu trúc. Chúng tập trung nội dung đa ngôn ngữ, điều phối người dịch và người duyệt, duy trì thuật ngữ, tái sử dụng các bản dịch trước đây và theo dõi việc bàn giao tại các thị trường.
 
-Đây là một bước tiến quan trọng. Công việc dịch thuật trở nên dễ quản lý, đo lường và tích hợp hơn vào các hoạt động nội dung rộng hơn. [RWS](https://www.rws.com/glossary/translation-management/) mô tả quản lý dịch thuật là sự phối hợp giữa con người, quy trình và công nghệ cần thiết để dịch nội dung một cách hiệu quả và nhất quán giữa các ngôn ngữ.
+This was an important evolution. Translation became easier to govern, measure, and integrate into broader content operations. [RWS](https://www.rws.com/glossary/translation-management/) describes translation management as the coordination of people, processes, and technology required to translate content efficiently and consistently across languages.
 
 Nhưng môi trường nơi hoạt động bản địa hóa diễn ra đã thay đổi.
 
@@ -86,7 +86,7 @@ Tuy nhiên, sự lưu loát không nên bị nhầm lẫn với tính chính xá
 
 Bản dịch do AI tạo ra có thể nghe tự nhiên nhưng lại hiểu sai về sản phẩm, chọn sai thuật ngữ đã được phê duyệt, vi phạm một ràng buộc của giao diện hoặc không truyền tải được ý định của thông điệp nguồn.
 
-Nghiên cứu về dịch máy tiếp tục cho thấy chất lượng bản dịch phụ thuộc nhiều hơn vào sự trôi chảy ở cấp độ câu. [Bối cảnh tài liệu, kiến thức chuyên ngành, diễn ngôn, thuật ngữ và mục đích sử dụng](https://www.sciencedirect.com/science/article/pii/S2589004224021035) đều có thể ảnh hưởng đến mức độ phù hợp của bản dịch.
+Research into machine translation continues to show that translation quality depends on more than sentence-level fluency. [Document context, domain knowledge, discourse, terminology, and intended use](https://www.sciencedirect.com/science/article/pii/S2589004224021035) can all affect whether a translation is appropriate.
 
 Sự phân biệt này trở nên quan trọng hơn khi đầu ra của AI ngày càng thuyết phục.
 
@@ -96,9 +96,9 @@ Do đó, câu hỏi quan trọng không chỉ đơn giản là liệu AI có th�
 
 Đó là việc hệ thống có thể cung cấp cho mô hình hoặc con người phù hợp những bằng chứng, hướng dẫn, ràng buộc và kiến thức tổ chức phù hợp hay không.
 
-Đó chính là vai trò của Translation Intelligence.
+Đó là vai trò của trí tuệ dịch thuật.
 
-## Translation Intelligence là gì?
+## Dịch thuật thông minh là gì?
 
 Translation Intelligence là cơ sở hạ tầng biến kiến thức về sản phẩm, thương hiệu, ngôn ngữ, thị trường và người đánh giá thành những quyết định bản địa hóa tốt hơn.
 
@@ -126,7 +126,7 @@ Mục tiêu không phải là tập hợp mọi thông tin về công ty vào m�
 
 Translation Intelligence biến ngữ cảnh thành yếu tố vận hành thay vì tùy chọn.
 
-Như đã tìm hiểu trong [Translation Intelligence là gì?](/blog/what-is-translation-intelligence), bản thân việc dịch đang trở nên dễ tạo ra hơn. Năng lực khó đạt được và khó bị thay thế hơn là hiểu được những kiến thức nào nên tác động đến kết quả.
+As explored in [What Is Translation Intelligence?](/blog/what-is-translation-intelligence), translation itself is becoming easier to generate. The harder and more defensible capability is understanding which knowledge should influence the result.
 
 ## Từ tự động hóa quy trình đến điều tra thông minh
 
@@ -140,7 +140,7 @@ Một hệ thống thông minh hơn có thể kiểm tra nội dung nguồn, xá
 
 Đây là lúc các tác nhân AI trở nên đặc biệt hữu ích.
 
-Thay vì chờ các nhóm bản địa hóa tự thu thập thông tin theo cách thủ công, [các tác nhân](/product/agents-automation) có thể thu thập ngữ cảnh từ các hệ thống được kết nối và cung cấp ngữ cảnh đó trực tiếp trong quy trình dịch.
+Instead of waiting for localisation teams to manually assemble information, [agents](/product/agents-automation) can gather context from connected systems and make it available directly inside the translation workflow.
 
 Một nhân viên có thể giúp trả lời:
 
@@ -192,7 +192,7 @@ Hệ thống có thể xác định nên sử dụng lại bản dịch đã đ�
 
 Các chuyên gia ngôn ngữ và thị trường dành ít thời gian hơn để kiểm tra nội dung có thể dự đoán trước, và dành nhiều thời gian hơn cho những quyết định đòi hỏi phán đoán về văn hóa, diễn giải chiến lược hoặc tinh thần trách nhiệm.
 
-Đó cũng là định hướng của [trải nghiệm CAT thế hệ mới](/product/next-gen-cat-tool): không loại bỏ con người khỏi quá trình bản địa hóa, mà là cung cấp cho họ bối cảnh tốt hơn, các đề xuất phù hợp hơn và cái nhìn rõ ràng hơn về nơi chuyên môn của họ thực sự tạo ra khác biệt.
+That is also the direction of the [next-generation CAT experience](/product/next-gen-cat-tool): not removing humans from localisation, but giving them better context, more relevant recommendations, and a clearer view of where their expertise matters.
 
 ## Từ đảm bảo chất lượng đến đánh giá liên tục
 
@@ -280,7 +280,7 @@ Từ các tài sản ngôn ngữ tĩnh đến tri thức tự tiến hóa.
 
 Từ Quản lý bản dịch đến Trí tuệ bản dịch.
 
-Hyperlocalise đang hướng tới tương lai này thông qua [các tác nhân AI](/product/agents-automation), một [trải nghiệm CAT thế hệ mới](/product/next-gen-cat-tool) và một [công cụ ngữ cảnh tự tiến hóa](/product/guidelines) được thiết kế để giúp các đội ngũ toàn cầu tạo ra những bản dịch tốt hơn với ít công việc điều tra thủ công hơn.
+Hyperlocalise is building toward this future through [AI agents](/product/agents-automation), a [next-generation CAT experience](/product/next-gen-cat-tool), and a [self-evolving context engine](/product/guidelines) designed to help global teams produce better translations with less manual investigation.
 
 Thế hệ tiếp theo của phần mềm bản địa hóa sẽ không chỉ đơn thuần quản lý việc dịch thuật.
 
@@ -288,8 +288,9 @@ Thế hệ tiếp theo của phần mềm bản địa hóa sẽ không chỉ đ
 
 ## Đọc thêm
 
-- [Translation Intelligence là gì?](/blog/what-is-translation-intelligence)
+- [What Is Translation Intelligence?](/blog/what-is-translation-intelligence)
+- [Cách chọn quy trình bản địa hóa liên tục](/blog/how-to-choose-a-continuous-localisation-workflow)
 - [Hyperlocalise](/)
-- [Tổng quan về quản lý bản dịch — RWS](https://www.rws.com/glossary/translation-management/)
-- [Nghiên cứu về dịch máy nhận biết ngữ cảnh — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)
-- [Đánh giá của con người và ngữ cảnh cấp tài liệu trong dịch máy — arXiv](https://arxiv.org/abs/2104.14478)
+- [Translation management overview — RWS](https://www.rws.com/glossary/translation-management/)
+- [Context-aware machine translation research — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)
+- [Human evaluation and document-level context in machine translation — arXiv](https://arxiv.org/abs/2104.14478)

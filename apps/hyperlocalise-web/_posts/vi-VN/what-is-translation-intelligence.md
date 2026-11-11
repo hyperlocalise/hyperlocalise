@@ -1,5 +1,5 @@
 ---
-title: Dịch thuật thông minh là gì?
+title: Trí tuệ dịch thuật là gì?
 date: 2026-06-19T00:00:00.000Z
 excerpt: Bản dịch không phải là điểm nghẽn. Thiếu ngữ cảnh mới là vấn đề. Tìm hiểu về trí tuệ dịch thuật và lý do các nhóm bản địa hóa hiện đại cần đến nó.
 category: Sản phẩm
@@ -196,4 +196,4 @@ Thiếu ngữ cảnh là.
 
 Trí tuệ dịch thuật là cách các đội ngũ bản địa hóa hiện đại thu hẹp khoảng cách đó.
 
-Để biết thêm về sự chuyển dịch rộng hơn từ dịch thuật sang giao tiếp sẵn sàng cho thị trường, hãy xem [Bản địa hoá siêu địa phương: Vì sao tăng trưởng toàn cầu cần nhiều hơn dịch thuật](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation).
+Để tìm hiểu thêm về sự chuyển dịch rộng hơn từ dịch thuật sang truyền thông sẵn sàng cho thị trường, hãy xem [Bản địa hóa siêu địa phương: Vì sao tăng trưởng toàn cầu cần nhiều hơn dịch thuật](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation). Để biết cách áp dụng những ý tưởng này khi đánh giá các nền tảng, hãy xem [Cách chọn quy trình bản địa hóa liên tục](/blog/how-to-choose-a-continuous-localisation-workflow).

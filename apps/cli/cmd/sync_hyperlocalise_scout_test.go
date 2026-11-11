@@ -70,6 +70,7 @@ func TestInferHyperlocaliseFileFormat_Scout(t *testing.T) {
 		{"po/fr.PO", "po"},
 		{"translations/app_de.TS", "qt-ts"},
 		{"public/index.HTML", "html"},
+		{"emails/welcome.HTM", "html"},
 		{"docs/readme.MD", "markdown"},
 		{"docs/guide.MDX", "mdx"},
 		{"docs/guide.ADOC", "asciidoc"},

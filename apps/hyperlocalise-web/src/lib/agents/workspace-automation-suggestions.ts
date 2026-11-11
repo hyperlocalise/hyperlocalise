@@ -95,7 +95,7 @@ export type WorkspaceAutomationSuggestion =
       kind: "skill";
       key: string;
       skill: WorkspaceAutomationSkill;
-      availability: "available" | "trigger_mismatch" | "connect_first";
+      availability: "available" | "trigger_mismatch" | "skill_exclusive" | "connect_first";
       /** Integrations to connect before the skill can be added. Empty unless that is the reason. */
       missingIntegrations: WorkspaceAutomationSkillIntegration[];
     }

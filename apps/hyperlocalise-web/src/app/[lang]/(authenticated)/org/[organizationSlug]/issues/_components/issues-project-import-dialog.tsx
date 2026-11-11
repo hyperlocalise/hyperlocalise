@@ -32,8 +32,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import type { IssueSheetImportFormat } from "@/lib/projects/issue-sheet/issue-sheet-import-format";
 
 import { IssueSheetImportDialog } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-import-dialog";
@@ -54,6 +54,7 @@ export function IssuesProjectImportDialog({
   onImported: () => Promise<void>;
   format?: IssueSheetImportFormat;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [importOpen, setImportOpen] = useState(false);
 
@@ -72,17 +73,11 @@ export function IssuesProjectImportDialog({
     queryKey: ["issue-sheet", organizationSlug, selectedProjectId, "import-columns"],
     enabled: Boolean(selectedProjectId),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ].$get({
-        param: { organizationSlug, projectId: selectedProjectId },
-      } as never);
-      if (response.status !== 200) {
-        throw new Error(
-          (await readApiResponseError(response, "Request failed")).message || "Request failed",
-        );
+      try {
+        return await goSvcClient.issueSheet.columns.list(organizationSlug, selectedProjectId);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Request failed"), { cause: error });
       }
-      return response.json();
     },
   });
 

@@ -105,4 +105,9 @@ export const settingsNavMessages = defineMessages({
     id: "lPfrAUX2bp",
     description: "Settings nav item for organization API keys",
   },
+  webhooks: {
+    defaultMessage: "Webhooks",
+    id: "1tOsR5PIC6",
+    description: "Settings nav item for organization webhook endpoints",
+  },
 });

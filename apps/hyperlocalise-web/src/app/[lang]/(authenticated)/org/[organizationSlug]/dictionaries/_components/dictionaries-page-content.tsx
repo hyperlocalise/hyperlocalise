@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { observer } from "mobx-react-lite";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
@@ -22,15 +23,15 @@ import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { createDictionaryClient } from "@/lib/spellcheck-dictionary/client";
 
-import { filterDictionaryListRows, type ApiDictionary } from "./dictionary-list";
-import { DictionariesPageView, type DictionaryCreateForm } from "./dictionaries-page-view";
+import {
+  DictionariesPageStoreProvider,
+  useDictionariesPageStore,
+} from "../store/dictionaries-store-context";
 import { dictionariesPageContentMessages } from "./dictionaries-page-content.messages";
+import { DictionariesPageView } from "./dictionaries-page-view";
+import { filterDictionaryListRows, type ApiDictionary } from "./dictionary-list";
 
 const DICTIONARIES_PAGE_SIZE = 100;
-
-function createEmptyForm(): DictionaryCreateForm {
-  return { name: "", description: "" };
-}
 
 export function DictionariesPageContent({
   organizationSlug,
@@ -39,22 +40,31 @@ export function DictionariesPageContent({
   organizationSlug: string;
   canWriteDictionaries: boolean;
 }) {
+  return (
+    <DictionariesPageStoreProvider organizationSlug={organizationSlug}>
+      <DictionariesPageContentView canWriteDictionaries={canWriteDictionaries} />
+    </DictionariesPageStoreProvider>
+  );
+}
+
+const DictionariesPageContentView = observer(function DictionariesPageContentView({
+  canWriteDictionaries,
+}: {
+  canWriteDictionaries: boolean;
+}) {
   const intl = useIntl();
   const router = useOrgRouter();
+  const pageStore = useDictionariesPageStore();
   const { client: goSvcClient } = useGoSvcClient();
   const dictionaryClient = useMemo(() => createDictionaryClient(goSvcClient), [goSvcClient]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [createForm, setCreateForm] = useState<DictionaryCreateForm>(createEmptyForm);
-  const [createErrors, setCreateErrors] = useState<{ name?: string; submit?: string }>({});
 
   const dictionariesQuery = useInfiniteQuery({
-    queryKey: ["spellcheck-dictionaries", organizationSlug],
+    queryKey: ["spellcheck-dictionaries", pageStore.organizationSlug],
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
       try {
         const response = await dictionaryClient.list({
-          param: { organizationSlug },
+          param: { organizationSlug: pageStore.organizationSlug },
           query: {
             limit: String(DICTIONARIES_PAGE_SIZE),
             offset: String(pageParam),
@@ -82,19 +92,16 @@ export function DictionariesPageContent({
     [dictionariesQuery.data?.pages],
   );
 
-  const filteredDictionaries = useMemo(
-    () => filterDictionaryListRows(dictionaries, searchQuery),
-    [dictionaries, searchQuery],
-  );
+  const filteredDictionaries = filterDictionaryListRows(dictionaries, pageStore.searchQuery);
 
   const createDictionary = useMutation({
-    mutationFn: async (form: DictionaryCreateForm) => {
+    mutationFn: async () => {
       try {
         return await dictionaryClient.create({
-          param: { organizationSlug },
+          param: { organizationSlug: pageStore.organizationSlug },
           json: {
-            name: form.name.trim(),
-            description: form.description.trim() || undefined,
+            name: pageStore.createForm.name.trim(),
+            description: pageStore.createForm.description.trim() || undefined,
           },
         });
       } catch (error) {
@@ -108,53 +115,46 @@ export function DictionariesPageContent({
       }
     },
     onSuccess: (body) => {
-      setCreateDialogOpen(false);
-      setCreateForm(createEmptyForm());
-      setCreateErrors({});
-      router.push(`/org/${organizationSlug}/dictionaries/${body.dictionary.id}`);
+      pageStore.resetCreateDialog();
+      router.push(`/org/${pageStore.organizationSlug}/dictionaries/${body.dictionary.id}`);
     },
     onError: (error) => {
       const message = goSvcErrorMessage(
         error,
         intl.formatMessage(dictionariesPageContentMessages.createFailed),
       );
-      setCreateErrors((current) => ({ ...current, submit: message }));
+      pageStore.setCreateErrors({ ...pageStore.createErrors, submit: message });
       toast.error(message);
     },
   });
 
   function onSubmitCreateDictionary() {
-    if (!createForm.name.trim()) {
-      setCreateErrors({
+    if (!pageStore.createForm.name.trim()) {
+      pageStore.setCreateErrors({
         name: intl.formatMessage(dictionariesPageContentMessages.nameRequired),
       });
       return;
     }
-    setCreateErrors({});
-    createDictionary.mutate(createForm);
+    pageStore.setCreateErrors({});
+    createDictionary.mutate();
   }
 
   return (
     <DictionariesPageView
-      organizationSlug={organizationSlug}
+      organizationSlug={pageStore.organizationSlug}
       dictionaries={filteredDictionaries}
       isLoading={dictionariesQuery.isLoading}
       isError={dictionariesQuery.isError}
       isSuccess={dictionariesQuery.isSuccess}
       error={dictionariesQuery.error instanceof Error ? dictionariesQuery.error : null}
       canWriteDictionaries={canWriteDictionaries}
-      searchQuery={searchQuery}
-      onSearchQueryChange={setSearchQuery}
-      createDialogOpen={createDialogOpen}
-      onCreateDialogOpenChange={(open) => {
-        setCreateDialogOpen(open);
-        if (!open) {
-          setCreateErrors({});
-        }
-      }}
-      createForm={createForm}
-      onCreateFormChange={setCreateForm}
-      createErrors={createErrors}
+      searchQuery={pageStore.searchQuery}
+      onSearchQueryChange={(value) => pageStore.setSearchQuery(value)}
+      createDialogOpen={pageStore.createDialogOpen}
+      onCreateDialogOpenChange={(open) => pageStore.setCreateDialogOpen(open)}
+      createForm={pageStore.createForm}
+      onCreateFormChange={(form) => pageStore.setCreateForm(form)}
+      createErrors={pageStore.createErrors}
       isCreating={createDictionary.isPending}
       onSubmitCreateDictionary={onSubmitCreateDictionary}
       totalCount={dictionariesQuery.data?.pages[0]?.total}
@@ -163,4 +163,4 @@ export function DictionariesPageContent({
       onLoadMore={() => void dictionariesQuery.fetchNextPage()}
     />
   );
-}
+});

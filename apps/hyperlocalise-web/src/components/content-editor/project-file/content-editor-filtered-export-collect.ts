@@ -66,8 +66,10 @@ async function loadPageTargets(input: {
         intl: input.intl,
         goSvcClient: input.goSvcClient,
       });
-      const text = target?.text ?? "";
-      return [segment.externalStringId, text] as const;
+      return [
+        segment.externalStringId,
+        { text: target?.text ?? "", origin: target?.origin },
+      ] as const;
     },
   );
 
@@ -84,6 +86,8 @@ export async function collectCatFilteredExportRows(
     search: string;
     queueFilter: ProjectFileContentEditorQueueFilter;
     queueSort?: ProjectFileContentEditorQueueSort;
+    queueFilterQualifier?: string;
+    queueAdvanced?: string;
     externalResourceId?: string | null;
     resourceType?: "file" | "key";
     sourcePaths?: string | null;
@@ -117,6 +121,8 @@ export async function collectCatFilteredExportRows(
       search: input.search,
       queueFilter: input.queueFilter,
       queueSort,
+      queueFilterQualifier: input.queueFilterQualifier,
+      queueAdvanced: input.queueAdvanced,
       limit,
       offset,
       phraseScanPage,
@@ -169,7 +175,8 @@ export async function collectCatFilteredExportRows(
       rows.push({
         key: segment.key,
         sourceText: segment.sourceText,
-        targetText: targetById.get(segment.externalStringId) ?? "",
+        targetText: targetById.get(segment.externalStringId)?.text ?? "",
+        origin: targetById.get(segment.externalStringId)?.origin,
         sourceLocale: input.sourceLocale,
         targetLocale: input.targetLocale,
         sourcePath: segment.sourcePath ?? input.sourcePath,

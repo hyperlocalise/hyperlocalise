@@ -21,11 +21,20 @@ const (
 	memoryRequestTimeout = 30 * time.Second
 )
 
+const (
+	productUsageMemoryCreatedEvent  = "memory_created"
+	productUsageMemoryCreatedStatus = "created"
+	productUsageMemoryCreatedSource = "memory"
+)
+
 type memoryAPI struct {
 	pool        dictionaryPool
 	membership  organizationMembershipLookup
 	objects     *objectstore.Registry
 	interchange memoryInterchangePublisher
+	activityLog activityLogPublisher
+	analytics   memberProductUsageTracker
+	tms         *tmsImports
 }
 
 type memoryActor struct{ userID, organizationID, role string }
@@ -128,6 +137,8 @@ func (api *memoryAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+m+"/{memoryId}/entries/export", owned((*memoryAPI).exportMemoryEntriesHandler))
 	route("POST "+m+"/{memoryId}/entries/export", owned((*memoryAPI).createMemoryExportHandler))
 	route("POST "+m+"/{memoryId}/entries/import/uploads", owned((*memoryAPI).createMemoryImportUploadHandler))
+	route("POST "+m+"/{memoryId}/entries/import/from-tms", owned((*memoryAPI).importMemoryFromTMSHandler))
+	route("GET "+orgRoutePrefix+"/tms/translation-memories", bindActor(api, (*memoryAPI).listTMSMemoriesHandler))
 	route("POST "+m+"/{memoryId}/entries/import", owned((*memoryAPI).importMemoryEntriesHandler))
 	route("POST "+m+"/{memoryId}/entries/promote-from-project", owned((*memoryAPI).promoteMemoryFromProjectHandler))
 	route("GET "+m+"/{memoryId}/entries/{entryId}", owned((*memoryAPI).getMemoryEntryHandler))
@@ -270,6 +281,7 @@ type memoryRecord struct {
 	LastSyncErrorMessage *string            `json:"lastSyncErrorMessage"`
 	CreatedAt            string             `json:"createdAt"`
 	UpdatedAt            string             `json:"updatedAt"`
+	ProjectCount         int                `json:"projectCount"`
 	ResourceKind         string             `json:"resourceKind"`
 	Capabilities         memoryCapabilities `json:"capabilities"`
 }
@@ -373,7 +385,7 @@ func readMemoryBody(r *http.Request, allowed []string, target any) error {
 	selected := map[string]json.RawMessage{}
 	for _, key := range allowed {
 		if value, ok := fields[key]; ok {
-			if string(value) == "null" && key != "description" && key != "metadata" {
+			if string(value) == "null" && key != "description" {
 				return invalidMemory()
 			}
 			selected[key] = value

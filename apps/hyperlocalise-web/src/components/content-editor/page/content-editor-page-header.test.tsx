@@ -68,4 +68,21 @@ describe("ContentEditorPageHeader", () => {
     expect(pickerContainer).toHaveClass("inline-flex");
     expect(pickerContainer).not.toHaveClass("lg:hidden");
   });
+
+  it("renders headerTrailing in the header chrome", () => {
+    const state = createContentEditorWorkspaceState();
+    const orchestrator = createCatWorkspace(state);
+
+    renderWithContentEditorProviders(
+      <ContentEditorWorkspaceContext.Provider value={orchestrator}>
+        <ContentEditorPageHeader
+          backHref="/projects"
+          actions={defaultActions}
+          headerTrailing={<button type="button">Push to Intercom</button>}
+        />
+      </ContentEditorWorkspaceContext.Provider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Push to Intercom" })).toBeInTheDocument();
+  });
 });

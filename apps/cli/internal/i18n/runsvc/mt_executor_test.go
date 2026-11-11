@@ -746,7 +746,7 @@ func TestExecutePoolMixedLLMAndMTExecution(t *testing.T) {
 	factory := newTestMTEngineFactoryWithEngines(t, map[string]mt.Engine{"p1": engine})
 	emitter := newEventEmitter(func(Event) {})
 
-	staged, flushedTargets, execReport, err := svc.executePool(context.Background(), llmTasks, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 2, "run1", nil, contextMemoryPlan{}, factory, emitter, false, nil)
+	staged, flushedTargets, execReport, err := svc.executePool(context.Background(), llmTasks, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 2, "run1", nil, contextMemoryPlan{}, factory, emitter, false, nil, false)
 	emitter.close()
 	if err != nil {
 		t.Fatalf("executePool: %v", err)
@@ -820,7 +820,7 @@ func TestExecutePoolGroupsMTTasksByProfileAndLocalePair(t *testing.T) {
 	factory := newTestMTEngineFactoryWithEngines(t, map[string]mt.Engine{"p1": engineP1, "p2": engineP2})
 	emitter := newEventEmitter(func(Event) {})
 
-	_, _, execReport, err := svc.executePool(context.Background(), nil, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 2, "run1", nil, contextMemoryPlan{}, factory, emitter, false, nil)
+	_, _, execReport, err := svc.executePool(context.Background(), nil, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 2, "run1", nil, contextMemoryPlan{}, factory, emitter, false, nil, false)
 	emitter.close()
 	if err != nil {
 		t.Fatalf("executePool: %v", err)
@@ -866,7 +866,7 @@ func TestMaxTranslationsAppliedBeforeMTBatching(t *testing.T) {
 	factory := newTestMTEngineFactoryWithEngines(t, map[string]mt.Engine{"p1": engine})
 	emitter := newEventEmitter(func(Event) {})
 
-	_, _, execReport, err := svc.executePool(context.Background(), llmTasks, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 2, "run1", nil, contextMemoryPlan{}, factory, emitter, false, nil)
+	_, _, execReport, err := svc.executePool(context.Background(), llmTasks, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 2, "run1", nil, contextMemoryPlan{}, factory, emitter, false, nil, false)
 	emitter.close()
 	if err != nil {
 		t.Fatalf("executePool: %v", err)
@@ -909,7 +909,7 @@ func TestExecutePoolContextMemoryExcludesMTTasks(t *testing.T) {
 	factory := newTestMTEngineFactoryWithEngines(t, map[string]mt.Engine{"p1": engine})
 	emitter := newEventEmitter(func(Event) {})
 
-	_, _, execReport, err := svc.executePool(context.Background(), llmTasks, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 2, "run1", nil, contextPlan, factory, emitter, false, nil)
+	_, _, execReport, err := svc.executePool(context.Background(), llmTasks, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 2, "run1", nil, contextPlan, factory, emitter, false, nil, false)
 	emitter.close()
 	if err != nil {
 		t.Fatalf("executePool: %v", err)
@@ -1019,7 +1019,7 @@ func TestExecutePoolSharedConcurrencyBudgetWorkersOne(t *testing.T) {
 	}
 	done := make(chan poolResult, 1)
 	go func() {
-		_, _, execReport, err := svc.executePool(context.Background(), llmTasks, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 1, "run1", nil, contextMemoryPlan{}, factory, emitter, false, nil)
+		_, _, execReport, err := svc.executePool(context.Background(), llmTasks, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 1, "run1", nil, contextMemoryPlan{}, factory, emitter, false, nil, false)
 		done <- poolResult{execReport: execReport, err: err}
 	}()
 
@@ -1068,7 +1068,7 @@ func TestExecutePoolSharedConcurrencyBudgetLargerWorkerCount(t *testing.T) {
 	}
 	done := make(chan poolResult, 1)
 	go func() {
-		_, _, execReport, err := svc.executePool(context.Background(), llmTasks, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 2, "run1", nil, contextMemoryPlan{}, factory, emitter, false, nil)
+		_, _, execReport, err := svc.executePool(context.Background(), llmTasks, mtTasks, map[string]stagedOutput{}, "/tmp/lock.json", newTestExecutePoolLockState(), 2, "run1", nil, contextMemoryPlan{}, factory, emitter, false, nil, false)
 		done <- poolResult{execReport: execReport, err: err}
 	}()
 

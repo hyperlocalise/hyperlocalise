@@ -39,6 +39,7 @@ jobs:
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
         with:
+          node-version: "24.22.2"
           working-directory: apps/hyperlocalise-web
           cache: true
           # setup-vp defaults to `vp install` at the repo root, which has no
@@ -108,17 +109,36 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # Vitest --changed uses `git diff BASE...HEAD` and needs a merge-base.
+          # Depth 1 leaves HEAD as a shallow graft that later deepen cannot reconnect.
+          fetch-depth: 2
 
       - name: Fetch PR base for changed tests
         if: github.event.pull_request.draft
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         working-directory: ${{ github.workspace }}
-        run: git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+        run: |
+          set -euo pipefail
+          # fetch-depth: 2 keeps HEAD connected so unshallow can expand it.
+          # A second depth-2 fetch of BASE_SHA is a disjoint graph once the
+          # PR has more than one commit, so `git diff BASE...HEAD` has no
+          # merge-base.
+          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+            git fetch --unshallow --no-tags
+          fi
+          git fetch --no-tags origin "${BASE_REF}"
+          if ! git merge-base "${BASE_SHA}" HEAD >/dev/null; then
+            echo "Unable to find merge-base between ${BASE_SHA} and HEAD" >&2
+            exit 1
+          fi
 
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
         with:
+          node-version: "24.22.2"
           working-directory: apps/hyperlocalise-web
           cache: true
           # setup-vp defaults to `vp install` at the repo root, which has no
@@ -163,9 +183,7 @@ jobs:
         if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          path: |
-            apps/hyperlocalise-web/.next/cache
-            !apps/hyperlocalise-web/.next/cache/.tsbuildinfo
+          path: apps/hyperlocalise-web/.next/cache
           key: ${{ runner.os }}-nextjs-${{ hashFiles('apps/hyperlocalise-web/pnpm-lock.yaml', 'apps/hyperlocalise-web/package.json') }}-${{ hashFiles('apps/hyperlocalise-web/src/**/*.ts', 'apps/hyperlocalise-web/src/**/*.tsx', 'apps/hyperlocalise-web/src/**/*.js', 'apps/hyperlocalise-web/src/**/*.jsx', 'apps/hyperlocalise-web/next.config.*', 'apps/hyperlocalise-web/postcss.config.*') }}
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('apps/hyperlocalise-web/pnpm-lock.yaml', 'apps/hyperlocalise-web/package.json') }}-

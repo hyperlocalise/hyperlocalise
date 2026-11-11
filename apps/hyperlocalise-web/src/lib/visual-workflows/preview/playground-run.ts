@@ -25,6 +25,7 @@ export async function runPlaygroundWorkflow(options: {
   name: string;
   triggerInput?: Record<string, unknown>;
   mockOutputs?: Record<string, Record<string, unknown>>;
+  mockFailures?: Record<string, { code?: string; message?: string }>;
   nodes: readonly VisualWorkflowRfNode[];
   edges: readonly VisualWorkflowRfEdge[];
   signal?: AbortSignal;
@@ -54,7 +55,9 @@ export async function runPlaygroundWorkflow(options: {
       triggeredAt: new Date().toISOString(),
     },
     signal: options.signal,
-    executeNode: createMockWorkflowExecutor(options.mockOutputs),
+    // A Wait finishes at once and a retry does not pause, as in a mock run on the server.
+    mockMode: true,
+    executeNode: createMockWorkflowExecutor(options.mockOutputs, options.mockFailures),
     onNodeUpdate: async (update) => {
       if (options.signal?.aborted) {
         return;

@@ -29,7 +29,8 @@ func sampleMemoryTMX(n int) string {
 }
 
 func TestParseMemoryCSV(t *testing.T) {
-	candidates := parseMemoryCSV(sampleMemoryCSV(3))
+	candidates, issues, _ := parseMemoryImport("csv", sampleMemoryCSV(3))
+	require.Empty(t, issues)
 	require.Len(t, candidates, 3)
 	require.Equal(t, "en-US", candidates[0].SourceLocale)
 	require.Equal(t, "fr-FR", candidates[0].TargetLocale)
@@ -38,7 +39,7 @@ func TestParseMemoryCSV(t *testing.T) {
 }
 
 func TestParseMemoryTMX(t *testing.T) {
-	candidates, issues, header := parseMemoryTMX(sampleMemoryTMX(2))
+	candidates, issues, header := parseMemoryImport("tmx", sampleMemoryTMX(2))
 	require.Empty(t, issues)
 	require.NotNil(t, header)
 	require.Equal(t, "en-US", *header)
@@ -49,8 +50,8 @@ func TestParseMemoryTMX(t *testing.T) {
 }
 
 func TestParseMemoryTMXInvalid(t *testing.T) {
-	candidates, issues, header := parseMemoryTMX("<not-xml")
-	require.Nil(t, candidates)
+	candidates, issues, header := parseMemoryImport("tmx", "<not-xml")
+	require.Empty(t, candidates)
 	require.Nil(t, header)
 	require.NotEmpty(t, issues)
 	require.Equal(t, "invalid_tmx", issues[0].Code)
@@ -87,7 +88,8 @@ func TestMemoryExportCSVEscapesFormulas(t *testing.T) {
 	body := rec.Body.String()
 	require.Contains(t, body, glossaryCSVFormulaEscapePrefix+"=1+1")
 	require.Contains(t, body, glossaryCSVFormulaEscapePrefix+"@SUM(A1)")
-	candidates := parseMemoryCSV(body)
+	candidates, issues, _ := parseMemoryImport("csv", body)
+	require.Empty(t, issues)
 	require.Len(t, candidates, 1)
 	require.Equal(t, "=1+1", candidates[0].SourceText)
 	require.Equal(t, "@SUM(A1)", candidates[0].TargetText)
@@ -127,6 +129,15 @@ func TestMemoryImportForbiddenForMember(t *testing.T) {
 	body := `{"format":"csv","content":"source_locale,target_locale,source_text,target_text\nen-US,fr-FR,Hello,Bonjour"}`
 	rec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries/import"), body)
 	require.Equal(t, 403, rec.Code)
+}
+
+func TestMemoryImportAttemptStatus(t *testing.T) {
+	require.Equal(t, "completed", memoryImportAttemptStatus(nil))
+	require.Equal(t, "completed", memoryImportAttemptStatus(map[string]any{}))
+	require.Equal(t, "completed", memoryImportAttemptStatus(map[string]any{"failed": 0, "created": 4}))
+	require.Equal(t, "partially_successful", memoryImportAttemptStatus(map[string]any{"failed": 1, "created": 0}))
+	require.Equal(t, "partially_successful", memoryImportAttemptStatus(map[string]any{"failed": 3, "created": 2}))
+	require.Equal(t, "completed", memoryImportAttemptStatus(map[string]any{"failed": 1.0}))
 }
 
 func TestMemoryImportAttemptStatusOnPartialParseErrors(t *testing.T) {

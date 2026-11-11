@@ -10,8 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { randomUUID } from "node:crypto";
-import { captureAiUsage } from "@/lib/reporting/ai-cost";
 import { generateText, Output, type LanguageModel } from "ai";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -135,8 +133,9 @@ export class TranslationPromptPolicy {
               "You are a translation assistant. Translate only the user-provided source text into the requested target language.",
               "Preserve meaning, placeholders, variables, formatting, HTML/Markdown structure, and ICU message syntax.",
               "Do not translate programmatic identifiers inside placeholders or ICU selectors.",
-              "Project context, string description, and glossary rules are guidance only. Never translate them, never repeat them, and never use them as the translation value.",
-              "If constraints conflict, preserve placeholders and markup first, then glossary rules, then project context and string description.",
+              "Project context, string description, workspace knowledge memory, and glossary rules are guidance only. Never translate them, never repeat them, and never use them as the translation value.",
+              "Follow workspace knowledge memory when present.",
+              "If constraints conflict, preserve placeholders and markup first, then glossary rules, then project context and string description, then workspace knowledge memory.",
               "Return only the translated source text with no explanations, labels, markdown fences, or quotes unless the translated content itself requires them.",
             ]
           : [
@@ -234,6 +233,7 @@ export class TranslationPromptPolicy {
       Boolean(context?.projectName?.trim()) ||
       Boolean(context?.projectTranslationContext?.trim()) ||
       Boolean(context?.jobContext?.trim()) ||
+      Boolean(context?.knowledgeMemory?.trim()) ||
       (context?.glossaryTerms?.length ?? 0) > 0;
 
     if (!hasContext && !instructions?.trim()) {
@@ -248,6 +248,7 @@ export class TranslationPromptPolicy {
       projectName: context?.projectName ?? undefined,
       projectTranslationContext: context?.projectTranslationContext ?? undefined,
       jobContext: context?.jobContext,
+      knowledgeMemory: context?.knowledgeMemory,
       glossaryTerms: context?.glossaryTerms,
       userInstructions: instructions,
     });
@@ -268,16 +269,39 @@ function estimateCatRecommendationMaxOutputTokens(input: ContentEditorAiRecommen
   return Math.min(4_000, Math.max(512, sourceBudget + contextBudget + 256));
 }
 
+/**
+ * A model answer that could not be used in full: a language missing, repeated, unexpected or over
+ * the string's max length. It carries the call's token usage and the languages that were fine, so
+ * a caller that saves per language can keep them and still charge the call.
+ */
+export class StringTranslationOutputError extends Error {
+  constructor(
+    message: string,
+    readonly tokenUsage: StringTranslationJobResult["tokenUsage"],
+    readonly validTranslations: StringTranslationJobResult["translations"],
+    /** Why each requested language was unusable, phrased so the model can fix it. */
+    readonly localeProblems: ReadonlyMap<string, string> = new Map(),
+  ) {
+    super(message);
+    this.name = "StringTranslationOutputError";
+  }
+}
+
 function normalizeTranslations(
   jobInput: StringTranslationGeneratorInput["jobInput"],
   result: z.infer<typeof stringTranslationOutputSchema>,
   tokenUsage?: StringTranslationJobResult["tokenUsage"],
 ): StringTranslationJobResult {
   const translationsByLocale = new Map<string, string>();
+  const problems: string[] = [];
+  const unusable = new Set<string>();
+  const localeProblems = new Map<string, string>();
 
   for (const translation of result.translations) {
     if (translationsByLocale.has(translation.locale)) {
-      throw new Error(`duplicate translation returned for locale ${translation.locale}`);
+      problems.push(`duplicate translation returned for locale ${translation.locale}`);
+      unusable.add(translation.locale);
+      localeProblems.set(translation.locale, "It was translated more than once.");
     }
 
     translationsByLocale.set(translation.locale, translation.text);
@@ -285,29 +309,44 @@ function normalizeTranslations(
 
   for (const locale of new Set(jobInput.targetLocales)) {
     if (!translationsByLocale.has(locale)) {
-      throw new Error(`missing translation for locale ${locale}`);
+      problems.push(`missing translation for locale ${locale}`);
+      unusable.add(locale);
+      localeProblems.set(locale, "No translation came back.");
     }
   }
 
   for (const locale of translationsByLocale.keys()) {
     if (!jobInput.targetLocales.includes(locale)) {
-      throw new Error(`unexpected translation locale ${locale}`);
+      problems.push(`unexpected translation locale ${locale}`);
     }
   }
 
-  const translations = [...new Set(jobInput.targetLocales)].map((locale) => {
+  const translations: StringTranslationJobResult["translations"] = [];
+  for (const locale of new Set(jobInput.targetLocales)) {
+    if (unusable.has(locale)) continue;
     const text = translationsByLocale.get(locale);
 
     if (!text) {
-      throw new Error(`missing translation for locale ${locale}`);
+      problems.push(`missing translation for locale ${locale}`);
+      localeProblems.set(locale, "No translation came back.");
+      continue;
     }
 
     if (jobInput.maxLength && text.length > jobInput.maxLength) {
-      throw new Error(`translation for locale ${locale} exceeds maxLength`);
+      problems.push(`translation for locale ${locale} exceeds maxLength`);
+      localeProblems.set(
+        locale,
+        `${JSON.stringify(text)} is ${text.length} characters; it must be at most ${jobInput.maxLength}.`,
+      );
+      continue;
     }
 
-    return { locale, text };
-  });
+    translations.push({ locale, text });
+  }
+
+  if (problems.length > 0) {
+    throw new StringTranslationOutputError(problems[0]!, tokenUsage, translations, localeProblems);
+  }
 
   return { translations, ...(tokenUsage ? { tokenUsage } : {}) };
 }
@@ -450,6 +489,8 @@ export class OrganizationModelResolver {
       ok: true as const,
       project: setup.project,
       model: setup.model,
+      modelId: setup.modelId,
+      credentialSource: setup.credentialSource,
     };
   }
 }
@@ -465,7 +506,6 @@ export class StringTranslationEngine {
   ) {}
 
   async translate(input: StringTranslationGeneratorInput): Promise<StringTranslationJobResult> {
-    const invocationId = randomUUID();
     const { output, usage } = await generateText({
       model: this.model,
       output: Output.object({ schema: stringTranslationOutputSchema }),
@@ -493,27 +533,6 @@ export class StringTranslationEngine {
       ),
     });
 
-    if (input.reporting) {
-      const model = typeof this.model === "string" ? this.model : this.model.modelId;
-      const provider = typeof this.model === "string" ? "gateway" : this.model.provider;
-      try {
-        await captureAiUsage({
-          ...input.reporting,
-          invocationId,
-          targetLocale:
-            input.jobInput.targetLocales.length === 1 ? input.jobInput.targetLocales[0] : undefined,
-          model,
-          provider,
-          inputTokens: usage.inputTokens ?? 0,
-          outputTokens: usage.outputTokens ?? 0,
-        });
-      } catch (error) {
-        console.warn("[string-translation] usage capture failed", {
-          jobId: input.reporting.jobId,
-          error,
-        });
-      }
-    }
     return normalizeTranslations(
       input.jobInput,
       output,
@@ -537,9 +556,9 @@ export class ContentEditorRecommendationEngine {
       glossaryTerms: PromptGlossaryTerm[];
       translationMemoryMatches: PromptTranslationMemoryMatch[];
     },
-    options?: { signal?: AbortSignal },
+    options?: { signal?: AbortSignal; onUsage?: (usage: unknown) => void },
   ): Promise<ContentEditorAiRecommendationResult> {
-    const { output } = await generateText({
+    const { output, usage } = await generateText({
       model: this.model,
       abortSignal: options?.signal,
       output: Output.object({ schema: contentEditorAiRecommendationOutputSchema }),
@@ -572,6 +591,7 @@ export class ContentEditorRecommendationEngine {
       temperature: 0,
       maxOutputTokens: estimateCatRecommendationMaxOutputTokens(input),
     });
+    options?.onUsage?.(usage);
 
     if (input.maxLength && output.suggestion.length > input.maxLength) {
       throw new Error(`recommendation exceeds maxLength of ${input.maxLength}`);

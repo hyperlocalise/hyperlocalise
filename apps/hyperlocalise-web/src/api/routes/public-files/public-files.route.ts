@@ -105,6 +105,7 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
           sourceLocale: asString(body.sourceLocale),
           format: asString(body.format),
           branch: asString(body.branch),
+          keepApproved: asString(body.keepApproved),
         });
 
         if (!parsed.success) {
@@ -147,6 +148,7 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
           format: parsed.data.format,
           branch: parsed.data.branch,
           uploadSurface: "public_api",
+          keepApprovedTranslations: parsed.data.keepApproved === "true",
           uploadedByApiKeyId: storedOrganizationApiKeyId(c.var.auth),
           actorUserId: c.var.auth.teamAccess.user.localUserId,
           deferAfterResponse: options.deferAfterResponse,

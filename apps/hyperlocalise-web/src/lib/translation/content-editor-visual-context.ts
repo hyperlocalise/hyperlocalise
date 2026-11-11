@@ -10,6 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+/** Matches go-svc's signed upload limit for native visual-context screenshots. */
+export const VISUAL_CONTEXT_SCREENSHOT_MAX_BYTES = 10 * 1024 * 1024;
+
 export type ContentEditorVisualContextMarker = {
   left: number;
   top: number;
@@ -24,6 +27,8 @@ export type ContentEditorVisualContextScreenshot = {
   width: number | null;
   height: number | null;
   markers: ContentEditorVisualContextMarker[];
+  /** Set when the Figma plugin synced this screenshot from a frame. */
+  figmaUrl?: string | null;
 };
 
 export type ContentEditorVisualContext = {

@@ -40,6 +40,10 @@ const imageSizeClassNames = {
   lg: "size-8",
 } as const;
 
+export function integrationLogoAltText(name: string) {
+  return `${name} logo`;
+}
+
 export function IntegrationLogoMark({
   name,
   logoSrc,
@@ -47,6 +51,7 @@ export function IntegrationLogoMark({
   size = "md",
 }: IntegrationLogoMarkProps) {
   const icon = iconKey ? getIntegrationIconForKey(iconKey) : undefined;
+  const logoAlt = integrationLogoAltText(name);
 
   return (
     <div className={cn("shrink-0", containerClassNames[size])}>
@@ -62,15 +67,21 @@ export function IntegrationLogoMark({
       >
         {logoSrc ? (
           <Image
-            alt=""
-            aria-hidden
+            alt={logoAlt}
             className={cn("object-contain", imageSizeClassNames[size])}
             height={32}
             src={logoSrc}
             width={32}
           />
         ) : icon ? (
-          <SimpleBrandIcon className={imageSizeClassNames[size]} colored icon={icon} />
+          <SimpleBrandIcon
+            aria-hidden={false}
+            aria-label={logoAlt}
+            className={imageSizeClassNames[size]}
+            colored
+            icon={icon}
+            role="img"
+          />
         ) : (
           <span className="text-sm font-semibold text-muted-foreground">{name.slice(0, 1)}</span>
         )}

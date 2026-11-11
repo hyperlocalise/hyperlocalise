@@ -15,11 +15,9 @@ import "dotenv/config";
 import { randomInt } from "node:crypto";
 
 import { eq } from "drizzle-orm";
-import { testClient } from "hono/testing";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
-import type { AppType } from "@/api/typed-app";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
@@ -90,9 +88,8 @@ vi.mock("@/lib/gitlab/repository-context", () => ({
 }));
 
 const app = createApp({ fileStorageAdapter: createMemoryFileStorageAdapter() });
-const client = testClient<AppType>(app);
 const { authHeadersFor, cleanup, createProjectViaApi, createWorkosIdentity } =
-  createProjectTestFixture(client);
+  createProjectTestFixture();
 
 async function createGithubRepositoryFixture(input: {
   organizationId: string;
@@ -668,5 +665,132 @@ describe("conversation creation", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "project_not_found" });
+  });
+});
+
+describe("chat turn runs", () => {
+  async function createChatConversation() {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set("text", "Translate this to fr-FR");
+    const createdResponse = await app.request(
+      `/api/orgs/${identity.organization.slug}/conversations`,
+      { method: "POST", headers, body: formData },
+    );
+    expect(createdResponse.status).toBe(201);
+    const body = (await createdResponse.json()) as {
+      conversation: { id: string };
+      message: { id: string };
+    };
+    const chatUrl = `/api/orgs/${identity.organization.slug}/conversations/${body.conversation.id}/chat`;
+    const startTurn = () =>
+      app.request(chatUrl, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: body.message.id,
+              role: "user",
+              parts: [{ type: "text", text: "Translate this to fr-FR" }],
+            },
+          ],
+        }),
+      });
+    return { headers, chatUrl, startTurn, conversationId: body.conversation.id, ...body };
+  }
+
+  it("starts one turn per user message and lets later requests join it", async () => {
+    const { headers, chatUrl, startTurn, message } = await createChatConversation();
+
+    const first = await startTurn();
+    expect(first.status).toBe(200);
+    expect(createWebChatAgentUIStreamResponseMock).toHaveBeenCalledTimes(1);
+    const runId = (
+      createWebChatAgentUIStreamResponseMock.mock.calls[0] as unknown as [{ runId: string }]
+    )[0].runId;
+    expect(runId).toEqual(expect.any(String));
+
+    const second = await startTurn();
+    expect(second.status).toBe(409);
+    await expect(second.json()).resolves.toMatchObject({
+      error: "run_in_progress",
+      details: { runId },
+    });
+    expect(createWebChatAgentUIStreamResponseMock).toHaveBeenCalledTimes(1);
+
+    const runResponse = await app.request(`${chatUrl}/run`, { headers });
+    expect(runResponse.status).toBe(200);
+    await expect(runResponse.json()).resolves.toMatchObject({
+      run: { id: runId, userMessageId: message.id, status: "running", cancelRequested: false },
+    });
+  });
+
+  it("records a cancel request on the running turn", async () => {
+    const { headers, chatUrl, startTurn } = await createChatConversation();
+
+    const noRun = await app.request(`${chatUrl}/run/cancel`, { method: "POST", headers });
+    expect(noRun.status).toBe(404);
+
+    expect((await startTurn()).status).toBe(200);
+    const cancel = await app.request(`${chatUrl}/run/cancel`, { method: "POST", headers });
+    expect(cancel.status).toBe(202);
+
+    const runResponse = await app.request(`${chatUrl}/run`, { headers });
+    await expect(runResponse.json()).resolves.toMatchObject({
+      run: { status: "running", cancelRequested: true },
+    });
+  });
+
+  it("refuses to start a turn again once it was answered", async () => {
+    const { startTurn, conversationId } = await createChatConversation();
+    expect((await startTurn()).status).toBe(200);
+    await db
+      .update(schema.conversationRuns)
+      .set({ status: "interrupted" })
+      .where(eq(schema.conversationRuns.interactionId, conversationId));
+
+    const again = await startTurn();
+    expect(again.status).toBe(409);
+    await expect(again.json()).resolves.toMatchObject({ error: "turn_already_processed" });
+  });
+
+  it("starts the turn again when the process running it stopped reporting", async () => {
+    const { startTurn, conversationId } = await createChatConversation();
+    expect((await startTurn()).status).toBe(200);
+    await db
+      .update(schema.conversationRuns)
+      .set({ heartbeatAt: new Date(Date.now() - 5 * 60_000) })
+      .where(eq(schema.conversationRuns.interactionId, conversationId));
+
+    const retry = await startTurn();
+    expect(retry.status).toBe(200);
+    expect(createWebChatAgentUIStreamResponseMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("serves a stored full tool result for a message in the conversation", async () => {
+    const { headers, chatUrl, conversationId } = await createChatConversation();
+    const [agentMessage] = await db
+      .insert(schema.interactionMessages)
+      .values({ interactionId: conversationId, senderType: "agent", text: "Done" })
+      .returning({ id: schema.interactionMessages.id });
+    await db.insert(schema.interactionMessageToolOutputs).values({
+      messageId: agentMessage!.id,
+      toolCallId: "call_1",
+      output: { content: "full" },
+    });
+
+    const found = await app.request(`${chatUrl}/messages/${agentMessage!.id}/tool-outputs/call_1`, {
+      headers,
+    });
+    expect(found.status).toBe(200);
+    await expect(found.json()).resolves.toEqual({ toolOutput: { output: { content: "full" } } });
+
+    const missing = await app.request(
+      `${chatUrl}/messages/${agentMessage!.id}/tool-outputs/call_2`,
+      { headers },
+    );
+    expect(missing.status).toBe(404);
   });
 });

@@ -15,11 +15,9 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
-import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
-import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import type { TranslationFileImportEventData } from "@/lib/workflow/types";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
@@ -63,8 +61,7 @@ const translationFileImportQueue = {
 };
 const fileStorageAdapter = createMemoryFileStorageAdapter();
 const app = createApp({ fileStorageAdapter, translationFileImportQueue });
-const client = testClient<AppType>(app);
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 
 async function createNativeProject(targetLocales: string[]) {
   const admin = projectFixture.createWorkosIdentityWithRole("admin");

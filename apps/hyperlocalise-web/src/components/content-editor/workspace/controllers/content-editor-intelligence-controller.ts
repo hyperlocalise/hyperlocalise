@@ -28,6 +28,27 @@ export interface ContentEditorIntelligenceControllerPorts {
   services?: ContentEditorWorkspaceServices;
 }
 
+/** Workspace surface the intelligence controller may read and change. */
+export type ContentEditorIntelligenceWorkspace = Pick<
+  ContentEditorWorkspaceOrchestrator,
+  | "beginConcordanceLoad"
+  | "beginContextLookup"
+  | "clearAgentContexts"
+  | "endConcordanceLoad"
+  | "endContextLookup"
+  | "fileScopeGeneration"
+  | "getSegmentView"
+  | "intelligence"
+  | "isFileScopeCurrent"
+  | "mergeSegmentIntelligence"
+  | "removeFormatCheck"
+  | "revealAgentContext"
+  | "segmentIntelligence"
+  | "selectedSegmentId"
+  | "setVisualContextLoading"
+  | "upsertFormatCheck"
+>;
+
 export class ContentEditorIntelligenceController {
   private ports: ContentEditorIntelligenceControllerPorts;
   private loadedSegmentIds = new Set<string>();
@@ -41,7 +62,7 @@ export class ContentEditorIntelligenceController {
   private disposed = false;
 
   constructor(
-    private readonly workspace: ContentEditorWorkspaceOrchestrator,
+    private readonly workspace: ContentEditorIntelligenceWorkspace,
     ports: ContentEditorIntelligenceControllerPorts,
   ) {
     this.ports = ports;
@@ -89,7 +110,7 @@ export class ContentEditorIntelligenceController {
       this.workspace.endConcordanceLoad(segmentId);
     }
     this.inFlight.clear();
-    this.workspace.isLoadingVisualContext = false;
+    this.workspace.setVisualContextLoading(false);
     this.visualContextLoadingSegmentId = null;
   }
 
@@ -168,18 +189,28 @@ export class ContentEditorIntelligenceController {
     return this.loadConcordance(segmentId);
   }
 
+  ensureConcordance(segmentId: string) {
+    if (
+      !this.ports.services?.lookupSegmentConcordance ||
+      this.concordanceAttempts.has(segmentId) ||
+      !this.workspace.getSegmentView(segmentId)
+    ) {
+      return;
+    }
+
+    this.concordanceAttempts.add(segmentId);
+    void this.loadConcordance(segmentId);
+  }
+
   panelVisible(segmentId: string) {
     const segment = this.workspace.getSegmentView(segmentId);
     if (!segment) {
       return;
     }
 
-    const { lookupSegmentConcordance, lookupSegmentContext, lookupSegmentVisualContext } =
-      this.ports.services ?? {};
-    if (lookupSegmentConcordance && !this.concordanceAttempts.has(segmentId)) {
-      this.concordanceAttempts.add(segmentId);
-      void this.loadConcordance(segmentId);
-    }
+    this.ensureConcordance(segmentId);
+
+    const { lookupSegmentContext, lookupSegmentVisualContext } = this.ports.services ?? {};
 
     if (
       lookupSegmentContext &&
@@ -204,15 +235,11 @@ export class ContentEditorIntelligenceController {
         .catch(() => undefined);
     }
 
-    if (
-      !lookupSegmentVisualContext ||
-      !this.workspace.providerKind ||
-      this.workspace.providerKind === "native"
-    ) {
+    if (!lookupSegmentVisualContext) {
       return;
     }
     if (this.workspace.segmentIntelligence[segmentId]?.visualContext) {
-      this.workspace.isLoadingVisualContext = false;
+      this.workspace.setVisualContextLoading(false);
       this.visualContextLoadingSegmentId = null;
       return;
     }
@@ -221,7 +248,7 @@ export class ContentEditorIntelligenceController {
     }
 
     this.visualContextAttempts.add(segmentId);
-    this.workspace.isLoadingVisualContext = true;
+    this.workspace.setVisualContextLoading(true);
     this.visualContextLoadingSegmentId = segmentId;
     const fileScopeGeneration = this.workspace.fileScopeGeneration;
     void lookupSegmentVisualContext(segment)
@@ -248,7 +275,7 @@ export class ContentEditorIntelligenceController {
           segmentId === this.visualContextLoadingSegmentId &&
           this.workspace.isFileScopeCurrent(fileScopeGeneration)
         ) {
-          this.workspace.isLoadingVisualContext = false;
+          this.workspace.setVisualContextLoading(false);
           this.visualContextLoadingSegmentId = null;
         }
       });

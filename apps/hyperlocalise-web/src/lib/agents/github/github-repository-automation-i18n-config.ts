@@ -10,15 +10,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { parseAllDocuments } from "yaml";
+
 import { normalizeJsonc } from "@/lib/i18n/parse-jsonc-config";
 import { prepareSandbox, runSandboxCommand } from "@/lib/translation/sandbox";
 import { isErr } from "@/lib/primitives/result/results";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
-import { shellQuote } from "@/lib/primitives/shell-quote/shell-quote";
 
 import {
   extractI18nBucketFilePatternsFromConfigJson,
-  extractI18nBucketFilePatternsFromConfigText,
   type I18nBucketFilePatterns,
 } from "./github-repository-automation-localisation-paths";
 
@@ -76,57 +76,48 @@ async function listTrackedI18nConfigPaths(sandboxId: string): Promise<string[]> 
   });
 }
 
+function isYamlConfigPath(configPath: string): boolean {
+  return configPath.endsWith(".yml") || configPath.endsWith(".yaml");
+}
+
+/**
+ * Reads an i18n config the way the CLI does (pkg/i18nconfig/i18n.go): YAML with merge keys
+ * resolved and only the first document, refusing duplicate keys; anything else as JSONC.
+ * Resolves to `null` when the text is not a config object.
+ */
+export function parseI18nConfigText(
+  configText: string,
+  configPath: string,
+): Record<string, unknown> | null {
+  let parsed: unknown;
+  if (isYamlConfigPath(configPath)) {
+    const [document] = parseAllDocuments(configText, { merge: true });
+    if (!document || document.errors.length > 0) {
+      return null;
+    }
+    parsed = document.toJS();
+  } else {
+    const result = safeJsonParse(normalizeJsonc(configText));
+    if (isErr(result)) {
+      return null;
+    }
+    parsed = result.value;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return null;
+  }
+  return parsed as Record<string, unknown>;
+}
+
 async function loadDiscoveredI18nConfig(
   sandboxId: string,
   configPath: string,
 ): Promise<DiscoveredI18nConfig | null> {
-  const configText = await readConfigTextFromSandbox(sandboxId, configPath);
-  if (!configText) {
+  const configJson = await loadI18nConfigJsonFromSandbox(sandboxId, configPath);
+  if (!configJson) {
     return null;
   }
-
-  if (configPath.endsWith(".yml") || configPath.endsWith(".yaml")) {
-    const parsed = safeJsonParse(configText);
-    if (isErr(parsed)) {
-      return null;
-    }
-    return {
-      configPath,
-      patterns: extractI18nBucketFilePatternsFromConfigJson(
-        parsed.value as Record<string, unknown>,
-      ),
-    };
-  }
-
-  const patterns = extractI18nBucketFilePatternsFromConfigText(configText, configPath);
-  if (!patterns) {
-    return null;
-  }
-
-  return { configPath, patterns };
-}
-
-async function readConfigTextFromSandbox(
-  sandboxId: string,
-  configPath: string,
-): Promise<string | null> {
-  if (configPath.endsWith(".yml") || configPath.endsWith(".yaml")) {
-    const yq = await runSandboxCommand(sandboxId, "bash", [
-      "-lc",
-      `command -v yq >/dev/null 2>&1 && yq -o json . ${shellQuote(configPath)}`,
-    ]);
-    if (yq.exitCode === 0 && yq.output.trim().length > 0) {
-      return yq.output;
-    }
-    return null;
-  }
-
-  const cat = await runSandboxCommand(sandboxId, "cat", [configPath], { output: "stdout" });
-  if (cat.exitCode !== 0) {
-    return null;
-  }
-
-  return cat.output;
+  return { configPath, patterns: extractI18nBucketFilePatternsFromConfigJson(configJson) };
 }
 
 export async function discoverI18nConfigInSandbox(
@@ -154,23 +145,9 @@ export async function loadI18nConfigJsonFromSandbox(
   sandboxId: string,
   configPath: string,
 ): Promise<Record<string, unknown> | null> {
-  const configText = await readConfigTextFromSandbox(sandboxId, configPath);
-  if (!configText) {
+  const cat = await runSandboxCommand(sandboxId, "cat", [configPath], { output: "stdout" });
+  if (cat.exitCode !== 0 || !cat.output) {
     return null;
   }
-
-  if (configPath.endsWith(".jsonc")) {
-    const parsed = safeJsonParse(normalizeJsonc(configText));
-    if (isErr(parsed)) {
-      return null;
-    }
-    return parsed.value as Record<string, unknown>;
-  }
-
-  const parsed = safeJsonParse(configText);
-  if (isErr(parsed)) {
-    return null;
-  }
-
-  return parsed.value as Record<string, unknown>;
+  return parseI18nConfigText(cat.output, configPath);
 }

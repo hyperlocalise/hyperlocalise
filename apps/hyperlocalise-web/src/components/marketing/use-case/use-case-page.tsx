@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { HomepageFaqItem } from "@/components/marketing/homepage-faq-content";
+import { HomepageFaqSection } from "@/components/marketing/homepage-faq-section";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 
@@ -23,12 +25,29 @@ import {
   UseCaseScenarioSection,
   UseCaseWorkflowSection,
 } from "./use-case-sections";
+import { ProductLocalisationWorkflowSection } from "./product-localisation-workflow";
+import { ProductLocalisationCapabilities } from "./product-localisation-capabilities";
+import { ProductLocalisationScenario } from "./product-localisation-scenario";
+import { MarketingLocalisationScenario } from "./marketing-localisation-scenario";
+import { MarketingLocalisationWorkflowSection } from "./marketing-localisation-workflow";
+import { MarketingLocalisationCapabilities } from "./marketing-localisation-capabilities";
+import { HelpCenterLocalisationWorkflowSection } from "./help-center-localisation-workflow";
+import { HelpCenterLocalisationScenario } from "./help-center-localisation-scenario";
+import { GithubReleaseLocalisationWorkflowSection } from "./github-release-localisation-workflow";
+import { GithubReleaseLocalisationScenario } from "./github-release-localisation-scenario";
+import { LocalisationQualityMonitoringWorkflowSection } from "./localisation-quality-monitoring-workflow";
+import { LocalisationQualityMonitoringScenario } from "./localisation-quality-monitoring-scenario";
+import { LocalisationOperationsWorkflowSection } from "./localisation-operations-workflow";
+import { LocalisationOperationsScenario } from "./localisation-operations-scenario";
 
 type UseCasePageProps = {
   content: UseCasePageContent;
+  faqItems: HomepageFaqItem[];
+  faqHeading: string;
+  faqSubheading: string;
 };
 
-export function UseCasePage({ content }: UseCasePageProps) {
+export function UseCasePage({ content, faqItems, faqHeading, faqSubheading }: UseCasePageProps) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main className="mx-auto max-w-7xl">
@@ -41,11 +60,31 @@ export function UseCasePage({ content }: UseCasePageProps) {
         </section>
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
-          <UseCaseWorkflowSection content={content.workflow} />
+          {content.slug === "product-localisation" ? (
+            <ProductLocalisationWorkflowSection content={content} />
+          ) : content.slug === "marketing-localisation" ? (
+            <MarketingLocalisationWorkflowSection content={content} />
+          ) : content.slug === "help-center-localisation" ? (
+            <HelpCenterLocalisationWorkflowSection content={content} />
+          ) : content.slug === "github-release-localisation" ? (
+            <GithubReleaseLocalisationWorkflowSection content={content} />
+          ) : content.slug === "localisation-quality-monitoring" ? (
+            <LocalisationQualityMonitoringWorkflowSection content={content} />
+          ) : content.slug === "localisation-operations" ? (
+            <LocalisationOperationsWorkflowSection content={content} />
+          ) : (
+            <UseCaseWorkflowSection content={content.workflow} />
+          )}
         </section>
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
-          <UseCaseCapabilitiesSection content={content.capabilities} />
+          {content.slug === "product-localisation" ? (
+            <ProductLocalisationCapabilities content={content} />
+          ) : content.slug === "marketing-localisation" ? (
+            <MarketingLocalisationCapabilities content={content} />
+          ) : (
+            <UseCaseCapabilitiesSection content={content.capabilities} />
+          )}
         </section>
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
@@ -53,7 +92,25 @@ export function UseCasePage({ content }: UseCasePageProps) {
         </section>
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
-          <UseCaseScenarioSection content={content.scenario} />
+          {content.slug === "product-localisation" ? (
+            <ProductLocalisationScenario content={content} />
+          ) : content.slug === "marketing-localisation" ? (
+            <MarketingLocalisationScenario content={content} />
+          ) : content.slug === "help-center-localisation" ? (
+            <HelpCenterLocalisationScenario content={content} />
+          ) : content.slug === "github-release-localisation" ? (
+            <GithubReleaseLocalisationScenario content={content} />
+          ) : content.slug === "localisation-quality-monitoring" ? (
+            <LocalisationQualityMonitoringScenario content={content} />
+          ) : content.slug === "localisation-operations" ? (
+            <LocalisationOperationsScenario content={content} />
+          ) : (
+            <UseCaseScenarioSection content={content.scenario} />
+          )}
+        </section>
+
+        <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
+          <HomepageFaqSection items={faqItems} heading={faqHeading} subheading={faqSubheading} />
         </section>
 
         <section className="border-t border-border px-5 py-24 sm:px-8 lg:px-10">

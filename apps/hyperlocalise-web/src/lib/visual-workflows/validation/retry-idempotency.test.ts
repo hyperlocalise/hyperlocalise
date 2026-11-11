@@ -15,6 +15,9 @@ import { describe, expect, it } from "vite-plus/test";
 import { createDefaultConfig } from "../catalog/node-catalog";
 import {
   buildVisualWorkflowNodeIdempotencyKey,
+  isExternalVisualWorkflowNode,
+  isRepeatableVisualWorkflowAction,
+  retryBodyRequiresDuplicateAcknowledgement,
   shouldReuseCompletedNodeRun,
 } from "./retry-idempotency";
 
@@ -67,6 +70,29 @@ describe("buildVisualWorkflowNodeIdempotencyKey", () => {
         node,
       }),
     ).toBe("run-1/http/3");
+  });
+});
+
+describe("isRepeatableVisualWorkflowAction", () => {
+  it("treats job-creating and read-only localization steps as repeatable", () => {
+    expect(isRepeatableVisualWorkflowAction("action.machine_translate")).toBe(true);
+    expect(isRepeatableVisualWorkflowAction("action.create_task")).toBe(true);
+    expect(isRepeatableVisualWorkflowAction("action.check_progress")).toBe(true);
+    expect(isRepeatableVisualWorkflowAction("action.crowdin_check_progress")).toBe(true);
+  });
+
+  it("does not treat QA as repeatable because each run claims a new scan", () => {
+    expect(isRepeatableVisualWorkflowAction("action.run_qa")).toBe(false);
+    expect(isExternalVisualWorkflowNode("action.run_qa")).toBe(true);
+  });
+
+  it("requires acknowledgement before retrying a QA step", () => {
+    const qaNode = {
+      id: "qa",
+      type: "action.run_qa" as const,
+      config: createDefaultConfig("action.run_qa"),
+    };
+    expect(retryBodyRequiresDuplicateAcknowledgement([qaNode], ["qa"])).toBe(true);
   });
 });
 

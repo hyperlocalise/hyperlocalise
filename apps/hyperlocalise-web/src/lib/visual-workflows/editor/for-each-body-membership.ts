@@ -119,3 +119,95 @@ export function computeRetryBodyNodeIds(
 ): string[] {
   return [...collectReachableNodeIds(retryId, edges, "attempt")].toSorted();
 }
+
+export function deriveTryCatchRegion(
+  boundaryId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): FlowBodyRegion {
+  const tryReachable = collectReachableNodeIds(boundaryId, edges, "try");
+  const exitReachable = new Set(
+    ["success", "catch", "finally"].flatMap((handle) => [
+      ...collectReachableNodeIds(boundaryId, edges, handle),
+    ]),
+  );
+
+  return {
+    bodyNodeIds: [...tryReachable].filter((nodeId) => !exitReachable.has(nodeId)).toSorted(),
+    exitNodeIds: [...exitReachable].toSorted(),
+  };
+}
+
+export function computeTryCatchBodyNodeIds(
+  boundaryId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] {
+  return deriveTryCatchRegion(boundaryId, edges).bodyNodeIds;
+}
+
+function computeTryCatchExclusiveExitNodeIds(
+  boundaryId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+  exitHandle: "success" | "catch",
+): string[] {
+  const otherHandles =
+    exitHandle === "success" ? (["catch", "finally"] as const) : (["success", "finally"] as const);
+  const exitReachable = collectReachableNodeIds(boundaryId, edges, exitHandle);
+  const otherExitReachable = new Set(
+    otherHandles.flatMap((handle) => [...collectReachableNodeIds(boundaryId, edges, handle)]),
+  );
+
+  return [...exitReachable].filter((nodeId) => !otherExitReachable.has(nodeId)).toSorted();
+}
+
+export function computeTryCatchCatchNodeIds(
+  boundaryId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] {
+  return computeTryCatchExclusiveExitNodeIds(boundaryId, edges, "catch");
+}
+
+export function computeTryCatchSuccessNodeIds(
+  boundaryId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] {
+  return computeTryCatchExclusiveExitNodeIds(boundaryId, edges, "success");
+}
+
+function v3ExecutionEdgesToEditorEdges(
+  edges: readonly VisualWorkflowV3Edge[],
+): VisualWorkflowRfEdge[] {
+  return edges
+    .filter(
+      (edge): edge is Extract<VisualWorkflowV3Edge, { kind: "execution" }> =>
+        edge.kind === "execution",
+    )
+    .map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourcePortId,
+      targetHandle: edge.targetPortId,
+      data: { kind: "execution" },
+    }));
+}
+
+export function computeTryCatchBodyNodeIdsFromV3Edges(
+  boundaryId: string,
+  edges: readonly VisualWorkflowV3Edge[],
+): string[] {
+  return computeTryCatchBodyNodeIds(boundaryId, v3ExecutionEdgesToEditorEdges(edges));
+}
+
+export function computeTryCatchCatchNodeIdsFromV3Edges(
+  boundaryId: string,
+  edges: readonly VisualWorkflowV3Edge[],
+): string[] {
+  return computeTryCatchCatchNodeIds(boundaryId, v3ExecutionEdgesToEditorEdges(edges));
+}
+
+export function computeTryCatchSuccessNodeIdsFromV3Edges(
+  boundaryId: string,
+  edges: readonly VisualWorkflowV3Edge[],
+): string[] {
+  return computeTryCatchSuccessNodeIds(boundaryId, v3ExecutionEdgesToEditorEdges(edges));
+}

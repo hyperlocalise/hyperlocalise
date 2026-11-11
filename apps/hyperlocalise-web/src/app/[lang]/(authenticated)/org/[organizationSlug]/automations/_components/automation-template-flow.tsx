@@ -24,7 +24,7 @@ import {
   CheckSquareIcon,
   UploadSimpleIcon,
 } from "@phosphor-icons/react";
-import { siGithub } from "simple-icons";
+import { siGithub, siGoogledrive, siIntercom, siSanity, siWebflow } from "simple-icons";
 import Image from "next/image";
 
 import {
@@ -41,12 +41,36 @@ type IconBucket =
   | "slack"
   | "email"
   | "contentful"
+  | "intercom"
+  | "sanity"
+  | "webflow"
+  | "google-drive"
+  | "braze"
+  | "iterable"
+  | "customer-io"
+  | "loops"
+  | "hubspot"
+  | "mailchimp"
   | "web-search"
   | "web-chat"
   | "upload"
   | "job"
   | "translate"
   | "validation";
+
+const BRAND_TOOL_IDS = new Set([
+  "intercom",
+  "sanity",
+  "google-drive",
+  "braze",
+  "iterable",
+  "contentful",
+  "webflow",
+  "customer-io",
+  "loops",
+  "hubspot",
+  "mailchimp",
+]);
 
 function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucket {
   switch (node.id) {
@@ -67,6 +91,26 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
     case "contentful-webhook":
     case "contentful":
       return "contentful";
+    case "intercom":
+      return "intercom";
+    case "sanity":
+      return "sanity";
+    case "webflow":
+      return "webflow";
+    case "google-drive":
+      return "google-drive";
+    case "braze":
+      return "braze";
+    case "iterable":
+      return "iterable";
+    case "customer-io":
+      return "customer-io";
+    case "loops":
+      return "loops";
+    case "hubspot":
+      return "hubspot";
+    case "mailchimp":
+      return "mailchimp";
     case "web-search":
       return "web-search";
     case "web-chat":
@@ -115,6 +159,74 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
           className={iconClassName}
         />
       );
+    case "intercom":
+      return <SimpleBrandIcon icon={siIntercom} colored className={iconClassName} />;
+    case "sanity":
+      return <SimpleBrandIcon icon={siSanity} colored className={iconClassName} />;
+    case "webflow":
+      return <SimpleBrandIcon icon={siWebflow} colored className={iconClassName} />;
+    case "google-drive":
+      return <SimpleBrandIcon icon={siGoogledrive} colored className={iconClassName} />;
+    case "braze":
+      return (
+        <Image
+          src="/images/braze-logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className={cn(iconClassName, "dark:invert")}
+        />
+      );
+    case "iterable":
+      return (
+        <Image
+          src="/images/iterable-logo.png"
+          alt=""
+          width={16}
+          height={16}
+          className={cn(iconClassName, "dark:invert")}
+        />
+      );
+    case "customer-io":
+      return (
+        <Image
+          src="/images/customerio-logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className={cn(iconClassName, "dark:invert")}
+        />
+      );
+    case "loops":
+      return (
+        <Image
+          src="/images/loops-logo.png"
+          alt=""
+          width={16}
+          height={16}
+          className={cn(iconClassName, "dark:invert")}
+        />
+      );
+    case "hubspot":
+      return (
+        <Image
+          src="/images/hubspot-logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className={iconClassName}
+        />
+      );
+    case "mailchimp":
+      return (
+        <Image
+          src="/images/mailchimp-logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className={iconClassName}
+        />
+      );
     case "web-search":
       return <MagnifyingGlassIcon className={iconClassName} />;
     case "web-chat":
@@ -138,7 +250,11 @@ export function AutomationTemplateTriggerIcon({
   template: WorkspaceAutomationTemplate;
 }) {
   const flow = getWorkspaceAutomationTemplateFlow(template);
-  return <FlowIcon bucket={iconBucketForNode(flow.trigger)} className="size-4" />;
+  const triggerBucket = iconBucketForNode(flow.trigger);
+  const brandTool = flow.tools.find((tool) => BRAND_TOOL_IDS.has(tool.id));
+  const bucket =
+    triggerBucket === "schedule" && brandTool ? iconBucketForNode(brandTool) : triggerBucket;
+  return <FlowIcon bucket={bucket} className="size-4" />;
 }
 
 export function AutomationTemplateFlow({

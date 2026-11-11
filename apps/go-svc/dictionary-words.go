@@ -284,10 +284,25 @@ func (api *dictionaryAPI) writeDictionaryWords(r *http.Request, actor dictionary
 		}
 		return nil
 	})
-	if importing {
-		return map[string]any{"import": map[string]int{"imported": inserted, "skipped": len(words) - inserted}}, 200, err
+	if err != nil {
+		return nil, 0, err
 	}
-	return map[string]any{"word": created}, 201, err
+	if importing {
+		api.publishActivity(ctx, activityLogEventInput{
+			ActorUserID:    actor.userID,
+			EventType:      "dictionary_imported",
+			OrganizationID: actor.organizationID,
+			Payload: map[string]any{
+				"itemCount":  inserted,
+				"locale":     locale,
+				"resourceId": d.ID,
+			},
+			TargetID:   d.ID,
+			TargetKind: "dictionary",
+		})
+		return map[string]any{"import": map[string]int{"imported": inserted, "skipped": len(words) - inserted}}, 200, nil
+	}
+	return map[string]any{"word": created}, 201, nil
 }
 
 // BOLT OPTIMIZATION: Check if string is simple ASCII with no JSON special characters

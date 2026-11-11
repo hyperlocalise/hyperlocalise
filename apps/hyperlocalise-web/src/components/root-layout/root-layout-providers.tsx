@@ -44,7 +44,7 @@ export async function RootLayoutProviders({ children }: RootLayoutProvidersProps
             >
               <TooltipProvider>
                 {children}
-                <Toaster richColors closeButton />
+                <Toaster />
               </TooltipProvider>
             </ThemeProvider>
           </QueryProvider>

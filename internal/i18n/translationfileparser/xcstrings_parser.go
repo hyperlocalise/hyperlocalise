@@ -37,11 +37,11 @@ func (p XCStringsParser) ParseWithContext(content []byte) (map[string]string, ma
 
 // ParseIngestEntries parses Apple .xcstrings catalogs and extracts optional max-length metadata.
 func (p XCStringsParser) ParseIngestEntries(content []byte, locale string) (map[string]IngestEntry, error) {
-	values, _, maxLengthByKey, err := parseXCStringsCatalog(content, strings.TrimSpace(locale))
+	values, contextByKey, maxLengthByKey, err := parseXCStringsCatalog(content, strings.TrimSpace(locale))
 	if err != nil {
 		return nil, err
 	}
-	return applyMaxLengthByKey(IngestEntriesFromStringMap(values), maxLengthByKey), nil
+	return applyContextByKey(applyMaxLengthByKey(IngestEntriesFromStringMap(values), maxLengthByKey), contextByKey), nil
 }
 
 // ParseXCStringsLocale parses values for one localization inside a string catalog.

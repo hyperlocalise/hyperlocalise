@@ -63,7 +63,9 @@ type RouteTitleKey =
   | "ranks"
   | "brand"
   | "qa"
+  | "reports"
   | "search-console"
+  | "audit"
   | "reviews"
   | "settings"
   | "strings"
@@ -81,6 +83,7 @@ const PROJECT_SECTION_KEYS = {
   knowledge: true,
   locales: true,
   qa: true,
+  reports: true,
   reviews: true,
   settings: true,
   strings: true,
@@ -135,7 +138,9 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "ranks" ||
     value === "brand" ||
     value === "qa" ||
+    value === "reports" ||
     value === "search-console" ||
+    value === "audit" ||
     value === "reviews" ||
     value === "settings" ||
     value === "strings" ||
@@ -360,6 +365,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         id: "cb/1dHJtyC",
         description: "App shell breadcrumb title for domain Search Console",
       });
+    case "audit":
+      return intl.formatMessage({
+        defaultMessage: "Localisation audit",
+        id: "b+xGFRqtJJ",
+        description: "App shell breadcrumb title for the domain deep localisation audit",
+      });
     case "automations":
       return intl.formatMessage({
         defaultMessage: "Automations",
@@ -414,6 +425,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         defaultMessage: "QA",
         id: "A4tXh3Cw8D",
         description: "App shell breadcrumb title for the QA page",
+      });
+    case "reports":
+      return intl.formatMessage({
+        defaultMessage: "Reports",
+        id: "4DlOuKeJPG",
+        description: "App shell breadcrumb title for the Reports page",
       });
     case "reviews":
       return intl.formatMessage({
@@ -508,6 +525,33 @@ function formatTranslationMemoryImportReportTitle(intl: IntlShape): string {
   });
 }
 
+function formatGuidelineUploadTitle(intl: IntlShape): string {
+  return intl.formatMessage({
+    defaultMessage: "Upload guideline",
+    id: "pwTiPpomVO",
+    description: "App shell breadcrumb title for the guideline upload page",
+  });
+}
+
+function guidelineDetailCrumb(
+  intl: IntlShape,
+  detailSegment: string,
+  options?: {
+    guidelineDocumentTitle?: string;
+    guidelineDocumentTitleLoading?: boolean;
+  },
+): AppShellBreadcrumb {
+  if (detailSegment === "upload") {
+    return { label: formatGuidelineUploadTitle(intl) };
+  }
+
+  return buildNamedResourceCrumb(
+    options?.guidelineDocumentTitle,
+    options?.guidelineDocumentTitleLoading,
+    decodePathSegment(detailSegment),
+  );
+}
+
 function buildNamedResourceCrumb(
   name?: string,
   nameLoading?: boolean,
@@ -537,6 +581,8 @@ export function getAppShellBreadcrumbs(
     glossaryNameLoading?: boolean;
     translationMemoryName?: string;
     translationMemoryNameLoading?: boolean;
+    guidelineDocumentTitle?: string;
+    guidelineDocumentTitleLoading?: boolean;
   },
 ): AppShellBreadcrumb[] {
   const orgRoute = parseOrgRoute(pathname);
@@ -725,6 +771,10 @@ export function getAppShellBreadcrumbs(
         crumbs.push({ label: formatNewAutomationTitle(intl) });
       }
 
+      if (projectSection === "knowledge" && issueIdSegment) {
+        crumbs.push(guidelineDetailCrumb(intl, issueIdSegment, options));
+      }
+
       return crumbs;
     }
 
@@ -805,6 +855,20 @@ export function getAppShellBreadcrumbs(
     }
 
     return crumbs;
+  }
+
+  if (section === "knowledge") {
+    if (!subsection) {
+      return [{ label: formatRouteTitle(intl, "knowledge") }];
+    }
+
+    return [
+      {
+        label: formatRouteTitle(intl, "knowledge"),
+        href: buildOrgPath(organizationSlug, "knowledge"),
+      },
+      guidelineDetailCrumb(intl, subsection, options),
+    ];
   }
 
   if (section === "translation-memories") {

@@ -15,119 +15,70 @@
 import { defineMessages } from "react-intl";
 
 export const intercomConnectionPanelMessages = defineMessages({
-  rowName: {
-    defaultMessage: "Intercom",
-    id: "JRTnSLtq//",
-    description: "Name shown for the Intercom integrations row",
+  loadErrorDescription: {
+    defaultMessage: "Unable to load the Intercom connection right now.",
+    id: "odqLHGre3m",
+    description: "Intercom integration row description when connection status fails to load",
   },
-  rowDescription: {
-    defaultMessage: "Connect an Intercom access token for Help Center content.",
-    id: "LBBqTZQKA3",
-    description: "Description for the Intercom integrations row",
+  connectedStatus: {
+    defaultMessage: "Connected",
+    id: "SALsrEbsZU",
+    description: "Status title shown in the Intercom manage panel when connected",
   },
-  addConnection: {
-    defaultMessage: "Add connection",
-    id: "E0jx/ueMaN",
-    description: "Button to add a new Intercom connection",
+  connectedDescription: {
+    defaultMessage:
+      "Import Help Center articles into a native project, then push approved translations back as Intercom drafts.",
+    id: "kSpMqJFNPn",
+    description: "Explanation of what a connected Intercom workspace can do",
   },
-  displayNameLabel: {
-    defaultMessage: "Display name",
-    id: "ZZsyqRkYsB",
-    description: "Label for Intercom display name field",
+  tokenSuffix: {
+    defaultMessage: "Token ending in {suffix}",
+    id: "Wh+pyeiIA0",
+    description: "Secondary Intercom connection detail showing the stored token suffix",
   },
-  accessTokenLabel: {
-    defaultMessage: "Access token",
-    id: "x/Kqcar7eA",
-    description: "Label for Intercom access token field",
+  regionLabel: {
+    defaultMessage: "Region · {region}",
+    id: "vQARQEeGSN",
+    description: "Intercom REST region shown in the connected manage panel",
   },
-  accessTokenHelp: {
-    defaultMessage: "Create an access token in the Intercom Developer Hub for your workspace.",
-    id: "Csa9NF0Qo2",
-    description: "Help text for where to find an Intercom access token",
+  helpCentersLabel: {
+    defaultMessage: "Help Centers",
+    id: "YXFxRGJgKh",
+    description: "Heading above Help Centers on the connected Intercom panel",
   },
-  restEndpointLabel: {
-    defaultMessage: "REST endpoint",
-    id: "cx00LgHL3+",
-    description: "Label for Intercom regional REST endpoint select",
+  noHelpCenters: {
+    defaultMessage: "No Help Centers were found on this workspace.",
+    id: "W/3qaSxy0d",
+    description: "Empty state when a connected Intercom workspace has no Help Centers",
   },
-  restEndpointHelp: {
-    defaultMessage: "Choose the region where your Intercom workspace is hosted.",
-    id: "Mojh5Scg1j",
-    description: "Help text for Intercom regional REST endpoint select",
+  openAutomations: {
+    defaultMessage: "Open automations",
+    id: "i2gq9AbUIT",
+    description: "Link from the Intercom connection panel to workspace automations",
   },
-  restEndpointUs: {
-    defaultMessage: "US (api.intercom.io)",
-    id: "Dsh7E+5ifE",
-    description: "US Intercom REST endpoint option label",
+  disconnect: {
+    defaultMessage: "Disconnect",
+    id: "vAl33la+cf",
+    description: "Button label to disconnect Intercom",
   },
-  restEndpointEu: {
-    defaultMessage: "Europe (api.eu.intercom.io)",
-    id: "or2nJ8Fbp+",
-    description: "Europe Intercom REST endpoint option label",
+  disconnecting: {
+    defaultMessage: "Disconnecting…",
+    id: "AW2iTpnW/h",
+    description: "Disconnect button label while Intercom is being disconnected",
   },
-  restEndpointAu: {
-    defaultMessage: "Australia (api.au.intercom.io)",
-    id: "QNpNdcu+Mx",
-    description: "Australia Intercom REST endpoint option label",
+  authorizeUrlFailedToast: {
+    defaultMessage: "Failed to start the Intercom connection.",
+    id: "POgqFuVLk+",
+    description: "Toast when the Intercom WorkOS authorize URL cannot be created",
   },
-  save: {
-    defaultMessage: "Save",
-    id: "3Z+3pA/kaR",
-    description: "Save Intercom connection button",
+  disconnectedToast: {
+    defaultMessage: "Intercom disconnected.",
+    id: "X4e5FCrkXH",
+    description: "Toast after Intercom is disconnected",
   },
-  cancel: {
-    defaultMessage: "Cancel",
-    id: "mBNLdtt327",
-    description: "Cancel adding Intercom connection",
-  },
-  delete: {
-    defaultMessage: "Delete",
-    id: "0czRTKBGYl",
-    description: "Delete Intercom connection button",
-  },
-  fetchFailed: {
-    defaultMessage: "Failed to load Intercom connections.",
-    id: "mObQkKgd8s",
-    description: "Error when Intercom connections cannot be loaded",
-  },
-  saveFailed: {
-    defaultMessage: "Failed to save Intercom connection.",
-    id: "e9lzOZ7/lz",
-    description: "Error when Intercom connection save fails",
-  },
-  saveSucceeded: {
-    defaultMessage: "Intercom connection saved.",
-    id: "S0eNIe6iwe",
-    description: "Toast when Intercom connection is saved",
-  },
-  deleteFailed: {
-    defaultMessage: "Failed to delete Intercom connection.",
-    id: "gbtHgYP/IG",
-    description: "Error when Intercom connection delete fails",
-  },
-  deleteSucceeded: {
-    defaultMessage: "Intercom connection deleted.",
-    id: "+CvStp9tzG",
-    description: "Toast when Intercom connection is deleted",
-  },
-  emptyState: {
-    defaultMessage: "No Intercom connections yet.",
-    id: "+8igDOrn5C",
-    description: "Empty state when no Intercom connections exist",
-  },
-  tokenConfigured: {
-    defaultMessage: "{region} · token ending in {suffix}",
-    id: "5Mjf4nqDKl",
-    description: "Hint that an Intercom access token is stored, with region",
-  },
-  accessTokenRequired: {
-    defaultMessage: "Enter an Intercom access token.",
-    id: "aEn/VDi+Yp",
-    description: "Validation error when Intercom access token is missing on create",
-  },
-  enabled: {
-    defaultMessage: "Enabled",
-    id: "Qg9jUhHjfz",
-    description: "Badge shown when an Intercom connection is enabled",
+  disconnectFailed: {
+    defaultMessage: "Failed to disconnect Intercom.",
+    id: "LewgKQxaFX",
+    description: "Toast when Intercom disconnect fails",
   },
 });

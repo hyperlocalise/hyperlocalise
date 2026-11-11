@@ -36,6 +36,8 @@ export const visualWorkflows = pgTable(
       .notNull()
       .default(sql`'{}'::jsonb`),
     publishedDefinition: jsonb("published_definition").$type<Record<string, unknown>>(),
+    /** The editor's test data and test run choices, encrypted; part of the draft, never published. */
+    encryptedTestSetup: jsonb("encrypted_test_setup").$type<Record<string, unknown>>(),
     publishedVersion: integer("published_version"),
     revision: integer("revision").notNull().default(1),
     definitionVersion: integer("definition_version").notNull().default(1),

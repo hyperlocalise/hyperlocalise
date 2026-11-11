@@ -35,9 +35,30 @@ func (s *Service) flushOutputForTargetWithMarkdownParityRetry(ctx context.Contex
 	return s.flushOutputForTarget(targetPath, output, keep)
 }
 
+type targetFlushError struct {
+	TargetPath       string
+	UnwrittenTargets []string
+	Err              error
+}
+
+func (e *targetFlushError) Error() string {
+	if e == nil || e.Err == nil {
+		return "flush outputs: unknown target"
+	}
+	return e.Err.Error()
+}
+
+func (e *targetFlushError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
 func (s *Service) flushOutputs(ctx context.Context, retry *markdownParityRetryInput, staged map[string]stagedOutput, pruneTargets map[string]map[string]struct{}, pruneMetadata map[string]stagedOutput) ([]string, error) {
-	targetPaths := make([]string, 0, len(staged)+len(pruneTargets))
-	for path := range staged {
+	grouped := groupedStagedOutputPaths(staged)
+	targetPaths := make([]string, 0, len(grouped)+len(pruneTargets))
+	for path := range grouped {
 		targetPaths = append(targetPaths, path)
 	}
 	for path := range pruneTargets {
@@ -50,16 +71,22 @@ func (s *Service) flushOutputs(ctx context.Context, retry *markdownParityRetryIn
 		ctx = context.Background()
 	}
 	var warnings []string
-	for _, targetPath := range targetPaths {
-		output, ok := staged[targetPath]
-		if !ok {
-			output = pruneMetadata[targetPath]
+	for i, targetPath := range targetPaths {
+		outputs := grouped[targetPath]
+		if len(outputs) == 0 {
+			outputs = []stagedOutput{pruneMetadata[targetPath]}
 		}
-		targetWarnings, err := s.flushOutputForTargetWithMarkdownParityRetry(ctx, retry, targetPath, output, pruneTargets[targetPath])
-		if err != nil {
-			return nil, err
+		for _, output := range outputs {
+			targetWarnings, err := s.flushOutputForTargetWithMarkdownParityRetry(ctx, retry, targetPath, output, pruneTargets[targetPath])
+			if err != nil {
+				return nil, &targetFlushError{
+					TargetPath:       targetPath,
+					UnwrittenTargets: slices.Clone(targetPaths[i:]),
+					Err:              err,
+				}
+			}
+			warnings = append(warnings, targetWarnings...)
 		}
-		warnings = append(warnings, targetWarnings...)
 	}
 	return warnings, nil
 }
@@ -95,6 +122,17 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 			}
 		} else if !os.IsNotExist(targetErr) {
 			return nil, fmt.Errorf("flush outputs: read XLIFF target %q: %w", targetPath, targetErr)
+		}
+	}
+	if strings.EqualFold(filepath.Ext(targetPath), ".xlsx") {
+		target, targetErr := s.readProjectFile(targetPath)
+		if targetErr == nil {
+			values, err = translationfileparser.ParseXLSXLocale(target, output.sourceLocale, output.targetLocale)
+			if err != nil {
+				return nil, fmt.Errorf("flush outputs: parse Excel target %q: %w", targetPath, err)
+			}
+		} else if !os.IsNotExist(targetErr) {
+			return nil, fmt.Errorf("flush outputs: read Excel target %q: %w", targetPath, targetErr)
 		}
 	}
 	stagedEntries := output.entries

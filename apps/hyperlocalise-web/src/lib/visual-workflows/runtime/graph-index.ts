@@ -123,6 +123,28 @@ export function selectNextEdges(input: {
     return input.outgoing.filter((edge) => edge.sourceHandle === "error");
   }
 
+  if (input.nodeType === "flow.human_approval") {
+    if (!input.switchCase) {
+      return [];
+    }
+
+    return input.outgoing.filter((edge) => edge.sourceHandle === input.switchCase);
+  }
+
+  if (
+    [
+      "logic.json_parse",
+      "logic.json_stringify",
+      "logic.schema_validate",
+      "action.file_read",
+      "action.file_write",
+      "action.file_convert",
+    ].includes(input.nodeType)
+  ) {
+    const handle = input.switchCase ?? "success";
+    return input.outgoing.filter((edge) => edge.sourceHandle === handle);
+  }
+
   if (input.nodeType === "logic.if") {
     const handle = input.branchResult ? "true" : "false";
     return input.outgoing.filter((edge) => edge.sourceHandle === handle);

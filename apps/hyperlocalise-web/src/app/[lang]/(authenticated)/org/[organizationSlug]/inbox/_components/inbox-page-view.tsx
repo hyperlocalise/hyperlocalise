@@ -16,6 +16,7 @@ import { useIntl } from "react-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
 
+import type { ChatTurnControls } from "./chat-turn-controls";
 import { ConversationPanel } from "./conversation-panel";
 import { inboxChatSplitPaneClassName } from "./inbox-chat-split-pane";
 import type { ChatComposerSendOptions } from "./inbox-api";
@@ -45,6 +46,8 @@ export function InboxPageView({
   conversationsIsLoading,
   currentUser,
   draft = "",
+  draftProjectId,
+  draftRepositoryKey,
   filters,
   hasMoreNotifications,
   isLoadingMoreNotifications,
@@ -60,6 +63,8 @@ export function InboxPageView({
   notificationsIsError,
   notificationsIsLoading,
   onDraftChange,
+  onDraftProjectChange,
+  onDraftRepositoryChange,
   onFiltersChange,
   onLoadMoreNotifications,
   onMarkAllRead,
@@ -73,6 +78,7 @@ export function InboxPageView({
   selectedNotificationIsLoading,
   selection,
   streamedAssistant,
+  turnControls,
   unreadNotificationCount,
 }: {
   conversations: Conversation[];
@@ -80,6 +86,8 @@ export function InboxPageView({
   conversationsIsLoading: boolean;
   currentUser: InboxCurrentUser;
   draft?: string;
+  draftProjectId?: string;
+  draftRepositoryKey?: string;
   filters?: InboxListFilters;
   hasMoreNotifications: boolean;
   isLoadingMoreNotifications: boolean;
@@ -95,6 +103,8 @@ export function InboxPageView({
   notificationsIsError: boolean;
   notificationsIsLoading: boolean;
   onDraftChange?: (draft: string) => void;
+  onDraftProjectChange?: (projectId: string) => void;
+  onDraftRepositoryChange?: (repositoryKey: string) => void;
   onFiltersChange?: (filters: InboxListFilters) => void;
   onLoadMoreNotifications: () => void;
   onMarkAllRead: () => void;
@@ -110,6 +120,7 @@ export function InboxPageView({
   selectedConversation: Conversation | undefined;
   selectedNotification: InboxIssueNotification | undefined;
   selectedNotificationIsLoading: boolean;
+  turnControls?: ChatTurnControls;
   selection: InboxSelection;
   streamedAssistant: StreamedAssistantMessage | null;
   unreadNotificationCount: number;
@@ -192,6 +203,8 @@ export function InboxPageView({
                 conversation={selectedConversation}
                 currentUser={currentUser}
                 draft={draft}
+                draftProjectId={draftProjectId}
+                draftRepositoryKey={draftRepositoryKey}
                 isComposingNew={selection?.kind === "new"}
                 isSending={isSending}
                 isStreaming={isStreaming}
@@ -200,9 +213,12 @@ export function InboxPageView({
                 messages={messages}
                 messagesIsLoading={messagesIsLoading}
                 onDraftChange={onDraftChange}
+                onDraftProjectChange={onDraftProjectChange}
+                onDraftRepositoryChange={onDraftRepositoryChange}
                 onSendMessage={onSendMessage}
                 organizationSlug={organizationSlug}
                 streamedAssistant={streamedAssistant}
+                turnControls={turnControls}
               />
             )}
           </div>

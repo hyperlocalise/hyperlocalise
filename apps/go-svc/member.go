@@ -11,18 +11,20 @@ import (
 )
 
 const (
-	memberBodyLimit                 = 64 << 10
-	memberRequestTimeout            = 30 * time.Second
-	memberRevokeReconcileTimeout    = 15 * time.Second
-	memberInviteRollbackTimeout     = 15 * time.Second
-	invitedWorkosUserIDPrefix       = "invited_user_"
-	replacingWorkosMembershipID     = "replacing"
-	defaultWorkspaceTeamSlug        = "default"
-	defaultWorkspaceTeamName        = "Default team"
-	workspaceResourceSeatsFeatureID = "seats"
-	localSeatFallbackLimit          = 1
-	memberWorkosUserIDMaxLen        = 256
-	memberEmailMaxLen               = 320
+	memberBodyLimit                   = 64 << 10
+	memberRequestTimeout              = 30 * time.Second
+	memberRevokeReconcileTimeout      = 15 * time.Second
+	memberWorkosRemoveTimeout         = 5 * time.Second
+	memberInviteRollbackTimeout       = 15 * time.Second
+	invitedWorkosUserIDPrefix         = "invited_user_"
+	replacingWorkosMembershipID       = "replacing"
+	replacingWorkosMembershipIDPrefix = "replacing:"
+	defaultWorkspaceTeamSlug          = "default"
+	defaultWorkspaceTeamName          = "Default team"
+	workspaceResourceSeatsFeatureID   = "seats"
+	localSeatFallbackLimit            = 1
+	memberWorkosUserIDMaxLen          = 256
+	memberEmailMaxLen                 = 320
 )
 
 type memberAPI struct {
@@ -100,6 +102,8 @@ func (api *memberAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("POST "+m, bindActor(api, (*memberAPI).inviteMemberHandler))
 	route("PATCH "+m+"/{workosUserId}", bindActor(api, (*memberAPI).updateMemberHandler))
 	route("DELETE "+m+"/{workosUserId}", bindActor(api, (*memberAPI).deleteMemberHandler))
+	route("GET "+m+"/leave", bindActor(api, (*memberAPI).leaveWorkspacePreviewHandler))
+	route("POST "+m+"/leave", bindActor(api, (*memberAPI).leaveWorkspaceHandler))
 }
 
 func (api *memberAPI) actor(ctx context.Context, claims AuthClaims, slug string) (memberActor, error) {
@@ -207,12 +211,21 @@ func requireMemberWorkosUserID(r *http.Request) (string, error) {
 	return workosUserID, nil
 }
 
+func replacingWorkosMembershipMarker(membershipID string) string {
+	return replacingWorkosMembershipIDPrefix + membershipID
+}
+
+func isReplacingWorkosMembershipID(workosMembershipID string) bool {
+	id := strings.TrimSpace(workosMembershipID)
+	return id == replacingWorkosMembershipID || strings.HasPrefix(id, replacingWorkosMembershipIDPrefix)
+}
+
 func isActiveOrganizationMembership(workosMembershipID *string) bool {
 	if workosMembershipID == nil {
 		return false
 	}
 	id := strings.TrimSpace(*workosMembershipID)
-	return id != "" && id != replacingWorkosMembershipID
+	return id != "" && !isReplacingWorkosMembershipID(id)
 }
 
 func isPendingOrganizationMembership(workosMembershipID *string) bool {

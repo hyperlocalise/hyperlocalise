@@ -1,0 +1,4 @@
+/build/
+/vendor/
+/.phpunit.result.cache
+/tests/playground/smoke-output.txt

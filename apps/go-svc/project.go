@@ -27,6 +27,8 @@ type projectAPI struct {
 	membership  organizationMembershipLookup
 	autumn      *autumn.Client
 	activityLog activityLogPublisher
+	// tms reads live TMS projects; nil when the web app can't mint tokens.
+	tms *tmsImports
 
 	testBeforeUpdateWrite func()
 	testBeforeLocaleLock  func()
@@ -53,15 +55,32 @@ func (a projectActor) canManageContentEditorBehavior() bool {
 	return a.role == "admin" || a.role == "localization_manager"
 }
 
+func (a projectActor) canReadJobs() bool {
+	return hasOrganizationCapability(a.role, "jobs:read")
+}
+
+func (a projectActor) canCreateJobs() bool {
+	return hasOrganizationCapability(a.role, "jobs:create")
+}
+
+func (a projectActor) canWriteJobs() bool {
+	return hasOrganizationCapability(a.role, "jobs:write")
+}
+
 type projectError struct {
 	status        int
 	code, message string
+	details       map[string]any
 }
 
 func (e *projectError) Error() string { return e.code }
 
 func projectFailure(status int, code, message string) error {
 	return &projectError{status: status, code: code, message: message}
+}
+
+func projectFailureDetails(status int, code, message string, details map[string]any) error {
+	return &projectError{status: status, code: code, message: message, details: details}
 }
 
 func projectNotFound() error {
@@ -88,10 +107,11 @@ func writeProjectError(w http.ResponseWriter, r *http.Request, phase string, err
 	} else {
 		logRequestFailure(r, "project_request_failed", phase, err, "status", failure.status, "code", failure.code)
 	}
-	projectJSON(r.Context(), w, failure.status, map[string]string{
-		"error":   failure.code,
-		"message": failure.message,
-	})
+	body := map[string]any{"error": failure.code, "message": failure.message}
+	if len(failure.details) > 0 {
+		body["details"] = failure.details
+	}
+	projectJSON(r.Context(), w, failure.status, body)
 }
 
 func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
@@ -110,8 +130,28 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+project+"/content-editor-behavior", bindActor(api, (*projectAPI).contentEditorBehaviorHandler))
 	route("PATCH "+project+"/content-editor-behavior", bindActor(api, (*projectAPI).updateContentEditorBehaviorHandler))
 	route("GET "+project+"/content-editor-behavior/preview", bindActor(api, (*projectAPI).contentEditorBehaviorPreviewHandler))
+	route("GET "+orgRoutePrefix+"/tms/projects", bindActor(api, (*projectAPI).liveProjectsHandler))
+	route("GET "+orgRoutePrefix+"/tms/jobs", bindActor(api, (*projectAPI).liveWorkspaceJobsHandler))
 	route("GET "+project+"/files", bindActor(api, (*projectAPI).filesHandler))
+	route("GET "+project+"/files/branches", bindActor(api, (*projectAPI).fileBranchesHandler))
+	route("GET "+project+"/hidden-files", bindActor(api, (*projectAPI).hiddenFilesHandler))
+	route("GET "+project+"/file-progress", bindActor(api, (*projectAPI).fileProgressHandler))
+	route("GET "+project+"/members", bindActor(api, (*projectAPI).liveProjectMembersHandler))
+	route("GET "+project+"/jobs", bindActor(api, (*projectAPI).projectJobsListHandler))
+	route("POST "+project+"/jobs", bindActor(api, (*projectAPI).projectJobsCreateHandler))
+	route("GET "+project+"/jobs/{jobId}", bindActor(api, (*projectAPI).projectJobDetailHandler))
+	route("GET "+project+"/jobs/{jobId}/status", bindActor(api, (*projectAPI).projectJobStatusHandler))
+	route("GET "+project+"/jobs/{jobId}/files", bindActor(api, (*projectAPI).projectJobFilesHandler))
+	route("GET "+project+"/jobs/{jobId}/comments", bindActor(api, (*projectAPI).projectJobCommentsHandler))
 	route("GET "+orgRoutePrefix+"/workspace-files", bindActor(api, (*projectAPI).workspaceFilesHandler))
+	route("GET "+orgRoutePrefix+"/jobs", bindActor(api, (*projectAPI).orgJobsListHandler))
+	route("GET "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobDetailHandler))
+	route("PATCH "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobUpdateHandler))
+	route("PATCH "+orgRoutePrefix+"/jobs/{jobId}/description", bindActor(api, (*projectAPI).orgJobDescriptionHandler))
+	route("DELETE "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobDeleteHandler))
+	route("GET "+orgRoutePrefix+"/jobs/{jobId}/files", bindActor(api, (*projectAPI).orgJobFilesHandler))
+	route("GET "+orgRoutePrefix+"/jobs/{jobId}/comments", bindActor(api, (*projectAPI).orgJobCommentsHandler))
+	route("GET "+orgRoutePrefix+"/jobs/{jobId}/events", bindActor(api, (*projectAPI).orgJobEventsHandler))
 }
 
 func (api *projectAPI) actor(ctx context.Context, claims AuthClaims, slug string) (projectActor, error) {
@@ -133,7 +173,11 @@ func (api *projectAPI) handle(fn func(*http.Request, projectActor) (any, int, er
 			writeProjectError(w, r, "availability", projectFailure(503, "projects_unavailable", "Projects are unavailable"))
 			return
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), projectRequestTimeout)
+		timeout := projectRequestTimeout
+		if liveTMSRequest(r) {
+			timeout = tmsLiveRequestTimeout
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), timeout)
 		defer cancel()
 		r = r.WithContext(ctx)
 		claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
@@ -220,6 +264,9 @@ func (api *projectAPI) listHandler(r *http.Request, actor projectActor) (any, in
 }
 
 func (api *projectAPI) openJobCountHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if id, live := parseLiveProjectID(r.PathValue("projectId")); live {
+		return api.liveOpenJobCount(r, actor, id)
+	}
 	projectID, err := normalizedNativeProjectID(r.PathValue("projectId"))
 	if err != nil {
 		return nil, 0, err
@@ -257,31 +304,56 @@ func (api *projectAPI) contentEditorBehaviorHandler(r *http.Request, actor proje
 	if err != nil {
 		return nil, 0, err
 	}
-	var automaticallyGroupIdenticalStrings bool
-	var groupingRevision int
-	err = api.pool.QueryRow(r.Context(), `
-		select p.automatically_group_identical_strings, p.cat_grouping_revision
-		from projects p
-		where p.id = $1 and p.organization_id = $2 and p.source = 'native'
-			and `+formatQaProjectTeamAccessSQL(3, 4, 2),
-		projectID,
-		actor.organizationID,
-		actor.canReadAllTeams(),
-		actor.userID,
-	).Scan(&automaticallyGroupIdenticalStrings, &groupingRevision)
+	behavior, err := loadContentEditorBehavior(r.Context(), api.pool, projectID, actor)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, 0, projectNotFound()
 	}
 	if err != nil {
 		return nil, 0, fmt.Errorf("get native project content editor behavior: %w", err)
 	}
+	return behavior.response(actor), http.StatusOK, nil
+}
+
+type contentEditorBehavior struct {
+	automaticallyGroupIdenticalStrings bool
+	groupingRevision                   int
+	approvedTranslationsOnSourceChange string
+	sourceTextEditable                 bool
+}
+
+func loadContentEditorBehavior(ctx context.Context, db interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, projectID string, actor projectActor,
+) (contentEditorBehavior, error) {
+	var behavior contentEditorBehavior
+	err := db.QueryRow(ctx, `
+		select p.automatically_group_identical_strings, p.cat_grouping_revision,
+			p.approved_translations_on_source_change, p.source_text_editable
+		from projects p
+		where `+nativeProjectOwnedWhere+formatQaProjectTeamAccessSQL(3, 4, 2),
+		projectID,
+		actor.organizationID,
+		actor.canReadAllTeams(),
+		actor.userID,
+	).Scan(&behavior.automaticallyGroupIdenticalStrings, &behavior.groupingRevision, &behavior.approvedTranslationsOnSourceChange,
+		&behavior.sourceTextEditable)
+	return behavior, err
+}
+
+func (b contentEditorBehavior) response(actor projectActor) map[string]any {
 	return map[string]any{
 		"contentEditorBehavior": map[string]any{
-			"automaticallyGroupIdenticalStrings": automaticallyGroupIdenticalStrings,
-			"groupingRevision":                   groupingRevision,
+			"automaticallyGroupIdenticalStrings": b.automaticallyGroupIdenticalStrings,
+			"groupingRevision":                   b.groupingRevision,
+			"approvedTranslationsOnSourceChange": b.approvedTranslationsOnSourceChange,
+			"sourceTextEditable":                 b.sourceTextEditable,
 			"canManage":                          actor.canManageContentEditorBehavior(),
+			// The content editor's source text control; the same roles the editor route allows.
+			"canEditSourceText": b.sourceTextEditable && actor.canMutateProjects(),
+			// Editing tags and the design link in the content editor; the editor route allows the same roles.
+			"canEditKeyDetails": actor.canMutateProjects(),
 		},
-	}, http.StatusOK, nil
+	}
 }
 
 type projectFilesQuery struct {
@@ -335,6 +407,9 @@ func parseProjectFilesQuery(values url.Values) (projectFilesQuery, error) {
 }
 
 func (api *projectAPI) filesHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if id, live := parseLiveProjectID(r.PathValue("projectId")); live {
+		return api.liveFiles(r, actor, id)
+	}
 	projectID, err := normalizedNativeProjectID(r.PathValue("projectId"))
 	if err != nil {
 		return nil, 0, err
@@ -376,8 +451,9 @@ func (api *projectAPI) files(ctx context.Context, actor projectActor, projectID 
 				and ` + formatQaProjectTeamAccessSQL(3, 4, 2) + `
 		),
 		ranked as (
-			select v.id as version_id, v.source_path, v.source_hash, v.commit_sha,
+			select v.id as version_id, v.repository_source_file_id, v.source_path, v.source_hash, v.commit_sha,
 				v.workflow_run_id, v.created_at as uploaded_at, v.stored_file_id,
+				v.ingest_state, v.ingest_error,
 				f.metadata, f.filename, f.byte_size,
 				row_number() over (
 					partition by v.source_path
@@ -422,6 +498,15 @@ func (api *projectAPI) files(ctx context.Context, actor projectActor, projectID 
 			) locale(value)
 			where j.organization_id = $2 and j.project_id = $1
 			order by d.source_file_version_id, locale.value, j.created_at desc, j.id desc
+		),
+		hidden_files as (
+			select k.repository_source_file_id
+			from project_translation_keys k
+			join selected s on s.repository_source_file_id = k.repository_source_file_id
+			where k.organization_id = $2 and k.project_id = $1
+				and ` + editorCatExcludeCalloutFenceSQL("k") + `
+			group by k.repository_source_file_id
+			having bool_and(k.is_hidden)
 		)
 		select exists(select 1 from project),
 			coalesce((
@@ -437,6 +522,12 @@ func (api *projectAPI) files(ctx context.Context, actor projectActor, projectID 
 						'metadata', s.metadata,
 						'filename', s.filename,
 						'byteSize', s.byte_size,
+						'ingestState', s.ingest_state,
+						'ingestError', s.ingest_error,
+						'isHidden', exists(
+							select 1 from hidden_files h
+							where h.repository_source_file_id = s.repository_source_file_id
+						),
 						'provider', null,
 						'latestJob', case when j.id is null then null else jsonb_build_object(
 							'id', j.id,

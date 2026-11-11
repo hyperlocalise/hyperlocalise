@@ -17,8 +17,6 @@ import { useRef } from "react";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
@@ -135,24 +133,22 @@ export function useIssueDetailMutations({
       const controller = new AbortController();
       trackAbortController(updateAbortControllersRef.current, controller);
       try {
-        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-          "issue-sheet"
-        ][":issueId"].$patch(
-          {
-            param: { organizationSlug, projectId, issueId },
-            json: patch,
-          } as never,
-          { init: { signal: controller.signal } },
+        const payload = await goSvcClient.issueSheet.update(
+          organizationSlug,
+          projectId,
+          issueId,
+          patch,
+          { signal: controller.signal },
         );
-        if (response.status !== 200) {
-          const error = await readApiResponseError(response, requestFailed);
-          throw new Error(error.message || requestFailed);
-        }
-        const payload = await response.json();
         if (!isIssueDetailIssue(payload.issue)) {
           throw new Error(requestFailed);
         }
         return { issue: payload.issue };
+      } catch (error) {
+        if (isAbortError(error)) {
+          throw error;
+        }
+        throw new Error(goSvcErrorMessage(error, requestFailed), { cause: error });
       } finally {
         releaseAbortController(updateAbortControllersRef.current, controller);
       }
@@ -180,20 +176,18 @@ export function useIssueDetailMutations({
       const controller = new AbortController();
       trackAbortController(setValueAbortControllersRef.current, controller);
       try {
-        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-          "issue-sheet"
-        ][":issueId"].values.$patch(
-          {
-            param: { organizationSlug, projectId, issueId },
-            json: { columnKey, value },
-          } as never,
-          { init: { signal: controller.signal } },
+        return await goSvcClient.issueSheet.setValue(
+          organizationSlug,
+          projectId,
+          issueId,
+          { columnKey, value },
+          { signal: controller.signal },
         );
-        if (response.status !== 200) {
-          const error = await readApiResponseError(response, requestFailed);
-          throw new Error(error.message || requestFailed);
+      } catch (error) {
+        if (isAbortError(error)) {
+          throw error;
         }
-        return response.json();
+        throw new Error(goSvcErrorMessage(error, requestFailed), { cause: error });
       } finally {
         releaseAbortController(setValueAbortControllersRef.current, controller);
       }

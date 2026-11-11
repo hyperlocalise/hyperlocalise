@@ -35,10 +35,40 @@ export const createTranslationJobDialogMessages = defineMessages({
     id: "/hT2cIKUSb",
     description: "Hint when the project has no target locales configured for agent translation",
   },
-  sourceLocale: {
-    defaultMessage: "Source locale: {locale}",
-    id: "2RA1MDUmR3",
-    description: "Shows the project source locale in the create translation job dialog",
+  sourceLocaleLabel: {
+    defaultMessage: "Source locale",
+    id: "3SLTb8lWnJ",
+    description: "Label for the project source locale in the create translation job dialog",
+  },
+  targetLocalesLabel: {
+    defaultMessage: "Target locales",
+    id: "05cAoYwBUA",
+    description: "Label for the target locale multi-select in the create translation job dialog",
+  },
+  searchLocales: {
+    defaultMessage: "Search locales…",
+    id: "qkPZNDSLGU",
+    description: "Search placeholder for the target locale multi-select",
+  },
+  selectAll: {
+    defaultMessage: "Select all",
+    id: "QNHryjPIoo",
+    description: "Select every project target locale in the create translation job dialog",
+  },
+  clear: {
+    defaultMessage: "Clear",
+    id: "ewsaDXY90W",
+    description: "Clear every selected target locale in the create translation job dialog",
+  },
+  noMatchingLocales: {
+    defaultMessage: "No matching locales.",
+    id: "yRdJTRKT7s",
+    description: "Empty state when locale search matches no project target locales",
+  },
+  removeLocale: {
+    defaultMessage: "Remove {locale}",
+    id: "Oipi2K2qqU",
+    description: "Accessible label for removing a selected target locale chip",
   },
   cancel: {
     defaultMessage: "Cancel",

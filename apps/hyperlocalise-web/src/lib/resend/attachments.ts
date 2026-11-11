@@ -65,6 +65,7 @@ const utf8AttachmentContentTypes: Record<string, string> = {
   ".md": "text/markdown; charset=utf-8",
   ".mdx": "text/markdown; charset=utf-8",
   ".po": "text/x-gettext-translation; charset=utf-8",
+  ".pot": "text/x-gettext-translation-template; charset=utf-8",
   ".srt": "application/x-subrip; charset=utf-8",
   ".strings": "text/plain; charset=utf-8",
   ".stringsdict": "application/xml; charset=utf-8",

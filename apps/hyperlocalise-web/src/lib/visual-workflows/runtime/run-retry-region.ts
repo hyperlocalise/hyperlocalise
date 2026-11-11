@@ -123,11 +123,27 @@ export async function runRetryRegion(input: {
         },
       };
     }
+    if (failure.error.terminal === true) {
+      return {
+        ok: false,
+        error: { ...failure.error, terminalNodeId: failure.nodeId },
+      };
+    }
     if (
       failureCode &&
-      ["needs_attention", "cancelled", "retry_backoff", "wait_suspended"].includes(failureCode)
+      [
+        "needs_attention",
+        "cancelled",
+        "retry_backoff",
+        "wait_suspended",
+        "workflow_completed",
+        "workflow_returned",
+      ].includes(failureCode)
     ) {
-      return { ok: false, error: failure.error };
+      return {
+        ok: false,
+        error: { ...failure.error, terminalNodeId: failure.nodeId },
+      };
     }
 
     const retryable = isRetryableWorkflowError(failureCode, policy);

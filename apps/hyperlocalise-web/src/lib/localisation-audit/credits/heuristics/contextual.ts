@@ -19,6 +19,7 @@ import {
   groupPagesByLanguage,
   languageOf,
   pageLocale,
+  passingShareScore,
   sourceLanguage,
 } from "../shared";
 import type { HeuristicCreditOutcome, HeuristicScorer } from "../types";
@@ -50,50 +51,55 @@ const scoreCtaIntent: HeuristicScorer = (context) => {
   };
 };
 
+/** International phone number, e.g. +44 20 7946 0958. */
+const INTERNATIONAL_PHONE_RE = /\+\d{1,3}[\s.-]?\(?\d{1,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}/;
+/** US/NANP phone, e.g. +1 (415) 555-0100 or (415) 555-0100. */
+const US_PHONE_RE = /\+1[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}|\(\d{3}\)\s?\d{3}-\d{4}/;
+
+/** Markets that share the +1 country code, where a +1 number is local (e.g. fr-CA). */
+const NANP_REGIONS = new Set(["us", "ca", "pr", "do", "jm", "tt", "bs", "bb"]);
+
+/**
+ * Contact details on localized pages should fit the market. Currency is scored by
+ * international-formatting, so it is not counted again here.
+ */
 const scoreCulturalAdaptation: HeuristicScorer = (context) => {
+  const source = sourceLanguage(context.detectedLocales);
   const findings: LocalisationAuditFinding[] = [];
-  let sawSignal = false;
+  const failingPages = new Set<string>();
+  let inspected = 0;
   for (const page of context.pages) {
     const locale = pageLocale(page);
     if (!locale) continue;
     const language = languageOf(locale);
+    if (language === source || language === "en") continue;
     const text = page.textSample;
-    const hasUsPhone = /\+?1[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/.test(text);
-    const hasUsZip = /\b\d{5}(?:-\d{4})?\b/.test(text);
-    if (language !== "en" && (hasUsPhone || /\$\d/.test(text))) {
-      sawSignal = true;
-      findings.push(
-        creditFinding({
-          id: `cultural-${findings.length}`,
-          creditId: "cultural-adaptation",
-          category: "contextual",
-          severity: "medium",
-          title: "Possible cultural adaptation gap",
-          summary: `A ${language} page still uses US-style currency or contact details.`,
-          where: formatFindingWhere({ section: "Page body", tag: "sampled copy" }),
-          url: page.url,
-          evidence: clipFindingEvidence(
-            text.match(/\$\d[\d,.]*/)?.[0] ??
-              text.match(/\+?1[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/)?.[0] ??
-              text.slice(0, 200),
-          ),
-          advice:
-            "Use locale-appropriate currency and contact formats instead of US-style defaults.",
-          confidence: 78,
-        }),
-      );
-    }
-    if (language === "en" && hasUsZip) {
-      sawSignal = true;
-    }
+    const region = locale.split("-")[1] ?? "";
+    const usPhone = NANP_REGIONS.has(region) ? undefined : text.match(US_PHONE_RE)?.[0];
+    if (!usPhone && !INTERNATIONAL_PHONE_RE.test(text)) continue;
+    inspected += 1;
+    if (!usPhone) continue;
+    failingPages.add(page.url);
+    findings.push(
+      creditFinding({
+        id: `cultural-${findings.length}`,
+        creditId: "cultural-adaptation",
+        category: "contextual",
+        severity: "medium",
+        title: "US contact details on a localized page",
+        summary: `A ${language} page lists a US phone number instead of a local contact.`,
+        where: formatFindingWhere({ section: "Page body", tag: "sampled copy" }),
+        url: page.url,
+        evidence: clipFindingEvidence(usPhone),
+        advice: "Show a local or international contact number for this market.",
+        confidence: 78,
+      }),
+    );
   }
-  if (findings.length > 0) {
-    return scored(Math.max(50, 80 - findings.length * 10), findings);
-  }
-  if (!sawSignal) {
+  if (inspected === 0) {
     return { status: "na" };
   }
-  return scored(88, findings);
+  return scored(passingShareScore(inspected, failingPages.size), findings);
 };
 
 const needsSourceTarget: HeuristicScorer = (context) => {

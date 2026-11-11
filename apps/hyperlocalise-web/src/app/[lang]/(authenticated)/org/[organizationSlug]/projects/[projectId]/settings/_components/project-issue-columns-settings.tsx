@@ -57,8 +57,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { IssueColumnIcon } from "@/components/issue-column-icon/issue-column-icon";
 import { IssueColumnIconPicker } from "@/components/issue-column-icon/issue-column-icon-picker";
 import { TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   canDeleteIssueSheetColumn,
   isIssueSheetProtectedColumnKey,
@@ -89,11 +89,6 @@ function formString(formData: FormData, key: string, fallback = "") {
   return typeof value === "string" ? value : fallback;
 }
 
-async function throwApiError(response: Response, fallback: string): Promise<never> {
-  const error = await readApiResponseError(response, fallback);
-  throw new Error(error.message || fallback);
-}
-
 function columnTypeLabel(intl: ReturnType<typeof useIntl>, type: string) {
   switch (type) {
     case "text":
@@ -120,6 +115,7 @@ export function ProjectIssueColumnsSettings({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const columnsQuery = useIssueSheetColumnsQuery({ organizationSlug, projectId });
   const [createOpen, setCreateOpen] = useState(false);
   const [createIcon, setCreateIcon] = useState<string | null>(null);
@@ -157,16 +153,16 @@ export function ProjectIssueColumnsSettings({
       };
     }) => {
       const toastError = intl.formatMessage(messages.toastError);
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ].columns[":columnId"].$patch({
-        param: { organizationSlug, projectId, columnId: input.columnId },
-        json: input.body,
-      } as never);
-      if (response.status !== 200) {
-        await throwApiError(response, toastError);
+      try {
+        return await goSvcClient.issueSheet.columns.update(
+          organizationSlug,
+          projectId,
+          input.columnId,
+          input.body,
+        );
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, toastError), { cause: error });
       }
-      return response.json();
     },
     onSuccess: async (_data, variables) => {
       await invalidateColumns();
@@ -188,16 +184,11 @@ export function ProjectIssueColumnsSettings({
   const reorderColumns = useMutation({
     mutationFn: async (columnIds: string[]) => {
       const toastError = intl.formatMessage(messages.toastError);
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ].columns.order.$put({
-        param: { organizationSlug, projectId },
-        json: { columnIds },
-      } as never);
-      if (response.status !== 200) {
-        await throwApiError(response, toastError);
+      try {
+        return await goSvcClient.issueSheet.columns.reorder(organizationSlug, projectId, columnIds);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, toastError), { cause: error });
       }
-      return response.json();
     },
     onSuccess: async () => {
       await invalidateColumns();
@@ -211,13 +202,10 @@ export function ProjectIssueColumnsSettings({
   const removeColumn = useMutation({
     mutationFn: async (columnId: string) => {
       const toastError = intl.formatMessage(messages.toastError);
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ].columns[":columnId"].$delete({
-        param: { organizationSlug, projectId, columnId },
-      } as never);
-      if (response.status !== 204) {
-        await throwApiError(response, toastError);
+      try {
+        await goSvcClient.issueSheet.columns.delete(organizationSlug, projectId, columnId);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, toastError), { cause: error });
       }
     },
     onSuccess: async () => {
@@ -235,11 +223,8 @@ export function ProjectIssueColumnsSettings({
       const type = formString(formData, "type", "text");
       const rawOptions = formString(formData, "options");
       const toastError = intl.formatMessage(messages.toastError);
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ].columns.$post({
-        param: { organizationSlug, projectId },
-        json: {
+      try {
+        return await goSvcClient.issueSheet.columns.create(organizationSlug, projectId, {
           key: formString(formData, "key").trim(),
           label: formString(formData, "label").trim(),
           type,
@@ -248,12 +233,10 @@ export function ProjectIssueColumnsSettings({
             type === "select"
               ? { options: selectOptionsFromLabels(parseOptionLabelsCsv(rawOptions)) }
               : {},
-        },
-      } as never);
-      if (response.status !== 201) {
-        await throwApiError(response, toastError);
+        });
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, toastError), { cause: error });
       }
-      return response.json();
     },
     onSuccess: async () => {
       await invalidateColumns();

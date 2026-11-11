@@ -15,6 +15,21 @@
 import { defineMessages } from "react-intl";
 
 export const projectFileCatWorkspaceMessages = defineMessages({
+  noTagStrings: {
+    defaultMessage: "None of the selected rows is a string that can carry tags.",
+    id: "vsvZiPc8Wx",
+    description: "Error when the ticked rows are files or images, which have no tags",
+  },
+  tagsSaved: {
+    defaultMessage: "Tags changed on {count, plural, one {# string} other {# strings}}.",
+    id: "onLHhVdx2Q",
+    description: "Confirmation after adding or removing tags on the ticked strings",
+  },
+  noTaskStrings: {
+    defaultMessage: "None of the selected rows is a string that can join a task.",
+    id: "6qnnQHpizk",
+    description: "Error when the ticked rows are files or images, which a key task can't hold",
+  },
   qaBlockedSave: {
     defaultMessage: "Fix the QA errors before saving: {checks}",
     id: "uJX/OOWNsW",
@@ -129,5 +144,29 @@ export const projectFileCatWorkspaceMessages = defineMessages({
     defaultMessage: "({locale})",
     id: "d32z52fN10",
     description: "BCP-47 locale code shown in parentheses next to a locale display name",
+  },
+  documentDraftsSaved: {
+    defaultMessage:
+      "{count, plural, one {Saved # changed segment as a draft.} other {Saved # changed segments as drafts.}}",
+    id: "/Btv5OtACg",
+    description:
+      "Toast after a Markdown or HTML File view save writes edited paragraphs back to segments",
+  },
+  documentDraftsNotSaved: {
+    defaultMessage:
+      "{count, plural, one {# edit was not saved to a segment.} other {# edits were not saved to segments.}}",
+    id: "ENMJl6+UHz",
+    description: "Toast title when some File view edits could not be written back to segments",
+  },
+  documentDraftsNotSavedDetail: {
+    defaultMessage:
+      "Added, removed, or sentence-split paragraphs and edits blocked by QA keep only the file copy. Edit them in a segment view: {keys}",
+    id: "5jD6oFvCYS",
+    description: "Toast detail listing the segment keys whose File view edits were not saved",
+  },
+  documentParseBackFailed: {
+    defaultMessage: "The file was saved, but its edits could not be written back to segments.",
+    id: "1lU83WzoEM",
+    description: "Toast when the edited document could not be parsed back into segments",
   },
 });

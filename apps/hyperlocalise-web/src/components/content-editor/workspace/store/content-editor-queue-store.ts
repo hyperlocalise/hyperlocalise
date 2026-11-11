@@ -29,10 +29,33 @@ export class ContentEditorQueueStore {
   search = "";
   selectionMode = readCatQueueSelectionModePreference();
   checkedSegmentIds = new Set<string>();
+  /** The last tick box clicked: where a Shift-click range starts. */
+  checkAnchorId: string | null = null;
   segmentMeta = new Map<string, ContentEditorQueueSegment>();
+  /**
+   * Ids in the server's current queue page. With lazily loaded targets the store also
+   * retains rows outside it (selected or dirty), which the queue must not list.
+   */
+  windowIds: ReadonlySet<string> | undefined = undefined;
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
+  }
+
+  /** Drops everything that belonged to the previous file or locale. */
+  resetForFileScope() {
+    this.segmentMeta.clear();
+    this.clearChecked();
+    this.selectedSegmentId = "";
+    this.windowIds = undefined;
+  }
+
+  upsert(segment: ContentEditorQueueSegment) {
+    this.segmentMeta.set(segment.id, segment);
+  }
+
+  setWindow(segmentIds: ReadonlySet<string> | undefined) {
+    this.windowIds = segmentIds;
   }
 
   get segments(): ContentEditorQueueSegment[] {
@@ -92,12 +115,32 @@ export class ContentEditorQueueStore {
     }
   }
 
+  /**
+   * A click on a string's tick box. On Shift-click (`rangeIds`, the list's rows in the order shown)
+   * every row from the last box clicked to this one takes the clicked box's new state, as in Gmail;
+   * without an earlier click still in the list it ticks just this one. The clicked box becomes the
+   * start of the next range either way.
+   */
+  checkFromClick(segmentId: string, checked: boolean, rangeIds?: readonly string[]) {
+    const from = rangeIds && this.checkAnchorId ? rangeIds.indexOf(this.checkAnchorId) : -1;
+    const to = rangeIds ? rangeIds.indexOf(segmentId) : -1;
+    const segmentIds =
+      rangeIds && from >= 0 && to >= 0
+        ? rangeIds.slice(Math.min(from, to), Math.max(from, to) + 1)
+        : [segmentId];
+    for (const id of segmentIds) {
+      this.toggleChecked(id, checked);
+    }
+    this.checkAnchorId = segmentId;
+  }
+
   selectAll(segmentIds: string[]) {
     this.checkedSegmentIds = new Set(segmentIds);
   }
 
   clearChecked() {
     this.checkedSegmentIds.clear();
+    this.checkAnchorId = null;
   }
 
   setHidden(segmentIds: string[], isHidden: boolean) {

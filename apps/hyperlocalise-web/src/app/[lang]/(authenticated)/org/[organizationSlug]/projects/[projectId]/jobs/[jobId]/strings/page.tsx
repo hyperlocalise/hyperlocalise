@@ -10,13 +10,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { hasCapability } from "@/api/auth/policy";
+import { hasCapability, isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import {
   isReleaseCatAdaptiveWorkspaceEnabled,
   isReleaseContentEditorAllFilesEnabled,
 } from "@/lib/flags/release-flags";
 import {
+  parseCatWorkspaceQueueAdvancedParam,
+  parseCatWorkspaceQueueFilterQualifierParam,
   parseCatWorkspaceQueueSortParam,
   parseCatWorkspaceSearchParam,
 } from "@/lib/projects/content-editor/content-editor-workspace-query-params";
@@ -47,6 +49,8 @@ export default function ProjectJobStringsPage({
     queueFilter?: string;
     queueSort?: string;
     search?: string;
+    queueFilterQualifier?: string;
+    queueAdvanced?: string;
   }>;
 }) {
   return <ProjectJobStringsPageLoader params={params} searchParams={searchParams} />;
@@ -66,6 +70,8 @@ async function ProjectJobStringsPageLoader({
     queueFilter?: string;
     queueSort?: string;
     search?: string;
+    queueFilterQualifier?: string;
+    queueAdvanced?: string;
   }>;
 }) {
   const { organizationSlug, projectId, jobId } = await params;
@@ -78,6 +84,8 @@ async function ProjectJobStringsPageLoader({
     queueFilter,
     queueSort,
     search,
+    queueFilterQualifier,
+    queueAdvanced,
   } = await searchParams;
   const auth = await requireAppAuthContext({ organizationSlug });
   const target = await resolveProjectResourceTarget(auth, projectId);
@@ -105,9 +113,12 @@ async function ProjectJobStringsPageLoader({
       initialQueueFilter={initialQueueFilter}
       initialQueueSort={parseCatWorkspaceQueueSortParam(queueSort) ?? "file_order"}
       initialSearch={parseCatWorkspaceSearchParam(search)}
+      initialQueueFilterQualifier={parseCatWorkspaceQueueFilterQualifierParam(queueFilterQualifier)}
+      initialQueueAdvanced={parseCatWorkspaceQueueAdvancedParam(queueAdvanced)}
       contentEditorAllFilesEnabled={contentEditorAllFilesEnabled}
       adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
       canWriteDictionaries={hasCapability(auth.membership.role, "dictionaries:write")}
+      canManageAutomations={isWorkspaceOperatorRole(auth.membership.role)}
     />
   );
 }

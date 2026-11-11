@@ -19,6 +19,8 @@ export const maxCatSegmentLockBatch = 200;
 export type ContentEditorSegmentLockResult = {
   updatedCount: number;
   isLocked: boolean;
+  /** Segments whose lock rows were inserted or deleted. Unlock omits ids that were already unlocked. */
+  externalStringIds: string[];
 };
 
 function uniqueExternalStringIds(externalStringIds: string[]) {
@@ -84,7 +86,7 @@ export async function setCatSegmentLocks(input: {
     maxCatSegmentLockBatch,
   );
   if (externalStringIds.length === 0) {
-    return { updatedCount: 0, isLocked: input.isLocked };
+    return { updatedCount: 0, isLocked: input.isLocked, externalStringIds: [] };
   }
 
   if (!input.isLocked) {
@@ -101,8 +103,10 @@ export async function setCatSegmentLocks(input: {
       .returning({
         externalStringId: schema.projectContentEditorSegmentLocks.externalStringId,
       });
+    const deletedIds = new Set(deleted.map((row) => row.externalStringId));
+    const unlockedIds = externalStringIds.filter((id) => deletedIds.has(id));
 
-    return { updatedCount: deleted.length, isLocked: false };
+    return { updatedCount: unlockedIds.length, isLocked: false, externalStringIds: unlockedIds };
   }
 
   const now = new Date();
@@ -131,7 +135,7 @@ export async function setCatSegmentLocks(input: {
       },
     });
 
-  return { updatedCount: externalStringIds.length, isLocked: true };
+  return { updatedCount: externalStringIds.length, isLocked: true, externalStringIds };
 }
 
 export async function attachCatSegmentLocks<

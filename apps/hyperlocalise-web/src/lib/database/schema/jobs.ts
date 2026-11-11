@@ -17,11 +17,14 @@ import {
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+
+import type { JobEventType } from "@/lib/job-events/job-events-contract";
 
 import {
   externalTmsProviderKindEnum,
@@ -85,6 +88,9 @@ export const jobs = pgTable(
     contextSnapshot: jsonb("context_snapshot")
       .$type<unknown>()
       .default(sql`'{}'::jsonb`),
+    // What the job gave the model (trigger, model, guideline versions, glossaries): ids and
+    // counts only. Shape is `GenerationProvenance` in `generation-provenance.ts`.
+    generationProvenance: jsonb("generation_provenance").$type<Record<string, unknown>>(),
     // When the job record was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When job state last changed.
@@ -94,9 +100,12 @@ export const jobs = pgTable(
       .$onUpdateFn(() => new Date()),
     // When the job entered a terminal state, if it has completed.
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    // When a native job is due. Provider-backed jobs keep the provider's date on externalJobDetails.
+    dueAt: timestamp("due_at", { withTimezone: true }),
   },
   (table) => [
     index("idx_jobs_org_created_at").on(table.organizationId, table.createdAt),
+    index("idx_jobs_org_due_at").on(table.organizationId, table.dueAt),
     index("idx_jobs_project_created_at").on(table.projectId, table.createdAt),
     index("idx_jobs_created_by_user_id").on(table.createdByUserId),
     index("idx_jobs_owner_user_id").on(table.ownerUserId),
@@ -133,6 +142,61 @@ export const translationJobDetails = pgTable(
     index("idx_translation_job_details_source_file_version").on(table.sourceFileVersionId),
     index("idx_translation_job_details_outcome_kind").on(table.outcomeKind),
   ],
+);
+
+/**
+ * Remembers the `Idempotency-Key` a public API client sent with `POST /api/v1/jobs`, so a retried request returns the job it already created instead of creating another.
+ */
+export const publicJobIdempotencyKeys = pgTable(
+  "public_job_idempotency_keys",
+  {
+    // Keys are unique per workspace, whichever API key or agent sent them.
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // The client's key, as sent.
+    key: text("key").notNull(),
+    // SHA-256 of the validated request body, so a reused key with a different body is refused.
+    requestHash: text("request_hash").notNull(),
+    // The job the first request created.
+    jobId: text("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.key] }),
+    index("idx_public_job_idempotency_keys_job").on(table.jobId),
+  ],
+);
+
+/**
+ * Append-only progress log for a job: workflow stages, per-locale progress, and user actions. Drives the job detail activity feed.
+ */
+export const jobEvents = pgTable(
+  "job_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    jobId: text("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // Groups events into run attempts; null for user actions outside a run.
+    workflowRunId: text("workflow_run_id"),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    type: text("type").$type<JobEventType>().notNull(),
+    locale: text("locale"),
+    payload: jsonb("payload")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`clock_timestamp()`),
+  },
+  (table) => [index("idx_job_events_job_created_at").on(table.jobId, table.createdAt)],
 );
 
 /**

@@ -155,7 +155,7 @@ runs:
 
     - name: Render task definition with new image
       id: render
-      uses: aws-actions/amazon-ecs-render-task-definition@138c24f321fdbdf7edee4a685519d253cae2cdea # v1
+      uses: aws-actions/amazon-ecs-render-task-definition@8d79160660ad39c402a16e5fc7cd2a32e8f7d6b7 # v1
       with:
         task-definition: ${{ inputs.task-definition-file }}
         container-name: ${{ inputs.container-name }}
@@ -187,7 +187,7 @@ runs:
 
     - name: Deploy new image to ECS
       id: deploy
-      uses: aws-actions/amazon-ecs-deploy-task-definition@c465972ecbd160473f22e683363b422a5412a3de # v2
+      uses: aws-actions/amazon-ecs-deploy-task-definition@a00d4d57ac0de1a99b39fe469f3d898d38717c2b # v2
       with:
         task-definition: ${{ steps.render.outputs.task-definition }}
         service: ${{ inputs.ecs-service }}

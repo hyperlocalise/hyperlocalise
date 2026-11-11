@@ -72,3 +72,37 @@ describe("gitlab text patterns", () => {
     expect(normalizeGitLabPathWithNamespace("acme/sub/web")).toBe("acme/sub/web");
   });
 });
+
+describe("links to a workspace's own server", () => {
+  it("finds projects and merge requests on that server only", () => {
+    const text =
+      "See https://git.acme.example/acme/web/-/merge_requests/4 and https://gitlab.com/other/app";
+
+    expect(extractGitLabMergeRequestReferences(text, "https://git.acme.example")).toMatchObject([
+      { pathWithNamespace: "acme/web", mergeRequestIid: 4 },
+    ]);
+    expect(extractGitLabProjectPathReferences(text, "https://git.acme.example")).toEqual([
+      "acme/web",
+    ]);
+  });
+
+  it("handles a server under a path or on a port", () => {
+    expect(
+      extractGitLabProjectPathReferences(
+        "https://git.acme.example:8443/gitlab/acme/web",
+        "https://git.acme.example:8443/gitlab",
+      ),
+    ).toEqual(["acme/web"]);
+  });
+
+  it("doesn't match a longer host or treat dots as wildcards", () => {
+    const serverUrl = "https://git.acme.example";
+
+    expect(
+      extractGitLabProjectPathReferences("https://git.acme.example.evil.test/a/b", serverUrl),
+    ).toEqual([]);
+    expect(extractGitLabProjectPathReferences("https://gitxacme.example/a/b", serverUrl)).toEqual(
+      [],
+    );
+  });
+});

@@ -1,0 +1,936 @@
+{
+  "source": "Expectations are verified against apps/hyperlocalise-web by workspace-identity-policy.parity.test.ts.",
+  "identity": [
+    {
+      "input": "Acme Workspace",
+      "allowed": true
+    },
+    {
+      "input": "Acme Test Workspace",
+      "allowed": false
+    },
+    {
+      "input": "acme-demo-team",
+      "allowed": false
+    },
+    {
+      "input": "ACME SAMPLE",
+      "allowed": false
+    },
+    {
+      "input": "placeholder",
+      "allowed": false
+    },
+    {
+      "input": "\uff21\uff43\uff4d\uff45 \uff34\uff25\uff33\uff34 Workspace",
+      "allowed": false
+    },
+    {
+      "input": "Contest Labs",
+      "allowed": true
+    },
+    {
+      "input": "contest-labs",
+      "allowed": true
+    },
+    {
+      "input": "Testingham Studio",
+      "allowed": true
+    },
+    {
+      "input": "test1",
+      "allowed": true
+    },
+    {
+      "input": "test_1",
+      "allowed": false
+    },
+    {
+      "input": "t\u00e9st",
+      "allowed": true
+    },
+    {
+      "input": "Shit Happens Studio",
+      "allowed": false
+    },
+    {
+      "input": "acme-shit-studio",
+      "allowed": false
+    },
+    {
+      "input": "SHIT",
+      "allowed": false
+    },
+    {
+      "input": "\uff33\uff48\uff49\uff54",
+      "allowed": false
+    },
+    {
+      "input": "\u017fhit",
+      "allowed": false
+    },
+    {
+      "input": "shit1",
+      "allowed": true
+    },
+    {
+      "input": "1shit",
+      "allowed": true
+    },
+    {
+      "input": "shit\u00e8",
+      "allowed": true
+    },
+    {
+      "input": "\u00e9shit",
+      "allowed": true
+    },
+    {
+      "input": "shite\u0301",
+      "allowed": true
+    },
+    {
+      "input": "\u0301shit",
+      "allowed": true
+    },
+    {
+      "input": "sh\u0130t studio",
+      "allowed": true
+    },
+    {
+      "input": "\u0130shit",
+      "allowed": true
+    },
+    {
+      "input": "a_s_s",
+      "allowed": false
+    },
+    {
+      "input": "x a_s_s y",
+      "allowed": false
+    },
+    {
+      "input": "s.o.b.",
+      "allowed": false
+    },
+    {
+      "input": "s.o.b.x",
+      "allowed": true
+    },
+    {
+      "input": "shit_",
+      "allowed": false
+    },
+    {
+      "input": "_shit",
+      "allowed": false
+    },
+    {
+      "input": "shit-",
+      "allowed": false
+    },
+    {
+      "input": "-shit",
+      "allowed": false
+    },
+    {
+      "input": "Scunthorpe",
+      "allowed": true
+    },
+    {
+      "input": "classic",
+      "allowed": true
+    },
+    {
+      "input": "cockpit",
+      "allowed": true
+    },
+    {
+      "input": "b!tch",
+      "allowed": false
+    },
+    {
+      "input": "xb!tch",
+      "allowed": true
+    },
+    {
+      "input": "son-of-a-bitch",
+      "allowed": false
+    },
+    {
+      "input": "acme 5h1t",
+      "allowed": false
+    },
+    {
+      "input": "\u65e5\u672cshit",
+      "allowed": true
+    },
+    {
+      "input": "shit\u65e5\u672c",
+      "allowed": true
+    },
+    {
+      "input": "shit\u00a0co",
+      "allowed": false
+    },
+    {
+      "input": "shit\u3000co",
+      "allowed": false
+    },
+    {
+      "input": "Shit\u0085co",
+      "allowed": false
+    },
+    {
+      "input": "\u210c\ud835\udd22\ud835\udd29\ud835\udd29\ud835\udd2c",
+      "allowed": true
+    },
+    {
+      "input": "\u24e2\u24d7\u24d8\u24e3",
+      "allowed": false
+    }
+  ],
+  "payload": [
+    {
+      "name": "name only",
+      "body": {
+        "name": "Acme Co"
+      },
+      "data": {
+        "name": "Acme Co"
+      }
+    },
+    {
+      "name": "slug only",
+      "body": {
+        "slug": "acme-co"
+      },
+      "data": {
+        "slug": "acme-co"
+      }
+    },
+    {
+      "name": "trims and lowercases slug",
+      "body": {
+        "slug": " ACME-Co "
+      },
+      "data": {
+        "slug": "acme-co"
+      }
+    },
+    {
+      "name": "trims name with nbsp",
+      "body": {
+        "name": "\u00a0Acme\u00a0"
+      },
+      "data": {
+        "name": "Acme"
+      }
+    },
+    {
+      "name": "strips unknown keys",
+      "body": {
+        "name": "Acme",
+        "extra": 1
+      },
+      "data": {
+        "name": "Acme"
+      }
+    },
+    {
+      "name": "name 120 code points with astral",
+      "body": {
+        "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\ud83d\ude00"
+      },
+      "data": {
+        "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\ud83d\ude00"
+      }
+    },
+    {
+      "name": "empty object",
+      "body": {},
+      "issues": [
+        {
+          "path": [],
+          "message": "Provide a name or slug"
+        }
+      ]
+    },
+    {
+      "name": "null body",
+      "body": null,
+      "issues": [
+        {
+          "path": [],
+          "message": "Invalid input: expected object, received null"
+        }
+      ]
+    },
+    {
+      "name": "array body",
+      "body": [],
+      "issues": [
+        {
+          "path": [],
+          "message": "Invalid input: expected object, received array"
+        }
+      ]
+    },
+    {
+      "name": "string body",
+      "body": "x",
+      "issues": [
+        {
+          "path": [],
+          "message": "Invalid input: expected object, received string"
+        }
+      ]
+    },
+    {
+      "name": "number body",
+      "body": 1,
+      "issues": [
+        {
+          "path": [],
+          "message": "Invalid input: expected object, received number"
+        }
+      ]
+    },
+    {
+      "name": "whitespace name",
+      "body": {
+        "name": "  "
+      },
+      "issues": [
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Too small: expected string to have >=1 characters"
+        }
+      ]
+    },
+    {
+      "name": "name too long",
+      "body": {
+        "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "issues": [
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Too big: expected string to have <=120 characters"
+        }
+      ]
+    },
+    {
+      "name": "name 121 code points with astral",
+      "body": {
+        "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\ud83d\ude00"
+      },
+      "issues": [
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Too big: expected string to have <=120 characters"
+        }
+      ]
+    },
+    {
+      "name": "name combining marks count",
+      "body": {
+        "name": "e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301"
+      },
+      "issues": [
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Too big: expected string to have <=120 characters"
+        }
+      ]
+    },
+    {
+      "name": "name number",
+      "body": {
+        "name": 5
+      },
+      "issues": [
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Invalid input: expected string, received number"
+        }
+      ]
+    },
+    {
+      "name": "name null",
+      "body": {
+        "name": null
+      },
+      "issues": [
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Invalid input: expected string, received null"
+        }
+      ]
+    },
+    {
+      "name": "name boolean",
+      "body": {
+        "name": true
+      },
+      "issues": [
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Invalid input: expected string, received boolean"
+        }
+      ]
+    },
+    {
+      "name": "slug object",
+      "body": {
+        "slug": {}
+      },
+      "issues": [
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Invalid input: expected string, received object"
+        }
+      ]
+    },
+    {
+      "name": "name empty array",
+      "body": {
+        "name": []
+      },
+      "issues": [
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Invalid input: expected string, received array"
+        },
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Too small: expected array to have >=1 items"
+        }
+      ]
+    },
+    {
+      "name": "name short array",
+      "body": {
+        "name": [
+          1,
+          2,
+          3
+        ]
+      },
+      "issues": [
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Invalid input: expected string, received array"
+        }
+      ]
+    },
+    {
+      "name": "name long array",
+      "body": {
+        "name": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      "issues": [
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Invalid input: expected string, received array"
+        },
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Too big: expected array to have <=120 items"
+        }
+      ]
+    },
+    {
+      "name": "slug one-item array",
+      "body": {
+        "slug": [
+          "a"
+        ]
+      },
+      "issues": [
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Invalid input: expected string, received array"
+        },
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Too small: expected array to have >=2 items"
+        }
+      ]
+    },
+    {
+      "name": "slug long array",
+      "body": {
+        "slug": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      "issues": [
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Invalid input: expected string, received array"
+        },
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Too big: expected array to have <=80 items"
+        }
+      ]
+    },
+    {
+      "name": "both fields wrong type",
+      "body": {
+        "name": 1,
+        "slug": 2
+      },
+      "issues": [
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Invalid input: expected string, received number"
+        },
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Invalid input: expected string, received number"
+        }
+      ]
+    },
+    {
+      "name": "slug underscore",
+      "body": {
+        "slug": "A_b"
+      },
+      "issues": [
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Use lowercase letters, numbers, and single hyphens between words"
+        }
+      ]
+    },
+    {
+      "name": "slug double hyphen",
+      "body": {
+        "slug": "a--b"
+      },
+      "issues": [
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Use lowercase letters, numbers, and single hyphens between words"
+        }
+      ]
+    },
+    {
+      "name": "slug leading hyphen",
+      "body": {
+        "slug": "-a"
+      },
+      "issues": [
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Use lowercase letters, numbers, and single hyphens between words"
+        }
+      ]
+    },
+    {
+      "name": "slug non-ascii",
+      "body": {
+        "slug": "\u00c0B"
+      },
+      "issues": [
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Use lowercase letters, numbers, and single hyphens between words"
+        }
+      ]
+    },
+    {
+      "name": "slug too short",
+      "body": {
+        "slug": "a"
+      },
+      "issues": [
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Too small: expected string to have >=2 characters"
+        }
+      ]
+    },
+    {
+      "name": "slug too long",
+      "body": {
+        "slug": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "issues": [
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Too big: expected string to have <=80 characters"
+        }
+      ]
+    },
+    {
+      "name": "slug empty",
+      "body": {
+        "slug": ""
+      },
+      "issues": [
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Use lowercase letters, numbers, and single hyphens between words"
+        },
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Too small: expected string to have >=2 characters"
+        }
+      ]
+    },
+    {
+      "name": "slug reserved",
+      "body": {
+        "slug": "acme-test"
+      },
+      "issues": [
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Choose a workspace slug without profanity or reserved words"
+        }
+      ]
+    },
+    {
+      "name": "slug invalid and reserved",
+      "body": {
+        "slug": "test_"
+      },
+      "issues": [
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Use lowercase letters, numbers, and single hyphens between words"
+        },
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Choose a workspace slug without profanity or reserved words"
+        }
+      ]
+    },
+    {
+      "name": "name reserved",
+      "body": {
+        "name": "Acme Demo"
+      },
+      "issues": [
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Choose a workspace name without profanity or reserved words"
+        }
+      ]
+    },
+    {
+      "name": "name too long and reserved",
+      "body": {
+        "name": "test aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "issues": [
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Too big: expected string to have <=120 characters"
+        },
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Choose a workspace name without profanity or reserved words"
+        }
+      ]
+    },
+    {
+      "name": "both invalid",
+      "body": {
+        "name": "",
+        "slug": "_"
+      },
+      "issues": [
+        {
+          "path": [
+            "name"
+          ],
+          "message": "Too small: expected string to have >=1 characters"
+        },
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Use lowercase letters, numbers, and single hyphens between words"
+        },
+        {
+          "path": [
+            "slug"
+          ],
+          "message": "Too small: expected string to have >=2 characters"
+        }
+      ]
+    }
+  ]
+}

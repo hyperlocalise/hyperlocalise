@@ -20,6 +20,7 @@ import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { MemoryEntryDetailResponse } from "@/api/routes/memory/memory.schema";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 
 import { TmEntryDetailSheet } from "./tm-entry-detail-sheet";
 
@@ -28,25 +29,18 @@ const apiMocks = vi.hoisted(() => ({
   patchEntry: vi.fn(),
 }));
 
-vi.mock("@/lib/api-client-instance", () => ({
-  apiClient: {
-    api: {
-      orgs: {
-        ":organizationSlug": {
-          "translation-memories": {
-            ":memoryId": {
-              entries: {
-                ":entryId": {
-                  $get: (...args: unknown[]) => apiMocks.getEntry(...args),
-                  $patch: (...args: unknown[]) => apiMocks.patchEntry(...args),
-                },
-              },
-            },
-          },
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    loading: false,
+    client: {
+      memory: {
+        entries: {
+          get: (...args: unknown[]) => apiMocks.getEntry(...args),
+          update: (...args: unknown[]) => apiMocks.patchEntry(...args),
         },
       },
     },
-  },
+  }),
 }));
 
 function createDetail(overrides?: Partial<MemoryEntryDetailResponse>): MemoryEntryDetailResponse {
@@ -154,10 +148,7 @@ describe("TmEntryDetailSheet", () => {
   });
 
   it("shows provenance, variants, and ordered audit events", async () => {
-    apiMocks.getEntry.mockResolvedValue({
-      ok: true,
-      json: async () => createDetail(),
-    });
+    apiMocks.getEntry.mockResolvedValue(createDetail());
 
     renderSheet();
 
@@ -173,13 +164,11 @@ describe("TmEntryDetailSheet", () => {
   });
 
   it("hides the editor for a read-only provider entry", async () => {
-    apiMocks.getEntry.mockResolvedValue({
-      ok: true,
-      json: async () =>
-        createDetail({
-          capabilities: { canEdit: false, readOnlyReason: "external_tms" },
-        }),
-    });
+    apiMocks.getEntry.mockResolvedValue(
+      createDetail({
+        capabilities: { canEdit: false, readOnlyReason: "external_tms" },
+      }),
+    );
 
     renderSheet();
 
@@ -191,18 +180,14 @@ describe("TmEntryDetailSheet", () => {
 
   it("shows a recoverable conflict when a stale edit is rejected", async () => {
     const user = userEvent.setup();
-    apiMocks.getEntry.mockResolvedValue({
-      ok: true,
-      json: async () => createDetail(),
-    });
-    apiMocks.patchEntry.mockResolvedValue({
-      ok: false,
-      status: 409,
-      json: async () => ({
-        error: "stale_memory_entry",
+    apiMocks.getEntry.mockResolvedValue(createDetail());
+    apiMocks.patchEntry.mockRejectedValue(
+      new GoSvcClientError({
+        code: "stale_memory_entry",
         message: "This entry changed after it was loaded",
+        status: 409,
       }),
-    });
+    );
 
     renderSheet({ startInEditMode: true });
 

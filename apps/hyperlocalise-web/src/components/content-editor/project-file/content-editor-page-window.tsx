@@ -30,21 +30,26 @@ export function useEditorPageWindow(
 ) {
   const pagination = useContext(Context);
   const anchor = useRef<{ id: string; delta: number } | null>(null);
-  const previousFirst = useRef(segments[0]?.id);
+  const previousWindow = useRef<string | undefined>(undefined);
   const restoring = useRef(false);
   const requestedFirst = useRef<string | undefined>(undefined);
   useLayoutEffect(() => {
     const first = segments[0]?.id;
-    if (first !== previousFirst.current && anchor.current) {
+    const windowKey = `${first ?? ""}:${segments.at(-1)?.id ?? ""}:${segments.length}`;
+    if (
+      previousWindow.current !== undefined &&
+      windowKey !== previousWindow.current &&
+      anchor.current
+    ) {
       const index = segments.findIndex((segment) => segment.id === anchor.current?.id);
       if (index >= 0) {
         restoring.current = true;
-        const offset = virtualizer.getOffsetForIndex(index, "start")?.[0];
-        if (offset !== undefined) virtualizer.scrollToOffset(offset + anchor.current.delta);
+        const offset = virtualizer.getOffsetForIndex?.(index, "start")?.[0];
+        if (offset !== undefined) virtualizer.scrollToOffset?.(offset + anchor.current.delta);
         restoring.current = false;
       }
     }
-    previousFirst.current = first;
+    previousWindow.current = windowKey;
     const element = scrollRef.current;
     if (!element) return;
     const capture = () => {

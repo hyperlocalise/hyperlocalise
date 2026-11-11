@@ -290,9 +290,16 @@ func pullAcceptsRawPrefilledExport(targetPath string) bool {
 	}
 }
 
+func pullAcceptsReconstructedNativeExport(format string) bool {
+	return format == "html"
+}
+
 func (rt *hyperlocaliseSyncRuntime) reconstructPullFile(plan hyperlocaliseFilePlan, locale, targetPath string, prefilledJSON []byte) ([]byte, error) {
 	var prefilled map[string]string
 	if err := json.Unmarshal(prefilledJSON, &prefilled); err != nil {
+		if pullAcceptsReconstructedNativeExport(plan.FileFormat) {
+			return prefilledJSON, nil
+		}
 		return nil, fmt.Errorf("parse translation export JSON: %w", err)
 	}
 
@@ -476,11 +483,11 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "arb"
 	case ".xlf", ".xlif", ".xliff":
 		return "xliff"
-	case ".po":
+	case ".po", ".pot":
 		return "po"
 	case ".ts":
 		return "qt-ts"
-	case ".html":
+	case ".html", ".htm":
 		return "html"
 	case ".md":
 		return "markdown"
@@ -837,7 +844,7 @@ func contentTypeForPath(path string) string {
 		return "text/markdown"
 	case ".adoc", ".asciidoc", ".asc":
 		return "text/asciidoc"
-	case ".po", ".strings", ".stringsdict", ".ftl", ".properties", ".ini", ".sbv":
+	case ".po", ".pot", ".strings", ".stringsdict", ".ftl", ".properties", ".ini", ".sbv":
 		return "text/plain"
 	case ".toml":
 		return "application/toml"

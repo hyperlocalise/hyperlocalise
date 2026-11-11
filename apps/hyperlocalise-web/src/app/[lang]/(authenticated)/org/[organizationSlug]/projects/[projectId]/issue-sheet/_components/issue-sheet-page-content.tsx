@@ -37,8 +37,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import type { IssueSheetImportFormat } from "@/lib/projects/issue-sheet/issue-sheet-import-format";
 
 import { buildIssueDetailHref } from "../../../../_components/issue-detail/issue-detail-utils";
@@ -106,6 +106,7 @@ export function IssueSheetPageContent({
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const { state, searchDraft, setSearchDraft, updateState, clearFilters } = useIssueListUrlState();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [columnDialogOpen, setColumnDialogOpen] = useState(false);
@@ -118,18 +119,11 @@ export function IssueSheetPageContent({
   const issueSheetQuery = useQuery({
     queryKey,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ].$get({
-        param: { organizationSlug, projectId },
-        query: apiQuery,
-      } as never);
-      if (response.status !== 200) {
-        throw new Error(
-          (await readApiResponseError(response, requestFailed)).message || requestFailed,
-        );
+      try {
+        return await goSvcClient.issueSheet.list(organizationSlug, projectId, apiQuery);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, requestFailed), { cause: error });
       }
-      return response.json();
     },
   });
 
@@ -313,6 +307,7 @@ function CreateColumnDialog({
   onCreated: () => Promise<void>;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const requestFailed = intl.formatMessage(messages.requestFailed);
   const [icon, setIcon] = useState<string | null>(null);
 
@@ -330,24 +325,17 @@ function CreateColumnDialog({
         .map((option) => option.trim())
         .filter(Boolean)
         .map((option) => ({ id: option, label: option }));
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ].columns.$post({
-        param: { organizationSlug, projectId },
-        json: {
+      try {
+        return await goSvcClient.issueSheet.columns.create(organizationSlug, projectId, {
           key: formString(formData, "key"),
           label: formString(formData, "label"),
           type,
           icon,
           config: type === "select" ? { options } : {},
-        },
-      } as never);
-      if (response.status !== 201) {
-        throw new Error(
-          (await readApiResponseError(response, requestFailed)).message || requestFailed,
-        );
+        });
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, requestFailed), { cause: error });
       }
-      return response.json();
     },
     onSuccess: async () => {
       toast.success(intl.formatMessage(messages.columnAdded));

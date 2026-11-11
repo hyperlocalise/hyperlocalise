@@ -14,8 +14,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 export type IssueSheetTemplateAssigneeBinding = {
   templateKey: string;
@@ -44,20 +44,23 @@ export function useIssueSheetTemplateConfigQuery({
   projectId: string | undefined;
   enabled?: boolean;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
+
   return useQuery({
     queryKey: issueSheetTemplateConfigQueryKey(organizationSlug, projectId ?? ""),
     enabled: Boolean(organizationSlug && projectId && enabled),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ]["template-config"].$get({
-        param: { organizationSlug, projectId: projectId! },
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load issue template config");
+      try {
+        const body = (await goSvcClient.issueSheet.templateConfig.get(
+          organizationSlug,
+          projectId!,
+        )) as { templateConfig: IssueSheetTemplateConfig };
+        return body.templateConfig;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load issue template config"), {
+          cause: error,
+        });
       }
-      const body = await response.json();
-      return body.templateConfig;
     },
   });
 }

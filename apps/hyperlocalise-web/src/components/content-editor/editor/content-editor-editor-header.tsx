@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { ContentEditorHiddenStringBadge } from "@/components/content-editor/segment/content-editor-hidden-string-badge";
 import { ContentEditorLockedStringBadge } from "@/components/content-editor/segment/content-editor-locked-string-badge";
 import { ContentEditorSegmentActionsMenu } from "@/components/content-editor/segment/content-editor-segment-actions-menu";
+import { ContentEditorSegmentLockToggle } from "@/components/content-editor/segment/content-editor-segment-lock-toggle";
 import {
   SegmentStatusBadge,
   shouldShowSegmentStatusBadge,
@@ -29,6 +30,7 @@ import { contentEditorEditorPanelMessages } from "@/components/content-editor/sh
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
 
 import { getCatShortcutLabel } from "./content-editor-keyboard-shortcuts";
+import { ContentEditorShortcutHint } from "./content-editor-shortcut-hints";
 
 export function ContentEditorEditorHeader({
   segment,
@@ -58,7 +60,7 @@ export function ContentEditorEditorHeader({
   onNext: () => void;
   isNavigationBlocked?: boolean;
   canEditTranslations?: boolean;
-  onToggleLocked?: () => void;
+  onToggleLocked?: () => void | Promise<void>;
   onAddToIssueSheet?: () => void;
 }) {
   const intl = useIntl();
@@ -87,12 +89,17 @@ export function ContentEditorEditorHeader({
         ) : null}
       </div>
       <div className="flex items-center gap-1">
+        {canEditTranslations && onToggleLocked ? (
+          <ContentEditorSegmentLockToggle
+            isLocked={Boolean(segment.isLocked)}
+            onToggle={onToggleLocked}
+            disabled={isNavigationBlocked}
+          />
+        ) : null}
         <ContentEditorSegmentActionsMenu
           segmentShareUrl={segmentShareUrl}
           onAddToIssueSheet={onAddToIssueSheet}
           isAddToIssueSheetDisabled={isNavigationBlocked}
-          isLocked={segment.isLocked}
-          onToggleLocked={canEditTranslations ? onToggleLocked : undefined}
           activity={{
             segmentId: segment.id,
             sourcePath: segment.sourcePath,
@@ -103,6 +110,7 @@ export function ContentEditorEditorHeader({
         <Button
           variant="ghost"
           size="icon-sm"
+          className="relative"
           onClick={onPrevious}
           disabled={isNavigationBlocked || !hasPreviousSegment}
           aria-label={intl.formatMessage(contentEditorEditorPanelMessages.previousSegmentAria)}
@@ -111,10 +119,12 @@ export function ContentEditorEditorHeader({
           })}
         >
           <ArrowLeftIcon className="size-4" />
+          <ContentEditorShortcutHint shortcut="previous" placement="below" />
         </Button>
         <Button
           variant="ghost"
           size="icon-sm"
+          className="relative"
           onClick={onNext}
           disabled={isNavigationBlocked || !hasNextSegment}
           aria-label={intl.formatMessage(contentEditorEditorPanelMessages.nextSegmentAria)}
@@ -123,6 +133,7 @@ export function ContentEditorEditorHeader({
           })}
         >
           <ArrowRightIcon className="size-4" />
+          <ContentEditorShortcutHint shortcut="next" placement="below" />
         </Button>
       </div>
     </div>

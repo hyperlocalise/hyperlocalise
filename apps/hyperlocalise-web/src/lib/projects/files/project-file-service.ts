@@ -25,6 +25,7 @@ import { db, schema } from "@/lib/database/client";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
 import { normalizeProjectFileContent } from "@/lib/projects/files/project-file-content";
+import { canInlineProjectFileText } from "@/lib/projects/files/project-file-inline-text";
 import {
   buildJobsByLocaleFromRecords,
   buildNativeFileLocaleReadiness,
@@ -36,7 +37,6 @@ import { listTmsProviderLiveFilesForProject } from "@/lib/providers/jobs/tms-pro
 import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/jobs/tms-provider-types";
 import { sourcePathSupportsSrxSegmentation } from "@/lib/i18n/srx/format-supports";
 import { normalizeSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 export type ProjectFileListContext = {
   projectId: string;
@@ -51,7 +51,6 @@ type ProjectFileFilterQuery = Pick<
   "origin" | "resourceType" | "providerKind" | "locale" | "syncState" | "search"
 >;
 
-const maxInlineTextBytes = 512 * 1024;
 const fileDetailStorageReadConcurrency = 5;
 
 function matchesLocale(file: ProjectFileRecord, locale: string) {
@@ -287,6 +286,8 @@ export class ProjectFileService extends ProjectServiceBase {
         metadata: schema.storedFiles.metadata,
         filename: schema.storedFiles.filename,
         byteSize: schema.storedFiles.byteSize,
+        ingestState: schema.repositorySourceFileVersions.ingestState,
+        ingestError: schema.repositorySourceFileVersions.ingestError,
         rowNumber:
           sql<number>`ROW_NUMBER() OVER (PARTITION BY ${schema.repositorySourceFileVersions.sourcePath} ORDER BY ${schema.repositorySourceFileVersions.createdAt} DESC)`.as(
             "rn",
@@ -322,6 +323,8 @@ export class ProjectFileService extends ProjectServiceBase {
         metadata: versionsSubquery.metadata,
         filename: versionsSubquery.filename,
         byteSize: versionsSubquery.byteSize,
+        ingestState: versionsSubquery.ingestState,
+        ingestError: versionsSubquery.ingestError,
       })
       .from(versionsSubquery)
       .where(eq(versionsSubquery.rowNumber, 1))
@@ -506,6 +509,8 @@ export class ProjectFileService extends ProjectServiceBase {
         metadata: v.metadata as Record<string, unknown>,
         filename: v.filename,
         byteSize: v.byteSize,
+        ingestState: v.ingestState,
+        ingestError: v.ingestError,
         provider: null,
         localeReadiness,
         latestJob: job
@@ -634,11 +639,7 @@ export class ProjectFileService extends ProjectServiceBase {
     adapter: FileStorageAdapter;
     file: { storageKey: string; filename: string; byteSize: number };
   }): Promise<ProjectFileContent | null> {
-    if (input.file.byteSize > maxInlineTextBytes) {
-      return null;
-    }
-
-    if (!inferSupportedFileTranslationFileFormat(input.file.filename)) {
+    if (!canInlineProjectFileText(input.file.filename, input.file.byteSize)) {
       return null;
     }
 
@@ -698,6 +699,8 @@ export class ProjectFileService extends ProjectServiceBase {
         sha256: schema.storedFiles.sha256,
         storageKey: schema.storedFiles.storageKey,
         metadata: schema.storedFiles.metadata,
+        ingestState: schema.repositorySourceFileVersions.ingestState,
+        ingestError: schema.repositorySourceFileVersions.ingestError,
       })
       .from(schema.repositorySourceFileVersions)
       .innerJoin(
@@ -742,6 +745,8 @@ export class ProjectFileService extends ProjectServiceBase {
         sha256: version.sha256,
         metadata: version.metadata as Record<string, unknown>,
         content: await this.inlineTextContent({ adapter: input.adapter, file: version }),
+        ingestState: version.ingestState,
+        ingestError: version.ingestError,
       }),
     );
 

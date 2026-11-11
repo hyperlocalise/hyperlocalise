@@ -12,11 +12,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { useNearEndPagination } from "../project-file/content-editor-near-end-pagination";
 import { useEditorPageWindow } from "../project-file/content-editor-page-window";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useRef } from "react";
 
+import type { ContentEditorSegmentCheckHandler } from "@/components/content-editor/segment/content-editor-segment-checkbox";
+import { isContentEditorImageGenerating } from "@/components/content-editor/project-file/content-editor-image-generation-state";
 import { cn } from "@/lib/primitives/cn";
+import { ContentEditorSectionErrorBoundary } from "@/components/content-editor/workspace/content-editor-section-error-boundary";
 
 import type {
   ContentEditorFormatCheck,
@@ -42,9 +46,12 @@ export function ContentEditorSideBySideVirtualList({
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
   isImageBusy = false,
+  isImageGenerating = false,
+  generatingImageSegmentId,
   canUseAiRecommendation = false,
   focusedIntelligence = null,
   aiRecommendationError,
+  aiRecommendationCreditExhausted = false,
   formatChecks = [],
   segmentFormatChecks,
   formatCheckLoadingSegmentIds,
@@ -62,6 +69,10 @@ export function ContentEditorSideBySideVirtualList({
   onTreatAsVideo,
   onRegenerateImage,
   onUploadImage,
+  onToggleLocked,
+  checkedSegmentIds,
+  showSelection = false,
+  onToggleSegmentChecked,
   hasMore = false,
   isLoadingMore = false,
   onNearEnd,
@@ -79,9 +90,12 @@ export function ContentEditorSideBySideVirtualList({
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
   isImageBusy?: boolean;
+  isImageGenerating?: boolean;
+  generatingImageSegmentId?: string;
   canUseAiRecommendation?: boolean;
   focusedIntelligence?: ContentEditorSegmentIntelligence | null;
   aiRecommendationError?: string;
+  aiRecommendationCreditExhausted?: boolean;
   formatChecks?: ContentEditorFormatCheck[];
   segmentFormatChecks?: Record<string, ContentEditorFormatCheck[]>;
   formatCheckLoadingSegmentIds?: ReadonlySet<string>;
@@ -99,34 +113,23 @@ export function ContentEditorSideBySideVirtualList({
   onTreatAsVideo?: (segmentId: string, treatAsVideo: boolean) => void;
   onRegenerateImage?: (segmentId: string) => void;
   onUploadImage?: (segmentId: string, file: File) => void;
+  onToggleLocked?: (segmentId: string) => void | Promise<void>;
+  checkedSegmentIds?: ReadonlySet<string>;
+  showSelection?: boolean;
+  onToggleSegmentChecked?: ContentEditorSegmentCheckHandler;
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onNearEnd?: () => void;
   className?: string;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
-  const loadRequestedForLengthRef = useRef<string | null>(null);
-
-  const checkForNearEnd = useCallback(
-    (items: Array<{ index: number }>) => {
-      if (items.length === 0 || segments.length === 0) {
-        return;
-      }
-
-      const lastItem = items.at(-1);
-      if (!lastItem || lastItem.index < Math.max(segments.length - 10, 0)) {
-        return;
-      }
-
-      if (!hasMore || isLoadingMore || loadRequestedForLengthRef.current === segments.at(-1)?.id) {
-        return;
-      }
-
-      loadRequestedForLengthRef.current = segments.at(-1)?.id ?? null;
-      onNearEnd?.();
-    },
-    [hasMore, isLoadingMore, onNearEnd, segments.length],
-  );
+  const checkForNearEnd = useNearEndPagination({
+    hasMore,
+    isLoadingMore,
+    itemCount: segments.length,
+    prefetchDistance: 10,
+    onNearEnd,
+  });
 
   const publishVisibleRange = useCallback(
     (
@@ -176,12 +179,6 @@ export function ContentEditorSideBySideVirtualList({
   }, [focusedSegmentId, segments, virtualizer]);
 
   useEffect(() => {
-    if (!isLoadingMore) {
-      loadRequestedForLengthRef.current = null;
-    }
-  }, [isLoadingMore]);
-
-  useEffect(() => {
     const virtualItems = virtualizer.getVirtualItems();
     const scrollElement = parentRef.current;
     checkForNearEnd(virtualItems);
@@ -199,7 +196,10 @@ export function ContentEditorSideBySideVirtualList({
   );
 
   return (
-    <div ref={parentRef} className={cn("min-h-0 flex-1 overflow-auto", className)}>
+    <div
+      ref={parentRef}
+      className={cn("min-h-0 flex-1 overflow-auto [overflow-anchor:none]", className)}
+    >
       <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
         {virtualizer.getVirtualItems().map((virtualRow) => {
           const segment = segments[virtualRow.index];
@@ -215,65 +215,88 @@ export function ContentEditorSideBySideVirtualList({
               className="absolute top-0 left-0 w-full"
               style={{ transform: `translateY(${virtualRow.start}px)` }}
             >
-              <ContentEditorSideBySideRow
-                segment={segment}
-                isFocused={segment.id === focusedSegmentId}
-                isDirty={dirtySegmentIds?.has(segment.id) ?? false}
-                canEdit={canEdit}
-                isTargetLoading={loadingSegmentIds?.has(segment.id) ?? false}
-                isApproving={isApproving && segment.id === focusedSegmentId}
-                isSavingDraft={isSavingDraft && segment.id === focusedSegmentId}
-                isPostingComment={isPostingComment}
-                isLookingUpContext={isLookingUpContext}
-                isAiSuggestionLoading={isAiSuggestionLoading && segment.id === focusedSegmentId}
-                isFormatChecksLoading={
-                  (formatCheckLoadingSegmentIds?.has(segment.id) ?? false) ||
-                  (isFormatChecksLoading && segment.id === focusedSegmentId)
-                }
-                isImageBusy={isImageBusy && segment.id === focusedSegmentId}
-                canUseAiRecommendation={canUseAiRecommendation}
-                intelligence={segment.id === focusedSegmentId ? focusedIntelligence : null}
-                aiRecommendationError={
-                  segment.id === focusedSegmentId ? aiRecommendationError : undefined
-                }
-                formatChecks={
-                  segmentFormatChecks?.[segment.id] ??
-                  (segment.id === focusedSegmentId ? formatChecks : [])
-                }
-                primaryActionLabel={primaryActionLabel}
-                segmentShareUrl={segment.id === focusedSegmentId ? segmentShareUrl : null}
-                onFocus={() => onFocusSegment(segment.id)}
-                onTargetChange={(value) => onTargetChange(segment.id, value)}
-                onApprove={onApprove ? () => onApprove(segment.id) : undefined}
-                onSaveDraft={onSaveDraft ? () => onSaveDraft(segment.id) : undefined}
-                onAddToIssueSheet={
-                  onAddToIssueSheet ? () => onAddToIssueSheet(segment.id) : undefined
-                }
-                onUseAiSuggestion={
-                  onUseAiSuggestion ? () => onUseAiSuggestion(segment.id) : undefined
-                }
-                onGenerateAiRecommendation={
-                  onGenerateAiRecommendation
-                    ? () => onGenerateAiRecommendation(segment.id)
-                    : undefined
-                }
-                onTreatAsImage={
-                  onTreatAsImage
-                    ? (treatAsImage) => onTreatAsImage(segment.id, treatAsImage)
-                    : undefined
-                }
-                onTreatAsVideo={
-                  onTreatAsVideo
-                    ? (treatAsVideo) => onTreatAsVideo(segment.id, treatAsVideo)
-                    : undefined
-                }
-                onRegenerateImage={
-                  onRegenerateImage ? () => onRegenerateImage(segment.id) : undefined
-                }
-                onUploadImage={
-                  onUploadImage ? (file) => onUploadImage(segment.id, file) : undefined
-                }
-              />
+              <ContentEditorSectionErrorBoundary
+                section="sideBySide.row"
+                className="mx-4 my-2"
+                resetKeys={[segment.id, segment.targetText]}
+              >
+                <ContentEditorSideBySideRow
+                  segment={segment}
+                  isFocused={segment.id === focusedSegmentId}
+                  isDirty={dirtySegmentIds?.has(segment.id) ?? false}
+                  canEdit={canEdit}
+                  isTargetLoading={loadingSegmentIds?.has(segment.id) ?? false}
+                  isApproving={isApproving && segment.id === focusedSegmentId}
+                  isSavingDraft={isSavingDraft && segment.id === focusedSegmentId}
+                  isPostingComment={isPostingComment}
+                  isLookingUpContext={isLookingUpContext}
+                  isAiSuggestionLoading={isAiSuggestionLoading && segment.id === focusedSegmentId}
+                  isFormatChecksLoading={
+                    (formatCheckLoadingSegmentIds?.has(segment.id) ?? false) ||
+                    (isFormatChecksLoading && segment.id === focusedSegmentId)
+                  }
+                  isImageBusy={isImageBusy && segment.id === focusedSegmentId}
+                  isImageGenerating={isContentEditorImageGenerating({
+                    isPending: isImageGenerating,
+                    pendingExternalStringId: generatingImageSegmentId,
+                    targetLocale: segment.targetLocale,
+                    externalStringId: segment.id,
+                  })}
+                  canUseAiRecommendation={canUseAiRecommendation}
+                  intelligence={segment.id === focusedSegmentId ? focusedIntelligence : null}
+                  aiRecommendationError={
+                    segment.id === focusedSegmentId ? aiRecommendationError : undefined
+                  }
+                  aiRecommendationCreditExhausted={
+                    segment.id === focusedSegmentId && aiRecommendationCreditExhausted
+                  }
+                  formatChecks={
+                    segmentFormatChecks?.[segment.id] ??
+                    (segment.id === focusedSegmentId ? formatChecks : [])
+                  }
+                  primaryActionLabel={primaryActionLabel}
+                  segmentShareUrl={segment.id === focusedSegmentId ? segmentShareUrl : null}
+                  onFocus={() => onFocusSegment(segment.id)}
+                  onTargetChange={(value) => onTargetChange(segment.id, value)}
+                  onApprove={onApprove ? () => onApprove(segment.id) : undefined}
+                  onSaveDraft={onSaveDraft ? () => onSaveDraft(segment.id) : undefined}
+                  onAddToIssueSheet={
+                    onAddToIssueSheet ? () => onAddToIssueSheet(segment.id) : undefined
+                  }
+                  onUseAiSuggestion={
+                    onUseAiSuggestion ? () => onUseAiSuggestion(segment.id) : undefined
+                  }
+                  onGenerateAiRecommendation={
+                    onGenerateAiRecommendation
+                      ? () => onGenerateAiRecommendation(segment.id)
+                      : undefined
+                  }
+                  onTreatAsImage={
+                    onTreatAsImage
+                      ? (treatAsImage) => onTreatAsImage(segment.id, treatAsImage)
+                      : undefined
+                  }
+                  onTreatAsVideo={
+                    onTreatAsVideo
+                      ? (treatAsVideo) => onTreatAsVideo(segment.id, treatAsVideo)
+                      : undefined
+                  }
+                  onRegenerateImage={
+                    onRegenerateImage ? () => onRegenerateImage(segment.id) : undefined
+                  }
+                  onUploadImage={
+                    onUploadImage ? (file) => onUploadImage(segment.id, file) : undefined
+                  }
+                  onToggleLocked={onToggleLocked ? () => onToggleLocked(segment.id) : undefined}
+                  checkedSegmentIds={checkedSegmentIds}
+                  onCheckedChange={
+                    showSelection && onToggleSegmentChecked
+                      ? (checked, extendRange) =>
+                          onToggleSegmentChecked(segment.id, checked, extendRange)
+                      : undefined
+                  }
+                />
+              </ContentEditorSectionErrorBoundary>
             </div>
           );
         })}

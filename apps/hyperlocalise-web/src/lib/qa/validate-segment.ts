@@ -11,6 +11,18 @@
  * Version 2.0 or later.
  */
 import { validateGlossaryTermsInTranslation } from "@/lib/glossary/validate-glossary-terms-in-translation";
+import {
+  extractI18nextNestingPlaceholders,
+  extractInterpolationPlaceholders,
+  maskInterpolationPlaceholders,
+} from "@/lib/i18n/interpolation-placeholders";
+import {
+  type MessageFormat,
+  messageFormatParsesIcu,
+  messageFormatParsesInterpolations,
+  normalizeMessageFormat,
+} from "@/lib/i18n/message-format";
+import { extractCustomPlaceholderSpans } from "@/lib/i18n/placeholder-patterns";
 
 import { countRunes } from "./count-runes";
 import type {
@@ -20,9 +32,48 @@ import type {
 } from "./types";
 
 const PLACEHOLDER_PATTERN = /\{[^{}\s]+\}|%\d*\$?[sd]|%\w+/gu;
+const PRINTF_PLACEHOLDER_PATTERN = /%\d*\$?[sd]|%\w+/gu;
+// Ingest sentinels for markup the file writer restores (\x1eHL<family>PH_<hex>_<n>\x1f).
+const INTERNAL_MARKUP_PATTERN = new RegExp(
+  `${String.fromCharCode(0x1e)}HL(MD|HT|LQ|UE|OX)PH_[A-Za-z0-9]+_(\\d+)${String.fromCharCode(0x1f)}`,
+  "gu",
+);
 
-function collectPlaceholders(value: string) {
-  return [...value.matchAll(PLACEHOLDER_PATTERN)].map((match) => match[0]);
+function collectPlaceholders(
+  value: string,
+  format: MessageFormat,
+  placeholderPatterns: readonly string[] | null | undefined,
+) {
+  const markup = [...value.matchAll(INTERNAL_MARKUP_PATTERN)].map(
+    (match) => `${match[1]}#${match[2]}`,
+  );
+  const withoutMarkup = value.replace(INTERNAL_MARKUP_PATTERN, "");
+  // Custom matches are removed before the built-in scan so one token is not counted twice.
+  const custom = extractCustomPlaceholderSpans(withoutMarkup, placeholderPatterns);
+  let remainder = withoutMarkup;
+  for (const span of custom.toReversed()) {
+    remainder = `${remainder.slice(0, span.start)} ${remainder.slice(span.end)}`;
+  }
+  return [
+    ...markup,
+    ...custom.map((span) => span.literal),
+    ...collectFormatPlaceholders(remainder, format),
+  ];
+}
+
+function collectFormatPlaceholders(value: string, format: MessageFormat) {
+  const classicPattern = messageFormatParsesIcu(format)
+    ? PLACEHOLDER_PATTERN
+    : PRINTF_PLACEHOLDER_PATTERN;
+  if (!messageFormatParsesInterpolations(format)) {
+    return [...value.matchAll(classicPattern)].map((match) => match[0]!);
+  }
+  const interpolationSpans = extractInterpolationPlaceholders(value);
+  const interpolations = interpolationSpans.map((span) => span.literal);
+  const nesting = extractI18nextNestingPlaceholders(value);
+  const remainder = maskInterpolationPlaceholders(value, interpolationSpans);
+  const classic = [...remainder.matchAll(classicPattern)].map((match) => match[0]!);
+  return [...interpolations, ...nesting, ...classic];
 }
 
 function leftoverPlaceholders(sourceTokens: readonly string[], targetTokens: readonly string[]) {
@@ -281,9 +332,10 @@ export function validateTranslationSegment(input: TranslationQaSegmentInput): Tr
   }
 
   if (targetTrimmed !== "") {
+    const format = normalizeMessageFormat(input.messageFormat);
     const { absent, extra } = leftoverPlaceholders(
-      collectPlaceholders(source),
-      collectPlaceholders(target),
+      collectPlaceholders(source, format, input.placeholderPatterns),
+      collectPlaceholders(target, format, input.placeholderPatterns),
     );
     if (absent.length > 0 || extra.length > 0) {
       checks.push({

@@ -105,7 +105,7 @@ function SlackChrome() {
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-3 border-b border-[#e8e8e8] px-5 py-3.5">
-          <Image src="/images/slack-logo.svg" alt="" width={18} height={18} />
+          <Image src="/images/slack-logo.svg" alt="Slack logo" width={18} height={18} />
           <span className="text-sm font-bold"># content-ops</span>
         </div>
         <Conversation channel="slack" />
@@ -118,7 +118,12 @@ function TeamsChrome() {
   return (
     <div className="light flex min-h-[28rem] overflow-hidden rounded-xl border border-[#5b5fc7]/25 bg-[#f5f5f5] text-[#242424] shadow-lg">
       <aside className="hidden w-16 shrink-0 flex-col items-center gap-4 bg-[#5b5fc7] py-4 text-white sm:flex">
-        <Image src="/images/microsoft-teams-logo.svg" alt="" width={22} height={22} />
+        <Image
+          src="/images/microsoft-teams-logo.svg"
+          alt="Microsoft Teams logo"
+          width={22}
+          height={22}
+        />
         <span aria-hidden className="size-8 rounded-md bg-white/20" />
         <span aria-hidden className="size-8 rounded-md bg-white/10" />
       </aside>
@@ -147,7 +152,13 @@ function GitHubChrome() {
   return (
     <div className="flex min-h-[28rem] flex-col overflow-hidden rounded-xl border border-[#30363d] bg-[#0d1117] text-[#e6edf3] shadow-lg">
       <div className="flex items-center gap-3 border-b border-[#30363d] bg-[#010409] px-5 py-3.5">
-        <Image src="/images/github-logo.svg" alt="" width={18} height={18} className="invert" />
+        <Image
+          src="/images/github-logo.svg"
+          alt="GitHub logo"
+          width={18}
+          height={18}
+          className="invert"
+        />
         <span className="truncate text-sm text-[#8b949e]">acme / launch-copy</span>
       </div>
       <div className="border-b border-[#30363d] px-5 py-4">
@@ -176,6 +187,7 @@ export function AgentChannelPreview() {
             <Image
               src={CHANNEL_META[channel].src}
               alt=""
+              aria-hidden
               width={16}
               height={16}
               className={cn(CHANNEL_META[channel].invertInChrome && "dark:invert")}

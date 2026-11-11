@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { stripLeakedInternalMarkupFromStoredMessage } from "@/components/content-editor/message-format/content-editor-internal-markup";
 import { isOpenIssueStatus } from "@/components/content-editor/queue/content-editor-queue-filter";
 import type {
   ContentEditorFileContext,
@@ -66,11 +67,16 @@ export function composeSegmentView(input: {
       ? intelligence.maxLength
       : undefined;
 
+  const messageFormat = meta.messageFormat ?? fileContext.messageFormat;
+  const placeholderPatterns = meta.placeholderPatterns ?? fileContext.placeholderPatterns;
+
   return {
     ...meta,
+    ...(messageFormat ? { messageFormat } : {}),
+    ...(placeholderPatterns?.length ? { placeholderPatterns } : {}),
     sourceLocale: fileContext.sourceLocale,
     targetLocale: fileContext.targetLocale,
-    targetText: draft?.targetText ?? "",
+    targetText: stripLeakedInternalMarkupFromStoredMessage(draft?.targetText ?? ""),
     status: draft?.status ?? "pending",
     ...(contextLabel ? { contextLabel } : {}),
     ...(maxLength != null ? { maxLength } : {}),
@@ -86,12 +92,15 @@ export function toQueueSegment(
     | "key"
     | "sourceText"
     | "sourcePath"
+    | "messageFormat"
+    | "placeholderPatterns"
     | "contentKind"
     | "sourceAssetUrl"
     | "targetAssetUrl"
     | "imageVariantId"
     | "looksLikeImageUrl"
     | "looksLikeVideoUrl"
+    | "sourceTextEditable"
     | "isHidden"
     | "isLocked"
     | "occurrenceCount"
@@ -105,6 +114,10 @@ export function toQueueSegment(
     key: segment.key,
     sourceText: segment.sourceText,
     ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
+    ...(segment.messageFormat ? { messageFormat: segment.messageFormat } : {}),
+    ...(segment.placeholderPatterns?.length
+      ? { placeholderPatterns: segment.placeholderPatterns }
+      : {}),
     ...(segment.contentKind ? { contentKind: segment.contentKind } : {}),
     ...(segment.sourceAssetUrl !== undefined ? { sourceAssetUrl: segment.sourceAssetUrl } : {}),
     ...(segment.targetAssetUrl !== undefined ? { targetAssetUrl: segment.targetAssetUrl } : {}),
@@ -117,6 +130,7 @@ export function toQueueSegment(
       : {}),
     ...(segment.isHidden ? { isHidden: true } : {}),
     ...(segment.isLocked ? { isLocked: true } : {}),
+    ...(segment.sourceTextEditable ? { sourceTextEditable: true } : {}),
     ...(segment.occurrenceCount ? { occurrenceCount: segment.occurrenceCount } : {}),
     ...(segment.groupStatus ? { groupStatus: segment.groupStatus } : {}),
     ...(segment.divergentLocales?.length ? { divergentLocales: segment.divergentLocales } : {}),

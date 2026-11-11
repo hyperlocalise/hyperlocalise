@@ -18,8 +18,12 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import type {
+  ProjectFileProgressRecord,
+  ProjectFileRecord,
+} from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
+import { apiClient } from "@/lib/api-client-instance";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
@@ -28,6 +32,10 @@ import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resource-capabilities";
+import {
+  isSourceFileIngestInProgress,
+  sourceFileIngestPollIntervalMs,
+} from "@/lib/projects/files/source-file-ingest-state";
 
 import { ProjectSectionTitle } from "../../_components/project-page-shell";
 import { ProjectFilesErrorBoundary } from "./project-files-error-boundary";
@@ -127,6 +135,76 @@ export async function fetchProjectFiles(
   } catch (error) {
     throw new Error(goSvcErrorMessage(error, loadFailedMessage), { cause: error });
   }
+}
+
+export function projectFileProgressQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  locale: string,
+) {
+  return ["project-file-progress", organizationSlug, projectId, locale] as const;
+}
+
+/** Per-file progress for one locale. Native projects read go-svc; TMS projects read Hono. */
+export async function fetchProjectFileProgress(
+  goSvcClient: GoSvcClient,
+  organizationSlug: string,
+  projectId: string,
+  locale: string,
+): Promise<ProjectFileProgressRecord[]> {
+  if (parseProviderProjectId(projectId)) {
+    const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+      "file-progress"
+    ].$get({
+      param: { organizationSlug, projectId },
+      query: { locale },
+    });
+    if (!response.ok) {
+      throw await readApiResponseError(response, "Failed to load file progress");
+    }
+    const body = await response.json();
+    return "files" in body ? body.files : [];
+  }
+
+  const body = await goSvcClient.project.fileProgress(organizationSlug, projectId, locale);
+  return body.files;
+}
+
+export function projectHiddenFilesQueryKey(organizationSlug: string, projectId: string) {
+  return ["project-hidden-files", organizationSlug, projectId] as const;
+}
+
+/** Provider file ids whose strings are all hidden. Native files already carry `isHidden`. */
+export async function fetchProjectHiddenFileIds(
+  organizationSlug: string,
+  projectId: string,
+): Promise<Set<string>> {
+  const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+    "hidden-files"
+  ].$get({
+    param: { organizationSlug, projectId },
+  });
+  if (!response.ok) {
+    throw await readApiResponseError(response, "Failed to load hidden files");
+  }
+  const body = await response.json();
+  return new Set("files" in body ? body.files.map((file) => file.externalResourceId) : []);
+}
+
+/** Flags provider files listed in `hiddenFileIds` as hidden. */
+export function markHiddenProjectFiles(
+  files: ProjectFileRecord[],
+  hiddenFileIds: ReadonlySet<string> | undefined,
+): ProjectFileRecord[] {
+  if (!hiddenFileIds?.size) {
+    return files;
+  }
+  return files.map((file) => {
+    const externalResourceId = file.provider?.externalResourceId;
+    return externalResourceId && hiddenFileIds.has(externalResourceId)
+      ? { ...file, isHidden: true }
+      : file;
+  });
 }
 
 function apiPath(organizationSlug: string, projectId: string) {
@@ -280,6 +358,12 @@ export function ProjectFilesTreePanel({
         loadFailedMessage,
       ),
     placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId, branch),
+    refetchInterval: (query) => {
+      const files = query.state.data ?? [];
+      return files.some((file) => isSourceFileIngestInProgress(file.ingestState))
+        ? sourceFileIngestPollIntervalMs
+        : false;
+    },
   });
 
   const fetchedFiles = filesQuery.data ?? [];

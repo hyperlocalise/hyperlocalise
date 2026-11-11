@@ -24,6 +24,7 @@ import type { ContentEditorSegmentConcordanceResult } from "@/components/content
 import type { ContentEditorFormatCheck } from "@/components/content-editor/shared/types";
 
 import { createCatWorkspace } from "./content-editor-workspace-orchestrator";
+import { findAdjacentSegmentIdMatching } from "./controllers/content-editor-navigation-controller";
 import { useContentEditorWorkspaceRuntime } from "./use-content-editor-workspace-runtime";
 
 function createDeferred<T>() {
@@ -100,6 +101,24 @@ function renderController(
 
 afterEach(() => {
   vi.clearAllMocks();
+});
+
+describe("findAdjacentSegmentIdMatching", () => {
+  const segments = ["a", "b", "c", "d"].map((id) => ({ id, key: id }));
+  const untranslated = new Set(["a", "d"]);
+
+  it("skips segments that do not match in either direction", () => {
+    const matches = (id: string) => untranslated.has(id);
+
+    expect(findAdjacentSegmentIdMatching(segments, "b", 1, matches)).toBe("d");
+    expect(findAdjacentSegmentIdMatching(segments, "c", -1, matches)).toBe("a");
+  });
+
+  it("returns undefined when no later segment matches", () => {
+    expect(
+      findAdjacentSegmentIdMatching(segments, "d", 1, (id) => untranslated.has(id)),
+    ).toBeUndefined();
+  });
 });
 
 describe("useContentEditorWorkspaceRuntime", () => {

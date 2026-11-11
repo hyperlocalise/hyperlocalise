@@ -16,6 +16,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useQuery } from "@tanstack/react-query";
 
+import {
+  readBrowserLocalStorageItem,
+  removeBrowserLocalStorageItem,
+  writeBrowserLocalStorageItem,
+} from "@/lib/primitives/browser-local-storage/browser-local-storage";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import {
   attemptCatPageNavigation,
@@ -58,14 +63,8 @@ export function useContentEditorGroupingMode(input: {
   }, [input.initialSegmentKey]);
 
   useEffect(() => {
-    let saved: View | null = null;
-    try {
-      const value = window.localStorage.getItem(storageKey);
-      if (value === "individual" || value === "grouped") saved = value;
-    } catch {
-      /* Storage may be unavailable; the in-memory preference still works. */
-    }
-    setPreference(saved);
+    const value = readBrowserLocalStorageItem(storageKey);
+    setPreference(value === "individual" || value === "grouped" ? value : null);
     setLoadedKey(storageKey);
   }, [storageKey]);
 
@@ -95,12 +94,8 @@ export function useContentEditorGroupingMode(input: {
       attemptCatPageNavigation(input.navigationGuardRef, () => {
         setOpenedDirectly(false);
         setPreference(next);
-        try {
-          if (next === null) window.localStorage.removeItem(storageKey);
-          else window.localStorage.setItem(storageKey, next);
-        } catch {
-          /* Keep the view usable when browser storage is disabled. */
-        }
+        if (next === null) removeBrowserLocalStorageItem(storageKey);
+        else writeBrowserLocalStorageItem(storageKey, next);
       }),
     [input.navigationGuardRef, storageKey],
   );

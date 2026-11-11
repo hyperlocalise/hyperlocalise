@@ -17,7 +17,7 @@ Before you begin, [install Hyperlocalise CLI](/cli/getting-started/install) and 
 
 Treat the key like a password. Do not commit it to git. Revoke it from the same page if it leaks.
 
-Default permissions are `files:read`, `files:write`, `jobs:read`, and `jobs:write`. The CLI sync commands need file read and write. Job permissions matter when your own scripts create or poll jobs.
+Omitting permissions grants every scope the owner can hold. CLI sync needs `files:read` and `files:write`. Job permissions matter when your own scripts create or poll jobs. TMX import and export on the public API need `memories:read` and `memories:write`.
 
 ## Point the CLI at the project
 

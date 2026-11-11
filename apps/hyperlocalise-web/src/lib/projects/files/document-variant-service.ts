@@ -13,9 +13,14 @@
 import { generateText } from "ai";
 import { and, eq } from "drizzle-orm";
 
+import {
+  credentialSourceForLanguageModel,
+  extractAiSdkTokenUsage,
+  trackAiCallTokenUsage,
+} from "@/lib/billing/agent-runtime-usage";
 import { db, schema } from "@/lib/database/client";
 import { getStoredFileContent } from "@/lib/file-storage/records";
-import { getManagedLanguageModel } from "@/lib/providers/language-model";
+import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 import {
@@ -75,7 +80,7 @@ function buildDocumentLocalizationPrompt(input: {
   const lines = [
     "You are an expert software localization assistant.",
     `Translate the following document from ${input.sourceLocale ?? "the source locale"} to ${input.targetLocale}.`,
-    "Preserve YAML frontmatter field keys, markdown structure, MDX/JSX tags, AsciiDoc macros and attributes, HTML tags, code spans, and placeholders.",
+    "Preserve YAML frontmatter field keys, markdown structure, MDX/JSX tags, AsciiDoc macros and attributes, HTML tags, code spans, placeholders, and plain-text paragraph and line breaks.",
     "Only translate human-readable text.",
     "Return only the translated document with no explanations or code fences.",
   ];
@@ -101,6 +106,7 @@ export async function localizeAndStoreDocumentVariant(input: {
   provenance: ProjectImageVariantProvenance;
   createdByUserId?: string | null;
   force?: boolean;
+  deferBilling?: (task: () => Promise<unknown>) => void;
 }): Promise<Result<typeof schema.projectImageVariants.$inferSelect, ImageVariantError>> {
   const existing = await getImageVariant({
     organizationId: input.organizationId,
@@ -126,12 +132,13 @@ export async function localizeAndStoreDocumentVariant(input: {
     return err({ code: "source_bytes_missing" });
   }
 
-  const model = getManagedLanguageModel();
-
   let translatedText: string;
   try {
+    const languageModel = await resolveHyperlocaliseAgentLanguageModel({
+      organizationId: input.organizationId,
+    });
     const result = await generateText({
-      model,
+      model: languageModel.model,
       prompt: buildDocumentLocalizationPrompt({
         sourceLocale: input.sourceLocale,
         targetLocale: input.targetLocale,
@@ -139,6 +146,17 @@ export async function localizeAndStoreDocumentVariant(input: {
         sourceText,
       }),
     });
+    await trackAiCallTokenUsage(
+      {
+        organizationId: input.organizationId,
+        source: "content_editor_document_regenerate",
+        tokenUsage: extractAiSdkTokenUsage(result.usage),
+        modelId: languageModel.modelId,
+        credentialSource: credentialSourceForLanguageModel(languageModel),
+        projectId: input.projectId,
+      },
+      { defer: input.deferBilling },
+    );
 
     if (result.finishReason !== "stop") {
       return err({

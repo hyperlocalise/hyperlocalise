@@ -57,6 +57,7 @@ vi.mock("@/lib/gitlab/pipes", async (importOriginal) => {
 });
 
 import { db, schema } from "@/lib/database/client";
+import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { ok, type Result } from "@/lib/primitives/result/results";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
@@ -165,6 +166,36 @@ async function seedWorkspaceAutomationScope() {
     githubRepositoryId,
     githubInstallationRepositoryId: repository.id,
   };
+}
+
+async function seedWorkspaceMember(input: {
+  organizationId: string;
+  role: OrganizationMembershipRole;
+  firstName?: string;
+  lastName?: string;
+  invited?: boolean;
+  pending?: boolean;
+  replacing?: boolean;
+}) {
+  const userId = crypto.randomUUID();
+  await db.insert(schema.users).values({
+    id: userId,
+    workosUserId: input.invited ? `invited_user_${userId}` : `user_${userId}`,
+    email: `${userId}@example.test`,
+    firstName: input.firstName ?? "Grace",
+    lastName: input.lastName ?? "Hopper",
+  });
+  await db.insert(schema.organizationMemberships).values({
+    organizationId: input.organizationId,
+    userId,
+    role: input.role,
+    workosMembershipId: input.pending
+      ? null
+      : input.replacing
+        ? `replacing:${userId}`
+        : `membership_${userId}`,
+  });
+  return userId;
 }
 
 describe("workspaceAutomationConfigSchema web search", () => {
@@ -552,7 +583,7 @@ describe("workspace automations", () => {
     expect(notificationOnlySchedule.error).toMatchObject({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
     });
 
     const scheduledWebSearch = expectOk(
@@ -602,7 +633,7 @@ describe("workspace automations", () => {
     expect(scheduledUpdate.error).toMatchObject({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.",
     });
   });
 
@@ -983,6 +1014,91 @@ describe("workspace automations", () => {
 
     expect(updated?.model).toBe("openai/gpt-5.6-sol");
     expect(updated?.configVersion).toBe(1);
+  });
+
+  it("reassigns the owner to an active workspace operator without versioning config", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const nextOwnerUserId = await seedWorkspaceMember({
+      organizationId: scope.organizationId,
+      role: "localization_manager",
+      firstName: "Grace",
+      lastName: "Hopper",
+    });
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Owned automation",
+        instructions: "Keep the same config when the owner changes.",
+      }),
+    );
+
+    const updated = expectOk(
+      await updateWorkspaceAutomation({
+        automationId: automation.id,
+        organizationId: scope.organizationId,
+        authorUserId: nextOwnerUserId,
+      }),
+    );
+
+    expect(updated?.authorUserId).toBe(nextOwnerUserId);
+    expect(updated?.authorName).toBe("Grace Hopper");
+    expect(updated?.configVersion).toBe(1);
+    expect(updated?.instructions).toBe("Keep the same config when the owner changes.");
+  });
+
+  it("rejects owners who are not active workspace operators", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const [developerUserId, invitedUserId, pendingUserId, replacingUserId] = await Promise.all([
+      seedWorkspaceMember({
+        organizationId: scope.organizationId,
+        role: "developer",
+      }),
+      seedWorkspaceMember({
+        organizationId: scope.organizationId,
+        role: "admin",
+        invited: true,
+      }),
+      seedWorkspaceMember({
+        organizationId: scope.organizationId,
+        role: "admin",
+        pending: true,
+      }),
+      seedWorkspaceMember({
+        organizationId: scope.organizationId,
+        role: "admin",
+        replacing: true,
+      }),
+    ]);
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Owned automation",
+        instructions: "Keep the current owner unless the next person can operate the workspace.",
+      }),
+    );
+
+    for (const authorUserId of [
+      developerUserId,
+      invitedUserId,
+      pendingUserId,
+      replacingUserId,
+      crypto.randomUUID(),
+    ]) {
+      const result = await updateWorkspaceAutomation({
+        automationId: automation.id,
+        organizationId: scope.organizationId,
+        authorUserId,
+      });
+      expect(result.ok ? null : result.error.code).toBe("author_not_found");
+    }
+
+    const unchanged = await getWorkspaceAutomationById({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(unchanged?.authorUserId).toBe(scope.userId);
   });
 
   it("does not pause archived automations", async () => {
@@ -1653,6 +1769,35 @@ describe("workspace automations", () => {
       throw new Error("expected update-path semrush validation error");
     }
     expect(updateRejected.error.code).toBe("semrush_not_connected");
+  });
+
+  it("saves a GitLab automation without a personal sign-in when the workspace has a server", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    await db.insert(schema.gitlabConnections).values({
+      organizationId: scope.organizationId,
+      serverUrl: "https://git.acme.example",
+      connectedUsername: "translations-bot",
+      encryptionAlgorithm: "aes-256-gcm",
+      ciphertext: "unused",
+      iv: "unused",
+      authTag: "unused",
+      maskedTokenSuffix: "••••abcd",
+    });
+
+    const created = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "GitLab automation",
+        instructions: "Review localisation impact.",
+        triggerConfig: { mode: "manual" as const },
+        repositoryTarget: { kind: "gitlab", gitlabPathWithNamespace: "acme/web" },
+        toolConfig: { gitlab: { enabled: true } },
+      }),
+    );
+
+    expect(created.toolConfig.gitlab?.enabled).toBe(true);
+    expect(pipesMocks.getGitLabPipesConnectionStatus).not.toHaveBeenCalled();
   });
 
   it("creates GitLab.com automations and keeps GitHub exclusive", async () => {

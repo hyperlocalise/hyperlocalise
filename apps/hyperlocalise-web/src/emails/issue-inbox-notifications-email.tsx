@@ -25,7 +25,7 @@ import {
   Row,
   Section,
   Text,
-} from "@react-email/components";
+} from "react-email";
 import type { IssueNotificationType } from "@/lib/database/schema/issue-sheet";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 

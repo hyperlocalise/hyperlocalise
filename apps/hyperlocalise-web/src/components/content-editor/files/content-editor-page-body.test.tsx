@@ -12,29 +12,50 @@
  */
 // @vitest-environment happy-dom
 
-import { screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import { useEffect, useRef, useState } from "react";
-import { beforeEach, describe, expect, it } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
 
 import { ContentEditorPageBody } from "./content-editor-files-sidebar";
 
-function stubViewportWidth(width: number) {
-  Object.defineProperty(window, "innerWidth", { configurable: true, value: width, writable: true });
+function stubViewportWidth(initialWidth: number) {
+  let width = initialWidth;
+  const listeners = new Set<() => void>();
+
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    get: () => width,
+  });
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     writable: true,
     value: (query: string) => {
       const minWidth = Number(/min-width:\s*(\d+)px/.exec(query)?.[1] ?? 0);
       return {
-        matches: width >= minWidth,
+        get matches() {
+          return width >= minWidth;
+        },
         media: query,
-        addEventListener: () => {},
-        removeEventListener: () => {},
+        addEventListener: (_event: string, listener: () => void) => {
+          listeners.add(listener);
+        },
+        removeEventListener: (_event: string, listener: () => void) => {
+          listeners.delete(listener);
+        },
       } as unknown as MediaQueryList;
     },
   });
+
+  return {
+    setWidth(nextWidth: number) {
+      width = nextWidth;
+      for (const listener of listeners) {
+        listener();
+      }
+    },
+  };
 }
 
 /** Counts how many times the workspace subtree has been mounted. */
@@ -122,5 +143,33 @@ describe("ContentEditorPageBody", () => {
 
     expect(screen.queryByRole("separator", { name: "Resize files panel" })).not.toBeInTheDocument();
     expect(screen.getByText("Workspace")).toBeInTheDocument();
+  });
+
+  it("does not persist collapse when the viewport unpins the files sidebar", () => {
+    const onSidebarCollapsedChange = vi.fn();
+    const viewport = stubViewportWidth(820);
+
+    renderWithContentEditorProviders(
+      <div style={{ width: 820, height: 900 }}>
+        <ContentEditorPageBody
+          sidebar={<aside>File tree</aside>}
+          sidebarCollapsed={false}
+          onSidebarCollapsedChange={onSidebarCollapsedChange}
+        >
+          <div>Workspace</div>
+        </ContentEditorPageBody>
+      </div>,
+    );
+
+    expect(screen.getByText("File tree").closest("[inert]")).not.toBeNull();
+    expect(onSidebarCollapsedChange).not.toHaveBeenCalled();
+
+    act(() => {
+      viewport.setWidth(1280);
+    });
+
+    expect(Number(screen.getByTestId("files").style.flexGrow)).toBeGreaterThan(0);
+    expect(screen.getByText("File tree").closest("[inert]")).toBeNull();
+    expect(onSidebarCollapsedChange).not.toHaveBeenCalled();
   });
 });

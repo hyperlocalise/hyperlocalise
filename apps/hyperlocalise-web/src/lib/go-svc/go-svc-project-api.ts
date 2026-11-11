@@ -13,6 +13,7 @@
 import type {
   CreateProjectBody,
   GoSvcRequestOptions,
+  ApprovedTranslationsOnSourceChange,
   ProjectContentEditorBehavior,
   ProjectContentEditorBehaviorPreview,
   ProjectFileRecord,
@@ -23,6 +24,7 @@ import type {
   WorkspaceFileRecord,
   WorkspaceFilesQuery,
 } from "./go-svc-client.types";
+import type { ProjectFileProgressRecord } from "@/api/routes/project/project.schema";
 import { orgPath, type GoSvcRequest } from "./go-svc-request";
 
 export class GoSvcProjectApi {
@@ -108,7 +110,11 @@ export class GoSvcProjectApi {
   updateContentEditorBehavior(
     organizationSlug: string,
     projectId: string,
-    body: { automaticallyGroupIdenticalStrings: boolean },
+    body: {
+      automaticallyGroupIdenticalStrings?: boolean;
+      approvedTranslationsOnSourceChange?: ApprovedTranslationsOnSourceChange;
+      sourceTextEditable?: boolean;
+    },
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.json<{ contentEditorBehavior: ProjectContentEditorBehavior }>(
@@ -126,6 +132,18 @@ export class GoSvcProjectApi {
     return this.request.json<{ files: ProjectFileRecord[] }>(
       orgPath(organizationSlug, "projects", projectId, "files"),
       { query, ...options },
+    );
+  }
+
+  fileProgress(
+    organizationSlug: string,
+    projectId: string,
+    locale: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ files: ProjectFileProgressRecord[] }>(
+      orgPath(organizationSlug, "projects", projectId, "file-progress"),
+      { query: { locale }, ...options },
     );
   }
 

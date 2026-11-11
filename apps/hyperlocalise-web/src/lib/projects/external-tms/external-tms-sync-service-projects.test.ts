@@ -12,6 +12,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+vi.mock("@/lib/job-change-events/job-writes", () => import("@/test/mocks/job-writes-passthrough"));
+
 const { notInArrayMock, updateMock, updateReturningMock } = vi.hoisted(() => {
   const notInArrayMock = vi.fn((field: string, values: unknown[]) => ["notInArray", field, values]);
   const updateReturningMock = vi.fn(

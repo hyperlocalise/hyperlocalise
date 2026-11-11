@@ -132,15 +132,15 @@ export const tmImportHistoryMessages = defineMessages({
     id: "/9rdVrlT2+",
     description: "Queued translation memory import status",
   },
-  previewCompleted: {
-    defaultMessage: "Preview ready",
-    id: "jEIFTvG4wS",
-    description: "Completed translation memory import preview status",
-  },
   running: {
     defaultMessage: "Running",
     id: "xgL5ochSWF",
     description: "Running translation memory import status",
+  },
+  previewCompleted: {
+    defaultMessage: "Preview ready",
+    id: "Wa3kCtjTDm",
+    description: "Legacy translation memory import preview status (read-only)",
   },
   completed: {
     defaultMessage: "Completed",

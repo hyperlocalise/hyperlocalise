@@ -1,0 +1,142 @@
+---
+title: Google Drive
+description: Connect Google Drive, manage folders, and sync translatable files through workspace automations.
+---
+
+# Google Drive
+
+Connect Google Drive, choose folders or files on the Integrations page, and use a workspace automation to import supported files into a Hyperlocalise project. Translations are written back using the automation **Translation output** setting.
+
+## Connect Google Drive
+
+1. Open workspace **Integrations → Guidelines** and find **Google Drive**, then choose **Connect**.
+2. Sign in with Google and approve access when prompted. Hyperlocalise reads files in folders you select and writes translated copies using the automation **Translation output** setting (`[vi-VN] overview.docx`, `overview [vi-VN].docx`, `overview_vi-VN.docx`, or `vi-VN/overview.docx`).
+3. After connecting, browse **My Drive** or a **Shared drive**, check folders and supported files, then choose **Add folders**. You can add or remove items anytime.
+4. Reconnect if Integrations shows that authorization expired or needs to be renewed.
+
+## Create the automation
+
+1. Open workspace **Automations** and create or edit an automation with the **Translate Google Drive files** skill (or apply the **Translate Google Drive files** template).
+2. Attach a native project and set source and target locales under [project Settings → Locales](/platform/projects/languages).
+3. Select the connected Google Drive folders and files to import from, then choose **Translation output**.
+4. Use a **manual** trigger or **schedule** for import. Import does not push translations to Drive.
+5. Open an imported Drive file in the Content editor. **Ingest** and **Push to Google Drive** appear in the header for that file. **Ingest** queues the same import as Automations **Run now**. Use **Push to Google Drive** to write locale files back.
+
+Google Drive is not a trigger type. Use **Ingest**, **Run now**, or a schedule for import; push is a separate action.
+
+## Supported files
+
+Google Workspace files are exported before import. Other files are downloaded with their original extension when Hyperlocalise supports that format (same rules as [native project upload](/platform/file-formats)).
+
+| Format | Extension | Supported |
+| --- | --- | --- |
+| Google Docs | `.docx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Google Sheets | `.xlsx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Google Slides | `.pptx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Word | `.docx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Excel | `.xlsx`, `.xls` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| PowerPoint | `.pptx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| JSON | `.json`, `.jsonc` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| YAML | `.yaml`, `.yml` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| ARB | `.arb` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| XLIFF | `.xlf`, `.xliff` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| gettext | `.po`, `.pot` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Qt Linguist | `.ts` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| CSV | `.csv` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| TSV | `.tsv` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| HTML | `.html`, `.htm` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Markdown | `.md`, `.markdown` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| MDX | `.mdx` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| AsciiDoc | `.adoc`, `.asciidoc`, `.asc` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Apple strings | `.strings`, `.xcstrings` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Android XML | `.xml` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Subtitles | `.srt`, `.vtt`, `.sbv` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Lottie | `.lottie` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Images | `.png`, `.jpg`, `.jpeg`, `.webp` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Video | `.mp4` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| Plain text | `.txt` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+| PDF | `.pdf` | <span style="color: #22c55e; font-weight: 600">✓</span> |
+
+Drive skips unsupported rows (<span style="color: #ef4444; font-weight: 600">✗</span>) and any other file that is not a Hyperlocalise source format. For the full extension list, see [Supported formats](/platform/file-formats).
+
+## Write-back
+
+For each target locale (defaults to the project’s target locales), Hyperlocalise creates or updates files using the automation **Translation output**. Google Docs, Sheets, and Slides are uploaded back as native Google file types when the source was a Google app file. Push writes Office, PDF, JSON/ARB, Lottie, plain text (`.txt`), and subtitles (`.srt`, `.vtt`, `.sbv`) in the original format. Other keyed formats (Markdown, HTML, CSV, PO, YAML, and similar) are skipped rather than written as JSON with the source extension. Plain text is rendered from approved segment translations against the source layout, so approving segments is enough to push. A locale is skipped when it has no approved translations yet, so a push never overwrites an already-translated Drive file with source-language content. Locales skipped during a push are listed with reasons in the automation run history. PDF pushes whose approved translations overflow a text block keep the source text in that block and are listed as partial files with the overflowing block keys in the run history. Locales whose script the PDF exporter cannot shape are skipped as unsupported, while export failures are recorded as failures with the error code so operators can see the actual problem.
+
+### Creating and updating Drive files
+
+Push **upserts** translations per imported source file and target locale. It does not search Drive by filename.
+
+- **First push** for a locale creates a new file in the folder implied by **Translation output**, then stores that file’s Drive id on the sync record for that source.
+- **Later pushes** upload into the same Drive file when translation content changed. Unchanged content is skipped (no Drive write).
+- If you change **Translation output** or folder layout, Hyperlocalise moves the stored file into the new parent when it can; otherwise it creates a new file and updates the stored id. Old copies may remain on Drive if the previous file cannot be moved or was deleted outside Hyperlocalise.
+- Files you added to Drive manually (or from an earlier workflow) are not merged by name. Only outputs from a prior successful push for that source and locale are updated.
+
+Import tracks the **source** file on Drive. Translation file ids are recorded on the first push for each locale.
+
+### Folder per language
+
+```text
+Source files:                         Translations:
+/Campaigns/                           /Campaigns/
+  /briefs/overview.docx                 /briefs/overview.docx
+  /decks/kickoff.pptx                   /decks/kickoff.pptx
+                                        /vi-VN/
+                                          /briefs/overview.docx
+                                          /decks/kickoff.pptx
+```
+
+### Prefix with locale
+
+```text
+Source files:                         Translations:
+/Campaigns/                           /Campaigns/
+  /briefs/overview.docx                 /briefs/overview.docx
+  /decks/kickoff.pptx                   /briefs/[vi-VN] overview.docx
+                                        /decks/kickoff.pptx
+                                        /decks/[vi-VN] kickoff.pptx
+```
+
+### Suffix with locale
+
+```text
+Source files:                         Translations:
+/Campaigns/                           /Campaigns/
+  /briefs/overview.docx                 /briefs/overview.docx
+  /decks/kickoff.pptx                   /briefs/overview [vi-VN].docx
+                                        /decks/kickoff.pptx
+                                        /decks/kickoff [vi-VN].pptx
+```
+
+### Underscore separator
+
+```text
+Source files:                         Translations:
+/Campaigns/                           /Campaigns/
+  /briefs/overview.docx                 /briefs/overview.docx
+  /decks/kickoff.pptx                   /briefs/overview_vi-VN.docx
+                                        /decks/kickoff.pptx
+                                        /decks/kickoff_vi-VN.pptx
+```
+
+## If ingest or push does not appear
+
+- Open a file imported from Google Drive. **Ingest** and **Push to Google Drive** stay hidden on Intercom, Sanity, Braze, and other project files.
+- Confirm an active Drive automation is attached to the project and you can manage automations. Ingest stays available before any locale is push-ready.
+- If **Push to Google Drive** is still missing, approve at least one mapped locale and wait until any in-progress push finishes.
+
+## Known limitations
+
+- If Google Drive auto-converts an upload to a Google Doc, export returns DOCX and the original format (for example `.md`) cannot be recovered.
+- Google Apps Script, Drawings, Forms, and Sites are not translated.
+- ZIP and other archive files are skipped.
+- Scanned PDFs without a selectable text layer cannot be ingested. PDF export skips locales whose script needs complex shaping (Arabic, Hebrew, Indic, Khmer, Myanmar).
+- Media and other files that are not Hyperlocalise source formats are skipped.
+- Push skips keyed formats that do not yet have a format-aware writer (Markdown, HTML, CSV, PO, YAML, and similar). JSON, ARB, Lottie, Office, PDF, plain text, and subtitle files are written in the original format.
+
+## Limits
+
+- **5,000** files shown in the Integrations folder browser (per folder listing).
+- **5,000** files imported per automation run (additional matches are skipped).
+- **10** nested folder levels when walking connected folders.
+- **100 MB** maximum file size per file.

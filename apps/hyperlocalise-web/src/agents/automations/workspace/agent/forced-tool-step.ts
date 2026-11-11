@@ -17,10 +17,8 @@ import type { WorkspaceOrchestratorToolName } from "./plan";
  *
  * Every planned tool is forced via toolChoice: { type: "tool", toolName }, never "auto": the agent
  * loop only continues past a step that produced at least one tool call, so an "auto" step the
- * model could legitimately skip (e.g. a genuinely optional save_memory call) would end the run
- * before any tool planned after it — like a Slack/email notification — ever ran. save_memory being
- * forced doesn't mean it fabricates content: its own input schema accepts an explicit "nothing to
- * remember" decision instead.
+ * model could legitimately skip would end the run before any tool planned after it — like a
+ * Slack/email notification — ever ran.
  */
 export function forcedWorkspaceOrchestratorStep(
   planTools: readonly WorkspaceOrchestratorToolName[],

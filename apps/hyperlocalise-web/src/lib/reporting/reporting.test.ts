@@ -11,9 +11,9 @@
  * Version 2.0 or later.
  */
 import { describe, expect, it } from "vite-plus/test";
-import { countSourceWords, matchBucket, reportingPeriod, csvCell } from "./word-analysis";
-import { usdUnits, usdString, hourlyCost, wordCost, budgetWarning } from "./money";
-import { reportQuerySchema, rateSchema, timeSchema } from "@/api/routes/reports/reports.schema";
+import { countSourceCharacters, countSourceWords, matchBucket } from "./word-analysis";
+import { usdUnits, usdString, unitCost, paidPercent } from "./money";
+import { REPORT_QUERY_SCHEMAS } from "@/api/routes/mcp/report-query-schema";
 
 describe("prospective translation accounting", () => {
   it("counts literal ICU alternatives without counting arguments or tags", () => {
@@ -40,48 +40,48 @@ describe("prospective translation accounting", () => {
     [null, "unavailable"],
     [101, "unavailable"],
   ] as const)("classifies %s", (score, expected) => expect(matchBucket(score)).toBe(expected));
+  it("counts characters as a reader sees them, with and without spaces", () => {
+    expect(countSourceCharacters("Hello world", "en")).toEqual({
+      withoutSpaces: 10,
+      withSpaces: 11,
+    });
+    expect(countSourceCharacters("日本語の翻訳を確認", "ja")).toEqual({
+      withoutSpaces: 9,
+      withSpaces: 9,
+    });
+    expect(countSourceCharacters("你好，世界", "zh")).toEqual({ withoutSpaces: 5, withSpaces: 5 });
+    // An emoji with a skin tone, and a letter with a combining accent, are one character each.
+    expect(countSourceCharacters("👍🏽 ok", "en")).toEqual({ withoutSpaces: 3, withSpaces: 4 });
+    expect(countSourceCharacters("e\u0301", "en")).toEqual({ withoutSpaces: 1, withSpaces: 1 });
+    // Tags, placeholders and arguments are not counted; every plural option is.
+    expect(countSourceCharacters("Hi {{name}} %s ${value}", "en")).toEqual({
+      withoutSpaces: 2,
+      withSpaces: 2,
+    });
+    expect(
+      countSourceCharacters("{count, plural, one {One file} other {Many files}}", "en"),
+    ).toEqual({ withoutSpaces: 16, withSpaces: 19 });
+    expect(countSourceCharacters("", "en")).toEqual({ withoutSpaces: 0, withSpaces: 0 });
+    expect(countSourceCharacters("{unclosed", "en")).toBeNull();
+  });
+
   it("gives repetitions precedence and never invents unavailable matches", () => {
     expect(matchBucket(100, true)).toBe("repetition");
     expect(matchBucket(null)).toBe("unavailable");
   });
   it("keeps decimal costs exact", () => {
     expect(usdString(usdUnits("0.10") + usdUnits("0.20"))).toBe("0.30000000");
-    expect(wordCost("0.12", 1000, 25)).toBe("30.00000000");
-    expect(hourlyCost("60", 15)).toBe("15.00000000");
-    expect(wordCost("0.00000001", 1)).toBe("0.00000001");
+    expect(unitCost("0.12", 1000, 25)).toBe("30.00000000");
+    expect(unitCost("0.00000001", 1)).toBe("0.00000001");
     expect(() => usdUnits("-1")).toThrow();
+    expect(paidPercent({ new: 50 }, "unavailable")).toBe(50);
+    expect(paidPercent({ new: 50 }, "new")).toBe(50);
+    expect(paidPercent({ "100": 0 }, "unavailable")).toBe(100);
+    expect(paidPercent(null, "new")).toBe(100);
   });
-  it("warns at 80 and 100 percent without blocking work", () => {
-    expect(budgetWarning("100", "79.99")).toBe("none");
-    expect(budgetWarning("100", "80")).toBe("approaching");
-    expect(budgetWarning("100", "100")).toBe("exceeded");
-  });
-  it("groups UTC weeks on Mondays across year boundaries", () => {
-    expect(reportingPeriod(new Date("2026-01-04T23:59:59Z"), "week")).toBe("2025-12-29");
-    expect(reportingPeriod(new Date("2026-01-05T00:00:00Z"), "week")).toBe("2026-01-05");
-  });
-  it("escapes CSV and neutralizes spreadsheet formulas", () => {
-    expect(csvCell('a,"b"')).toBe('"a,""b"""');
-    expect(csvCell('=IMPORTXML("url")')).toContain("'=IMPORTXML");
-  });
-  it("rejects invalid date ranges, time and rate percentages", () => {
-    expect(reportQuerySchema.safeParse({ from: "2026-09-06", to: "2026-09-01" }).success).toBe(
-      false,
-    );
+  it("rejects invalid date ranges", () => {
     expect(
-      timeSchema.safeParse({ jobId: "job", step: "review", minutes: 0, workDate: "2026-09-01" })
-        .success,
-    ).toBe(false);
-    expect(
-      rateSchema.safeParse({
-        name: "Default",
-        sourceLocale: "en",
-        targetLocale: "fr",
-        step: "translation",
-        basis: "word",
-        rate: "0.1",
-        percentages: { "100": 101 },
-      }).success,
+      REPORT_QUERY_SCHEMAS.activity.safeParse({ from: "2026-09-06", to: "2026-09-01" }).success,
     ).toBe(false);
   });
 });

@@ -174,6 +174,34 @@ describe("fetchProjectFileContentEditorQueuePage", () => {
     );
   });
 
+  it("forwards qualifier and advanced filter params", async () => {
+    contentEditorQueueGetMock.mockResolvedValue(jsonResponse(createCatQueueResponse()));
+    const queueAdvanced = JSON.stringify({ stringType: "icu" });
+
+    await fetchProjectFileContentEditorQueuePage({
+      ...contentEditorApiTestContext,
+      search: "",
+      queueFilter: "qa_issues",
+      queueSort: "file_order",
+      queueFilterQualifier: "spelling",
+      queueAdvanced,
+      limit: 50,
+      offset: 0,
+      intl: testIntl,
+    });
+
+    expect(contentEditorQueueGetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: expect.objectContaining({
+          queueFilter: "qa_issues",
+          queueFilterQualifier: "spelling",
+          queueAdvanced,
+        }),
+      }),
+      { init: { signal: undefined } },
+    );
+  });
+
   it("throws a readable error when the queue request fails", async () => {
     contentEditorQueueGetMock.mockResolvedValue(
       errorResponse("provider_cat_unavailable", "CAT queue is unavailable.", 503),
@@ -190,6 +218,29 @@ describe("fetchProjectFileContentEditorQueuePage", () => {
         intl: testIntl,
       }),
     ).rejects.toThrow("CAT queue is unavailable.");
+  });
+
+  it("loads connected TMS queues from Hono without probing go-svc", async () => {
+    const queue = createCatQueueResponse().contentEditorQueue;
+    contentEditorQueueGetMock.mockResolvedValue(jsonResponse({ contentEditorQueue: queue }));
+    const goSvcQueue = vi.fn();
+
+    const result = await fetchProjectFileContentEditorQueuePage({
+      ...contentEditorApiTestContext,
+      projectId: "ext:crowdin:902807",
+      projectSource: "external_tms",
+      search: "",
+      queueFilter: "all",
+      queueSort: "file_order",
+      limit: 50,
+      offset: 0,
+      intl: testIntl,
+      goSvcClient: { cat: { queue: goSvcQueue } } as never,
+    });
+
+    expect(result).toEqual(queue);
+    expect(goSvcQueue).not.toHaveBeenCalled();
+    expect(contentEditorQueueGetMock).toHaveBeenCalled();
   });
 });
 
@@ -310,6 +361,8 @@ describe("projectFileCatQueryKey", () => {
       "hero",
       "needs_review",
       "file_order",
+      null,
+      null,
       50,
       50,
       null,
@@ -358,6 +411,8 @@ describe("projectFileCatBaseQueryKey", () => {
       "",
       "all",
       "file_order",
+      null,
+      null,
       50,
       null,
       false,
@@ -400,6 +455,25 @@ describe("canReuseCatQueuePlaceholderData", () => {
       canReuseCatQueuePlaceholderData(
         previousKey,
         projectFileCatBaseQueryKey({ ...baseKeyInput, limit: 25 }),
+      ),
+    ).toBe(true);
+    expect(
+      canReuseCatQueuePlaceholderData(
+        previousKey,
+        projectFileCatBaseQueryKey({
+          ...baseKeyInput,
+          queueFilter: "qa_issues",
+          queueFilterQualifier: "spelling",
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      canReuseCatQueuePlaceholderData(
+        previousKey,
+        projectFileCatBaseQueryKey({
+          ...baseKeyInput,
+          queueAdvanced: JSON.stringify({ stringType: "icu" }),
+        }),
       ),
     ).toBe(true);
   });

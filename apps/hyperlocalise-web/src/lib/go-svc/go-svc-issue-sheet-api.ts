@@ -10,8 +10,23 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { GoSvcRecord, GoSvcRequestOptions, IssueSheetListQuery } from "./go-svc-client.types";
-import { issueSheetPath, type GoSvcRequest } from "./go-svc-request";
+import type {
+  GoSvcAssignableIssueMember,
+  GoSvcIssueListSummary,
+  GoSvcIssueSearchResult,
+  GoSvcIssueSheetColumn,
+  GoSvcIssueSheetIssue,
+  GoSvcIssueSheetTemplateConfig,
+  GoSvcOrganizationIssue,
+  GoSvcRecord,
+  GoSvcRequestOptions,
+  IssueBulkActionBody,
+  IssueBulkActionResponse,
+  IssueSheetListQuery,
+  OrganizationIssueSearchQuery,
+  OrganizationIssuesListQuery,
+} from "./go-svc-client.types";
+import { issueSheetPath, orgIssueSheetPath, orgPath, type GoSvcRequest } from "./go-svc-request";
 
 export class GoSvcIssueSheetApi {
   readonly columns: GoSvcIssueSheetColumnsApi;
@@ -33,10 +48,10 @@ export class GoSvcIssueSheetApi {
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.json<{
-      issues: GoSvcRecord[];
-      columns: GoSvcRecord[];
+      issues: GoSvcIssueSheetIssue[];
+      columns: GoSvcIssueSheetColumn[];
       total: number;
-      summary: Record<string, number>;
+      summary: GoSvcIssueListSummary;
     }>(issueSheetPath(organizationSlug, projectId), { query, ...options });
   }
 
@@ -46,11 +61,14 @@ export class GoSvcIssueSheetApi {
     body: GoSvcRecord & { title: string },
     options: GoSvcRequestOptions = {},
   ) {
-    return this.request.json<{ issue: GoSvcRecord }>(issueSheetPath(organizationSlug, projectId), {
-      method: "POST",
-      body,
-      ...options,
-    });
+    return this.request.json<{ issue: GoSvcIssueSheetIssue }>(
+      issueSheetPath(organizationSlug, projectId),
+      {
+        method: "POST",
+        body,
+        ...options,
+      },
+    );
   }
 
   get(
@@ -59,7 +77,7 @@ export class GoSvcIssueSheetApi {
     issueId: string,
     options: GoSvcRequestOptions = {},
   ) {
-    return this.request.json<{ issue: GoSvcRecord }>(
+    return this.request.json<{ issue: GoSvcIssueSheetIssue }>(
       issueSheetPath(organizationSlug, projectId, issueId),
       options,
     );
@@ -72,7 +90,7 @@ export class GoSvcIssueSheetApi {
     body: GoSvcRecord,
     options: GoSvcRequestOptions = {},
   ) {
-    return this.request.json<{ issue: GoSvcRecord }>(
+    return this.request.json<{ issue: GoSvcIssueSheetIssue }>(
       issueSheetPath(organizationSlug, projectId, issueId),
       { method: "PATCH", body, ...options },
     );
@@ -108,7 +126,7 @@ export class GoSvcIssueSheetApi {
     projectId: string,
     options: GoSvcRequestOptions = {},
   ) {
-    return this.request.json<{ members: GoSvcRecord[] }>(
+    return this.request.json<{ members: GoSvcAssignableIssueMember[] }>(
       issueSheetPath(organizationSlug, projectId, "assignable-members"),
       options,
     );
@@ -165,13 +183,54 @@ export class GoSvcIssueSheetApi {
       },
     );
   }
+
+  listOrg(
+    organizationSlug: string,
+    query: OrganizationIssuesListQuery = {},
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{
+      issues: GoSvcOrganizationIssue[];
+      total: number;
+      summary: GoSvcIssueListSummary;
+    }>(orgPath(organizationSlug, "issues"), { query, ...options });
+  }
+
+  bulkActions(
+    organizationSlug: string,
+    body: IssueBulkActionBody,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<IssueBulkActionResponse>(
+      orgPath(organizationSlug, "issues", "bulk-actions"),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  searchOrg(
+    organizationSlug: string,
+    query: OrganizationIssueSearchQuery = {},
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ issues: GoSvcIssueSearchResult[] }>(
+      orgIssueSheetPath(organizationSlug, "search"),
+      { query, ...options },
+    );
+  }
+
+  getOrg(organizationSlug: string, issueId: string, options: GoSvcRequestOptions = {}) {
+    return this.request.json<{ issue: GoSvcOrganizationIssue }>(
+      orgIssueSheetPath(organizationSlug, issueId),
+      options,
+    );
+  }
 }
 
 export class GoSvcIssueSheetColumnsApi {
   constructor(private readonly request: GoSvcRequest) {}
 
   list(organizationSlug: string, projectId: string, options: GoSvcRequestOptions = {}) {
-    return this.request.json<{ columns: GoSvcRecord[] }>(
+    return this.request.json<{ columns: GoSvcIssueSheetColumn[] }>(
       issueSheetPath(organizationSlug, projectId, "columns"),
       options,
     );
@@ -183,7 +242,7 @@ export class GoSvcIssueSheetColumnsApi {
     body: GoSvcRecord & { key: string; label: string; type: string },
     options: GoSvcRequestOptions = {},
   ) {
-    return this.request.json<{ column: GoSvcRecord }>(
+    return this.request.json<{ column: GoSvcIssueSheetColumn }>(
       issueSheetPath(organizationSlug, projectId, "columns"),
       { method: "POST", body, ...options },
     );
@@ -196,7 +255,7 @@ export class GoSvcIssueSheetColumnsApi {
     body: GoSvcRecord,
     options: GoSvcRequestOptions = {},
   ) {
-    return this.request.json<{ column: GoSvcRecord }>(
+    return this.request.json<{ column: GoSvcIssueSheetColumn }>(
       issueSheetPath(organizationSlug, projectId, "columns", columnId),
       { method: "PATCH", body, ...options },
     );
@@ -208,7 +267,7 @@ export class GoSvcIssueSheetColumnsApi {
     columnIds: string[],
     options: GoSvcRequestOptions = {},
   ) {
-    return this.request.json<{ columns: GoSvcRecord[] }>(
+    return this.request.json<{ columns: GoSvcIssueSheetColumn[] }>(
       issueSheetPath(organizationSlug, projectId, "columns", "order"),
       { method: "PUT", body: { columnIds }, ...options },
     );
@@ -231,7 +290,7 @@ export class GoSvcIssueSheetTemplateConfigApi {
   constructor(private readonly request: GoSvcRequest) {}
 
   get(organizationSlug: string, projectId: string, options: GoSvcRequestOptions = {}) {
-    return this.request.json<GoSvcRecord>(
+    return this.request.json<{ templateConfig: GoSvcIssueSheetTemplateConfig }>(
       issueSheetPath(organizationSlug, projectId, "template-config"),
       options,
     );
@@ -243,7 +302,7 @@ export class GoSvcIssueSheetTemplateConfigApi {
     body: GoSvcRecord,
     options: GoSvcRequestOptions = {},
   ) {
-    return this.request.json<GoSvcRecord>(
+    return this.request.json<{ templateConfig: GoSvcIssueSheetTemplateConfig }>(
       issueSheetPath(organizationSlug, projectId, "template-config"),
       { method: "PUT", body, ...options },
     );

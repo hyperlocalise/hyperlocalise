@@ -73,6 +73,8 @@ type stubMemberWorkos struct {
 	revokeErr   error
 	revokeID    string
 	pendingID   string
+	acceptedID  string
+	acceptedErr error
 	findErr     error
 	updateErr   error
 	updateID    string
@@ -127,6 +129,15 @@ func (s *stubMemberWorkos) FindPendingInvitation(_ context.Context, _, _ string)
 		return "", false, nil
 	}
 	return s.pendingID, true, nil
+}
+
+func (s *stubMemberWorkos) FindAcceptedInvitationMembership(_ context.Context, _, _ string) (string, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.acceptedErr != nil {
+		return "", false, s.acceptedErr
+	}
+	return s.acceptedID, s.acceptedID != "", nil
 }
 
 func (s *stubMemberWorkos) UpdateOrganizationMembershipRole(_ context.Context, membershipID, roleSlug string) error {
@@ -202,8 +213,8 @@ func mustInvitedMember(t *testing.T, scope *testenv.Scope, email, role string) (
 		scope.OrganizationID, userID, role)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		_, _ = scope.Pool.Exec(t.Context(), `delete from organization_memberships where user_id=$1`, userID)
-		_, _ = scope.Pool.Exec(t.Context(), `delete from users where id=$1`, userID)
+		_, _ = scope.Pool.Exec(context.Background(), `delete from organization_memberships where user_id=$1`, userID)
+		_, _ = scope.Pool.Exec(context.Background(), `delete from users where id=$1`, userID)
 	})
 	return userID, workosUserID
 }
@@ -223,8 +234,8 @@ func mustActiveMember(t *testing.T, scope *testenv.Scope, email, role string) (u
 		scope.OrganizationID, userID, membershipID, role)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		_, _ = scope.Pool.Exec(t.Context(), `delete from organization_memberships where user_id=$1`, userID)
-		_, _ = scope.Pool.Exec(t.Context(), `delete from users where id=$1`, userID)
+		_, _ = scope.Pool.Exec(context.Background(), `delete from organization_memberships where user_id=$1`, userID)
+		_, _ = scope.Pool.Exec(context.Background(), `delete from users where id=$1`, userID)
 	})
 	return userID, workosUserID, membershipID
 }

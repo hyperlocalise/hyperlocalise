@@ -52,6 +52,7 @@ import {
   type ProjectFormValues,
   type ProjectSettingsSection,
 } from "../../../_components/project-form";
+import { useUnsavedChangesLeaveGuard } from "../../../../_components/unsaved-changes-leave-guard";
 import type { ProjectListRow } from "../../../_components/project-list";
 import {
   ProjectSourceLocalePicker,
@@ -67,6 +68,7 @@ import { ProjectIssueTemplatesPanel } from "./project-issue-templates-panel";
 import { ProjectNativeConnectCliPanel } from "./project-native-connect-cli-panel";
 import { ProjectIssueColumnsSettings } from "./project-issue-columns-settings";
 import { ProjectContentEditorBehaviorSettings } from "./project-content-editor-behavior-settings";
+import { ProjectContentSyncPanel } from "./project-content-sync-panel";
 import { ProjectSettingsNav, type ProjectSettingsNavItemId } from "./project-settings-nav";
 import { projectSettingsPageContentMessages } from "./project-settings-page-content.messages";
 import { ProjectSettingsSectionHeading } from "./project-settings-section-heading";
@@ -249,10 +251,12 @@ export function ProjectSettingsPageContent({
   organizationSlug,
   projectId,
   canManageCatBehavior,
+  canManageSync = false,
 }: {
   organizationSlug: string;
   projectId: string;
   canManageCatBehavior: boolean;
+  canManageSync?: boolean;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -271,6 +275,7 @@ export function ProjectSettingsPageContent({
     () => new Set(),
   );
   const [issueTemplatesDirty, setIssueTemplatesDirty] = useState(false);
+  const [syncDirty, setSyncDirty] = useState(false);
   const valuesRef = useRef(values);
   const baselineRef = useRef(baseline);
   const pendingSectionsRef = useRef(pendingSections);
@@ -441,6 +446,24 @@ export function ProjectSettingsPageContent({
     };
   }
 
+  const identifierOnly = !metadataEditable;
+  const generalDirty =
+    values !== null &&
+    baseline !== null &&
+    projectSettingsSectionIsDirty("general", values, baseline, { identifierOnly });
+  const styleGuideDirty =
+    values !== null &&
+    baseline !== null &&
+    projectSettingsSectionIsDirty("styleGuide", values, baseline);
+  const localesDirty =
+    values !== null &&
+    baseline !== null &&
+    projectSettingsSectionIsDirty("locales", values, baseline);
+  // One guard for the page: only one can be active at a time.
+  const { leaveGuardDialog } = useUnsavedChangesLeaveGuard(
+    generalDirty || styleGuideDirty || localesDirty || issueTemplatesDirty || syncDirty,
+  );
+
   if (projectQuery.isLoading || !values || !baseline) {
     return (
       <ProjectPageShell>
@@ -462,12 +485,6 @@ export function ProjectSettingsPageContent({
   }
 
   const localesEditable = project.source === "native";
-  const identifierOnly = !metadataEditable;
-  const generalDirty = projectSettingsSectionIsDirty("general", values, baseline, {
-    identifierOnly,
-  });
-  const styleGuideDirty = projectSettingsSectionIsDirty("styleGuide", values, baseline);
-  const localesDirty = projectSettingsSectionIsDirty("locales", values, baseline);
 
   // Live (unsynced) external-TMS projects have no row in `projects` — id is an encoded
   // "ext:provider:externalId" string — so issue templates and CAT policy have nowhere to persist.
@@ -479,6 +496,7 @@ export function ProjectSettingsPageContent({
   ]);
   if (metadataEditable) {
     visibleNavItems.add("style-guide");
+    visibleNavItems.add("sync");
     visibleNavItems.add("cli");
   }
   if (hasPersistedProjectRow) {
@@ -490,6 +508,7 @@ export function ProjectSettingsPageContent({
   if (styleGuideDirty) dirtyNavItems.add("style-guide");
   if (localesDirty) dirtyNavItems.add("locales");
   if (issueTemplatesDirty) dirtyNavItems.add("issue-templates");
+  if (syncDirty) dirtyNavItems.add("sync");
   const activeNavItem = [...visibleNavItems].find((item) => item === requestedNavItem) ?? "general";
 
   function selectNavItem(item: ProjectSettingsNavItemId) {
@@ -740,6 +759,18 @@ export function ProjectSettingsPageContent({
             />
           ) : null}
 
+          {metadataEditable ? (
+            <div hidden={activeNavItem !== "sync"}>
+              <ProjectContentSyncPanel
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+                canManage={canManageSync}
+                active={activeNavItem === "sync"}
+                onDirtyChange={setSyncDirty}
+              />
+            </div>
+          ) : null}
+
           {activeNavItem === "cli" ? (
             <ProjectNativeConnectCliPanel
               organizationSlug={organizationSlug}
@@ -748,6 +779,8 @@ export function ProjectSettingsPageContent({
           ) : null}
         </div>
       </div>
+
+      {leaveGuardDialog}
     </ProjectPageShell>
   );
 }

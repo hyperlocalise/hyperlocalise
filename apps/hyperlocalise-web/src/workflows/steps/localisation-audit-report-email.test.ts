@@ -82,7 +82,11 @@ describe("sendLocalisationAuditReportEmailStep", () => {
       score: 80,
       completedAt: new Date(),
       teaser: { headlineFindings: [] },
-      report: { completedAt: new Date().toISOString(), findings: [] },
+      report: {
+        completedAt: new Date().toISOString(),
+        findings: [],
+        pages: [{ url: "https://example.com/", status: 200, htmlLang: "en", title: null }],
+      },
     });
     sendMock.mockResolvedValue({ data: { id: "email-1" }, error: null });
   });

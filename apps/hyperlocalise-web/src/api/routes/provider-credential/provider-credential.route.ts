@@ -15,7 +15,10 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
-import { enqueueIntegrationDisconnectedActivity } from "@/lib/activity-log/integration-events";
+import {
+  enqueueIntegrationCredentialRevealedActivity,
+  enqueueIntegrationDisconnectedActivity,
+} from "@/lib/activity-log/integration-events";
 import {
   deleteOrganizationProviderCredential,
   listOrganizationProviderCredentialSummaries,
@@ -122,6 +125,13 @@ export function createProviderCredentialRoutes() {
         if (!revealedCredential) {
           return providerCredentialNotFoundResponse(c);
         }
+
+        await enqueueIntegrationCredentialRevealedActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          connectionId: `${c.var.auth.organization.localOrganizationId}:${revealedCredential.summary.provider}`,
+          integrationKind: revealedCredential.summary.provider,
+          organizationId: c.var.auth.organization.localOrganizationId,
+        });
 
         return c.json({ providerCredential: revealedCredential }, 200);
       } catch (error) {

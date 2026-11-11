@@ -240,6 +240,8 @@ It should work with your existing localisation stack rather than forcing an imme
 
 本地化的未来，不会由谁能将文本发送给语言模型来定义，而会由谁能将组织知识和本地专业经验转化为可靠、可扩展的工作方式来定义。
 
+如果你正在将内部构建方案与供应商平台进行比较，[如何选择持续本地化工作流](/blog/how-to-choose-a-continuous-localisation-workflow)会梳理市场上的其他类别——传统 TMS、开发者优先型平台和智能代理层——而不提供排名列表。
+
 ## 查看 Hyperlocalise 的本地化代理实际运作
 
 如果您正在权衡是自行构建还是购买现成方案，我们可以详细介绍代理式本地化工作流如何适配您的技术栈、审核流程以及您需要支持的市场。

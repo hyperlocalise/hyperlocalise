@@ -50,7 +50,7 @@ export type JobDetailTaskCommentsRenderer = (props: {
   organizationSlug: string;
 }) => ReactNode;
 
-type JobDetailTaskTab = "overview" | "files" | "comments";
+type JobDetailTaskTab = "overview" | "files" | "comments" | "report";
 
 export function JobDetailTaskView({
   buildJobsListHref: buildJobsListHrefProp = buildJobsListHref,
@@ -70,6 +70,7 @@ export function JobDetailTaskView({
   renderExtraMain,
   renderFilesSection,
   renderCommentsSection,
+  renderReportSection,
   secondaryProperties = [],
   showComments = false,
   title,
@@ -91,6 +92,8 @@ export function JobDetailTaskView({
   renderExtraMain?: () => ReactNode;
   renderFilesSection?: JobDetailTaskFilesRenderer;
   renderCommentsSection?: JobDetailTaskCommentsRenderer;
+  /** The task's own report, on a Report tab rendered only while it is open. */
+  renderReportSection?: () => ReactNode;
   secondaryProperties?: JobDetailViewProperty[];
   showComments?: boolean;
   title?: ReactNode;
@@ -101,7 +104,8 @@ export function JobDetailTaskView({
     description.trim().length > 0 || (canEditDescription && renderDescriptionField);
   const hasFilesTab = Boolean(renderFilesSection);
   const hasCommentsTab = showComments;
-  const useTabs = hasFilesTab || hasCommentsTab;
+  const hasReportTab = Boolean(renderReportSection);
+  const useTabs = hasFilesTab || hasCommentsTab || hasReportTab;
 
   const descriptionSection =
     showDescriptionSection && renderDescriptionField ? (
@@ -150,6 +154,11 @@ export function JobDetailTaskView({
             <FormattedMessage {...messages.commentsTab} />
           </TabsTrigger>
         ) : null}
+        {hasReportTab ? (
+          <TabsTrigger value="report">
+            <FormattedMessage {...messages.reportTab} />
+          </TabsTrigger>
+        ) : null}
       </TabsList>
 
       <TabsContent value="overview" className="space-y-8">
@@ -173,6 +182,12 @@ export function JobDetailTaskView({
       {hasCommentsTab ? (
         <TabsContent value="comments" className="space-y-4">
           {commentsSection}
+        </TabsContent>
+      ) : null}
+
+      {hasReportTab ? (
+        <TabsContent value="report" className="space-y-4">
+          {activeTab === "report" && !isLoading ? renderReportSection?.() : null}
         </TabsContent>
       ) : null}
     </Tabs>

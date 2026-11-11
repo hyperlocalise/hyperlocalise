@@ -1,0 +1,78 @@
+---
+title: "Translate plain text files with Hyperlocalise"
+sidebarTitle: "Plain text"
+description: "Translate plain text (.txt) prose while preserving paragraph breaks and line endings."
+---
+
+Plain text files store documentation, release notes, and other prose without markup. Hyperlocalise splits the file into paragraph segments, translates each paragraph, and writes the target file back with the same layout.
+
+Supported extension: `.txt`.
+
+## Source file
+
+Save this example as `locales/en-US/notes.txt`.
+
+```text
+Welcome to the product.
+
+Read the setup guide to get started.
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/notes.txt
+              to: locales/{{target}}/notes.txt
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Paragraphs are separated by one or more blank lines. Line breaks inside a paragraph are preserved.
+
+- Segments use sequential keys such as `txt.0001`. There is no markup to protect; characters like `#` and `[` are translated as plain text.
+
+- Target alignment uses content fingerprints, so inserting or removing paragraphs in the target file does not shift unrelated translations during `hyperlocalise check`.
+
+- Whole-file writeback replaces the target document from approved segment translations, similar to Markdown and AsciiDoc document workflows in Platform File view.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).
+
+## Related formats
+
+- [Markdown](/cli/reference/formats/markdown)
+- [AsciiDoc](/cli/reference/formats/asciidoc)

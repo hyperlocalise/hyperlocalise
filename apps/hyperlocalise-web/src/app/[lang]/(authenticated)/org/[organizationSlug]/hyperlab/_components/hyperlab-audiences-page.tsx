@@ -26,6 +26,8 @@ import {
   readHyperlabJson,
   type HyperlabAudience,
 } from "./hyperlab-api";
+import { HyperlabWorkspaceProvider } from "../store/hyperlab-workspace-context";
+
 import { HyperlabCreateAudienceDialog } from "./hyperlab-create-dialogs";
 import { summarizeCriterion } from "./hyperlab-criterion";
 import { HyperlabPageShell } from "./hyperlab-page-shell";
@@ -39,6 +41,20 @@ import {
 } from "./hyperlab-ui";
 
 export function HyperlabAudiencesPage({
+  organizationSlug,
+  canWrite,
+}: {
+  organizationSlug: string;
+  canWrite: boolean;
+}) {
+  return (
+    <HyperlabWorkspaceProvider>
+      <HyperlabAudiencesPageView organizationSlug={organizationSlug} canWrite={canWrite} />
+    </HyperlabWorkspaceProvider>
+  );
+}
+
+function HyperlabAudiencesPageView({
   organizationSlug,
   canWrite,
 }: {

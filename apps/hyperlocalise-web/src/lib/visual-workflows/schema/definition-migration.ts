@@ -42,7 +42,7 @@ function withGraphDerivedForEachMembership(
   return {
     ...definition,
     nodes: definition.nodes.map((node) =>
-      node.type === "logic.for_each"
+      ["logic.for_each", "logic.array_transform"].includes(node.type)
         ? {
             ...node,
             bodyNodeIds: computeForEachBodyNodeIdsFromV3Edges(node.id, definition.edges),

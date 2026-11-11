@@ -20,6 +20,11 @@ import {
   legacyProviderContentEditorSegmentLimit,
   maxProjectFileContentEditorPageLimit,
 } from "@/api/routes/project/project.schema";
+import {
+  parseAdvancedQueueFilter,
+  parseQueueFilterQualifier,
+  type ContentEditorAdvancedQueueFilter,
+} from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 
 export type ProjectFileContentEditorPaginationInput = {
   offset: number;
@@ -27,6 +32,8 @@ export type ProjectFileContentEditorPaginationInput = {
   search?: string;
   queueFilter?: ProjectFileContentEditorQueueFilter;
   queueSort?: ProjectFileContentEditorQueueSort;
+  queueFilterQualifier?: string;
+  advancedFilter?: ContentEditorAdvancedQueueFilter;
   paginated: boolean;
   phraseScanPage?: number;
   phraseScanSkip?: number;
@@ -54,6 +61,8 @@ export function resolveProjectFileContentEditorPagination(
     | "limit"
     | "queueFilter"
     | "queueSort"
+    | "queueFilterQualifier"
+    | "queueAdvanced"
     | "phraseScanPage"
     | "phraseScanSkip"
     | "sortBucket"
@@ -62,12 +71,16 @@ export function resolveProjectFileContentEditorPagination(
 ): ProjectFileContentEditorPaginationInput {
   const queueFilter = normalizeQueueFilter(query.queueFilter);
   const queueSort = normalizeQueueSort(query.queueSort);
+  const queueFilterQualifier = parseQueueFilterQualifier(query.queueFilterQualifier);
+  const advancedFilter = parseAdvancedQueueFilter(query.queueAdvanced);
   const hasPaginationParams =
     query.offset !== undefined ||
     query.limit !== undefined ||
     Boolean(query.search?.trim()) ||
     queueFilter !== "all" ||
-    queueSort !== "file_order";
+    queueSort !== "file_order" ||
+    Boolean(queueFilterQualifier) ||
+    Boolean(advancedFilter);
 
   if (!hasPaginationParams) {
     return {
@@ -89,6 +102,8 @@ export function resolveProjectFileContentEditorPagination(
     search: query.search?.trim() || undefined,
     queueFilter,
     queueSort,
+    queueFilterQualifier,
+    advancedFilter,
     paginated: true,
     phraseScanPage: query.phraseScanPage,
     phraseScanSkip: query.phraseScanSkip,

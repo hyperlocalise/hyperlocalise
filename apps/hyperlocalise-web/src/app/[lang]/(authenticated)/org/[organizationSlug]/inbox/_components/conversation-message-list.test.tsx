@@ -10,17 +10,29 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it } from "vite-plus/test";
+// @vitest-environment happy-dom
+import { describe, expect, it, vi } from "vite-plus/test";
+import { fireEvent, render } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactElement } from "react";
 
 import { ConversationMessageList } from "./conversation-message-list";
 import { currentUserFixture, messagesFixture } from "./inbox.fixture";
+import type { StreamedAssistantMessage } from "./inbox-types";
+
+function withIntl(element: ReactElement) {
+  return (
+    <IntlProvider locale="en" messages={{}}>
+      {element}
+    </IntlProvider>
+  );
+}
 
 describe("ConversationMessageList", () => {
   it("styles user messages with the primary bubble", () => {
     const markup = renderToStaticMarkup(
-      <IntlProvider locale="en" messages={{}}>
+      withIntl(
         <ConversationMessageList
           conversationId={messagesFixture[0].conversationId}
           currentUser={currentUserFixture}
@@ -28,12 +40,147 @@ describe("ConversationMessageList", () => {
           isStreaming={false}
           messages={messagesFixture}
           streamedAssistant={null}
-        />
-      </IntlProvider>,
+        />,
+      ),
     );
 
     expect(markup).toContain("bg-primary");
     expect(markup).toContain("text-primary-foreground");
     expect(markup).toContain(messagesFixture[0].text);
+  });
+
+  it("keeps the streamed reply's DOM node when the persisted reply arrives", () => {
+    const [userMessage, agentMessage] = messagesFixture;
+    const streamedAssistant: StreamedAssistantMessage = {
+      conversationId: userMessage.conversationId,
+      responseToMessageId: userMessage.id,
+      message: {
+        id: `stream-${userMessage.id}`,
+        role: "assistant",
+        parts: [{ type: "text", text: agentMessage.text, state: "done" }],
+      },
+      status: "complete",
+    };
+
+    const { container, rerender } = render(
+      withIntl(
+        <ConversationMessageList
+          conversationId={userMessage.conversationId}
+          currentUser={currentUserFixture}
+          isLoading={false}
+          isStreaming={false}
+          messages={[userMessage]}
+          streamedAssistant={streamedAssistant}
+        />,
+      ),
+    );
+    const streamedItem = container.querySelector(
+      `[data-message-id="${streamedAssistant.message.id}"]`,
+    );
+    expect(streamedItem).not.toBeNull();
+
+    rerender(
+      withIntl(
+        <ConversationMessageList
+          conversationId={userMessage.conversationId}
+          currentUser={currentUserFixture}
+          isLoading={false}
+          isStreaming={false}
+          messages={[userMessage, agentMessage]}
+          streamedAssistant={streamedAssistant}
+        />,
+      ),
+    );
+    expect(container.querySelector(`[data-message-id="${agentMessage.id}"]`)).toBe(streamedItem);
+
+    rerender(
+      withIntl(
+        <ConversationMessageList
+          conversationId={userMessage.conversationId}
+          currentUser={currentUserFixture}
+          isLoading={false}
+          isStreaming={false}
+          messages={[userMessage, agentMessage]}
+          streamedAssistant={null}
+        />,
+      ),
+    );
+    expect(container.querySelector(`[data-message-id="${agentMessage.id}"]`)).toBe(streamedItem);
+  });
+
+  it("shows a reply refused for used-up AI credit, with a way to change plan", () => {
+    const [userMessage] = messagesFixture;
+    const streamedAssistant: StreamedAssistantMessage = {
+      conversationId: userMessage.conversationId,
+      responseToMessageId: userMessage.id,
+      message: { id: `stream-${userMessage.id}`, role: "assistant", parts: [] },
+      status: "error",
+      aiCreditExhausted: true,
+    };
+
+    const { getByRole } = render(
+      withIntl(
+        <ConversationMessageList
+          conversationId={userMessage.conversationId}
+          currentUser={currentUserFixture}
+          isLoading={false}
+          isStreaming={false}
+          messages={[userMessage]}
+          organizationSlug="acme"
+          streamedAssistant={streamedAssistant}
+        />,
+      ),
+    );
+
+    expect(getByRole("alert").textContent).toContain(
+      "Your workspace has used all of its AI credit.",
+    );
+    expect(getByRole("link", { name: "Upgrade plan" }).getAttribute("href")).toContain("acme");
+  });
+
+  it("offers the latest reply's clarification options and marks a stopped reply", () => {
+    const [userMessage] = messagesFixture;
+    const onSelect = vi.fn();
+    const stopped = {
+      ...userMessage,
+      id: "msg_stopped",
+      senderType: "agent" as const,
+      text: "Partial",
+      parts: [
+        { type: "text" as const, text: "Partial" },
+        { type: "data-interrupted" as const, data: { reason: "user_cancelled" } },
+      ],
+    };
+    const question = {
+      ...userMessage,
+      id: "msg_question",
+      senderType: "agent" as const,
+      text: "Which repository?",
+      parts: [
+        { type: "text" as const, text: "Which repository?" },
+        {
+          type: "data-clarification" as const,
+          data: { question: "Which repository?", options: ["acme/web", "acme/api"] },
+        },
+      ],
+    };
+
+    const { getByRole, getByText } = render(
+      withIntl(
+        <ConversationMessageList
+          conversationId={userMessage.conversationId}
+          currentUser={currentUserFixture}
+          isLoading={false}
+          isStreaming={false}
+          messages={[userMessage, stopped, question]}
+          onSelectClarificationOption={onSelect}
+          streamedAssistant={null}
+        />,
+      ),
+    );
+
+    expect(getByText("Stopped")).toBeTruthy();
+    fireEvent.click(getByRole("button", { name: "acme/api" }));
+    expect(onSelect).toHaveBeenCalledWith("acme/api");
   });
 });

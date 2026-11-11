@@ -149,13 +149,23 @@ uploads a versioned S3 artifact, and updates the function named by SSM. Secret
 values stay in Secrets Manager; Lambda receives only ARN, JSON-key, and cache
 metadata through environment variables.
 
-The existing activity-log compatibility wrapper in infrastructure still passes
-the database secret metadata as `DATABASE_URL_SECRET_ARN`,
-`DATABASE_SECRET_KEY`, and `DATABASE_URL_SECRET_CACHE_TTL_SECONDS`. Keep using
-`secretsmanager.ConfigFromEnv` for that worker. New workers composed directly
-from the reusable infrastructure module use explicitly requested generic
-`<NAME>_ARN`, `<NAME>_KEY`, and `<NAME>_CACHE_TTL_SECONDS` variables with
-`ConfigsFromEnv("NAME", ...)` and `Collection`.
+All Postgres-backed SQS Lambdas (activity-log, glossary-interchange,
+memory-interchange, visual-context-match) use the same database secret metadata and Go bootstrap:
+
+- `DATABASE_URL_SECRET_ARN`, `DATABASE_SECRET_KEY`, and optionally
+  `DATABASE_URL_SECRET_CACHE_TTL_SECONDS`
+- `secretsmanager.ConfigFromEnv()` plus `NewLoader` in `main`
+
+Infrastructure passes those variables either through the activity-log wrapper
+module or through `secret_references.database_url_secret` on
+`sqs-lambda-consumer`, with an explicit `DATABASE_SECRET_KEY = "DATABASE_URL"`
+in `environment_variables` (required because `ConfigFromEnv()` reads
+`DATABASE_SECRET_KEY`, not `DATABASE_URL_SECRET_KEY`).
+
+Workers that need additional Secrets Manager fields beyond Postgres should use
+generic `<NAME>_ARN`, `<NAME>_KEY`, and `<NAME>_CACHE_TTL_SECONDS` from infra
+`secret_references` with `ConfigsFromEnv("NAME", ...)` and `Collection`. See
+`.agents/skills/create-sqs-lambda-worker/references/worker-contract.md`.
 
 The translation-memory interchange worker uses the dedicated
 `MEMORY_INTERCHANGE_QUEUE_URL` producer variable and publishes versioned
@@ -168,6 +178,20 @@ apply, and exports become downloadable after the worker records a completed
 run. The infrastructure queue must be provisioned before enabling the
 publisher; deploy the real artifact before redriving placeholder or DLQ
 messages.
+
+The visual-context match worker binds native strings to CAT screenshots with
+OCR, modelled on Smartling's context match processes. go-svc publishes
+`{schemaVersion, processId}` messages when `VISUAL_CONTEXT_MATCH_QUEUE_URL` is
+set; without it the match API returns `visual_context_matching_unavailable`.
+Its artifact is `visual-context-match/bootstrap.zip`, built by
+`make build-visual-context-match-lambda`, and its function handoff is
+`/hyperlocalise/prod/lambda/visual-context-match/function_name`. Besides the
+database secret variables, the Lambda reads `OBJECT_STORAGE_S3_FILES_BUCKET`,
+`OBJECT_STORAGE_S3_FILES_REGION`, optional `OBJECT_STORAGE_S3_FILES_ENDPOINT`,
+`OBJECT_STORAGE_DEFAULT_LOCATION`, and optional `TEXTRACT_REGION`. Its role
+needs `s3:GetObject` on the files bucket and `textract:DetectDocumentText`.
+Use a function timeout of at least 3 minutes and a queue visibility timeout
+above it.
 
 ### GitHub Action settings
 

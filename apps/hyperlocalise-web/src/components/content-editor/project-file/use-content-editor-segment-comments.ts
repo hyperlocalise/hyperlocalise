@@ -16,6 +16,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 
 import type { ContentEditorFormatMessageIntl } from "@/components/content-editor/message-format/content-editor-message-format-i18n";
+import type { ContentEditorProjectSource } from "@/components/content-editor/shared/content-editor-native-project";
+import { canUseGoSvcCat } from "@/components/content-editor/shared/content-editor-native-project";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
@@ -55,8 +57,16 @@ export async function fetchProjectFileContentEditorSegmentComments(input: {
   externalStringId: string;
   intl: ContentEditorFormatMessageIntl;
   goSvcClient?: GoSvcClient;
+  projectSource?: ContentEditorProjectSource | null;
 }) {
-  if (input.goSvcClient && !input.externalResourceId) {
+  if (
+    input.goSvcClient &&
+    canUseGoSvcCat({
+      projectId: input.projectId,
+      projectSource: input.projectSource,
+      externalResourceId: input.externalResourceId,
+    })
+  ) {
     try {
       const { comments } = await input.goSvcClient.cat.segmentComments(
         input.organizationSlug,

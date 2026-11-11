@@ -173,15 +173,16 @@ func (s *Service) processMTBatch(ctx context.Context, engine mt.Engine, key mtGr
 
 	for i, task := range batch {
 		translated := resp.Translations[i]
-		if verr := validateTranslatedOutput(task, translated); verr != nil {
+		accepted, verr := acceptTranslatedOutput(task, translated)
+		if verr != nil {
 			s.failMTTask(ctx, task, verr, targetFailures, state, emitter)
 			continue
 		}
-		if serr := stageTaskOutput(state.staged, task, translated, &state.stageMu); serr != nil {
+		if serr := stageTaskOutput(state.staged, task, accepted, &state.stageMu); serr != nil {
 			s.failMTTask(ctx, task, serr, targetFailures, state, emitter)
 			continue
 		}
-		s.recordMTTaskSuccess(ctx, task, translated, state, emitter, completions)
+		s.recordMTTaskSuccess(ctx, task, accepted, state, emitter, completions)
 	}
 }
 
@@ -200,7 +201,7 @@ func (s *Service) recordMTBatchAttempt(state *executorState, key mtGroupKey, pro
 
 func (s *Service) recordMTTaskSuccess(ctx context.Context, task Task, value string, state *executorState, emitter *eventEmitter, completions chan<- taskCompletion) {
 	completion := taskCompletion{
-		identity:     preferredTaskIdentity(s.projectRoot, task.TargetPath, task.EntryKey),
+		identity:     taskLockIdentity(s.projectRoot, task.TargetPath, task.TargetLocale, task.EntryKey),
 		entryKey:     task.EntryKey,
 		value:        value,
 		sourceHash:   taskLockSourceHash(task),

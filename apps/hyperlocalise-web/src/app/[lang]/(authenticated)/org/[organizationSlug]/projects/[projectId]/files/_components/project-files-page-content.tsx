@@ -14,9 +14,10 @@
  */
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { observer } from "mobx-react-lite";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FileIcon, UploadSimpleIcon } from "@phosphor-icons/react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -24,9 +25,11 @@ import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tms-user-connection-shared";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resource-capabilities";
 import {
   buildProjectFileContentEditorHref,
@@ -53,11 +56,19 @@ import { ProjectFilesTree } from "./project-files-tree";
 import { formatBytes } from "./project-files-shared";
 import { projectFilesPageContentMessages as messages } from "./project-files-page-content.messages";
 import { useProjectFileActions } from "./use-project-file-actions";
+import {
+  PROJECT_FILES_MAX_UPLOAD,
+  fileKey,
+  sourcePathForFile,
+  type ProjectFileDialogAction,
+} from "../store/project-files-page-store";
+import {
+  ProjectFilesPageStoreProvider,
+  useProjectFilesPageStore,
+} from "../store/project-files-store-context";
 
 const FILE_ACCEPT = getSupportedSourceUploadAccept();
-const MAX_UPLOAD_FILES = 10;
-
-type PendingFileDialogAction = "translate" | "import" | "download" | "segmentation";
+const MAX_UPLOAD_FILES = PROJECT_FILES_MAX_UPLOAD;
 
 function ProjectFileDialogHost({
   file,
@@ -72,7 +83,7 @@ function ProjectFileDialogHost({
   onClose,
 }: {
   file: ProjectFileRecord;
-  initialAction: PendingFileDialogAction;
+  initialAction: ProjectFileDialogAction;
   organizationSlug: string;
   projectId: string;
   highlightLocale: string | null;
@@ -95,9 +106,13 @@ function ProjectFileDialogHost({
   const {
     downloadDialogOpen,
     importDialogOpen,
+    importSettingsDialogOpen,
+    messageFormatDialogOpen,
     segmentationDialogOpen,
     setDownloadDialogOpen,
     setImportDialogOpen,
+    setImportSettingsDialogOpen,
+    setMessageFormatDialogOpen,
     setSegmentationDialogOpen,
     setTranslateDialogOpen,
     translateDialogOpen,
@@ -113,6 +128,8 @@ function ProjectFileDialogHost({
       import: () => setImportDialogOpen(true),
       download: () => setDownloadDialogOpen(true),
       segmentation: () => setSegmentationDialogOpen(true),
+      messageFormat: () => setMessageFormatDialogOpen(true),
+      importSettings: () => setImportSettingsDialogOpen(true),
     }[initialAction];
     openDialog();
     setHasOpened(true);
@@ -121,6 +138,8 @@ function ProjectFileDialogHost({
     initialAction,
     setDownloadDialogOpen,
     setImportDialogOpen,
+    setImportSettingsDialogOpen,
+    setMessageFormatDialogOpen,
     setSegmentationDialogOpen,
     setTranslateDialogOpen,
   ]);
@@ -131,7 +150,12 @@ function ProjectFileDialogHost({
     }
 
     const anyOpen =
-      translateDialogOpen || importDialogOpen || downloadDialogOpen || segmentationDialogOpen;
+      translateDialogOpen ||
+      importDialogOpen ||
+      downloadDialogOpen ||
+      segmentationDialogOpen ||
+      messageFormatDialogOpen ||
+      importSettingsDialogOpen;
     if (!anyOpen) {
       onClose();
     }
@@ -139,6 +163,8 @@ function ProjectFileDialogHost({
     downloadDialogOpen,
     hasOpened,
     importDialogOpen,
+    importSettingsDialogOpen,
+    messageFormatDialogOpen,
     onClose,
     segmentationDialogOpen,
     translateDialogOpen,
@@ -149,15 +175,6 @@ function ProjectFileDialogHost({
 
 function apiPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files`;
-}
-
-function sourcePathForFile(file: File) {
-  const fileWithPath = file as File & { webkitRelativePath?: string };
-  return fileWithPath.webkitRelativePath || file.name;
-}
-
-function fileKey(file: File) {
-  return `${sourcePathForFile(file)}:${file.size}:${file.lastModified}`;
 }
 
 export type ProjectFilesTreeRenderer = (props: {
@@ -224,13 +241,24 @@ export function ProjectFilesPageContent({
   organizationSlug: string;
   projectId: string;
 }) {
+  return (
+    <ProjectFilesPageStoreProvider organizationSlug={organizationSlug} projectId={projectId}>
+      <ProjectFilesPageContentInner />
+    </ProjectFilesPageStoreProvider>
+  );
+}
+
+const ProjectFilesPageContentInner = observer(function ProjectFilesPageContentInner() {
   const intl = useIntl();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [loadedFiles, setLoadedFiles] = useState<ProjectFileRecord[]>([]);
+  const pageStore = useProjectFilesPageStore();
+  const organizationSlug = pageStore.organizationSlug;
+  const projectId = pageStore.projectId;
+  const selectedFiles = pageStore.selectedFiles;
+  const loadedFiles = pageStore.loadedFiles;
 
   const selectedSourcePath = searchParams.get("sourcePath");
   const highlightLocale = searchParams.get("locale");
@@ -265,12 +293,31 @@ export function ProjectFilesPageContent({
     [pathname, router, searchParams],
   );
 
+  const { client: goSvcClient } = useGoSvcClient();
+  const [keepApprovedTranslations, setKeepApprovedTranslations] = useState(false);
+  // Shares its cache with the project settings page, which owns this setting.
+  const contentEditorBehaviorQuery = useQuery({
+    queryKey: ["project-content-editor-behavior", organizationSlug, projectId],
+    queryFn: async () =>
+      (await goSvcClient.project.contentEditorBehavior(organizationSlug, projectId))
+        .contentEditorBehavior,
+    enabled: selectedFiles.length > 0,
+    // Read again for each new selection, so a change made in settings is seen.
+    staleTime: 0,
+  });
+  if (selectedFiles.length === 0 && keepApprovedTranslations) {
+    setKeepApprovedTranslations(false);
+  }
+  const offerKeepApprovedTranslations =
+    contentEditorBehaviorQuery.data?.approvedTranslationsOnSourceChange === "needs_review";
+
   const uploadFiles = useMutation({
-    mutationFn: async (files: File[]) => {
+    mutationFn: async ({ files, keepApproved }: { files: File[]; keepApproved: boolean }) => {
       for (const file of files) {
         const formData = new FormData();
         formData.set("file", file);
         formData.set("sourcePath", sourcePathForFile(file));
+        if (keepApproved) formData.set("keepApproved", "true");
 
         const response = await fetch(apiPath(organizationSlug, projectId), {
           method: "POST",
@@ -287,9 +334,10 @@ export function ProjectFilesPageContent({
         }
       }
     },
-    onSuccess: async (_, files) => {
+    onSuccess: async (_, { files }) => {
+      setKeepApprovedTranslations(false);
       const lastUploadedPath = files.at(-1) ? sourcePathForFile(files.at(-1) as File) : null;
-      setSelectedFiles([]);
+      pageStore.clearSelectedFiles();
       await queryClient.invalidateQueries({
         queryKey: projectFilesQueryKey(organizationSlug, projectId),
       });
@@ -305,19 +353,26 @@ export function ProjectFilesPageContent({
     },
   });
 
-  const addSelectedFiles = useCallback((nextFiles: File[]) => {
-    setSelectedFiles((currentFiles) => {
-      const existing = new Set(currentFiles.map(fileKey));
-      return [...currentFiles, ...nextFiles.filter((file) => !existing.has(fileKey(file)))].slice(
-        0,
-        MAX_UPLOAD_FILES,
-      );
-    });
-  }, []);
+  const addSelectedFiles = useCallback(
+    (nextFiles: File[]) => {
+      pageStore.addSelectedFiles(nextFiles);
+    },
+    [pageStore],
+  );
 
-  const removeSelectedFile = useCallback((file: File) => {
-    setSelectedFiles((currentFiles) => currentFiles.filter((item) => item !== file));
-  }, []);
+  const removeSelectedFile = useCallback(
+    (file: File) => {
+      pageStore.removeSelectedFile(file);
+    },
+    [pageStore],
+  );
+
+  const setLoadedFiles = useCallback(
+    (files: ProjectFileRecord[]) => {
+      pageStore.setLoadedFiles(files);
+    },
+    [pageStore],
+  );
 
   const resolvedFiles = useMemo(() => sortFilesByPath(loadedFiles), [loadedFiles]);
   const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
@@ -420,18 +475,18 @@ export function ProjectFilesPageContent({
       })()
     : null;
 
-  const [dialogRequest, setDialogRequest] = useState<{
-    file: ProjectFileRecord;
-    action: PendingFileDialogAction;
-  } | null>(null);
+  const dialogRequest = pageStore.dialogRequest;
 
   const closeFileDialog = useCallback(() => {
-    setDialogRequest(null);
-  }, []);
+    pageStore.closeAll();
+  }, [pageStore]);
 
-  const openFileDialog = useCallback((file: ProjectFileRecord, action: PendingFileDialogAction) => {
-    setDialogRequest({ file, action });
-  }, []);
+  const openFileDialog = useCallback(
+    (file: ProjectFileRecord, action: ProjectFileDialogAction) => {
+      pageStore.openAction(file, action);
+    },
+    [pageStore],
+  );
 
   const treeFileActions = useMemo<ProjectFileTreeActionsConfig>(
     () => ({
@@ -447,6 +502,8 @@ export function ProjectFilesPageContent({
       onImportFile: (file) => openFileDialog(file, "import"),
       onDownloadFile: (file) => openFileDialog(file, "download"),
       onSegmentationSettings: (file) => openFileDialog(file, "segmentation"),
+      onMessageFormatSettings: (file) => openFileDialog(file, "messageFormat"),
+      onImportSettings: (file) => openFileDialog(file, "importSettings"),
     }),
     [
       highlightLocale,
@@ -497,7 +554,15 @@ export function ProjectFilesPageContent({
         onSelectBranch={setSelectedBranch}
         onAddSelectedFiles={addSelectedFiles}
         onRemoveSelectedFile={removeSelectedFile}
-        onUploadSelectedFiles={() => uploadFiles.mutate(selectedFiles)}
+        offerKeepApprovedTranslations={offerKeepApprovedTranslations}
+        keepApprovedTranslations={keepApprovedTranslations}
+        onKeepApprovedTranslationsChange={setKeepApprovedTranslations}
+        onUploadSelectedFiles={() =>
+          uploadFiles.mutate({
+            files: selectedFiles,
+            keepApproved: offerKeepApprovedTranslations && keepApprovedTranslations,
+          })
+        }
         filesTree={() => (
           <ProjectFilesTreePanel
             organizationSlug={organizationSlug}
@@ -524,7 +589,7 @@ export function ProjectFilesPageContent({
       />
     </>
   );
-}
+});
 
 export function ProjectFilesPageContentView({
   organizationSlug,
@@ -546,6 +611,9 @@ export function ProjectFilesPageContentView({
   onSelectBranch: _onSelectBranch,
   onAddSelectedFiles,
   onRemoveSelectedFile,
+  offerKeepApprovedTranslations = false,
+  keepApprovedTranslations = false,
+  onKeepApprovedTranslationsChange,
   onUploadSelectedFiles,
   renderError = defaultRenderFilesError,
   renderFilesTree = defaultRenderFilesTree,
@@ -570,6 +638,10 @@ export function ProjectFilesPageContentView({
   onSelectBranch?: (branch: string | null) => void;
   onAddSelectedFiles: (files: File[]) => void;
   onRemoveSelectedFile: (file: File) => void;
+  /** Show the checkbox that keeps approved translations approved for this upload. */
+  offerKeepApprovedTranslations?: boolean;
+  keepApprovedTranslations?: boolean;
+  onKeepApprovedTranslationsChange?: (keep: boolean) => void;
   onUploadSelectedFiles: () => void;
   renderError?: ProjectFilesErrorRenderer;
   renderFilesTree?: ProjectFilesTreeRenderer;
@@ -649,6 +721,26 @@ export function ProjectFilesPageContentView({
               )}
             </Button>
           </div>
+          {offerKeepApprovedTranslations ? (
+            <div className="mt-3 flex items-start gap-2">
+              <Checkbox
+                id="keep-approved-translations"
+                aria-describedby="keep-approved-translations-help"
+                className="mt-0.5"
+                checked={keepApprovedTranslations}
+                disabled={isUploading}
+                onCheckedChange={(checked) => onKeepApprovedTranslationsChange?.(checked === true)}
+              />
+              <div className="min-w-0">
+                <label htmlFor="keep-approved-translations" className="text-sm font-medium">
+                  <FormattedMessage {...messages.keepApprovedTranslations} />
+                </label>
+                <TypographyP id="keep-approved-translations-help" size="xsmall" tone="subtle">
+                  <FormattedMessage {...messages.keepApprovedTranslationsHelp} />
+                </TypographyP>
+              </div>
+            </div>
+          ) : null}
           <ul className="mt-3 divide-y divide-border rounded-md border border-border bg-background">
             {selectedFiles.map((file) => (
               <li key={fileKey(file)} className="flex items-center justify-between gap-3 px-3 py-2">

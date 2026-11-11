@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { CreditCardIcon } from "@phosphor-icons/react";
 import { useCustomer, useListPlans } from "autumn-js/react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
@@ -105,6 +105,8 @@ export function PlanUsageSummaryContent({ summary }: { summary: ResolvedPlanUsag
 
 export function PlanUsageFooterControl({ organizationSlug }: { organizationSlug: string }) {
   const intl = useIntl();
+  const [open, setOpen] = useState(false);
+  const closeDialog = () => setOpen(false);
   const { data: customer, isLoading: customerLoading, error: customerError } = useCustomer();
   const { data: plans, isLoading: plansLoading, error: plansError } = useListPlans();
 
@@ -141,7 +143,7 @@ export function PlanUsageFooterControl({ organizationSlug }: { organizationSlug:
   );
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
           <Button
@@ -180,10 +182,14 @@ export function PlanUsageFooterControl({ organizationSlug }: { organizationSlug:
           <Button
             variant="ghost"
             render={<Link href={buildAvailablePlansHref(organizationSlug)} />}
+            onClick={closeDialog}
           >
             <FormattedMessage {...planUsageSummaryMessages.seeAllPlans} />
           </Button>
-          <Button render={<Link href={buildPlanUsageHref(organizationSlug)} />}>
+          <Button
+            render={<Link href={buildPlanUsageHref(organizationSlug)} />}
+            onClick={closeDialog}
+          >
             <FormattedMessage {...planUsageSummaryMessages.openBilling} />
           </Button>
         </DialogFooter>

@@ -28,14 +28,38 @@ type Story = StoryObj<typeof meta>;
 export const Overview: Story = {
   render: () => (
     <div className="flex flex-wrap gap-3 p-6">
-      <Button onClick={() => toast.success("Provider sync complete")}>Show toast</Button>
-      <Button variant="outline" onClick={() => toast.info("186 strings ready for review")}>
+      <Button
+        onClick={() =>
+          toast.success("Provider sync complete", { description: "New source strings are in." })
+        }
+      >
+        Show toast
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() =>
+          toast.info("186 strings ready for review", { description: "Open the job to start." })
+        }
+      >
         Info
       </Button>
-      <Button variant="outline" onClick={() => toast.warning("Glossary entries need review")}>
+      <Button
+        variant="outline"
+        onClick={() =>
+          toast.warning("Glossary entries need review", { description: "3 terms are still draft." })
+        }
+      >
         Warning
       </Button>
-      <Button variant="destructive" onClick={() => toast.error("Write-back failed")}>
+      <Button
+        variant="destructive"
+        onClick={() =>
+          toast.error("Write-back failed", {
+            description: "The provider rejected the file.",
+            action: { label: "Retry", onClick: () => toast.success("Write-back complete") },
+          })
+        }
+      >
         Error
       </Button>
     </div>

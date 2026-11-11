@@ -70,8 +70,47 @@ describe("DomainsPageStore", () => {
     expect(store.editLinkedDomain).toBeNull();
 
     store.setAddDomainDialogOpen(false);
+    store.hydrateAddDomainDialog({
+      step: "connect",
+      domain: "stale.com",
+      claimDomainSlug: null,
+      linkedDomain: null,
+      recommendations: [],
+      selectedMarketIds: ["france-fr"],
+    });
     store.openEditLocales(linkedDomain);
     expect(store.addDomainDialogOpen).toBe(true);
     expect(store.editLinkedDomain).toEqual(linkedDomain);
+    expect(store.addDomainStep).toBe("details");
+    expect(store.addDomainSelectedMarketIds).toEqual([]);
+  });
+
+  it("hydrates and advances the add-domain wizard", () => {
+    const store = new DomainsPageStore("acme");
+
+    store.hydrateAddDomainDialog({
+      step: "details",
+      domain: "acme.com",
+      claimDomainSlug: "acme-com",
+      linkedDomain: null,
+      recommendations: [],
+      selectedMarketIds: ["france-fr"],
+    });
+    expect(store.addDomainKey).toBe("acme.com");
+    expect(store.addDomainClaimSlug).toBe("acme-com");
+    expect(store.addDomainSelectedMarketIds).toEqual(["france-fr"]);
+
+    store.setAddDomainStep("markets");
+    store.toggleAddDomainMarket("germany-de", true);
+    store.toggleAddDomainMarket("france-fr", false);
+    store.setAddDomainError("Pick at least one market");
+    expect(store.addDomainStep).toBe("markets");
+    expect(store.addDomainSelectedMarketIds).toEqual(["germany-de"]);
+    expect(store.addDomainError).toBe("Pick at least one market");
+
+    store.setAddDomainDialogOpen(false);
+    expect(store.addDomainKey).toBe("");
+    expect(store.addDomainSelectedMarketIds).toEqual([]);
+    expect(store.addDomainError).toBeNull();
   });
 });

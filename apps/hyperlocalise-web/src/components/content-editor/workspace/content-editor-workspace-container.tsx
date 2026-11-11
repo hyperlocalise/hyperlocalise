@@ -19,6 +19,7 @@ import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileContentEditorQueueFile } from "@/api/routes/project/project.schema";
 import type { ContentEditorSegmentFileIdentityLookupRef } from "@/components/content-editor/project-file/use-content-editor-mutations";
+import type { CatBilingualImportCounts } from "@/lib/projects/content-editor/content-editor-bilingual-import";
 import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
 import {
   AlertDialog,
@@ -42,6 +43,7 @@ import type {
 } from "@/components/content-editor/queue/content-editor-queue-filter";
 import { ContentEditorQueueToolbarConnected } from "@/components/content-editor/queue/content-editor-queue-toolbar-connected";
 import { contentEditorWorkspaceContainerMessages } from "@/components/content-editor/shared/content-editor.messages";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import type {
   ContentEditorSegment,
   ContentEditorWorkspaceState,
@@ -94,6 +96,10 @@ export interface ContentEditorWorkspaceContainerProps {
   queueSort?: ContentEditorQueueSort;
   onQueueSortChange?: (sort: ContentEditorQueueSort) => void;
   availableQueueSorts?: ContentEditorQueueSort[];
+  queueFilterQualifier?: string;
+  onQueueFilterQualifierChange?: (qualifier: string | undefined) => void;
+  queueAdvanced?: ContentEditorAdvancedQueueFilter;
+  onQueueAdvancedChange?: (filter: ContentEditorAdvancedQueueFilter | undefined) => void;
   isQueueSearchPending?: boolean;
   isQueueFetchingPage?: boolean;
   isQueueListLoading?: boolean;
@@ -102,6 +108,8 @@ export interface ContentEditorWorkspaceContainerProps {
   /** @deprecated Use isQueueListLoading or isQueueDataPending. */
   isQueueLoading?: boolean;
   isImageBusy?: boolean;
+  isImageGenerating?: boolean;
+  generatingImageSegmentId?: string;
   isMaxLengthSaving?: boolean;
   queuePagination?: ContentEditorWorkspaceViewProps["queuePagination"];
   hasMoreQueue?: boolean;
@@ -114,6 +122,8 @@ export interface ContentEditorWorkspaceContainerProps {
   nativeIssuesEnabled?: boolean;
   onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
   isDownloadingFilteredView?: boolean;
+  onImportBilingualFile?: (file: File) => Promise<CatBilingualImportCounts>;
+  isImportingBilingualFile?: boolean;
   /** Stable identity for the open file/locale. Changing this resets workspace data only. */
   fileScopeKey?: string;
   /**
@@ -147,6 +157,10 @@ const ContentEditorWorkspaceContainerObserver = observer(
     queueSort,
     onQueueSortChange,
     availableQueueSorts,
+    queueFilterQualifier,
+    onQueueFilterQualifierChange,
+    queueAdvanced,
+    onQueueAdvancedChange,
     isQueueSearchPending,
     isQueueFetchingPage,
     isQueueListLoading,
@@ -154,6 +168,8 @@ const ContentEditorWorkspaceContainerObserver = observer(
     isTranslationViewLoading,
     isQueueLoading: legacyIsQueueLoading,
     isImageBusy,
+    isImageGenerating,
+    generatingImageSegmentId,
     isMaxLengthSaving,
     queuePagination,
     hasMoreQueue,
@@ -164,6 +180,8 @@ const ContentEditorWorkspaceContainerObserver = observer(
     nativeIssuesEnabled = false,
     onDownloadFilteredView,
     isDownloadingFilteredView = false,
+    onImportBilingualFile,
+    isImportingBilingualFile = false,
     fileScopeKey,
     adaptiveWorkspaceEnabled = false,
   }: ContentEditorWorkspaceContainerProps & { store: ContentEditorWorkspaceOrchestrator }) {
@@ -248,80 +266,119 @@ const ContentEditorWorkspaceContainerObserver = observer(
           />
         ) : null}
 
-        <ContentEditorQueueToolbarConnected
-          onQueueSearchChange={onQueueSearchChange}
-          onQueueFilterChange={controller.handleQueueFilterChange}
-          availableQueueFilters={availableQueueFilters}
-          queueSort={queueSort}
-          onQueueSortChange={onQueueSortChange}
-          availableQueueSorts={availableQueueSorts}
-          isSearching={isQueueSearchPending}
-          isQueueLoading={isQueueBulkBlocked}
-          visibleCount={isQueueBulkBlocked ? 0 : controller.queueSegments.length}
-          onSelectAllVisible={() => {
-            // Placeholder or not-yet-ingested pages still expose the previous
-            // filter's segment ids.
-            if (isQueueBulkBlocked) {
-              return;
+        <ContentEditorPanelErrorBoundary
+          scope="queue"
+          className="h-auto"
+          resetKeys={[controller.queueFilter, queueSearch]}
+        >
+          <ContentEditorQueueToolbarConnected
+            onQueueSearchChange={onQueueSearchChange}
+            onQueueFilterChange={controller.handleQueueFilterChange}
+            availableQueueFilters={availableQueueFilters}
+            queueSort={queueSort}
+            onQueueSortChange={onQueueSortChange}
+            availableQueueSorts={availableQueueSorts}
+            queueFilterQualifier={queueFilterQualifier}
+            onQueueFilterQualifierChange={onQueueFilterQualifierChange}
+            queueAdvanced={queueAdvanced}
+            onQueueAdvancedChange={onQueueAdvancedChange}
+            providerKind={lazySegment?.contentEditorFile?.provider?.kind}
+            organizationSlug={lazySegment?.organizationSlug}
+            projectId={lazySegment?.projectId}
+            isSearching={isQueueSearchPending}
+            isQueueLoading={isQueueBulkBlocked}
+            visibleCount={isQueueBulkBlocked ? 0 : controller.queueSegments.length}
+            onSelectAllVisible={() => {
+              // Placeholder or not-yet-ingested pages still expose the previous
+              // filter's segment ids.
+              if (isQueueBulkBlocked) {
+                return;
+              }
+              store.selectAllVisible(controller.queueSegments.map((segment) => segment.id));
+            }}
+            onBulkApprove={() => {
+              if (isQueueBulkBlocked) {
+                return;
+              }
+              void controller.handleBulkApprove();
+            }}
+            onBulkSkip={() => {
+              if (isQueueBulkBlocked) {
+                return;
+              }
+              void controller.handleBulkSkip();
+            }}
+            onBulkHide={
+              review?.onBulkHide
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    void controller.handleBulkHide();
+                  }
+                : undefined
             }
-            store.selectAllVisible(controller.queueSegments.map((segment) => segment.id));
-          }}
-          onBulkApprove={() => {
-            if (isQueueBulkBlocked) {
-              return;
+            onBulkUnhide={
+              review?.onBulkUnhide
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    void controller.handleBulkUnhide();
+                  }
+                : undefined
             }
-            void controller.handleBulkApprove();
-          }}
-          onBulkSkip={() => {
-            if (isQueueBulkBlocked) {
-              return;
+            onBulkLock={
+              review?.onBulkLock || review?.onSetLocked
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    void controller.handleBulkLock();
+                  }
+                : undefined
             }
-            void controller.handleBulkSkip();
-          }}
-          onBulkHide={
-            review?.onBulkHide
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
+            onBulkUnlock={
+              review?.onBulkUnlock || review?.onSetLocked
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    void controller.handleBulkUnlock();
                   }
-                  void controller.handleBulkHide();
-                }
-              : undefined
-          }
-          onBulkUnhide={
-            review?.onBulkUnhide
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
+                : undefined
+            }
+            onBulkCreateTask={
+              review?.onCreateKeyTask
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    review.onCreateKeyTask?.([...store.checkedSegmentIds], () =>
+                      store.clearChecked(),
+                    );
                   }
-                  void controller.handleBulkUnhide();
-                }
-              : undefined
-          }
-          onBulkLock={
-            review?.onBulkLock || review?.onSetLocked
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
+                : undefined
+            }
+            onBulkEditTags={
+              review?.onEditKeyTags
+                ? () => {
+                    if (isQueueBulkBlocked) {
+                      return;
+                    }
+                    review.onEditKeyTags?.([...store.checkedSegmentIds], () =>
+                      store.clearChecked(),
+                    );
                   }
-                  void controller.handleBulkLock();
-                }
-              : undefined
-          }
-          onBulkUnlock={
-            review?.onBulkUnlock || review?.onSetLocked
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
-                  }
-                  void controller.handleBulkUnlock();
-                }
-              : undefined
-          }
-          onDownloadFilteredView={onDownloadFilteredView}
-          isDownloadingFilteredView={isDownloadingFilteredView}
-          adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
-        />
+                : undefined
+            }
+            onDownloadFilteredView={onDownloadFilteredView}
+            isDownloadingFilteredView={isDownloadingFilteredView}
+            onImportBilingualFile={onImportBilingualFile}
+            isImportingBilingualFile={isImportingBilingualFile}
+            adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
+          />
+        </ContentEditorPanelErrorBoundary>
 
         <ContentEditorPanelErrorBoundary
           scope="workspace"
@@ -340,24 +397,7 @@ const ContentEditorWorkspaceContainerObserver = observer(
             queueSegments={controller.queueSegments}
             selectedSegment={controller.selectedSegment}
             dependencies={controller.dependencies}
-            dirtySegmentIds={controller.dirtySegmentIds}
-            isValidating={store.isValidating}
-            isApproving={store.isApproving}
-            isSavingDraft={store.isSavingDraft}
-            isPostingComment={store.isPostingComment}
-            isResolvingComment={store.isResolvingComment}
-            resolvingCommentId={store.resolvingCommentId}
-            commentPostError={store.commentPostError}
-            isLookingUpContext={store.isLookingUpContext}
-            isConcordanceLoading={store.isLoadingConcordance}
-            isVisualContextLoading={store.isLoadingVisualContext}
-            isAiSuggestionLoading={
-              store.isGeneratingAiRecommendation && controller.canUseAiRecommendation
-            }
-            isFormatChecksLoading={store.isRunningFormatChecks || store.isValidating}
             canLookupContext={controller.canLookupContext}
-            showAgentContext={store.revealedAgentContextSegmentIds.has(store.selectedSegmentId)}
-            revealedAgentContextSegmentIds={store.revealedAgentContextSegmentIds}
             showVisualContext={controller.canLoadVisualContext}
             canUseAiRecommendation={controller.canUseAiRecommendation}
             className={className}
@@ -365,21 +405,17 @@ const ContentEditorWorkspaceContainerObserver = observer(
             isQueueFetchingPage={isQueueFetchingPage}
             isQueueListLoading={resolvedQueueListLoading}
             isQueueDataPending={isQueueBulkBlocked}
-            isTranslationViewLoading={store.ui.translationViewLoading}
-            isCommentsLoading={store.isCommentsLoading}
-            isSegmentTargetLoading={store.isSegmentTargetLoading}
             isImageBusy={isImageBusy}
+            isImageGenerating={isImageGenerating}
+            generatingImageSegmentId={generatingImageSegmentId}
             isMaxLengthSaving={isMaxLengthSaving}
             queuePagination={queuePagination}
             hasMoreQueue={hasMoreQueue}
             onLoadMoreQueue={onLoadMoreQueue}
             queueFilter={controller.queueFilter}
-            checkedSegmentIds={store.checkedSegmentIds}
-            onToggleSegmentChecked={(segmentId, checked) =>
-              store.toggleSegmentChecked(segmentId, checked)
-            }
             buildSegmentShareUrl={controller.resolvedBuildSegmentShareUrl}
             onIntelligencePanelVisible={controller.handleIntelligencePanelVisible}
+            onLoadSegmentConcordance={controller.handleLoadSegmentConcordance}
             organizationSlug={lazySegment?.organizationSlug}
             projectId={lazySegment?.projectId}
             nativeIssuesEnabled={nativeIssuesEnabled}

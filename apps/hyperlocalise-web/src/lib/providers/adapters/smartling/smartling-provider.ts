@@ -214,6 +214,7 @@ export class SmartlingTmsProvider extends TmsProvider {
     "translation_memory.import": implemented,
     "translation_memory.export": implemented,
     "translation_memory.search": implemented,
+    "translation_memory.write": unsupported,
     "glossary.import": implemented,
     "glossary.export": implemented,
     "glossary.search": implemented,

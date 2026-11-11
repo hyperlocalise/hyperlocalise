@@ -23,6 +23,7 @@ import { isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import {
   enqueueIntegrationConnectedActivity,
+  enqueueIntegrationCredentialRevealedActivity,
   enqueueIntegrationDisconnectedActivity,
 } from "@/lib/activity-log/integration-events";
 import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
@@ -2375,6 +2376,12 @@ export function createExternalTmsProviderCredentialRoutes() {
         });
 
         if (!providerCredential) return c.json({ error: "provider_credential_not_found" }, 404);
+        await enqueueIntegrationCredentialRevealedActivity({
+          ...sessionActivityActor(c.var.auth.user.localUserId),
+          connectionId: providerCredential.summary.id,
+          integrationKind: payload.providerKind,
+          organizationId: c.var.auth.organization.localOrganizationId,
+        });
         return c.json({ externalTmsProviderCredential: providerCredential }, 200);
       } catch (error) {
         if (error instanceof Error && error.message === "forbidden") {

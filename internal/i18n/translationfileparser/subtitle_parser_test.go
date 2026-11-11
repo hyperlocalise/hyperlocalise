@@ -2,8 +2,18 @@ package translationfileparser
 
 import (
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
+)
+
+// Legacy timestamp patterns kept as the scanner oracle. Call sites trim
+// before matching; the scanners themselves must still accept the same
+// untrimmed shapes, including regexp \s ([ \t\n\f\r]).
+var (
+	legacySRTTimestampPattern = regexp.MustCompile(`^(?:\d{1,2}:)?\d{1,2}:\d{2}[,.]\d{1,3}\s+-->\s+(?:\d{1,2}:)?\d{1,2}:\d{2}[,.]\d{1,3}(?:\s+\S.*)?$`)
+	legacyVTTTimestampPattern = regexp.MustCompile(`^(?:\d{2,}:)?\d{1,2}:\d{2}[,.]\d{1,3}\s+-->\s+(?:\d{2,}:)?\d{1,2}:\d{2}[,.]\d{1,3}(?:\s+\S.*)?$`)
+	legacySBVTimestampPattern = regexp.MustCompile(`^\d+:\d{2}:\d{2}\.\d{1,3},\d+:\d{2}:\d{2}\.\d{1,3}$`)
 )
 
 const sampleSRT = `1
@@ -281,6 +291,123 @@ func TestSubtitleParserAcceptsDotMillisecondsAndPositioning(t *testing.T) {
 	}
 	if ctx["srt.0001"] != "0:00:01.500 --> 0:00:03.000 X1:0 X2:100" {
 		t.Fatalf("unexpected context: %q", ctx["srt.0001"])
+	}
+}
+
+func TestSubtitleParserAcceptsTrailingWhitespaceOnTimestampLine(t *testing.T) {
+	content := []byte("1\n00:00:01,000 --> 00:00:03,000   \nHi\n")
+	values, ctx, err := (SubtitleParser{Kind: SubtitleSRT}).ParseWithContext(content)
+	if err != nil {
+		t.Fatalf("parse srt with trailing space: %v", err)
+	}
+	if values["srt.0001"] != "Hi" {
+		t.Fatalf("unexpected value: %#v", values)
+	}
+	if ctx["srt.0001"] != "00:00:01,000 --> 00:00:03,000" {
+		t.Fatalf("unexpected context: %q", ctx["srt.0001"])
+	}
+}
+
+func TestSubtitleParserAcceptsHourlessSRTTimestamps(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name   string
+		input  string
+		timing string
+	}{
+		{name: "mmssComma", input: "1\n00:01,000 --> 00:03,000\nHi\n", timing: "00:01,000 --> 00:03,000"},
+		{name: "mmssDot", input: "1\n00:00.000 --> 00:01.000\nHi\n", timing: "00:00.000 --> 00:01.000"},
+		{name: "oneDigitMinutes", input: "1\n1:23,456 --> 1:24,000\nHi\n", timing: "1:23,456 --> 1:24,000"},
+		{name: "formFeedAroundArrow", input: "1\n00:00:01,000\f--> 00:00:03,000\nHi\n", timing: "00:00:01,000\f--> 00:00:03,000"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			values, ctx, err := (SubtitleParser{Kind: SubtitleSRT}).ParseWithContext([]byte(tc.input))
+			if err != nil {
+				t.Fatalf("parse srt: %v", err)
+			}
+			if values["srt.0001"] != "Hi" {
+				t.Fatalf("unexpected value: %#v", values)
+			}
+			if ctx["srt.0001"] != tc.timing {
+				t.Fatalf("unexpected context: %q", ctx["srt.0001"])
+			}
+		})
+	}
+}
+
+func TestTimestampScannersMatchLegacyRegex(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		kind SubtitleKind
+		line string
+	}{
+		{name: "srtFull", kind: SubtitleSRT, line: "00:00:01,000 --> 00:00:03,000"},
+		{name: "srtHourless", kind: SubtitleSRT, line: "00:01,000 --> 00:03,000"},
+		{name: "srtHourlessDot", kind: SubtitleSRT, line: "00:00.000 --> 00:01.000"},
+		{name: "srtOneDigitMinutes", kind: SubtitleSRT, line: "1:23,456 --> 1:24,000"},
+		{name: "srtOneDigitHours", kind: SubtitleSRT, line: "0:00:01.500 --> 0:00:03.000 X1:0 X2:100"},
+		{name: "srtSettings", kind: SubtitleSRT, line: "00:00:01.000 --> 00:00:03.000 align:start position:0%"},
+		{name: "srtFormFeedAroundArrow", kind: SubtitleSRT, line: "00:00:01,000\f--> 00:00:03,000"},
+		{name: "srtFormFeedBeforeSettings", kind: SubtitleSRT, line: "00:00:01,000 --> 00:00:03,000\falign:start"},
+		{name: "srtTrailingSpacesOnly", kind: SubtitleSRT, line: "00:00:01,000 --> 00:00:03,000   "},
+		{name: "srtMissingSpaces", kind: SubtitleSRT, line: "00:00:01,000-->00:00:03,000"},
+		{name: "srtTripleArrow", kind: SubtitleSRT, line: "00:00:01,000 ---> 00:00:03,000"},
+		{name: "srtFourDigitMs", kind: SubtitleSRT, line: "00:00:01,0000 --> 00:00:03,000"},
+		{name: "srtHoursBeyond99", kind: SubtitleSRT, line: "100:00:00,000 --> 100:00:01,000"},
+		{name: "srtOneDigitSeconds", kind: SubtitleSRT, line: "00:00:1,000 --> 00:00:3,000"},
+		{name: "vttShort", kind: SubtitleVTT, line: "00:00.000 --> 00:01.000"},
+		{name: "vttHoursBeyond99", kind: SubtitleVTT, line: "100:00:00.000 --> 100:00:01.000"},
+		{name: "vttOneDigitHoursRejected", kind: SubtitleVTT, line: "1:00:00.000 --> 1:00:01.000"},
+		{name: "vttSettings", kind: SubtitleVTT, line: "00:00:00.000 --> 00:00:02.500 align:start"},
+		{name: "vttFormFeedAroundArrow", kind: SubtitleVTT, line: "00:00:01.000\f--> 00:00:03.000"},
+		{name: "vttMissingSpaces", kind: SubtitleVTT, line: "00:00:01.000-->00:00:03.000"},
+		{name: "vttFourDigitMs", kind: SubtitleVTT, line: "00:00:01.0000 --> 00:00:03.000"},
+		{name: "sbvBasic", kind: SubtitleSBV, line: "0:00:00.000,0:00:04.000"},
+		{name: "sbvHoursBeyond99", kind: SubtitleSBV, line: "100:00:00.000,100:00:01.000"},
+		{name: "sbvSpaceAfterComma", kind: SubtitleSBV, line: "0:00:00.000, 0:00:04.000"},
+		{name: "sbvCommaMs", kind: SubtitleSBV, line: "0:00:00,000,0:00:04,000"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			trimmed := strings.TrimSpace(tc.line)
+			if got, want := isSubtitleTimestampLine(tc.line, tc.kind), legacyTimestampLine(tc.kind, trimmed); got != want {
+				t.Fatalf("isSubtitleTimestampLine(%q) = %v, want %v", tc.line, got, want)
+			}
+
+			switch tc.kind {
+			case SubtitleSBV:
+				if got, want := isSBVTimestampLineFast(tc.line), legacySBVTimestampPattern.MatchString(tc.line); got != want {
+					t.Fatalf("isSBVTimestampLineFast(%q) = %v, want %v", tc.line, got, want)
+				}
+			case SubtitleVTT:
+				if got, want := isVTTTimestampLineFast(tc.line), legacyVTTTimestampPattern.MatchString(tc.line); got != want {
+					t.Fatalf("isVTTTimestampLineFast(%q) = %v, want %v", tc.line, got, want)
+				}
+			default:
+				if got, want := isSRTTimestampLineFast(tc.line), legacySRTTimestampPattern.MatchString(tc.line); got != want {
+					t.Fatalf("isSRTTimestampLineFast(%q) = %v, want %v", tc.line, got, want)
+				}
+			}
+		})
+	}
+}
+
+func legacyTimestampLine(kind SubtitleKind, line string) bool {
+	switch kind {
+	case SubtitleVTT:
+		return legacyVTTTimestampPattern.MatchString(line)
+	case SubtitleSBV:
+		return legacySBVTimestampPattern.MatchString(line)
+	default:
+		return legacySRTTimestampPattern.MatchString(line)
 	}
 }
 

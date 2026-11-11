@@ -14,8 +14,8 @@
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { issueFeedQueryKey } from "./use-issue-feed";
 
@@ -54,10 +54,8 @@ export function useIssueCommentMutations({
   issueId: string;
 }) {
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const feedQueryKey = issueFeedQueryKey(organizationSlug, projectId, issueId);
-  const comments =
-    apiClient.api.orgs[":organizationSlug"].projects[":projectId"]["issue-sheet"][":issueId"]
-      .comments;
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: feedQueryKey });
 
@@ -68,14 +66,16 @@ export function useIssueCommentMutations({
       mentionedUserIds?: string[];
       mentionedIssueIds?: string[];
     }) => {
-      const response = await comments.$post({
-        param: { organizationSlug, projectId, issueId },
-        json: input,
-      } as never);
-      if (response.status !== 201) {
-        throw await readApiResponseError(response, "Failed to create comment");
+      try {
+        return await goSvcClient.issueSheet.comments.create(
+          organizationSlug,
+          projectId,
+          issueId,
+          input,
+        );
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to create comment"), { cause: error });
       }
-      return response.json();
     },
     onSuccess: invalidate,
   });
@@ -87,29 +87,36 @@ export function useIssueCommentMutations({
       mentionedUserIds?: string[];
       mentionedIssueIds?: string[];
     }) => {
-      const response = await comments[":commentId"].$patch({
-        param: { organizationSlug, projectId, issueId, commentId: input.commentId },
-        json: {
-          body: input.body,
-          mentionedUserIds: input.mentionedUserIds,
-          mentionedIssueIds: input.mentionedIssueIds,
-        },
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to update comment");
+      try {
+        return await goSvcClient.issueSheet.comments.update(
+          organizationSlug,
+          projectId,
+          issueId,
+          input.commentId,
+          {
+            body: input.body,
+            mentionedUserIds: input.mentionedUserIds,
+            mentionedIssueIds: input.mentionedIssueIds,
+          },
+        );
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to update comment"), { cause: error });
       }
-      return response.json();
     },
     onSuccess: invalidate,
   });
 
   const deleteComment = useMutation({
     mutationFn: async (commentId: string) => {
-      const response = await comments[":commentId"].$delete({
-        param: { organizationSlug, projectId, issueId, commentId },
-      } as never);
-      if (response.status !== 204) {
-        throw await readApiResponseError(response, "Failed to delete comment");
+      try {
+        await goSvcClient.issueSheet.comments.delete(
+          organizationSlug,
+          projectId,
+          issueId,
+          commentId,
+        );
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to delete comment"), { cause: error });
       }
     },
     onSuccess: invalidate,

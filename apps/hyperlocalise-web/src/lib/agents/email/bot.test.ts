@@ -333,7 +333,7 @@ describe("createEmailHandler", () => {
     expect(posts[0]).toContain("Thanks. I've queued");
     expect(dependencies.resolveInboundEmailOrganization).toHaveBeenCalled();
     expect(dependencies.interpretClarificationReply).toHaveBeenCalledWith(
-      expect.objectContaining({ text: "English to French" }),
+      expect.objectContaining({ text: "English to French", organizationId: "org_123" }),
     );
     expect(dependencies.queue.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -452,6 +452,7 @@ describe("createEmailHandler", () => {
     expect(dependencies.interpretEmailRequest).toHaveBeenCalledWith({
       subject: "Translate from en to fr",
       text: "Please translate from en to fr",
+      organizationId: "org_123",
     });
     expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
   });

@@ -13,6 +13,9 @@
 import type { ComponentType } from "react";
 import type { MessageDescriptor } from "react-intl";
 
+import { IRIS_LAUNCH_YOUTUBE_WATCH_URL } from "@/lib/iris/iris-waitlist";
+
+import { IrisPreview } from "./iris-preview";
 import { MergeStringsPreview } from "./merge-strings-preview";
 import { updateAnnouncerMessages } from "./update-announcer.messages";
 
@@ -25,14 +28,31 @@ export type UpdateAnnouncement = {
   /** Optional decorative layer drawn over `imageSrc`. */
   Preview?: ComponentType;
   buildHref: (organizationSlug: string) => string;
+  /** Primary action label. Defaults to "Try it now". */
+  cta?: MessageDescriptor;
   /** ISO 8601 timestamp; hidden before this instant. */
   startsAt: string;
   /** ISO 8601 timestamp; hidden from this instant on. Omit to run until removed. */
   endsAt?: string;
 };
 
+export function isExternalAnnouncementHref(href: string): boolean {
+  return href.startsWith("https://") || href.startsWith("http://");
+}
+
 /** Ordered by priority: the first active, undismissed entry is shown. */
 export const UPDATE_ANNOUNCEMENTS: readonly UpdateAnnouncement[] = [
+  {
+    id: "2026-10-iris-launch",
+    title: updateAnnouncerMessages.irisTitle,
+    description: updateAnnouncerMessages.irisDescription,
+    imageSrc: "/images/mesh/mesh-gradient-1784864145512.jpg",
+    Preview: IrisPreview,
+    buildHref: () => IRIS_LAUNCH_YOUTUBE_WATCH_URL,
+    cta: updateAnnouncerMessages.watchFilm,
+    startsAt: "2026-10-21T00:00:00Z",
+    endsAt: "2026-11-21T00:00:00Z",
+  },
   {
     id: "2026-10-merge-strings",
     title: updateAnnouncerMessages.mergeStringsTitle,

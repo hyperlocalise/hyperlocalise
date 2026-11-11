@@ -90,6 +90,22 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "pZzJNiijOV",
     description: "View entries affected by this import",
   },
+  importEntries: {
+    defaultMessage: "Import entries",
+    id: "cu5vz2inFd",
+    description: "Primary action to apply a completed translation memory import preview",
+  },
+  previewReadyBanner: {
+    defaultMessage:
+      "Preview is ready. Review the counts below, then import entries to write them to this translation memory.",
+    id: "HVlJ+nwIfE",
+    description: "Prompt to confirm a translation memory import after preview completes",
+  },
+  importEntriesFailed: {
+    defaultMessage: "Import could not be queued.",
+    id: "a0hmPusRk9",
+    description: "Error when confirming a translation memory import from preview",
+  },
   overview: {
     defaultMessage: "Overview",
     id: "bsU0qqr6A2",
@@ -104,6 +120,11 @@ export const tmImportAttemptDetailMessages = defineMessages({
     defaultMessage: "Diagnostics",
     id: "uERqNSE1ZH",
     description: "Import report diagnostics heading",
+  },
+  sampleEntries: {
+    defaultMessage: "Sample entries",
+    id: "Khosn9vbdG",
+    description: "Heading for representative translations on a completed import report",
   },
   translationMemory: {
     defaultMessage: "Translation memory",
@@ -197,8 +218,8 @@ export const tmImportAttemptDetailMessages = defineMessages({
   },
   previewCompleted: {
     defaultMessage: "Preview ready",
-    id: "jEIFTvG4wS",
-    description: "Completed translation memory import preview status",
+    id: "Wa3kCtjTDm",
+    description: "Legacy translation memory import preview status (read-only)",
   },
   running: {
     defaultMessage: "Running",

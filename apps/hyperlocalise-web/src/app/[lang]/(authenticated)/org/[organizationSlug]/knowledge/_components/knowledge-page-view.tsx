@@ -12,78 +12,32 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import Link from "next/link";
 import { FormattedMessage } from "react-intl";
 import { PlusIcon } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
 
-import {
-  KnowledgeMemoryEditorView,
-  type KnowledgeMemoryEditorViewProps,
-  type KnowledgeMemoryScope,
-} from "./knowledge-memory-editor-view";
-import { knowledgeMemoryEditorMessages } from "./knowledge-memory-editor.messages";
-import { KnowledgePageSkeleton } from "./knowledge-page-skeleton";
 import { knowledgePageViewMessages } from "./knowledge-page-view.messages";
-import { KnowledgeUploadSection } from "./knowledge-upload-section";
 
-export type KnowledgePageMode = "loading" | "upload" | "editor";
-
-export type KnowledgePageViewProps = {
-  mode: KnowledgePageMode;
-  scope?: KnowledgeMemoryScope;
-  onStartMarkdownText: () => void;
-  onAddSources?: () => void;
-  onFilesSelected?: (files: File[]) => void;
-  editor?: KnowledgeMemoryEditorViewProps;
-};
-
-export function KnowledgePageHeader({
-  onAddSources,
-}: {
-  onAddSources?: () => void;
-  scope?: KnowledgeMemoryScope;
-}) {
+export function KnowledgePageHeader({ addSourcesHref }: { addSourcesHref?: string }) {
   return (
     <header className="flex flex-wrap items-center justify-end gap-2">
       <h1 className="sr-only">
         <FormattedMessage {...knowledgePageViewMessages.title} />
       </h1>
-      {onAddSources ? (
-        <Button type="button" variant="outline" size="sm" onClick={onAddSources}>
+      {addSourcesHref ? (
+        <Button
+          type="button"
+          nativeButton={false}
+          variant="outline"
+          size="sm"
+          render={<Link href={addSourcesHref} />}
+        >
           <PlusIcon data-icon="inline-start" />
-          <FormattedMessage {...knowledgeMemoryEditorMessages.addSources} />
+          <FormattedMessage {...knowledgePageViewMessages.addSources} />
         </Button>
       ) : null}
     </header>
-  );
-}
-
-export function KnowledgePageView({
-  mode,
-  scope = "organization",
-  onStartMarkdownText,
-  onAddSources,
-  onFilesSelected,
-  editor,
-}: KnowledgePageViewProps) {
-  return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
-      <KnowledgePageHeader
-        scope={scope}
-        onAddSources={mode === "editor" ? onAddSources : undefined}
-      />
-
-      {mode === "loading" ? <KnowledgePageSkeleton /> : null}
-
-      {mode === "upload" ? (
-        <KnowledgeUploadSection
-          onStartMarkdownText={onStartMarkdownText}
-          onFilesSelected={onFilesSelected}
-        />
-      ) : null}
-
-      {mode === "editor" && editor ? <KnowledgeMemoryEditorView {...editor} /> : null}
-    </div>
   );
 }

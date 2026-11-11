@@ -11,6 +11,28 @@
  * Version 2.0 or later.
  */
 import { resolveCatFileViewCapabilities } from "@/components/content-editor/workspace/content-editor-file-view-capabilities";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+
+export type ContentEditorProjectSource = "native" | "external_tms";
+
+export function isExternalTmsContentEditorProject(input: {
+  projectId: string;
+  projectSource?: ContentEditorProjectSource | null;
+}): boolean {
+  return input.projectSource === "external_tms" || Boolean(parseProviderProjectId(input.projectId));
+}
+
+/** Native CAT is served by go-svc. Connected TMS CAT stays on Hono. */
+export function canUseGoSvcCat(input: {
+  projectId: string;
+  projectSource?: ContentEditorProjectSource | null;
+  externalResourceId?: string | null;
+}): boolean {
+  if (input.externalResourceId) {
+    return false;
+  }
+  return !isExternalTmsContentEditorProject(input);
+}
 
 export function isNativeContentEditorProviderKind(
   providerKind: string | null | undefined,
@@ -36,5 +58,8 @@ export function isContentEditorGroupingAvailable(
     return false;
   }
 
-  return resolveCatFileViewCapabilities({ sourcePath }).family === "text";
+  return resolveCatFileViewCapabilities({
+    sourcePath,
+    providerKind: file?.provider?.kind,
+  }).availableViews.some((view) => view === "comfortable" || view === "side-by-side");
 }

@@ -86,7 +86,7 @@ export function createUseWebSearchTool(session: WorkspaceOrchestratorSession) {
     description:
       "Search the live web through Vercel AI Gateway. Supports Auto (Perplexity or Exa), Perplexity, or Exa.",
     inputSchema: useWebSearchInputSchema,
-    execute: async ({ objective }) => {
+    execute: async ({ objective }, { toolCallId } = {}) => {
       const webSearch = session.automation.toolConfig.webSearch;
       if (!webSearch?.enabled) {
         throw new Error("web_search_not_configured");
@@ -119,7 +119,7 @@ export function createUseWebSearchTool(session: WorkspaceOrchestratorSession) {
 
       const result = await withAgentRuntimeUsageMetering({
         organizationId: session.organizationId,
-        operationKey: `workspace-web-search:${session.run.id}:agent_runs`,
+        operationKey: `workspace-web-search:${session.run.id}:${toolCallId ?? crypto.randomUUID()}:agent_runs`,
         source: "workspace_web_search_agent",
         dimensions: {
           surface: "automation",
@@ -127,6 +127,7 @@ export function createUseWebSearchTool(session: WorkspaceOrchestratorSession) {
           provider,
         },
         extractTokenUsage: extractGenerateResultTokenUsage,
+        aiCreditModelId: resolveWorkspaceAutomationModel(session.automation.model),
         run: () =>
           agent.generate({
             messages: [

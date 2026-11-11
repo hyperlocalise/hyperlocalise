@@ -13,6 +13,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import { excludeMarkdownCalloutFenceKeys } from "@/lib/projects/translations/project-translation-service";
 import { countSourceWords } from "@/lib/reporting/word-analysis";
 
 import { buildLocaleProgressRow, type ProjectLocaleProgressRow } from "./project-locale-progress";
@@ -76,6 +77,7 @@ export async function listNativeProjectLocaleProgress(input: {
           eq(schema.projectTranslationKeys.organizationId, input.organizationId),
           eq(schema.projectTranslationKeys.projectId, input.projectId),
           eq(schema.projectTranslationKeys.isHidden, false),
+          excludeMarkdownCalloutFenceKeys(),
         ),
       ),
     db
@@ -96,6 +98,7 @@ export async function listNativeProjectLocaleProgress(input: {
           eq(schema.projectTranslations.organizationId, input.organizationId),
           eq(schema.projectTranslations.projectId, input.projectId),
           eq(schema.projectTranslationKeys.isHidden, false),
+          excludeMarkdownCalloutFenceKeys(),
         ),
       ),
   ]);

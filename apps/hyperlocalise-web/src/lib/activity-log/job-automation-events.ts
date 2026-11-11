@@ -92,6 +92,45 @@ export async function enqueueJobCancelledActivity(
   });
 }
 
+export type JobUpdatedField = "title" | "description" | "dueAt" | "owner";
+
+/**
+ * Names the fields a job update set. The owner is reported as "owner", so no user id or email
+ * reaches the activity log.
+ */
+export function jobUpdatedFields(body: {
+  title?: unknown;
+  description?: unknown;
+  dueAt?: unknown;
+  ownerWorkosUserId?: unknown;
+}): JobUpdatedField[] {
+  const fields: JobUpdatedField[] = [];
+  if (body.title !== undefined) fields.push("title");
+  if (body.description !== undefined) fields.push("description");
+  if (body.dueAt !== undefined) fields.push("dueAt");
+  if (body.ownerWorkosUserId !== undefined) fields.push("owner");
+  return fields;
+}
+
+/** The public API records the same event and payload for its job updates. */
+export async function enqueueJobUpdatedActivity(
+  input: Omit<JobActivityInput, "status"> & { changedFields: readonly JobUpdatedField[] },
+) {
+  return enqueueActivityLogEvent({
+    ...activityActor(input),
+    eventType: "job_updated",
+    organizationId: input.organizationId,
+    payload: {
+      changedFields: input.changedFields,
+      jobId: input.jobId,
+      kind: input.kind,
+      ...(input.projectId ? { projectId: input.projectId } : {}),
+    },
+    targetId: input.jobId,
+    targetKind: "job",
+  });
+}
+
 export async function enqueueJobFailedActivity(
   input: Omit<JobActivityInput, "status"> & { errorCode: string; status: "failed" },
 ) {
@@ -113,6 +152,38 @@ type AutomationActivityInput = ActivityActor & {
   name: string;
   organizationId: string;
 };
+
+export async function enqueueAutomationCreatedActivity(
+  input: AutomationActivityInput & { status: "active" | "archived" | "paused" },
+) {
+  return enqueueActivityLogEvent({
+    ...activityActor(input),
+    eventType: "automation_created",
+    organizationId: input.organizationId,
+    payload: {
+      automationId: input.automationId,
+      name: input.name,
+      status: input.status,
+    },
+    targetId: input.automationId,
+    targetKind: "automation",
+  });
+}
+
+export async function enqueueAutomationDeletedActivity(input: AutomationActivityInput) {
+  return enqueueActivityLogEvent({
+    ...activityActor(input),
+    eventType: "automation_deleted",
+    organizationId: input.organizationId,
+    payload: {
+      automationId: input.automationId,
+      name: input.name,
+      status: "archived",
+    },
+    targetId: input.automationId,
+    targetKind: "automation",
+  });
+}
 
 export async function enqueueAutomationRunStartedActivity(
   input: AutomationActivityInput & { runId: string; triggerSource: string },

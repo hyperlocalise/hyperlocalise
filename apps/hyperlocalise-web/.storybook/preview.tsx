@@ -91,7 +91,7 @@ const preview: Preview = {
                   <Story />
                 </BrandThemeProvider>
               </div>
-              <Toaster richColors closeButton />
+              <Toaster />
             </TooltipProvider>
           </StorybookDecorator>
         </ThemeProvider>

@@ -1,12 +1,61 @@
 package main
 
 import (
+	"database/sql"
+	"encoding/json"
 	"net/http"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/stretchr/testify/require"
 )
+
+func TestDeleteProjectDefaultMemoryEntryStats(t *testing.T) {
+	testenv.Require(t)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	projAPI := &projectAPI{pool: scope.Pool, membership: scope.Membership("admin")}
+	memAPI := &memoryAPI{pool: scope.Pool, membership: scope.Membership("admin")}
+
+	create := projectMutationRequest(projAPI, scope, http.MethodPost, scope.OrgPath("/projects"), map[string]any{
+		"name":          "Canva Demo",
+		"sourceLocale":  "en-US",
+		"targetLocales": []string{"vi-VN"},
+	})
+	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
+
+	var created projectResponseBody
+	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
+
+	var memoryID string
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `
+		select pm.memory_id from project_memories pm
+		join memories m on m.id = pm.memory_id
+		where pm.project_id = $1 and m.source = 'native'`,
+		created.Project.ID).Scan(&memoryID))
+	mustMemoryEntry(t, scope, memoryID, "en-US", "vi-VN", "Hello", "Xin chào")
+
+	del := projectMutationRequest(projAPI, scope, http.MethodDelete, scope.OrgPath("/projects/"+created.Project.ID), nil)
+	require.Equal(t, http.StatusNoContent, del.Code, del.Body.String())
+
+	list := memoryRequest(memAPI, scope, "GET", scope.OrgPath("/translation-memories")+"?source=native", "")
+	require.Equal(t, 200, list.Code, list.Body.String())
+	var body struct {
+		Memories []struct {
+			ID             string   `json:"id"`
+			SegmentCount   int      `json:"segmentCount"`
+			LocaleCoverage []string `json:"localeCoverage"`
+			ProjectCount   int      `json:"projectCount"`
+		} `json:"memories"`
+	}
+	require.NoError(t, json.Unmarshal(list.Body.Bytes(), &body))
+	require.Len(t, body.Memories, 1)
+	require.Equal(t, memoryID, body.Memories[0].ID)
+	require.Equal(t, 1, body.Memories[0].SegmentCount)
+	require.ElementsMatch(t, []string{"en-US", "vi-VN"}, body.Memories[0].LocaleCoverage)
+	require.Equal(t, 0, body.Memories[0].ProjectCount)
+}
 
 func TestDeleteProjectHappyPath(t *testing.T) {
 	testenv.Require(t)
@@ -106,4 +155,49 @@ func TestDeleteProjectTeamGlossaryGuard(t *testing.T) {
 		require.NoError(t, scope.Pool.QueryRow(t.Context(), `select exists(select 1 from glossaries where id=$1)`, glossaryID).Scan(&glossaryStillExists))
 		require.True(t, glossaryStillExists, "deleting the project must not cascade-delete the shared team glossary")
 	})
+}
+
+func TestDeleteProjectUnbindsCanvaConnection(t *testing.T) {
+	testenv.Require(t)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin", WithProject: true})
+	api := &projectAPI{pool: scope.Pool, membership: scope.Membership("admin")}
+
+	apiKeyID := uuid.NewString()
+	connectionID := uuid.NewString()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into organization_api_keys (id, organization_id, name, key_hash, key_prefix, created_by_user_id)
+        values ($1, $2, 'Canva test key', 'hash-canva-test', 'hl_canva1', $3)`,
+		apiKeyID, scope.OrganizationID, scope.UserID)
+	require.NoError(t, err)
+
+	_, err = scope.Pool.Exec(t.Context(), `
+        insert into canva_connections (
+            id, organization_id, api_key_id, project_id, display_name,
+            connection_token_hash, connection_token_prefix
+        ) values ($1, $2, $3, $4, 'Test Canva', 'canva-token-hash', 'hl_canva_tes')`,
+		connectionID, scope.OrganizationID, apiKeyID, scope.ProjectID)
+	require.NoError(t, err)
+
+	_, err = scope.Pool.Exec(t.Context(), `
+        insert into canva_oauth_tokens (
+            connection_id, user_id, organization_id,
+            access_token_hash, refresh_token_hash,
+            access_token_expires_at, refresh_token_expires_at
+        ) values ($1, $2, $3, 'access-hash', 'refresh-hash', $4, $5)`,
+		connectionID, scope.UserID, scope.OrganizationID,
+		time.Now().Add(time.Hour), time.Now().Add(24*time.Hour))
+	require.NoError(t, err)
+
+	rec := projectMutationRequest(api, scope, http.MethodDelete, scope.OrgPath("/projects/"+scope.ProjectID), nil)
+	require.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
+
+	var projectID sql.NullString
+	require.NoError(t, scope.Pool.QueryRow(t.Context(),
+		`select project_id from canva_connections where id=$1`, connectionID).Scan(&projectID))
+	require.False(t, projectID.Valid, "Canva connection project must be unbound when the project is deleted")
+
+	var tokenCount int
+	require.NoError(t, scope.Pool.QueryRow(t.Context(),
+		`select count(*) from canva_oauth_tokens where connection_id=$1`, connectionID).Scan(&tokenCount))
+	require.Equal(t, 1, tokenCount, "Canva OAuth tokens must survive project delete")
 }

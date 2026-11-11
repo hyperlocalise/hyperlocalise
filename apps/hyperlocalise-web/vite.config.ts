@@ -20,6 +20,9 @@ import type { DummyRuleMap } from "vite-plus/lint";
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 loadDotenv({ path: path.join(rootDir, ".env") });
+if (process.env.CI === "true") {
+  loadDotenv({ path: path.join(rootDir, "ci/vitest-defaults.env") });
+}
 
 // Keep in sync with eslint-plugin-formatjs `configs.strict`. Do not import the
 // plugin here: Storybook loads this Vite config, and the plugin pulls
@@ -60,12 +63,9 @@ const formatjsRulesOff = Object.fromEntries(
   Object.keys(formatjsStrictRules).map((rule) => [rule, "off" as const]),
 );
 
-// Keep Hyperlocalise-synced target catalogs as pulled (see i18n.yml targets).
-const translatedLocales = ["de-DE", "fr-FR", "vi-VN", "zh-CN"] as const;
-const translatedIgnorePatterns = translatedLocales.flatMap((locale) => [
-  `_posts/${locale}/**`,
-  `lang/${locale}.json`,
-]);
+// Locale catalogs stay as committed. Do not list locales here — a new
+// `_posts/<locale>` or `lang/<locale>.json` must not fail `vp check`.
+const localeCatalogIgnorePatterns = ["_posts/**", "lang/*.json"] as const;
 
 const isCi = process.env.CI === "true";
 
@@ -76,7 +76,7 @@ export default defineConfig({
       "drizzle/**",
       "pnpm-*.yaml",
       "public/mockServiceWorker.js",
-      ...translatedIgnorePatterns,
+      ...localeCatalogIgnorePatterns,
     ],
   },
   lint: {
@@ -86,7 +86,7 @@ export default defineConfig({
       "pnpm-*.yaml",
       "public/mockServiceWorker.js",
       "src/e2e/**",
-      ...translatedIgnorePatterns,
+      ...localeCatalogIgnorePatterns,
     ],
     options: { typeAware: true, typeCheck: true },
     jsPlugins: ["eslint-plugin-formatjs"],
@@ -103,16 +103,15 @@ export default defineConfig({
     ],
   },
   test: {
-    // Vitest v4 compatibility: preserve mock call history.
-    // Remove after tests no longer rely on calls from setup or earlier tests.
-    // https://viteplus.dev/guide/vitest-v5#remove-unneeded-compatibility-settings
-    // https://vitest.dev/guide/migration/#clearmocks-is-enabled-by-default
-    clearMocks: false,
     environment: "node",
     silent: "passed-only",
     pool: "threads",
     reporters: isCi ? ["dot", "github-actions"] : ["default"],
-    setupFiles: ["./src/test/setup-dom.ts"],
+    // Files in a worker share one module graph. setup-module-mocks resets
+    // modules that depend on vi.mock targets so mocks do not leak between files.
+    // https://vitest.dev/guide/improving-performance#test-isolation
+    isolate: false,
+    setupFiles: ["./src/test/setup-module-mocks.ts", "./src/test/setup-dom.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     exclude: ["src/e2e/**"],
     deps: {
@@ -122,6 +121,12 @@ export default defineConfig({
           include: [
             "drizzle-orm",
             "drizzle-orm/node-postgres",
+            // The schema mixes `sql` from the package root with builders from
+            // `drizzle-orm/pg-core`. Every drizzle specifier must resolve to
+            // the same bundled copy: two instances break drizzle's `is()`
+            // identity checks and crash schema evaluation with
+            // `SyntaxError: "undefined" is not valid JSON`.
+            "drizzle-orm/pg-core",
             "hono",
             "pg",
             "react",

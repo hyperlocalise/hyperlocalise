@@ -10,11 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { randomUUID } from "node:crypto";
+
 import { AiFeaturesRequiredError, ensureAiFeaturesAllowed } from "@/lib/billing/ai-features";
 import {
   completeAndTrackBillableUsage,
   formatUsageControlError,
   reserveUsageEvent,
+  trackAiCreditUsageInAutumn,
   usageFeatureIds,
   type AiTokenUsage,
 } from "@/lib/billing/usage-control";
@@ -163,6 +166,7 @@ export async function trackSucceededAgentRuntimeUsage(input: {
   tokenUsage?: AiTokenUsage | null;
   aiCreditModelId?: string;
   aiCreditCredentialSource?: AiCreditCredentialSource;
+  aiCreditSource?: string;
   interactionId?: string | null;
 }) {
   try {
@@ -176,7 +180,7 @@ export async function trackSucceededAgentRuntimeUsage(input: {
       aiCreditModelId: input.aiCreditModelId,
       aiCreditCredentialSource: input.aiCreditCredentialSource,
       interactionId: input.interactionId ?? undefined,
-      aiCreditSource: "agent_runtime_complete",
+      aiCreditSource: input.aiCreditSource ?? "agent_runtime_complete",
     });
 
     if (isErr(trackUsageResult)) {
@@ -225,6 +229,7 @@ export async function completeAgentRuntimeUsage(input: {
   tokenUsage: AiTokenUsage | null;
   aiCreditModelId?: string;
   aiCreditCredentialSource?: AiCreditCredentialSource;
+  aiCreditSource?: string;
 }) {
   const billableTokenUsage =
     input.tokenUsage && input.tokenUsage.totalTokens > 0 ? input.tokenUsage : null;
@@ -240,6 +245,7 @@ export async function completeAgentRuntimeUsage(input: {
       (billableTokenUsage ? hyperlocaliseManagedGatewayModelId : undefined),
     aiCreditCredentialSource:
       input.aiCreditCredentialSource ?? (billableTokenUsage ? "gateway" : undefined),
+    aiCreditSource: input.aiCreditSource,
   });
 }
 
@@ -257,6 +263,7 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
   extractTokenUsage?: (result: T) => AiTokenUsage | null;
   aiCreditModelId?: string | ((result: T) => string | undefined);
   aiCreditCredentialSource?: AiCreditCredentialSource;
+  aiCreditSource?: string;
 }): Promise<T> {
   await beginAgentRuntimeUsage({
     organizationId: input.organizationId,
@@ -279,7 +286,127 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
         ? input.aiCreditModelId(result)
         : input.aiCreditModelId,
     aiCreditCredentialSource: input.aiCreditCredentialSource,
+    aiCreditSource: input.aiCreditSource,
   });
 
   return result;
+}
+
+/** Our AI Gateway or the workspace's own key, for a model resolved per workspace. */
+export function credentialSourceForLanguageModel(languageModel: {
+  source: string;
+}): AiCreditCredentialSource {
+  return languageModel.source === "gateway" ? "gateway" : "byok";
+}
+
+/**
+ * Token billing for an agent turn that ran a classifier and then the agent on the same resolved
+ * model; model and key type are only set when there are tokens to bill.
+ */
+export function agentTurnTokenBilling(input: {
+  classificationTokenUsage: AiTokenUsage | null;
+  turnTokenUsage: AiTokenUsage | null;
+  languageModel: { modelId: string; source: string };
+}) {
+  const tokenUsage = addAiTokenUsage(input.classificationTokenUsage, input.turnTokenUsage);
+  return {
+    tokenUsage,
+    aiCreditModelId: tokenUsage ? input.languageModel.modelId : undefined,
+    aiCreditCredentialSource: tokenUsage
+      ? credentialSourceForLanguageModel(input.languageModel)
+      : undefined,
+  };
+}
+
+export type AiCallTokenUsageInput = {
+  organizationId: string;
+  source: string;
+  tokenUsage: AiTokenUsage | null | undefined;
+  modelId: string;
+  credentialSource: AiCreditCredentialSource;
+  interactionId?: string | null;
+  /** Stored as `project_id` so Reports can place the call in its project. */
+  projectId?: string | null;
+};
+
+/**
+ * Records the tokens of one AI call that is not part of an agent run or job, as
+ * AI Credit only. `source` names where the call came from. Never throws: a
+ * metering failure is logged and the caller's work continues. With `defer`, the
+ * charge runs after the response (Next's `after()` through `deferAfterResponse`).
+ */
+export async function trackAiCallTokenUsage(
+  input: AiCallTokenUsageInput,
+  options?: { defer?: (task: () => Promise<unknown>) => void },
+) {
+  const tokenUsage = input.tokenUsage;
+  if (!tokenUsage || tokenUsage.totalTokens <= 0) {
+    return;
+  }
+
+  if (options?.defer) {
+    options.defer(() => recordAiCallTokenUsage({ ...input, tokenUsage }));
+    return;
+  }
+
+  await recordAiCallTokenUsage({ ...input, tokenUsage });
+}
+
+/** Bills a string translation result, whose token usage carries the model that served it. */
+export async function trackStringTranslationTokenUsage(input: {
+  organizationId: string;
+  source: string;
+  projectId?: string | null;
+  tokenUsage:
+    | (AiTokenUsage & { modelId?: string; credentialSource?: AiCreditCredentialSource })
+    | null
+    | undefined;
+}) {
+  const { tokenUsage } = input;
+  if (!tokenUsage?.modelId || !tokenUsage.credentialSource) {
+    return;
+  }
+
+  await trackAiCallTokenUsage({
+    organizationId: input.organizationId,
+    source: input.source,
+    tokenUsage,
+    modelId: tokenUsage.modelId,
+    credentialSource: tokenUsage.credentialSource,
+    projectId: input.projectId,
+  });
+}
+
+async function recordAiCallTokenUsage(input: AiCallTokenUsageInput & { tokenUsage: AiTokenUsage }) {
+  const tokenUsage = input.tokenUsage;
+
+  const operationKey = `ai-call:${input.source}:${randomUUID()}`;
+  try {
+    const result = await trackAiCreditUsageInAutumn({
+      organizationId: input.organizationId,
+      parentOperationKey: operationKey,
+      tokenUsage,
+      source: input.source,
+      modelId: input.modelId,
+      credentialSource: input.credentialSource,
+      interactionId: input.interactionId ?? undefined,
+      dimensions: input.projectId ? { project_id: input.projectId } : undefined,
+    });
+
+    if (isErr(result)) {
+      logAgentRuntimeUsageError("AI call token tracking failed", {
+        organizationId: input.organizationId,
+        operationKey,
+        source: input.source,
+        error: formatUsageControlError(result.error),
+      });
+    }
+  } catch (error) {
+    logAgentRuntimeUsageError("AI call token tracking threw", {
+      organizationId: input.organizationId,
+      operationKey,
+      source: input.source,
+      err: serializeErrorForLog(error),
+    });
+  }
 }

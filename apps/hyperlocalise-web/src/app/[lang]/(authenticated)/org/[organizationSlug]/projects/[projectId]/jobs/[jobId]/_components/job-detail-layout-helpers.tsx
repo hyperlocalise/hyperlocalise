@@ -17,6 +17,11 @@ import type { IntlShape } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/primitives/cn";
+import {
+  formatJobFailureReason,
+  isAgentAssignedJob,
+  readJobFailureDetails,
+} from "@/lib/projects/jobs/job-failure-details";
 import { nativeJobSourceFileDisplayLabel } from "@/lib/projects/jobs/native-job-source-file-display";
 import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
 import type { TmsProviderLiveJobDetail } from "@/lib/providers/jobs/tms-provider-live";
@@ -256,6 +261,7 @@ export function jobDetailTaskProperties(
         ) : null,
     },
     {
+      id: "due-date",
       label: intl.formatMessage(messages.labelDueDate),
       value: formatJobDetailDate(input.externalDueDate),
     },
@@ -313,7 +319,7 @@ export function jobDetailTaskLayoutFromRecord(
     updatedAt: job.updatedAt,
     externalProviderKind: job.externalProviderKind,
     externalStatus: job.externalStatus,
-    externalDueDate: job.externalDueDate,
+    externalDueDate: job.externalDueDate ?? job.dueAt ?? null,
     externalTargetLocales: job.externalTargetLocales,
     externalAssignedUsers: job.externalAssignedUsers,
     externalJobId: job.externalJobId,
@@ -324,11 +330,37 @@ export function jobDetailTaskLayoutFromRecord(
     kind: job.kind,
     nativeTargetLocales: getInputPayloadStringArray(job, "targetLocales"),
     sourceFilesMetric:
-      sourcePath ??
-      (isProviderBackedJob(job) ? null : intl.formatMessage(messages.sourceFilesLinked)),
+      job.type === "keys" && job.keyCount != null
+        ? intl.formatMessage(messages.keyJobStrings, { count: job.keyCount })
+        : (sourcePath ??
+          (isProviderBackedJob(job) ? null : intl.formatMessage(messages.sourceFilesLinked))),
   };
 
   const { properties, secondaryProperties } = jobDetailTaskProperties(input, intl);
+  if (isAgentAssignedJob(job)) {
+    const failure = readJobFailureDetails(job);
+    if (failure.reason) {
+      properties.splice(1, 0, {
+        id: "failure-reason",
+        label: intl.formatMessage(messages.labelFailureReason),
+        value: formatJobFailureReason(failure.reason),
+      });
+    }
+    if (failure.failedLocales.length > 0) {
+      properties.splice(failure.reason ? 2 : 1, 0, {
+        id: "failed-locales",
+        label: intl.formatMessage(messages.labelFailedLocales),
+        value: failure.failedLocales.join(", "),
+      });
+    }
+    if (failure.followUpJobId) {
+      secondaryProperties.push({
+        id: "follow-up-job",
+        label: intl.formatMessage(messages.labelFollowUpJob),
+        value: failure.followUpJobId,
+      });
+    }
+  }
 
   return {
     input,

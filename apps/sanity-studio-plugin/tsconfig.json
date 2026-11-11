@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.settings",
+  "include": [
+    "./src",
+    "./package.config.ts",
+    "./sanity.config.ts",
+    "./sanity.cli.ts",
+    "./dev-studio"
+  ]
+}

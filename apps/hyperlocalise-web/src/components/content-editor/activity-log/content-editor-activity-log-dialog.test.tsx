@@ -62,10 +62,15 @@ describe("ContentEditorActivityLogButton", () => {
 
     expect(await screen.findByRole("heading", { name: "Activity" })).toBeInTheDocument();
     expect(screen.getByText(/approved a string/)).toBeInTheDocument();
-    expect(activityLogsMock).toHaveBeenCalledWith("acme", "project-1", {
-      sourcePath: "locales/en.json",
-      cursor: undefined,
-      limit: 50,
-    });
+    expect(activityLogsMock).toHaveBeenCalledWith(
+      "acme",
+      "project-1",
+      {
+        sourcePath: "locales/en.json",
+        cursor: undefined,
+        limit: 50,
+      },
+      { signal: expect.any(AbortSignal) },
+    );
   });
 });

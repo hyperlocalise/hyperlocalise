@@ -15,8 +15,9 @@ import (
 const maxTokenLength = 512
 
 type apiServer struct {
-	auth  authenticator
-	store resourceStore
+	auth     authenticator
+	store    resourceStore
+	outbound outboundIPLookup
 }
 
 func newHandler(auth authenticator, stores ...resourceStore) http.Handler {
@@ -24,14 +25,44 @@ func newHandler(auth authenticator, stores ...resourceStore) http.Handler {
 	if len(stores) > 0 {
 		store = stores[0]
 	}
-	s := apiServer{auth: auth, store: store}
+	return newHandlerWithOutbound(auth, store, nil)
+}
+
+func newHandlerWithOutbound(auth authenticator, store resourceStore, outbound outboundIPLookup) http.Handler {
+	if outbound == nil {
+		outbound = &liveOutboundIP{}
+	}
+	s := apiServer{auth: auth, store: store, outbound: outbound}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", s.health)
+	mux.HandleFunc("/outbound-ip", s.outboundIP)
 	mux.HandleFunc("/openapi.yaml", s.openAPISpec)
 	mux.HandleFunc("/docs", s.docs)
 	mux.HandleFunc("/v1/me", s.me)
 	mux.HandleFunc("/v1/projects", s.projects)
 	mux.HandleFunc("/v1/projects/", s.project)
+	mux.HandleFunc("/v1/projects/{projectId}", s.projectDetail)
+	mux.HandleFunc("/v1/projects/{projectId}/locales", s.projectLocales)
+	mux.HandleFunc("/v1/projects/{projectId}/strings", s.projectStrings)
+	mux.HandleFunc("/v1/projects/{projectId}/strings/batch", s.projectStringsBatch)
+	mux.HandleFunc("/v1/projects/{projectId}/strings/{stringId}", s.projectString)
+	mux.HandleFunc("/v1/projects/{projectId}/strings/{stringId}/translations", s.stringTranslations)
+	mux.HandleFunc("/v1/projects/{projectId}/strings/{stringId}/translations/{locale}", s.stringTranslation)
+	mux.HandleFunc("/v1/projects/{projectId}/translations", s.projectTranslations)
+	mux.HandleFunc("/v1/projects/{projectId}/bilingual-file", s.projectBilingualFile)
+	mux.HandleFunc("/v1/glossaries", s.glossaries)
+	mux.HandleFunc("/v1/glossaries/{glossaryId}", s.glossary)
+	mux.HandleFunc("/v1/glossaries/{glossaryId}/terms", s.glossaryTerms)
+	mux.HandleFunc("/v1/glossaries/{glossaryId}/export", s.glossaryExport)
+	mux.HandleFunc("/v1/glossaries/{glossaryId}/import", s.glossaryImport)
+	mux.HandleFunc("/v1/glossaries/{glossaryId}/import-reports/{reportId}", s.glossaryImportReport)
+	mux.HandleFunc("/v1/translation-memories", s.memories)
+	mux.HandleFunc("/v1/translation-memories/{memoryId}", s.memory)
+	mux.HandleFunc("/v1/translation-memories/{memoryId}/entries", s.memoryEntries)
+	mux.HandleFunc("/v1/translation-memories/{memoryId}/export", s.memoryExport)
+	mux.HandleFunc("/v1/translation-memories/{memoryId}/import", s.memoryImport)
+	mux.HandleFunc("/v1/jobs", s.jobs)
+	mux.HandleFunc("/v1/jobs/{jobId}", s.job)
 	mux.HandleFunc("/v1/queries", s.queries)
 	mux.HandleFunc("/v1/queries/", s.query)
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {

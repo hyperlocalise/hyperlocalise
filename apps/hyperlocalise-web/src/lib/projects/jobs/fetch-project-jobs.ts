@@ -16,8 +16,8 @@ import {
   openJobStatusValues,
   overviewTriageJobStatusValues,
 } from "@/api/routes/project/job.schema";
-import { parseApiJsonResponse, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import type { GoSvcJobApi } from "@/lib/go-svc/go-svc-job-api";
 import { readTmsProviderListResponse } from "@/lib/providers/jobs/tms-provider-list-fetch";
 
 const openJobStatuses = new Set<string>(openJobStatusValues);
@@ -44,29 +44,16 @@ function overviewTriageStatusRank(status: string) {
 }
 
 export async function fetchNativeProjectJobs(
+  jobApi: GoSvcJobApi,
   organizationSlug: string,
   projectId: string,
   options?: { open?: boolean; triage?: boolean; limit?: number },
 ) {
-  const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$get({
-    param: { organizationSlug, projectId },
-    query: {
-      limit: String(options?.limit ?? 50),
-      ...(options?.triage ? { triage: true } : options?.open ? { open: true } : {}),
-    },
+  const { jobs } = await jobApi.listProject(organizationSlug, projectId, {
+    limit: options?.limit ?? 50,
+    ...(options?.triage ? { triage: true } : options?.open ? { open: true } : {}),
   });
-
-  if (!response.ok) {
-    throw await readApiResponseError(response, "Failed to load project jobs");
-  }
-
-  const { jobs } = await parseApiJsonResponse(
-    response,
-    jobsResponseSchema,
-    "Invalid project jobs response",
-  );
-
-  return jobs;
+  return jobsResponseSchema.parse({ jobs }).jobs;
 }
 
 export async function fetchTmsProjectJobs(

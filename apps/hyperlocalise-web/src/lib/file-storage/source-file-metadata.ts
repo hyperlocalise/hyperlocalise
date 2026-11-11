@@ -51,6 +51,8 @@ export function sourceContentType(path: string) {
       return "text/markdown";
     case "asciidoc":
       return "text/asciidoc";
+    case "txt":
+      return "text/plain; charset=utf-8";
     case "csv":
       return "text/csv";
     case "tsv":
@@ -89,6 +91,8 @@ export function sourceContentType(path: string) {
       return "application/vnd.ms-excel";
     case "pptx":
       return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    case "pdf":
+      return "application/pdf";
     default:
       return "application/octet-stream";
   }

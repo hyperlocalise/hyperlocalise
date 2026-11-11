@@ -12,12 +12,19 @@
  */
 import { GoSvcActivityLogApi } from "./go-svc-activity-log-api";
 import { GoSvcApiKeyApi } from "./go-svc-api-key-api";
+import { GoSvcBillingApi } from "./go-svc-billing-api";
 import { GoSvcCatApi } from "./go-svc-cat-api";
+import { GoSvcConversationApi } from "./go-svc-conversation-api";
 import { GoSvcDictionaryApi } from "./go-svc-dictionary-api";
+import { GoSvcEditorExportApi } from "./go-svc-editor-export-api";
 import { GoSvcGlossaryApi } from "./go-svc-glossary-api";
+import { GoSvcGuidelinesApi } from "./go-svc-guidelines-api";
 import { GoSvcIssueSheetApi } from "./go-svc-issue-sheet-api";
+import { GoSvcInboxApi } from "./go-svc-inbox-api";
+import { GoSvcJobApi } from "./go-svc-job-api";
 import { GoSvcMemoryApi } from "./go-svc-memory-api";
 import { GoSvcQaReportApi } from "./go-svc-qa-report-api";
+import { GoSvcReportsApi } from "./go-svc-reports-api";
 import {
   DEFAULT_GO_SVC_BASE_URL,
   GoSvcClientError,
@@ -28,8 +35,13 @@ import { GoSvcDomainsApi } from "./go-svc-domains-api";
 import { createHyperlabGoSvcClient, type HyperlabGoSvcClient } from "./go-svc-hyperlab-client";
 import { GoSvcMemberApi } from "./go-svc-member-api";
 import { GoSvcOverviewApi } from "./go-svc-overview-api";
+import { GoSvcPdfApi } from "./go-svc-pdf-api";
+import { GoSvcPlaintextApi } from "./go-svc-plaintext-api";
 import { GoSvcProjectApi } from "./go-svc-project-api";
 import { GoSvcTeamApi } from "./go-svc-team-api";
+import { GoSvcTmsApi } from "./go-svc-tms-api";
+import { GoSvcTranslationFileApi } from "./go-svc-translation-file-api";
+import { GoSvcWorkspaceApi } from "./go-svc-workspace-api";
 
 export { DEFAULT_GO_SVC_BASE_URL, GoSvcClientError, type GoSvcClientOptions };
 export type { HyperlabGoSvcClient };
@@ -38,35 +50,59 @@ export class GoSvcClient {
   readonly baseUrl: string;
   readonly activityLog: GoSvcActivityLogApi;
   readonly apiKey: GoSvcApiKeyApi;
+  readonly billing: GoSvcBillingApi;
   readonly cat: GoSvcCatApi;
+  readonly conversation: GoSvcConversationApi;
   readonly dictionary: GoSvcDictionaryApi;
+  readonly editorExport: GoSvcEditorExportApi;
   readonly domains: GoSvcDomainsApi;
   readonly glossary: GoSvcGlossaryApi;
+  readonly guidelines: GoSvcGuidelinesApi;
   readonly hyperlab: HyperlabGoSvcClient;
   readonly issueSheet: GoSvcIssueSheetApi;
+  readonly inbox: GoSvcInboxApi;
+  readonly job: GoSvcJobApi;
   readonly member: GoSvcMemberApi;
   readonly memory: GoSvcMemoryApi;
   readonly overview: GoSvcOverviewApi;
+  readonly pdf: GoSvcPdfApi;
+  readonly plaintext: GoSvcPlaintextApi;
   readonly project: GoSvcProjectApi;
   readonly qaReport: GoSvcQaReportApi;
+  readonly reports: GoSvcReportsApi;
   readonly team: GoSvcTeamApi;
+  readonly tms: GoSvcTmsApi;
+  readonly translationFile: GoSvcTranslationFileApi;
+  readonly workspace: GoSvcWorkspaceApi;
 
   constructor(options: GoSvcClientOptions) {
     const request = new GoSvcRequest(options);
     this.baseUrl = request.baseUrl;
     this.activityLog = new GoSvcActivityLogApi(request);
     this.apiKey = new GoSvcApiKeyApi(request);
+    this.billing = new GoSvcBillingApi(request);
     this.cat = new GoSvcCatApi(request);
+    this.conversation = new GoSvcConversationApi(request);
     this.dictionary = new GoSvcDictionaryApi(request);
+    this.editorExport = new GoSvcEditorExportApi(request);
     this.domains = new GoSvcDomainsApi(request);
     this.glossary = new GoSvcGlossaryApi(request);
+    this.guidelines = new GoSvcGuidelinesApi(request);
     this.hyperlab = createHyperlabGoSvcClient(request);
     this.issueSheet = new GoSvcIssueSheetApi(request);
+    this.inbox = new GoSvcInboxApi(request);
+    this.job = new GoSvcJobApi(request);
     this.member = new GoSvcMemberApi(request);
     this.memory = new GoSvcMemoryApi(request);
     this.overview = new GoSvcOverviewApi(request);
+    this.pdf = new GoSvcPdfApi(request);
+    this.plaintext = new GoSvcPlaintextApi(request);
     this.project = new GoSvcProjectApi(request);
     this.qaReport = new GoSvcQaReportApi(request);
+    this.reports = new GoSvcReportsApi(request);
     this.team = new GoSvcTeamApi(request);
+    this.tms = new GoSvcTmsApi(request);
+    this.translationFile = new GoSvcTranslationFileApi(request);
+    this.workspace = new GoSvcWorkspaceApi(request);
   }
 }

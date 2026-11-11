@@ -12,8 +12,14 @@
  */
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { getManagedLanguageModel } from "@/lib/providers/language-model";
-import { withAgentRuntimeUsageMetering } from "@/lib/billing/agent-runtime-usage";
+import {
+  getManagedLanguageModel,
+  hyperlocaliseManagedGatewayModelId,
+} from "@/lib/providers/language-model";
+import {
+  extractGenerateResultTokenUsage,
+  withAgentRuntimeUsageMetering,
+} from "@/lib/billing/agent-runtime-usage";
 import {
   imageTextRegionSchema,
   imageTextRegionsSchema,
@@ -25,15 +31,20 @@ export async function extractImageText(input: {
   content: Uint8Array;
   contentType: string;
   organizationId: string;
+  projectId?: string;
   fileId: string;
   signal?: AbortSignal;
 }): Promise<Result<ImageTextRegion[], { code: "image_text_extraction_failed" }>> {
   try {
-    const regions = await withAgentRuntimeUsageMetering({
+    const { regions } = await withAgentRuntimeUsageMetering({
       organizationId: input.organizationId,
       operationKey: `image-text-extraction:${input.fileId}:${crypto.randomUUID()}`,
       source: "image_text_extraction",
-      dimensions: { surface: "image", file_id: input.fileId },
+      dimensions: {
+        surface: "image",
+        file_id: input.fileId,
+        ...(input.projectId ? { project_id: input.projectId } : {}),
+      },
       run: async () => {
         const result = await generateText({
           model: getManagedLanguageModel(),
@@ -52,14 +63,21 @@ export async function extractImageText(input: {
             },
           ],
         });
-        return imageTextRegionsSchema.parse(
-          result.output.regions.map((region) => ({
-            ...region,
-            id: crypto.randomUUID(),
-            translations: {},
-          })),
-        );
+        return {
+          regions: imageTextRegionsSchema.parse(
+            result.output.regions.map((region) => ({
+              ...region,
+              id: crypto.randomUUID(),
+              translations: {},
+            })),
+          ),
+          usage: result.usage,
+        };
       },
+      extractTokenUsage: extractGenerateResultTokenUsage,
+      aiCreditModelId: hyperlocaliseManagedGatewayModelId,
+      aiCreditCredentialSource: "gateway",
+      aiCreditSource: "image_text_extraction",
     });
     return ok(regions);
   } catch {

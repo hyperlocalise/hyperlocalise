@@ -45,6 +45,9 @@ type validateSegmentRequest struct {
 	Modes         []string `json:"modes,omitempty"`
 	TargetLocale  string   `json:"targetLocale,omitempty"`
 	AcceptedWords []string `json:"acceptedWords,omitempty"`
+	MessageFormat string   `json:"messageFormat,omitempty"`
+	// PlaceholderPatterns are the file's custom placeholder regular expressions.
+	PlaceholderPatterns []string `json:"placeholderPatterns,omitempty"`
 }
 
 type validateSegmentResponse struct {
@@ -53,35 +56,50 @@ type validateSegmentResponse struct {
 }
 
 type handler struct {
-	validate           func(segmentvalidate.Request) []segmentvalidate.Check
-	spellChecker       SpellChecker
-	ofrep              *experiment.OFREPHandler
-	research           researchService
-	gsc                gscService
-	objects            *objectstore.Registry
-	guidelines         *guidelines.Service
-	dictionaries       *dictionaryAPI
-	glossaries         *glossaryAPI
-	memories           *memoryAPI
-	qaReports          *qaReportAPI
-	teams              *teamAPI
-	members            *memberAPI
-	apiKeys            *apiKeyAPI
-	issueSheets        *issueSheetAPI
-	notifications      *notificationsAPI
-	activityLogs       *activityLogAPI
-	activityLog        activityLogPublisher
-	contentEditor      *editorCatAPI
-	projects           *projectAPI
-	overview           *overviewAPI
-	publicTranslations *publicTranslationsAPI
-	workspace          *workspaceAPI
-	autumn             *autumn.Client
-	knowledgeMemories  *knowledgeMemoryAPI
-	valkey             valkeyHealthClient
-	overviewCache      dictionaryWordsCache
-	researchCache      domainResearchCache
-	postgres           healthPinger
+	validate             func(segmentvalidate.Request) []segmentvalidate.Check
+	spellChecker         SpellChecker
+	ofrep                *experiment.OFREPHandler
+	research             researchService
+	gsc                  gscService
+	objects              *objectstore.Registry
+	guidelines           *guidelines.Service
+	dictionaries         *dictionaryAPI
+	glossaries           *glossaryAPI
+	memories             *memoryAPI
+	qaReports            *qaReportAPI
+	teams                *teamAPI
+	members              *memberAPI
+	workspaceSettings    *workspaceSettingsAPI
+	sessionOrganizations *sessionOrganizationsAPI
+	sessionAccount       *sessionAccountAPI
+	sessionOnboarding    *sessionOnboardingAPI
+	irisGeneration       *irisGenerationAPI
+	apiKeys              *apiKeyAPI
+	issueSheets          *issueSheetAPI
+	notifications        *notificationsAPI
+	activityLogs         *activityLogAPI
+	billing              *billingAPI
+	activityLog          activityLogPublisher
+	contentEditor        *editorCatAPI
+	projects             *projectAPI
+	conversations        *conversationAPI
+	automations          *automationAPI
+	overview             *overviewAPI
+	publicTranslations   *publicTranslationsAPI
+	publicJobs           *publicJobsAPI
+	publicMemory         *publicMemoryAPI
+	workspace            *workspaceAPI
+	reports              *reportingAPI
+	autumn               *autumn.Client
+	deepAudits           deepAuditStarter
+	knowledgeMemories    *knowledgeMemoryAPI
+	guidelineDocuments   *guidelineDocumentAPI
+	guidelineCheck       *guidelineCheckAPI
+	guidelineRetrieve    *guidelineRetrieveAPI
+	valkey               valkeyHealthClient
+	overviewCache        dictionaryWordsCache
+	researchCache        domainResearchCache
+	postgres             healthPinger
 }
 
 func newHandler() *handler {
@@ -118,17 +136,42 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	if h.members != nil {
 		h.members.register(mux, verifier)
 	}
+	if h.workspaceSettings != nil {
+		h.workspaceSettings.register(mux, verifier)
+	}
+	if h.sessionOrganizations != nil {
+		h.sessionOrganizations.register(mux, verifier)
+	}
+	if h.sessionAccount != nil {
+		h.sessionAccount.register(mux, verifier)
+	}
+	if h.sessionOnboarding != nil {
+		h.sessionOnboarding.register(mux, verifier)
+	}
+	if h.irisGeneration != nil {
+		h.irisGeneration.register(mux, verifier)
+	}
 	if h.apiKeys != nil {
 		h.apiKeys.register(mux, verifier)
 	}
 	if h.activityLogs != nil {
 		h.activityLogs.register(mux, verifier)
 	}
+	if h.billing != nil {
+		h.billing.register(mux, verifier)
+	}
 	if h.contentEditor != nil {
 		h.contentEditor.register(mux, verifier)
+		h.contentEditor.registerInternal(mux)
 	}
 	if h.projects != nil {
 		h.projects.register(mux, verifier)
+	}
+	if h.conversations != nil {
+		h.conversations.register(mux, verifier)
+	}
+	if h.automations != nil {
+		h.automations.register(mux, verifier)
 	}
 	if h.overview != nil {
 		h.overview.register(mux, verifier)
@@ -136,14 +179,59 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	if h.publicTranslations != nil {
 		h.publicTranslations.register(mux)
 	}
+	if h.publicJobs != nil {
+		h.publicJobs.register(mux)
+	}
+	if h.publicMemory != nil {
+		h.publicMemory.register(mux)
+	}
 	if h.workspace != nil {
 		h.registerDomainResearch(mux, verifier)
 		h.registerDomainSearchConsole(mux, verifier)
 		h.registerHyperlab(mux, verifier)
-		(&linkedDomainAPI{workspace: h.workspace, research: h.research, autumn: h.autumn}).register(mux, verifier)
+		(&linkedDomainAPI{workspace: h.workspace, research: h.research, autumn: h.autumn, deepAudits: h.deepAudits}).register(mux, verifier)
 	}
-	if h.knowledgeMemories != nil {
-		h.knowledgeMemories.register(mux, verifier)
+	if h.reports != nil {
+		h.reports.register(mux, verifier)
+		h.reports.registerInternal(mux)
+	}
+	if h.guidelineDocuments != nil {
+		h.guidelineDocuments.register(mux, verifier)
+		mux.HandleFunc("POST /internal/guidelines/sweep", func(w http.ResponseWriter, r *http.Request) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+				return
+			}
+			if !requireServerCallToken(w, r) {
+				return
+			}
+			h.guidelineDocuments.sweep(w, r)
+		})
+	}
+	if h.guidelineCheck != nil {
+		h.guidelineCheck.register(mux, verifier)
+		mux.HandleFunc("POST /internal/guidelines/check", func(w http.ResponseWriter, r *http.Request) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+				return
+			}
+			if !requireServerCallToken(w, r) {
+				return
+			}
+			h.guidelineCheck.internalCheck(w, r)
+		})
+	}
+	if h.guidelineRetrieve != nil {
+		mux.HandleFunc("POST /internal/guidelines/retrieve", func(w http.ResponseWriter, r *http.Request) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+				return
+			}
+			if !requireServerCallToken(w, r) {
+				return
+			}
+			h.guidelineRetrieve.internalRetrieve(w, r)
+		})
 	}
 	validate := authMiddleware(verifier)(http.HandlerFunc(h.validateSegment))
 	editorExport := authMiddleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -163,7 +251,44 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 		}
 		h.validateSegment(w, r)
 	})
+	mux.HandleFunc("POST /internal/pdf/apply", func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" || !requireServerCallToken(w, r) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+			}
+			return
+		}
+		h.applyPdf(w, r)
+	})
+	mux.HandleFunc("POST /internal/plaintext/apply", func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" || !requireServerCallToken(w, r) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+			}
+			return
+		}
+		h.applyPlaintext(w, r)
+	})
+	// The web server checks access and loads the file before it calls this stateless writer.
+	mux.HandleFunc("POST /internal/translation-files/render", func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" || !requireServerCallToken(w, r) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+			}
+			return
+		}
+		h.renderTranslationFile(w, r)
+	})
 	mux.Handle("POST /v1/editor-export/filtered/serialize", editorExport)
+	mux.HandleFunc("POST /internal/editor-export/filtered/parse", func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" || !requireServerCallToken(w, r) {
+			if os.Getenv("WORKOS_COOKIE_PASSWORD") == "" {
+				writeUnauthorized(w, "service authentication unavailable")
+			}
+			return
+		}
+		h.parseEditorFilteredExport(w, r)
+	})
 	for pattern, route := range map[string]http.HandlerFunc{
 		"PUT /v1/storage/object":         h.putObject,
 		"POST /v1/storage/read":          h.getObject,
@@ -202,6 +327,11 @@ func (h *handler) health(w http.ResponseWriter, r *http.Request) {
 		glossaryInterchange = h.glossaries.interchange
 	}
 	glossaryInterchangeHealth := checkDependencyHealth(r.Context(), glossaryInterchange)
+	var guidelineIngest healthPinger
+	if h.guidelineDocuments != nil && h.guidelineDocuments.publisher != nil {
+		guidelineIngest = h.guidelineDocuments.publisher
+	}
+	guidelineIngestHealth := checkDependencyHealth(r.Context(), guidelineIngest)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -209,6 +339,7 @@ func (h *handler) health(w http.ResponseWriter, r *http.Request) {
 		"status":               "ok",
 		"activity_log":         activityLog,
 		"glossary_interchange": glossaryInterchangeHealth,
+		"guideline_ingest":     guidelineIngestHealth,
 		"valkey":               valkey,
 		"postgres":             postgres,
 	})

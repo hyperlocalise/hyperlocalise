@@ -94,6 +94,82 @@ describe("ContentEditorFileViewPanel", () => {
     expect(onUpload).toHaveBeenCalledTimes(1);
   });
 
+  it("toggles comparison for plain-text files in code mode", async () => {
+    const user = userEvent.setup();
+    window.localStorage.removeItem("content-editor-file-view:source-pane:v1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("Hello\n\n---\n\n```\ncode\n```\n\nWorld\n")),
+    );
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorFileViewPanel
+          segment={imageSegment({ contentKind: "document", sourcePath: "notes.txt" })}
+          viewerId="markdown"
+          onUpload={vi.fn(async () => undefined)}
+          onApprove={vi.fn()}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    const targetArea = (await screen.findByLabelText("Document source")) as HTMLTextAreaElement;
+    expect(targetArea.value).toContain("---");
+    expect(targetArea.value).toContain("```");
+    expect(screen.queryByRole("region", { name: "Source (en)" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Compare original" }));
+    expect(screen.getByRole("region", { name: "Source (en)" })).toBeInTheDocument();
+    const sourceArea = screen.getByRole("textbox", { name: "Source (en)" }) as HTMLTextAreaElement;
+    expect(sourceArea.value).toContain("---");
+    expect(sourceArea.value).toContain("```");
+
+    await user.click(screen.getByRole("button", { name: "Close comparison" }));
+    expect(screen.queryByRole("region", { name: "Source (en)" })).not.toBeInTheDocument();
+  });
+
+  it("banners an untranslated txt file and blocks approval until saved", async () => {
+    const user = userEvent.setup();
+    window.localStorage.removeItem("content-editor-file-view:source-pane:v1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("Original notes\n")),
+    );
+    const onUpload = vi.fn(async () => undefined);
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorFileViewPanel
+          segment={imageSegment({
+            id: "txt-untranslated-1",
+            contentKind: "document",
+            sourcePath: "notes.txt",
+            targetAssetUrl: null,
+            targetText: "unsaved draft",
+          })}
+          viewerId="markdown"
+          onUpload={onUpload}
+          onApprove={vi.fn()}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    const targetArea = (await screen.findByLabelText("Document source")) as HTMLTextAreaElement;
+    expect(targetArea.value).toContain("Original notes");
+    expect(screen.getByText(/showing the source text as a starting point/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
+
+    await user.click(targetArea);
+    await user.keyboard("!");
+    await user.click(screen.getByLabelText("Document source"));
+    await user.keyboard("{Control>}s{/Control}");
+    await waitFor(() => expect(onUpload).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/showing the source text as a starting point/),
+      ).not.toBeInTheDocument(),
+    );
+    await waitFor(() => expect(screen.getByRole("button", { name: "Approve" })).toBeEnabled());
+  });
+
   it("renders source pane before translated pane", () => {
     render(
       <ContentEditorTestProviders>
@@ -220,6 +296,36 @@ describe("ContentEditorFileViewPanel", () => {
 
     expect(onPrevious).toHaveBeenCalledTimes(1);
     expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the HTML file preview in file view", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<table><tr><td>Cell</td></tr></table>")),
+    );
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorFileViewPanel
+          segment={imageSegment({
+            contentKind: "document",
+            sourcePath: "pages/home.html",
+            key: "pages/home.html",
+          })}
+          viewerId="html"
+          filename="home.html"
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    expect(await screen.findByTitle("Translated (de)")).toHaveAttribute(
+      "srcdoc",
+      "<table><tr><td>Cell</td></tr></table>",
+    );
+    expect(screen.getByTitle("Source (en)")).toHaveAttribute(
+      "srcdoc",
+      "<table><tr><td>Cell</td></tr></table>",
+    );
+    expect(screen.getByRole("button", { name: /Close comparison/i })).toBeInTheDocument();
   });
 
   it("closes comparison when entering a markdown viewer without a saved preference", () => {

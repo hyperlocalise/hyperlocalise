@@ -23,6 +23,21 @@ function clientWith(fetchMock: ReturnType<typeof vi.fn>, getAccessToken = () => 
 }
 
 describe("GoSvcClient", () => {
+  it("calls the browser's fetch on nothing but window, which refuses anything else", async () => {
+    const receivers: unknown[] = [];
+    vi.stubGlobal("fetch", function (this: unknown) {
+      receivers.push(this);
+      return Promise.resolve(Response.json({ dictionaries: [], total: 0 }));
+    });
+    try {
+      await new GoSvcClient({ getAccessToken: () => "access-token" }).dictionary.list("acme");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(receivers).toHaveLength(1);
+    expect([undefined, globalThis]).toContain(receivers[0]);
+  });
+
   it("uses the AWS origin, Bearer access token, and no cookies", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       Response.json({
@@ -198,6 +213,16 @@ describe("GoSvcClient", () => {
           member: { workosUserId: "user_1", email: "ada@example.com", role: "developer" },
         }),
       )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(
+        Response.json({
+          blockedReason: null,
+          apiKeys: [],
+          automations: [],
+          apiKeyTotal: 0,
+          automationTotal: 0,
+        }),
+      )
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     const client = clientWith(fetchMock);
 
@@ -205,6 +230,14 @@ describe("GoSvcClient", () => {
     await client.member.invite("acme", { email: "ada@example.com", role: "member" });
     await client.member.update("acme", "user_1", { role: "developer" });
     await client.member.remove("acme", "user_1");
+    await expect(client.member.leavePreview("acme")).resolves.toEqual({
+      blockedReason: null,
+      apiKeys: [],
+      automations: [],
+      apiKeyTotal: 0,
+      automationTotal: 0,
+    });
+    await client.member.leave("acme");
 
     expect(fetchMock.mock.calls[0][0]).toBe(`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/members`);
     expect((fetchMock.mock.calls[1][1] as RequestInit).method).toBe("POST");
@@ -216,6 +249,76 @@ describe("GoSvcClient", () => {
     );
     expect((fetchMock.mock.calls[2][1] as RequestInit).method).toBe("PATCH");
     expect((fetchMock.mock.calls[3][1] as RequestInit).method).toBe("DELETE");
+    expect(fetchMock.mock.calls[4][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/members/leave`,
+    );
+    expect(fetchMock.mock.calls[5][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/members/leave`,
+    );
+    expect((fetchMock.mock.calls[5][1] as RequestInit).method).toBe("POST");
+  });
+
+  it("reads and updates workspace settings", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          workspace: {
+            id: "org-1",
+            workosOrganizationId: "org_1",
+            name: "Acme",
+            slug: "acme",
+            lifecycleStatus: "active",
+            archivedAt: null,
+            identityProvider: "workos",
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          workspace: {
+            id: "org-1",
+            workosOrganizationId: "org_1",
+            name: "Acme Localization",
+            slug: "acme-localization",
+            lifecycleStatus: "active",
+            archivedAt: null,
+            identityProvider: "workos",
+          },
+          redirectTo: "/org/acme-localization/settings/account",
+        }),
+      );
+    const client = clientWith(fetchMock);
+
+    await client.workspace.get("acme");
+    const updated = await client.workspace.update("acme", {
+      name: "Acme Localization",
+      slug: "acme-localization",
+    });
+
+    expect(updated.redirectTo).toBe("/org/acme-localization/settings/account");
+    expect(fetchMock.mock.calls[0][0]).toBe(`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/workspace`);
+    expect(fetchMock.mock.calls[1][0]).toBe(`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/workspace`);
+    expect((fetchMock.mock.calls[1][1] as RequestInit).method).toBe("PATCH");
+    expect((fetchMock.mock.calls[1][1] as RequestInit).body).toBe(
+      '{"name":"Acme Localization","slug":"acme-localization"}',
+    );
+  });
+
+  it("reads workspace resource usage", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        resourceUsage: { seats: 2, projects: 1, automations: 0, integrations: 3 },
+      }),
+    );
+    const client = clientWith(fetchMock);
+
+    await expect(client.billing.resourceUsage("acme")).resolves.toEqual({
+      resourceUsage: { seats: 2, projects: 1, automations: 0, integrations: 3 },
+    });
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/billing/resource-usage`,
+    );
   });
 
   it("accepts successful empty responses", async () => {
@@ -469,6 +572,73 @@ describe("GoSvcClient", () => {
     expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe("POST");
   });
 
+  it("lists translation memories from go-svc with source and project filters", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        memories: [],
+        total: 0,
+      }),
+    );
+    const client = clientWith(fetchMock);
+
+    await client.memory.list("acme", {
+      limit: 25,
+      offset: 50,
+      source: "native",
+      projectId: "project-1",
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories?limit=25&offset=50&source=native&projectId=project-1`,
+    );
+  });
+
+  it("lists, reads, and updates translation memory entries from go-svc", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          memoryEntries: [],
+          nextCursor: null,
+          total: 0,
+          pagination: { limit: 50, returned: 0, hasMore: false },
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          memoryEntry: { id: "entry-1" },
+          capabilities: { canEdit: true, readOnlyReason: null },
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          memoryEntry: { id: "entry-1", targetText: "Salut" },
+          capabilities: { canEdit: true, readOnlyReason: null },
+        }),
+      );
+    const client = clientWith(fetchMock);
+
+    await client.memory.entries.list("acme", "memory-1", {
+      limit: 50,
+      search: "invoice",
+      sourceLocale: "en-US",
+      reviewStatus: "pending",
+    });
+    await client.memory.entries.get("acme", "memory-1", "entry-1");
+    await client.memory.entries.update("acme", "memory-1", "entry-1", {
+      expectedVersion: 1,
+      targetText: "Salut",
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories/memory-1/entries?limit=50&search=invoice&sourceLocale=en-US&reviewStatus=pending`,
+    );
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories/memory-1/entries/entry-1`,
+    );
+    expect((fetchMock.mock.calls[2][1] as RequestInit).method).toBe("PATCH");
+  });
+
   it("lists translation memory interchange attempts from go-svc", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       Response.json({
@@ -529,6 +699,72 @@ describe("GoSvcClient", () => {
     expect(fetchMock.mock.calls[1][0]).toBe(
       `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories/memory-1/import-attempts/attempt-1/download`,
     );
+  });
+
+  it("creates memory import uploads and queues apply", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(
+          {
+            attemptId: "attempt-1",
+            operation: "import",
+            status: "upload_pending",
+            upload: {
+              url: "https://storage.example/upload.tmx",
+              method: "PUT",
+              headers: { "Content-Type": ["application/xml"] },
+              expiresAt: "2026-10-06T10:00:00.000Z",
+            },
+          },
+          { status: 201 },
+        ),
+      )
+      .mockResolvedValueOnce(Response.json({ attemptId: "attempt-1", status: "queued" }));
+    const client = clientWith(fetchMock);
+
+    await expect(
+      client.memory.entries.createImportUpload("acme", "memory-1", {
+        format: "tmx",
+        sourceFilename: "memory.tmx",
+        contentType: "application/xml",
+      }),
+    ).resolves.toMatchObject({ attemptId: "attempt-1", status: "upload_pending" });
+    await expect(
+      client.memory.entries.queueImport("acme", "memory-1", {
+        attemptId: "attempt-1",
+        mode: "apply",
+      }),
+    ).resolves.toMatchObject({ attemptId: "attempt-1", status: "queued" });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories/memory-1/entries/import/uploads`,
+    );
+    expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe("POST");
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories/memory-1/entries/import`,
+    );
+    expect((fetchMock.mock.calls[1][1] as RequestInit).method).toBe("POST");
+  });
+
+  it("cancels a stale memory import upload session", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ attemptId: "attempt-1", status: "failed" }));
+    const client = clientWith(fetchMock);
+
+    await expect(
+      client.memory.entries.cancelImport("acme", "memory-1", { attemptId: "attempt-1" }),
+    ).resolves.toMatchObject({ attemptId: "attempt-1", status: "failed" });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories/memory-1/entries/import`,
+    );
+    expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe("POST");
+    expect(JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)).toMatchObject({
+      attemptId: "attempt-1",
+      mode: "cancel",
+    });
   });
 
   it("rejects invalid base URLs and non-absolute paths", async () => {
@@ -612,6 +848,77 @@ describe("GoSvcClient", () => {
     expect(init.method).toBe("DELETE");
   });
 
+  it("lists organization issues and runs bulk actions on org routes", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ issues: [], total: 0, summary: { total: 0 } }))
+      .mockResolvedValueOnce(
+        Response.json({
+          bulkAction: {
+            action: "unassign",
+            requested: 1,
+            succeeded: 1,
+            failed: 0,
+            unchanged: 0,
+            results: [],
+          },
+        }),
+      )
+      .mockResolvedValueOnce(Response.json({ issues: [] }))
+      .mockResolvedValueOnce(Response.json({ issue: { id: "issue_1" } }));
+    const client = clientWith(fetchMock);
+
+    await client.issueSheet.listOrg("acme / eu", { status: "open", projectId: "project/1" });
+    await client.issueSheet.bulkActions("acme / eu", {
+      action: "unassign",
+      issues: [{ issueId: "11111111-1111-4111-8111-111111111111", projectId: "project/1" }],
+    });
+    await client.issueSheet.searchOrg("acme / eu", { q: "copy", limit: 20 });
+    await client.issueSheet.getOrg("acme / eu", "WEB-1");
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method])).toEqual([
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/issues?status=open&projectId=project%2F1`,
+        "GET",
+      ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/issues/bulk-actions`, "POST"],
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/issue-sheet/search?q=copy&limit=20`,
+        "GET",
+      ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/issue-sheet/WEB-1`, "GET"],
+    ]);
+  });
+
+  it("lists conversations, messages, and linked jobs from native go-svc reads", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ conversations: [] }))
+      .mockResolvedValueOnce(Response.json({ conversation: { id: "conv-1" }, messages: [] }))
+      .mockResolvedValueOnce(Response.json({ messages: [] }))
+      .mockResolvedValueOnce(Response.json({ jobs: [] }));
+    const client = clientWith(fetchMock);
+
+    await client.conversation.list("acme / eu", {
+      limit: 50,
+      projectId: "project/1",
+      status: "active",
+    });
+    await client.conversation.get("acme / eu", "conv/1");
+    await client.conversation.listMessages("acme / eu", "conv/1");
+    await client.conversation.listJobs("acme / eu", "conv/1");
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method])).toEqual([
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/conversations?limit=50&projectId=project%2F1&status=active`,
+        "GET",
+      ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/conversations/conv%2F1`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/conversations/conv%2F1/messages`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/conversations/conv%2F1/jobs`, "GET"],
+    ]);
+  });
+
   it("encodes organization and issue-sheet path segments", () => {
     expect(orgPath("acme / eu", "dictionaries", "dict/1")).toBe(
       "/v1/orgs/acme%20%2F%20eu/dictionaries/dict%2F1",
@@ -622,5 +929,157 @@ describe("GoSvcClient", () => {
     expect(catPath("acme / eu", "project/1", "segments", "key/1", "target")).toBe(
       "/v1/orgs/acme%20%2F%20eu/projects/project%2F1/files/detail/cat/segments/key%2F1/target",
     );
+  });
+
+  it("lists jobs and project job status from native go-svc reads", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ jobs: [] }))
+      .mockResolvedValueOnce(Response.json({ jobs: [] }))
+      .mockResolvedValueOnce(Response.json({ job: { id: "job-1" } }))
+      .mockResolvedValueOnce(Response.json({ job: { id: "job-1" } }))
+      .mockResolvedValueOnce(Response.json({ job: { id: "job-1", status: "running" } }));
+    const client = clientWith(fetchMock);
+
+    await client.job.list("acme / eu", { status: "running", open: true, limit: 20 });
+    await client.job.listProject("acme / eu", "project/1", { kind: "translation" });
+    await client.job.get("acme / eu", "job/1");
+    await client.job.getProject("acme / eu", "project/1", "job/1");
+    await client.job.status("acme / eu", "project/1", "job/1");
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method])).toEqual([
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/jobs?status=running&open=true&limit=20`,
+        "GET",
+      ],
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/projects/project%2F1/jobs?kind=translation`,
+        "GET",
+      ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/jobs/job%2F1`, "GET"],
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/projects/project%2F1/jobs/job%2F1`,
+        "GET",
+      ],
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/projects/project%2F1/jobs/job%2F1/status`,
+        "GET",
+      ],
+    ]);
+  });
+
+  it("reads and mutates Crowdin TMS jobs through go-svc", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ jobs: [] }))
+      .mockResolvedValueOnce(Response.json({ jobs: [] }))
+      .mockResolvedValueOnce(Response.json({ jobs: [{ id: "ext:crowdin:7:11" }] }))
+      .mockResolvedValueOnce(Response.json({ job: { id: "ext:crowdin:7:10" } }))
+      .mockResolvedValueOnce(Response.json({ job: { id: "ext:crowdin:7:10" } }))
+      .mockResolvedValueOnce(Response.json({ job: { id: "ext:crowdin:7:10" } }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(Response.json({ files: [] }))
+      .mockResolvedValueOnce(Response.json({ comments: [] }))
+      .mockResolvedValueOnce(Response.json({ members: [] }));
+    const client = clientWith(fetchMock);
+
+    await client.tms.listJobs("acme", { mine: true, recent: false });
+    await client.tms.listProjectJobs("acme", "ext:crowdin:7", { mine: false });
+    await client.tms.createProjectJobs("acme", "ext:crowdin:7", {
+      title: "Homepage",
+      targetLocales: ["fr"],
+      fileIds: ["1"],
+    });
+    await client.tms.getJob("acme", "ext:crowdin:7:10");
+    await client.tms.updateJob("acme", "ext:crowdin:7:10", { title: "Renamed" });
+    await client.tms.updateJobDescription("acme", "ext:crowdin:7:10", "Notes");
+    await client.tms.deleteJob("acme", "ext:crowdin:7:10");
+    await client.tms.listJobFiles("acme", "ext:crowdin:7:10");
+    await client.tms.listJobComments("acme", "ext:crowdin:7:10");
+    await client.tms.listProjectMembers("acme", "ext:crowdin:7");
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method])).toEqual([
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/tms/jobs?mine=true&recent=false`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/projects/ext%3Acrowdin%3A7/jobs?mine=false`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/projects/ext%3Acrowdin%3A7/jobs`, "POST"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/jobs/ext%3Acrowdin%3A7%3A10`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/jobs/ext%3Acrowdin%3A7%3A10`, "PATCH"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/jobs/ext%3Acrowdin%3A7%3A10/description`, "PATCH"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/jobs/ext%3Acrowdin%3A7%3A10`, "DELETE"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/jobs/ext%3Acrowdin%3A7%3A10/files`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/jobs/ext%3Acrowdin%3A7%3A10/comments`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/projects/ext%3Acrowdin%3A7/members`, "GET"],
+    ]);
+  });
+
+  it("surfaces a partial Crowdin job create as an error, not a 2xx success", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json(
+        {
+          error: "provider_task_create_partial",
+          message: "Created 1 of 2 jobs, then failed: provider unavailable",
+          createdCount: 1,
+          jobs: [{ id: "ext:crowdin:7:11" }],
+        },
+        { status: 207 },
+      ),
+    );
+    const client = clientWith(fetchMock);
+
+    await expect(
+      client.tms.createProjectJobs("acme", "ext:crowdin:7", {
+        title: "Homepage",
+        targetLocales: ["fr", "de"],
+        fileIds: ["1"],
+      }),
+    ).rejects.toMatchObject({
+      name: "GoSvcClientError",
+      code: "provider_task_create_partial",
+      status: 207,
+      details: { createdCount: 1, jobs: [{ id: "ext:crowdin:7:11" }] },
+    });
+  });
+
+  it("reads inbox notifications, preferences, and mentions from native go-svc reads", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ notifications: [], total: 0 }))
+      .mockResolvedValueOnce(Response.json({ unreadCount: 2 }))
+      .mockResolvedValueOnce(Response.json({ notification: { id: "n-1" } }))
+      .mockResolvedValueOnce(Response.json({ notification: { id: "n-1" } }))
+      .mockResolvedValueOnce(Response.json({ markedCount: 2 }))
+      .mockResolvedValueOnce(Response.json({ preferences: { email: true } }))
+      .mockResolvedValueOnce(Response.json({ preferences: { email: false } }))
+      .mockResolvedValueOnce(Response.json({ mentionSuggestions: { users: [], issues: [] } }));
+    const client = clientWith(fetchMock);
+
+    await client.inbox.listNotifications("acme / eu", { unreadOnly: true, limit: 10, offset: 5 });
+    await client.inbox.unreadCount("acme / eu");
+    await client.inbox.getNotification("acme / eu", "note/1");
+    await client.inbox.markNotificationRead("acme / eu", "note/1");
+    await client.inbox.markAllNotificationsRead("acme / eu");
+    await client.inbox.getPreferences("acme / eu");
+    await client.inbox.updatePreferences("acme / eu", {
+      emailEnabled: false,
+      emailFormat: "digest",
+    });
+    await client.inbox.mentions("acme / eu", { q: "ada", projectId: "project/1", limit: 8 });
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method])).toEqual([
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notifications?unreadOnly=true&limit=10&offset=5`,
+        "GET",
+      ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notifications/unread-count`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notifications/note%2F1`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notifications/note%2F1/read`, "POST"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notifications/read-all`, "POST"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notification-preferences`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notification-preferences`, "PUT"],
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/mentions?q=ada&projectId=project%2F1&limit=8`,
+        "GET",
+      ],
+    ]);
   });
 });

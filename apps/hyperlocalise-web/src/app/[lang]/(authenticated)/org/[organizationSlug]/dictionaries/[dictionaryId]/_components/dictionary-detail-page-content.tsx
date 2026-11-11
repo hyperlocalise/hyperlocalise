@@ -12,9 +12,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import { TextTIcon } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -35,6 +36,10 @@ import { createDictionaryClient } from "@/lib/spellcheck-dictionary/client";
 
 import { PageHeader, WorkspacePageShell } from "../../../_components/workspace-resource-shared";
 import type { ApiDictionary } from "../../_components/dictionary-list";
+import {
+  DictionariesPageStoreProvider,
+  useDictionariesPageStore,
+} from "../../store/dictionaries-store-context";
 import { dictionaryDetailMessages } from "./dictionary-detail-page-content.messages";
 
 const DICTIONARY_WORDS_PAGE_SIZE = 200;
@@ -66,13 +71,32 @@ export function DictionaryDetailPageContent({
   dictionaryId: string;
   canWriteDictionaries: boolean;
 }) {
+  return (
+    <DictionariesPageStoreProvider organizationSlug={organizationSlug}>
+      <DictionaryDetailPageView
+        dictionaryId={dictionaryId}
+        canWriteDictionaries={canWriteDictionaries}
+      />
+    </DictionariesPageStoreProvider>
+  );
+}
+
+const DictionaryDetailPageView = observer(function DictionaryDetailPageView({
+  dictionaryId,
+  canWriteDictionaries,
+}: {
+  dictionaryId: string;
+  canWriteDictionaries: boolean;
+}) {
   const intl = useIntl();
   const queryClient = useQueryClient();
   const { client: goSvcClient } = useGoSvcClient();
   const dictionaryClient = useMemo(() => createDictionaryClient(goSvcClient), [goSvcClient]);
-  const [locale, setLocale] = useState("en-US");
-  const [word, setWord] = useState("");
-  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const store = useDictionariesPageStore();
+  const organizationSlug = store.organizationSlug;
+  const locale = store.detailLocale;
+  const word = store.detailWord;
+  const selectedProjectId = store.detailSelectedProjectId;
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const dictionaryQuery = useQuery({
@@ -202,7 +226,7 @@ export function DictionaryDetailPageContent({
       }
     },
     onSuccess: async () => {
-      setWord("");
+      store.clearDetailWord();
       await invalidateDictionary();
     },
     onError: (error) => {
@@ -276,7 +300,7 @@ export function DictionaryDetailPageContent({
       }
     },
     onSuccess: async () => {
-      setSelectedProjectId("");
+      store.clearDetailSelectedProjectId();
       await invalidateDictionary();
     },
     onError: (error) => {
@@ -357,7 +381,7 @@ export function DictionaryDetailPageContent({
             </span>
             <Input
               value={locale}
-              onChange={(event) => setLocale(event.target.value)}
+              onChange={(event) => store.setDetailLocale(event.target.value)}
               placeholder={intl.formatMessage(dictionaryDetailMessages.localePlaceholder)}
             />
           </label>
@@ -369,7 +393,7 @@ export function DictionaryDetailPageContent({
                 </span>
                 <Input
                   value={word}
-                  onChange={(event) => setWord(event.target.value)}
+                  onChange={(event) => store.setDetailWord(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
@@ -455,7 +479,7 @@ export function DictionaryDetailPageContent({
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
             <Select
               value={selectedProjectId}
-              onValueChange={(value) => setSelectedProjectId(value ?? "")}
+              onValueChange={(value) => store.setDetailSelectedProjectId(value ?? "")}
             >
               <SelectTrigger className="sm:w-72">
                 <SelectValue
@@ -507,4 +531,4 @@ export function DictionaryDetailPageContent({
       </section>
     </WorkspacePageShell>
   );
-}
+});

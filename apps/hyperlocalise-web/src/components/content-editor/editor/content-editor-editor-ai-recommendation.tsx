@@ -29,6 +29,7 @@ export function ContentEditorEditorAiRecommendation({
   intelligence,
   isLoading,
   error,
+  aiCreditExhausted = false,
   onUseAiSuggestion,
   onGenerateAiRecommendation,
   useActions,
@@ -37,6 +38,8 @@ export function ContentEditorEditorAiRecommendation({
   intelligence: ContentEditorSegmentIntelligence;
   isLoading: boolean;
   error?: string;
+  /** Regenerating cannot help until the workspace has AI credit again. */
+  aiCreditExhausted?: boolean;
   onUseAiSuggestion?: () => void;
   onGenerateAiRecommendation?: () => void;
   /** Replaces the default "Use" button, e.g. to choose which translation receives the text. */
@@ -45,7 +48,8 @@ export function ContentEditorEditorAiRecommendation({
 }) {
   const upgradeHref = useAiFeaturesUpgradeHref();
   const hasSuggestion = Boolean(intelligence.aiSuggestion);
-  const showActions = hasSuggestion || Boolean(onGenerateAiRecommendation) || Boolean(upgradeHref);
+  const canGenerate = Boolean(onGenerateAiRecommendation) && !(error && aiCreditExhausted);
+  const showActions = hasSuggestion || canGenerate || Boolean(upgradeHref);
 
   return (
     <aside
@@ -106,7 +110,7 @@ export function ContentEditorEditorAiRecommendation({
               variant="outline"
               size="xs"
             />
-          ) : onGenerateAiRecommendation ? (
+          ) : canGenerate ? (
             <Button
               variant={hasSuggestion ? "ghost" : "outline"}
               size="xs"

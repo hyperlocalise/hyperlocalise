@@ -61,6 +61,8 @@ export const REDACTION_PATHS = [
   "*.authTag",
   "authorization",
   "*.authorization",
+  "headerValue",
+  "*.headerValue",
   "cookie",
   "*.cookie",
   "privateKey",

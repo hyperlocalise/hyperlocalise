@@ -26,7 +26,6 @@ import {
   hyperlocaliseAgentMaxOutputTokens,
   hyperlocaliseAgentStepLimit,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
-import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
 import { listWorkspaceAutomationKnowledgeFileContents } from "@/lib/agents/workspace-automation-knowledge-files";
 import { listRecentWebChatMessages } from "@/lib/agents/workspace-automation-web-chat";
 import {
@@ -41,6 +40,7 @@ import { addInteractionMessage } from "@/lib/conversations/interactions";
 import { db, schema } from "@/lib/database/client";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import { bufferFromStream } from "@/lib/primitives/streams";
+import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 import { eq } from "drizzle-orm";
 
 import { createRecallKnowledgeFilesTool } from "../tools/recall_knowledge_files";
@@ -200,6 +200,10 @@ export function createWebChatAgentUIStreamResponse(input: {
             }
           : undefined;
 
+      const languageModel = await resolveHyperlocaliseAgentLanguageModel({
+        organizationId: input.automation.organizationId,
+      });
+
       await reserveAgentRuntimeUsage({
         organizationId: input.automation.organizationId,
         operationKey: usageOperationKey,
@@ -234,7 +238,7 @@ export function createWebChatAgentUIStreamResponse(input: {
       }
 
       const agent = new ToolLoopAgent({
-        model: getHyperlocaliseAgentModel(),
+        model: languageModel.model,
         instructions,
         tools,
         maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,

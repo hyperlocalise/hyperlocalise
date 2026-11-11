@@ -26,7 +26,10 @@ import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resou
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
-import { ensureRepositorySourceFileVersionForStoredFile } from "@/lib/file-storage/records";
+import {
+  ensureRepositorySourceFile,
+  ensureRepositorySourceFileVersionForStoredFile,
+} from "@/lib/file-storage/records";
 
 import { insertStoredSourceFile } from "../public-jobs/public-jobs.fixture";
 import { createProjectTestFixture } from "./project.fixture";
@@ -75,7 +78,7 @@ vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
 });
 
 const client = testClient<AppType>(app);
-const projectFixture = createProjectTestFixture(client);
+const projectFixture = createProjectTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -168,50 +171,6 @@ describe("project detail route", () => {
     expect(getTmsProviderLiveProjectMock).toHaveBeenCalledWith(organizationId, externalProjectId, {
       actorUserId: userId,
     });
-  });
-
-  it("returns the live provider open job count from the dedicated endpoint", async () => {
-    const admin = projectFixture.createWorkosIdentityWithRole("admin");
-    const headers = await projectFixture.authHeadersFor(admin);
-    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
-    const userId = globalThis.__testApiAuthContext!.user.localUserId;
-    const externalProjectId = "902808";
-    const projectId = encodeProviderProjectId({
-      providerKind: "crowdin",
-      externalProjectId,
-    });
-
-    await upsertOrganizationExternalTmsProviderCredential({
-      organizationId,
-      userId,
-      role: "admin",
-      providerKind: "crowdin",
-      displayName: "Crowdin",
-      secretMaterial: "crowdin-secret",
-    });
-
-    countTmsProviderLiveOpenJobsForProjectMock.mockResolvedValue(3);
-
-    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"][
-      "open-job-count"
-    ].$get(
-      {
-        param: {
-          organizationSlug: admin.organization.slug ?? "missing-slug",
-          projectId,
-        },
-      },
-      { headers },
-    );
-
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { openJobCount: number };
-    expect(body).toEqual({ openJobCount: 3 });
-    expect(countTmsProviderLiveOpenJobsForProjectMock).toHaveBeenCalledWith(
-      organizationId,
-      externalProjectId,
-      { actorUserId: userId },
-    );
   });
 
   it("returns openJobCount 0 on the project payload for live provider projects", async () => {
@@ -662,24 +621,17 @@ describe("project identifier uniqueness", () => {
 describe("native project default translation memory", () => {
   it("creates and attaches a default translation memory", async () => {
     const admin = projectFixture.createWorkosIdentityWithRole("admin");
-    const headers = await projectFixture.authHeadersFor(admin);
-    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    await projectFixture.authHeadersFor(admin);
     const team = await ensureDefaultWorkspaceTeam(
       globalThis.__testApiAuthContext!.organization.localOrganizationId,
     );
 
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Default TM Project",
-          teamId: team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers },
-    );
+    const projectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "Default TM Project",
+      teamId: team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["es-ES"],
+    });
 
     expect(projectResponse.status).toBe(201);
     const project = ((await projectResponse.json()) as ProjectResponse).project;
@@ -713,18 +665,12 @@ describe("project source locale updates", () => {
       globalThis.__testApiAuthContext!.organization.localOrganizationId,
     );
 
-    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Locale Guard Project",
-          teamId: team.id,
-          sourceLocale: "en-US",
-          targetLocales: ["es-ES"],
-        },
-      },
-      { headers },
-    );
+    const projectResponse = await projectFixture.createProjectViaApi(admin, {
+      name: "Locale Guard Project",
+      teamId: team.id,
+      sourceLocale: "en-US",
+      targetLocales: ["es-ES"],
+    });
     expect(projectResponse.status).toBe(201);
     const project = ((await projectResponse.json()) as ProjectResponse).project;
 
@@ -753,5 +699,379 @@ describe("project source locale updates", () => {
     await expect(patchResponse.json()).resolves.toMatchObject({
       error: "project_source_locale_attached_glossaries",
     });
+  });
+});
+
+describe("project file message format", () => {
+  it("returns auto by default and persists a later i18next setting", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+
+    const messageFormatApi =
+      client.api.orgs[":organizationSlug"].projects[":projectId"].files["message-format"];
+    const getResponse = await messageFormatApi.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: { sourcePath: "locales/en.json" },
+      },
+      { headers },
+    );
+
+    expect(getResponse.status).toBe(200);
+    await expect(getResponse.json()).resolves.toEqual({
+      messageFormat: "auto",
+      placeholderPatterns: [],
+    });
+
+    const versionsBefore = await db
+      .select({ id: schema.repositorySourceFileVersions.id })
+      .from(schema.repositorySourceFileVersions)
+      .where(eq(schema.repositorySourceFileVersions.projectId, project.id));
+
+    const patchResponse = await messageFormatApi.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: { sourcePath: "locales/en.json", messageFormat: "i18next" },
+      },
+      { headers },
+    );
+
+    expect(patchResponse.status).toBe(200);
+    await expect(patchResponse.json()).resolves.toEqual({
+      messageFormat: "i18next",
+      placeholderPatterns: [],
+    });
+
+    const reread = await messageFormatApi.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: { sourcePath: "locales/en.json" },
+      },
+      { headers },
+    );
+    expect(reread.status).toBe(200);
+    await expect(reread.json()).resolves.toEqual({
+      messageFormat: "i18next",
+      placeholderPatterns: [],
+    });
+
+    const [row] = await db
+      .select({ messageFormat: schema.repositorySourceFiles.messageFormat })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.projectId, project.id));
+    expect(row?.messageFormat).toBe("i18next");
+
+    const versionsAfter = await db
+      .select({ id: schema.repositorySourceFileVersions.id })
+      .from(schema.repositorySourceFileVersions)
+      .where(eq(schema.repositorySourceFileVersions.projectId, project.id));
+    expect(versionsAfter).toHaveLength(versionsBefore.length);
+  });
+
+  it("saves custom placeholder patterns and keeps them when omitted", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+    const messageFormatApi =
+      client.api.orgs[":organizationSlug"].projects[":projectId"].files["message-format"];
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      projectId: project.id,
+    };
+
+    const saveResponse = await messageFormatApi.$patch(
+      {
+        param,
+        json: {
+          sourcePath: "locales/en.json",
+          messageFormat: "auto",
+          placeholderPatterns: ["\\[\\[\\w+\\]\\]", "", ":\\w+"],
+        },
+      },
+      { headers },
+    );
+    expect(saveResponse.status).toBe(200);
+    await expect(saveResponse.json()).resolves.toEqual({
+      messageFormat: "auto",
+      placeholderPatterns: ["\\[\\[\\w+\\]\\]", ":\\w+"],
+    });
+
+    const keepResponse = await messageFormatApi.$patch(
+      { param, json: { sourcePath: "locales/en.json", messageFormat: "icu" } },
+      { headers },
+    );
+    expect(keepResponse.status).toBe(200);
+    await expect(keepResponse.json()).resolves.toEqual({
+      messageFormat: "icu",
+      placeholderPatterns: ["\\[\\[\\w+\\]\\]", ":\\w+"],
+    });
+
+    for (const pattern of ["[unclosed", "(?<=x)y", "a*"]) {
+      const invalidResponse = await messageFormatApi.$patch(
+        {
+          param,
+          json: {
+            sourcePath: "locales/en.json",
+            messageFormat: "auto",
+            placeholderPatterns: [pattern],
+          },
+        },
+        { headers },
+      );
+      expect(invalidResponse.status).toBe(400);
+    }
+  });
+
+  it("lets translators read the setting but not change it", async () => {
+    const owner = await projectFixture.createStoredProjectFixture();
+    if (!owner.project.teamId) {
+      throw new Error("expected project team");
+    }
+    await ensureRepositorySourceFile({
+      organizationId: owner.organization.id,
+      projectId: owner.project.id,
+      sourcePath: "locales/en.json",
+    });
+    const translator = projectFixture.createWorkosIdentityForOrganization(
+      owner.identity.organization,
+      "translator",
+    );
+    await projectFixture.authHeadersFor(translator);
+    const translatorAuth = globalThis.__testApiAuthContext;
+    if (!translatorAuth) {
+      throw new Error("expected translator auth context");
+    }
+    await db.insert(schema.teamMemberships).values({
+      teamId: owner.project.teamId,
+      userId: translatorAuth.user.localUserId,
+      role: "member",
+    });
+    const headers = await projectFixture.authHeadersFor(translator);
+    const messageFormatApi =
+      client.api.orgs[":organizationSlug"].projects[":projectId"].files["message-format"];
+
+    const getResponse = await messageFormatApi.$get(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: owner.project.id,
+        },
+        query: { sourcePath: "locales/en.json" },
+      },
+      { headers },
+    );
+    expect(getResponse.status).toBe(200);
+    await expect(getResponse.json()).resolves.toEqual({
+      messageFormat: "auto",
+      placeholderPatterns: [],
+    });
+
+    const patchResponse = await messageFormatApi.$patch(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: owner.project.id,
+        },
+        json: { sourcePath: "locales/en.json", messageFormat: "icu" },
+      },
+      { headers },
+    );
+    expect(patchResponse.status).toBe(403);
+    await expect(patchResponse.json()).resolves.toMatchObject({ error: "forbidden" });
+  });
+
+  it("rejects provider-backed projects and missing native files", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const messageFormatApi =
+      client.api.orgs[":organizationSlug"].projects[":projectId"].files["message-format"];
+    const providerProjectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+
+    const providerResponse = await messageFormatApi.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: providerProjectId,
+        },
+        query: { sourcePath: "locales/en.json" },
+      },
+      { headers },
+    );
+    expect(providerResponse.status).toBe(400);
+    await expect(providerResponse.json()).resolves.toMatchObject({
+      error: "message_format_not_supported",
+    });
+
+    const missingResponse = await messageFormatApi.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: { sourcePath: "locales/missing.json" },
+      },
+      { headers },
+    );
+    expect(missingResponse.status).toBe(404);
+    await expect(missingResponse.json()).resolves.toMatchObject({
+      error: "source_file_not_found",
+    });
+
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const invalidResponse = await app.request(
+      `/api/orgs/${organizationSlug}/projects/${project.id}/files/message-format`,
+      {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ sourcePath: "locales/en.json", messageFormat: "gettext" }),
+      },
+    );
+    expect(invalidResponse.status).toBe(400);
+  });
+});
+
+describe("project file import settings", () => {
+  it("returns defaults and persists HTML, JSON, and Excel filters", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+
+    const importSettingsApi =
+      client.api.orgs[":organizationSlug"].projects[":projectId"].files["import-settings"];
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      projectId: project.id,
+    };
+
+    const getResponse = await importSettingsApi.$get(
+      { param, query: { sourcePath: "locales/en.json" } },
+      { headers },
+    );
+    expect(getResponse.status).toBe(200);
+    await expect(getResponse.json()).resolves.toMatchObject({
+      kind: "json",
+      importSettings: {
+        json: { keyPaths: [], htmlSubfilter: false, icuSubfilter: false },
+      },
+    });
+
+    const patchResponse = await importSettingsApi.$patch(
+      {
+        param,
+        json: {
+          sourcePath: "locales/en.json",
+          importSettings: {
+            html: { excludedElements: ["nav"], icuSubfilter: true },
+            json: {
+              keyPaths: ["*.text"],
+              excludeKeyPaths: ["debug.**"],
+              contextFields: ["description"],
+              characterLimitFields: ["maxLength"],
+              htmlSubfilter: true,
+              icuSubfilter: true,
+            },
+            excel: {
+              firstLineContainsHeader: false,
+              columns: { identifier: 0, source: 1, context: 2, maxLength: 3 },
+            },
+          },
+        },
+      },
+      { headers },
+    );
+    expect(patchResponse.status).toBe(200);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      kind: "json",
+      reingest: { queued: false, reason: "no_reconciled_version" },
+      importSettings: {
+        html: { excludedElements: ["nav"], icuSubfilter: true },
+        json: {
+          keyPaths: ["*.text"],
+          excludeKeyPaths: ["debug.**"],
+          contextFields: ["description"],
+          characterLimitFields: ["maxLength"],
+          htmlSubfilter: true,
+          icuSubfilter: true,
+        },
+        excel: {
+          firstLineContainsHeader: false,
+          columns: { identifier: 0, source: 1, context: 2, maxLength: 3 },
+        },
+      },
+    });
+
+    const [row] = await db
+      .select({ importSettings: schema.repositorySourceFiles.importSettings })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.projectId, project.id));
+    expect(row?.importSettings.json.keyPaths).toEqual(["*.text"]);
+    expect(row?.importSettings.excel.firstLineContainsHeader).toBe(false);
+  });
+
+  it("rejects missing files and invalid tag names", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+    const importSettingsApi =
+      client.api.orgs[":organizationSlug"].projects[":projectId"].files["import-settings"];
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      projectId: project.id,
+    };
+
+    const missingResponse = await importSettingsApi.$get(
+      { param, query: { sourcePath: "locales/missing.json" } },
+      { headers },
+    );
+    expect(missingResponse.status).toBe(404);
+
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const invalidResponse = await app.request(
+      `/api/orgs/${organizationSlug}/projects/${project.id}/files/import-settings`,
+      {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          sourcePath: "locales/en.json",
+          importSettings: { html: { excludedElements: ["<script>"] } },
+        }),
+      },
+    );
+    expect(invalidResponse.status).toBe(400);
   });
 });

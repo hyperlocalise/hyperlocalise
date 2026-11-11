@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { DownloadSimpleIcon, FileIcon } from "@phosphor-icons/react";
+import { DownloadSimpleIcon, FileIcon, StopCircleIcon } from "@phosphor-icons/react";
 import type {
   DynamicToolUIPart,
   ReasoningUIPart,
@@ -25,6 +25,8 @@ import { memo, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
 import { ConversationEmptyState } from "@/components/ai-elements/conversation";
+import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
+import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
 import { AgentTodoProgress, getAgentTodoItems } from "@/components/ai-elements/agent-todo-progress";
 import { AiElementErrorBoundary } from "@/components/ai-elements/ai-element-error-boundary";
 import { MessageResponse } from "@/components/ai-elements/message";
@@ -41,7 +43,9 @@ import {
   ToolOutput,
 } from "@/components/ai-elements/tool";
 import { groupToolActivityBlocks } from "@/components/ai-elements/tool-activity";
+import { fetchFullToolOutput } from "@/components/app-shell/chat-dock/chat-run-api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
 import { Message, MessageAvatar, MessageContent, MessageFooter } from "@/components/ui/message";
 import {
@@ -56,9 +60,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyMuted, TypographyP, TypographySmall } from "@/components/ui/typography";
 import type {
+  InboxChatClarificationData,
   InboxChatStatusData,
+  InboxChatToolOutputTruncatedData,
   InboxChatToolProgressData,
 } from "@/lib/agent-contracts/inbox-chat-message";
+import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
 
 import { conversationMessageListMessages } from "./conversation-message-list.messages";
@@ -94,6 +101,8 @@ export function ConversationMessageList({
   isLoading,
   isStreaming,
   messages,
+  onSelectClarificationOption,
+  organizationSlug,
   streamedAssistant,
 }: {
   conversationId: string;
@@ -101,12 +110,15 @@ export function ConversationMessageList({
   isLoading: boolean;
   isStreaming: boolean;
   messages: ConversationMessage[];
+  /** Answers the assistant's question with one of the options it offered. */
+  onSelectClarificationOption?: (option: string) => void;
+  /** Offers a plan change next to a reply refused for used-up AI credit. */
+  organizationSlug?: string;
   streamedAssistant: StreamedAssistantMessage | null;
 }) {
   const intl = useIntl();
   const activeStream =
     streamedAssistant?.conversationId === conversationId ? streamedAssistant : null;
-  let renderedStream = false;
 
   return (
     <MessageScrollerProvider
@@ -130,49 +142,15 @@ export function ConversationMessageList({
                 />
               </MessageScrollerItem>
             ) : (
-              <>
-                {messages.map((message, index) => {
-                  const previousMessage = messages[index - 1];
-                  const shouldRenderStream =
-                    message.senderType === "agent" &&
-                    activeStream?.responseToMessageId === previousMessage?.id;
-
-                  if (shouldRenderStream && activeStream) {
-                    renderedStream = true;
-                    return (
-                      <MessageScrollerItem key={message.id} messageId={message.id}>
-                        <AssistantStreamMessage
-                          message={activeStream.message}
-                          isStreaming={isStreaming && activeStream.status === "streaming"}
-                          createdAt={message.createdAt}
-                        />
-                      </MessageScrollerItem>
-                    );
-                  }
-
-                  return (
-                    <MessageScrollerItem
-                      key={message.id}
-                      messageId={message.id}
-                      scrollAnchor={message.senderType === "user"}
-                    >
-                      <PersistedMessage currentUser={currentUser} message={message} />
-                    </MessageScrollerItem>
-                  );
-                })}
-
-                {activeStream &&
-                !renderedStream &&
-                messages.at(-1)?.id === activeStream.responseToMessageId ? (
-                  <MessageScrollerItem messageId={activeStream.message.id}>
-                    <AssistantStreamMessage
-                      message={activeStream.message}
-                      isStreaming={isStreaming && activeStream.status === "streaming"}
-                      createdAt={null}
-                    />
-                  </MessageScrollerItem>
-                ) : null}
-              </>
+              renderMessageItems({
+                activeStream,
+                conversationId,
+                currentUser,
+                isStreaming,
+                messages,
+                onSelectClarificationOption,
+                organizationSlug,
+              })
             )}
           </MessageScrollerContent>
         </MessageScrollerViewport>
@@ -180,6 +158,105 @@ export function ConversationMessageList({
       </MessageScroller>
     </MessageScrollerProvider>
   );
+}
+
+// The scroller re-anchors to an unseen user message whenever the item count stays the same
+// but children change, so a streamed reply must keep its DOM node when it becomes persisted.
+// Rows must stay in one keyed array for React to carry that node across.
+function renderMessageItems({
+  activeStream,
+  conversationId,
+  currentUser,
+  isStreaming,
+  messages,
+  onSelectClarificationOption,
+  organizationSlug,
+}: {
+  activeStream: StreamedAssistantMessage | null;
+  conversationId: string;
+  currentUser: InboxCurrentUser;
+  isStreaming: boolean;
+  messages: ConversationMessage[];
+  onSelectClarificationOption?: (option: string) => void;
+  organizationSlug?: string;
+}) {
+  let renderedStream = false;
+  const isActiveStreamStreaming = isStreaming && activeStream?.status === "streaming";
+
+  const items = messages.map((message, index) => {
+    const previousMessage = messages[index - 1];
+    const itemKey = getMessageItemKey(message, previousMessage);
+
+    if (
+      activeStream &&
+      message.senderType === "agent" &&
+      activeStream.responseToMessageId === previousMessage?.id
+    ) {
+      renderedStream = true;
+      return (
+        <MessageScrollerItem key={itemKey} messageId={message.id}>
+          <AssistantStreamMessage
+            message={activeStream.message}
+            isStreaming={isActiveStreamStreaming}
+            createdAt={message.createdAt}
+            aiCreditExhausted={activeStream.aiCreditExhausted}
+            organizationSlug={organizationSlug}
+          />
+        </MessageScrollerItem>
+      );
+    }
+
+    return (
+      <MessageScrollerItem
+        key={itemKey}
+        messageId={message.id}
+        scrollAnchor={message.senderType === "user"}
+      >
+        <PersistedMessage
+          conversationId={conversationId}
+          currentUser={currentUser}
+          message={message}
+          // Only the latest reply's question is still open.
+          onSelectClarificationOption={
+            index === messages.length - 1 && !activeStream ? onSelectClarificationOption : undefined
+          }
+          organizationSlug={organizationSlug}
+        />
+      </MessageScrollerItem>
+    );
+  });
+
+  if (activeStream && !renderedStream && messages.at(-1)?.id === activeStream.responseToMessageId) {
+    items.push(
+      <MessageScrollerItem
+        key={replyItemKey(activeStream.responseToMessageId)}
+        messageId={activeStream.message.id}
+      >
+        <AssistantStreamMessage
+          message={activeStream.message}
+          isStreaming={isActiveStreamStreaming}
+          createdAt={null}
+          aiCreditExhausted={activeStream.aiCreditExhausted}
+          organizationSlug={organizationSlug}
+        />
+      </MessageScrollerItem>,
+    );
+  }
+
+  return items;
+}
+
+function replyItemKey(userMessageId: string) {
+  return `reply-${userMessageId}`;
+}
+
+function getMessageItemKey(
+  message: ConversationMessage,
+  previousMessage: ConversationMessage | undefined,
+) {
+  return message.senderType === "agent" && previousMessage?.senderType === "user"
+    ? replyItemKey(previousMessage.id)
+    : message.id;
 }
 
 function MessageListSkeleton() {
@@ -200,11 +277,17 @@ function MessageListSkeleton() {
 
 // Memoized to prevent re-rendering historical messages while a new message is streaming
 const PersistedMessage = memo(function PersistedMessage({
+  conversationId,
   currentUser,
   message,
+  onSelectClarificationOption,
+  organizationSlug,
 }: {
+  conversationId: string;
   currentUser: InboxCurrentUser;
   message: ConversationMessage;
+  onSelectClarificationOption?: (option: string) => void;
+  organizationSlug?: string;
 }) {
   const intl = useIntl();
   const role = message.senderType === "user" ? "user" : "assistant";
@@ -225,7 +308,16 @@ const PersistedMessage = memo(function PersistedMessage({
             {message.text}
           </TypographyP>
         ) : message.parts && message.parts.length > 0 ? (
-          <AssistantMessageParts isStreaming={false} message={toAssistantUIMessage(message)} />
+          <AssistantMessageParts
+            fullOutputSource={
+              organizationSlug
+                ? { organizationSlug, conversationId, messageId: message.id }
+                : undefined
+            }
+            isStreaming={false}
+            message={toAssistantUIMessage(message)}
+            onSelectClarificationOption={onSelectClarificationOption}
+          />
         ) : (
           <AiElementErrorBoundary scope="message" resetKeys={[message.id, message.text]}>
             <MessageResponse>{message.text}</MessageResponse>
@@ -315,17 +407,32 @@ function isImageAttachment(attachment: ConversationMessageAttachment) {
 }
 
 function AssistantStreamMessage({
+  aiCreditExhausted,
   createdAt,
   isStreaming,
   message,
+  organizationSlug,
 }: {
+  aiCreditExhausted?: boolean;
   createdAt: string | null;
   isStreaming: boolean;
   message: UIMessage;
+  organizationSlug?: string;
 }) {
   return (
     <MessageFrame role="assistant" createdAt={createdAt}>
-      <AssistantMessageParts message={message} isStreaming={isStreaming} />
+      {aiCreditExhausted ? (
+        <div className="flex flex-col items-start gap-2">
+          <p role="alert" className="text-sm text-destructive">
+            <FormattedMessage {...aiCreditExhaustedMessages.exhausted} />
+          </p>
+          {organizationSlug ? (
+            <UpgradePlanButton organizationSlug={organizationSlug} variant="outline" size="xs" />
+          ) : null}
+        </div>
+      ) : (
+        <AssistantMessageParts message={message} isStreaming={isStreaming} />
+      )}
     </MessageFrame>
   );
 }
@@ -408,12 +515,23 @@ function getUserAvatar({
   };
 }
 
+type FullToolOutputSource = {
+  organizationSlug: string;
+  conversationId: string;
+  messageId: string;
+};
+
 function AssistantMessageParts({
+  fullOutputSource,
   isStreaming,
   message,
+  onSelectClarificationOption,
 }: {
+  /** Where to load full tool results from; only stored messages have one. */
+  fullOutputSource?: FullToolOutputSource;
   isStreaming: boolean;
   message: UIMessage;
+  onSelectClarificationOption?: (option: string) => void;
 }) {
   const reasoningParts = message.parts.filter(isReasoningPart);
   const sourceParts = message.parts.filter(isSourcePart);
@@ -429,10 +547,25 @@ function AssistantMessageParts({
       .filter(isToolProgressPart)
       .map((part) => [part.data.toolCallId, part.data.message]),
   );
+  const truncatedToolCallIds = new Set(
+    message.parts.filter(isToolOutputTruncatedPart).map((part) => part.data.toolCallId),
+  );
+  const clarification = message.parts.findLast(isClarificationPart)?.data;
+  const interrupted = message.parts.some((part) => part.type === "data-interrupted");
   const text = message.parts
     .filter((part) => part.type === "text")
     .map((part) => part.text ?? "")
     .join("");
+  const renderToolPart = (part: ToolPart, key?: string) => (
+    <AssistantToolPart
+      key={key}
+      fullOutputSource={
+        fullOutputSource && truncatedToolCallIds.has(part.toolCallId) ? fullOutputSource : undefined
+      }
+      part={part}
+      progressMessage={toolProgressByCallId.get(part.toolCallId)}
+    />
+  );
 
   return (
     <>
@@ -479,13 +612,9 @@ function AssistantMessageParts({
             >
               <ExploreToolActivity
                 parts={block.parts}
-                renderToolPart={(part, index) => (
-                  <AssistantToolPart
-                    key={`${part.toolCallId}-${index}`}
-                    part={part}
-                    progressMessage={toolProgressByCallId.get(part.toolCallId)}
-                  />
-                )}
+                renderToolPart={(part, index) =>
+                  renderToolPart(part, `${part.toolCallId}-${index}`)
+                }
               />
             </AiElementErrorBoundary>
           );
@@ -509,14 +638,7 @@ function AssistantMessageParts({
               part.errorText ?? "",
             ]}
           >
-            {todoItems ? (
-              <AgentTodoProgress items={todoItems} />
-            ) : (
-              <AssistantToolPart
-                part={part}
-                progressMessage={toolProgressByCallId.get(part.toolCallId)}
-              />
-            )}
+            {todoItems ? <AgentTodoProgress items={todoItems} /> : renderToolPart(part)}
           </AiElementErrorBoundary>
         );
       })}
@@ -536,17 +658,65 @@ function AssistantMessageParts({
           </MarkerContent>
         </Marker>
       ) : null}
+      {clarification && clarification.options.length > 0 && onSelectClarificationOption ? (
+        <ClarificationOptions
+          options={clarification.options}
+          onSelect={onSelectClarificationOption}
+        />
+      ) : null}
+      {interrupted ? (
+        <TypographyMuted size="xsmall" className="flex items-center gap-1">
+          <StopCircleIcon className="size-3.5" aria-hidden />
+          <FormattedMessage {...conversationMessageListMessages.stoppedMarker} />
+        </TypographyMuted>
+      ) : null}
     </>
   );
 }
 
+function ClarificationOptions({
+  onSelect,
+  options,
+}: {
+  onSelect: (option: string) => void;
+  options: string[];
+}) {
+  const intl = useIntl();
+
+  return (
+    <div
+      role="group"
+      aria-label={intl.formatMessage(conversationMessageListMessages.clarificationOptions)}
+      className="flex flex-wrap gap-2"
+    >
+      {options.map((option) => (
+        <Button
+          key={option}
+          type="button"
+          size="sm"
+          variant="outline"
+          className="rounded-full"
+          onClick={() => onSelect(option)}
+        >
+          {option}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
 function AssistantToolPart({
+  fullOutputSource,
   part,
   progressMessage,
 }: {
+  /** Set when this tool's stored result is a shortened copy that can be loaded in full. */
+  fullOutputSource?: FullToolOutputSource;
   part: ToolPart;
   progressMessage?: string;
 }) {
+  const fullOutput = useFullToolOutput(fullOutputSource, part.toolCallId);
+  const output = fullOutput.output ?? part.output;
   const isDynamic = part.type === "dynamic-tool";
   const headerProps = isDynamic
     ? {
@@ -558,7 +728,7 @@ function AssistantToolPart({
         type: part.type,
         state: part.state,
       };
-  const hasImageOutput = Boolean(getImageToolOutput(part.output));
+  const hasImageOutput = Boolean(getImageToolOutput(output));
   const hasFailed = part.state === "output-error" || part.state === "output-denied";
   // null = follow image default; once the user toggles, keep their choice — except
   // failures always win so a collapse during flight cannot hide later error details.
@@ -576,18 +746,61 @@ function AssistantToolPart({
       <ToolContent>
         {hasImageOutput ? (
           <>
-            <ToolOutput output={part.output} errorText={part.errorText} defaultOpen={false} />
+            <ToolOutput output={output} errorText={part.errorText} defaultOpen={false} />
             <ToolInput input={part.input} defaultOpen={false} />
           </>
         ) : (
           <>
             <ToolInput input={part.input} />
-            <ToolOutput output={part.output} errorText={part.errorText} />
+            <ToolOutput output={output} errorText={part.errorText} />
           </>
         )}
+        {fullOutputSource && fullOutput.output === undefined ? (
+          <div className="flex flex-col items-start gap-1 px-4 pb-3">
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              disabled={fullOutput.isLoading}
+              onClick={fullOutput.load}
+            >
+              {fullOutput.isLoading ? (
+                <FormattedMessage {...conversationMessageListMessages.loadingFullOutput} />
+              ) : (
+                <FormattedMessage {...conversationMessageListMessages.showFullOutput} />
+              )}
+            </Button>
+            {fullOutput.failed ? (
+              <TypographyMuted size="xsmall" tone="critical">
+                <FormattedMessage {...conversationMessageListMessages.fullOutputFailed} />
+              </TypographyMuted>
+            ) : null}
+          </div>
+        ) : null}
       </ToolContent>
     </Tool>
   );
+}
+
+/** Loads a tool's full stored result on request. `output` stays undefined until it arrives. */
+function useFullToolOutput(source: FullToolOutputSource | undefined, toolCallId: string) {
+  const [state, setState] = useState<{ output?: unknown; isLoading: boolean; failed: boolean }>({
+    isLoading: false,
+    failed: false,
+  });
+
+  const load = () => {
+    if (!source || state.isLoading) {
+      return;
+    }
+    setState({ isLoading: true, failed: false });
+    fetchFullToolOutput(apiClient, { ...source, toolCallId }).then(
+      (output) => setState({ output, isLoading: false, failed: false }),
+      () => setState({ isLoading: false, failed: true }),
+    );
+  };
+
+  return { ...state, load };
 }
 
 function AssistantSources({ parts }: { parts: SourcePart[] }) {
@@ -627,6 +840,24 @@ function isStatusPart(part: UIMessage["parts"][number]): part is UIMessage["part
   data: InboxChatStatusData;
 } {
   return part.type === "data-status";
+}
+
+function isClarificationPart(
+  part: UIMessage["parts"][number],
+): part is UIMessage["parts"][number] & {
+  type: "data-clarification";
+  data: InboxChatClarificationData;
+} {
+  return part.type === "data-clarification";
+}
+
+function isToolOutputTruncatedPart(
+  part: UIMessage["parts"][number],
+): part is UIMessage["parts"][number] & {
+  type: "data-toolOutputTruncated";
+  data: InboxChatToolOutputTruncatedData;
+} {
+  return part.type === "data-toolOutputTruncated";
 }
 
 function isToolProgressPart(

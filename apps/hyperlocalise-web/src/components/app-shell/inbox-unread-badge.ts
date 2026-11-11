@@ -24,6 +24,6 @@ export function formatInboxUnreadBadgeLabel(count: number): string | null {
   return String(count);
 }
 
-/** Solid red unread badge styles with readable contrast in light and dark mode. */
+/** Neutral count badge — high contrast without alarm-red. */
 export const inboxUnreadBadgeClassName =
-  "bg-destructive-solid text-[0.625rem] leading-none font-semibold text-destructive-foreground peer-hover/menu-button:text-destructive-foreground peer-data-active/menu-button:text-destructive-foreground";
+  "bg-foreground text-[0.625rem] leading-none font-semibold text-background peer-hover/menu-button:text-background peer-data-active/menu-button:text-background";

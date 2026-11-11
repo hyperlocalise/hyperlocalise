@@ -96,6 +96,7 @@ export function ContentEditorSideBySideAiSuggestion({
   intelligence,
   isLoading,
   error,
+  aiCreditExhausted = false,
   onUseAiSuggestion,
   onGenerateAiRecommendation,
   renderToolbar,
@@ -103,6 +104,8 @@ export function ContentEditorSideBySideAiSuggestion({
   intelligence: ContentEditorSegmentIntelligence;
   isLoading: boolean;
   error?: string;
+  /** The row's QA check already shows the refusal, and regenerating cannot help. */
+  aiCreditExhausted?: boolean;
   onUseAiSuggestion: () => void;
   onGenerateAiRecommendation?: () => void;
   renderToolbar?: (trigger: ReactNode) => ReactNode;
@@ -160,6 +163,10 @@ export function ContentEditorSideBySideAiSuggestion({
       </div>,
       renderToolbar,
     );
+  }
+
+  if (error && aiCreditExhausted) {
+    return wrapAiSuggestion(null, null, renderToolbar);
   }
 
   if (error) {

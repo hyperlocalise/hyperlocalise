@@ -13,7 +13,7 @@
 // @vitest-environment happy-dom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { IntlProvider } from "react-intl";
@@ -31,6 +31,8 @@ const {
   toastErrorMock,
   toastSuccessMock,
   searchParamsState,
+  routerPushMock,
+  routerReplaceMock,
 } = vi.hoisted(() => ({
   useProjectPageQueryMock: vi.fn(),
   patchMock: vi.fn(),
@@ -38,11 +40,20 @@ const {
   toastErrorMock: vi.fn(),
   toastSuccessMock: vi.fn(),
   searchParamsState: { value: new URLSearchParams() },
+  routerPushMock: vi.fn(),
+  routerReplaceMock: vi.fn(),
+}));
+
+// Only the React build that Next bundles has this; the one the tests run on does not.
+vi.mock("react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react")>()),
+  addTransitionType: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/en/org/acme/projects/project_1/settings",
   useSearchParams: () => searchParamsState.value,
+  useRouter: () => ({ push: routerPushMock, replace: routerReplaceMock }),
 }));
 
 vi.mock("sonner", () => ({
@@ -87,8 +98,13 @@ vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
   }),
 }));
 
+// Stands in for the panel, which keeps its own draft and only reports whether it has changes.
 vi.mock("./project-issue-templates-panel", () => ({
-  ProjectIssueTemplatesPanel: () => null,
+  ProjectIssueTemplatesPanel: ({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) => (
+    <button type="button" onClick={() => onDirtyChange?.(true)}>
+      Change issue template
+    </button>
+  ),
 }));
 
 vi.mock("./project-native-connect-cli-panel", () => ({
@@ -182,6 +198,7 @@ function renderSettings(project: ProjectListRow = createProject()) {
             <div data-testid="header-actions">
               <AppShellHeaderActions />
             </div>
+            <a href="/org/acme/projects">Projects</a>
             {children}
           </AppShellStoreProvider>
         </IntlProvider>
@@ -206,9 +223,11 @@ async function openSection(user: ReturnType<typeof userEvent.setup>, name: strin
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 beforeEach(() => {
+  window.history.replaceState(null, "", "/en/org/acme/projects/project_1/settings");
   searchParamsState.value = new URLSearchParams();
   updateMock.mockResolvedValue({ project: createProject({ identifier: "NEW" }) });
   patchMock.mockResolvedValue({
@@ -517,5 +536,99 @@ describe("ProjectSettingsPageContent", () => {
       json: { identifier: "EXT" },
     });
     expect(updateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("ProjectSettingsPageContent leave guard", () => {
+  it("does not interrupt leaving while nothing is changed", async () => {
+    renderSettings();
+    await screen.findByRole("heading", { name: "General" });
+
+    expect(fireEvent.click(screen.getByRole("link", { name: "Projects" }))).toBe(true);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("asks before leaving with an unsaved section, and keeps the edit when told to stay", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+
+    await user.type(await screen.findByLabelText("Description"), "Ops notes");
+
+    expect(fireEvent.click(screen.getByRole("link", { name: "Projects" }))).toBe(false);
+    expect(await screen.findByText("Leave without saving?")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Keep editing" }));
+
+    expect(screen.getByLabelText("Description")).toHaveValue("Ops notes");
+    expect(routerReplaceMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("link", { name: "Projects" }));
+    await user.click(await screen.findByRole("button", { name: "Leave without saving" }));
+
+    expect(routerReplaceMock).toHaveBeenCalledWith("/org/acme/projects", { scroll: undefined });
+  });
+
+  it("asks about an unsaved section that is not the one on screen", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+
+    await user.type(await screen.findByLabelText("Description"), "Ops notes");
+    await openSection(user, "Locales");
+
+    expect(fireEvent.click(screen.getByRole("link", { name: "Projects" }))).toBe(false);
+    expect(await screen.findByText("Leave without saving?")).toBeInTheDocument();
+  });
+
+  it("asks when only the issue templates have unsaved changes", async () => {
+    renderSettings();
+    await screen.findByRole("heading", { name: "General" });
+
+    // The panel stays mounted but hidden while another section is on screen.
+    fireEvent.click(screen.getByRole("button", { name: "Change issue template", hidden: true }));
+
+    expect(fireEvent.click(screen.getByRole("link", { name: "Projects" }))).toBe(false);
+    expect(await screen.findByText("Leave without saving?")).toBeInTheDocument();
+  });
+
+  it("keeps the section in the address after the last unsaved section is saved", async () => {
+    const settingsPath = "/en/org/acme/projects/project_1/settings";
+    // Stepping back lands on the entry from before the edit, which has no section in it.
+    vi.spyOn(window.history, "back").mockImplementation(() => {
+      window.history.replaceState(null, "", settingsPath);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    const user = userEvent.setup();
+    updateMock.mockResolvedValue({ project: createProject({ descriptionValue: "Ops notes" }) });
+    renderSettings();
+
+    await user.type(await screen.findByLabelText("Description"), "Ops notes");
+    await openSection(user, "Locales");
+    await openSection(user, "General");
+    expect(window.location.search).toBe("?section=general");
+
+    await user.click(screen.getByRole("button", { name: "Save general settings" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Save general settings" })).toBeDisabled();
+    });
+
+    expect(`${window.location.pathname}${window.location.search}`).toBe(
+      `${settingsPath}?section=general`,
+    );
+  });
+
+  it("stops asking once the section is saved", async () => {
+    vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const user = userEvent.setup();
+    updateMock.mockResolvedValue({ project: createProject({ descriptionValue: "Ops notes" }) });
+    renderSettings();
+
+    await user.type(await screen.findByLabelText("Description"), "Ops notes");
+    await user.click(screen.getByRole("button", { name: "Save general settings" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Save general settings" })).toBeDisabled();
+    });
+
+    expect(fireEvent.click(screen.getByRole("link", { name: "Projects" }))).toBe(true);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 });

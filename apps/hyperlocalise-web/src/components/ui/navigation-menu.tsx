@@ -18,10 +18,12 @@ import { CaretDownIcon } from "@phosphor-icons/react/ssr";
 
 function NavigationMenu({
   align = "start",
+  positionMethod,
   className,
   children,
   ...props
-}: NavigationMenuPrimitive.Root.Props & Pick<NavigationMenuPrimitive.Positioner.Props, "align">) {
+}: NavigationMenuPrimitive.Root.Props &
+  Pick<NavigationMenuPrimitive.Positioner.Props, "align" | "positionMethod">) {
   return (
     <NavigationMenuPrimitive.Root
       data-slot="navigation-menu"
@@ -32,7 +34,7 @@ function NavigationMenu({
       {...props}
     >
       {children}
-      <NavigationMenuPositioner align={align} />
+      <NavigationMenuPositioner align={align} positionMethod={positionMethod} />
     </NavigationMenuPrimitive.Root>
   );
 }

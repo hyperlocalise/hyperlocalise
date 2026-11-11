@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { observer } from "mobx-react-lite";
 import { ArrowUpRightIcon, XIcon } from "@phosphor-icons/react";
@@ -36,15 +36,16 @@ import { Row } from "@/components/ui/layout/row";
 import { TypographyMuted } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { ChatDockEmptyState } from "./chat-dock-empty-state";
+import { buildChatTurnControls } from "./chat-dock-turn-controls";
 import { chatDockMessages } from "./chat-dock.messages";
 import { CHAT_DOCK_MAX_CONCURRENT_STREAMS } from "./chat-dock-persistence";
 import { resolveChatDockMessageProjectId, type ChatDockStore } from "./chat-dock-store";
 import { getChatStreamManager } from "./chat-stream-manager";
 
 const COLLAPSE_GLYPH = "−";
-const inboxApi = createInboxApi(apiClient);
 
 function messagesQueryKey(conversationId: string) {
   return ["conversation-messages", conversationId] as const;
@@ -83,6 +84,11 @@ export const ChatDockPanel = observer(function ChatDockPanel({
   store: ChatDockStore;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
+  const inboxApi = useMemo(
+    () => createInboxApi(apiClient, goSvcClient.conversation),
+    [goSvcClient],
+  );
   const aiFeaturesAccess = useAiFeaturesAccess();
   const tab = store.activeTab;
   const queryClient = useQueryClient();
@@ -201,6 +207,13 @@ export const ChatDockPanel = observer(function ChatDockPanel({
         return;
       }
 
+      // The agent is still answering: hold the message and send it when the turn ends.
+      if (!tab.isPending && streamManager.isStreaming(tab.id)) {
+        store.enqueueMessage(tab.id, { text, files, options });
+        store.setDraft(tab.id, "");
+        return;
+      }
+
       const projectId = resolveChatDockMessageProjectId({
         explicitProjectId: options?.projectId,
         pageContext: store.pageContext,
@@ -263,6 +276,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
       queryClient,
       sendMessageMutation,
       store,
+      streamManager,
       tab,
       persistedConversation?.projectId,
     ],
@@ -283,13 +297,26 @@ export const ChatDockPanel = observer(function ChatDockPanel({
       responseToMessageId: snapshot.responseToMessageId,
       message: snapshot.message,
       status: snapshot.status,
+      aiCreditExhausted: snapshot.aiCreditExhausted,
     };
   })();
 
   const isTabStreaming =
     streamManager.isStreaming(tab.id) || store.getStreamSnapshot(tab.id)?.status === "streaming";
+  // A pending tab has no conversation to queue into yet, so it still waits for the reply.
   const isBusy =
-    createConversationMutation.isPending || sendMessageMutation.isPending || isTabStreaming;
+    createConversationMutation.isPending ||
+    sendMessageMutation.isPending ||
+    (tab.isPending && isTabStreaming);
+  const turnControls = tab.isPending
+    ? undefined
+    : buildChatTurnControls({
+        conversationId: tab.id,
+        store,
+        streamManager,
+        onEditText: (text) => store.setDraft(tab.id, text),
+        onStopFailed: () => toast.error(intl.formatMessage(chatDockMessages.stopFailed)),
+      });
 
   return (
     <section
@@ -374,6 +401,10 @@ export const ChatDockPanel = observer(function ChatDockPanel({
             isLoading={messagesQuery.isLoading}
             isStreaming={isTabStreaming}
             messages={messages as ConversationMessage[]}
+            onSelectClarificationOption={
+              isBusy ? undefined : (option) => void onSendMessage(option, [])
+            }
+            organizationSlug={organizationSlug}
             streamedAssistant={streamedAssistant}
           />
         )}
@@ -397,6 +428,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
             onSend={onSendMessage}
             organizationSlug={organizationSlug}
             placeholder={intl.formatMessage(chatDockMessages.emptyComposer)}
+            turnControls={turnControls}
           />
         ) : null}
       </div>

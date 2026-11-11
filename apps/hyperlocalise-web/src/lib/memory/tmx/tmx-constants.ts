@@ -18,9 +18,6 @@
  */
 export const TMX_DEFAULT_MAX_UNITS = 1_000_000;
 
-/** Maximum UTF-16 code units in the import request body (CSV or TMX). */
-export const TMX_MAX_IMPORT_CONTENT_CHARS = 100_000_000;
-
 /** Default number of entries written per database batch. */
 export const TMX_DEFAULT_BATCH_SIZE = 500;
 

@@ -19,6 +19,7 @@ import {
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -28,16 +29,22 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
+import type { CatBilingualImportCounts } from "@/lib/projects/content-editor/content-editor-bilingual-import";
 import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
+import {
+  includedTagsOnly,
+  isCatQueueFilterEmpty,
+  withoutShownScope,
+} from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { cn } from "@/lib/primitives/cn";
+import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.messages";
 
 import {
   contentEditorQueueFilterValues,
@@ -45,9 +52,16 @@ import {
   type ContentEditorQueueFilter,
   type ContentEditorQueueSort,
 } from "./content-editor-queue-filter";
-import { queueFilterMessageByValue } from "./content-editor-queue-filter-messages";
+import {
+  ContentEditorQueueFilterMenu,
+  resolveQueueFilterButtonMessage,
+} from "./content-editor-queue-filter-menu";
+import { ContentEditorAdvancedQueueFilterDialog } from "./content-editor-advanced-queue-filter-dialog";
 import { ContentEditorOverflowMenu } from "./content-editor-overflow-menu";
 import { ContentEditorViewMenu } from "./content-editor-view-menu";
+import { useContentEditorTagSearch } from "./content-editor-tag-search";
+import { contentEditorTagSearchMessages } from "./content-editor-tag-search.messages";
+import { ContentEditorShortcutHint } from "@/components/content-editor/editor/content-editor-shortcut-hints";
 import { contentEditorBulkBarMessages } from "@/components/content-editor/shared/content-editor-chrome.messages";
 import { contentEditorQueuePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 
@@ -61,6 +75,13 @@ export function ContentEditorQueueToolbar({
   queueSort = "file_order",
   onQueueSortChange,
   availableQueueSorts = contentEditorQueueSortValues,
+  queueFilterQualifier,
+  onQueueFilterQualifierChange,
+  queueAdvanced,
+  onQueueAdvancedChange,
+  providerKind,
+  organizationSlug,
+  projectId,
   selectionMode = false,
   onSelectionModeChange,
   selectedCount = 0,
@@ -73,11 +94,17 @@ export function ContentEditorQueueToolbar({
   onBulkUnhide,
   onBulkLock,
   onBulkUnlock,
+  onBulkCreateTask,
+  onBulkEditTags,
+  onDismissNewTaskHint,
   isBulkActionPending = false,
   bulkProgress,
+  bulkActionLocale,
   isQueueLoading = false,
   onDownloadFilteredView,
   isDownloadingFilteredView = false,
+  onImportBilingualFile,
+  isImportingBilingualFile = false,
   adaptiveWorkspaceEnabled = false,
 }: {
   search?: string;
@@ -89,6 +116,13 @@ export function ContentEditorQueueToolbar({
   queueSort?: ContentEditorQueueSort;
   onQueueSortChange?: (sort: ContentEditorQueueSort) => void;
   availableQueueSorts?: ContentEditorQueueSort[];
+  queueFilterQualifier?: string;
+  onQueueFilterQualifierChange?: (qualifier: string | undefined) => void;
+  queueAdvanced?: ContentEditorAdvancedQueueFilter;
+  onQueueAdvancedChange?: (filter: ContentEditorAdvancedQueueFilter | undefined) => void;
+  providerKind?: string | null;
+  organizationSlug?: string;
+  projectId?: string;
   selectionMode?: boolean;
   onSelectionModeChange?: (enabled: boolean) => void;
   selectedCount?: number;
@@ -101,8 +135,18 @@ export function ContentEditorQueueToolbar({
   onBulkUnhide?: () => void;
   onBulkLock?: () => void;
   onBulkUnlock?: () => void;
+  onBulkCreateTask?: () => void;
+  onBulkEditTags?: () => void;
+  /** Set while the new-task hint shows; called when it is dismissed. */
+  onDismissNewTaskHint?: () => void;
   isBulkActionPending?: boolean;
   bulkProgress?: string;
+  /**
+   * Language that Approve, Lock and Unlock act on, named on those actions. Set where several
+   * languages are on screen (the multilingual table). Hide and unhide act on every language,
+   * and skip is not saved, so they keep their usual names.
+   */
+  bulkActionLocale?: string;
   /**
    * When the queue query is showing placeholder data, or the store has not
    * ingested the current snapshot yet, visible segments may still be from the
@@ -111,19 +155,45 @@ export function ContentEditorQueueToolbar({
   isQueueLoading?: boolean;
   onDownloadFilteredView?: (format: ContentEditorFilteredExportFormat) => void;
   isDownloadingFilteredView?: boolean;
+  onImportBilingualFile?: (file: File) => Promise<CatBilingualImportCounts>;
+  isImportingBilingualFile?: boolean;
   /** When true, the View menu offers the adaptive workspace persona switch. Off by default. */
   adaptiveWorkspaceEnabled?: boolean;
 }) {
   const intl = useIntl();
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const canEnterSelectionMode = Boolean(onSelectionModeChange);
   const isSelecting = canEnterSelectionMode && selectionMode;
   const showBulkBar = isSelecting && selectedCount > 0;
-  const hasActiveFilter = queueFilter !== "all";
+  const hasActiveFilter =
+    queueFilter !== "all" || Boolean(queueFilterQualifier) || !isCatQueueFilterEmpty(queueAdvanced);
+  // Native projects' labels are their strings' tags, which `tag:` in the search box filters by.
+  const tagSearchEnabled = providerKind == null || providerKind === "native";
+  // A key job's scope and searched tags show beside the search box, so the button names the
+  // quick filter unless other advanced filters are set.
+  const filterButtonMessage = resolveQueueFilterButtonMessage({
+    queueFilter,
+    queueSort,
+    queueAdvanced: withoutShownScope(queueAdvanced, tagSearchEnabled),
+  });
   // Placeholder reuse or a not-yet-ingested cache hit can keep chrome mounted
   // while the store still holds the previous page — never treat those ids as
   // bulk targets.
   const bulkTargetsReady = !isQueueLoading;
+  // A key job's scope rides in the advanced filter; other filter changes keep it.
+  const jobId = queueAdvanced?.jobId;
+  const keepJobScope = (filter: ContentEditorAdvancedQueueFilter | undefined) =>
+    jobId ? { ...filter, jobId } : filter;
   const selectableVisibleCount = bulkTargetsReady ? visibleCount : 0;
+  const tagSearch = useContentEditorTagSearch({
+    enabled: tagSearchEnabled,
+    search,
+    onSearchChange,
+    queueAdvanced,
+    onQueueAdvancedChange,
+    organizationSlug,
+    projectId,
+  });
 
   useHotkeys("escape", () => onSelectionModeChange?.(false), {
     enabled: isSelecting && !isBulkActionPending,
@@ -147,6 +217,44 @@ export function ContentEditorQueueToolbar({
 
   return (
     <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+      {jobId && onQueueAdvancedChange ? (
+        <div
+          role="status"
+          className="flex w-full items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs"
+        >
+          <FormattedMessage {...contentEditorQueuePanelMessages.keyJobScope} />
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto px-0 text-xs"
+            onClick={() => {
+              const rest = { ...queueAdvanced };
+              delete rest.jobId;
+              onQueueAdvancedChange(isCatQueueFilterEmpty(rest) ? undefined : rest);
+            }}
+          >
+            <FormattedMessage {...contentEditorQueuePanelMessages.keyJobShowAll} />
+          </Button>
+        </div>
+      ) : null}
+      {onDismissNewTaskHint && isSelecting && onBulkCreateTask ? (
+        <div
+          role="status"
+          className="flex w-full items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs"
+        >
+          <FormattedMessage {...contentEditorQueuePanelMessages.newTaskHint} />
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto px-0 text-xs"
+            onClick={onDismissNewTaskHint}
+          >
+            <FormattedMessage {...contentEditorQueuePanelMessages.newTaskHintDismiss} />
+          </Button>
+        </div>
+      ) : null}
       {showBulkBar ? (
         <ContentEditorBulkBar
           selectedCount={selectedCount}
@@ -161,67 +269,132 @@ export function ContentEditorQueueToolbar({
           onBulkUnhide={onBulkUnhide}
           onBulkLock={onBulkLock}
           onBulkUnlock={onBulkUnlock}
+          actionLocale={bulkActionLocale}
+          onBulkCreateTask={onBulkCreateTask}
+          onBulkEditTags={onBulkEditTags}
           onDone={() => onSelectionModeChange?.(false)}
         />
       ) : (
         <>
           {onSearchChange ? (
             <div className="relative min-w-0 flex-1 basis-40">
-              <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(event) => onSearchChange(event.target.value)}
-                placeholder={intl.formatMessage(contentEditorQueuePanelMessages.searchPlaceholder)}
-                aria-label={intl.formatMessage(contentEditorQueuePanelMessages.searchAria)}
-                className="h-8 pl-9 font-mono text-xs"
-              />
+              {tagSearch.active ? (
+                // Tag filters sit in the box as pills before the text, as fields do in a
+                // visual workflow's settings.
+                <InputGroup className="h-8 rounded-lg">
+                  <InputGroupAddon
+                    align="inline-start"
+                    className="max-w-[60%] gap-1 overflow-x-auto py-0 ps-2.5"
+                  >
+                    <MagnifyingGlassIcon className="size-4 shrink-0 text-muted-foreground" />
+                    {tagSearch.chips}
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    value={tagSearch.inputValue}
+                    onChange={(event) => tagSearch.onInputChange(event.target.value)}
+                    onKeyDown={tagSearch.onInputKeyDown}
+                    {...tagSearch.inputProps}
+                    placeholder={
+                      tagSearch.hasTags
+                        ? undefined
+                        : intl.formatMessage(contentEditorTagSearchMessages.searchPlaceholder)
+                    }
+                    aria-label={intl.formatMessage(contentEditorQueuePanelMessages.searchAria)}
+                    className="h-8 pe-9 font-mono text-xs"
+                    data-content-editor-string-search="true"
+                  />
+                </InputGroup>
+              ) : (
+                <>
+                  <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(event) => onSearchChange(event.target.value)}
+                    placeholder={intl.formatMessage(
+                      contentEditorQueuePanelMessages.searchPlaceholder,
+                    )}
+                    aria-label={intl.formatMessage(contentEditorQueuePanelMessages.searchAria)}
+                    className="h-8 pl-9 font-mono text-xs"
+                    data-content-editor-string-search="true"
+                  />
+                </>
+              )}
               {isSearching ? (
                 <Spinner className="absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2" />
-              ) : null}
+              ) : (
+                <ContentEditorShortcutHint
+                  shortcut="searchStrings"
+                  className="top-1/2 right-2 -translate-y-1/2"
+                />
+              )}
+              {tagSearch.suggestions}
             </div>
           ) : null}
 
           {onQueueFilterChange ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "h-8 shrink-0 gap-1.5 font-normal",
-                      hasActiveFilter && "border-grove-400/40",
-                    )}
-                    aria-label={intl.formatMessage(contentEditorQueuePanelMessages.filterQueueAria)}
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "h-8 shrink-0 gap-1.5 font-normal",
+                        hasActiveFilter && "border-grove-400/40",
+                      )}
+                      aria-label={intl.formatMessage(
+                        contentEditorQueuePanelMessages.filterQueueAria,
+                      )}
+                    />
+                  }
+                >
+                  <FunnelIcon className="size-3.5" />
+                  <span className="text-xs">
+                    <FormattedMessage {...filterButtonMessage} />
+                  </span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <ContentEditorQueueFilterMenu
+                    queueFilter={queueFilter}
+                    queueSort={queueSort}
+                    queueFilterQualifier={queueFilterQualifier}
+                    queueAdvanced={queueAdvanced}
+                    availableQueueFilters={availableQueueFilters}
+                    availableQueueSorts={availableQueueSorts}
+                    providerKind={providerKind}
+                    onSelect={(selection) => {
+                      onQueueFilterChange(selection.filter);
+                      onQueueFilterQualifierChange?.(selection.qualifier);
+                      // Searched tags stay, as the search text does.
+                      onQueueAdvancedChange?.(
+                        keepJobScope(
+                          tagSearchEnabled ? includedTagsOnly(queueAdvanced) : undefined,
+                        ),
+                      );
+                      if (selection.sort) {
+                        onQueueSortChange?.(selection.sort);
+                      }
+                    }}
+                    onOpenAdvanced={() => setAdvancedOpen(true)}
                   />
-                }
-              >
-                <FunnelIcon className="size-3.5" />
-                <span className="text-xs">
-                  <FormattedMessage {...queueFilterMessageByValue[queueFilter]} />
-                </span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>
-                    <FormattedMessage {...contentEditorQueuePanelMessages.filterQueueAria} />
-                  </DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={queueFilter}
-                    onValueChange={(value) =>
-                      onQueueFilterChange(value as ContentEditorQueueFilter)
-                    }
-                  >
-                    {availableQueueFilters.map((filterValue) => (
-                      <DropdownMenuRadioItem key={filterValue} value={filterValue}>
-                        <FormattedMessage {...queueFilterMessageByValue[filterValue]} />
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <ContentEditorAdvancedQueueFilterDialog
+                open={advancedOpen}
+                onOpenChange={setAdvancedOpen}
+                value={queueAdvanced}
+                providerKind={providerKind}
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+                onApply={(filter) => {
+                  onQueueFilterChange("all");
+                  onQueueFilterQualifierChange?.(undefined);
+                  onQueueAdvancedChange?.(keepJobScope(filter));
+                }}
+              />
+            </>
           ) : null}
 
           {isSelecting ? selectAllButton : null}
@@ -251,9 +424,11 @@ export function ContentEditorQueueToolbar({
           availableQueueSorts={availableQueueSorts}
         />
         <ContentEditorOverflowMenu
-          filterLabel={intl.formatMessage(queueFilterMessageByValue[queueFilter])}
+          filterLabel={intl.formatMessage(filterButtonMessage)}
           onDownloadFilteredView={onDownloadFilteredView}
           isDownloadingFilteredView={isDownloadingFilteredView}
+          onImportBilingualFile={onImportBilingualFile}
+          isImportingBilingualFile={isImportingBilingualFile}
         />
       </div>
     </div>
@@ -273,6 +448,9 @@ function ContentEditorBulkBar({
   onBulkUnhide,
   onBulkLock,
   onBulkUnlock,
+  actionLocale,
+  onBulkCreateTask,
+  onBulkEditTags,
   onDone,
 }: {
   selectedCount: number;
@@ -287,14 +465,37 @@ function ContentEditorBulkBar({
   onBulkUnhide?: () => void;
   onBulkLock?: () => void;
   onBulkUnlock?: () => void;
+  actionLocale?: string;
+  onBulkCreateTask?: () => void;
+  onBulkEditTags?: () => void;
   onDone: () => void;
 }) {
   const intl = useIntl();
+  const language = actionLocale ? formatLocaleDisplayName(intl, actionLocale) : undefined;
+  const messages = contentEditorQueuePanelMessages;
   const moreActions = [
-    { key: "hide", handler: onBulkHide, message: contentEditorQueuePanelMessages.bulkHide },
-    { key: "unhide", handler: onBulkUnhide, message: contentEditorQueuePanelMessages.bulkUnhide },
-    { key: "lock", handler: onBulkLock, message: contentEditorQueuePanelMessages.bulkLock },
-    { key: "unlock", handler: onBulkUnlock, message: contentEditorQueuePanelMessages.bulkUnlock },
+    { key: "hide", handler: onBulkHide, message: messages.bulkHide },
+    { key: "unhide", handler: onBulkUnhide, message: messages.bulkUnhide },
+    {
+      key: "lock",
+      handler: onBulkLock,
+      message: language ? messages.bulkLockInLanguage : messages.bulkLock,
+    },
+    {
+      key: "unlock",
+      handler: onBulkUnlock,
+      message: language ? messages.bulkUnlockInLanguage : messages.bulkUnlock,
+    },
+    {
+      key: "task",
+      handler: onBulkCreateTask,
+      message: messages.bulkCreateTask,
+    },
+    {
+      key: "tags",
+      handler: onBulkEditTags,
+      message: contentEditorQueuePanelMessages.bulkEditTags,
+    },
   ].filter((action) => Boolean(action.handler));
 
   return (
@@ -318,7 +519,10 @@ function ContentEditorBulkBar({
           onClick={onBulkApprove}
           disabled={!canMutate}
         >
-          <FormattedMessage {...contentEditorQueuePanelMessages.bulkApprove} />
+          <FormattedMessage
+            {...(language ? messages.bulkApproveInLanguage : messages.bulkApprove)}
+            values={{ language }}
+          />
         </Button>
       ) : null}
       {onBulkSkip ? (
@@ -330,7 +534,7 @@ function ContentEditorBulkBar({
           onClick={onBulkSkip}
           disabled={!canMutate}
         >
-          <FormattedMessage {...contentEditorQueuePanelMessages.bulkSkip} />
+          <FormattedMessage {...messages.bulkSkip} />
         </Button>
       ) : null}
       {moreActions.length > 0 || onClearChecked ? (
@@ -354,7 +558,7 @@ function ContentEditorBulkBar({
               <DropdownMenuGroup>
                 {moreActions.map((action) => (
                   <DropdownMenuItem key={action.key} onClick={action.handler} disabled={!canMutate}>
-                    <FormattedMessage {...action.message} />
+                    <FormattedMessage {...action.message} values={{ language }} />
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuGroup>

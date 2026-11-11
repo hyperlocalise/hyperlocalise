@@ -18,7 +18,7 @@ export const TM_ENTRY_SEARCH_DEBOUNCE_MS = 250;
 export const TM_ENTRY_SEARCH_MAX_LENGTH = 200;
 
 export const TM_ENTRY_REVIEW_STATUSES = ["approved", "pending", "rejected"] as const;
-export const TM_ENTRY_ORIGINS = ["manual", "import", "sync"] as const;
+export const TM_ENTRY_ORIGINS = ["manual", "import", "sync", "file_job", "approved_job"] as const;
 export const TM_ENTRY_SORTS = ["created_at", "updated_at"] as const;
 export const TM_ENTRY_SORT_DIRS = ["asc", "desc"] as const;
 export const TM_ENTRY_PROVIDERS = externalTmsProviderKinds;
@@ -34,6 +34,7 @@ export type TmEntryListUrlState = {
   sourceLocale?: string;
   targetLocale?: string;
   reviewStatus?: TmEntryReviewStatus;
+  sameAsSource?: boolean;
   origin?: string;
   provider?: string;
   createdByUserId?: string;
@@ -53,6 +54,7 @@ export type TmEntryListApiQuery = {
   sourceLocale?: string;
   targetLocale?: string;
   reviewStatus?: TmEntryReviewStatus;
+  sameAsSource?: "true";
   origin?: string;
   provider?: string;
   createdByUserId?: string;
@@ -68,6 +70,7 @@ export type TmEntryFilterChip =
   | { key: "sourceLocale"; value: string }
   | { key: "targetLocale"; value: string }
   | { key: "reviewStatus"; value: TmEntryReviewStatus }
+  | { key: "sameAsSource"; value: "true" }
   | { key: "origin"; value: string }
   | { key: "provider"; value: string }
   | { key: "createdByUserId"; value: string }
@@ -89,6 +92,7 @@ const FILTER_KEYS = [
   "sourceLocale",
   "targetLocale",
   "reviewStatus",
+  "sameAsSource",
   "origin",
   "provider",
   "createdByUserId",
@@ -167,6 +171,7 @@ export function parseTmEntryListSearchParams(searchParams: URLSearchParams): TmE
     sourceLocale: parseCanonicalLocaleParam(searchParams.get("sourceLocale")),
     targetLocale: parseCanonicalLocaleParam(searchParams.get("targetLocale")),
     reviewStatus: readAllowedValue(searchParams, "reviewStatus", TM_ENTRY_REVIEW_STATUSES),
+    sameAsSource: searchParams.get("sameAsSource") === "true" ? true : undefined,
     origin,
     provider,
     createdByUserId: readUuidParam(searchParams, "createdByUserId"),
@@ -193,6 +198,9 @@ export function buildTmEntryListSearchParams(state: TmEntryListUrlState): URLSea
   }
   if (state.reviewStatus) {
     params.set("reviewStatus", state.reviewStatus);
+  }
+  if (state.sameAsSource) {
+    params.set("sameAsSource", "true");
   }
   if (state.origin) {
     params.set("origin", state.origin);
@@ -273,6 +281,9 @@ export function getActiveTmEntryFilterChips(state: TmEntryListUrlState): TmEntry
   if (state.reviewStatus) {
     chips.push({ key: "reviewStatus", value: state.reviewStatus });
   }
+  if (state.sameAsSource) {
+    chips.push({ key: "sameAsSource", value: "true" });
+  }
   if (state.origin) {
     chips.push({ key: "origin", value: state.origin });
   }
@@ -316,6 +327,9 @@ export function tmEntryListStateToApiQuery(
   }
   if (state.reviewStatus) {
     query.reviewStatus = state.reviewStatus;
+  }
+  if (state.sameAsSource) {
+    query.sameAsSource = "true";
   }
   if (state.origin) {
     query.origin = state.origin;

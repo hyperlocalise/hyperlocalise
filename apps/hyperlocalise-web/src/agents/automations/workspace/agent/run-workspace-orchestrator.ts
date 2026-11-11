@@ -368,9 +368,11 @@ async function loadWorkspaceOrchestratorContext(
   }
 
   const templateSkillId = resolveTemplateSkillId(run.inputSnapshot);
+  const operation =
+    typeof run.inputSnapshot.operation === "string" ? run.inputSnapshot.operation : null;
   const plan = input.planTools
     ? { tools: input.planTools }
-    : buildWorkspaceOrchestratorPlan(automation, { templateSkillId });
+    : buildWorkspaceOrchestratorPlan(automation, { templateSkillId, operation });
   const composedInstructions = composeWorkspaceAutomationInstructions({
     templateSkillId,
     // Read from the automation, as the plan and instructions are, so a run never mixes the
@@ -670,6 +672,7 @@ export async function completeWorkspaceOrchestratorRun(
     operationKey: usageOperationKey(run.id),
     dimensions: usageDimensions(automation.id),
     tokenUsage: extractAiSdkTokenUsage(input.usage),
+    aiCreditModelId: resolveWorkspaceAutomationModel(automation.model),
   });
 
   await updateWorkspaceAutomationRun({

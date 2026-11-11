@@ -12,7 +12,12 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { canCancelJob, canMarkJobFailed, type JobDetailRecord } from "./job-detail-types";
+import {
+  canCancelJob,
+  canMarkJobFailed,
+  canMarkTaskDone,
+  type JobDetailRecord,
+} from "./job-detail-types";
 
 function createJob(overrides: Partial<JobDetailRecord> = {}): JobDetailRecord {
   return {
@@ -60,18 +65,60 @@ function createJob(overrides: Partial<JobDetailRecord> = {}): JobDetailRecord {
 }
 
 describe("canCancelJob / canMarkJobFailed", () => {
-  it("allows cancel and mark-failed for native waiting_for_review jobs", () => {
-    const job = createJob();
-    expect(canCancelJob(job)).toBe(true);
-    expect(canMarkJobFailed(job)).toBe(true);
+  it("allows cancel for human native jobs and mark-failed only for agent jobs", () => {
+    const humanJob = createJob({ assigneeType: "user", ownerUserId: "user_1" });
+    expect(canCancelJob(humanJob)).toBe(true);
+    expect(canMarkJobFailed(humanJob)).toBe(false);
+
+    const agentJob = createJob({ assigneeType: "agent", ownerUserId: null });
+    expect(canCancelJob(agentJob)).toBe(true);
+    expect(canMarkJobFailed(agentJob)).toBe(true);
   });
 
   it("rejects cancel and mark-failed for provider-backed waiting_for_review jobs", () => {
     const job = createJob({
+      assigneeType: "agent",
       externalProviderKind: "crowdin",
       externalJobId: "task_1",
     });
     expect(canCancelJob(job)).toBe(false);
     expect(canMarkJobFailed(job)).toBe(false);
+  });
+});
+
+describe("canMarkTaskDone", () => {
+  it("offers mark done on open proofread tasks for people", () => {
+    expect(canMarkTaskDone(createJob({ assigneeType: "user" }))).toBe(true);
+    expect(canMarkTaskDone(createJob({ assigneeType: null }))).toBe(true);
+    expect(
+      canMarkTaskDone(
+        createJob({
+          inputPayload: {
+            sourceFileId: "file_1",
+            metadata: { workflowTaskStep: "proofread" },
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not offer it for post-edit, translation, agents, AI reviews, provider tasks or finished tasks", () => {
+    expect(
+      canMarkTaskDone(
+        createJob({
+          inputPayload: {
+            sourceFileId: "file_1",
+            metadata: { workflowTaskStep: "edit" },
+          },
+        }),
+      ),
+    ).toBe(false);
+    expect(canMarkTaskDone(createJob({ kind: "translation", assigneeType: "user" }))).toBe(false);
+    expect(canMarkTaskDone(createJob({ assigneeType: "agent" }))).toBe(false);
+    expect(canMarkTaskDone(createJob({ kind: "review" }))).toBe(false);
+    expect(
+      canMarkTaskDone(createJob({ externalProviderKind: "crowdin", externalJobId: "task_1" })),
+    ).toBe(false);
+    expect(canMarkTaskDone(createJob({ status: "succeeded" }))).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 module github.com/crowdin/crowdin-api-client-go
 
-go 1.26.0
+go 1.27.3
 
 require github.com/stretchr/testify v1.12.1
 

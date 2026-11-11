@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type {
   ContentEditorQueueFilter,
@@ -21,6 +21,10 @@ import type {
 import { ContentEditorTestProviders } from "@/components/content-editor/shared/content-editor-test-utils";
 
 import { useContentEditorSegmentQuery } from "./use-content-editor-segment-query";
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
 
 const baseInput: {
   organizationSlug: string;
@@ -31,6 +35,8 @@ const baseInput: {
   initialQueueFilter: ContentEditorQueueFilter;
   initialQueueSort: ContentEditorQueueSort;
   initialSearch: string;
+  initialQueueFilterQualifier?: string;
+  initialQueueAdvanced?: { stringType: "plain" | "asset" };
 } = {
   organizationSlug: "acme",
   projectId: "proj_1",
@@ -99,5 +105,36 @@ describe("useContentEditorSegmentQuery queue restore", () => {
     expect(result.current.queueFilter).toBe("needs_review");
     expect(result.current.queueSort).toBe("file_order");
     expect(result.current.search).toBe("welcome");
+  });
+
+  it("initializes qualifier and advanced filters from the URL", () => {
+    window.history.replaceState(
+      null,
+      "",
+      `?queueFilterQualifier=general_question&queueAdvanced=${encodeURIComponent(
+        JSON.stringify({ stringType: "plain" }),
+      )}`,
+    );
+    const { result, rerender } = renderQuery();
+    expect(result.current.queueFilterQualifier).toBe("general_question");
+    expect(result.current.queueAdvanced).toEqual({ stringType: "plain" });
+
+    act(() => {
+      result.current.setQueueFilterQualifier(undefined);
+      result.current.setQueueAdvanced(undefined);
+    });
+    rerender({ ...baseInput, sourcePath: "de.json" });
+    expect(result.current.queueFilterQualifier).toBe("general_question");
+    expect(result.current.queueAdvanced).toEqual({ stringType: "plain" });
+  });
+
+  it("uses explicit qualifier props when the URL does not set them", () => {
+    const { result } = renderQuery({
+      ...baseInput,
+      initialQueueFilterQualifier: "general_question",
+      initialQueueAdvanced: { stringType: "asset" },
+    });
+    expect(result.current.queueFilterQualifier).toBe("general_question");
+    expect(result.current.queueAdvanced).toEqual({ stringType: "asset" });
   });
 });

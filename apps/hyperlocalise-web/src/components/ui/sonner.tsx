@@ -29,19 +29,22 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      closeButton
+      gap={10}
       icons={{
-        success: <CheckCircleIcon className="size-4" />,
-        info: <InfoIcon className="size-4" />,
-        warning: <WarningIcon className="size-4" />,
-        error: <XCircleIcon className="size-4" />,
-        loading: <CircleNotchIcon className="size-4 animate-spin" />,
+        success: <CheckCircleIcon size={18} weight="regular" />,
+        info: <InfoIcon size={18} weight="regular" />,
+        warning: <WarningIcon size={18} weight="regular" />,
+        error: <XCircleIcon size={18} weight="regular" />,
+        loading: <CircleNotchIcon size={18} weight="regular" className="animate-spin" />,
       }}
       style={
         {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
+          "--normal-bg": "var(--card)",
+          "--normal-text": "var(--foreground)",
           "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
+          "--width": "300px",
         } as React.CSSProperties
       }
       toastOptions={{

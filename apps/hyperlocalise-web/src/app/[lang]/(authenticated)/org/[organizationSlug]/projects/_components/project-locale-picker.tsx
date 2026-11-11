@@ -14,7 +14,7 @@
  */
 import { useEffect, useId, useMemo, useState } from "react";
 import { PlusIcon } from "@phosphor-icons/react";
-import { FormattedMessage, useIntl } from "react-intl";
+import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -111,12 +111,18 @@ export function ProjectTargetLocalesPicker({
   value,
   onChange,
   sourceLocale,
+  additionalLocales,
+  labelMessage,
   disabled,
   error,
 }: {
   value: string[];
   onChange: (locales: string[]) => void;
   sourceLocale: string;
+  /** Extra locale codes shown as quick-select pills (for example from workspace projects). */
+  additionalLocales?: string[];
+  /** Overrides the default “Target locales” field label. */
+  labelMessage?: MessageDescriptor;
   disabled?: boolean;
   error?: string;
 }) {
@@ -139,14 +145,16 @@ export function ProjectTargetLocalesPicker({
     () => new Set(COMMON_LOCALES.map((locale) => locale.toLowerCase())),
     [],
   );
-  const commonLocales = useMemo(
-    () =>
-      sortLocalesByDisplayName(
-        COMMON_LOCALES.filter((locale) => locale.toLowerCase() !== sourceKey),
-        intl,
-      ),
-    [intl, sourceKey],
-  );
+  const quickSelectLocales = useMemo(() => {
+    const merged = new Set<string>(COMMON_LOCALES);
+    for (const locale of additionalLocales ?? []) {
+      merged.add(locale);
+    }
+    return sortLocalesByDisplayName(
+      [...merged].filter((locale) => locale.toLowerCase() !== sourceKey),
+      intl,
+    );
+  }, [additionalLocales, intl, sourceKey]);
   const extraSelectedLocales = useMemo(
     () =>
       sortLocalesByDisplayName(
@@ -202,10 +210,14 @@ export function ProjectTargetLocalesPicker({
   return (
     <Field className="gap-1.5">
       <FieldLabel id={fieldId}>
-        <FormattedMessage {...projectLocalePickerMessages.targetLocalesLabel} />
+        {labelMessage ? (
+          <FormattedMessage {...labelMessage} />
+        ) : (
+          <FormattedMessage {...projectLocalePickerMessages.targetLocalesLabel} />
+        )}
       </FieldLabel>
       <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby={fieldId}>
-        {commonLocales.map((locale) => {
+        {quickSelectLocales.map((locale) => {
           const isSelected = selected.has(locale.toLowerCase());
 
           return (

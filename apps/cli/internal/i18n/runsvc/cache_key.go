@@ -53,8 +53,12 @@ func isAsciiDocEntryKey(key string) bool {
 	return strings.HasPrefix(strings.TrimSpace(key), "adoc.")
 }
 
+func isPlainTextEntryKey(key string) bool {
+	return strings.HasPrefix(strings.TrimSpace(key), "txt.")
+}
+
 func isDocumentEntryKey(key string) bool {
-	return isMarkdownEntryKey(key) || isAsciiDocEntryKey(key)
+	return isMarkdownEntryKey(key) || isAsciiDocEntryKey(key) || isPlainTextEntryKey(key)
 }
 
 func legacyMarkdownContextSensitiveLockTaskHashCandidates(task Task) []string {

@@ -10,40 +10,36 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { DesignSegment } from "./types";
 
-const SEGMENT_KEY_PREFIX = "canva.segment.";
-
-export function segmentKey(pageIndex: number, contentIndex: number, regionIndex: number): string {
-  return `${SEGMENT_KEY_PREFIX}${pageIndex}.${contentIndex}.${regionIndex}`;
-}
-
-export function segmentsToTranslationFile(segments: DesignSegment[]): Record<string, string> {
-  const entries: Record<string, string> = {};
-
-  for (const segment of segments) {
-    if (segment.text.trim().length === 0) {
-      continue;
-    }
-    entries[segment.key] = segment.text;
-  }
-
-  return entries;
-}
-
-export function parseTranslationFile(content: Record<string, unknown>): Record<string, string> {
-  const translations: Record<string, string> = {};
-
-  for (const [key, value] of Object.entries(content)) {
-    if (!key.startsWith(SEGMENT_KEY_PREFIX) || typeof value !== "string") {
-      continue;
-    }
-    translations[key] = value;
-  }
-
-  return translations;
+export function normalizeSegmentText(text: string): string {
+  return text.normalize("NFKC").replace(/\s+/g, " ").trim();
 }
 
 export function buildSourcePath(designId: string): string {
   return `canva/designs/${designId}.json`;
+}
+
+export function pageFileNumber(pageIndex: number): number {
+  return pageIndex + 1;
+}
+
+export function buildPageFileName(pageIndex: number): string {
+  return `page-${pageFileNumber(pageIndex)}.json`;
+}
+
+function canvaPathSegment(value: string): string {
+  return (
+    value
+      .trim()
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "untitled"
+  );
+}
+
+export function buildPageSourcePath(
+  designSlug: string,
+  designId: string,
+  pageIndex: number,
+): string {
+  return `canva/designs/${designSlug}-${canvaPathSegment(designId)}/${buildPageFileName(pageIndex)}`;
 }

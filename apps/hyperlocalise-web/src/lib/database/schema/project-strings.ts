@@ -12,6 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   index,
   integer,
@@ -25,6 +26,7 @@ import {
 
 import {
   projectTranslationCommentTypeEnum,
+  projectTranslationOriginEnum,
   projectTranslationProvenanceEnum,
   projectTranslationStatusEnum,
 } from "./enums";
@@ -53,14 +55,31 @@ export const projectTranslationKeys = pgTable(
     key: text("key").notNull(),
     sourceText: text("source_text").notNull(),
     normalizedSourceText: text("normalized_source_text").notNull(),
+    /**
+     * The source text as last imported from a file. Null until an import writes it; then the
+     * three-way rule in `upsertKeysFromEntries` can tell a platform edit from a repository edit.
+     */
+    importedSourceText: text("imported_source_text"),
     context: text("context"),
     type: text("type"),
     maxLength: integer("max_length"),
+    /** Free labels such as a feature or request name; letters, digits, `_` and `-`. */
+    tags: text("tags")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    /** Link to the design where the key appears, such as a Figma frame. */
+    designUrl: text("design_url"),
     /**
      * Crowdin-style hidden string. Managers still see the key in CAT;
      * translation jobs skip it.
      */
     isHidden: boolean("is_hidden").notNull().default(false),
+    /**
+     * Set by a repository sync that found the key missing from the repository, and cleared when
+     * the key returns, so a sync only unhides what a sync hid.
+     */
+    hiddenBySyncAt: timestamp("hidden_by_sync_at", { withTimezone: true }),
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
       .notNull()
@@ -83,6 +102,7 @@ export const projectTranslationKeys = pgTable(
     ),
     index("idx_project_translation_keys_org_project").on(table.organizationId, table.projectId),
     index("idx_project_translation_keys_file").on(table.repositorySourceFileId),
+    index("idx_project_translation_keys_tags").using("gin", table.tags),
   ],
 );
 
@@ -106,6 +126,8 @@ export const projectTranslations = pgTable(
     text: text("text").notNull().default(""),
     status: projectTranslationStatusEnum("status").notNull().default("draft"),
     provenance: projectTranslationProvenanceEnum("provenance").notNull().default("manual"),
+    /** Machine or human authorship of `text`; see `projectTranslationOriginEnum`. */
+    origin: projectTranslationOriginEnum("origin").notNull().default("unknown"),
     sourceJobId: text("source_job_id").references(() => jobs.id, { onDelete: "set null" }),
     reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, {
       onDelete: "set null",
@@ -125,6 +147,57 @@ export const projectTranslations = pgTable(
     uniqueIndex("project_translations_key_locale").on(table.translationKeyId, table.targetLocale),
     index("idx_project_translations_org_project").on(table.organizationId, table.projectId),
     index("idx_project_translations_status").on(table.projectId, table.status),
+  ],
+);
+
+/**
+ * Append-only history of `project_translations`: one row per write that changed text or status.
+ * Every writer records here (`project-translation-revisions.ts` in the web app,
+ * `editor-cat-revisions.go` in go-svc), so a past version can be restored.
+ */
+export const projectTranslationRevisions = pgTable(
+  "project_translation_revisions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    translationId: uuid("translation_id")
+      .notNull()
+      .references(() => projectTranslations.id, { onDelete: "cascade" }),
+    translationKeyId: uuid("translation_key_id")
+      .notNull()
+      .references(() => projectTranslationKeys.id, { onDelete: "cascade" }),
+    targetLocale: text("target_locale").notNull(),
+    text: text("text").notNull(),
+    status: projectTranslationStatusEnum("status").notNull(),
+    provenance: projectTranslationProvenanceEnum("provenance").notNull(),
+    /** The translation's origin after this write. */
+    origin: projectTranslationOriginEnum("origin").notNull().default("unknown"),
+    sourceJobId: text("source_job_id").references(() => jobs.id, { onDelete: "set null" }),
+    actorKind: text("actor_kind").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    /** Groups revisions written together: a group save, a translation job (`job:<id>`), an undo. */
+    operationId: text("operation_id"),
+    restoredFromRevisionId: uuid("restored_from_revision_id").references(
+      (): AnyPgColumn => projectTranslationRevisions.id,
+      { onDelete: "set null" },
+    ),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_project_translation_revisions_translation").on(
+      table.translationId,
+      table.createdAt.desc(),
+    ),
+    index("idx_project_translation_revisions_operation").on(
+      table.organizationId,
+      table.projectId,
+      table.operationId,
+    ),
   ],
 );
 

@@ -13,7 +13,6 @@
 import { ToolLoopAgent, type ModelMessage, type ToolSet } from "ai";
 
 import { composeInstructions } from "@/agents/_runtime/compose-instructions";
-import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import {
   filterToolSetByNames,
@@ -24,6 +23,7 @@ import {
   extractGenerateResultTokenUsage,
   withAgentRuntimeUsageMetering,
 } from "@/lib/billing/agent-runtime-usage";
+import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
 import { db } from "@/lib/database/client";
@@ -64,8 +64,11 @@ export async function runRepositoryLocalisationAgentForCommit(input: {
     ...repositoryWorkspaceToolNames,
   ]) as ToolSet;
 
+  const languageModel = await resolveHyperlocaliseAgentLanguageModel({
+    organizationId: input.organizationId,
+  });
   const agent = new ToolLoopAgent({
-    model: getHyperlocaliseAgentModel(),
+    model: languageModel.model,
     tools,
     stopWhen: [(step) => step.steps.length >= agentStepLimit],
     timeout: WORKFLOW_AGENT_TIMEOUT,
@@ -102,6 +105,8 @@ export async function runRepositoryLocalisationAgentForCommit(input: {
       commit_sha: input.commitSha,
     },
     extractTokenUsage: extractGenerateResultTokenUsage,
+    aiCreditModelId: languageModel.modelId,
+    aiCreditCredentialSource: languageModel.source === "gateway" ? "gateway" : "byok",
     run: () =>
       agent.generate({
         messages: [{ role: "user", content: prompt }] as ModelMessage[],
@@ -147,8 +152,11 @@ export async function runGithubPullRequestReviewAgent(input: {
     ...repositoryWorkspaceToolNames,
   ]) as ToolSet;
 
+  const languageModel = await resolveHyperlocaliseAgentLanguageModel({
+    organizationId: input.organizationId,
+  });
   const agent = new ToolLoopAgent({
-    model: getHyperlocaliseAgentModel(),
+    model: languageModel.model,
     tools,
     stopWhen: [(step) => step.steps.length >= agentStepLimit],
     timeout: WORKFLOW_AGENT_TIMEOUT,
@@ -186,6 +194,8 @@ export async function runGithubPullRequestReviewAgent(input: {
       commit_sha: input.headSha,
     },
     extractTokenUsage: extractGenerateResultTokenUsage,
+    aiCreditModelId: languageModel.modelId,
+    aiCreditCredentialSource: languageModel.source === "gateway" ? "gateway" : "byok",
     run: () =>
       agent.generate({
         messages: [{ role: "user", content: prompt }] as ModelMessage[],

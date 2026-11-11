@@ -30,7 +30,7 @@ func patAuditActorOf(entry map[string]any) map[string]any {
 func revokedActivity(env *apiKeyTestEnv) []activityLogEventInput {
 	var out []activityLogEventInput
 	for _, event := range env.activity.recorded() {
-		if event.EventType == "personal_access_token_revoked" {
+		if event.EventType == "organization_api_key_revoked" {
 			out = append(out, event)
 		}
 	}
@@ -83,7 +83,12 @@ func TestAPIKeyRevokeAuthorization(t *testing.T) {
 	events := revokedActivity(env)
 	require.Len(t, events, 3)
 	require.Equal(t, env.owner.userID, events[1].ActorUserID)
-	require.Equal(t, map[string]any{"keyPrefix": peerKey.KeyPrefix, "reason": "manual", "tokenId": peerKey.ID}, events[1].Payload)
+	require.Equal(t, map[string]any{
+		"apiKeyId":  peerKey.ID,
+		"keyPrefix": peerKey.KeyPrefix,
+		"name":      peerKey.Name,
+		"reason":    "manual",
+	}, events[1].Payload)
 
 	foreign := newAPIKeyTestEnv(t, "admin")
 	foreignKey := foreign.mustCreate(t, foreign.owner, `{"name":"foreign"}`).APIKey
@@ -256,9 +261,9 @@ func TestAPIKeyRevokeRacesMembershipRemovalEmitsOnce(t *testing.T) {
 		wg.Go(func() {
 			<-start
 			members := &memberAPI{pool: env.scope.Pool}
-			removalErr = members.revokeOrganizationMembershipAccess(context.Background(),
+			_, removalErr = members.revokeOrganizationMembershipAccess(context.Background(),
 				memberActor{userID: env.owner.userID, organizationID: env.scope.OrganizationID},
-				organizationMember{localUserID: member.userID, role: "member"})
+				organizationMember{localUserID: member.userID, role: "member"}, nil)
 		})
 		close(start)
 		wg.Wait()
@@ -342,11 +347,12 @@ func TestAPIKeyMembershipRemovalWaitsForCreateAndRevokes(t *testing.T) {
 	removal := make(chan error, 1)
 	go func() {
 		members := &memberAPI{pool: env.scope.Pool}
-		removal <- members.revokeOrganizationMembershipAccess(context.Background(),
+		_, err := members.revokeOrganizationMembershipAccess(context.Background(),
 			memberActor{userID: env.owner.userID, organizationID: env.scope.OrganizationID},
-			organizationMember{localUserID: member.userID, role: "member"})
+			organizationMember{localUserID: member.userID, role: "member"}, nil)
+		removal <- err
 	}()
-	waitForLockWait(t, env, "delete from organization_memberships")
+	waitForLockWait(t, env, "from organization_memberships")
 	releaseCreate()
 
 	rec := <-done
@@ -415,9 +421,10 @@ func TestMembershipRemovalReportsPatAuditFailure(t *testing.T) {
 	buf := captureFailingPatRevokedLogs(t)
 
 	members := &memberAPI{pool: env.scope.Pool}
-	require.NoError(t, members.revokeOrganizationMembershipAccess(t.Context(),
+	_, err := members.revokeOrganizationMembershipAccess(t.Context(),
 		memberActor{userID: env.owner.userID, organizationID: env.scope.OrganizationID},
-		organizationMember{localUserID: member.userID, role: "member"}))
+		organizationMember{localUserID: member.userID, role: "member"}, nil)
+	require.NoError(t, err)
 	require.NotNil(t, env.revokedAt(t, created.ID))
 
 	logs := buf.String()

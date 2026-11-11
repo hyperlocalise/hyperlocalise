@@ -206,6 +206,18 @@
                       "platform/integrations",
                       "platform/tms",
                       "platform/connections/github",
+                      "platform/connections/intercom",
+                      "platform/connections/sanity",
+                      "platform/connections/sanity-studio-plugin",
+                      "platform/connections/webflow",
+                      "platform/connections/braze",
+                      "platform/connections/customer-io",
+                      "platform/connections/iterable",
+                      "platform/connections/loops",
+                      "platform/connections/hubspot",
+                      "platform/connections/mailchimp",
+                      "platform/connections/canva",
+                      "platform/connections/figma",
                       "platform/connections/design-tools"
                     ],
                     "expanded": false
@@ -220,17 +232,23 @@
                       "platform/developers/projects-and-queries",
                       "platform/mcp",
                       "platform/developers/mcp-tools",
+                      "platform/developers/webhooks",
                       {
                         "group": "Framework and repository guides",
                         "pages": [
                           "platform/tutorials/github-localisation-workflow",
                           "platform/tutorials/react-intl-icu",
                           "platform/tutorials/vue-i18n",
+                          "platform/tutorials/i18next",
+                          "platform/tutorials/next-intl",
                           "platform/tutorials/ios-strings",
                           "platform/tutorials/android-string-resources",
+                          "platform/tutorials/flutter-arb",
                           "platform/tutorials/gettext-pot-po",
+                          "platform/tutorials/fluent",
                           "platform/tutorials/xliff",
-                          "platform/tutorials/qt-linguist"
+                          "platform/tutorials/qt-linguist",
+                          "platform/tutorials/dotnet-resx"
                         ]
                       }
                     ],
@@ -240,8 +258,11 @@
                     "group": "Website and market research",
                     "pages": [
                       "platform/domains",
+                      "platform/research/audit-to-domain-tutorial",
                       "platform/research/verify-domain",
-                      "platform/research/keywords-and-ranks"
+                      "platform/research/keywords-and-ranks",
+                      "platform/research/localisation-audit",
+                      "platform/research/localisation-audit-checks"
                     ],
                     "expanded": false
                   },
@@ -251,6 +272,7 @@
                       "platform/settings",
                       "platform/workspace/members",
                       "platform/workspace/roles",
+                      "platform/workspace/reports",
                       "platform/workspace/billing"
                     ],
                     "expanded": false
@@ -327,6 +349,10 @@
                           "cli/reference/formats/fluent",
                           "cli/reference/formats/csv",
                           "cli/reference/formats/tsv",
+                          "cli/reference/formats/xlsx",
+                          "cli/reference/formats/docx",
+                          "cli/reference/formats/pdf",
+                          "cli/reference/formats/pptx",
                           "cli/reference/formats/toml"
                         ]
                       },
@@ -347,6 +373,7 @@
                           "cli/reference/formats/markdown",
                           "cli/reference/formats/mdx",
                           "cli/reference/formats/asciidoc",
+                          "cli/reference/formats/plain-text",
                           "cli/reference/formats/html",
                           "cli/reference/formats/liquid",
                           "cli/reference/formats/lottie",
@@ -517,6 +544,13 @@
                         "root": "changelog",
                         "directory": "accordion",
                         "pages": [
+                          "changelog/v1-13-9",
+                          "changelog/v1-13-8",
+                          "changelog/v1-13-7",
+                          "changelog/v1-13-6",
+                          "changelog/v1-13-5",
+                          "changelog/v1-13-4",
+                          "changelog/v1-13-3",
                           "changelog/v1-13-2",
                           "changelog/v1-13-1",
                           "changelog/v1-13-0",
@@ -529,6 +563,20 @@
                           "changelog/v1-9-0"
                         ]
                       }
+                    ],
+                    "expanded": false
+                  },
+                  {
+                    "group": "Contributing",
+                    "pages": [
+                      "contributing/docs-contributions",
+                      "contributing/development",
+                      "contributing/canva-app-oauth",
+                      "contributing/figma-plugin-oauth",
+                      "contributing/google-drive-oauth",
+                      "contributing/sanity-studio-plugin-oauth",
+                      "contributing/lambda-deploy",
+                      "contributing/release-maintenance"
                     ],
                     "expanded": false
                   }

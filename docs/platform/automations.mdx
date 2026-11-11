@@ -8,6 +8,9 @@ Automations run repeatable tasks with your connected tools and language resource
 | I need to… | Use |
 | --- | --- |
 | Translate or review after an event or on a schedule | [Create an automation](/platform/automation/create-automation) |
+| Localize Intercom Help Center articles | [Intercom Help Center](/platform/connections/intercom) |
+| Localize Braze email templates | [Braze Email Templates](/platform/connections/braze#braze-email-templates) |
+| Localize Braze campaigns and Canvas | [Braze Campaigns and Canvas](/platform/connections/braze#braze-campaigns-and-canvas) |
 | Move source files and ready translations between GitHub and Platform | [Content sync](/platform/automation/content-sync) |
 | Define fixed steps, typed inputs, branches, and retries | [Visual workflows](/platform/visual-workflows) |
 | Perform a single task | **New Request** or **Inbox** |
@@ -20,7 +23,7 @@ Before activating a workflow, check its project, target locales, tools, knowledg
 
 ## Content sync
 
-Content sync pulls sources into a project and pushes existing ready translations to the destination. It does not generate translations. GitHub is currently the executable provider; other provider movers are not yet available.
+Content sync pulls sources into a project and sends translations back to the repository: ready ones to GitHub, approved ones to GitLab. It does not generate translations. Set it up in the project's **Settings** → **Sync**; see [Sync content with a repository](/platform/automation/content-sync). GitHub and GitLab are supported.
 
 ## Visual workflows
 

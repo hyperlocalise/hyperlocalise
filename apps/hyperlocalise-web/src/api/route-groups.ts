@@ -14,6 +14,7 @@ import { Hono } from "hono";
 
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import type {
+  EngineSetupQueue,
   JobQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
@@ -21,8 +22,10 @@ import type {
   ProviderAgentWritebackQueue,
   TranslationFileImportQueue,
   TranslationJobEventData,
+  ProjectContentSyncQueue,
   TranslationQaScanQueue,
 } from "@/lib/workflow/types";
+import { createEngineSetupQueue } from "@/workflows/adapters";
 
 import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
@@ -30,23 +33,31 @@ import { createSlackConnectRoutes } from "./routes/slack-connect/slack-connect.r
 import { authRoutes } from "./routes/auth/auth.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
 import { createCanvaConnectionRoutes } from "./routes/canva-connection/canva-connection.route";
+import { createFigmaConnectionRoutes } from "./routes/figma-connection/figma-connection.route";
+import { createSanityConnectionRoutes } from "./routes/sanity-connection/sanity-connection.route";
+import { createGoogleDriveRoutes } from "./routes/google-drive/google-drive.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
+import { createWebflowConnectionRoutes } from "./routes/webflow-connection/webflow-connection.route";
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
+import { createBrazeRoutes } from "./routes/braze/braze.route";
+import { createLoopsRoutes } from "./routes/loops/loops.route";
+import { createCustomerIoRoutes } from "./routes/customer-io/customer-io.route";
+import { createHubspotRoutes } from "./routes/hubspot/hubspot.route";
+import { createMailchimpRoutes } from "./routes/mailchimp/mailchimp.route";
+import { createIterableRoutes } from "./routes/iterable/iterable.route";
 import { createPipesRoutes } from "./routes/pipes/pipes.route";
 import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
 import { createZernioConnectionRoutes } from "./routes/zernio-connection/zernio-connection.route";
 import { createIntercomConnectionRoutes } from "./routes/intercom-connection/intercom-connection.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
+import { createEngineSetupRoutes } from "./routes/engine-setup/engine-setup.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
-import { createOrganizationIssueSheetRoutes } from "./routes/issues/organization-issue-sheet.route";
-import { createOrganizationIssuesRoutes } from "./routes/issues/issues.route";
-import { createMentionSuggestionsRoutes } from "./routes/mentions/mention-suggestions.route";
-import { createIssueNotificationsRoutes } from "./routes/notifications/notifications.route";
-import { createNotificationPreferencesRoutes } from "./routes/notification-preferences/notification-preferences.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
 import { createGitlabRoutes } from "./routes/gitlab/gitlab.route";
+import { createIntercomRoutes } from "./routes/intercom/intercom.route";
+import { createSanityRoutes } from "./routes/sanity/sanity.route";
 import { createWorkspaceJobRoutes } from "./routes/project/job.route";
 import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
@@ -56,16 +67,15 @@ import { createPublicJobRoutes } from "./routes/public-jobs/public-jobs.route";
 import { createPublicTranslationRoutes } from "./routes/public-translations/public-translations.route";
 import { createSlackOAuthRoutes } from "./routes/slack-oauth/slack-oauth.route";
 import { createFileRoutes } from "./routes/file/file.route";
-import { createWorkspaceFilesRoutes } from "./routes/workspace-files/workspace-files.route";
+import { createAutomationAssistantRoutes } from "./routes/workspace-automation/automation-assistant.route";
 import { createWorkspaceAutomationRoutes } from "./routes/workspace-automation/workspace-automation.route";
 import { createVisualWorkflowRoutes } from "./routes/visual-workflow/visual-workflow.route";
 import { createExternalTmsProviderCredentialRoutes } from "./routes/external-tms-provider-credential/external-tms-provider-credential.route";
 import { createTmsProviderRoutes } from "./routes/tms-provider/tms-provider.route";
 import { createTmsAgentAutomationRoutes } from "./routes/tms-agent-automation/tms-agent-automation.route";
 import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/tms-dashboard-summary.route";
-import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
-import { createBillingRoutes } from "./routes/billing/billing.route";
-import { createReportsRoutes } from "./routes/reports/reports.route";
+import { createWebhookEndpointRoutes } from "./routes/webhook-endpoint/webhook-endpoint.route";
+import { createHumanApprovalRoutes } from "./routes/human-approval/human-approval.route";
 
 export type OrgScopedRouteOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
@@ -76,6 +86,9 @@ export type OrgScopedRouteOptions = {
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
   translationQaScanQueue?: TranslationQaScanQueue;
+  projectContentSyncQueue?: ProjectContentSyncQueue;
+  engineSetupQueue?: EngineSetupQueue;
+  deferAfterResponse?: (task: () => Promise<unknown>) => void;
 };
 
 export type PublicApiRouteOptions = {
@@ -107,22 +120,27 @@ export function createPublicApiRoutes(options: PublicApiRouteOptions) {
 
 export function createOrgInboxRoutes(options: OrgScopedRouteOptions) {
   return new Hono()
-    .route("/issues", createOrganizationIssuesRoutes())
-    .route("/issue-sheet", createOrganizationIssueSheetRoutes())
-    .route("/notifications", createIssueNotificationsRoutes())
-    .route("/notification-preferences", createNotificationPreferencesRoutes())
-    .route("/mentions", createMentionSuggestionsRoutes())
     .route(
       "/conversations",
-      createConversationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
-    );
+      createConversationRoutes({
+        fileStorageAdapter: options.fileStorageAdapter,
+        deferAfterResponse: options.deferAfterResponse,
+      }),
+    )
+    .route("/workflow-approvals", createHumanApprovalRoutes());
 }
 
 export function createOrgKnowledgeRoutes(
-  options: Pick<OrgScopedRouteOptions, "fileStorageAdapter"> = {},
+  options: Pick<OrgScopedRouteOptions, "fileStorageAdapter" | "engineSetupQueue"> = {},
 ) {
   return new Hono()
-    .route("/glossaries", createGlossaryRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
+    .route(
+      "/engine-setup",
+      createEngineSetupRoutes({
+        engineSetupQueue: options.engineSetupQueue ?? createEngineSetupQueue(),
+      }),
+    )
+    .route("/glossaries", createGlossaryRoutes())
     .route("/knowledge-memory", createKnowledgeMemoryRoutes())
     .route("/translation-memories", createMemoryRoutes());
 }
@@ -141,7 +159,7 @@ export function createOrgProjectsRoutes(options: OrgScopedRouteOptions) {
       }),
     )
     .route("/files", createFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
-    .route("/workspace-files", createWorkspaceFilesRoutes())
+    .route("/automations/assistant", createAutomationAssistantRoutes())
     .route(
       "/automations",
       createWorkspaceAutomationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
@@ -166,13 +184,23 @@ export function createOrgTmsRoutes(options: OrgScopedRouteOptions) {
 export function createOrgIntegrationsRoutes() {
   return new Hono()
     .route("/contentful-connections", createContentfulConnectionRoutes())
+    .route("/webflow-connections", createWebflowConnectionRoutes())
     .route("/mcp-server-connections", createMcpServerConnectionRoutes())
     .route("/semrush-connections", createSemrushConnectionRoutes())
     .route("/zernio-connections", createZernioConnectionRoutes())
     .route("/ahrefs-connections", createAhrefsConnectionRoutes())
     .route("/pipes", createPipesRoutes())
+    .route("/braze", createBrazeRoutes())
+    .route("/loops", createLoopsRoutes())
+    .route("/customer-io", createCustomerIoRoutes())
+    .route("/hubspot", createHubspotRoutes())
+    .route("/mailchimp", createMailchimpRoutes())
+    .route("/iterable", createIterableRoutes())
     .route("/intercom-connections", createIntercomConnectionRoutes())
-    .route("/canva-connections", createCanvaConnectionRoutes());
+    .route("/canva-connections", createCanvaConnectionRoutes())
+    .route("/figma-connections", createFigmaConnectionRoutes())
+    .route("/sanity-connections", createSanityConnectionRoutes())
+    .route("/google-drive", createGoogleDriveRoutes());
 }
 
 export function createOrgAgentsRoutes() {
@@ -181,14 +209,13 @@ export function createOrgAgentsRoutes() {
     .route("/agent-slack", createAgentSlackRoutes())
     .route("/slack-connect", createSlackConnectRoutes())
     .route("/github-installation", createGithubInstallationRoutes())
-    .route("/gitlab", createGitlabRoutes());
+    .route("/gitlab", createGitlabRoutes())
+    .route("/intercom", createIntercomRoutes())
+    .route("/sanity", createSanityRoutes());
 }
 
 export function createOrgWorkspaceRoutes() {
-  return new Hono()
-    .route("/workspace", createWorkspaceRoutes())
-    .route("/billing", createBillingRoutes())
-    .route("/reports", createReportsRoutes());
+  return new Hono().route("/webhook-endpoints", createWebhookEndpointRoutes());
 }
 
 export function createOrgScopedAppRoutes(options: OrgScopedRouteOptions) {

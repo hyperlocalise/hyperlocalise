@@ -24,12 +24,18 @@ const {
   loggerInfoMock: vi.fn(),
 }));
 
-vi.mock("@/lib/log", () => ({
-  createLogger: vi.fn(() => ({
-    error: loggerErrorMock,
-    info: loggerInfoMock,
-  })),
-}));
+vi.mock("@/lib/log", async () => {
+  const { createTestLogger } = await import("@/test/create-test-logger");
+  return {
+    createLogger: vi.fn(() =>
+      createTestLogger({
+        error: loggerErrorMock,
+        info: loggerInfoMock,
+      }),
+    ),
+    serializeErrorForLog: vi.fn((error: Error) => ({ error })),
+  };
+});
 
 vi.mock("./github-repository-automation-dispatcher", () => ({
   dispatchGithubRepositoryAutomationForPush: dispatchGithubRepositoryAutomationForPushMock,

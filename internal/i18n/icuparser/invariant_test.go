@@ -63,6 +63,18 @@ func TestSameICUBlocks(t *testing.T) {
 			want: false,
 		},
 		{
+			name: "locale-specific CLDR categories",
+			a:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one", "other"}}},
+			b:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"other"}}},
+			want: true,
+		},
+		{
+			name: "exact match must stay",
+			a:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"=0", "one", "other"}}},
+			b:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"other"}}},
+			want: false,
+		},
+		{
 			name: "options mismatch in typed formatter",
 			a:    []BlockSignature{{Arg: "n", Type: "number", Options: []string{"currency"}}},
 			b:    []BlockSignature{{Arg: "n", Type: "number", Options: []string{"percent"}}},

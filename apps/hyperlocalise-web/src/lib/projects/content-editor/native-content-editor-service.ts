@@ -21,7 +21,16 @@ import type {
 } from "@/api/routes/project/project.schema";
 import { legacyNativeContentEditorSegmentLimit } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database/client";
-import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
+import { createLogger } from "@/lib/log";
+import {
+  getLatestRepositorySourceFileVersion,
+  getStoredFileContent,
+} from "@/lib/file-storage/records";
+import {
+  isHashedHtmlEntryKey,
+  isHtmlTranslationSourcePath,
+  rewriteHashedHtmlSegmentKeys,
+} from "@/lib/projects/files/html-ingest-entries";
 import { NativeContentEditorCommentService } from "@/lib/projects/content-editor/native-content-editor-comment-service";
 import {
   CAT_ALL_FILES_FILENAME,
@@ -32,28 +41,50 @@ import {
   buildCatFilePagination,
   type ProjectFileContentEditorPaginationInput,
 } from "@/lib/projects/content-editor/project-file-content-editor-pagination";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
+import {
+  wholeFileMatchesAdvancedQueueFilter,
+  type WholeFileQueueSubject,
+} from "@/lib/projects/content-editor/native-content-editor-whole-file-filter";
 import { getImageVariant, projectImageAssetPath } from "@/lib/projects/files/image-variant-service";
 import {
   IMAGE_URL_CONTENT_KIND,
   isImageUrlContentKind,
 } from "@/lib/projects/files/image-url-translation-service";
 import { getVideoVariant, projectVideoAssetPath } from "@/lib/projects/files/video-variant-service";
+import { requeueKeylessOfficeSourceIngest } from "@/lib/projects/files/office-legacy-reingest";
+import { projectOfficeTranslationDownloadPath } from "@/lib/projects/files/office-translation-download";
+import { projectHtmlTranslationDownloadPath } from "@/lib/projects/files/html-translation-download";
 import {
   VIDEO_URL_CONTENT_KIND,
   isVideoUrlContentKind,
 } from "@/lib/projects/files/video-url-translation-service";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
+import {
+  projectTranslationRevisionColumns,
+  recordProjectTranslationRevisions,
+  revisionActorForProvenance,
+  writeProjectTranslations,
+  type TranslationRevisionActor,
+} from "@/lib/projects/translations/project-translation-revisions";
+import {
+  nextTranslationOrigin,
+  translationOriginWriterForProvenance,
+} from "@/lib/projects/translations/translation-origin-rule";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedPdfTranslationFileFormat,
   inferSupportedVideoTranslationFileFormat,
   inferSupportedWholeFileTranslationFileFormat,
   looksLikeImageUrl,
   looksLikeVideoUrl,
 } from "@/lib/translation/file-formats";
 import { resolveLottieSourceKind } from "@/lib/translation/lottie/lottie-translation-export";
+
+const logger = createLogger("native-content-editor-service");
 
 function filenameFromSourcePath(sourcePath: string) {
   return sourcePath.split("/").at(-1) ?? sourcePath;
@@ -71,6 +102,53 @@ export function fileBackedCatSegmentIds(
   ids.add(`image:${sourcePath}`);
   ids.add(`video:${sourcePath}`);
   return [...ids];
+}
+
+export function isFileBackedCatSegmentId(
+  externalStringId: string,
+  sourceFileId: string | null | undefined,
+  sourcePath: string,
+) {
+  return fileBackedCatSegmentIds(sourceFileId, sourcePath).includes(externalStringId);
+}
+
+function isUnfilteredCatKeyQuery(pagination: {
+  search?: string;
+  queueFilter?: string;
+  queueFilterQualifier?: string;
+  advancedFilter?: ContentEditorAdvancedQueueFilter;
+}) {
+  return (
+    !pagination.search &&
+    (!pagination.queueFilter || pagination.queueFilter === "all") &&
+    !pagination.queueFilterQualifier &&
+    !(pagination.advancedFilter && Object.keys(pagination.advancedFilter).length > 0)
+  );
+}
+
+function publicDocumentView(
+  loaded: NonNullable<ProjectFileContentEditorQueueFile["documentView"]> & {
+    hasTarget: boolean;
+    approvalStatus: string | null;
+  },
+): NonNullable<ProjectFileContentEditorQueueFile["documentView"]> {
+  return {
+    externalStringId: loaded.externalStringId,
+    sourceAssetUrl: loaded.sourceAssetUrl,
+    targetAssetUrl: loaded.targetAssetUrl,
+    imageVariantId: loaded.imageVariantId,
+  };
+}
+
+function retainWholeFileSegments(
+  file: ProjectFileContentEditorQueueFile,
+  subject: WholeFileQueueSubject,
+  advancedFilter: ContentEditorAdvancedQueueFilter | undefined,
+): ProjectFileContentEditorQueueFile {
+  if (wholeFileMatchesAdvancedQueueFilter(subject, advancedFilter)) {
+    return file;
+  }
+  return { ...file, segments: [] };
 }
 
 function binaryFileExternalStringId(sourceFileId: string, sourcePath: string) {
@@ -192,34 +270,85 @@ export class NativeContentEditorService extends ProjectServiceBase {
       return null;
     }
 
+    const wholeFileFilter = {
+      createdAt: sourceFile.createdAt,
+      updatedAt: sourceFile.updatedAt,
+      advancedFilter: input.pagination?.advancedFilter,
+    };
+
     if (inferSupportedImageTranslationFileFormat(input.sourcePath)) {
-      return this.buildImageCatFileResponse({
+      return this.withSourceIngest(
         input,
-        sourceFileId: sourceFile.id,
-      });
+        await this.buildImageCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
     }
 
     if (inferSupportedVideoTranslationFileFormat(input.sourcePath)) {
-      return this.buildVideoCatFileResponse({
+      return this.withSourceIngest(
         input,
-        sourceFileId: sourceFile.id,
-      });
+        await this.buildVideoCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
     }
 
-    if (inferSupportedOfficeTranslationFileFormat(input.sourcePath)) {
-      return this.buildOfficeCatFileResponse({
-        input,
-        sourceFileId: sourceFile.id,
+    const isOffice = Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
+    if (
+      isOffice &&
+      !(await this.hasKeysForFile({ ...input, repositorySourceFileId: sourceFile.id }))
+    ) {
+      await requeueKeylessOfficeSourceIngest({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+      }).catch((error: unknown) => {
+        logger.warn(
+          {
+            repositorySourceFileId: sourceFile.id,
+            errorName: error instanceof Error ? error.name : "unknown",
+          },
+          "failed to requeue Office ingest",
+        );
       });
+      return this.withSourceIngest(
+        input,
+        await this.buildOfficeCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
     }
 
-    if (inferSupportedDocumentTranslationFileFormat(input.sourcePath)) {
-      return this.buildDocumentCatFileResponse({
-        input,
-        sourceFileId: sourceFile.id,
-      });
-    }
-
+    const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
+    const isHtml = inferSupportedDocumentTranslationFileFormat(input.sourcePath) === "html";
+    const isPdf = Boolean(inferSupportedPdfTranslationFileFormat(input.sourcePath));
+    const loadKeyedFileDocumentView = async () =>
+      isHtml
+        ? await this.loadGeneratedTranslationFileDocumentView({
+            input,
+            sourceFileId: sourceFile.id,
+            targetDownloadPath: projectHtmlTranslationDownloadPath({
+              organizationSlug: input.organizationSlug,
+              projectId: input.projectId,
+              sourcePath: input.sourcePath,
+              targetLocale: input.targetLocale,
+            }),
+          })
+        : isDocument
+          ? publicDocumentView(await this.loadDocumentView({ input, sourceFileId: sourceFile.id }))
+          : isOffice || isPdf
+            ? await this.loadGeneratedTranslationFileDocumentView({
+                input,
+                sourceFileId: sourceFile.id,
+              })
+            : undefined;
     const paginationInput = input.pagination ?? {
       offset: 0,
       limit: legacyNativeContentEditorSegmentLimit,
@@ -237,15 +366,30 @@ export class NativeContentEditorService extends ProjectServiceBase {
         limit: legacyNativeContentEditorSegmentLimit + 1,
       });
 
+      if (isDocument && keys.length === 0 && isUnfilteredCatKeyQuery(paginationInput)) {
+        return this.withSourceIngest(
+          input,
+          await this.buildDocumentCatFileResponse({
+            input,
+            sourceFileId: sourceFile.id,
+            ...wholeFileFilter,
+          }),
+        );
+      }
+
       const truncated = keys.length > legacyNativeContentEditorSegmentLimit;
       const visibleKeys = truncated ? keys.slice(0, legacyNativeContentEditorSegmentLimit) : keys;
 
-      return this.buildCatFileResponse({
+      return this.withSourceIngest(
         input,
-        visibleKeys,
-        truncated,
-        pagination: undefined,
-      });
+        await this.buildCatFileResponse({
+          input,
+          visibleKeys,
+          truncated,
+          pagination: undefined,
+          documentView: await loadKeyedFileDocumentView(),
+        }),
+      );
     }
 
     const [totalCount, keys] = await Promise.all([
@@ -256,6 +400,8 @@ export class NativeContentEditorService extends ProjectServiceBase {
         targetLocale: input.targetLocale,
         search: paginationInput.search,
         queueFilter: paginationInput.queueFilter,
+        queueFilterQualifier: paginationInput.queueFilterQualifier,
+        advancedFilter: paginationInput.advancedFilter,
       }),
       this.translations.listKeysForFile({
         organizationId: input.organizationId,
@@ -266,6 +412,8 @@ export class NativeContentEditorService extends ProjectServiceBase {
         offset: paginationInput.offset,
         search: paginationInput.search,
         queueFilter: paginationInput.queueFilter,
+        queueFilterQualifier: paginationInput.queueFilterQualifier,
+        advancedFilter: paginationInput.advancedFilter,
         queueSort: paginationInput.queueSort,
       }),
     ]);
@@ -277,12 +425,52 @@ export class NativeContentEditorService extends ProjectServiceBase {
       totalCount,
     });
 
-    return this.buildCatFileResponse({
+    if (isDocument && totalCount === 0 && isUnfilteredCatKeyQuery(paginationInput)) {
+      return this.withSourceIngest(
+        input,
+        await this.buildDocumentCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
+    }
+
+    return this.withSourceIngest(
       input,
-      visibleKeys: keys,
-      truncated: pagination.hasMore,
-      pagination,
+      await this.buildCatFileResponse({
+        input,
+        visibleKeys: keys,
+        truncated: pagination.hasMore,
+        pagination,
+        documentView: await loadKeyedFileDocumentView(),
+      }),
+    );
+  }
+
+  private async withSourceIngest(
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+    },
+    file: ProjectFileContentEditorQueueFile,
+  ): Promise<ProjectFileContentEditorQueueFile> {
+    const latestVersion = await getLatestRepositorySourceFileVersion({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      db: this.database,
     });
+    if (!latestVersion) {
+      return file;
+    }
+
+    return {
+      ...file,
+      ingestState: latestVersion.ingestState,
+      ...(latestVersion.ingestError ? { ingestError: latestVersion.ingestError } : {}),
+    };
   }
 
   private async buildImageCatFileResponse(input: {
@@ -295,6 +483,9 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationSlug: string;
     };
     sourceFileId: string;
+    createdAt?: Date | null;
+    updatedAt?: Date | null;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
   }): Promise<ProjectFileContentEditorQueueFile> {
     const [latestVersion, variant] = await Promise.all([
       getLatestRepositorySourceFileVersion({
@@ -329,27 +520,37 @@ export class NativeContentEditorService extends ProjectServiceBase {
         })
       : null;
 
-    return {
-      sourcePath: input.input.sourcePath,
-      filename: filenameFromSourcePath(input.input.sourcePath),
-      provider: null,
-      targetLocale: input.input.targetLocale,
-      canEditTranslations: input.input.canEditTranslations,
-      truncated: false,
-      segments: [
-        {
-          externalStringId: imageFileExternalStringId(input.sourceFileId, input.input.sourcePath),
-          key: input.input.sourcePath,
-          sourceText: input.input.sourcePath,
-          context: null,
-          type: null,
-          contentKind: "image_file",
-          sourceAssetUrl,
-          targetAssetUrl,
-          imageVariantId: variant?.id ?? null,
-        },
-      ],
-    };
+    return retainWholeFileSegments(
+      {
+        sourcePath: input.input.sourcePath,
+        filename: filenameFromSourcePath(input.input.sourcePath),
+        provider: null,
+        targetLocale: input.input.targetLocale,
+        canEditTranslations: input.input.canEditTranslations,
+        truncated: false,
+        segments: [
+          {
+            externalStringId: imageFileExternalStringId(input.sourceFileId, input.input.sourcePath),
+            key: input.input.sourcePath,
+            sourceText: input.input.sourcePath,
+            context: null,
+            type: null,
+            contentKind: "image_file",
+            sourceAssetUrl,
+            targetAssetUrl,
+            imageVariantId: variant?.id ?? null,
+          },
+        ],
+      },
+      {
+        contentKind: "image_file",
+        hasTarget: Boolean(targetStoredFileId),
+        approvalStatus: variant?.status ?? null,
+        createdAt: input.createdAt,
+        updatedAt: input.updatedAt,
+      },
+      input.advancedFilter,
+    );
   }
 
   private async buildVideoCatFileResponse(input: {
@@ -362,6 +563,9 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationSlug: string;
     };
     sourceFileId: string;
+    createdAt?: Date | null;
+    updatedAt?: Date | null;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
   }): Promise<ProjectFileContentEditorQueueFile> {
     const [latestVersion, variant] = await Promise.all([
       getLatestRepositorySourceFileVersion({
@@ -396,27 +600,37 @@ export class NativeContentEditorService extends ProjectServiceBase {
         })
       : null;
 
-    return {
-      sourcePath: input.input.sourcePath,
-      filename: filenameFromSourcePath(input.input.sourcePath),
-      provider: null,
-      targetLocale: input.input.targetLocale,
-      canEditTranslations: input.input.canEditTranslations,
-      truncated: false,
-      segments: [
-        {
-          externalStringId: videoFileExternalStringId(input.sourceFileId, input.input.sourcePath),
-          key: input.input.sourcePath,
-          sourceText: input.input.sourcePath,
-          context: null,
-          type: null,
-          contentKind: "video_file",
-          sourceAssetUrl,
-          targetAssetUrl,
-          imageVariantId: variant?.id ?? null,
-        },
-      ],
-    };
+    return retainWholeFileSegments(
+      {
+        sourcePath: input.input.sourcePath,
+        filename: filenameFromSourcePath(input.input.sourcePath),
+        provider: null,
+        targetLocale: input.input.targetLocale,
+        canEditTranslations: input.input.canEditTranslations,
+        truncated: false,
+        segments: [
+          {
+            externalStringId: videoFileExternalStringId(input.sourceFileId, input.input.sourcePath),
+            key: input.input.sourcePath,
+            sourceText: input.input.sourcePath,
+            context: null,
+            type: null,
+            contentKind: "video_file",
+            sourceAssetUrl,
+            targetAssetUrl,
+            imageVariantId: variant?.id ?? null,
+          },
+        ],
+      },
+      {
+        contentKind: "video_file",
+        hasTarget: Boolean(targetStoredFileId),
+        approvalStatus: variant?.status ?? null,
+        createdAt: input.createdAt,
+        updatedAt: input.updatedAt,
+      },
+      input.advancedFilter,
+    );
   }
 
   private async buildOfficeCatFileResponse(input: {
@@ -429,6 +643,9 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationSlug: string;
     };
     sourceFileId: string;
+    createdAt?: Date | null;
+    updatedAt?: Date | null;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
   }): Promise<ProjectFileContentEditorQueueFile> {
     const [latestVersion, variant] = await Promise.all([
       getLatestRepositorySourceFileVersion({
@@ -463,26 +680,151 @@ export class NativeContentEditorService extends ProjectServiceBase {
         })
       : null;
 
+    return retainWholeFileSegments(
+      {
+        sourcePath: input.input.sourcePath,
+        filename: filenameFromSourcePath(input.input.sourcePath),
+        provider: null,
+        targetLocale: input.input.targetLocale,
+        canEditTranslations: input.input.canEditTranslations,
+        truncated: false,
+        segments: [
+          {
+            externalStringId: officeFileExternalStringId(
+              input.sourceFileId,
+              input.input.sourcePath,
+            ),
+            key: input.input.sourcePath,
+            sourceText: input.input.sourcePath,
+            context: null,
+            type: null,
+            contentKind: "office_file",
+            sourceAssetUrl,
+            targetAssetUrl,
+            imageVariantId: variant?.id ?? null,
+          },
+        ],
+      },
+      {
+        contentKind: "office_file",
+        hasTarget: Boolean(targetStoredFileId),
+        approvalStatus: variant?.status ?? null,
+        createdAt: input.createdAt,
+        updatedAt: input.updatedAt,
+      },
+      input.advancedFilter,
+    );
+  }
+
+  private async loadDocumentView(input: {
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+      targetLocale: string;
+      organizationSlug: string;
+    };
+    sourceFileId: string;
+  }): Promise<
+    NonNullable<ProjectFileContentEditorQueueFile["documentView"]> & {
+      hasTarget: boolean;
+      approvalStatus: string | null;
+    }
+  > {
+    const [latestVersion, variant] = await Promise.all([
+      getLatestRepositorySourceFileVersion({
+        organizationId: input.input.organizationId,
+        projectId: input.input.projectId,
+        sourcePath: input.input.sourcePath,
+        db: this.database,
+      }),
+      getImageVariant({
+        organizationId: input.input.organizationId,
+        projectId: input.input.projectId,
+        sourcePath: input.input.sourcePath,
+        targetLocale: input.input.targetLocale,
+        db: this.database,
+      }),
+    ]);
+
+    const sourceStoredFileId = latestVersion?.storedFileId ?? null;
+    const targetStoredFileId = variant?.storedFileId ?? null;
+    const sourceAssetUrl = sourceStoredFileId
+      ? projectImageAssetPath({
+          organizationSlug: input.input.organizationSlug,
+          projectId: input.input.projectId,
+          fileId: sourceStoredFileId,
+        })
+      : null;
+    const targetAssetUrl = targetStoredFileId
+      ? projectImageAssetPath({
+          organizationSlug: input.input.organizationSlug,
+          projectId: input.input.projectId,
+          fileId: targetStoredFileId,
+        })
+      : null;
+
     return {
+      externalStringId: documentFileExternalStringId(input.sourceFileId, input.input.sourcePath),
+      sourceAssetUrl,
+      targetAssetUrl,
+      imageVariantId: variant?.id ?? null,
+      hasTarget: Boolean(targetStoredFileId),
+      approvalStatus: variant?.status ?? null,
+    };
+  }
+
+  private async hasKeysForFile(input: {
+    organizationId: string;
+    projectId: string;
+    repositorySourceFileId: string;
+  }) {
+    const keys = await this.translations.listKeysForFile({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      repositorySourceFileId: input.repositorySourceFileId,
+      limit: 1,
+    });
+    return keys.length > 0;
+  }
+
+  /** Segmented Office files have no stored target; File view previews the generated download. */
+  private async loadGeneratedTranslationFileDocumentView(input: {
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+      targetLocale: string;
+      organizationSlug: string;
+    };
+    sourceFileId: string;
+    targetDownloadPath?: string;
+  }): Promise<NonNullable<ProjectFileContentEditorQueueFile["documentView"]>> {
+    const latestVersion = await getLatestRepositorySourceFileVersion({
+      organizationId: input.input.organizationId,
+      projectId: input.input.projectId,
       sourcePath: input.input.sourcePath,
-      filename: filenameFromSourcePath(input.input.sourcePath),
-      provider: null,
-      targetLocale: input.input.targetLocale,
-      canEditTranslations: input.input.canEditTranslations,
-      truncated: false,
-      segments: [
-        {
-          externalStringId: officeFileExternalStringId(input.sourceFileId, input.input.sourcePath),
-          key: input.input.sourcePath,
-          sourceText: input.input.sourcePath,
-          context: null,
-          type: null,
-          contentKind: "office_file",
-          sourceAssetUrl,
-          targetAssetUrl,
-          imageVariantId: variant?.id ?? null,
-        },
-      ],
+      db: this.database,
+    });
+
+    return {
+      externalStringId: documentFileExternalStringId(input.sourceFileId, input.input.sourcePath),
+      sourceAssetUrl: latestVersion
+        ? projectImageAssetPath({
+            organizationSlug: input.input.organizationSlug,
+            projectId: input.input.projectId,
+            fileId: latestVersion.storedFileId,
+          })
+        : null,
+      targetAssetUrl:
+        input.targetDownloadPath ??
+        projectOfficeTranslationDownloadPath({
+          organizationSlug: input.input.organizationSlug,
+          projectId: input.input.projectId,
+          sourcePath: input.input.sourcePath,
+          targetLocale: input.input.targetLocale,
+        }),
+      imageVariantId: null,
     };
   }
 
@@ -496,64 +838,43 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationSlug: string;
     };
     sourceFileId: string;
+    createdAt?: Date | null;
+    updatedAt?: Date | null;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
   }): Promise<ProjectFileContentEditorQueueFile> {
-    const [latestVersion, variant] = await Promise.all([
-      getLatestRepositorySourceFileVersion({
-        organizationId: input.input.organizationId,
-        projectId: input.input.projectId,
+    const documentView = await this.loadDocumentView(input);
+
+    return retainWholeFileSegments(
+      {
         sourcePath: input.input.sourcePath,
-        db: this.database,
-      }),
-      getImageVariant({
-        organizationId: input.input.organizationId,
-        projectId: input.input.projectId,
-        sourcePath: input.input.sourcePath,
+        filename: filenameFromSourcePath(input.input.sourcePath),
+        provider: null,
         targetLocale: input.input.targetLocale,
-        db: this.database,
-      }),
-    ]);
-
-    const sourceStoredFileId = latestVersion?.storedFileId ?? null;
-    const targetStoredFileId = variant?.storedFileId ?? null;
-    const sourceAssetUrl = sourceStoredFileId
-      ? projectImageAssetPath({
-          organizationSlug: input.input.organizationSlug,
-          projectId: input.input.projectId,
-          fileId: sourceStoredFileId,
-        })
-      : null;
-    const targetAssetUrl = targetStoredFileId
-      ? projectImageAssetPath({
-          organizationSlug: input.input.organizationSlug,
-          projectId: input.input.projectId,
-          fileId: targetStoredFileId,
-        })
-      : null;
-
-    return {
-      sourcePath: input.input.sourcePath,
-      filename: filenameFromSourcePath(input.input.sourcePath),
-      provider: null,
-      targetLocale: input.input.targetLocale,
-      canEditTranslations: input.input.canEditTranslations,
-      truncated: false,
-      segments: [
-        {
-          externalStringId: documentFileExternalStringId(
-            input.sourceFileId,
-            input.input.sourcePath,
-          ),
-          key: input.input.sourcePath,
-          sourceText: input.input.sourcePath,
-          context: null,
-          type: null,
-          contentKind: "document",
-          sourceAssetUrl,
-          targetAssetUrl,
-          imageVariantId: variant?.id ?? null,
-        },
-      ],
-    };
+        canEditTranslations: input.input.canEditTranslations,
+        truncated: false,
+        segments: [
+          {
+            externalStringId: documentView.externalStringId,
+            key: input.input.sourcePath,
+            sourceText: input.input.sourcePath,
+            context: null,
+            type: null,
+            contentKind: "document",
+            sourceAssetUrl: documentView.sourceAssetUrl,
+            targetAssetUrl: documentView.targetAssetUrl,
+            imageVariantId: documentView.imageVariantId ?? null,
+          },
+        ],
+      },
+      {
+        contentKind: "document",
+        hasTarget: documentView.hasTarget,
+        approvalStatus: documentView.approvalStatus,
+        createdAt: input.createdAt,
+        updatedAt: input.updatedAt,
+      },
+      input.advancedFilter,
+    );
   }
 
   private async getAllFilesCatQueue(input: {
@@ -585,6 +906,8 @@ export class NativeContentEditorService extends ProjectServiceBase {
         targetLocale: input.targetLocale,
         search: paginationInput.search,
         queueFilter: paginationInput.queueFilter,
+        queueFilterQualifier: paginationInput.queueFilterQualifier,
+        advancedFilter: paginationInput.advancedFilter,
         sourcePaths: input.sourcePaths,
       }),
       this.translations.listKeysForProject({
@@ -595,6 +918,8 @@ export class NativeContentEditorService extends ProjectServiceBase {
         offset,
         search: paginationInput.search,
         queueFilter: paginationInput.queueFilter,
+        queueFilterQualifier: paginationInput.queueFilterQualifier,
+        advancedFilter: paginationInput.advancedFilter,
         queueSort: paginationInput.queueSort,
         sourcePaths: input.sourcePaths,
       }),
@@ -640,6 +965,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
     visibleKeys: Awaited<ReturnType<ProjectTranslationService["listKeysForFile"]>>;
     truncated: boolean;
     pagination: ReturnType<typeof buildCatFilePagination> | undefined;
+    documentView?: ProjectFileContentEditorQueueFile["documentView"];
   }): Promise<ProjectFileContentEditorQueueFile> {
     const lottieSourceUrl = await this.resolveLottieSourceUrl({
       ...input.input,
@@ -655,8 +981,47 @@ export class NativeContentEditorService extends ProjectServiceBase {
       truncated: input.truncated,
       pagination: input.pagination,
       ...(lottieSourceUrl ? { lottieSourceUrl } : {}),
-      segments: input.visibleKeys.map((key) => mapTextSegment(key)),
+      ...(input.documentView ? { documentView: input.documentView } : {}),
+      segments: (await this.rewriteHtmlCatKeys(input.input, input.visibleKeys)).map((key) =>
+        mapTextSegment(key),
+      ),
     };
+  }
+
+  private async rewriteHtmlCatKeys<T extends { key: string; sourceText: string }>(
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+    },
+    keys: T[],
+  ): Promise<T[]> {
+    const needsRewrite =
+      isHtmlTranslationSourcePath(input.sourcePath) &&
+      keys.some((key) => isHashedHtmlEntryKey(key.key));
+    if (!needsRewrite) {
+      return keys;
+    }
+    const version = await getLatestRepositorySourceFileVersion({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      db: this.database,
+    });
+    if (!version?.storedFileId) {
+      return keys;
+    }
+    try {
+      const stored = await getStoredFileContent({
+        fileId: version.storedFileId,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+      });
+      const rewritten = rewriteHashedHtmlSegmentKeys(stored.content.toString("utf8"), keys);
+      return keys.map((key, index) => ({ ...key, key: rewritten[index] ?? key.key }));
+    } catch {
+      return keys;
+    }
   }
 
   private async resolveLottieSourceUrl(input: {
@@ -766,6 +1131,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
     actorUserId?: string;
     provenance?: "manual" | "translation_job" | "import" | "agent";
     sourceJobId?: string;
+    actor?: TranslationRevisionActor;
   }): Promise<(ProjectFileContentEditorTranslation & { updatedAt: Date }) | null> {
     const sourceFile = await this.translations.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
@@ -796,17 +1162,81 @@ export class NativeContentEditorService extends ProjectServiceBase {
       return null;
     }
 
-    const [existing] = await this.database
-      .select({ sourceJobId: schema.projectTranslations.sourceJobId })
-      .from(schema.projectTranslations)
-      .where(
-        and(
-          eq(schema.projectTranslations.translationKeyId, key.id),
-          eq(schema.projectTranslations.targetLocale, input.targetLocale),
-        ),
-      )
-      .limit(1);
-    const sourceJobId = input.sourceJobId ?? existing?.sourceJobId ?? undefined;
+    const status = input.approve ? "approved" : "draft";
+    const provenance = input.provenance ?? "manual";
+    const reviewedAt = input.approve ? new Date() : null;
+    const reviewedByUserId = input.approve ? (input.actorUserId ?? null) : null;
+
+    const { saved, sourceJobId } = await writeProjectTranslations(
+      this.database,
+      {
+        organizationId: input.organizationId,
+        translationKeyIds: [key.id],
+        targetLocales: [input.targetLocale],
+      },
+      async (tx, before) => {
+        const [existing] = before.values();
+        const sourceJobId = input.sourceJobId ?? existing?.sourceJobId ?? undefined;
+        const origin = nextTranslationOrigin(
+          existing,
+          translationOriginWriterForProvenance(provenance),
+          input.text,
+        );
+        const [saved] = await tx
+          .insert(schema.projectTranslations)
+          .values({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            translationKeyId: key.id,
+            targetLocale: input.targetLocale,
+            text: input.text,
+            status,
+            provenance,
+            origin,
+            sourceJobId: sourceJobId ?? null,
+            reviewedByUserId,
+            reviewedAt,
+          })
+          .onConflictDoUpdate({
+            target: [
+              schema.projectTranslations.translationKeyId,
+              schema.projectTranslations.targetLocale,
+            ],
+            set: {
+              text: input.text,
+              status,
+              provenance,
+              origin,
+              sourceJobId: sourceJobId ?? existing?.sourceJobId ?? null,
+              reviewedByUserId,
+              reviewedAt,
+              updatedAt: new Date(),
+            },
+          })
+          .returning({
+            ...projectTranslationRevisionColumns,
+            updatedAt: schema.projectTranslations.updatedAt,
+          });
+        if (saved) {
+          await recordProjectTranslationRevisions(tx, {
+            before,
+            saved: [saved],
+            actor: input.actor ?? {
+              actorKind: revisionActorForProvenance(provenance).actorKind,
+              actorUserId: input.actorUserId ?? null,
+            },
+          });
+        }
+        return { saved, sourceJobId };
+      },
+    );
+
+    if (!saved) {
+      return null;
+    }
+
+    // This path writes no activity event, so Reports is recorded here, after the translation
+    // is stored. Go-service saves are recorded from their events by the reporting-capture cron.
     await captureNativeCatTranslationReporting({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -817,51 +1247,8 @@ export class NativeContentEditorService extends ProjectServiceBase {
       approve: input.approve,
       provenance: input.provenance,
       sourceJobId,
+      actorUserId: input.actorUserId,
     });
-    const status = input.approve ? "approved" : "draft";
-    const provenance = input.provenance ?? "manual";
-    const reviewedAt = input.approve ? new Date() : null;
-    const reviewedByUserId = input.approve ? (input.actorUserId ?? null) : null;
-
-    const [saved] = await this.database
-      .insert(schema.projectTranslations)
-      .values({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        translationKeyId: key.id,
-        targetLocale: input.targetLocale,
-        text: input.text,
-        status,
-        provenance,
-        sourceJobId: sourceJobId ?? null,
-        reviewedByUserId,
-        reviewedAt,
-      })
-      .onConflictDoUpdate({
-        target: [
-          schema.projectTranslations.translationKeyId,
-          schema.projectTranslations.targetLocale,
-        ],
-        set: {
-          text: input.text,
-          status,
-          provenance,
-          sourceJobId: sourceJobId ?? existing?.sourceJobId ?? null,
-          reviewedByUserId,
-          reviewedAt,
-          updatedAt: new Date(),
-        },
-      })
-      .returning({
-        id: schema.projectTranslations.id,
-        text: schema.projectTranslations.text,
-        status: schema.projectTranslations.status,
-        updatedAt: schema.projectTranslations.updatedAt,
-      });
-
-    if (!saved) {
-      return null;
-    }
 
     this.log.debug(
       {
@@ -886,6 +1273,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
     targetLocale: string;
     status: "needs_review" | "approved" | "rejected";
     actorUserId?: string;
+    actor?: TranslationRevisionActor;
   }) {
     const reviewedAt =
       input.status === "approved" || input.status === "rejected" ? new Date() : null;
@@ -894,26 +1282,43 @@ export class NativeContentEditorService extends ProjectServiceBase {
         ? (input.actorUserId ?? null)
         : null;
 
-    const [updated] = await this.database
-      .update(schema.projectTranslations)
-      .set({
-        status: input.status,
-        reviewedAt,
-        reviewedByUserId,
-      })
-      .where(
-        and(
-          eq(schema.projectTranslations.organizationId, input.organizationId),
-          eq(schema.projectTranslations.projectId, input.projectId),
-          eq(schema.projectTranslations.translationKeyId, input.translationKeyId),
-          eq(schema.projectTranslations.targetLocale, input.targetLocale),
-        ),
-      )
-      .returning({
-        id: schema.projectTranslations.id,
-        text: schema.projectTranslations.text,
-        status: schema.projectTranslations.status,
-      });
+    const updated = await writeProjectTranslations(
+      this.database,
+      {
+        organizationId: input.organizationId,
+        translationKeyIds: [input.translationKeyId],
+        targetLocales: [input.targetLocale],
+      },
+      async (tx, before) => {
+        const [updated] = await tx
+          .update(schema.projectTranslations)
+          .set({
+            status: input.status,
+            reviewedAt,
+            reviewedByUserId,
+          })
+          .where(
+            and(
+              eq(schema.projectTranslations.organizationId, input.organizationId),
+              eq(schema.projectTranslations.projectId, input.projectId),
+              eq(schema.projectTranslations.translationKeyId, input.translationKeyId),
+              eq(schema.projectTranslations.targetLocale, input.targetLocale),
+            ),
+          )
+          .returning(projectTranslationRevisionColumns);
+        if (updated) {
+          await recordProjectTranslationRevisions(tx, {
+            before,
+            saved: [updated],
+            actor: input.actor ?? {
+              actorKind: input.actorUserId ? "user" : "system",
+              actorUserId: input.actorUserId ?? null,
+            },
+          });
+        }
+        return updated;
+      },
+    );
 
     if (updated) {
       this.log.debug(
@@ -1011,65 +1416,74 @@ export class NativeContentEditorService extends ProjectServiceBase {
         return "not_found";
       }
 
-      const isVideo = Boolean(inferSupportedVideoTranslationFileFormat(input.sourcePath));
-      const isOffice = Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
       const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
-      const contentKind = isVideo
-        ? ("video_file" as const)
-        : isOffice
-          ? ("office_file" as const)
-          : isDocument
-            ? ("document" as const)
-            : ("image_file" as const);
-      const expectedIds = new Set(fileBackedCatSegmentIds(sourceFile.id, input.sourcePath));
-      if (!expectedIds.has(input.externalStringId)) {
-        return "not_found";
-      }
+      const hasKeyedSegments =
+        isDocument || Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
+      const fileBacked = isFileBackedCatSegmentId(
+        input.externalStringId,
+        sourceFile.id,
+        input.sourcePath,
+      );
+      if (fileBacked || !hasKeyedSegments) {
+        if (!fileBacked) {
+          return "not_found";
+        }
 
-      const variant = isVideo
-        ? await getVideoVariant({
-            organizationId: input.organizationId,
-            projectId: input.projectId,
-            sourcePath: input.sourcePath,
-            targetLocale: input.targetLocale,
-            db: this.database,
-          })
-        : await getImageVariant({
-            organizationId: input.organizationId,
-            projectId: input.projectId,
-            sourcePath: input.sourcePath,
-            targetLocale: input.targetLocale,
-            db: this.database,
-          });
+        const isVideo = Boolean(inferSupportedVideoTranslationFileFormat(input.sourcePath));
+        const isOffice = Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
+        const contentKind = isVideo
+          ? ("video_file" as const)
+          : isOffice
+            ? ("office_file" as const)
+            : isDocument
+              ? ("document" as const)
+              : ("image_file" as const);
 
-      const targetAssetUrl = variant?.storedFileId
-        ? (isVideo ? projectVideoAssetPath : projectImageAssetPath)({
-            organizationSlug: input.organizationSlug,
-            projectId: input.projectId,
-            fileId: variant.storedFileId,
-          })
-        : null;
+        const variant = isVideo
+          ? await getVideoVariant({
+              organizationId: input.organizationId,
+              projectId: input.projectId,
+              sourcePath: input.sourcePath,
+              targetLocale: input.targetLocale,
+              db: this.database,
+            })
+          : await getImageVariant({
+              organizationId: input.organizationId,
+              projectId: input.projectId,
+              sourcePath: input.sourcePath,
+              targetLocale: input.targetLocale,
+              db: this.database,
+            });
 
-      if (!variant) {
-        return {
-          text: "",
-          externalTranslationId: null,
-          isApproved: false,
+        const targetAssetUrl = variant?.storedFileId
+          ? (isVideo ? projectVideoAssetPath : projectImageAssetPath)({
+              organizationSlug: input.organizationSlug,
+              projectId: input.projectId,
+              fileId: variant.storedFileId,
+            })
+          : null;
+
+        if (!variant) {
+          return {
+            text: "",
+            externalTranslationId: null,
+            isApproved: false,
+            contentKind,
+            targetAssetUrl: null,
+            imageVariantId: null,
+            status: "draft",
+          };
+        }
+
+        return toCatTranslation({
+          id: variant.id,
+          text: targetAssetUrl ?? "",
+          status: variant.status,
           contentKind,
-          targetAssetUrl: null,
-          imageVariantId: null,
-          status: "draft",
-        };
+          targetAssetUrl,
+          imageVariantId: variant.id,
+        });
       }
-
-      return toCatTranslation({
-        id: variant.id,
-        text: targetAssetUrl ?? "",
-        status: variant.status,
-        contentKind,
-        targetAssetUrl,
-        imageVariantId: variant.id,
-      });
     }
 
     const key = await this.findTranslationKeyForSegment({
@@ -1156,7 +1570,24 @@ export class NativeContentEditorService extends ProjectServiceBase {
       !isContentEditorAllFilesSourcePath(input.sourcePath) &&
       inferSupportedWholeFileTranslationFileFormat(input.sourcePath)
     ) {
-      return [];
+      const hasKeyedSegments =
+        Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath)) ||
+        Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
+      if (!hasKeyedSegments) {
+        return [];
+      }
+
+      const sourceFile = await this.translations.getRepositorySourceFileByPath({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+      });
+      if (
+        sourceFile &&
+        isFileBackedCatSegmentId(input.externalStringId, sourceFile.id, input.sourcePath)
+      ) {
+        return [];
+      }
     }
 
     const key = await this.findTranslationKeyForSegment({

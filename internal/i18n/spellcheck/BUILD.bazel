@@ -34,6 +34,7 @@ go_test(
     ],
     data = ["DICTIONARIES.md"],
     embed = [":spellcheck"],
+    embedsrcs = ["DICTIONARIES.md"],
     deps = [
         "@com_github_stretchr_testify//require",
     ],

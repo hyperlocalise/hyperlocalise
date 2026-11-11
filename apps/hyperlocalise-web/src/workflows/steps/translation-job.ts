@@ -14,6 +14,7 @@ import type { AiFeaturesError } from "@/lib/billing/ai-features";
 import type { StringTranslationJobResult } from "@/lib/translation/domain";
 import type { CliTokenUsage } from "@/lib/translation/cli-token-usage";
 import type { ClaimedTranslationJob } from "@/lib/translation/jobs";
+import type { RecordJobEventsInput } from "@/lib/job-events/job-events-writer";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 export async function claimTranslationJobStep(input: {
@@ -66,10 +67,34 @@ export async function failTranslationJobStep(input: {
   workflowRunId: string;
   code: string;
   message: string;
+  failedLocales?: string[];
+  followUpJobId?: string | null;
 }) {
   "use step";
   const { failTranslationJob } = await import("@/lib/translation/jobs");
-  return failTranslationJob(input);
+  const failedJob = await failTranslationJob(input);
+  const { recordJobEvents } = await import("@/lib/job-events/job-events-writer");
+  await recordJobEvents({
+    jobId: input.jobId,
+    workflowRunId: input.workflowRunId,
+    events: [
+      {
+        type: "job_failed",
+        payload: {
+          code: input.code,
+          failedLocales: input.failedLocales ?? [],
+          followUpJobId: input.followUpJobId ?? null,
+        },
+      },
+    ],
+  });
+  return failedJob;
+}
+
+export async function recordJobEventsStep(input: RecordJobEventsInput) {
+  "use step";
+  const { recordJobEvents } = await import("@/lib/job-events/job-events-writer");
+  await recordJobEvents(input);
 }
 
 export async function markEmailTranslationJobRunning(input: {
@@ -79,27 +104,26 @@ export async function markEmailTranslationJobRunning(input: {
   "use step";
   const { and, eq, isNull, or } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database/client");
+  const { updateJobs } = await import("@/lib/job-change-events/job-writes");
 
-  const [updatedJob] = await db
-    .update(schema.jobs)
-    .set({
+  const [updatedJob] = await updateJobs(db, {
+    set: {
       status: "running",
       workflowRunId: input.workflowRunId,
       lastError: null,
       outcomePayload: null,
       completedAt: null,
-    })
-    .where(
-      and(
-        eq(schema.jobs.id, input.jobId),
-        eq(schema.jobs.kind, "translation"),
-        or(isNull(schema.jobs.workflowRunId), eq(schema.jobs.workflowRunId, input.workflowRunId)),
-        // Do not claim terminal jobs: legacy rows may have null workflowRunId, and replays must not
-        // reset succeeded/failed jobs that already share this workflowRunId.
-        or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "running")),
-      ),
-    )
-    .returning({ id: schema.jobs.id });
+    },
+    where: and(
+      eq(schema.jobs.id, input.jobId),
+      eq(schema.jobs.kind, "translation"),
+      or(isNull(schema.jobs.workflowRunId), eq(schema.jobs.workflowRunId, input.workflowRunId)),
+      // Do not claim terminal jobs: legacy rows may have null workflowRunId, and replays must not
+      // reset succeeded/failed jobs that already share this workflowRunId.
+      or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "running")),
+    ),
+    returning: { id: schema.jobs.id },
+  });
 
   if (!updatedJob) {
     throw new Error(
@@ -119,11 +143,11 @@ export async function markEmailTranslationJobSucceeded(input: {
   "use step";
   const { and, eq } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database/client");
+  const { updateJobs } = await import("@/lib/job-change-events/job-writes");
 
   const succeededJob = await db.transaction(async (tx) => {
-    const [updatedJob] = await tx
-      .update(schema.jobs)
-      .set({
+    const [updatedJob] = await updateJobs(tx, {
+      set: {
         status: "succeeded",
         outcomePayload: {
           kind: "email_file_result",
@@ -133,15 +157,14 @@ export async function markEmailTranslationJobSucceeded(input: {
         },
         lastError: null,
         completedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(schema.jobs.id, input.jobId),
-          eq(schema.jobs.kind, "translation"),
-          eq(schema.jobs.workflowRunId, input.workflowRunId),
-        ),
-      )
-      .returning({ id: schema.jobs.id, organizationId: schema.jobs.organizationId });
+      },
+      where: and(
+        eq(schema.jobs.id, input.jobId),
+        eq(schema.jobs.kind, "translation"),
+        eq(schema.jobs.workflowRunId, input.workflowRunId),
+      ),
+      returning: { id: schema.jobs.id, organizationId: schema.jobs.organizationId },
+    });
 
     if (!updatedJob) {
       throw new Error(
@@ -194,11 +217,11 @@ export async function markEmailTranslationJobFailed(input: {
   "use step";
   const { and, eq } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database/client");
+  const { updateJobs } = await import("@/lib/job-change-events/job-writes");
 
   const failedJob = await db.transaction(async (tx) => {
-    const [updatedJob] = await tx
-      .update(schema.jobs)
-      .set({
+    const [updatedJob] = await updateJobs(tx, {
+      set: {
         status: "failed",
         outcomePayload: {
           kind: "email_file_error",
@@ -206,20 +229,19 @@ export async function markEmailTranslationJobFailed(input: {
         },
         lastError: input.reason,
         completedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(schema.jobs.id, input.jobId),
-          eq(schema.jobs.kind, "translation"),
-          eq(schema.jobs.workflowRunId, input.workflowRunId),
-        ),
-      )
-      .returning({
+      },
+      where: and(
+        eq(schema.jobs.id, input.jobId),
+        eq(schema.jobs.kind, "translation"),
+        eq(schema.jobs.workflowRunId, input.workflowRunId),
+      ),
+      returning: {
         id: schema.jobs.id,
         kind: schema.jobs.kind,
         organizationId: schema.jobs.organizationId,
         projectId: schema.jobs.projectId,
-      });
+      },
+    });
 
     if (!updatedJob) {
       throw new Error(
@@ -309,6 +331,19 @@ export async function getRepositorySourcePathForStoredFileStep(
   return version?.sourcePath ?? null;
 }
 
+/** `.xlsx` bytes for a legacy `.xls` source, or `null` when the workbook cannot be read. */
+export async function convertXlsSourceForSandboxStep(
+  content: Buffer,
+): Promise<{ content: Buffer; contentType: string } | null> {
+  "use step";
+  const { convertXlsToXlsx } = await import("@/lib/translation/xlsx/xls-workbook");
+  const { XLSX_CONTENT_TYPE } = await import("@/lib/translation/xlsx/xlsx-workbook");
+  const converted = convertXlsToXlsx(content);
+  return converted.ok
+    ? { content: Buffer.from(converted.value), contentType: XLSX_CONTENT_TYPE }
+    : null;
+}
+
 export async function getStoredFileContentStep(fileId: string, organizationId: string) {
   "use step";
   const { get } = await import("@vercel/blob");
@@ -341,6 +376,18 @@ export async function getStoredFileContentStep(fileId: string, organizationId: s
   return Buffer.from(arrayBuffer);
 }
 
+/** The source file with source text edited in the project written in, so a job translates it. */
+export async function applyProjectSourceTextStep(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  content: Buffer;
+}) {
+  "use step";
+  const { applyProjectSourceText } = await import("@/lib/projects/files/source-text-editing");
+  return (await applyProjectSourceText(input)).content;
+}
+
 export async function storeOutputFileStep(input: {
   organizationId: string;
   projectId: string;
@@ -354,6 +401,7 @@ export async function storeOutputFileStep(input: {
   const { db, schema } = await import("@/lib/database/client");
   const { env } = await import("@/lib/env");
   const { createStoredFileId, sha256Hex, storageKey } = await import("@/lib/file-storage/records");
+  const { FileTranslationWorkflowError } = await import("@/workflows/file-translation-partial");
 
   const id = createStoredFileId();
   const key = storageKey({
@@ -395,7 +443,10 @@ export async function storeOutputFileStep(input: {
       .returning();
 
     if (!file) {
-      throw new Error(`failed to create stored file record for ${input.filename}`);
+      throw new FileTranslationWorkflowError(
+        "output_store_failed",
+        "failed to create stored file record",
+      );
     }
 
     return file;
@@ -473,6 +524,7 @@ export async function persistDocumentVariantBytesStep(input: {
   "use step";
   const { getImageVariant, replaceImageVariantBytes } =
     await import("@/lib/projects/files/image-variant-service");
+  const { FileTranslationWorkflowError } = await import("@/workflows/file-translation-partial");
   const result = await replaceImageVariantBytes({
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -497,7 +549,10 @@ export async function persistDocumentVariantBytesStep(input: {
         return existing;
       }
     }
-    throw new Error(`failed to persist document variant: ${result.error.code}`);
+    throw new FileTranslationWorkflowError(
+      "document_variant_failed",
+      "failed to persist document variant",
+    );
   }
   return result.value;
 }
@@ -508,31 +563,40 @@ export async function completeFileTranslationJobStep(input: {
   workflowRunId: string;
   outputFiles: Array<{ fileId: string; locale: string; filename: string }>;
   tokenUsage?: CliTokenUsage | null;
+  failedLocales?: string[];
+  followUpJobId?: string | null;
+  message?: string;
+  code?: string;
 }) {
   "use step";
   const { and, eq } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database/client");
+  const { updateJobs } = await import("@/lib/job-change-events/job-writes");
 
   const didSucceed = await db.transaction(async (tx) => {
-    const [updatedJob] = await tx
-      .update(schema.jobs)
-      .set({
+    const [updatedJob] = await updateJobs(tx, {
+      set: {
         status: "succeeded",
         outcomePayload: {
           outputFiles: input.outputFiles,
+          ...(input.failedLocales && input.failedLocales.length > 0
+            ? { failedLocales: input.failedLocales }
+            : {}),
+          ...(input.followUpJobId ? { followUpJobId: input.followUpJobId } : {}),
+          ...(input.message ? { message: input.message } : {}),
+          ...(input.code ? { code: input.code } : {}),
         },
         lastError: null,
         completedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(schema.jobs.kind, "translation"),
-          eq(schema.jobs.id, input.jobId),
-          eq(schema.jobs.projectId, input.projectId),
-          eq(schema.jobs.workflowRunId, input.workflowRunId),
-        ),
-      )
-      .returning({ id: schema.jobs.id });
+      },
+      where: and(
+        eq(schema.jobs.kind, "translation"),
+        eq(schema.jobs.id, input.jobId),
+        eq(schema.jobs.projectId, input.projectId),
+        eq(schema.jobs.workflowRunId, input.workflowRunId),
+      ),
+      returning: { id: schema.jobs.id },
+    });
 
     if (!updatedJob) {
       return false;
@@ -552,11 +616,26 @@ export async function completeFileTranslationJobStep(input: {
     );
   }
 
+  const { recordJobEvents } = await import("@/lib/job-events/job-events-writer");
+  await recordJobEvents({
+    jobId: input.jobId,
+    workflowRunId: input.workflowRunId,
+    events: [
+      {
+        type: "job_succeeded",
+        payload: {
+          completedLocales: input.outputFiles.map((file) => file.locale),
+          failedLocales: input.failedLocales ?? [],
+          followUpJobId: input.followUpJobId ?? null,
+        },
+      },
+    ],
+  });
+
   const { captureJobStatus } = await import("@/lib/reporting/capture");
   await captureJobStatus({
     jobId: input.jobId,
     status: "succeeded",
-    operationKey: `file:${input.workflowRunId}:succeeded`,
   });
   const { completeAndTrackBillableUsage, formatUsageControlError } =
     await import("@/lib/billing/usage-control");
@@ -777,12 +856,23 @@ export async function captureFileCompletionsStep(input: {
   targetLocale: string;
   sourceEntries: Record<string, string>;
   targetEntries: Record<string, string>;
+  /** Strings whose text was taken from the translation memory; the rest came from the model. */
+  memoryKeys?: string[];
 }) {
   "use step";
   const { captureCompletions } = await import("@/lib/reporting/capture");
+  const memoryKeys = new Set(input.memoryKeys ?? []);
   await captureCompletions({
-    ...input,
+    organizationId: input.organizationId,
+    jobId: input.jobId,
+    targetLocale: input.targetLocale,
     provenance: "automated",
+    source: "ai",
+    sources: Object.fromEntries(
+      Object.keys(input.targetEntries)
+        .filter((key) => memoryKeys.has(key))
+        .map((key) => [key, "memory" as const]),
+    ),
     sourceEntries: Object.fromEntries(
       Object.entries(input.sourceEntries).filter(([key]) => input.targetEntries[key]?.trim()),
     ),

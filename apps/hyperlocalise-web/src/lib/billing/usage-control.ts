@@ -27,6 +27,7 @@ import type { DatabaseClient } from "@/lib/database/client";
 import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { startReportingAtAiUse } from "@/lib/reporting/reporting-start";
 import {
   PRODUCT_USAGE_ANALYTICS_EVENTS,
   productUsageEventForAutumnEventName,
@@ -127,7 +128,7 @@ export async function reserveUsageEvent(input: {
       interactionId: input.interactionId,
     })
     .onConflictDoNothing({ target: schema.usageEvents.operationKey })
-    .returning({ id: schema.usageEvents.id });
+    .returning({ id: schema.usageEvents.id, createdAt: schema.usageEvents.createdAt });
 
   if (event) {
     if (input.featureId === usageFeatureIds.translationJobs) {
@@ -136,7 +137,11 @@ export async function reserveUsageEvent(input: {
         source: "translation_job",
       });
     }
-    return ok(event);
+    // Reports' AI usage and Costs count token rows from the workspace's Reports start.
+    if (input.featureId === usageFeatureIds.aiTokens) {
+      await startReportingAtAiUse(input.organizationId, event.createdAt);
+    }
+    return ok({ id: event.id });
   }
 
   const [existing] = await database
@@ -267,6 +272,8 @@ export async function trackAiCreditUsageInAutumn(input: {
   credentialSource?: AiCreditCredentialSource;
   jobId?: string;
   interactionId?: string;
+  /** Extra details stored on the token row, such as `project_id`. */
+  dimensions?: UsageEventDimensions;
   autumnApiKey?: string;
   fetchFn?: typeof fetch;
   trackTokens?: TrackAiTokensFn;
@@ -296,6 +303,7 @@ export async function trackAiCreditUsageInAutumn(input: {
     jobId: input.jobId,
     interactionId: input.interactionId,
     dimensions: {
+      ...input.dimensions,
       autumn_event_name: "ai_tokens.consumed",
       unit: "model_tokens",
       input_tokens: input.tokenUsage.inputTokens,
@@ -313,6 +321,7 @@ export async function trackAiCreditUsageInAutumn(input: {
     operationKey,
     quantity: input.tokenUsage.totalTokens,
     dimensions: {
+      ...input.dimensions,
       autumn_event_name: "ai_tokens.consumed",
       unit: "model_tokens",
       input_tokens: input.tokenUsage.inputTokens,

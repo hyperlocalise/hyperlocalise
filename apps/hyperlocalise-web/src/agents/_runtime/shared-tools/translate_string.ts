@@ -15,6 +15,7 @@ import { z } from "zod";
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { loadSharedSkill } from "@/agents/_runtime/loader";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import { trackStringTranslationTokenUsage } from "@/lib/billing/agent-runtime-usage";
 import { loadOrganizationTranslationGenerator } from "@/lib/translation/generation";
 import { assembleStringTranslationContextSnapshot } from "@/lib/translation/context";
 import { toolCanAccessProject } from "@/lib/tools/tool-access";
@@ -69,6 +70,13 @@ export async function executeTranslateString(
     projectTranslationContext: generator.project.translationContext,
     jobInput,
     contextSnapshot: contextSnapshot.ok ? contextSnapshot.snapshot : undefined,
+  });
+
+  await trackStringTranslationTokenUsage({
+    organizationId: organizationId,
+    source: "chat_translate_string",
+    projectId: input.projectId,
+    tokenUsage: result.tokenUsage,
   });
 
   return { translations: result.translations };

@@ -443,6 +443,10 @@ func protectMarkdownInlineSyntax(segment string) (string, map[string]string, str
 			end := idx + 2 + closeIdx + 1
 			appendPlaceholder(segment[idx:end])
 			idx = end
+		case intercomHeadingIDEnd(segment, idx) > idx:
+			end := intercomHeadingIDEnd(segment, idx)
+			appendPlaceholder(segment[idx:end])
+			idx = end
 		case segment[idx] == '{':
 			end, closed := findBraceExpressionEnd(segment, idx)
 			if !closed {

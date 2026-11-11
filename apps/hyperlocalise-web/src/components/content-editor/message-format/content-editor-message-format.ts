@@ -26,7 +26,22 @@ import {
   type SelectElement,
 } from "@formatjs/icu-messageformat-parser";
 
-import { extractInternalMarkupSpans } from "./content-editor-internal-markup";
+import {
+  extractInterpolationPlaceholders,
+  maskInterpolationPlaceholders,
+} from "@/lib/i18n/interpolation-placeholders";
+import {
+  type MessageFormat,
+  messageFormatParsesIcu,
+  messageFormatParsesInterpolations,
+  normalizeMessageFormat,
+} from "@/lib/i18n/message-format";
+import { extractCustomPlaceholderSpans } from "@/lib/i18n/placeholder-patterns";
+
+import {
+  extractInternalMarkupSpans,
+  stripLeakedInternalMarkupFromStoredMessage,
+} from "./content-editor-internal-markup";
 
 export type ContentEditorMessageTokenKind =
   | "argument"
@@ -36,7 +51,9 @@ export type ContentEditorMessageTokenKind =
   | "time"
   | "pound"
   | "tag"
-  | "markup";
+  | "markup"
+  /** Matched by one of the file's custom placeholder regular expressions. */
+  | "custom";
 
 export interface ContentEditorMessageToken {
   id: string;
@@ -209,8 +226,34 @@ function mergeMessageTokens(
 
 function placeholderTokens(tokens: ContentEditorMessageToken[]) {
   return tokens.filter((token) =>
-    ["argument", "number", "date", "time", "tag", "markup"].includes(token.kind),
+    ["argument", "number", "date", "time", "tag", "markup", "custom"].includes(token.kind),
   );
+}
+
+function isInterpolationLiteral(literal: string) {
+  return literal.startsWith("{{");
+}
+
+function interpolationTokensFromMessage(message: string): ContentEditorMessageToken[] {
+  return extractInterpolationPlaceholders(message).map((span, index) => ({
+    id: `interpolation-${span.name}-${span.start}-${index}`,
+    kind: "argument" as const,
+    name: span.name,
+    literal: message.slice(span.start, span.end),
+    start: span.start,
+    end: span.end,
+  }));
+}
+
+function analyzeIcuMessageTokens(message: string) {
+  const ast = parse(message, {
+    captureLocation: true,
+    ignoreTag: false,
+    requiresOtherClause: true,
+  });
+  const icuTokens: ContentEditorMessageToken[] = [];
+  walkElements(ast, message, icuTokens);
+  return icuTokens;
 }
 
 function icuBlockSummaries(tokens: ContentEditorMessageToken[]): ContentEditorIcuBlockSummary[] {
@@ -224,19 +267,79 @@ function icuBlockSummaries(tokens: ContentEditorMessageToken[]): ContentEditorIc
     }));
 }
 
-export function analyzeCatMessageFormat(message: string): ContentEditorMessageAnalysis {
+// Leaf tokens own their text. ICU and tag tokens span their children, so custom
+// placeholders inside a plural option or a tag still count.
+const LEAF_TOKEN_KINDS = new Set<ContentEditorMessageTokenKind>([
+  "argument",
+  "number",
+  "date",
+  "time",
+  "pound",
+  "markup",
+]);
+
+function withCustomPlaceholderTokens(
+  analysis: ContentEditorMessageAnalysis,
+  placeholderPatterns: readonly string[] | null | undefined,
+): ContentEditorMessageAnalysis {
+  const spans = extractCustomPlaceholderSpans(analysis.message, placeholderPatterns);
+  if (spans.length === 0) {
+    return analysis;
+  }
+  const leaves = analysis.tokens.filter((token) => LEAF_TOKEN_KINDS.has(token.kind));
+  const customTokens = spans
+    .filter((span) => !leaves.some((leaf) => span.start < leaf.end && leaf.start < span.end))
+    .map((span, index): ContentEditorMessageToken => ({
+      id: `custom-${span.start}-${index}`,
+      kind: "custom",
+      name: span.literal,
+      literal: span.literal,
+      start: span.start,
+      end: span.end,
+    }));
+  if (customTokens.length === 0) {
+    return analysis;
+  }
+  const tokens = [...analysis.tokens, ...customTokens].toSorted(
+    (first, second) => first.start - second.start,
+  );
+  return { ...analysis, tokens, placeholders: placeholderTokens(tokens) };
+}
+
+export function analyzeCatMessageFormat(
+  message: string,
+  options: {
+    messageFormat?: MessageFormat | null;
+    /** The file's custom placeholder regular expressions. */
+    placeholderPatterns?: readonly string[] | null;
+  } = {},
+): ContentEditorMessageAnalysis {
+  return withCustomPlaceholderTokens(
+    analyzeBuiltInMessageFormat(message, options.messageFormat),
+    options.placeholderPatterns,
+  );
+}
+
+function analyzeBuiltInMessageFormat(
+  message: string,
+  messageFormat: MessageFormat | null | undefined,
+): ContentEditorMessageAnalysis {
+  const format = normalizeMessageFormat(messageFormat);
+  message = stripLeakedInternalMarkupFromStoredMessage(message);
   const markupTokens = markupTokensFromMessage(message);
 
-  try {
-    const ast = parse(message, {
-      captureLocation: true,
-      ignoreTag: false,
-      requiresOtherClause: true,
-    });
-    const icuTokens: ContentEditorMessageToken[] = [];
-    walkElements(ast, message, icuTokens);
-    const tokens = mergeMessageTokens(markupTokens, icuTokens);
+  if (!messageFormatParsesIcu(format)) {
+    const tokens = mergeMessageTokens(markupTokens, interpolationTokensFromMessage(message));
+    return {
+      message,
+      tokens,
+      placeholders: placeholderTokens(tokens),
+      icuBlocks: [],
+    };
+  }
 
+  try {
+    const tokens = mergeMessageTokens(markupTokens, analyzeIcuMessageTokens(message));
     return {
       message,
       tokens,
@@ -244,6 +347,34 @@ export function analyzeCatMessageFormat(message: string): ContentEditorMessageAn
       icuBlocks: icuBlockSummaries(tokens),
     };
   } catch (error) {
+    const interpolationTokens = messageFormatParsesInterpolations(format)
+      ? interpolationTokensFromMessage(message)
+      : [];
+    if (interpolationTokens.length > 0) {
+      try {
+        const masked = maskInterpolationPlaceholders(
+          message,
+          extractInterpolationPlaceholders(message),
+        );
+        const icuTokens = analyzeIcuMessageTokens(masked);
+        const tokens = mergeMessageTokens(markupTokens, [...interpolationTokens, ...icuTokens]);
+        return {
+          message,
+          tokens,
+          placeholders: placeholderTokens(tokens),
+          icuBlocks: icuBlockSummaries(tokens),
+        };
+      } catch {
+        const tokens = mergeMessageTokens(markupTokens, interpolationTokens);
+        return {
+          message,
+          tokens,
+          placeholders: placeholderTokens(tokens),
+          icuBlocks: [],
+        };
+      }
+    }
+
     const parserError = error as {
       message?: string;
       location?: Location;
@@ -270,9 +401,13 @@ export function contentEditorMessageTokenSignature(token: ContentEditorMessageTo
     return `${token.kind}:${token.name}:${token.type}`;
   }
 
-  if (token.kind === "markup") {
-    // Exact sentinel bytes must round-trip; label alone is not unique across hashes.
+  if (token.kind === "markup" || token.kind === "custom") {
+    // Exact bytes must round-trip; label alone is not unique across hashes.
     return `${token.kind}:${token.literal}`;
+  }
+
+  if (token.kind === "argument" && isInterpolationLiteral(token.literal)) {
+    return `interpolation:${token.name}:${token.literal.replaceAll(/\s+/g, "")}`;
   }
 
   return `${token.kind}:${token.name}`;
@@ -289,6 +424,14 @@ function tokenDisplayName(token: ContentEditorMessageToken) {
 
   if (token.kind === "markup") {
     return token.displayLabel ?? token.name;
+  }
+
+  if (token.kind === "custom") {
+    return token.literal;
+  }
+
+  if (isInterpolationLiteral(token.literal)) {
+    return token.literal.replaceAll(/\s+/g, " ").trim();
   }
 
   return `{${token.name}}`;
@@ -430,9 +573,13 @@ export function compareCatMessageFormats(
   return issues;
 }
 
-export function missingCatMessageTokens(sourceMessage: string, targetMessage: string) {
-  const source = analyzeCatMessageFormat(sourceMessage);
-  const target = analyzeCatMessageFormat(targetMessage);
+export function missingCatMessageTokens(
+  sourceMessage: string,
+  targetMessage: string,
+  options: { messageFormat?: MessageFormat | null } = {},
+) {
+  const source = analyzeCatMessageFormat(sourceMessage, options);
+  const target = analyzeCatMessageFormat(targetMessage, options);
   return missingCatMessageTokensFromAnalysis(source, target);
 }
 

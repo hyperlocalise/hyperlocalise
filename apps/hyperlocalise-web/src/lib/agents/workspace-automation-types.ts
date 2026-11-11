@@ -25,6 +25,11 @@ import {
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
+import {
+  DEFAULT_GOOGLE_DRIVE_TRANSLATION_OUTPUT,
+  GOOGLE_DRIVE_TRANSLATION_OUTPUTS,
+} from "@/lib/google-drive/translation-filename";
+
 import { MAX_WORKSPACE_AUTOMATION_SKILLS } from "./workspace-automation-skills";
 
 export {
@@ -103,7 +108,10 @@ export const workspaceAutomationRunTriggerSourceSchema = z.enum([
   "web_chat",
 ]);
 
-const branchPatternSchema = z
+export const WORKSPACE_AUTOMATION_NAME_MAX_CHARS = 120;
+export const WORKSPACE_AUTOMATION_INSTRUCTIONS_MAX_CHARS = 20_000;
+
+export const branchPatternSchema = z
   .string()
   .trim()
   .min(1)
@@ -255,11 +263,8 @@ const createIssueToolConfigSchema = z
 const knowledgeToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
-    // Lets the automation append to the shared organization Memory.md via the save_memory tool.
-    // Meaningless without `enabled`; callers must not treat this as authoritative on its own.
-    allowUpdates: z.boolean().default(false),
   })
-  .default({ enabled: false, allowUpdates: false });
+  .default({ enabled: false });
 
 const knowledgeFilesToolConfigSchema = z
   .object({
@@ -303,6 +308,329 @@ const gitlabToolConfigSchema = z
     workosUserId: z.string().trim().min(1).max(128).optional(),
   })
   .default({ enabled: false });
+
+const intercomRestEndpointSchema = z.enum(["us", "eu", "au"]);
+
+const brazeToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    templateIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    contentBlockIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+    overwriteWhenRemoteNewer: z.boolean().default(true),
+  })
+  .default({
+    enabled: false,
+    sourceLocale: "en",
+    templateIds: [],
+    contentBlockIds: [],
+    existingTranslationPolicy: "seed_empty",
+    overwriteWhenRemoteNewer: true,
+  });
+
+const brazeCampaignsToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    campaignIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    canvasIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+    overwriteWhenRemoteNewer: z.boolean().default(true),
+  })
+  .default({
+    enabled: false,
+    sourceLocale: "en",
+    campaignIds: [],
+    canvasIds: [],
+    existingTranslationPolicy: "seed_empty",
+    overwriteWhenRemoteNewer: true,
+  });
+
+const customerIoResourceActionsSchema = z
+  .record(z.string().trim().min(1).max(128), z.array(z.string().trim().min(1).max(128)).max(100))
+  .default({});
+
+const iterableToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).optional(),
+    templateIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    snippetIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+  })
+  .default({
+    enabled: false,
+    templateIds: [],
+    snippetIds: [],
+    existingTranslationPolicy: "seed_empty",
+  });
+
+const customerIoToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).optional(),
+    broadcastIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    campaignIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    newsletterIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    transactionalMessageIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    broadcastActions: customerIoResourceActionsSchema,
+    campaignActions: customerIoResourceActionsSchema,
+    newsletterActions: customerIoResourceActionsSchema,
+    transactionalMessageActions: customerIoResourceActionsSchema,
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+    overwriteWhenRemoteNewer: z.boolean().default(true),
+  })
+  .default({
+    enabled: false,
+    broadcastIds: [],
+    campaignIds: [],
+    newsletterIds: [],
+    transactionalMessageIds: [],
+    broadcastActions: {},
+    campaignActions: {},
+    newsletterActions: {},
+    transactionalMessageActions: {},
+    existingTranslationPolicy: "seed_empty",
+    overwriteWhenRemoteNewer: true,
+  });
+
+const hubspotToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    emailIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    formIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    blogPostIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    landingPageIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    websitePageIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    messageTemplateIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+    overwriteWhenRemoteNewer: z.boolean().default(true),
+  })
+  .default({
+    enabled: false,
+    sourceLocale: "en",
+    emailIds: [],
+    formIds: [],
+    blogPostIds: [],
+    landingPageIds: [],
+    websitePageIds: [],
+    messageTemplateIds: [],
+    existingTranslationPolicy: "seed_empty",
+    overwriteWhenRemoteNewer: true,
+  });
+
+const loopsToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    transactionalIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    campaignIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    workflowIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+    overwriteWhenRemoteNewer: z.boolean().default(true),
+  })
+  .default({
+    enabled: false,
+    sourceLocale: "en",
+    transactionalIds: [],
+    campaignIds: [],
+    workflowIds: [],
+    existingTranslationPolicy: "seed_empty",
+    overwriteWhenRemoteNewer: true,
+  });
+
+const mailchimpToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).optional(),
+    campaignIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    templateIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+    overwriteWhenRemoteNewer: z.boolean().default(true),
+  })
+  .default({
+    enabled: false,
+    campaignIds: [],
+    templateIds: [],
+    existingTranslationPolicy: "seed_empty",
+    overwriteWhenRemoteNewer: true,
+  });
+
+const sanityDocumentTypeModeSchema = z.enum(["document", "field"]);
+
+const sanityDocumentTypeModesSchema = z
+  .record(z.string().trim().min(1).max(128), sanityDocumentTypeModeSchema)
+  .default({})
+  .superRefine((value, ctx) => {
+    if (Object.keys(value).length > 50) {
+      ctx.addIssue({
+        code: "custom",
+        message: "At most 50 document type mode overrides are allowed.",
+      });
+    }
+  });
+
+const sanityLanguagesByTypeSchema = z
+  .record(z.string().trim().min(1).max(128), z.array(z.string().trim().min(1).max(32)).max(50))
+  .default({})
+  .superRefine((value, ctx) => {
+    if (Object.keys(value).length > 50) {
+      ctx.addIssue({
+        code: "custom",
+        message: "At most 50 document type language lists are allowed.",
+      });
+    }
+  });
+
+const sanityLocaleCatalogSchema = z
+  .object({
+    documentType: z.string().trim().min(1).max(128).default("locale"),
+    tagField: z.string().trim().min(1).max(64).default("tag"),
+    titleField: z.string().trim().min(1).max(64).default("name"),
+  })
+  .default({
+    documentType: "locale",
+    tagField: "tag",
+    titleField: "name",
+  });
+
+const webflowToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    connectionId: z.string().uuid().optional(),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    siteId: z.string().trim().min(1).max(128).optional(),
+    collectionIds: z.array(z.string().trim().min(1).max(128)).max(50).default([]),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+    runQa: z.boolean().default(true),
+    // When false (default), approved translations are written as staged
+    // secondary-locale drafts. When true, pushed locales go live immediately.
+    publishOnPush: z.boolean().default(false),
+  })
+  .default({
+    enabled: false,
+    collectionIds: [],
+    sourceLocale: "en",
+    targetLocales: [],
+    existingTranslationPolicy: "seed_empty",
+    runQa: true,
+    publishOnPush: false,
+  });
+
+const sanityToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    projectId: z.string().trim().min(1).max(128).optional(),
+    dataset: z.string().trim().min(1).max(128).optional(),
+    documentTypes: z.array(z.string().trim().min(1).max(128)).max(50).default([]),
+    documentTypeModes: sanityDocumentTypeModesSchema,
+    localeCatalog: sanityLocaleCatalogSchema,
+    languages: z.array(z.string().trim().min(1).max(32)).max(50).default([]),
+    languagesByType: sanityLanguagesByTypeSchema,
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
+    includeDrafts: z.boolean().default(true),
+    overwriteSanityDrafts: z.boolean().default(true),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+  })
+  .default({
+    enabled: false,
+    documentTypes: [],
+    documentTypeModes: {},
+    localeCatalog: {
+      documentType: "locale",
+      tagField: "tag",
+      titleField: "name",
+    },
+    languages: [],
+    languagesByType: {},
+    sourceLocale: "en",
+    targetLocales: [],
+    includeDrafts: true,
+    overwriteSanityDrafts: true,
+    existingTranslationPolicy: "seed_empty",
+  });
+
+const googleDriveToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    folderIds: z.array(z.string().uuid()).max(50).default([]),
+    fileIds: z.array(z.string().trim().min(1).max(128)).max(500).default([]),
+    targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
+    includeTranslatedFiles: z.boolean().default(false),
+    translationOutput: z.enum(GOOGLE_DRIVE_TRANSLATION_OUTPUTS).default("folder"),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+  })
+  .default({
+    enabled: false,
+    folderIds: [],
+    fileIds: [],
+    targetLocales: [],
+    includeTranslatedFiles: false,
+    translationOutput: DEFAULT_GOOGLE_DRIVE_TRANSLATION_OUTPUT,
+    existingTranslationPolicy: "seed_empty",
+  });
+
+const intercomToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    restEndpoint: intercomRestEndpointSchema.default("us"),
+    helpCenterId: z.string().trim().min(1).max(64).optional(),
+    helpCenterLocales: z.array(z.string().trim().min(1).max(32)).max(50).default([]),
+    collectionIds: z.array(z.string().trim().min(1).max(64)).max(50).default([]),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
+    includeDrafts: z.boolean().default(true),
+    overwriteIntercomDrafts: z.boolean().default(true),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+  })
+  .default({
+    enabled: false,
+    restEndpoint: "us",
+    helpCenterLocales: [],
+    collectionIds: [],
+    sourceLocale: "en",
+    targetLocales: [],
+    includeDrafts: true,
+    overwriteIntercomDrafts: true,
+    existingTranslationPolicy: "seed_empty",
+  });
 
 const crowdinToolConfigSchema = z
   .object({
@@ -381,6 +709,17 @@ const toolConfigObjectSchema = z
     zernio: zernioToolConfigSchema.optional(),
     ahrefs: ahrefsToolConfigSchema.optional(),
     gitlab: gitlabToolConfigSchema.optional(),
+    intercom: intercomToolConfigSchema.optional(),
+    googleDrive: googleDriveToolConfigSchema.optional(),
+    sanity: sanityToolConfigSchema.optional(),
+    webflow: webflowToolConfigSchema.optional(),
+    braze: brazeToolConfigSchema.optional(),
+    brazeCampaigns: brazeCampaignsToolConfigSchema.optional(),
+    customerIo: customerIoToolConfigSchema.optional(),
+    iterable: iterableToolConfigSchema.optional(),
+    loops: loopsToolConfigSchema.optional(),
+    hubspot: hubspotToolConfigSchema.optional(),
+    mailchimp: mailchimpToolConfigSchema.optional(),
     crowdin: crowdinToolConfigSchema.optional(),
     webSearch: webSearchToolConfigSchema.optional(),
   })
@@ -441,6 +780,19 @@ export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolCon
 export type WorkspaceAutomationZernioToolConfig = z.infer<typeof zernioToolConfigSchema>;
 export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
 export type WorkspaceAutomationGitlabToolConfig = z.infer<typeof gitlabToolConfigSchema>;
+export type WorkspaceAutomationIntercomToolConfig = z.infer<typeof intercomToolConfigSchema>;
+export type WorkspaceAutomationGoogleDriveToolConfig = z.infer<typeof googleDriveToolConfigSchema>;
+export type WorkspaceAutomationSanityToolConfig = z.infer<typeof sanityToolConfigSchema>;
+export type WorkspaceAutomationWebflowToolConfig = z.infer<typeof webflowToolConfigSchema>;
+export type WorkspaceAutomationBrazeToolConfig = z.infer<typeof brazeToolConfigSchema>;
+export type WorkspaceAutomationBrazeCampaignsToolConfig = z.infer<
+  typeof brazeCampaignsToolConfigSchema
+>;
+export type WorkspaceAutomationCustomerIoToolConfig = z.infer<typeof customerIoToolConfigSchema>;
+export type WorkspaceAutomationIterableToolConfig = z.infer<typeof iterableToolConfigSchema>;
+export type WorkspaceAutomationLoopsToolConfig = z.infer<typeof loopsToolConfigSchema>;
+export type WorkspaceAutomationHubspotToolConfig = z.infer<typeof hubspotToolConfigSchema>;
+export type WorkspaceAutomationMailchimpToolConfig = z.infer<typeof mailchimpToolConfigSchema>;
 export type WorkspaceAutomationCrowdinToolConfig = z.infer<typeof crowdinToolConfigSchema>;
 export type WorkspaceAutomationWebSearchProvider = z.infer<
   typeof workspaceAutomationWebSearchProviderSchema
@@ -478,6 +830,194 @@ export type WorkspaceAutomationConfigValidationError =
       message: "WorkOS is not configured, so GitLab cannot connect through Pipes.";
     }
   | {
+      code: "intercom_not_connected";
+      message: "Connect Intercom in Integrations before using it.";
+    }
+  | {
+      code: "intercom_pipes_needs_reauthorization";
+      message: "Reconnect Intercom in Integrations, then try again.";
+    }
+  | {
+      code: "intercom_pipes_unavailable";
+      message: "WorkOS is not configured, so Intercom cannot connect through Pipes.";
+    }
+  | {
+      code: "intercom_help_center_required";
+      message: "Choose an Intercom Help Center for this automation.";
+    }
+  | {
+      code: "intercom_target_locales_unmapped";
+      message: "One or more selected Intercom target locales do not exist on this Help Center.";
+    }
+  | {
+      code: "intercom_source_locale_unmapped";
+      message: "The source locale does not match an Intercom Help Center locale.";
+    }
+  | {
+      code: "intercom_source_locale_mismatch";
+      message: "The Intercom source locale must be the same language as the project source locale.";
+    }
+  | {
+      code: "google_drive_not_connected";
+      message: "Connect Google Drive in Integrations before using it.";
+    }
+  | {
+      code: "google_drive_pipes_needs_reauthorization";
+      message: "Reconnect Google Drive in Integrations, then try again.";
+    }
+  | {
+      code: "google_drive_pipes_unavailable";
+      message: "WorkOS is not configured, so Google Drive cannot connect through Pipes.";
+    }
+  | {
+      code: "google_drive_folders_required";
+      message: "Choose at least one connected Google Drive folder or file for this automation.";
+    }
+  | {
+      code: "google_drive_folders_invalid";
+      message: "One or more Google Drive folders are not connected for this workspace.";
+    }
+  | {
+      code: "google_drive_target_locales_invalid";
+      message: "Target locales must be a subset of the project target locales.";
+    }
+  | {
+      code: "sanity_not_connected";
+      message: "Connect Sanity in Integrations before using it.";
+    }
+  | {
+      code: "sanity_pipes_needs_reauthorization";
+      message: "Reconnect Sanity in Integrations, then try again.";
+    }
+  | {
+      code: "sanity_pipes_unavailable";
+      message: "WorkOS is not configured, so Sanity cannot connect through Pipes.";
+    }
+  | {
+      code: "sanity_project_required";
+      message: "Choose a Sanity project and dataset for this automation.";
+    }
+  | {
+      code: "sanity_document_types_required";
+      message: "Choose at least one Sanity document type to import.";
+    }
+  | {
+      code: "sanity_target_locales_unmapped";
+      message: "One or more selected Sanity target locales do not exist on this dataset.";
+    }
+  | {
+      code: "sanity_source_locale_unmapped";
+      message: "The source locale does not match a Sanity language tag.";
+    }
+  | {
+      code: "sanity_source_locale_mismatch";
+      message: "The Sanity source locale must be the same language as the project source locale.";
+    }
+  | {
+      code: "webflow_not_connected";
+      message: string;
+    }
+  | {
+      code: "webflow_connection_required";
+      message: "Choose a Webflow connection.";
+    }
+  | {
+      code: "webflow_collection_ids_required";
+      message: "Choose at least one Webflow collection.";
+    }
+  | {
+      code: "webflow_source_locale_mismatch";
+      message: string;
+    }
+  | {
+      code: "braze_not_connected";
+      message: "Connect Braze in Integrations before using it.";
+    }
+  | {
+      code: "braze_pipes_needs_reauthorization";
+      message: "Reconnect Braze in Integrations, then try again.";
+    }
+  | {
+      code: "braze_pipes_unavailable";
+      message: "WorkOS is not configured, so Braze cannot connect through Pipes.";
+    }
+  | {
+      code: "braze_endpoint_missing";
+      message: "Save a Braze REST cluster in Integrations before using it.";
+    }
+  | {
+      code: "braze_source_locale_mismatch";
+      message: "The Braze source locale must be the same language as the project source locale.";
+    }
+  | {
+      code: "braze_skills_exclusive";
+      message: "Choose either Braze Email Templates or Braze Campaigns & Canvas, not both.";
+    }
+  | {
+      code: "customer_io_not_connected";
+      message: "Connect Customer.io in Integrations before using it.";
+    }
+  | {
+      code: "customer_io_pipes_needs_reauthorization";
+      message: "Reconnect Customer.io in Integrations, then try again.";
+    }
+  | {
+      code: "customer_io_pipes_unavailable";
+      message: "WorkOS is not configured, so Customer.io cannot connect through Pipes.";
+    }
+  | {
+      code: "loops_not_connected";
+      message: "Connect Loops in Integrations before using it.";
+    }
+  | {
+      code: "loops_pipes_needs_reauthorization";
+      message: "Reconnect Loops in Integrations, then try again.";
+    }
+  | {
+      code: "loops_pipes_unavailable";
+      message: "WorkOS is not configured, so Loops cannot connect through Pipes.";
+    }
+  | {
+      code: "hubspot_not_connected";
+      message: "Connect HubSpot in Integrations before using it.";
+    }
+  | {
+      code: "hubspot_pipes_needs_reauthorization";
+      message: "Reconnect HubSpot in Integrations, then try again.";
+    }
+  | {
+      code: "hubspot_pipes_unavailable";
+      message: "WorkOS is not configured, so HubSpot cannot connect through Pipes.";
+    }
+  | {
+      code: "mailchimp_not_connected";
+      message: "Connect Mailchimp in Integrations before using it.";
+    }
+  | {
+      code: "mailchimp_pipes_needs_reauthorization";
+      message: "Reconnect Mailchimp in Integrations, then try again.";
+    }
+  | {
+      code: "mailchimp_pipes_unavailable";
+      message: "WorkOS is not configured, so Mailchimp cannot connect through Pipes.";
+    }
+  | {
+      code: "iterable_not_connected";
+      message: "Connect Iterable in Integrations before using it.";
+    }
+  | {
+      code: "iterable_pipes_needs_reauthorization";
+      message: "Reconnect Iterable in Integrations, then try again.";
+    }
+  | {
+      code: "iterable_pipes_unavailable";
+      message: "WorkOS is not configured, so Iterable cannot connect through Pipes.";
+    }
+  | {
+      code: "cms_translation_skills_exclusive";
+      message: "Choose one CMS translation skill per automation.";
+    }
+  | {
       code: "skill_not_found";
       message: "A selected skill is no longer available. Remove it and try again.";
     }
@@ -492,6 +1032,10 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "instructions_or_skill_required";
       message: "Add a skill or write instructions.";
+    }
+  | {
+      code: "author_not_found";
+      message: "Choose an active admin or localisation manager in this workspace.";
     }
   | {
       code: "project_required";
@@ -515,7 +1059,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "scheduled_workflow_required";
-      message: "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.";
+      message: "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Sanity, Webflow, Google Drive, Braze, Customer.io, Queries, Web Search, or Crowdin workflow tool.";
     }
   | {
       code: "invalid_automation_timezone";
@@ -650,6 +1194,14 @@ export type WorkspaceAutomationConfigValidationError =
       message: "Choose a safe relative folder path.";
     }
   | {
+      code: "content_sync_path_template_required";
+      message: "Say where each language's files are, for example {{locale}}.json.";
+    }
+  | {
+      code: "content_sync_path_template_invalid";
+      message: "The language file paths need {{locale}}, with ** only as a whole folder (twice at most), at most two * or {{locale}} in a name, and at most eight in all.";
+    }
+  | {
       code: "content_sync_duplicate";
       message: "This project already syncs that source folder.";
     }
@@ -688,13 +1240,6 @@ export function hasWorkspaceAutomationKnowledgeTool(toolConfig: WorkspaceAutomat
   return Boolean(toolConfig.knowledge?.enabled);
 }
 
-// Meaningless without hasWorkspaceAutomationKnowledgeTool — callers must check both, not just this.
-export function hasWorkspaceAutomationKnowledgeUpdatesAllowed(
-  toolConfig: WorkspaceAutomationToolConfig,
-) {
-  return Boolean(toolConfig.knowledge?.enabled && toolConfig.knowledge.allowUpdates);
-}
-
 export function hasWorkspaceAutomationKnowledgeFilesTool(
   toolConfig: WorkspaceAutomationToolConfig,
 ) {
@@ -719,6 +1264,52 @@ export function hasWorkspaceAutomationAhrefsTool(toolConfig: WorkspaceAutomation
 
 export function hasWorkspaceAutomationGitlabTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.gitlab?.enabled);
+}
+
+export function hasWorkspaceAutomationIntercomTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.intercom?.enabled);
+}
+
+export function hasWorkspaceAutomationSanityTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.sanity?.enabled);
+}
+
+export function hasWorkspaceAutomationWebflowTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.webflow?.enabled);
+}
+
+export function hasWorkspaceAutomationGoogleDriveTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.googleDrive?.enabled);
+}
+
+export function hasWorkspaceAutomationBrazeTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.braze?.enabled);
+}
+
+export function hasWorkspaceAutomationBrazeCampaignsTool(
+  toolConfig: WorkspaceAutomationToolConfig,
+) {
+  return Boolean(toolConfig.brazeCampaigns?.enabled);
+}
+
+export function hasWorkspaceAutomationCustomerIoTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.customerIo?.enabled);
+}
+
+export function hasWorkspaceAutomationIterableTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.iterable?.enabled);
+}
+
+export function hasWorkspaceAutomationLoopsTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.loops?.enabled);
+}
+
+export function hasWorkspaceAutomationHubspotTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.hubspot?.enabled);
+}
+
+export function hasWorkspaceAutomationMailchimpTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.mailchimp?.enabled);
 }
 
 export function hasWorkspaceAutomationCrowdinTool(toolConfig: WorkspaceAutomationToolConfig) {

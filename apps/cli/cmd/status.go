@@ -333,6 +333,13 @@ func readSourceEntriesForStatus(parser *translationfileparser.Strategy, path, lo
 		}
 		return translationfileparser.AlignAsciiDocTargetToSource(content, content), nil
 	}
+	if translationfileparser.IsPlainTextDocumentExtension(path) {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		return translationfileparser.AlignPlainTextTargetToSource(content, content), nil
+	}
 	return readEntriesForStatus(parser, path, locale)
 }
 
@@ -360,6 +367,17 @@ func readTargetEntriesForStatus(parser *translationfileparser.Strategy, sourcePa
 			return nil, err
 		}
 		return translationfileparser.AlignAsciiDocTargetToSource(sourceContent, targetContent), nil
+	}
+	if translationfileparser.IsPlainTextDocumentExtension(targetPath) {
+		sourceContent, err := os.ReadFile(sourcePath)
+		if err != nil {
+			return nil, err
+		}
+		targetContent, err := os.ReadFile(targetPath)
+		if err != nil {
+			return nil, err
+		}
+		return translationfileparser.AlignPlainTextTargetToSource(sourceContent, targetContent), nil
 	}
 	if ext == ".xcstrings" || ext == ".csv" || ext == ".tsv" {
 		content, err := os.ReadFile(targetPath)

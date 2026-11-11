@@ -1,0 +1,110 @@
+---
+title: "Localize Canva"
+description: "Connect Hyperlocalise, pick a native project in the Canva app, collect page files, and apply existing translations."
+---
+
+Canva does not translate. Hyperlocalise jobs do. Create one workspace Canva connection, then use the Hyperlocalise Canva app to pick a [native project](/platform/projects/create-project), collect page text, and write existing translations back onto the design.
+
+There is no separate Canva locale list. Jobs use the project's source locale and target locales. `en` is not `en-US`.
+
+## Prerequisites
+
+| Requirement | Description |
+| --- | --- |
+| Native project | A [native project](/platform/projects/create-project) with a source locale and the target locales you will apply. |
+| Personal access token | A [personal access token](/platform/settings#personal-access-tokens) with `files:read`, `files:write`, `jobs:read`, and `jobs:write`. The token inherits your workspace role and project access. |
+| Hyperlocalise Canva app | The app installed or previewed in the Canva editor. Development URL is `http://localhost:8080` when you run the app locally. |
+| Design with editable text | Locked pages and unsupported page types are skipped. |
+
+## Connect Canva
+
+1. Open workspace **Integrations** and find **Canva**.
+2. Enter a display name.
+3. Select the personal access token. The dropdown shows the token name.
+4. Save. You do not choose a project or locales on this form.
+
+App developers enable OAuth in the Canva Developer Portal and on the Hyperlocalise deployment. See [Canva app OAuth](/contributing/canva-app-oauth) for authorization server URL, token exchange URL, and environment variables.
+
+A **connection token** is a local-development fallback only. On `localhost`, Integrations shows **Copy token** after save and **Regenerate token** on each connection. The published Canva app does not accept a pasted token. Use **Connect Hyperlocalise** (OAuth) in production.
+
+Connect Canva before you collect texts. Changing the project in the app changes the next collect and apply.
+
+## Step 1: Match project locales
+
+Create or choose the [native project](/platform/projects/create-project) you will select in the Canva app.
+
+1. Set the project **source locale** to the language of the design copy you will collect (`en-US` if the design is written in US English).
+2. Add a project target locale for each language you will apply (`fr-FR`, `de-DE`).
+3. Use the exact BCP-47 tags you want on jobs. There is no language fallback: `en` does not map to `en-US`, and `es` does not map to `es-MX`.
+4. Keep locked pairs separate: `en-US` is not `en-GB`.
+
+Change languages in [project settings](/platform/projects/languages), then pick the project again in the Canva app so it reloads the list.
+
+## Step 2: Open the design in Canva
+
+1. Open the design in the Canva editor.
+2. Open the Hyperlocalise Canva app from the editor.
+3. Confirm the design has editable text on the pages you will collect.
+
+The app lists every page. Locked pages and unsupported page types stay disabled.
+
+## Step 3: Connect from the app
+
+1. Choose **Connect Hyperlocalise** and complete OAuth.
+2. Select the native project. The app binds that project to the connection.
+3. Select the locale you will apply. Labels appear as **English (en-US)**. Jobs still send the project tag.
+
+Local Canva app development can open **Use a connection token**, paste the token copied from local Integrations, and choose **Connect with token**. That control is hidden in the published app.
+
+If the app shows a reconnect error, disconnect and connect again.
+
+## Step 4: Upload texts
+
+Upload writes source JSON into the selected project. It does not start translation.
+
+1. Select **Pages to translate**. Reload the list if you added or removed pages in the design.
+2. Choose **Upload** and review the text preview.
+3. Confirm **Upload pages**. The app reports how many page files it created.
+
+Each page is stored at `canva/designs/<design-slug>/page-<n>.json`, starting at `page-1.json`. The slug comes from the Canva title. Untitled designs fall back to the design id. Review those files like other [JSON sources](/platform/projects/files).
+
+Each text box becomes one string. Hyperlocalise keys it from the box's source text (`canva.t.<hash>`), not from its position on the page. Mixed styling inside a box is translated and applied as one block. After this key model shipped, upload each existing design once before Apply. Editing a box in Canva means that box no longer matches until you upload again. Older `canva.segment.*` keys are not reused.
+
+A later collect replaces the current collect batch for that design. Apply uses that batch only. Earlier page files from the same design are not reused.
+
+Collect does not create a translation job.
+
+## Step 5: Translate from the app
+
+**Translate** starts an agent job for the chosen language on the **last Upload**, waits for that job, then applies the result to the design. If the selected pages are not uploaded yet, Translate uploads them first, but only while the design shows the project source locale. If a target language is on the design, apply the source locale first. Translate does not upload again when the selected pages are already uploaded.
+
+Upload and Apply stay available as separate confirmed steps. Open the page files in the [Content Editor](/platform/cat) if you need to [review](/platform/cat) or wait for approval.
+
+## Step 6: Apply to the design
+
+**Apply** writes Hyperlocalise strings for the chosen language onto the **selected** Canva pages. For **target** locales it pulls the **Content Editor** (job output is not merged in). For the **source** locale it pulls the latest uploaded page files from collect. It does not insert a page above or below.
+
+1. Under **Translate to**, pick the target locale whose translations you want on the design.
+2. Under **Pages to translate**, pick every page that should receive that language.
+3. Choose **Apply** when each selected page has pullable translations (job succeeded or waiting for review). The app pulls from Hyperlocalise and updates the design immediately.
+4. Inspect layout after applying another language, especially for longer text.
+
+Apply matches each box by the text currently on the page (source or any locale already written back). It reads target-locale text from project translations (the editor). The app remembers the last language written to the design. **Upload** stays disabled until that language is the project source locale, so collect always sends source text. Apply the source locale first if the design currently shows a target. Pages uploaded before this key model show a re-upload hint and stay disabled until you upload them again.
+
+## Change or remove access
+
+Choose **Change** in the Canva app to pick another project, or **Switch Account** to connect a different Hyperlocalise workspace. Disconnect the connection from **Integrations** when the workspace should stop using that connection.
+
+Deleting the selected **native project** unbinds the connection. The workspace connection stays. Designers pick another project in the Canva app.
+
+## If upload or apply does not run
+
+- Confirm Canva is connected and a project is selected. That project needs a source locale and at least one target locale.
+- Confirm the personal access token still has `files:read`, `files:write`, `jobs:read`, and `jobs:write`, and that you can access the project.
+- Confirm you selected at least one editable page and that those pages contain text.
+- Confirm you uploaded texts before you apply a locale. Apply stays disabled until that locale has pullable translations.
+- Confirm the design is on the project source locale before Upload. Apply the source language first if a target is currently on the page.
+- Confirm the language you apply is on the project. `en` is not `en-US`.
+- Open the job in Hyperlocalise for a failed locale.
+
+See [Connection troubleshooting](/platform/help/connections).

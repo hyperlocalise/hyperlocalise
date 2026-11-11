@@ -6,6 +6,54 @@ import (
 	"testing"
 )
 
+func TestEscapeXLIFFAttrValueEscapesControlAndAttributeWhitespace(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "plain locale", in: "fr-FR", want: "fr-FR"},
+		{name: "control character", in: "fr\x01", want: "fr\uFFFD"},
+		{name: "tab", in: "fr\tFR", want: "fr&#x9;FR"},
+		{name: "newline", in: "fr\nFR", want: "fr&#xA;FR"},
+		{name: "double quote", in: `fr"FR`, want: "fr&#34;FR"},
+		{name: "single quote", in: "fr'FR", want: "fr&#39;FR"},
+		{name: "both quotes", in: `fr"'FR`, want: "fr&#34;&#39;FR"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := escapeXLIFFAttrValue(tt.in); got != tt.want {
+				t.Fatalf("escapeXLIFFAttrValue(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMarshalXLIFFEscapesForbiddenLocaleCharacters(t *testing.T) {
+	template := []byte(`<xliff version="1.2"><file source-language="en"><body><trans-unit id="u"><source>Hello</source></trans-unit></body></file></xliff>`)
+	out, err := MarshalXLIFF(template, map[string]string{"u": "Bonjour"}, "en", "fr\x01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), `target-language="fr`+"\uFFFD"+`"`) {
+		t.Fatalf("expected control character in locale to be replaced, got %q", out)
+	}
+	if _, err := readXLIFF(out); err != nil {
+		t.Fatalf("marshaled XLIFF must remain parseable: %v", err)
+	}
+}
+
+func TestXliffQuotedAttrKeepsValueInsideOneAttribute(t *testing.T) {
+	got := xliffQuotedAttr("target-language", `fr" injected="yes`)
+	if got != ` target-language="fr&#34; injected=&#34;yes"` {
+		t.Fatalf("xliffQuotedAttr = %q", got)
+	}
+	if strings.Count(got, `"`) != 2 {
+		t.Fatalf("quoted attribute must use exactly two delimiters, got %q", got)
+	}
+}
+
 func TestXLIFFAttributeValuesCannotIntroduceAttributes(t *testing.T) {
 	value := `fr" injected="yes' & < >` + "\t\n\r"
 	for _, tag := range []string{`<file/>`, `<file source-language="en"/>`, `<file target-language="fr"/>`, `<file target-language='fr'/>`} {

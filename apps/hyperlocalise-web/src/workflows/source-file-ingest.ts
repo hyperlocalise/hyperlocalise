@@ -17,8 +17,13 @@ import {
   isBinaryTranslationFileFormat,
   isDocumentTranslationFileFormat,
   isImageTranslationFileFormat,
+  isOfficeTranslationFileFormat,
+  isPdfTranslationFileFormat,
+  isSegmentedSpreadsheetTranslationFileFormat,
   isVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
+import { sandboxEntriesLocaleOptions } from "@/lib/translation/sandbox-cli-release";
+import { sandboxCliParsesOffice } from "@/lib/translation/sandbox-cli-version";
 import type { SourceFileIngestEventData } from "@/lib/workflow/types";
 import {
   claimSourceFileIngestStep,
@@ -27,6 +32,8 @@ import {
   ensureImageVariantsForSourceFileStep,
   ensureVideoVariantsForSourceFileStep,
   extractSourceIngestEntriesStep,
+  extractOfficeSourceEntriesStep,
+  getProjectSourceLocaleStep,
   getProjectTargetLocalesStep,
   getStoredFileMetadataStep,
   markSourceFileIngestStateStep,
@@ -36,6 +43,7 @@ import {
   reconcileSourceFileTranslationKeysStep,
   writeSourceIngestFileStep,
   loadSourceFileSegmentationStep,
+  loadSourceFileImportSettingsStep,
   writeSourceFileSegmentationSrxStep,
 } from "./steps/source-file-ingest";
 import { getStoredFileContentStep } from "./steps/translation-job";
@@ -58,8 +66,13 @@ function userFacingIngestFailureReason(error: unknown): string {
   ) {
     return "failed to prepare the translation parser environment";
   }
-  if (message.includes("failed to extract entries")) {
-    return "the file format could not be parsed into translation keys";
+  if (
+    message.includes("failed to extract entries") ||
+    message.includes("pdf has no readable text layer")
+  ) {
+    return message.includes("pdf has no readable text layer")
+      ? "the PDF has no selectable text layer (scanned PDFs are not supported)"
+      : "the file format could not be parsed into translation keys";
   }
   return message;
 }
@@ -90,17 +103,22 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
     }
 
     const inferredFormat = inferSupportedTranslationFileFormat(event.sourcePath);
-    if (
-      inferredFormat &&
-      (isBinaryTranslationFileFormat(inferredFormat) ||
-        isDocumentTranslationFileFormat(inferredFormat))
-    ) {
+    const isBinary = Boolean(inferredFormat && isBinaryTranslationFileFormat(inferredFormat));
+    const isDocument = Boolean(inferredFormat && isDocumentTranslationFileFormat(inferredFormat));
+    const isOffice = Boolean(inferredFormat && isOfficeTranslationFileFormat(inferredFormat));
+    const isPdf = Boolean(inferredFormat && isPdfTranslationFileFormat(inferredFormat));
+    const isSpreadsheet = Boolean(
+      inferredFormat && isSegmentedSpreadsheetTranslationFileFormat(inferredFormat),
+    );
+    // The CLI never reads .xls, so legacy workbooks are always keyed in-process.
+    const officeParsedInSandbox = isOffice && inferredFormat !== "xls" && sandboxCliParsesOffice();
+    if ((isBinary || isDocument) && !officeParsedInSandbox) {
       const targetLocales = await getProjectTargetLocalesStep({
         organizationId: event.organizationId,
         projectId: event.projectId,
       });
 
-      if (isVideoTranslationFileFormat(inferredFormat)) {
+      if (inferredFormat && isVideoTranslationFileFormat(inferredFormat)) {
         const stored = await getStoredFileContentStep(event.storedFileId, event.organizationId);
         const { assertMp4DurationSupported } = await import("@/lib/translation/mp4-duration");
         const duration = assertMp4DurationSupported(stored);
@@ -116,8 +134,9 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
           targetLocales,
         });
       } else if (
-        isImageTranslationFileFormat(inferredFormat) ||
-        isDocumentTranslationFileFormat(inferredFormat)
+        inferredFormat &&
+        (isImageTranslationFileFormat(inferredFormat) ||
+          isDocumentTranslationFileFormat(inferredFormat))
       ) {
         await ensureImageVariantsForSourceFileStep({
           organizationId: event.organizationId,
@@ -128,30 +147,79 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
         });
       }
 
-      await markSourceFileIngestStateStep({
-        sourceFileVersionId: event.sourceFileVersionId,
-        organizationId: event.organizationId,
-        ingestState: "ingested",
-        ingestWorkflowRunId: workflowRunId,
-        ingestedAt: new Date(),
-        fromIngestingWorkflowRunId: workflowRunId,
-      });
+      if (isOffice) {
+        const importSettings = await loadSourceFileImportSettingsStep({
+          organizationId: event.organizationId,
+          projectId: event.projectId,
+          repositorySourceFileId,
+        });
+        const entries = await extractOfficeSourceEntriesStep({
+          organizationId: event.organizationId,
+          projectId: event.projectId,
+          storedFileId: event.storedFileId,
+          sourcePath: event.sourcePath,
+          excelImportSettings: importSettings.excel,
+        });
+        const reconciliation = await reconcileSourceFileTranslationKeysStep({
+          organizationId: event.organizationId,
+          projectId: event.projectId,
+          repositorySourceFileId,
+          sourceFileVersionId: event.sourceFileVersionId,
+          workflowRunId,
+          entries,
+        });
 
-      ingestCompleted = true;
-      await dispatchSourceUploadAutomationsStep({
-        organizationId: event.organizationId,
-        projectId: event.projectId,
-        sourceFileId: event.storedFileId,
-        sourceFileVersionId: event.sourceFileVersionId,
-        sourcePath: event.sourcePath,
-        sourceHash: claim.sourceHash,
-        targetAutomationId: event.targetAutomationId,
-      });
+        ingestCompleted = true;
+        if (reconciliation.status === "superseded") {
+          return { status: "skipped" as const, reason: "superseded" };
+        }
 
-      return {
-        status: "ingested" as const,
-        importedKeyCount: 0,
-      };
+        if (!event.reingest) {
+          await dispatchSourceUploadAutomationsStep({
+            organizationId: event.organizationId,
+            projectId: event.projectId,
+            sourceFileId: event.storedFileId,
+            sourceFileVersionId: event.sourceFileVersionId,
+            sourcePath: event.sourcePath,
+            sourceHash: claim.sourceHash,
+            targetAutomationId: event.targetAutomationId,
+          });
+        }
+
+        return {
+          status: "ingested" as const,
+          importedKeyCount: entries.length,
+        };
+      }
+
+      if (isBinary) {
+        await markSourceFileIngestStateStep({
+          sourceFileVersionId: event.sourceFileVersionId,
+          organizationId: event.organizationId,
+          ingestState: "ingested",
+          ingestWorkflowRunId: workflowRunId,
+          ingestedAt: new Date(),
+          fromIngestingWorkflowRunId: workflowRunId,
+        });
+
+        ingestCompleted = true;
+        if (!event.reingest) {
+          await dispatchSourceUploadAutomationsStep({
+            organizationId: event.organizationId,
+            projectId: event.projectId,
+            sourceFileId: event.storedFileId,
+            sourceFileVersionId: event.sourceFileVersionId,
+            sourcePath: event.sourcePath,
+            sourceHash: claim.sourceHash,
+            targetAutomationId: event.targetAutomationId,
+          });
+        }
+
+        return {
+          status: "ingested" as const,
+          importedKeyCount: 0,
+        };
+      }
     }
 
     const content = await getStoredFileContentStep(event.storedFileId, event.organizationId);
@@ -164,17 +232,42 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
     await prepareSourceIngestSandboxStep(sandboxId);
     await writeSourceIngestFileStep(sandboxId, inputFilename, content);
 
-    const segmentation = await loadSourceFileSegmentationStep({
+    let extractOptions: Parameters<typeof extractSourceIngestEntriesStep>[2];
+    if (isSpreadsheet) {
+      // Workbook keys address cells, so SRX spans would not map back onto the sheet.
+      const sourceLocale = await getProjectSourceLocaleStep({
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+      });
+      extractOptions = sandboxEntriesLocaleOptions(inputFilename, sourceLocale);
+    } else if (isOffice || isPdf) {
+      // Document, slide, and PDF block keys address layout units, so SRX spans would not map back.
+      extractOptions = {};
+    } else {
+      const segmentation = await loadSourceFileSegmentationStep({
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+        repositorySourceFileId,
+      });
+      const srxSandbox = await writeSourceFileSegmentationSrxStep(sandboxId, segmentation);
+      extractOptions = { srx: srxSandbox.srxFlag };
+    }
+
+    const extractedEntries = await extractSourceIngestEntriesStep(
+      sandboxId,
+      inputFilename,
+      extractOptions,
+    );
+    const importSettings = await loadSourceFileImportSettingsStep({
       organizationId: event.organizationId,
       projectId: event.projectId,
       repositorySourceFileId,
     });
-    const srxSandbox = await writeSourceFileSegmentationSrxStep(sandboxId, segmentation);
-
-    const extractedEntries = await extractSourceIngestEntriesStep(sandboxId, inputFilename, {
-      srx: srxSandbox.srxFlag,
+    const entries = await parseHlEntriesStep(extractedEntries, {
+      sourcePath: event.sourcePath,
+      sourceContent: content,
+      importSettings,
     });
-    const entries = await parseHlEntriesStep(extractedEntries);
 
     const reconciliation = await reconcileSourceFileTranslationKeysStep({
       organizationId: event.organizationId,
@@ -190,15 +283,17 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
       return { status: "skipped" as const, reason: "superseded" };
     }
 
-    await dispatchSourceUploadAutomationsStep({
-      organizationId: event.organizationId,
-      projectId: event.projectId,
-      sourceFileId: event.storedFileId,
-      sourceFileVersionId: event.sourceFileVersionId,
-      sourcePath: event.sourcePath,
-      sourceHash: claim.sourceHash,
-      targetAutomationId: event.targetAutomationId,
-    });
+    if (!event.reingest) {
+      await dispatchSourceUploadAutomationsStep({
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+        sourceFileId: event.storedFileId,
+        sourceFileVersionId: event.sourceFileVersionId,
+        sourcePath: event.sourcePath,
+        sourceHash: claim.sourceHash,
+        targetAutomationId: event.targetAutomationId,
+      });
+    }
 
     return {
       status: "ingested" as const,

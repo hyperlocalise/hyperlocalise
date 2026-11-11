@@ -23,7 +23,7 @@ tags:
 
 Nhiều đội ngũ bản địa hóa đang chịu áp lực phải đẩy nhanh tiến độ, giảm công việc thủ công và hỗ trợ nhiều ngôn ngữ hơn mà không tăng số lượng nhân sự. Dịch bằng AI rõ ràng là một phần của lời giải, nhưng với hầu hết các đội ngũ, câu hỏi không phải là có nên sử dụng AI hay không. Câu hỏi khó hơn là làm thế nào để đưa dịch bằng AI vào mà không làm gián đoạn các hệ thống, quy trình làm việc và mối quan hệ với nhà cung cấp vốn đã tồn tại.
 
-Đối với các công ty đã sử dụng [Phrase](https://phrase.com), [Lokalise](https://lokalise.com), [Crowdin](https://crowdin.com), [Smartling](https://www.smartling.com) hoặc một hệ thống quản lý bản dịch khác, thay thế TMS hiếm khi là bước đi đầu tiên đúng đắn. Các nền tảng này thường được tích hợp sâu vào quy trình phát hành sản phẩm, quy trình nội dung, hoạt động của nhà cung cấp, bộ nhớ dịch, quản lý thuật ngữ, các vòng đánh giá và báo cáo. Một dự án thay thế toàn bộ có thể khiến đội ngũ phải dành hàng tháng cho việc chuyển đổi trước khi nhận thấy bất kỳ cải thiện đáng kể nào.
+For companies already using [Phrase](https://phrase.com), [Lokalise](https://lokalise.com), [Crowdin](https://crowdin.com), [Smartling](https://www.smartling.com), or another translation management system, replacing the TMS is rarely the right first move. These platforms often sit deeply inside product release processes, content workflows, vendor operations, translation memory, glossary management, review cycles, and reporting. A rip-and-replace project can create months of migration work before the team sees any meaningful improvement.
 
 Một cách tiếp cận tốt hơn là bổ sung tính năng dịch bằng AI như một lớp thông minh cho quy trình bản địa hóa hiện có. Thay vì thay thế TMS, các công ty có thể tăng cường TMS bằng AI để thu thập ngữ cảnh, chuẩn bị các tác vụ dịch, nâng cao chất lượng bản dịch, hỗ trợ người đánh giá và học hỏi từ các quyết định trước đây trên nhiều công cụ.
 
@@ -65,7 +65,7 @@ Nó nên **hỗ trợ người đánh giá, không qua mặt họ**. Các nhóm 
 
 Nó nên **học hỏi từ phản hồi**. Kiến thức bản địa hóa có giá trị nhất thường xuất hiện sau khi bản dịch đầu tiên được xem xét: vì sao một cụm từ bị từ chối, vì sao giọng điệu được thay đổi, vì sao một thị trường lại ưa chuộng cách diễn đạt này hơn cách diễn đạt khác, hoặc vì sao bản dịch sát nghĩa không hiệu quả. Nếu những phản hồi này biến mất trong các bình luận và bảng tính, AI không thể cải thiện theo thời gian.
 
-Để hiểu thêm về lý do ngữ cảnh quan trọng không kém kết quả đầu ra, hãy xem [AI Translation Is Not Enough: Why Global Teams Need Context-Aware Localisation](/blog/ai-translation-is-not-enough-context-aware-localisation).
+For more on why context matters as much as output, see [AI Translation Is Not Enough: Why Global Teams Need Context-Aware Localisation](/blog/ai-translation-is-not-enough-context-aware-localisation).
 
 ## Mô hình không phụ thuộc TMS
 
@@ -93,7 +93,7 @@ Hyperlocalise tập trung vào ba lĩnh vực.
 
 **Thứ ba, nó tạo ra một lớp tri thức tự phát triển.** Mọi bản dịch được phê duyệt, đề xuất bị từ chối, cập nhật bảng thuật ngữ, nhận xét của người đánh giá và quyết định dành riêng cho từng thị trường đều có thể trở thành một phần trong hệ thống tri thức bản địa hóa của tổ chức. Theo thời gian, điều này giúp giảm các lỗi lặp lại và giúp những bản dịch sau này trở nên nhất quán hơn, phù hợp với ngữ cảnh hơn và được phê duyệt nhanh hơn.
 
-Điều này được xây dựng trên cùng nền tảng với [trí tuệ dịch thuật](/blog/what-is-translation-intelligence): cơ sở hạ tầng biến kiến thức phân tán về sản phẩm, thương hiệu, giao diện người dùng, thị trường và người đánh giá thành những quyết định bản địa hoá tốt hơn.
+This builds on the same foundation as [translation intelligence](/blog/what-is-translation-intelligence): the infrastructure that turns scattered product, brand, UI, market, and reviewer knowledge into better localisation decisions.
 
 ## Những lợi ích thiết thực
 
@@ -116,3 +116,5 @@ Nhưng các công ty không cần thay thế TMS của mình để hưởng lợ
 Với Hyperlocalise, các nhóm có thể tích hợp trí tuệ dịch thuật AI vào hệ thống bản địa hóa hiện có, kết nối ngữ cảnh giữa các công cụ, hỗ trợ người đánh giá và xây dựng một lớp kiến thức ngày càng được cải thiện theo thời gian.
 
 Bản dịch AI không nên buộc các nhóm phải bắt đầu lại. Nó nên giúp họ tiến nhanh hơn từ nơi họ đang ở.
+
+Để biết các tiêu chí đánh giá đằng sau lựa chọn đó — bối cảnh sản phẩm, đánh giá của con người, khả năng tương tác với TMS và mức độ sẵn sàng phát hành — hãy xem [Cách chọn quy trình bản địa hóa liên tục](/blog/how-to-choose-a-continuous-localisation-workflow).

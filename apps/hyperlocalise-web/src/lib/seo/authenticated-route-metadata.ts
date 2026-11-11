@@ -21,9 +21,12 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "canvaClaim",
   "connectCanva",
   "connectCanvaOauth",
+  "connectFigmaOauth",
+  "connectSanityOauth",
   "dashboard",
   "dictionaries",
   "dictionaryDetail",
+  "domainAudit",
   "domainBrand",
   "domainKeywords",
   "domainOverview",
@@ -57,6 +60,7 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "members",
   "membersPermissions",
   "myJobs",
+  "newWorkspace",
   "onboarding",
   "projectAutomationDetail",
   "projectAutomationNew",
@@ -82,6 +86,7 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "settingsAccount",
   "settingsActivityLogs",
   "settingsApiKeys",
+  "settingsWebhooks",
   "settingsBilling",
   "settingsLinkedDomains",
   "settingsMembers",
@@ -198,6 +203,30 @@ const AUTHENTICATED_ROUTE_COPY = {
       description: "Document description for the Canva OAuth callback page",
     },
   },
+  connectFigmaOauth: {
+    title: {
+      defaultMessage: "Figma authorization",
+      id: "qH0DJ3sA7L",
+      description: "Document title for the Figma OAuth consent page",
+    },
+    description: {
+      defaultMessage: "Finish connecting the Figma plugin.",
+      id: "rI1EK4tB8M",
+      description: "Document description for the Figma OAuth consent page",
+    },
+  },
+  connectSanityOauth: {
+    title: {
+      defaultMessage: "Sanity Studio authorization",
+      id: "sJ2FL5uC9N",
+      description: "Document title for the Sanity Studio OAuth consent page",
+    },
+    description: {
+      defaultMessage: "Finish connecting the Sanity Studio plugin.",
+      id: "tK3GM6vD0O",
+      description: "Document description for the Sanity Studio OAuth consent page",
+    },
+  },
   dashboard: {
     title: {
       defaultMessage: "Overview",
@@ -292,6 +321,18 @@ const AUTHENTICATED_ROUTE_COPY = {
       defaultMessage: "Search rank tracking for this domain.",
       id: "FV4RX7GO1Z",
       description: "Document description for the domain rank tracking page",
+    },
+  },
+  domainAudit: {
+    title: {
+      defaultMessage: "Localisation audit",
+      id: "dAudMetaT1",
+      description: "Document title for the domain deep localisation audit page",
+    },
+    description: {
+      defaultMessage: "Localisation checks across every template and locale on this domain.",
+      id: "dAudMetaD1",
+      description: "Document description for the domain deep localisation audit page",
     },
   },
   domainSearchConsole: {
@@ -630,6 +671,19 @@ const AUTHENTICATED_ROUTE_COPY = {
       description: "Document description for the current user’s jobs page",
     },
   },
+  newWorkspace: {
+    title: {
+      defaultMessage: "Create workspace",
+      id: "NW4CR8TQ2a",
+      description: "Document title for the page where a signed-in person creates another workspace",
+    },
+    description: {
+      defaultMessage: "Create another Hyperlocalise workspace.",
+      id: "NW5DS9UR3b",
+      description:
+        "Document description for the page where a signed-in person creates another workspace",
+    },
+  },
   onboarding: {
     title: {
       defaultMessage: "Onboarding",
@@ -872,9 +926,9 @@ const AUTHENTICATED_ROUTE_COPY = {
   },
   selectOrganization: {
     title: {
-      defaultMessage: "Choose an organization",
-      id: "WM9IO2XF6Q",
-      description: "Document title for the organization picker page",
+      defaultMessage: "Choose a workspace",
+      id: "WM9IO2XF7R",
+      description: "Document title for the workspace picker page",
     },
     description: {
       defaultMessage: "Select the workspace you want to open.",
@@ -928,6 +982,18 @@ const AUTHENTICATED_ROUTE_COPY = {
       defaultMessage: "Workspace API keys.",
       id: "FV8RX1GO5Z",
       description: "Document description for workspace API keys settings",
+    },
+  },
+  settingsWebhooks: {
+    title: {
+      defaultMessage: "Webhooks",
+      id: "yiMyH/8og3",
+      description: "Document title for workspace webhook settings",
+    },
+    description: {
+      defaultMessage: "Workspace webhook endpoints.",
+      id: "xAG52WUnvX",
+      description: "Document description for workspace webhook settings",
     },
   },
   settingsBilling: {

@@ -75,6 +75,10 @@ function originLabel(intl: ReturnType<typeof useIntl>, origin: string): string {
       return intl.formatMessage(messages.originImport);
     case "sync":
       return intl.formatMessage(messages.originSync);
+    case "file_job":
+      return intl.formatMessage(messages.originFileJob);
+    case "approved_job":
+      return intl.formatMessage(messages.originApprovedJob);
     default:
       return origin;
   }
@@ -106,6 +110,8 @@ function formatChipLabel(intl: ReturnType<typeof useIntl>, chip: TmEntryFilterCh
       return intl.formatMessage(messages.chipReviewStatus, {
         value: reviewStatusLabel(intl, chip.value),
       });
+    case "sameAsSource":
+      return intl.formatMessage(messages.chipSameAsSource);
     case "origin":
       return intl.formatMessage(messages.chipOrigin, { value: originLabel(intl, chip.value) });
     case "provider":

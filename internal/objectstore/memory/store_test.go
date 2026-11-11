@@ -103,6 +103,40 @@ func TestStoreIfAbsentAndDelete(t *testing.T) {
 	require.ErrorIs(t, err, objectstore.ErrNotFound)
 }
 
+func TestStoreIfMatchAndList(t *testing.T) {
+	store := New()
+	first, err := store.Put(t.Context(), objectstore.PutInput{
+		Key: "iris/generation/pending/job-a.json", Body: strings.NewReader("a"), Size: 1, ContentType: "text/plain",
+	})
+	require.NoError(t, err)
+	_, err = store.Put(t.Context(), objectstore.PutInput{
+		Key: "iris/generation/pending/job-b.json", Body: strings.NewReader("b"), Size: 1, ContentType: "text/plain",
+	})
+	require.NoError(t, err)
+	_, err = store.Put(t.Context(), objectstore.PutInput{
+		Key: "iris/generation/pending-index.json", Body: strings.NewReader("[]"), Size: 2, ContentType: "application/json",
+	})
+	require.NoError(t, err)
+
+	_, err = store.Put(t.Context(), objectstore.PutInput{
+		Key: "iris/generation/pending/job-a.json", Body: strings.NewReader("z"), Size: 1, ContentType: "text/plain", IfMatch: "stale",
+	})
+	require.ErrorIs(t, err, objectstore.ErrAlreadyExists)
+	replaced, err := store.Put(t.Context(), objectstore.PutInput{
+		Key: "iris/generation/pending/job-a.json", Body: strings.NewReader("z"), Size: 1, ContentType: "text/plain", IfMatch: first.ETag,
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, first.ETag, replaced.ETag)
+	_, err = store.Put(t.Context(), objectstore.PutInput{
+		Key: "iris/generation/pending/job-a.json", Body: strings.NewReader("x"), Size: 1, ContentType: "text/plain", IfAbsent: true, IfMatch: replaced.ETag,
+	})
+	require.ErrorIs(t, err, objectstore.ErrInvalidInput)
+
+	keys, err := store.List(t.Context(), "iris/generation/pending/")
+	require.NoError(t, err)
+	require.Equal(t, []string{"iris/generation/pending/job-a.json", "iris/generation/pending/job-b.json"}, keys)
+}
+
 func TestStoreCanceledContext(t *testing.T) {
 	store := New()
 	ctx, cancel := context.WithCancel(t.Context())
@@ -112,6 +146,8 @@ func TestStoreCanceledContext(t *testing.T) {
 	_, _, err = store.Get(ctx, "k")
 	require.ErrorIs(t, err, context.Canceled)
 	_, err = store.Stat(ctx, "k")
+	require.ErrorIs(t, err, context.Canceled)
+	_, err = store.List(ctx, "k")
 	require.ErrorIs(t, err, context.Canceled)
 	require.ErrorIs(t, store.Delete(ctx, "k"), context.Canceled)
 

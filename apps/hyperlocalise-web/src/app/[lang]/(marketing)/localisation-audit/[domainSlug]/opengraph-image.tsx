@@ -12,6 +12,7 @@
  */
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { isValidDomainSlug } from "@/lib/localisation-audit/domain-slug";
+import { asPublishedLocalisationAudit } from "@/lib/localisation-audit/report-coverage";
 import { findLocalisationAuditBySlug } from "@/lib/localisation-audit/store";
 import {
   createLocalisationAuditResultOgImage,
@@ -44,7 +45,8 @@ export default async function Image({ params }: LocalisationAuditResultOgImagePr
     });
   }
 
-  const audit = await findLocalisationAuditBySlug(domainSlug);
+  const found = await findLocalisationAuditBySlug(domainSlug);
+  const audit = found ? asPublishedLocalisationAudit(found) : null;
   if (!audit) {
     return createMarketingOgImage({
       heading: toMarketingOgHeading("Localisation audit | Hyperlocalise"),

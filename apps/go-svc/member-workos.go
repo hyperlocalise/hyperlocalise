@@ -27,12 +27,21 @@ type memberWorkos interface {
 	ResendInvitation(ctx context.Context, invitationID string) error
 	RevokeInvitation(ctx context.Context, invitationID string) error
 	FindPendingInvitation(ctx context.Context, workosOrganizationID, email string) (string, bool, error)
+	FindAcceptedInvitationMembership(ctx context.Context, workosOrganizationID, email string) (string, bool, error)
 	UpdateOrganizationMembershipRole(ctx context.Context, membershipID, roleSlug string) error
 	DeleteOrganizationMembership(ctx context.Context, membershipID string) error
 }
 
 type workosInvitationRevokedNotDeliveredError struct {
 	cause error
+}
+
+type workosInvitationAlreadyAcceptedError struct {
+	membershipID string
+}
+
+func (e *workosInvitationAlreadyAcceptedError) Error() string {
+	return "member_invitation_already_accepted"
 }
 
 func (e *workosInvitationRevokedNotDeliveredError) Error() string {
@@ -124,8 +133,59 @@ func (c *liveMemberWorkos) UpdateOrganizationMembershipRole(ctx context.Context,
 	}, nil)
 }
 
+// FindAcceptedInvitationMembership returns the membership an accepted invitation created.
+// The newest invitation decides: an older accepted one may be from an earlier membership.
+func (c *liveMemberWorkos) FindAcceptedInvitationMembership(ctx context.Context, workosOrganizationID, email string) (string, bool, error) {
+	query := url.Values{}
+	query.Set("organization_id", workosOrganizationID)
+	query.Set("email", email)
+	query.Set("limit", "10")
+	var invitations struct {
+		Data []struct {
+			State          string `json:"state"`
+			AcceptedUserID string `json:"accepted_user_id"`
+			CreatedAt      string `json:"created_at"`
+		} `json:"data"`
+	}
+	if err := c.doJSON(ctx, http.MethodGet, "/user_management/invitations?"+query.Encode(), nil, &invitations); err != nil {
+		return "", false, err
+	}
+	state, acceptedUserID, newest := "", "", ""
+	for _, invitation := range invitations.Data {
+		if invitation.CreatedAt > newest {
+			state, acceptedUserID, newest = invitation.State, invitation.AcceptedUserID, invitation.CreatedAt
+		}
+	}
+	if state != "accepted" || acceptedUserID == "" {
+		return "", false, nil
+	}
+
+	query = url.Values{}
+	query.Set("organization_id", workosOrganizationID)
+	query.Set("user_id", acceptedUserID)
+	query.Set("limit", "1")
+	var memberships struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := c.doJSON(ctx, http.MethodGet, "/user_management/organization_memberships?"+query.Encode(), nil, &memberships); err != nil {
+		return "", false, err
+	}
+	if len(memberships.Data) == 0 || memberships.Data[0].ID == "" {
+		return "", false, nil
+	}
+	return memberships.Data[0].ID, true, nil
+}
+
 func (c *liveMemberWorkos) DeleteOrganizationMembership(ctx context.Context, membershipID string) error {
 	return c.doJSON(ctx, http.MethodDelete, "/user_management/organization_memberships/"+url.PathEscape(membershipID), nil, nil)
+}
+
+func (c *liveMemberWorkos) UpdateOrganizationName(ctx context.Context, workosOrganizationID, name string) error {
+	return c.doJSON(ctx, http.MethodPut, "/organizations/"+url.PathEscape(workosOrganizationID), map[string]string{
+		"name": name,
+	}, nil)
 }
 
 func (c *liveMemberWorkos) doJSON(ctx context.Context, method, path string, payload any, out any) error {
@@ -212,10 +272,19 @@ func (api *memberAPI) revokePendingWorkosInvitation(ctx context.Context, workosO
 	if err != nil {
 		return err
 	}
-	if !found {
-		return nil
+	if found {
+		return api.workos.RevokeInvitation(ctx, invitationID)
 	}
-	return api.workos.RevokeInvitation(ctx, invitationID)
+	// Accepted in WorkOS before the app heard of it: the page is out of date, and there is
+	// no invitation left to revoke.
+	membershipID, accepted, err := api.workos.FindAcceptedInvitationMembership(ctx, workosOrganizationID, email)
+	if err != nil {
+		return err
+	}
+	if accepted {
+		return &workosInvitationAlreadyAcceptedError{membershipID: membershipID}
+	}
+	return nil
 }
 
 func (api *memberAPI) markPendingMembershipReplacingInvitation(ctx context.Context, membershipID string) (bool, error) {
@@ -226,7 +295,7 @@ func (api *memberAPI) markPendingMembershipReplacingInvitation(ctx context.Conte
         update organization_memberships
         set workos_membership_id=$2
         where id=$1 and workos_membership_id is null`,
-		membershipID, replacingWorkosMembershipID)
+		membershipID, replacingWorkosMembershipMarker(membershipID))
 	if err != nil {
 		return false, err
 	}
@@ -237,7 +306,7 @@ func (api *memberAPI) clearPendingMembershipReplacingInvitation(ctx context.Cont
 	_, err := api.pool.Exec(ctx, `
         update organization_memberships
         set workos_membership_id=null
-        where id=$1 and workos_membership_id=$2`,
-		membershipID, replacingWorkosMembershipID)
+        where id=$1 and (workos_membership_id=$2 or workos_membership_id=$3)`,
+		membershipID, replacingWorkosMembershipID, replacingWorkosMembershipMarker(membershipID))
 	return err
 }

@@ -16,7 +16,7 @@ import { useEffect, useId, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { XIcon } from "@phosphor-icons/react";
-import { FormattedMessage, useIntl } from "react-intl";
+import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -29,6 +29,7 @@ import {
   UPDATE_ANNOUNCEMENTS,
   getNextUpdateAnnouncementScheduleAt,
   getUpdateAnnouncementStorageKey,
+  isExternalAnnouncementHref,
   selectUpdateAnnouncement,
   type UpdateAnnouncement,
 } from "./update-announcements";
@@ -147,15 +148,46 @@ export function UpdateAnnouncer({
           <Button variant="ghost" onClick={dismiss}>
             <FormattedMessage {...updateAnnouncerMessages.notNow} />
           </Button>
-          <Link
+          <AnnouncementCta
             href={announcement.buildHref(organizationSlug)}
+            cta={announcement.cta ?? updateAnnouncerMessages.tryNow}
             onClick={dismiss}
-            className={buttonVariants()}
-          >
-            <FormattedMessage {...updateAnnouncerMessages.tryNow} />
-          </Link>
+          />
         </div>
       </div>
     </aside>
+  );
+}
+
+function AnnouncementCta({
+  href,
+  cta,
+  onClick,
+}: {
+  href: string;
+  cta: MessageDescriptor;
+  onClick: () => void;
+}) {
+  const className = buttonVariants();
+  const label = <FormattedMessage {...cta} />;
+
+  if (isExternalAnnouncementHref(href)) {
+    return (
+      <a
+        className={className}
+        href={href}
+        onClick={onClick}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        {label}
+      </a>
+    );
+  }
+
+  return (
+    <Link className={className} href={href} onClick={onClick}>
+      {label}
+    </Link>
   );
 }

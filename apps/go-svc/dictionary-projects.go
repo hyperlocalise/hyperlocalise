@@ -123,8 +123,22 @@ func (api *dictionaryAPI) attachDictionaryProject(r *http.Request, actor diction
 	if err != nil {
 		return nil, 0, err
 	}
-	if _, _, err := api.attachDictionary(r.Context(), actor, projectID, d.ID, payload.Priority); err != nil {
+	_, inserted, err := api.attachDictionary(r.Context(), actor, projectID, d.ID, payload.Priority)
+	if err != nil {
 		return nil, 0, err
+	}
+	if inserted {
+		api.publishActivity(r.Context(), activityLogEventInput{
+			ActorUserID:    actor.userID,
+			EventType:      "dictionary_project_attached",
+			OrganizationID: actor.organizationID,
+			Payload: map[string]any{
+				"projectId":  projectID,
+				"resourceId": d.ID,
+			},
+			TargetID:   projectID,
+			TargetKind: "project",
+		})
 	}
 	return api.listDictionaryProjects(r, actor, d)
 }
@@ -188,12 +202,26 @@ func (api *dictionaryAPI) attachProjectDictionary(r *http.Request, actor diction
 		return nil, 0, err
 	}
 	priority, inserted, err := api.attachDictionary(ctx, actor, projectID, d.ID, payload.Priority)
+	if err != nil {
+		return nil, 0, err
+	}
 	d.Priority = &priority
 	status := 200
 	if inserted {
 		status = 201
+		api.publishActivity(ctx, activityLogEventInput{
+			ActorUserID:    actor.userID,
+			EventType:      "dictionary_project_attached",
+			OrganizationID: actor.organizationID,
+			Payload: map[string]any{
+				"projectId":  projectID,
+				"resourceId": d.ID,
+			},
+			TargetID:   projectID,
+			TargetKind: "project",
+		})
 	}
-	return map[string]any{"dictionary": d}, status, err
+	return map[string]any{"dictionary": d}, status, nil
 }
 
 func (api *dictionaryAPI) detachProjectDictionary(r *http.Request, actor dictionaryActor) (any, int, error) {

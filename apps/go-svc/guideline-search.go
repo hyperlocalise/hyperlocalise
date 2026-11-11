@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
 	guidelinepg "github.com/hyperlocalise/hyperlocalise/internal/guidelines/postgres"
 	guidelineindex "github.com/hyperlocalise/hyperlocalise/internal/guidelines/turbopuffer"
+	"github.com/hyperlocalise/hyperlocalise/internal/rerank"
 )
 
 func (h *handler) requireGuidelines(w http.ResponseWriter, r *http.Request) bool {
@@ -73,5 +75,40 @@ func configureGuidelineSearch(ctx context.Context) (*guidelines.Service, func(),
 	if err != nil {
 		return nil, nil, errors.New("cannot connect guideline database")
 	}
-	return guidelines.NewService(source, index), source.Close, nil
+	var opts []guidelines.Option
+	if reranker := newGuidelineReranker(); reranker != nil {
+		opts = append(opts, guidelines.WithReranker(reranker))
+	}
+	return guidelines.NewService(source, index, opts...), source.Close, nil
+}
+
+// newGuidelineReranker returns nil when AI Gateway is not configured.
+func newGuidelineReranker() guidelines.Reranker {
+	apiKey := strings.TrimSpace(os.Getenv("AI_GATEWAY_API_KEY"))
+	if apiKey == "" {
+		slog.Warn("guideline_rerank_disabled", "reason", "missing_ai_gateway_api_key")
+		return nil
+	}
+	baseURL := strings.TrimSpace(os.Getenv("AI_GATEWAY_BASE_URL"))
+	if baseURL == "" {
+		baseURL = defaultAIGatewayBaseURL
+	}
+	client, err := rerank.New(rerank.Config{BaseURL: baseURL, APIKey: apiKey})
+	if err != nil {
+		slog.Warn("guideline_rerank_disabled", "reason", "invalid_configuration")
+		return nil
+	}
+	return loggingReranker{client: client}
+}
+
+type loggingReranker struct {
+	client *rerank.Client
+}
+
+func (r loggingReranker) Rerank(ctx context.Context, query string, passages []string, topN int) ([]int, error) {
+	order, err := r.client.Rerank(ctx, query, passages, topN)
+	if err != nil && ctx.Err() == nil {
+		slog.Warn("guideline_rerank_failed", "model", rerank.Model, "passages", len(passages), "error", err)
+	}
+	return order, err
 }

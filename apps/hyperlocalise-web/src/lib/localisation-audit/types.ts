@@ -54,6 +54,7 @@ export type LocalisationAuditFinding = {
 
 export type LocalisationAuditLocaleSignal = {
   locale: string;
+  /** `focus` only appears on legacy stored reports; new runs never emit it. */
   source: "hreflang" | "html_lang" | "url_prefix" | "url_subdomain" | "focus";
   sampleUrl?: string;
 };
@@ -66,6 +67,27 @@ export type LocalisationAuditJsonLd = {
 export type LocalisationAuditAltText = {
   alt: string;
   src: string;
+};
+
+/** A text element measured in the rendered page. `text` is clipped for storage. */
+export type LocalisationAuditLayoutElement = {
+  tag: string;
+  text: string;
+};
+
+/** DOM measurements taken by the audit browser at one viewport width. */
+export type LocalisationAuditLayoutViewport = {
+  width: number;
+  /** How far the document scrolls horizontally past the viewport, in CSS px. */
+  horizontalOverflowPx: number;
+  /** Buttons, links, labels, and headings whose own box clips their text. */
+  clippedText: LocalisationAuditLayoutElement[];
+  /** Controls and headings that extend past the right or left viewport edge. */
+  offscreen: LocalisationAuditLayoutElement[];
+};
+
+export type LocalisationAuditPageLayout = {
+  viewports: LocalisationAuditLayoutViewport[];
 };
 
 export type LocalisationAuditCrawledPage = {
@@ -104,6 +126,8 @@ export type LocalisationAuditCrawledPage = {
   /** Form label / placeholder / name / autocomplete samples for naming checks. */
   formFieldLabels: string[];
   anchors: Array<{ href: string; text: string }>;
+  /** Rendered layout measurements; absent when the page was not rendered in a browser. */
+  layout?: LocalisationAuditPageLayout | null;
 };
 
 export type LocalisationAuditSitemapSignal = {
@@ -165,6 +189,10 @@ export type LocalisationAuditTeaser = {
   /** Credit scores for the public Lighthouse-style pass/fail checklist. */
   credits?: LocalisationAuditCreditResult[];
   companyProfile?: LocalisationAuditCompanyProfile | null;
+  /** Scoring rules version; absent on reports scored before versioning (treat as 1). */
+  methodologyVersion?: number;
+  /** Multiplier applied to the overall score for limited locale coverage. */
+  localeCoverageFactor?: number;
 };
 
 export type LocalisationAuditReport = {
@@ -191,6 +219,8 @@ export type LocalisationAuditReport = {
   dimensionScores?: LocalisationAuditDimensionScores;
   credits?: LocalisationAuditCreditResult[];
   companyProfile?: LocalisationAuditCompanyProfile | null;
+  methodologyVersion?: number;
+  localeCoverageFactor?: number;
 };
 
 export type LocalisationAuditEventData = {

@@ -14,7 +14,13 @@ import { captureAnalysis, captureCompletions, captureJobStatus } from "@/lib/rep
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import { updateJobs } from "@/lib/job-change-events/job-writes";
 import { enqueueJobFailedActivity } from "@/lib/activity-log/job-automation-events";
+import {
+  projectTranslationRevisionColumns,
+  recordProjectTranslationRevisions,
+  writeProjectTranslations,
+} from "@/lib/projects/translations/project-translation-revisions";
 import type { ReviewJobEventData } from "@/lib/workflow/types";
 
 type ReviewJobConfig = {
@@ -67,42 +73,39 @@ async function getStoredReviewJob(jobId: string, projectId: string) {
 }
 
 export async function claimReviewJob(input: ClaimReviewJobInput) {
-  const attachedJob = await db
-    .update(schema.jobs)
-    .set({ workflowRunId: input.runId })
-    .where(
-      and(
-        eq(schema.jobs.kind, "review"),
-        eq(schema.jobs.id, input.event.jobId),
-        eq(schema.jobs.projectId, input.event.projectId),
-        isNull(schema.jobs.workflowRunId),
-      ),
-    )
-    .returning({ id: schema.jobs.id, projectId: schema.jobs.projectId })
-    .then(async ([job]) => {
-      if (job) {
-        return {
-          id: job.id,
-          projectId: job.projectId ?? input.event.projectId,
-          runId: input.runId,
-          ownedByCurrentRun: true,
-        };
-      }
-
-      const existingJob = await getStoredReviewJob(input.event.jobId, input.event.projectId);
-      if (!existingJob) {
-        throw new Error(
-          `review job ${input.event.jobId} was not found in project ${input.event.projectId}`,
-        );
-      }
-
+  const attachedJob = await updateJobs(db, {
+    set: { workflowRunId: input.runId },
+    where: and(
+      eq(schema.jobs.kind, "review"),
+      eq(schema.jobs.id, input.event.jobId),
+      eq(schema.jobs.projectId, input.event.projectId),
+      isNull(schema.jobs.workflowRunId),
+    ),
+    returning: { id: schema.jobs.id, projectId: schema.jobs.projectId },
+  }).then(async ([job]) => {
+    if (job) {
       return {
-        id: existingJob.id,
-        projectId: existingJob.projectId,
-        runId: existingJob.workflowRunId,
-        ownedByCurrentRun: existingJob.workflowRunId === input.runId,
+        id: job.id,
+        projectId: job.projectId ?? input.event.projectId,
+        runId: input.runId,
+        ownedByCurrentRun: true,
       };
-    });
+    }
+
+    const existingJob = await getStoredReviewJob(input.event.jobId, input.event.projectId);
+    if (!existingJob) {
+      throw new Error(
+        `review job ${input.event.jobId} was not found in project ${input.event.projectId}`,
+      );
+    }
+
+    return {
+      id: existingJob.id,
+      projectId: existingJob.projectId,
+      runId: existingJob.workflowRunId,
+      ownedByCurrentRun: existingJob.workflowRunId === input.runId,
+    };
+  });
 
   if (!attachedJob.runId) {
     throw new Error(`review job ${input.event.jobId} does not have an associated workflow run id`);
@@ -119,24 +122,22 @@ export async function claimReviewJob(input: ClaimReviewJobInput) {
     return { kind: "skipped" as const, job: existingJob };
   }
 
-  const [claimedJob] = await db
-    .update(schema.jobs)
-    .set({
+  const [claimedJob] = await updateJobs(db, {
+    set: {
       status: "running",
       lastError: null,
       outcomePayload: null,
       completedAt: null,
-    })
-    .where(
-      and(
-        eq(schema.jobs.kind, "review"),
-        eq(schema.jobs.id, input.event.jobId),
-        eq(schema.jobs.projectId, input.event.projectId),
-        or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "running")),
-        eq(schema.jobs.workflowRunId, attachedJob.runId),
-      ),
-    )
-    .returning({ id: schema.jobs.id, projectId: schema.jobs.projectId });
+    },
+    where: and(
+      eq(schema.jobs.kind, "review"),
+      eq(schema.jobs.id, input.event.jobId),
+      eq(schema.jobs.projectId, input.event.projectId),
+      or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "running")),
+      eq(schema.jobs.workflowRunId, attachedJob.runId),
+    ),
+    returning: { id: schema.jobs.id, projectId: schema.jobs.projectId },
+  });
 
   if (!claimedJob) {
     const existingJob = await getStoredReviewJob(input.event.jobId, input.event.projectId);
@@ -198,28 +199,26 @@ export async function completeReviewJob(input: {
   outcome: unknown;
   status: "succeeded" | "waiting_for_review";
 }) {
-  const [updatedJob] = await db
-    .update(schema.jobs)
-    .set({
+  const [updatedJob] = await updateJobs(db, {
+    set: {
       status: input.status,
       outcomePayload: input.outcome,
       lastError: input.status === "waiting_for_review" ? "Review found blocking issues" : null,
       completedAt: input.status === "succeeded" ? new Date() : null,
-    })
-    .where(
-      and(
-        eq(schema.jobs.kind, "review"),
-        eq(schema.jobs.id, input.jobId),
-        eq(schema.jobs.projectId, input.projectId),
-        eq(schema.jobs.workflowRunId, input.workflowRunId),
-      ),
-    )
-    .returning({
+    },
+    where: and(
+      eq(schema.jobs.kind, "review"),
+      eq(schema.jobs.id, input.jobId),
+      eq(schema.jobs.projectId, input.projectId),
+      eq(schema.jobs.workflowRunId, input.workflowRunId),
+    ),
+    returning: {
       id: schema.jobs.id,
       kind: schema.jobs.kind,
       organizationId: schema.jobs.organizationId,
       projectId: schema.jobs.projectId,
-    });
+    },
+  });
 
   if (!updatedJob) {
     throw new Error(
@@ -230,7 +229,6 @@ export async function completeReviewJob(input: {
   await captureJobStatus({
     jobId: input.jobId,
     status: input.status,
-    operationKey: `review:${input.jobId}:${input.status === "succeeded" ? "succeeded" : "waiting"}`,
   });
   return getStoredReviewJob(input.jobId, input.projectId);
 }
@@ -242,28 +240,26 @@ export async function failReviewJob(input: {
   code: string;
   message: string;
 }) {
-  const [updatedJob] = await db
-    .update(schema.jobs)
-    .set({
+  const [updatedJob] = await updateJobs(db, {
+    set: {
       status: "failed",
       outcomePayload: { code: input.code, message: input.message },
       lastError: input.message,
       completedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(schema.jobs.kind, "review"),
-        eq(schema.jobs.id, input.jobId),
-        eq(schema.jobs.projectId, input.projectId),
-        eq(schema.jobs.workflowRunId, input.workflowRunId),
-      ),
-    )
-    .returning({
+    },
+    where: and(
+      eq(schema.jobs.kind, "review"),
+      eq(schema.jobs.id, input.jobId),
+      eq(schema.jobs.projectId, input.projectId),
+      eq(schema.jobs.workflowRunId, input.workflowRunId),
+    ),
+    returning: {
       id: schema.jobs.id,
       kind: schema.jobs.kind,
       organizationId: schema.jobs.organizationId,
       projectId: schema.jobs.projectId,
-    });
+    },
+  });
 
   if (!updatedJob) {
     throw new Error(
@@ -280,6 +276,10 @@ export async function failReviewJob(input: {
     kind: updatedJob.kind,
     organizationId: updatedJob.organizationId,
     projectId: updatedJob.projectId,
+    status: "failed",
+  });
+  await captureJobStatus({
+    jobId: input.jobId,
     status: "failed",
   });
 
@@ -391,7 +391,6 @@ export async function executeNativeReviewJob(input: {
   await captureJobStatus({
     jobId: input.jobId,
     status: "running",
-    operationKey: `review:${input.jobId}:running`,
   });
 
   const findings: Array<{
@@ -435,13 +434,30 @@ export async function executeNativeReviewJob(input: {
   const reviewedIds = rows.map((row) => row.translationId);
 
   if (reviewedIds.length > 0) {
-    await db
-      .update(schema.projectTranslations)
-      .set({
-        status: blocking.length > 0 ? "needs_review" : "approved",
-        reviewedAt: blocking.length > 0 ? null : new Date(),
-      })
-      .where(inArray(schema.projectTranslations.id, reviewedIds));
+    await writeProjectTranslations(
+      db,
+      {
+        organizationId: project.organizationId,
+        translationKeyIds: rows.map((row) => row.translationKeyId),
+        targetLocales: [targetLocale],
+      },
+      async (tx, before) => {
+        const saved = await tx
+          .update(schema.projectTranslations)
+          .set({
+            status: blocking.length > 0 ? "needs_review" : "approved",
+            reviewedAt: blocking.length > 0 ? null : new Date(),
+          })
+          .where(inArray(schema.projectTranslations.id, reviewedIds))
+          .returning(projectTranslationRevisionColumns);
+        await recordProjectTranslationRevisions(tx, {
+          before,
+          saved,
+          actor: { actorKind: "system", actorUserId: null },
+          operationId: `job:${input.jobId}`,
+        });
+      },
+    );
   }
 
   if (blocking.length === 0)
@@ -451,6 +467,7 @@ export async function executeNativeReviewJob(input: {
       targetLocale,
       step: "review",
       provenance: "automated",
+      source: "ai",
       sourceEntries: Object.fromEntries(rows.map((row) => [row.translationKeyId, row.sourceText])),
     });
   const outcome = {

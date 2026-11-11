@@ -1,0 +1,5 @@
+ALTER TABLE "project_visual_context_screenshots" ADD COLUMN "figma_file_key" text;--> statement-breakpoint
+ALTER TABLE "project_visual_context_screenshots" ADD COLUMN "figma_node_id" text;--> statement-breakpoint
+ALTER TABLE "project_visual_context_screenshots" ADD COLUMN "figma_url" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "project_visual_context_screenshots_figma_frame" ON "project_visual_context_screenshots" USING btree ("project_id","figma_file_key","figma_node_id") WHERE "project_visual_context_screenshots"."figma_file_key" is not null;--> statement-breakpoint
+ALTER TABLE "project_visual_context_screenshots" ADD CONSTRAINT "project_visual_context_screenshots_figma_check" CHECK (("project_visual_context_screenshots"."figma_file_key" is null) = ("project_visual_context_screenshots"."figma_node_id" is null));

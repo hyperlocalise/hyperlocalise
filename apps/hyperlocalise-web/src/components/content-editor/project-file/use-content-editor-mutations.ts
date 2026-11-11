@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useRef, type MutableRefObject } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useIntl, type IntlShape } from "react-intl";
 
 import {
@@ -21,11 +21,13 @@ import {
   maxNativeContentEditorHiddenStringBatch,
   type ProjectFileContentEditorQueueFile,
 } from "@/api/routes/project/project.schema";
-import { readApiError } from "@/lib/api-error";
+import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error";
 
+import type { ContentEditorProjectSource } from "@/components/content-editor/shared/content-editor-native-project";
+import { canUseGoSvcCat } from "@/components/content-editor/shared/content-editor-native-project";
 import type {
   ContentEditorIssueType,
   ContentEditorQueueSegment,
@@ -111,11 +113,39 @@ function chunkItems<T>(items: T[], size: number): T[][] {
   return chunks;
 }
 
+/** File-tree `isHidden` and per-file progress both change when strings are hidden. */
+function invalidateContentEditorFileMetadata(
+  queryClient: QueryClient,
+  organizationSlug: string,
+  projectId: string,
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: ["project-files", organizationSlug, projectId],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["project-file-progress", organizationSlug, projectId],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["project-hidden-files", organizationSlug, projectId],
+    }),
+  ]);
+}
+
 function prefersGoSvcCat(input: {
   goSvcClient?: GoSvcClient;
+  projectId: string;
+  projectSource?: ContentEditorProjectSource | null;
   contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
 }) {
-  return Boolean(input.goSvcClient) && !input.contentEditorFile?.provider;
+  return (
+    Boolean(input.goSvcClient) &&
+    canUseGoSvcCat({
+      projectId: input.projectId,
+      projectSource: input.projectSource,
+    }) &&
+    !input.contentEditorFile?.provider
+  );
 }
 
 async function captureNativeCatTranslationSideEffectsViaApp(input: {
@@ -201,6 +231,7 @@ async function runNativeCat<T>(
 export function useContentEditorMutations(input: {
   organizationSlug: string;
   projectId: string;
+  projectSource?: ContentEditorProjectSource | null;
   sourcePath: string;
   targetLocale: string;
   contentEditorFile: ProjectFileContentEditorQueueFile | null | undefined;
@@ -277,7 +308,9 @@ export function useContentEditorMutations(input: {
               ...(group ? { group } : {}),
             },
           );
-          await captureNativeCatTranslationSideEffectsViaApp({
+          // Product analytics only; Reports learns of the save from the Go service's activity
+          // event through the reporting-capture cron, so the save does not wait on this.
+          void captureNativeCatTranslationSideEffectsViaApp({
             organizationSlug: input.organizationSlug,
             projectId: input.projectId,
             sourcePath,
@@ -587,7 +620,10 @@ export function useContentEditorMutations(input: {
     },
   });
 
-  async function invalidateAfterImageChange(externalStringId: string) {
+  async function invalidateAfterImageChange(
+    externalStringId: string,
+    targetLocale = input.targetLocale,
+  ) {
     const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
       input,
       externalStringId,
@@ -602,7 +638,7 @@ export function useContentEditorMutations(input: {
         sourcePath,
         externalResourceId,
         resourceType,
-        targetLocale: input.targetLocale,
+        targetLocale,
         externalStringId,
       }),
     ]);
@@ -613,6 +649,9 @@ export function useContentEditorMutations(input: {
       externalStringId: string;
       instructions?: string;
       force?: boolean;
+      /** Defaults to the workspace locale; the multilingual gallery generates per locale. */
+      targetLocale?: string;
+      signal?: AbortSignal;
     }) => {
       const { sourcePath } = resolveCatMutationFileIdentity(
         input,
@@ -621,33 +660,34 @@ export function useContentEditorMutations(input: {
       );
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
-      ].files.detail.cat.images.regenerate.$post({
-        param: {
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
+      ].files.detail.cat.images.regenerate.$post(
+        {
+          param: {
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+          },
+          json: {
+            sourcePath,
+            targetLocale: mutationInput.targetLocale ?? input.targetLocale,
+            externalStringId: mutationInput.externalStringId,
+            instructions: mutationInput.instructions,
+            force: mutationInput.force,
+          },
         },
-        json: {
-          sourcePath,
-          targetLocale: input.targetLocale,
-          externalStringId: mutationInput.externalStringId,
-          instructions: mutationInput.instructions,
-          force: mutationInput.force,
-        },
-      });
+        { init: { signal: mutationInput.signal } },
+      );
 
       if (response.status !== 200) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(useContentEditorMutationsMessages.failedToRegenerateImage),
-          ),
+        throw await readApiResponseError(
+          response,
+          intl.formatMessage(useContentEditorMutationsMessages.failedToRegenerateImage),
         );
       }
 
       return response.json();
     },
     onSuccess: async (_data, variables) => {
-      await invalidateAfterImageChange(variables.externalStringId);
+      await invalidateAfterImageChange(variables.externalStringId, variables.targetLocale);
     },
   });
 
@@ -852,7 +892,10 @@ export function useContentEditorMutations(input: {
       return { updatedCount, isHidden: mutationInput.isHidden };
     },
     onSuccess: async () => {
-      await input.invalidateQueue();
+      await Promise.all([
+        input.invalidateQueue(),
+        invalidateContentEditorFileMetadata(queryClient, input.organizationSlug, input.projectId),
+      ]);
     },
   });
 
@@ -958,6 +1001,138 @@ export function useContentEditorMutations(input: {
     },
   });
 
+  // Tags and design links exist only on native strings, which go-svc serves.
+  const tagsMutation = useMutation({
+    mutationFn: async (mutationInput: {
+      externalStringIds: string[];
+      addTags: string[];
+      removeTags: string[];
+    }) => {
+      const fallback = intl.formatMessage(useContentEditorMutationsMessages.failedToUpdateTags);
+      if (!input.goSvcClient) {
+        throw new Error(fallback);
+      }
+      const chunks = chunkItems(
+        [...new Set(mutationInput.externalStringIds)],
+        maxNativeContentEditorHiddenStringBatch,
+      );
+      let updatedCount = 0;
+      try {
+        for (const externalStringIds of chunks) {
+          const saved = await input.goSvcClient.cat.setTags(
+            input.organizationSlug,
+            input.projectId,
+            {
+              sourcePath: input.sourcePath,
+              externalStringIds,
+              addTags: mutationInput.addTags,
+              removeTags: mutationInput.removeTags,
+            },
+          );
+          updatedCount += saved.updatedCount;
+        }
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, fallback), { cause: error });
+      }
+      return { updatedCount };
+    },
+    // A new tag must show in the tag suggestions and the advanced filter's list straight away.
+    // Every cached queue of the project is refreshed, not just the one on screen: a list already
+    // loaded for a tag filter would otherwise come back without the strings just tagged.
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["project-file-content-editor-queue", input.organizationSlug, input.projectId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["content-editor-cat-labels", input.organizationSlug, input.projectId],
+        }),
+      ]);
+    },
+  });
+
+  const designUrlMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringId: string; designUrl: string | null }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+      const fallback = intl.formatMessage(
+        useContentEditorMutationsMessages.failedToUpdateDesignUrl,
+      );
+      if (!input.goSvcClient) {
+        throw new Error(fallback);
+      }
+      try {
+        return await input.goSvcClient.cat.setDesignUrl(
+          input.organizationSlug,
+          input.projectId,
+          mutationInput.externalStringId,
+          {
+            sourcePath,
+            externalStringId: mutationInput.externalStringId,
+            designUrl: mutationInput.designUrl,
+          },
+        );
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, fallback), { cause: error });
+      }
+    },
+    onSuccess: async () => {
+      await input.invalidateQueue();
+    },
+  });
+
+  // Source text is edited only where go-svc serves the editor: native projects.
+  const sourceTextMutation = useMutation({
+    mutationFn: async (mutationInput: {
+      externalStringId: string;
+      sourceText: string;
+      keepApproved: boolean;
+    }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+      const fallback = intl.formatMessage(
+        useContentEditorMutationsMessages.failedToUpdateSourceText,
+      );
+      if (!input.goSvcClient) {
+        throw new Error(fallback);
+      }
+      try {
+        return await input.goSvcClient.cat.setSourceText(
+          input.organizationSlug,
+          input.projectId,
+          mutationInput.externalStringId,
+          {
+            sourcePath,
+            externalStringId: mutationInput.externalStringId,
+            sourceText: mutationInput.sourceText,
+            keepApproved: mutationInput.keepApproved,
+          },
+        );
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, fallback), { cause: error });
+      }
+    },
+    // A source change can send the open string's approved translations to review.
+    onSuccess: async () => {
+      await Promise.all([
+        input.invalidateQueue(),
+        queryClient.invalidateQueries({
+          queryKey: [
+            "project-file-content-editor-segment-target",
+            input.organizationSlug,
+            input.projectId,
+          ],
+        }),
+      ]);
+    },
+  });
+
   return {
     saveMutation,
     saveTranslation: saveMutation.mutateAsync,
@@ -977,9 +1152,22 @@ export function useContentEditorMutations(input: {
     setStringsLocked: lockedStringsMutation.mutateAsync,
     setMaxLength: maxLengthMutation.mutateAsync,
     isSavingMaxLength: maxLengthMutation.isPending,
+    setSourceText: sourceTextMutation.mutateAsync,
+    setTags: tagsMutation.mutateAsync,
+    setDesignUrl: designUrlMutation.mutateAsync,
+    isSavingKeyDetails: tagsMutation.isPending || designUrlMutation.isPending,
+    isSavingSourceText: sourceTextMutation.isPending,
     isSaving: saveMutation.isPending,
     isPostingComment: commentMutation.isPending,
     isResolvingComment: resolveCommentMutation.isPending,
+    generatingImageSegmentId: regenerateImageMutation.isPending
+      ? regenerateImageMutation.variables?.externalStringId
+      : undefined,
+    isImageGenerating:
+      regenerateImageMutation.isPending &&
+      Boolean(regenerateImageMutation.variables?.externalStringId) &&
+      (regenerateImageMutation.variables?.targetLocale ?? input.targetLocale) ===
+        input.targetLocale,
     isImageBusy:
       regenerateImageMutation.isPending ||
       uploadImageMutation.isPending ||

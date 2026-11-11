@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const { insertMock, limitMock, onConflictDoUpdateMock, selectMock, valuesMock, whereMock } =
   vi.hoisted(() => {
-    const onConflictDoUpdateMock = vi.fn(() => undefined);
+    const onConflictDoUpdateMock = vi.fn(() => ({ returning: vi.fn(async () => []) }));
     const valuesMock = vi.fn(() => ({ onConflictDoUpdate: onConflictDoUpdateMock }));
     const insertMock = vi.fn(() => ({ values: valuesMock }));
     const limitMock = vi.fn(async (): Promise<unknown[]> => []);
@@ -71,6 +71,20 @@ vi.mock("@/lib/database/client", () => ({
     },
   },
 }));
+
+vi.mock("./project-translation-revisions", () => ({
+  projectTranslationRevisionColumns: {},
+  recordProjectTranslationRevisions: vi.fn(async () => new Map()),
+  writeProjectTranslations: vi.fn(
+    async (
+      database: unknown,
+      _scope: unknown,
+      write: (tx: unknown, before: Map<string, unknown>) => Promise<unknown>,
+    ) => write(database, new Map()),
+  ),
+}));
+
+import { inArray } from "drizzle-orm";
 
 import {
   persistFileJobTranslations,
@@ -189,6 +203,16 @@ describe("persistFileJobTranslations", () => {
     );
     expect(insertedBatches[0]).toHaveLength(PROJECT_TRANSLATION_WRITE_BATCH_SIZE);
     expect(insertedBatches[1]).toHaveLength(1);
+
+    const lookupBatches = vi
+      .mocked(inArray)
+      .mock.calls.map((call) => call[1] as unknown[])
+      .filter(
+        (values) => Array.isArray(values) && values.every((value) => typeof value === "string"),
+      );
+    expect(lookupBatches).toHaveLength(2);
+    expect(lookupBatches[0]).toHaveLength(PROJECT_TRANSLATION_WRITE_BATCH_SIZE);
+    expect(lookupBatches[1]).toHaveLength(1);
   });
 });
 

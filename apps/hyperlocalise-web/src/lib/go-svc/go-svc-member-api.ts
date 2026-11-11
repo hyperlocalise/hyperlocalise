@@ -12,7 +12,12 @@
  */
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
-import type { GoSvcRequestOptions, MemberRecord, MembersResponse } from "./go-svc-client.types";
+import type {
+  GoSvcRequestOptions,
+  LeaveWorkspacePreview,
+  MemberRecord,
+  MembersResponse,
+} from "./go-svc-client.types";
 import { orgPath, type GoSvcRequest } from "./go-svc-request";
 
 export type InviteMemberBody = {
@@ -55,6 +60,20 @@ export class GoSvcMemberApi {
   remove(organizationSlug: string, workosUserId: string, options: GoSvcRequestOptions = {}) {
     return this.request.empty(orgPath(organizationSlug, "members", workosUserId), {
       method: "DELETE",
+      ...options,
+    });
+  }
+
+  leavePreview(organizationSlug: string, options: GoSvcRequestOptions = {}) {
+    return this.request.json<LeaveWorkspacePreview>(
+      orgPath(organizationSlug, "members", "leave"),
+      options,
+    );
+  }
+
+  leave(organizationSlug: string, options: GoSvcRequestOptions = {}) {
+    return this.request.empty(orgPath(organizationSlug, "members", "leave"), {
+      method: "POST",
       ...options,
     });
   }

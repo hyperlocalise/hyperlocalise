@@ -11,6 +11,8 @@
  * Version 2.0 or later.
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+vi.mock("@/lib/job-change-events/job-writes", () => import("@/test/mocks/job-writes-passthrough"));
 import { emoji } from "chat";
 import type { Message, Thread } from "chat";
 
@@ -1977,9 +1979,9 @@ describe("handleSubscribedMessage", () => {
       attachments: [
         {
           type: "file",
-          name: "brief.pdf",
-          mimeType: "application/pdf",
-          fetchData: vi.fn(async () => Buffer.from("pdf")),
+          name: "brief.rtf",
+          mimeType: "application/rtf",
+          fetchData: vi.fn(async () => Buffer.from("rtf")),
         },
       ],
     });
@@ -2019,9 +2021,9 @@ describe("handleSubscribedMessage", () => {
       attachments: [
         {
           type: "file",
-          name: "brief.pdf",
-          mimeType: "application/pdf",
-          fetchData: vi.fn(async () => Buffer.from("pdf")),
+          name: "brief.rtf",
+          mimeType: "application/rtf",
+          fetchData: vi.fn(async () => Buffer.from("rtf")),
         },
         {
           type: "image",
@@ -2077,7 +2079,7 @@ describe("handleSubscribedMessage", () => {
     );
     expect(agentGenerateMock).not.toHaveBeenCalled();
     expect(posts).toEqual([
-      { markdown: expect.stringContaining("brief.pdf") },
+      { markdown: expect.stringContaining("brief.rtf") },
       SLACK_PROCESSING_ACK_POST,
       {
         raw: expect.stringContaining("localized version of banner.png for fr"),

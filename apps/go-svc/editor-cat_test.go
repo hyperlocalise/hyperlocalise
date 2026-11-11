@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 	"github.com/stretchr/testify/require"
 )
 
@@ -111,7 +113,6 @@ func TestEditorCatSkipsVercelRoutes(t *testing.T) {
 		{http.MethodPost, "/files/detail/cat/images/regenerate", "image_regenerate_deferred"},
 		{http.MethodPost, "/files/detail/cat/images/upload", "image_upload_deferred"},
 		{http.MethodPost, "/files/detail/cat/recommendation", "ai_recommendation_deferred"},
-		{http.MethodPost, "/files/detail/cat/visual-context", "visual_context_deferred"},
 	}
 	for _, route := range routes {
 		t.Run(route.code, func(t *testing.T) {
@@ -143,10 +144,79 @@ func TestEditorCatQueueNative(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.Equal(t, "locales/en.json", body.ContentEditorQueue.SourcePath)
+	require.Equal(t, "auto", body.ContentEditorQueue.MessageFormat)
 	require.True(t, body.ContentEditorQueue.CanEditTranslations)
 	require.Len(t, body.ContentEditorQueue.Segments, 1)
 	require.Equal(t, "hello", body.ContentEditorQueue.Segments[0].Key)
 	require.Equal(t, keyID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+}
+
+func TestEditorCatQueueReturnsPersistedMessageFormat(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "locales/en.json")
+	mustEditorCatKey(t, scope, fileID, "hello", "Hello {{name}}")
+	_, err := scope.Pool.Exec(t.Context(), `update repository_source_files set message_format='i18next' where id=$1`, fileID)
+	require.NoError(t, err)
+
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=locales/en.json&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "i18next", body.ContentEditorQueue.MessageFormat)
+}
+
+func TestEditorCatQueueReturnsSourceIngestForEmptyHTML(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "pages/formatting-test.html")
+	storedFileID := uuid.NewString()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into stored_files (
+            id, organization_id, project_id, role, source_kind,
+            storage_provider, storage_key, storage_url, filename, content_type, byte_size, sha256
+        ) values ($1, $2, $3, 'source', 'repository_file', 'test', $1, $1, 'formatting-test.html', 'text/html', 10, 'deadbeef')`,
+		storedFileID, scope.OrganizationID, scope.ProjectID)
+	require.NoError(t, err)
+	_, err = scope.Pool.Exec(t.Context(), `
+        insert into repository_source_file_versions (
+            id, repository_source_file_id, organization_id, project_id, source_path, stored_file_id, ingest_state, ingest_error
+        ) values ($1, $2, $3, $4, 'pages/formatting-test.html', $5, 'failed', 'sandbox install failed')`,
+		uuid.NewString(), fileID, scope.OrganizationID, scope.ProjectID, storedFileID)
+	require.NoError(t, err)
+
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=pages/formatting-test.html&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "pages/formatting-test.html", body.ContentEditorQueue.SourcePath)
+	require.Len(t, body.ContentEditorQueue.Segments, 1)
+	require.Equal(t, fileID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+	require.Equal(t, "document", *body.ContentEditorQueue.Segments[0].ContentKind)
+	require.Nil(t, body.ContentEditorQueue.DocumentView)
+	require.NotNil(t, body.ContentEditorQueue.IngestState)
+	require.Equal(t, "failed", *body.ContentEditorQueue.IngestState)
+	require.NotNil(t, body.ContentEditorQueue.IngestError)
+	require.Equal(t, "sandbox install failed", *body.ContentEditorQueue.IngestError)
+}
+
+func TestEditorCatQueueOmitsIntercomCalloutFences(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "intercom/help/article.md")
+	mustEditorCatKey(t, scope, fileID, "md.Paragraph[4]/line[0]", ":::callout backgroundColor=\"#feedaf80\"\nborderColor=\"#fbc91633\"")
+	mustEditorCatKey(t, scope, fileID, "md.Paragraph[4]/line[1]", "For a public article to be enabled for Fin")
+	mustEditorCatKey(t, scope, fileID, "md.Paragraph[4]/line[2]", ":::")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=intercom/help/article.md&targetLocale=de-DE"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, 1, body.ContentEditorQueue.Pagination.TotalCount)
+	require.Len(t, body.ContentEditorQueue.Segments, 1)
+	require.Equal(t, "md.Paragraph[4]/line[1]", body.ContentEditorQueue.Segments[0].Key)
 }
 
 func TestEditorCatMemberCannotMutate(t *testing.T) {
@@ -240,6 +310,69 @@ func TestParseEditorCatQueueQuery(t *testing.T) {
 	require.Equal(t, 25, query.limit)
 	require.Equal(t, "untranslated", query.queueFilter)
 	require.Equal(t, []string{"a.json", "b.json"}, query.sourcePaths)
+	notHidden, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath": {"a.json"}, "targetLocale": {"fr"}, "queueFilter": {"not_hidden"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "not_hidden", notHidden.queueFilter)
+	withExtras, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":           {"a.json"},
+		"targetLocale":         {"fr"},
+		"queueFilter":          {"qa_issues"},
+		"queueFilterQualifier": {"spelling"},
+		"queueAdvanced":        {`{"stringType":"icu","visibility":"hidden"}`},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "spelling", withExtras.queueFilterQualifier)
+	require.Equal(t, "icu", withExtras.advancedFilter.StringType)
+	require.Equal(t, "hidden", withExtras.advancedFilter.Visibility)
+	origin, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":           {"a.json"},
+		"targetLocale":         {"fr"},
+		"queueFilter":          {"origin"},
+		"queueFilterQualifier": {"machine_post_edited"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "origin", origin.queueFilter)
+	require.Equal(t, "machine_post_edited", origin.queueFilterQualifier)
+	originDropped, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":           {"a.json"},
+		"targetLocale":         {"fr"},
+		"queueFilter":          {"origin"},
+		"queueFilterQualifier": {"spelling"},
+	})
+	require.NoError(t, err)
+	require.Empty(t, originDropped.queueFilterQualifier)
+	originIgnoredOnQa, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":           {"a.json"},
+		"targetLocale":         {"fr"},
+		"queueFilter":          {"qa_issues"},
+		"queueFilterQualifier": {"human"},
+	})
+	require.NoError(t, err)
+	require.Empty(t, originIgnoredOnQa.queueFilterQualifier)
+	impossibleDate, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":    {"a.json"},
+		"targetLocale":  {"fr"},
+		"queueAdvanced": {`{"addedFrom":"2026-02-31","stringType":"icu"}`},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "", impossibleDate.advancedFilter.AddedFrom)
+	require.Equal(t, "icu", impossibleDate.advancedFilter.StringType)
+	onlyImpossibleDate, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":    {"a.json"},
+		"targetLocale":  {"fr"},
+		"queueAdvanced": {`{"updatedTo":"2026-02-29"}`},
+	})
+	require.NoError(t, err)
+	require.Nil(t, onlyImpossibleDate.advancedFilter)
+	leapDay, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":    {"a.json"},
+		"targetLocale":  {"fr"},
+		"queueAdvanced": {`{"addedFrom":"2024-02-29"}`},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "2024-02-29", leapDay.advancedFilter.AddedFrom)
 	_, err = parseEditorCatQueueQuery(map[string][]string{"sourcePath": {"a.json"}})
 	require.Error(t, err)
 	_, err = parseEditorCatQueueQuery(map[string][]string{
@@ -266,6 +399,20 @@ func TestEditorCatRoles(t *testing.T) {
 	require.True(t, editorCatActor{role: "member"}.canRead())
 	require.False(t, editorCatActor{role: "translator"}.canWriteProjectTeam())
 	require.True(t, editorCatActor{role: "localization_manager"}.canManageGlossaries())
+	for _, tc := range []struct {
+		role string
+		ok   bool
+	}{
+		{"admin", true},
+		{"localization_manager", true},
+		{"developer", true},
+		{"translator", false},
+		{"reviewer", false},
+		{"member", false},
+		{"guest", false},
+	} {
+		require.Equal(t, tc.ok, editorCatActor{role: tc.role}.canEditKeyDetails(), tc.role)
+	}
 }
 
 func TestEditorCatWholeFileKind(t *testing.T) {
@@ -274,6 +421,8 @@ func TestEditorCatWholeFileKind(t *testing.T) {
 	require.Equal(t, editorCatKindOffice, editorCatSourceKind("brief.docx"))
 	require.Equal(t, editorCatKindDocument, editorCatSourceKind("readme.md"))
 	require.Equal(t, editorCatKindDocument, editorCatSourceKind("guide.adoc"))
+	require.Equal(t, editorCatKindDocument, editorCatSourceKind("page.html"))
+	require.Equal(t, editorCatKindDocument, editorCatSourceKind("page.htm"))
 	require.Equal(t, editorCatKindText, editorCatSourceKind("locales/en.json"))
 	require.True(t, looksLikeEditorCatImageURL("https://cdn.example.com/a.png"))
 	require.False(t, looksLikeEditorCatImageURL("HTTP://example.com/image.png"))
@@ -281,6 +430,13 @@ func TestEditorCatWholeFileKind(t *testing.T) {
 	require.True(t, looksLikeEditorCatVideoURL("https://cdn.example.com/a.mp4"))
 	require.True(t, isEditorCatAllFiles("*"))
 	require.True(t, isEditorCatWholeFile("hero.png"))
+	require.True(t, isEditorCatBinaryWholeFile("hero.png"))
+	require.False(t, isEditorCatBinaryWholeFile("readme.md"))
+	require.True(t, isEditorCatDocument("readme.md"))
+	require.True(t, isEditorCatDocument("page.html"))
+	require.False(t, isEditorCatBinaryWholeFile("page.html"))
+	require.Equal(t, editorCatKindText, editorCatTargetKind("readme.md", testEditorCatKeyID))
+	require.Equal(t, editorCatKindDocument, editorCatTargetKind("readme.md", "binary:readme.md"))
 	require.Equal(t, testEditorCatSourceFileID, binaryEditorCatStringID(testEditorCatSourceFileID, "hero.png"))
 	require.Equal(t, "binary:hero.png", binaryEditorCatStringID("", "hero.png"))
 	require.Equal(t, "en.json", filenameFromSourcePath("locales/en.json"))
@@ -357,6 +513,256 @@ func TestEditorCatQueueWholeFile(t *testing.T) {
 	require.Equal(t, "hero.png", body.ContentEditorQueue.SourcePath)
 	require.Equal(t, fileID, body.ContentEditorQueue.Segments[0].ExternalStringID)
 	require.Equal(t, "image_file", *body.ContentEditorQueue.Segments[0].ContentKind)
+
+	plainRec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=hero.png&targetLocale=fr&queueAdvanced="+url.QueryEscape(`{"stringType":"plain"}`)), "")
+	require.Equal(t, http.StatusOK, plainRec.Code, plainRec.Body.String())
+	var plainBody struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(plainRec.Body.Bytes(), &plainBody))
+	require.Empty(t, plainBody.ContentEditorQueue.Segments)
+
+	assetRec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=hero.png&targetLocale=fr&queueAdvanced="+url.QueryEscape(`{"stringType":"asset"}`)), "")
+	require.Equal(t, http.StatusOK, assetRec.Code, assetRec.Body.String())
+	var assetBody struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(assetRec.Body.Bytes(), &assetBody))
+	require.Len(t, assetBody.ContentEditorQueue.Segments, 1)
+}
+
+func TestEditorCatWholeFileMatchesAdvanced(t *testing.T) {
+	image := editorCatWholeFileSubject{
+		contentKind: "image_file",
+		hasTarget:   true,
+		status:      "needs_review",
+		createdAt:   time.Date(2026, 3, 2, 15, 0, 0, 0, time.UTC),
+		updatedAt:   time.Date(2026, 3, 4, 8, 0, 0, 0, time.UTC),
+	}
+	require.True(t, editorCatWholeFileMatchesAdvanced(image, nil))
+	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{StringType: "plain"}))
+	require.True(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{StringType: "asset"}))
+	office := image
+	office.contentKind = "office_file"
+	require.False(t, editorCatWholeFileMatchesAdvanced(office, &editorCatAdvancedFilter{StringType: "asset"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{Visibility: "hidden"}))
+	require.True(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{Visibility: "visible"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{TranslationStatus: "untranslated"}))
+	require.True(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{ApprovalStatus: "not_approved"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{Comments: "with"}))
+	require.True(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{AddedFrom: "2026-03-01", AddedTo: "2026-03-02"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{AddedFrom: "2026-03-03"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(editorCatWholeFileSubject{contentKind: "image_file"}, &editorCatAdvancedFilter{AddedFrom: "2026-03-01"}))
+}
+
+func TestEditorCatQueueHTMLKeysAndDocumentView(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "pages/formatting-test.html")
+	keyID := mustEditorCatKey(t, scope, fileID, "html.p[0]", "Hello")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=pages/formatting-test.html&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "pages/formatting-test.html", body.ContentEditorQueue.SourcePath)
+	require.Equal(t, keyID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+	require.Equal(t, "html.p[0]", body.ContentEditorQueue.Segments[0].Key)
+	require.NotNil(t, body.ContentEditorQueue.DocumentView)
+	require.Equal(t, fileID, body.ContentEditorQueue.DocumentView.ExternalStringID)
+}
+
+func TestHasHashedHTMLSegmentKey(t *testing.T) {
+	require.True(t, hasHashedHTMLSegmentKey([]editorCatSegment{{Key: "html.0123456789abcdef"}}))
+	require.True(t, hasHashedHTMLSegmentKey([]editorCatSegment{{Key: "html.0123456789abcdef.2"}}))
+	require.True(t, hasHashedHTMLSegmentKey([]editorCatSegment{{Key: "html.0123456789abcdef#srx.0"}}))
+	require.True(t, hasHashedHTMLSegmentKey([]editorCatSegment{{Key: "html.0123456789abcdef.2#srx.1"}}))
+	require.False(t, hasHashedHTMLSegmentKey([]editorCatSegment{{Key: "html.p"}}))
+	require.False(t, hasHashedHTMLSegmentKey([]editorCatSegment{{Key: "html.body.p"}}))
+	require.False(t, hasHashedHTMLSegmentKey(nil))
+}
+
+func TestRewriteHashedHTMLSegmentKeysNoopsOnEmpty(t *testing.T) {
+	segments := []editorCatSegment{{Key: "html.0123456789abcdef"}}
+	rewriteHashedHTMLSegmentKeys(nil, segments)
+	require.Equal(t, "html.0123456789abcdef", segments[0].Key)
+	rewriteHashedHTMLSegmentKeys([]byte("<p>Hello</p>"), nil)
+}
+
+func TestRewriteHashedHTMLQueueKeysNoopsWithoutHashedKeys(t *testing.T) {
+	api := &editorCatAPI{}
+	segments := []editorCatSegment{{Key: "html.body.p"}}
+	got := api.rewriteHashedHTMLQueueKeys(nil, editorCatActor{}, editorCatProject{}, "pages/home.html", segments)
+	require.Equal(t, "html.body.p", got[0].Key)
+}
+
+func TestIsTrustedStoredFileURL(t *testing.T) {
+	trustedPath := "https://blob.vercel-storage.com/organizations/org_1/projects/proj_1/files/abc123/home.html"
+	trustedWorkspace := "https://cdn.example.com/organizations/org_1/workspace/files/abc123/home.html"
+
+	require.True(t, isTrustedStoredFileURL(trustedPath))
+	require.True(t, isTrustedStoredFileURL(trustedWorkspace))
+	require.False(t, isTrustedStoredFileURL("http://blob.vercel-storage.com/organizations/org_1/projects/proj_1/files/abc123/home.html"))
+	require.False(t, isTrustedStoredFileURL("https://evil.example/etc/passwd"))
+	require.False(t, isTrustedStoredFileURL("https:///organizations/org_1/projects/proj_1/files/abc123/home.html"))
+	require.False(t, isTrustedStoredFileURL(":not-a-url"))
+	require.False(t, isTrustedStoredFileURL(""))
+}
+
+func TestRewriteHashedHTMLSegmentKeysUsesTagPath(t *testing.T) {
+	content := []byte("<html><body><h1>Welcome</h1><p>Hello world.</p></body></html>")
+	mapping := translationfileparser.LegacyHTMLKeyToPathKey(content)
+	require.NotEmpty(t, mapping)
+	var hashedH1, hashedP string
+	for legacy, pathKey := range mapping {
+		switch pathKey {
+		case "html.body.h1":
+			hashedH1 = legacy
+		case "html.body.p":
+			hashedP = legacy
+		}
+	}
+	require.NotEmpty(t, hashedH1)
+	require.NotEmpty(t, hashedP)
+
+	segments := []editorCatSegment{
+		{Key: hashedH1, SourceText: "Welcome"},
+		{Key: hashedP, SourceText: "Hello world."},
+	}
+	rewriteHashedHTMLSegmentKeys(content, segments)
+	require.Equal(t, "html.body.h1", segments[0].Key)
+	require.Equal(t, "html.body.p", segments[1].Key)
+}
+
+func TestEditorCatQueueMarkdownKeysAndDocumentView(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "docs/intro.md")
+	keyID := mustEditorCatKey(t, scope, fileID, "md.Heading[0]", "Intro")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=docs/intro.md&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "docs/intro.md", body.ContentEditorQueue.SourcePath)
+	require.Equal(t, keyID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+	require.Equal(t, "md.Heading[0]", body.ContentEditorQueue.Segments[0].Key)
+	require.NotNil(t, body.ContentEditorQueue.DocumentView)
+	require.Equal(t, fileID, body.ContentEditorQueue.DocumentView.ExternalStringID)
+}
+
+func TestEditorCatQueueOfficeKeysAndGeneratedFileView(t *testing.T) {
+	for _, sourcePath := range []string{"docs/brief.docx", "decks/launch.pptx", "copy/strings.xlsx", "copy/legacy.xls"} {
+		t.Run(sourcePath, func(t *testing.T) {
+			api, scope := editorCatTestAPI(t, "translator")
+			fileID := mustEditorCatSourceFile(t, scope, sourcePath)
+			keyID := mustEditorCatKey(t, scope, fileID, "word/document.xml#0", "Welcome")
+			rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath="+sourcePath+"&targetLocale=fr"), "")
+			require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+			var body struct {
+				ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+			}
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+			require.Len(t, body.ContentEditorQueue.Segments, 1)
+			require.Equal(t, keyID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+			require.NotNil(t, body.ContentEditorQueue.DocumentView)
+			require.Equal(t, fileID, body.ContentEditorQueue.DocumentView.ExternalStringID)
+			require.NotNil(t, body.ContentEditorQueue.DocumentView.TargetAssetURL)
+			require.Equal(t,
+				"/api/orgs/"+scope.Slug+"/projects/"+scope.ProjectID+"/files/translations/download?sourcePath="+url.QueryEscape(sourcePath)+"&locale=fr",
+				*body.ContentEditorQueue.DocumentView.TargetAssetURL)
+
+			target := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/segments/"+keyID+"/target?sourcePath="+sourcePath+"&targetLocale=fr"), "")
+			require.Equal(t, http.StatusOK, target.Code, target.Body.String())
+		})
+	}
+}
+
+func TestEditorCatQueuePdfKeysAndGeneratedFileView(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	sourcePath := "docs/handbook.pdf"
+	fileID := mustEditorCatSourceFile(t, scope, sourcePath)
+	keyID := mustEditorCatKey(t, scope, fileID, "page-1#1", "Annual report")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath="+sourcePath+"&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Len(t, body.ContentEditorQueue.Segments, 1)
+	require.Equal(t, keyID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+	require.NotNil(t, body.ContentEditorQueue.DocumentView)
+	require.Equal(t, fileID, body.ContentEditorQueue.DocumentView.ExternalStringID)
+	require.NotNil(t, body.ContentEditorQueue.DocumentView.TargetAssetURL)
+	require.Equal(t,
+		"/api/orgs/"+scope.Slug+"/projects/"+scope.ProjectID+"/files/translations/download?sourcePath="+url.QueryEscape(sourcePath)+"&locale=fr",
+		*body.ContentEditorQueue.DocumentView.TargetAssetURL)
+
+	target := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/segments/"+keyID+"/target?sourcePath="+sourcePath+"&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, target.Code, target.Body.String())
+}
+
+func TestEditorCatQueuePdfWithoutKeysHasNoFileView(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	mustEditorCatSourceFile(t, scope, "docs/handbook.pdf")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=docs/handbook.pdf&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Empty(t, body.ContentEditorQueue.Segments)
+	require.Nil(t, body.ContentEditorQueue.DocumentView)
+}
+
+func TestEditorCatQueueOfficeWithoutKeysStaysWholeFile(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "docs/brief.docx")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=docs/brief.docx&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, fileID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+	require.Equal(t, "office_file", *body.ContentEditorQueue.Segments[0].ContentKind)
+	require.Nil(t, body.ContentEditorQueue.DocumentView)
+}
+
+func TestEditorCatQueueMarkdownWithoutKeysFallsBackToDocument(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "docs/intro.md")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=docs/intro.md&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, fileID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+	require.Equal(t, "document", *body.ContentEditorQueue.Segments[0].ContentKind)
+	require.Nil(t, body.ContentEditorQueue.DocumentView)
+}
+
+func TestEditorCatMarkdownWholeFileTarget(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "docs/intro.md")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/segments/"+fileID+"/target?sourcePath=docs/intro.md&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"target":null`)
+}
+
+func TestEditorCatMarkdownKeyTarget(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "docs/intro.md")
+	keyID := mustEditorCatKey(t, scope, fileID, "md.Heading[0]", "Intro")
+	mustEditorCatTranslation(t, scope, keyID, "fr", "Intro FR", "draft")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/segments/"+keyID+"/target?sourcePath=docs/intro.md&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		Target *editorCatTranslation `json:"target"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "Intro FR", body.Target.Text)
 }
 
 func TestEditorCatSegmentTarget(t *testing.T) {
@@ -494,16 +900,42 @@ func TestEditorCatConcordance(t *testing.T) {
 	require.Equal(t, "Enregistrer", body.Concordance.GlossaryTerms[0].Target)
 	require.True(t, body.Concordance.GlossaryTerms[0].Approved)
 	require.Equal(t, 90, body.Concordance.TranslationMemoryMatches[0].MatchPercent)
+	require.True(t, body.Concordance.TranslationMemoryMatches[0].CanEdit)
+	require.True(t, body.Concordance.TranslationMemoryMatches[0].CanDelete)
+	require.Equal(t, &editorCatTmSegmentRef{
+		Kind:     "native",
+		MemoryID: memoryID,
+		EntryID:  entryID,
+	}, body.Concordance.TranslationMemoryMatches[0].SegmentRef)
 }
 
 func TestEditorCatSetHidden(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "translator")
 	fileID := mustEditorCatSourceFile(t, scope, "a.json")
-	keyID := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
-	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/strings/hidden"), `{"sourcePath":"a.json","externalStringIds":["`+keyID+`"],"isHidden":true}`)
+	hiddenID := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
+	visibleID := mustEditorCatKey(t, scope, fileID, "world", "World")
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/strings/hidden"), `{"sourcePath":"a.json","externalStringIds":["`+hiddenID+`"],"isHidden":true}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"updatedCount":1`)
 	require.Contains(t, rec.Body.String(), `"isHidden":true`)
+
+	hiddenQueue := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=a.json&targetLocale=fr&queueFilter=hidden"), "")
+	require.Equal(t, http.StatusOK, hiddenQueue.Code, hiddenQueue.Body.String())
+	var hiddenBody struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(hiddenQueue.Body.Bytes(), &hiddenBody))
+	require.Len(t, hiddenBody.ContentEditorQueue.Segments, 1)
+	require.Equal(t, hiddenID, hiddenBody.ContentEditorQueue.Segments[0].ExternalStringID)
+
+	visibleQueue := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=a.json&targetLocale=fr&queueFilter=not_hidden"), "")
+	require.Equal(t, http.StatusOK, visibleQueue.Code, visibleQueue.Body.String())
+	var visibleBody struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(visibleQueue.Body.Bytes(), &visibleBody))
+	require.Len(t, visibleBody.ContentEditorQueue.Segments, 1)
+	require.Equal(t, visibleID, visibleBody.ContentEditorQueue.Segments[0].ExternalStringID)
 }
 
 func TestEditorCatSetLocked(t *testing.T) {
@@ -513,6 +945,63 @@ func TestEditorCatSetLocked(t *testing.T) {
 	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/strings/locked"), `{"sourcePath":"a.json","targetLocale":"fr","externalStringIds":["`+keyID+`"],"isLocked":true}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"isLocked":true`)
+}
+
+func TestEditorCatBulkLockActivityIncludesEverySegment(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "a.json")
+	first := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
+	second := mustEditorCatKey(t, scope, fileID, "bye", "Bye")
+	body := `{"sourcePath":"a.json","targetLocale":"fr","externalStringIds":["` + first + `","` + second + `"],"isLocked":true}`
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/strings/locked"), body)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	logs := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/activity-logs?sourcePath=a.json&targetLocale=fr&segmentId="+url.QueryEscape(second)), "")
+	require.Equal(t, http.StatusOK, logs.Code, logs.Body.String())
+	var listed struct {
+		ActivityLogs []activityLogListItem `json:"activityLogs"`
+	}
+	require.NoError(t, json.Unmarshal(logs.Body.Bytes(), &listed))
+	require.Len(t, listed.ActivityLogs, 1)
+	require.Equal(t, "string_segment_locked", listed.ActivityLogs[0].EventType)
+	require.ElementsMatch(t, []any{first, second}, listed.ActivityLogs[0].Payload["segmentIds"])
+}
+
+func TestEditorCatBulkUnlockRecordsOnlyDeletedLocks(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "a.json")
+	openID := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
+	firstLockedID := mustEditorCatKey(t, scope, fileID, "bye", "Bye")
+	secondLockedID := mustEditorCatKey(t, scope, fileID, "thanks", "Thanks")
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into project_cat_segment_locks (organization_id, project_id, target_locale, external_string_id, locked_by_user_id)
+        values ($1, $2, 'fr', $3, $5), ($1, $2, 'fr', $4, $5)`,
+		scope.OrganizationID, scope.ProjectID, firstLockedID, secondLockedID, scope.UserID)
+	require.NoError(t, err)
+
+	body := `{"sourcePath":"a.json","targetLocale":"fr","externalStringIds":["` + openID + `","` + secondLockedID + `","` + firstLockedID + `"],"isLocked":false}`
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/strings/locked"), body)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"updatedCount":2`)
+
+	openLogs := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/activity-logs?sourcePath=a.json&targetLocale=fr&segmentId="+url.QueryEscape(openID)), "")
+	require.Equal(t, http.StatusOK, openLogs.Code, openLogs.Body.String())
+	var openListed struct {
+		ActivityLogs []activityLogListItem `json:"activityLogs"`
+	}
+	require.NoError(t, json.Unmarshal(openLogs.Body.Bytes(), &openListed))
+	require.Empty(t, openListed.ActivityLogs)
+
+	lockedLogs := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/activity-logs?sourcePath=a.json&targetLocale=fr&segmentId="+url.QueryEscape(firstLockedID)), "")
+	require.Equal(t, http.StatusOK, lockedLogs.Code, lockedLogs.Body.String())
+	var lockedListed struct {
+		ActivityLogs []activityLogListItem `json:"activityLogs"`
+	}
+	require.NoError(t, json.Unmarshal(lockedLogs.Body.Bytes(), &lockedListed))
+	require.Len(t, lockedListed.ActivityLogs, 1)
+	require.Equal(t, "string_segment_unlocked", lockedListed.ActivityLogs[0].EventType)
+	require.Equal(t, secondLockedID, lockedListed.ActivityLogs[0].Payload["segmentId"])
+	require.ElementsMatch(t, []any{secondLockedID, firstLockedID}, lockedListed.ActivityLogs[0].Payload["segmentIds"])
 }
 
 func TestEditorCatUnlock(t *testing.T) {
@@ -631,15 +1120,20 @@ func TestFormatEditorCatAuthor(t *testing.T) {
 
 func TestUniqueEditorCatIDs(t *testing.T) {
 	require.Equal(t, []string{"a", "b"}, uniqueEditorCatIDs([]string{" a ", "", "a", "b", "c"}, 2))
+	require.Empty(t, uniqueEditorCatIDs(nil, 10))
+	require.Empty(t, uniqueEditorCatIDs([]string{"", "  "}, 10))
+	upper := "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"
+	canonical := "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	require.Equal(t, []string{canonical, "plain"}, uniqueEditorCatIDs([]string{" " + upper + " ", upper, "plain", "plain"}, 10))
 }
 
 func TestEditorCatQueueFilterSQL(t *testing.T) {
 	const orgN, projectN, localeN = 1, 2, 4
 
 	require.Empty(t, editorCatQueueFilterSQL("all", orgN, projectN, localeN))
-	require.Empty(t, editorCatQueueFilterSQL("machine_translated", orgN, projectN, localeN))
-	require.Empty(t, editorCatQueueFilterSQL("with_comments", orgN, projectN, localeN))
 	require.Empty(t, editorCatQueueFilterSQL("unknown", orgN, projectN, localeN))
+	require.Contains(t, editorCatQueueFilterSQL("machine_translated", orgN, projectN, localeN), "t.provenance in ('translation_job','agent','import')")
+	require.Contains(t, editorCatQueueFilterSQL("with_comments", orgN, projectN, localeN), "from project_translation_comments c")
 
 	untranslated := editorCatQueueFilterSQL("untranslated", orgN, projectN, localeN)
 	require.Contains(t, untranslated, "not exists (select 1 from project_translations t where")
@@ -671,11 +1165,67 @@ func TestEditorCatQueueFilterSQL(t *testing.T) {
 	require.Contains(t, qaIssues, "order by r.completed_at desc nulls last, r.created_at desc")
 
 	require.Equal(t, " and k.is_hidden = true", editorCatQueueFilterSQL("hidden", orgN, projectN, localeN))
+	require.Equal(t, " and k.is_hidden = false", editorCatQueueFilterSQL("not_hidden", orgN, projectN, localeN))
 	require.True(t, editorCatQueueFilterBindsLocale("untranslated"))
 	require.True(t, editorCatQueueFilterBindsLocale("has_issues"))
 	require.True(t, editorCatQueueFilterBindsLocale("qa_issues"))
+	require.True(t, editorCatQueueFilterBindsLocale("machine_translated"))
+	require.True(t, editorCatQueueFilterBindsLocale("origin"))
+	require.True(t, editorCatQueueFilterBindsLocale("with_comments"))
 	require.False(t, editorCatQueueFilterBindsLocale("all"))
 	require.False(t, editorCatQueueFilterBindsLocale("hidden"))
+	require.False(t, editorCatQueueFilterBindsLocale("not_hidden"))
+
+	qaSpelling := editorCatPresetFilterSQL(
+		editorCatQueueQuery{queueFilter: "qa_issues", queueFilterQualifier: "spelling"},
+		orgN, projectN, localeN, &[]any{"org", "project", "de-DE"},
+	)
+	require.Contains(t, qaSpelling, "q.check_type=$4")
+
+	mtAgent := editorCatPresetFilterSQL(
+		editorCatQueueQuery{queueFilter: "machine_translated", queueFilterQualifier: "agent"},
+		orgN, projectN, localeN, &[]any{"org", "project", "de-DE"},
+	)
+	require.Contains(t, mtAgent, "t.provenance=$4")
+
+	originHuman := editorCatPresetFilterSQL(
+		editorCatQueueQuery{queueFilter: "origin", queueFilterQualifier: "human"},
+		orgN, projectN, localeN, &[]any{"org", "project", "de-DE"},
+	)
+	require.Contains(t, originHuman, "t.origin::text=$4")
+	require.Contains(t, originHuman, "trim(t.text) != ''")
+
+	originAny := editorCatPresetFilterSQL(
+		editorCatQueueQuery{queueFilter: "origin"},
+		orgN, projectN, localeN, &[]any{"org", "project", "de-DE"},
+	)
+	require.NotContains(t, originAny, "t.origin::text=")
+
+	advancedSQL := editorCatAdvancedFilterSQL(&editorCatAdvancedFilter{
+		AddedFrom:         "2026-01-01",
+		StringType:        "icu",
+		TranslationStatus: "untranslated",
+		Visibility:        "visible",
+	}, orgN, projectN, localeN, &[]any{"org", "project", "de-DE"})
+	require.Contains(t, advancedSQL, "k.created_at >= CAST($4 AS date)")
+	require.Contains(t, advancedSQL, "k.type = 'icu'")
+	require.Contains(t, advancedSQL, "k.is_hidden = false")
+	require.Contains(t, advancedSQL, "not exists (select 1 from project_translations t where")
+
+	plainSQL := editorCatStringTypeSQL("plain")
+	require.Contains(t, plainSQL, "k.type is null")
+	require.Contains(t, plainSQL, "k.type = ''")
+	require.Contains(t, plainSQL, "'text'")
+	require.Contains(t, plainSQL, "'plain'")
+	require.Contains(t, plainSQL, "'string'")
+
+	withoutSQL := editorCatAdvancedFilterSQL(&editorCatAdvancedFilter{
+		QaIssues: "without",
+		Comments: "without",
+	}, orgN, projectN, localeN, &[]any{"org", "project", "de-DE"})
+	require.Contains(t, withoutSQL, " and not exists (\n            select 1 from translation_qa_findings q")
+	require.Contains(t, withoutSQL, " and not exists (\n            select 1 from project_translation_comments c")
+	require.NotContains(t, withoutSQL, "q.check_type=")
 }
 
 func TestEditorCatQueueDefaultFilter(t *testing.T) {
@@ -704,4 +1254,71 @@ func TestEditorCatQueueUntranslatedFirstBindsLocale(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.Len(t, body.ContentEditorQueue.Segments, 1)
+}
+
+func TestEditorCatSetTags(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "developer")
+	fileID := mustEditorCatSourceFile(t, scope, "a.json")
+	first := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
+	second := mustEditorCatKey(t, scope, fileID, "bye", "Bye")
+	path := editorCatPathFor(scope, "/files/detail/cat/strings/tags")
+
+	rec := editorCatRequestScope(api, scope, http.MethodPost, path, `{"sourcePath":"a.json","externalStringIds":["`+first+`","`+second+`"],"addTags":["release-7","checkout"]}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"updatedCount":2`)
+	require.Contains(t, rec.Body.String(), `"tags":["checkout","release-7"]`)
+
+	rec = editorCatRequestScope(api, scope, http.MethodPost, path, `{"sourcePath":"a.json","externalStringIds":["`+first+`"],"addTags":["release-7"],"removeTags":["checkout"]}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"updatedCount":1`)
+
+	queue := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=a.json&targetLocale=fr&queueFilter=all"), "")
+	require.Equal(t, http.StatusOK, queue.Code, queue.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(queue.Body.Bytes(), &body))
+	tags := map[string][]string{}
+	for _, segment := range body.ContentEditorQueue.Segments {
+		tags[segment.ExternalStringID] = segment.Tags
+	}
+	require.Equal(t, []string{"release-7"}, tags[first])
+	require.Equal(t, []string{"checkout", "release-7"}, tags[second])
+
+	for _, invalid := range []string{
+		`{"sourcePath":"a.json","externalStringIds":["` + first + `"],"addTags":["has space"]}`,
+		`{"sourcePath":"a.json","externalStringIds":["` + first + `"]}`,
+		`{"sourcePath":"a.json","externalStringIds":[],"addTags":["a"]}`,
+	} {
+		rec = editorCatRequestScope(api, scope, http.MethodPost, path, invalid)
+		require.Equal(t, http.StatusBadRequest, rec.Code, invalid)
+	}
+}
+
+func TestEditorCatSetTagsNeedsProjectsWrite(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "a.json")
+	keyID := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/strings/tags"), `{"sourcePath":"a.json","externalStringIds":["`+keyID+`"],"addTags":["a"]}`)
+	require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+	rec = editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/segments/"+keyID+"/design-url"), `{"sourcePath":"a.json","externalStringId":"`+keyID+`","designUrl":"https://example.com"}`)
+	require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+}
+
+func TestEditorCatSetDesignURL(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "localization_manager")
+	fileID := mustEditorCatSourceFile(t, scope, "a.json")
+	keyID := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
+	path := editorCatPathFor(scope, "/files/detail/cat/segments/"+keyID+"/design-url")
+
+	rec := editorCatRequestScope(api, scope, http.MethodPost, path, `{"sourcePath":"a.json","externalStringId":"`+keyID+`","designUrl":" https://www.figma.com/file/abc?node-id=1 "}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"designUrl":"https://www.figma.com/file/abc?node-id=1"`)
+
+	rec = editorCatRequestScope(api, scope, http.MethodPost, path, `{"sourcePath":"a.json","externalStringId":"`+keyID+`","designUrl":"javascript:alert(1)"}`)
+	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+
+	rec = editorCatRequestScope(api, scope, http.MethodPost, path, `{"sourcePath":"a.json","externalStringId":"`+keyID+`","designUrl":null}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"designUrl":null`)
 }

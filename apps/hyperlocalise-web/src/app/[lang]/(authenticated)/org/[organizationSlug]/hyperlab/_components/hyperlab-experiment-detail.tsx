@@ -13,7 +13,6 @@
  * Version 2.0 or later.
  */
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { observer } from "mobx-react-lite";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -69,6 +68,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
 
+import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { HyperlabExperimentQueryBridge } from "../store/hyperlab-query-bridge";
 import {
   HyperlabWorkspaceProvider,
@@ -131,10 +131,13 @@ const HyperlabExperimentDetailConnected = observer(function HyperlabExperimentDe
   canWrite: boolean;
 }) {
   const intl = useIntl();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const client = useHyperlabClient();
   const { experiment: experimentStore, ui: uiStore } = useHyperlabWorkspace();
+  // One guard for the page's three cards: only one can be active at a time.
+  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(
+    experimentStore.detailsDirty || experimentStore.rolloutDirty || experimentStore.splitDirty,
+  );
 
   const detailQuery = useQuery({
     queryKey: hyperlabQueryKeys.experiment(organizationSlug, experimentId),
@@ -323,7 +326,7 @@ const HyperlabExperimentDetailConnected = observer(function HyperlabExperimentDe
     },
     onSuccess: () => {
       toast.success(intl.formatMessage(messages.deleteSuccess));
-      router.push(`/org/${organizationSlug}/hyperlab/experiments`);
+      leaveTo(`/org/${organizationSlug}/hyperlab/experiments`);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : intl.formatMessage(messages.loadError));
@@ -350,6 +353,7 @@ const HyperlabExperimentDetailConnected = observer(function HyperlabExperimentDe
   return (
     <>
       <HyperlabExperimentQueryBridge snapshot={detailQuery.data} />
+      {leaveGuardDialog}
       <HyperlabPageShell
         title={experiment?.name ?? intl.formatMessage(messages.experimentsTitle)}
         backHref={`/org/${organizationSlug}/hyperlab/experiments`}

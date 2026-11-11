@@ -1,13 +1,17 @@
 package main
 
 import (
+	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,6 +54,67 @@ func TestParseGlossaryCSV(t *testing.T) {
 	require.Empty(t, diagnostics)
 }
 
+func TestGlossaryCSVCapacityHintCapsEmbeddedNewlines(t *testing.T) {
+	require.Equal(t, 1, glossaryCSVCapacityHint("a"))
+	require.Equal(t, 3, glossaryCSVCapacityHint("a\nb\nc"))
+	require.Equal(t, glossaryCSVCapacityHintCap, glossaryCSVCapacityHint(strings.Repeat("\n", glossaryCSVCapacityHintCap+1000)))
+}
+
+func TestParseGlossaryCSVQuotedMultilineField(t *testing.T) {
+	definition := "Payment\nstep\nacross\nlines"
+	content := "conceptId,locale,term,definition\nc1,en-US,Checkout,\"" + definition + "\"\n"
+	concepts, diagnostics := parseGlossaryCSV(content)
+	require.Empty(t, diagnostics)
+	require.Len(t, concepts, 1)
+	require.Equal(t, "Checkout", concepts[0].Terms[0].Term)
+	require.Equal(t, definition, concepts[0].Definition)
+}
+
+func TestParseGlossaryCSVEmptyAndBOMOnly(t *testing.T) {
+	concepts, diagnostics := parseGlossaryCSV("")
+	require.Nil(t, concepts)
+	require.Empty(t, diagnostics)
+
+	concepts, diagnostics = parseGlossaryCSV("\ufeff")
+	require.Nil(t, concepts)
+	require.Empty(t, diagnostics)
+}
+
+func TestParseGlossaryCSVHeaderless(t *testing.T) {
+	content := "c1,en-US,Checkout\nc1,fr-FR,Paiement\n"
+	concepts, diagnostics := parseGlossaryCSV(content)
+	require.Empty(t, diagnostics)
+	require.Len(t, concepts, 1)
+	require.Equal(t, "Checkout", concepts[0].PrimaryTerm)
+	require.Len(t, concepts[0].Terms, 2)
+	require.Equal(t, "fr-FR", concepts[0].Terms[1].Locale)
+	require.Equal(t, "Paiement", concepts[0].Terms[1].Term)
+}
+
+func TestParseGlossaryCSVMalformedQuotedField(t *testing.T) {
+	concepts, diagnostics := parseGlossaryCSV("conceptId,locale,term\nc1,en-US,\"Checkout\n")
+	require.Nil(t, concepts)
+	require.NotEmpty(t, diagnostics)
+	require.Equal(t, "invalid_csv", diagnostics[0].Code)
+}
+
+func TestParseGlossaryCSVReuseRecordKeepsDistinctRows(t *testing.T) {
+	content := "conceptId,locale,term\nc1,en-US,Alpha\nc2,fr-FR,Beta\nc3,de-DE,Gamma\n"
+	concepts, diagnostics := parseGlossaryCSV(content)
+	require.Empty(t, diagnostics)
+	require.Len(t, concepts, 3)
+	require.Equal(t, []string{"Alpha", "Beta", "Gamma"}, []string{
+		concepts[0].Terms[0].Term,
+		concepts[1].Terms[0].Term,
+		concepts[2].Terms[0].Term,
+	})
+	require.Equal(t, []string{"en-US", "fr-FR", "de-DE"}, []string{
+		concepts[0].Terms[0].Locale,
+		concepts[1].Terms[0].Locale,
+		concepts[2].Terms[0].Locale,
+	})
+}
+
 func TestParseGlossaryTBX(t *testing.T) {
 	content := `<?xml version="1.0"?><tbx><text><body>
 <conceptEntry id="c-abc">
@@ -74,6 +139,53 @@ func TestParseGlossaryTBXInvalid(t *testing.T) {
 	require.Nil(t, concepts)
 	require.NotEmpty(t, diagnostics)
 	require.Equal(t, "invalid_tbx", diagnostics[0].Code)
+}
+
+func TestXMLEscapeSanitizesIllegalCharacters(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "plain", in: "Checkout", want: "Checkout"},
+		{name: "ampersand", in: "A & B", want: "A &amp; B"},
+		{name: "lt", in: "a<b", want: "a&lt;b"},
+		{name: "quotes", in: `"it's"`, want: "&#34;it&#39;s&#34;"},
+		{name: "cr", in: "a\rb", want: "a&#xD;b"},
+		{name: "control", in: "Te\x01rm", want: "Te\uFFFDrm"},
+		{name: "nul", in: "a\x00b", want: "a\uFFFDb"},
+		{name: "invalid utf8", in: "a\xffb", want: "a\uFFFDb"},
+		{name: "noncharacter", in: "a\uFFFEb", want: "a\uFFFDb"},
+		{name: "unicode", in: "café 日本語", want: "café 日本語"},
+		{name: "tab and newline", in: "a\tb\nc", want: "a\tb\nc"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, xmlEscape(tt.in))
+		})
+	}
+}
+
+func TestSerializeGlossaryTBXSanitizesIllegalXMLCharacters(t *testing.T) {
+	g := glossaryRecord{ID: testGlossaryID, Name: "Product\x01terms", SourceLocale: "en-US"}
+	concepts := []glossaryExportConcept{{
+		ID: "c1", Subject: "Sub\x01ject", Definition: "Def\x01inition",
+		Terms: []glossaryExportTerm{{
+			ID: "t1", Locale: "en-US", Term: "Te\x01rm",
+		}},
+	}}
+	body, err := serializeGlossaryTBX(g, concepts)
+	require.NoError(t, err)
+	tbx := string(body)
+	require.NotContains(t, tbx, "\x01")
+	require.Contains(t, tbx, "Product\uFFFDterms")
+	require.Contains(t, tbx, "Sub\uFFFDject")
+	require.Contains(t, tbx, "Def\uFFFDinition")
+	require.Contains(t, tbx, "Te\uFFFDrm")
+	parsed, diagnostics := parseGlossaryTBX(tbx)
+	require.Empty(t, diagnostics)
+	require.Len(t, parsed, 1)
+	require.Equal(t, "Te\uFFFDrm", parsed[0].Terms[0].Term)
 }
 
 func TestSerializeGlossaryFormatsRoundTrip(t *testing.T) {
@@ -142,6 +254,107 @@ func TestSerializeGlossaryCSVEscapesFormulas(t *testing.T) {
 	require.Equal(t, "=HYPERLINK(\"x\")", parsed[0].Terms[0].Term)
 }
 
+func TestSerializeGlossaryCSVReusesRowWithoutLeakingTermFields(t *testing.T) {
+	created := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+	updated := time.Date(2026, 3, 2, 15, 30, 0, 0, time.UTC)
+	gender := "masculine"
+	termType := "fullForm"
+	termURL := "https://example.com/checkout"
+	lemma := "checkout"
+	later := created.Add(time.Hour)
+
+	concepts := []glossaryExportConcept{
+		{
+			ID:           "c-empty",
+			PrimaryTerm:  "Unused",
+			Translatable: true,
+			Terms:        nil,
+		},
+		{
+			ID:           "c1",
+			PrimaryTerm:  "Checkout",
+			Subject:      "Commerce",
+			Definition:   "Payment step",
+			Translatable: false,
+			Note:         "concept note",
+			URL:          stringPtr("https://example.com/concept"),
+			Figure:       stringPtr("fig-1"),
+			Terms: []glossaryExportTerm{
+				{
+					ID:            "t-full",
+					ConceptID:     "c1",
+					Locale:        "en-US",
+					Term:          "Checkout",
+					Description:   "=SUM(A1)",
+					Note:          "term note",
+					PartOfSpeech:  "noun",
+					Gender:        &gender,
+					TermType:      &termType,
+					URL:           &termURL,
+					Lemma:         &lemma,
+					Status:        "preferred",
+					CaseSensitive: true,
+					Forbidden:     false,
+					Provenance:    "import",
+					ReviewStatus:  "approved",
+					CreatedAt:     created,
+					UpdatedAt:     updated,
+				},
+				{
+					ID:            "t-sparse",
+					ConceptID:     "c1",
+					Locale:        "fr-FR",
+					Term:          "Paiement",
+					Status:        "draft",
+					CaseSensitive: false,
+					Forbidden:     true,
+					Provenance:    "manual",
+					ReviewStatus:  "proposed",
+					CreatedAt:     later,
+					UpdatedAt:     later,
+				},
+			},
+		},
+	}
+
+	body, err := serializeGlossaryCSV(concepts)
+	require.NoError(t, err)
+	require.True(t, bytes.HasPrefix(body, []byte("\ufeff")))
+	require.Contains(t, string(body), "\r\n")
+
+	reader := csv.NewReader(bytes.NewReader(bytes.TrimPrefix(body, []byte("\ufeff"))))
+	rows, err := reader.ReadAll()
+	require.NoError(t, err)
+	require.Equal(t, [][]string{
+		glossaryCSVHeaders,
+		{
+			"c1", "t-full", "en-US", "Checkout", "Checkout", "Commerce", "Payment step", "false",
+			"concept note", "https://example.com/concept", "fig-1",
+			glossaryCSVFormulaEscapePrefix + "=SUM(A1)", "term note", "noun", "masculine",
+			"fullForm", "https://example.com/checkout", "checkout", "preferred", "true", "false",
+			"import", "approved", formatGlossaryTime(created), formatGlossaryTime(updated),
+		},
+		{
+			"c1", "t-sparse", "fr-FR", "Paiement", "Checkout", "Commerce", "Payment step", "false",
+			"concept note", "https://example.com/concept", "fig-1",
+			"", "", "", "",
+			"", "", "", "draft", "false", "true",
+			"manual", "proposed", formatGlossaryTime(later), formatGlossaryTime(later),
+		},
+	}, rows)
+}
+
+func TestSerializeGlossaryCSVEmptyDocumentIsBOMHeaderOnly(t *testing.T) {
+	body, err := serializeGlossaryCSV(nil)
+	require.NoError(t, err)
+	require.True(t, bytes.HasPrefix(body, []byte("\ufeff")))
+
+	reader := csv.NewReader(bytes.NewReader(bytes.TrimPrefix(body, []byte("\ufeff"))))
+	rows, err := reader.ReadAll()
+	require.NoError(t, err)
+	require.Equal(t, [][]string{glossaryCSVHeaders}, rows)
+}
+
 func TestApplyGlossaryImportLocaleOptions(t *testing.T) {
 	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{"de-DE", "fr-FR"}}
 	strict := true
@@ -199,9 +412,99 @@ func TestApplyGlossaryImportLocaleOptionsDoesNotUseCrowdinFallbackForCSV(t *test
 		StrictLocale: &strict,
 	}, concepts, nil)
 	require.Len(t, out, 1)
+	require.Len(t, out[0].Terms, 2)
+	require.Equal(t, "en-US", out[0].Terms[0].Locale)
+	require.Equal(t, "de", out[0].Terms[1].Locale)
+	require.Empty(t, diagnostics)
+}
+
+func TestFilterGlossaryImportConceptsRejectsMissingSourceLocale(t *testing.T) {
+	strict := true
+	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{}}
+	concepts := []glossaryImportConcept{{
+		ID:    "c1",
+		Terms: []glossaryImportTerm{{ID: "t1", Locale: "de-DE", Term: "Kasse"}},
+	}}
+	out, diagnostics := filterGlossaryImportConcepts(g, glossaryImportPayload{StrictLocale: &strict}, concepts, nil)
+	require.Empty(t, out)
+	require.NotEmpty(t, diagnostics)
+	require.Contains(t, diagnostics[0].Code, "missing_source_locale")
+}
+
+func TestFilterGlossaryImportConceptsAllowsMissingSourceWhenNotStrict(t *testing.T) {
+	strict := false
+	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{"de-DE"}}
+	concepts := []glossaryImportConcept{{
+		ID:    "c1",
+		Terms: []glossaryImportTerm{{ID: "t1", Locale: "de-DE", Term: "Kasse"}},
+	}}
+	out, diagnostics := filterGlossaryImportConcepts(g, glossaryImportPayload{StrictLocale: &strict}, concepts, nil)
+	require.Len(t, out, 1)
+	require.Equal(t, "de-DE", out[0].Terms[0].Locale)
+	require.Empty(t, diagnostics)
+}
+
+func TestFilterGlossaryImportConceptsByDiagnosticsDropsTermButKeepsConcept(t *testing.T) {
+	conceptID := "c1"
+	termID := "t2"
+	field := "locale"
+	concepts := []glossaryImportConcept{{
+		ID: conceptID,
+		Terms: []glossaryImportTerm{
+			{ID: "t1", Locale: "en-US", Term: "Checkout"},
+			{ID: termID, Locale: "xx", Term: "Bad"},
+		},
+	}}
+	out, diagnostics := filterGlossaryImportConceptsByDiagnostics(concepts, []glossaryImportDiagnostic{{
+		Severity:  "error",
+		Code:      "invalid_locale",
+		Message:   "Term locale is not a valid BCP 47 language tag",
+		ConceptID: &conceptID,
+		TermID:    &termID,
+		Field:     &field,
+	}})
+	require.Len(t, out, 1)
+	require.Len(t, out[0].Terms, 1)
+	require.Equal(t, "t1", out[0].Terms[0].ID)
+	require.Equal(t, "invalid_locale", diagnostics[0].Code)
+}
+
+func TestFilterGlossaryImportConceptsByDiagnosticsConceptHasNoValidTerms(t *testing.T) {
+	conceptID := "c1"
+	termID := "t1"
+	concepts := []glossaryImportConcept{{
+		ID:    conceptID,
+		Terms: []glossaryImportTerm{{ID: termID, Locale: "xx", Term: "Bad"}},
+	}}
+	out, diagnostics := filterGlossaryImportConceptsByDiagnostics(concepts, []glossaryImportDiagnostic{{
+		Severity:  "error",
+		Code:      "invalid_locale",
+		ConceptID: &conceptID,
+		TermID:    &termID,
+	}})
+	require.Empty(t, out)
+	require.Equal(t, "concept_has_no_valid_terms", diagnostics[len(diagnostics)-1].Code)
+}
+
+func TestApplyGlossaryImportLocaleOptionsRejectsInvalidLocale(t *testing.T) {
+	strict := true
+	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{}}
+	concepts := []glossaryImportConcept{{
+		ID: "c1",
+		Terms: []glossaryImportTerm{
+			{ID: "t1", Locale: "en-US", Term: "Checkout"},
+			{ID: "t2", Locale: "source", Term: "Bad"},
+		},
+	}}
+
+	out, diagnostics := applyGlossaryImportLocaleOptions(g, glossaryImportPayload{
+		Format:       "tbx",
+		StrictLocale: &strict,
+	}, concepts, nil)
+	require.Len(t, out, 1)
 	require.Len(t, out[0].Terms, 1)
 	require.Equal(t, "en-US", out[0].Terms[0].Locale)
-	require.Contains(t, diagnostics, glossaryImportDiagnostic{Severity: "error", Code: "unknown_locale", Message: "Term locale is not configured for this glossary", ConceptID: stringPtr("c1"), TermID: stringPtr("t2"), Field: stringPtr("locale")})
+	require.Contains(t, diagnostics, glossaryImportDiagnostic{Severity: "error", Code: "invalid_locale", Message: "Term locale is not a valid BCP 47 language tag", ConceptID: stringPtr("c1"), TermID: stringPtr("t2"), Field: stringPtr("locale")})
 }
 
 func TestApplyGlossaryImportLocaleOptionsHonorsExplicitIdentityMapping(t *testing.T) {
@@ -231,6 +534,35 @@ func TestGlossaryImportReplaceRejectsParserErrors(t *testing.T) {
 	require.Contains(t, rec.Body.String(), `"diagnostics"`)
 	require.Contains(t, rec.Body.String(), "invalid_csv_row")
 	require.NotContains(t, rec.Body.String(), `"concepts"`)
+}
+
+func TestGlossaryImportTBXPersistsForbiddenFlags(t *testing.T) {
+	api, scope := glossaryTestAPI(t, "admin")
+	id := scope.MustGlossary(t, "", "Product terms", "en-US")
+	content, err := os.ReadFile(glossaryInterchangeFixturePath("phrase-export.tbx"))
+	require.NoError(t, err)
+	payload, err := json.Marshal(map[string]string{"format": "tbx", "content": string(content), "mode": "merge"})
+	require.NoError(t, err)
+
+	rec := glossaryRequest(api, scope, "POST", scope.OrgPath("/glossaries/"+id+"/concepts/import"), string(payload))
+	require.Equal(t, 201, rec.Code, rec.Body.String())
+	requireForbiddenTermFlag(t, scope, id, "Checkout", false)
+	requireForbiddenTermFlag(t, scope, id, "Kasse alt", true)
+	requireForbiddenTermFlag(t, scope, id, "Panier interdit", true)
+
+	rec = glossaryRequest(api, scope, "POST", scope.OrgPath("/glossaries/"+id+"/concepts/import"), string(payload))
+	require.Equal(t, 201, rec.Code, rec.Body.String())
+	requireForbiddenTermFlag(t, scope, id, "Checkout", false)
+	requireForbiddenTermFlag(t, scope, id, "Kasse alt", true)
+	requireForbiddenTermFlag(t, scope, id, "Panier interdit", true)
+}
+
+func requireForbiddenTermFlag(t *testing.T, scope *testenv.Scope, glossaryID, term string, want bool) {
+	t.Helper()
+	var forbidden bool
+	err := scope.Pool.QueryRow(t.Context(), `select forbidden from glossary_terms where glossary_id=$1 and term=$2`, glossaryID, term).Scan(&forbidden)
+	require.NoError(t, err, term)
+	require.Equal(t, want, forbidden, term)
 }
 
 func TestGlossaryExportTBXHTTP(t *testing.T) {

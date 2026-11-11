@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import { useQuery } from "@tanstack/react-query";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import {
   fetchNativeProjectJobs,
@@ -30,6 +31,7 @@ export function useProjectOverviewJobsQuery(
   projectId: string,
   options?: { enabled?: boolean },
 ) {
+  const { client: goSvcClient } = useGoSvcClient();
   const parsedProviderProject = parseProviderProjectId(projectId);
 
   return useQuery({
@@ -50,7 +52,7 @@ export function useProjectOverviewJobsQuery(
         return selectRecentProjectJobs(jobs, PROJECT_OVERVIEW_JOBS_LIMIT) as ApiJob[];
       }
 
-      return (await fetchNativeProjectJobs(organizationSlug, projectId, {
+      return (await fetchNativeProjectJobs(goSvcClient.job, organizationSlug, projectId, {
         limit: PROJECT_OVERVIEW_JOBS_LIMIT,
       })) as ApiJob[];
     },

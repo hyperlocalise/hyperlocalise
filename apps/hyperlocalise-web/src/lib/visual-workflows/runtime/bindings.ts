@@ -15,7 +15,7 @@ import type {
   VisualKeyValuePair,
   WorkflowBinding,
 } from "../schema/types";
-import { NODE_CONTRACTS, matchesWorkflowType } from "../catalog/node-contracts";
+import { getWorkflowInputFields, matchesWorkflowType } from "../catalog/node-contracts";
 import type { VisualWorkflowExecutionContext } from "./context";
 import { resolveVisualWorkflowCollection, resolveVisualWorkflowTemplate } from "./expressions";
 import { resolveHttpRequestBody } from "./http-request";
@@ -65,16 +65,18 @@ export function resolveWorkflowNodeInputs(
 ): CanonicalVisualWorkflowNode {
   const config = { ...node.config } as Record<string, unknown>;
   const bound = node.inputs ?? {};
+  const inputFields = getWorkflowInputFields(node);
   for (const [name, binding] of Object.entries(bound)) {
     const value =
       binding.kind === "secret"
         ? "[credential reference]"
         : resolveWorkflowBinding(binding, context);
-    const field = NODE_CONTRACTS[node.type].inputs.find((field) => field.name === name);
+    const field = inputFields.find((field) => field.name === name);
     if (
       !field &&
       node.type !== "logic.set" &&
       !(node.type === "logic.merge" && name.startsWith("value.")) &&
+      !(node.type === "flow.return" && name.startsWith("value.")) &&
       !(node.type === "action.http" && /^(headers|body)\./.test(name))
     )
       throw new Error("unknown_workflow_input");
@@ -87,7 +89,7 @@ export function resolveWorkflowNodeInputs(
       throw new Error("workflow_input_type_mismatch");
     setResolvedInput(config, name, value);
   }
-  for (const field of NODE_CONTRACTS[node.type].inputs) {
+  for (const field of inputFields) {
     let value = config[field.name];
     if (!bound[field.name]) {
       if (field.name === "collection") value = resolveVisualWorkflowCollection(value, context);

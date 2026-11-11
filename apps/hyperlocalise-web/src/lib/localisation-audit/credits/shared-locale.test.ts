@@ -18,6 +18,7 @@ import {
   htmlLangMatchesPathLocale,
   htmlLangSuggestionForPathLocale,
   isCjkLanguage,
+  isValidHreflangCode,
   languagesMatch,
   isPlausibleCtaCopy,
   isRtlLanguage,
@@ -126,6 +127,22 @@ describe("isWellFormedHtmlLang", () => {
     expect(isWellFormedHtmlLang("en-U")).toBe(false);
     expect(isWellFormedHtmlLang("x-default")).toBe(false);
     expect(isWellFormedHtmlLang("")).toBe(false);
+  });
+});
+
+describe("isValidHreflangCode", () => {
+  it("accepts ISO 639-1 languages, x-default, and known regions", () => {
+    expect(isValidHreflangCode("en")).toBe(true);
+    expect(isValidHreflangCode("en-GB")).toBe(true);
+    expect(isValidHreflangCode("es-419")).toBe(true);
+    expect(isValidHreflangCode("zh-Hant")).toBe(true);
+    expect(isValidHreflangCode("x-default")).toBe(true);
+  });
+
+  it("rejects three-letter language subtags and deprecated regions", () => {
+    expect(isValidHreflangCode("eng")).toBe(false);
+    expect(isValidHreflangCode("eng-US")).toBe(false);
+    expect(isValidHreflangCode("en-UK")).toBe(false);
   });
 });
 

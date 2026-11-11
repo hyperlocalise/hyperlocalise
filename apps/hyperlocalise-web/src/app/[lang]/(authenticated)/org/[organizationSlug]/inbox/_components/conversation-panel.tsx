@@ -42,7 +42,9 @@ import {
   type LinkedJob,
   type StreamedAssistantMessage,
 } from "./inbox-types";
+import type { ChatTurnControls } from "./chat-turn-controls";
 import { ReplyComposer } from "./reply-composer";
+import { HumanApprovalPanel } from "./human-approval-panel";
 
 function InboxAiComposer({
   organizationSlug,
@@ -74,6 +76,8 @@ export function ConversationPanel({
   conversation,
   currentUser,
   draft = "",
+  draftProjectId,
+  draftRepositoryKey,
   isComposingNew = false,
   isSending,
   isStreaming,
@@ -82,13 +86,18 @@ export function ConversationPanel({
   messages,
   messagesIsLoading,
   onDraftChange,
+  onDraftProjectChange,
+  onDraftRepositoryChange,
   onSendMessage,
   organizationSlug,
   streamedAssistant,
+  turnControls,
 }: {
   conversation: Conversation | undefined;
   currentUser: InboxCurrentUser;
   draft?: string;
+  draftProjectId?: string;
+  draftRepositoryKey?: string;
   isComposingNew?: boolean;
   isSending: boolean;
   isStreaming: boolean;
@@ -97,6 +106,8 @@ export function ConversationPanel({
   messages: ConversationMessage[];
   messagesIsLoading: boolean;
   onDraftChange?: (draft: string) => void;
+  onDraftProjectChange?: (projectId: string) => void;
+  onDraftRepositoryChange?: (repositoryKey: string) => void;
   onSendMessage: (
     text: string,
     files: File[],
@@ -104,6 +115,8 @@ export function ConversationPanel({
   ) => void | Promise<void>;
   organizationSlug: string;
   streamedAssistant: StreamedAssistantMessage | null;
+  /** Stop and queue controls for the conversation's running turn. */
+  turnControls?: ChatTurnControls;
 }) {
   const intl = useIntl();
   const panelRef = useRef<HTMLElement>(null);
@@ -188,27 +201,39 @@ export function ConversationPanel({
   }
 
   const isChatUi = conversation.source === "chat_ui";
-  const composerDisabled = isSending || isStreaming;
+  const isWorkflowApproval = conversation.source === "workflow_approval";
+  // With turn controls, messages sent while the agent answers are queued instead of blocked.
+  const composerDisabled = isSending || (isStreaming && !turnControls);
 
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
       <ConversationHeader conversation={conversation} jobs={jobs} jobsIsLoading={jobsIsLoading} />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <InboxPanelErrorBoundary
-          scope="messages"
-          className="min-h-0 flex-1"
-          resetKeys={[conversation.id, messages, streamedAssistant?.message]}
-        >
-          <ConversationMessageList
-            conversationId={conversation.id}
-            currentUser={currentUser}
-            isLoading={messagesIsLoading}
-            isStreaming={isStreaming}
-            messages={messages}
-            streamedAssistant={streamedAssistant}
-          />
-        </InboxPanelErrorBoundary>
+        {isWorkflowApproval ? (
+          <HumanApprovalPanel interactionId={conversation.id} organizationSlug={organizationSlug} />
+        ) : (
+          <InboxPanelErrorBoundary
+            scope="messages"
+            className="min-h-0 flex-1"
+            resetKeys={[conversation.id, messages, streamedAssistant?.message]}
+          >
+            <ConversationMessageList
+              conversationId={conversation.id}
+              currentUser={currentUser}
+              isLoading={messagesIsLoading}
+              isStreaming={isStreaming}
+              messages={messages}
+              onSelectClarificationOption={
+                isChatUi && !composerDisabled
+                  ? (option) => void onSendMessage(option, [])
+                  : undefined
+              }
+              organizationSlug={organizationSlug}
+              streamedAssistant={streamedAssistant}
+            />
+          </InboxPanelErrorBoundary>
+        )}
 
         {isChatUi ? (
           <InboxAiComposer organizationSlug={organizationSlug}>
@@ -217,11 +242,19 @@ export function ConversationPanel({
               resetKeys={[conversation.id, composerDisabled]}
             >
               <ReplyComposer
+                key={conversation.id}
                 disabled={composerDisabled}
+                draft={draft}
+                draftProjectId={draftProjectId}
+                draftRepositoryKey={draftRepositoryKey}
                 isStreaming={isStreaming}
                 lockedProjectId={conversation.projectId}
+                onDraftChange={onDraftChange}
+                onDraftProjectChange={onDraftProjectChange}
+                onDraftRepositoryChange={onDraftRepositoryChange}
                 onSend={onSendMessage}
                 organizationSlug={organizationSlug}
+                turnControls={turnControls}
               />
             </InboxPanelErrorBoundary>
           </InboxAiComposer>

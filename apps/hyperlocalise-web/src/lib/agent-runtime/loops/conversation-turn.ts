@@ -28,6 +28,12 @@ import {
   getOrganizationRepositoryConnectorConfig,
   resolveConversationRepositoryGitHubContext,
 } from "@/lib/agents/repository-context";
+import {
+  checkStoredGitLabContext,
+  keepGitLabContextIfCurrent,
+  resolveGitLabCredentialOwner,
+  type StoredGitLabContextCheck,
+} from "@/lib/gitlab/access";
 import { createGitlabRepositorySandbox } from "@/lib/gitlab/gitlab-repository-sandbox";
 import { resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
 import {
@@ -40,7 +46,7 @@ import {
   stopRepositorySandbox,
 } from "@/lib/agent-runtime/workspaces/repository-sandbox";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
-import { supportedFileTranslationFileFormats } from "@/lib/translation/file-formats";
+import { availableFileTranslationFileFormats } from "@/lib/translation/file-formats";
 import {
   VIDEO_LOCALIZATION_MAX_DURATION_SECONDS,
   VIDEO_LOCALIZATION_MIN_DURATION_SECONDS,
@@ -78,7 +84,7 @@ export function buildFileTranslationInstructions() {
   return [
     'When a message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale.',
     'Use sourceLocale "auto" if the user did not specify a source locale.',
-    `Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`,
+    `Supported file job formats: ${availableFileTranslationFileFormats().join(", ")}.`,
     "For png, jpeg, webp, and mp4 attachments, still create a file translation job — the workflow localizes the image or video asset for each target locale.",
     `mp4 clips should typically be ${VIDEO_LOCALIZATION_MIN_DURATION_SECONDS}–${VIDEO_LOCALIZATION_MAX_DURATION_SECONDS} seconds.`,
   ].join(" ");
@@ -177,6 +183,7 @@ type ResolveRepositoryContextInput = {
   workosUserId?: string | null;
   projectId: string | null;
   conversationText: string;
+  currentMessageText?: string;
   classification: ConversationClassification;
   repositorySession: ConversationRepositorySession | null;
   connectorConfig?: Record<string, unknown> | null;
@@ -188,6 +195,8 @@ export type ResolvedRepositoryContext = {
   gitlabContext: RepositoryAgentGitLabContext | null;
   instructions: string | null;
   clarificationFollowUp: string | null;
+  /** Answers offered with the follow-up, such as the enabled repositories. */
+  clarificationOptions?: string[];
   updatedSession: ConversationRepositorySession | null;
 };
 
@@ -203,11 +212,52 @@ function emptyRepositoryResolution(
   };
 }
 
+const DROPPED_GITLAB_CONTEXT_INSTRUCTIONS: Record<
+  NonNullable<StoredGitLabContextCheck<unknown>["dropped"]>,
+  string
+> = {
+  server_changed:
+    "The GitLab project used earlier in this conversation can't be used any more, because this workspace's GitLab connection has changed since. If the user asks about that repository, ask them to send a project link from the workspace's current GitLab server.",
+  token_unreadable:
+    "The GitLab project used earlier in this conversation can't be opened, because this workspace's saved GitLab token can't be read. If the user asks about that repository, tell them an admin or localization manager can check the GitLab connection under Integrations.",
+};
+
 export async function resolveConversationRepositoryContext(
   input: ResolveRepositoryContextInput,
 ): Promise<ResolvedRepositoryContext> {
+  const storedGitLab = await checkStoredGitLabContext({
+    localOrganizationId: input.organizationId,
+    context: input.repositorySession?.repositoryGitLabContext,
+  });
+  const resolution = await resolveRepositoryContextWithStoredGitLab(input, storedGitLab.context);
+  if (!storedGitLab.dropped) {
+    return resolution;
+  }
+
+  // Forget the unusable project so later turns don't carry it, and explain once why it's gone.
+  const staleContext = input.repositorySession?.repositoryGitLabContext;
+  const updatedSession =
+    resolution.updatedSession?.repositoryGitLabContext === staleContext
+      ? { ...resolution.updatedSession, repositoryGitLabContext: undefined }
+      : resolution.updatedSession;
+  if (resolution.context || resolution.gitlabContext) {
+    return { ...resolution, updatedSession };
+  }
+  const droppedNote = DROPPED_GITLAB_CONTEXT_INSTRUCTIONS[storedGitLab.dropped];
+  return {
+    ...resolution,
+    instructions: resolution.instructions
+      ? `${resolution.instructions}\n\n${droppedNote}`
+      : droppedNote,
+    updatedSession,
+  };
+}
+
+async function resolveRepositoryContextWithStoredGitLab(
+  input: ResolveRepositoryContextInput,
+  storedGitLabContext: RepositoryAgentGitLabContext | null,
+): Promise<ResolvedRepositoryContext> {
   const storedRepositoryContext = input.repositorySession?.repositoryGitHubContext ?? null;
-  const storedGitLabContext = input.repositorySession?.repositoryGitLabContext ?? null;
   const shouldResolve = shouldAttemptRepositoryContextResolution({
     classification: input.classification,
     storedRepositoryContext: storedRepositoryContext ?? storedGitLabContext,
@@ -274,6 +324,7 @@ export async function resolveConversationRepositoryContext(
     localUserId: input.localUserId,
     workosUserId: input.workosUserId,
     text: input.conversationText,
+    currentText: input.currentMessageText,
   });
 
   if (gitlabContextResolution.status === "resolved") {
@@ -318,6 +369,7 @@ export async function resolveConversationRepositoryContext(
       gitlabContext: null,
       instructions,
       clarificationFollowUp,
+      clarificationOptions: clarificationFollowUp ? githubContextResolution.options : undefined,
       updatedSession: input.repositorySession,
     };
   }
@@ -448,7 +500,11 @@ export async function getOrCreateConversationGitlabRepositorySandbox(input: {
     workosUserId: input.workosUserId,
     localUserId: input.localUserId,
   });
-  if (!workosUserId) {
+  const credentialOwner = await resolveGitLabCredentialOwner({
+    localOrganizationId: input.organizationId,
+    workosUserId,
+  });
+  if (!credentialOwner) {
     throw new Error("gitlab_not_connected");
   }
 
@@ -458,7 +514,7 @@ export async function getOrCreateConversationGitlabRepositorySandbox(input: {
   const canReuseStoredSandbox =
     sandboxSession != null &&
     sandboxSession.repositoryContextKey === repositoryContextKey &&
-    sandboxSession.credentialOwnerWorkosUserId === workosUserId;
+    sandboxSession.credentialOwnerWorkosUserId === credentialOwner;
 
   if (canReuseStoredSandbox && (await isRepositorySandboxAvailable(sandboxSession.sandboxId))) {
     log.info(
@@ -506,7 +562,7 @@ export async function getOrCreateConversationGitlabRepositorySandbox(input: {
     repositorySandboxSession: {
       sandboxId,
       repositoryContextKey,
-      credentialOwnerWorkosUserId: workosUserId,
+      credentialOwnerWorkosUserId: credentialOwner,
       createdAt: now,
       lastUsedAt: now,
     },
@@ -561,6 +617,8 @@ export type PrepareConversationAgentTurnResult = {
   agent: Awaited<ReturnType<typeof createConversationToolLoopAgent>>;
   chatMessages: ModelMessage[];
   clarificationFollowUp: string | null;
+  /** Answers the chat can offer as buttons with the follow-up. */
+  clarificationOptions?: string[];
   updatedRepositorySession: ConversationRepositorySession | null;
   staleSandboxId: string | null;
   repositorySandboxId: string | null;
@@ -584,7 +642,10 @@ export async function prepareConversationAgentTurn(
   const chatMessages = await loadInteractionModelMessages(input.conversationId);
   const conversationText = getRecentUserConversationText(chatMessages, input.messageText);
   const storedRepositoryContext = input.repositorySession?.repositoryGitHubContext ?? null;
-  const storedGitLabContext = input.repositorySession?.repositoryGitLabContext ?? null;
+  const storedGitLabContext = await keepGitLabContextIfCurrent({
+    localOrganizationId: input.organizationId,
+    context: input.repositorySession?.repositoryGitLabContext,
+  });
   const languageModel =
     input.languageModel ??
     (await resolveHyperlocaliseAgentLanguageModel({
@@ -612,6 +673,7 @@ export async function prepareConversationAgentTurn(
     workosUserId: input.workosUserId,
     projectId: input.projectId,
     conversationText,
+    currentMessageText: input.messageText,
     classification,
     repositorySession: input.repositorySession ?? null,
     connectorConfig: input.connectorConfig,
@@ -733,6 +795,10 @@ export async function prepareConversationAgentTurn(
     agent,
     chatMessages: preparedMessages,
     clarificationFollowUp,
+    clarificationOptions:
+      clarificationFollowUp && clarificationFollowUp === repositoryResolution.clarificationFollowUp
+        ? repositoryResolution.clarificationOptions
+        : undefined,
     updatedRepositorySession,
     staleSandboxId,
     repositorySandboxId: sandboxId,

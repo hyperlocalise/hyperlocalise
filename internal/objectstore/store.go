@@ -34,6 +34,8 @@ type Info struct {
 }
 
 // PutInput streams a known number of bytes. IfAbsent prevents overwrites.
+// IfMatch is the opaque ETag from Get or Stat; a mismatch must not replace the object.
+// IfAbsent and IfMatch are mutually exclusive.
 type PutInput struct {
 	Key          string
 	Body         io.Reader
@@ -42,6 +44,7 @@ type PutInput struct {
 	CacheControl string
 	Metadata     map[string]string
 	IfAbsent     bool
+	IfMatch      string
 }
 
 // Store owns bytes; callers own authorization and durable object references.
@@ -51,13 +54,16 @@ type Store interface {
 	Get(context.Context, string) (io.ReadCloser, Info, error)
 	Stat(context.Context, string) (Info, error)
 	Delete(context.Context, string) error
+	List(context.Context, string) ([]string, error)
 }
 
 // Upload describes the headers that must be sent with a signed PUT request.
+// A positive ContentLength is signed, so the upload must be exactly that size.
 type Upload struct {
-	Key         string `json:"key"`
-	ContentType string `json:"contentType"`
-	IfAbsent    bool   `json:"ifAbsent"`
+	Key           string `json:"key"`
+	ContentType   string `json:"contentType"`
+	ContentLength int64  `json:"contentLength,omitempty"`
+	IfAbsent      bool   `json:"ifAbsent"`
 }
 
 // SignedRequest is temporary access, never a durable object identifier.
@@ -88,6 +94,9 @@ func ValidatePut(input PutInput) error {
 		return err
 	}
 	if input.Body == nil || input.Size < 0 || input.ContentType == "" {
+		return ErrInvalidInput
+	}
+	if input.IfAbsent && strings.TrimSpace(input.IfMatch) != "" {
 		return ErrInvalidInput
 	}
 	return nil

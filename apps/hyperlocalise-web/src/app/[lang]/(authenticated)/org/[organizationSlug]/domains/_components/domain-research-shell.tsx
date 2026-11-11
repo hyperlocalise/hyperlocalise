@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useId, useLayoutEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage } from "react-intl";
@@ -89,11 +89,24 @@ const DomainResearchShellView = observer(function DomainResearchShellView({
   const store = useDomainResearchShellStore();
   const localeSelectId = useId();
   const [editLocalesOpen, setEditLocalesOpen] = useState(false);
+  const fallbackKeywordId = store.activeCatalog?.keywords[0]?.id ?? null;
+
+  useLayoutEffect(() => {
+    if (!store.localeId) {
+      return;
+    }
+    store.ui.syncSurface(store.localeId);
+    store.keywords.syncMarket(store.localeId, fallbackKeywordId);
+  }, [fallbackKeywordId, store, store.localeId]);
 
   const domain = store.domain;
   const locale = store.locale;
   const showNoLocalesState =
-    !store.isPending && domain && domain.locales.length === 0 && !store.showSearchConsoleSurface;
+    !store.isPending &&
+    domain !== null &&
+    domain.locales.length === 0 &&
+    !store.showSearchConsoleSurface &&
+    !store.showAuditSurface;
 
   if (store.loadStatus === "loading") {
     return (
@@ -164,7 +177,7 @@ const DomainResearchShellView = observer(function DomainResearchShellView({
         </div>
       </div>
 
-      {locale ? (
+      {store.showLocaleSelector && locale ? (
         <div className="flex flex-wrap items-end gap-3">
           <Field className="w-full sm:w-72">
             <FieldLabel htmlFor={localeSelectId}>
@@ -224,7 +237,7 @@ const DomainResearchShellView = observer(function DomainResearchShellView({
           title={<FormattedMessage {...sharedMessages.pendingTitle} />}
           description={<FormattedMessage {...sharedMessages.pendingDescription} />}
         />
-      ) : store.showSearchConsoleSurface ? (
+      ) : store.showSearchConsoleSurface || store.showAuditSurface ? (
         children
       ) : store.showResearchContent && store.activeCatalog && locale ? (
         <DomainResearchContext

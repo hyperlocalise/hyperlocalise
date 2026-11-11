@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
+	"github.com/xuri/excelize/v2"
 )
 
 func TestEntriesCommandExtractsMaxLengthFromAppleStrings(t *testing.T) {
@@ -49,6 +51,51 @@ func TestEntriesCommandExtractsMaxLengthFromAppleStrings(t *testing.T) {
 	}
 	if enriched.Text != "Continue" || enriched.MaxLength != 24 {
 		t.Fatalf("unexpected enriched payload: %+v", enriched)
+	}
+}
+
+func TestEntriesCommandIncludesFormatJSDescriptions(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "en-US.json")
+	content := []byte(`{
+  "checkout.submit": {"defaultMessage": "Submit", "description": "Checkout CTA"},
+  "home.title": {"defaultMessage": "Home"}
+}`)
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd("test")
+	out := bytes.NewBuffer(nil)
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"entries", path})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute entries: %v", err)
+	}
+
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+
+	var home string
+	if err := json.Unmarshal(payload["home.title"], &home); err != nil {
+		t.Fatalf("home.title decode: %v", err)
+	}
+	if home != "Home" {
+		t.Fatalf("home.title = %q, want Home", home)
+	}
+
+	var submit struct {
+		Text    string `json:"text"`
+		Context string `json:"context"`
+	}
+	if err := json.Unmarshal(payload["checkout.submit"], &submit); err != nil {
+		t.Fatalf("checkout.submit decode: %v", err)
+	}
+	if submit.Text != "Submit" || submit.Context != "Checkout CTA" {
+		t.Fatalf("unexpected checkout.submit payload: %+v", submit)
 	}
 }
 
@@ -516,4 +563,115 @@ func decodeEntriesCommandStrings(raw []byte) (map[string]string, error) {
 		out[key] = record.Text
 	}
 	return out, nil
+}
+
+func TestEntriesCommandReadsXLSXTargetColumnWithSourceLocale(t *testing.T) {
+	workbook := excelize.NewFile()
+	cells := map[string]string{
+		"A1": "Key", "B1": "English", "C1": "French", "D1": "Comment",
+		"A2": "home.title", "B2": "Home", "C2": "Accueil", "D2": "Navigation label",
+		"A3": "home.cta", "B3": "Start", "C3": "",
+	}
+	for cell, value := range cells {
+		if err := workbook.SetCellValue("Sheet1", cell, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	buffer, err := workbook.WriteToBuffer()
+	_ = workbook.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "strings.xlsx")
+	if err := os.WriteFile(path, buffer.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	run := func(args ...string) map[string]json.RawMessage {
+		t.Helper()
+		root := newRootCmd("test")
+		out := bytes.NewBuffer(nil)
+		root.SetOut(out)
+		root.SetErr(out)
+		root.SetArgs(append([]string{"entries", path}, args...))
+		if err := root.Execute(); err != nil {
+			t.Fatalf("execute entries: %v", err)
+		}
+		var payload map[string]json.RawMessage
+		if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+			t.Fatalf("decode output: %v", err)
+		}
+		return payload
+	}
+
+	type entry struct {
+		Text    string `json:"text"`
+		Context string `json:"context"`
+	}
+	decode := func(raw json.RawMessage) entry {
+		t.Helper()
+		var value entry
+		if err := json.Unmarshal(raw, &value); err != nil {
+			t.Fatalf("decode entry %s: %v", raw, err)
+		}
+		return value
+	}
+
+	source := run("--locale", "en")
+	if got := decode(source["home.title"]); got != (entry{Text: "Home", Context: "Navigation label"}) {
+		t.Fatalf("unexpected source entry: %+v", got)
+	}
+
+	target := run("--source-locale", "en", "--locale", "fr")
+	if len(target) != 1 {
+		t.Fatalf("expected only translated cells, got %#v", target)
+	}
+	if got := decode(target["home.title"]); got != (entry{Text: "Accueil", Context: "Navigation label"}) {
+		t.Fatalf("unexpected target entry: %+v", got)
+	}
+}
+
+func TestEntriesCommandReadsDOCXParagraphsWithContext(t *testing.T) {
+	var buffer bytes.Buffer
+	writer := zip.NewWriter(&buffer)
+	part, err := writer.Create("word/document.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write([]byte(`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>` +
+		`<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr><w:r><w:t>Launch plan</w:t></w:r></w:p>` +
+		`<w:p><w:r><w:t>2026</w:t></w:r></w:p>` +
+		`</w:body></w:document>`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "brief.docx")
+	if err := os.WriteFile(path, buffer.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd("test")
+	out := bytes.NewBuffer(nil)
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"entries", path, "--locale", "en"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute entries: %v", err)
+	}
+	var payload map[string]struct {
+		Text    string `json:"text"`
+		Context string `json:"context"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out.Bytes(), err)
+	}
+	if len(payload) != 1 {
+		t.Fatalf("expected only the lettered paragraph, got %+v", payload)
+	}
+	got := payload["word/document.xml#0"]
+	if got.Text != "Launch plan" || got.Context != "Word body, style Title" {
+		t.Fatalf("unexpected entry: %+v", got)
+	}
 }

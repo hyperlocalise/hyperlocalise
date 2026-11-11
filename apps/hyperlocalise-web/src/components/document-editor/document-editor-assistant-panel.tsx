@@ -26,6 +26,8 @@ import { useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
+import { isAiCreditExhaustedError } from "@/lib/billing/ai-credit-refusal";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -53,7 +55,7 @@ export type DocumentAssistantFocus =
 type Loadable<T> =
   | { status: "idle" }
   | { status: "loading" }
-  | { status: "error" }
+  | { status: "error"; aiCreditExhausted?: boolean }
   | { status: "ok"; value: T };
 
 function Section({
@@ -85,7 +87,13 @@ function SectionStatus({ state, empty }: { state: Loadable<unknown>; empty?: boo
   }
   if (state.status === "error") {
     return (
-      <p className="text-sm text-destructive">{intl.formatMessage(messages.assistantLoadFailed)}</p>
+      <p className="text-sm text-destructive">
+        {intl.formatMessage(
+          state.aiCreditExhausted
+            ? aiCreditExhaustedMessages.exhausted
+            : messages.assistantLoadFailed,
+        )}
+      </p>
     );
   }
   if (empty) {
@@ -258,8 +266,10 @@ export function DocumentEditorAssistantPanel({
         aiCache.current.set(key, result.suggestion);
         if (aiKeyRef.current === key) setAi({ status: "ok", value: result.suggestion });
       })
-      .catch(() => {
-        if (aiKeyRef.current === key) setAi({ status: "error" });
+      .catch((error: unknown) => {
+        if (aiKeyRef.current === key) {
+          setAi({ status: "error", aiCreditExhausted: isAiCreditExhaustedError(error) });
+        }
       });
   };
 
@@ -316,7 +326,7 @@ export function DocumentEditorAssistantPanel({
             <Section
               title={intl.formatMessage(messages.assistantAi)}
               action={
-                ai.status === "ok" || ai.status === "error" ? (
+                ai.status === "ok" || (ai.status === "error" && !ai.aiCreditExhausted) ? (
                   <Button
                     size="icon-xs"
                     variant="ghost"

@@ -21,21 +21,30 @@ function stubInboxApiClient() {
   const sendMessagePost = vi.fn();
   const listGithubRepositoriesGet = vi.fn();
   const listGitlabProjectsGet = vi.fn();
+  const listConversations = vi.fn();
+  const listMessages = vi.fn();
+  const listJobs = vi.fn();
   return {
     createConversationPost,
     sendMessagePost,
     listGithubRepositoriesGet,
     listGitlabProjectsGet,
+    listConversations,
+    listMessages,
+    listJobs,
+    conversationReads: {
+      list: listConversations,
+      listMessages,
+      listJobs,
+    },
     client: {
       api: {
         orgs: {
           ":organizationSlug": {
             conversations: {
-              $get: vi.fn(),
               $post: createConversationPost,
               ":conversationId": {
-                messages: { $get: vi.fn(), $post: sendMessagePost },
-                jobs: { $get: vi.fn() },
+                messages: { $post: sendMessagePost },
               },
             },
             "github-installation": {
@@ -204,5 +213,84 @@ describe("createInboxApi FormData", () => {
         selectionKey: "gitlab:acme/platform/docs",
       },
     ]);
+  });
+});
+
+describe("createInboxApi conversation reads", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("loads conversations, messages, and jobs from go-svc", async () => {
+    const { client, conversationReads, listConversations, listMessages, listJobs } =
+      stubInboxApiClient();
+    listConversations.mockResolvedValue({
+      conversations: [{ id: "conv_1", title: "Translate docs" }],
+    });
+    listMessages.mockResolvedValue({
+      messages: [
+        {
+          id: "msg_1",
+          interactionId: "conv_1",
+          senderType: "user",
+          senderEmail: "ada@example.com",
+          text: "Please translate",
+          parts: null,
+          attachments: [
+            { id: "file_1", filename: "en.json", contentType: "application/json", url: "/file" },
+          ],
+          createdAt: "2026-03-04T05:06:07.891Z",
+        },
+      ],
+    });
+    listJobs.mockResolvedValue({
+      jobs: [
+        {
+          id: "job_1",
+          projectId: null,
+          kind: "translation",
+          type: "file",
+          status: "queued",
+          outcomeKind: null,
+          createdAt: "2026-03-04T05:06:07.891Z",
+          completedAt: null,
+        },
+      ],
+    });
+
+    const api = createInboxApi(client, conversationReads);
+    await expect(api.listConversations("acme", 25)).resolves.toEqual([
+      { id: "conv_1", title: "Translate docs" },
+    ]);
+    await expect(api.listMessages("acme", "conv_1")).resolves.toEqual([
+      {
+        id: "msg_1",
+        conversationId: "conv_1",
+        senderType: "user",
+        senderEmail: "ada@example.com",
+        text: "Please translate",
+        parts: null,
+        attachments: [
+          { id: "file_1", filename: "en.json", contentType: "application/json", url: "/file" },
+        ],
+        createdAt: "2026-03-04T05:06:07.891Z",
+      },
+    ]);
+    await expect(api.listLinkedJobs("acme", "conv_1")).resolves.toEqual([
+      {
+        id: "job_1",
+        projectId: null,
+        kind: "translation",
+        type: "file",
+        status: "queued",
+        outcomeKind: null,
+        createdAt: "2026-03-04T05:06:07.891Z",
+        completedAt: null,
+      },
+    ]);
+
+    expect(listConversations).toHaveBeenCalledWith("acme", { limit: 25 });
+    expect(listMessages).toHaveBeenCalledWith("acme", "conv_1");
+    expect(listJobs).toHaveBeenCalledWith("acme", "conv_1");
   });
 });

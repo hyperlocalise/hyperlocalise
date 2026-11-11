@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { isMarkableProofreadTask } from "@/lib/projects/jobs/person-task";
 import type { JobProviderActionId } from "@/lib/providers/jobs/job-provider-actions";
 
 export type JobDetailRecord = {
@@ -20,9 +21,11 @@ export type JobDetailRecord = {
   ownerUserId: string | null;
   assigneeType?: "user" | "agent" | null;
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
-  type: "string" | "file" | null;
+  type: "string" | "file" | "keys" | null;
   status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   inputPayload: unknown;
+  /** Set on key jobs: how many strings the job holds. */
+  keyCount?: number | null;
   outcomeKind: string | null;
   outcomePayload: unknown;
   lastError: string | null;
@@ -44,6 +47,7 @@ export type JobDetailRecord = {
   externalStatus: string | null;
   externalTitle: string | null;
   externalDueDate: string | null;
+  dueAt?: string | null;
   externalTargetLocales: string[] | null;
   externalAssignedUsers: string[] | null;
   externalUrl: string | null;
@@ -140,6 +144,9 @@ export function jobDetailStatusTone(status: JobDetailRecord["status"]) {
 }
 
 export function formatJobDetailKind(job: Pick<JobDetailRecord, "kind" | "type">) {
+  if (job.type === "keys") {
+    return `${job.kind.replace("_", " ")} · keys`;
+  }
   if (job.kind === "translation" && job.type) {
     return `translation · ${job.type}`;
   }
@@ -180,7 +187,12 @@ function isNativeActiveJob(job: JobDetailRecord) {
 }
 
 export function canMarkJobFailed(job: JobDetailRecord) {
-  return isNativeActiveJob(job);
+  return isNativeActiveJob(job) && job.assigneeType === "agent";
+}
+
+/** An open proofread task waiting on a person, not a post-edit, translation, or agent job. */
+export function canMarkTaskDone(job: JobDetailRecord) {
+  return !isProviderBackedJob(job) && isMarkableProofreadTask(job);
 }
 
 export function canCancelJob(job: JobDetailRecord) {

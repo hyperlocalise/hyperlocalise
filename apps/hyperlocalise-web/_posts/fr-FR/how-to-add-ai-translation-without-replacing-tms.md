@@ -23,7 +23,7 @@ tags:
 
 De nombreuses équipes de localisation sont sous pression pour accélérer, réduire le travail manuel et prendre en charge davantage de langues sans augmenter leurs effectifs. La traduction par IA est une composante évidente de la solution, mais pour la plupart des équipes, la question n’est pas de savoir s’il faut utiliser l’IA. La question la plus difficile est de savoir comment introduire la traduction par IA sans perturber les systèmes, les flux de travail et les relations avec les fournisseurs qui existent déjà.
 
-Pour les entreprises qui utilisent déjà [Phrase](https://phrase.com), [Lokalise](https://lokalise.com), [Crowdin](https://crowdin.com), [Smartling](https://www.smartling.com) ou un autre système de gestion des traductions, remplacer le TMS est rarement la première mesure à prendre. Ces plateformes sont souvent profondément intégrées aux processus de mise en production des produits, aux flux de contenu, aux opérations avec les prestataires, aux mémoires de traduction, à la gestion des glossaires, aux cycles de révision et au reporting. Un projet de remplacement complet peut nécessiter des mois de travail de migration avant que l’équipe ne constate la moindre amélioration significative.
+For companies already using [Phrase](https://phrase.com), [Lokalise](https://lokalise.com), [Crowdin](https://crowdin.com), [Smartling](https://www.smartling.com), or another translation management system, replacing the TMS is rarely the right first move. These platforms often sit deeply inside product release processes, content workflows, vendor operations, translation memory, glossary management, review cycles, and reporting. A rip-and-replace project can create months of migration work before the team sees any meaningful improvement.
 
 Une meilleure approche consiste à ajouter la traduction par IA en tant que couche d’intelligence autour du flux de localisation existant. Au lieu de remplacer le TMS, les entreprises peuvent l’enrichir avec une IA qui rassemble le contexte, prépare les tâches de traduction, améliore la qualité des traductions, assiste les réviseurs et tire des enseignements des décisions passées prises dans différents outils.
 
@@ -65,7 +65,7 @@ Il doit **aider les réviseurs, et non les contourner**. Les équipes de localis
 
 Il devrait **apprendre grâce aux retours**. Les connaissances de localisation les plus précieuses apparaissent souvent après la révision de la première traduction : pourquoi une phrase a été rejetée, pourquoi le ton a été modifié, pourquoi un marché a préféré une expression à une autre, ou pourquoi une traduction littérale a échoué. Si ces retours se perdent dans des commentaires et des feuilles de calcul, l’IA ne peut pas s’améliorer au fil du temps.
 
-Pour en savoir plus sur les raisons pour lesquelles le contexte est aussi important que le résultat, consultez [La traduction par IA ne suffit pas : pourquoi les équipes internationales ont besoin d’une localisation tenant compte du contexte](/blog/ai-translation-is-not-enough-context-aware-localisation).
+For more on why context matters as much as output, see [AI Translation Is Not Enough: Why Global Teams Need Context-Aware Localisation](/blog/ai-translation-is-not-enough-context-aware-localisation).
 
 ## Le modèle indépendant du TMS
 
@@ -93,7 +93,7 @@ Hyperlocalise se concentre sur trois domaines.
 
 **Troisièmement, elle crée une couche de connaissances auto-évolutive.** Chaque traduction approuvée, suggestion rejetée, mise à jour du glossaire, commentaire de réviseur et décision propre au marché peut devenir partie intégrante de l’intelligence de localisation de l’organisation. Au fil du temps, cela réduit les erreurs répétées et permet aux futures traductions de devenir plus cohérentes, plus contextualisées et plus rapides à approuver.
 
-Cela s’appuie sur la même base que l’[intelligence de traduction](/blog/what-is-translation-intelligence) : l’infrastructure qui transforme les connaissances dispersées sur les produits, la marque, l’interface utilisateur, le marché et les réviseurs en de meilleures décisions de localisation.
+This builds on the same foundation as [translation intelligence](/blog/what-is-translation-intelligence): the infrastructure that turns scattered product, brand, UI, market, and reviewer knowledge into better localisation decisions.
 
 ## Les avantages pratiques
 
@@ -116,3 +116,5 @@ C’est la promesse d’un flux de travail agnostique vis-à-vis des TMS.
 Avec Hyperlocalise, les équipes peuvent intégrer l’intelligence de traduction par IA à leur pile de localisation existante, relier le contexte entre les outils, accompagner les réviseurs humains et créer une couche de connaissances qui s’améliore au fil du temps.
 
 La traduction par IA ne devrait pas obliger les équipes à recommencer. Elle devrait les aider à avancer plus vite là où elles en sont déjà.
+
+Pour découvrir les critères d’évaluation qui sous-tendent ce choix — le contexte produit, la révision humaine, l’interopérabilité avec les TMS et la préparation à la mise en production — consultez [Comment choisir un workflow de localisation continue](/blog/how-to-choose-a-continuous-localisation-workflow).

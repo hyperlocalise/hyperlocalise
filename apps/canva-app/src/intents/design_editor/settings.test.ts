@@ -16,13 +16,29 @@ import {
   loadSettings,
   parseSelectedPageValues,
   parseTargetLocales,
+  projectLocalesToSettings,
+  recordAppliedLocales,
   saveSettings,
+  selectedPagesShowSourceLocale,
   selectedPageValues,
+  settingsForDesign,
 } from "./settings";
 
 describe("settings", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("copies project locales into settings", () => {
+    expect(
+      projectLocalesToSettings({
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR", "de-DE"],
+      }),
+    ).toEqual({
+      sourceLocale: "en-US",
+      targetLocales: "fr-FR, de-DE",
+    });
   });
 
   it("parses target locales from comma-separated values", () => {
@@ -49,11 +65,15 @@ describe("settings", () => {
       connectionToken: "hl_canva_test_token",
       organizationSlug: "acme",
       organizationName: "Acme",
+      projectId: "project_1",
       projectName: "Marketing",
       sourceLocale: "en",
       targetLocales: "es,fr",
       preserveFormatting: true,
       selectedPageIndices: [0, 1],
+      selectedLocale: "fr-FR",
+      designId: "design_1",
+      appliedLocaleByPage: { "0": "fr-FR" },
       lastJobId: "job_1",
     });
 
@@ -61,26 +81,64 @@ describe("settings", () => {
       connectionToken: "hl_canva_test_token",
       organizationSlug: "acme",
       organizationName: "Acme",
+      projectId: "project_1",
       projectName: "Marketing",
       sourceLocale: "en",
       targetLocales: "es,fr",
       preserveFormatting: true,
       selectedPageIndices: [0, 1],
+      selectedLocale: "fr-FR",
+      designId: "design_1",
+      appliedLocaleByPage: { "0": "fr-FR" },
       lastJobId: "job_1",
     });
   });
 
-  it("migrates v3 settings and drops the project override", () => {
+  it("loads v7 settings without carrying a global applied locale", () => {
+    const storage = new Map<string, string>([
+      [
+        "hyperlocalise:canva-app:settings:v7",
+        JSON.stringify({
+          connectionToken: "hl_canva_legacy",
+          organizationSlug: "acme",
+          organizationName: "Acme",
+          projectId: "project_1",
+          projectName: "Marketing",
+          sourceLocale: "en-US",
+          targetLocales: "fr-FR",
+          preserveFormatting: true,
+          selectedPageIndices: [0],
+          selectedLocale: "fr-FR",
+          appliedLocale: "fr-FR",
+          lastJobId: "job_1",
+        }),
+      ],
+    ]);
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          storage.set(key, value);
+        },
+      },
+    });
+
+    expect(loadSettings()).toMatchObject({
+      connectionToken: "hl_canva_legacy",
+      projectId: "project_1",
+      designId: "",
+      appliedLocaleByPage: {},
+    });
+  });
+
+  it("does not load older settings keys", () => {
     const storage = new Map<string, string>([
       [
         "hyperlocalise:canva-app:settings:v3",
         JSON.stringify({
           connectionToken: "hl_canva_legacy",
-          projectId: "project_ignored",
           sourceLocale: "en",
           targetLocales: "fr",
-          preserveFormatting: true,
-          selectedPageIndices: [2],
         }),
       ],
     ]);
@@ -94,15 +152,48 @@ describe("settings", () => {
     });
 
     expect(loadSettings()).toEqual({
-      connectionToken: "hl_canva_legacy",
+      connectionToken: "",
       organizationSlug: "",
       organizationName: "",
+      projectId: "",
       projectName: "",
-      sourceLocale: "en",
-      targetLocales: "fr",
+      sourceLocale: "",
+      targetLocales: "",
       preserveFormatting: true,
-      selectedPageIndices: [2],
+      selectedPageIndices: [],
+      selectedLocale: "",
+      designId: "",
+      appliedLocaleByPage: {},
       lastJobId: "",
     });
+  });
+
+  it("gates source upload on the selected pages only", () => {
+    expect(selectedPagesShowSourceLocale({ "0": "fr-FR" }, [0], "en-US")).toBe(false);
+    expect(selectedPagesShowSourceLocale({ "0": "fr-FR" }, [1], "en-US")).toBe(true);
+    expect(selectedPagesShowSourceLocale({ "0": "en-US" }, [0], "en-US")).toBe(true);
+    expect(selectedPagesShowSourceLocale({}, [0, 1], "en-US")).toBe(true);
+  });
+
+  it("clears per-page locales when the design id changes", () => {
+    const current = {
+      ...loadSettings(),
+      designId: "design_a",
+      appliedLocaleByPage: { "0": "fr-FR" },
+    };
+    expect(settingsForDesign(current, "design_a")).toBe(current);
+    expect(settingsForDesign(current, "design_b")).toEqual({
+      ...current,
+      designId: "design_b",
+      appliedLocaleByPage: {},
+    });
+  });
+
+  it("records applied locales only for the pages that applied", () => {
+    expect(recordAppliedLocales({ "0": "fr-FR" }, [1], "de-DE")).toEqual({
+      "0": "fr-FR",
+      "1": "de-DE",
+    });
+    expect(recordAppliedLocales({ "0": "fr-FR" }, [], "de-DE")).toEqual({ "0": "fr-FR" });
   });
 });

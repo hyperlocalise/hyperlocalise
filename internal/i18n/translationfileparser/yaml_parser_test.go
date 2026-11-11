@@ -7,6 +7,32 @@ import (
 	"unicode/utf8"
 )
 
+func TestYAMLParserParseWithContextUsesImmediateComments(t *testing.T) {
+	content := []byte(`# Login greeting
+hello: Hello # splash
+home:
+  # Main heading
+  title: Welcome
+`)
+
+	got, contextByKey, err := (YAMLParser{}).ParseWithContext(content)
+	if err != nil {
+		t.Fatalf("parse yaml: %v", err)
+	}
+	if got["hello"] != "Hello" || got["home.title"] != "Welcome" {
+		t.Fatalf("unexpected values: %#v", got)
+	}
+	if contextByKey["hello"] != "Login greeting\nsplash" {
+		t.Fatalf("unexpected hello context: %q", contextByKey["hello"])
+	}
+	if contextByKey["home.title"] != "Main heading" {
+		t.Fatalf("unexpected home.title context: %q", contextByKey["home.title"])
+	}
+	if _, ok := contextByKey["home"]; ok {
+		t.Fatalf("mapping ancestors must not receive leaf context: %#v", contextByKey)
+	}
+}
+
 func TestYAMLParserParsesNestedStringsAndSequences(t *testing.T) {
 	content := []byte(`
 hello: Bonjour

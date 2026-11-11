@@ -26,15 +26,15 @@ describe("composeWorkspaceAutomationInstructions", () => {
     expect(instructions).not.toContain("save_memory tool");
   });
 
-  it("nudges the agent toward save_memory when it's in the plan", () => {
+  it("never nudges toward save_memory: the save tool no longer exists", () => {
     const instructions = composeWorkspaceAutomationInstructions({
       triggerMode: "manual",
-      plan: { tools: ["recall_memory", "save_memory"] },
+      plan: { tools: ["notify_slack", "recall_memory"] },
       userOverride: "Notify the team.",
     });
 
     expect(instructions).toContain("recall_memory tool");
-    expect(instructions).toContain("save_memory tool");
+    expect(instructions).not.toContain("save_memory");
   });
 
   it("includes attached skill procedures and their shared skills without customer instructions", () => {
@@ -63,7 +63,7 @@ describe("composeWorkspaceAutomationInstructions", () => {
     expect(instructions).toContain("## Slack notifications");
     expect(instructions).toContain("Customer format first");
     expect(instructions).not.toContain("recall_memory tool");
-    expect(instructions).not.toContain("save_memory tool");
+    expect(instructions).not.toContain("save_memory");
   });
 
   it("tells the orchestrator how to call use_crowdin when it is planned", () => {
@@ -93,7 +93,7 @@ describe("composeWorkspaceAutomationInstructions", () => {
   it("omits the Slack notifications skill when notify_slack is not planned", () => {
     const instructions = composeWorkspaceAutomationInstructions({
       triggerMode: "manual",
-      plan: { tools: ["recall_memory", "save_memory"] },
+      plan: { tools: ["recall_memory"] },
       userOverride: "Notify the team.",
     });
 

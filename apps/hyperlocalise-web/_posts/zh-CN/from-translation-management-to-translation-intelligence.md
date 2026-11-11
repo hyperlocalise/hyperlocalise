@@ -24,7 +24,7 @@ tags:
 
 翻译管理系统帮助各组织以结构化工作流程取代电子表格、电子邮件往来、彼此割裂的供应商以及手动文件交换。它们集中管理多语言内容，协调译员和审校人员，维护术语，复用之前的翻译，并跟踪各市场的交付情况。
 
-这是一次重要的演进。翻译变得更易于管理、衡量，并融入更广泛的内容运营中。[RWS](https://www.rws.com/glossary/translation-management/)将翻译管理描述为对人员、流程和技术进行协调，以便高效且一致地跨语言翻译内容。
+This was an important evolution. Translation became easier to govern, measure, and integrate into broader content operations. [RWS](https://www.rws.com/glossary/translation-management/) describes translation management as the coordination of people, processes, and technology required to translate content efficiently and consistently across languages.
 
 但本地化所处的环境已经发生了变化。
 
@@ -86,7 +86,7 @@ tags:
 
 AI 生成的翻译可能听起来很自然，但却误解产品、选用了错误的已批准术语、违反界面限制，或未能保留源消息的意图。
 
-对机器翻译的研究不断表明，翻译质量不仅取决于句子层面的流畅度。[文档上下文、领域知识、语篇、术语和预期用途](https://www.sciencedirect.com/science/article/pii/S2589004224021035)都可能影响译文是否恰当。
+Research into machine translation continues to show that translation quality depends on more than sentence-level fluency. [Document context, domain knowledge, discourse, terminology, and intended use](https://www.sciencedirect.com/science/article/pii/S2589004224021035) can all affect whether a translation is appropriate.
 
 随着 AI 输出变得更具说服力，这一区分变得越发重要。
 
@@ -126,7 +126,7 @@ AI 生成的翻译可能听起来很自然，但却误解产品、选用了错�
 
 翻译智能让上下文从可选项变为实际可操作的内容。
 
-正如[《什么是翻译智能？》](/blog/what-is-translation-intelligence)中所探讨的，翻译本身正变得越来越容易生成。更难、也更具防御性的能力在于，理解哪些知识应当影响结果。
+As explored in [What Is Translation Intelligence?](/blog/what-is-translation-intelligence), translation itself is becoming easier to generate. The harder and more defensible capability is understanding which knowledge should influence the result.
 
 ## 从工作流自动化到智能调查
 
@@ -140,7 +140,7 @@ AI 生成的翻译可能听起来很自然，但却误解产品、选用了错�
 
 这正是 AI 代理发挥独特价值的地方。
 
-与其等待本地化团队手动汇总信息，[智能体](/product/agents-automation)可以从已连接的系统中收集上下文，并直接在翻译工作流中提供这些信息。
+Instead of waiting for localisation teams to manually assemble information, [agents](/product/agents-automation) can gather context from connected systems and make it available directly inside the translation workflow.
 
 代理可能会帮助回答：
 
@@ -192,7 +192,7 @@ AI 生成的翻译可能听起来很自然，但却误解产品、选用了错�
 
 语言学家和市场专家减少了检查可预见内容的时间，将更多时间用于需要文化判断、战略解读或责任担当的决策。
 
-这也是[下一代 CAT 体验](/product/next-gen-cat-tool)的方向：不是将人类排除在本地化之外，而是为他们提供更好的上下文、更相关的建议，以及更清晰地了解他们的专业知识在哪些地方发挥作用。
+That is also the direction of the [next-generation CAT experience](/product/next-gen-cat-tool): not removing humans from localisation, but giving them better context, more relevant recommendations, and a clearer view of where their expertise matters.
 
 ## 从质量保证到持续评估
 
@@ -280,7 +280,7 @@ Translation Intelligence 询问：
 
 从翻译管理到翻译智能。
 
-Hyperlocalise 正通过[AI 代理](/product/agents-automation)、[下一代 CAT 体验](/product/next-gen-cat-tool)以及[自我演进的上下文引擎](/product/guidelines)，朝着这一未来迈进，旨在帮助全球团队减少人工排查，更高效地完成高质量翻译。
+Hyperlocalise is building toward this future through [AI agents](/product/agents-automation), a [next-generation CAT experience](/product/next-gen-cat-tool), and a [self-evolving context engine](/product/guidelines) designed to help global teams produce better translations with less manual investigation.
 
 下一代本地化软件将不再仅仅管理翻译。
 
@@ -288,8 +288,9 @@ Hyperlocalise 正通过[AI 代理](/product/agents-automation)、[下一代 CAT 
 
 ## 延伸阅读
 
-- [什么是翻译智能？](/blog/what-is-translation-intelligence)
+- [What Is Translation Intelligence?](/blog/what-is-translation-intelligence)
+- [如何选择持续本地化工作流程](/blog/how-to-choose-a-continuous-localisation-workflow)
 - [Hyperlocalise](/)
-- [翻译管理概述 — RWS](https://www.rws.com/glossary/translation-management/)
-- [上下文感知机器翻译研究 — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)
-- [机器翻译中的人工评估和文档级上下文 — arXiv](https://arxiv.org/abs/2104.14478)
+- [Translation management overview — RWS](https://www.rws.com/glossary/translation-management/)
+- [Context-aware machine translation research — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)
+- [Human evaluation and document-level context in machine translation — arXiv](https://arxiv.org/abs/2104.14478)

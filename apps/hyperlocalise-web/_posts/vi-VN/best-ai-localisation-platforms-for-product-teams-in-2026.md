@@ -21,6 +21,8 @@ tags:
   - localisation platforms
 ---
 
+Nếu bạn đang đánh giá các nền tảng bản địa hóa cho công việc sản phẩm liên tục, hãy bắt đầu với các tiêu chí trong [Cách chọn quy trình bản địa hóa liên tục](/blog/how-to-choose-a-continuous-localisation-workflow) thay vì danh sách nhà cung cấp được xếp hạng. Bảng xếp hạng, kể cả bảng này, là tín hiệu kém đáng tin cậy hơn so với việc một hệ thống có thể phát hiện ngữ cảnh sản phẩm, duy trì sự tham gia của con người trong khâu đánh giá, hoạt động với TMS của bạn và cho bạn biết khi nào một ngôn ngữ đã sẵn sàng phát hành hay không.
+
 AI đã thay đổi những gì các nhóm sản phẩm nên kỳ vọng ở phần mềm bản địa hóa.
 
 Các hệ thống quản lý bản dịch truyền thống được thiết kế để lưu trữ chuỗi, phân công nhiệm vụ dịch thuật và chuyển nội dung giữa người dịch và người duyệt. Những khả năng đó vẫn quan trọng, nhưng không còn giải quyết được toàn bộ vấn đề.
@@ -33,7 +35,7 @@ Hướng dẫn này so sánh năm nền tảng bản địa hoá AI hàng đầu
 
 1. Hyperlocalise
 2. Crowdin
-3. Cụm từ
+3. Phrase
 4. Lokalise
 5. LILT
 
@@ -133,7 +135,7 @@ Hyperlocalise đặc biệt phù hợp với:
 - Các tổ chức muốn sử dụng nhiều mô hình AI mà không trở nên phụ thuộc vào một nhà cung cấp duy nhất
 - Các nhóm cần có khả năng hiển thị tốt hơn về việc mỗi ngôn ngữ địa phương đã thực sự sẵn sàng hay chưa
 
-### Điều cần lưu ý quan trọng
+### Điều cần cân nhắc quan trọng
 
 Hyperlocalise còn mới hơn các nhà cung cấp TMS lâu đời được so sánh trong bài này, và một số phần của nền tảng vẫn đang được triển khai thông qua chương trình truy cập sớm và chương trình thí điểm. Các công ty yêu cầu một hệ sinh thái mua sắm đã được thiết lập từ lâu có thể sẽ ưu tiên Phrase, Crowdin, Lokalise hoặc LILT.
 
@@ -204,7 +206,7 @@ Phrase là một lựa chọn tuyệt vời cho các tổ chức cần:
 
 Phạm vi rộng của nó có thể hữu ích khi hoạt động bản địa hóa trải rộng trên nhiều bộ phận, nhà cung cấp, hệ thống và định dạng nội dung.
 
-### Điều cần lưu ý quan trọng
+### Điều cần cân nhắc quan trọng
 
 Phạm vi rộng đó cũng có thể làm tăng thêm độ phức tạp.
 
@@ -375,9 +377,9 @@ Tùy thuộc vào nền tảng, việc này có thể bao gồm tạo bản dị
 
 ### Nền tảng bản địa hóa AI nào tốt nhất cho các nhóm sản phẩm?
 
-Hyperlocalise là lựa chọn hàng đầu của chúng tôi dành cho các nhóm sản phẩm mong muốn quy trình làm việc native với tác nhân, khả năng tự động khám phá ngữ cảnh, đánh giá của con người, khả năng tương tác với TMS và thông tin chuyên sâu về chất lượng tập trung vào việc phát hành.
+Không có nền tảng tốt nhất duy nhất cho mọi nhóm. Hãy đánh giá các nhà cung cấp dựa trên khả năng nắm bắt ngữ cảnh sản phẩm, quy trình xét duyệt có con người tham gia, khả năng tương tác với TMS và mức độ sẵn sàng phát hành, bằng chính nội dung của bạn. [Cách chọn quy trình bản địa hóa liên tục](/blog/how-to-choose-a-continuous-localisation-workflow) là tài liệu hướng dẫn đánh giá mà chúng tôi khuyến nghị thay cho danh sách xếp hạng.
 
-Crowdin, Phrase, Lokalise và LILT vẫn là những lựa chọn phù hợp cho các nhóm có những yêu cầu khác nhau.
+Crowdin, Phrase, Lokalise, LILT và Hyperlocalise thuộc các phân khúc khác nhau của thị trường và có thể phù hợp với các mô hình vận hành khác nhau.
 
 ### AI có thể thay thế một đội ngũ bản địa hóa không?
 

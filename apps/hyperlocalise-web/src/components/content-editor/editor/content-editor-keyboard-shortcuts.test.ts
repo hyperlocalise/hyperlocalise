@@ -13,6 +13,9 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  CONTENT_EDITOR_SHORTCUT_GROUPS,
+  getCatShortcutAriaKeys,
+  getCatShortcutDialogRows,
   getCatShortcutKeys,
   getCatShortcutLabel,
   getModKeyLabel,
@@ -39,5 +42,33 @@ describe("cat keyboard shortcuts", () => {
     expect(getCatShortcutLabel(false, "approve")).toBe("Ctrl+Enter");
     expect(getCatShortcutLabel(false, "previous")).toBe("Ctrl+←");
     expect(getCatShortcutLabel(false, "next")).toBe("Ctrl+→");
+  });
+
+  it("formats aria-keyshortcuts values per platform", () => {
+    expect(getCatShortcutAriaKeys(true, "toggleDetailsPanel")).toBe("Meta+Alt+B");
+    expect(getCatShortcutAriaKeys(false, "clearTarget")).toBe("Control+Shift+Backspace");
+  });
+
+  it("collapses translation memory shortcuts into one dialog row", () => {
+    const rows = getCatShortcutDialogRows(true, "editing");
+    const ids = rows.map((row) => row.id);
+
+    expect(ids).toContain("useSuggestion1");
+    expect(ids).not.toContain("useSuggestion2");
+    expect(ids).not.toContain("useSuggestion3");
+    expect(rows.find((row) => row.id === "useSuggestion1")?.keys).toEqual(["⌥", "1–3"]);
+  });
+
+  it("lists every shortcut in exactly one dialog group", () => {
+    const ids = CONTENT_EDITOR_SHORTCUT_GROUPS.flatMap((group) =>
+      getCatShortcutDialogRows(false, group).map((row) => row.id),
+    );
+
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toEqual(expect.arrayContaining(["saveDraft", "searchStrings", "openShortcuts"]));
+    const openShortcuts = getCatShortcutDialogRows(false, "workspace").find(
+      (row) => row.id === "openShortcuts",
+    );
+    expect(openShortcuts?.alternateKeys).toEqual(["?"]);
   });
 });

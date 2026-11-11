@@ -1,0 +1,426 @@
+"use client";
+
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { defineMessages } from "react-intl";
+
+export const automationAssistantMessages = defineMessages({
+  title: {
+    defaultMessage: "Automation assistant",
+    id: "2nHgxPOvkU",
+    description: "Title of the assistant panel inside the automation editor",
+  },
+  openButton: {
+    defaultMessage: "Configure with assistant",
+    id: "H/GgYvxgmB",
+    description:
+      "Button in the instructions section header that opens and closes the assistant panel",
+  },
+  startOver: {
+    defaultMessage: "Start over",
+    id: "1xb/VsB9VL",
+    description: "Button in the assistant panel that ends the session and starts a new one",
+  },
+  close: {
+    defaultMessage: "Close the assistant",
+    id: "oGqbKb18Lb",
+    description: "Label of the button that closes the assistant panel",
+  },
+  empty: {
+    defaultMessage: "Describe what this automation should do, or ask for a change.",
+    id: "vqH0waecvA",
+    description: "Empty state of the assistant panel before any message",
+  },
+  composerPlaceholder: {
+    defaultMessage: "Ask for a change, or say what this automation should do.",
+    id: "fnD091ugod",
+    description: "Placeholder of the box in the assistant panel where a follow-up request is typed",
+  },
+  emptyWorkflow: {
+    defaultMessage: "Describe what this workflow should do, or ask for a change.",
+    id: "jSZ5KDgjs6",
+    description: "Empty state of the assistant panel beside a visual workflow, before any message",
+  },
+  composerPlaceholderWorkflow: {
+    defaultMessage: "Ask for a change, or say what this workflow should do.",
+    id: "JEi80S8Q14",
+    description:
+      "Placeholder of the box in the assistant panel beside a visual workflow, where a request is typed",
+  },
+  composerLabel: {
+    defaultMessage: "Message the automation assistant",
+    id: "K4EZaisMM5",
+    description: "Accessible name of the box in the assistant panel where a request is typed",
+  },
+  composerSend: {
+    defaultMessage: "Send",
+    id: "dE9jOO9W+A",
+    description: "Button that sends the request typed in the assistant panel",
+  },
+  working: {
+    defaultMessage: "Working\u2026",
+    id: "fU1mV7SlJj",
+    description: "Shown under the assistant's reply while it is still being written",
+  },
+  turnInProgress: {
+    defaultMessage: "The assistant is still working on an earlier request. Wait for it to finish.",
+    id: "7zAhPmoyO3",
+    description:
+      "Error under a message in the assistant panel when a turn is already running for this session",
+  },
+  sessionOutOfDate: {
+    defaultMessage:
+      "Not sent. This conversation has carried on in another tab or window. Reload the page to continue here.",
+    id: "iIr+QqXvyb",
+    description:
+      "Error under a message in the assistant panel when the conversation has had a turn this page has not seen",
+  },
+  errorGeneric: {
+    defaultMessage: "The assistant could not reply. Try again.",
+    id: "mJZ5RsrKnR",
+    description: "Error under a message in the assistant panel when its turn fails",
+  },
+  toolUpdatingWorkflow: {
+    defaultMessage: "Updating the workflow\u2026",
+    id: "dcomOTuPbB",
+    description: "Line in the assistant's reply while its tool is changing the visual workflow",
+  },
+  toolUpdating: {
+    defaultMessage: "Updating the setup\u2026",
+    id: "iES04md+8d",
+    description: "Line in the assistant's reply while its tool is changing the page",
+  },
+  toolUpdated: {
+    defaultMessage: "Updated the setup",
+    id: "vW7W3YnMj8",
+    description: "Line in the assistant's reply where its tool changed the page",
+  },
+  toolFailedWorkflow: {
+    defaultMessage: "The workflow could not be updated",
+    id: "qQZGFuhT3T",
+    description: "Line in the assistant's reply for a change to the visual workflow that failed",
+  },
+  toolFailed: {
+    defaultMessage: "The setup could not be updated",
+    id: "yLrP3dBABI",
+    description: "Line in the assistant's reply for a change to the setup that failed",
+  },
+  toolNoChanges: {
+    defaultMessage: "No changes made to the setup",
+    id: "tbEhbMfWzX",
+    description: "Line in the assistant's reply for a step that left the setup as it was",
+  },
+  toolUpdatedCount: {
+    defaultMessage: "Updated the setup · {count, plural, one {# change} other {# changes}}",
+    id: "FnmoCyuAVI",
+    description:
+      "Line in the assistant's reply that opens to list what a step changed in the setup",
+  },
+  toolLineName: {
+    defaultMessage: "Name set to “{name}”",
+    id: "9/fFWZ/N5x",
+    description: "Listed change of the assistant: the automation was named",
+  },
+  toolLineInstructionsRewritten: {
+    defaultMessage: "Instructions rewritten",
+    id: "W2x+fZoaB/",
+    description: "Listed change of the assistant: the instructions were written or rewritten",
+  },
+  toolLineInstructionsCleared: {
+    defaultMessage: "Instructions cleared",
+    id: "rrcSt6OXke",
+    description: "Listed change of the assistant: the instructions were emptied",
+  },
+  toolLineTrigger: {
+    defaultMessage: "Trigger: {trigger}",
+    id: "B89dpJolat",
+    description:
+      "Listed change of the assistant: when the automation runs, such as 'On a schedule'",
+  },
+  toolLineTriggerBranches: {
+    defaultMessage: "{trigger} · {branches}",
+    id: "LactCqGkxG",
+    description:
+      "A GitHub trigger followed by the branches it watches, inside a listed change of the assistant",
+  },
+  toolLineSkillAdded: {
+    defaultMessage: "Added skill: {skill}",
+    id: "t1ZP8XrgYe",
+    description: "Listed change of the assistant: a skill was attached",
+  },
+  toolLineSkillRemoved: {
+    defaultMessage: "Removed skill: {skill}",
+    id: "RSk6GpbkWr",
+    description: "Listed change of the assistant: a skill was taken off",
+  },
+  toolLineSkillNeedsConnection: {
+    defaultMessage: "Not added: {skill}. Connect {integrations} first.",
+    id: "ZGAmtoXmfT",
+    description: "Listed step the assistant left out: a skill whose integration is not connected",
+  },
+  toolLineSkillWrongTrigger: {
+    defaultMessage: "Not added: {skill}. It cannot run on this trigger.",
+    id: "wRjR3Q5lZO",
+    description: "Listed step the assistant left out: a skill that does not work with the trigger",
+  },
+  changesOnPageSave: {
+    defaultMessage:
+      "The assistant’s changes are on the page. Undo takes them back. Nothing is saved until you click Save.",
+    id: "H7rlNVsswT",
+    description:
+      "Line at the end of the assistant panel while a saved automation holds changes of the assistant that are not saved",
+  },
+  changesOnPageCreate: {
+    defaultMessage:
+      "The assistant’s changes are on the page. Undo takes them back. Nothing is saved until you click Create automation.",
+    id: "5tjJj0rNcN",
+    description:
+      "Line at the end of the assistant panel while a new automation holds changes of the assistant that are not saved",
+  },
+  pageEditsCount: {
+    defaultMessage: "You edited the setup · {count, plural, one {# change} other {# changes}}",
+    id: "ybeD8Dwr0/",
+    description:
+      "Line above a message of the person's in the assistant panel, which opens to list what they changed on the page themselves before sending it",
+  },
+  pageEditNameCleared: {
+    defaultMessage: "Name cleared",
+    id: "0H5pl9VPXc",
+    description: "Listed change the person made on the page: the automation's name was emptied",
+  },
+  pageEditSwitchedOn: {
+    defaultMessage: "Switched on",
+    id: "XRVoKH5pyY",
+    description: "Listed change the person made on the page: the automation was switched on",
+  },
+  pageEditSwitchedOff: {
+    defaultMessage: "Switched off",
+    id: "jodRzGHD9D",
+    description: "Listed change the person made on the page: the automation was switched off",
+  },
+  pageEditOther: {
+    defaultMessage: "Other settings changed",
+    id: "DsTO8y8qOe",
+    description:
+      "Listed change the person made on the page: a setting the assistant does not set, such as the repository or the project",
+  },
+  headerCreated: {
+    defaultMessage: "The assistant set up this automation",
+    id: "4XHdLftqfc",
+    description:
+      "Summary line above the form after the assistant's first change on a new automation",
+  },
+  headerUpdatedSetup: {
+    defaultMessage: "The assistant updated this setup",
+    id: "Pdmj0KqU72",
+    description: "Summary line above the form after later changes on a new automation",
+  },
+  headerUpdatedAutomation: {
+    defaultMessage: "The assistant updated this automation",
+    id: "b/pQ8GedZy",
+    description: "Summary line above the form after changes on a saved automation",
+  },
+  notSavedYet: {
+    defaultMessage: "Not saved yet",
+    id: "HlQ5X0kamV",
+    description: "Badge in the summary line reminding that the assistant's changes are not saved",
+  },
+  changeCount: {
+    defaultMessage: "{count, plural, one {# change} other {# changes}}",
+    id: "zmXk1ZRKQV",
+    description: "How many changes the assistant made, in the summary line",
+  },
+  workingSetup: {
+    defaultMessage: "The assistant is working on this setup",
+    id: "2zAJlPlwdV",
+    description: "Summary line while a turn runs on a new automation",
+  },
+  workingSettings: {
+    defaultMessage: "The assistant is changing these settings",
+    id: "3uclNe0U4K",
+    description: "Summary line while a turn runs on a saved automation",
+  },
+  stillNeeded: {
+    defaultMessage: "Still needed from you",
+    id: "Qx9M9Lf9nk",
+    description: "Heading of the list of settings the person still has to choose",
+  },
+  nothingNeededCreate: {
+    defaultMessage: "Nothing else is needed. Click Create automation to save it.",
+    id: "+cernCtrbo",
+    description: "Summary line when the setup is complete on a new automation",
+  },
+  nothingNeededSave: {
+    defaultMessage: "Nothing else is needed. Click Save to keep the changes.",
+    id: "8ynQk3TRUP",
+    description: "Summary line when the setup is complete on a saved automation",
+  },
+  connectIntegration: {
+    defaultMessage: "Connect {integration} in <link>Integrations</link>",
+    id: "hcruMp/+is",
+    description: "A still-needed step: an integration a skill needs is not connected",
+  },
+  repositoryForGithubTrigger: {
+    defaultMessage: "Choose the repository the GitHub trigger watches.",
+    id: "sAqhqYjNht",
+    description: "A still-needed step: the GitHub trigger has no repository",
+  },
+  contentfulToolForContentfulTrigger: {
+    defaultMessage: "Add a skill that translates Contentful entries.",
+    id: "zvSexbzyTe",
+    description: "A still-needed step: the Contentful trigger has no Contentful tool",
+  },
+  nothingToDeliver: {
+    defaultMessage:
+      "Nothing produces a result yet. Add a skill that checks, summarises or researches something, or write instructions.",
+    id: "sgGvzPrbqO",
+    description: "A still-needed step: only delivery skills are attached",
+  },
+  undoTitle: {
+    defaultMessage: "Undo the assistant's changes?",
+    id: "jgb7zlDoDb",
+    description: "Title of the dialog shown before undoing a turn of the assistant",
+  },
+  undoDescription: {
+    defaultMessage:
+      "This takes back everything the assistant changed in that turn, including anything you edited since. Redo brings it back.",
+    id: "7YJ3F1AQei",
+    description: "Body of the dialog shown before undoing a turn of the assistant",
+  },
+  undoConfirm: {
+    defaultMessage: "Undo",
+    id: "qS4rFZJx4J",
+    description: "Confirm button of the dialog shown before undoing a turn of the assistant",
+  },
+  undoCancel: {
+    defaultMessage: "Keep",
+    id: "KQXF59dqej",
+    description: "Cancel button of the dialog shown before undoing a turn of the assistant",
+  },
+  toolLineNodeAdded: {
+    defaultMessage: "Added the {node} step",
+    id: "F7MPcZxBJI",
+    description:
+      "Line in the assistant's change list: a node was added to the workflow; {node} is the node type's title",
+  },
+  toolLineNodeRemoved: {
+    defaultMessage: "Removed the {node} step",
+    id: "JisM1jWILg",
+    description:
+      "Line in the assistant's change list: a node was removed from the workflow; {node} is the node type's title",
+  },
+  toolLineNodeConfigured: {
+    defaultMessage: "Changed {fields} on the {node} step",
+    id: "7tK9YSDkvx",
+    description:
+      "Line in the assistant's change list: a node's settings were changed; {fields} lists the settings, {node} is the node type's title",
+  },
+  toolLineEdgeAdded: {
+    defaultMessage: "Connected {source} to {target}",
+    id: "lEXKxwEywz",
+    description:
+      "Line in the assistant's change list: two workflow nodes were connected, named by their ids",
+  },
+  toolLineEdgeRemoved: {
+    defaultMessage: "Disconnected {source} from {target}",
+    id: "KXlC8hrmGf",
+    description:
+      "Line in the assistant's change list: a connection between two workflow nodes was removed, named by their ids",
+  },
+  toolLineWorkflowRenamed: {
+    defaultMessage: 'Renamed the workflow to "{name}"',
+    id: "NOPoUyz/8O",
+    description: "Line in the assistant's change list: the workflow was given a new name",
+  },
+  toolLineRejectedAdd: {
+    defaultMessage: "Could not add a step",
+    id: "2WCxnj9DvK",
+    description: "Line in the assistant's change list: adding a step to the workflow was refused",
+  },
+  toolLineRejectedRemove: {
+    defaultMessage: "Could not remove a step",
+    id: "qByVEBzLzv",
+    description:
+      "Line in the assistant's change list: removing a step from the workflow was refused",
+  },
+  toolLineRejectedConnect: {
+    defaultMessage: "Could not connect two steps",
+    id: "/QBr3H7p9k",
+    description: "Line in the assistant's change list: connecting two workflow steps was refused",
+  },
+  toolLineRejectedDisconnect: {
+    defaultMessage: "Could not disconnect two steps",
+    id: "fX43+IisLH",
+    description:
+      "Line in the assistant's change list: disconnecting two workflow steps was refused",
+  },
+  toolLineRejectedConfigure: {
+    defaultMessage: "Could not change a step's settings",
+    id: "e5EIKdt4+j",
+    description:
+      "Line in the assistant's change list: changing a workflow step's settings was refused",
+  },
+  toolLineRejectedRename: {
+    defaultMessage: "Could not rename the workflow",
+    id: "OSdBlPpXbz",
+    description: "Line in the assistant's change list: renaming the workflow was refused",
+  },
+  toolLineNodeConfiguredSettings: {
+    defaultMessage: "Changed the settings of the {node} step",
+    id: "JC/7r38rMk",
+    description:
+      "Line in the assistant's change list: a node's settings were changed, none of which has a name to show; {node} is the node type's title",
+  },
+  toolLineOtherSettings: {
+    defaultMessage: "{count, plural, one {one other setting} other {# other settings}}",
+    id: "091kJoAeYj",
+    description:
+      "The last item in the list of changed settings of a node, for settings with no name to show, as in 'Changed Message and one other setting'",
+  },
+  toolUpdatedWorkflow: {
+    defaultMessage: "Updated the workflow",
+    id: "bXMU39hmQJ",
+    description:
+      "Line in the assistant panel for a finished tool call on a visual workflow that did not list its changes",
+  },
+  toolUpdatedWorkflowCount: {
+    defaultMessage: "Updated the workflow · {count, plural, one {# change} other {# changes}}",
+    id: "UIxKl4gSfi",
+    description:
+      "Line in the assistant panel for a finished tool call on a visual workflow, which opens to list the changes",
+  },
+  toolNoChangesWorkflow: {
+    defaultMessage: "No changes made to the workflow",
+    id: "5NY8ijgpii",
+    description:
+      "Line in the assistant panel under a reply, or a tool call, that left the visual workflow as it was",
+  },
+  pageEditsCountWorkflow: {
+    defaultMessage: "You edited the workflow · {count, plural, one {# change} other {# changes}}",
+    id: "qwKm4yzub8",
+    description:
+      "Line above a message of the person's in the assistant panel, which opens to list what they changed on the visual workflow themselves before sending it",
+  },
+  changesOnCanvas: {
+    defaultMessage:
+      "The assistant’s changes are on the canvas. Undo takes them back. Nothing is saved until you click Save.",
+    id: "bZKwFr1ByM",
+    description:
+      "Line at the end of the assistant panel while a visual workflow holds changes of the assistant that are not saved",
+  },
+  pageEditWorkflowNameCleared: {
+    defaultMessage: "Cleared the workflow's name",
+    id: "VluH2EAHsX",
+    description: "Line in the list of what the person changed on the workflow themselves",
+  },
+});

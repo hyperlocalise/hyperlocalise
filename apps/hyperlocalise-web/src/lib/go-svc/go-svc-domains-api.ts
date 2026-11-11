@@ -15,6 +15,13 @@ import type { GscDateRange } from "@/lib/gsc/constants";
 import type { GscInspection, GscPerformanceSnapshot } from "@/lib/gsc/types";
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 import type { DomainOverview } from "@/lib/domains/domain-overview";
+import type {
+  LocalisationDeepAuditDetailResponse,
+  LocalisationDeepAuditFindingQuery,
+  LocalisationDeepAuditPageRow,
+  LocalisationDeepAuditRun,
+  LocalisationDeepAuditRunListItem,
+} from "@/lib/localisation-audit/deep/types";
 
 import type { GoSvcRequestOptions } from "./go-svc-client.types";
 import { GoSvcClientError, orgPath, type GoSvcRequest } from "./go-svc-request";
@@ -210,6 +217,65 @@ export class GoSvcDomainsApi {
       method: "DELETE",
       ...options,
     });
+  }
+
+  listDeepAudits(
+    organizationSlug: string,
+    linkedDomainId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ deepAudits: LocalisationDeepAuditRunListItem[] }>(
+      linkedDomainsPath(organizationSlug, linkedDomainId, "deep-audits"),
+      options,
+    );
+  }
+
+  startDeepAudit(
+    organizationSlug: string,
+    linkedDomainId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ deepAudit: LocalisationDeepAuditRun }>(
+      linkedDomainsPath(organizationSlug, linkedDomainId, "deep-audits"),
+      { method: "POST", ...options },
+    );
+  }
+
+  getDeepAudit(
+    organizationSlug: string,
+    linkedDomainId: string,
+    runId: string,
+    query: LocalisationDeepAuditFindingQuery = {},
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<LocalisationDeepAuditDetailResponse>(
+      linkedDomainsPath(organizationSlug, linkedDomainId, "deep-audits", runId),
+      { query, ...options },
+    );
+  }
+
+  listDeepAuditPages(
+    organizationSlug: string,
+    linkedDomainId: string,
+    runId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ pages: LocalisationDeepAuditPageRow[] }>(
+      linkedDomainsPath(organizationSlug, linkedDomainId, "deep-audits", runId, "pages"),
+      options,
+    );
+  }
+
+  cancelDeepAudit(
+    organizationSlug: string,
+    linkedDomainId: string,
+    runId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ deepAudit: LocalisationDeepAuditRun }>(
+      linkedDomainsPath(organizationSlug, linkedDomainId, "deep-audits", runId),
+      { method: "DELETE", ...options },
+    );
   }
 
   async getResearch(

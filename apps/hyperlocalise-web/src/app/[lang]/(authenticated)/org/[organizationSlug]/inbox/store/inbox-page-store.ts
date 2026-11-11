@@ -18,11 +18,28 @@ import {
   type InboxListFilters,
 } from "../_components/inbox-list-filters";
 
+export type ReplyDraft = {
+  projectId: string;
+  repositoryKey: string;
+  text: string;
+};
+
+export const EMPTY_REPLY_DRAFT: ReplyDraft = Object.freeze({
+  projectId: "",
+  repositoryKey: "",
+  text: "",
+});
+
+function isEmptyReplyDraft(draft: ReplyDraft) {
+  return draft.text === "" && draft.repositoryKey === "" && draft.projectId === "";
+}
+
 export class InboxPageStore {
   readonly organizationSlug: string;
   composeDraft = "";
   filters: InboxListFilters = DEFAULT_INBOX_LIST_FILTERS;
   pendingSelection: InboxSelection | undefined = undefined;
+  replyDrafts = new Map<string, ReplyDraft>();
 
   constructor(organizationSlug: string) {
     this.organizationSlug = organizationSlug;
@@ -35,6 +52,28 @@ export class InboxPageStore {
 
   resetComposeDraft() {
     this.composeDraft = "";
+  }
+
+  getReplyDraft(conversationId: string): ReplyDraft {
+    return this.replyDrafts.get(conversationId) ?? EMPTY_REPLY_DRAFT;
+  }
+
+  setReplyDraft(conversationId: string, patch: Partial<ReplyDraft>) {
+    const current = this.getReplyDraft(conversationId);
+    const next: ReplyDraft = {
+      projectId: patch.projectId ?? current.projectId,
+      repositoryKey: patch.repositoryKey ?? current.repositoryKey,
+      text: patch.text ?? current.text,
+    };
+    if (isEmptyReplyDraft(next)) {
+      this.replyDrafts.delete(conversationId);
+      return;
+    }
+    this.replyDrafts.set(conversationId, next);
+  }
+
+  resetReplyDraft(conversationId: string) {
+    this.replyDrafts.delete(conversationId);
   }
 
   setFilters(filters: InboxListFilters) {
