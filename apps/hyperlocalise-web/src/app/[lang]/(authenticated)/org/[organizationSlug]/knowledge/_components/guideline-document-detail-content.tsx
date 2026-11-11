@@ -15,7 +15,7 @@
 import { useId, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PencilSimpleIcon } from "@phosphor-icons/react";
+import { DownloadSimpleIcon, PencilSimpleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
@@ -30,6 +30,7 @@ import {
   guidelineDocumentLocales,
   type GuidelineDocument,
 } from "@/lib/go-svc/go-svc-guidelines-api";
+import { saveGoSvcDownload } from "@/lib/go-svc/save-go-svc-download";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { GuidelineDocumentAssignments } from "./guideline-document-assignments";
@@ -84,6 +85,7 @@ export function GuidelineDocumentDetailContent({
   const { client, loading } = useGoSvcClient();
   const switchId = useId();
   const [editing, setEditing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const backHref = projectId
     ? buildProjectPath(organizationSlug, projectId, "knowledge")
@@ -136,6 +138,24 @@ export function GuidelineDocumentDetailContent({
     ? (updateMandatory.variables ?? document.mandatory)
     : document.mandatory;
 
+  const runDownload = async () => {
+    setDownloading(true);
+    try {
+      const file = await client.guidelines.downloadDocument(
+        organizationSlug,
+        documentId,
+        projectId,
+      );
+      saveGoSvcDownload(file, document.filename || "guideline");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.downloadFailed),
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <div>
@@ -169,8 +189,8 @@ export function GuidelineDocumentDetailContent({
         </TypographyP>
       </div>
 
-      {canEdit ? (
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        {canEdit ? (
           <label
             htmlFor={switchId}
             className="flex items-center gap-2 text-sm text-muted-foreground"
@@ -184,12 +204,24 @@ export function GuidelineDocumentDetailContent({
             />
             <FormattedMessage {...messages.mandatory} />
           </label>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={downloading}
+          onClick={() => void runDownload()}
+        >
+          <DownloadSimpleIcon data-icon="inline-start" />
+          <FormattedMessage {...messages.download} />
+        </Button>
+        {canEdit ? (
           <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
             <PencilSimpleIcon data-icon="inline-start" />
             <FormattedMessage {...messages.edit} />
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       <section className="flex flex-col gap-3">
         <TypographyH2 className="pb-0 text-lg tracking-[-0.02em]">

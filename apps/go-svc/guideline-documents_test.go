@@ -183,6 +183,11 @@ func TestGuidelineDocumentLifecycle(t *testing.T) {
 	require.Equal(t, http.StatusOK, fetched.Code)
 	require.Equal(t, "Use formal French.", *decodeGuidelineDocument(t, fetched).Content)
 
+	downloaded := env.json(http.MethodGet, path+"/"+doc.ID+"/download", "")
+	require.Equal(t, http.StatusOK, downloaded.Code, downloaded.Body.String())
+	require.Contains(t, downloaded.Header().Get("Content-Disposition"), "Style guide")
+	require.Equal(t, "# Tone\n\nUse formal French.", downloaded.Body.String())
+
 	updated := env.json(http.MethodPut, path+"/"+doc.ID, `{"locale":null,"mandatory":false,"title":"Tone"}`)
 	require.Equal(t, http.StatusAccepted, updated.Code, updated.Body.String())
 	metadata := decodeGuidelineDocument(t, updated)
@@ -233,6 +238,20 @@ func TestGuidelineDocumentUploadRejectsUnsupportedAndMarksEnqueueFailure(t *test
 	unavailable := env.upload(t, http.MethodPost, path, "a.txt", []byte("text"), nil)
 	require.Equal(t, http.StatusServiceUnavailable, unavailable.Code)
 	require.Contains(t, unavailable.Body.String(), "guideline_ingest_unavailable")
+}
+
+func TestGuidelineDocumentDeleteWithoutIngestPublisher(t *testing.T) {
+	env := newGuidelineTestEnv(t, "admin")
+	path := env.scope.OrgPath("/guidelines/documents")
+
+	created := env.upload(t, http.MethodPost, path, "remove-me.md", []byte("# Gone\n"), nil)
+	require.Equal(t, http.StatusAccepted, created.Code, created.Body.String())
+	doc := decodeGuidelineDocument(t, created)
+
+	env.handler.guidelineDocuments.publisher = nil
+	deleted := env.json(http.MethodDelete, path+"/"+doc.ID, "")
+	require.Equal(t, http.StatusNoContent, deleted.Code, deleted.Body.String())
+	require.Equal(t, http.StatusNotFound, env.json(http.MethodGet, path+"/"+doc.ID, "").Code)
 }
 
 func TestGuidelineDocumentListPagination(t *testing.T) {

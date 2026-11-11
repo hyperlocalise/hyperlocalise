@@ -12,7 +12,10 @@
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
-import { emptyGuidelineUploadMswHandlers, guidelinePageWidthDecorator } from "../../_components/guideline-story-decorators";
+import {
+  emptyGuidelineUploadMswHandlers,
+  guidelinePageWidthDecorator,
+} from "../../_components/guideline-story-decorators";
 import { GuidelineUploadContent } from "./guideline-upload-content";
 
 const organizationSlug = "acme";

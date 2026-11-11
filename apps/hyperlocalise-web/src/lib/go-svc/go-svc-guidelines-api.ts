@@ -225,6 +225,20 @@ export class GoSvcGuidelinesApi {
     return normalizeGuidelineDocument(body.guidelineDocument);
   }
 
+  downloadDocument(
+    organizationSlug: string,
+    documentId: string,
+    projectId?: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.download(
+      documentsPath(organizationSlug, projectId, documentId, "download"),
+      {
+        ...options,
+      },
+    );
+  }
+
   async uploadDocument(
     organizationSlug: string,
     upload: GuidelineDocumentUpload,

@@ -56,6 +56,7 @@ func (api *guidelineDocumentAPI) register(mux *http.ServeMux, verifier SessionVe
 	registerAuthenticated(mux, verifier, "GET "+orgBase, api.knowledge.handle(false, api.list))
 	registerAuthenticated(mux, verifier, "POST "+orgBase, api.knowledge.handleWith(true, guidelineDocumentBodyLimit, guidelineDocumentTimeout, api.upload))
 	registerAuthenticated(mux, verifier, "GET "+orgBase+"/{documentId}", api.knowledge.handle(false, api.get))
+	registerAuthenticated(mux, verifier, "GET "+orgBase+"/{documentId}/download", api.knowledge.handle(false, api.download))
 	registerAuthenticated(mux, verifier, "PUT "+orgBase+"/{documentId}", api.knowledge.handleWith(true, guidelineDocumentBodyLimit, guidelineDocumentTimeout, api.update))
 	registerAuthenticated(mux, verifier, "DELETE "+orgBase+"/{documentId}", api.knowledge.handle(true, api.remove))
 	// Project-scoped routes are deprecated. Reads stay for migrated clients;
@@ -63,6 +64,7 @@ func (api *guidelineDocumentAPI) register(mux *http.ServeMux, verifier SessionVe
 	projectBase := orgRoutePrefix + "/projects/{projectId}/guidelines/documents"
 	registerAuthenticated(mux, verifier, "GET "+projectBase, api.knowledge.handle(false, api.list))
 	registerAuthenticated(mux, verifier, "GET "+projectBase+"/{documentId}", api.knowledge.handle(false, api.get))
+	registerAuthenticated(mux, verifier, "GET "+projectBase+"/{documentId}/download", api.knowledge.handle(false, api.download))
 	registerAuthenticated(mux, verifier, "POST "+projectBase, api.knowledge.handle(true, api.projectScopeRetired))
 	registerAuthenticated(mux, verifier, "PUT "+projectBase+"/{documentId}", api.knowledge.handle(true, api.projectScopeRetired))
 	registerAuthenticated(mux, verifier, "DELETE "+projectBase+"/{documentId}", api.knowledge.handle(true, api.projectScopeRetired))
@@ -217,6 +219,58 @@ func (api *guidelineDocumentAPI) get(_ http.ResponseWriter, r *http.Request, act
 	return http.StatusOK, map[string]any{"guidelineDocument": record}, nil
 }
 
+func (api *guidelineDocumentAPI) download(_ http.ResponseWriter, r *http.Request, actor workspaceActor) (int, any, error) {
+	id, err := parseGuidelineDocumentID(r.PathValue("documentId"))
+	if err != nil {
+		return 0, nil, err
+	}
+	scope, err := api.scope(r.Context(), r, actor)
+	if err != nil {
+		return 0, nil, err
+	}
+	record, found, err := loadGuidelineDocument(r.Context(), api.knowledge.workspace.pool, scope, id, false)
+	if err != nil {
+		return 0, nil, err
+	}
+	if !found {
+		return 0, nil, guidelineDocumentNotFound()
+	}
+	if api.objects == nil {
+		return 0, nil, knowledgeMemoryFailure(503, "object_storage_unavailable", "Guideline document storage is unavailable")
+	}
+	if record.storageKey == "" {
+		return 0, nil, guidelineDocumentNotFound()
+	}
+	store, err := api.objects.Resolve(record.storageLocationID)
+	if err != nil {
+		return 0, nil, knowledgeMemoryFailure(503, "object_storage_unavailable", "Guideline document storage is unavailable")
+	}
+	reader, _, err := store.Get(r.Context(), record.storageKey)
+	if err != nil {
+		return 0, nil, guidelineDocumentNotFound()
+	}
+	defer reader.Close()
+	data, err := io.ReadAll(io.LimitReader(reader, guidelineDocumentMaxBytes+1))
+	if err != nil {
+		return 0, nil, err
+	}
+	if len(data) > guidelineDocumentMaxBytes {
+		return 0, nil, knowledgeMemoryFailure(413, "guideline_document_too_large", "Guideline document is too large to download")
+	}
+	contentType := strings.TrimSpace(record.ContentType)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	filename := strings.TrimSpace(record.Filename)
+	if filename == "" {
+		filename = strings.TrimSpace(record.Title)
+	}
+	if filename == "" {
+		filename = "guideline"
+	}
+	return http.StatusOK, interchangeDownload{contentType: contentType, filename: filename, body: data}, nil
+}
+
 type guidelineDocumentUpload struct {
 	data        []byte
 	filename    string
@@ -335,7 +389,7 @@ func (api *guidelineDocumentAPI) update(_ http.ResponseWriter, r *http.Request, 
 }
 
 func (api *guidelineDocumentAPI) remove(_ http.ResponseWriter, r *http.Request, actor workspaceActor) (int, any, error) {
-	if err := api.requireWriter(actor); err != nil {
+	if err := api.requireKnowledgeMemoryAdmin(actor); err != nil {
 		return 0, nil, err
 	}
 	id, err := parseGuidelineDocumentID(r.PathValue("documentId"))
@@ -357,10 +411,12 @@ func (api *guidelineDocumentAPI) remove(_ http.ResponseWriter, r *http.Request, 
 	defer cancel()
 	// The row is gone, so retrieval already ignores stale passages; a lost
 	// delete message only leaves unreachable vectors behind.
-	if err := api.publisher.Publish(publishCtx, ingest.Message{
-		Operation: ingest.OperationDelete, OrganizationID: scope.organizationID, DocumentID: record.ID, Version: record.Version,
-	}); err != nil {
-		slog.WarnContext(r.Context(), "guideline_ingest_delete_enqueue_failed", "organization_id", scope.organizationID, "document_id", record.ID, "error", err)
+	if api.publisher != nil {
+		if err := api.publisher.Publish(publishCtx, ingest.Message{
+			Operation: ingest.OperationDelete, OrganizationID: scope.organizationID, DocumentID: record.ID, Version: record.Version,
+		}); err != nil {
+			slog.WarnContext(r.Context(), "guideline_ingest_delete_enqueue_failed", "organization_id", scope.organizationID, "document_id", record.ID, "error", err)
+		}
 	}
 	api.deleteObject(r.Context(), record.storageLocationID, record.storageKey)
 	return http.StatusNoContent, nil, nil

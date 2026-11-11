@@ -23,12 +23,14 @@ import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
 
 const mocks = vi.hoisted(() => ({
   getDocument: vi.fn(),
+  downloadDocument: vi.fn(),
   updateDocument: vi.fn(),
   attachDocumentProject: vi.fn(),
   detachDocumentProject: vi.fn(),
   listAllDocumentAssignments: vi.fn(),
   listProjects: vi.fn(),
   toastError: vi.fn(),
+  saveDownload: vi.fn(),
 }));
 
 vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
@@ -37,6 +39,7 @@ vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
     client: {
       guidelines: {
         getDocument: mocks.getDocument,
+        downloadDocument: mocks.downloadDocument,
         updateDocument: mocks.updateDocument,
         attachDocumentProject: mocks.attachDocumentProject,
         detachDocumentProject: mocks.detachDocumentProject,
@@ -51,6 +54,10 @@ vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
 
 vi.mock("sonner", () => ({
   toast: { error: mocks.toastError },
+}));
+
+vi.mock("@/lib/go-svc/save-go-svc-download", () => ({
+  saveGoSvcDownload: mocks.saveDownload,
 }));
 
 vi.mock("next/link", () => ({
@@ -191,6 +198,29 @@ describe("GuidelineDocumentDetailContent", () => {
     expect(screen.getByRole("link", { name: "Back to Guideline" })).toHaveAttribute(
       "href",
       "/org/acme/projects/project_1/knowledge",
+    );
+  });
+
+  it("downloads the original file", async () => {
+    defaultMocks();
+    mocks.downloadDocument.mockResolvedValue({ blob: new Blob(["x"]), filename: "brand.md" });
+    const user = userEvent.setup();
+    render(
+      <GuidelineDocumentDetailContent
+        organizationSlug="acme"
+        documentId="doc-brand"
+        canUpdate={false}
+      />,
+      { wrapper },
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Download" }));
+    await waitFor(() =>
+      expect(mocks.downloadDocument).toHaveBeenCalledWith("acme", "doc-brand", undefined),
+    );
+    expect(mocks.saveDownload).toHaveBeenCalledWith(
+      { blob: expect.any(Blob), filename: "brand.md" },
+      "brand.md",
     );
   });
 

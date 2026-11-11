@@ -131,6 +131,20 @@ export function createGuidelineDocumentsMswHandlers(
         },
       });
     }),
+    http.get("*/guidelines/documents/:documentId/download", ({ params }) => {
+      const document = documents.find((item) => item.id === params.documentId);
+      if (!document) {
+        return HttpResponse.json({ message: "not found" }, { status: 404 });
+      }
+      const body = contents[document.id] ?? `# ${document.title}\n\nKeep product names in English.`;
+      return new HttpResponse(body, {
+        status: 200,
+        headers: {
+          "Content-Type": document.contentType,
+          "Content-Disposition": `attachment; filename="${document.filename}"`,
+        },
+      });
+    }),
     http.post("*/guidelines/documents", async ({ request }) => {
       const form = await request.formData();
       const file = form.get("file");
