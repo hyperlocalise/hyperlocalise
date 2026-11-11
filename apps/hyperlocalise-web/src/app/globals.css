@@ -1035,6 +1035,16 @@ html,
 .document-editor-content .selectedCell {
   background: color-mix(in oklab, var(--primary) 10%, transparent);
 }
+/* TipTap sets break-spaces on .ProseMirror, and only resets descendants that
+   are contenteditable="false". A read-only preview is that attribute on the
+   root, so a newline inside a paragraph was still a visible line break. */
+.ProseMirror[contenteditable="false"] {
+  white-space: normal;
+}
+.ProseMirror[contenteditable="false"] pre {
+  white-space: pre-wrap;
+}
+
 .document-editor-content .ProseMirror-selectednode {
   outline: 2px solid color-mix(in oklab, var(--primary) 45%, transparent);
   outline-offset: 2px;
