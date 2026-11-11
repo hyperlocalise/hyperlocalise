@@ -16,14 +16,14 @@ import { defineMessages } from "react-intl";
 
 export const guidelineDocumentsSectionMessages = defineMessages({
   title: {
-    defaultMessage: "Uploaded guidelines",
-    id: "smqbhPW1UB",
-    description: "Heading for the list of uploaded guideline documents",
+    defaultMessage: "Guidelines",
+    id: "H7CL9Uh45J",
+    description: "Heading for the guideline documents list on org and project pages",
   },
   description: {
     defaultMessage: "Hyperlocalise reads these files and uses them for guideline checks.",
-    id: "1piQlMbA0v",
-    description: "Explanation shown above the list of uploaded guideline documents",
+    id: "tIgpOrubbi",
+    description: "Explanation shown above the guideline documents list",
   },
   emptyTitle: {
     defaultMessage: "No guidelines yet",
@@ -43,9 +43,20 @@ export const guidelineDocumentsSectionMessages = defineMessages({
   },
   emptyProjectDescription: {
     defaultMessage:
-      "Guidelines that apply to every project show here once uploaded. Use Add guideline below to attach an organization document to this project.",
-    id: "pJJ/AoXVu3",
+      "Guidelines that apply to every project show here once uploaded. Use Assign new guideline below to attach an organization document to this project.",
+    id: "8WxVSRLWX8",
     description: "Description when a project view has no applicable guideline documents",
+  },
+  emptyProjectAssignableTitle: {
+    defaultMessage: "No guidelines assigned to this project",
+    id: "lazYRIQgCX",
+    description: "Title when a project has no guidelines but org documents can be assigned",
+  },
+  emptyProjectAssignableDescription: {
+    defaultMessage:
+      "This project does not have any guidelines yet. Assign an existing organization guideline below.",
+    id: "V/6qeF00b1",
+    description: "Description when assignable org guidelines exist for an empty project list",
   },
   createGuideline: {
     defaultMessage: "Create Guideline",
@@ -53,14 +64,14 @@ export const guidelineDocumentsSectionMessages = defineMessages({
     description: "Button linking to the guideline upload page from the empty list state",
   },
   loadFailed: {
-    defaultMessage: "Unable to load uploaded guidelines.",
-    id: "tVY9dqD8RG",
-    description: "Error shown when uploaded guideline documents fail to load",
+    defaultMessage: "Unable to load guidelines.",
+    id: "hwJu0VxLVi",
+    description: "Error shown when guideline documents fail to load",
   },
   retry: {
     defaultMessage: "Retry",
-    id: "qzdjoywlSe",
-    description: "Button to retry loading uploaded guideline documents",
+    id: "szdFzT+Ubh",
+    description: "Button to retry loading guideline documents",
   },
   processing: {
     defaultMessage: "Processing",
@@ -154,12 +165,12 @@ export const guidelineDocumentsSectionMessages = defineMessages({
   },
   unassignFromProject: {
     defaultMessage: "Unassign",
-    id: "Pu3kW8nRx7",
+    id: "MMqixfCiT4",
     description: "Remove a guideline from the current project without deleting the org document",
   },
   unassignFailed: {
     defaultMessage: "Unable to unassign this guideline.",
-    id: "Qv4lX9oSy8",
+    id: "2E9iZZZkgn",
     description: "Toast when detaching a guideline from a project fails",
   },
   errorNoText: {

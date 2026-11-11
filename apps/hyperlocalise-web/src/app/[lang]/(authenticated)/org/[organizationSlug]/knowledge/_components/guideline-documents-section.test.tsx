@@ -173,7 +173,10 @@ describe("GuidelineDocumentsSection", () => {
     expect(await screen.findByText("French style guide")).toBeTruthy();
     expect(screen.getByText("Ready")).toBeTruthy();
     expect(screen.getByText("fr-FR")).toBeTruthy();
-    expect(screen.getByText("Mobile app")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Mobile app" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1",
+    );
     expect(screen.getByText("Failed")).toBeTruthy();
     expect(screen.getByText("Still indexing")).toBeTruthy();
     expect(screen.getAllByText("Processing")).toHaveLength(1);
@@ -215,18 +218,42 @@ describe("GuidelineDocumentsSection", () => {
     );
   });
 
+  it("shows an assign CTA when the project list is empty but org guidelines exist", async () => {
+    mocks.listDocuments.mockImplementation((_org: string, projectId?: string) =>
+      Promise.resolve(
+        projectId
+          ? []
+          : [guidelineDocument({ id: "doc-pool", title: "Brand voice", isGlobal: false })],
+      ),
+    );
+    mocks.listAllDocumentAssignments.mockResolvedValue({ assignments: [] });
+
+    render(
+      <GuidelineDocumentsSection
+        organizationSlug="acme"
+        projectId="project_1"
+        canUpdate={false}
+        canAssignGuideline
+      />,
+      { wrapper },
+    );
+
+    expect(await screen.findByText("No guidelines assigned to this project")).toBeTruthy();
+    expect(screen.getByRole("combobox")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Create Guideline" })).toBeNull();
+  });
+
   it("assigns an org guideline from the project page", async () => {
     const user = userEvent.setup();
-    mocks.listDocuments.mockImplementation(
-      (_org: string, projectId?: string) =>
-        Promise.resolve(
-          projectId
-            ? []
-            : [
-                guidelineDocument({ id: "doc-brand", title: "Brand voice", isGlobal: false }),
-                guidelineDocument({ id: "doc-global", title: "Global", isGlobal: true }),
-              ],
-        ),
+    mocks.listDocuments.mockImplementation((_org: string, projectId?: string) =>
+      Promise.resolve(
+        projectId
+          ? []
+          : [
+              guidelineDocument({ id: "doc-brand", title: "Brand voice", isGlobal: false }),
+              guidelineDocument({ id: "doc-global", title: "Global", isGlobal: true }),
+            ],
+      ),
     );
     mocks.attachDocumentProject.mockResolvedValue({ projects: [] });
 
@@ -240,8 +267,7 @@ describe("GuidelineDocumentsSection", () => {
       { wrapper },
     );
 
-    expect(await screen.findByText("Add guideline")).toBeTruthy();
-    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("combobox"));
     await user.click(await screen.findByRole("option", { name: "Brand voice" }));
     await user.click(screen.getByRole("button", { name: "Assign" }));
     await waitFor(() =>
@@ -280,7 +306,10 @@ describe("GuidelineDocumentsSection", () => {
 
     expect(await screen.findByText("Global guide")).toBeTruthy();
     expect(screen.getByText("All projects")).toBeTruthy();
-    expect(screen.getByText("Mobile app")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Mobile app" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1",
+    );
     expect(screen.getByText("No projects")).toBeTruthy();
   });
 

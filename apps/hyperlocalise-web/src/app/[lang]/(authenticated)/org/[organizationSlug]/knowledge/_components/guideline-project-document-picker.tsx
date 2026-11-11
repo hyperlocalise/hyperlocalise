@@ -26,14 +26,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyH2, TypographyP } from "@/components/ui/typography";
+import { TypographyP } from "@/components/ui/typography";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
-import {
-  guidelineDocumentAssignmentsQueryKey,
-} from "./guideline-document-assignments";
+import { guidelineDocumentAssignmentsQueryKey } from "./guideline-document-assignments";
 import { guidelineDocumentsQueryKey } from "./guideline-documents-section";
 import { guidelineProjectDocumentPickerMessages as messages } from "./guideline-project-document-picker.messages";
 
@@ -58,9 +56,12 @@ export function assignableGuidelinesForProject(
 export function GuidelineProjectDocumentPicker({
   organizationSlug,
   projectId,
+  placement = "footer",
 }: {
   organizationSlug: string;
   projectId: string;
+  /** `inline` sits under the empty state; `footer` follows a non-empty list. */
+  placement?: "footer" | "inline";
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -70,7 +71,8 @@ export function GuidelineProjectDocumentPicker({
   const documentsQuery = useQuery({
     queryKey: guidelineDocumentsQueryKey(organizationSlug),
     enabled: !loading,
-    queryFn: ({ signal }) => client.guidelines.listDocuments(organizationSlug, undefined, { signal }),
+    queryFn: ({ signal }) =>
+      client.guidelines.listDocuments(organizationSlug, undefined, { signal }),
   });
   const assignmentsQuery = useQuery({
     queryKey: guidelineDocumentAssignmentsQueryKey(organizationSlug),
@@ -82,18 +84,17 @@ export function GuidelineProjectDocumentPicker({
   const assignments = useMemo(
     () =>
       new Map(
-        (assignmentsQuery.data?.assignments ?? []).map((entry) => [
-          entry.documentId,
-          entry.projectIds,
-        ] as const),
+        (assignmentsQuery.data?.assignments ?? []).map(
+          (entry) => [entry.documentId, entry.projectIds] as const,
+        ),
       ),
     [assignmentsQuery.data],
   );
 
   const available = useMemo(
     () =>
-      assignableGuidelinesForProject(documentsQuery.data ?? [], assignments, projectId).sort((a, b) =>
-        a.title.localeCompare(b.title),
+      assignableGuidelinesForProject(documentsQuery.data ?? [], assignments, projectId).sort(
+        (a, b) => a.title.localeCompare(b.title),
       ),
     [assignments, documentsQuery.data, projectId],
   );
@@ -131,16 +132,26 @@ export function GuidelineProjectDocumentPicker({
     return null;
   }
 
+  const showSectionHeader = placement === "footer";
+
   return (
-    <section className="flex flex-col gap-3">
-      <div>
-        <TypographyH2 className="pb-0 text-lg tracking-[-0.02em]">
-          <FormattedMessage {...messages.sectionTitle} />
-        </TypographyH2>
-        <TypographyP size="small" tone="subtle" className="mt-1 max-w-2xl leading-6">
-          <FormattedMessage {...messages.sectionDescription} />
-        </TypographyP>
-      </div>
+    <div
+      className={
+        placement === "footer"
+          ? "flex flex-col gap-3 border-t border-border pt-4"
+          : "flex flex-col gap-3"
+      }
+    >
+      {showSectionHeader ? (
+        <div>
+          <p className="text-sm font-medium text-foreground">
+            <FormattedMessage {...messages.sectionTitle} />
+          </p>
+          <TypographyP size="small" tone="subtle" className="mt-1 max-w-2xl leading-6">
+            <FormattedMessage {...messages.sectionDescription} />
+          </TypographyP>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border px-4 py-3">
         <Select value={selected} onValueChange={(value) => setSelected(value ?? "")}>
           <SelectTrigger className="w-full min-w-56 sm:w-72">
@@ -167,6 +178,6 @@ export function GuidelineProjectDocumentPicker({
           <FormattedMessage {...messages.assign} />
         </Button>
       </div>
-    </section>
+    </div>
   );
 }

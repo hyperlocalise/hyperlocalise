@@ -13,14 +13,15 @@
  * Version 2.0 or later.
  */
 import { useMemo } from "react";
-import { useAccessToken } from "@workos-inc/authkit-nextjs/components";
+import { useAuth, useAccessToken } from "@workos-inc/authkit-nextjs/components";
 
 import { env } from "@/lib/env";
 
 import { GoSvcClient } from "./go-svc-client";
 
 export function useGoSvcClient() {
-  const { getAccessToken, loading } = useAccessToken();
+  const { user } = useAuth();
+  const { getAccessToken, loading: authLoading, accessToken } = useAccessToken();
   const client = useMemo(
     () =>
       new GoSvcClient({
@@ -29,6 +30,10 @@ export function useGoSvcClient() {
       }),
     [getAccessToken],
   );
+  const hasAccessToken = Boolean(String(accessToken ?? "").trim());
+  // AuthKit can clear `loading` before a bearer token is readable; do not call
+  // go-svc until the session token is present for a signed-in user.
+  const loading = authLoading || (Boolean(user) && !hasAccessToken);
 
-  return { client, loading };
+  return { client, loading, accessToken };
 }

@@ -133,7 +133,10 @@ describe("GuidelineDocumentDetailContent", () => {
 
     expect(await screen.findByRole("heading", { name: "Brand voice" })).toBeTruthy();
     expect(screen.getByText("Keep product names in English.")).toBeTruthy();
-    expect(await screen.findByText("Mobile app")).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "Mobile app" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1",
+    );
     expect(screen.getByRole("link", { name: "Back to Guideline" })).toHaveAttribute(
       "href",
       "/org/acme/knowledge",
@@ -174,7 +177,10 @@ describe("GuidelineDocumentDetailContent", () => {
     expect(await screen.findByRole("heading", { name: "Brand voice" })).toBeTruthy();
     expect(screen.queryByRole("switch", { name: "Always apply" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
-    expect(await screen.findByText("Mobile app")).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "Mobile app" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1",
+    );
     expect(screen.queryByRole("combobox")).toBeNull();
   });
 

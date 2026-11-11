@@ -57,12 +57,12 @@ export const guidelineDocumentDetailMessages = defineMessages({
   },
   download: {
     defaultMessage: "Download",
-    id: 'af1UaJxl66',
+    id: "af1UaJxl66",
     description: "Download the original uploaded guideline file",
   },
   downloadFailed: {
     defaultMessage: "Could not download this document.",
-    id: 'ISb4bfoGkh',
+    id: "ISb4bfoGkh",
     description: "Error when downloading a guideline document fails",
   },
   contentTitle: {
@@ -88,7 +88,7 @@ export const guidelineDocumentDetailMessages = defineMessages({
   binaryContentNotice: {
     defaultMessage:
       "Preview is not available for this file type. Use Download to save the original file.",
-    id: 'kfgkg2ouHx',
+    id: "kfgkg2ouHx",
     description: "Notice when a guideline document has no text preview",
   },
   allProjects: {

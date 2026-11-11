@@ -239,7 +239,7 @@ export function GuidelineDocumentAssignments({
     );
   }
 
-  const projectIds = assignmentsQuery.data.get(documentId) ?? [];
+  const projectIds = assignmentsQuery.data?.get(documentId) ?? [];
   const projectNames = projectsQuery.data ?? new Map<string, string>();
   const assigned: GuidelineProjectAssignment[] = projectIds.map((projectId) => ({
     projectId,
@@ -280,7 +280,7 @@ export function GuidelineDocumentAssignments({
             >
               <Link
                 href={buildProjectPath(organizationSlug, project.projectId)}
-                className="text-sm font-medium text-foreground hover:underline"
+                className="text-sm font-medium text-foreground underline underline-offset-2"
               >
                 {project.projectName}
               </Link>

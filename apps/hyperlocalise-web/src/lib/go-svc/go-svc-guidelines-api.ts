@@ -206,7 +206,16 @@ export class GoSvcGuidelinesApi {
         `${path}?${query}`,
         requestOptions,
       );
-      documents.push(...body.guidelineDocuments.map(normalizeGuidelineDocument));
+      for (const record of body.guidelineDocuments) {
+        try {
+          documents.push(normalizeGuidelineDocument(record));
+        } catch (cause) {
+          if (cause instanceof Error && cause.message === "guideline_document_missing") {
+            continue;
+          }
+          throw cause;
+        }
+      }
       cursor = body.nextCursor ?? undefined;
     } while (cursor);
     return documents;
