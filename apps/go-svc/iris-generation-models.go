@@ -98,7 +98,7 @@ func irisModels() []irisModelInfo {
 		// audio, and reading and rewriting the copy baked into an image.
 		{ID: "elevenlabs-dubbing", Name: "ElevenLabs Dubbing", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "dubbing", Pricing: irisPricing{Unit: "input-minute", Credits: 12, Minimum: &min1}, ETASeconds: 240, RequiresRef: true},
 		{ID: "sync-lipsync-2", Name: "Sync Lipsync 2", Kind: irisKindTool, Provider: irisProviderFal, NativeID: "fal-ai/sync-lipsync/v2", Pricing: irisPricing{Unit: "second", Credits: 3, Minimum: &min1}, ETASeconds: 180, RequiresRef: true},
-		{ID: "image-localise", Name: "Image Localise", Kind: irisKindTool, GatewayID: "google/gemini-3-pro-image", Pricing: irisPricing{Unit: "image", Credits: 6, Minimum: &min1}, ETASeconds: 30, RequiresRef: true},
+		{ID: "image-localise", Name: "Image Localise", Kind: irisKindTool, GatewayID: defaultIrisOpenAIImageModel, Pricing: irisPricing{Unit: "image", Credits: 6, Minimum: &min1}, ETASeconds: 30, RequiresRef: true},
 		{ID: "image-text", Name: "Image Text", Kind: irisKindTool, GatewayID: defaultGuidelineCheckModel, Pricing: irisPricing{Unit: "flat", Credits: 1, Minimum: &min1}, ETASeconds: 15, RequiresRef: true},
 	}
 }
