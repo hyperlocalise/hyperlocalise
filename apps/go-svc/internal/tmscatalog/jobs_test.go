@@ -5,18 +5,26 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
 func TestJobsSupported(t *testing.T) {
 	t.Parallel()
-	if !JobsSupported("crowdin") || !JobsSupported("Crowdin") {
-		t.Fatal("crowdin should be supported")
+	if !JobsSupported("crowdin") || !JobsSupported("Crowdin") || !JobsSupported("smartling") {
+		t.Fatal("crowdin and smartling should be supported")
 	}
-	for _, kind := range []string{"phrase", "lokalise", "smartling", ""} {
+	for _, kind := range []string{"phrase", "lokalise", ""} {
 		if JobsSupported(kind) {
 			t.Fatalf("JobsSupported(%q) = true", kind)
 		}
+	}
+	crowdin := JobFeaturesFor("crowdin")
+	if !crowdin.Create || !crowdin.Assignees {
+		t.Fatalf("crowdin features = %#v", crowdin)
+	}
+	if JobFeaturesFor("smartling").Create || JobFeaturesFor("smartling").Assignees {
+		t.Fatal("smartling should not create jobs or assign members")
 	}
 }
 
@@ -42,6 +50,33 @@ func TestMapCrowdinStatus(t *testing.T) {
 	}
 	if OpenJobStatus("succeeded") || OpenJobStatus("cancelled") {
 		t.Fatal("closed statuses")
+	}
+}
+
+func TestMapSmartlingStatus(t *testing.T) {
+	t.Parallel()
+	cases := map[string]string{
+		"COMPLETED":              "succeeded",
+		"published":              "succeeded",
+		"IN_PROGRESS":            "running",
+		"in translation":         "running",
+		"AWAITING_AUTHORIZATION": "queued",
+		"FAILED":                 "failed",
+		"CANCELLED":              "cancelled",
+		"In Review":              "waiting_for_review",
+		"in_edit":                "waiting_for_review",
+		"mystery":                "queued",
+	}
+	for status, want := range cases {
+		if got := MapSmartlingStatus(status); got != want {
+			t.Errorf("MapSmartlingStatus(%q) = %q, want %q", status, got, want)
+		}
+	}
+	if MapJobStatus("smartling", "published") != "succeeded" {
+		t.Fatal("published Smartling jobs succeed")
+	}
+	if MapJobStatus("crowdin", "published") != "queued" {
+		t.Fatal("unknown Crowdin statuses stay queued")
 	}
 }
 
@@ -263,6 +298,129 @@ func TestCrowdinListAndGetTasks(t *testing.T) {
 	mine, err := operator.ListUserTasks(context.Background(), "7", TaskListOptions{})
 	if err != nil || len(mine) != 1 {
 		t.Fatalf("ListUserTasks = %#v, %v", mine, err)
+	}
+}
+
+func TestSmartlingListAndGetTasks(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/projects-api/v2/projects/proj-1", func(w http.ResponseWriter, _ *http.Request) {
+		writeSmartlingData(w, map[string]any{
+			"accountUid": "acct-1", "projectId": "proj-1", "projectName": "Marketing",
+			"sourceLocaleId": "en-US", "archived": false,
+			"targetLocales": []map[string]any{{"localeId": "fr-FR", "enabled": true}},
+		})
+	})
+	mux.HandleFunc("/jobs-api/v3/projects/proj-1/jobs", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/jobs-api/v3/projects/proj-1/jobs" {
+			http.NotFound(w, r)
+			return
+		}
+		writeSmartlingData(w, map[string]any{
+			"items":      []any{smartlingJobFixture("job-1", "IN_PROGRESS")},
+			"totalCount": 1,
+		})
+	})
+	mux.HandleFunc("/jobs-api/v3/projects/proj-1/jobs/job-1", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			writeSmartlingData(w, smartlingJobFixture("job-1", "IN_PROGRESS"))
+		case http.MethodPut:
+			var body map[string]string
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				http.Error(w, "json", http.StatusBadRequest)
+				return
+			}
+			if body["jobName"] != "Renamed" {
+				http.Error(w, "name", http.StatusBadRequest)
+				return
+			}
+			job := smartlingJobFixture("job-1", "IN_PROGRESS")
+			job["jobName"] = "Renamed"
+			writeSmartlingData(w, job)
+		default:
+			http.Error(w, "method", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/jobs-api/v3/projects/proj-1/jobs/job-1/files", func(w http.ResponseWriter, _ *http.Request) {
+		writeSmartlingData(w, map[string]any{
+			"items":      []any{map[string]any{"fileUri": "home.json"}},
+			"totalCount": 1,
+		})
+	})
+	mux.HandleFunc("/jobs-api/v3/projects/proj-1/jobs/missing", func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "gone", http.StatusNotFound)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	operator, err := NewJobOperator("smartling", Credentials{
+		BaseURL: srv.URL, HeaderName: "Authorization", HeaderValue: "Bearer x", AccountID: "acct-1",
+	}, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if operator.UsesPerUserAuth() {
+		t.Fatal("smartling is not per-user")
+	}
+	tasks, err := operator.ListTasks(context.Background(), "proj-1", TaskListOptions{})
+	if err != nil || len(tasks) != 1 || tasks[0].ExternalID != "job-1" || tasks[0].Kind != "translation" {
+		t.Fatalf("ListTasks = %#v, %v", tasks, err)
+	}
+	if len(tasks[0].FileIDs) != 0 {
+		t.Fatalf("list payloads omit file ids, got %#v", tasks[0].FileIDs)
+	}
+	got, err := operator.GetTask(context.Background(), "proj-1", "job-1")
+	if err != nil || got == nil || got.Title != "French launch" || got.URL == nil {
+		t.Fatalf("GetTask = %#v, %v", got, err)
+	}
+	if got.FileIDs[0] != "home.json" || got.ProviderPayload["fileIds"].([]string)[0] != "home.json" {
+		t.Fatalf("detail file ids = %#v", got.FileIDs)
+	}
+	if !strings.Contains(*got.URL, "/jobs/job-1") {
+		t.Fatalf("url = %q", *got.URL)
+	}
+	missing, err := operator.GetTask(context.Background(), "proj-1", "missing")
+	if err != nil || missing != nil {
+		t.Fatalf("missing jobs are absent, not unreachable: %#v, %v", missing, err)
+	}
+	title := "Renamed"
+	updated, err := operator.UpdateTask(context.Background(), "proj-1", "job-1", TaskUpdate{Title: &title})
+	if err != nil || updated.Title != "Renamed" {
+		t.Fatalf("UpdateTask = %#v, %v", updated, err)
+	}
+	if _, err := operator.UpdateTask(context.Background(), "proj-1", "job-1", TaskUpdate{HasAssignees: true}); err == nil {
+		t.Fatal("assignee updates should fail")
+	}
+	if _, err := operator.CreateTask(context.Background(), "proj-1", CreateTask{Title: "x"}); err == nil {
+		t.Fatal("create should fail")
+	}
+	if err := operator.DeleteTask(context.Background(), "proj-1", "job-1"); err == nil {
+		t.Fatal("delete should fail")
+	}
+}
+
+func TestSmartlingReviewKind(t *testing.T) {
+	t.Parallel()
+	job := mapSmartlingJob(smartlingJob{
+		TranslationJobUID: "job-2", JobName: "Review pass", JobStatus: "In Review", TargetLocaleIDs: []string{"de-DE"},
+	}, smartlingProjectDetails{AccountUID: "acct-1", ProjectID: "proj-1"}, "proj-1", nil)
+	if job.Kind != "review" {
+		t.Fatalf("kind = %q", job.Kind)
+	}
+}
+
+func writeSmartlingData(w http.ResponseWriter, data any) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{"code": "SUCCESS", "data": data}})
+}
+
+func smartlingJobFixture(id, status string) map[string]any {
+	return map[string]any{
+		"translationJobUid": id, "jobName": "French launch", "jobStatus": status,
+		"description": "Homepage strings", "dueDate": "2026-06-01T00:00:00Z",
+		"targetLocaleIds": []string{"fr-FR"}, "createdDate": "2026-07-15T10:00:00.000Z",
+		"modifiedDate": "2026-07-15T10:00:00.000Z",
 	}
 }
 

@@ -361,6 +361,174 @@ func TestLiveCrowdinJobFilesKeepTaskOrder(t *testing.T) {
 	require.Equal(t, "1", body.Files[1].Provider.ExternalResourceID)
 }
 
+func TestLiveSmartlingJobs(t *testing.T) {
+	account := "acct-1"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/projects-api/v2/projects/proj-1":
+			writeSmartlingHTTP(w, map[string]any{
+				"accountUid": account, "projectId": "proj-1", "projectName": "Marketing",
+				"sourceLocaleId": "en-US", "archived": false,
+				"targetLocales": []map[string]any{{"localeId": "fr-FR", "enabled": true}},
+			})
+		case r.Method == http.MethodGet && r.URL.Path == "/accounts-api/v2/accounts/acct-1/projects":
+			writeSmartlingHTTP(w, map[string]any{
+				"items": []any{map[string]any{
+					"accountUid": account, "projectId": "proj-1", "projectName": "Marketing",
+					"sourceLocaleId": "en-US", "archived": false,
+					"targetLocales": []map[string]any{{"localeId": "fr-FR", "enabled": true}},
+				}},
+				"totalCount": 1,
+			})
+		case r.Method == http.MethodGet && r.URL.Path == "/jobs-api/v3/projects/proj-1/jobs":
+			writeSmartlingHTTP(w, map[string]any{
+				"items":      []any{liveSmartlingJob("job-1", "IN_PROGRESS")},
+				"totalCount": 1,
+			})
+		case r.Method == http.MethodGet && r.URL.Path == "/jobs-api/v3/projects/proj-1/jobs/job-1":
+			writeSmartlingHTTP(w, liveSmartlingJob("job-1", "IN_PROGRESS"))
+		case r.Method == http.MethodPut && r.URL.Path == "/jobs-api/v3/projects/proj-1/jobs/job-1":
+			raw, _ := io.ReadAll(r.Body)
+			require.Contains(t, string(raw), `"jobName":"Renamed"`)
+			job := liveSmartlingJob("job-1", "IN_PROGRESS")
+			job["jobName"] = "Renamed"
+			writeSmartlingHTTP(w, job)
+		case r.Method == http.MethodGet && r.URL.Path == "/jobs-api/v3/projects/proj-1/jobs/job-1/files":
+			writeSmartlingHTTP(w, map[string]any{
+				"items":      []any{map[string]any{"fileUri": "home.json"}},
+				"totalCount": 1,
+			})
+		case r.Method == http.MethodGet && r.URL.Path == "/files-api/v2/projects/proj-1/files/list":
+			writeSmartlingHTTP(w, map[string]any{
+				"items": []any{map[string]any{
+					"fileUri": "home.json", "fileType": "json", "lastUploaded": "2026-07-15T10:00:00Z",
+				}},
+				"totalCount": 1,
+			})
+		case r.Method == http.MethodGet && r.URL.Path == "/strings-api/v2/projects/proj-1/source-strings":
+			writeSmartlingHTTP(w, map[string]any{"items": []any{}, "totalCount": 0})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	api, scope := projectTestAPI(t)
+	mustOrgTMSCredentialFor(t, scope, "smartling", "Smartling")
+	api.tms = &tmsImports{
+		tokens: stubTMSMinter{token: &tmsauth.AccessToken{
+			BaseURL: server.URL, HeaderName: "Authorization", HeaderValue: "Bearer token",
+			AccountID: &account,
+		}},
+		http: server.Client(),
+	}
+
+	list := projectRequest(api, scope, scope.OrgPath("/projects/ext:smartling:proj-1/jobs"))
+	require.Equal(t, http.StatusOK, list.Code, list.Body.String())
+	require.Contains(t, list.Body.String(), `"id":"ext:smartling:proj-1:job-1"`)
+	require.Contains(t, list.Body.String(), `"status":"running"`)
+	require.Contains(t, list.Body.String(), `"externalTitle":"French launch"`)
+
+	workspace := projectRequest(api, scope, scope.OrgPath("/tms/jobs"))
+	require.Equal(t, http.StatusOK, workspace.Code, workspace.Body.String())
+	require.Contains(t, workspace.Body.String(), `"id":"ext:smartling:proj-1:job-1"`)
+
+	count := projectRequest(api, scope, scope.OrgPath("/projects/ext:smartling:proj-1/open-job-count"))
+	require.Equal(t, http.StatusOK, count.Code, count.Body.String())
+	require.JSONEq(t, `{"openJobCount":1}`, count.Body.String())
+
+	detail := projectRequest(api, scope, scope.OrgPath("/jobs/ext:smartling:proj-1:job-1"))
+	require.Equal(t, http.StatusOK, detail.Code, detail.Body.String())
+	require.Contains(t, detail.Body.String(), `"externalJobId":"job-1"`)
+	require.Contains(t, detail.Body.String(), `"fileIds":["home.json"]`)
+
+	status := projectRequest(api, scope, scope.OrgPath("/projects/ext:smartling:proj-1/jobs/job-1/status"))
+	require.Equal(t, http.StatusOK, status.Code, status.Body.String())
+	require.Contains(t, status.Body.String(), `"status":"running"`)
+
+	files := projectRequest(api, scope, scope.OrgPath("/jobs/ext:smartling:proj-1:job-1/files"))
+	require.Equal(t, http.StatusOK, files.Code, files.Body.String())
+	require.Contains(t, files.Body.String(), `"home.json"`)
+
+	updated := projectMutationRequest(api, scope, http.MethodPatch, scope.OrgPath("/jobs/ext:smartling:proj-1:job-1"), map[string]any{
+		"title": "Renamed",
+	})
+	require.Equal(t, http.StatusOK, updated.Code, updated.Body.String())
+	require.Contains(t, updated.Body.String(), `"externalTitle":"Renamed"`)
+
+	created := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/ext:smartling:proj-1/jobs"), map[string]any{
+		"title": "Homepage", "targetLocales": []string{"fr-FR"}, "fileIds": []string{"home.json"},
+	})
+	require.Equal(t, http.StatusNotImplemented, created.Code, created.Body.String())
+	require.Contains(t, created.Body.String(), "provider_task_create_unsupported")
+
+	deleted := projectMutationRequest(api, scope, http.MethodDelete, scope.OrgPath("/jobs/ext:smartling:proj-1:job-1"), nil)
+	require.Equal(t, http.StatusNotImplemented, deleted.Code, deleted.Body.String())
+	require.Contains(t, deleted.Body.String(), "provider_task_delete_unsupported")
+
+	members := projectRequest(api, scope, scope.OrgPath("/projects/ext:smartling:proj-1/members"))
+	require.Equal(t, http.StatusNotImplemented, members.Code, members.Body.String())
+	require.Contains(t, members.Body.String(), "provider_members_unsupported")
+
+	comments := projectRequest(api, scope, scope.OrgPath("/jobs/ext:smartling:proj-1:job-1/comments"))
+	require.Equal(t, http.StatusNotImplemented, comments.Code, comments.Body.String())
+	require.Contains(t, comments.Body.String(), "provider_comments_read_unsupported")
+
+	assignees := projectMutationRequest(api, scope, http.MethodPatch, scope.OrgPath("/jobs/ext:smartling:proj-1:job-1"), map[string]any{
+		"assigneeExternalUserIds": []string{"user-1"},
+	})
+	require.Equal(t, http.StatusBadRequest, assignees.Code, assignees.Body.String())
+	require.Contains(t, assignees.Body.String(), "unsupported_job_field_update")
+}
+
+func TestLiveSmartlingPublishedStatus(t *testing.T) {
+	account := "acct-1"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/projects-api/v2/projects/proj-1":
+			writeSmartlingHTTP(w, map[string]any{
+				"accountUid": account, "projectId": "proj-1", "projectName": "Marketing",
+				"sourceLocaleId": "en-US", "archived": false,
+			})
+		case r.Method == http.MethodGet && r.URL.Path == "/jobs-api/v3/projects/proj-1/jobs":
+			writeSmartlingHTTP(w, map[string]any{
+				"items":      []any{liveSmartlingJob("job-1", "PUBLISHED")},
+				"totalCount": 1,
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	api, scope := projectTestAPI(t)
+	mustOrgTMSCredentialFor(t, scope, "smartling", "Smartling")
+	api.tms = &tmsImports{
+		tokens: stubTMSMinter{token: &tmsauth.AccessToken{
+			BaseURL: server.URL, HeaderName: "Authorization", HeaderValue: "Bearer token",
+			AccountID: &account,
+		}},
+		http: server.Client(),
+	}
+	rec := projectRequest(api, scope, scope.OrgPath("/projects/ext:smartling:proj-1/jobs"))
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"status":"succeeded"`)
+}
+
+func writeSmartlingHTTP(w http.ResponseWriter, data any) {
+	_ = json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{"code": "SUCCESS", "data": data}})
+}
+
+func liveSmartlingJob(id, status string) map[string]any {
+	return map[string]any{
+		"translationJobUid": id, "jobName": "French launch", "jobStatus": status,
+		"description": "Homepage strings", "targetLocaleIds": []string{"fr-FR"},
+		"createdDate": "2026-07-15T10:00:00.000Z", "modifiedDate": "2026-07-15T10:00:00.000Z",
+	}
+}
+
 func liveCrowdinTask(id int) map[string]any {
 	return map[string]any{
 		"id": id, "projectId": 7, "type": 0, "status": "todo", "title": "Translate homepage",

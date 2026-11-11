@@ -52,13 +52,17 @@ func (p *recordingGlossaryInterchangePublisher) Publish(_ context.Context, messa
 func (p *recordingGlossaryInterchangePublisher) Ping(context.Context) error { return nil }
 
 func mustOrgTMSCredential(t *testing.T, scope *testenv.Scope) string {
+	return mustOrgTMSCredentialFor(t, scope, "crowdin", "Crowdin")
+}
+
+func mustOrgTMSCredentialFor(t *testing.T, scope *testenv.Scope, providerKind, displayName string) string {
 	t.Helper()
 	var id string
 	require.NoError(t, scope.Pool.QueryRow(t.Context(), `
         insert into organization_external_tms_provider_credentials (
             organization_id, provider_kind, display_name, encryption_algorithm, ciphertext, iv, auth_tag, masked_secret_suffix
-        ) values ($1, 'crowdin', 'Crowdin', 'aes-256-gcm', 'c', 'i', 't', '1234')
-        returning id::text`, scope.OrganizationID).Scan(&id))
+        ) values ($1, $2::external_tms_provider_kind, $3, 'aes-256-gcm', 'c', 'i', 't', '1234')
+        returning id::text`, scope.OrganizationID, providerKind, displayName).Scan(&id))
 	return id
 }
 

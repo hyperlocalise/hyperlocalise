@@ -25,6 +25,7 @@ const (
 	smartlingGlossaryV3API  = "/glossary-api/v3"
 	smartlingMemoryAPI      = "/translation-memory-api/v2"
 	smartlingProjectsAPI    = "/projects-api/v2"
+	smartlingJobsAPI        = "/jobs-api/v3"
 	smartlingDefaultBaseURL = "https://api.smartling.com"
 )
 
