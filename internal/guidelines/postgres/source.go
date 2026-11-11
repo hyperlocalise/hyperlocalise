@@ -47,25 +47,37 @@ func (s *Source) Close() {
 // currentQuery loads ready guideline documents in the same project and
 // locale scope. Documents use their own mandatory flag.
 //
-// Org-scoped content uses assignment tables: is_global docs apply to every
-// project; non-global docs apply only to listed projects (or no project when
-// unassigned). Per-document locales live in the locales array; empty means all
-// locales. An empty project scope ($2 = ”) keeps all org-scoped content for
-// org-level checks.
+// Org rows (project_id NULL) use is_global and assignment rows. A stored
+// project_id still applies only to that project and is not rewritten.
+// A non-empty locales array is the only locale match. An empty array with a
+// NULL locale means all locales; an empty array with locale set means that
+// locale only. An empty project scope ($2 = ”) keeps org rows for org-level
+// checks. An empty locale ($3 = ”) keeps only all-locale rows.
 const currentQuery = `
         SELECT 'doc:' || d.id::text, d.revision_id::text, d.version, d.content, '', d.locales, d.mandatory
         FROM guideline_documents d
         WHERE d.organization_id::text = $1 AND d.status = 'ready'
           AND (
-            $2 = '' OR d.is_global OR EXISTS (
-              SELECT 1 FROM guideline_document_projects g
-              WHERE g.document_id = d.id AND g.project_id = $2
+            (
+              d.project_id IS NULL AND (
+                $2 = '' OR d.is_global OR EXISTS (
+                  SELECT 1 FROM guideline_document_projects g
+                  WHERE g.document_id = d.id AND g.project_id = $2
+                )
+              )
             )
+            OR (d.project_id IS NOT NULL AND d.project_id = $2)
           )
           AND (
-            coalesce(cardinality(d.locales), 0) = 0
-            OR $3 = ANY (d.locales)
-            OR (d.locale IS NOT NULL AND d.locale = $3)
+            (
+              coalesce(cardinality(d.locales), 0) > 0
+              AND $3 <> ''
+              AND $3 = ANY (d.locales)
+            )
+            OR (
+              coalesce(cardinality(d.locales), 0) = 0
+              AND (d.locale IS NULL OR ($3 <> '' AND d.locale = $3))
+            )
           )
         ORDER BY 5, 1`
 

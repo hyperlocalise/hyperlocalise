@@ -226,13 +226,14 @@ export const guidelineDocumentProjects = pgTable(
  * Stores uploaded guideline documents. Extraction and indexing run asynchronously
  * in the guideline ingest worker; `revisionId` identifies the content to index.
  *
- * `projectId` is deprecated: all guidelines are org-scoped (`project_id IS NULL`).
- * Project targeting uses `guideline_document_projects` assignments instead.
- * Existing project-owned rows are migrated to org rows with a single assignment.
- * `locale` is deprecated: per-guideline locales live in the `locales` array
- * (empty = all locales). `isGlobal` distinguishes unassigned docs that apply
- * to no project (`false`, the upload default) from docs that apply to every
- * project including future ones (`true`).
+ * `projectId` is deprecated and is not rewritten. New rows leave it NULL and
+ * use `guideline_document_projects`. A stored project_id still applies only
+ * to that project. `locale` is deprecated and is not copied into `locales`.
+ * A non-empty `locales` array is the only locale match. An empty array with
+ * a NULL locale means all locales; an empty array with `locale` set means
+ * that locale only. `isGlobal` false with no assignment rows means no project
+ * (the upload default). `isGlobal` true means every project. Existing rows
+ * are not backfilled.
  */
 export const guidelineDocuments = pgTable(
   "guideline_documents",
@@ -245,7 +246,7 @@ export const guidelineDocuments = pgTable(
     projectId: text("project_id").references(() => projects.id, { onDelete: "cascade" }),
     /** @deprecated Use locales; NULL stays for unmigrated rows. */
     locale: text("locale"),
-    /** Per-guideline BCP 47 locales; empty means all locales. */
+    /** Per-guideline BCP 47 locales. Empty with a NULL locale means all locales. */
     locales: text("locales").array().notNull().default([]),
     isGlobal: boolean("is_global").notNull().default(false),
     title: text("title").notNull(),

@@ -134,26 +134,34 @@ type guidelineDocumentListPage struct {
 	HasMore bool
 }
 
-// guidelineDocumentListFilter scopes the org document list. Project keeps the
-// assignment semantics (global or assigned to the project); locale matches
-// documents applying to every locale or to the requested one.
+// guidelineDocumentListFilter scopes the document list. A project keeps global
+// org rows, rows assigned to that project, and legacy rows whose project_id
+// is that project. A locale matches a non-empty locales array, an empty array
+// with a NULL locale, or an empty array whose legacy locale equals it.
 type guidelineDocumentListFilter struct {
 	projectID string
 	locale    string
 }
 
 func listGuidelineDocumentsPage(ctx context.Context, db dictionaryDB, scope guidelineDocumentScope, filter guidelineDocumentListFilter, limit int, cursorCreatedAt, cursorID string) (guidelineDocumentListPage, error) {
-	where := guidelineDocumentProjectFilter
+	where := `d.organization_id = $1`
 	args := []any{scope.organizationID}
 	if filter.projectID != "" {
 		args = append(args, filter.projectID)
-		where += ` and (d.is_global or exists (select 1 from guideline_document_projects g
-			where g.document_id = d.id and g.project_id = $` + strconv.Itoa(len(args)) + `))`
+		projectArg := strconv.Itoa(len(args))
+		where += ` and (
+			(d.project_id is null and (d.is_global or exists (select 1 from guideline_document_projects g
+				where g.document_id = d.id and g.project_id = $` + projectArg + `)))
+			or d.project_id = $` + projectArg + `
+		)`
 	}
 	if filter.locale != "" {
 		args = append(args, filter.locale)
-		where += ` and (coalesce(cardinality(d.locales), 0) = 0 or $` + strconv.Itoa(len(args)) + ` = any(d.locales)
-			or (d.locale is not null and d.locale = $` + strconv.Itoa(len(args)) + `))`
+		localeArg := strconv.Itoa(len(args))
+		where += ` and (
+			(coalesce(cardinality(d.locales), 0) > 0 and $` + localeArg + ` = any(d.locales))
+			or (coalesce(cardinality(d.locales), 0) = 0 and (d.locale is null or d.locale = $` + localeArg + `))
+		)`
 	}
 	if cursorCreatedAt != "" || cursorID != "" {
 		args = append(args, cursorCreatedAt, cursorID)

@@ -327,7 +327,7 @@ export function ContentEditorGuidelineSheet({
   // Unassigned non-global documents apply to no project.
   const isDocumentInProject = (document: GuidelineDocument) => {
     if (document.projectId != null) return false;
-    if (document.isGlobal ?? true) return true;
+    if (document.isGlobal ?? false) return true;
     return assignments.get(document.id)?.includes(projectId) ?? false;
   };
   const projectDocuments = (workspaceDocsQuery.data ?? []).filter(isDocumentInProject);

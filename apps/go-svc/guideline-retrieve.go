@@ -240,23 +240,35 @@ func collectUploaded(results []guidelines.Result, limit int) collectedGuidelines
 
 // mergeQuery reloads metadata only for rows that are still ready and in the
 // requested project and locale scope.
-// Project targeting: is_global docs apply to every project; non-global docs
-// apply to the listed assignment projects only (or no project when unassigned).
-// Locale targeting lives in the locales array: empty means all locales.
+// Project targeting matches currentQuery: org rows use is_global or an
+// assignment, and a stored project_id applies only to that project.
+// Locale targeting matches currentQuery. $4 containing ” means no locale
+// filter, which keeps only all-locale rows.
 const mergeQuery = `
         select id::text, revision_id::text, version, title, locales
         from guideline_documents
         where organization_id::text = $1 and id::text = any($2) and status = 'ready'
           and (
-            $3 = '' or is_global or exists (
-              select 1 from guideline_document_projects g
-              where g.document_id = guideline_documents.id and g.project_id = $3
+            (
+              project_id is null and (
+                $3 = '' or is_global or exists (
+                  select 1 from guideline_document_projects g
+                  where g.document_id = guideline_documents.id and g.project_id = $3
+                )
+              )
             )
+            or (project_id is not null and project_id = $3)
           )
           and (
-            coalesce(cardinality(locales), 0) = 0
-            or locales && $4
-            or (locale is not null and locale = any($4))
+            (
+              coalesce(cardinality(locales), 0) > 0
+              and not ('' = any($4))
+              and locales && $4
+            )
+            or (
+              coalesce(cardinality(locales), 0) = 0
+              and (locale is null or (not ('' = any($4)) and locale = any($4)))
+            )
           )`
 
 // merge adds titles and locales, dropping documents that were deleted, left

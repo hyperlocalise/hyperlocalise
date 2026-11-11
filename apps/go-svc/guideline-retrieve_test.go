@@ -195,6 +195,61 @@ func TestGuidelineRetrieveReturnsUploadedDocumentsOnly(t *testing.T) {
 	}
 }
 
+func TestGuidelineRetrieveHonorsLegacyColumns(t *testing.T) {
+	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
+	env := newGuidelineTestEnv(t, "admin")
+	projectID := env.scope.MustProject(t, "", "Owned")
+	otherID := env.scope.MustProject(t, "project_legacy_"+env.scope.Slug, "Other")
+	path := env.scope.OrgPath("/guidelines/documents")
+	owned := seedReadyGuideline(t, env, path, "Owned by the project.")
+	french := seedReadyGuideline(t, env, path, "French only.")
+	everywhere := seedReadyGuideline(t, env, path, "All locales.")
+	_, err := env.scope.Pool.Exec(t.Context(), `update guideline_documents set project_id = $2, is_global = false, locales = '{}' where id = $1::uuid`, owned, projectID)
+	require.NoError(t, err)
+	_, err = env.scope.Pool.Exec(t.Context(), `update guideline_documents set locales = '{}', locale = 'fr-FR', is_global = true where id = $1::uuid`, french)
+	require.NoError(t, err)
+	_, err = env.scope.Pool.Exec(t.Context(), `update guideline_documents set is_global = true where id = $1::uuid`, everywhere)
+	require.NoError(t, err)
+
+	chunk := func(rowID, name string) guidelines.Chunk {
+		return guidelines.Chunk{ID: name, DocumentID: guidelinepg.UploadedDocumentID(rowID), RevisionID: guidelineRevision(t, env, rowID), Text: name}
+	}
+	passages := []guidelines.Chunk{chunk(owned, "owned"), chunk(french, "french"), chunk(everywhere, "everywhere")}
+	retriever := &fakeGuidelineRetriever{byLocale: map[string]guidelines.Result{
+		"fr-FR": {Passages: passages, SearchAvailable: true},
+		"de-DE": {Passages: passages, SearchAvailable: true},
+	}}
+	env.handler.guidelineRetrieve = &guidelineRetrieveAPI{retriever: retriever, pool: env.scope.Pool}
+
+	retrieve := func(projectID, locale string) []string {
+		t.Helper()
+		body := `{"organizationId":"` + env.scope.OrganizationID + `","projectId":"` + projectID + `","locales":["` + locale + `"],"query":"rule"}`
+		rec := serveGuidelineRetrieve(env, body, true)
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		var result guidelineRetrieveResult
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &result))
+		ids := make([]string, 0, len(result.Documents))
+		for _, document := range result.Documents {
+			ids = append(ids, document.ID)
+		}
+		return ids
+	}
+
+	require.ElementsMatch(t, []string{
+		guidelinepg.UploadedDocumentID(owned),
+		guidelinepg.UploadedDocumentID(french),
+		guidelinepg.UploadedDocumentID(everywhere),
+	}, retrieve(projectID, "fr-FR"))
+	require.ElementsMatch(t, []string{
+		guidelinepg.UploadedDocumentID(french),
+		guidelinepg.UploadedDocumentID(everywhere),
+	}, retrieve(otherID, "fr-FR"))
+	require.ElementsMatch(t, []string{
+		guidelinepg.UploadedDocumentID(owned),
+		guidelinepg.UploadedDocumentID(everywhere),
+	}, retrieve(projectID, "de-DE"))
+}
+
 func TestGuidelineRetrieveValidation(t *testing.T) {
 	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
 	env := newGuidelineTestEnv(t, "admin")

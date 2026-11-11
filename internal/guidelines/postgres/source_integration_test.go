@@ -180,6 +180,36 @@ func TestCurrentRespectsProjectAssignment(t *testing.T) {
 	require.Len(t, docs, 1)
 }
 
+func TestCurrentHonorsLegacyLocaleAndProject(t *testing.T) {
+	f, _ := newGuidelineFixture(t)
+	orgID := f.organization(t)
+	projectID := f.project(t, orgID)
+	otherID := f.project(t, orgID)
+	fr := "fr-FR"
+
+	ownedID, _ := f.document(t, orgID, nil, nil, "ready", false, "Owned")
+	frenchID, _ := f.document(t, orgID, nil, &fr, "ready", true, "French")
+	f.exec(t, `update guideline_documents set project_id = $2, is_global = false, locales = '{}' where id = $1`, ownedID, projectID)
+	f.exec(t, `update guideline_documents set locales = '{}', locale = 'fr-FR', is_global = true where id = $1`, frenchID)
+
+	source := NewWithPool(f.pool)
+	ids := func(projectID, locale string) []string {
+		t.Helper()
+		docs, err := source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: projectID, Locale: locale})
+		require.NoError(t, err)
+		got := make([]string, 0, len(docs))
+		for _, doc := range docs {
+			got = append(got, doc.ID)
+		}
+		return got
+	}
+
+	require.ElementsMatch(t, []string{UploadedDocumentID(ownedID), UploadedDocumentID(frenchID)}, ids(projectID, fr))
+	require.ElementsMatch(t, []string{UploadedDocumentID(frenchID)}, ids(otherID, fr))
+	require.ElementsMatch(t, []string{UploadedDocumentID(ownedID)}, ids(projectID, "de-DE"))
+	require.Empty(t, ids("", ""))
+}
+
 func TestNewConnectsAndCloses(t *testing.T) {
 	_, url := newGuidelineFixture(t)
 	source, err := New(t.Context(), url)

@@ -189,7 +189,7 @@ export function GuidelineDocumentDetailContent({
               : intl.formatMessage(messages.allLocales);
           })()}{" "}
           ·{" "}
-          {(document.isGlobal ?? true)
+          {(document.isGlobal ?? false)
             ? intl.formatMessage(messages.allProjects)
             : intl.formatMessage(messages.selectedProjects)}{" "}
           ·{" "}

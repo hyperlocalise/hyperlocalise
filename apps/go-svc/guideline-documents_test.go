@@ -355,6 +355,46 @@ func TestGuidelineDocumentListPaginationSameMillisecond(t *testing.T) {
 	require.Equal(t, ids[3], page2.GuidelineDocuments[1].ID)
 }
 
+func TestGuidelineDocumentListHonorsLegacyColumns(t *testing.T) {
+	env := newGuidelineTestEnv(t, "admin")
+	path := env.scope.OrgPath("/guidelines/documents")
+	projectID := env.scope.MustProject(t, "", "Owned")
+	otherID := env.scope.MustProject(t, "project_legacy_"+env.scope.Slug, "Other")
+	upload := func(name string) string {
+		t.Helper()
+		rec := env.upload(t, http.MethodPost, path, name+".md", []byte(name), nil)
+		require.Equal(t, http.StatusAccepted, rec.Code, rec.Body.String())
+		return decodeGuidelineDocument(t, rec).ID
+	}
+	owned := upload("owned")
+	french := upload("french")
+	_, err := env.scope.Pool.Exec(t.Context(), `update guideline_documents set project_id = $2 where id = $1`, owned, projectID)
+	require.NoError(t, err)
+	_, err = env.scope.Pool.Exec(t.Context(), `update guideline_documents set locales = '{}', locale = 'fr-FR' where id = $1`, french)
+	require.NoError(t, err)
+
+	ids := func(query string) []string {
+		t.Helper()
+		rec := env.json(http.MethodGet, path+query, "")
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		var body struct {
+			GuidelineDocuments []guidelineDocumentRecord `json:"guidelineDocuments"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		got := make([]string, 0, len(body.GuidelineDocuments))
+		for _, document := range body.GuidelineDocuments {
+			got = append(got, document.ID)
+		}
+		return got
+	}
+
+	require.ElementsMatch(t, []string{owned, french}, ids(""))
+	require.ElementsMatch(t, []string{owned}, ids("?project="+url.QueryEscape(projectID)))
+	require.Empty(t, ids("?project="+url.QueryEscape(otherID)))
+	require.ElementsMatch(t, []string{owned, french}, ids("?locale=fr-FR"))
+	require.ElementsMatch(t, []string{owned}, ids("?locale=de-DE"))
+}
+
 func TestGuidelineDocumentAccessControl(t *testing.T) {
 	env := newGuidelineTestEnv(t, "admin")
 	projectID := env.scope.MustProject(t, "", "Project")

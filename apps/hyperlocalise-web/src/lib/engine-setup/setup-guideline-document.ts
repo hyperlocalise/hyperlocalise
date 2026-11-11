@@ -106,6 +106,7 @@ export async function upsertSetupGuidelineDocument(input: {
   const created = await guidelines.uploadDocument(input.organizationSlug, {
     ...upload,
     title: ENGINE_SETUP_DOCUMENT_TITLE,
+    isGlobal: true,
   });
   return ok({ documentId: created.id, revisionId: created.revisionId });
 }
