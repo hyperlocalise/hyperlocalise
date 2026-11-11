@@ -20,6 +20,7 @@ import {
 import type {
   GitWorkspaceSource,
   WorkspaceCommandResult,
+  WorkspaceRunCommandOptions,
   WorkspaceRuntime,
   WorkspaceSearchInput,
   WorkspaceSearchMatch,
@@ -27,6 +28,15 @@ import type {
 } from "./types";
 
 const defaultSandboxTimeoutMs = 10 * 60 * 1000;
+
+/**
+ * Upper bound for a single sandbox command. Without it a hung process blocks the
+ * caller until the Vercel function hits its 800s limit and the whole run is lost.
+ */
+export const DEFAULT_SANDBOX_COMMAND_TIMEOUT_MS = 5 * 60 * 1000;
+
+/** Extra time for the client-side abort after the server-side SIGKILL deadline. */
+const SANDBOX_COMMAND_ABORT_GRACE_MS = 15 * 1000;
 
 export class VercelSandboxCommandError extends Error {
   readonly command: string;
@@ -232,12 +242,17 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
   async runCommand(
     command: string,
     args: string[],
-    options: { output?: "both" | "stdout" } = {},
+    options: WorkspaceRunCommandOptions = {},
   ): Promise<WorkspaceCommandResult> {
+    const timeoutMs = options.timeoutMs ?? DEFAULT_SANDBOX_COMMAND_TIMEOUT_MS;
+    // Server-side timeout kills the process; the client-side abort is a backstop
+    // in case the log stream stalls after the kill.
+    const deadline = AbortSignal.timeout(timeoutMs + SANDBOX_COMMAND_ABORT_GRACE_MS);
+    const signal = options.signal ? AbortSignal.any([options.signal, deadline]) : deadline;
     const sandbox = await Sandbox.get({ name: this.id });
     let result;
     try {
-      result = await sandbox.runCommand(command, args);
+      result = await sandbox.runCommand(command, args, { timeoutMs, signal });
     } catch (error) {
       throw new VercelSandboxCommandError({
         sandboxId: this.id,

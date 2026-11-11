@@ -70,7 +70,7 @@ describe("ContentEditorSideBySideRow", () => {
 
     await user.click(checkbox);
 
-    expect(onCheckedChange).toHaveBeenCalledWith(true);
+    expect(onCheckedChange).toHaveBeenCalledWith(true, false);
     expect(props.onFocus).not.toHaveBeenCalled();
   });
 
@@ -91,7 +91,7 @@ describe("ContentEditorSideBySideRow", () => {
 
     await user.keyboard(" ");
 
-    expect(onCheckedChange).toHaveBeenCalledWith(false);
+    expect(onCheckedChange).toHaveBeenCalledWith(false, false);
     expect(props.onFocus).not.toHaveBeenCalled();
   });
 

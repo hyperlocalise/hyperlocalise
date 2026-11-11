@@ -844,6 +844,10 @@ export class ContentEditorWorkspaceOrchestrator {
     this.queue.toggleChecked(segmentId, checked);
   }
 
+  checkSegmentFromClick(segmentId: string, checked: boolean, rangeIds?: readonly string[]) {
+    this.queue.checkFromClick(segmentId, checked, rangeIds);
+  }
+
   selectAllVisible(segmentIds: string[]) {
     this.queue.selectAll(segmentIds);
   }
