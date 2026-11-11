@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/stretchr/testify/require"
 )
@@ -354,4 +356,198 @@ func TestAutomationAPIUnavailableWithoutPool(t *testing.T) {
 	mux.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
 	require.Contains(t, rec.Body.String(), `"automations_unavailable"`)
+}
+
+func TestWorkspaceAutomationRejectsOversizedAndInvalidFields(t *testing.T) {
+	testenv.Require(t)
+	f := newAutomationFixture(t, "admin")
+	path := f.scope.OrgPath("/automations")
+
+	tooLongName := f.request(http.MethodPost, path, `{
+        "name": "`+strings.Repeat("n", automationNameMaxChars+1)+`",
+        "instructions": "Keep strings in sync."
+    }`)
+	require.Equal(t, http.StatusBadRequest, tooLongName.Code, tooLongName.Body.String())
+	require.Contains(t, tooLongName.Body.String(), `"invalid_workspace_automation_payload"`)
+
+	tooLongInstructions := f.request(http.MethodPost, path, `{
+        "name": "Nightly",
+        "instructions": "`+strings.Repeat("x", automationInstructionsMax+1)+`"
+    }`)
+	require.Equal(t, http.StatusBadRequest, tooLongInstructions.Code, tooLongInstructions.Body.String())
+
+	tooManySkills := `{"name":"Skills","skillIds":[`
+	for i := 0; i < automationSkillMaxCount+1; i++ {
+		if i > 0 {
+			tooManySkills += ","
+		}
+		tooManySkills += `"skill-` + itoa(i) + `"`
+	}
+	tooManySkills += `]}`
+	overflow := f.request(http.MethodPost, path, tooManySkills)
+	require.Equal(t, http.StatusBadRequest, overflow.Code, overflow.Body.String())
+
+	longSkill := f.request(http.MethodPost, path, `{
+        "name": "Skill",
+        "skillIds": ["`+strings.Repeat("s", automationSkillIDMax+1)+`"]
+    }`)
+	require.Equal(t, http.StatusBadRequest, longSkill.Code, longSkill.Body.String())
+
+	blankSkill := f.request(http.MethodPost, path, `{"name":"Skill","skillIds":["  "]}`)
+	require.Equal(t, http.StatusBadRequest, blankSkill.Code, blankSkill.Body.String())
+}
+
+func TestWorkspaceAutomationDedupesSkillIDsAndAllowsSkillOnlyCreate(t *testing.T) {
+	testenv.Require(t)
+	f := newAutomationFixture(t, "admin")
+	path := f.scope.OrgPath("/automations")
+
+	create := f.request(http.MethodPost, path, `{
+        "name": "Skill bot",
+        "skillIds": ["review-translation-changes", " review-translation-changes ", "qa-review"]
+    }`)
+	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
+	var created struct {
+		Automation workspaceAutomationRecord `json:"automation"`
+	}
+	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
+	require.Equal(t, []string{"review-translation-changes", "qa-review"}, created.Automation.SkillIDs)
+	require.Equal(t, "", created.Automation.Instructions)
+}
+
+func TestWorkspaceAutomationContentSyncRequiresProjectAndSyncConfig(t *testing.T) {
+	testenv.Require(t)
+	f := newAutomationFixture(t, "admin")
+	path := f.scope.OrgPath("/automations")
+
+	missingProject := f.request(http.MethodPost, path, `{
+        "name": "Sync",
+        "kind": "content_sync",
+        "syncConfig": {"provider": "github"}
+    }`)
+	require.Equal(t, http.StatusBadRequest, missingProject.Code, missingProject.Body.String())
+	require.Contains(t, missingProject.Body.String(), `"project_required"`)
+
+	missingSync := f.request(http.MethodPost, path, `{
+        "name": "Sync",
+        "kind": "content_sync",
+        "projectId": "`+f.scope.ProjectID+`"
+    }`)
+	require.Equal(t, http.StatusBadRequest, missingSync.Code, missingSync.Body.String())
+	require.Contains(t, missingSync.Body.String(), `"invalid_workspace_automation_payload"`)
+
+	created := f.request(http.MethodPost, path, `{
+        "name": "Sync",
+        "kind": "content_sync",
+        "projectId": "`+f.scope.ProjectID+`",
+        "syncConfig": {"provider": "github"}
+    }`)
+	require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
+	var body struct {
+		Automation workspaceAutomationRecord `json:"automation"`
+	}
+	require.NoError(t, json.Unmarshal(created.Body.Bytes(), &body))
+	require.Equal(t, "content_sync", body.Automation.Kind)
+	require.Equal(t, "", body.Automation.Instructions)
+	require.Empty(t, body.Automation.SkillIDs)
+}
+
+func TestParseBoundedIntRejectsOutOfRange(t *testing.T) {
+	n, err := parseBoundedInt("50", 1, 100)
+	require.NoError(t, err)
+	require.Equal(t, 50, n)
+
+	_, err = parseBoundedInt("0", 1, 100)
+	require.Error(t, err)
+	_, err = parseBoundedInt("101", 1, 100)
+	require.Error(t, err)
+	_, err = parseBoundedInt("", 0, 10)
+	require.Error(t, err)
+	_, err = parseBoundedInt("-1", 0, 10)
+	require.Error(t, err)
+	_, err = parseBoundedInt("1a", 0, 10)
+	require.Error(t, err)
+}
+
+func TestWorkspaceAutomationListRejectsInvalidQuery(t *testing.T) {
+	testenv.Require(t)
+	f := newAutomationFixture(t, "admin")
+	path := f.scope.OrgPath("/automations")
+
+	for _, query := range []string{
+		"?limit=0",
+		"?limit=101",
+		"?limit=1&limit=2",
+		"?offset=-1",
+		"?status=running",
+		"?status=active&status=paused",
+	} {
+		rec := f.request(http.MethodGet, path+query, "")
+		require.Equal(t, http.StatusBadRequest, rec.Code, query+" "+rec.Body.String())
+		require.Contains(t, rec.Body.String(), `"invalid_query_params"`)
+	}
+}
+
+func TestWorkspaceAutomationReassignsOwnerToOrgMember(t *testing.T) {
+	testenv.Require(t)
+	f := newAutomationFixture(t, "admin")
+	path := f.scope.OrgPath("/automations")
+	create := f.request(http.MethodPost, path, `{
+        "name": "Owned bot",
+        "instructions": "Keep strings in sync."
+    }`)
+	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
+	var created struct {
+		Automation workspaceAutomationRecord `json:"automation"`
+	}
+	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
+
+	otherUserID := uuid.NewString()
+	_, err := f.scope.Pool.Exec(t.Context(), `
+        insert into users (id, workos_user_id, email)
+        values ($1, $2, $3)`,
+		otherUserID, "user_"+otherUserID, otherUserID+"@example.com")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = f.scope.Pool.Exec(context.Background(), `delete from users where id=$1`, otherUserID)
+	})
+	_, err = f.scope.Pool.Exec(t.Context(), `
+        insert into organization_memberships (organization_id, user_id, workos_membership_id, role)
+        values ($1, $2, $3, 'member')`,
+		f.scope.OrganizationID, otherUserID, "om_"+otherUserID)
+	require.NoError(t, err)
+
+	reassigned := f.request(http.MethodPatch, path+"/"+created.Automation.ID, `{"authorUserId":"`+otherUserID+`"}`)
+	require.Equal(t, http.StatusOK, reassigned.Code, reassigned.Body.String())
+	var updated struct {
+		Automation workspaceAutomationRecord `json:"automation"`
+	}
+	require.NoError(t, json.Unmarshal(reassigned.Body.Bytes(), &updated))
+	require.Equal(t, otherUserID, *updated.Automation.AuthorUserID)
+
+	unknown := f.request(http.MethodPatch, path+"/"+created.Automation.ID, `{"authorUserId":"`+uuid.NewString()+`"}`)
+	require.Equal(t, http.StatusBadRequest, unknown.Code, unknown.Body.String())
+	require.Contains(t, unknown.Body.String(), `"invalid_workspace_automation_payload"`)
+
+	invalidID := f.request(http.MethodPatch, path+"/"+created.Automation.ID, `{"authorUserId":"not-a-uuid"}`)
+	require.Equal(t, http.StatusBadRequest, invalidID.Code, invalidID.Body.String())
+}
+
+func TestWorkspaceAutomationPatchRequiresInstructionsOrSkill(t *testing.T) {
+	testenv.Require(t)
+	f := newAutomationFixture(t, "admin")
+	path := f.scope.OrgPath("/automations")
+	create := f.request(http.MethodPost, path, `{
+        "name": "Owned bot",
+        "instructions": "Keep strings in sync."
+    }`)
+	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
+	var created struct {
+		Automation workspaceAutomationRecord `json:"automation"`
+	}
+	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
+
+	cleared := f.request(http.MethodPatch, path+"/"+created.Automation.ID, `{"instructions":""}`)
+	require.Equal(t, http.StatusBadRequest, cleared.Code, cleared.Body.String())
+	require.Contains(t, cleared.Body.String(), `"instructions_or_skill_required"`)
 }
