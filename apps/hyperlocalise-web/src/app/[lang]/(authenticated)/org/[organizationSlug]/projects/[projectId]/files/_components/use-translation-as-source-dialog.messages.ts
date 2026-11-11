@@ -61,6 +61,12 @@ export const useTranslationAsSourceDialogMessages = defineMessages({
     id: "O50a0IrZ5J",
     description: "Ends the list of strings without an approved translation when it is cut short",
   },
+  cannotBeWritten: {
+    defaultMessage: "This file could not be written in that language, so it was not sent.",
+    id: "VSDh/ph2mG",
+    description:
+      "Shown when a file cannot be sent because the app cannot write the Word or Excel file in the other project's source language",
+  },
   readsDifferently: {
     defaultMessage:
       "This file was not sent, because the other project would not read it as the same strings. For an Excel file, the usual causes are a first-row cell that is just the name of that project's source language, a formula in that language's column, or Import filters saved without a source column. The Files guide lists the others.",

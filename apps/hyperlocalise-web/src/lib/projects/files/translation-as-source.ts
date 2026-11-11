@@ -69,6 +69,7 @@ export type TranslationAsSourceError =
       missingStrings: TranslationAsSourceMissingString[];
     }
   | { code: "file_build_failed" }
+  | { code: "file_cannot_be_written" }
   | { code: "file_reads_differently" }
   | { code: "upload_failed" };
 
@@ -327,6 +328,14 @@ export async function sendTranslationAsSource(input: {
     targetLocale: input.locale,
     approvedTranslationsOnly: true,
   });
+  // The writer refused this file: the same file and translations are refused again.
+  if (
+    isErr(built) &&
+    built.error.code !== "project_not_found" &&
+    built.error.code !== "source_content_not_found"
+  ) {
+    return err({ code: "file_cannot_be_written" });
+  }
   if (isErr(built) || !built.value) {
     return err({ code: "file_build_failed" });
   }

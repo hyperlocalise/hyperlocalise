@@ -510,6 +510,34 @@ describe("translation as source routes", () => {
     );
   });
 
+  it("refuses a file that cannot be written in the other project's language", async () => {
+    const fixture = await chainedProjectsFixture();
+    // A newest upload, read already, whose content is no Word file the writer can open.
+    const broken = await createStoredFile({
+      organizationId: fixture.organization.id,
+      projectId: fixture.original.id,
+      role: "source",
+      sourceKind: "repository_file",
+      filename: "report.docx",
+      contentType: DOCX_CONTENT_TYPE,
+      content: Buffer.from("not a Word file"),
+    });
+    const version = await createRepositorySourceFileVersion({
+      storedFile: broken,
+      sourcePath: SOURCE_PATH,
+    });
+    await db
+      .update(schema.repositorySourceFileVersions)
+      .set({ ingestState: "ingested" })
+      .where(eq(schema.repositorySourceFileVersions.id, version.id));
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "file_cannot_be_written" });
+    expect(await fixture.destinationVersions()).toEqual([]);
+  });
+
   it("refuses a file whose newest upload could not be read", async () => {
     const fixture = await chainedProjectsFixture();
     await db

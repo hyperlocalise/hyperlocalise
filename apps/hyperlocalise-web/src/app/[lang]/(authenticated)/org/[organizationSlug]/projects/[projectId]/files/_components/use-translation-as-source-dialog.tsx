@@ -79,6 +79,7 @@ class TranslationsNotApprovedError extends Error {
 /** Refusals a person can reach from the dialog, by the route's error code. */
 const REFUSAL_MESSAGES: Partial<Record<string, MessageDescriptor>> = {
   file_reads_differently: messages.readsDifferently,
+  file_cannot_be_written: messages.cannotBeWritten,
   source_file_not_ready: messages.notReady,
   source_file_read_failed: messages.readFailed,
   no_strings: messages.noStrings,

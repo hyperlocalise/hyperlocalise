@@ -76,6 +76,7 @@ const REFUSAL_MESSAGES: Record<
   source_file_read_failed:
     "The file's newest upload could not be read. Upload the file again, then send it.",
   no_strings: "This file has no strings to send.",
+  file_cannot_be_written: "This file could not be written in that language, so it was not sent.",
   file_reads_differently:
     "This file was not sent, because the other project would not read it as the same strings.",
 };
