@@ -38,7 +38,7 @@ type automationAPI struct {
 }
 
 type automationActor struct {
-	userID, organizationID, role string
+	userID, organizationID, role, workosUserID string
 }
 
 func (a automationActor) canManage() bool {
@@ -164,7 +164,12 @@ func (api *automationAPI) actor(ctx context.Context, claims AuthClaims, slug str
 	if err != nil {
 		return automationActor{}, mapOrganizationAccessError(err, automationFailure)
 	}
-	return automationActor(resolved), nil
+	return automationActor{
+		userID:         resolved.userID,
+		organizationID: resolved.organizationID,
+		role:           resolved.role,
+		workosUserID:   claims.UserID,
+	}, nil
 }
 
 func (api *automationAPI) publishActivity(ctx context.Context, input activityLogEventInput) {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -149,6 +150,11 @@ func (api *automationAPI) createWorkspaceAutomation(r *http.Request, actor autom
 	if err := api.validateWorkspaceProject(r.Context(), actor.organizationID, write.projectID); err != nil {
 		return nil, 0, err
 	}
+	toolConfig, err := api.stampedWorkspaceAutomationToolConfig(r.Context(), actor, &actor.userID, write.toolConfig)
+	if err != nil {
+		return nil, 0, err
+	}
+	write.toolConfig = toolConfig
 	record, err := api.insertWorkspaceAutomation(r.Context(), actor, write)
 	if err != nil {
 		return nil, 0, err
@@ -189,6 +195,13 @@ func (api *automationAPI) patchWorkspaceAutomation(r *http.Request, actor automa
 		if err := api.validateAssignableAuthor(r.Context(), actor.organizationID, *write.authorUserID); err != nil {
 			return nil, 0, err
 		}
+	}
+	if write.has.toolConfig {
+		toolConfig, err := api.stampedWorkspaceAutomationToolConfig(r.Context(), actor, existing.AuthorUserID, write.toolConfig)
+		if err != nil {
+			return nil, 0, err
+		}
+		write.toolConfig = toolConfig
 	}
 	record, err := api.updateWorkspaceAutomation(r.Context(), actor.organizationID, existing, write)
 	if err != nil {
@@ -496,6 +509,134 @@ func bytesEqualNull(raw json.RawMessage) bool {
 
 func bytesTrim(raw json.RawMessage) []byte {
 	return []byte(strings.TrimSpace(string(raw)))
+}
+
+// Pipes-backed toolConfig keys whose workosUserId is a credential owner.
+// Matches Hono stampPipesUsersOnToolConfig, plus webflow (same Pipes IDOR).
+var workspaceAutomationPipesToolKeys = map[string]struct{}{
+	"ahrefs":         {},
+	"gitlab":         {},
+	"intercom":       {},
+	"sanity":         {},
+	"googleDrive":    {},
+	"brazeCampaigns": {},
+	"braze":          {},
+	"customerIo":     {},
+	"loops":          {},
+	"hubspot":        {},
+	"mailchimp":      {},
+	"iterable":       {},
+	"email":          {},
+	"webflow":        {},
+}
+
+func pipesCredentialOwnerWorkosUserID(actorWorkosUserID, authorWorkosUserID string) string {
+	for _, candidate := range []string{actorWorkosUserID, authorWorkosUserID} {
+		owner := strings.TrimSpace(candidate)
+		if owner != "" && !strings.HasPrefix(owner, invitedWorkosUserIDPrefix) {
+			return owner
+		}
+	}
+	return ""
+}
+
+func stampPipesUsersOnToolConfig(toolConfig json.RawMessage, workosUserID string) json.RawMessage {
+	trimmed := bytes.TrimSpace(toolConfig)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return emptyJSONObject
+	}
+	var tools map[string]json.RawMessage
+	if err := json.Unmarshal(trimmed, &tools); err != nil || tools == nil {
+		return jsonRawObject(toolConfig)
+	}
+	changed := false
+	for key, value := range tools {
+		next, did := stampPipesUserOnTool(key, value, workosUserID)
+		if did {
+			tools[key] = next
+			changed = true
+		}
+	}
+	if !changed {
+		return jsonRawObject(toolConfig)
+	}
+	out, err := json.Marshal(tools)
+	if err != nil {
+		return jsonRawObject(toolConfig)
+	}
+	return out
+}
+
+func stampPipesUserOnTool(key string, raw json.RawMessage, workosUserID string) (json.RawMessage, bool) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || trimmed[0] != '{' {
+		return raw, false
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(trimmed, &obj); err != nil || obj == nil {
+		return raw, false
+	}
+	if !jsonRawBoolTrue(obj["enabled"]) {
+		return raw, false
+	}
+	_, isPipes := workspaceAutomationPipesToolKeys[key]
+	current, hasOwner := obj["workosUserId"]
+	if !isPipes && !hasOwner {
+		return raw, false
+	}
+	if workosUserID == "" {
+		if !hasOwner {
+			return raw, false
+		}
+		delete(obj, "workosUserId")
+	} else {
+		encoded, err := json.Marshal(workosUserID)
+		if err != nil {
+			return raw, false
+		}
+		if hasOwner && bytes.Equal(bytes.TrimSpace(current), encoded) {
+			return raw, false
+		}
+		obj["workosUserId"] = encoded
+	}
+	out, err := json.Marshal(obj)
+	if err != nil {
+		return raw, false
+	}
+	return out, true
+}
+
+func jsonRawBoolTrue(raw json.RawMessage) bool {
+	var value bool
+	return json.Unmarshal(raw, &value) == nil && value
+}
+
+func (api *automationAPI) stampedWorkspaceAutomationToolConfig(
+	ctx context.Context,
+	actor automationActor,
+	authorUserID *string,
+	toolConfig json.RawMessage,
+) (json.RawMessage, error) {
+	owner := pipesCredentialOwnerWorkosUserID(actor.workosUserID, "")
+	if owner == "" && authorUserID != nil && strings.TrimSpace(*authorUserID) != "" {
+		authorWorkosUserID, err := api.lookupUserWorkosUserID(ctx, *authorUserID)
+		if err != nil {
+			return nil, err
+		}
+		owner = pipesCredentialOwnerWorkosUserID("", authorWorkosUserID)
+	}
+	// Never fall back to client-supplied workosUserId — that would let an
+	// operator mint another member's Pipes credential owner on create/update.
+	return stampPipesUsersOnToolConfig(toolConfig, owner), nil
+}
+
+func (api *automationAPI) lookupUserWorkosUserID(ctx context.Context, userID string) (string, error) {
+	var workosUserID string
+	err := api.pool.QueryRow(ctx, `select coalesce(workos_user_id, '') from users where id=$1`, userID).Scan(&workosUserID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	return workosUserID, err
 }
 
 func githubInstallationRepositoryID(target json.RawMessage) *string {
