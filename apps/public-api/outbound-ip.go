@@ -32,11 +32,10 @@ type outboundIPLookup interface {
 }
 
 type outboundIPBody struct {
-	CheckIP      string   `json:"checkip,omitempty"`
-	CheckIPError string   `json:"checkipError,omitempty"`
-	SSMParameter string   `json:"ssmParameter"`
-	SSMAddresses []string `json:"ssmAddresses,omitempty"`
-	SSMError     string   `json:"ssmError,omitempty"`
+	OutboundIP      string   `json:"outboundIp,omitempty"`
+	OutboundIPError string   `json:"outboundIpError,omitempty"`
+	Allowlist       []string `json:"allowlist,omitempty"`
+	AllowlistError  string   `json:"allowlistError,omitempty"`
 }
 
 type liveOutboundIP struct {
@@ -55,19 +54,18 @@ func (s apiServer) outboundIP(w http.ResponseWriter, r *http.Request) {
 	observed, checkErr := s.outbound.observedIP(r.Context())
 	name, addresses, parameterErr := s.outbound.natAddresses(r.Context())
 	body := outboundIPBody{
-		CheckIP:      observed,
-		SSMParameter: name,
-		SSMAddresses: addresses,
+		OutboundIP: observed,
+		Allowlist:  addresses,
 	}
 	status := http.StatusOK
 	if checkErr != nil {
 		slog.Error("outbound IP lookup failed", "error", checkErr)
-		body.CheckIPError = "outbound IP lookup failed"
+		body.OutboundIPError = "outbound IP lookup failed"
 		status = http.StatusBadGateway
 	}
 	if parameterErr != nil {
 		slog.Error("NAT egress parameter lookup failed", "parameter", name, "error", parameterErr)
-		body.SSMError = "parameter lookup failed"
+		body.AllowlistError = "allowlist lookup failed"
 		if status == http.StatusOK {
 			status = http.StatusServiceUnavailable
 		}

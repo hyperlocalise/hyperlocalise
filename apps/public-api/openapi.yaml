@@ -42,20 +42,20 @@ paths:
       security: []
       summary: Show the task's public egress address
       description: >-
-        Calls https://checkip.amazonaws.com from this process and reads the NAT
-        addresses published for public-api in SSM. One response shows the gateway
-        in the task's availability zone; the parameter lists both gateways.
+        Calls https://checkip.amazonaws.com from this process and reads the
+        published NAT allowlist. outboundIp is the address that server saw.
+        allowlist contains both NAT addresses to give a customer.
       responses:
         "200":
-          description: Both the observed address and the SSM allowlist were read.
+          description: Both the observed address and the allowlist were read.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/OutboundIP"
         "502":
-          description: The checkip call failed. The SSM allowlist is included when that read succeeded.
+          description: The outbound IP lookup failed. The allowlist is included when that read succeeded.
         "503":
-          description: The SSM parameter could not be read. The observed address is included when checkip succeeded.
+          description: The allowlist could not be read. The observed address is included when that lookup succeeded.
   /v1/me:
     get:
       operationId: getCurrentPrincipal
@@ -1205,24 +1205,21 @@ components:
   schemas:
     OutboundIP:
       type: object
-      required: [checkip, ssmParameter, ssmAddresses]
+      required: [outboundIp, allowlist]
       properties:
-        checkip:
+        outboundIp:
           type: string
-          description: Address returned by https://checkip.amazonaws.com for this task.
-        checkipError:
+          description: Address an external server sees for this task.
+        outboundIpError:
           type: string
-          description: Present when the checkip call failed.
-        ssmParameter:
-          type: string
-          description: SSM parameter that stores the NAT egress allowlist.
-        ssmAddresses:
+          description: Present when the outbound address lookup failed.
+        allowlist:
           type: array
           items: { type: string }
-          description: Both NAT public addresses from the parameter.
-        ssmError:
+          description: Both public addresses customers should allowlist.
+        allowlistError:
           type: string
-          description: Present when the parameter could not be read.
+          description: Present when the allowlist could not be read.
     PrincipalResponse:
       type: object
       required: [principal]

@@ -40,9 +40,8 @@ func TestOutboundIP(t *testing.T) {
 	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/outbound-ip", nil))
 	require.Equal(t, http.StatusOK, w.Code)
 	require.JSONEq(t, `{
-		"checkip": "203.0.113.10",
-		"ssmParameter": "/hyperlocalise/prod/ecs/public-api/nat_public_ip_addresses",
-		"ssmAddresses": ["203.0.113.10", "203.0.113.11"]
+		"outboundIp": "203.0.113.10",
+		"allowlist": ["203.0.113.10", "203.0.113.11"]
 	}`, w.Body.String())
 }
 
@@ -55,7 +54,7 @@ func TestOutboundIPPartialFailures(t *testing.T) {
 	w := httptest.NewRecorder()
 	checkFailed.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/outbound-ip", nil))
 	require.Equal(t, http.StatusBadGateway, w.Code)
-	require.Contains(t, w.Body.String(), `"checkipError":"outbound IP lookup failed"`)
+	require.Contains(t, w.Body.String(), `"outboundIpError":"outbound IP lookup failed"`)
 	require.Contains(t, w.Body.String(), `"203.0.113.11"`)
 	require.NotContains(t, w.Body.String(), "dial failed")
 
@@ -67,8 +66,8 @@ func TestOutboundIPPartialFailures(t *testing.T) {
 	w = httptest.NewRecorder()
 	parameterFailed.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/outbound-ip", nil))
 	require.Equal(t, http.StatusServiceUnavailable, w.Code)
-	require.Contains(t, w.Body.String(), `"checkip":"203.0.113.10"`)
-	require.Contains(t, w.Body.String(), `"ssmError":"parameter lookup failed"`)
+	require.Contains(t, w.Body.String(), `"outboundIp":"203.0.113.10"`)
+	require.Contains(t, w.Body.String(), `"allowlistError":"allowlist lookup failed"`)
 	require.NotContains(t, w.Body.String(), "access denied")
 }
 
