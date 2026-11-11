@@ -435,7 +435,7 @@ export function ContentEditorGuidelineSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full gap-0 overflow-hidden bg-background p-0 sm:max-w-2xl"
+        className="w-full gap-0 overflow-hidden bg-background p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-4xl"
         aria-busy={projectQuery.isFetching}
       >
         <SheetHeader className="border-b border-border pe-14">
