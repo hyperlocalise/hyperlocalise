@@ -44,7 +44,6 @@ type guidelineDocumentRecord struct {
 
 type guidelineDocumentScope struct {
 	organizationID string
-	projectID      string
 }
 
 type guidelineDocumentInsert struct {
