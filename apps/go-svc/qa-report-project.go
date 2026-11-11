@@ -88,6 +88,9 @@ func qaReportSettingsPayload(actor qaReportActor, cadence string, lastRunAt *tim
 	if _, ok := checks["unreachable_plural_case"]; !ok {
 		checks["unreachable_plural_case"] = qaCheckSetting{Enabled: true, Severity: "error"}
 	}
+	if _, ok := checks["guideline"]; !ok {
+		checks["guideline"] = qaCheckSetting{Enabled: false, Severity: "warning"}
+	}
 	return map[string]any{
 		"cadence":           cadence,
 		"checks":            checks,
@@ -210,18 +213,24 @@ var qaPolicyCheckTypes = map[string]struct{}{
 	"not_localized": {}, "whitespace_only": {}, "same_as_source": {}, "escaped_char_mismatch": {},
 	"length": {}, "placeholder_mismatch": {}, "glossary_violation": {}, "format": {}, "spelling": {},
 	"numbers_mismatch": {}, "punctuation_mismatch": {}, "character_case_mismatch": {},
-	"unreachable_plural_case": {},
+	"unreachable_plural_case": {}, "guideline": {},
 }
 
 func validQaPolicy(checks map[string]qaCheckSetting) bool {
 	if _, ok := checks["unreachable_plural_case"]; !ok {
 		checks["unreachable_plural_case"] = qaCheckSetting{Enabled: true, Severity: "error"}
 	}
+	if _, ok := checks["guideline"]; !ok {
+		checks["guideline"] = qaCheckSetting{Enabled: false, Severity: "warning"}
+	}
 	if len(checks) != len(qaPolicyCheckTypes) {
 		return false
 	}
 	for key, rule := range checks {
 		if _, ok := qaPolicyCheckTypes[key]; !ok || (rule.Severity != "error" && rule.Severity != "warning") {
+			return false
+		}
+		if key == "guideline" && rule.Severity != "warning" {
 			return false
 		}
 	}

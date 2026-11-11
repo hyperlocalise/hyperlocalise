@@ -22,10 +22,13 @@ var checkTypes = []string{
 	"not_localized", "whitespace_only", "same_as_source", "escaped_char_mismatch",
 	"length", "placeholder_mismatch", "glossary_violation", "format", "spelling",
 	"numbers_mismatch", "punctuation_mismatch", "character_case_mismatch",
-	"unreachable_plural_case",
+	"unreachable_plural_case", "guideline",
 }
 
-const checkUnreachablePlural = "unreachable_plural_case"
+const (
+	checkUnreachablePlural = "unreachable_plural_case"
+	checkGuideline         = "guideline"
+)
 
 type Setting struct {
 	Enabled  bool   `json:"enabled"`
@@ -93,6 +96,8 @@ func DefaultPolicy() Policy {
 		"punctuation_mismatch":    {false, "warning"},
 		"character_case_mismatch": {false, "warning"},
 		checkUnreachablePlural:    {true, "error"},
+		// The editor runs this check. Validate accepts the key and emits no findings.
+		checkGuideline: {false, "warning"},
 	}
 	return Policy{Version: PolicyVersion, Checks: checks}
 }
@@ -103,6 +108,9 @@ func (p *Policy) applyDefaults() {
 	}
 	if _, ok := p.Checks[checkUnreachablePlural]; !ok {
 		p.Checks[checkUnreachablePlural] = Setting{true, "error"}
+	}
+	if _, ok := p.Checks[checkGuideline]; !ok {
+		p.Checks[checkGuideline] = Setting{false, "warning"}
 	}
 }
 
@@ -126,6 +134,9 @@ func (p Policy) Validate() error {
 		}
 		if setting.Severity != "error" && setting.Severity != "warning" {
 			return fmt.Errorf("invalid severity for %s", name)
+		}
+		if name == checkGuideline && setting.Severity != "warning" {
+			return fmt.Errorf("guideline severity must be warning")
 		}
 	}
 	return nil

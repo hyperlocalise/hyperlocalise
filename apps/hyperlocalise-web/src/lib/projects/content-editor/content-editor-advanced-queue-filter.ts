@@ -13,7 +13,7 @@
 import { z } from "zod";
 
 import { translationOrigins } from "@/lib/projects/translations/translation-origin-rule";
-import { translationQaCheckTypes } from "@/lib/qa/types";
+import { translationQaScanCheckTypes } from "@/lib/qa/types";
 
 export const crowdinUnresolvedIssueQualifiers = [
   "general_question",
@@ -301,7 +301,7 @@ export function parseAdvancedQueueFilter(
 
 const allowedQualifiers = new Set<string>([
   ...crowdinQaIssueQualifiers,
-  ...translationQaCheckTypes,
+  ...translationQaScanCheckTypes,
   ...crowdinMachineTranslationQualifiers,
   ...nativeMachineTranslationQualifiers,
   ...nativeUnresolvedIssueQualifiers,
@@ -322,7 +322,7 @@ export function crowdinQaQualifiersForProvider(providerKind: string | null | und
     return crowdinQaIssueQualifiers;
   }
 
-  return translationQaCheckTypes;
+  return translationQaScanCheckTypes;
 }
 
 export function machineTranslationQualifiersForProvider(providerKind: string | null | undefined) {

@@ -65,6 +65,8 @@ import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error
 import { cn } from "@/lib/primitives/cn";
 import { createProjectQaReportClient } from "@/lib/qa/qa-report-client";
 import { applyEditorQaPolicy, DEFAULT_QA_POLICY } from "@/lib/qa/qa-policy";
+import { fetchEditorGuidelineChecks } from "@/components/content-editor/project-file/content-editor-guideline-checks";
+import { contentEditorGuidelineCheckMessages } from "@/components/content-editor/project-file/content-editor-guideline-checks.messages";
 
 import {
   resolveAvailableCatQueueFilters,
@@ -615,6 +617,25 @@ export function ProjectFileContentEditorWorkspace({
   );
 
   const isNativeProject = !isExternalProject && isNativeContentEditorFile(contentEditorFile);
+  const runGuidelineCheck = useCallback(
+    async (segment: ContentEditorSegment, value: string, options?: { signal?: AbortSignal }) =>
+      fetchEditorGuidelineChecks(
+        {
+          organizationSlug,
+          projectId,
+          sourceLocale,
+          sourceText: segment.sourceText,
+          targetText: value,
+          targetLocale: segment.targetLocale,
+          segmentId: segment.id,
+          label: intl.formatMessage(contentEditorGuidelineCheckMessages.label),
+          limitMessage: intl.formatMessage(contentEditorGuidelineCheckMessages.limitReached),
+          signal: options?.signal,
+        },
+        goSvcClient,
+      ),
+    [goSvcClient, intl, organizationSlug, projectId, sourceLocale],
+  );
   const router = useRouter();
   const [keyTask, setKeyTask] = useState<{ stringIds: string[]; onSaved: () => void } | null>(null);
   // Whole-file and image rows have no translation key, so they can't join a key job or carry tags.
@@ -1685,6 +1706,10 @@ export function ProjectFileContentEditorWorkspace({
                         services={{
                           validateFormat,
                           runQaChecks,
+                          runGuidelineCheck:
+                            isNativeProject && qaPolicy.guideline.enabled
+                              ? runGuidelineCheck
+                              : undefined,
                           lookupSegmentConcordance,
                           lookupSegmentContext,
                           lookupSegmentVisualContext,

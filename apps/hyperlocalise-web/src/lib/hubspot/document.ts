@@ -11,8 +11,6 @@
  * Version 2.0 or later.
  */
 
-import { createHash } from "node:crypto";
-
 import type {
   HubspotFormDefinition,
   HubspotFormDependent,
@@ -1088,10 +1086,6 @@ export function serializeHubspotDocument(document: HubspotStringTree): string {
 
 export function hubspotDocumentHasCopy(document: HubspotStringTree): boolean {
   return Object.keys(document).length > 0;
-}
-
-export function hashHubspotContent(content: string): string {
-  return createHash("sha256").update(content).digest("hex");
 }
 
 export function readHubspotStringTree(value: HubspotJson): HubspotStringTree {

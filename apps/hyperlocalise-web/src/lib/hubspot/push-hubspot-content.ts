@@ -46,7 +46,6 @@ import {
   buildEmailDocument,
   buildFormDocument,
   extractEmailStyleSettings,
-  hashHubspotContent,
   readBlogDocument,
   readEmailHtmlDocument,
   readHubspotStringTree,
@@ -54,6 +53,7 @@ import {
   type HubspotJson,
   type HubspotStringTree,
 } from "./document";
+import { hashHubspotContent } from "./document-hash";
 import { isHubspotRemoteCopyEmpty } from "./remote-copy";
 import { isNewEditorForm, newEditorFormPushWarning } from "./form-definition";
 import { formDefinitionForWrite } from "./form-write";

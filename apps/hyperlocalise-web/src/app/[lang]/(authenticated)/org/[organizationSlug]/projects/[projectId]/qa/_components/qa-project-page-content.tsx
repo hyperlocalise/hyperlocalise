@@ -31,7 +31,11 @@ import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { createProjectQaReportClient } from "@/lib/qa/qa-report-client";
 import { workspaceQaReportsQueryKey } from "@/lib/qa/use-workspace-qa-reports";
 import { DEFAULT_QA_POLICY, resolveQaPolicy, type QaCheckPolicy } from "@/lib/qa/qa-policy";
-import { translationQaCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
+import {
+  translationQaCheckTypes,
+  translationQaScanCheckTypes,
+  type TranslationQaCheckType,
+} from "@/lib/qa/types";
 import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
 import { QA_FILTER_ALL } from "@/components/qa/qa-filters-store";
 import { QaProjectUiStoreProvider, useQaProjectUiStore } from "../store/qa-project-store-context";
@@ -306,7 +310,7 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
                     onChange={(value) => pageStore.setCheckType(value)}
                     options={[
                       all,
-                      ...translationQaCheckTypes.map((value) => ({
+                      ...translationQaScanCheckTypes.map((value) => ({
                         value,
                         label: qaCheckLabel(value, intl),
                       })),
@@ -426,21 +430,33 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
                         aria-label={intl.formatMessage(m.enableCheck, {
                           check: qaCheckLabel(check, intl),
                         })}
-                        onCheckedChange={(enabled) => updateRule(check, { enabled })}
+                        onCheckedChange={(enabled) =>
+                          updateRule(
+                            check,
+                            check === "guideline" ? { enabled, severity: "warning" } : { enabled },
+                          )
+                        }
                       />
+                      {check === "guideline" ? (
+                        <FieldDescription>
+                          {intl.formatMessage(m.guidelineCheckHelp)}
+                        </FieldDescription>
+                      ) : null}
                     </Field>
-                    <QaFilter
-                      label={intl.formatMessage(m.severity)}
-                      disabled={!settings?.canManageSchedule || settingsMutation.isPending}
-                      value={policy[check].severity}
-                      onChange={(severity) =>
-                        updateRule(check, { severity: severity as "error" | "warning" })
-                      }
-                      options={(["error", "warning"] as const).map((value) => ({
-                        value,
-                        label: intl.formatMessage(m[value]),
-                      }))}
-                    />
+                    {check === "guideline" ? null : (
+                      <QaFilter
+                        label={intl.formatMessage(m.severity)}
+                        disabled={!settings?.canManageSchedule || settingsMutation.isPending}
+                        value={policy[check].severity}
+                        onChange={(severity) =>
+                          updateRule(check, { severity: severity as "error" | "warning" })
+                        }
+                        options={(["error", "warning"] as const).map((value) => ({
+                          value,
+                          label: intl.formatMessage(m[value]),
+                        }))}
+                      />
+                    )}
                   </div>
                 ))}
               </div>

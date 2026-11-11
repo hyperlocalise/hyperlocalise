@@ -23,13 +23,15 @@ const SUGGESTIONS_SUFFIX_RE = /\s*Suggestions?:\s*.+$/i;
 const SUGGESTIONS_CAPTURE_RE = /Suggestions?:\s*(.+?)\.?$/i;
 const SPELLING_CHECK_ID_RE = /^(spelling|spelling-.+)$/;
 const GLOSSARY_MISSING_CHECK_ID_RE = /^glossary-missing-/;
+const GUIDELINE_CHECK_ID_RE = /^guideline-/;
 
 /** Spelling and missing glossary terms store [problem, replacement, ...]. Other checks list offenders. */
 function hasQaReplacementSemantics(check: ContentEditorFormatCheck) {
   return (
     check.category === "spelling" ||
     SPELLING_CHECK_ID_RE.test(check.id) ||
-    GLOSSARY_MISSING_CHECK_ID_RE.test(check.id)
+    GLOSSARY_MISSING_CHECK_ID_RE.test(check.id) ||
+    GUIDELINE_CHECK_ID_RE.test(check.id)
   );
 }
 

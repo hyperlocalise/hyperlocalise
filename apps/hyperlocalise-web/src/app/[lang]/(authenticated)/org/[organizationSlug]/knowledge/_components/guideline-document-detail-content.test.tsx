@@ -182,6 +182,7 @@ describe("GuidelineDocumentDetailContent", () => {
       "/org/acme/knowledge",
     );
     expect(screen.getByRole("switch", { name: "Always apply" })).toBeChecked();
+    expect(screen.getByText("All locales")).toBeTruthy();
   });
 
   it("toggles the mandatory switch", async () => {

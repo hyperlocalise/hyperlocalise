@@ -38,12 +38,12 @@ import {
   buildEmailDocument,
   buildEmailHtmlDocument,
   buildFormDocument,
-  hashHubspotContent,
   hubspotDocumentHasCopy,
   isHubspotJsonObject,
   serializeHubspotDocument,
   type HubspotJson,
 } from "./document";
+import { hashHubspotContent } from "./document-hash";
 import { isNewEditorForm, newEditorFormImportWarning } from "./form-definition";
 import {
   assignHubspotLocales,

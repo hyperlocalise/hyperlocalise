@@ -11,9 +11,11 @@ the embedding model or dimensions requires a new turbopuffer deployment prefix.
 
 The Postgres source returns ready rows in `guideline_documents` (`doc:<id>`).
 Only `ready` rows with extracted content are returned. A row with
-`mandatory = true` is returned in full; otherwise only its search hits are
-used. A row with a locale applies only when `Scope.Locale` matches; a null
-locale applies to every locale.
+`mandatory = true` is the product switch **Always apply**: the document is
+returned in full and must fit in the check prompt. Otherwise only its search
+hits are used, and those hits can be dropped when the prompt is full. A row
+with a locale applies only when `Scope.Locale` matches; a null locale
+applies to every locale.
 
 Project scopes include assigned org-wide documents as well as the
 project's own. Org-wide uploads (`project_id IS NULL`) check
@@ -71,6 +73,13 @@ quote and a passage label; the server maps the label back to a chunk ID and
 computes UTF-16 offsets from the quote. Findings for unknown segments, unrequested
 fields, uncited passages, or quotes missing from the text are dropped. When no
 passages apply the model is not called.
+
+Repeated checks with the same model, prompt, and passages reuse the previous model
+JSON from Valkey for 24 hours. The key is the organization plus a hash of the
+model name, the system prompt, and the user prompt. The prompt includes the
+current passage text, so an edit, a newly ready document, a deletion, or a scope
+change misses the cache on its own. A hit does not call the model and is not
+billed. A Valkey miss or error runs the model as usual.
 
 go-svc serves `POST /v1/orgs/{org}/guidelines/check` for signed-in users and
 `POST /internal/guidelines/check` for trusted server callers such as MCP. Both

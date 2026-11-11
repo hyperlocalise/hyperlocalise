@@ -20,6 +20,7 @@ import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 import { toast } from "sonner";
 
 import { buildOrganizationPath, buildProjectPath } from "@/components/app-shell/navigation-config";
+import { LocaleNameList } from "@/components/locale-name/locale-name";
 
 import {
   AlertDialog,
@@ -53,7 +54,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
-import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
+import {
+  guidelineDocumentLocales,
+  type GuidelineDocument,
+} from "@/lib/go-svc/go-svc-guidelines-api";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
@@ -307,16 +311,10 @@ function GuidelineDocumentRow({
         <ItemDescription className="flex flex-wrap gap-x-2">
           <span className="truncate">{document.filename}</span>
           <span aria-hidden="true">·</span>
-          <span>
-            {(() => {
-              const locales = document.locales ?? (document.locale ? [document.locale] : []);
-              return locales.length > 0 ? (
-                locales.join(", ")
-              ) : (
-                <FormattedMessage {...messages.allLocales} />
-              );
-            })()}
-          </span>
+          <LocaleNameList
+            locales={guidelineDocumentLocales(document)}
+            empty={<FormattedMessage {...messages.allLocales} />}
+          />
           <span aria-hidden="true">·</span>
           <span className="truncate">
             <GuidelineLinkedProjects

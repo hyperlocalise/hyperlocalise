@@ -758,7 +758,10 @@ function uniqueSortedLocales(locales: readonly string[]) {
 
 function disabledQaCheckTypes(policy: QaCheckPolicy | null | undefined) {
   const resolved = resolveQaPolicy(policy);
-  return translationQaCheckTypes.filter((checkType) => !resolved[checkType].enabled);
+  // Guideline review runs in the editor, so a scan never rechecks it.
+  return translationQaCheckTypes.filter(
+    (checkType) => checkType === "guideline" || !resolved[checkType].enabled,
+  );
 }
 
 function normalizeQaSpellcheckLocale(locale: string) {

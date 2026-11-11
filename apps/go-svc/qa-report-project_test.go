@@ -8,6 +8,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestValidQaPolicyRequiresGuidelineWarning(t *testing.T) {
+	checks := make(map[string]qaCheckSetting, len(qaPolicyCheckTypes))
+	for key := range qaPolicyCheckTypes {
+		checks[key] = qaCheckSetting{Enabled: true, Severity: "warning"}
+	}
+	require.True(t, validQaPolicy(checks))
+
+	delete(checks, "guideline")
+	require.True(t, validQaPolicy(checks))
+	require.Equal(t, "warning", checks["guideline"].Severity)
+
+	checks["guideline"] = qaCheckSetting{Enabled: true, Severity: "error"}
+	require.False(t, validQaPolicy(checks))
+}
+
 func TestProjectQaReportRejectsProviderProject(t *testing.T) {
 	api, scope := qaReportTestAPI(t, "admin")
 	_, err := scope.Pool.Exec(t.Context(), `update projects set source='external_tms' where id=$1`, scope.ProjectID)

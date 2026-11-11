@@ -33,13 +33,13 @@ import {
   emailHtmlKinds,
   buildEmailHtmlDocument,
   flattenHubspotDocument,
-  hashHubspotContent,
   isHubspotJsonObject,
   readEmailHtmlDocument,
   readHubspotStringTree,
   unflattenHubspotDocument,
   type HubspotJson,
 } from "./document";
+import { hashHubspotContent } from "./document-hash";
 import {
   decideHubspotExistingTranslationAction,
   hubspotTranslationPresence,

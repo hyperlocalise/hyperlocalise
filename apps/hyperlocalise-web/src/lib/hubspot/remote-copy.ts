@@ -19,9 +19,9 @@ import {
   buildEmailDocument,
   buildEmailHtmlDocument,
   buildFormDocument,
-  hashHubspotContent,
   serializeHubspotDocument,
 } from "./document";
+import { hashHubspotContent } from "./document-hash";
 
 async function hashRemoteBlogPostHtml(
   client: HubspotContentClient,

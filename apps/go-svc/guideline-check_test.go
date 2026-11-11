@@ -108,6 +108,37 @@ func TestGuidelineCheckReturnsGroundedFindings(t *testing.T) {
 	require.Equal(t, 1.0, meter.tracks[0].Value)
 }
 
+func TestGuidelineCheckReusesCachedModelOutput(t *testing.T) {
+	env := newGuidelineTestEnv(t, "admin")
+	require.NotNil(t, env.scope.Valkey)
+	seedReadyGuideline(t, env, env.scope.OrgPath("/guidelines/documents"), "Address readers formally with vous.")
+	model := &fixedGuidelineModel{output: `{"findings":[
+		{"segmentId":"s1","field":"target","severity":"error","quote":"tu","message":"Use the formal vous.","suggestion":"vous","passage":"P1"}
+	]}`}
+	meter := &recordingGuidelineMeter{allowed: true}
+	retriever := guidelines.NewService(guidelinepg.NewWithPool(env.scope.Pool), nil)
+	env.handler.guidelineCheck = &guidelineCheckAPI{
+		knowledge: env.handler.knowledgeMemories,
+		checker:   check.New(retriever, model, check.WithCache(env.scope.Valkey)),
+		meter:     meter,
+	}
+	body := `{"sourceLocale":"en","targetLocale":"fr-FR","segments":[{"id":"s1","source":"Can you help?","target":"Peux-tu aider ?"}],"checks":["target"]}`
+	path := env.scope.OrgPath("/guidelines/check")
+
+	first := env.json(http.MethodPost, path, body)
+	require.Equal(t, http.StatusOK, first.Code, first.Body.String())
+	second := env.json(http.MethodPost, path, body)
+	require.Equal(t, http.StatusOK, second.Code, second.Body.String())
+	require.JSONEq(t, first.Body.String(), second.Body.String())
+
+	var result check.Result
+	require.NoError(t, json.Unmarshal(second.Body.Bytes(), &result))
+	require.Len(t, result.Findings, 1)
+	require.Equal(t, 1, model.calls)
+	require.Len(t, meter.checks, 1)
+	require.Len(t, meter.tracks, 1)
+}
+
 func TestGuidelineCheckValidationAndLimits(t *testing.T) {
 	env := newGuidelineTestEnv(t, "member")
 	path := env.scope.OrgPath("/guidelines/check")
@@ -133,9 +164,21 @@ func TestGuidelineCheckValidationAndLimits(t *testing.T) {
 		require.Contains(t, rec.Body.String(), "invalid_guideline_check", name)
 	}
 
+	// No passages means the model is not called, so an empty balance is not a refusal.
+	unlimited := env.json(http.MethodPost, path, valid)
+	require.Equal(t, http.StatusOK, unlimited.Code, unlimited.Body.String())
+	require.Contains(t, unlimited.Body.String(), `"findings":[]`)
+	require.Zero(t, model.calls)
+	require.Empty(t, meter.checks)
+	require.Empty(t, meter.tracks)
+
+	seedReadyGuideline(t, env.asRole("admin"), env.scope.OrgPath("/guidelines/documents"), "Address readers formally with vous.")
 	limited := env.json(http.MethodPost, path, valid)
 	require.Equal(t, http.StatusPaymentRequired, limited.Code, limited.Body.String())
 	require.Contains(t, limited.Body.String(), "guideline_check_limit_reached")
+	require.Zero(t, model.calls)
+	require.Len(t, meter.checks, 1)
+	require.Empty(t, meter.tracks)
 
 	meter.checkErr = errors.New("autumn down")
 	failed := env.json(http.MethodPost, path, valid)
@@ -143,12 +186,13 @@ func TestGuidelineCheckValidationAndLimits(t *testing.T) {
 	require.Zero(t, model.calls)
 	require.Empty(t, meter.tracks)
 
-	// Members can run checks once usage allows it; with no guidelines the model is skipped.
+	// Members can run checks once usage allows it.
 	meter.checkErr, meter.allowed = nil, true
 	ok := env.json(http.MethodPost, path, valid)
 	require.Equal(t, http.StatusOK, ok.Code, ok.Body.String())
 	require.Contains(t, ok.Body.String(), `"findings":[]`)
-	require.Zero(t, model.calls)
+	require.Equal(t, 1, model.calls)
+	require.Len(t, meter.tracks, 1)
 }
 
 func TestGuidelineCheckRejectsUnreadableModelOutput(t *testing.T) {

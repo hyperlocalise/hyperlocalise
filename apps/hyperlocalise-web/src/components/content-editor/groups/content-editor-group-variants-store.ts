@@ -20,6 +20,11 @@ import type {
   ContentEditorSegment,
 } from "@/components/content-editor/shared/types";
 
+import {
+  EDITOR_GUIDELINE_CHECK_DEBOUNCE_MS,
+  isGuidelineFormatCheck,
+  mergeGuidelineFormatChecks,
+} from "@/components/content-editor/project-file/content-editor-guideline-checks";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 import type { MultilingualDrafts } from "../multilingual/content-editor-multilingual-drafts";
@@ -32,6 +37,7 @@ export type ContentEditorGroupVariantAction = "save" | "approve" | "all";
 
 export type ContentEditorGroupVariantsServices = {
   validateFormat?: ContentEditorWorkspaceServices["validateFormat"];
+  runGuidelineCheck?: ContentEditorWorkspaceServices["runGuidelineCheck"];
   glossaryTerms?: (segmentId: string) => ContentEditorGlossaryTerm[];
 };
 
@@ -119,6 +125,8 @@ export class ContentEditorGroupVariant {
   isCheckingFormat = false;
   private checkTimer: ReturnType<typeof setTimeout> | null = null;
   private checkAbort: AbortController | null = null;
+  private guidelineTimer: ReturnType<typeof setTimeout> | null = null;
+  private guidelineAbort: AbortController | null = null;
 
   constructor(
     readonly group: ContentEditorGroupVariants,
@@ -126,9 +134,16 @@ export class ContentEditorGroupVariant {
   ) {
     this.id = groupVariantIdentity(variant);
     this.variant = variant;
-    makeAutoObservable<this, "checkTimer" | "checkAbort">(
+    makeAutoObservable<this, "checkTimer" | "checkAbort" | "guidelineTimer" | "guidelineAbort">(
       this,
-      { id: false, group: false, checkTimer: false, checkAbort: false },
+      {
+        id: false,
+        group: false,
+        checkTimer: false,
+        checkAbort: false,
+        guidelineTimer: false,
+        guidelineAbort: false,
+      },
       { autoBind: true },
     );
   }
@@ -198,6 +213,7 @@ export class ContentEditorGroupVariant {
     this.group.drafts.get(this.draftKey, this.variant.text).change(text);
     this.error = null;
     this.scheduleChecks();
+    this.scheduleGuidelineCheck();
   }
   copySource() {
     this.change(this.group.segment.sourceText);
@@ -288,12 +304,14 @@ export class ContentEditorGroupVariant {
       );
       if (abort.signal.aborted) return;
       runInAction(() => {
-        this.formatChecks = mergeFormatChecks(checkGroups);
+        const guideline = this.formatChecks.filter((check) => isGuidelineFormatCheck(check));
+        this.formatChecks = mergeGuidelineFormatChecks(mergeFormatChecks(checkGroups), guideline);
       });
     } catch (error) {
       if (abort.signal.aborted || (error as Error)?.name === "AbortError") return;
       runInAction(() => {
-        this.formatChecks = [];
+        const guideline = this.formatChecks.filter((check) => isGuidelineFormatCheck(check));
+        this.formatChecks = mergeGuidelineFormatChecks([], guideline);
       });
     } finally {
       if (this.checkAbort === abort) {
@@ -305,12 +323,58 @@ export class ContentEditorGroupVariant {
     }
   }
 
+  scheduleGuidelineCheck() {
+    if (!this.group.ports.services?.runGuidelineCheck) return;
+    if (this.guidelineTimer) clearTimeout(this.guidelineTimer);
+    this.guidelineAbort?.abort();
+    this.guidelineAbort = null;
+    if (!this.text.trim()) {
+      runInAction(() => {
+        this.formatChecks = this.formatChecks.filter((check) => !isGuidelineFormatCheck(check));
+      });
+      return;
+    }
+    this.guidelineTimer = setTimeout(
+      () => void this.runGuidelineCheck(),
+      EDITOR_GUIDELINE_CHECK_DEBOUNCE_MS,
+    );
+  }
+
+  private async runGuidelineCheck() {
+    this.guidelineTimer = null;
+    const runGuidelineCheck = this.group.ports.services?.runGuidelineCheck;
+    if (!runGuidelineCheck) return;
+    this.guidelineAbort?.abort();
+    const abort = new AbortController();
+    this.guidelineAbort = abort;
+    const text = this.text;
+    try {
+      const checks = await runGuidelineCheck(this.group.segment, text, { signal: abort.signal });
+      if (abort.signal.aborted || this.text !== text) return;
+      runInAction(() => {
+        this.formatChecks = mergeGuidelineFormatChecks(this.formatChecks, checks);
+      });
+    } catch (error) {
+      if (abort.signal.aborted || (error as Error)?.name === "AbortError") return;
+    } finally {
+      if (this.guidelineAbort === abort) {
+        runInAction(() => {
+          this.guidelineAbort = null;
+        });
+      }
+    }
+  }
+
   /** Stops pending checks and drops a clean draft; the variant stays usable after `sync`. */
   release() {
     if (this.checkTimer) clearTimeout(this.checkTimer);
     this.checkTimer = null;
     this.checkAbort?.abort();
     this.checkAbort = null;
+    if (this.guidelineTimer) clearTimeout(this.guidelineTimer);
+    this.guidelineTimer = null;
+    this.guidelineAbort?.abort();
+    this.guidelineAbort = null;
     this.isCheckingFormat = false;
     this.group.drafts.release(this.draftKey);
   }
@@ -430,6 +494,9 @@ export class ContentEditorGroupVariants {
       this.drafts.get(variant.draftKey, variant.variant.text);
       variant.scheduleChecks(0);
     }
+    const active =
+      (this.focusedVariantId && this.getVariant(this.focusedVariantId)) || this.variants[0];
+    active?.scheduleGuidelineCheck();
   }
 
   release() {
@@ -438,6 +505,7 @@ export class ContentEditorGroupVariants {
 
   focus(variantId: string) {
     this.focusedVariantId = variantId;
+    this.getVariant(variantId)?.scheduleGuidelineCheck();
   }
 
   getVariant(variantId: string) {

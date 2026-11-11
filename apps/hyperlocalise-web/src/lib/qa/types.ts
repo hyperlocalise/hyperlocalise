@@ -12,7 +12,8 @@
  */
 import type { MessageFormat } from "@/lib/i18n/message-format";
 
-export const translationQaCheckTypes = [
+/** Checks a project scan can store. Guideline review runs in the editor only. */
+export const translationQaScanCheckTypes = [
   "not_localized",
   "whitespace_only",
   "same_as_source",
@@ -27,6 +28,8 @@ export const translationQaCheckTypes = [
   "character_case_mismatch",
   "unreachable_plural_case",
 ] as const;
+
+export const translationQaCheckTypes = [...translationQaScanCheckTypes, "guideline"] as const;
 
 export type TranslationQaCheckType = (typeof translationQaCheckTypes)[number];
 

@@ -172,7 +172,8 @@ describe("GuidelineDocumentsSection", () => {
 
     expect(await screen.findByText("French style guide")).toBeTruthy();
     expect(screen.getByText("Ready")).toBeTruthy();
-    expect(screen.getByText("fr-FR")).toBeTruthy();
+    expect(screen.getByText("French (France)")).toBeTruthy();
+    expect(screen.getByText("Japanese (Japan)")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Mobile app" })).toHaveAttribute(
       "href",
       "/org/acme/projects/project_1",

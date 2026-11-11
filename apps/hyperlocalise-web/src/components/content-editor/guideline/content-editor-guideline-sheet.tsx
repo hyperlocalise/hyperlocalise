@@ -15,13 +15,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpenTextIcon } from "@phosphor-icons/react";
+import { BookOpenTextIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import { useProjectPageQuery } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/project-page-shell";
-import { buildOrganizationPath, buildProjectPath } from "@/components/app-shell/navigation-config";
+import { buildProjectPath } from "@/components/app-shell/navigation-config";
+import { LocaleNameList } from "@/components/locale-name/locale-name";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sheet,
   SheetContent,
@@ -32,17 +35,19 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
-import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
+import {
+  guidelineDocumentLocales,
+  type GuidelineDocument,
+} from "@/lib/go-svc/go-svc-guidelines-api";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { cn } from "@/lib/primitives/cn";
 
 import { contentEditorGuidelineSheetMessages as messages } from "./content-editor-guideline-sheet.messages";
 
-type GuidelineTab = "style-guide" | "project-guideline" | "workspace-guideline";
+type GuidelineTab = "style-guide" | "guideline";
 
 function isGuidelineTab(value: unknown): value is GuidelineTab {
-  return (
-    value === "style-guide" || value === "project-guideline" || value === "workspace-guideline"
-  );
+  return value === "style-guide" || value === "guideline";
 }
 
 function GuidelineLink({
@@ -159,11 +164,151 @@ function GuidelineLoading() {
   );
 }
 
+function GuidelineStatusBadge({ status }: { status: GuidelineDocument["status"] }) {
+  if (status === "ready") {
+    return null;
+  }
+  if (status === "failed") {
+    return (
+      <Badge variant="destructive">
+        <FormattedMessage {...messages.failed} />
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="secondary">
+      <FormattedMessage {...messages.processing} />
+    </Badge>
+  );
+}
+
 /**
- * Lists guideline documents and previews the selected one. Document content is
- * fetched on selection; the extracted text is what translators and agents see.
+ * One guideline in the sheet. The title links to the document page; the caret
+ * expands the extracted text translators and agents see.
  */
-function GuidelineDocumentViewer({
+function GuidelineDocumentRow({
+  document,
+  organizationSlug,
+  projectId,
+  client,
+  enabled,
+  defaultOpen,
+  onNavigate,
+}: {
+  document: GuidelineDocument;
+  organizationSlug: string;
+  projectId: string;
+  client: GoSvcClient;
+  enabled: boolean;
+  defaultOpen: boolean;
+  onNavigate: () => void;
+}) {
+  const intl = useIntl();
+  const [open, setOpen] = useState(defaultOpen);
+  const contentQuery = useQuery({
+    queryKey: ["guideline-sheet-document", organizationSlug, projectId, document.id],
+    enabled: enabled && open,
+    queryFn: async ({ signal }) => {
+      const loaded = await client.guidelines.getDocument(organizationSlug, document.id, undefined, {
+        signal,
+      });
+      return loaded.content ?? "";
+    },
+  });
+  const locales = guidelineDocumentLocales(document);
+  const detailHref = buildProjectPath(
+    organizationSlug,
+    projectId,
+    `knowledge/${encodeURIComponent(document.id)}`,
+  );
+
+  return (
+    <li>
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <div className="flex items-start gap-1 px-3 py-2.5">
+          <CollapsibleTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="mt-0.5 shrink-0"
+                aria-label={intl.formatMessage(
+                  open ? messages.hideDocument : messages.showDocument,
+                  { title: document.title },
+                )}
+              />
+            }
+          >
+            <CaretRightIcon
+              aria-hidden="true"
+              className={cn("size-4 transition-transform", open && "rotate-90")}
+            />
+          </CollapsibleTrigger>
+          <div className="min-w-0 flex-1 py-1">
+            <Link
+              href={detailHref}
+              className="block truncate text-sm font-medium text-foreground underline-offset-4 hover:underline"
+              onClick={onNavigate}
+            >
+              {document.title}
+            </Link>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <LocaleNameList
+                locales={locales}
+                className="text-xs text-muted-foreground"
+                empty={
+                  <span className="text-xs text-muted-foreground">
+                    {intl.formatMessage(messages.allLocales)}
+                  </span>
+                }
+              />
+              {document.mandatory ? (
+                <Badge variant="outline">
+                  <FormattedMessage {...messages.alwaysApply} />
+                </Badge>
+              ) : null}
+              <GuidelineStatusBadge status={document.status} />
+            </div>
+          </div>
+        </div>
+        <CollapsibleContent>
+          <div className="px-5 pb-5 ps-12">
+            {contentQuery.isPending ? (
+              <div className="space-y-3" aria-busy="true">
+                <span className="sr-only">
+                  <FormattedMessage {...messages.loading} />
+                </span>
+                <Skeleton className="h-4 w-2/5" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-11/12" />
+              </div>
+            ) : null}
+            {contentQuery.isError ? (
+              <p className="text-sm text-pretty text-flame-100">
+                <FormattedMessage {...messages.loadError} />
+              </p>
+            ) : null}
+            {contentQuery.data != null && !contentQuery.data.trim() ? (
+              <p className="text-sm text-pretty text-muted-foreground">
+                <FormattedMessage {...messages.previewUnavailable} />
+              </p>
+            ) : null}
+            {contentQuery.data?.trim() ? (
+              <MarkdownPreview
+                value={contentQuery.data}
+                chrome="minimal"
+                className="bg-transparent"
+              />
+            ) : null}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </li>
+  );
+}
+
+function GuidelineDocumentList({
   documents,
   organizationSlug,
   projectId,
@@ -176,7 +321,7 @@ function GuidelineDocumentViewer({
 }: {
   documents: GuidelineDocument[];
   organizationSlug: string;
-  projectId?: string;
+  projectId: string;
   client: GoSvcClient;
   enabled: boolean;
   emptyMessage: string;
@@ -184,24 +329,6 @@ function GuidelineDocumentViewer({
   actionLabel: MessageDescriptor | null;
   onNavigate: () => void;
 }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = documents.find((document) => document.id === selectedId) ?? documents[0] ?? null;
-  const contentQuery = useQuery({
-    queryKey: ["guideline-sheet-document", organizationSlug, projectId, selected?.id],
-    enabled: enabled && selected != null,
-    queryFn: async ({ signal }) => {
-      const document = await client.guidelines.getDocument(
-        organizationSlug,
-        selected!.id,
-        projectId,
-        {
-          signal,
-        },
-      );
-      return document.content ?? "";
-    },
-  });
-
   if (documents.length === 0) {
     return (
       <GuidelineEmpty
@@ -219,52 +346,26 @@ function GuidelineDocumentViewer({
         href={actionHref}
         label={actionLabel}
         onNavigate={onNavigate}
-        variant={contentQuery.data?.trim() ? "outline" : "default"}
+        variant="outline"
       />
     ) : null;
 
   return (
     <GuidelinePanel>
-      {documents.length > 1 ? (
-        <div className="flex flex-wrap gap-1.5 border-b border-border px-4 py-3">
-          {documents.map((document) => (
-            <Button
-              key={document.id}
-              type="button"
-              variant={selected?.id === document.id ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setSelectedId(document.id)}
-            >
-              {document.title}
-            </Button>
-          ))}
-        </div>
-      ) : null}
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-        {contentQuery.isPending ? (
-          <div className="space-y-3" aria-busy="true">
-            <span className="sr-only">
-              <FormattedMessage {...messages.loading} />
-            </span>
-            <Skeleton className="h-4 w-2/5" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-11/12" />
-          </div>
-        ) : null}
-        {contentQuery.isError ? (
-          <p className="text-sm text-pretty text-flame-100">
-            <FormattedMessage {...messages.loadError} />
-          </p>
-        ) : null}
-        {contentQuery.data != null && !contentQuery.data.trim() ? (
-          <p className="text-sm text-pretty text-muted-foreground">
-            <FormattedMessage {...messages.previewUnavailable} />
-          </p>
-        ) : null}
-        {contentQuery.data?.trim() ? (
-          <MarkdownPreview value={contentQuery.data} chrome="minimal" className="bg-transparent" />
-        ) : null}
-      </div>
+      <ul className="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
+        {documents.map((document) => (
+          <GuidelineDocumentRow
+            key={document.id}
+            document={document}
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            client={client}
+            enabled={enabled}
+            defaultOpen={documents.length === 1}
+            onNavigate={onNavigate}
+          />
+        ))}
+      </ul>
       {action ? (
         <div className="flex justify-end border-t border-border bg-muted/40 px-4 py-3">
           {action}
@@ -290,7 +391,7 @@ export function ContentEditorGuidelineSheet({
   client?: GoSvcClient;
 }) {
   const intl = useIntl();
-  const [tab, setTab] = useState<GuidelineTab>("style-guide");
+  const [tab, setTab] = useState<GuidelineTab>("guideline");
   const { client: hookClient, loading: clientLoading } = useGoSvcClient();
   const client = clientProp ?? hookClient;
   const enabled = open && (clientProp != null || !clientLoading);
@@ -300,7 +401,6 @@ export function ContentEditorGuidelineSheet({
   const canEditStyleGuide = canWriteProjects && project?.source === "native";
   const settingsHref = buildProjectPath(organizationSlug, projectId, "settings");
   const projectKnowledgeHref = buildProjectPath(organizationSlug, projectId, "knowledge");
-  const workspaceKnowledgeHref = buildOrganizationPath(organizationSlug, "knowledge");
 
   const workspaceDocsQuery = useQuery({
     queryKey: ["guideline-sheet-workspace-docs", organizationSlug],
@@ -322,31 +422,27 @@ export function ContentEditorGuidelineSheet({
   });
 
   const assignments = assignmentsQuery.data ?? new Map<string, string[]>();
-  // Project-owned documents are retired; the project tab derives from org
-  // documents scoped to this project (global or explicitly assigned).
-  // Unassigned non-global documents apply to no project.
+  // Project-owned documents are retired. The list is org documents in scope
+  // for this project: global, or explicitly assigned. Unassigned non-global
+  // documents apply to no project.
   const isDocumentInProject = (document: GuidelineDocument) => {
     if (document.projectId != null) return false;
     if (document.isGlobal ?? false) return true;
     return assignments.get(document.id)?.includes(projectId) ?? false;
   };
-  const projectDocuments = (workspaceDocsQuery.data ?? []).filter(isDocumentInProject);
-  // The workspace tab stays scoped to this project, matching the previous
-  // assigned-or-unassigned behavior under the new global/assigned model.
-  const workspaceDocuments = (workspaceDocsQuery.data ?? []).filter(isDocumentInProject);
+  const documents = (workspaceDocsQuery.data ?? []).filter(isDocumentInProject);
 
   const close = () => onOpenChange(false);
   const descriptionByTab = {
     "style-guide": messages.descriptionStyleGuide,
-    "project-guideline": messages.descriptionProjectGuideline,
-    "workspace-guideline": messages.descriptionWorkspaceGuideline,
+    guideline: messages.descriptionGuideline,
   } satisfies Record<GuidelineTab, MessageDescriptor>;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full gap-0 overflow-hidden bg-background p-0 sm:max-w-xl"
+        className="w-full gap-0 overflow-hidden bg-background p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-4xl"
         aria-busy={projectQuery.isFetching}
       >
         <SheetHeader className="border-b border-border pe-14">
@@ -368,24 +464,18 @@ export function ContentEditorGuidelineSheet({
           className="min-h-0 flex-1 gap-0 bg-muted"
         >
           <div className="px-4 pt-4">
-            <TabsList className="grid h-auto w-full grid-cols-3">
+            <TabsList className="grid h-auto w-full grid-cols-2">
+              <TabsTrigger
+                value="guideline"
+                className="h-auto whitespace-normal px-2 py-2 leading-snug"
+              >
+                <FormattedMessage {...messages.tabGuideline} />
+              </TabsTrigger>
               <TabsTrigger
                 value="style-guide"
                 className="h-auto whitespace-normal px-2 py-2 leading-snug"
               >
                 <FormattedMessage {...messages.tabStyleGuide} />
-              </TabsTrigger>
-              <TabsTrigger
-                value="project-guideline"
-                className="h-auto whitespace-normal px-2 py-2 leading-snug"
-              >
-                <FormattedMessage {...messages.tabProjectGuideline} />
-              </TabsTrigger>
-              <TabsTrigger
-                value="workspace-guideline"
-                className="h-auto whitespace-normal px-2 py-2 leading-snug"
-              >
-                <FormattedMessage {...messages.tabWorkspaceGuideline} />
               </TabsTrigger>
             </TabsList>
           </div>
@@ -428,50 +518,26 @@ export function ContentEditorGuidelineSheet({
               />
             )}
           </TabsContent>
-          <TabsContent value="project-guideline" className="flex min-h-0 flex-1 flex-col p-4">
+          <TabsContent value="guideline" className="flex min-h-0 flex-1 flex-col p-4">
             {workspaceDocsQuery.isPending || assignmentsQuery.isPending ? (
               <GuidelineLoading />
             ) : workspaceDocsQuery.isError || assignmentsQuery.isError ? (
               <GuidelineError
                 actionHref={projectKnowledgeHref}
-                actionLabel={messages.editProjectGuideline}
+                actionLabel={messages.openKnowledge}
                 onNavigate={close}
               />
             ) : (
-              <GuidelineDocumentViewer
-                key="project"
-                documents={projectDocuments}
+              <GuidelineDocumentList
+                key={documents.map((document) => document.id).join("|")}
+                documents={documents}
                 organizationSlug={organizationSlug}
                 projectId={projectId}
                 client={client}
                 enabled={enabled}
-                emptyMessage={intl.formatMessage(messages.emptyProjectGuideline)}
+                emptyMessage={intl.formatMessage(messages.emptyGuideline)}
                 actionHref={projectKnowledgeHref}
-                actionLabel={messages.editProjectGuideline}
-                onNavigate={close}
-              />
-            )}
-          </TabsContent>
-          <TabsContent value="workspace-guideline" className="flex min-h-0 flex-1 flex-col p-4">
-            {workspaceDocsQuery.isPending || assignmentsQuery.isPending ? (
-              <GuidelineLoading />
-            ) : workspaceDocsQuery.isError || assignmentsQuery.isError ? (
-              <GuidelineError
-                actionHref={workspaceKnowledgeHref}
-                actionLabel={messages.editWorkspaceGuideline}
-                onNavigate={close}
-              />
-            ) : (
-              <GuidelineDocumentViewer
-                key="workspace"
-                documents={workspaceDocuments}
-                organizationSlug={organizationSlug}
-                projectId={undefined}
-                client={client}
-                enabled={enabled}
-                emptyMessage={intl.formatMessage(messages.emptyWorkspaceGuideline)}
-                actionHref={workspaceKnowledgeHref}
-                actionLabel={messages.editWorkspaceGuideline}
+                actionLabel={messages.openKnowledge}
                 onNavigate={close}
               />
             )}
