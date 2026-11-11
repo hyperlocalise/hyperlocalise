@@ -17,4 +17,11 @@ import { projectIdSchema } from "@/lib/projects/identity/project-id";
 export const sendTranslationAsSourceBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   destinationProjectId: projectIdSchema,
+  /** The other project's version at that path, shown to the person, that the send replaces. */
+  replaceVersionId: z.uuid().optional(),
+});
+
+export const translationAsSourceDestinationFileQuerySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  destinationProjectId: projectIdSchema,
 });

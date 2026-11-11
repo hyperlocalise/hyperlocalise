@@ -19,12 +19,14 @@ import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { readOfficeSourceTexts } from "@/lib/projects/files/office-source-entries";
-import {
-  loadProjectOfficeTranslationDownload,
-  officeTranslationDownloadFilename,
-} from "@/lib/projects/files/office-translation-download";
+import { loadProjectOfficeTranslationDownload } from "@/lib/projects/files/office-translation-download";
 import { getRepositorySourceFileImportSettings } from "@/lib/projects/files/source-file-import-settings";
 import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-service";
+import {
+  getTranslationAsSourceDestinationFile,
+  translationAsSourceDestinationPath,
+  translationAsSourceDestinationRefusal,
+} from "@/lib/projects/files/translation-as-source-destination";
 import { translationSourceFingerprintSql } from "@/lib/projects/files/translation-as-source-fingerprint";
 import {
   supportsTranslationAsSource,
@@ -36,7 +38,6 @@ import {
   listProjectTranslationKeysForFile,
 } from "@/lib/projects/translations/project-translation-service";
 import { shouldPrefillTranslation } from "@/lib/projects/translations/translation-prefill";
-import { inferSupportedOfficeTranslationFileFormat } from "@/lib/translation/file-formats";
 import { ooxmlHasLetter } from "@/lib/translation/ooxml/ooxml-paragraph";
 
 type ProjectRecord = typeof schema.projects.$inferSelect;
@@ -71,6 +72,7 @@ export type TranslationAsSourceError =
   | { code: "file_build_failed" }
   | { code: "file_cannot_be_written" }
   | { code: "file_reads_differently" }
+  | { code: "destination_file_replaced" }
   | { code: "upload_failed" };
 
 export type TranslationAsSourceResult = {
@@ -248,7 +250,9 @@ function readBackProblem(
  *
  * Refused while any string in the file lacks an approved translation: the writers keep the
  * original text where a translation is missing, which the destination would read as source.
- * Refused too when the destination would not read the built file as the original's strings.
+ * Refused too when the destination would not read the built file as the original's strings, and
+ * when the destination's file at that path did not come from this file's last send, unless
+ * `replaceVersionId` names that very version (a person saw it and chose to replace it).
  */
 export async function sendTranslationAsSource(input: {
   organizationId: string;
@@ -257,6 +261,8 @@ export async function sendTranslationAsSource(input: {
   sourcePath: string;
   locale: string;
   actorUserId: string;
+  /** The destination's version at that path a person chose to replace. */
+  replaceVersionId?: string;
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
   fileStorageAdapter?: FileStorageAdapter;
 }): Promise<Result<TranslationAsSourceResult, TranslationAsSourceError>> {
@@ -323,6 +329,22 @@ export async function sendTranslationAsSource(input: {
     return err({ code: "translations_not_approved", ...unapproved });
   }
 
+  // Only an .xls file changes its name; any other keeps its path as it is written.
+  const destinationPath = translationAsSourceDestinationPath(version.sourcePath);
+  const destination = {
+    organizationId: input.organizationId,
+    destinationProjectId: destinationProject.id,
+    destinationPath,
+    repositorySourceFileId: sourceFile.id,
+  };
+  const replacing = translationAsSourceDestinationRefusal(
+    await getTranslationAsSourceDestinationFile(destination),
+    input.replaceVersionId,
+  );
+  if (replacing) {
+    return err(replacing);
+  }
+
   const built = await loadProjectOfficeTranslationDownload({
     ...scope,
     targetLocale: input.locale,
@@ -346,11 +368,6 @@ export async function sendTranslationAsSource(input: {
     return err({ code: "source_file_not_ready" });
   }
 
-  // Only an .xls file changes its name; any other keeps its path as it is written.
-  const destinationPath =
-    inferSupportedOfficeTranslationFileFormat(version.sourcePath) === "xls"
-      ? officeTranslationDownloadFilename(version.sourcePath, built.value)
-      : version.sourcePath;
   const importSettings = (await getRepositorySourceFileImportSettings(scope))?.importSettings;
   const readBack = await readOfficeSourceTexts({
     sourcePath: destinationPath,
@@ -364,6 +381,15 @@ export async function sendTranslationAsSource(input: {
   const problem = readBackProblem(readBack.value, strings);
   if (problem) {
     return err(problem);
+  }
+
+  // A file may have arrived there while this one was being built.
+  const replacingNow = translationAsSourceDestinationRefusal(
+    await getTranslationAsSourceDestinationFile(destination),
+    input.replaceVersionId,
+  );
+  if (replacingNow) {
+    return err(replacingNow);
   }
 
   const uploaded = await uploadSourceFile({

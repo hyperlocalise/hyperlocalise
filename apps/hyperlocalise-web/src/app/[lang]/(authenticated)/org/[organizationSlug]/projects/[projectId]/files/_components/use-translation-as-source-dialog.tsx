@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useId, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -84,7 +84,47 @@ const REFUSAL_MESSAGES: Partial<Record<string, MessageDescriptor>> = {
   source_file_read_failed: messages.readFailed,
   no_strings: messages.noStrings,
   forbidden: messages.roleCannotSend,
+  destination_file_replaced: messages.destinationChanged,
 };
+
+/** What the chosen project has at the path a send writes to, as the route describes it. */
+type DestinationFile = {
+  state: "empty" | "sent_from_here" | "from_sync" | "other";
+  path: string;
+  addedAt: string | null;
+  versionId?: string;
+  addedBy?: string | null;
+  sentFrom?: { thisProject: boolean; projectName: string | null; sourcePath: string } | null;
+};
+
+/** Where the chosen project's file came from, for a file a send would replace. */
+function describeDestinationFile(intl: IntlShape, file: DestinationFile, project: string): string {
+  const values = {
+    project,
+    file: file.path,
+    date: intl.formatDate(file.addedAt ?? undefined, { dateStyle: "medium", timeStyle: "short" }),
+  };
+  if (file.state === "from_sync") {
+    return intl.formatMessage(messages.destinationFromSync, values);
+  }
+  if (file.sentFrom?.thisProject) {
+    return intl.formatMessage(messages.destinationSentFromFile, {
+      ...values,
+      sourceFile: file.sentFrom.sourcePath,
+    });
+  }
+  if (file.sentFrom) {
+    return file.sentFrom.projectName
+      ? intl.formatMessage(messages.destinationSentFromProject, {
+          ...values,
+          fromProject: file.sentFrom.projectName,
+        })
+      : intl.formatMessage(messages.destinationSentFromAnotherProject, values);
+  }
+  return file.addedBy
+    ? intl.formatMessage(messages.destinationUploadedBy, { ...values, person: file.addedBy })
+    : intl.formatMessage(messages.destinationAdded, values);
+}
 
 function translationSourceApi() {
   return apiClient.api.orgs[":organizationSlug"].projects[":projectId"].files["translation-source"];
@@ -111,6 +151,7 @@ export function UseTranslationAsSourceDialog({
   sourcePath: string;
 }) {
   const intl = useIntl();
+  const queryClient = useQueryClient();
   const selectId = useId();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -140,18 +181,59 @@ export function UseTranslationAsSourceDialog({
   const destinations = destinationsQuery.data ?? [];
   const destination =
     destinations.find((entry) => entry.id === selectedId) ?? destinations[0] ?? null;
+
+  // What the chosen project has at that path, shown before sending; the server checks it again.
+  const destinationFileQueryKey = [
+    "project-translation-source-destination-file",
+    organizationSlug,
+    projectId,
+    sourcePath,
+    destination?.id ?? null,
+  ];
+  const destinationFileQuery = useQuery({
+    queryKey: destinationFileQueryKey,
+    enabled: open && destination !== null,
+    staleTime: 0,
+    queryFn: async (): Promise<DestinationFile | null> => {
+      if (!destination) {
+        return null;
+      }
+      const response = await translationSourceApi()["destination-file"].$get({
+        param: { organizationSlug, projectId },
+        query: { sourcePath, destinationProjectId: destination.id },
+      });
+      if (response.status !== 200) {
+        throw await readApiResponseError(response, intl.formatMessage(messages.sendFailed));
+      }
+      return (await response.json()).destinationFile;
+    },
+  });
+  // A failed re-read keeps the earlier data; the notice is built only from a current read.
+  const destinationFile = destinationFileQuery.isSuccess ? destinationFileQuery.data : null;
+  // A file this file did not send is replaced only once the person has seen what it is.
+  const replacing =
+    destinationFile?.state === "other" || destinationFile?.state === "from_sync"
+      ? destinationFile
+      : null;
+  const noticeId = useId();
   const loadErrorMessage =
     destinationsQuery.error instanceof Error
       ? destinationsQuery.error.message
       : intl.formatMessage(messages.loadFailed);
 
   const sendMutation = useMutation({
-    mutationFn: async (target: TranslationSourceDestination) => {
+    mutationFn: async ({
+      target,
+      replaceVersionId,
+    }: {
+      target: TranslationSourceDestination;
+      replaceVersionId?: string;
+    }) => {
       const fallback = intl.formatMessage(messages.sendFailed);
       try {
         const response = await translationSourceApi().$post({
           param: { organizationSlug, projectId },
-          json: { sourcePath, destinationProjectId: target.id },
+          json: { sourcePath, destinationProjectId: target.id, replaceVersionId },
         });
         if (response.status === 201) {
           return target;
@@ -177,6 +259,8 @@ export function UseTranslationAsSourceDialog({
         throw new Error(fallback, { cause: error instanceof Error ? error : undefined });
       }
     },
+    // The chosen project's file is read again after any send, so the notice stays true.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: destinationFileQueryKey }),
     onSuccess: (target) => {
       toast.success(intl.formatMessage(messages.sendSuccess, { project: target.name }));
       onOpenChange(false);
@@ -210,7 +294,7 @@ export function UseTranslationAsSourceDialog({
             <FormattedMessage {...messages.noDestinations} />
           </p>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="flex min-w-0 flex-col gap-2">
             <Label htmlFor={selectId}>
               <FormattedMessage {...messages.projectLabel} />
             </Label>
@@ -221,17 +305,39 @@ export function UseTranslationAsSourceDialog({
                 sendMutation.reset();
               }}
             >
-              <SelectTrigger id={selectId} className="w-full">
-                <SelectValue>{destinationLabel(intl, destination)}</SelectValue>
+              <SelectTrigger id={selectId} className="w-full min-w-0">
+                <SelectValue className="min-w-0">
+                  <span className="truncate" title={destinationLabel(intl, destination)}>
+                    {destinationLabel(intl, destination)}
+                  </span>
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {destinations.map((entry) => (
                   <SelectItem key={entry.id} value={entry.id}>
-                    {destinationLabel(intl, entry)}
+                    <span className="whitespace-normal break-words">
+                      {destinationLabel(intl, entry)}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {replacing ? (
+              <p
+                id={noticeId}
+                className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm"
+              >
+                {describeDestinationFile(intl, replacing, destination.name)}{" "}
+                <FormattedMessage {...messages.destinationReplaceConsequence} />
+              </p>
+            ) : destinationFileQuery.isError ? (
+              <p className="text-sm text-destructive" role="alert">
+                <FormattedMessage
+                  {...messages.destinationFileLoadFailed}
+                  values={{ project: destination.name }}
+                />
+              </p>
+            ) : null}
             {destination.keepsApprovedOnSourceChange ? (
               <p className="text-sm text-muted-foreground">
                 <FormattedMessage
@@ -288,15 +394,32 @@ export function UseTranslationAsSourceDialog({
           </Button>
           <Button
             type="button"
-            disabled={destination === null || sendMutation.isPending}
+            className="min-w-0 shrink"
+            aria-describedby={replacing ? noticeId : undefined}
+            // Sent only on what the person sees now of the chosen project's file.
+            disabled={
+              destination === null ||
+              sendMutation.isPending ||
+              !destinationFileQuery.isSuccess ||
+              destinationFileQuery.isFetching
+            }
             onClick={() => {
               if (destination) {
-                sendMutation.mutate(destination);
+                sendMutation.mutate({
+                  target: destination,
+                  replaceVersionId: replacing?.versionId,
+                });
               }
             }}
           >
             {sendMutation.isPending ? <Spinner className="size-4" /> : null}
-            <FormattedMessage {...messages.send} />
+            <span className="min-w-0 truncate">
+              {destination && replacing ? (
+                <FormattedMessage {...messages.replaceIn} values={{ project: destination.name }} />
+              ) : (
+                <FormattedMessage {...messages.send} />
+              )}
+            </span>
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -16,12 +16,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { UseTranslationAsSourceDialog } from "./use-translation-as-source-dialog";
 
 const apiMocks = vi.hoisted(() => ({
   getDestinations: vi.fn(),
+  getDestinationFile: vi.fn(),
   send: vi.fn(),
   toastSuccess: vi.fn(),
 }));
@@ -37,6 +38,7 @@ vi.mock("@/lib/api-client-instance", () => ({
                 "translation-source": {
                   $post: apiMocks.send,
                   destinations: { $get: apiMocks.getDestinations },
+                  "destination-file": { $get: apiMocks.getDestinationFile },
                 },
               },
             },
@@ -93,6 +95,12 @@ function renderDialog(onOpenChange = vi.fn()) {
 }
 
 describe("UseTranslationAsSourceDialog", () => {
+  beforeEach(() => {
+    apiMocks.getDestinationFile.mockImplementation(async () =>
+      jsonResponse({ destinationFile: { state: "empty", path: "docs/brief.docx", addedAt: null } }),
+    );
+  });
+
   afterEach(() => {
     vi.clearAllMocks();
   });
@@ -230,6 +238,169 @@ describe("UseTranslationAsSourceDialog", () => {
         "When this text changes later, approved translations in French stage stay approved. To change this, use “When source text changes” in that project's settings.",
       ),
     ).toBeTruthy();
+  });
+
+  it("says what a send would replace in the chosen project, and replaces that version", async () => {
+    apiMocks.getDestinations.mockResolvedValue(jsonResponse({ destinations: [englishProject] }));
+    apiMocks.getDestinationFile.mockImplementation(async () =>
+      jsonResponse({
+        destinationFile: {
+          state: "other",
+          path: "docs/brief.docx",
+          addedAt: "2026-11-03T09:30:00.000Z",
+          versionId: "7d1b4c1e-2f1a-4e55-9e33-0b8f8a2c1d10",
+          addedBy: "Mei Chen",
+          sentFrom: null,
+        },
+      }),
+    );
+    apiMocks.send.mockResolvedValue(jsonResponse({ file: {} }, 201));
+
+    renderDialog();
+
+    expect(
+      await screen.findByText(
+        /^English stage has docs\/brief\.docx, uploaded by Mei Chen on .+\. Sending replaces it\./,
+      ),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Replace in English stage" }));
+
+    await waitFor(() =>
+      expect(apiMocks.send).toHaveBeenCalledWith({
+        param: { organizationSlug: "acme", projectId: "project_zh" },
+        json: {
+          sourcePath: "docs/brief.docx",
+          destinationProjectId: "project_en",
+          replaceVersionId: "7d1b4c1e-2f1a-4e55-9e33-0b8f8a2c1d10",
+        },
+      }),
+    );
+  });
+
+  it("says when a file the chosen project's repository sync added would be replaced", async () => {
+    apiMocks.getDestinations.mockResolvedValue(jsonResponse({ destinations: [englishProject] }));
+    apiMocks.getDestinationFile.mockImplementation(async () =>
+      jsonResponse({
+        destinationFile: {
+          state: "from_sync",
+          path: "docs/brief.docx",
+          addedAt: "2026-11-03T09:30:00.000Z",
+          versionId: "5c0b7f3e-8d1a-4c2b-9f6e-3a2d1c0b9e8f",
+        },
+      }),
+    );
+    apiMocks.send.mockResolvedValue(jsonResponse({ file: {} }, 201));
+
+    renderDialog();
+
+    expect(
+      await screen.findByText(
+        /^English stage has docs\/brief\.docx, added on .+ by its connection to a repository/,
+      ),
+    ).toBeInTheDocument();
+    const replace = screen.getByRole("button", { name: "Replace in English stage" });
+    expect(replace).toHaveAccessibleDescription(/may put its copy back/);
+    await userEvent.click(replace);
+
+    await waitFor(() =>
+      expect(apiMocks.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          json: expect.objectContaining({
+            replaceVersionId: "5c0b7f3e-8d1a-4c2b-9f6e-3a2d1c0b9e8f",
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("shows what the chosen project has now when its file changed after the dialog opened", async () => {
+    apiMocks.getDestinations.mockResolvedValue(jsonResponse({ destinations: [englishProject] }));
+    apiMocks.getDestinationFile
+      .mockImplementationOnce(async () =>
+        jsonResponse({
+          destinationFile: { state: "empty", path: "docs/brief.docx", addedAt: null },
+        }),
+      )
+      .mockImplementation(async () =>
+        jsonResponse({
+          destinationFile: {
+            state: "other",
+            path: "docs/brief.docx",
+            addedAt: "2026-11-03T09:30:00.000Z",
+            versionId: "7d1b4c1e-2f1a-4e55-9e33-0b8f8a2c1d10",
+            addedBy: "Mei Chen",
+            sentFrom: null,
+          },
+        }),
+      );
+    apiMocks.send.mockResolvedValue(
+      jsonResponse({ error: "destination_file_replaced", message: "Server wording." }, 409),
+    );
+
+    renderDialog();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Send" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The file in that project changed since this dialog opened.",
+    );
+    expect(
+      await screen.findByText(/^English stage has docs\/brief\.docx, uploaded by Mei Chen/),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Replace in English stage" }));
+
+    await waitFor(() =>
+      expect(apiMocks.send).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          json: expect.objectContaining({
+            replaceVersionId: "7d1b4c1e-2f1a-4e55-9e33-0b8f8a2c1d10",
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("does not send when it could not check what the chosen project has", async () => {
+    apiMocks.getDestinations.mockResolvedValue(jsonResponse({ destinations: [englishProject] }));
+    apiMocks.getDestinationFile.mockImplementation(async () =>
+      jsonResponse({ error: "internal_error" }, 500),
+    );
+
+    renderDialog();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not check what English stage has at this path",
+    );
+    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+  });
+
+  it("drops the earlier notice when reading the chosen project's file again fails", async () => {
+    apiMocks.getDestinations.mockResolvedValue(jsonResponse({ destinations: [englishProject] }));
+    apiMocks.getDestinationFile
+      .mockImplementationOnce(async () =>
+        jsonResponse({
+          destinationFile: {
+            state: "other",
+            path: "docs/brief.docx",
+            addedAt: "2026-11-03T09:30:00.000Z",
+            versionId: "7d1b4c1e-2f1a-4e55-9e33-0b8f8a2c1d10",
+            addedBy: "Mei Chen",
+            sentFrom: null,
+          },
+        }),
+      )
+      .mockImplementation(async () => jsonResponse({ error: "internal_error" }, 500));
+    apiMocks.send.mockResolvedValue(jsonResponse({ error: "internal_error" }, 500));
+
+    renderDialog();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Replace in English stage" }));
+
+    expect(
+      await screen.findByText(/^Could not check what English stage has at this path/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/uploaded by Mei Chen/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
   });
 
   it("says so when no project can take the translation", async () => {

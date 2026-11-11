@@ -276,19 +276,29 @@ async function chainedProjectsFixture(
 
   return {
     organization,
+    user,
     original,
     destination,
     unrelated,
     version,
     keys,
     destinations: () => route.destinations.$get({ param }, { headers }),
-    send: (json: { sourcePath?: string; destinationProjectId?: string } = {}) =>
+    /** What the destination has where the fixture file would be sent. */
+    destinationFile: () =>
+      route["destination-file"].$get(
+        { param, query: { sourcePath: file.sourcePath, destinationProjectId: destination.id } },
+        { headers },
+      ),
+    send: (
+      json: { sourcePath?: string; destinationProjectId?: string; replaceVersionId?: string } = {},
+    ) =>
       route.$post(
         {
           param,
           json: {
             sourcePath: json.sourcePath ?? file.sourcePath,
             destinationProjectId: json.destinationProjectId ?? destination.id,
+            replaceVersionId: json.replaceVersionId,
           },
         },
         { headers },
@@ -328,6 +338,34 @@ async function chainedProjectsFixture(
       };
     },
   };
+}
+
+/** A file put in the destination at the fixture file's path, not by a send from it. */
+async function addToDestination(
+  fixture: Awaited<ReturnType<typeof chainedProjectsFixture>>,
+  options: {
+    content?: string;
+    sourcePath?: string;
+    uploadSurface?: string;
+    uploadedByUserId?: string;
+  } = {},
+) {
+  const sourcePath = options.sourcePath ?? SOURCE_PATH;
+  const storedFile = await createStoredFile({
+    organizationId: fixture.organization.id,
+    projectId: fixture.destination.id,
+    role: "source",
+    sourceKind: "repository_file",
+    filename: sourcePath.split("/").pop() ?? sourcePath,
+    contentType: DOCX_CONTENT_TYPE,
+    content: Buffer.from(options.content ?? "uploaded by hand"),
+  });
+  return createRepositorySourceFileVersion({
+    storedFile,
+    sourcePath,
+    uploadSurface: options.uploadSurface ?? "files_page",
+    uploadedByUserId: options.uploadedByUserId ?? null,
+  });
 }
 
 describe("translation as source routes", () => {
@@ -743,6 +781,82 @@ describe("translation as source routes", () => {
     expect(sentCells(sent.content)).toEqual({
       A1: "English for Sheet1!A1",
       A2: "English for Sheet1!A2",
+    });
+  });
+
+  it("asks before replacing a file the other project has from elsewhere", async () => {
+    const fixture = await chainedProjectsFixture();
+    const byHand = await addToDestination(fixture, { uploadedByUserId: fixture.user.id });
+    const [user] = await db.select().from(schema.users).where(eq(schema.users.id, fixture.user.id));
+
+    expect(await (await fixture.destinationFile()).json()).toEqual({
+      destinationFile: {
+        state: "other",
+        path: SOURCE_PATH,
+        addedAt: byHand.createdAt.toISOString(),
+        versionId: byHand.id,
+        addedBy: [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email,
+        sentFrom: null,
+      },
+    });
+    const refused = await fixture.send();
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toMatchObject({ error: "destination_file_replaced" });
+    expect(await fixture.destinationVersions()).toHaveLength(1);
+
+    expect((await fixture.send({ replaceVersionId: byHand.id })).status).toBe(201);
+    expect(await (await fixture.destinationFile()).json()).toMatchObject({
+      destinationFile: { state: "sent_from_here" },
+    });
+    // Its own send is replaced without asking.
+    expect((await fixture.send()).status).toBe(201);
+  });
+
+  it("does not replace a file that arrived after the person saw another one", async () => {
+    const fixture = await chainedProjectsFixture();
+    const seen = await addToDestination(fixture);
+    await addToDestination(fixture, { content: "uploaded again" });
+
+    const response = await fixture.send({ replaceVersionId: seen.id });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: "destination_file_replaced" });
+  });
+
+  it("asks before replacing a file the other project's repository sync added", async () => {
+    const fixture = await chainedProjectsFixture();
+    const synced = await addToDestination(fixture, { uploadSurface: "gitlab_content_sync" });
+
+    expect(await (await fixture.destinationFile()).json()).toMatchObject({
+      destinationFile: { state: "from_sync", path: SOURCE_PATH, versionId: synced.id },
+    });
+    const refused = await fixture.send();
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toMatchObject({ error: "destination_file_replaced" });
+
+    expect((await fixture.send({ replaceVersionId: synced.id })).status).toBe(201);
+  });
+
+  it("checks the other project's .xlsx file before sending an old .xls file", async () => {
+    const xlsx = await excelFile({ A1: "姓名", A2: "张三" });
+    const fixture = await chainedProjectsFixture({
+      file: {
+        ...xlsx,
+        sourcePath: "requests/prices.xls",
+        contentType: "application/vnd.ms-excel",
+        content: new Uint8Array(
+          XLSX.write(XLSX.read(xlsx.content, { type: "array" }), {
+            type: "array",
+            bookType: "biff8",
+          }) as ArrayBuffer,
+        ),
+      },
+    });
+    await addToDestination(fixture, { sourcePath: "requests/prices.xlsx" });
+
+    expect((await fixture.send()).status).toBe(409);
+    expect(await (await fixture.destinationFile()).json()).toMatchObject({
+      destinationFile: { state: "other", path: "requests/prices.xlsx" },
     });
   });
 
