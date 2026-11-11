@@ -43,7 +43,7 @@ export const guidelineDocumentsSectionMessages = defineMessages({
   },
   emptyProjectDescription: {
     defaultMessage:
-      "Guidelines that apply to every project still show here once uploaded. Assign documents to this project from the organization Guideline page.",
+      "Guidelines that apply to every project show here once uploaded. Use Add guideline below to attach an organization document to this project.",
     id: "pJJ/AoXVu3",
     description: "Description when a project view has no applicable guideline documents",
   },
@@ -151,6 +151,16 @@ export const guidelineDocumentsSectionMessages = defineMessages({
     defaultMessage: "Unable to delete the guideline.",
     id: "/sWML9CPu/",
     description: "Toast when deleting a guideline document fails",
+  },
+  unassignFromProject: {
+    defaultMessage: "Unassign",
+    id: "Pu3kW8nRx7",
+    description: "Remove a guideline from the current project without deleting the org document",
+  },
+  unassignFailed: {
+    defaultMessage: "Unable to unassign this guideline.",
+    id: "Qv4lX9oSy8",
+    description: "Toast when detaching a guideline from a project fails",
   },
   errorNoText: {
     defaultMessage: "No readable text was found in this file.",

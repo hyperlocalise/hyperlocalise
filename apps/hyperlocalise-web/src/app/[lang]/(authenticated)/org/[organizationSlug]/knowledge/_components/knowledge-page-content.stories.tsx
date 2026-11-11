@@ -91,6 +91,12 @@ export const ProjectGuidelinePage: Story = {
               indexed: false,
               characterCount: 0,
             }),
+            storyGuidelineDocument({
+              id: "doc-pool",
+              title: "Legal checklist",
+              filename: "legal.md",
+              isGlobal: false,
+            }),
           ],
           contents: {
             "doc-mobile": "# Mobile copy\n\nKeep buttons under 24 characters.",
@@ -130,7 +136,16 @@ export const ProjectNoDocuments: Story = {
   parameters: {
     msw: {
       handlers: [
-        ...createGuidelineDocumentsMswHandlers({ documents: [] }),
+        ...createGuidelineDocumentsMswHandlers({
+          documents: [
+            storyGuidelineDocument({
+              id: "doc-pool",
+              title: "Legal checklist",
+              filename: "legal.md",
+              isGlobal: false,
+            }),
+          ],
+        }),
         ...createGuidelineAssignmentMswHandlers({}),
       ],
     },

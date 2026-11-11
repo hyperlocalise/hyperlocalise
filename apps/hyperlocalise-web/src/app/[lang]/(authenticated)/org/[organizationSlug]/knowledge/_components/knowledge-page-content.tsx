@@ -41,6 +41,7 @@ export function KnowledgePageContent({
         organizationSlug={organizationSlug}
         projectId={projectId}
         canUpdate={canUpdate}
+        canAssignGuideline={Boolean(projectId && canUpdateKnowledgeMemory)}
         createGuidelineHref={canUpdateKnowledgeMemory ? uploadHref : undefined}
       />
     </div>

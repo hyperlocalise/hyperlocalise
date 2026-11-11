@@ -30,6 +30,8 @@ const mocks = vi.hoisted(() => ({
   replaceDocument: vi.fn(),
   updateDocument: vi.fn(),
   deleteDocument: vi.fn(),
+  attachDocumentProject: vi.fn(),
+  detachDocumentProject: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
 }));
@@ -46,6 +48,8 @@ vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
         replaceDocument: mocks.replaceDocument,
         updateDocument: mocks.updateDocument,
         deleteDocument: mocks.deleteDocument,
+        attachDocumentProject: mocks.attachDocumentProject,
+        detachDocumentProject: mocks.detachDocumentProject,
       },
       project: {
         list: mocks.listProjects,
@@ -179,6 +183,69 @@ describe("GuidelineDocumentsSection", () => {
     expect(screen.getByRole("link", { name: "French style guide" })).toHaveAttribute(
       "href",
       "/org/acme/projects/project_1/knowledge/doc-1",
+    );
+  });
+
+  it("unassigns a guideline from the project page", async () => {
+    const user = userEvent.setup();
+    mocks.listDocuments.mockResolvedValue([
+      guidelineDocument({ id: "doc-brand", title: "Brand voice", isGlobal: false }),
+      guidelineDocument({ id: "doc-global", title: "Global", isGlobal: true }),
+    ]);
+    mocks.listAllDocumentAssignments.mockResolvedValue({
+      assignments: [{ documentId: "doc-brand", projectIds: ["project_1"] }],
+    });
+    mocks.detachDocumentProject.mockResolvedValue(undefined);
+
+    render(
+      <GuidelineDocumentsSection
+        organizationSlug="acme"
+        projectId="project_1"
+        canUpdate={false}
+        canAssignGuideline
+      />,
+      { wrapper },
+    );
+
+    expect(await screen.findByText("Brand voice")).toBeTruthy();
+    expect(screen.queryAllByRole("button", { name: "Unassign" })).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Unassign" }));
+    await waitFor(() =>
+      expect(mocks.detachDocumentProject).toHaveBeenCalledWith("acme", "doc-brand", "project_1"),
+    );
+  });
+
+  it("assigns an org guideline from the project page", async () => {
+    const user = userEvent.setup();
+    mocks.listDocuments.mockImplementation(
+      (_org: string, projectId?: string) =>
+        Promise.resolve(
+          projectId
+            ? []
+            : [
+                guidelineDocument({ id: "doc-brand", title: "Brand voice", isGlobal: false }),
+                guidelineDocument({ id: "doc-global", title: "Global", isGlobal: true }),
+              ],
+        ),
+    );
+    mocks.attachDocumentProject.mockResolvedValue({ projects: [] });
+
+    render(
+      <GuidelineDocumentsSection
+        organizationSlug="acme"
+        projectId="project_1"
+        canUpdate={false}
+        canAssignGuideline
+      />,
+      { wrapper },
+    );
+
+    expect(await screen.findByText("Add guideline")).toBeTruthy();
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Brand voice" }));
+    await user.click(screen.getByRole("button", { name: "Assign" }));
+    await waitFor(() =>
+      expect(mocks.attachDocumentProject).toHaveBeenCalledWith("acme", "doc-brand", "project_1"),
     );
   });
 

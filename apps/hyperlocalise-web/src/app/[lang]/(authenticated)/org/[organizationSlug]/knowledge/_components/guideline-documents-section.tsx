@@ -52,11 +52,14 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
+import { guidelineDocumentAssignmentsQueryKey } from "./guideline-document-assignments";
 import { guidelineDocumentsSectionMessages as messages } from "./guideline-documents-section.messages";
+import { GuidelineProjectDocumentPicker } from "./guideline-project-document-picker";
 import { GuidelineTextDocumentDialog } from "./guideline-text-document-dialog";
 
 const PROCESSING_POLL_MS = 3000;
@@ -198,6 +201,7 @@ function GuidelineDocumentRow({
   document,
   linkedProjects,
   canUpdate,
+  showProjectUnassign,
   onEdit,
 }: {
   client: GoSvcClient;
@@ -207,6 +211,7 @@ function GuidelineDocumentRow({
   /** Null when the document applies to every project; otherwise linked names. */
   linkedProjects: string[] | null;
   canUpdate: boolean;
+  showProjectUnassign: boolean;
   onEdit: (document: GuidelineDocument) => void;
 }) {
   const intl = useIntl();
@@ -224,6 +229,27 @@ function GuidelineDocumentRow({
     mutationFn: () => client.guidelines.deleteDocument(organizationSlug, document.id, projectId),
     onError: () => toast.error(intl.formatMessage(messages.deleteFailed)),
     onSettled: () => queryClient.invalidateQueries({ queryKey }),
+  });
+  const unassignFromProject = useMutation({
+    mutationFn: async () => {
+      if (!projectId) {
+        return;
+      }
+      try {
+        await client.guidelines.detachDocumentProject(organizationSlug, document.id, projectId);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.unassignFailed)), {
+          cause: error,
+        });
+      }
+    },
+    onError: (error) => toast.error(error.message),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({
+        queryKey: guidelineDocumentAssignmentsQueryKey(organizationSlug),
+      });
+    },
   });
 
   const mandatory = updateMandatory.isPending
@@ -286,7 +312,19 @@ function GuidelineDocumentRow({
           </p>
         ) : null}
       </ItemContent>
-      {canUpdate ? (
+      {showProjectUnassign ? (
+        <ItemActions>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={unassignFromProject.isPending}
+            onClick={() => unassignFromProject.mutate()}
+          >
+            <FormattedMessage {...messages.unassignFromProject} />
+          </Button>
+        </ItemActions>
+      ) : canUpdate ? (
         <ItemActions>
           <label
             htmlFor={switchId}
@@ -393,15 +431,33 @@ function GuidelineDocumentsEmpty({
   );
 }
 
+function ProjectGuidelineAssign({
+  organizationSlug,
+  projectId,
+  enabled,
+}: {
+  organizationSlug: string;
+  projectId: string;
+  enabled: boolean;
+}) {
+  if (!enabled) {
+    return null;
+  }
+  return <GuidelineProjectDocumentPicker organizationSlug={organizationSlug} projectId={projectId} />;
+}
+
 export function GuidelineDocumentsSection({
   organizationSlug,
   projectId,
   canUpdate,
+  canAssignGuideline,
   createGuidelineHref,
 }: {
   organizationSlug: string;
   projectId?: string;
   canUpdate: boolean;
+  /** Project page: attach existing org guidelines to this project (workspace writers). */
+  canAssignGuideline?: boolean;
   /** When set, the empty list shows a link to the upload page (org writers and project pages). */
   createGuidelineHref?: string;
 }) {
@@ -469,14 +525,31 @@ export function GuidelineDocumentsSection({
   if (visibleDocuments.length === 0) {
     const projectScoped = projectId != null && (query.data?.length ?? 0) > 0;
     return (
-      <GuidelineDocumentsEmpty
-        projectScoped={projectScoped}
-        createGuidelineHref={createGuidelineHref}
-      />
+      <div className="flex flex-col gap-6">
+        <GuidelineDocumentsEmpty
+          projectScoped={projectScoped}
+          createGuidelineHref={createGuidelineHref}
+        />
+        {projectId ? (
+          <ProjectGuidelineAssign
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            enabled={canAssignGuideline ?? false}
+          />
+        ) : null}
+      </div>
     );
   }
 
   return (
+    <div className="flex flex-col gap-6">
+      {projectId ? (
+        <ProjectGuidelineAssign
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          enabled={canAssignGuideline ?? false}
+        />
+      ) : null}
     <section className="space-y-3">
       <div className="space-y-1">
         <h2 className="text-base font-medium text-foreground">
@@ -487,18 +560,31 @@ export function GuidelineDocumentsSection({
         </p>
       </div>
       <ItemGroup className="gap-2">
-        {visibleDocuments.map((document) => (
-          <GuidelineDocumentRow
-            key={document.id}
-            client={client}
-            organizationSlug={organizationSlug}
-            projectId={projectId}
-            document={document}
-            linkedProjects={linkedProjectsFor(document)}
-            canUpdate={canUpdate}
-            onEdit={setEditingDocument}
-          />
-        ))}
+        {visibleDocuments.map((document) => {
+          const assignedToProject =
+            projectId != null &&
+            (assignedIdsByDocument.get(document.id) ?? []).includes(projectId);
+          const showProjectUnassign = Boolean(
+            canAssignGuideline &&
+              projectId &&
+              assignedToProject &&
+              !(document.isGlobal ?? false) &&
+              document.projectId == null,
+          );
+          return (
+            <GuidelineDocumentRow
+              key={document.id}
+              client={client}
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              document={document}
+              linkedProjects={linkedProjectsFor(document)}
+              canUpdate={canUpdate}
+              showProjectUnassign={showProjectUnassign}
+              onEdit={setEditingDocument}
+            />
+          );
+        })}
       </ItemGroup>
       {canUpdate ? (
         <GuidelineTextDocumentDialog
@@ -512,5 +598,6 @@ export function GuidelineDocumentsSection({
         />
       ) : null}
     </section>
+    </div>
   );
 }
