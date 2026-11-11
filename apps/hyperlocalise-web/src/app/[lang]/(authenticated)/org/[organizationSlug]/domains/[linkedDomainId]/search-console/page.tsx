@@ -34,6 +34,7 @@ export default async function DomainSearchConsolePage({
       organizationSlug={organizationSlug}
       linkedDomainId={linkedDomainId}
       surface="search-console"
+      canEditLocales={hasCapability(auth.membership.role, "projects:create")}
     >
       <DomainSearchConsoleView
         linkedDomainId={linkedDomainId}

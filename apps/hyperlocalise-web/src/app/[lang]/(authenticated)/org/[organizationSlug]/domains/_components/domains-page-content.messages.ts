@@ -15,6 +15,11 @@
 import { defineMessages } from "react-intl";
 
 export const domainsPageContentMessages = defineMessages({
+  pageTitle: {
+    defaultMessage: "Domains",
+    id: "HGWh4sPGlW",
+    description: "Domains list page heading",
+  },
   editLocales: {
     defaultMessage: "Edit locales",
     id: "icuWnstCMG",

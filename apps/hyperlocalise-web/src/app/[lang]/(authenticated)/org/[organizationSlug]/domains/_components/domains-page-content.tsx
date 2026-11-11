@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { PlusIcon, GlobeIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
@@ -28,7 +28,7 @@ import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { cn } from "@/lib/primitives/cn";
 
-import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { DomainsPageStoreProvider, useDomainsPageStore } from "../store/domains-store-context";
 import { DomainsPageQueryBridge, linkedDomainsQueryKey } from "../store/domains-page-query-bridge";
 
@@ -102,12 +102,12 @@ const DomainsPageView = observer(function DomainsPageView({
   return (
     <WorkspacePageShell>
       <div className={styles.header}>
-        <PageHeader
-          icon={GlobeIcon}
-          label="Workspace"
-          title="Domains"
-          actions={store.hasDomains ? addDomainAction : undefined}
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-medium tracking-tight text-foreground">
+            <FormattedMessage {...messages.pageTitle} />
+          </h1>
+          {store.hasDomains ? addDomainAction : null}
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -177,6 +177,19 @@ const DomainsPageView = observer(function DomainsPageView({
                   </span>
                   <DomainStatusBadge status={domain.status} />
                   <div className="flex flex-wrap justify-end gap-2">
+                    {allowLinkDomains && domain.status === "verified" ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        onClick={() => {
+                          const linkedDomain = store.linkedDomainById(domain.id);
+                          if (linkedDomain) store.openEditLocales(linkedDomain);
+                        }}
+                      >
+                        <FormattedMessage {...messages.editLocales} />
+                      </Button>
+                    ) : null}
                     <Button
                       size="sm"
                       variant="outline"
@@ -201,7 +214,11 @@ const DomainsPageView = observer(function DomainsPageView({
           open={store.addDomainDialogOpen}
           onOpenChange={(open) => store.setAddDomainDialogOpen(open)}
           organizationSlug={store.organizationSlug}
-          initialDomainSlug={initialDomainSlug}
+          mode={store.editLinkedDomain ? "edit" : "create"}
+          initialStep={store.editLinkedDomain ? "markets" : "details"}
+          initialLinkedDomain={store.editLinkedDomain ?? undefined}
+          initialSelectedMarketIds={store.editLinkedDomain?.marketIds ?? []}
+          initialDomainSlug={store.editLinkedDomain ? undefined : initialDomainSlug}
           existingDomains={store.domains}
           projects={projectsQuery.data ?? []}
           projectsLoading={projectsQuery.isPending}
@@ -209,7 +226,9 @@ const DomainsPageView = observer(function DomainsPageView({
             void queryClient.invalidateQueries({
               queryKey: linkedDomainsQueryKey(store.organizationSlug),
             });
-            router.push(`/org/${store.organizationSlug}/domains`);
+            if (!store.editLinkedDomain) {
+              router.push(`/org/${store.organizationSlug}/domains`);
+            }
           }}
           onVerified={(domain) => {
             void queryClient.invalidateQueries({

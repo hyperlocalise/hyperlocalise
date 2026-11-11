@@ -56,9 +56,10 @@ function emptyAddDomainWizard() {
 export class DomainsPageStore {
   readonly organizationSlug: string;
   domains: DomainResearchDomain[] = [];
+  linkedDomains: LinkedDomainPublic[] = [];
   loadStatus: DomainsPageLoadStatus = "idle";
   addDomainDialogOpen = false;
-  editLocalesDomain: DomainResearchDomain | null = null;
+  editLinkedDomain: LinkedDomainPublic | null = null;
   addDomainStep: AddDomainDialogStep = "details";
   addDomainKey = "";
   addDomainClaimSlug: string | null = null;
@@ -92,8 +93,8 @@ export class DomainsPageStore {
     return this.loadStatus === "success" && this.domains.length > 0;
   }
 
-  get dialogDomain() {
-    return this.editLocalesDomain ?? undefined;
+  linkedDomainById(id: string) {
+    return this.linkedDomains.find((domain) => domain.id === id);
   }
 
   setLoadStatus(status: DomainsPageLoadStatus) {
@@ -104,14 +105,18 @@ export class DomainsPageStore {
     this.domains = domains;
   }
 
+  setLinkedDomains(domains: LinkedDomainPublic[]) {
+    this.linkedDomains = domains;
+  }
+
   openAddDomainDialog() {
-    this.editLocalesDomain = null;
+    this.editLinkedDomain = null;
     this.resetAddDomainWizard();
     this.addDomainDialogOpen = true;
   }
 
-  openEditLocales(domain: DomainResearchDomain) {
-    this.editLocalesDomain = domain;
+  openEditLocales(domain: LinkedDomainPublic) {
+    this.editLinkedDomain = domain;
     this.resetAddDomainWizard();
     this.addDomainDialogOpen = true;
   }
@@ -119,7 +124,7 @@ export class DomainsPageStore {
   setAddDomainDialogOpen(open: boolean) {
     this.addDomainDialogOpen = open;
     if (!open) {
-      this.editLocalesDomain = null;
+      this.editLinkedDomain = null;
       this.resetAddDomainWizard();
     }
   }

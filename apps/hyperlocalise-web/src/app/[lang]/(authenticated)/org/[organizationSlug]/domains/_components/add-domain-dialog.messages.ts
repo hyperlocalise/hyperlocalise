@@ -25,6 +25,26 @@ export const addDomainDialogMessages = defineMessages({
     defaultMessage: "Connect a domain, verify ownership, and choose the markets to research.",
     description: "Dialog description",
   },
+  editLocalesTitle: {
+    id: "aMDdzu5mOx",
+    defaultMessage: "Edit locales",
+    description: "Dialog title when editing saved research locales",
+  },
+  editLocalesDescription: {
+    id: "x9Bzf0OHbt",
+    defaultMessage: "Choose the locales this domain researches.",
+    description: "Dialog description when editing saved research locales",
+  },
+  editLocalesHelp: {
+    id: "YT+yFQwxhg",
+    defaultMessage: "These locales apply to every research view for {domain}.",
+    description: "Help text when editing saved research locales",
+  },
+  cancel: {
+    id: "/cTcrQO3Yh",
+    defaultMessage: "Cancel",
+    description: "Cancel button in edit locales dialog",
+  },
   detailsStep: {
     id: "X6zab6Xiik",
     defaultMessage: "Domain details",

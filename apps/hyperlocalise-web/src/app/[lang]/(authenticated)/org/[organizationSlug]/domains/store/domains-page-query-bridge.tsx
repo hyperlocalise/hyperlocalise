@@ -32,7 +32,7 @@ export function DomainsPageQueryBridge() {
     queryKey: linkedDomainsQueryKey(store.organizationSlug),
     queryFn: async () => {
       const { linkedDomains } = await goSvcClient.domains.listLinkedDomains(store.organizationSlug);
-      return linkedDomains.map((domain) => linkedDomainToResearchDomain(domain));
+      return linkedDomains;
     },
   });
 
@@ -46,7 +46,9 @@ export function DomainsPageQueryBridge() {
         store.setLoadStatus("error");
         return;
       }
-      store.setDomains(linkedDomainsQuery.data ?? []);
+      const records = linkedDomainsQuery.data ?? [];
+      store.setLinkedDomains(records);
+      store.setDomains(records.map((domain) => linkedDomainToResearchDomain(domain)));
       store.setLoadStatus("success");
     });
   }, [linkedDomainsQuery.data, linkedDomainsQuery.isError, linkedDomainsQuery.isPending, store]);

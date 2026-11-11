@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { type FormEvent, useEffect, useId, useState } from "react";
+import { type FormEvent, useId, useLayoutEffect, useState } from "react";
 import { CheckCircleIcon, CopyIcon, InfoIcon } from "@phosphor-icons/react";
 import { observer } from "mobx-react-lite";
 import { useIntl } from "react-intl";
@@ -137,7 +137,7 @@ export const AddDomainDialog = observer(function AddDomainDialog({
   const [copied, setCopied] = useState(false);
   const allowsEmptyMarkets = Boolean(claimDomainSlug || linkedDomain?.localisationAuditId);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
     store.hydrateAddDomainDialog({
       step: initialStep,
@@ -154,7 +154,9 @@ export const AddDomainDialog = observer(function AddDomainDialog({
           : initialLinkedDomain.marketIds,
     });
     setCopied(false);
-    if (initialDomainSlug) void startClaimRequest({ domainSlug: initialDomainSlug });
+    if (mode !== "edit" && initialDomainSlug) {
+      void startClaimRequest({ domainSlug: initialDomainSlug });
+    }
   }, [open]);
 
   function close() {
@@ -319,55 +321,63 @@ export const AddDomainDialog = observer(function AddDomainDialog({
       <DialogContent className="max-h-[min(90vh,760px)] overflow-y-auto sm:max-w-2xl">
         <form onSubmit={startClaim} className="grid gap-6">
           <DialogHeader>
-            <DialogTitle>{intl.formatMessage(messages.title)}</DialogTitle>
-            <DialogDescription>{intl.formatMessage(messages.description)}</DialogDescription>
+            <DialogTitle>
+              {intl.formatMessage(mode === "edit" ? messages.editLocalesTitle : messages.title)}
+            </DialogTitle>
+            <DialogDescription>
+              {intl.formatMessage(
+                mode === "edit" ? messages.editLocalesDescription : messages.description,
+              )}
+            </DialogDescription>
           </DialogHeader>
-          <ol
-            className="grid grid-cols-2 gap-3 sm:grid-cols-4"
-            aria-label={intl.formatMessage(messages.title)}
-          >
-            {(["details", "connect", "markets", "project"] as const).map((item, index) => {
-              const labels = [
-                messages.detailsStep,
-                messages.connectStep,
-                messages.marketsStep,
-                messages.projectStep,
-              ];
-              const active = step === item;
-              const complete = ["details", "connect", "markets", "project"].indexOf(step) > index;
-              return (
-                <li
-                  key={item}
-                  aria-current={active ? "step" : undefined}
-                  data-state={complete ? "complete" : active ? "current" : "upcoming"}
-                  className={cn(
-                    "flex items-center gap-2 border-b-2 pb-2 text-xs font-medium transition-colors",
-                    complete && "border-primary/50 text-primary",
-                    active && "border-primary text-foreground",
-                    !active && !complete && "border-border text-muted-foreground",
-                  )}
-                >
-                  <span
+          {mode === "edit" ? null : (
+            <ol
+              className="grid grid-cols-2 gap-3 sm:grid-cols-4"
+              aria-label={intl.formatMessage(messages.title)}
+            >
+              {(["details", "connect", "markets", "project"] as const).map((item, index) => {
+                const labels = [
+                  messages.detailsStep,
+                  messages.connectStep,
+                  messages.marketsStep,
+                  messages.projectStep,
+                ];
+                const active = step === item;
+                const complete = ["details", "connect", "markets", "project"].indexOf(step) > index;
+                return (
+                  <li
+                    key={item}
+                    aria-current={active ? "step" : undefined}
+                    data-state={complete ? "complete" : active ? "current" : "upcoming"}
                     className={cn(
-                      "flex size-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold",
-                      complete && "border-primary bg-primary text-primary-foreground",
-                      active && "border-primary bg-primary/10 text-primary",
-                      !active && !complete && "border-border bg-muted/40 text-muted-foreground",
+                      "flex items-center gap-2 border-b-2 pb-2 text-xs font-medium transition-colors",
+                      complete && "border-primary/50 text-primary",
+                      active && "border-primary text-foreground",
+                      !active && !complete && "border-border text-muted-foreground",
                     )}
                   >
-                    {complete ? <CheckCircleIcon /> : index + 1}
-                  </span>
-                  <span className="truncate">{intl.formatMessage(labels[index]!)}</span>
-                  {active ? (
-                    <span className="sr-only">{intl.formatMessage(messages.currentStep)}</span>
-                  ) : null}
-                  {complete ? (
-                    <span className="sr-only">{intl.formatMessage(messages.completedStep)}</span>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ol>
+                    <span
+                      className={cn(
+                        "flex size-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold",
+                        complete && "border-primary bg-primary text-primary-foreground",
+                        active && "border-primary bg-primary/10 text-primary",
+                        !active && !complete && "border-border bg-muted/40 text-muted-foreground",
+                      )}
+                    >
+                      {complete ? <CheckCircleIcon /> : index + 1}
+                    </span>
+                    <span className="truncate">{intl.formatMessage(labels[index]!)}</span>
+                    {active ? (
+                      <span className="sr-only">{intl.formatMessage(messages.currentStep)}</span>
+                    ) : null}
+                    {complete ? (
+                      <span className="sr-only">{intl.formatMessage(messages.completedStep)}</span>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
           {error ? (
             <Alert variant="destructive">
               <InfoIcon />
@@ -558,15 +568,21 @@ export const AddDomainDialog = observer(function AddDomainDialog({
           ) : null}
           {step === "markets" ? (
             <>
-              <div>
-                <h3 className="font-semibold">{intl.formatMessage(messages.marketsTitle)}</h3>
+              {mode === "edit" ? (
                 <p className="text-sm text-muted-foreground">
-                  {intl.formatMessage(messages.marketsDescription, { domain })}
+                  {intl.formatMessage(messages.editLocalesHelp, { domain })}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  {intl.formatMessage(messages.dataForSeo)}
-                </p>
-              </div>
+              ) : (
+                <div>
+                  <h3 className="font-semibold">{intl.formatMessage(messages.marketsTitle)}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {intl.formatMessage(messages.marketsDescription, { domain })}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {intl.formatMessage(messages.dataForSeo)}
+                  </p>
+                </div>
+              )}
               {pending && !recommendations.length ? (
                 <p role="status" className="text-sm text-muted-foreground">
                   {intl.formatMessage(messages.findingMarkets)}
@@ -650,24 +666,43 @@ export const AddDomainDialog = observer(function AddDomainDialog({
                 </p>
               ) : null}
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => store.setAddDomainStep("connect")}
-                >
-                  {intl.formatMessage(messages.back)}
-                </Button>
-                <Button
-                  type="button"
-                  disabled={pending || (selectedMarketIds.length === 0 && !allowsEmptyMarkets)}
-                  onClick={() => store.setAddDomainStep("project")}
-                >
-                  {intl.formatMessage(messages.continueToProject)}
-                </Button>
+                {mode === "edit" ? (
+                  <>
+                    <Button type="button" variant="outline" onClick={close}>
+                      {intl.formatMessage(messages.cancel)}
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={pending || (selectedMarketIds.length === 0 && !allowsEmptyMarkets)}
+                      onClick={() => void saveMarkets()}
+                    >
+                      {pending
+                        ? intl.formatMessage(messages.finishing)
+                        : intl.formatMessage(messages.saveSelectedMarkets)}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => store.setAddDomainStep("connect")}
+                    >
+                      {intl.formatMessage(messages.back)}
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={pending || (selectedMarketIds.length === 0 && !allowsEmptyMarkets)}
+                      onClick={() => store.setAddDomainStep("project")}
+                    >
+                      {intl.formatMessage(messages.continueToProject)}
+                    </Button>
+                  </>
+                )}
               </DialogFooter>
             </>
           ) : null}
-          {step === "project" ? (
+          {step === "project" && mode !== "edit" ? (
             <>
               <div>
                 <h3 className="font-semibold">{intl.formatMessage(messages.projectTitle)}</h3>
@@ -783,11 +818,7 @@ export const AddDomainDialog = observer(function AddDomainDialog({
                 >
                   {pending
                     ? intl.formatMessage(messages.finishing)
-                    : intl.formatMessage(
-                        mode === "edit"
-                          ? messages.saveSelectedMarkets
-                          : messages.addSelectedMarkets,
-                      )}
+                    : intl.formatMessage(messages.addSelectedMarkets)}
                 </Button>
               </DialogFooter>
             </>

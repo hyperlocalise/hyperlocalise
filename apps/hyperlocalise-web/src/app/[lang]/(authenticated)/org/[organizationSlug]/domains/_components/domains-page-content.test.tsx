@@ -105,6 +105,45 @@ describe("domains page content", () => {
     expect(await screen.findByText("hyperlocalise.com")).toBeInTheDocument();
   });
 
+  it("shows no locale badges when marketIds is an empty array", async () => {
+    const domain = listResearchPrototypeDomains()[0]!;
+    listLinkedDomains.mockResolvedValue({
+      linkedDomains: [
+        {
+          id: domain.id,
+          domainKey: domain.domainKey,
+          domainSlug: domain.id,
+          sourceUrl: domain.sourceUrl,
+          status: "verified",
+          auditScore: domain.score,
+          marketIds: [],
+        },
+      ],
+    });
+    renderPage();
+    expect(await screen.findByText("hyperlocalise.com")).toBeInTheDocument();
+    expect(screen.queryByText("French (France)")).not.toBeInTheDocument();
+  });
+
+  it("shows Edit locales for verified domains when linking is allowed", async () => {
+    const domain = listResearchPrototypeDomains()[0]!;
+    listLinkedDomains.mockResolvedValue({
+      linkedDomains: [
+        {
+          id: domain.id,
+          domainKey: domain.domainKey,
+          domainSlug: domain.id,
+          sourceUrl: domain.sourceUrl,
+          status: "verified",
+          auditScore: domain.score,
+          marketIds: ["france-fr"],
+        },
+      ],
+    });
+    renderPage();
+    expect(await screen.findByRole("button", { name: "Edit locales" })).toBeInTheDocument();
+  });
+
   it("shows pending direct claims without linking to a removed page", async () => {
     const domain = listResearchPrototypeDomains()[0]!;
     listLinkedDomains.mockResolvedValue({

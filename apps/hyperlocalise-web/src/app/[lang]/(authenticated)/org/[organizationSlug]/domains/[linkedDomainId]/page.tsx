@@ -34,6 +34,7 @@ export default async function DomainDetailPage({
       organizationSlug={organizationSlug}
       linkedDomainId={linkedDomainId}
       surface="overview"
+      canEditLocales={hasCapability(auth.membership.role, "projects:create")}
     >
       <DomainOverviewView
         linkedDomainId={linkedDomainId}
