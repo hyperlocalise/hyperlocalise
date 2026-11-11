@@ -112,7 +112,7 @@ func TestOpenAPIDocumentCoversImplementedResources(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal(openAPIDocument, &document))
 	require.Equal(t, "3.1.0", document.OpenAPI)
 	for _, path := range []string{
-		"/health", "/v1/me", "/v1/projects", "/v1/projects/{projectId}", "/v1/queries", "/v1/queries/{queryId}",
+		"/health", "/outbound-ip", "/v1/me", "/v1/projects", "/v1/projects/{projectId}", "/v1/queries", "/v1/queries/{queryId}",
 		"/v1/projects/{projectId}/locales", "/v1/projects/{projectId}/strings", "/v1/projects/{projectId}/strings/{stringId}",
 		"/v1/projects/{projectId}/strings/{stringId}/translations", "/v1/projects/{projectId}/strings/{stringId}/translations/{locale}",
 		"/v1/projects/{projectId}/translations", "/v1/glossaries", "/v1/glossaries/{glossaryId}", "/v1/glossaries/{glossaryId}/terms",

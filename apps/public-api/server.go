@@ -15,8 +15,9 @@ import (
 const maxTokenLength = 512
 
 type apiServer struct {
-	auth  authenticator
-	store resourceStore
+	auth     authenticator
+	store    resourceStore
+	outbound outboundIPLookup
 }
 
 func newHandler(auth authenticator, stores ...resourceStore) http.Handler {
@@ -24,9 +25,17 @@ func newHandler(auth authenticator, stores ...resourceStore) http.Handler {
 	if len(stores) > 0 {
 		store = stores[0]
 	}
-	s := apiServer{auth: auth, store: store}
+	return newHandlerWithOutbound(auth, store, nil)
+}
+
+func newHandlerWithOutbound(auth authenticator, store resourceStore, outbound outboundIPLookup) http.Handler {
+	if outbound == nil {
+		outbound = &liveOutboundIP{}
+	}
+	s := apiServer{auth: auth, store: store, outbound: outbound}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", s.health)
+	mux.HandleFunc("/outbound-ip", s.outboundIP)
 	mux.HandleFunc("/openapi.yaml", s.openAPISpec)
 	mux.HandleFunc("/docs", s.docs)
 	mux.HandleFunc("/v1/me", s.me)
