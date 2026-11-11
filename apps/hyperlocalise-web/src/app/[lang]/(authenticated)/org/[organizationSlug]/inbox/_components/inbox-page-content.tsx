@@ -20,6 +20,8 @@ import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
+import { chatDockMessages } from "@/components/app-shell/chat-dock/chat-dock.messages";
+import { buildChatTurnControls } from "@/components/app-shell/chat-dock/chat-dock-turn-controls";
 import { getChatStreamManager } from "@/components/app-shell/chat-dock/chat-stream-manager";
 import { isInboxNewRequestPath } from "@/components/app-shell/navigation-config";
 import { normalizeAppLocale } from "@/lib/app-i18n/locales";
@@ -313,6 +315,17 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
   const createConversationAsync = createConversationMutation.mutateAsync;
   const onSendMessage = useCallback(
     async (text: string, files: File[], options?: ChatComposerSendOptions) => {
+      // The agent is still answering: hold the message and send it when the turn ends.
+      if (
+        selection?.kind === "conversation" &&
+        selectedConversationId &&
+        streamManager.isStreaming(selectedConversationId)
+      ) {
+        chatDock.enqueueMessage(selectedConversationId, { text, files, options });
+        store.setReplyDraft(selectedConversationId, { text: "" });
+        return;
+      }
+
       if (selection?.kind === "new") {
         try {
           const result = await createConversationAsync({ text, files, ...options });
@@ -334,14 +347,17 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       await mutateAsync({ text, files, ...options });
     },
     [
+      chatDock,
       createConversationAsync,
       intl,
       mutateAsync,
       organizationSlug,
       queryClient,
       router,
+      selectedConversationId,
       selection,
       store,
+      streamManager,
     ],
   );
 
@@ -481,6 +497,17 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       }
       selection={selection}
       streamedAssistant={streamedAssistant}
+      turnControls={
+        selection?.kind === "conversation" && selectedConversationId
+          ? buildChatTurnControls({
+              conversationId: selectedConversationId,
+              store: chatDock,
+              streamManager,
+              onEditText: (text) => store.setReplyDraft(selectedConversationId, { text }),
+              onStopFailed: () => toast.error(intl.formatMessage(chatDockMessages.stopFailed)),
+            })
+          : undefined
+      }
       unreadNotificationCount={unreadCountQuery.data ?? 0}
     />
   );

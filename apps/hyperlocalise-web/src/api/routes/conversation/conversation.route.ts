@@ -306,6 +306,7 @@ function asFiles(value: unknown) {
 
 type CreateConversationRoutesOptions = {
   fileStorageAdapter?: FileStorageAdapter;
+  deferAfterResponse?: (task: () => Promise<unknown>) => void;
 };
 
 export function createConversationRoutes(options: CreateConversationRoutesOptions = {}) {
@@ -637,5 +638,8 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         return c.json({ message }, 201);
       },
     )
-    .route("/:conversationId/chat", createChatStreamRoutes());
+    .route(
+      "/:conversationId/chat",
+      createChatStreamRoutes({ deferAfterResponse: options.deferAfterResponse }),
+    );
 }

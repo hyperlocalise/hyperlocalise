@@ -11,8 +11,8 @@
  * Version 2.0 or later.
  */
 // @vitest-environment happy-dom
-import { describe, expect, it } from "vite-plus/test";
-import { render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vite-plus/test";
+import { fireEvent, render } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactElement } from "react";
@@ -136,5 +136,51 @@ describe("ConversationMessageList", () => {
       "Your workspace has used all of its AI credit.",
     );
     expect(getByRole("link", { name: "Upgrade plan" }).getAttribute("href")).toContain("acme");
+  });
+
+  it("offers the latest reply's clarification options and marks a stopped reply", () => {
+    const [userMessage] = messagesFixture;
+    const onSelect = vi.fn();
+    const stopped = {
+      ...userMessage,
+      id: "msg_stopped",
+      senderType: "agent" as const,
+      text: "Partial",
+      parts: [
+        { type: "text" as const, text: "Partial" },
+        { type: "data-interrupted" as const, data: { reason: "user_cancelled" } },
+      ],
+    };
+    const question = {
+      ...userMessage,
+      id: "msg_question",
+      senderType: "agent" as const,
+      text: "Which repository?",
+      parts: [
+        { type: "text" as const, text: "Which repository?" },
+        {
+          type: "data-clarification" as const,
+          data: { question: "Which repository?", options: ["acme/web", "acme/api"] },
+        },
+      ],
+    };
+
+    const { getByRole, getByText } = render(
+      withIntl(
+        <ConversationMessageList
+          conversationId={userMessage.conversationId}
+          currentUser={currentUserFixture}
+          isLoading={false}
+          isStreaming={false}
+          messages={[userMessage, stopped, question]}
+          onSelectClarificationOption={onSelect}
+          streamedAssistant={null}
+        />,
+      ),
+    );
+
+    expect(getByText("Stopped")).toBeTruthy();
+    fireEvent.click(getByRole("button", { name: "acme/api" }));
+    expect(onSelect).toHaveBeenCalledWith("acme/api");
   });
 });

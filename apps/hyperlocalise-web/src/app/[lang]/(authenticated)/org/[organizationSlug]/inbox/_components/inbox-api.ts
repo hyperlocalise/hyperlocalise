@@ -51,11 +51,12 @@ export type InboxApi = {
     conversation: { id: string; title?: string };
     message?: { id: string; text: string };
   }>;
+  /** Resolves with the new user message, when the server returned it. */
   sendMessage(
     organizationSlug: string,
     conversationId: string,
     input: SendConversationMessageInput,
-  ): Promise<void>;
+  ): Promise<{ id: string; text: string } | null>;
 };
 
 type ApiClient = ReturnType<typeof createApiClient>;
@@ -217,6 +218,16 @@ export function createInboxApi(
       if (response.status !== 201) {
         throw await readApiResponseError(response, "Failed to send message");
       }
+      const body: unknown = await response.json().catch(() => null);
+      if (
+        isRecord(body) &&
+        isRecord(body.message) &&
+        typeof body.message.id === "string" &&
+        typeof body.message.text === "string"
+      ) {
+        return { id: body.message.id, text: body.message.text };
+      }
+      return null;
     },
   };
 }

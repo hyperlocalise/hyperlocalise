@@ -42,6 +42,7 @@ import {
   type LinkedJob,
   type StreamedAssistantMessage,
 } from "./inbox-types";
+import type { ChatTurnControls } from "./chat-turn-controls";
 import { ReplyComposer } from "./reply-composer";
 import { HumanApprovalPanel } from "./human-approval-panel";
 
@@ -90,6 +91,7 @@ export function ConversationPanel({
   onSendMessage,
   organizationSlug,
   streamedAssistant,
+  turnControls,
 }: {
   conversation: Conversation | undefined;
   currentUser: InboxCurrentUser;
@@ -113,6 +115,8 @@ export function ConversationPanel({
   ) => void | Promise<void>;
   organizationSlug: string;
   streamedAssistant: StreamedAssistantMessage | null;
+  /** Stop and queue controls for the conversation's running turn. */
+  turnControls?: ChatTurnControls;
 }) {
   const intl = useIntl();
   const panelRef = useRef<HTMLElement>(null);
@@ -198,7 +202,8 @@ export function ConversationPanel({
 
   const isChatUi = conversation.source === "chat_ui";
   const isWorkflowApproval = conversation.source === "workflow_approval";
-  const composerDisabled = isSending || isStreaming;
+  // With turn controls, messages sent while the agent answers are queued instead of blocked.
+  const composerDisabled = isSending || (isStreaming && !turnControls);
 
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
@@ -219,6 +224,11 @@ export function ConversationPanel({
               isLoading={messagesIsLoading}
               isStreaming={isStreaming}
               messages={messages}
+              onSelectClarificationOption={
+                isChatUi && !composerDisabled
+                  ? (option) => void onSendMessage(option, [])
+                  : undefined
+              }
               organizationSlug={organizationSlug}
               streamedAssistant={streamedAssistant}
             />
@@ -244,6 +254,7 @@ export function ConversationPanel({
                 onDraftRepositoryChange={onDraftRepositoryChange}
                 onSend={onSendMessage}
                 organizationSlug={organizationSlug}
+                turnControls={turnControls}
               />
             </InboxPanelErrorBoundary>
           </InboxAiComposer>

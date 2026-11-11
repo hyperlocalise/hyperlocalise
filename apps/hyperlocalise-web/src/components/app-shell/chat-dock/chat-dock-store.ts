@@ -13,6 +13,8 @@
 import { makeAutoObservable, observableRef, observableShallow } from "mobx";
 import type { UIMessage } from "ai";
 
+import type { ChatComposerSendOptions } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-api";
+
 import {
   CHAT_DOCK_MAX_CONCURRENT_STREAMS,
   createEmptyChatDockState,
@@ -43,6 +45,25 @@ export type ChatDockTab = {
   streamSnapshot: ChatDockStreamSnapshot | null;
   lastError: string | null;
 };
+
+/**
+ * A message the user sent while the agent was still answering. It is sent when the turn ends,
+ * unless the user stopped the turn. Kept in memory only: attached files cannot be persisted.
+ */
+export type QueuedChatMessage = {
+  id: string;
+  text: string;
+  files: File[];
+  options?: ChatComposerSendOptions;
+};
+
+function createQueuedMessageId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `queued-${crypto.randomUUID()}`;
+  }
+
+  return `queued-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 /** Ephemeral page-scoped context for suggestion pills. Not persisted. */
 export type ChatDockPageContext = {
@@ -166,6 +187,10 @@ export class ChatDockStore {
    * Dock tabs mirror these when open; inbox reads them without creating tabs.
    */
   streamsByConversationId: Record<string, ChatDockStreamSnapshot> = {};
+  /** Follow-ups waiting for the running turn, keyed by conversation id. Not persisted. */
+  queuedMessagesByConversationId: Record<string, QueuedChatMessage[]> = {};
+  /** Conversations whose turn the user asked to stop and that have not ended yet. */
+  stoppingConversationIds: Record<string, true> = {};
 
   private storage: ChatDockStorage | undefined;
   private persistEnabled = true;
@@ -178,6 +203,8 @@ export class ChatDockStore {
         tabs: observableShallow,
         pageContext: observableRef,
         streamsByConversationId: observableRef,
+        queuedMessagesByConversationId: observableRef,
+        stoppingConversationIds: observableRef,
       },
       { autoBind: true },
     );
@@ -203,6 +230,63 @@ export class ChatDockStore {
 
   getStreamSnapshot(conversationId: string): ChatDockStreamSnapshot | null {
     return this.streamsByConversationId[conversationId] ?? null;
+  }
+
+  getQueuedMessages(conversationId: string): QueuedChatMessage[] {
+    return this.queuedMessagesByConversationId[conversationId] ?? [];
+  }
+
+  isStopping(conversationId: string) {
+    return conversationId in this.stoppingConversationIds;
+  }
+
+  enqueueMessage(conversationId: string, message: Omit<QueuedChatMessage, "id">) {
+    const queued: QueuedChatMessage = { ...message, id: createQueuedMessageId() };
+    this.queuedMessagesByConversationId = {
+      ...this.queuedMessagesByConversationId,
+      [conversationId]: [...this.getQueuedMessages(conversationId), queued],
+    };
+    return queued.id;
+  }
+
+  /** Removes a queued message and returns it, so the caller can put it back in the composer. */
+  removeQueuedMessage(conversationId: string, messageId: string): QueuedChatMessage | null {
+    const queue = this.getQueuedMessages(conversationId);
+    const message = queue.find((entry) => entry.id === messageId) ?? null;
+    if (message) {
+      this.setQueue(
+        conversationId,
+        queue.filter((entry) => entry.id !== messageId),
+      );
+    }
+    return message;
+  }
+
+  /** Takes the oldest queued message, which is the next one to send. */
+  shiftQueuedMessage(conversationId: string): QueuedChatMessage | null {
+    const [next, ...rest] = this.getQueuedMessages(conversationId);
+    if (!next) {
+      return null;
+    }
+    this.setQueue(conversationId, rest);
+    return next;
+  }
+
+  /** Puts a message back at the front, for example after sending it failed. */
+  requeueMessageFirst(conversationId: string, message: QueuedChatMessage) {
+    this.setQueue(conversationId, [message, ...this.getQueuedMessages(conversationId)]);
+  }
+
+  setStopping(conversationId: string, stopping: boolean) {
+    if (stopping === this.isStopping(conversationId)) {
+      return;
+    }
+    if (stopping) {
+      this.stoppingConversationIds = { ...this.stoppingConversationIds, [conversationId]: true };
+      return;
+    }
+    const { [conversationId]: _removed, ...rest } = this.stoppingConversationIds;
+    this.stoppingConversationIds = rest;
   }
 
   get tabBarVisible() {
@@ -456,6 +540,18 @@ export class ChatDockStore {
     this.tabs = state.tabs.map(fromPersistedTab);
     this.activeTabId = state.activeTabId;
     this.panelOpen = state.panelOpen;
+  }
+
+  private setQueue(conversationId: string, queue: QueuedChatMessage[]) {
+    if (queue.length > 0) {
+      this.queuedMessagesByConversationId = {
+        ...this.queuedMessagesByConversationId,
+        [conversationId]: queue,
+      };
+      return;
+    }
+    const { [conversationId]: _removed, ...rest } = this.queuedMessagesByConversationId;
+    this.queuedMessagesByConversationId = rest;
   }
 
   private removeConversationStream(conversationId: string) {

@@ -18,6 +18,12 @@ export const conversationIdParamsSchema = z.object({
   conversationId: z.uuid(),
 });
 
+export const conversationToolOutputParamsSchema = z.object({
+  conversationId: z.uuid(),
+  messageId: z.uuid(),
+  toolCallId: z.string().min(1).max(200),
+});
+
 export const repositoryProviderSchema = z.enum(["github", "gitlab"]);
 
 export const createConversationRequestSchema = z.object({
