@@ -556,6 +556,9 @@ importers:
       pg:
         specifier: 8.23.1
         version: 8.23.1
+      playwright-core:
+        specifier: 1.65.0
+        version: 1.65.0
       pptxgenjs:
         specifier: ^4.0.1
         version: 4.0.1

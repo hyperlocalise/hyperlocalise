@@ -114,9 +114,9 @@ export async function discoverDeepAuditStep(input: {
     import("@/lib/localisation-audit/crawl"),
     import("@/lib/localisation-audit/crawl-block"),
   ]);
-  const { createAuditBrowserSession } = await import("@/lib/localisation-audit/sandbox-browser");
+  const { createAuditPageRenderer } = await import("@/lib/localisation-audit/audit-page-renderer");
 
-  const renderer = await createAuditBrowserSession();
+  const renderer = await createAuditPageRenderer();
   let home: LocalisationAuditCrawledPage | null = null;
   try {
     const rendered = (await renderer.render([input.sourceUrl]))[0];
@@ -161,7 +161,7 @@ export async function discoverDeepAuditStep(input: {
 }
 
 /**
- * Render one batch in a fresh sandbox and persist the pages. Stops early when
+ * Render one batch in a fresh browser session and persist the pages. Stops early when
  * the run was cancelled. Returns hreflang alternates for the second pass.
  */
 export async function renderDeepAuditBatchStep(input: {
@@ -175,17 +175,14 @@ export async function renderDeepAuditBatchStep(input: {
     return { cancelled: true as const, rendered: 0, blocked: 0, alternates: [] as string[] };
   }
 
-  const [
-    { pageFromRendered },
-    { detectLocalisationAuditCrawlBlock },
-    { createAuditBrowserSession },
-  ] = await Promise.all([
-    import("@/lib/localisation-audit/crawl"),
-    import("@/lib/localisation-audit/crawl-block"),
-    import("@/lib/localisation-audit/sandbox-browser"),
-  ]);
+  const [{ pageFromRendered }, { detectLocalisationAuditCrawlBlock }, { createAuditPageRenderer }] =
+    await Promise.all([
+      import("@/lib/localisation-audit/crawl"),
+      import("@/lib/localisation-audit/crawl-block"),
+      import("@/lib/localisation-audit/audit-page-renderer"),
+    ]);
 
-  const renderer = await createAuditBrowserSession();
+  const renderer = await createAuditPageRenderer();
   const inserts: DeepAuditPageInsert[] = [];
   const renderedPages: LocalisationAuditCrawledPage[] = [];
   let blocked = 0;
