@@ -258,6 +258,69 @@ describe("GoSvcClient", () => {
     expect((fetchMock.mock.calls[5][1] as RequestInit).method).toBe("POST");
   });
 
+  it("reads and updates workspace settings", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          workspace: {
+            id: "org-1",
+            workosOrganizationId: "org_1",
+            name: "Acme",
+            slug: "acme",
+            lifecycleStatus: "active",
+            archivedAt: null,
+            identityProvider: "workos",
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          workspace: {
+            id: "org-1",
+            workosOrganizationId: "org_1",
+            name: "Acme Localization",
+            slug: "acme-localization",
+            lifecycleStatus: "active",
+            archivedAt: null,
+            identityProvider: "workos",
+          },
+          redirectTo: "/org/acme-localization/settings/account",
+        }),
+      );
+    const client = clientWith(fetchMock);
+
+    await client.workspace.get("acme");
+    const updated = await client.workspace.update("acme", {
+      name: "Acme Localization",
+      slug: "acme-localization",
+    });
+
+    expect(updated.redirectTo).toBe("/org/acme-localization/settings/account");
+    expect(fetchMock.mock.calls[0][0]).toBe(`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/workspace`);
+    expect(fetchMock.mock.calls[1][0]).toBe(`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/workspace`);
+    expect((fetchMock.mock.calls[1][1] as RequestInit).method).toBe("PATCH");
+    expect((fetchMock.mock.calls[1][1] as RequestInit).body).toBe(
+      '{"name":"Acme Localization","slug":"acme-localization"}',
+    );
+  });
+
+  it("reads workspace resource usage", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        resourceUsage: { seats: 2, projects: 1, automations: 0, integrations: 3 },
+      }),
+    );
+    const client = clientWith(fetchMock);
+
+    await expect(client.billing.resourceUsage("acme")).resolves.toEqual({
+      resourceUsage: { seats: 2, projects: 1, automations: 0, integrations: 3 },
+    });
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/billing/resource-usage`,
+    );
+  });
+
   it("accepts successful empty responses", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     const client = clientWith(fetchMock);

@@ -26,7 +26,7 @@ import { TypographyP } from "@/components/ui/typography";
 import { PlanUsageHashScroll } from "@/components/billing/plan-usage-hash-scroll";
 import { clientAnalytics } from "@/lib/analytics/client";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
-import { apiClient } from "@/lib/api-client-instance";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   getActiveSubscription,
   availablePlansSectionId,
@@ -235,6 +235,7 @@ function ConfiguredBillingSettingsPanel({
   organizationSlug: string;
 }) {
   const intl = useIntl();
+  const { client, loading: goSvcLoading } = useGoSvcClient();
   const [actionPending, setActionPending] = useState<string | null>(null);
   const {
     data: customer,
@@ -248,17 +249,9 @@ function ConfiguredBillingSettingsPanel({
   const { data: plans, isLoading: plansLoading, error: plansError } = useListPlans();
   const resourceUsageQuery = useQuery({
     queryKey: ["billing-resource-usage", organizationSlug],
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].billing["resource-usage"].$get(
-        {
-          param: { organizationSlug },
-        },
-      );
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(billingSettingsContentMessages.resourceUsageLoadFailed));
-      }
-
-      const body = await response.json();
+    enabled: !goSvcLoading,
+    queryFn: async ({ signal }) => {
+      const body = await client.billing.resourceUsage(organizationSlug, { signal });
       return body.resourceUsage;
     },
   });

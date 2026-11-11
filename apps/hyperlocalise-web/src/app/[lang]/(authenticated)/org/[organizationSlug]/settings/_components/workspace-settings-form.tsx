@@ -22,43 +22,11 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Rows } from "@/components/ui/layout/rows";
-import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
+import { storeActiveOrganizationSlugAction } from "./workspace-settings-actions";
 import { workspaceSettingsFormMessages } from "./workspace-settings-form.messages";
-
-function isStaleOrganizationSlugBody(
-  body: unknown,
-): body is { error: "stale_organization_slug"; details: { redirectTo: string } } {
-  return (
-    body !== null &&
-    typeof body === "object" &&
-    "error" in body &&
-    body.error === "stale_organization_slug" &&
-    "details" in body &&
-    body.details !== null &&
-    typeof body.details === "object" &&
-    "redirectTo" in body.details &&
-    typeof body.details.redirectTo === "string"
-  );
-}
-
-function readWorkspaceErrorBody(body: unknown, fallback: string) {
-  if (body && typeof body === "object" && "message" in body) {
-    const message = body.message;
-    if (typeof message === "string" && message.length > 0) {
-      return message;
-    }
-  }
-
-  if (body && typeof body === "object" && "error" in body) {
-    const error = body.error;
-    if (typeof error === "string" && error.length > 0) {
-      return error;
-    }
-  }
-
-  return fallback;
-}
 
 export function WorkspaceSettingsForm({
   canUpdateWorkspace,
@@ -71,6 +39,7 @@ export function WorkspaceSettingsForm({
 }) {
   const intl = useIntl();
   const router = useRouter();
+  const { client } = useGoSvcClient();
   const [name, setName] = useState(organizationName);
   const [slug, setSlug] = useState(organizationSlug);
 
@@ -78,41 +47,19 @@ export function WorkspaceSettingsForm({
     mutationFn: async () => {
       const trimmedName = name.trim();
       const trimmedSlug = slug.trim().toLowerCase();
-      const response = await apiClient.api.orgs[":organizationSlug"].workspace.$patch({
-        param: { organizationSlug },
-        json: {
-          name: trimmedName,
-          slug: trimmedSlug,
-        },
+      const result = await client.workspace.update(organizationSlug, {
+        name: trimmedName,
+        slug: trimmedSlug,
       });
-
-      const body: unknown = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        if (response.status === 403 && isStaleOrganizationSlugBody(body)) {
-          router.replace(body.details.redirectTo);
-          router.refresh();
-          return null;
-        }
-
-        throw new Error(
-          readWorkspaceErrorBody(
-            body,
-            intl.formatMessage(workspaceSettingsFormMessages.updateFailed),
-          ),
-        );
+      const nextSlug = result.workspace.slug ?? organizationSlug;
+      try {
+        await storeActiveOrganizationSlugAction(nextSlug);
+      } catch {
+        // The redirect still lands on the new slug; app-auth repairs a stale cookie.
       }
-
-      return body as {
-        workspace: { name: string; slug: string | null };
-        redirectTo: string;
-      };
+      return result;
     },
     onSuccess: (data) => {
-      if (!data) {
-        return;
-      }
-
       toast.success(intl.formatMessage(workspaceSettingsFormMessages.updatedToast));
       const nextSlug = data.workspace.slug ?? organizationSlug;
       router.replace(data.redirectTo);
@@ -121,7 +68,9 @@ export function WorkspaceSettingsForm({
       setSlug(nextSlug);
     },
     onError: (error) => {
-      toast.error(error.message);
+      toast.error(
+        goSvcErrorMessage(error, intl.formatMessage(workspaceSettingsFormMessages.updateFailed)),
+      );
     },
   });
 

@@ -58,8 +58,9 @@ describe("createApiClient", () => {
     expect(typeof org.gitlab.projects.$get).toBe("function");
     expect(typeof org.intercom["help-centers"].$get).toBe("function");
     expect(typeof org.intercom["help-centers"][":helpCenterId"].collections.$get).toBe("function");
-    expect(typeof org.workspace.$patch).toBe("function");
-    expect(typeof org.billing["resource-usage"].$get).toBe("function");
+    expect("workspace" in org).toBe(false);
+    expect("billing" in org).toBe(false);
+    expect(typeof org["webhook-endpoints"].$get).toBe("function");
     expect("api-keys" in org).toBe(false);
     expect("overview" in org).toBe(false);
     expect(typeof client.api.v1.files.$post).toBe("function");
