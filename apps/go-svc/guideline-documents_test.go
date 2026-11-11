@@ -185,7 +185,7 @@ func TestGuidelineDocumentLifecycle(t *testing.T) {
 
 	downloaded := env.json(http.MethodGet, path+"/"+doc.ID+"/download", "")
 	require.Equal(t, http.StatusOK, downloaded.Code, downloaded.Body.String())
-	require.Contains(t, downloaded.Header().Get("Content-Disposition"), "Style guide")
+	require.Contains(t, downloaded.Header().Get("Content-Disposition"), "Style%20guide.md")
 	require.Equal(t, "# Tone\n\nUse formal French.", downloaded.Body.String())
 
 	updated := env.json(http.MethodPut, path+"/"+doc.ID, `{"locale":null,"mandatory":false,"title":"Tone"}`)

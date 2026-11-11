@@ -109,7 +109,8 @@ func TestGuidelineRetrieveDropsDocumentsChangedAfterRetrieval(t *testing.T) {
 	require.NoError(t, err)
 	_, err = env.scope.Pool.Exec(t.Context(), `update guideline_documents set status = 'processing' where id = $1`, rows["processing"])
 	require.NoError(t, err)
-	_, err = env.scope.Pool.Exec(t.Context(), `update guideline_documents set locale = 'de-DE' where id = $1`, rows["rescoped"])
+	// Empty locales means every locale, so a locale-column update alone stays in scope.
+	_, err = env.scope.Pool.Exec(t.Context(), `update guideline_documents set locales = '{de-DE}', locale = 'de-DE' where id = $1`, rows["rescoped"])
 	require.NoError(t, err)
 
 	rec := serveGuidelineRetrieve(env, `{"organizationId":"`+env.scope.OrganizationID+`","locales":["fr-FR"],"query":"rule"}`, true)
@@ -142,6 +143,8 @@ func TestGuidelineRetrieveReturnsUploadedDocumentsOnly(t *testing.T) {
 	projectID := env.scope.MustProject(t, "", "Project")
 	mandatoryRow := seedReadyGuideline(t, env, env.scope.OrgPath("/guidelines/documents"), "Never translate Acme.")
 	searchedRow := seedReadyGuideline(t, env, env.scope.OrgPath("/guidelines/documents"), "Use vous.\n\nKeep sentences short.")
+	_, err := env.scope.Pool.Exec(t.Context(), `update guideline_documents set is_global = true where id = any($1::uuid[])`, []string{mandatoryRow, searchedRow})
+	require.NoError(t, err)
 	mandatoryID, searchedID := guidelinepg.UploadedDocumentID(mandatoryRow), guidelinepg.UploadedDocumentID(searchedRow)
 	searchedRevision := guidelineRevision(t, env, searchedRow)
 
