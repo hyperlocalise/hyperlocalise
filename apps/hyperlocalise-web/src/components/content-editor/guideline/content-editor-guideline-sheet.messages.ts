@@ -66,9 +66,9 @@ export const contentEditorGuidelineSheetMessages = defineMessages({
     description: "Link to project settings from style guide tab",
   },
   openKnowledge: {
-    defaultMessage: "Open knowledge",
-    id: "XH6ikfkioo",
-    description: "Link from the editor guideline sheet to the project knowledge page",
+    defaultMessage: "Open workspace guideline",
+    id: "UBgmYJVhxF",
+    description: "Link from the editor guideline sheet to workspace guidelines",
   },
   showDocument: {
     defaultMessage: "Show {title}",

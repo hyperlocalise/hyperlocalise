@@ -24,9 +24,13 @@ To change a document later, open **Edit** on its row: editing the content saves 
 
 Admins and localization managers can upload, edit, delete, and assign documents. Other members can view them.
 
-### Choose what always applies
+### Always apply
 
-Turn on **Always apply** for a short document that must be used in full every time, such as a list of banned words. Other documents are searched and Hyperlocalise keeps only the passages relevant to the text being translated or checked. Keep long reference material searchable so it does not crowd out more relevant guidance.
+**Always apply** controls whether a ready guideline is sent in full, or only when a passage matches the current text. It does not change which projects or locales the document applies to.
+
+Turn it on for a short document that must be included every time that guideline is in scope, such as a banned-word list. The whole document is sent first, including when search finds nothing and when search is unavailable. If that text is too long to fit in the prompt, a guideline check does not run.
+
+Leave it off for longer reference material. Hyperlocalise searches the document and keeps only passages that match the text being translated or checked. Those passages can be left out when the prompt is full. If nothing matches, the document is not sent.
 
 Uploaded documents apply to every target locale, so state the market inside the document when a rule only applies to one language.
 

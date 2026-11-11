@@ -13,6 +13,7 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { expect, userEvent, within } from "storybook/test";
 
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
@@ -59,7 +60,7 @@ function storyClient(documents: {
         const document = documents.workspace.find((item) => item.id === id);
         return storyDocument({
           ...document,
-          content: `# ${document?.title ?? "Guideline"}\n\nKeep product names in English.`,
+          content: document?.content ?? "",
         });
       },
       listAllDocumentAssignments: async () => ({
@@ -107,10 +108,43 @@ function GuidelineSheetStory({
   );
 }
 
+const STYLE_GUIDE = `Audience: people using the product in Vietnamese.
+Tone: clear and direct.
+
+Address the reader as bạn. Do not use khách hàng.
+Keep the product name Hyperlocalise unchanged.
+Buttons: a short action verb.`;
+
+const VIETNAMESE_VOICE = `# Vietnamese voice
+
+Use this for every English → Vietnamese string.
+
+- Address the reader as **bạn**. Do not use **khách hàng** in product UI.
+- Keep the product name **Hyperlocalise** unchanged.
+- Buttons: a short action verb.`;
+
+const VIETNAMESE_EXAMPLES = `# Examples
+
+Source: Hyperlocalise can help you review translations.
+Use: Hyperlocalise có thể giúp bạn duyệt bản dịch.
+Avoid: Hyperlocalise có thể giúp khách hàng duyệt bản dịch.
+
+Source: Welcome to Hyperlocalise.
+Use: Chào mừng bạn đến với Hyperlocalise.
+Avoid: Chào mừng.`;
+
 const meta = {
   title: "CAT/Guideline sheet",
   component: GuidelineSheetStory,
-  parameters: { layout: "fullscreen" },
+  parameters: {
+    layout: "fullscreen",
+    docs: {
+      description: {
+        component:
+          "Guidelines for an English → Vietnamese (en-US to vi) product UI. Address the reader as bạn, and keep the product name Hyperlocalise.",
+      },
+    },
+  },
   args: {
     styleGuide: "",
   },
@@ -119,26 +153,87 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Empty: Story = {};
+export const Empty: Story = {
+  name: "No guideline yet",
+  parameters: {
+    docs: {
+      description: {
+        story: "This Vietnamese project has no style guide and no guideline documents yet.",
+      },
+    },
+  },
+};
 
 export const WithStyleGuide: Story = {
+  name: "Style guide for Vietnamese",
   args: {
-    styleGuide: "Keep product names in English.\n\nUse sentence case for buttons.",
+    styleGuide: STYLE_GUIDE,
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "The project style guide for English → Vietnamese: address the reader as bạn, and keep Hyperlocalise in English.",
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(body.getByRole("tab", { name: "Style guide" }));
+    await expect(body.getByText(/Address the reader as bạn/)).toBeInTheDocument();
+    await expect(body.getByText(/Keep the product name Hyperlocalise/)).toBeInTheDocument();
   },
 };
 
 export const WithDocuments: Story = {
+  name: "Vietnamese voice",
   args: {
+    styleGuide: STYLE_GUIDE,
     workspaceDocuments: [
-      storyDocument({ id: "doc-1", title: "Voice guide", isGlobal: true, mandatory: true }),
       storyDocument({
-        id: "doc-2",
-        title: "Tone guide",
+        id: "doc-voice",
+        title: "Vietnamese voice",
+        filename: "vietnamese-voice.md",
         isGlobal: true,
-        locales: ["fr-FR", "de-DE"],
+        locales: ["vi"],
+        mandatory: true,
+        content: VIETNAMESE_VOICE,
       }),
-      storyDocument({ id: "doc-3", title: "Brand rules", status: "processing" }),
+      storyDocument({
+        id: "doc-examples",
+        title: "Vietnamese examples",
+        filename: "vietnamese-examples.md",
+        isGlobal: true,
+        locales: ["vi"],
+        content: VIETNAMESE_EXAMPLES,
+      }),
+      storyDocument({
+        id: "doc-market",
+        title: "Vietnam market notes",
+        filename: "vietnam-market.md",
+        locales: ["vi"],
+        status: "processing",
+      }),
     ],
-    assignments: [{ documentId: "doc-3", projectIds: ["project_1"] }],
+    assignments: [{ documentId: "doc-market", projectIds: ["project_1"] }],
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Vietnamese voice always applies, so the whole document is sent on every vi check. The examples are searched. Market notes are still being read and apply only to this project.",
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await expect(body.getByText("Always apply")).toBeInTheDocument();
+    await userEvent.click(body.getByRole("button", { name: "Show Vietnamese voice" }));
+    await expect(body.getByText(/Do not use/)).toBeInTheDocument();
+    await expect(body.getByText("khách hàng", { exact: true })).toBeInTheDocument();
+    await expect(
+      body.getByRole("button", { name: "Show Vietnamese examples" }),
+    ).toBeInTheDocument();
+    await expect(body.getByText("Vietnam market notes")).toBeInTheDocument();
   },
 };

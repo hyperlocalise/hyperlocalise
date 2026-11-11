@@ -209,7 +209,7 @@ describe("ContentEditorGuidelineSheet", () => {
     await user.click(screen.getByRole("button", { name: "Show Voice" }));
 
     expect(await screen.findByText("# Voice")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Open knowledge" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Open workspace guideline" })).toHaveAttribute(
       "href",
       "/org/acme/projects/project_1/knowledge",
     );
@@ -256,7 +256,7 @@ describe("ContentEditorGuidelineSheet", () => {
     renderSheet({ translationContextValue: "", source: "native" });
 
     expect(await screen.findByText("No guideline for this project yet.")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Open knowledge" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Open workspace guideline" })).toHaveAttribute(
       "href",
       "/org/acme/projects/project_1/knowledge",
     );

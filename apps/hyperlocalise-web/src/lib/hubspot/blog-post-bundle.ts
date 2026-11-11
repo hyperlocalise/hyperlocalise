@@ -24,7 +24,8 @@ import {
   buildHubspotBlogPostSourcePath,
   readBlogPostHtmlDocument,
 } from "./blog-post-files";
-import { applyBlogContentDocument, hashHubspotContent, type HubspotStringTree } from "./document";
+import { applyBlogContentDocument, type HubspotStringTree } from "./document";
+import { hashHubspotContent } from "./document-hash";
 import { parseHubspotBlogFolderPath } from "./source-path";
 
 export function isHubspotBlogBundleSourcePath(sourcePath: string): boolean {

@@ -17,11 +17,11 @@ import {
   buildBlogContentDocument,
   buildEmailHtmlDocument,
   emailHtmlKinds,
-  hashHubspotContent,
   hubspotDocumentHasCopy,
   readEmailHtmlDocument,
   type HubspotStringTree,
 } from "./document";
+import { hashHubspotContent } from "./document-hash";
 
 export const HUBSPOT_BLOG_POST_FILE = "post.html";
 
