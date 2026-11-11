@@ -82,6 +82,9 @@ type Result struct {
 	Passages        []Passage `json:"passages"`
 	SearchAvailable bool      `json:"searchAvailable"`
 	Model           string    `json:"model"`
+	// ModelInvoked is true only when the model was called. Empty retrievals stay false
+	// so callers can skip usage metering. It is not part of the HTTP response.
+	ModelInvoked bool `json:"-"`
 }
 
 type Retriever interface {
@@ -152,6 +155,12 @@ func Normalize(req Request) (Request, error) {
 // Check retrieves guidelines once for the whole request, asks the model for
 // findings, and keeps only findings that are grounded in the request.
 func (c *Checker) Check(ctx context.Context, scope guidelines.Scope, req Request) (Result, error) {
+	return c.CheckBeforeModel(ctx, scope, req, nil)
+}
+
+// CheckBeforeModel is Check with a hook that runs only when a guideline passage
+// applies and the model is about to be called. A hook error skips the model.
+func (c *Checker) CheckBeforeModel(ctx context.Context, scope guidelines.Scope, req Request, beforeModel func(context.Context) error) (Result, error) {
 	req, err := Normalize(req)
 	if err != nil {
 		return Result{}, err
@@ -168,6 +177,12 @@ func (c *Checker) Check(ctx context.Context, scope guidelines.Scope, req Request
 	if len(passages) == 0 {
 		return result, nil
 	}
+	if beforeModel != nil {
+		if err := beforeModel(ctx); err != nil {
+			return Result{}, err
+		}
+	}
+	result.ModelInvoked = true
 	raw, err := c.model.Complete(ctx, systemPrompt, userPrompt(req, passages))
 	if err != nil {
 		return Result{}, fmt.Errorf("guideline check model: %w", err)

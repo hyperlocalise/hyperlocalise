@@ -21,7 +21,7 @@ import {
   type IssueListView,
   type IssuePriority,
 } from "@/lib/projects/issue-sheet/issue-list-constants";
-import { translationQaCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
+import { translationQaScanCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
 
 export const ISSUE_STATUS_FILTERS = ["open", "in_progress", "resolved", "wont_fix"] as const;
 
@@ -87,7 +87,7 @@ export function parseIssueListSearchParams(
   const priority = readAllowedValue(searchParams, "priority", ISSUE_PRIORITIES);
   const assignee = readAllowedValue(searchParams, "assignee", ISSUE_ASSIGNEE_FILTERS);
   const locale = searchParams.get("locale")?.trim() || undefined;
-  const qaCheckType = readAllowedValue(searchParams, "qaCheckType", translationQaCheckTypes);
+  const qaCheckType = readAllowedValue(searchParams, "qaCheckType", translationQaScanCheckTypes);
   const search = searchParams.get("search")?.trim() ?? "";
   const projectId = options?.includeProject
     ? searchParams.get("projectId")?.trim() || undefined

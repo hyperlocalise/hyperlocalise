@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
-import { translationQaCheckTypes } from "@/lib/qa/types";
+import { translationQaScanCheckTypes } from "@/lib/qa/types";
 import { createWorkspaceQaReportClient } from "@/lib/qa/qa-report-client";
 import { useWorkspaceQaReports } from "@/lib/qa/use-workspace-qa-reports";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
@@ -201,7 +201,7 @@ const QaWorkspacePageContentView = observer(function QaWorkspacePageContentView(
               onChange={(value) => pageStore.setCheckType(value)}
               options={[
                 all,
-                ...translationQaCheckTypes.map((value) => ({
+                ...translationQaScanCheckTypes.map((value) => ({
                   value,
                   label: qaCheckLabel(value, intl),
                 })),

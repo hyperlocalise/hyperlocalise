@@ -16,7 +16,7 @@ import type { ProjectFileContentEditorQueueFilter } from "@/api/routes/project/p
 import { schema } from "@/lib/database/client";
 import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { isTranslationOrigin } from "@/lib/projects/translations/translation-origin-rule";
-import { translationQaCheckTypes } from "@/lib/qa/types";
+import { translationQaScanCheckTypes } from "@/lib/qa/types";
 
 const nativeMachineTranslationProvenances = ["translation_job", "agent", "import"] as const;
 
@@ -51,7 +51,7 @@ function nativeQaIssuesSql(
   checkType?: string,
 ) {
   const checkTypeSql =
-    checkType && (translationQaCheckTypes as readonly string[]).includes(checkType)
+    checkType && (translationQaScanCheckTypes as readonly string[]).includes(checkType)
       ? sql`and ${schema.translationQaFindings.checkType} = ${checkType}`
       : sql``;
 

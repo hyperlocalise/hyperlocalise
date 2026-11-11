@@ -34,6 +34,11 @@ import type {
 import { aiCreditExhaustedMessages } from "@/components/billing/ai-credit-exhausted.messages";
 import { isAiCreditExhaustedError } from "@/lib/billing/ai-credit-refusal";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+import {
+  EDITOR_GUIDELINE_CHECK_DEBOUNCE_MS,
+  isGuidelineFormatCheck,
+  mergeGuidelineFormatChecks,
+} from "@/components/content-editor/project-file/content-editor-guideline-checks";
 import { mergeLiveAndScanFormatChecks } from "@/lib/qa/merge-format-checks";
 
 import type { ContentEditorWorkspaceOrchestrator } from "../content-editor-workspace-orchestrator";
@@ -89,6 +94,7 @@ export type ContentEditorReviewWorkspace = Pick<
   | "removeQueueSegmentIfClean"
   | "segmentIntelligence"
   | "segmentMeta"
+  | "segmentFormatChecks"
   | "selectedSegmentId"
   | "setFormatCheckLoading"
   | "setFormatChecks"
@@ -114,6 +120,8 @@ export class ContentEditorReviewController {
   private disposed = false;
   private validationTimeout: ReturnType<typeof setTimeout> | null = null;
   private validationAbortController: AbortController | null = null;
+  private guidelineTimeout: ReturnType<typeof setTimeout> | null = null;
+  private guidelineAbortController: AbortController | null = null;
   private segmentValidationControllers = new Map<string, AbortController>();
   private lastVisibleCheckFingerprint = new Map<string, string>();
 
@@ -144,6 +152,7 @@ export class ContentEditorReviewController {
       const selected = this.workspace.getSegmentView(selectedId);
       if (selected && this.canValidateSegmentTarget(selectedId)) {
         void this.runChecks(selected, selected.targetText);
+        this.scheduleGuidelineCheck(selected, selected.targetText);
       }
     }
 
@@ -175,11 +184,13 @@ export class ContentEditorReviewController {
       },
       (segmentId) => {
         if (!segmentId) {
+          this.abortGuidelineCheck();
           return;
         }
         const segment = this.workspace.getSegmentView(segmentId);
         if (segment) {
           void this.runChecks(segment, segment.targetText);
+          this.scheduleGuidelineCheck(segment, segment.targetText);
         }
       },
       { fireImmediately: true },
@@ -243,6 +254,7 @@ export class ContentEditorReviewController {
     }
     this.validationAbortController?.abort();
     this.validationAbortController = null;
+    this.abortGuidelineCheck();
     for (const controller of this.segmentValidationControllers.values()) {
       controller.abort();
     }
@@ -327,11 +339,7 @@ export class ContentEditorReviewController {
         !abortController.signal.aborted &&
         this.isCurrentFileScope(fileScopeGeneration)
       ) {
-        this.workspace.setFormatChecks(
-          segment.id,
-          scanChecks,
-          this.workspace.selectedSegmentId === segment.id,
-        );
+        this.commitFormatChecks(segment.id, scanChecks);
       }
       const formatChecks = validateFormat
         ? await validateFormat(segment, value, glossaryTerms, { signal: abortController.signal })
@@ -344,11 +352,7 @@ export class ContentEditorReviewController {
       ) {
         return;
       }
-      this.workspace.setFormatChecks(
-        segment.id,
-        mergeLiveAndScanFormatChecks(formatChecks, scanChecks),
-        this.workspace.selectedSegmentId === segment.id,
-      );
+      this.commitFormatChecks(segment.id, mergeLiveAndScanFormatChecks(formatChecks, scanChecks));
     } catch (error) {
       if (!abortController.signal.aborted && (error as Error)?.name !== "AbortError") {
         throw error;
@@ -378,6 +382,86 @@ export class ContentEditorReviewController {
       this.validationTimeout = null;
       void this.runChecks(segment, value);
     }, SEGMENT_VALIDATION_DEBOUNCE_MS);
+    this.scheduleGuidelineCheck(segment, value);
+  }
+
+  private abortGuidelineCheck() {
+    if (this.guidelineTimeout) {
+      clearTimeout(this.guidelineTimeout);
+      this.guidelineTimeout = null;
+    }
+    this.guidelineAbortController?.abort();
+    this.guidelineAbortController = null;
+  }
+
+  private scheduleGuidelineCheck(segment: ContentEditorSegment, value: string) {
+    if (segment.id !== this.workspace.selectedSegmentId) {
+      return;
+    }
+    this.abortGuidelineCheck();
+    if (
+      !this.ports.services?.runGuidelineCheck ||
+      !value.trim() ||
+      this.isAssetSegment(segment) ||
+      !this.canValidateSegmentTarget(segment.id)
+    ) {
+      this.commitGuidelineChecks(segment.id, []);
+      return;
+    }
+    this.guidelineTimeout = setTimeout(() => {
+      this.guidelineTimeout = null;
+      void this.runGuidelineCheck(segment, value);
+    }, EDITOR_GUIDELINE_CHECK_DEBOUNCE_MS);
+  }
+
+  private async runGuidelineCheck(segment: ContentEditorSegment, value: string) {
+    const runGuidelineCheck = this.ports.services?.runGuidelineCheck;
+    if (!runGuidelineCheck || this.workspace.selectedSegmentId !== segment.id) {
+      return;
+    }
+    const abortController = new AbortController();
+    this.guidelineAbortController = abortController;
+    try {
+      const checks = await runGuidelineCheck(segment, value, { signal: abortController.signal });
+      if (
+        this.disposed ||
+        abortController.signal.aborted ||
+        this.workspace.selectedSegmentId !== segment.id ||
+        this.workspace.getSegmentView(segment.id)?.targetText !== value
+      ) {
+        return;
+      }
+      this.commitGuidelineChecks(segment.id, checks);
+    } catch (error) {
+      if (abortController.signal.aborted || (error as Error)?.name === "AbortError") {
+        return;
+      }
+    } finally {
+      if (this.guidelineAbortController === abortController) {
+        this.guidelineAbortController = null;
+      }
+    }
+  }
+
+  private commitFormatChecks(segmentId: string, checks: ContentEditorFormatCheck[]) {
+    const current = this.workspace.segmentFormatChecks[segmentId] ?? [];
+    this.workspace.setFormatChecks(
+      segmentId,
+      mergeGuidelineFormatChecks(
+        checks,
+        current.filter((check) => isGuidelineFormatCheck(check)),
+      ),
+      this.workspace.selectedSegmentId === segmentId,
+    );
+  }
+
+  private commitGuidelineChecks(segmentId: string, guidelineChecks: ContentEditorFormatCheck[]) {
+    const current = this.workspace.segmentFormatChecks[segmentId] ?? [];
+    this.workspace.setFormatChecks(
+      segmentId,
+      mergeGuidelineFormatChecks(current, guidelineChecks),
+      this.workspace.selectedSegmentId === segmentId,
+    );
   }
 
   async runReview(segmentId: string, options?: { includeAi?: boolean }) {
@@ -497,11 +581,7 @@ export class ContentEditorReviewController {
       const checks = aiFailureCheck
         ? [aiFailureCheck, ...baseChecks.filter((check) => check.id !== aiFailureCheck.id)]
         : baseChecks;
-      this.workspace.setFormatChecks(
-        segmentId,
-        checks,
-        this.workspace.selectedSegmentId === segmentId,
-      );
+      this.commitFormatChecks(segmentId, checks);
       if (recommendation) {
         this.workspace.mergeSegmentIntelligence(segmentId, {
           aiSuggestion: recommendation.aiSuggestion,

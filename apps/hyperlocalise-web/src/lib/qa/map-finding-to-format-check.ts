@@ -31,6 +31,7 @@ const CHECK_LABELS: Record<TranslationQaCheckType, string> = {
   length: "Length",
   placeholder_mismatch: "Placeholders",
   glossary_violation: "Glossary",
+  guideline: "Guideline",
 };
 
 const CHECK_CATEGORIES: Record<TranslationQaCheckType, ContentEditorFormatCheckCategory> = {
@@ -47,6 +48,7 @@ const CHECK_CATEGORIES: Record<TranslationQaCheckType, ContentEditorFormatCheckC
   length: "length",
   placeholder_mismatch: "placeholder",
   glossary_violation: "glossary",
+  guideline: "qa",
 };
 
 /** IDs that match go-svc so CAT can dedupe live and scan rows. */
@@ -64,6 +66,7 @@ export const SCAN_FORMAT_CHECK_IDS: Record<TranslationQaCheckType, string> = {
   length: "length",
   placeholder_mismatch: "scan-placeholder-mismatch",
   glossary_violation: "scan-glossary-violation",
+  guideline: "guideline",
 };
 
 export type TranslationQaFindingLike = {

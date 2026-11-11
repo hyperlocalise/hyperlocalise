@@ -30,6 +30,7 @@ export const DEFAULT_QA_POLICY: QaCheckPolicy = {
   punctuation_mismatch: { enabled: false, severity: "warning" },
   character_case_mismatch: { enabled: false, severity: "warning" },
   unreachable_plural_case: { enabled: true, severity: "error" },
+  guideline: { enabled: false, severity: "warning" },
 };
 
 export function resolveQaPolicy(policy?: Partial<QaCheckPolicy> | null): QaCheckPolicy {

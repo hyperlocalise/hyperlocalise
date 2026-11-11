@@ -414,6 +414,17 @@ export const qaMessages = defineMessages({
     description: "QA review: unreachable_plural_case",
     id: "0aZjyrf1Pz",
   },
+  guideline: {
+    defaultMessage: "Guidelines",
+    description: "QA review: guideline check that runs in the editor",
+    id: "uxlgIxjFm4",
+  },
+  guidelineCheckHelp: {
+    defaultMessage:
+      "Checked in the editor while you translate. A warning does not block saving. Project scans do not run this check.",
+    description: "Help for the editor-only guideline QA check",
+    id: "6ZdUFhWyMC",
+  },
   enableCheck: {
     defaultMessage: "Enable {check}",
     description: "Enable translation QA check",

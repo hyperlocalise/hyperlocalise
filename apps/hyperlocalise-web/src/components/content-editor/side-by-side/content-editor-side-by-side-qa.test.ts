@@ -124,6 +124,35 @@ describe("content-editor-side-by-side-qa", () => {
     ).toBeUndefined();
   });
 
+  it("treats a guideline quote and suggestion as a replacement", () => {
+    expect(
+      presentQaIssue({
+        id: "guideline-0",
+        label: "Guideline",
+        status: "warn",
+        category: "qa",
+        message: "Use the formal vous. Suggestion: vous",
+        relatedTokens: ["tu", "vous"],
+      }),
+    ).toMatchObject({
+      message: "Use the formal vous",
+      problemToken: "tu",
+      suggestion: "vous",
+    });
+    expect(
+      qaHighlightTokens(
+        {
+          id: "guideline-0",
+          label: "Guideline",
+          status: "warn",
+          message: "Use the formal vous. Suggestion: vous",
+          relatedTokens: ["tu", "vous"],
+        },
+        "Peux-tu aider ?",
+      ),
+    ).toEqual(["tu"]);
+  });
+
   it("replaces the first problem token when applying a suggestion", () => {
     expect(applyQaSuggestion("Drive the product", "Drive", "Diverse")).toBe("Diverse the product");
     expect(applyQaSuggestion("No match", "Drive", "Diverse")).toBe("No match");

@@ -111,6 +111,12 @@ export interface ContentEditorWorkspaceServices {
     segment: ContentEditorSegment,
     value: string,
   ) => Promise<ContentEditorFormatCheck[]>;
+  /** Background guideline review for the selected segment. Not part of the fast QA pass. */
+  runGuidelineCheck?: (
+    segment: ContentEditorSegment,
+    value: string,
+    options?: { signal?: AbortSignal },
+  ) => Promise<ContentEditorFormatCheck[]>;
   lookupSegmentContext?: (
     segment: ContentEditorSegment,
     options?: { cachedOnly?: boolean; forceRefresh?: boolean },

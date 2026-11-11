@@ -57,6 +57,20 @@ func TestLoadPolicyRoundTripsDefaultPolicy(t *testing.T) {
 	}
 }
 
+func TestLoadPolicyAddsGuidelineDefault(t *testing.T) {
+	policy := DefaultPolicy()
+	delete(policy.Checks, checkGuideline)
+
+	got, err := LoadPolicy(writePolicyFile(t, marshalPolicy(t, policy)))
+	if err != nil {
+		t.Fatalf("LoadPolicy: %v", err)
+	}
+	setting := got.Checks[checkGuideline]
+	if setting.Enabled || setting.Severity != "warning" {
+		t.Fatalf("guideline = %+v", setting)
+	}
+}
+
 func TestLoadPolicyAddsUnreachablePluralDefault(t *testing.T) {
 	policy := DefaultPolicy()
 	delete(policy.Checks, checkUnreachablePlural)

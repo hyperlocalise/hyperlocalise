@@ -181,9 +181,10 @@ export function useContentEditorWorkspaceRuntime({
   useEffect(() => {
     store.groupVariants.setServices({
       validateFormat,
+      runGuidelineCheck: serviceOverrides?.runGuidelineCheck,
       glossaryTerms: (segmentId) => glossaryTermsForSegment(store.shellState, segmentId),
     });
-  }, [store, validateFormat]);
+  }, [serviceOverrides?.runGuidelineCheck, store, validateFormat]);
 
   useEffect(() => {
     store.attachControllers(intelligenceController, reviewController, navigationController);

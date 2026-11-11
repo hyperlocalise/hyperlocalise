@@ -133,9 +133,21 @@ func TestGuidelineCheckValidationAndLimits(t *testing.T) {
 		require.Contains(t, rec.Body.String(), "invalid_guideline_check", name)
 	}
 
+	// No passages means the model is not called, so an empty balance is not a refusal.
+	unlimited := env.json(http.MethodPost, path, valid)
+	require.Equal(t, http.StatusOK, unlimited.Code, unlimited.Body.String())
+	require.Contains(t, unlimited.Body.String(), `"findings":[]`)
+	require.Zero(t, model.calls)
+	require.Empty(t, meter.checks)
+	require.Empty(t, meter.tracks)
+
+	seedReadyGuideline(t, env, env.scope.OrgPath("/guidelines/documents"), "Address readers formally with vous.")
 	limited := env.json(http.MethodPost, path, valid)
 	require.Equal(t, http.StatusPaymentRequired, limited.Code, limited.Body.String())
 	require.Contains(t, limited.Body.String(), "guideline_check_limit_reached")
+	require.Zero(t, model.calls)
+	require.Len(t, meter.checks, 1)
+	require.Empty(t, meter.tracks)
 
 	meter.checkErr = errors.New("autumn down")
 	failed := env.json(http.MethodPost, path, valid)
@@ -143,12 +155,13 @@ func TestGuidelineCheckValidationAndLimits(t *testing.T) {
 	require.Zero(t, model.calls)
 	require.Empty(t, meter.tracks)
 
-	// Members can run checks once usage allows it; with no guidelines the model is skipped.
+	// Members can run checks once usage allows it.
 	meter.checkErr, meter.allowed = nil, true
 	ok := env.json(http.MethodPost, path, valid)
 	require.Equal(t, http.StatusOK, ok.Code, ok.Body.String())
 	require.Contains(t, ok.Body.String(), `"findings":[]`)
-	require.Zero(t, model.calls)
+	require.Equal(t, 1, model.calls)
+	require.Len(t, meter.tracks, 1)
 }
 
 func TestGuidelineCheckRejectsUnreadableModelOutput(t *testing.T) {
