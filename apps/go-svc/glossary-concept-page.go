@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// Concept page cursors are opaque base64 of "updatedAt|id" (no HMAC).
+// Concept page cursors are opaque JSON bound to the current sort and filters.
 // Clients must treat nextCursor as opaque and not forge values.
 
 type glossaryConceptPageRow struct {
@@ -37,42 +37,53 @@ func (api *glossaryAPI) pageGlossaryConcepts(r *http.Request, g glossaryRecord) 
 	if err != nil {
 		return nil, 0, err
 	}
-	search := trimGlossaryInput(r.URL.Query().Get("search"))
-	where := `c.glossary_id=$1 and c.archived_at is null`
-	args := []any{g.ID}
-	if search != "" {
-		args = append(args, "%"+search+"%")
-		where += ` and (c.primary_term ilike $2 or c.subject ilike $2 or c.definition ilike $2)`
+	filters, err := parseGlossaryConceptPageFilters(r.URL.Query())
+	if err != nil {
+		return nil, 0, err
 	}
-	cursor := trimGlossaryInput(r.URL.Query().Get("cursor"))
-	if cursor != "" {
-		updatedAt, id, decodeErr := decodeGlossaryPageCursor(cursor)
+	filterWhere, args := glossaryConceptPageWhere(g.ID, filters)
+	countArgs := append([]any{}, args...)
+	where := filterWhere
+	if cursor := trimGlossaryInput(r.URL.Query().Get("cursor")); cursor != "" {
+		payload, decodeErr := decodeGlossaryConceptPageCursor(cursor, filters)
 		if decodeErr != nil {
-			return nil, 0, glossaryFailure(400, "invalid_glossary_concept_cursor", "Glossary concept cursor is invalid")
+			return nil, 0, decodeErr
 		}
-		args = append(args, updatedAt, id)
+		args = append(args, payload.SortValue, payload.ID)
 		pos := len(args)
-		where += ` and (c.updated_at, c.id) < ($` + strconv.Itoa(pos-1) + `::timestamptz, $` + strconv.Itoa(pos) + `::uuid)`
+		cmp := "<"
+		if filters.SortDir == "asc" {
+			cmp = ">"
+		}
+		column := glossaryConceptSortColumn(filters.Sort)
+		cast := glossaryConceptCursorCast(filters.Sort)
+		where += ` and (` + column + ` ` + cmp + ` $` + itoa(pos-1) + cast + ` or (` + column + ` = $` + itoa(pos-1) + cast + ` and c.id ` + cmp + ` $` + itoa(pos) + `::uuid))`
 	}
 	args = append(args, limit+1)
 	limitPos := len(args)
-	rows, err := api.pool.Query(r.Context(), `select c.id, c.glossary_id, c.primary_term, c.subject, c.definition, coalesce(c.review_status,'proposed'), c.created_at, c.updated_at from glossary_concepts c where `+where+` order by c.updated_at desc, c.id desc limit $`+strconv.Itoa(limitPos), args...)
+	order := glossaryConceptSortColumn(filters.Sort) + ` ` + filters.SortDir + `, c.id ` + filters.SortDir
+	rows, err := api.pool.Query(r.Context(), `select c.id, c.glossary_id, c.primary_term, c.subject, c.definition, coalesce(c.review_status,'proposed'), c.archived_at, c.created_at, c.updated_at, `+glossaryConceptSortSelect(filters.Sort)+` from glossary_concepts c where `+where+` order by `+order+` limit $`+itoa(limitPos), args...)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer rows.Close()
 	concepts := []glossaryConceptPageRow{}
 	ids := []string{}
+	sortValues := []string{}
 	for rows.Next() {
 		var row glossaryConceptPageRow
+		var archived *time.Time
 		var created, updated time.Time
-		if err := rows.Scan(&row.ID, &row.GlossaryID, &row.PrimaryTerm, &row.Subject, &row.Definition, &row.ReviewStatus, &created, &updated); err != nil {
+		var sortValue string
+		if err := rows.Scan(&row.ID, &row.GlossaryID, &row.PrimaryTerm, &row.Subject, &row.Definition, &row.ReviewStatus, &archived, &created, &updated, &sortValue); err != nil {
 			return nil, 0, err
 		}
+		row.ArchivedAt = formatGlossaryTimePtr(archived)
 		row.CreatedAt = formatGlossaryTime(created)
 		row.UpdatedAt = formatGlossaryTime(updated)
 		concepts = append(concepts, row)
 		ids = append(ids, row.ID)
+		sortValues = append(sortValues, sortValue)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, 0, err
@@ -81,6 +92,7 @@ func (api *glossaryAPI) pageGlossaryConcepts(r *http.Request, g glossaryRecord) 
 	if hasMore {
 		concepts = concepts[:limit]
 		ids = ids[:limit]
+		sortValues = sortValues[:limit]
 	}
 	if len(ids) > 0 {
 		countRows, countErr := api.pool.Query(r.Context(), `select concept_id, count(*), count(distinct locale) from glossary_terms where concept_id = any($1) and archived_at is null group by concept_id`, ids)
@@ -106,26 +118,12 @@ func (api *glossaryAPI) pageGlossaryConcepts(r *http.Request, g glossaryRecord) 
 		}
 	}
 	var total int
-	countArgs := args[:len(args)-1]
-	if cursor != "" {
-		// total ignores cursor; rebuild without cursor predicate
-		totalWhere := `glossary_id=$1 and archived_at is null`
-		totalArgs := []any{g.ID}
-		if search != "" {
-			totalWhere += ` and (primary_term ilike $2 or subject ilike $2 or definition ilike $2)`
-			totalArgs = append(totalArgs, "%"+search+"%")
-		}
-		err = api.pool.QueryRow(r.Context(), `select count(*) from glossary_concepts where `+totalWhere, totalArgs...).Scan(&total)
-	} else {
-		err = api.pool.QueryRow(r.Context(), `select count(*) from glossary_concepts c where `+where, countArgs...).Scan(&total)
-	}
-	if err != nil {
+	if err := api.pool.QueryRow(r.Context(), `select count(*) from glossary_concepts c where `+filterWhere, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	var nextCursor any
 	if hasMore && len(concepts) > 0 {
-		last := concepts[len(concepts)-1]
-		nextCursor = encodeGlossaryPageCursor(last.UpdatedAt, last.ID)
+		nextCursor = encodeGlossaryConceptPageCursor(filters, sortValues[len(sortValues)-1], concepts[len(concepts)-1].ID)
 	}
 	return map[string]any{
 		"concepts":   concepts,
