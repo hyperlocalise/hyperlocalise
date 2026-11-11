@@ -127,9 +127,12 @@ func TestGuidelineDocumentAssignmentWithoutIngestPublisher(t *testing.T) {
 func TestGuidelineDocumentAssignmentRejectsProjectOwnedDocuments(t *testing.T) {
 	env := newGuidelineTestEnv(t, "admin")
 	projectID := env.scope.MustProject(t, env.scope.ProjectID, "Project")
-	created := env.upload(t, http.MethodPost, env.scope.OrgPath("/projects/"+projectID+"/guidelines/documents"), "local.md", []byte("Project only."), nil)
+	created := env.upload(t, http.MethodPost, env.scope.OrgPath("/guidelines/documents"), "local.md", []byte("Project only."), nil)
 	require.Equal(t, http.StatusAccepted, created.Code, created.Body.String())
 	doc := decodeGuidelineDocument(t, created)
+	// Legacy rows still carry project_id. Assignment is org-scoped only.
+	_, err := env.scope.Pool.Exec(t.Context(), `update guideline_documents set project_id = $2 where id = $1`, doc.ID, projectID)
+	require.NoError(t, err)
 
 	rec := env.json(http.MethodPost, env.scope.OrgPath("/guidelines/documents/"+doc.ID+"/projects"), `{"projectId":"`+projectID+`"}`)
 	require.Equal(t, http.StatusNotFound, rec.Code, rec.Body.String())

@@ -67,6 +67,14 @@ func seedReadyGuideline(t *testing.T, env *guidelineTestEnv, path, content strin
 	return doc.ID
 }
 
+func seedReadyProjectGuideline(t *testing.T, env *guidelineTestEnv, projectID, content string) string {
+	t.Helper()
+	docID := seedReadyGuideline(t, env, env.scope.OrgPath("/guidelines/documents"), content)
+	attached := env.json(http.MethodPost, env.scope.OrgPath("/guidelines/documents/"+docID+"/projects"), `{"projectId":"`+projectID+`"}`)
+	require.Equal(t, http.StatusOK, attached.Code, attached.Body.String())
+	return docID
+}
+
 func TestGuidelineCheckReturnsGroundedFindings(t *testing.T) {
 	env := newGuidelineTestEnv(t, "admin")
 	docID := seedReadyGuideline(t, env, env.scope.OrgPath("/guidelines/documents"), "Address readers formally with vous.")
@@ -178,7 +186,7 @@ func TestGuidelineCheckInternalRoute(t *testing.T) {
 	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
 	env := newGuidelineTestEnv(t, "admin")
 	projectID := env.scope.MustProject(t, "", "Project")
-	seedReadyGuideline(t, env, env.scope.OrgPath("/projects/"+projectID+"/guidelines/documents"), "Never translate Acme.")
+	seedReadyProjectGuideline(t, env, projectID, "Never translate Acme.")
 	model := &fixedGuidelineModel{output: `{"findings":[{"segmentId":"s1","field":"target","severity":"warning","quote":"Akme","message":"Keep Acme.","suggestion":"Acme","passage":"P1"}]}`}
 	meter := &recordingGuidelineMeter{allowed: true}
 	withGuidelineCheck(env, model, meter)
@@ -216,19 +224,27 @@ func TestGuidelineCheckInternalRoute(t *testing.T) {
 func TestGuidelineCheckProjectScope(t *testing.T) {
 	env := newGuidelineTestEnv(t, "admin")
 	projectID := env.scope.MustProject(t, "", "Project")
-	seedReadyGuideline(t, env, env.scope.OrgPath("/projects/"+projectID+"/guidelines/documents"), "Never translate Acme.")
+	otherProjectID := env.scope.MustProject(t, "project_other_"+env.scope.Slug, "Other")
+	seedReadyProjectGuideline(t, env, projectID, "Never translate Acme.")
 	model := &fixedGuidelineModel{output: `{"findings":[{"segmentId":"s1","field":"target","severity":"warning","quote":"Akme","message":"Keep Acme.","suggestion":"Acme","passage":"P1"}]}`}
 	withGuidelineCheck(env, model, nil)
 	path := env.scope.OrgPath("/guidelines/check")
 
+	// An empty project scope includes every org document.
 	workspace := env.json(http.MethodPost, path, `{"segments":[{"id":"s1","target":"Akme"}]}`)
 	require.Equal(t, http.StatusOK, workspace.Code, workspace.Body.String())
-	require.Contains(t, workspace.Body.String(), `"findings":[]`)
-	require.Zero(t, model.calls)
+	require.Contains(t, workspace.Body.String(), `"message":"Keep Acme."`)
+	require.Equal(t, 1, model.calls)
 
 	scoped := env.json(http.MethodPost, path, `{"projectId":"`+projectID+`","segments":[{"id":"s1","target":"Akme"}]}`)
 	require.Equal(t, http.StatusOK, scoped.Code, scoped.Body.String())
 	require.Contains(t, scoped.Body.String(), `"message":"Keep Acme."`)
+
+	// A non-global document assigned to one project does not apply to another.
+	otherProject := env.json(http.MethodPost, path, `{"projectId":"`+otherProjectID+`","segments":[{"id":"s1","target":"Akme"}]}`)
+	require.Equal(t, http.StatusOK, otherProject.Code, otherProject.Body.String())
+	require.Contains(t, otherProject.Body.String(), `"findings":[]`)
+	require.Equal(t, 2, model.calls)
 
 	other := newGuidelineTestEnv(t, "admin")
 	withGuidelineCheck(other, model, nil)
