@@ -154,6 +154,76 @@ func TestWorkspaceAutomationLocalizationManagerAllowed(t *testing.T) {
 	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
 }
 
+func TestWorkspaceAutomationOverwritesClientPipesWorkosUserID(t *testing.T) {
+	testenv.Require(t)
+	f := newAutomationFixture(t, "admin")
+	path := f.scope.OrgPath("/automations")
+
+	create := f.request(http.MethodPost, path, `{
+        "name": "Mailchimp import",
+        "instructions": "Import campaigns.",
+        "toolConfig": {
+            "mailchimp": {
+                "enabled": true,
+                "workosUserId": "user_victim_pipes_owner",
+                "campaignIds": ["campaign_1"]
+            },
+            "hubspot": {
+                "enabled": true,
+                "workosUserId": "user_other_member"
+            }
+        }
+    }`)
+	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
+
+	var created struct {
+		Automation workspaceAutomationRecord `json:"automation"`
+	}
+	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
+	assertToolConfigWorkosUserID(t, created.Automation.ToolConfig, "mailchimp", f.scope.WorkOSUserID)
+	assertToolConfigWorkosUserID(t, created.Automation.ToolConfig, "hubspot", f.scope.WorkOSUserID)
+	require.Equal(t, []any{"campaign_1"}, toolConfigField(t, created.Automation.ToolConfig, "mailchimp", "campaignIds"))
+
+	patch := f.request(http.MethodPatch, path+"/"+created.Automation.ID, `{
+        "toolConfig": {
+            "mailchimp": {
+                "enabled": true,
+                "workosUserId": "user_victim_pipes_owner",
+                "campaignIds": ["campaign_2"]
+            }
+        }
+    }`)
+	require.Equal(t, http.StatusOK, patch.Code, patch.Body.String())
+
+	var updated struct {
+		Automation workspaceAutomationRecord `json:"automation"`
+	}
+	require.NoError(t, json.Unmarshal(patch.Body.Bytes(), &updated))
+	assertToolConfigWorkosUserID(t, updated.Automation.ToolConfig, "mailchimp", f.scope.WorkOSUserID)
+	require.Equal(t, []any{"campaign_2"}, toolConfigField(t, updated.Automation.ToolConfig, "mailchimp", "campaignIds"))
+}
+
+func assertToolConfigWorkosUserID(t *testing.T, raw json.RawMessage, tool, want string) {
+	t.Helper()
+	id, ok := toolConfigWorkosUserID(t, raw, tool)
+	require.True(t, ok, "expected %s.workosUserId", tool)
+	require.Equal(t, want, id)
+}
+
+func TestStampedWorkspaceAutomationToolConfigFallsBackToAuthor(t *testing.T) {
+	testenv.Require(t)
+	f := newAutomationFixture(t, "admin")
+	actor := automationActor{userID: f.scope.UserID, organizationID: f.scope.OrganizationID, role: "admin"}
+	stamped, err := f.api.stampedWorkspaceAutomationToolConfig(
+		t.Context(),
+		actor,
+		&f.scope.UserID,
+		json.RawMessage(`{"mailchimp":{"enabled":true,"workosUserId":"user_victim_pipes_owner"}}`),
+	)
+	require.NoError(t, err)
+	assertToolConfigWorkosUserID(t, stamped, "mailchimp", f.scope.WorkOSUserID)
+}
+
 func TestWorkspaceAutomationUnknownProject(t *testing.T) {
 	testenv.Require(t)
 	f := newAutomationFixture(t, "admin")
