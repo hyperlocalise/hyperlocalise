@@ -31,12 +31,19 @@ export type WorkspaceSnapshotRef = {
   id: string;
 };
 
+export type WorkspaceRunCommandOptions = {
+  output?: "both" | "stdout";
+  /** Kill the command (SIGKILL) after this many milliseconds. */
+  timeoutMs?: number;
+  signal?: AbortSignal;
+};
+
 export type WorkspaceRuntime = {
   id: string;
   runCommand(
     command: string,
     args: string[],
-    options?: { output?: "both" | "stdout" },
+    options?: WorkspaceRunCommandOptions,
   ): Promise<WorkspaceCommandResult>;
   readFile(path: string): Promise<string>;
   writeFile(path: string, content: string | Buffer): Promise<void>;

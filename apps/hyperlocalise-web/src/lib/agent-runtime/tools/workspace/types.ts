@@ -12,6 +12,12 @@
  */
 import type { Bash } from "just-bash";
 
+/**
+ * Exit code a bash adapter returns when it stopped a command at its timeout.
+ * Matches coreutils `timeout` so tools can recognise a killed command.
+ */
+export const REPO_BASH_TIMEOUT_EXIT_CODE = 124;
+
 /** Sandbox-scoped bash adapter for workspace primitive tools. */
 export type RepoToolContext = {
   bash: Pick<Bash, "exec" | "readFile"> & {
