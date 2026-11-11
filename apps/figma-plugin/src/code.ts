@@ -17,6 +17,21 @@ import { loadFontsForTextNodes } from "./load-text-node-fonts";
 import { createFigmaSegment, readStampedSegmentKey } from "./segment-file";
 import { clampPluginUiHeight, PLUGIN_UI_WIDTH } from "./plugin-ui-size";
 import { hadLegacyFigmaSession, mergeSettings } from "./settings";
+import {
+  clearPreviewSource,
+  collectDesignFrames,
+  countPreviewedNodes,
+  exportDesignFrame,
+  previewTranslations,
+  readFileLink,
+  readSelectedDesignText,
+  restorePreviewSource,
+  saveFileLink,
+  scanDesignText,
+  selectNodes,
+  sourceTextOf,
+  writeKeyLinks,
+} from "./design-sandbox";
 
 figma.showUI(__html__, {
   themeColors: true,
@@ -104,6 +119,66 @@ figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
       const textNodes = collectAllTextNodesOnPage(page);
       const count = await applyTranslations(textNodes, msg.translations, msg.sourceByKey);
       postToUi({ type: "applied", count });
+      return;
+    }
+
+    if (msg.type === "design-scan") {
+      const page = await requirePage(msg.pageId);
+      postToUi({
+        type: "design-scanned",
+        nodes: scanDesignText(page, msg.selectionOnly),
+        fileLink: readFileLink(),
+        figmaFileKey: figma.fileKey ?? null,
+        previewing: countPreviewedNodes(page),
+      });
+      return;
+    }
+
+    if (msg.type === "design-selection") {
+      const page = await requirePage(msg.pageId);
+      postToUi({ type: "design-selection-read", nodes: readSelectedDesignText(page) });
+      return;
+    }
+
+    if (msg.type === "design-link") {
+      postToUi({ type: "design-linked", count: await writeKeyLinks(msg.links) });
+      return;
+    }
+
+    if (msg.type === "design-frames") {
+      const page = await requirePage(msg.pageId);
+      postToUi({ type: "design-frames-read", ...collectDesignFrames(page) });
+      return;
+    }
+
+    if (msg.type === "design-export-frame") {
+      postToUi({ type: "design-frame-exported", frame: await exportDesignFrame(msg.frame) });
+      return;
+    }
+
+    if (msg.type === "design-preview") {
+      const page = await requirePage(msg.pageId);
+      postToUi({
+        type: "design-previewed",
+        ...(await previewTranslations(page, msg.translations)),
+      });
+      return;
+    }
+
+    if (msg.type === "design-restore") {
+      const page = await requirePage(msg.pageId);
+      postToUi({ type: "design-restored", count: await restorePreviewSource(page) });
+      return;
+    }
+
+    if (msg.type === "design-select-nodes") {
+      postToUi({ type: "design-nodes-selected", count: await selectNodes(msg.nodeIds) });
+      return;
+    }
+
+    if (msg.type === "design-file-link-set") {
+      saveFileLink(msg.url);
+      postToUi({ type: "design-file-link-saved" });
     }
   } catch (error) {
     postToUi({
@@ -226,7 +301,9 @@ function extractSegments(nodes: TextNode[]) {
   const segments = [];
 
   for (const node of nodes) {
-    if (!node.characters.trim()) {
+    // A design-context preview keeps the real source text in plugin data.
+    const text = sourceTextOf(node);
+    if (!text.trim()) {
       continue;
     }
 
@@ -234,7 +311,7 @@ function extractSegments(nodes: TextNode[]) {
       createFigmaSegment({
         node,
         regionIndex: 0,
-        text: normalizeSegmentText(node.characters),
+        text: normalizeSegmentText(text),
       }),
     );
   }
@@ -252,19 +329,25 @@ async function applyTranslations(
   const updates: Array<{ node: TextNode; nextText: string }> = [];
 
   for (const node of nodes) {
-    if (!node.characters.trim()) {
+    // During a design-context preview the canvas shows a translation; match on the source.
+    const nodeText = sourceTextOf(node);
+    if (!nodeText.trim()) {
       continue;
     }
 
     const stampedKey = readStampedSegmentKey(node);
     const nextText = resolveFigmaApplyTarget({
-      nodeText: node.characters,
+      nodeText,
       stampedKey,
       translations,
       textIndex,
       sourceByKey,
     });
-    if (!nextText || nextText === node.characters) {
+    if (!nextText) {
+      continue;
+    }
+    if (nextText === node.characters) {
+      clearPreviewSource(node);
       continue;
     }
 
@@ -287,6 +370,8 @@ async function applyTranslations(
 
   for (const { node, nextText } of writable) {
     node.characters = nextText;
+    // Apply supersedes a design-context preview; Restore must not undo it.
+    clearPreviewSource(node);
     applied += 1;
   }
 

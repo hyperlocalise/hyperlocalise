@@ -8,7 +8,7 @@
   "documentAccess": "dynamic-page",
   "networkAccess": {
     "allowedDomains": ["https://hyperlocalise.com", "https://*.hyperlocalise.com"],
-    "reasoning": "Sign in with Hyperlocalise OAuth and create, generate, and pull translation jobs.",
+    "reasoning": "Sign in with Hyperlocalise OAuth, create and pull translation jobs, match text to project keys, and sync frames as translation context.",
     "devAllowedDomains": ["http://localhost:3000"]
   }
 }
