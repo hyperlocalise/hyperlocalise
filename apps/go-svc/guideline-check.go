@@ -219,7 +219,7 @@ func (api *guidelineCheckAPI) evaluate(ctx context.Context, organizationID strin
 	slog.InfoContext(ctx, "guideline_check_completed",
 		"organization_id", organizationID, "project_id", scope.ProjectID, "segments", len(request.Segments),
 		"findings", len(result.Findings), "search_available", result.SearchAvailable, "model_invoked", result.ModelInvoked,
-		"duration_ms", time.Since(started).Milliseconds())
+		"cache_hit", result.Cached, "duration_ms", time.Since(started).Milliseconds())
 
 	if result.ModelInvoked && api.meter != nil {
 		trackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)

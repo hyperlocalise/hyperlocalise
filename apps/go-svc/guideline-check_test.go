@@ -108,6 +108,37 @@ func TestGuidelineCheckReturnsGroundedFindings(t *testing.T) {
 	require.Equal(t, 1.0, meter.tracks[0].Value)
 }
 
+func TestGuidelineCheckReusesCachedModelOutput(t *testing.T) {
+	env := newGuidelineTestEnv(t, "admin")
+	require.NotNil(t, env.scope.Valkey)
+	seedReadyGuideline(t, env, env.scope.OrgPath("/guidelines/documents"), "Address readers formally with vous.")
+	model := &fixedGuidelineModel{output: `{"findings":[
+		{"segmentId":"s1","field":"target","severity":"error","quote":"tu","message":"Use the formal vous.","suggestion":"vous","passage":"P1"}
+	]}`}
+	meter := &recordingGuidelineMeter{allowed: true}
+	retriever := guidelines.NewService(guidelinepg.NewWithPool(env.scope.Pool), nil)
+	env.handler.guidelineCheck = &guidelineCheckAPI{
+		knowledge: env.handler.knowledgeMemories,
+		checker:   check.New(retriever, model, check.WithCache(env.scope.Valkey)),
+		meter:     meter,
+	}
+	body := `{"sourceLocale":"en","targetLocale":"fr-FR","segments":[{"id":"s1","source":"Can you help?","target":"Peux-tu aider ?"}],"checks":["target"]}`
+	path := env.scope.OrgPath("/guidelines/check")
+
+	first := env.json(http.MethodPost, path, body)
+	require.Equal(t, http.StatusOK, first.Code, first.Body.String())
+	second := env.json(http.MethodPost, path, body)
+	require.Equal(t, http.StatusOK, second.Code, second.Body.String())
+	require.JSONEq(t, first.Body.String(), second.Body.String())
+
+	var result check.Result
+	require.NoError(t, json.Unmarshal(second.Body.Bytes(), &result))
+	require.Len(t, result.Findings, 1)
+	require.Equal(t, 1, model.calls)
+	require.Len(t, meter.checks, 1)
+	require.Len(t, meter.tracks, 1)
+}
+
 func TestGuidelineCheckValidationAndLimits(t *testing.T) {
 	env := newGuidelineTestEnv(t, "member")
 	path := env.scope.OrgPath("/guidelines/check")
@@ -141,7 +172,7 @@ func TestGuidelineCheckValidationAndLimits(t *testing.T) {
 	require.Empty(t, meter.checks)
 	require.Empty(t, meter.tracks)
 
-	seedReadyGuideline(t, env, env.scope.OrgPath("/guidelines/documents"), "Address readers formally with vous.")
+	seedReadyGuideline(t, env.asRole("admin"), env.scope.OrgPath("/guidelines/documents"), "Address readers formally with vous.")
 	limited := env.json(http.MethodPost, path, valid)
 	require.Equal(t, http.StatusPaymentRequired, limited.Code, limited.Body.String())
 	require.Contains(t, limited.Body.String(), "guideline_check_limit_reached")

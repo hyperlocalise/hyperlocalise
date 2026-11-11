@@ -310,7 +310,8 @@ export class ContentEditorGroupVariant {
     } catch (error) {
       if (abort.signal.aborted || (error as Error)?.name === "AbortError") return;
       runInAction(() => {
-        this.formatChecks = [];
+        const guideline = this.formatChecks.filter((check) => isGuidelineFormatCheck(check));
+        this.formatChecks = mergeGuidelineFormatChecks([], guideline);
       });
     } finally {
       if (this.checkAbort === abort) {

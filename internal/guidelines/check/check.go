@@ -4,11 +4,15 @@ package check
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf16"
 	"unicode/utf8"
 
@@ -24,6 +28,13 @@ const (
 	maxPassageRunes = 60000
 	maxQueryBytes   = 16000
 	maxMessageRunes = 500
+
+	// cacheKeyPrefix includes a version so a prompt-shape change can drop old entries.
+	cacheKeyPrefix       = "go-svc:guideline-check:v1:"
+	cacheTTL             = 24 * time.Hour
+	cacheReadTimeout     = 100 * time.Millisecond
+	cacheWriteTimeout    = time.Second
+	maxCachedOutputBytes = 256 << 10
 )
 
 // ErrInvalidInput identifies a request the caller must fix.
@@ -82,9 +93,12 @@ type Result struct {
 	Passages        []Passage `json:"passages"`
 	SearchAvailable bool      `json:"searchAvailable"`
 	Model           string    `json:"model"`
-	// ModelInvoked is true only when the model was called. Empty retrievals stay false
-	// so callers can skip usage metering. It is not part of the HTTP response.
+	// ModelInvoked is true only when the model was called. Empty retrievals and cache
+	// hits stay false so callers can skip usage metering. It is not part of the HTTP response.
 	ModelInvoked bool `json:"-"`
+	// Cached is true when findings were rebuilt from stored model output. The model
+	// was not called. It is not part of the HTTP response.
+	Cached bool `json:"-"`
 }
 
 type Retriever interface {
@@ -97,13 +111,36 @@ type Model interface {
 	Name() string
 }
 
+// Cache stores model output. Any Get error is treated as a miss.
+type Cache interface {
+	Get(ctx context.Context, key string) (string, error)
+	Set(ctx context.Context, key, value string, ttl time.Duration) error
+}
+
 type Checker struct {
 	retriever Retriever
 	model     Model
+	cache     Cache
 }
 
-func New(retriever Retriever, model Model) *Checker {
-	return &Checker{retriever: retriever, model: model}
+// Option configures optional Checker dependencies.
+type Option func(*Checker)
+
+// WithCache reuses stored model output for an identical prompt. A nil cache is ignored.
+func WithCache(cache Cache) Option {
+	return func(c *Checker) {
+		if cache != nil {
+			c.cache = cache
+		}
+	}
+}
+
+func New(retriever Retriever, model Model, opts ...Option) *Checker {
+	c := &Checker{retriever: retriever, model: model}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 // Normalize validates limits and fills default checks.
@@ -177,13 +214,21 @@ func (c *Checker) CheckBeforeModel(ctx context.Context, scope guidelines.Scope, 
 	if len(passages) == 0 {
 		return result, nil
 	}
+	user := userPrompt(req, passages)
+	if raw, ok := c.cachedOutput(ctx, scope, user); ok {
+		findings, cited, groundErr := groundFindings(req, passages, raw)
+		if groundErr == nil {
+			result.Findings, result.Passages, result.Cached = findings, cited, true
+			return result, nil
+		}
+	}
 	if beforeModel != nil {
 		if err := beforeModel(ctx); err != nil {
 			return Result{}, err
 		}
 	}
 	result.ModelInvoked = true
-	raw, err := c.model.Complete(ctx, systemPrompt, userPrompt(req, passages))
+	raw, err := c.model.Complete(ctx, systemPrompt, user)
 	if err != nil {
 		return Result{}, fmt.Errorf("guideline check model: %w", err)
 	}
@@ -191,7 +236,37 @@ func (c *Checker) CheckBeforeModel(ctx context.Context, scope guidelines.Scope, 
 	if err != nil {
 		return Result{}, err
 	}
+	c.storeOutput(ctx, scope, user, raw)
 	return result, nil
+}
+
+func cacheKey(organizationID, modelName, user string) string {
+	sum := sha256.Sum256([]byte(modelName + "\x00" + systemPrompt + "\x00" + user))
+	return cacheKeyPrefix + organizationID + ":" + hex.EncodeToString(sum[:])
+}
+
+func (c *Checker) cachedOutput(ctx context.Context, scope guidelines.Scope, user string) (string, bool) {
+	if c.cache == nil || strings.TrimSpace(scope.OrganizationID) == "" {
+		return "", false
+	}
+	readCtx, cancel := context.WithTimeout(ctx, cacheReadTimeout)
+	defer cancel()
+	raw, err := c.cache.Get(readCtx, cacheKey(scope.OrganizationID, c.model.Name(), user))
+	if err != nil || raw == "" || len(raw) > maxCachedOutputBytes {
+		return "", false
+	}
+	return raw, true
+}
+
+func (c *Checker) storeOutput(ctx context.Context, scope guidelines.Scope, user, raw string) {
+	if c.cache == nil || strings.TrimSpace(scope.OrganizationID) == "" || raw == "" || len(raw) > maxCachedOutputBytes {
+		return
+	}
+	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cacheWriteTimeout)
+	defer cancel()
+	if err := c.cache.Set(writeCtx, cacheKey(scope.OrganizationID, c.model.Name(), user), raw, cacheTTL); err != nil {
+		slog.WarnContext(ctx, "guideline_check_cache_write_failed", "error", err)
+	}
 }
 
 func retrievalQuery(req Request) string {

@@ -20,6 +20,7 @@ import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import { useProjectPageQuery } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/project-page-shell";
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
+import { LocaleNameList } from "@/components/locale-name/locale-name";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -215,8 +216,6 @@ function GuidelineDocumentRow({
     },
   });
   const locales = guidelineDocumentLocales(document);
-  const localeLabel =
-    locales.length > 0 ? locales.join(", ") : intl.formatMessage(messages.allLocales);
   const detailHref = buildProjectPath(
     organizationSlug,
     projectId,
@@ -255,7 +254,15 @@ function GuidelineDocumentRow({
               {document.title}
             </Link>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span className="text-xs text-muted-foreground">{localeLabel}</span>
+              <LocaleNameList
+                locales={locales}
+                className="text-xs text-muted-foreground"
+                empty={
+                  <span className="text-xs text-muted-foreground">
+                    {intl.formatMessage(messages.allLocales)}
+                  </span>
+                }
+              />
               {document.mandatory ? (
                 <Badge variant="outline">
                   <FormattedMessage {...messages.alwaysApply} />

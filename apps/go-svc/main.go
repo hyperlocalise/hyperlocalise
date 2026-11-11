@@ -270,9 +270,6 @@ func main() {
 	if checkRetriever == nil && guidelinePool != nil {
 		checkRetriever = guidelines.NewService(guidelinepg.NewWithPool(guidelinePool), nil)
 	}
-	if checkModel != nil && checkRetriever != nil {
-		h.guidelineCheck.checker = check.New(checkRetriever, checkModel)
-	}
 	if checkRetriever != nil && guidelinePool != nil {
 		h.guidelineRetrieve = &guidelineRetrieveAPI{retriever: checkRetriever, pool: guidelinePool}
 	}
@@ -290,6 +287,13 @@ func main() {
 		h.dictionaries.wordsCache = valkeyClient
 		h.glossaries.readCache = valkeyClient
 		defer valkeyClient.Close()
+	}
+	if checkModel != nil && checkRetriever != nil {
+		var checkOpts []check.Option
+		if valkeyClient != nil {
+			checkOpts = append(checkOpts, check.WithCache(valkeyClient))
+		}
+		h.guidelineCheck.checker = check.New(checkRetriever, checkModel, checkOpts...)
 	}
 	membershipLookup = newCachedOrganizationMembershipLookup(membershipLookup, valkeyClient)
 	h.dictionaries.membership = membershipLookup

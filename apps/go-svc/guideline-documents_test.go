@@ -97,6 +97,15 @@ func newGuidelineTestEnv(t *testing.T, role string) *guidelineTestEnv {
 	return &guidelineTestEnv{scope: scope, handler: h, publisher: publisher, objects: registry}
 }
 
+// asRole reuses this org with a different WorkOS role. Document uploads require
+// an admin; guideline checks do not.
+func (e *guidelineTestEnv) asRole(role string) *guidelineTestEnv {
+	h := guidelineTestHandler(e.scope, role, guidelineTestFlagsStub{enabled: true})
+	h.knowledgeMemories.guidelineIngest = e.publisher
+	h.guidelineDocuments = newGuidelineDocumentAPI(h.knowledgeMemories, e.objects, e.publisher)
+	return &guidelineTestEnv{scope: e.scope, handler: h, publisher: e.publisher, objects: e.objects}
+}
+
 func (e *guidelineTestEnv) serve(req *http.Request) *httptest.ResponseRecorder {
 	mux := http.NewServeMux()
 	registerRoutes(mux, e.handler, stubSessionVerifier{claims: AuthClaims{UserID: e.scope.WorkOSUserID}})

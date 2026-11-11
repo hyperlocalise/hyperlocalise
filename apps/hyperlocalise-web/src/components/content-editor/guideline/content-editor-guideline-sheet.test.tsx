@@ -201,7 +201,7 @@ describe("ContentEditorGuidelineSheet", () => {
       "/org/acme/projects/project_1/knowledge/doc-2",
     );
     expect(screen.getAllByText("All locales").length).toBeGreaterThan(0);
-    expect(screen.getByText("fr-FR")).toBeTruthy();
+    expect(screen.getByText("French (France)")).toBeTruthy();
     expect(screen.getByText("Always apply")).toBeTruthy();
     expect(screen.getByText("Processing")).toBeTruthy();
     expect(screen.queryByText("# Voice")).toBeNull();

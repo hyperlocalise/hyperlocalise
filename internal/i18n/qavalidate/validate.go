@@ -135,6 +135,9 @@ func (p Policy) Validate() error {
 		if setting.Severity != "error" && setting.Severity != "warning" {
 			return fmt.Errorf("invalid severity for %s", name)
 		}
+		if name == checkGuideline && setting.Severity != "warning" {
+			return fmt.Errorf("guideline severity must be warning")
+		}
 	}
 	return nil
 }

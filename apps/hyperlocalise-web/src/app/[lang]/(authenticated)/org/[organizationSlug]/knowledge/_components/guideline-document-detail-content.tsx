@@ -20,6 +20,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
 
+import { LocaleNameList } from "@/components/locale-name/locale-name";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -182,12 +183,10 @@ export function GuidelineDocumentDetailContent({
         </div>
         <TypographyP tone="subtle">
           {document.filename} ·{" "}
-          {(() => {
-            const locales = guidelineDocumentLocales(document);
-            return locales.length > 0
-              ? locales.join(", ")
-              : intl.formatMessage(messages.allLocales);
-          })()}{" "}
+          <LocaleNameList
+            locales={guidelineDocumentLocales(document)}
+            empty={intl.formatMessage(messages.allLocales)}
+          />{" "}
           ·{" "}
           {(document.isGlobal ?? false)
             ? intl.formatMessage(messages.allProjects)

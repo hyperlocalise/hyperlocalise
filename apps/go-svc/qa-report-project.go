@@ -230,6 +230,9 @@ func validQaPolicy(checks map[string]qaCheckSetting) bool {
 		if _, ok := qaPolicyCheckTypes[key]; !ok || (rule.Severity != "error" && rule.Severity != "warning") {
 			return false
 		}
+		if key == "guideline" && rule.Severity != "warning" {
+			return false
+		}
 	}
 	return true
 }

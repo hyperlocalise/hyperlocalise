@@ -91,6 +91,9 @@ func TestLoadPolicyErrors(t *testing.T) {
 	badSeverity := DefaultPolicy()
 	badSeverity.Checks["length"] = Setting{Enabled: true, Severity: "fatal"}
 
+	guidelineError := DefaultPolicy()
+	guidelineError.Checks[checkGuideline] = Setting{Enabled: true, Severity: "error"}
+
 	unknownCheck := DefaultPolicy()
 	unknownCheck.Checks["made_up"] = Setting{Enabled: true, Severity: "warning"}
 
@@ -108,6 +111,7 @@ func TestLoadPolicyErrors(t *testing.T) {
 		{name: "wrong version", path: writePolicyFile(t, marshalPolicy(t, wrongVersion)), wantErr: "unsupported QA policy version"},
 		{name: "missing check", path: writePolicyFile(t, marshalPolicy(t, missingFormat)), wantErr: "missing format"},
 		{name: "bad severity", path: writePolicyFile(t, marshalPolicy(t, badSeverity)), wantErr: "invalid severity for length"},
+		{name: "guideline error", path: writePolicyFile(t, marshalPolicy(t, guidelineError)), wantErr: "guideline severity must be warning"},
 		{name: "unknown check", path: writePolicyFile(t, marshalPolicy(t, unknownCheck)), wantErr: "unknown QA check made_up"},
 	}
 	for _, tt := range tests {
