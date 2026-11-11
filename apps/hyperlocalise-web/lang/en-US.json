@@ -235,6 +235,10 @@
     "defaultMessage": "Guidelines take effect when you connect the documents your team already maintains — brand books in Google Drive, voice pages in Notion, legal standards in SharePoint, or rules typed directly in Hyperlocalise. You choose which collections apply to which workspaces and languages, and the system keeps them indexed as sources change. New hires and agents read the same corpus instead of hunting for the latest PDF. Inside every draft, Guidelines run as a continuous check rather than a one-time import. Agents pull relevant passages for the content type and market, compare proposed copy against tone, terminology, and compliance rules, and surface mismatches with citations to the source doc. Reviewers see why a phrase was flagged and can accept a fix, override with a note, or update the underlying rule when the brand evolves. Outputs show up where people already write. Flagged segments appear in Content Studio and Automation Workflow runs, blocking publish steps until critical issues clear or an owner approves an exception. Over time, accepted decisions feed back into the knowledge base so the next campaign starts closer to on-brand, and leadership can audit which rules fire most often across locales.",
     "description": "Long-form how-it-works narrative for the Guidelines product page"
   },
+  "+Hg4XksdX1": {
+    "defaultMessage": "Could not load assignments.",
+    "description": "Error when assignment data fails to load"
+  },
   "+HijiNTvvx": {
     "defaultMessage": "{count, plural, one {adding a step} other {adding # steps}}",
     "description": "What an undo step did, after 'Undo' or 'Redo': nodes were added to the workflow"
@@ -310,6 +314,10 @@
   "+RFsBEni8d": {
     "defaultMessage": "Visual Workflow Created",
     "description": "Activity log event type label for creating visual workflows"
+  },
+  "+RGsVNsQWz": {
+    "defaultMessage": "Project guidance for agents and teams",
+    "description": "Sidebar description for the project Guideline navigation item"
   },
   "+RWDHuTqY1": {
     "defaultMessage": "You",
@@ -746,6 +754,10 @@
   "/0c8E1m0u/": {
     "defaultMessage": "Monitor terminology consistency, locale coverage, and translation quality across product, marketing, and support content — with gates that block bad syncs before they go live.",
     "description": "Hero subheadline for the localisation-quality-monitoring use case"
+  },
+  "/0sICDrWh/": {
+    "defaultMessage": "Stopped",
+    "description": "Marker under an assistant reply that the user stopped before it finished"
   },
   "/140Sd9x8r": {
     "defaultMessage": "{count, plural, =0 {No assignees} one {# assignee} other {# assignees}}",
@@ -1403,10 +1415,6 @@
     "defaultMessage": "Status change",
     "description": "Short label for status-change notification type icon in the inbox list"
   },
-  "/y+q4g0L8i": {
-    "defaultMessage": "Add terminology, market insights, compliance requirements, launch guidance, and things to avoid…",
-    "description": "Placeholder for the global guidance TipTap editor"
-  },
   "/yLtzBRXLM": {
     "defaultMessage": "Integrations & AI",
     "description": "Settings nav group label for integrations and AI engine"
@@ -1455,6 +1463,10 @@
     "defaultMessage": "Context of {source}",
     "description": "Suggested prompt chip for the currently selected CAT segment source string"
   },
+  "02+MHdtp18": {
+    "defaultMessage": "Upload guideline",
+    "description": "Title for the dedicated guideline upload page"
+  },
   "02MXJJxV6e": {
     "defaultMessage": "Status",
     "description": "Column heading for segment status in side-by-side CAT view"
@@ -1474,6 +1486,14 @@
   "04TH5FBW4Q": {
     "defaultMessage": "Connect CLI & CI",
     "description": "Heading for the native project CLI and CI connection panel"
+  },
+  "04h7kjzN4y": {
+    "defaultMessage": "Stop",
+    "description": "Label on the reply composer button that stops the agent's current answer"
+  },
+  "055hetinld": {
+    "defaultMessage": "Content",
+    "description": "Section title for a guideline document's content"
   },
   "05ACmS1vNt": {
     "defaultMessage": "Message drift",
@@ -1570,6 +1590,10 @@
   "0D0RSYOy2x": {
     "defaultMessage": "{unit} in each band, as the table's total counts them.",
     "description": "Subtitle of the match band list; unit is Words, Strings, Characters or Characters with spaces"
+  },
+  "0DIbZhFGv/": {
+    "defaultMessage": "Retry",
+    "description": "Retry loading assignments"
   },
   "0DSwLmDrDB": {
     "defaultMessage": "No files yet",
@@ -1962,6 +1986,10 @@
   "0j4Nbqpy8B": {
     "defaultMessage": "Images made",
     "description": "AI usage card: images made with AI"
+  },
+  "0jMUHyL955": {
+    "defaultMessage": "{count, plural, one {# project} other {# projects}}",
+    "description": "Badge when a guideline applies to selected projects"
   },
   "0jS/dbW8Df": {
     "defaultMessage": "Detect added, changed, and removed strings",
@@ -2687,10 +2715,6 @@
     "defaultMessage": "Navigation",
     "description": "Keyboard shortcuts dialog section for moving between strings"
   },
-  "1piQlMbA0v": {
-    "defaultMessage": "Hyperlocalise reads these files and uses them for guideline checks.",
-    "description": "Explanation shown above the list of uploaded guideline documents"
-  },
   "1qUA3TQ2aW": {
     "defaultMessage": "Nothing was spent in these dates.",
     "description": "Shown when there are no costs"
@@ -3035,6 +3059,10 @@
     "defaultMessage": "Significant localisation gaps are affecting the experience.",
     "description": "Score interpretation for a poor localisation audit"
   },
+  "2E9iZZZkgn": {
+    "defaultMessage": "Unable to unassign this guideline.",
+    "description": "Toast when detaching a guideline from a project fails"
+  },
   "2Ejjbg+BRh": {
     "defaultMessage": "Create a Figma connection in workspace Integrations first, then return to Figma and try again.",
     "description": "Empty state when the user has no Figma connections to authorize"
@@ -3219,6 +3247,10 @@
     "defaultMessage": "Description",
     "description": "Heading for the job description section on the task overview tab"
   },
+  "2XlmC+CUlh": {
+    "defaultMessage": "Update the title or markdown content of this guideline document.",
+    "description": "Description for the edit guideline dialog"
+  },
   "2Y27cUhCTS": {
     "defaultMessage": "See the UI context",
     "description": "AI feature capability title: visual context"
@@ -3274,10 +3306,6 @@
   "2eU5akyXs2": {
     "defaultMessage": "You’re all caught up",
     "description": "Dashboard hero title when there are no pending actions"
-  },
-  "2ebaFVw9EO": {
-    "defaultMessage": "Save changes",
-    "description": "Title of the dialog used to save global guidance"
   },
   "2emviDP0f7": {
     "defaultMessage": "Comments, assignees & links",
@@ -3571,6 +3599,10 @@
     "defaultMessage": "Americas",
     "description": "Region heading in the language picker grid"
   },
+  "35dJGlix/R": {
+    "defaultMessage": "{count, plural, one {# character} other {# characters}}",
+    "description": "Character count for a guideline document"
+  },
   "35isho44eM": {
     "defaultMessage": "Resize files panel",
     "description": "Accessible name for the horizontal handle that resizes the CAT files panel"
@@ -3671,6 +3703,10 @@
     "defaultMessage": "GitHub",
     "description": "Group label for the GitHub triggers in the trigger menu"
   },
+  "3FmDkdpkKi": {
+    "defaultMessage": "Could not assign this guideline.",
+    "description": "Error when attaching a guideline to a project fails"
+  },
   "3Fpuv4kRYl": {
     "defaultMessage": "The design link could not be saved.",
     "description": "Error when saving a string's design link fails"
@@ -3770,6 +3806,10 @@
   "3SLTb8lWnJ": {
     "defaultMessage": "Source locale",
     "description": "Label for the project source locale in the create translation job dialog"
+  },
+  "3Sg0Zcpu/H": {
+    "defaultMessage": "Suggested answers",
+    "description": "Accessible label for the buttons that answer the assistant's question"
   },
   "3U55zi8ElG": {
     "defaultMessage": "Markets",
@@ -4787,10 +4827,6 @@
     "defaultMessage": "Copied!",
     "description": "Tooltip after snippet text is copied to the clipboard"
   },
-  "4vgdKa1rPI": {
-    "defaultMessage": "History",
-    "description": "Button to open knowledge memory revision history"
-  },
   "4w/GI31xOr": {
     "defaultMessage": "No prompt sampled yet",
     "description": "Empty prompt explorer title"
@@ -4950,6 +4986,10 @@
   "584/OLp2LZ": {
     "defaultMessage": "the tools",
     "description": "What an undo step changed, used in 'Undo {change}' and 'Undid {change}'"
+  },
+  "588dodLUt/": {
+    "defaultMessage": "Could not load this guideline document.",
+    "description": "Error when a guideline document fails to load"
   },
   "58A3bF+CPb": {
     "defaultMessage": "Accept selected",
@@ -5175,10 +5215,6 @@
     "defaultMessage": "Cache",
     "description": "Label for cached input token usage in the context hover card"
   },
-  "5R6QcLONiw": {
-    "defaultMessage": "Project guideline",
-    "description": "Table column header for project Memory.md guideline excerpt"
-  },
   "5RYXpxJmvr": {
     "defaultMessage": "Workspace",
     "description": "Sidebar group label for workspace navigation items"
@@ -5227,6 +5263,10 @@
     "defaultMessage": "Import",
     "description": "Menu item that opens translation memory import"
   },
+  "5XYzcl7mI9": {
+    "defaultMessage": "Edit",
+    "description": "Edit a guideline document"
+  },
   "5Xs2gSCUMi": {
     "defaultMessage": "Settings",
     "description": "App shell breadcrumb title for the settings page"
@@ -5270,6 +5310,10 @@
   "5ZZS0Al3rv": {
     "defaultMessage": "Pause until a duration, timestamp, or condition",
     "description": "Wait node picker hint"
+  },
+  "5a15156ue+": {
+    "defaultMessage": "All",
+    "description": "Project scope option for all projects"
   },
   "5aBQ8ovclg": {
     "defaultMessage": "Export · {timestamp}",
@@ -5483,6 +5527,10 @@
     "defaultMessage": "Key",
     "description": "Label for the string key in the CAT details panel"
   },
+  "5vT3Efe6qS": {
+    "defaultMessage": "Unassigned documents apply to no project. Turn on All projects or assign specific projects to scope this document.",
+    "description": "Description for per-document project assignments"
+  },
   "5vfo0ROXmb": {
     "defaultMessage": "Apply the right reviewer, agent and quality gate to each stream.",
     "description": "Scenario stage description for routing content."
@@ -5691,10 +5739,6 @@
     "defaultMessage": "Learning",
     "description": "Knowledge product visual mock status badge"
   },
-  "6F6O0hv6yy": {
-    "defaultMessage": "Global guidance",
-    "description": "Heading for the global guidance editor"
-  },
   "6F6TSGIXMs": {
     "defaultMessage": "The file must be publicly reachable at the exact path.",
     "description": "File verification help"
@@ -5891,6 +5935,10 @@
     "defaultMessage": "Tone: friendly, direct",
     "description": "Brand style rule chip"
   },
+  "6ZdUFhWyMC": {
+    "defaultMessage": "Checked in the editor while you translate. A warning does not block saving. Project scans do not run this check.",
+    "description": "Help for the editor-only guideline QA check"
+  },
   "6ZyNhsk6BY": {
     "defaultMessage": "Hyperlocalise helps teams launch product content globally with market nuance, translation, and first-class human review.",
     "description": "Supporting copy under the company page headline"
@@ -5938,6 +5986,10 @@
   "6dh6dF3EHq": {
     "defaultMessage": "Strings",
     "description": "Unit switch option: count strings"
+  },
+  "6dq9jGfioL": {
+    "defaultMessage": "Guideline",
+    "description": "Project sidebar navigation item for project guideline"
   },
   "6euABf86mn": {
     "defaultMessage": "No target locale is available for this task file.",
@@ -6343,6 +6395,10 @@
     "defaultMessage": "Unable to update the selected entries.",
     "description": "Error shown when bulk translation memory review fails"
   },
+  "7CDc+swpug": {
+    "defaultMessage": "Could not save the guideline.",
+    "description": "Error when saving the typed guideline document fails"
+  },
   "7CPlHFJKgc": {
     "defaultMessage": "Week",
     "description": "Column heading: the week, by its first day"
@@ -6450,10 +6506,6 @@
   "7Mb6b+z2q1": {
     "defaultMessage": "If French visitors land on English, or a language is missing, Domains flags it before a customer does.",
     "description": "Body for the Domains localisation solution panel"
-  },
-  "7MwPWNHU6i": {
-    "defaultMessage": "Project",
-    "description": "Table column header for project name"
   },
   "7OEl2Ch1Rv": {
     "defaultMessage": "Updates, product thinking, and lessons from building agent-native localisation workflows.",
@@ -6935,6 +6987,10 @@
     "defaultMessage": "Confidence",
     "description": "Warning type label for low-confidence issues on an agent proposal"
   },
+  "89WyBBZY4w": {
+    "defaultMessage": "No content yet",
+    "description": "Title when a guideline document has no preview text"
+  },
   "8A31EeIxry": {
     "defaultMessage": "FR error messages must use formal register",
     "description": "Knowledge mock UI memory feed item — FR reviewer correction"
@@ -7207,6 +7263,10 @@
     "defaultMessage": "Update role",
     "description": "Confirm button to update a team member’s role"
   },
+  "8WxVSRLWX8": {
+    "defaultMessage": "Guidelines that apply to every project show here once uploaded. Use Assign new guideline below to attach an organization document to this project.",
+    "description": "Description when a project view has no applicable guideline documents"
+  },
   "8Xv6VRwnt8": {
     "defaultMessage": "Text",
     "description": "HTTP node body type text option"
@@ -7302,10 +7362,6 @@
   "8eFLCTVPnq": {
     "defaultMessage": "{count} characters used",
     "description": "Accessible label for the CAT target character counter without a max length"
-  },
-  "8eKSmbjV/2": {
-    "defaultMessage": "Settings",
-    "description": "Link to open project settings for the style guide"
   },
   "8gI8dqfg1a": {
     "defaultMessage": "Failed to look up repository context",
@@ -7979,6 +8035,10 @@
     "defaultMessage": "No project glossary concepts match \"{source}\".",
     "description": "Empty state description naming the CAT source text when no glossary concepts match"
   },
+  "9drYyND719": {
+    "defaultMessage": "Ready",
+    "description": "Status badge for a processed guideline document"
+  },
   "9e9a/69ACn": {
     "defaultMessage": "Tone, terminology, and formatting for this project.",
     "description": "Description for the style guide tab in the editor guideline sheet"
@@ -8519,6 +8579,10 @@
     "defaultMessage": "Subscribe",
     "description": "Button label when the current user is not subscribed to issue updates"
   },
+  "APcdnMv7h1": {
+    "defaultMessage": "Back to Guideline",
+    "description": "Link back to the Guideline page"
+  },
   "AQFTimLagD": {
     "defaultMessage": "of any content type",
     "description": "Prose after the Contentful trigger name when every content type starts a run"
@@ -8771,6 +8835,10 @@
     "defaultMessage": "Preserve ICU syntax exactly.",
     "description": "Intent for the usage segment in the hero CAT mock"
   },
+  "AoZj8cJFcg": {
+    "defaultMessage": "Assign",
+    "description": "Assign the selected guideline to this project"
+  },
   "Ap20zmqiKe": {
     "defaultMessage": "AI drafts a translation for each block. Drafts appear as suggestions, and nothing changes until you accept them.",
     "description": "Document editor: translate document dialog description"
@@ -8798,10 +8866,6 @@
   "Aslv6sgV4o": {
     "defaultMessage": "Open entry {sourceText}",
     "description": "Accessible label for opening a translation memory entry"
-  },
-  "At4au+ak+k": {
-    "defaultMessage": "Project guidance",
-    "description": "Heading for the project guidance editor"
   },
   "AtXAhlt1Vc": {
     "defaultMessage": "Previous string",
@@ -9251,10 +9315,6 @@
     "defaultMessage": "Clear selection",
     "description": "Keyword research screen: clearSelection"
   },
-  "BZE2c4wFg4": {
-    "defaultMessage": "Version {version}",
-    "description": "Shows the current knowledge memory version number"
-  },
   "Ba3w87XTBS": {
     "defaultMessage": "Failed to update proposal review",
     "description": "Toast and error fallback when saving proposal review fails"
@@ -9314,10 +9374,6 @@
   "BeHj7U26Ab": {
     "defaultMessage": "No data",
     "description": "Title shown when a report has no rows"
-  },
-  "Bel9GZJcDc": {
-    "defaultMessage": "Allow memory updates",
-    "description": "Toggle label letting this automation append to organization Memory.md"
   },
   "Bf9K7N84st": {
     "defaultMessage": "Saved",
@@ -9835,10 +9891,6 @@
     "defaultMessage": "Assign it later",
     "description": "Project option help"
   },
-  "CP+VovcJDY": {
-    "defaultMessage": "Cancel",
-    "description": "Button that closes the global guidance save dialog"
-  },
   "CPVePRU7tR": {
     "defaultMessage": "Connected through Integrations",
     "description": "Label when Search Console is connected through WorkOS Pipes"
@@ -9954,6 +10006,10 @@
   "CYGau9cDQe": {
     "defaultMessage": "The best agentic localisation platform",
     "description": "Open Graph fallback description for unknown pages"
+  },
+  "CZ4vxLK47b": {
+    "defaultMessage": "No guideline for this project yet.",
+    "description": "Empty state for the guideline tab in the editor guideline sheet"
   },
   "CZxzXB0LJr": {
     "defaultMessage": "%",
@@ -10499,10 +10555,6 @@
     "defaultMessage": "Runs",
     "description": "AI usage chart option: billed uses of AI"
   },
-  "DHd5WNIV7o": {
-    "defaultMessage": "Version note (optional)",
-    "description": "Label for the optional knowledge memory version note field"
-  },
   "DHw/85SGxB": {
     "defaultMessage": "After break (regex)",
     "description": "Label for afterbreak pattern"
@@ -10626,10 +10678,6 @@
   "DQnt+zm1/q": {
     "defaultMessage": "No relationships yet",
     "description": "Shown when an issue has no relationships"
-  },
-  "DR05xC0qfm": {
-    "defaultMessage": "Global guidance",
-    "description": "Accessible label for the global guidance TipTap editor"
   },
   "DRRpzdvulu": {
     "defaultMessage": "GitHub",
@@ -11507,6 +11555,10 @@
     "defaultMessage": "Works across GitHub, TMS, and release tooling",
     "description": "Differentiator point 6 for the github-release-localisation use case"
   },
+  "Eht1NQ/XrA": {
+    "defaultMessage": "Could not update this document.",
+    "description": "Error when updating a guideline document fails"
+  },
   "EiXxrmIRgk": {
     "defaultMessage": "{name} (pull only)",
     "description": "Repository picker entry for a GitLab project the connection can read but not send merge requests to"
@@ -11803,6 +11855,10 @@
     "defaultMessage": "default",
     "description": "Label for switch default output handle"
   },
+  "F9o6jDn1w9": {
+    "defaultMessage": "Selected projects",
+    "description": "Label when a guideline document is scoped to selected projects"
+  },
   "F9qtJj6l6D": {
     "defaultMessage": "Save an aligned source and target example to this memory.",
     "description": "Description for the dialog that adds a translation memory entry"
@@ -11991,6 +12047,10 @@
     "defaultMessage": "{group}:",
     "description": "Read before a row within a group, for screen readers; group is the group's name"
   },
+  "FRRCcGcc6B": {
+    "defaultMessage": "Use template",
+    "description": "Button that fills the new-guideline content with the starter template"
+  },
   "FRwUYE4HKC": {
     "defaultMessage": "Finnish (Finland)",
     "description": "Display name for BCP-47 locale fi-FI"
@@ -12010,6 +12070,10 @@
   "FTQusXXeii": {
     "defaultMessage": "Last 24 hours",
     "description": "Last modified preset for the past 24 hours"
+  },
+  "FTeElrtllX": {
+    "defaultMessage": "Queued",
+    "description": "Small heading above messages waiting to be sent after the agent's current answer"
   },
   "FUNWRUio8t": {
     "defaultMessage": "New title (optional)",
@@ -12531,6 +12595,10 @@
     "defaultMessage": "Get meaning, where it appears in the product, and how to translate it.",
     "description": "AI feature capability body: ask about strings"
   },
+  "GKDBXV4awc": {
+    "defaultMessage": "Write markdown guidance. Choose locales and projects on the upload page.",
+    "description": "Description for the new typed guideline dialog"
+  },
   "GKE7xJDkbr": {
     "defaultMessage": "Add the brands you compete with in this market.",
     "description": "Empty brand lookup description"
@@ -12859,6 +12927,10 @@
     "defaultMessage": "Pause workflow preview",
     "description": "Accessible label for pausing the workflow preview animation"
   },
+  "GoT5vi8Wd3": {
+    "defaultMessage": "Select at least one project before uploading.",
+    "description": "Error when Selected project scope has no projects checked"
+  },
   "GomMnQmb4q": {
     "defaultMessage": "Choose source files and a target locale to export translated content.",
     "description": "Description of the download translations dialog"
@@ -13115,6 +13187,10 @@
     "defaultMessage": "Copy link",
     "description": "Button to copy a shareable link to the current CAT segment"
   },
+  "H7CL9Uh45J": {
+    "defaultMessage": "Guidelines",
+    "description": "Heading for the guideline documents list on org and project pages"
+  },
   "H7MZFgXFSw": {
     "defaultMessage": "Copied!",
     "description": "Aria label after copying the inbound email address"
@@ -13287,6 +13363,10 @@
     "defaultMessage": "Source upload",
     "description": "Run history trigger source for source upload runs"
   },
+  "HSh39++wV6": {
+    "defaultMessage": "Upload a PDF, DOCX, or markdown file so Hyperlocalise can use it in guideline checks.",
+    "description": "Description in the empty guideline list state"
+  },
   "HSs8QGWi6n": {
     "defaultMessage": "attached translation memory to a project",
     "description": "Action for attaching translation memory to a project"
@@ -13334,6 +13414,10 @@
   "HXB7LX3AZ/": {
     "defaultMessage": "The impact goes far beyond operational efficiency. Companies can enter new markets sooner, launch every release globally with confidence, and unlock the return that comes from serving customers in their own language and cultural context. The faster products evolve, the more important this becomes.",
     "description": "Ninth paragraph of the founders note on the company page"
+  },
+  "HXfvxDUO8O": {
+    "defaultMessage": "Locales (empty means all locales)",
+    "description": "Label for the locales field on the upload page"
   },
   "HYHV9OorEn": {
     "defaultMessage": "Send localized transactional email through Resend.",
@@ -13935,6 +14019,10 @@
     "defaultMessage": "Keep roles and permissions clear as your workspace grows. Enterprise adds SSO / SAML and dedicated support.",
     "description": "Third card body in the homepage trust and control section"
   },
+  "ISb4bfoGkh": {
+    "defaultMessage": "Could not download this document.",
+    "description": "Error when downloading a guideline document fails"
+  },
   "IT9fuYzCqC": {
     "defaultMessage": "Source file ID (optional)",
     "description": "Optional source file setting on the progress step; empty checks the whole project"
@@ -14098,10 +14186,6 @@
   "Im/lBlp8FY": {
     "defaultMessage": "Sound direction is applied when you generate a new version.",
     "description": "Video refinement workspace: soundHint"
-  },
-  "ImIdtgoe9w": {
-    "defaultMessage": "Workspace guideline",
-    "description": "Tab label for organization Memory.md in the editor guideline sheet"
   },
   "ImJlsQdxZz": {
     "defaultMessage": "Failed",
@@ -14315,10 +14399,6 @@
     "defaultMessage": "Note",
     "description": "Flags table column for flag description"
   },
-  "J1uo+B3Tlk": {
-    "defaultMessage": "Style guide",
-    "description": "Table column header for project style guide excerpt"
-  },
   "J210+x7u6p": {
     "defaultMessage": "Web chat",
     "description": "Trigger label for a web chat automation in the list"
@@ -14346,10 +14426,6 @@
   "J5c/CjjG4+": {
     "defaultMessage": "Save",
     "description": "Button to save the Braze API key and REST cluster"
-  },
-  "J5q0R+rIqK": {
-    "defaultMessage": "Style guides and project guidelines used in the editor and workflows. Open a project to edit.",
-    "description": "Description for the project list on the workspace Guideline page"
   },
   "J6DRapAgvg": {
     "defaultMessage": "Search files",
@@ -14410,6 +14486,10 @@
   "JB6oDpJ4ax": {
     "defaultMessage": "Select a project above to load live glossaries and term bases from your connected provider.",
     "description": "Description prompting the user to select a TMS project for live glossaries"
+  },
+  "JBIPxSmVnF": {
+    "defaultMessage": "Could not stop the reply. Try again.",
+    "description": "Error when asking the agent to stop its current reply fails"
   },
   "JBRAW5Gd9X": {
     "defaultMessage": "Sanity connected with API token",
@@ -14626,6 +14706,10 @@
   "JSylA1G/ba": {
     "defaultMessage": "Public scores, side by side. Check yours to see where you stand.",
     "description": "Supporting copy for the public localisation audit leaderboard"
+  },
+  "JT98XXBcys": {
+    "defaultMessage": "Guideline",
+    "description": "Label for a guideline violation in the editor QA list"
   },
   "JTOY/bF8Zd": {
     "defaultMessage": "Of this task's strings sent for review",
@@ -15111,6 +15195,10 @@
     "defaultMessage": "{countLabel} terms",
     "description": "Term count shown for a glossary row"
   },
+  "KNtGEEzfY/": {
+    "defaultMessage": "Open in Figma",
+    "description": "Link from a visual context screenshot to the Figma frame it was synced from"
+  },
   "KO9Xwf/4Fp": {
     "defaultMessage": "Loading entry",
     "description": "Loading state for the translation memory entry detail sheet"
@@ -15130,6 +15218,10 @@
   "KPMvXBlGyG": {
     "defaultMessage": "Human",
     "description": "Badge on a version a person saved"
+  },
+  "KPaEFeNjPF": {
+    "defaultMessage": "Could not load the guideline content.",
+    "description": "Error when the guideline document content fails to load"
   },
   "KQDlfibJWf": {
     "defaultMessage": "Add workspace members to start scoping projects and jobs to this team.",
@@ -15346,6 +15438,10 @@
   "Kl9ZXq58t7": {
     "defaultMessage": "Country",
     "description": "Hyperlab mock UI criterion attribute"
+  },
+  "Klp/m/EPAw": {
+    "defaultMessage": "Retry",
+    "description": "Retry loading a guideline document"
   },
   "KmO8v/yN7F": {
     "defaultMessage": "Write, or type / for blocks…",
@@ -16335,6 +16431,10 @@
     "defaultMessage": "Time logged on this task",
     "description": "Accessible name of the task's time table"
   },
+  "ME7oVCs6tD": {
+    "defaultMessage": "Assign",
+    "description": "Assign a guideline to a project"
+  },
   "MF241rY4nN": {
     "defaultMessage": "Missing meta description on /features (FR)",
     "description": "Domains mock UI sample audit issue"
@@ -16431,6 +16531,10 @@
     "defaultMessage": "Changed fields: {fields}",
     "description": "Glossary history changed fields summary"
   },
+  "MMqixfCiT4": {
+    "defaultMessage": "Unassign",
+    "description": "Remove a guideline from the current project without deleting the org document"
+  },
   "MN2GW5Szxo": {
     "defaultMessage": "Get recommendation",
     "description": "Button to request an AI translation recommendation"
@@ -16494,6 +16598,10 @@
   "MQdlpvxiGl": {
     "defaultMessage": "Locale coverage",
     "description": "Automated GitHub Actions check for the completeness of target locale strings."
+  },
+  "MQj23Fe9g7": {
+    "defaultMessage": "Keep the content under 50,000 characters.",
+    "description": "Validation error when the guideline content is too long"
   },
   "MR3nUfsG07": {
     "defaultMessage": "manage",
@@ -17174,6 +17282,10 @@
   "NPcxGbshkv": {
     "defaultMessage": "Enable check run",
     "description": "Label for enabling GitHub status checks"
+  },
+  "NPxj2A77E6": {
+    "defaultMessage": "No guidelines for this project",
+    "description": "Title when a project view has no applicable guideline documents"
   },
   "NQK86OKSk0": {
     "defaultMessage": "Slack · 2h ago",
@@ -17903,10 +18015,6 @@
     "defaultMessage": "Get multilingual content live, and found",
     "description": "Marketing homepage journeyPublishTitle"
   },
-  "OVYNR7qNg7": {
-    "defaultMessage": "Saved {timestamp}",
-    "description": "Shows when global guidance was last saved"
-  },
   "OVfiZrnuvM": {
     "defaultMessage": "Set character limit",
     "description": "Icon button that opens the native segment character limit editor"
@@ -18023,6 +18131,10 @@
     "defaultMessage": "The task moves to done and can't be reopened. Unfinished strings stay as they are, and later edits no longer count towards this task.",
     "description": "Body of the confirmation dialog for marking a task for people done"
   },
+  "OgnnBKgUgj": {
+    "defaultMessage": "Could not remove the project.",
+    "description": "Error when detaching a project fails"
+  },
   "OhDSK13yKr": {
     "defaultMessage": "A member",
     "description": "QA manual run trigger"
@@ -18058,10 +18170,6 @@
   "OjbR5imOsw": {
     "defaultMessage": "Clear. Human. Confident.",
     "description": "Supporting note in the brand guidance illustration"
-  },
-  "Ok15bFijfb": {
-    "defaultMessage": "Updated product terminology",
-    "description": "Placeholder for the optional knowledge memory version note field"
   },
   "OkUMZaP6g7": {
     "defaultMessage": "Generated with guardrails",
@@ -18442,6 +18550,10 @@
   "PGHBaJsXHq": {
     "defaultMessage": "Minutes",
     "description": "Label of the minutes field"
+  },
+  "PGszZ1zTVn": {
+    "defaultMessage": "Could not assign the project.",
+    "description": "Error when attaching a project fails"
   },
   "PHgeGQnTFw": {
     "defaultMessage": "Looking now…",
@@ -18834,6 +18946,10 @@
   "PuJ3SEIiZZ": {
     "defaultMessage": "Member Invited",
     "description": "Activity log event type label for member invitations"
+  },
+  "PuVmZm+KxX": {
+    "defaultMessage": "Add a follow-up. It sends when the agent finishes.",
+    "description": "Reply composer placeholder while the agent is answering; new messages are queued"
   },
   "PugY2uNCND": {
     "defaultMessage": "Show source",
@@ -19635,6 +19751,10 @@
     "defaultMessage": "Disable",
     "description": "Button label to disable the Slack agent"
   },
+  "RD6TNTYdhG": {
+    "defaultMessage": "Remove queued message",
+    "description": "Accessible label for removing a message from the queue"
+  },
   "RDClJmugvf": {
     "defaultMessage": "Marketing hero headline shown above the primary waitlist call to action.",
     "description": "Product meaning panel copy in the hero CAT mock"
@@ -20435,6 +20555,10 @@
     "defaultMessage": "A date such as 2026-05-01T17:00Z, or a value from an earlier step. Leave empty for no due date.",
     "description": "Help text for the due date setting of the Assign task and Crowdin task workflow steps"
   },
+  "SQWxPmzi1h": {
+    "defaultMessage": "New guideline",
+    "description": "Title for the new typed guideline dialog"
+  },
   "SQywnBh/uh": {
     "defaultMessage": "Workspace",
     "description": "Feature teaser page label for workspace automations"
@@ -20715,6 +20839,10 @@
     "defaultMessage": "Paid at for {band}",
     "description": "Accessible name of a band's percentage field"
   },
+  "SrKX6ML4pu": {
+    "defaultMessage": "Title",
+    "description": "Label for the guideline title field"
+  },
   "SrLx97k5Qr": {
     "defaultMessage": "Saving...",
     "description": "Submit button label while a project is being saved"
@@ -20758,10 +20886,6 @@
   "Sx94aDUTBX": {
     "defaultMessage": "URL",
     "description": "Rank tracking URL column"
-  },
-  "Sx9RV1pKpJ": {
-    "defaultMessage": "Save version",
-    "description": "Button that saves a new global guidance version"
   },
   "SxB5bmPaaR": {
     "defaultMessage": "No matching queries.",
@@ -20814,6 +20938,10 @@
   "T+VDvnW8FQ": {
     "defaultMessage": "Cancel",
     "description": "Cancel the Customer.io message picker"
+  },
+  "T+Zz9BNYwB": {
+    "defaultMessage": "None",
+    "description": "Project scope option for no projects"
   },
   "T+lSNezp+m": {
     "defaultMessage": "Delete",
@@ -20890,10 +21018,6 @@
   "T4Nt0cVH3/": {
     "defaultMessage": "Unable to delete glossary",
     "description": "Fallback error when deleting a glossary fails"
-  },
-  "T4a97PcYOc": {
-    "defaultMessage": "None",
-    "description": "Placeholder when a project has no project guideline text"
   },
   "T538d2j6a5": {
     "defaultMessage": "Previous",
@@ -21007,6 +21131,10 @@
     "defaultMessage": "Column hidden",
     "description": "Toast after hiding an issue column"
   },
+  "THoL7yb4DX": {
+    "defaultMessage": "Guideline check limit reached. This translation was not checked.",
+    "description": "Editor QA warning when the guideline check allowance is used up"
+  },
   "THoRXiMHfa": {
     "defaultMessage": "Could not load notification preferences.",
     "description": "Error when notification preferences fail to load"
@@ -21087,6 +21215,10 @@
     "defaultMessage": "Import started — translations will appear once processing completes.",
     "description": "Toast when a translation import is started successfully"
   },
+  "TPD0ka6ZHC": {
+    "defaultMessage": "Pick an organization guideline that is not scoped to all projects and assign it to this project.",
+    "description": "Help text below Assign new guideline on a project page"
+  },
   "TPSJDoFsCd": {
     "defaultMessage": "Time logged",
     "description": "Time card: time people logged in the dates"
@@ -21143,6 +21275,10 @@
     "defaultMessage": "See the full leaderboard",
     "description": "CTA linking from a localisation audit result to the public leaderboard"
   },
+  "TU5Vr/IFlt": {
+    "defaultMessage": "Markdown content",
+    "description": "Label for the guideline markdown content field"
+  },
   "TUhxc0TwuH": {
     "defaultMessage": "Whoever already owns them—usually brand, legal, or localisation. Hyperlocalise does not replace that library. It reads it.",
     "description": "Guidelines FAQ answer about ownership"
@@ -21150,6 +21286,10 @@
   "TV/xfNXFY0": {
     "defaultMessage": "Slide {number}",
     "description": "Group heading for paragraphs on a PowerPoint slide"
+  },
+  "TVH49oxDSg": {
+    "defaultMessage": "Projects",
+    "description": "Label for the project scope picker on the upload page"
   },
   "TW8F48aPTu": {
     "defaultMessage": "+{count}",
@@ -21294,6 +21434,10 @@
   "TgL4sBNIk6": {
     "defaultMessage": "requested visual workflow approval",
     "description": "Action for requesting visual workflow approval"
+  },
+  "TgL7Tdom2s": {
+    "defaultMessage": "No guidelines yet",
+    "description": "Title when the organization has no guideline documents"
   },
   "Th3qMjLdD4": {
     "defaultMessage": "Select at least one file.",
@@ -21470,6 +21614,10 @@
   "TtcvnbdV7R": {
     "defaultMessage": "No Hyperlocalise work items found for your account.",
     "description": "Empty state for native jobs in personal workspace scope"
+  },
+  "TuArP1icKe": {
+    "defaultMessage": "Could not send your queued message. It is still in the queue.",
+    "description": "Error when sending a message that was queued while the agent answered fails"
   },
   "TuBSJ5qXfJ": {
     "defaultMessage": "Strings detected",
@@ -21662,6 +21810,10 @@
   "UBL2U2Jzs0": {
     "defaultMessage": "No entries match this search.",
     "description": "Empty state when translation memory entry search returns no rows"
+  },
+  "UBgmYJVhxF": {
+    "defaultMessage": "Open workspace guideline",
+    "description": "Link from the editor guideline sheet to workspace guidelines"
   },
   "UBjBGu6kGh": {
     "defaultMessage": "Cancel",
@@ -21923,6 +22075,10 @@
     "defaultMessage": "From Hyperlocalise",
     "description": "Section heading for built-in Hyperlocalise automations"
   },
+  "UbjS7TWxTi": {
+    "defaultMessage": "Select a guideline",
+    "description": "Placeholder for the guideline picker on a project page"
+  },
   "Ubm7I3eMos": {
     "defaultMessage": "Enable email agent",
     "description": "Aria label for the email agent enable switch"
@@ -22071,10 +22227,6 @@
     "defaultMessage": "Choose mapping",
     "description": "Placeholder for the CSV column mapping select"
   },
-  "Uprf8bLGRl": {
-    "defaultMessage": "Optionally describe what changed for version history.",
-    "description": "Description in the global guidance save dialog"
-  },
   "Uq2h47XEsH": {
     "defaultMessage": "Ideas expanded for this market.",
     "description": "Toast after seeding keywords"
@@ -22187,6 +22339,10 @@
     "defaultMessage": "Link label",
     "description": "Label for the link label input"
   },
+  "V/6qeF00b1": {
+    "defaultMessage": "This project does not have any guidelines yet. Assign an existing organization guideline below.",
+    "description": "Description when assignable org guidelines exist for an empty project list"
+  },
   "V/CBn2NY6n": {
     "defaultMessage": "Create a key to authenticate scripts, CI jobs, and integrations against this workspace.",
     "description": "Empty state description for the API keys list"
@@ -22202,6 +22358,10 @@
   "V0+b9BqdcA": {
     "defaultMessage": "Experiment across markets, compare performance, and carry winners into the next campaign. Growth comes from iteration, not guesswork.",
     "description": "Marketing homepage journeyOptimiseBody"
+  },
+  "V00IPtkczH": {
+    "defaultMessage": "None saves the guideline without applying it. All applies it to every current and future project.",
+    "description": "Hint for the project scope picker"
   },
   "V04dsqCSZQ": {
     "defaultMessage": "No localized image yet",
@@ -22527,10 +22687,6 @@
     "defaultMessage": "Query Deleted",
     "description": "Activity log event type label for deleting a Query"
   },
-  "VT7w1Xk0pf": {
-    "defaultMessage": "Open project guideline",
-    "description": "Link to project guideline page"
-  },
   "VTNiq0wxG3": {
     "defaultMessage": "Choose a TMS project",
     "description": "Title prompting the user to select a TMS project for live glossaries"
@@ -22734,10 +22890,6 @@
   "Vqod37n0hK": {
     "defaultMessage": "week",
     "description": "Schedule cadence option, read as 'every week'"
-  },
-  "VqzRqESv1z": {
-    "defaultMessage": "Unable to load projects.",
-    "description": "Error when the project guideline list fails to load"
   },
   "Vs00Rn62Ft": {
     "defaultMessage": "Next",
@@ -23074,10 +23226,6 @@
   "WNMfw+TYVj": {
     "defaultMessage": "Keeps terminology, placeholders, and layout constraints aligned with the source.",
     "description": "Fallback AI reasoning in the hero CAT mock"
-  },
-  "WNUkfqHAtJ": {
-    "defaultMessage": "Manage",
-    "description": "Button to open the knowledge memories editor from an automation"
   },
   "WNvJxgRGRU": {
     "defaultMessage": "NOT",
@@ -23583,6 +23731,10 @@
     "defaultMessage": "maxLength\ncharacterLimit",
     "description": "Placeholder for JSON sibling character-limit fields"
   },
+  "XCeIO0kKvi": {
+    "defaultMessage": "Show {title}",
+    "description": "Button that expands a guideline document in the editor sheet"
+  },
   "XD+bIMwUyH": {
     "defaultMessage": "One regular expression per line, up to {max}. Text that matches is treated as a placeholder, in addition to the syntax above. Lookaround and backreferences are not supported.",
     "description": "Help text under the custom placeholder patterns field"
@@ -23662,6 +23814,10 @@
   "XK3MzYiVgI": {
     "defaultMessage": "Hidden",
     "description": "Filter option for hidden source strings"
+  },
+  "XL3HPQrRJ1": {
+    "defaultMessage": "This document has no readable text yet.",
+    "description": "Shown when a guideline document has no previewable content"
   },
   "XLYekd9yOT": {
     "defaultMessage": "Unable to load options",
@@ -23951,6 +24107,10 @@
     "defaultMessage": "Filter by type",
     "description": "Accessible label for the inbox type filter menu"
   },
+  "XpRK5J9MH0": {
+    "defaultMessage": "Create Guideline",
+    "description": "Button linking to the guideline upload page from the empty list state"
+  },
   "XpdC3tQD4o": {
     "defaultMessage": "Other",
     "description": "Kanban column label for jobs with an unrecognized status"
@@ -24159,6 +24319,10 @@
     "defaultMessage": "Output fields (path, type, optional)",
     "description": "Visual workflow editor control"
   },
+  "Y57/WAIdth": {
+    "defaultMessage": "No projects yet.",
+    "description": "Empty state when there are no projects to select"
+  },
   "Y5QGYzW/72": {
     "defaultMessage": "Owner updated",
     "description": "Toast after the automation owner is changed"
@@ -24186,10 +24350,6 @@
   "Y6oA9iy1qW": {
     "defaultMessage": "Stopped",
     "description": "Run card badge when the run ended without finishing, for example after cancellation"
-  },
-  "Y75fqcWKkh": {
-    "defaultMessage": "Open",
-    "description": "Link to open the project guideline page"
   },
   "Y7IbUoDXiT": {
     "defaultMessage": "Some strings have no match band: the translation memory could not be read when they were counted. They are priced as new work.",
@@ -24294,6 +24454,10 @@
   "YFD3L1P1B+": {
     "defaultMessage": "Fixed fee",
     "description": "Column heading: a fixed price for the step, instead of rates"
+  },
+  "YFMn72O3t0": {
+    "defaultMessage": "Show full result",
+    "description": "Button that loads the full tool result when the chat shows a shortened copy"
   },
   "YGFB2mB2iu": {
     "defaultMessage": "Choose how many models to show",
@@ -24875,10 +25039,6 @@
     "defaultMessage": "Source",
     "description": "Fallback label for a source document attachment without a title"
   },
-  "Z9+wravZbz": {
-    "defaultMessage": "Project guidance",
-    "description": "Accessible label for the project guidance TipTap editor"
-  },
   "Z9/shXBMll": {
     "defaultMessage": "{queued, plural, =0 {No automation runs queued} one {# automation run queued} other {# automation runs queued}}",
     "description": "Toast after existing source files are selected for automation runs"
@@ -24990,6 +25150,10 @@
   "ZJeMLihOyK": {
     "defaultMessage": "Shortcuts work while you edit a string.",
     "description": "Description of the Content Editor keyboard shortcuts dialog"
+  },
+  "ZJhPtQTx1U": {
+    "defaultMessage": "Projects",
+    "description": "Section title for per-document project assignments"
   },
   "ZJldmeEodt": {
     "defaultMessage": "changed a member's role",
@@ -25374,6 +25538,10 @@
   "ZrPoXNY4JN": {
     "defaultMessage": "Priority",
     "description": "Issue list sort option by priority"
+  },
+  "ZrgfPj1ehM": {
+    "defaultMessage": "Edit",
+    "description": "Button to edit a guideline document"
   },
   "Zrl4duXBNI": {
     "defaultMessage": "Translation ({locale})",
@@ -25958,6 +26126,10 @@
   "aewkbG6Jn7": {
     "defaultMessage": "Tuesday",
     "description": "Tuesday option for weekly schedule"
+  },
+  "af1UaJxl66": {
+    "defaultMessage": "Download",
+    "description": "Download the original uploaded guideline file"
   },
   "afHUN4SiZD": {
     "defaultMessage": "for example Website repositories",
@@ -26570,6 +26742,10 @@
   "bV29A4VqV7": {
     "defaultMessage": "Give AI and your team clear rules to follow, from approved terminology to market-specific requirements, so content is easier to review and approve.",
     "description": "Body for the Content Studio context section"
+  },
+  "bV7SMCX/7M": {
+    "defaultMessage": "Add documents to the guideline, or type guidance directly below.",
+    "description": "Description for the guideline upload page"
   },
   "bVFugH0E33": {
     "defaultMessage": "Market experiments",
@@ -27323,6 +27499,10 @@
     "defaultMessage": "Your developer points the site here and sends the API key. You do not need this for day-to-day work.",
     "description": "Hint for how to use the evaluate URL"
   },
+  "cfsFKcP3Bc": {
+    "defaultMessage": "Save guideline",
+    "description": "Save button in the guideline dialog"
+  },
   "cgByBDP5Dl": {
     "defaultMessage": "Project updated",
     "description": "Toast after a project is updated successfully"
@@ -27462,10 +27642,6 @@
   "cqdHse07GI": {
     "defaultMessage": "Connect Drive, Notion, or SharePoint, or type guidelines in, and check the next draft against them.",
     "description": "Bottom CTA description for the Guidelines product page"
-  },
-  "crhiHIjb38": {
-    "defaultMessage": "{count}/{limit} characters",
-    "description": "Character count for the organization knowledge memory editor"
   },
   "cs9xdfnPbE": {
     "defaultMessage": "Send terminal run summaries through your connected email provider.",
@@ -27626,10 +27802,6 @@
   "d3O+fbcvsK": {
     "defaultMessage": "Loading rank tracking…",
     "description": "Loading state for live rank tracking"
-  },
-  "d40ArqT2MH": {
-    "defaultMessage": "None",
-    "description": "Placeholder when a project has no style guide text"
   },
   "d42WfTphb0": {
     "defaultMessage": "Release gate",
@@ -28130,6 +28302,10 @@
   "deFqHCU5Q7": {
     "defaultMessage": "Generating image",
     "description": "Accessible label for the animated card shown while an image is being generated"
+  },
+  "derlJG1uK2": {
+    "defaultMessage": "{count, plural, one {# file} other {# files}}",
+    "description": "Number of files attached to a queued message"
   },
   "deyV6eZ1HA": {
     "defaultMessage": "After the rate card's match discounts",
@@ -29299,9 +29475,9 @@
     "defaultMessage": "Checking git history",
     "description": "Live explore status when the agent inspects git history"
   },
-  "fG2qcdhBlw": {
-    "defaultMessage": "No workspace guideline yet.",
-    "description": "Empty state for workspace guideline tab"
+  "fGjKs76+lc": {
+    "defaultMessage": "Back to Guideline",
+    "description": "Link back to the Guideline page from the upload page"
   },
   "fHIwmwiNEw": {
     "defaultMessage": "Hyperlocalise reloads in the language you pick.",
@@ -29575,6 +29751,10 @@
     "defaultMessage": "Could not save changes.",
     "description": "Toast when issue detail update fails"
   },
+  "fi083Ov+bg": {
+    "defaultMessage": "Upload",
+    "description": "Uploads the staged guideline file with the selected locales and project scope"
+  },
   "fi4BYzKe5I": {
     "defaultMessage": "GitHub repository",
     "description": "Label for the GitHub repository picker on the trigger node"
@@ -29719,10 +29899,6 @@
     "defaultMessage": "Task description preview",
     "description": "Accessible label for the read-only markdown description preview"
   },
-  "fvlbrsgBUm": {
-    "defaultMessage": "All changes saved",
-    "description": "Status shown when global guidance matches the saved version"
-  },
   "fvon1YlGXk": {
     "defaultMessage": "Keyword or phrase",
     "description": "Keyword research screen: query"
@@ -29823,10 +29999,6 @@
     "defaultMessage": "Visual, deterministic workflows—fixed steps and approvals instead of one-off agent chat.",
     "description": "Pricing matrix detail for Automation Workflow overview row"
   },
-  "g0dGJ5GihM": {
-    "defaultMessage": "Loading projects…",
-    "description": "Loading state for the project guideline list"
-  },
   "g1CfTAzEW8": {
     "defaultMessage": "Turn into",
     "description": "Document editor: block menu group for changing block type"
@@ -29915,6 +30087,10 @@
     "defaultMessage": "Edit project...",
     "description": "Menu item to edit a project"
   },
+  "g8gnaUHXWY": {
+    "defaultMessage": "All projects",
+    "description": "Label when a guideline document applies to every project"
+  },
   "g9BGh+CmB5": {
     "defaultMessage": "Heading 2",
     "description": "Tooltip and accessible label for the level-2 heading toolbar button"
@@ -29966,6 +30142,10 @@
   "gDPRQKf6Ay": {
     "defaultMessage": "Audiences",
     "description": "Hyperlab mock UI audiences panel title"
+  },
+  "gDQWtH8Qce": {
+    "defaultMessage": "Manage the shared workspace guideline documents used by this automation.",
+    "description": "Description for the workspace guideline management sheet"
   },
   "gDhdBdZD2s": {
     "defaultMessage": "More",
@@ -30471,10 +30651,6 @@
     "defaultMessage": "User agent",
     "description": "Label for the localisation audit crawler user agent"
   },
-  "gyVhBvCqLP": {
-    "defaultMessage": "Create Guideline",
-    "description": "Button to return from global guidance to the source upload screen"
-  },
   "gz/zpenPqj": {
     "defaultMessage": "Hyperlocalise uses your authorized Sanity session for import and draft push.",
     "description": "Body when Sanity is connected via OAuth"
@@ -30498,6 +30674,10 @@
   "h+UBaWw3mM": {
     "defaultMessage": "Upload pending",
     "description": "Pending translation memory import upload status"
+  },
+  "h+hl88hWgz": {
+    "defaultMessage": "Open Guideline",
+    "description": "Button opening the workspace Guideline page from an automation"
   },
   "h+xR1ab29F": {
     "defaultMessage": "under 1%",
@@ -30554,10 +30734,6 @@
   "h1E2anIfFR": {
     "defaultMessage": "Monitor live content for terminology breaks, missing updates, and locale gaps after release.",
     "description": "Capability 6 description for the localisation-quality-monitoring use case"
-  },
-  "h1H8ZqvX5J": {
-    "defaultMessage": "Open workspace guideline",
-    "description": "Link to workspace guideline page"
   },
   "h1gQeaJchd": {
     "defaultMessage": "Preferred",
@@ -30626,10 +30802,6 @@
   "h8+opkZ6U/": {
     "defaultMessage": "Launch brief and legal policy",
     "description": "Context panel title for the marketing campaign."
-  },
-  "h8EKkv2BNt": {
-    "defaultMessage": "Save changes",
-    "description": "Commit button label for knowledge memory"
   },
   "h8tdXE4S08": {
     "defaultMessage": "Score {score}",
@@ -30714,6 +30886,10 @@
   "hG2aICUYGv": {
     "defaultMessage": "System",
     "description": "Activity log actor filter option for system events"
+  },
+  "hGfT9UynLz": {
+    "defaultMessage": "All projects",
+    "description": "Label for a guideline document that applies to every project"
   },
   "hGgsaGVVDY": {
     "defaultMessage": "Claude Opus 5",
@@ -31163,6 +31339,10 @@
     "defaultMessage": "Show strings tagged {tag}",
     "description": "Accessible label of a tag in the context panel; clicking it filters the list by that tag"
   },
+  "hwJu0VxLVi": {
+    "defaultMessage": "Unable to load guidelines.",
+    "description": "Error shown when guideline documents fail to load"
+  },
   "hwSDOPvp/l": {
     "defaultMessage": "Previous",
     "description": "Previous page button"
@@ -31482,10 +31662,6 @@
   "iMzelu42WD": {
     "defaultMessage": "Find hreflang errors, missing locales, and content gaps",
     "description": "Feature teaser benefit for domains"
-  },
-  "iN2/ib2XhV": {
-    "defaultMessage": "Saving",
-    "description": "Commit button label while knowledge memory is saving"
   },
   "iN2TlQe/rc": {
     "defaultMessage": "Create job",
@@ -32547,6 +32723,10 @@
     "defaultMessage": "Download conversation",
     "description": "Accessible label and tooltip for the button that downloads the conversation as a file"
   },
+  "jzHn8+99pe": {
+    "defaultMessage": "Hide {title}",
+    "description": "Button that collapses a guideline document in the editor sheet"
+  },
   "jzcCuqtaG/": {
     "defaultMessage": "Glossaries",
     "description": "Activity log event type group for glossaries"
@@ -32955,6 +33135,10 @@
     "defaultMessage": "Upload screenshot",
     "description": "Button label for uploading a visual context screenshot"
   },
+  "kWOuILjyCI": {
+    "defaultMessage": "Couldn't load the full result. Try again.",
+    "description": "Error shown when loading the full tool result fails"
+  },
   "kWeceyqgt+": {
     "defaultMessage": "LLM agnostic",
     "description": "Differentiator point 2 for the github-release-localisation use case"
@@ -32987,6 +33171,14 @@
     "defaultMessage": "Parameters",
     "description": "Section title for API schema parameters"
   },
+  "kXjW7h0fXA": {
+    "defaultMessage": "Edit queued message",
+    "description": "Accessible label for moving a queued message back into the composer to edit it"
+  },
+  "kXyIYUDGHZ": {
+    "defaultMessage": "Always apply",
+    "description": "Badge for a guideline document that is always included in full"
+  },
   "kY6WTj458b": {
     "defaultMessage": "Saving layers…",
     "description": "Image viewer: saving"
@@ -32994,10 +33186,6 @@
   "kYXziNyy/1": {
     "defaultMessage": "{metric}: {trend}. Last 7 days.",
     "description": "Accessible summary of a domain metric chart"
-  },
-  "kYhhhQsEy6": {
-    "defaultMessage": "Unsaved changes",
-    "description": "Status shown when global guidance has local changes"
   },
   "kYuCdnk20K": {
     "defaultMessage": "Connect a TMS provider",
@@ -33046,6 +33234,10 @@
   "kf0aB8NC11": {
     "defaultMessage": "Create team",
     "description": "Button to open the create team dialog"
+  },
+  "kfgkg2ouHx": {
+    "defaultMessage": "Preview is not available for this file type. Use Download to save the original file.",
+    "description": "Notice when a guideline document has no text preview"
   },
   "kfw6el48dX": {
     "defaultMessage": "Visual",
@@ -33551,6 +33743,10 @@
     "defaultMessage": "Query linked",
     "description": "Toast when an existing query is linked to the string"
   },
+  "lP4Izq5iD2": {
+    "defaultMessage": "Failed",
+    "description": "Status badge for a failed guideline document"
+  },
   "lPNvi3t9/d": {
     "defaultMessage": "Stop workflow",
     "description": "Stop workflow on node error"
@@ -33654,6 +33850,10 @@
   "labVcE5WnM": {
     "defaultMessage": "Saving…",
     "description": "Button text while saving"
+  },
+  "lazYRIQgCX": {
+    "defaultMessage": "No guidelines assigned to this project",
+    "description": "Title when a project has no guidelines but org documents can be assigned"
   },
   "lbKxuuE3UI": {
     "defaultMessage": "Last 12 months",
@@ -34007,6 +34207,10 @@
     "defaultMessage": "Keywords",
     "description": "App shell breadcrumb title for domain keyword research"
   },
+  "m7oPwUF2VA": {
+    "defaultMessage": "Could not assign this guideline to the selected projects.",
+    "description": "Error when attaching a new guideline to projects fails"
+  },
   "m7sC7R0rtG": {
     "defaultMessage": "Unread",
     "description": "Inbox filter that shows unread notifications"
@@ -34246,6 +34450,10 @@
   "mQ36/6Ov5o": {
     "defaultMessage": "This is the snippet Google would show. Missing descriptions and mixed languages are the usual reason a market never shows up.",
     "description": "Body for the Domains search snippet section"
+  },
+  "mRI1HyUzI9": {
+    "defaultMessage": "Stopping…",
+    "description": "Label on the reply composer stop button after the user pressed it"
   },
   "mRVnNMtRYk": {
     "defaultMessage": "Merge exact source-text duplicates into one string when the Content Editor refreshes. Translate it once to update every copy.",
@@ -35395,10 +35603,6 @@
     "defaultMessage": "New lines are charged",
     "description": "Label of the rate card's default unit for new lines"
   },
-  "o4QwHRAiJ4": {
-    "defaultMessage": "Rules shared by every project in this workspace.",
-    "description": "Description for the workspace guideline tab in the editor guideline sheet"
-  },
   "o4talEzW4n": {
     "defaultMessage": "messages.*\n*.text",
     "description": "Placeholder for JSON include key paths"
@@ -35799,6 +36003,10 @@
     "defaultMessage": "Published",
     "description": "Published status badge in the webpage preview"
   },
+  "ofo9o9nALD": {
+    "defaultMessage": "Create Guideline",
+    "description": "Button linking to the guideline upload page"
+  },
   "ogYglCWKZA": {
     "defaultMessage": "{count, plural, one {The ticked string is} other {The # ticked strings are}} translated with AI in the background. Results need review. Approved translations, locked strings and hidden strings are left as they are.",
     "description": "Explains what AI translation does with the ticked strings"
@@ -35810,6 +36018,10 @@
   "oghE756t99": {
     "defaultMessage": "Regenerate",
     "description": "Button to regenerate an existing AI translation recommendation"
+  },
+  "ogrSf/4R6X": {
+    "defaultMessage": "This guideline has no preview text yet.",
+    "description": "Description when a guideline document has no preview text"
   },
   "oh23JqGlqV": {
     "defaultMessage": "Try again.",
@@ -35910,6 +36122,10 @@
   "onN6IuR7qo": {
     "defaultMessage": "This could not be saved.",
     "description": "Error shown when saving something on the Reports page fails"
+  },
+  "onfNK0asbY": {
+    "defaultMessage": "Processing",
+    "description": "Status badge for a guideline document being processed"
   },
   "oo/YC7RzA/": {
     "defaultMessage": "Back",
@@ -36083,6 +36299,10 @@
     "defaultMessage": "Glossaries",
     "description": "Sidebar navigation item for glossaries"
   },
+  "p2i3sZqWF/": {
+    "defaultMessage": "Assign new guideline",
+    "description": "Subheading for assigning an org guideline to the current project"
+  },
   "p2iBQGftoM": {
     "defaultMessage": "Fish Audio",
     "description": "Fish Audio provider name on the pricing page"
@@ -36106,6 +36326,10 @@
   "p5EM7xOnW0": {
     "defaultMessage": "{count, plural, one {# run} other {# runs}}",
     "description": "Detail under the automated time card"
+  },
+  "p5GBATu78J": {
+    "defaultMessage": "Manage",
+    "description": "Button to open the workspace guideline sheet from an automation"
   },
   "p5GCpw9x8C": {
     "defaultMessage": "Next branch",
@@ -36743,6 +36967,10 @@
     "defaultMessage": "Hide not applicable",
     "description": "Control to collapse not-applicable localisation audit criteria"
   },
+  "pwTiPpomVO": {
+    "defaultMessage": "Upload guideline",
+    "description": "App shell breadcrumb title for the guideline upload page"
+  },
   "pwrS5bq0q7": {
     "defaultMessage": "Create key",
     "description": "Submit button to create an API key"
@@ -36779,10 +37007,6 @@
     "defaultMessage": "Drive. Notion.\nSharePoint.",
     "description": "Headline for the Guidelines sources section"
   },
-  "pzP0LynEOg": {
-    "defaultMessage": "Not saved yet",
-    "description": "Shown when organization knowledge memory has never been saved"
-  },
   "q+3+ldE+Vn": {
     "defaultMessage": "Service-level agreement",
     "description": "Pricing matrix row label for SLA"
@@ -36794,6 +37018,10 @@
   "q+TRkEIOsF": {
     "defaultMessage": "Write file",
     "description": "Catalog title for the stored file write node"
+  },
+  "q+WK+cU/ej": {
+    "defaultMessage": "Guideline",
+    "description": "Tab label for guideline documents in the editor guideline sheet"
   },
   "q+l1A/4r0n": {
     "defaultMessage": "Open Editor",
@@ -36970,10 +37198,6 @@
   "qBHY8te/JC": {
     "defaultMessage": "The companies that win open product and marketing in new markets in days, not after a long setup cycle. Speed matters when the opportunity is in front of you.",
     "description": "Story beat body: enter markets quickly when opportunity appears"
-  },
-  "qBKA0q2hmg": {
-    "defaultMessage": "Rules translators follow on this project.",
-    "description": "Description for the project guideline tab in the editor guideline sheet"
   },
   "qBTs06swYV": {
     "defaultMessage": "TMS quality gate",
@@ -37219,6 +37443,10 @@
     "defaultMessage": "Block failing locales, then watch approved published content for two weeks.",
     "description": "Description of gate and ongoing monitoring stage."
   },
+  "qY3Pg1S0PG": {
+    "defaultMessage": "No projects",
+    "description": "Badge when a guideline applies to no project"
+  },
   "qYH/VTnW7r": {
     "defaultMessage": "Inbox",
     "description": "Sidebar navigation item for the workspace inbox"
@@ -37226,10 +37454,6 @@
   "qYSoW7SGAG": {
     "defaultMessage": "Back to import/export history",
     "description": "Back navigation from a glossary interchange report"
-  },
-  "qaNqVpKpDy": {
-    "defaultMessage": "No project guideline yet.",
-    "description": "Empty state for project guideline tab"
   },
   "qaa1Bmj1zG": {
     "defaultMessage": "Choose another organization or sign out and retry with another account.",
@@ -37506,10 +37730,6 @@
   "qz5T3p0D5s": {
     "defaultMessage": "Treat as missing",
     "description": "Coalesce missing value policies heading"
-  },
-  "qzdjoywlSe": {
-    "defaultMessage": "Retry",
-    "description": "Button to retry loading uploaded guideline documents"
   },
   "qzpCFRpBya": {
     "defaultMessage": "Assigned by locale",
@@ -37794,10 +38014,6 @@
   "rLQERYPxKy": {
     "defaultMessage": "{count}+ files",
     "description": "Count when more project files are available beyond the loaded page"
-  },
-  "rLqAlt6azb": {
-    "defaultMessage": "Edit the shared workspace guideline used by this automation.",
-    "description": "Description for the workspace guideline management sheet"
   },
   "rO1dVLIBD9": {
     "defaultMessage": "CTAs: verb-first, max 3 words",
@@ -38231,13 +38447,13 @@
     "defaultMessage": "Japan checkout button",
     "description": "Hyperlab mock UI sample flag name"
   },
-  "s/GoCU62Nn": {
-    "defaultMessage": "Project guideline",
-    "description": "Tab label for project Memory.md in the editor guideline sheet"
-  },
   "s0B+f3G8Yz": {
     "defaultMessage": "Automation runs",
     "description": "AI feature: the main loop of an automation run"
+  },
+  "s0KZePn4lW": {
+    "defaultMessage": "Documents in scope for this project.",
+    "description": "Description for the guideline tab in the editor guideline sheet"
   },
   "s0SZ6JCFMT": {
     "defaultMessage": "Project",
@@ -38467,6 +38683,10 @@
     "defaultMessage": "Example workflow",
     "description": "Use case page scenario section label"
   },
+  "sND7XTxqIV": {
+    "defaultMessage": "Select a project",
+    "description": "Placeholder for the project picker"
+  },
   "sNPTwegSVn": {
     "defaultMessage": "Target locales",
     "description": "Job property row label for target locales"
@@ -38675,6 +38895,10 @@
     "defaultMessage": "Could not queue HubSpot push",
     "description": "Toast when queuing a HubSpot push automation run fails"
   },
+  "sgEffgFAQO": {
+    "defaultMessage": "All projects",
+    "description": "Badge when a guideline applies to every project"
+  },
   "sgGvzPrbqO": {
     "defaultMessage": "Nothing produces a result yet. Add a skill that checks, summarises or researches something, or write instructions.",
     "description": "A still-needed step: only delivery skills are attached"
@@ -38730,10 +38954,6 @@
   "smAw7U0xZ+": {
     "defaultMessage": "Change role",
     "description": "Title of the change team member role dialog"
-  },
-  "smqbhPW1UB": {
-    "defaultMessage": "Uploaded guidelines",
-    "description": "Heading for the list of uploaded guideline documents"
   },
   "smwYSK2Q3d": {
     "defaultMessage": "Email",
@@ -38842,6 +39062,10 @@
   "szHXMDevSb": {
     "defaultMessage": "Target keeps the concise, confident product positioning.",
     "description": "Format check message for launch tone in the hero CAT mock"
+  },
+  "szdFzT+Ubh": {
+    "defaultMessage": "Retry",
+    "description": "Button to retry loading guideline documents"
   },
   "szhXuo8hoK": {
     "defaultMessage": "Domains",
@@ -39091,6 +39315,14 @@
     "defaultMessage": "Enter a URL. We'll read a few public pages and tell you how the site feels in other languages.",
     "description": "Supporting copy under the localisation audit landing headline"
   },
+  "tIgpOrubbi": {
+    "defaultMessage": "Hyperlocalise reads these files and uses them for guideline checks.",
+    "description": "Explanation shown above the guideline documents list"
+  },
+  "tItRctmig2": {
+    "defaultMessage": "Keep the title under 200 characters.",
+    "description": "Validation error when the guideline title is too long"
+  },
   "tJ4ESqRDu1": {
     "defaultMessage": "Sign in again to manage billing.",
     "description": "Error when the billing session is unauthorized"
@@ -39227,10 +39459,6 @@
     "defaultMessage": "Members",
     "description": "Workspace members link in the user menu"
   },
-  "tVY9dqD8RG": {
-    "defaultMessage": "Unable to load uploaded guidelines.",
-    "description": "Error shown when uploaded guideline documents fail to load"
-  },
   "tVauVn/Okc": {
     "defaultMessage": "English (United Kingdom)",
     "description": "Display name for BCP-47 locale en-GB"
@@ -39346,6 +39574,10 @@
   "tj9LSxTmXM": {
     "defaultMessage": "Console",
     "description": "Label for the web preview console collapsible section"
+  },
+  "tkB+3J0DjZ": {
+    "defaultMessage": "Selected",
+    "description": "Project scope option for selected projects"
   },
   "tkW5GO4WZC": {
     "defaultMessage": "Loading endpoints…",
@@ -39630,6 +39862,10 @@
   "uBFnquvWXR": {
     "defaultMessage": "Customer.io push queued",
     "description": "Toast after a Customer.io push automation run is queued"
+  },
+  "uBd8YwvQLl": {
+    "defaultMessage": "Loading full result…",
+    "description": "Button label while the full tool result loads"
   },
   "uBs3qiwQrd": {
     "defaultMessage": "OAuth client ID",
@@ -40039,10 +40275,6 @@
     "defaultMessage": "Too many files. Some were not added.",
     "description": "Error when the number of files exceeds the maximum allowed"
   },
-  "ukI95H7zrU": {
-    "defaultMessage": "Projects",
-    "description": "Heading for project style guides and guidelines on the workspace Guideline page"
-  },
   "ukoQ3XzJ1o": {
     "defaultMessage": "Japan checkout headline",
     "description": "Placeholder for an experiment name field"
@@ -40202,6 +40434,10 @@
   "uxjK9vur1B": {
     "defaultMessage": "Remove {filename}",
     "description": "Accessible label to remove a pending image attachment"
+  },
+  "uxlgIxjFm4": {
+    "defaultMessage": "Guidelines",
+    "description": "QA review: guideline check that runs in the editor"
   },
   "uyA3TF6irL": {
     "defaultMessage": "Token starting with {prefix}",
@@ -40511,6 +40747,10 @@
     "defaultMessage": "Create a flag for the headline, button, or checkout you want to try.",
     "description": "Empty state for the flags list"
   },
+  "vNi51CeSyQ": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button in the guideline dialog"
+  },
   "vNt29KgOjZ": {
     "defaultMessage": "Project assigned",
     "description": "Toast after a project is assigned to a translation memory"
@@ -40806,6 +41046,10 @@
   "vnqJFX0Vm1": {
     "defaultMessage": "Hyperlocalise | AI-native infrastructure for multilingual content operations",
     "description": "Page title for the marketing homepage"
+  },
+  "vnzJD4KSDt": {
+    "defaultMessage": "All locales",
+    "description": "Label when a guideline document applies to every locale"
   },
   "vonS0Ty/WO": {
     "defaultMessage": "Save & regenerate",
@@ -41187,6 +41431,10 @@
     "defaultMessage": "Unable to load source files",
     "description": "Error in the source-file selection dialog"
   },
+  "wMAlJEC29X": {
+    "defaultMessage": "Unassign",
+    "description": "Unassign a project from this guideline"
+  },
   "wMco7sbdHi": {
     "defaultMessage": "the status",
     "description": "What an undo step changed, used in 'Undo {change}' and 'Undid {change}'"
@@ -41366,6 +41614,10 @@
   "wcn78AsmsL": {
     "defaultMessage": "Glossary notes, format warnings, and comments surface before approval, not after release.",
     "description": "Proof point 2 body for the next-gen CAT tool product page"
+  },
+  "wdSsaQCBt9": {
+    "defaultMessage": "Enter a title.",
+    "description": "Validation error when the guideline title is empty"
   },
   "wdTIdTeD/X": {
     "defaultMessage": "This project is linked to the glossary in Crowdin.",
@@ -41806,6 +42058,10 @@
   "xAF/zzu4cl": {
     "defaultMessage": "Key",
     "description": "Keys table column for the key prefix"
+  },
+  "xBWj7BCSI8": {
+    "defaultMessage": "No projects",
+    "description": "Label for a guideline document that applies to no project"
   },
   "xC5/Uw5o1W": {
     "defaultMessage": "No rate",
@@ -42591,6 +42847,10 @@
     "defaultMessage": "Guidance that powers global growth in every market",
     "description": "Guideline mock UI section heading"
   },
+  "yEVnG/ui9T": {
+    "defaultMessage": "Enter some markdown content.",
+    "description": "Validation error when the guideline content is empty"
+  },
   "yEwFJfSgTY": {
     "defaultMessage": "Custom",
     "description": "Matrix cell value for custom enterprise limits"
@@ -43115,10 +43375,6 @@
     "defaultMessage": "Step",
     "description": "Accessible name of the switch between the translation and review steps"
   },
-  "z5B/SjTaZR": {
-    "defaultMessage": "Guideline must be {limit} characters or less.",
-    "description": "Error when the organization guideline exceeds the character limit"
-  },
   "z5Eo+0wB9k": {
     "defaultMessage": "External job ID",
     "description": "Row label for the external job ID"
@@ -43322,10 +43578,6 @@
   "zLb2OYI9oM": {
     "defaultMessage": "{name} marked the task as done",
     "description": "Job activity row when a user marks a task for people as done"
-  },
-  "zLdcgO8mwD": {
-    "defaultMessage": "Allows this automation to append information to the organization's shared Memory.md. Changes are recorded in revision history and can be restored.",
-    "description": "Warning copy shown when the allow-memory-updates toggle is on"
   },
   "zM/fYyJiHY": {
     "defaultMessage": "Enabled repositories updated",
@@ -43671,6 +43923,10 @@
     "defaultMessage": "Done",
     "description": "Dismiss Canva token dialog button"
   },
+  "zsIearzQCb": {
+    "defaultMessage": "Edit guideline",
+    "description": "Title for the edit guideline dialog"
+  },
   "zuCO/3GiEh": {
     "defaultMessage": "Documentation",
     "description": "Marketing navbar link to product documentation"
@@ -43678,10 +43934,6 @@
   "zuMuHjuvlv": {
     "defaultMessage": "Last 24 hours",
     "description": "Activity filter option that shows changes from the last 24 hours"
-  },
-  "zuy5sLgN2Q": {
-    "defaultMessage": "No projects yet.",
-    "description": "Empty state when the organization has no projects"
   },
   "zv0V1pch8C": {
     "defaultMessage": "Reviewers see what the copy is trying to do before they choose the wording.",
