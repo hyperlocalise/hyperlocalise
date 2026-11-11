@@ -13,8 +13,15 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
+import { guidelineFormatChecks } from "@/components/content-editor/project-file/content-editor-guideline-checks";
+import {
+  contentEditorSegmentsFixture,
+  createContentEditorWorkspaceState,
+} from "@/components/content-editor/shared/content-editor.fixture";
+import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
+import { ContentEditorWorkspaceContainer } from "@/components/content-editor/workspace/content-editor-workspace-container";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
 
@@ -94,7 +101,8 @@ function GuidelineSheetStory({
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="h-dvh bg-muted/30">
+      <div className="h-dvh min-w-[1440px] bg-background text-foreground">
+        <ContentEditorWorkspaceContainer {...vietnameseEditor()} />
         <ContentEditorGuidelineSheet
           organizationSlug={organizationSlug}
           projectId={projectId}
@@ -105,6 +113,94 @@ function GuidelineSheetStory({
         />
       </div>
     </QueryClientProvider>
+  );
+}
+
+const SELECTED_SEGMENT_ID = "seg-02";
+const READER_SOURCE = "Hyperlocalise can help you review translations.";
+const READER_TARGET = "Hyperlocalise có thể giúp khách hàng duyệt bản dịch.";
+
+function vietnameseEditor() {
+  const neighbors: Record<
+    string,
+    Pick<ContentEditorSegment, "key" | "sourceText" | "targetText" | "contextLabel">
+  > = {
+    "seg-01": {
+      key: "billing.trial.ends",
+      sourceText: "Your trial ends tomorrow.",
+      targetText: "Bản dùng thử của bạn sẽ kết thúc vào ngày mai.",
+      contextLabel: "Billing banner",
+    },
+    "seg-03": {
+      key: "review.queue.open",
+      sourceText: "Open the review queue",
+      targetText: "Mở hàng đợi phê duyệt",
+      contextLabel: "Button",
+    },
+  };
+  const segments = contentEditorSegmentsFixture
+    .filter(
+      (segment) =>
+        segment.id === "seg-01" || segment.id === SELECTED_SEGMENT_ID || segment.id === "seg-03",
+    )
+    .map((segment) => {
+      if (segment.id !== SELECTED_SEGMENT_ID) {
+        const neighbor = neighbors[segment.id];
+        return neighbor ? { ...segment, ...neighbor, maxLength: undefined } : segment;
+      }
+      return {
+        ...segment,
+        key: "assistant.review.help",
+        sourceText: READER_SOURCE,
+        targetText: READER_TARGET,
+        contextLabel: "Assistant prompt",
+        maxLength: undefined,
+      };
+    });
+  const start = READER_TARGET.indexOf("khách hàng");
+  const checks = guidelineFormatChecks({
+    label: "Guideline",
+    targetText: READER_TARGET,
+    result: {
+      findings: [
+        {
+          segmentId: SELECTED_SEGMENT_ID,
+          field: "target",
+          passageId: "passage-vi-voice",
+          severity: "warning",
+          start,
+          end: start + "khách hàng".length,
+          message: "Address the reader as bạn, not khách hàng.",
+          suggestion: "bạn",
+        },
+      ],
+    },
+  });
+
+  return {
+    initialViewMode: "side-by-side" as const,
+    initialState: createContentEditorWorkspaceState({
+      segments,
+      selectedSegmentId: SELECTED_SEGMENT_ID,
+      formatChecks: checks,
+      segmentFormatChecks: { [SELECTED_SEGMENT_ID]: checks },
+      breadcrumbs: ["Acme", "Product UI", "Jobs", "Translate to Vietnamese"],
+      fileContext: {
+        sourcePath: "app/assistant/review.tsx",
+        filename: "review.tsx",
+        sourceLocale: "en-US",
+        targetLocale: "vi",
+      },
+    }),
+    services: {
+      validateFormat: async () => [],
+    },
+  };
+}
+
+function guidelineDialog(canvasElement: HTMLElement) {
+  return within(
+    within(canvasElement.ownerDocument.body).getByRole("dialog", { name: "Guideline" }),
   );
 }
 
@@ -141,7 +237,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Guidelines for an English → Vietnamese (en-US to vi) product UI. Address the reader as bạn, and keep the product name Hyperlocalise.",
+          "The guideline sheet open over an English → Vietnamese editor. Address the reader as bạn, and keep the product name Hyperlocalise.",
       },
     },
   },
@@ -178,10 +274,11 @@ export const WithStyleGuide: Story = {
     },
   },
   play: async ({ canvasElement }) => {
-    const body = within(canvasElement.ownerDocument.body);
-    await userEvent.click(body.getByRole("tab", { name: "Style guide" }));
-    await expect(body.getByText(/Address the reader as bạn/)).toBeInTheDocument();
-    await expect(body.getByText(/Keep the product name Hyperlocalise/)).toBeInTheDocument();
+    const dialog = await waitFor(() => guidelineDialog(canvasElement));
+    await userEvent.click(dialog.getByRole("tab", { name: "Style guide" }));
+    await expect(dialog.getByText(/Address the reader as bạn/)).toBeInTheDocument();
+    await expect(dialog.getByText(/Keep the product name Hyperlocalise/)).toBeInTheDocument();
+    await expect(within(canvasElement).getByText(READER_SOURCE)).toBeInTheDocument();
   },
 };
 
@@ -226,14 +323,15 @@ export const WithDocuments: Story = {
     },
   },
   play: async ({ canvasElement }) => {
-    const body = within(canvasElement.ownerDocument.body);
-    await expect(body.getByText("Always apply")).toBeInTheDocument();
-    await userEvent.click(body.getByRole("button", { name: "Show Vietnamese voice" }));
-    await expect(body.getByText(/Do not use/)).toBeInTheDocument();
-    await expect(body.getByText("khách hàng", { exact: true })).toBeInTheDocument();
+    const dialog = await waitFor(() => guidelineDialog(canvasElement));
+    await expect(dialog.getByText("Always apply")).toBeInTheDocument();
+    await userEvent.click(dialog.getByRole("button", { name: "Show Vietnamese voice" }));
+    await expect(dialog.getByText(/Do not use/)).toBeInTheDocument();
+    await expect(dialog.getByText("khách hàng", { exact: true })).toBeInTheDocument();
     await expect(
-      body.getByRole("button", { name: "Show Vietnamese examples" }),
+      dialog.getByRole("button", { name: "Show Vietnamese examples" }),
     ).toBeInTheDocument();
-    await expect(body.getByText("Vietnam market notes")).toBeInTheDocument();
+    await expect(dialog.getByText("Vietnam market notes")).toBeInTheDocument();
+    await expect(within(canvasElement).getByText(READER_SOURCE)).toBeInTheDocument();
   },
 };
