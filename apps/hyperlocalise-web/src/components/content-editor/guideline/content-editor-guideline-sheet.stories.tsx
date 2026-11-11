@@ -55,11 +55,13 @@ function storyClient(documents: {
   return {
     guidelines: {
       listDocuments: async () => documents.workspace,
-      getDocument: async (_org: string, id: string) =>
-        storyDocument({
-          ...documents.workspace.find((document) => document.id === id),
-          content: "# Voice\n\nKeep product names in English.",
-        }),
+      getDocument: async (_org: string, id: string) => {
+        const document = documents.workspace.find((item) => item.id === id);
+        return storyDocument({
+          ...document,
+          content: `# ${document?.title ?? "Guideline"}\n\nKeep product names in English.`,
+        });
+      },
       listAllDocumentAssignments: async () => ({
         assignments: documents.assignments ?? [],
       }),
@@ -128,9 +130,14 @@ export const WithStyleGuide: Story = {
 export const WithDocuments: Story = {
   args: {
     workspaceDocuments: [
-      storyDocument({ id: "doc-1", title: "Voice guide", isGlobal: true }),
-      storyDocument({ id: "doc-2", title: "Tone guide", isGlobal: true }),
-      storyDocument({ id: "doc-3", title: "Brand rules", locales: ["fr-FR"] }),
+      storyDocument({ id: "doc-1", title: "Voice guide", isGlobal: true, mandatory: true }),
+      storyDocument({
+        id: "doc-2",
+        title: "Tone guide",
+        isGlobal: true,
+        locales: ["fr-FR", "de-DE"],
+      }),
+      storyDocument({ id: "doc-3", title: "Brand rules", status: "processing" }),
     ],
     assignments: [{ documentId: "doc-3", projectIds: ["project_1"] }],
   },

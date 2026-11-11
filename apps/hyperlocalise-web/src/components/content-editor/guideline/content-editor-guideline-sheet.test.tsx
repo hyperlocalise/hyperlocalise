@@ -152,29 +152,38 @@ afterEach(() => {
 });
 
 describe("ContentEditorGuidelineSheet", () => {
-  it("shows the style guide empty state and only that tab's action", () => {
+  it("shows the style guide empty state and only that tab's action", async () => {
+    const user = userEvent.setup();
     renderSheet({ translationContextValue: "", source: "native" });
 
     expect(screen.getByRole("dialog", { name: "Guideline" })).toBeTruthy();
-    expect(screen.getByRole("tabpanel")).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "Workspace guideline" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Guideline" })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Project guideline" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Workspace guideline" })).toBeNull();
+
+    await user.click(screen.getByRole("tab", { name: "Style guide" }));
+
     expect(screen.getByText("No style guide yet. Add one in project settings.")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Edit in settings" })).toHaveAttribute(
       "href",
       "/org/acme/projects/project_1/settings",
     );
-    expect(screen.queryByRole("link", { name: "Open project guideline" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Open workspace guideline" })).toBeNull();
+    expect(screen.getByRole("tab", { name: "Style guide", selected: true })).toBeTruthy();
   });
 
-  it("lists project documents and previews the selected one", async () => {
+  it("lists linked guidelines and previews one when expanded", async () => {
     const user = userEvent.setup();
     renderSheet(
       { translationContextValue: "Keep names in English.", source: "native" },
       {
         workspaceDocuments: [
-          guidelineDocument({ id: "doc-1", title: "Voice" }),
-          guidelineDocument({ id: "doc-2", title: "Tone" }),
+          guidelineDocument({ id: "doc-1", title: "Voice", mandatory: true }),
+          guidelineDocument({
+            id: "doc-2",
+            title: "Tone",
+            locales: ["fr-FR"],
+            status: "processing",
+          }),
         ],
         assignments: [
           { documentId: "doc-1", projectIds: ["project_1"] },
@@ -183,19 +192,43 @@ describe("ContentEditorGuidelineSheet", () => {
       },
     );
 
-    await user.click(screen.getByRole("tab", { name: "Project guideline" }));
+    expect(await screen.findByRole("link", { name: "Voice" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1/knowledge/doc-1",
+    );
+    expect(screen.getByRole("link", { name: "Tone" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1/knowledge/doc-2",
+    );
+    expect(screen.getAllByText("All locales").length).toBeGreaterThan(0);
+    expect(screen.getByText("fr-FR")).toBeTruthy();
+    expect(screen.getByText("Always apply")).toBeTruthy();
+    expect(screen.getByText("Processing")).toBeTruthy();
+    expect(screen.queryByText("# Voice")).toBeNull();
 
-    expect(await screen.findByRole("button", { name: "Voice" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Show Voice" }));
+
     expect(await screen.findByText("# Voice")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Open project guideline" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Open knowledge" })).toHaveAttribute(
       "href",
       "/org/acme/projects/project_1/knowledge",
     );
     expect(screen.queryByRole("link", { name: "Edit in settings" })).toBeNull();
   });
 
-  it("shows global and assigned workspace documents for the project", async () => {
-    const user = userEvent.setup();
+  it("opens the only guideline without an extra click", async () => {
+    renderSheet(
+      { translationContextValue: "", source: "native" },
+      {
+        workspaceDocuments: [guidelineDocument({ id: "doc-1", title: "Voice", isGlobal: true })],
+      },
+    );
+
+    expect(await screen.findByText("# Voice")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Hide Voice" })).toBeTruthy();
+  });
+
+  it("shows global and assigned guidelines for the project", async () => {
     renderSheet(
       { translationContextValue: "", source: "native" },
       {
@@ -213,26 +246,27 @@ describe("ContentEditorGuidelineSheet", () => {
       },
     );
 
-    await user.click(screen.getByRole("tab", { name: "Workspace guideline" }));
-
-    expect(await screen.findByRole("button", { name: "Not assigned" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Selected for us" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Also selected" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Other project only" })).toBeNull();
+    expect(await screen.findByRole("link", { name: "Not assigned" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Selected for us" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Also selected" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Other project only" })).toBeNull();
   });
 
-  it("shows an empty state when there are no project documents", async () => {
-    const user = userEvent.setup();
+  it("shows an empty state when there are no guidelines", async () => {
     renderSheet({ translationContextValue: "", source: "native" });
 
-    await user.click(screen.getByRole("tab", { name: "Project guideline" }));
-
-    expect(await screen.findByText("No project guideline yet.")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Open project guideline" })).toBeTruthy();
+    expect(await screen.findByText("No guideline for this project yet.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open knowledge" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1/knowledge",
+    );
   });
 
-  it("hides the style guide action when the viewer cannot edit it", () => {
+  it("hides the style guide action when the viewer cannot edit it", async () => {
+    const user = userEvent.setup();
     renderSheet({ translationContextValue: "", source: "external_tms" });
+
+    await user.click(screen.getByRole("tab", { name: "Style guide" }));
 
     expect(screen.getByText("No style guide yet. Add one in project settings.")).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Edit in settings" })).toBeNull();
