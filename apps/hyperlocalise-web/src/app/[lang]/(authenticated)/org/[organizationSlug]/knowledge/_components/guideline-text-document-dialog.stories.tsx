@@ -15,6 +15,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
 
+import { guidelineDialogWidthDecorator } from "./guideline-story-decorators";
 import {
   createGuidelineDocumentsMswHandlers,
   storyGuidelineDocument,
@@ -44,7 +45,15 @@ const multilingualDocument = storyGuidelineDocument({
   isGlobal: true,
 });
 
-function OpenDialogStory({ document }: { document?: GuidelineDocument | null }) {
+function OpenDialogStory({
+  document,
+  initialLocales,
+  initialIsGlobal,
+}: {
+  document?: GuidelineDocument | null;
+  initialLocales?: string[];
+  initialIsGlobal?: boolean;
+}) {
   const [open, setOpen] = useState(true);
   return (
     <GuidelineTextDocumentDialog
@@ -52,6 +61,8 @@ function OpenDialogStory({ document }: { document?: GuidelineDocument | null }) 
       onOpenChange={setOpen}
       organizationSlug={organizationSlug}
       document={document}
+      initialLocales={initialLocales}
+      initialIsGlobal={initialIsGlobal}
     />
   );
 }
@@ -60,12 +71,20 @@ const meta = {
   title: "Guidelines/Text document dialog",
   component: OpenDialogStory,
   parameters: { layout: "centered" },
+  decorators: [guidelineDialogWidthDecorator],
 } satisfies Meta<typeof OpenDialogStory>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Create: Story = {
+  parameters: {
+    msw: { handlers: createGuidelineDocumentsMswHandlers({ documents: [] }) },
+  },
+};
+
+export const CreateFromUpload: Story = {
+  args: { initialLocales: ["fr-FR", "de-DE"], initialIsGlobal: true },
   parameters: {
     msw: { handlers: createGuidelineDocumentsMswHandlers({ documents: [] }) },
   },
@@ -92,7 +111,7 @@ export const EditPdfTitleOnly: Story = {
   render: () => <OpenDialogStory document={pdfDocument} />,
 };
 
-export const EditMultilingual: Story = {
+export const EditMarkdownLocales: Story = {
   parameters: {
     msw: {
       handlers: createGuidelineDocumentsMswHandlers({

@@ -144,8 +144,29 @@ function documentsPath(organizationSlug: string, projectId?: string, ...segments
 export function guidelineDocumentLocales(
   document: Pick<GuidelineDocument, "locales" | "locale">,
 ): string[] {
-  if (document.locales.length > 0) return document.locales;
+  if (Array.isArray(document.locales) && document.locales.length > 0) {
+    return document.locales;
+  }
   return document.locale ? [document.locale] : [];
+}
+
+function normalizeGuidelineDocument(
+  document: GuidelineDocument | null | undefined,
+): GuidelineDocument {
+  if (!document) {
+    throw new Error("guideline_document_missing");
+  }
+  return {
+    ...document,
+    projectId: document.projectId ?? null,
+    locale: document.locale ?? null,
+    locales: guidelineDocumentLocales(document),
+    isGlobal: document.isGlobal ?? false,
+    contentType: document.contentType ?? "application/octet-stream",
+    characterCount: document.characterCount ?? 0,
+    mandatory: document.mandatory ?? false,
+    indexed: document.indexed ?? false,
+  };
 }
 
 function uploadForm(upload: GuidelineDocumentUpload) {
@@ -185,7 +206,7 @@ export class GoSvcGuidelinesApi {
         `${path}?${query}`,
         requestOptions,
       );
-      documents.push(...body.guidelineDocuments);
+      documents.push(...body.guidelineDocuments.map(normalizeGuidelineDocument));
       cursor = body.nextCursor ?? undefined;
     } while (cursor);
     return documents;
@@ -201,7 +222,7 @@ export class GoSvcGuidelinesApi {
       documentsPath(organizationSlug, projectId, documentId),
       options,
     );
-    return body.guidelineDocument;
+    return normalizeGuidelineDocument(body.guidelineDocument);
   }
 
   async uploadDocument(

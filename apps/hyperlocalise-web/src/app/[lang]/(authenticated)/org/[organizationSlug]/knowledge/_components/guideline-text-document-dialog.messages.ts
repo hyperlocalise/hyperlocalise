@@ -21,8 +21,8 @@ export const guidelineTextDocumentDialogMessages = defineMessages({
     description: "Title for the new typed guideline dialog",
   },
   createDescription: {
-    defaultMessage: "Write markdown guidance saved as a guideline document.",
-    id: "ZlUxv6nQ0H",
+    defaultMessage: "Write markdown guidance. Choose locales and projects on the upload page.",
+    id: "GKDBXV4awc",
     description: "Description for the new typed guideline dialog",
   },
   editTitle: {
@@ -85,29 +85,9 @@ export const guidelineTextDocumentDialogMessages = defineMessages({
     id: "cfsFKcP3Bc",
     description: "Save button in the guideline dialog",
   },
-  localesLabel: {
-    defaultMessage: "Locales (empty means all locales)",
-    id: "QtSUvoeMl3",
-    description: "Label for the guideline locales field",
-  },
-  localesPlaceholder: {
-    defaultMessage: "e.g. fr-FR, de-DE",
-    id: "8mriTjjgGK",
-    description: "Placeholder for the guideline locales field",
-  },
   useTemplate: {
     defaultMessage: "Use template",
     id: "FRRCcGcc6B",
     description: "Button that fills the new-guideline content with the starter template",
-  },
-  localesInvalid: {
-    defaultMessage: "Use comma-separated locale tags.",
-    id: "VNHmzLQSNG",
-    description: "Validation error for the guideline locales field",
-  },
-  globalLabel: {
-    defaultMessage: "Apply to all projects",
-    id: "u2kSCrJqCa",
-    description: "Label for the apply-to-all-projects switch",
   },
 });

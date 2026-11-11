@@ -12,6 +12,7 @@
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
+import { guidelinePageWidthDecorator } from "./guideline-story-decorators";
 import {
   createGuidelineAssignmentMswHandlers,
   createGuidelineDocumentsMswHandlers,
@@ -23,24 +24,48 @@ const organizationSlug = "acme";
 const projectId = "project_1";
 
 const meta = {
-  title: "Guidelines/Project page",
+  title: "Guidelines/Knowledge page",
   component: KnowledgePageContent,
   parameters: { layout: "centered" },
-  decorators: [
-    (Story) => (
-      <div className="w-[880px] max-w-[92vw]">
-        <Story />
-      </div>
-    ),
-  ],
-  args: { organizationSlug, projectId },
+  decorators: [guidelinePageWidthDecorator],
+  args: { organizationSlug, canUpdateKnowledgeMemory: true },
 } satisfies Meta<typeof KnowledgePageContent>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+export const OrganizationPage: Story = {
+  parameters: {
+    msw: {
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({
+          documents: [
+            storyGuidelineDocument({
+              id: "doc-brand",
+              title: "Brand voice",
+              filename: "brand-voice.md",
+              isGlobal: true,
+              mandatory: true,
+            }),
+            storyGuidelineDocument({
+              id: "doc-tone",
+              title: "Tone for French",
+              filename: "tone-fr.md",
+              locales: ["fr-FR"],
+              locale: "fr-FR",
+            }),
+          ],
+        }),
+        ...createGuidelineAssignmentMswHandlers({
+          assignedDocuments: [{ documentId: "doc-tone", projectIds: ["project_1"] }],
+        }),
+      ],
+    },
+  },
+};
+
 export const ProjectGuidelinePage: Story = {
-  args: { canUpdateKnowledgeMemory: true },
+  args: { projectId, canUpdateKnowledgeMemory: true },
   parameters: {
     msw: {
       handlers: [
@@ -80,7 +105,7 @@ export const ProjectGuidelinePage: Story = {
 };
 
 export const ProjectReadOnly: Story = {
-  args: { canUpdateKnowledgeMemory: false },
+  args: { projectId, canUpdateKnowledgeMemory: false },
   parameters: {
     msw: {
       handlers: [
@@ -101,8 +126,13 @@ export const ProjectReadOnly: Story = {
 };
 
 export const ProjectNoDocuments: Story = {
-  args: { canUpdateKnowledgeMemory: true },
+  args: { projectId, canUpdateKnowledgeMemory: true },
   parameters: {
-    msw: { handlers: createGuidelineDocumentsMswHandlers({ documents: [] }) },
+    msw: {
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({ documents: [] }),
+        ...createGuidelineAssignmentMswHandlers({}),
+      ],
+    },
   },
 };

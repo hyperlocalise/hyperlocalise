@@ -12,6 +12,7 @@
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
+import { guidelineListWidthDecorator } from "./guideline-story-decorators";
 import { GuidelineDocumentsSection } from "./guideline-documents-section";
 import {
   createGuidelineAssignmentMswHandlers,
@@ -68,13 +69,7 @@ const meta = {
   title: "Guidelines/Documents section",
   component: GuidelineDocumentsSection,
   parameters: { layout: "centered" },
-  decorators: [
-    (Story) => (
-      <div className="w-[720px] max-w-[90vw]">
-        <Story />
-      </div>
-    ),
-  ],
+  decorators: [guidelineListWidthDecorator],
 } satisfies Meta<typeof GuidelineDocumentsSection>;
 
 export default meta;

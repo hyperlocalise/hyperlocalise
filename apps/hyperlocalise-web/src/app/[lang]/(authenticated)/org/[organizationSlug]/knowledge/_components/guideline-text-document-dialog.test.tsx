@@ -117,12 +117,48 @@ describe("GuidelineTextDocumentDialog template", () => {
 
     expect(screen.getByLabelText("Markdown content")).toHaveValue(GUIDELINE_TEMPLATE_CONTENT);
     expect(screen.getByLabelText("Title")).toHaveValue(GUIDELINE_TEMPLATE_TITLE);
+    expect(screen.queryByLabelText(/Locales/)).toBeNull();
+    expect(screen.queryByLabelText(/Apply to all projects/)).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Save guideline" }));
     await waitFor(() => expect(mocks.uploadDocument).toHaveBeenCalled());
-    const upload = mocks.uploadDocument.mock.calls[0]![1] as { file: File; title: string };
+    const upload = mocks.uploadDocument.mock.calls[0]![1] as {
+      file: File;
+      title: string;
+      locales?: string[];
+      isGlobal?: boolean;
+    };
     expect(upload.title).toBe(GUIDELINE_TEMPLATE_TITLE);
     expect(await upload.file.text()).toBe(GUIDELINE_TEMPLATE_CONTENT);
+  });
+
+  it("sends locales and project scope from the upload page on create", async () => {
+    const user = userEvent.setup();
+    mocks.uploadDocument.mockResolvedValue(guidelineDocument());
+
+    render(
+      <GuidelineTextDocumentDialog
+        open
+        onOpenChange={() => {}}
+        organizationSlug="acme"
+        document={null}
+        initialLocales={["fr-FR", "de-DE"]}
+        initialIsGlobal
+      />,
+      { wrapper },
+    );
+
+    await user.type(screen.getByLabelText("Title"), "Regional tone");
+    await user.type(screen.getByLabelText("Markdown content"), "# Tone");
+    await user.click(screen.getByRole("button", { name: "Save guideline" }));
+
+    await waitFor(() => expect(mocks.uploadDocument).toHaveBeenCalled());
+    const body = mocks.uploadDocument.mock.calls[0]![1] as {
+      locales?: string[];
+      isGlobal?: boolean;
+    };
+    expect(body.locales).toEqual(["fr-FR", "de-DE"]);
+    expect(body.isGlobal).toBe(true);
   });
 
   it("keeps a typed title when applying the template", async () => {

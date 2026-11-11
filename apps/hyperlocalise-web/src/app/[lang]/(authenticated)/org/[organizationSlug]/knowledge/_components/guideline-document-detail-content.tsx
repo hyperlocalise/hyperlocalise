@@ -26,7 +26,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
 import { buildOrganizationPath, buildProjectPath } from "@/components/app-shell/navigation-config";
-import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
+import {
+  guidelineDocumentLocales,
+  type GuidelineDocument,
+} from "@/lib/go-svc/go-svc-guidelines-api";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { GuidelineDocumentAssignments } from "./guideline-document-assignments";
@@ -92,6 +95,7 @@ export function GuidelineDocumentDetailContent({
     queryFn: ({ signal }) =>
       client.guidelines.getDocument(organizationSlug, documentId, projectId, { signal }),
   });
+  const refetchDocument = documentQuery.refetch;
 
   const updateMandatory = useMutation({
     mutationFn: (mandatory: boolean) =>
@@ -116,18 +120,17 @@ export function GuidelineDocumentDetailContent({
     );
   }
 
-  if (documentQuery.isError) {
+  const document = documentQuery.data;
+  if (documentQuery.isError || !document) {
     return (
       <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3 rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground">
         <FormattedMessage {...messages.loadFailed} />
-        <Button type="button" variant="outline" size="sm" onClick={() => documentQuery.refetch()}>
+        <Button type="button" variant="outline" size="sm" onClick={() => void refetchDocument()}>
           <FormattedMessage {...messages.retry} />
         </Button>
       </div>
     );
   }
-
-  const document = documentQuery.data;
   const isText = document.contentType.startsWith("text/");
   const mandatory = updateMandatory.isPending
     ? (updateMandatory.variables ?? document.mandatory)
@@ -152,7 +155,7 @@ export function GuidelineDocumentDetailContent({
         <TypographyP tone="subtle">
           {document.filename} ·{" "}
           {(() => {
-            const locales = document.locales ?? (document.locale ? [document.locale] : []);
+            const locales = guidelineDocumentLocales(document);
             return locales.length > 0
               ? locales.join(", ")
               : intl.formatMessage(messages.allLocales);
@@ -219,7 +222,7 @@ export function GuidelineDocumentDetailContent({
           projectId={projectId}
           document={editing ? document : null}
           onSaved={() => {
-            void documentQuery.refetch();
+            void refetchDocument();
           }}
         />
       ) : null}

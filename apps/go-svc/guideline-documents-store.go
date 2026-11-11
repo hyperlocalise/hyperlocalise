@@ -111,6 +111,10 @@ func guidelineOptionalText(value pgtype.Text) *string {
 // always NULL for new rows; project targeting uses guideline_document_projects.
 const guidelineDocumentProjectFilter = `d.organization_id = $1 and d.project_id is null`
 
+// byIDFilter matches any guideline in the organization, including legacy
+// project-owned rows that predate the org-scope migration.
+const guidelineDocumentByIDFilter = `d.organization_id = $1`
+
 func insertGuidelineDocument(ctx context.Context, db dictionaryDB, scope guidelineDocumentScope, input guidelineDocumentInsert) (guidelineDocumentRecord, error) {
 	locales := append([]string{}, input.locales...)
 	record, err := scanGuidelineDocument(db.QueryRow(ctx, `
@@ -189,7 +193,7 @@ func loadGuidelineDocument(ctx context.Context, db dictionaryDB, scope guideline
 		columns += ", d.content"
 	}
 	record, err := scanGuidelineDocument(db.QueryRow(ctx, `select `+columns+` from guideline_documents d
-		where `+guidelineDocumentProjectFilter+` and d.id = $2`, scope.organizationID, id), withContent)
+		where `+guidelineDocumentByIDFilter+` and d.id = $2`, scope.organizationID, id), withContent)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return guidelineDocumentRecord{}, false, nil
 	}

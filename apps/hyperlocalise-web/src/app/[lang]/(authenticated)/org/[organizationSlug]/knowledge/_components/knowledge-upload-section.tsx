@@ -24,6 +24,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import {
   filterKnowledgeUploadFiles,
+  KNOWLEDGE_EXTERNAL_IMPORT_SOURCES_ENABLED,
   KNOWLEDGE_UPLOAD_ACCEPT,
   KNOWLEDGE_UPLOAD_MAX_BYTES,
   KNOWLEDGE_UPLOAD_MAX_FILES,
@@ -113,7 +114,9 @@ export function KnowledgeUploadSection({
       case "sharepoint":
       case "notion":
       case "import-website":
-        toast.message(intl.formatMessage(knowledgeUploadSectionMessages.comingSoon));
+        if (KNOWLEDGE_EXTERNAL_IMPORT_SOURCES_ENABLED) {
+          toast.message(intl.formatMessage(knowledgeUploadSectionMessages.comingSoon));
+        }
         return;
       case "markdown-text":
         onStartMarkdownText();
@@ -211,26 +214,30 @@ export function KnowledgeUploadSection({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <UploadSourceButton
-          icon={<SimpleBrandIcon icon={siGoogledrive} colored className="size-4" />}
-          label={<FormattedMessage {...knowledgeUploadSectionMessages.googleDrive} />}
-          onClick={() => handleAction("google-drive")}
-        />
-        <UploadSourceButton
-          icon={<SharePointMark />}
-          label={<FormattedMessage {...knowledgeUploadSectionMessages.sharepoint} />}
-          onClick={() => handleAction("sharepoint")}
-        />
-        <UploadSourceButton
-          icon={<SimpleBrandIcon icon={siNotion} colored className="size-4" />}
-          label={<FormattedMessage {...knowledgeUploadSectionMessages.notion} />}
-          onClick={() => handleAction("notion")}
-        />
-        <UploadSourceButton
-          icon={<StackIcon className="size-4 text-muted-foreground" />}
-          label={<FormattedMessage {...knowledgeUploadSectionMessages.importWebsite} />}
-          onClick={() => handleAction("import-website")}
-        />
+        {KNOWLEDGE_EXTERNAL_IMPORT_SOURCES_ENABLED ? (
+          <>
+            <UploadSourceButton
+              icon={<SimpleBrandIcon icon={siGoogledrive} colored className="size-4" />}
+              label={<FormattedMessage {...knowledgeUploadSectionMessages.googleDrive} />}
+              onClick={() => handleAction("google-drive")}
+            />
+            <UploadSourceButton
+              icon={<SharePointMark />}
+              label={<FormattedMessage {...knowledgeUploadSectionMessages.sharepoint} />}
+              onClick={() => handleAction("sharepoint")}
+            />
+            <UploadSourceButton
+              icon={<SimpleBrandIcon icon={siNotion} colored className="size-4" />}
+              label={<FormattedMessage {...knowledgeUploadSectionMessages.notion} />}
+              onClick={() => handleAction("notion")}
+            />
+            <UploadSourceButton
+              icon={<StackIcon className="size-4 text-muted-foreground" />}
+              label={<FormattedMessage {...knowledgeUploadSectionMessages.importWebsite} />}
+              onClick={() => handleAction("import-website")}
+            />
+          </>
+        ) : null}
         <UploadSourceButton
           icon={<TextTIcon className="size-4 text-muted-foreground" />}
           label={<FormattedMessage {...knowledgeUploadSectionMessages.markdownText} />}

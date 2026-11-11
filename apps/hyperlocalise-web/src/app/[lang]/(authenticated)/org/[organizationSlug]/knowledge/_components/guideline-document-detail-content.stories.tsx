@@ -12,6 +12,7 @@
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
+import { guidelinePageWidthDecorator } from "./guideline-story-decorators";
 import { GuidelineDocumentDetailContent } from "./guideline-document-detail-content";
 import {
   createGuidelineAssignmentMswHandlers,
@@ -46,13 +47,7 @@ const meta = {
   title: "Guidelines/Document detail",
   component: GuidelineDocumentDetailContent,
   parameters: { layout: "centered" },
-  decorators: [
-    (Story) => (
-      <div className="w-[880px] max-w-[92vw]">
-        <Story />
-      </div>
-    ),
-  ],
+  decorators: [guidelinePageWidthDecorator],
   args: { organizationSlug, canUpdate: true },
 } satisfies Meta<typeof GuidelineDocumentDetailContent>;
 

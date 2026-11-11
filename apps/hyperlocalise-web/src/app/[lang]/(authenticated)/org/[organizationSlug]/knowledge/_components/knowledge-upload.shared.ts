@@ -21,6 +21,9 @@ export const KNOWLEDGE_UPLOAD_ACCEPT =
 
 export const KNOWLEDGE_UPLOAD_EXTENSIONS = [".pdf", ".docx", ".md", ".markdown", ".txt"] as const;
 
+/** Google Drive, SharePoint, Notion, and website import on the upload page. */
+export const KNOWLEDGE_EXTERNAL_IMPORT_SOURCES_ENABLED = false;
+
 export type KnowledgeUploadActionId =
   | "google-drive"
   | "sharepoint"
