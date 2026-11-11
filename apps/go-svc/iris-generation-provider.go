@@ -16,10 +16,13 @@ import (
 )
 
 const (
-	defaultIrisGatewayBaseURL   = "https://ai-gateway.vercel.sh/v1"
-	defaultIrisOpenAIBaseURL    = "https://api.openai.com/v1"
-	defaultIrisOpenAIImageModel = "openai/gpt-image-2.6-flare"
-	irisProviderTimeout         = 9 * time.Minute
+	defaultIrisGatewayBaseURL    = "https://ai-gateway.vercel.sh/v1"
+	defaultIrisGatewayV4BaseURL  = "https://ai-gateway.vercel.sh/v4/ai"
+	defaultIrisOpenAIBaseURL     = "https://api.openai.com/v1"
+	defaultIrisOpenAIImageModel  = "openai/gpt-image-2.6-flare"
+	irisGatewayProtocolVersion   = "0.0.1"
+	irisTranscriptionSpecVersion = "4"
+	irisProviderTimeout          = 9 * time.Minute
 )
 
 type irisProviderRequest struct {
@@ -307,11 +310,47 @@ func (p *irisGatewayProvider) tool(ctx context.Context, req irisProviderRequest)
 	}
 }
 
+// transcribe sends recorded audio to a transcription model.
+//
+// AI Gateway does not implement OpenAI's /v1/audio/transcriptions route
+// (it 404s with not_found_error). Use the native JSON protocol at
+// /v4/ai/transcription-model instead. Direct OpenAI still uses multipart
+// /audio/transcriptions.
 func (p *irisGatewayProvider) transcribe(ctx context.Context, req irisProviderRequest) ([]irisProviderOutput, error) {
 	audio, ok := firstInput(req.Inputs, "audio", "media")
 	if !ok {
 		return nil, fmt.Errorf("audio input is required")
 	}
+	if isIrisOpenAIBaseURL(p.baseURL) {
+		return p.transcribeOpenAI(ctx, req, audio)
+	}
+	return p.transcribeGateway(ctx, req, audio)
+}
+
+func (p *irisGatewayProvider) transcribeGateway(ctx context.Context, req irisProviderRequest, audio irisProviderInput) ([]irisProviderOutput, error) {
+	payload := map[string]any{
+		"audio":     base64.StdEncoding.EncodeToString(audio.Bytes),
+		"mediaType": irisAudioMediaType(audio),
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.transcriptionModelURL(), bytes.NewReader(mustJSON(payload)))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("ai-gateway-protocol-version", irisGatewayProtocolVersion)
+	httpReq.Header.Set("ai-transcription-model-specification-version", irisTranscriptionSpecVersion)
+	httpReq.Header.Set("ai-gateway-auth-method", "api-key")
+	httpReq.Header.Set("ai-model-id", p.modelID(req.Model.GatewayID))
+	body, err := p.do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	return []irisProviderOutput{{Bytes: normalizeTranscript(body), Filename: "transcript.json", ContentType: "application/json"}}, nil
+}
+
+func (p *irisGatewayProvider) transcribeOpenAI(ctx context.Context, req irisProviderRequest, audio irisProviderInput) ([]irisProviderOutput, error) {
+	mediaType := irisAudioMediaType(audio)
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 	_ = writer.WriteField("model", p.modelID(req.Model.GatewayID))
@@ -321,7 +360,10 @@ func (p *irisGatewayProvider) transcribe(ctx context.Context, req irisProviderRe
 	if req.Prompt != "" {
 		_ = writer.WriteField("prompt", req.Prompt)
 	}
-	part, err := writer.CreateFormFile("file", "audio.wav")
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, irisAudioFilename(mediaType)))
+	header.Set("Content-Type", mediaType)
+	part, err := writer.CreatePart(header)
 	if err != nil {
 		return nil, err
 	}
@@ -341,8 +383,27 @@ func (p *irisGatewayProvider) transcribe(ctx context.Context, req irisProviderRe
 	if err != nil {
 		return nil, err
 	}
-	transcript := normalizeTranscript(body)
-	return []irisProviderOutput{{Bytes: transcript, Filename: "transcript.json", ContentType: "application/json"}}, nil
+	return []irisProviderOutput{{Bytes: normalizeTranscript(body), Filename: "transcript.json", ContentType: "application/json"}}, nil
+}
+
+func (p *irisGatewayProvider) transcriptionModelURL() string {
+	return irisGatewayV4BaseURL(p.baseURL) + "/transcription-model"
+}
+
+// irisGatewayV4BaseURL maps an OpenAI-compatible /v1 base URL onto AI
+// Gateway's native /v4/ai protocol host.
+func irisGatewayV4BaseURL(openAICompat string) string {
+	trimmed := strings.TrimRight(strings.TrimSpace(openAICompat), "/")
+	switch {
+	case trimmed == "":
+		return defaultIrisGatewayV4BaseURL
+	case strings.HasSuffix(trimmed, "/v4/ai"):
+		return trimmed
+	case strings.HasSuffix(trimmed, "/v1"):
+		return strings.TrimSuffix(trimmed, "/v1") + "/v4/ai"
+	default:
+		return trimmed + "/v4/ai"
+	}
 }
 
 func (p *irisGatewayProvider) json(ctx context.Context, method, path string, payload any) ([]byte, error) {
@@ -413,18 +474,10 @@ func decodeImageOutputs(ctx context.Context, body []byte, stem, ext string) ([]i
 
 func normalizeTranscript(body []byte) []byte {
 	var parsed struct {
-		Text     string `json:"text"`
-		Language string `json:"language"`
-		Words    []struct {
-			Text  string  `json:"text"`
-			Start float64 `json:"start"`
-			End   float64 `json:"end"`
-		} `json:"words"`
-		Segments []struct {
-			Text  string  `json:"text"`
-			Start float64 `json:"start"`
-			End   float64 `json:"end"`
-		} `json:"segments"`
+		Text     string               `json:"text"`
+		Language string               `json:"language"`
+		Words    []irisTranscriptSpan `json:"words"`
+		Segments []irisTranscriptSpan `json:"segments"`
 	}
 	if err := json.Unmarshal(body, &parsed); err != nil || strings.TrimSpace(parsed.Text) == "" && len(parsed.Segments) == 0 {
 		return mustJSON([]map[string]any{{"text": strings.TrimSpace(string(body)), "words": []any{}}})
@@ -432,21 +485,96 @@ func normalizeTranscript(body []byte) []byte {
 	if len(parsed.Words) > 0 {
 		words := make([]map[string]any, 0, len(parsed.Words))
 		for _, word := range parsed.Words {
-			words = append(words, map[string]any{"text": word.Text, "start": word.Start, "end": word.End})
+			words = append(words, word.asWord())
 		}
 		return mustJSON([]map[string]any{{"text": parsed.Text, "words": words}})
 	}
 	if len(parsed.Segments) > 0 {
 		out := make([]map[string]any, 0, len(parsed.Segments))
 		for _, segment := range parsed.Segments {
+			text := segment.text()
 			out = append(out, map[string]any{
-				"text":  segment.Text,
-				"words": []map[string]any{{"text": segment.Text, "start": segment.Start, "end": segment.End}},
+				"text":  text,
+				"words": []map[string]any{{"text": text, "start": segment.start(), "end": segment.end()}},
 			})
 		}
 		return mustJSON(out)
 	}
 	return mustJSON([]map[string]any{{"text": parsed.Text, "words": []any{}}})
+}
+
+// irisTranscriptSpan is one timed span from either OpenAI-compatible
+// transcriptions (start/end, text or word) or AI Gateway v4 (startSecond/endSecond).
+type irisTranscriptSpan struct {
+	Text        string   `json:"text"`
+	Word        string   `json:"word"`
+	Start       *float64 `json:"start"`
+	End         *float64 `json:"end"`
+	StartSecond *float64 `json:"startSecond"`
+	EndSecond   *float64 `json:"endSecond"`
+}
+
+func (s irisTranscriptSpan) text() string {
+	return irisFirstNonEmpty(s.Text, s.Word)
+}
+
+func (s irisTranscriptSpan) start() float64 {
+	return irisTranscriptSeconds(s.Start, s.StartSecond)
+}
+
+func (s irisTranscriptSpan) end() float64 {
+	return irisTranscriptSeconds(s.End, s.EndSecond)
+}
+
+func (s irisTranscriptSpan) asWord() map[string]any {
+	return map[string]any{"text": s.text(), "start": s.start(), "end": s.end()}
+}
+
+func irisTranscriptSeconds(primary, fallback *float64) float64 {
+	if primary != nil {
+		return *primary
+	}
+	if fallback != nil {
+		return *fallback
+	}
+	return 0
+}
+
+func irisAudioMediaType(input irisProviderInput) string {
+	ct := strings.ToLower(strings.TrimSpace(input.ContentType))
+	if i := strings.IndexByte(ct, ';'); i >= 0 {
+		ct = strings.TrimSpace(ct[:i])
+	}
+	if strings.HasPrefix(ct, "audio/") || strings.HasPrefix(ct, "video/") {
+		return ct
+	}
+	detected := http.DetectContentType(input.Bytes)
+	if i := strings.IndexByte(detected, ';'); i >= 0 {
+		detected = strings.TrimSpace(detected[:i])
+	}
+	if strings.HasPrefix(detected, "audio/") || strings.HasPrefix(detected, "video/") {
+		return detected
+	}
+	return "audio/wav"
+}
+
+func irisAudioFilename(mediaType string) string {
+	switch mediaType {
+	case "audio/mpeg", "audio/mp3":
+		return "audio.mp3"
+	case "audio/mp4", "audio/x-m4a", "audio/m4a":
+		return "audio.m4a"
+	case "audio/ogg", "audio/opus":
+		return "audio.ogg"
+	case "audio/flac":
+		return "audio.flac"
+	case "audio/webm":
+		return "audio.webm"
+	case "video/mp4":
+		return "audio.mp4"
+	default:
+		return "audio.wav"
+	}
 }
 
 func inputsByRole(inputs []irisProviderInput, roles ...string) []irisProviderInput {

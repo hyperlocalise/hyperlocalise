@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -866,4 +867,153 @@ func TestIrisGatewayProviderSpeechURL(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, []byte("mp3"), outputs[0].Bytes)
+}
+
+func TestIrisGatewayProviderTranscribeUsesV4Endpoint(t *testing.T) {
+	audio := []byte("RIFF....WAVEfmt ")
+	var gotPath, gotModel, gotProtocol, gotSpec, gotAuthMethod string
+	var payload map[string]any
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotModel = r.Header.Get("ai-model-id")
+		gotProtocol = r.Header.Get("ai-gateway-protocol-version")
+		gotSpec = r.Header.Get("ai-transcription-model-specification-version")
+		gotAuthMethod = r.Header.Get("ai-gateway-auth-method")
+		require.Equal(t, "Bearer test-key", r.Header.Get("Authorization"))
+		require.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		_, _ = w.Write([]byte(`{"text":"hello from vo","segments":[{"text":"hello from vo","startSecond":0.1,"endSecond":1.2}],"language":"en"}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL:    server.URL + "/v1",
+		apiKey:     "test-key",
+		httpClient: server.Client(),
+	}
+	model, ok := irisModelByID("universal-3.5-pro")
+	require.True(t, ok)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model: model,
+		Inputs: []irisProviderInput{{
+			Role:        "audio",
+			Bytes:       audio,
+			ContentType: "audio/wav",
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "/v4/ai/transcription-model", gotPath)
+	require.Equal(t, "google/gemini-3.5-transcribe", gotModel)
+	require.Equal(t, irisGatewayProtocolVersion, gotProtocol)
+	require.Equal(t, irisTranscriptionSpecVersion, gotSpec)
+	require.Equal(t, "api-key", gotAuthMethod)
+	require.Equal(t, "audio/wav", payload["mediaType"])
+	require.Equal(t, base64.StdEncoding.EncodeToString(audio), payload["audio"])
+	require.JSONEq(t, `[{"text":"hello from vo","words":[{"text":"hello from vo","start":0.1,"end":1.2}]}]`, string(outputs[0].Bytes))
+}
+
+func TestIrisGatewayProviderTranscribeOpenAIUsesMultipart(t *testing.T) {
+	audio := []byte("id3-mp3")
+	var gotPath, gotModel, gotFileType, gotFilename string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		require.NoError(t, r.ParseMultipartForm(1<<20))
+		gotModel = r.FormValue("model")
+		file, header, err := r.FormFile("file")
+		require.NoError(t, err)
+		gotFileType = header.Header.Get("Content-Type")
+		gotFilename = header.Filename
+		body, err := io.ReadAll(file)
+		require.NoError(t, err)
+		require.NoError(t, file.Close())
+		require.Equal(t, audio, body)
+		_, _ = w.Write([]byte(`{"text":"whispered"}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL: defaultIrisOpenAIBaseURL,
+		apiKey:  "sk",
+		httpClient: &http.Client{Transport: rewriteHostRoundTripper{
+			host: server.URL,
+			next: http.DefaultTransport,
+		}},
+	}
+	model, ok := irisModelByID("universal-3.5-pro")
+	require.True(t, ok)
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model: model,
+		Inputs: []irisProviderInput{{
+			Role:        "audio",
+			Bytes:       audio,
+			ContentType: "audio/mpeg",
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "/v1/audio/transcriptions", gotPath)
+	require.Equal(t, "google/gemini-3.5-transcribe", gotModel)
+	require.Equal(t, "audio/mpeg", gotFileType)
+	require.Equal(t, "audio.mp3", gotFilename)
+	require.JSONEq(t, `[{"text":"whispered","words":[]}]`, string(outputs[0].Bytes))
+}
+
+func TestIrisGatewayV4BaseURL(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		in, want string
+	}{
+		{"", defaultIrisGatewayV4BaseURL},
+		{defaultIrisGatewayBaseURL, defaultIrisGatewayV4BaseURL},
+		{"https://ai-gateway.vercel.sh/v1/", defaultIrisGatewayV4BaseURL},
+		{defaultIrisGatewayV4BaseURL, defaultIrisGatewayV4BaseURL},
+		{"https://gateway.example/v1", "https://gateway.example/v4/ai"},
+		{"https://127.0.0.1:1234", "https://127.0.0.1:1234/v4/ai"},
+	}
+	for _, tc := range tests {
+		name := tc.in
+		if name == "" {
+			name = "empty"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, irisGatewayV4BaseURL(tc.in))
+		})
+	}
+}
+
+func TestNormalizeTranscript(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "gateway v4 segments",
+			in:   `{"text":"hello from vo","segments":[{"text":"hello from vo","startSecond":0.1,"endSecond":1.2}],"language":"en"}`,
+			want: `[{"text":"hello from vo","words":[{"text":"hello from vo","start":0.1,"end":1.2}]}]`,
+		},
+		{
+			name: "openai words",
+			in:   `{"text":"hi there","words":[{"word":"hi","start":0,"end":0.2},{"word":"there","start":0.21,"end":0.5}]}`,
+			want: `[{"text":"hi there","words":[{"text":"hi","start":0,"end":0.2},{"text":"there","start":0.21,"end":0.5}]}]`,
+		},
+		{
+			name: "plain text fallback",
+			in:   `just the words`,
+			want: `[{"text":"just the words","words":[]}]`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.JSONEq(t, tc.want, string(normalizeTranscript([]byte(tc.in))))
+		})
+	}
+}
+
+func TestIrisAudioMediaType(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, "audio/mpeg", irisAudioMediaType(irisProviderInput{ContentType: "audio/mpeg; codecs=mp3"}))
+	require.Equal(t, "audio/wav", irisAudioMediaType(irisProviderInput{ContentType: "application/octet-stream"}))
+	require.Equal(t, "audio.mp3", irisAudioFilename("audio/mpeg"))
+	require.Equal(t, "audio.wav", irisAudioFilename("audio/wav"))
 }
