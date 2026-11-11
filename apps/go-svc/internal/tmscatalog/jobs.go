@@ -82,8 +82,8 @@ type TaskUpdate struct {
 	HasAssignees bool
 }
 
-// JobOperator reads and mutates TMS jobs. Crowdin is first; other providers
-// still stay on Hono until they implement this.
+// JobOperator reads and mutates TMS jobs. Crowdin and Smartling implement it;
+// Phrase and Lokalise still stay on Hono.
 type JobOperator interface {
 	ProjectReader
 	ListTasks(ctx context.Context, projectID string, options TaskListOptions) ([]Task, error)
@@ -98,9 +98,32 @@ type JobOperator interface {
 	UsesPerUserAuth() bool
 }
 
+// JobFeatures is the live job work a provider actually supports. List, detail,
+// files, and title/description updates are implied by JobsSupported.
+type JobFeatures struct {
+	Create    bool
+	Delete    bool
+	Members   bool
+	Comments  bool
+	Assignees bool
+}
+
 // JobsSupported reports whether NewJobOperator can run providerKind.
 func JobsSupported(providerKind string) bool {
-	return strings.EqualFold(providerKind, "crowdin")
+	switch strings.ToLower(providerKind) {
+	case "crowdin", "smartling":
+		return true
+	default:
+		return false
+	}
+}
+
+// JobFeaturesFor is the extra live job work providerKind supports.
+func JobFeaturesFor(providerKind string) JobFeatures {
+	if strings.EqualFold(providerKind, "crowdin") {
+		return JobFeatures{Create: true, Delete: true, Members: true, Comments: true, Assignees: true}
+	}
+	return JobFeatures{}
 }
 
 // NewJobOperator returns the JobOperator for providerKind, or ErrUnsupported.
@@ -111,9 +134,19 @@ func NewJobOperator(providerKind string, credentials Credentials, httpClient HTT
 	switch strings.ToLower(providerKind) {
 	case "crowdin":
 		return newCrowdin(credentials, httpClient), nil
+	case "smartling":
+		return newSmartling(credentials, httpClient), nil
 	default:
 		return nil, ErrUnsupported
 	}
+}
+
+// MapJobStatus maps a provider task status onto a native job status.
+func MapJobStatus(providerKind, status string) string {
+	if strings.EqualFold(providerKind, "smartling") {
+		return MapSmartlingStatus(status)
+	}
+	return MapCrowdinStatus(status)
 }
 
 // MapCrowdinStatus maps a Crowdin task status onto a native job status.
@@ -131,6 +164,26 @@ func MapCrowdinStatus(status string) string {
 		return "waiting_for_review"
 	case "cancelled", "canceled", "aborted":
 		return "cancelled"
+	default:
+		return "queued"
+	}
+}
+
+// MapSmartlingStatus maps a Smartling job status onto a native job status.
+func MapSmartlingStatus(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "completed", "published", "done", "closed":
+		return "succeeded"
+	case "in_progress", "in-progress", "inprogress", "active", "in_translation", "in-translation", "in translation":
+		return "running"
+	case "awaiting_authorization", "awaiting-authorization", "awaiting authorization", "new", "pending", "created", "draft":
+		return "queued"
+	case "failed", "rejected", "error":
+		return "failed"
+	case "cancelled", "canceled":
+		return "cancelled"
+	case "waiting_for_review", "waiting-for-review", "waiting for review", "in_review", "in-review", "in review", "in_edit", "in-edit", "in edit":
+		return "waiting_for_review"
 	default:
 		return "queued"
 	}

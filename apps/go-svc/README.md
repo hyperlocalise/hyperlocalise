@@ -376,8 +376,8 @@ its plain (non-`ext:`-prefixed) id is `project_not_found`. Encoded live ids
 (`ext:{provider}:{id}`, Crowdin first) are served from the connected TMS with a
 short-lived token minted by the web app: get, locale-progress, files, file
 progress, branches, hidden files, jobs, members, and job comments. go-svc never
-decrypts provider secrets. Phrase, Lokalise, and Smartling jobs still stay on
-Hono. CAT stays on Hono (`provider_cat_deferred`).
+decrypts provider secrets. Phrase and Lokalise jobs still stay on Hono. CAT
+stays on Hono (`provider_cat_deferred`).
 
 **Mutation semantics.** Creation enforces the per-organization project limit,
 allocates a unique issue prefix, and creates a default native translation
@@ -473,19 +473,19 @@ Session-authenticated job reads under `/v1/orgs/{organizationSlug}/...` (also `/
 
 | Method | Path | Operation |
 |--------|------|-----------|
-| GET | `/projects/{projectId}/jobs` | List project jobs. `ext:crowdin:…` reads Crowdin |
+| GET | `/projects/{projectId}/jobs` | List project jobs. `ext:crowdin:…` and `ext:smartling:…` read the TMS |
 | POST | `/projects/{projectId}/jobs` | Create Crowdin jobs for `ext:crowdin:…` (`jobs:create`) |
 | GET | `/projects/{projectId}/jobs/{jobId}` | Get job details |
 | GET | `/projects/{projectId}/jobs/{jobId}/status` | Get job status |
-| GET | `/projects/{projectId}/jobs/{jobId}/files` | Live Crowdin job files |
+| GET | `/projects/{projectId}/jobs/{jobId}/files` | Live Crowdin or Smartling job files |
 | GET | `/projects/{projectId}/jobs/{jobId}/comments` | Live Crowdin task comments |
 | GET | `/jobs` | List organization native jobs |
-| GET | `/tms/jobs` | List live Crowdin jobs |
-| GET | `/jobs/{jobId}` | Get native or live (`ext:crowdin:…:…`) job details |
-| PATCH | `/jobs/{jobId}` | Update a live Crowdin job's title, description, or assignees (`jobs:write`) |
-| PATCH | `/jobs/{jobId}/description` | Update a live Crowdin job description (`jobs:write`) |
+| GET | `/tms/jobs` | List live Crowdin or Smartling jobs |
+| GET | `/jobs/{jobId}` | Get native or live (`ext:{provider}:…:…`) job details |
+| PATCH | `/jobs/{jobId}` | Update a live Crowdin or Smartling job (`jobs:write`) |
+| PATCH | `/jobs/{jobId}/description` | Update a live Crowdin or Smartling job description (`jobs:write`) |
 | DELETE | `/jobs/{jobId}` | Delete a live Crowdin job (`jobs:write`) |
-| GET | `/jobs/{jobId}/files` | Live Crowdin job files |
+| GET | `/jobs/{jobId}/files` | Live Crowdin or Smartling job files |
 | GET | `/jobs/{jobId}/comments` | Live Crowdin task comments |
 | GET | `/jobs/{jobId}/events` | List a native job's progress events, oldest first (newest 500) |
 
@@ -495,8 +495,10 @@ Session-authenticated job reads under `/v1/orgs/{organizationSlug}/...` (also `/
 
 **Provider boundaries:** Native project-scoped routes accept native projects
 only; a materialized `external_tms` UUID is `404 project_not_found`. Encoded
-live ids (`ext:crowdin:{project}` and `ext:crowdin:{project}:{task}`) read and
-mutate Crowdin through a minted token. Phrase, Lokalise, and Smartling jobs
+live ids (`ext:crowdin:{project}` / `ext:crowdin:{project}:{task}` and the
+Smartling equivalents) read the connected TMS through a minted token. Crowdin
+supports create, delete, members, comments, and assignees. Smartling supports
+list, detail, files, and title/description updates. Phrase and Lokalise jobs
 return `501 tms_jobs_unsupported`. Organization `/jobs` lists stay native
 (including persisted provider mirrors); live workspace lists use `/tms/jobs`.
 `/jobs/{jobId}` for a mirrored UUID is still `404 job_not_found`. Creating more

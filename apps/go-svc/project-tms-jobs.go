@@ -287,6 +287,9 @@ func (api *projectAPI) liveProjectMembersHandler(r *http.Request, actor projectA
 	if err != nil {
 		return nil, 0, err
 	}
+	if !tmscatalog.JobFeaturesFor(conn.ProviderKind).Members {
+		return nil, 0, projectFailure(http.StatusNotImplemented, "provider_members_unsupported", "Listing project members is not supported for "+conn.ProviderKind)
+	}
 	project, err := operator.GetProject(ctx, id.externalProjectID)
 	if err != nil {
 		return nil, 0, liveProviderFailure(conn, err)
@@ -341,11 +344,17 @@ func (api *projectAPI) projectJobsCreateHandler(r *http.Request, actor projectAc
 		return nil, 0, projectFailure(http.StatusBadRequest, "invalid_request_body", "Invalid create job payload")
 	}
 	fileIDs := uniqueTrimmed(body.FileIDs, liveCreateFileIDMax)
-	if len(fileIDs) == 0 || len(fileIDs) > liveCreateFileIDsMax || !positiveCrowdinIDs(fileIDs) {
+	if len(fileIDs) == 0 || len(fileIDs) > liveCreateFileIDsMax {
+		return nil, 0, projectFailure(http.StatusBadRequest, "invalid_request_body", "Invalid create job payload")
+	}
+	if id.providerKind == "crowdin" && !positiveCrowdinIDs(fileIDs) {
 		return nil, 0, projectFailure(http.StatusBadRequest, "invalid_request_body", "Invalid create job payload")
 	}
 	assignees := uniqueTrimmed(body.AssigneeExternalUserIDs, liveCreateAssigneeIDMax)
-	if len(assignees) > liveCreateAssigneesMax || !positiveCrowdinIDs(assignees) {
+	if len(assignees) > liveCreateAssigneesMax {
+		return nil, 0, projectFailure(http.StatusBadRequest, "invalid_request_body", "Invalid create job payload")
+	}
+	if id.providerKind == "crowdin" && !positiveCrowdinIDs(assignees) {
 		return nil, 0, projectFailure(http.StatusBadRequest, "invalid_request_body", "Invalid create job payload")
 	}
 	var description *string
@@ -363,6 +372,9 @@ func (api *projectAPI) projectJobsCreateHandler(r *http.Request, actor projectAc
 	operator, conn, err := api.liveJobOperator(ctx, actor, &id)
 	if err != nil {
 		return nil, 0, err
+	}
+	if !tmscatalog.JobFeaturesFor(conn.ProviderKind).Create {
+		return nil, 0, projectFailure(http.StatusNotImplemented, "provider_task_create_unsupported", "Creating jobs is not supported for "+conn.ProviderKind)
 	}
 	project, err := operator.GetProject(ctx, id.externalProjectID)
 	if err != nil {
@@ -428,7 +440,7 @@ func (api *projectAPI) orgJobUpdateHandler(r *http.Request, actor projectActor) 
 		if len(ids) > liveCreateAssigneesMax {
 			return nil, 0, projectFailure(http.StatusBadRequest, "invalid_job_update", "Invalid provider job update payload")
 		}
-		if !canonicalCrowdinIDs(ids) {
+		if job.providerKind == "crowdin" && !canonicalCrowdinIDs(ids) {
 			return nil, 0, projectFailure(http.StatusBadRequest, "invalid_crowdin_assignee_id", "Assignee ids must be canonical positive Crowdin member ids.")
 		}
 		body.AssigneeExternalUserIDs = &ids
@@ -476,6 +488,9 @@ func (api *projectAPI) orgJobDeleteHandler(r *http.Request, actor projectActor) 
 	operator, conn, err := api.liveJobOperator(ctx, actor, &job.liveProjectID)
 	if err != nil {
 		return nil, 0, err
+	}
+	if !tmscatalog.JobFeaturesFor(conn.ProviderKind).Delete {
+		return nil, 0, projectFailure(http.StatusNotImplemented, "provider_task_delete_unsupported", "Deleting jobs is not supported for "+conn.ProviderKind)
 	}
 	task, err := operator.GetTask(ctx, job.externalProjectID, job.externalJobID)
 	if err != nil {
@@ -534,6 +549,9 @@ func (api *projectAPI) updateLiveJob(r *http.Request, actor projectActor, job li
 	operator, conn, err := api.liveJobOperator(ctx, actor, &job.liveProjectID)
 	if err != nil {
 		return nil, 0, err
+	}
+	if update.HasAssignees && !tmscatalog.JobFeaturesFor(conn.ProviderKind).Assignees {
+		return nil, 0, projectFailure(http.StatusBadRequest, "unsupported_job_field_update", "Assignee updates are not supported for Smartling jobs.")
 	}
 	updated, err := operator.UpdateTask(ctx, job.externalProjectID, job.externalJobID, update)
 	if err != nil {
@@ -613,6 +631,9 @@ func (api *projectAPI) liveJobComments(r *http.Request, actor projectActor, id l
 	operator, conn, err := api.liveJobOperator(ctx, actor, &id)
 	if err != nil {
 		return nil, 0, err
+	}
+	if !tmscatalog.JobFeaturesFor(conn.ProviderKind).Comments {
+		return nil, 0, projectFailure(http.StatusNotImplemented, "provider_comments_read_unsupported", "Task comments are not available for "+conn.ProviderKind)
 	}
 	comments, err := operator.ListTaskComments(ctx, id.externalProjectID, taskID)
 	if err != nil {
@@ -837,7 +858,7 @@ func createLiveJobs(ctx context.Context, operator tmscatalog.JobOperator, provid
 }
 
 func liveJob(providerKind, externalProjectID, projectName string, task tmscatalog.Task) liveJobRecord {
-	status := tmscatalog.MapCrowdinStatus(task.Status)
+	status := tmscatalog.MapJobStatus(providerKind, task.Status)
 	createdAt := liveJobTimestamp(task.CreatedAt, "")
 	updatedAt := liveJobTimestamp(task.UpdatedAt, createdAt)
 	title := strings.TrimSpace(task.Title)
