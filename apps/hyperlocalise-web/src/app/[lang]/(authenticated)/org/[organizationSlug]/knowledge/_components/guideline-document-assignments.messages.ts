@@ -52,9 +52,9 @@ export const guidelineDocumentAssignmentsMessages = defineMessages({
     description: "Assign a guideline to a project",
   },
   remove: {
-    defaultMessage: "Remove",
-    id: "XJmIbeJegZ",
-    description: "Remove a project assignment",
+    defaultMessage: "Unassign",
+    id: "n7UnasgK2p",
+    description: "Unassign a project from this guideline",
   },
   loadFailed: {
     defaultMessage: "Could not load assignments.",

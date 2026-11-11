@@ -249,7 +249,7 @@ func (api *guidelineDocumentAPI) download(_ http.ResponseWriter, r *http.Request
 	if err != nil {
 		return 0, nil, guidelineDocumentNotFound()
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 	data, err := io.ReadAll(io.LimitReader(reader, guidelineDocumentMaxBytes+1))
 	if err != nil {
 		return 0, nil, err

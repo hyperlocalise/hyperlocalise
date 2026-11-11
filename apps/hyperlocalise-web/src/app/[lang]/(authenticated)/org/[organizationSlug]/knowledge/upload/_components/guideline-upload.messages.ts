@@ -66,4 +66,19 @@ export const guidelineUploadMessages = defineMessages({
     id: "HXfvxDUO8O",
     description: "Label for the locales field on the upload page",
   },
+  uploadFile: {
+    defaultMessage: "Upload",
+    id: "fi083Ov+bg",
+    description: "Uploads the staged guideline file with the selected locales and project scope",
+  },
+  projectRequired: {
+    defaultMessage: "Select at least one project before uploading.",
+    id: "GoT5vi8Wd3",
+    description: "Error when Selected project scope has no projects checked",
+  },
+  assignFailed: {
+    defaultMessage: "Could not assign this guideline to the selected projects.",
+    id: "m7oPwUF2VA",
+    description: "Error when attaching a new guideline to projects fails",
+  },
 });

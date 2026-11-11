@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -82,15 +82,17 @@ function ProjectPicker({
   const [selected, setSelected] = useState<string>("");
   const projectsQuery = useQuery({
     queryKey: guidelineAssignmentProjectsQueryKey(organizationSlug),
-    queryFn: async ({ signal }) => {
-      const body = await client.project.list(organizationSlug, { signal });
-      return new Map(body.projects.map((project) => [project.id, project.name] as const));
-    },
+    queryFn: ({ signal }) => client.project.list(organizationSlug, { signal }),
   });
-  const available = [...(projectsQuery.data ?? new Map<string, string>()).entries()]
+  const projectNames = useMemo(
+    () =>
+      new Map((projectsQuery.data?.projects ?? []).map((project) => [project.id, project.name])),
+    [projectsQuery.data],
+  );
+  const available = [...projectNames.entries()]
     .filter(([id]) => !assignedIds.has(id))
     .map(([id, name]) => ({ id, name }));
-  const selectedName = selected ? (projectsQuery.data?.get(selected) ?? selected) : null;
+  const selectedName = selected ? (projectNames.get(selected) ?? selected) : null;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -145,21 +147,28 @@ export function GuidelineDocumentAssignments({
   const assignmentsQuery = useQuery({
     queryKey: guidelineDocumentAssignmentsQueryKey(organizationSlug),
     enabled: !loading,
-    queryFn: async ({ signal }) => {
-      const body = await client.guidelines.listAllDocumentAssignments(organizationSlug, { signal });
-      return new Map(body.assignments.map((a) => [a.documentId, a.projectIds] as const));
-    },
+    queryFn: ({ signal }) =>
+      client.guidelines.listAllDocumentAssignments(organizationSlug, { signal }),
   });
   const projectsQuery = useQuery({
     queryKey: guidelineAssignmentProjectsQueryKey(organizationSlug),
     enabled: !loading,
-    queryFn: async ({ signal }) => {
-      const body = await client.project.list(organizationSlug, { signal });
-      // Same Map shape as the picker query sharing this key, so both
-      // observers read identical cached data regardless of fetch order.
-      return new Map(body.projects.map((p) => [p.id, p.name] as const));
-    },
+    queryFn: ({ signal }) => client.project.list(organizationSlug, { signal }),
   });
+  const assignmentIdsByDocument = useMemo(
+    () =>
+      new Map(
+        (assignmentsQuery.data?.assignments ?? []).map(
+          (entry) => [entry.documentId, entry.projectIds] as const,
+        ),
+      ),
+    [assignmentsQuery.data],
+  );
+  const projectNames = useMemo(
+    () =>
+      new Map((projectsQuery.data?.projects ?? []).map((project) => [project.id, project.name])),
+    [projectsQuery.data],
+  );
   const documentQuery = useQuery({
     // Single-document fetch for scope display; shares the detail page's
     // ["guideline-document", org, undefined, id] cache entry.
@@ -216,6 +225,9 @@ export function GuidelineDocumentAssignments({
       void queryClient.invalidateQueries({
         queryKey: ["guideline-document", organizationSlug, undefined, documentId],
       });
+      void queryClient.invalidateQueries({
+        queryKey: ["guideline-documents", organizationSlug],
+      });
     },
     onError: (error) => toast.error(error.message),
   });
@@ -239,8 +251,7 @@ export function GuidelineDocumentAssignments({
     );
   }
 
-  const projectIds = assignmentsQuery.data?.get(documentId) ?? [];
-  const projectNames = projectsQuery.data ?? new Map<string, string>();
+  const projectIds = assignmentIdsByDocument.get(documentId) ?? [];
   const assigned: GuidelineProjectAssignment[] = projectIds.map((projectId) => ({
     projectId,
     projectName: projectNames.get(projectId) ?? projectId,

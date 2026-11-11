@@ -281,8 +281,8 @@ function GuidelineDocumentRow({
     },
     onError: (error) => toast.error(error.message),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey });
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({
         queryKey: guidelineDocumentAssignmentsQueryKey(organizationSlug),
       });
     },
@@ -545,17 +545,30 @@ export function GuidelineDocumentsSection({
   });
 
   const assignmentsReady = assignmentsQuery.isSuccess;
-  const waitingForProjectAssignments = projectId != null && !assignmentsReady;
+  const waitingForProjectAssignments = projectId != null && assignmentsQuery.isPending;
   const waitingForOrgDocuments = projectId != null && orgDocumentsQuery.isPending;
+  const projectListFailed =
+    projectId != null && (assignmentsQuery.isError || orgDocumentsQuery.isError);
 
   if (loading || query.isPending || waitingForProjectAssignments || waitingForOrgDocuments) {
     return <Skeleton className="h-16 w-full" />;
   }
-  if (query.isError) {
+  if (query.isError || projectListFailed) {
     return (
       <div className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground">
         <FormattedMessage {...messages.loadFailed} />
-        <Button type="button" variant="outline" size="sm" onClick={() => query.refetch()}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            void query.refetch();
+            if (projectId) {
+              void assignmentsQuery.refetch();
+              void orgDocumentsQuery.refetch();
+            }
+          }}
+        >
           <FormattedMessage {...messages.retry} />
         </Button>
       </div>

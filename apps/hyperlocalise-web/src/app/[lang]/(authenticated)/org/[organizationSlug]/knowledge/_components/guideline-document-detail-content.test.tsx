@@ -67,6 +67,8 @@ vi.mock("next/link", () => ({
 }));
 
 const { GuidelineDocumentDetailContent } = await import("./guideline-document-detail-content");
+const { guidelineAssignmentProjectsQueryKey, guidelineDocumentAssignmentsQueryKey } =
+  await import("./guideline-document-assignments");
 
 function guidelineDocument(overrides: Partial<GuidelineDocument> = {}): GuidelineDocument {
   const base = {
@@ -124,6 +126,44 @@ function defaultMocks() {
 }
 
 describe("GuidelineDocumentDetailContent", () => {
+  it("renders assignments from the list page cache without throwing", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    queryClient.setQueryData(
+      ["guideline-document", "acme", undefined, "doc-brand"],
+      guidelineDocument(),
+    );
+    queryClient.setQueryData(guidelineDocumentAssignmentsQueryKey("acme"), {
+      assignments: [{ documentId: "doc-brand", projectIds: ["project_1"] }],
+    });
+    queryClient.setQueryData(guidelineAssignmentProjectsQueryKey("acme"), {
+      projects: [{ id: "project_1", name: "Mobile app" }],
+    });
+
+    render(
+      <GuidelineDocumentDetailContent
+        organizationSlug="acme"
+        documentId="doc-brand"
+        canUpdate={false}
+      />,
+      {
+        wrapper: ({ children }) => (
+          <IntlProvider locale="en">
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+          </IntlProvider>
+        ),
+      },
+    );
+
+    expect(await screen.findByRole("link", { name: "Mobile app" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1",
+    );
+    expect(mocks.listAllDocumentAssignments).not.toHaveBeenCalled();
+    expect(mocks.listProjects).not.toHaveBeenCalled();
+  });
+
   it("renders metadata, content, and assignments for an org-wide document", async () => {
     defaultMocks();
     render(

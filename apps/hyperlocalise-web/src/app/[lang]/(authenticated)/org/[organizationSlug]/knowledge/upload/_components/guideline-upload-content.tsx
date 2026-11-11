@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,12 +25,10 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { ProjectTargetLocalesPicker } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/_components/project-locale-picker";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
-import {
-  guidelineDocumentsQueryKey,
-  useGuidelineDocumentUpload,
-} from "../../_components/guideline-documents-section";
+import { useGuidelineDocumentUpload } from "../../_components/guideline-documents-section";
 import { GuidelineTextDocumentDialog } from "../../_components/guideline-text-document-dialog";
 import { KnowledgeUploadSection } from "../../_components/knowledge-upload-section";
 import { guidelineUploadMessages as messages } from "./guideline-upload.messages";
@@ -54,6 +53,8 @@ export function GuidelineUploadContent({
   const queryClient = useQueryClient();
   const { client, loading } = useGoSvcClient();
   const [textDialogOpen, setTextDialogOpen] = useState(false);
+  const [stagedFile, setStagedFile] = useState<File | null>(null);
+  const [scopeError, setScopeError] = useState<string | null>(null);
   const preselected = initialProjectId ?? deprecatedProjectId ?? "";
   const [scope, setScope] = useState<ProjectScope>(preselected ? "selected" : "none");
   const [selectedIds, setSelectedIds] = useState<string[]>(preselected ? [preselected] : []);
@@ -82,16 +83,53 @@ export function GuidelineUploadContent({
   const isGlobal = scope === "all";
   const projectIds = scope === "selected" ? selectedIds : [];
 
-  const attachProjects = async (documentId: string) => {
-    for (const pid of projectIds) {
-      await client.guidelines.attachDocumentProject(organizationSlug, documentId, pid);
-    }
+  const invalidateGuidelineLists = () => {
     void queryClient.invalidateQueries({
-      queryKey: guidelineDocumentsQueryKey(organizationSlug),
+      queryKey: ["guideline-documents", organizationSlug],
     });
     void queryClient.invalidateQueries({
       queryKey: ["guideline-document-assignments", organizationSlug],
     });
+  };
+
+  const attachProjects = async (documentId: string) => {
+    for (const pid of projectIds) {
+      await client.guidelines.attachDocumentProject(organizationSlug, documentId, pid);
+    }
+  };
+
+  const scopeReady = () => {
+    if (scope === "selected" && projectIds.length === 0) {
+      setScopeError(intl.formatMessage(messages.projectRequired));
+      return false;
+    }
+    setScopeError(null);
+    return true;
+  };
+
+  const finishCreate = async (documentId: string | undefined) => {
+    try {
+      if (documentId && projectIds.length > 0) {
+        await attachProjects(documentId);
+      }
+      invalidateGuidelineLists();
+      router.push(backHref);
+    } catch (error) {
+      invalidateGuidelineLists();
+      toast.error(goSvcErrorMessage(error, intl.formatMessage(messages.assignFailed)));
+    }
+  };
+
+  const uploadStagedFile = () => {
+    if (!stagedFile || !scopeReady()) return;
+    uploadDocument.mutate(
+      { file: stagedFile, title: stagedFile.name, locales, isGlobal },
+      {
+        onSuccess: (document) => {
+          void finishCreate(document.id);
+        },
+      },
+    );
   };
 
   const toggleSelected = (id: string, checked: boolean) => {
@@ -123,22 +161,13 @@ export function GuidelineUploadContent({
       </div>
 
       <KnowledgeUploadSection
-        onStartMarkdownText={() => setTextDialogOpen(true)}
+        onStartMarkdownText={() => {
+          if (!scopeReady()) return;
+          setTextDialogOpen(true);
+        }}
         onFilesSelected={(files) => {
           const [file] = files;
-          if (!file) return;
-          if (scope === "selected" && projectIds.length === 0) return;
-          uploadDocument.mutate(
-            { file, title: file.name, locales, isGlobal },
-            {
-              onSuccess: (document) => {
-                void (async () => {
-                  if (projectIds.length > 0) await attachProjects(document.id);
-                  router.push(backHref);
-                })();
-              },
-            },
-          );
+          setStagedFile(file ?? null);
         }}
       />
 
@@ -174,7 +203,10 @@ export function GuidelineUploadContent({
                 type="button"
                 variant={scope === value ? "default" : "outline"}
                 size="sm"
-                onClick={() => setScope(value)}
+                onClick={() => {
+                  setScope(value);
+                  setScopeError(null);
+                }}
               >
                 <FormattedMessage {...message} />
               </Button>
@@ -198,7 +230,10 @@ export function GuidelineUploadContent({
                 <label key={project.id} className="flex items-center gap-2 text-sm">
                   <Checkbox
                     checked={selectedIds.includes(project.id)}
-                    onCheckedChange={(checked) => toggleSelected(project.id, checked === true)}
+                    onCheckedChange={(checked) => {
+                      toggleSelected(project.id, checked === true);
+                      setScopeError(null);
+                    }}
                   />
                   <span className="truncate">{project.name}</span>
                 </label>
@@ -208,6 +243,19 @@ export function GuidelineUploadContent({
         ) : null}
       </section>
 
+      {scopeError ? (
+        <p className="text-sm text-destructive" role="alert">
+          {scopeError}
+        </p>
+      ) : null}
+      {stagedFile ? (
+        <div>
+          <Button type="button" disabled={uploadDocument.isPending} onClick={uploadStagedFile}>
+            <FormattedMessage {...messages.uploadFile} />
+          </Button>
+        </div>
+      ) : null}
+
       <GuidelineTextDocumentDialog
         open={textDialogOpen}
         onOpenChange={setTextDialogOpen}
@@ -215,10 +263,7 @@ export function GuidelineUploadContent({
         initialLocales={locales}
         initialIsGlobal={isGlobal}
         onSaved={(documentId) => {
-          void (async () => {
-            if (documentId && projectIds.length > 0) await attachProjects(documentId);
-            router.push(backHref);
-          })();
+          void finishCreate(documentId);
         }}
       />
     </div>

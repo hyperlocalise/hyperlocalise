@@ -14,7 +14,7 @@ import { redirect } from "next/navigation";
 
 import { hasCapability } from "@/api/auth/policy";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
-import { buildOrganizationPath } from "@/components/app-shell/navigation-config";
+import { buildOrganizationPath, buildProjectPath } from "@/components/app-shell/navigation-config";
 import {
   getWorkspaceFeatureFlagEnabled,
   workspaceKnowledgeFlag,
@@ -64,7 +64,11 @@ async function GuidelineUploadLoader({
     <GuidelineUploadContent
       organizationSlug={organizationSlug}
       initialProjectId={initialProjectId}
-      backHref={buildOrganizationPath(organizationSlug, "knowledge")}
+      backHref={
+        initialProjectId
+          ? buildProjectPath(organizationSlug, initialProjectId, "knowledge")
+          : buildOrganizationPath(organizationSlug, "knowledge")
+      }
     />
   );
 }
