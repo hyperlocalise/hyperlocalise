@@ -748,6 +748,9 @@ func (api *irisGenerationAPI) loadInputs(ctx context.Context, job irisJobRecord)
 	if err := addField("image", "image"); err != nil {
 		return nil, err
 	}
+	if err := addField("mask", "mask"); err != nil {
+		return nil, err
+	}
 	if err := addField("video", "video"); err != nil {
 		return nil, err
 	}
