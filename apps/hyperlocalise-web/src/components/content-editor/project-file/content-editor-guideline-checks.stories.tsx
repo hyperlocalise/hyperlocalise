@@ -150,6 +150,7 @@ function finding(
   return guidelineFormatChecks({
     label: GUIDELINE_LABEL,
     targetText,
+    targetLocale: "vi",
     result: {
       findings: [
         {

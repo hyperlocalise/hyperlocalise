@@ -185,6 +185,10 @@ export interface ContentEditorFormatCheck {
   relatedTokens?: string[];
   /** The AI request behind this check was refused because the workspace's AI credit is used up. */
   aiCreditExhausted?: boolean;
+  /** Translation text this guideline finding was checked against. */
+  appliesToText?: string;
+  /** Locale this guideline finding was checked against. */
+  appliesToLocale?: string;
 }
 
 export interface ContentEditorGlossaryTerm {

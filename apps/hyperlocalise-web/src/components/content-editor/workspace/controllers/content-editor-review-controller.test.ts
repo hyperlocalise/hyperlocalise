@@ -1259,6 +1259,80 @@ describe("ContentEditorReviewController", () => {
     controller.dispose();
   });
 
+  it("reschedules the guideline check when the service changes", async () => {
+    vi.useFakeTimers();
+    const validateFormat = vi.fn().mockResolvedValue([]);
+    const firstGuideline = vi.fn().mockResolvedValue([]);
+    const secondGuideline = vi.fn().mockResolvedValue([
+      {
+        id: "guideline-0",
+        label: "Guideline",
+        status: "warn" as const,
+        message: "Use vous.",
+      },
+    ]);
+    const workspace = createTestWorkspace({ selectedSegmentId: "seg-01" });
+    const controller = new ContentEditorReviewController(workspace, {
+      intl,
+      services: { validateFormat, runGuidelineCheck: firstGuideline },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+    controller.start();
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(firstGuideline).toHaveBeenCalledTimes(1);
+
+    controller.configure({
+      intl,
+      services: { validateFormat, runGuidelineCheck: secondGuideline },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+    expect(secondGuideline).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(secondGuideline).toHaveBeenCalledTimes(1);
+    expect(firstGuideline).toHaveBeenCalledTimes(1);
+    controller.dispose();
+  });
+
+  it("clears guideline rows when the check is turned off", async () => {
+    vi.useFakeTimers();
+    const validateFormat = vi.fn().mockResolvedValue([]);
+    const runGuidelineCheck = vi.fn().mockResolvedValue([
+      {
+        id: "guideline-0",
+        label: "Guideline",
+        status: "fail" as const,
+        message: "Use vous.",
+      },
+    ]);
+    const workspace = createTestWorkspace({ selectedSegmentId: "seg-01" });
+    const controller = new ContentEditorReviewController(workspace, {
+      intl,
+      services: { validateFormat, runGuidelineCheck },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+    controller.start();
+    await vi.advanceTimersByTimeAsync(1_500);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(workspace.segmentFormatChecks["seg-01"]?.map((check) => check.id)).toContain(
+      "guideline-0",
+    );
+
+    controller.configure({
+      intl,
+      services: { validateFormat },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+
+    expect(
+      workspace.segmentFormatChecks["seg-01"]?.some((check) => check.id.startsWith("guideline-")),
+    ).toBe(false);
+    controller.dispose();
+  });
+
   describe("setLocked", () => {
     it("delegates to onSetLocked and updates the current segment", async () => {
       const onSetLocked = vi.fn().mockResolvedValue(undefined);

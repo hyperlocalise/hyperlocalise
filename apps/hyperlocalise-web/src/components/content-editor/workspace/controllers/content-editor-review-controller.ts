@@ -134,10 +134,18 @@ export class ContentEditorReviewController {
 
   configure(ports: ContentEditorReviewControllerPorts) {
     const previousValidateFormat = this.ports.services?.validateFormat;
+    const previousRunGuidelineCheck = this.ports.services?.runGuidelineCheck;
     const wasStarted = Boolean(this.selectedSegmentDisposer);
     this.ports = ports;
-    if (wasStarted && previousValidateFormat !== ports.services?.validateFormat) {
+    if (!wasStarted) return;
+    if (previousValidateFormat !== ports.services?.validateFormat) {
       this.revalidateOpenChecks();
+      return;
+    }
+    if (previousRunGuidelineCheck !== ports.services?.runGuidelineCheck) {
+      const selectedId = this.workspace.selectedSegmentId;
+      const selected = selectedId ? this.workspace.getSegmentView(selectedId) : undefined;
+      if (selected) this.scheduleGuidelineCheck(selected, selected.targetText);
     }
   }
 

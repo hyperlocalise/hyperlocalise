@@ -755,6 +755,7 @@ export function ProjectFileContentEditorWorkspace({
           ),
         ],
         formatChecks,
+        { text: value, locale, guideline: policy.guideline },
       );
       if (failures.length > 0) {
         throw new Error(

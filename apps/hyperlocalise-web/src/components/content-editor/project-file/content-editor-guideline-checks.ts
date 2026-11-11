@@ -17,6 +17,7 @@ import type {
   GuidelineCheckFinding,
   GuidelineCheckResult,
 } from "@/lib/go-svc/go-svc-guidelines-api";
+import type { QaCheckSetting } from "@/lib/qa/qa-policy";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 
 export const EDITOR_GUIDELINE_CHECK_DEBOUNCE_MS = 1_500;
@@ -50,13 +51,14 @@ function guidelineQuote(text: string, start: number, end: number) {
 export function guidelineFormatChecks(input: {
   result: Pick<GuidelineCheckResult, "findings">;
   targetText: string;
+  targetLocale: string;
   label: string;
   /** Project QA setting. Warning stays a warning; error blocks saving. */
   severity?: "error" | "warning";
 }): ContentEditorFormatCheck[] {
   const status = input.severity === "error" ? "fail" : "warn";
   return input.result.findings.flatMap((finding, index) =>
-    guidelineFormatCheck(finding, index, input.targetText, input.label, status),
+    guidelineFormatCheck(finding, index, input.targetText, input.targetLocale, input.label, status),
   );
 }
 
@@ -64,6 +66,7 @@ function guidelineFormatCheck(
   finding: GuidelineCheckFinding,
   index: number,
   targetText: string,
+  targetLocale: string,
   label: string,
   status: "fail" | "warn",
 ): ContentEditorFormatCheck[] {
@@ -84,19 +87,32 @@ function guidelineFormatCheck(
       status,
       category: "qa",
       message: suggestion ? `${message} Suggestion: ${suggestion}` : message,
+      appliesToText: targetText,
+      appliesToLocale: targetLocale,
       ...(relatedTokens ? { relatedTokens } : {}),
     },
   ];
 }
 
-/** Save-blocking checks, including guideline errors the editor has already reported. */
+/**
+ * Save-blocking checks. A stored guideline error blocks only when the current
+ * policy still says error and the finding was reported for this text and locale.
+ */
 export function qaSaveBlockingChecks(
   checks: readonly ContentEditorFormatCheck[],
   reportedChecks: readonly ContentEditorFormatCheck[] = [],
+  scope: { text: string; locale: string; guideline: QaCheckSetting },
 ): ContentEditorFormatCheck[] {
-  const reportedGuidelineFailures = reportedChecks.filter(
-    (check) => isGuidelineFormatCheck(check) && check.status === "fail",
-  );
+  const guidelineBlocks = scope.guideline.enabled && scope.guideline.severity === "error";
+  const reportedGuidelineFailures = guidelineBlocks
+    ? reportedChecks.filter(
+        (check) =>
+          isGuidelineFormatCheck(check) &&
+          check.status === "fail" &&
+          check.appliesToText === scope.text &&
+          check.appliesToLocale === scope.locale,
+      )
+    : [];
   return [...checks, ...reportedGuidelineFailures].filter((check) => check.status === "fail");
 }
 
@@ -160,7 +176,13 @@ export async function fetchEditorGuidelineChecks(
       },
       { signal: input.signal },
     );
-    return guidelineFormatChecks({ result, targetText, label, severity: input.severity });
+    return guidelineFormatChecks({
+      result,
+      targetText,
+      targetLocale: input.targetLocale,
+      label,
+      severity: input.severity,
+    });
   } catch (error) {
     if (input.signal?.aborted || isAbortError(error)) {
       throw error;

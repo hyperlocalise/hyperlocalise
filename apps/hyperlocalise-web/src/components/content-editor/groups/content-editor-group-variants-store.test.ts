@@ -12,11 +12,12 @@
  */
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import type { CatGroupVariant } from "@/lib/go-svc/go-svc-cat-groups.types";
+import { EDITOR_GUIDELINE_CHECK_DEBOUNCE_MS } from "@/components/content-editor/project-file/content-editor-guideline-checks";
 import type {
   ContentEditorFormatCheck,
   ContentEditorSegment,
 } from "@/components/content-editor/shared/types";
+import type { CatGroupVariant } from "@/lib/go-svc/go-svc-cat-groups.types";
 
 import { MultilingualDrafts } from "../multilingual/content-editor-multilingual-drafts";
 import {
@@ -93,6 +94,56 @@ describe("ContentEditorGroupVariants", () => {
 
     expect(group.variants[0]!.text).toBe("Membre");
     expect(group.variants[1]!.text).toBe("Membre");
+  });
+
+  it("checks guidelines against the group locale", async () => {
+    vi.useFakeTimers();
+    const runGuidelineCheck = vi.fn().mockResolvedValue([]);
+    const drafts = new MultilingualDrafts();
+    const group = new ContentEditorGroupVariants({
+      segment: { ...segment, targetLocale: "de" },
+      locale: "vi-VN",
+      projectId: "p1",
+      variants,
+      drafts,
+      ports: {
+        canEdit: true,
+        saveVariant: vi.fn().mockResolvedValue(undefined),
+        saveFailedMessage: "Could not save the translation.",
+        services: { runGuidelineCheck },
+      },
+    });
+    group.attach();
+
+    await vi.advanceTimersByTimeAsync(EDITOR_GUIDELINE_CHECK_DEBOUNCE_MS);
+
+    expect(runGuidelineCheck).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "k1", targetLocale: "vi-VN" }),
+      "Membre",
+      { signal: expect.any(AbortSignal) },
+    );
+  });
+
+  it("drops guideline rows when the check service is removed", () => {
+    const runGuidelineCheck = vi.fn().mockResolvedValue([]);
+    const { group } = createGroup({ services: { runGuidelineCheck } });
+    const first = group.variants[0]!;
+    first.formatChecks = [
+      {
+        id: "guideline-0",
+        label: "Guideline",
+        status: "fail",
+        message: "Use vous.",
+        appliesToText: first.text,
+        appliesToLocale: "fr",
+      },
+    ];
+    const registry = new ContentEditorGroupVariantsRegistry();
+    registry.register(group);
+    registry.setServices({ runGuidelineCheck });
+    registry.setServices({});
+
+    expect(first.formatChecks).toEqual([]);
   });
 
   it("approves only the unlocked strings of one translation", async () => {
@@ -289,8 +340,9 @@ describe("ContentEditorGroupVariants", () => {
       }
       return [];
     });
-    const { group } = createGroup({ services: { validateFormat } });
-    await vi.runAllTimersAsync();
+    const runGuidelineCheck = vi.fn(() => new Promise<ContentEditorFormatCheck[]>(() => {}));
+    const { group } = createGroup({ services: { validateFormat, runGuidelineCheck } });
+    await vi.advanceTimersByTimeAsync(300);
 
     const first = group.variants[0]!;
     const guidelineWarning: ContentEditorFormatCheck = {
@@ -302,10 +354,11 @@ describe("ContentEditorGroupVariants", () => {
     };
     first.formatChecks = [guidelineWarning];
     first.change("Membre actif");
-    await vi.runAllTimersAsync();
+    await vi.advanceTimersByTimeAsync(300);
 
     expect(first.qaIssues).toEqual([guidelineWarning]);
     expect(first.isCheckingFormat).toBe(false);
+    group.release();
   });
 
   it("does not apply an in-flight format check after a later edit is scheduled", async () => {

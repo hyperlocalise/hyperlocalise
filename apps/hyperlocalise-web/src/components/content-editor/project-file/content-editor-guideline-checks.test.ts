@@ -37,6 +37,7 @@ describe("guidelineFormatChecks", () => {
       guidelineFormatChecks({
         label: "Guideline",
         targetText: "Peux-tu aider ?",
+        targetLocale: "fr-FR",
         result: {
           findings: [
             {
@@ -60,6 +61,8 @@ describe("guidelineFormatChecks", () => {
         category: "qa",
         message: "Use the formal vous. Suggestion: vous",
         relatedTokens: ["tu", "vous"],
+        appliesToText: "Peux-tu aider ?",
+        appliesToLocale: "fr-FR",
       },
     ]);
   });
@@ -69,6 +72,7 @@ describe("guidelineFormatChecks", () => {
       guidelineFormatChecks({
         label: "Guideline",
         targetText: "Use tu here",
+        targetLocale: "fr-FR",
         severity: "error",
         result: {
           findings: [
@@ -93,6 +97,7 @@ describe("guidelineFormatChecks", () => {
       guidelineFormatChecks({
         label: "Guideline",
         targetText: "Hello",
+        targetLocale: "en",
         result: {
           findings: [
             {
@@ -114,6 +119,8 @@ describe("guidelineFormatChecks", () => {
         status: "warn",
         category: "qa",
         message: "Add the product name.",
+        appliesToText: "Hello",
+        appliesToLocale: "en",
       },
     ]);
   });
@@ -202,15 +209,29 @@ describe("qaSaveBlockingChecks", () => {
     status: "fail",
     message: "Too long",
   };
+  const reportedError: ContentEditorFormatCheck = {
+    id: "guideline-0",
+    label: "Guideline",
+    status: "fail",
+    message: "Use vous.",
+    appliesToText: "Peux-tu aider ?",
+    appliesToLocale: "fr-FR",
+  };
+  const errorPolicy = {
+    text: "Peux-tu aider ?",
+    locale: "fr-FR",
+    guideline: { enabled: true, severity: "error" as const },
+  };
 
-  it("blocks on a guideline error the editor already reported", () => {
+  it("blocks on a guideline error the editor already reported for this text and locale", () => {
     expect(
       qaSaveBlockingChecks(
         [lengthFailure],
         [
-          { id: "guideline-0", label: "Guideline", status: "fail", message: "Use vous." },
+          reportedError,
           { id: "guideline-limit", label: "Guideline", status: "warn", message: "Limit" },
         ],
+        errorPolicy,
       ).map((check) => check.id),
     ).toEqual(["length", "guideline-0"]);
   });
@@ -220,6 +241,45 @@ describe("qaSaveBlockingChecks", () => {
       qaSaveBlockingChecks(
         [],
         [{ id: "guideline-0", label: "Guideline", status: "warn", message: "Use vous." }],
+        errorPolicy,
+      ),
+    ).toEqual([]);
+  });
+
+  it("ignores a guideline error for a different string or locale", () => {
+    expect(
+      qaSaveBlockingChecks([], [reportedError], { ...errorPolicy, text: "Bonjour" }).map(
+        (check) => check.id,
+      ),
+    ).toEqual([]);
+    expect(
+      qaSaveBlockingChecks([], [reportedError], { ...errorPolicy, locale: "de" }).map(
+        (check) => check.id,
+      ),
+    ).toEqual([]);
+  });
+
+  it("ignores a guideline error when the check is a warning or turned off", () => {
+    expect(
+      qaSaveBlockingChecks([], [reportedError], {
+        ...errorPolicy,
+        guideline: { enabled: true, severity: "warning" },
+      }),
+    ).toEqual([]);
+    expect(
+      qaSaveBlockingChecks([], [reportedError], {
+        ...errorPolicy,
+        guideline: { enabled: false, severity: "error" },
+      }),
+    ).toEqual([]);
+  });
+
+  it("ignores a guideline error that has no text or locale stamp", () => {
+    expect(
+      qaSaveBlockingChecks(
+        [],
+        [{ id: "guideline-0", label: "Guideline", status: "fail", message: "Use vous." }],
+        errorPolicy,
       ),
     ).toEqual([]);
   });

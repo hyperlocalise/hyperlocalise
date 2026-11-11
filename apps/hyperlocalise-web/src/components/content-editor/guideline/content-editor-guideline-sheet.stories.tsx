@@ -161,6 +161,7 @@ function vietnameseEditor() {
   const checks = guidelineFormatChecks({
     label: "Guideline",
     targetText: READER_TARGET,
+    targetLocale: "vi",
     result: {
       findings: [
         {
