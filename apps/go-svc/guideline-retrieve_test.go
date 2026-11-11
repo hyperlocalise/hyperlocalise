@@ -109,7 +109,8 @@ func TestGuidelineRetrieveDropsDocumentsChangedAfterRetrieval(t *testing.T) {
 	require.NoError(t, err)
 	_, err = env.scope.Pool.Exec(t.Context(), `update guideline_documents set status = 'processing' where id = $1`, rows["processing"])
 	require.NoError(t, err)
-	_, err = env.scope.Pool.Exec(t.Context(), `update guideline_documents set locale = 'de-DE' where id = $1`, rows["rescoped"])
+	// Empty locales means every locale, so a locale-column update alone stays in scope.
+	_, err = env.scope.Pool.Exec(t.Context(), `update guideline_documents set locales = '{de-DE}', locale = 'de-DE' where id = $1`, rows["rescoped"])
 	require.NoError(t, err)
 
 	rec := serveGuidelineRetrieve(env, `{"organizationId":"`+env.scope.OrganizationID+`","locales":["fr-FR"],"query":"rule"}`, true)
@@ -142,6 +143,8 @@ func TestGuidelineRetrieveReturnsUploadedDocumentsOnly(t *testing.T) {
 	projectID := env.scope.MustProject(t, "", "Project")
 	mandatoryRow := seedReadyGuideline(t, env, env.scope.OrgPath("/guidelines/documents"), "Never translate Acme.")
 	searchedRow := seedReadyGuideline(t, env, env.scope.OrgPath("/guidelines/documents"), "Use vous.\n\nKeep sentences short.")
+	_, err := env.scope.Pool.Exec(t.Context(), `update guideline_documents set is_global = true where id = any($1::uuid[])`, []string{mandatoryRow, searchedRow})
+	require.NoError(t, err)
 	mandatoryID, searchedID := guidelinepg.UploadedDocumentID(mandatoryRow), guidelinepg.UploadedDocumentID(searchedRow)
 	searchedRevision := guidelineRevision(t, env, searchedRow)
 
@@ -192,6 +195,61 @@ func TestGuidelineRetrieveReturnsUploadedDocumentsOnly(t *testing.T) {
 	}
 }
 
+func TestGuidelineRetrieveHonorsLegacyColumns(t *testing.T) {
+	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
+	env := newGuidelineTestEnv(t, "admin")
+	projectID := env.scope.MustProject(t, "", "Owned")
+	otherID := env.scope.MustProject(t, "project_legacy_"+env.scope.Slug, "Other")
+	path := env.scope.OrgPath("/guidelines/documents")
+	owned := seedReadyGuideline(t, env, path, "Owned by the project.")
+	french := seedReadyGuideline(t, env, path, "French only.")
+	everywhere := seedReadyGuideline(t, env, path, "All locales.")
+	_, err := env.scope.Pool.Exec(t.Context(), `update guideline_documents set project_id = $2, is_global = false, locales = '{}' where id = $1::uuid`, owned, projectID)
+	require.NoError(t, err)
+	_, err = env.scope.Pool.Exec(t.Context(), `update guideline_documents set locales = '{}', locale = 'fr-FR', is_global = true where id = $1::uuid`, french)
+	require.NoError(t, err)
+	_, err = env.scope.Pool.Exec(t.Context(), `update guideline_documents set is_global = true where id = $1::uuid`, everywhere)
+	require.NoError(t, err)
+
+	chunk := func(rowID, name string) guidelines.Chunk {
+		return guidelines.Chunk{ID: name, DocumentID: guidelinepg.UploadedDocumentID(rowID), RevisionID: guidelineRevision(t, env, rowID), Text: name}
+	}
+	passages := []guidelines.Chunk{chunk(owned, "owned"), chunk(french, "french"), chunk(everywhere, "everywhere")}
+	retriever := &fakeGuidelineRetriever{byLocale: map[string]guidelines.Result{
+		"fr-FR": {Passages: passages, SearchAvailable: true},
+		"de-DE": {Passages: passages, SearchAvailable: true},
+	}}
+	env.handler.guidelineRetrieve = &guidelineRetrieveAPI{retriever: retriever, pool: env.scope.Pool}
+
+	retrieve := func(projectID, locale string) []string {
+		t.Helper()
+		body := `{"organizationId":"` + env.scope.OrganizationID + `","projectId":"` + projectID + `","locales":["` + locale + `"],"query":"rule"}`
+		rec := serveGuidelineRetrieve(env, body, true)
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		var result guidelineRetrieveResult
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &result))
+		ids := make([]string, 0, len(result.Documents))
+		for _, document := range result.Documents {
+			ids = append(ids, document.ID)
+		}
+		return ids
+	}
+
+	require.ElementsMatch(t, []string{
+		guidelinepg.UploadedDocumentID(owned),
+		guidelinepg.UploadedDocumentID(french),
+		guidelinepg.UploadedDocumentID(everywhere),
+	}, retrieve(projectID, "fr-FR"))
+	require.ElementsMatch(t, []string{
+		guidelinepg.UploadedDocumentID(french),
+		guidelinepg.UploadedDocumentID(everywhere),
+	}, retrieve(otherID, "fr-FR"))
+	require.ElementsMatch(t, []string{
+		guidelinepg.UploadedDocumentID(owned),
+		guidelinepg.UploadedDocumentID(everywhere),
+	}, retrieve(projectID, "de-DE"))
+}
+
 func TestGuidelineRetrieveValidation(t *testing.T) {
 	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
 	env := newGuidelineTestEnv(t, "admin")
@@ -229,11 +287,16 @@ func TestGuidelineRetrieveHonorsDocumentProjectAssignments(t *testing.T) {
 	otherID := env.scope.MustProject(t, "project_other_"+env.scope.Slug, "Other")
 	workspacePath := env.scope.OrgPath("/guidelines/documents")
 
-	unassignedRow := seedReadyGuideline(t, env, workspacePath, "Applies everywhere.")
+	globalRow := seedReadyGuideline(t, env, workspacePath, "Applies everywhere.")
 	assignedRow := seedReadyGuideline(t, env, workspacePath, "Assigned project only.")
-	ownedRow := seedReadyGuideline(t, env, env.scope.OrgPath("/projects/"+otherID+"/guidelines/documents"), "Owned by other.")
+	unassignedRow := seedReadyGuideline(t, env, workspacePath, "Applies to no project.")
+	ownedRow := seedReadyGuideline(t, env, workspacePath, "Owned by other.")
+	_, err := env.scope.Pool.Exec(t.Context(), `update guideline_documents set is_global = true where id = $1::uuid`, globalRow)
+	require.NoError(t, err)
 	attach := env.json(http.MethodPost, workspacePath+"/"+assignedRow+"/projects", `{"projectId":"`+assignedID+`"}`)
 	require.Equal(t, http.StatusOK, attach.Code, attach.Body.String())
+	attachOther := env.json(http.MethodPost, workspacePath+"/"+ownedRow+"/projects", `{"projectId":"`+otherID+`"}`)
+	require.Equal(t, http.StatusOK, attachOther.Code, attachOther.Body.String())
 
 	chunk := func(rowID, name string) guidelines.Chunk {
 		return guidelines.Chunk{
@@ -244,8 +307,9 @@ func TestGuidelineRetrieveHonorsDocumentProjectAssignments(t *testing.T) {
 	retriever := &fakeGuidelineRetriever{byLocale: map[string]guidelines.Result{
 		"": {
 			Passages: []guidelines.Chunk{
-				chunk(unassignedRow, "everywhere"),
+				chunk(globalRow, "everywhere"),
 				chunk(assignedRow, "assigned"),
+				chunk(unassignedRow, "unassigned"),
 				chunk(ownedRow, "owned"),
 			},
 			SearchAvailable: true,
@@ -272,15 +336,17 @@ func TestGuidelineRetrieveHonorsDocumentProjectAssignments(t *testing.T) {
 	}
 
 	require.ElementsMatch(t, []string{
-		guidelinepg.UploadedDocumentID(unassignedRow),
+		guidelinepg.UploadedDocumentID(globalRow),
 		guidelinepg.UploadedDocumentID(assignedRow),
 	}, retrieve(assignedID))
 	require.ElementsMatch(t, []string{
-		guidelinepg.UploadedDocumentID(unassignedRow),
+		guidelinepg.UploadedDocumentID(globalRow),
 		guidelinepg.UploadedDocumentID(ownedRow),
 	}, retrieve(otherID))
 	require.ElementsMatch(t, []string{
-		guidelinepg.UploadedDocumentID(unassignedRow),
+		guidelinepg.UploadedDocumentID(globalRow),
 		guidelinepg.UploadedDocumentID(assignedRow),
+		guidelinepg.UploadedDocumentID(unassignedRow),
+		guidelinepg.UploadedDocumentID(ownedRow),
 	}, retrieve(""))
 }

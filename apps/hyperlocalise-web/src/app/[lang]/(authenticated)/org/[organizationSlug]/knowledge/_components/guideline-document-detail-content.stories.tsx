@@ -12,6 +12,7 @@
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
+import { guidelinePageWidthDecorator } from "./guideline-story-decorators";
 import { GuidelineDocumentDetailContent } from "./guideline-document-detail-content";
 import {
   createGuidelineAssignmentMswHandlers,
@@ -46,13 +47,7 @@ const meta = {
   title: "Guidelines/Document detail",
   component: GuidelineDocumentDetailContent,
   parameters: { layout: "centered" },
-  decorators: [
-    (Story) => (
-      <div className="w-[880px] max-w-[92vw]">
-        <Story />
-      </div>
-    ),
-  ],
+  decorators: [guidelinePageWidthDecorator],
   args: { organizationSlug, canUpdate: true },
 } satisfies Meta<typeof GuidelineDocumentDetailContent>;
 
@@ -106,17 +101,46 @@ export const ProjectDocument: Story = {
   args: { organizationSlug, projectId: "project_1", documentId: "doc-mobile", canUpdate: true },
   parameters: {
     msw: {
-      handlers: createGuidelineDocumentsMswHandlers({
-        documents: [
-          storyGuidelineDocument({
-            id: "doc-mobile",
-            projectId: "project_1",
-            title: "Mobile app copy rules",
-            filename: "mobile.md",
-          }),
-        ],
-        contents: { "doc-mobile": "# Mobile copy\n\nKeep buttons under 24 characters." },
-      }),
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({
+          documents: [
+            storyGuidelineDocument({
+              id: "doc-mobile",
+              title: "Mobile app copy rules",
+              filename: "mobile.md",
+            }),
+          ],
+          contents: { "doc-mobile": "# Mobile copy\n\nKeep buttons under 24 characters." },
+        }),
+        ...createGuidelineAssignmentMswHandlers({
+          assignedDocuments: [{ documentId: "doc-mobile", projectIds: ["project_1"] }],
+        }),
+      ],
+    },
+  },
+};
+
+export const GlobalDocument: Story = {
+  args: { organizationSlug, documentId: "doc-house", canUpdate: true },
+  parameters: {
+    msw: {
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({
+          documents: [
+            storyGuidelineDocument({
+              id: "doc-house",
+              title: "House voice (all projects)",
+              filename: "voice.md",
+              mandatory: true,
+              locales: ["fr-FR", "de-DE"],
+              isGlobal: true,
+              characterCount: 2140,
+            }),
+          ],
+          contents: { "doc-house": "# House voice\n\nKeep product names in English." },
+        }),
+        ...createGuidelineAssignmentMswHandlers({ assignedDocuments: [] }),
+      ],
     },
   },
 };

@@ -58,9 +58,14 @@ func (f guidelineFixture) project(t *testing.T, organizationID string) string {
 func (f guidelineFixture) document(t *testing.T, organizationID string, projectID, locale *string, status string, mandatory bool, content string) (string, string) {
 	t.Helper()
 	id, revisionID := uuid.NewString(), uuid.NewString()
-	f.exec(t, `insert into guideline_documents (id, organization_id, project_id, locale, title, storage_location_id, storage_key, filename, content_type, byte_size, content, revision_id, version, mandatory, status)
-		values ($1, $2, $3, $4, 'Guide', 'local', $5, 'guide.md', 'text/markdown', 10, $6, $7, 2, $8, $9)`,
-		id, organizationID, projectID, locale, "guidelines/"+id, content, revisionID, mandatory, status)
+	isGlobal := projectID == nil && locale == nil
+	locales := []string{}
+	if locale != nil {
+		locales = []string{*locale}
+	}
+	f.exec(t, `insert into guideline_documents (id, organization_id, project_id, locale, locales, is_global, title, storage_location_id, storage_key, filename, content_type, byte_size, content, revision_id, version, mandatory, status)
+		values ($1, $2, NULL, $3, $4, $5, 'Guide', 'local', $6, 'guide.md', 'text/markdown', 10, $7, $8, 2, $9, $10)`,
+		id, organizationID, locale, locales, isGlobal, "guidelines/"+id, content, revisionID, mandatory, status)
 	return id, revisionID
 }
 
@@ -73,11 +78,14 @@ func TestCurrentReturnsScopedGuidelinesInOrder(t *testing.T) {
 	fr, de := "fr-FR", "de-DE"
 
 	orgDocID, orgDocRevision := f.document(t, orgID, nil, nil, "ready", false, "Org-wide doc")
-	// Org-wide documents with no assignment rows apply to every project;
-	// documents with assignments apply only to listed projects.
+	// is_global docs apply to every project; assigned docs apply only to
+	// listed projects; unassigned non-global docs apply to no project.
 	globalDocID, globalDocRevision := f.document(t, orgID, nil, nil, "ready", false, "Global doc")
+	f.exec(t, `update guideline_documents set is_global = false where id = $1`, orgDocID)
 	f.exec(t, `insert into guideline_document_projects (organization_id, document_id, project_id) values ($1, $2, $3)`, orgID, orgDocID, projectID)
 	projectFrDocID, projectFrRevision := f.document(t, orgID, &projectID, &fr, "ready", true, "Project French doc")
+	f.exec(t, `update guideline_documents set is_global = false where id = $1`, projectFrDocID)
+	f.exec(t, `insert into guideline_document_projects (organization_id, document_id, project_id) values ($1, $2, $3) on conflict do nothing`, orgID, projectFrDocID, projectID)
 	f.document(t, orgID, &projectID, &de, "ready", true, "German doc")
 	f.document(t, orgID, &siblingID, nil, "ready", true, "Sibling doc")
 	f.document(t, orgID, &projectID, nil, "processing", true, "Processing doc")
@@ -94,7 +102,7 @@ func TestCurrentReturnsScopedGuidelinesInOrder(t *testing.T) {
 	}
 	require.Equal(t, guidelines.Document{ID: UploadedDocumentID(orgDocID), RevisionID: orgDocRevision, Version: 2, Content: "Org-wide doc", Scope: guidelines.Scope{OrganizationID: orgID}, Mandatory: false}, byID[UploadedDocumentID(orgDocID)])
 	require.Equal(t, guidelines.Document{ID: UploadedDocumentID(globalDocID), RevisionID: globalDocRevision, Version: 2, Content: "Global doc", Scope: guidelines.Scope{OrganizationID: orgID}, Mandatory: false}, byID[UploadedDocumentID(globalDocID)])
-	require.Equal(t, guidelines.Document{ID: UploadedDocumentID(projectFrDocID), RevisionID: projectFrRevision, Version: 2, Content: "Project French doc", Scope: guidelines.Scope{OrganizationID: orgID, ProjectID: projectID, Locale: fr}, Mandatory: true}, byID[UploadedDocumentID(projectFrDocID)])
+	require.Equal(t, guidelines.Document{ID: UploadedDocumentID(projectFrDocID), RevisionID: projectFrRevision, Version: 2, Content: "Project French doc", Scope: guidelines.Scope{OrganizationID: orgID, Locale: fr}, Mandatory: true}, byID[UploadedDocumentID(projectFrDocID)])
 
 	// Sibling sees the unassigned global doc but not the assigned scoped doc.
 	siblingDocs, err := source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: siblingID, Locale: fr})
@@ -112,7 +120,14 @@ func TestCurrentReturnsScopedGuidelinesInOrder(t *testing.T) {
 	for _, doc := range docs {
 		ids = append(ids, doc.ID)
 	}
-	require.ElementsMatch(t, []string{UploadedDocumentID(orgDocID), UploadedDocumentID(globalDocID)}, ids)
+	siblingDocID := ""
+	for _, doc := range docs {
+		if doc.Content == "Sibling doc" {
+			siblingDocID = doc.ID
+		}
+	}
+	require.NotEmpty(t, siblingDocID)
+	require.ElementsMatch(t, []string{UploadedDocumentID(orgDocID), UploadedDocumentID(globalDocID), siblingDocID}, ids)
 
 	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: otherOrgID, ProjectID: projectID, Locale: fr})
 	require.NoError(t, err)
@@ -133,10 +148,11 @@ func TestCurrentRespectsProjectAssignment(t *testing.T) {
 	siblingID := f.project(t, orgID)
 
 	orgDocID, _ := f.document(t, orgID, nil, nil, "ready", false, "Org-wide doc")
+	f.exec(t, `update guideline_documents set is_global = true where id = $1`, orgDocID)
 
 	source := NewWithPool(f.pool)
 
-	// Unassigned org-wide documents apply to every project.
+	// Global docs apply to every project.
 	docs, err := source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: projectID})
 	require.NoError(t, err)
 	require.Len(t, docs, 1)
@@ -145,7 +161,9 @@ func TestCurrentRespectsProjectAssignment(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, siblingDocs, 1)
 
-	// Assigning the document to one project scopes it to listed projects only.
+	// Clearing is_global and assigning the document to one project scopes it
+	// to listed projects only; unassigned non-global docs apply to no project.
+	f.exec(t, `update guideline_documents set is_global = false where id = $1`, orgDocID)
 	f.exec(t, `insert into guideline_document_projects (organization_id, document_id, project_id) values ($1, $2, $3)`, orgID, orgDocID, projectID)
 
 	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: projectID})
@@ -160,6 +178,36 @@ func TestCurrentRespectsProjectAssignment(t *testing.T) {
 	docs, err = source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID})
 	require.NoError(t, err)
 	require.Len(t, docs, 1)
+}
+
+func TestCurrentHonorsLegacyLocaleAndProject(t *testing.T) {
+	f, _ := newGuidelineFixture(t)
+	orgID := f.organization(t)
+	projectID := f.project(t, orgID)
+	otherID := f.project(t, orgID)
+	fr := "fr-FR"
+
+	ownedID, _ := f.document(t, orgID, nil, nil, "ready", false, "Owned")
+	frenchID, _ := f.document(t, orgID, nil, &fr, "ready", true, "French")
+	f.exec(t, `update guideline_documents set project_id = $2, is_global = false, locales = '{}' where id = $1`, ownedID, projectID)
+	f.exec(t, `update guideline_documents set locales = '{}', locale = 'fr-FR', is_global = true where id = $1`, frenchID)
+
+	source := NewWithPool(f.pool)
+	ids := func(projectID, locale string) []string {
+		t.Helper()
+		docs, err := source.Current(t.Context(), guidelines.Scope{OrganizationID: orgID, ProjectID: projectID, Locale: locale})
+		require.NoError(t, err)
+		got := make([]string, 0, len(docs))
+		for _, doc := range docs {
+			got = append(got, doc.ID)
+		}
+		return got
+	}
+
+	require.ElementsMatch(t, []string{UploadedDocumentID(ownedID), UploadedDocumentID(frenchID)}, ids(projectID, fr))
+	require.ElementsMatch(t, []string{UploadedDocumentID(frenchID)}, ids(otherID, fr))
+	require.ElementsMatch(t, []string{UploadedDocumentID(ownedID)}, ids(projectID, "de-DE"))
+	require.Empty(t, ids("", ""))
 }
 
 func TestNewConnectsAndCloses(t *testing.T) {

@@ -23,12 +23,14 @@ import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
 
 const mocks = vi.hoisted(() => ({
   getDocument: vi.fn(),
+  downloadDocument: vi.fn(),
   updateDocument: vi.fn(),
   attachDocumentProject: vi.fn(),
   detachDocumentProject: vi.fn(),
   listAllDocumentAssignments: vi.fn(),
   listProjects: vi.fn(),
   toastError: vi.fn(),
+  saveDownload: vi.fn(),
 }));
 
 vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
@@ -37,6 +39,7 @@ vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
     client: {
       guidelines: {
         getDocument: mocks.getDocument,
+        downloadDocument: mocks.downloadDocument,
         updateDocument: mocks.updateDocument,
         attachDocumentProject: mocks.attachDocumentProject,
         detachDocumentProject: mocks.detachDocumentProject,
@@ -53,6 +56,10 @@ vi.mock("sonner", () => ({
   toast: { error: mocks.toastError },
 }));
 
+vi.mock("@/lib/go-svc/save-go-svc-download", () => ({
+  saveGoSvcDownload: mocks.saveDownload,
+}));
+
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: ReactNode }) => (
     <a href={href}>{children}</a>
@@ -60,12 +67,16 @@ vi.mock("next/link", () => ({
 }));
 
 const { GuidelineDocumentDetailContent } = await import("./guideline-document-detail-content");
+const { guidelineAssignmentProjectsQueryKey, guidelineDocumentAssignmentsQueryKey } =
+  await import("./guideline-document-assignments");
 
 function guidelineDocument(overrides: Partial<GuidelineDocument> = {}): GuidelineDocument {
-  return {
+  const base = {
     id: "doc-brand",
     projectId: null,
     locale: null,
+    locales: [],
+    isGlobal: false,
     title: "Brand voice",
     filename: "brand.md",
     contentType: "text/markdown",
@@ -83,6 +94,7 @@ function guidelineDocument(overrides: Partial<GuidelineDocument> = {}): Guidelin
     content: "# Voice rules\n\nKeep product names in English.",
     ...overrides,
   };
+  return base as GuidelineDocument;
 }
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -114,6 +126,44 @@ function defaultMocks() {
 }
 
 describe("GuidelineDocumentDetailContent", () => {
+  it("renders assignments from the list page cache without throwing", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    queryClient.setQueryData(
+      ["guideline-document", "acme", undefined, "doc-brand"],
+      guidelineDocument(),
+    );
+    queryClient.setQueryData(guidelineDocumentAssignmentsQueryKey("acme"), {
+      assignments: [{ documentId: "doc-brand", projectIds: ["project_1"] }],
+    });
+    queryClient.setQueryData(guidelineAssignmentProjectsQueryKey("acme"), {
+      projects: [{ id: "project_1", name: "Mobile app" }],
+    });
+
+    render(
+      <GuidelineDocumentDetailContent
+        organizationSlug="acme"
+        documentId="doc-brand"
+        canUpdate={false}
+      />,
+      {
+        wrapper: ({ children }) => (
+          <IntlProvider locale="en">
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+          </IntlProvider>
+        ),
+      },
+    );
+
+    expect(await screen.findByRole("link", { name: "Mobile app" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1",
+    );
+    expect(mocks.listAllDocumentAssignments).not.toHaveBeenCalled();
+    expect(mocks.listProjects).not.toHaveBeenCalled();
+  });
+
   it("renders metadata, content, and assignments for an org-wide document", async () => {
     defaultMocks();
     render(
@@ -123,7 +173,10 @@ describe("GuidelineDocumentDetailContent", () => {
 
     expect(await screen.findByRole("heading", { name: "Brand voice" })).toBeTruthy();
     expect(screen.getByText("Keep product names in English.")).toBeTruthy();
-    expect(await screen.findByText("Mobile app")).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "Mobile app" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1",
+    );
     expect(screen.getByRole("link", { name: "Back to Guideline" })).toHaveAttribute(
       "href",
       "/org/acme/knowledge",
@@ -164,7 +217,10 @@ describe("GuidelineDocumentDetailContent", () => {
     expect(await screen.findByRole("heading", { name: "Brand voice" })).toBeTruthy();
     expect(screen.queryByRole("switch", { name: "Always apply" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
-    expect(await screen.findByText("Mobile app")).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "Mobile app" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1",
+    );
     expect(screen.queryByRole("combobox")).toBeNull();
   });
 
@@ -189,6 +245,46 @@ describe("GuidelineDocumentDetailContent", () => {
       "href",
       "/org/acme/projects/project_1/knowledge",
     );
+  });
+
+  it("downloads the original file", async () => {
+    defaultMocks();
+    mocks.downloadDocument.mockResolvedValue({ blob: new Blob(["x"]), filename: "brand.md" });
+    const user = userEvent.setup();
+    render(
+      <GuidelineDocumentDetailContent
+        organizationSlug="acme"
+        documentId="doc-brand"
+        canUpdate={false}
+      />,
+      { wrapper },
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Download" }));
+    await waitFor(() =>
+      expect(mocks.downloadDocument).toHaveBeenCalledWith("acme", "doc-brand", undefined),
+    );
+    expect(mocks.saveDownload).toHaveBeenCalledWith(
+      { blob: expect.any(Blob), filename: "brand.md" },
+      "brand.md",
+    );
+  });
+
+  it("shows an empty state when text content is blank", async () => {
+    defaultMocks();
+    mocks.getDocument.mockResolvedValue(guidelineDocument({ content: "   " }));
+    render(
+      <GuidelineDocumentDetailContent
+        organizationSlug="acme"
+        documentId="doc-brand"
+        canUpdate={false}
+      />,
+      { wrapper },
+    );
+
+    expect(await screen.findByRole("heading", { name: "Content" })).toBeTruthy();
+    expect(screen.getByText("No content yet")).toBeTruthy();
+    expect(screen.getByText("This guideline has no preview text yet.")).toBeTruthy();
   });
 
   it("shows a notice for binary documents", async () => {

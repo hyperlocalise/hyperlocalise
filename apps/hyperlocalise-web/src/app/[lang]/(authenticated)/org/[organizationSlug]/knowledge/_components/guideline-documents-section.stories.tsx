@@ -12,8 +12,10 @@
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
+import { guidelineListWidthDecorator } from "./guideline-story-decorators";
 import { GuidelineDocumentsSection } from "./guideline-documents-section";
 import {
+  createGuidelineAssignmentMswHandlers,
   createGuidelineDocumentsMswHandlers,
   storyGuidelineDocument,
 } from "./guideline-story-fixtures";
@@ -27,14 +29,24 @@ function populatedDocuments() {
       title: "Brand voice",
       filename: "brand-voice.md",
       mandatory: true,
+      isGlobal: true,
       characterCount: 1204,
     }),
     storyGuidelineDocument({
       id: "doc-tone",
       title: "Tone for French",
       filename: "tone-fr.md",
+      locales: ["fr-FR"],
       locale: "fr-FR",
       characterCount: 860,
+    }),
+    storyGuidelineDocument({
+      id: "doc-multi",
+      title: "Multilingual release notes",
+      filename: "release.md",
+      locales: ["fr-FR", "de-DE"],
+      isGlobal: true,
+      characterCount: 2140,
     }),
     storyGuidelineDocument({
       id: "doc-long",
@@ -57,13 +69,7 @@ const meta = {
   title: "Guidelines/Documents section",
   component: GuidelineDocumentsSection,
   parameters: { layout: "centered" },
-  decorators: [
-    (Story) => (
-      <div className="w-[720px] max-w-[90vw]">
-        <Story />
-      </div>
-    ),
-  ],
+  decorators: [guidelineListWidthDecorator],
 } satisfies Meta<typeof GuidelineDocumentsSection>;
 
 export default meta;
@@ -72,7 +78,14 @@ type Story = StoryObj<typeof meta>;
 export const Ready: Story = {
   args: { organizationSlug, canUpdate: true },
   parameters: {
-    msw: { handlers: createGuidelineDocumentsMswHandlers({ documents: populatedDocuments() }) },
+    msw: {
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({ documents: populatedDocuments() }),
+        ...createGuidelineAssignmentMswHandlers({
+          assignedDocuments: [{ documentId: "doc-tone", projectIds: ["project_1"] }],
+        }),
+      ],
+    },
   },
 };
 
@@ -84,19 +97,28 @@ export const ReadOnly: Story = {
 };
 
 export const ProjectScoped: Story = {
-  args: { organizationSlug, projectId: "project_1", canUpdate: true },
+  args: { organizationSlug, projectId: "project_1", canUpdate: false },
   parameters: {
     msw: {
-      handlers: createGuidelineDocumentsMswHandlers({
-        documents: [
-          storyGuidelineDocument({
-            id: "doc-mobile",
-            projectId: "project_1",
-            title: "Mobile app copy rules",
-            filename: "mobile.md",
-          }),
-        ],
-      }),
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({
+          documents: [
+            storyGuidelineDocument({
+              id: "doc-mobile",
+              title: "Mobile app copy rules",
+              filename: "mobile.md",
+            }),
+            storyGuidelineDocument({
+              id: "doc-other",
+              title: "Marketing only",
+              filename: "marketing.md",
+            }),
+          ],
+        }),
+        ...createGuidelineAssignmentMswHandlers({
+          assignedDocuments: [{ documentId: "doc-mobile", projectIds: ["project_1"] }],
+        }),
+      ],
     },
   },
 };
@@ -157,5 +179,16 @@ export const LoadError: Story = {
   args: { organizationSlug, canUpdate: true },
   parameters: {
     msw: { handlers: createGuidelineDocumentsMswHandlers({ failList: true }) },
+  },
+};
+
+export const EmptyOrgList: Story = {
+  args: {
+    organizationSlug,
+    canUpdate: true,
+    createGuidelineHref: "/org/acme/knowledge/upload",
+  },
+  parameters: {
+    msw: { handlers: createGuidelineDocumentsMswHandlers({ documents: [] }) },
   },
 };

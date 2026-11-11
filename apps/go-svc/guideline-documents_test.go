@@ -183,6 +183,11 @@ func TestGuidelineDocumentLifecycle(t *testing.T) {
 	require.Equal(t, http.StatusOK, fetched.Code)
 	require.Equal(t, "Use formal French.", *decodeGuidelineDocument(t, fetched).Content)
 
+	downloaded := env.json(http.MethodGet, path+"/"+doc.ID+"/download", "")
+	require.Equal(t, http.StatusOK, downloaded.Code, downloaded.Body.String())
+	require.Contains(t, downloaded.Header().Get("Content-Disposition"), "Style%20guide.md")
+	require.Equal(t, "# Tone\n\nUse formal French.", downloaded.Body.String())
+
 	updated := env.json(http.MethodPut, path+"/"+doc.ID, `{"locale":null,"mandatory":false,"title":"Tone"}`)
 	require.Equal(t, http.StatusAccepted, updated.Code, updated.Body.String())
 	metadata := decodeGuidelineDocument(t, updated)
@@ -233,6 +238,20 @@ func TestGuidelineDocumentUploadRejectsUnsupportedAndMarksEnqueueFailure(t *test
 	unavailable := env.upload(t, http.MethodPost, path, "a.txt", []byte("text"), nil)
 	require.Equal(t, http.StatusServiceUnavailable, unavailable.Code)
 	require.Contains(t, unavailable.Body.String(), "guideline_ingest_unavailable")
+}
+
+func TestGuidelineDocumentDeleteWithoutIngestPublisher(t *testing.T) {
+	env := newGuidelineTestEnv(t, "admin")
+	path := env.scope.OrgPath("/guidelines/documents")
+
+	created := env.upload(t, http.MethodPost, path, "remove-me.md", []byte("# Gone\n"), nil)
+	require.Equal(t, http.StatusAccepted, created.Code, created.Body.String())
+	doc := decodeGuidelineDocument(t, created)
+
+	env.handler.guidelineDocuments.publisher = nil
+	deleted := env.json(http.MethodDelete, path+"/"+doc.ID, "")
+	require.Equal(t, http.StatusNoContent, deleted.Code, deleted.Body.String())
+	require.Equal(t, http.StatusNotFound, env.json(http.MethodGet, path+"/"+doc.ID, "").Code)
 }
 
 func TestGuidelineDocumentListPagination(t *testing.T) {
@@ -336,23 +355,67 @@ func TestGuidelineDocumentListPaginationSameMillisecond(t *testing.T) {
 	require.Equal(t, ids[3], page2.GuidelineDocuments[1].ID)
 }
 
+func TestGuidelineDocumentListHonorsLegacyColumns(t *testing.T) {
+	env := newGuidelineTestEnv(t, "admin")
+	path := env.scope.OrgPath("/guidelines/documents")
+	projectID := env.scope.MustProject(t, "", "Owned")
+	otherID := env.scope.MustProject(t, "project_legacy_"+env.scope.Slug, "Other")
+	upload := func(name string) string {
+		t.Helper()
+		rec := env.upload(t, http.MethodPost, path, name+".md", []byte(name), nil)
+		require.Equal(t, http.StatusAccepted, rec.Code, rec.Body.String())
+		return decodeGuidelineDocument(t, rec).ID
+	}
+	owned := upload("owned")
+	french := upload("french")
+	_, err := env.scope.Pool.Exec(t.Context(), `update guideline_documents set project_id = $2 where id = $1`, owned, projectID)
+	require.NoError(t, err)
+	_, err = env.scope.Pool.Exec(t.Context(), `update guideline_documents set locales = '{}', locale = 'fr-FR' where id = $1`, french)
+	require.NoError(t, err)
+
+	ids := func(query string) []string {
+		t.Helper()
+		rec := env.json(http.MethodGet, path+query, "")
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		var body struct {
+			GuidelineDocuments []guidelineDocumentRecord `json:"guidelineDocuments"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		got := make([]string, 0, len(body.GuidelineDocuments))
+		for _, document := range body.GuidelineDocuments {
+			got = append(got, document.ID)
+		}
+		return got
+	}
+
+	require.ElementsMatch(t, []string{owned, french}, ids(""))
+	require.ElementsMatch(t, []string{owned}, ids("?project="+url.QueryEscape(projectID)))
+	require.Empty(t, ids("?project="+url.QueryEscape(otherID)))
+	require.ElementsMatch(t, []string{owned, french}, ids("?locale=fr-FR"))
+	require.ElementsMatch(t, []string{owned}, ids("?locale=de-DE"))
+}
+
 func TestGuidelineDocumentAccessControl(t *testing.T) {
 	env := newGuidelineTestEnv(t, "admin")
 	projectID := env.scope.MustProject(t, "", "Project")
 	projectPath := env.scope.OrgPath("/projects/" + projectID + "/guidelines/documents")
 	workspacePath := env.scope.OrgPath("/guidelines/documents")
 
-	created := env.upload(t, http.MethodPost, projectPath, "glossary.txt", []byte("Never translate Acme."), nil)
+	// Project-scoped writes are retired; creation happens on the org route.
+	retired := env.upload(t, http.MethodPost, projectPath, "glossary.txt", []byte("Never translate Acme."), nil)
+	require.Equal(t, http.StatusGone, retired.Code, retired.Body.String())
+
+	created := env.upload(t, http.MethodPost, workspacePath, "glossary.txt", []byte("Never translate Acme."), nil)
 	require.Equal(t, http.StatusAccepted, created.Code, created.Body.String())
 	doc := decodeGuidelineDocument(t, created)
-	require.Equal(t, projectID, *doc.ProjectID)
-	require.Equal(t, projectID, env.publisher.last(t).ProjectID)
+	require.Nil(t, doc.ProjectID)
+	require.Equal(t, "", env.publisher.last(t).ProjectID)
 
-	// Project documents are not reachable through the workspace path.
-	require.Equal(t, http.StatusNotFound, env.json(http.MethodGet, workspacePath+"/"+doc.ID, "").Code)
-	listed := env.json(http.MethodGet, workspacePath, "")
+	// Org documents stay reachable through the deprecated project read path.
+	require.Equal(t, http.StatusOK, env.json(http.MethodGet, projectPath+"/"+doc.ID, "").Code)
+	listed := env.json(http.MethodGet, projectPath, "")
 	require.Equal(t, http.StatusOK, listed.Code)
-	require.Contains(t, listed.Body.String(), `"guidelineDocuments":[]`)
+	require.Contains(t, listed.Body.String(), doc.ID)
 
 	other := newGuidelineTestEnv(t, "admin")
 	crossOrg := other.json(http.MethodGet, other.scope.OrgPath("/guidelines/documents/"+doc.ID), "")

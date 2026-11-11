@@ -126,7 +126,7 @@ func (api *guidelineDocumentAPI) listDocumentProjects(_ http.ResponseWriter, r *
 }
 
 func (api *guidelineDocumentAPI) attachDocumentProject(_ http.ResponseWriter, r *http.Request, actor workspaceActor) (int, any, error) {
-	if err := api.requireWriter(actor); err != nil {
+	if err := api.requireKnowledgeMemoryAdmin(actor); err != nil {
 		return 0, nil, err
 	}
 	record, err := api.resolveOrgWideDocument(r.Context(), actor, r.PathValue("documentId"))
@@ -150,7 +150,7 @@ func (api *guidelineDocumentAPI) attachDocumentProject(_ http.ResponseWriter, r 
 }
 
 func (api *guidelineDocumentAPI) detachDocumentProject(_ http.ResponseWriter, r *http.Request, actor workspaceActor) (int, any, error) {
-	if err := api.requireWriter(actor); err != nil {
+	if err := api.requireKnowledgeMemoryAdmin(actor); err != nil {
 		return 0, nil, err
 	}
 	record, err := api.resolveOrgWideDocument(r.Context(), actor, r.PathValue("documentId"))

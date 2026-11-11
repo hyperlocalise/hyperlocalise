@@ -52,13 +52,22 @@ func newGuidelineDocumentAPI(knowledge *knowledgeMemoryAPI, objects *objectstore
 }
 
 func (api *guidelineDocumentAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
-	for _, base := range []string{orgRoutePrefix + "/guidelines/documents", orgRoutePrefix + "/projects/{projectId}/guidelines/documents"} {
-		registerAuthenticated(mux, verifier, "GET "+base, api.knowledge.handle(false, api.list))
-		registerAuthenticated(mux, verifier, "POST "+base, api.knowledge.handleWith(true, guidelineDocumentBodyLimit, guidelineDocumentTimeout, api.upload))
-		registerAuthenticated(mux, verifier, "GET "+base+"/{documentId}", api.knowledge.handle(false, api.get))
-		registerAuthenticated(mux, verifier, "PUT "+base+"/{documentId}", api.knowledge.handleWith(true, guidelineDocumentBodyLimit, guidelineDocumentTimeout, api.update))
-		registerAuthenticated(mux, verifier, "DELETE "+base+"/{documentId}", api.knowledge.handle(true, api.remove))
-	}
+	orgBase := orgRoutePrefix + "/guidelines/documents"
+	registerAuthenticated(mux, verifier, "GET "+orgBase, api.knowledge.handle(false, api.list))
+	registerAuthenticated(mux, verifier, "POST "+orgBase, api.knowledge.handleWith(true, guidelineDocumentBodyLimit, guidelineDocumentTimeout, api.upload))
+	registerAuthenticated(mux, verifier, "GET "+orgBase+"/{documentId}", api.knowledge.handle(false, api.get))
+	registerAuthenticated(mux, verifier, "GET "+orgBase+"/{documentId}/download", api.knowledge.handle(false, api.download))
+	registerAuthenticated(mux, verifier, "PUT "+orgBase+"/{documentId}", api.knowledge.handleWith(true, guidelineDocumentBodyLimit, guidelineDocumentTimeout, api.update))
+	registerAuthenticated(mux, verifier, "DELETE "+orgBase+"/{documentId}", api.knowledge.handle(true, api.remove))
+	// Project-scoped routes are deprecated. Reads stay for migrated clients;
+	// writes return 410 and callers must use the org routes with assignments.
+	projectBase := orgRoutePrefix + "/projects/{projectId}/guidelines/documents"
+	registerAuthenticated(mux, verifier, "GET "+projectBase, api.knowledge.handle(false, api.list))
+	registerAuthenticated(mux, verifier, "GET "+projectBase+"/{documentId}", api.knowledge.handle(false, api.get))
+	registerAuthenticated(mux, verifier, "GET "+projectBase+"/{documentId}/download", api.knowledge.handle(false, api.download))
+	registerAuthenticated(mux, verifier, "POST "+projectBase, api.knowledge.handle(true, api.projectScopeRetired))
+	registerAuthenticated(mux, verifier, "PUT "+projectBase+"/{documentId}", api.knowledge.handle(true, api.projectScopeRetired))
+	registerAuthenticated(mux, verifier, "DELETE "+projectBase+"/{documentId}", api.knowledge.handle(true, api.projectScopeRetired))
 	workspaceDocs := orgRoutePrefix + "/guidelines/documents/{documentId}/projects"
 	registerAuthenticated(mux, verifier, "GET "+workspaceDocs, api.knowledge.handle(false, api.listDocumentProjects))
 	registerAuthenticated(mux, verifier, "POST "+workspaceDocs, api.knowledge.handle(true, api.attachDocumentProject))
@@ -72,12 +81,16 @@ func (api *guidelineDocumentAPI) scope(ctx context.Context, r *http.Request, act
 	if r.PathValue("projectId") == "" {
 		return scope, nil
 	}
-	project, err := api.knowledge.projectScope(ctx, actor, r.PathValue("projectId"))
-	if err != nil {
+	// Deprecated project scope: authorize the project but keep storage
+	// org-scoped. New writes on project routes are rejected by projectScopeRetired.
+	if _, err := api.knowledge.projectScope(ctx, actor, r.PathValue("projectId")); err != nil {
 		return guidelineDocumentScope{}, err
 	}
-	scope.projectID = project.projectID
 	return scope, nil
+}
+
+func (api *guidelineDocumentAPI) projectScopeRetired(_ http.ResponseWriter, _ *http.Request, _ workspaceActor) (int, any, error) {
+	return 0, nil, knowledgeMemoryFailure(410, "guideline_project_scope_retired", "Project-scoped guidelines are retired. Use org guideline documents with project assignments.")
 }
 
 func guidelineDocumentNotFound() error {
@@ -96,9 +109,16 @@ func parseGuidelineDocumentID(raw string) (string, error) {
 	return id.String(), nil
 }
 
-func (api *guidelineDocumentAPI) requireWriter(actor workspaceActor) error {
+func (api *guidelineDocumentAPI) requireKnowledgeMemoryAdmin(actor workspaceActor) error {
 	if !canUpdateKnowledgeMemory(actor.role) {
 		return knowledgeMemoryFailure(403, "forbidden", "Only workspace admins can manage guideline documents")
+	}
+	return nil
+}
+
+func (api *guidelineDocumentAPI) requireWriter(actor workspaceActor) error {
+	if err := api.requireKnowledgeMemoryAdmin(actor); err != nil {
+		return err
 	}
 	if api.publisher == nil {
 		return knowledgeMemoryFailure(503, "guideline_ingest_unavailable", "Guideline document processing is unavailable")
@@ -118,6 +138,28 @@ func guidelineDocumentListLimit(r *http.Request) (int, error) {
 	return limit, nil
 }
 
+// guidelineDocumentListFilterFromQuery parses ?project= and ?locale= list
+// filters. Project values resolve through the same authorized lookup as
+// assignments so filtered reads cannot leak across projects.
+func guidelineDocumentListFilterFromQuery(r *http.Request, api *guidelineDocumentAPI, actor workspaceActor) (guidelineDocumentListFilter, error) {
+	var filter guidelineDocumentListFilter
+	if raw := strings.TrimSpace(r.URL.Query().Get("project")); raw != "" {
+		projectID, err := ownedAssignmentProjectID(r.Context(), api.knowledge.workspace.pool, actor, raw)
+		if err != nil {
+			return guidelineDocumentListFilter{}, err
+		}
+		filter.projectID = projectID
+	}
+	if raw := strings.TrimSpace(r.URL.Query().Get("locale")); raw != "" {
+		locale, err := guidelines.NormalizeLocale(raw)
+		if err != nil || locale == "" {
+			return guidelineDocumentListFilter{}, invalidGuidelineDocument("locale")
+		}
+		filter.locale = locale
+	}
+	return filter, nil
+}
+
 func (api *guidelineDocumentAPI) list(_ http.ResponseWriter, r *http.Request, actor workspaceActor) (int, any, error) {
 	scope, err := api.scope(r.Context(), r, actor)
 	if err != nil {
@@ -134,7 +176,11 @@ func (api *guidelineDocumentAPI) list(_ http.ResponseWriter, r *http.Request, ac
 			return 0, nil, knowledgeMemoryFailure(400, "invalid_guideline_document_cursor", "Guideline document cursor is invalid")
 		}
 	}
-	page, err := listGuidelineDocumentsPage(r.Context(), api.knowledge.workspace.pool, scope, limit, cursorCreatedAt, cursorID)
+	filter, err := guidelineDocumentListFilterFromQuery(r, api, actor)
+	if err != nil {
+		return 0, nil, err
+	}
+	page, err := listGuidelineDocumentsPage(r.Context(), api.knowledge.workspace.pool, scope, filter, limit, cursorCreatedAt, cursorID)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -173,6 +219,58 @@ func (api *guidelineDocumentAPI) get(_ http.ResponseWriter, r *http.Request, act
 	return http.StatusOK, map[string]any{"guidelineDocument": record}, nil
 }
 
+func (api *guidelineDocumentAPI) download(_ http.ResponseWriter, r *http.Request, actor workspaceActor) (int, any, error) {
+	id, err := parseGuidelineDocumentID(r.PathValue("documentId"))
+	if err != nil {
+		return 0, nil, err
+	}
+	scope, err := api.scope(r.Context(), r, actor)
+	if err != nil {
+		return 0, nil, err
+	}
+	record, found, err := loadGuidelineDocument(r.Context(), api.knowledge.workspace.pool, scope, id, false)
+	if err != nil {
+		return 0, nil, err
+	}
+	if !found {
+		return 0, nil, guidelineDocumentNotFound()
+	}
+	if api.objects == nil {
+		return 0, nil, knowledgeMemoryFailure(503, "object_storage_unavailable", "Guideline document storage is unavailable")
+	}
+	if record.storageKey == "" {
+		return 0, nil, guidelineDocumentNotFound()
+	}
+	store, err := api.objects.Resolve(record.storageLocationID)
+	if err != nil {
+		return 0, nil, knowledgeMemoryFailure(503, "object_storage_unavailable", "Guideline document storage is unavailable")
+	}
+	reader, _, err := store.Get(r.Context(), record.storageKey)
+	if err != nil {
+		return 0, nil, guidelineDocumentNotFound()
+	}
+	defer func() { _ = reader.Close() }()
+	data, err := io.ReadAll(io.LimitReader(reader, guidelineDocumentMaxBytes+1))
+	if err != nil {
+		return 0, nil, err
+	}
+	if len(data) > guidelineDocumentMaxBytes {
+		return 0, nil, knowledgeMemoryFailure(413, "guideline_document_too_large", "Guideline document is too large to download")
+	}
+	contentType := strings.TrimSpace(record.ContentType)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	filename := strings.TrimSpace(record.Filename)
+	if filename == "" {
+		filename = strings.TrimSpace(record.Title)
+	}
+	if filename == "" {
+		filename = "guideline"
+	}
+	return http.StatusOK, interchangeDownload{contentType: contentType, filename: filename, body: data}, nil
+}
+
 type guidelineDocumentUpload struct {
 	data        []byte
 	filename    string
@@ -207,7 +305,8 @@ func (api *guidelineDocumentAPI) upload(_ http.ResponseWriter, r *http.Request, 
 	record, err := insertGuidelineDocument(r.Context(), api.knowledge.workspace.pool, scope, guidelineDocumentInsert{
 		id: id, revisionID: revisionID, title: *title, filename: upload.filename, contentType: upload.contentType,
 		storageLocationID: ref.LocationID, storageKey: ref.Key, userID: actor.userID,
-		locale: upload.metadata.locale, byteSize: int64(len(upload.data)), mandatory: upload.metadata.mandatory != nil && *upload.metadata.mandatory,
+		locale: upload.metadata.locale, locales: upload.metadata.locales, isGlobal: upload.metadata.isGlobal != nil && *upload.metadata.isGlobal,
+		byteSize: int64(len(upload.data)), mandatory: upload.metadata.mandatory != nil && *upload.metadata.mandatory,
 	})
 	if err != nil {
 		api.deleteObject(r.Context(), ref.LocationID, ref.Key)
@@ -218,9 +317,6 @@ func (api *guidelineDocumentAPI) upload(_ http.ResponseWriter, r *http.Request, 
 }
 
 func (api *guidelineDocumentAPI) update(_ http.ResponseWriter, r *http.Request, actor workspaceActor) (int, any, error) {
-	if err := api.requireWriter(actor); err != nil {
-		return 0, nil, err
-	}
 	id, err := parseGuidelineDocumentID(r.PathValue("documentId"))
 	if err != nil {
 		return 0, nil, err
@@ -232,6 +328,9 @@ func (api *guidelineDocumentAPI) update(_ http.ResponseWriter, r *http.Request, 
 	pool := api.knowledge.workspace.pool
 	revisionID := uuid.NewString()
 	if isMultipartRequest(r) {
+		if err := api.requireWriter(actor); err != nil {
+			return 0, nil, err
+		}
 		if api.objects == nil {
 			return 0, nil, knowledgeMemoryFailure(503, "object_storage_unavailable", "Guideline document storage is unavailable")
 		}
@@ -264,6 +363,9 @@ func (api *guidelineDocumentAPI) update(_ http.ResponseWriter, r *http.Request, 
 		return http.StatusAccepted, map[string]any{"guidelineDocument": api.publishExtract(r.Context(), record)}, nil
 	}
 
+	if err := api.requireKnowledgeMemoryAdmin(actor); err != nil {
+		return 0, nil, err
+	}
 	change, err := decodeGuidelineDocumentMetadata(r)
 	if err != nil {
 		return 0, nil, err
@@ -278,11 +380,16 @@ func (api *guidelineDocumentAPI) update(_ http.ResponseWriter, r *http.Request, 
 	if record.Status == "failed" {
 		return http.StatusOK, map[string]any{"guidelineDocument": record}, nil
 	}
+	// Metadata-only changes (title, locales, mandatory, is_global) should work
+	// without a live ingest queue; reindex when the publisher is configured.
+	if api.publisher == nil {
+		return http.StatusOK, map[string]any{"guidelineDocument": record}, nil
+	}
 	return http.StatusAccepted, map[string]any{"guidelineDocument": api.publishExtract(r.Context(), record)}, nil
 }
 
 func (api *guidelineDocumentAPI) remove(_ http.ResponseWriter, r *http.Request, actor workspaceActor) (int, any, error) {
-	if err := api.requireWriter(actor); err != nil {
+	if err := api.requireKnowledgeMemoryAdmin(actor); err != nil {
 		return 0, nil, err
 	}
 	id, err := parseGuidelineDocumentID(r.PathValue("documentId"))
@@ -304,10 +411,12 @@ func (api *guidelineDocumentAPI) remove(_ http.ResponseWriter, r *http.Request, 
 	defer cancel()
 	// The row is gone, so retrieval already ignores stale passages; a lost
 	// delete message only leaves unreachable vectors behind.
-	if err := api.publisher.Publish(publishCtx, ingest.Message{
-		Operation: ingest.OperationDelete, OrganizationID: scope.organizationID, ProjectID: scope.projectID, DocumentID: record.ID, Version: record.Version,
-	}); err != nil {
-		slog.WarnContext(r.Context(), "guideline_ingest_delete_enqueue_failed", "organization_id", scope.organizationID, "document_id", record.ID, "error", err)
+	if api.publisher != nil {
+		if err := api.publisher.Publish(publishCtx, ingest.Message{
+			Operation: ingest.OperationDelete, OrganizationID: scope.organizationID, DocumentID: record.ID, Version: record.Version,
+		}); err != nil {
+			slog.WarnContext(r.Context(), "guideline_ingest_delete_enqueue_failed", "organization_id", scope.organizationID, "document_id", record.ID, "error", err)
+		}
 	}
 	api.deleteObject(r.Context(), record.storageLocationID, record.storageKey)
 	return http.StatusNoContent, nil, nil
@@ -336,10 +445,6 @@ func (api *guidelineDocumentAPI) sweep(w http.ResponseWriter, r *http.Request) {
 	}
 	republished, failed := 0, 0
 	for _, record := range records {
-		projectID := ""
-		if record.ProjectID != nil {
-			projectID = *record.ProjectID
-		}
 		// Restore a worker-accepted state before publish. A failed enqueue
 		// row is otherwise stale if the worker consumes the retry first.
 		if err := touchGuidelineDocumentEnqueued(ctx, pool, record.ID, record.RevisionID); err != nil {
@@ -348,7 +453,7 @@ func (api *guidelineDocumentAPI) sweep(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		err := api.publisher.Publish(ctx, ingest.Message{
-			Operation: ingest.OperationExtractIndex, OrganizationID: record.organizationID, ProjectID: projectID, DocumentID: record.ID, RevisionID: record.RevisionID,
+			Operation: ingest.OperationExtractIndex, OrganizationID: record.organizationID, DocumentID: record.ID, RevisionID: record.RevisionID,
 		})
 		if err != nil {
 			if record.Status == "failed" {
@@ -370,12 +475,8 @@ func (api *guidelineDocumentAPI) sweep(w http.ResponseWriter, r *http.Request) {
 func (api *guidelineDocumentAPI) publishExtract(ctx context.Context, record guidelineDocumentRecord) guidelineDocumentRecord {
 	publishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), guidelinePublishTimeout)
 	defer cancel()
-	projectID := ""
-	if record.ProjectID != nil {
-		projectID = *record.ProjectID
-	}
 	err := api.publisher.Publish(publishCtx, ingest.Message{
-		Operation: ingest.OperationExtractIndex, OrganizationID: record.organizationID, ProjectID: projectID, DocumentID: record.ID, RevisionID: record.RevisionID,
+		Operation: ingest.OperationExtractIndex, OrganizationID: record.organizationID, DocumentID: record.ID, RevisionID: record.RevisionID,
 	})
 	if err == nil {
 		return record
@@ -455,6 +556,32 @@ func (api *guidelineDocumentAPI) readUpload(r *http.Request) (guidelineDocumentU
 }
 
 func (api *guidelineDocumentAPI) readUploadPart(part *multipart.Part, upload *guidelineDocumentUpload, seenFile *bool) error {
+	if part.FormName() == "locale" {
+		raw, err := io.ReadAll(io.LimitReader(part, guidelineDocumentMaxFieldSize+1))
+		if err != nil {
+			return uploadReadError(err)
+		}
+		if len(raw) > guidelineDocumentMaxFieldSize {
+			return invalidGuidelineDocument(part.FormName())
+		}
+		locale, err := guidelines.NormalizeLocale(string(raw))
+		if err != nil {
+			return invalidGuidelineDocument("locale")
+		}
+		if locale == "" {
+			return invalidGuidelineDocument("locale")
+		}
+		upload.metadata.locales = append(upload.metadata.locales, locale)
+		upload.metadata.setLocales = true
+		upload.metadata.setLocale = true
+		if len(upload.metadata.locales) == 1 {
+			first := upload.metadata.locales[0]
+			upload.metadata.locale = &first
+		} else {
+			upload.metadata.locale = nil
+		}
+		return nil
+	}
 	switch part.FormName() {
 	case "file":
 		if *seenFile {
@@ -477,12 +604,12 @@ func (api *guidelineDocumentAPI) readUploadPart(part *multipart.Part, upload *gu
 			return knowledgeMemoryFailure(415, "unsupported_guideline_format", "Upload a PDF, DOCX, Markdown, or plain text file")
 		}
 		upload.data, upload.filename, upload.contentType = data, filename, mediaType
-	case "title", "locale", "mandatory":
-		raw, err := io.ReadAll(io.LimitReader(part, guidelineDocumentMaxFieldSize+1))
+	case "title", "locale", "locales", "is_global", "isGlobal", "mandatory":
+		raw, err := io.ReadAll(io.LimitReader(part, guidelineDocumentMaxFieldSize*8+1))
 		if err != nil {
 			return uploadReadError(err)
 		}
-		if len(raw) > guidelineDocumentMaxFieldSize {
+		if len(raw) > guidelineDocumentMaxFieldSize*8 {
 			return invalidGuidelineDocument(part.FormName())
 		}
 		return applyGuidelineDocumentField(&upload.metadata, part.FormName(), string(raw))
@@ -515,7 +642,32 @@ func applyGuidelineDocumentField(change *guidelineDocumentMetadata, name, value 
 		change.setLocale = true
 		if locale != "" {
 			change.locale = &locale
+			change.locales = []string{locale}
+			change.setLocales = true
+		} else {
+			change.locale = nil
+			change.locales = []string{}
+			change.setLocales = true
 		}
+	case "locales":
+		locales, err := parseGuidelineLocalesField(value)
+		if err != nil {
+			return err
+		}
+		change.setLocales = true
+		change.locales = locales
+		change.setLocale = true
+		if len(locales) == 1 {
+			change.locale = &locales[0]
+		} else {
+			change.locale = nil
+		}
+	case "is_global", "isGlobal":
+		isGlobal, err := strconv.ParseBool(strings.TrimSpace(value))
+		if err != nil {
+			return invalidGuidelineDocument("is_global")
+		}
+		change.isGlobal = &isGlobal
 	case "mandatory":
 		mandatory, err := strconv.ParseBool(strings.TrimSpace(value))
 		if err != nil {
@@ -524,6 +676,37 @@ func applyGuidelineDocumentField(change *guidelineDocumentMetadata, name, value 
 		change.mandatory = &mandatory
 	}
 	return nil
+}
+
+func parseGuidelineLocalesField(value string) ([]string, error) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return []string{}, nil
+	}
+	var raw []string
+	if strings.HasPrefix(trimmed, "[") {
+		if err := json.Unmarshal([]byte(trimmed), &raw); err != nil {
+			return nil, invalidGuidelineDocument("locales")
+		}
+	} else {
+		raw = strings.Split(trimmed, ",")
+	}
+	seen := make(map[string]bool, len(raw))
+	locales := make([]string, 0, len(raw))
+	for _, item := range raw {
+		locale, err := guidelines.NormalizeLocale(item)
+		if err != nil || locale == "" {
+			return nil, invalidGuidelineDocument("locales")
+		}
+		if !seen[locale] {
+			seen[locale] = true
+			locales = append(locales, locale)
+		}
+	}
+	if len(locales) > 32 {
+		return nil, invalidGuidelineDocument("locales")
+	}
+	return locales, nil
 }
 
 func decodeGuidelineDocumentMetadata(r *http.Request) (guidelineDocumentMetadata, error) {
@@ -545,6 +728,8 @@ func decodeGuidelineDocumentMetadata(r *http.Request) (guidelineDocumentMetadata
 		case "locale":
 			if string(raw) == "null" {
 				change.setLocale = true
+				change.setLocales = true
+				change.locales = []string{}
 				continue
 			}
 			var locale string
@@ -554,6 +739,47 @@ func decodeGuidelineDocumentMetadata(r *http.Request) (guidelineDocumentMetadata
 			if err := applyGuidelineDocumentField(&change, name, locale); err != nil {
 				return change, err
 			}
+		case "locales":
+			if string(raw) == "null" {
+				change.setLocales = true
+				change.locales = []string{}
+				change.setLocale = true
+				change.locale = nil
+				continue
+			}
+			var locales []string
+			if err := json.Unmarshal(raw, &locales); err != nil {
+				return change, invalidGuidelineDocument(name)
+			}
+			normalized := make([]string, 0, len(locales))
+			seen := make(map[string]bool, len(locales))
+			for _, item := range locales {
+				locale, err := guidelines.NormalizeLocale(item)
+				if err != nil || locale == "" {
+					return change, invalidGuidelineDocument(name)
+				}
+				if !seen[locale] {
+					seen[locale] = true
+					normalized = append(normalized, locale)
+				}
+			}
+			if len(normalized) > 32 {
+				return change, invalidGuidelineDocument(name)
+			}
+			change.setLocales = true
+			change.locales = normalized
+			change.setLocale = true
+			if len(normalized) == 1 {
+				change.locale = &normalized[0]
+			} else {
+				change.locale = nil
+			}
+		case "is_global", "isGlobal":
+			var isGlobal bool
+			if err := json.Unmarshal(raw, &isGlobal); err != nil {
+				return change, invalidGuidelineDocument(name)
+			}
+			change.isGlobal = &isGlobal
 		case "mandatory":
 			var mandatory bool
 			if err := json.Unmarshal(raw, &mandatory); err != nil {
@@ -564,7 +790,7 @@ func decodeGuidelineDocumentMetadata(r *http.Request) (guidelineDocumentMetadata
 			return change, invalidGuidelineDocument(name)
 		}
 	}
-	if change.title == nil && !change.setLocale && change.mandatory == nil {
+	if change.title == nil && !change.setLocale && !change.setLocales && change.isGlobal == nil && change.mandatory == nil {
 		return change, invalidGuidelineDocument("body")
 	}
 	return change, nil

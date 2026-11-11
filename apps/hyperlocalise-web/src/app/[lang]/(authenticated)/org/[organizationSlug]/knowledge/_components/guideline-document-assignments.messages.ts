@@ -1,3 +1,17 @@
+"use client";
+
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { defineMessages } from "react-intl";
 
 export const guidelineDocumentAssignmentsMessages = defineMessages({
@@ -8,14 +22,19 @@ export const guidelineDocumentAssignmentsMessages = defineMessages({
   },
   sectionDescription: {
     defaultMessage:
-      "Unassigned org-wide documents apply to every project. Select specific projects to scope this document down.",
-    id: "oHs8rf1U7k",
+      "Unassigned documents apply to no project. Turn on All projects or assign specific projects to scope this document.",
+    id: "5vT3Efe6qS",
     description: "Description for per-document project assignments",
   },
   noProjects: {
+    defaultMessage: "No projects",
+    id: "qY3Pg1S0PG",
+    description: "Badge when a guideline applies to no project",
+  },
+  allProjects: {
     defaultMessage: "All projects",
-    id: "8w+jrEv9vl",
-    description: "Badge when a guideline applies to every project (no assignment yet)",
+    id: "sgEffgFAQO",
+    description: "Badge when a guideline applies to every project",
   },
   selectedProjects: {
     defaultMessage: "{count, plural, one {# project} other {# projects}}",
@@ -33,9 +52,9 @@ export const guidelineDocumentAssignmentsMessages = defineMessages({
     description: "Assign a guideline to a project",
   },
   remove: {
-    defaultMessage: "Remove",
-    id: "XJmIbeJegZ",
-    description: "Remove a project assignment",
+    defaultMessage: "Unassign",
+    id: "wMAlJEC29X",
+    description: "Unassign a project from this guideline",
   },
   loadFailed: {
     defaultMessage: "Could not load assignments.",

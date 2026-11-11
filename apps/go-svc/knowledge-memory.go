@@ -99,6 +99,10 @@ func (api *knowledgeMemoryAPI) handleWith(mutation bool, bodyLimit int64, timeou
 			writeKnowledgeMemoryError(w, r, err)
 			return
 		}
+		if download, ok := value.(interchangeDownload); ok {
+			writeInterchangeDownload(w, status, download)
+			return
+		}
 		writeKnowledgeMemoryJSON(w, status, value)
 	})
 }

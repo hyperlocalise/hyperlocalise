@@ -12,25 +12,30 @@ import (
 )
 
 type guidelineDocumentRecord struct {
-	ID              string  `json:"id"`
-	ProjectID       *string `json:"projectId"`
-	Locale          *string `json:"locale"`
-	Title           string  `json:"title"`
-	Filename        string  `json:"filename"`
-	ContentType     string  `json:"contentType"`
-	ByteSize        int64   `json:"byteSize"`
-	CharacterCount  int     `json:"characterCount"`
-	Truncated       bool    `json:"truncated"`
-	RevisionID      string  `json:"revisionId"`
-	Version         int64   `json:"version"`
-	Mandatory       bool    `json:"mandatory"`
-	Status          string  `json:"status"`
-	ErrorCode       *string `json:"errorCode"`
-	Indexed         bool    `json:"indexed"`
-	CreatedAt       string  `json:"createdAt"`
-	UpdatedAt       string  `json:"updatedAt"`
-	createdAtCursor string  `json:"-"`
-	Content         *string `json:"content,omitempty"`
+	ID        string  `json:"id"`
+	ProjectID *string `json:"projectId,omitempty"`
+	// Deprecated: single-locale reads are retired. Locales carries the
+	// per-document locales (empty means all locales); Locale only mirrors
+	// Locales when exactly one locale is set.
+	Locale          *string  `json:"locale,omitempty"`
+	Locales         []string `json:"locales"`
+	IsGlobal        bool     `json:"isGlobal"`
+	Title           string   `json:"title"`
+	Filename        string   `json:"filename"`
+	ContentType     string   `json:"contentType"`
+	ByteSize        int64    `json:"byteSize"`
+	CharacterCount  int      `json:"characterCount"`
+	Truncated       bool     `json:"truncated"`
+	RevisionID      string   `json:"revisionId"`
+	Version         int64    `json:"version"`
+	Mandatory       bool     `json:"mandatory"`
+	Status          string   `json:"status"`
+	ErrorCode       *string  `json:"errorCode"`
+	Indexed         bool     `json:"indexed"`
+	CreatedAt       string   `json:"createdAt"`
+	UpdatedAt       string   `json:"updatedAt"`
+	createdAtCursor string   `json:"-"`
+	Content         *string  `json:"content,omitempty"`
 
 	organizationID    string
 	storageLocationID string
@@ -39,28 +44,30 @@ type guidelineDocumentRecord struct {
 
 type guidelineDocumentScope struct {
 	organizationID string
-	projectID      string
 }
 
 type guidelineDocumentInsert struct {
 	id, revisionID, title, filename, contentType string
 	storageLocationID, storageKey, userID        string
 	locale                                       *string
+	locales                                      []string
+	isGlobal                                     bool
 	byteSize                                     int64
 	mandatory                                    bool
 }
 
-const guidelineDocumentColumns = `d.id::text, d.organization_id::text, d.project_id, d.locale, d.title, d.filename, d.content_type, d.byte_size,
+const guidelineDocumentColumns = `d.id::text, d.organization_id::text, d.project_id, d.locale, d.locales, d.is_global, d.title, d.filename, d.content_type, d.byte_size,
 	char_length(d.content), d.truncated, d.revision_id::text, d.version, d.mandatory, d.status, d.error_code,
 	d.indexed_revision_id is not distinct from d.revision_id, d.created_at, d.updated_at, d.storage_location_id, d.storage_key`
 
 func scanGuidelineDocument(row pgx.Row, withContent bool) (guidelineDocumentRecord, error) {
 	var record guidelineDocumentRecord
 	var projectID, locale, errorCode pgtype.Text
+	var locales pgtype.Array[string]
 	var createdAt, updatedAt time.Time
 	var content string
 	dest := []any{
-		&record.ID, &record.organizationID, &projectID, &locale, &record.Title, &record.Filename, &record.ContentType, &record.ByteSize,
+		&record.ID, &record.organizationID, &projectID, &locale, &locales, &record.IsGlobal, &record.Title, &record.Filename, &record.ContentType, &record.ByteSize,
 		&record.CharacterCount, &record.Truncated, &record.RevisionID, &record.Version, &record.Mandatory, &record.Status, &errorCode,
 		&record.Indexed, &createdAt, &updatedAt, &record.storageLocationID, &record.storageKey,
 	}
@@ -72,10 +79,20 @@ func scanGuidelineDocument(row pgx.Row, withContent bool) (guidelineDocumentReco
 	}
 	record.ProjectID = guidelineOptionalText(projectID)
 	record.Locale = guidelineOptionalText(locale)
+	if locales.Valid {
+		record.Locales = append([]string{}, locales.Elements...)
+	} else {
+		record.Locales = []string{}
+	}
 	record.ErrorCode = guidelineOptionalText(errorCode)
 	record.CreatedAt = formatKnowledgeMemoryTime(createdAt)
 	record.UpdatedAt = formatKnowledgeMemoryTime(updatedAt)
 	record.createdAtCursor = formatKnowledgeMemoryCursorTime(createdAt)
+	// Legacy single-locale compat: mirror the first entry when set.
+	if record.Locale == nil && len(record.Locales) == 1 {
+		first := record.Locales[0]
+		record.Locale = &first
+	}
 	if withContent {
 		record.Content = &content
 	}
@@ -89,18 +106,27 @@ func guidelineOptionalText(value pgtype.Text) *string {
 	return stringPointer(value.String)
 }
 
-// projectFilter matches workspace documents when projectID is empty, and only
-// that project's documents otherwise.
-const guidelineDocumentProjectFilter = `d.organization_id = $1 and d.project_id is not distinct from nullif($2, '')`
+// projectFilter matches org-scoped documents. project_id is deprecated and
+// always NULL for new rows; project targeting uses guideline_document_projects.
+const guidelineDocumentProjectFilter = `d.organization_id = $1 and d.project_id is null`
+
+// byIDFilter matches any guideline in the organization, including legacy
+// project-owned rows that predate the org-scope migration.
+const guidelineDocumentByIDFilter = `d.organization_id = $1`
 
 func insertGuidelineDocument(ctx context.Context, db dictionaryDB, scope guidelineDocumentScope, input guidelineDocumentInsert) (guidelineDocumentRecord, error) {
-	return scanGuidelineDocument(db.QueryRow(ctx, `
-		insert into guideline_documents as d (id, organization_id, project_id, locale, title, storage_location_id, storage_key, filename,
+	locales := append([]string{}, input.locales...)
+	record, err := scanGuidelineDocument(db.QueryRow(ctx, `
+		insert into guideline_documents as d (id, organization_id, project_id, locale, locales, is_global, title, storage_location_id, storage_key, filename,
 			content_type, byte_size, revision_id, mandatory, status, enqueued_at, created_by_user_id)
-		values ($3, $1, nullif($2, ''), $4, $5, $6, $7, $8, $9, $10, $11, $12, 'processing', now(), nullif($13, '')::uuid)
+		values ($2, $1, NULL, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'processing', now(), nullif($14, '')::uuid)
 		returning `+guidelineDocumentColumns,
-		scope.organizationID, scope.projectID, input.id, input.locale, input.title, input.storageLocationID, input.storageKey, input.filename,
+		scope.organizationID, input.id, input.locale, locales, input.isGlobal, input.title, input.storageLocationID, input.storageKey, input.filename,
 		input.contentType, input.byteSize, input.revisionID, input.mandatory, input.userID), false)
+	if err != nil {
+		return guidelineDocumentRecord{}, err
+	}
+	return record, nil
 }
 
 type guidelineDocumentListPage struct {
@@ -108,9 +134,35 @@ type guidelineDocumentListPage struct {
 	HasMore bool
 }
 
-func listGuidelineDocumentsPage(ctx context.Context, db dictionaryDB, scope guidelineDocumentScope, limit int, cursorCreatedAt, cursorID string) (guidelineDocumentListPage, error) {
-	where := guidelineDocumentProjectFilter
-	args := []any{scope.organizationID, scope.projectID}
+// guidelineDocumentListFilter scopes the document list. A project keeps global
+// org rows, rows assigned to that project, and legacy rows whose project_id
+// is that project. A locale matches a non-empty locales array, an empty array
+// with a NULL locale, or an empty array whose legacy locale equals it.
+type guidelineDocumentListFilter struct {
+	projectID string
+	locale    string
+}
+
+func listGuidelineDocumentsPage(ctx context.Context, db dictionaryDB, scope guidelineDocumentScope, filter guidelineDocumentListFilter, limit int, cursorCreatedAt, cursorID string) (guidelineDocumentListPage, error) {
+	where := `d.organization_id = $1`
+	args := []any{scope.organizationID}
+	if filter.projectID != "" {
+		args = append(args, filter.projectID)
+		projectArg := strconv.Itoa(len(args))
+		where += ` and (
+			(d.project_id is null and (d.is_global or exists (select 1 from guideline_document_projects g
+				where g.document_id = d.id and g.project_id = $` + projectArg + `)))
+			or d.project_id = $` + projectArg + `
+		)`
+	}
+	if filter.locale != "" {
+		args = append(args, filter.locale)
+		localeArg := strconv.Itoa(len(args))
+		where += ` and (
+			(coalesce(cardinality(d.locales), 0) > 0 and $` + localeArg + ` = any(d.locales))
+			or (coalesce(cardinality(d.locales), 0) = 0 and (d.locale is null or d.locale = $` + localeArg + `))
+		)`
+	}
 	if cursorCreatedAt != "" || cursorID != "" {
 		args = append(args, cursorCreatedAt, cursorID)
 		pos := len(args)
@@ -148,7 +200,7 @@ func loadGuidelineDocument(ctx context.Context, db dictionaryDB, scope guideline
 		columns += ", d.content"
 	}
 	record, err := scanGuidelineDocument(db.QueryRow(ctx, `select `+columns+` from guideline_documents d
-		where `+guidelineDocumentProjectFilter+` and d.id = $3`, scope.organizationID, scope.projectID, id), withContent)
+		where `+guidelineDocumentByIDFilter+` and d.id = $2`, scope.organizationID, id), withContent)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return guidelineDocumentRecord{}, false, nil
 	}
@@ -159,24 +211,31 @@ func loadGuidelineDocument(ctx context.Context, db dictionaryDB, scope guideline
 }
 
 type guidelineDocumentMetadata struct {
-	title     *string
-	locale    *string
-	setLocale bool
-	mandatory *bool
+	title      *string
+	locale     *string
+	setLocale  bool
+	locales    []string
+	setLocales bool
+	isGlobal   *bool
+	mandatory  *bool
 }
 
-// updateGuidelineDocumentMetadata bumps the revision because locale and the
+// updateGuidelineDocumentMetadata bumps the revision because locales and the
 // mandatory flag are part of the indexed passage scope.
 func updateGuidelineDocumentMetadata(ctx context.Context, db dictionaryDB, scope guidelineDocumentScope, id, revisionID string, change guidelineDocumentMetadata) (guidelineDocumentRecord, bool, error) {
+	locales := append([]string{}, change.locales...)
 	record, err := scanGuidelineDocument(db.QueryRow(ctx, `
 		update guideline_documents d set
-			title = coalesce($4, d.title),
-			locale = case when $5 then $6 else d.locale end,
-			mandatory = coalesce($7, d.mandatory),
-			revision_id = $8, version = d.version + 1, enqueued_at = now(), updated_at = now()
-		where `+guidelineDocumentProjectFilter+` and d.id = $3
+			title = coalesce($3, d.title),
+			locale = case when $4 then $5 else d.locale end,
+			locales = case when $6 then $7 else d.locales end,
+			is_global = coalesce($8, d.is_global),
+			mandatory = coalesce($9, d.mandatory),
+			revision_id = $10, version = d.version + 1, enqueued_at = now(), updated_at = now()
+		where `+guidelineDocumentProjectFilter+` and d.id = $2
 		returning `+guidelineDocumentColumns,
-		scope.organizationID, scope.projectID, id, change.title, change.setLocale, change.locale, change.mandatory, revisionID), false)
+		scope.organizationID, id, change.title, change.setLocale, change.locale, change.setLocales, locales,
+		change.isGlobal, change.mandatory, revisionID), false)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return guidelineDocumentRecord{}, false, nil
 	}
@@ -201,7 +260,7 @@ func replaceGuidelineDocumentFile(ctx context.Context, pool dictionaryPool, scop
 	}
 	defer func() { _ = conn.Rollback(ctx) }()
 	previous, err := scanGuidelineDocument(conn.QueryRow(ctx, `select `+guidelineDocumentColumns+` from guideline_documents d
-		where `+guidelineDocumentProjectFilter+` and d.id = $3 for update`, scope.organizationID, scope.projectID, id), false)
+		where `+guidelineDocumentProjectFilter+` and d.id = $2 for update`, scope.organizationID, id), false)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return guidelineDocumentRecord{}, guidelineDocumentRecord{}, false, nil
 	}
@@ -210,15 +269,18 @@ func replaceGuidelineDocumentFile(ctx context.Context, pool dictionaryPool, scop
 	}
 	updated, err := scanGuidelineDocument(conn.QueryRow(ctx, `
 		update guideline_documents d set
-			title = coalesce($4, d.title),
-			locale = case when $5 then $6 else d.locale end,
-			mandatory = coalesce($7, d.mandatory),
-			revision_id = $8, version = d.version + 1, filename = $9, content_type = $10, byte_size = $11,
-			storage_location_id = $12, storage_key = $13, content = '', truncated = false, status = 'processing',
+			title = coalesce($3, d.title),
+			locale = case when $4 then $5 else d.locale end,
+			locales = case when $6 then $7 else d.locales end,
+			is_global = coalesce($8, d.is_global),
+			mandatory = coalesce($9, d.mandatory),
+			revision_id = $10, version = d.version + 1, filename = $11, content_type = $12, byte_size = $13,
+			storage_location_id = $14, storage_key = $15, content = '', truncated = false, status = 'processing',
 			error_code = null, enqueued_at = now(), updated_at = now()
-		where `+guidelineDocumentProjectFilter+` and d.id = $3
+		where `+guidelineDocumentProjectFilter+` and d.id = $2
 		returning `+guidelineDocumentColumns,
-		scope.organizationID, scope.projectID, id, change.title, change.setLocale, change.locale, change.mandatory,
+		scope.organizationID, id, change.title, change.setLocale, change.locale, change.setLocales, append([]string{}, change.locales...),
+		change.isGlobal, change.mandatory,
 		file.revisionID, file.filename, file.contentType, file.byteSize, file.storageLocationID, file.storageKey), false)
 	if err != nil {
 		return guidelineDocumentRecord{}, guidelineDocumentRecord{}, false, fmt.Errorf("replace guideline document: %w", err)
@@ -237,8 +299,8 @@ func markGuidelineDocumentEnqueueFailed(ctx context.Context, db dictionaryDB, id
 
 func deleteGuidelineDocument(ctx context.Context, db dictionaryDB, scope guidelineDocumentScope, id string) (guidelineDocumentRecord, bool, error) {
 	record, err := scanGuidelineDocument(db.QueryRow(ctx, `delete from guideline_documents d
-		where `+guidelineDocumentProjectFilter+` and d.id = $3 returning `+guidelineDocumentColumns,
-		scope.organizationID, scope.projectID, id), false)
+		where `+guidelineDocumentProjectFilter+` and d.id = $2 returning `+guidelineDocumentColumns,
+		scope.organizationID, id), false)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return guidelineDocumentRecord{}, false, nil
 	}

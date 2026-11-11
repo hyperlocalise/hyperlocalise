@@ -13,34 +13,37 @@ as "applies to every project", so every upload silently affected all projects.
 
 ## Decision
 
-An org-wide guideline document with no `guideline_document_projects` rows
-applies to every project (global). This keeps setup-wizard guidance visible
-to all current and future projects without per-project writes. Once
-assignment rows exist for a document, it applies only to listed projects.
-Project-owned documents always apply to their own project and skip
-assignment. Org-level scopes with no project keep all org-scoped content.
+An org-wide guideline (`project_id` NULL) applies to every project only when
+`is_global` is true. `is_global` false with no assignment rows applies to no
+project, which is the upload default. Assignment rows list the projects a
+non-global document applies to. The setup wizard sets `is_global` true when
+it creates "Setup wizard guidance". A later wizard run does not change that
+flag on the existing document.
 
-Enforcement lives in the two retrieval queries so every consumer inherits
-it: `currentQuery` in `internal/guidelines/postgres/source.go` and
-`mergeQuery` in `apps/go-svc/guideline-retrieve.go`. Both keep the
-`$project = ''` arm for org-level checks and add a `NOT EXISTS` arm that
-includes unassigned org-wide documents in project scopes.
+A stored `project_id` is not copied into `guideline_document_projects` and
+is not cleared. Reads treat it as applying only to that project. A stored
+`locale` is not copied into `locales`. A non-empty `locales` array is the
+only locale match. An empty array with a NULL `locale` means all locales.
+An empty array with `locale` set means that locale only. There is no
+backfill.
+
+Enforcement lives in `currentQuery` in
+`internal/guidelines/postgres/source.go`, `mergeQuery` in
+`apps/go-svc/guideline-retrieve.go`, and the document list filter. An empty
+project scope keeps org rows for org-level checks. An empty locale keeps
+only all-locale rows.
 
 The document detail page carries a **Projects** section where admins and
-localization managers assign or remove projects. Assigning a first project
-scopes a previously global document to listed projects only. The Content
-Editor workspace tab and every project-scoped retrieval surface global
-documents plus documents assigned to that project.
+localization managers assign or remove projects. The Content Editor project
+and workspace tabs both list documents in scope for the open project:
+global documents plus documents assigned to that project.
 
 ## Validation
 
-Update `TestCurrentRespectsProjectAssignment` to assert an unassigned
-org-wide document is visible in every project scope, and that assigning it
-to one project hides it from siblings. Update
-`TestCurrentReturnsScopedGuidelinesInOrder` to cover both a global
-unassigned document and an assigned scoped document. Update the Content
-Editor sheet test to assert unassigned workspace documents are shown.
-`go vet` the touched packages; `vp check` and `vp test` the touched web suites.
+`TestCurrentRespectsProjectAssignment` covers global documents and
+assignment. `TestCurrentHonorsLegacyLocaleAndProject` covers a stored
+`project_id` and a stored `locale` without rewriting the row. The setup
+wizard test expects `isGlobal: true` only on create.
 
 ## Cutover from typed notes
 
@@ -54,10 +57,11 @@ guidance as a guideline document before upgrading.
 
 ## Alternatives considered
 
-- **Empty assignment means every project:** adopted. Setup-wizard guidance
-  and other org-wide defaults stay visible to all current and future
-  projects without per-project writes; scoping a document is an explicit
-  assign-first-project action on the detail page.
+- **Empty assignment means every project:** rejected. New uploads would
+  apply to every project until someone assigned one. `is_global` records
+  that choice explicitly. The setup wizard opts in when it creates guidance.
+- **Backfill existing rows:** rejected. Reads honor a stored `project_id`
+  and `locale`. Columns are not rewritten.
 - **Auto-assign new uploads to all current projects:** preserves old behavior
   for existing projects but still surprises on new projects, and diverges from
   the explicit per-document model on the detail page.

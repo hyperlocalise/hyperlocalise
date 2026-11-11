@@ -12,7 +12,9 @@
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
+import { guidelinePageWidthDecorator } from "./guideline-story-decorators";
 import {
+  createGuidelineAssignmentMswHandlers,
   createGuidelineDocumentsMswHandlers,
   storyGuidelineDocument,
 } from "./guideline-story-fixtures";
@@ -22,74 +24,130 @@ const organizationSlug = "acme";
 const projectId = "project_1";
 
 const meta = {
-  title: "Guidelines/Project page",
+  title: "Guidelines/Knowledge page",
   component: KnowledgePageContent,
   parameters: { layout: "centered" },
-  decorators: [
-    (Story) => (
-      <div className="w-[880px] max-w-[92vw]">
-        <Story />
-      </div>
-    ),
-  ],
-  args: { organizationSlug, projectId },
+  decorators: [guidelinePageWidthDecorator],
+  args: { organizationSlug, canUpdateKnowledgeMemory: true },
 } satisfies Meta<typeof KnowledgePageContent>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const ProjectGuidelinePage: Story = {
-  args: { canUpdateKnowledgeMemory: true },
+export const OrganizationPage: Story = {
   parameters: {
     msw: {
-      handlers: createGuidelineDocumentsMswHandlers({
-        documents: [
-          storyGuidelineDocument({
-            id: "doc-mobile",
-            projectId,
-            title: "Mobile app copy rules",
-            filename: "mobile.md",
-            mandatory: true,
-          }),
-          storyGuidelineDocument({
-            id: "doc-release",
-            projectId,
-            title: "Release notes",
-            filename: "release.md",
-            status: "processing",
-            indexed: false,
-            characterCount: 0,
-          }),
-        ],
-        contents: {
-          "doc-mobile": "# Mobile copy\n\nKeep buttons under 24 characters.",
-        },
-      }),
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({
+          documents: [
+            storyGuidelineDocument({
+              id: "doc-brand",
+              title: "Brand voice",
+              filename: "brand-voice.md",
+              isGlobal: true,
+              mandatory: true,
+            }),
+            storyGuidelineDocument({
+              id: "doc-tone",
+              title: "Tone for French",
+              filename: "tone-fr.md",
+              locales: ["fr-FR"],
+              locale: "fr-FR",
+            }),
+          ],
+        }),
+        ...createGuidelineAssignmentMswHandlers({
+          assignedDocuments: [{ documentId: "doc-tone", projectIds: ["project_1"] }],
+        }),
+      ],
+    },
+  },
+};
+
+export const ProjectGuidelinePage: Story = {
+  args: { projectId, canUpdateKnowledgeMemory: true },
+  parameters: {
+    msw: {
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({
+          documents: [
+            storyGuidelineDocument({
+              id: "doc-mobile",
+              title: "Mobile app copy rules",
+              filename: "mobile.md",
+              mandatory: true,
+            }),
+            storyGuidelineDocument({
+              id: "doc-global",
+              title: "House voice (all projects)",
+              filename: "voice.md",
+              isGlobal: true,
+            }),
+            storyGuidelineDocument({
+              id: "doc-release",
+              title: "Release notes",
+              filename: "release.md",
+              status: "processing",
+              indexed: false,
+              characterCount: 0,
+            }),
+            storyGuidelineDocument({
+              id: "doc-pool",
+              title: "Legal checklist",
+              filename: "legal.md",
+              isGlobal: false,
+            }),
+          ],
+          contents: {
+            "doc-mobile": "# Mobile copy\n\nKeep buttons under 24 characters.",
+          },
+        }),
+        ...createGuidelineAssignmentMswHandlers({
+          assignedDocuments: [{ documentId: "doc-mobile", projectIds: ["project_1"] }],
+        }),
+      ],
     },
   },
 };
 
 export const ProjectReadOnly: Story = {
-  args: { canUpdateKnowledgeMemory: false },
+  args: { projectId, canUpdateKnowledgeMemory: false },
   parameters: {
     msw: {
-      handlers: createGuidelineDocumentsMswHandlers({
-        documents: [
-          storyGuidelineDocument({
-            id: "doc-mobile",
-            projectId,
-            title: "Mobile app copy rules",
-            filename: "mobile.md",
-          }),
-        ],
-      }),
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({
+          documents: [
+            storyGuidelineDocument({
+              id: "doc-mobile",
+              title: "Mobile app copy rules",
+              filename: "mobile.md",
+              isGlobal: true,
+            }),
+          ],
+        }),
+        ...createGuidelineAssignmentMswHandlers({}),
+      ],
     },
   },
 };
 
 export const ProjectNoDocuments: Story = {
-  args: { canUpdateKnowledgeMemory: true },
+  args: { projectId, canUpdateKnowledgeMemory: true },
   parameters: {
-    msw: { handlers: createGuidelineDocumentsMswHandlers({ documents: [] }) },
+    msw: {
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({
+          documents: [
+            storyGuidelineDocument({
+              id: "doc-pool",
+              title: "Legal checklist",
+              filename: "legal.md",
+              isGlobal: false,
+            }),
+          ],
+        }),
+        ...createGuidelineAssignmentMswHandlers({}),
+      ],
+    },
   },
 };

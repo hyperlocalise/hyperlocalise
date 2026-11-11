@@ -302,12 +302,6 @@ export function ContentEditorGuidelineSheet({
   const projectKnowledgeHref = buildProjectPath(organizationSlug, projectId, "knowledge");
   const workspaceKnowledgeHref = buildOrganizationPath(organizationSlug, "knowledge");
 
-  const projectDocsQuery = useQuery({
-    queryKey: ["guideline-sheet-project-docs", organizationSlug, projectId],
-    enabled,
-    queryFn: ({ signal }) =>
-      client.guidelines.listDocuments(organizationSlug, projectId, { signal }),
-  });
   const workspaceDocsQuery = useQuery({
     queryKey: ["guideline-sheet-workspace-docs", organizationSlug],
     enabled,
@@ -328,14 +322,18 @@ export function ContentEditorGuidelineSheet({
   });
 
   const assignments = assignmentsQuery.data ?? new Map<string, string[]>();
-  const workspaceDocuments = (workspaceDocsQuery.data ?? []).filter((document) => {
+  // Project-owned documents are retired; the project tab derives from org
+  // documents scoped to this project (global or explicitly assigned).
+  // Unassigned non-global documents apply to no project.
+  const isDocumentInProject = (document: GuidelineDocument) => {
     if (document.projectId != null) return false;
-    // Org-wide documents with no assignment rows apply to every project;
-    // once assignments exist the document applies only to listed projects.
-    const projectIds = assignments.get(document.id);
-    if (projectIds === undefined) return true;
-    return projectIds.includes(projectId);
-  });
+    if (document.isGlobal ?? false) return true;
+    return assignments.get(document.id)?.includes(projectId) ?? false;
+  };
+  const projectDocuments = (workspaceDocsQuery.data ?? []).filter(isDocumentInProject);
+  // The workspace tab stays scoped to this project, matching the previous
+  // assigned-or-unassigned behavior under the new global/assigned model.
+  const workspaceDocuments = (workspaceDocsQuery.data ?? []).filter(isDocumentInProject);
 
   const close = () => onOpenChange(false);
   const descriptionByTab = {
@@ -431,9 +429,9 @@ export function ContentEditorGuidelineSheet({
             )}
           </TabsContent>
           <TabsContent value="project-guideline" className="flex min-h-0 flex-1 flex-col p-4">
-            {projectDocsQuery.isPending ? (
+            {workspaceDocsQuery.isPending || assignmentsQuery.isPending ? (
               <GuidelineLoading />
-            ) : projectDocsQuery.isError ? (
+            ) : workspaceDocsQuery.isError || assignmentsQuery.isError ? (
               <GuidelineError
                 actionHref={projectKnowledgeHref}
                 actionLabel={messages.editProjectGuideline}
@@ -442,7 +440,7 @@ export function ContentEditorGuidelineSheet({
             ) : (
               <GuidelineDocumentViewer
                 key="project"
-                documents={projectDocsQuery.data}
+                documents={projectDocuments}
                 organizationSlug={organizationSlug}
                 projectId={projectId}
                 client={client}

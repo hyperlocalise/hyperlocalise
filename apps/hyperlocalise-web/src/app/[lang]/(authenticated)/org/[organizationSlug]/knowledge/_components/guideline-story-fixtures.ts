@@ -22,6 +22,8 @@ export function storyGuidelineDocument(
     id: "doc-1",
     projectId: null,
     locale: null,
+    locales: [],
+    isGlobal: false,
     title: "Voice guide",
     filename: "voice.md",
     contentType: "text/markdown",
@@ -63,23 +65,59 @@ export function createGuidelineDocumentsMswHandlers(
     documents?: GuidelineDocument[];
     contents?: Record<string, string>;
     failList?: boolean;
+    assignedDocuments?: { documentId: string; projectIds: string[] }[];
   } = {},
 ) {
   const documents = (options.documents ?? []).map((document) => ({ ...document }));
   const contents: Record<string, string> = { ...options.contents };
+  const assignedProjectIds = new Map(
+    (options.assignedDocuments ?? []).map((entry) => [entry.documentId, entry.projectIds]),
+  );
   let createdCount = 0;
 
+  // Mirrors the backend ?project= / ?locale= filters: project keeps global
+  // docs plus docs assigned to the project; locale keeps all-locale docs
+  // plus docs listing the locale.
+  const applyFilters = (request: Request) => {
+    const params = new URL(request.url).searchParams;
+    const project = params.get("project");
+    const locale = params.get("locale");
+    return documents.filter((document) => {
+      if (project) {
+        const assigned = assignedProjectIds.get(document.id) ?? [];
+        if (!document.isGlobal && !assigned.includes(project)) return false;
+      }
+      if (locale) {
+        const locales =
+          document.locales.length > 0 ? document.locales : document.locale ? [document.locale] : [];
+        if (locales.length > 0 && !locales.includes(locale)) return false;
+      }
+      return true;
+    });
+  };
+
   return [
-    http.get("*/v1/orgs/:organizationSlug/guidelines/documents", () => {
+    http.get("*/v1/orgs/:organizationSlug/guidelines/documents", ({ request }) => {
       if (options.failList) {
         return HttpResponse.json({ message: "go-svc is down" }, { status: 500 });
       }
-      return HttpResponse.json(
-        listPage(documents.filter((document) => document.projectId == null)),
-      );
+      return HttpResponse.json(listPage(applyFilters(request)));
     }),
-    http.get("*/v1/orgs/:organizationSlug/projects/:projectId/guidelines/documents", () =>
-      HttpResponse.json(listPage(documents.filter((document) => document.projectId != null))),
+    // Deprecated project path: the backend still serves it as an org read
+    // filtered to the project, so mirror the ?project= behavior here.
+    http.get(
+      "*/v1/orgs/:organizationSlug/projects/:projectId/guidelines/documents",
+      ({ params }) => {
+        const projectId = String(params.projectId);
+        return HttpResponse.json(
+          listPage(
+            documents.filter((document) => {
+              const assigned = assignedProjectIds.get(document.id) ?? [];
+              return document.isGlobal || assigned.includes(projectId);
+            }),
+          ),
+        );
+      },
     ),
     http.get("*/guidelines/documents/:documentId", ({ params }) => {
       const document = documents.find((item) => item.id === params.documentId);
@@ -93,16 +131,43 @@ export function createGuidelineDocumentsMswHandlers(
         },
       });
     }),
+    http.get("*/guidelines/documents/:documentId/download", ({ params }) => {
+      const document = documents.find((item) => item.id === params.documentId);
+      if (!document) {
+        return HttpResponse.json({ message: "not found" }, { status: 404 });
+      }
+      const body = contents[document.id] ?? `# ${document.title}\n\nKeep product names in English.`;
+      return new HttpResponse(body, {
+        status: 200,
+        headers: {
+          "Content-Type": document.contentType,
+          "Content-Disposition": `attachment; filename="${document.filename}"`,
+        },
+      });
+    }),
     http.post("*/guidelines/documents", async ({ request }) => {
       const form = await request.formData();
       const file = form.get("file");
       const filename = formText(form, "filename") ?? "upload.md";
       const title = formText(form, "title") ?? filename;
+      const localesRaw = formText(form, "locales");
+      let locales: string[] = [];
+      if (localesRaw) {
+        try {
+          locales = JSON.parse(localesRaw);
+        } catch {
+          locales = [];
+        }
+      }
+      const isGlobal = formText(form, "is_global") === "true";
       createdCount += 1;
       const document = storyGuidelineDocument({
         id: `doc-created-${createdCount}`,
         title,
         filename,
+        locales,
+        locale: locales.length === 1 ? locales[0] : null,
+        isGlobal,
         contentType: file instanceof File && file.type ? file.type : "text/markdown",
         byteSize: file instanceof File ? file.size : 0,
         characterCount: file instanceof File ? file.size : 0,
@@ -126,6 +191,16 @@ export function createGuidelineDocumentsMswHandlers(
         }
         if (metadata.mandatory !== undefined) {
           document.mandatory = metadata.mandatory;
+        }
+        if (metadata.locales !== undefined) {
+          document.locales = metadata.locales;
+          document.locale = metadata.locales.length === 1 ? metadata.locales[0] : null;
+        } else if (metadata.locale !== undefined) {
+          document.locale = metadata.locale;
+          document.locales = metadata.locale ? [metadata.locale] : [];
+        }
+        if (metadata.isGlobal !== undefined) {
+          document.isGlobal = metadata.isGlobal;
         }
       } else {
         const form = await request.formData();
@@ -190,6 +265,7 @@ export function storyGuidelineProject(id: string, name: string): ProjectRecord {
 export function createGuidelineAssignmentMswHandlers(
   options: {
     assignedProjectIds?: string[];
+    assignedDocuments?: { documentId: string; projectIds: string[] }[];
   } = {},
 ) {
   const projects = [
@@ -197,9 +273,10 @@ export function createGuidelineAssignmentMswHandlers(
     storyGuidelineProject("project_2", "Marketing site"),
     storyGuidelineProject("project_3", "Help center"),
   ];
-  const assignments = new Map<string, string[]>([
-    ["doc-brand", options.assignedProjectIds ?? ["project_1"]],
-  ]);
+  const seed: [string, string[]][] = options.assignedDocuments
+    ? options.assignedDocuments.map((entry) => [entry.documentId, entry.projectIds])
+    : [["doc-brand", options.assignedProjectIds ?? ["project_1"]]];
+  const assignments = new Map<string, string[]>(seed);
 
   const projectName = (projectId: string) =>
     projects.find((project) => project.id === projectId)?.name ?? projectId;

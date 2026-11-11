@@ -21,8 +21,8 @@ export const guidelineTextDocumentDialogMessages = defineMessages({
     description: "Title for the new typed guideline dialog",
   },
   createDescription: {
-    defaultMessage: "Write markdown guidance saved as a guideline document.",
-    id: "ZlUxv6nQ0H",
+    defaultMessage: "Write markdown guidance. Choose locales and projects on the upload page.",
+    id: "GKDBXV4awc",
     description: "Description for the new typed guideline dialog",
   },
   editTitle: {
@@ -84,5 +84,10 @@ export const guidelineTextDocumentDialogMessages = defineMessages({
     defaultMessage: "Save guideline",
     id: "cfsFKcP3Bc",
     description: "Save button in the guideline dialog",
+  },
+  useTemplate: {
+    defaultMessage: "Use template",
+    id: "FRRCcGcc6B",
+    description: "Button that fills the new-guideline content with the starter template",
   },
 });

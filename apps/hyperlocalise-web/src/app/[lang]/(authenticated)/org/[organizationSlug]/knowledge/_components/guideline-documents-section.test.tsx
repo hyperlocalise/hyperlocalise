@@ -17,17 +17,21 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { IntlProvider } from "react-intl";
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
 
 const mocks = vi.hoisted(() => ({
   listDocuments: vi.fn(),
   getDocument: vi.fn(),
+  listAllDocumentAssignments: vi.fn(),
+  listProjects: vi.fn(),
   uploadDocument: vi.fn(),
   replaceDocument: vi.fn(),
   updateDocument: vi.fn(),
   deleteDocument: vi.fn(),
+  attachDocumentProject: vi.fn(),
+  detachDocumentProject: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
 }));
@@ -39,10 +43,16 @@ vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
       guidelines: {
         listDocuments: mocks.listDocuments,
         getDocument: mocks.getDocument,
+        listAllDocumentAssignments: mocks.listAllDocumentAssignments,
         uploadDocument: mocks.uploadDocument,
         replaceDocument: mocks.replaceDocument,
         updateDocument: mocks.updateDocument,
         deleteDocument: mocks.deleteDocument,
+        attachDocumentProject: mocks.attachDocumentProject,
+        detachDocumentProject: mocks.detachDocumentProject,
+      },
+      project: {
+        list: mocks.listProjects,
       },
     },
   }),
@@ -56,10 +66,12 @@ const { GuidelineDocumentsSection, guidelineDocumentsRefetchInterval, useGuideli
   await import("./guideline-documents-section");
 
 function guidelineDocument(overrides: Partial<GuidelineDocument> = {}): GuidelineDocument {
-  return {
+  const base = {
     id: "doc-1",
     projectId: null,
     locale: "fr-FR",
+    locales: ["fr-FR"],
+    isGlobal: true,
     title: "French style guide",
     filename: "style.pdf",
     contentType: "application/pdf",
@@ -74,8 +86,12 @@ function guidelineDocument(overrides: Partial<GuidelineDocument> = {}): Guidelin
     indexed: true,
     createdAt: "2026-10-10T00:00:00Z",
     updatedAt: "2026-10-10T00:00:00Z",
-    ...overrides,
   };
+  const merged = { ...base, ...overrides };
+  if (!("locales" in overrides) && "locale" in overrides) {
+    merged.locales = overrides.locale ? [overrides.locale] : [];
+  }
+  return merged as GuidelineDocument;
 }
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -88,6 +104,14 @@ function wrapper({ children }: { children: ReactNode }) {
     </IntlProvider>
   );
 }
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.listAllDocumentAssignments.mockResolvedValue({ assignments: [] });
+  mocks.listProjects.mockResolvedValue({
+    projects: [{ id: "project_1", name: "Mobile app" }],
+  });
+});
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -122,7 +146,7 @@ describe("guidelineDocumentsRefetchInterval", () => {
 describe("GuidelineDocumentsSection", () => {
   it("lists documents with status, locale and failure reasons", async () => {
     mocks.listDocuments.mockResolvedValue([
-      guidelineDocument(),
+      guidelineDocument({ isGlobal: false }),
       guidelineDocument({
         id: "doc-2",
         title: "Scanned glossary",
@@ -138,6 +162,9 @@ describe("GuidelineDocumentsSection", () => {
         indexed: false,
       }),
     ]);
+    mocks.listAllDocumentAssignments.mockResolvedValue({
+      assignments: [{ documentId: "doc-1", projectIds: ["project_1"] }],
+    });
 
     render(<GuidelineDocumentsSection organizationSlug="acme" projectId="project_1" canUpdate />, {
       wrapper,
@@ -146,6 +173,10 @@ describe("GuidelineDocumentsSection", () => {
     expect(await screen.findByText("French style guide")).toBeTruthy();
     expect(screen.getByText("Ready")).toBeTruthy();
     expect(screen.getByText("fr-FR")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Mobile app" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1",
+    );
     expect(screen.getByText("Failed")).toBeTruthy();
     expect(screen.getByText("Still indexing")).toBeTruthy();
     expect(screen.getAllByText("Processing")).toHaveLength(1);
@@ -158,14 +189,128 @@ describe("GuidelineDocumentsSection", () => {
     );
   });
 
-  it("renders nothing when there are no documents", async () => {
-    mocks.listDocuments.mockResolvedValue([]);
-    const { container } = render(<GuidelineDocumentsSection organizationSlug="acme" canUpdate />, {
-      wrapper,
+  it("unassigns a guideline from the project page", async () => {
+    const user = userEvent.setup();
+    mocks.listDocuments.mockResolvedValue([
+      guidelineDocument({ id: "doc-brand", title: "Brand voice", isGlobal: false }),
+      guidelineDocument({ id: "doc-global", title: "Global", isGlobal: true }),
+    ]);
+    mocks.listAllDocumentAssignments.mockResolvedValue({
+      assignments: [{ documentId: "doc-brand", projectIds: ["project_1"] }],
     });
+    mocks.detachDocumentProject.mockResolvedValue(undefined);
+
+    render(
+      <GuidelineDocumentsSection
+        organizationSlug="acme"
+        projectId="project_1"
+        canUpdate={false}
+        canAssignGuideline
+      />,
+      { wrapper },
+    );
+
+    expect(await screen.findByText("Brand voice")).toBeTruthy();
+    expect(screen.queryAllByRole("button", { name: "Unassign" })).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Unassign" }));
+    await waitFor(() =>
+      expect(mocks.detachDocumentProject).toHaveBeenCalledWith("acme", "doc-brand", "project_1"),
+    );
+  });
+
+  it("shows an assign CTA when the project list is empty but org guidelines exist", async () => {
+    mocks.listDocuments.mockImplementation((_org: string, projectId?: string) =>
+      Promise.resolve(
+        projectId
+          ? []
+          : [guidelineDocument({ id: "doc-pool", title: "Brand voice", isGlobal: false })],
+      ),
+    );
+    mocks.listAllDocumentAssignments.mockResolvedValue({ assignments: [] });
+
+    render(
+      <GuidelineDocumentsSection
+        organizationSlug="acme"
+        projectId="project_1"
+        canUpdate={false}
+        canAssignGuideline
+      />,
+      { wrapper },
+    );
+
+    expect(await screen.findByText("No guidelines assigned to this project")).toBeTruthy();
+    expect(screen.getByRole("combobox")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Create Guideline" })).toBeNull();
+  });
+
+  it("assigns an org guideline from the project page", async () => {
+    const user = userEvent.setup();
+    mocks.listDocuments.mockImplementation((_org: string, projectId?: string) =>
+      Promise.resolve(
+        projectId
+          ? []
+          : [
+              guidelineDocument({ id: "doc-brand", title: "Brand voice", isGlobal: false }),
+              guidelineDocument({ id: "doc-global", title: "Global", isGlobal: true }),
+            ],
+      ),
+    );
+    mocks.attachDocumentProject.mockResolvedValue({ projects: [] });
+
+    render(
+      <GuidelineDocumentsSection
+        organizationSlug="acme"
+        projectId="project_1"
+        canUpdate={false}
+        canAssignGuideline
+      />,
+      { wrapper },
+    );
+
+    await user.click(await screen.findByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Brand voice" }));
+    await user.click(screen.getByRole("button", { name: "Assign" }));
+    await waitFor(() =>
+      expect(mocks.attachDocumentProject).toHaveBeenCalledWith("acme", "doc-brand", "project_1"),
+    );
+  });
+
+  it("shows an empty state with a create action when there are no documents", async () => {
+    mocks.listDocuments.mockResolvedValue([]);
+    render(
+      <GuidelineDocumentsSection
+        organizationSlug="acme"
+        canUpdate
+        createGuidelineHref="/org/acme/knowledge/upload"
+      />,
+      { wrapper },
+    );
 
     await waitFor(() => expect(mocks.listDocuments).toHaveBeenCalled());
-    await waitFor(() => expect(container.textContent).toBe(""));
+    expect(await screen.findByText("No guidelines yet")).toBeTruthy();
+    const create = screen.getByRole("button", { name: "Create Guideline" });
+    expect(create).toHaveAttribute("href", "/org/acme/knowledge/upload");
+  });
+
+  it("shows each document's linked projects on the org page", async () => {
+    mocks.listDocuments.mockResolvedValue([
+      guidelineDocument({ id: "doc-global", title: "Global guide" }),
+      guidelineDocument({ id: "doc-linked", title: "Linked guide", isGlobal: false }),
+      guidelineDocument({ id: "doc-none", title: "Unassigned guide", isGlobal: false }),
+    ]);
+    mocks.listAllDocumentAssignments.mockResolvedValue({
+      assignments: [{ documentId: "doc-linked", projectIds: ["project_1"] }],
+    });
+
+    render(<GuidelineDocumentsSection organizationSlug="acme" canUpdate />, { wrapper });
+
+    expect(await screen.findByText("Global guide")).toBeTruthy();
+    expect(screen.getByText("All projects")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Mobile app" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project_1",
+    );
+    expect(screen.getByText("No projects")).toBeTruthy();
   });
 
   it("toggles mandatory and deletes for writers", async () => {
@@ -263,7 +408,7 @@ describe("GuidelineDocumentsSection", () => {
       expect(mocks.updateDocument).toHaveBeenCalledWith(
         "acme",
         "doc-1",
-        { title: "Voice" },
+        { title: "Voice", locales: ["fr-FR"], isGlobal: true },
         undefined,
       ),
     );
@@ -290,10 +435,12 @@ describe("useGuidelineDocumentUpload", () => {
     render(<UploadButton file={file} />, { wrapper });
     await user.click(screen.getByRole("button", { name: "upload" }));
     await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+    // projectId is deprecated; uploads always target the org route and use
+    // assignments for project scoping.
     expect(mocks.uploadDocument).toHaveBeenCalledWith(
       "acme",
       { file, filename: "style.md" },
-      "project_1",
+      undefined,
     );
 
     await user.click(screen.getByRole("button", { name: "upload" }));

@@ -73,10 +73,12 @@ vi.mock("@/components/markdown-editor/markdown-editor", () => ({
 import { ContentEditorGuidelineSheet } from "./content-editor-guideline-sheet";
 
 function guidelineDocument(overrides: Partial<GuidelineDocument> = {}): GuidelineDocument {
-  return {
+  const base = {
     id: "doc-1",
     projectId: null,
     locale: null,
+    locales: [],
+    isGlobal: false,
     title: "Voice guide",
     filename: "voice.md",
     contentType: "text/markdown",
@@ -93,6 +95,7 @@ function guidelineDocument(overrides: Partial<GuidelineDocument> = {}): Guidelin
     updatedAt: "2026-10-10T00:00:00Z",
     ...overrides,
   };
+  return base as GuidelineDocument;
 }
 
 function renderSheet(
@@ -101,7 +104,6 @@ function renderSheet(
     isLoading?: boolean;
     isError?: boolean;
     canWriteProjects?: boolean;
-    projectDocuments?: GuidelineDocument[];
     workspaceDocuments?: GuidelineDocument[];
     assignments?: { documentId: string; projectIds: string[] }[];
     documentContent?: string;
@@ -113,9 +115,7 @@ function renderSheet(
     isError: options?.isError ?? false,
     data: project,
   });
-  goSvcMocks.listDocuments.mockImplementation(async (_org: string, projectId?: string) =>
-    projectId ? (options?.projectDocuments ?? []) : (options?.workspaceDocuments ?? []),
-  );
+  goSvcMocks.listDocuments.mockImplementation(async () => options?.workspaceDocuments ?? []);
   goSvcMocks.listAllDocumentAssignments.mockResolvedValue({
     assignments: options?.assignments ?? [],
   });
@@ -172,9 +172,13 @@ describe("ContentEditorGuidelineSheet", () => {
     renderSheet(
       { translationContextValue: "Keep names in English.", source: "native" },
       {
-        projectDocuments: [
-          guidelineDocument({ id: "doc-1", projectId: "project_1", title: "Voice" }),
-          guidelineDocument({ id: "doc-2", projectId: "project_1", title: "Tone" }),
+        workspaceDocuments: [
+          guidelineDocument({ id: "doc-1", title: "Voice" }),
+          guidelineDocument({ id: "doc-2", title: "Tone" }),
+        ],
+        assignments: [
+          { documentId: "doc-1", projectIds: ["project_1"] },
+          { documentId: "doc-2", projectIds: ["project_1"] },
         ],
       },
     );
@@ -196,7 +200,7 @@ describe("ContentEditorGuidelineSheet", () => {
       { translationContextValue: "", source: "native" },
       {
         workspaceDocuments: [
-          guidelineDocument({ id: "doc-unassigned", title: "Not assigned" }),
+          guidelineDocument({ id: "doc-unassigned", title: "Not assigned", isGlobal: true }),
           guidelineDocument({ id: "doc-selected", title: "Selected for us" }),
           guidelineDocument({ id: "doc-selected-2", title: "Also selected" }),
           guidelineDocument({ id: "doc-other", title: "Other project only" }),

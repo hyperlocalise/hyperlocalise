@@ -15,18 +15,29 @@
 import { useId, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PencilSimpleIcon } from "@phosphor-icons/react";
+import { DownloadSimpleIcon, FileTextIcon, PencilSimpleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
+import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { buildOrganizationPath, buildProjectPath } from "@/components/app-shell/navigation-config";
-import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
+import {
+  guidelineDocumentLocales,
+  type GuidelineDocument,
+} from "@/lib/go-svc/go-svc-guidelines-api";
+import { saveGoSvcDownload } from "@/lib/go-svc/save-go-svc-download";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { GuidelineDocumentAssignments } from "./guideline-document-assignments";
@@ -74,11 +85,14 @@ export function GuidelineDocumentDetailContent({
   documentId: string;
   canUpdate: boolean;
 }) {
+  // Project pages are readonly; project scope is managed on the org detail page.
+  const canEdit = projectId ? false : canUpdate;
   const intl = useIntl();
   const queryClient = useQueryClient();
   const { client, loading } = useGoSvcClient();
   const switchId = useId();
   const [editing, setEditing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const backHref = projectId
     ? buildProjectPath(organizationSlug, projectId, "knowledge")
@@ -90,6 +104,7 @@ export function GuidelineDocumentDetailContent({
     queryFn: ({ signal }) =>
       client.guidelines.getDocument(organizationSlug, documentId, projectId, { signal }),
   });
+  const refetchDocument = documentQuery.refetch;
 
   const updateMandatory = useMutation({
     mutationFn: (mandatory: boolean) =>
@@ -114,22 +129,40 @@ export function GuidelineDocumentDetailContent({
     );
   }
 
-  if (documentQuery.isError) {
+  const document = documentQuery.data;
+  if (documentQuery.isError || !document) {
     return (
       <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3 rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground">
         <FormattedMessage {...messages.loadFailed} />
-        <Button type="button" variant="outline" size="sm" onClick={() => documentQuery.refetch()}>
+        <Button type="button" variant="outline" size="sm" onClick={() => void refetchDocument()}>
           <FormattedMessage {...messages.retry} />
         </Button>
       </div>
     );
   }
-
-  const document = documentQuery.data;
   const isText = document.contentType.startsWith("text/");
+  const contentEmpty = isText && (document.content ?? "").trim().length === 0;
   const mandatory = updateMandatory.isPending
     ? (updateMandatory.variables ?? document.mandatory)
     : document.mandatory;
+
+  const runDownload = async () => {
+    setDownloading(true);
+    try {
+      const file = await client.guidelines.downloadDocument(
+        organizationSlug,
+        documentId,
+        projectId,
+      );
+      saveGoSvcDownload(file, document.filename || "guideline");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.downloadFailed),
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -148,13 +181,24 @@ export function GuidelineDocumentDetailContent({
           <StatusBadge status={guidelineDocumentDisplayStatus(document)} />
         </div>
         <TypographyP tone="subtle">
-          {document.filename} · {document.locale ?? intl.formatMessage(messages.allLocales)} ·{" "}
+          {document.filename} ·{" "}
+          {(() => {
+            const locales = guidelineDocumentLocales(document);
+            return locales.length > 0
+              ? locales.join(", ")
+              : intl.formatMessage(messages.allLocales);
+          })()}{" "}
+          ·{" "}
+          {(document.isGlobal ?? false)
+            ? intl.formatMessage(messages.allProjects)
+            : intl.formatMessage(messages.selectedProjects)}{" "}
+          ·{" "}
           <FormattedMessage {...messages.characters} values={{ count: document.characterCount }} />
         </TypographyP>
       </div>
 
-      {canUpdate ? (
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        {canEdit ? (
           <label
             htmlFor={switchId}
             className="flex items-center gap-2 text-sm text-muted-foreground"
@@ -168,18 +212,44 @@ export function GuidelineDocumentDetailContent({
             />
             <FormattedMessage {...messages.mandatory} />
           </label>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={downloading}
+          onClick={() => void runDownload()}
+        >
+          <DownloadSimpleIcon data-icon="inline-start" />
+          <FormattedMessage {...messages.download} />
+        </Button>
+        {canEdit ? (
           <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
             <PencilSimpleIcon data-icon="inline-start" />
             <FormattedMessage {...messages.edit} />
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       <section className="flex flex-col gap-3">
-        <TypographyH2 className="pb-0 text-lg tracking-[-0.02em]">
+        <h2 className="text-base font-medium text-foreground">
           <FormattedMessage {...messages.contentTitle} />
-        </TypographyH2>
-        {isText ? (
+        </h2>
+        {contentEmpty ? (
+          <Empty className="border border-dashed border-border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FileTextIcon />
+              </EmptyMedia>
+              <EmptyTitle>
+                <FormattedMessage {...messages.emptyContentTitle} />
+              </EmptyTitle>
+              <EmptyDescription>
+                <FormattedMessage {...messages.emptyContentDescription} />
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : isText ? (
           <div className="rounded-xl border border-border px-4 py-3">
             <Streamdown>{document.content ?? ""}</Streamdown>
           </div>
@@ -190,15 +260,15 @@ export function GuidelineDocumentDetailContent({
         )}
       </section>
 
-      {!projectId && document.projectId == null ? (
+      {document.projectId == null ? (
         <GuidelineDocumentAssignments
           organizationSlug={organizationSlug}
           documentId={document.id}
-          canUpdate={canUpdate}
+          canUpdate={canEdit}
         />
       ) : null}
 
-      {canUpdate ? (
+      {canEdit ? (
         <GuidelineTextDocumentDialog
           open={editing}
           onOpenChange={setEditing}
@@ -206,7 +276,7 @@ export function GuidelineDocumentDetailContent({
           projectId={projectId}
           document={editing ? document : null}
           onSaved={() => {
-            void documentQuery.refetch();
+            void refetchDocument();
           }}
         />
       ) : null}

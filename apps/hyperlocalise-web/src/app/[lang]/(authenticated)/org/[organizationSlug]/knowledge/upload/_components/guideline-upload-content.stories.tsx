@@ -12,7 +12,10 @@
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
-import { createGuidelineDocumentsMswHandlers } from "../../_components/guideline-story-fixtures";
+import {
+  emptyGuidelineUploadMswHandlers,
+  guidelinePageWidthDecorator,
+} from "../../_components/guideline-story-decorators";
 import { GuidelineUploadContent } from "./guideline-upload-content";
 
 const organizationSlug = "acme";
@@ -24,13 +27,7 @@ const meta = {
     layout: "centered",
     nextjs: { appDirectory: true },
   },
-  decorators: [
-    (Story) => (
-      <div className="w-[880px] max-w-[92vw]">
-        <Story />
-      </div>
-    ),
-  ],
+  decorators: [guidelinePageWidthDecorator],
   args: { organizationSlug },
 } satisfies Meta<typeof GuidelineUploadContent>;
 
@@ -39,17 +36,13 @@ type Story = StoryObj<typeof meta>;
 
 export const OrganizationUpload: Story = {
   args: { backHref: "/org/acme/knowledge" },
-  parameters: {
-    msw: { handlers: createGuidelineDocumentsMswHandlers({ documents: [] }) },
-  },
+  parameters: { msw: { handlers: emptyGuidelineUploadMswHandlers() } },
 };
 
-export const ProjectUpload: Story = {
+export const ProjectPreselected: Story = {
   args: {
-    projectId: "project_1",
+    initialProjectId: "project_1",
     backHref: "/org/acme/projects/project_1/knowledge",
   },
-  parameters: {
-    msw: { handlers: createGuidelineDocumentsMswHandlers({ documents: [] }) },
-  },
+  parameters: { msw: { handlers: emptyGuidelineUploadMswHandlers() } },
 };

@@ -23,10 +23,12 @@ const organizationSlug = "acme";
 const projectId = "project_1";
 
 function storyDocument(overrides: Partial<GuidelineDocument> = {}): GuidelineDocument {
-  return {
+  const base = {
     id: "doc-1",
     projectId: null,
     locale: null,
+    locales: [],
+    isGlobal: false,
     title: "Voice guide",
     filename: "voice.md",
     contentType: "text/markdown",
@@ -43,24 +45,23 @@ function storyDocument(overrides: Partial<GuidelineDocument> = {}): GuidelineDoc
     updatedAt: "2026-10-10T00:00:00Z",
     ...overrides,
   };
+  return base as GuidelineDocument;
 }
 
 function storyClient(documents: {
-  project: GuidelineDocument[];
   workspace: GuidelineDocument[];
+  assignments?: { documentId: string; projectIds: string[] }[];
 }): GoSvcClient {
   return {
     guidelines: {
-      listDocuments: async (_org: string, scopeProjectId?: string) =>
-        scopeProjectId ? documents.project : documents.workspace,
+      listDocuments: async () => documents.workspace,
       getDocument: async (_org: string, id: string) =>
         storyDocument({
-          ...(documents.project.find((document) => document.id === id) ??
-            documents.workspace.find((document) => document.id === id)),
+          ...documents.workspace.find((document) => document.id === id),
           content: "# Voice\n\nKeep product names in English.",
         }),
       listAllDocumentAssignments: async () => ({
-        assignments: [{ documentId: "doc-3", projectIds: ["project_1"] }],
+        assignments: documents.assignments ?? [],
       }),
     },
   } as unknown as GoSvcClient;
@@ -68,12 +69,12 @@ function storyClient(documents: {
 
 function GuidelineSheetStory({
   styleGuide,
-  projectDocuments = [],
   workspaceDocuments = [],
+  assignments = [],
 }: {
   styleGuide: string;
-  projectDocuments?: GuidelineDocument[];
   workspaceDocuments?: GuidelineDocument[];
+  assignments?: { documentId: string; projectIds: string[] }[];
 }) {
   const [queryClient] = useState(() => {
     const client = new QueryClient({
@@ -97,7 +98,7 @@ function GuidelineSheetStory({
           open
           canWriteProjects
           onOpenChange={() => {}}
-          client={storyClient({ project: projectDocuments, workspace: workspaceDocuments })}
+          client={storyClient({ workspace: workspaceDocuments, assignments })}
         />
       </div>
     </QueryClientProvider>
@@ -126,10 +127,11 @@ export const WithStyleGuide: Story = {
 
 export const WithDocuments: Story = {
   args: {
-    projectDocuments: [
-      storyDocument({ id: "doc-1", projectId: "project_1", title: "Voice guide" }),
-      storyDocument({ id: "doc-2", projectId: "project_1", title: "Tone guide" }),
+    workspaceDocuments: [
+      storyDocument({ id: "doc-1", title: "Voice guide", isGlobal: true }),
+      storyDocument({ id: "doc-2", title: "Tone guide", isGlobal: true }),
+      storyDocument({ id: "doc-3", title: "Brand rules", locales: ["fr-FR"] }),
     ],
-    workspaceDocuments: [storyDocument({ id: "doc-3", title: "Brand rules", locale: "fr-FR" })],
+    assignments: [{ documentId: "doc-3", projectIds: ["project_1"] }],
   },
 };

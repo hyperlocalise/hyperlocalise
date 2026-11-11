@@ -4,6 +4,8 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
 	sharedpostgres "github.com/hyperlocalise/hyperlocalise/internal/postgres"
@@ -45,27 +47,38 @@ func (s *Source) Close() {
 // currentQuery loads ready guideline documents in the same project and
 // locale scope. Documents use their own mandatory flag.
 //
-// Org-scoped content uses assignment tables: an org-wide document with no
-// assignment rows applies to every project; when assignment rows exist the
-// document applies only to listed projects. Org-wide uploads (project_id IS
-// NULL) check guideline_document_projects. Project-owned uploads skip
-// assignment. An empty project scope ($2 = ”) keeps all org-scoped content
-// for org-level checks.
+// Org rows (project_id NULL) use is_global and assignment rows. A stored
+// project_id still applies only to that project and is not rewritten.
+// A non-empty locales array is the only locale match. An empty array with a
+// NULL locale means all locales; an empty array with locale set means that
+// locale only. An empty project scope ($2 = ”) keeps org rows for org-level
+// checks. An empty locale ($3 = ”) keeps only all-locale rows.
 const currentQuery = `
-        SELECT 'doc:' || d.id::text, d.revision_id::text, d.version, d.content, coalesce(d.project_id, ''), coalesce(d.locale, ''), d.mandatory
+        SELECT 'doc:' || d.id::text, d.revision_id::text, d.version, d.content, '', d.locales, d.mandatory
         FROM guideline_documents d
         WHERE d.organization_id::text = $1 AND d.status = 'ready'
           AND (
-            (d.project_id IS NULL AND ($2 = '' OR NOT EXISTS (
-              SELECT 1 FROM guideline_document_projects g
-              WHERE g.document_id = d.id
-            ) OR EXISTS (
-              SELECT 1 FROM guideline_document_projects g
-              WHERE g.document_id = d.id AND g.project_id = $2
-            )))
-            OR d.project_id = $2
+            (
+              d.project_id IS NULL AND (
+                $2 = '' OR d.is_global OR EXISTS (
+                  SELECT 1 FROM guideline_document_projects g
+                  WHERE g.document_id = d.id AND g.project_id = $2
+                )
+              )
+            )
+            OR (d.project_id IS NOT NULL AND d.project_id = $2)
           )
-          AND (d.locale IS NULL OR d.locale = $3)
+          AND (
+            (
+              coalesce(cardinality(d.locales), 0) > 0
+              AND $3 <> ''
+              AND $3 = ANY (d.locales)
+            )
+            OR (
+              coalesce(cardinality(d.locales), 0) = 0
+              AND (d.locale IS NULL OR ($3 <> '' AND d.locale = $3))
+            )
+          )
         ORDER BY 5, 1`
 
 // Current checks project ownership within the supplied organization. The caller
@@ -82,8 +95,19 @@ func (s *Source) Current(ctx context.Context, scope guidelines.Scope) ([]guideli
 	docs := make([]guidelines.Document, 0, 2)
 	for rows.Next() {
 		doc := guidelines.Document{Scope: guidelines.Scope{OrganizationID: scope.OrganizationID}}
-		if err := rows.Scan(&doc.ID, &doc.RevisionID, &doc.Version, &doc.Content, &doc.Scope.ProjectID, &doc.Scope.Locale, &doc.Mandatory); err != nil {
+		var projectDummy string
+		var localesArr []string
+		if err := rows.Scan(&doc.ID, &doc.RevisionID, &doc.Version, &doc.Content, &projectDummy, &localesArr, &doc.Mandatory); err != nil {
 			return nil, fmt.Errorf("read guideline document: %w", err)
+		}
+		// Multi-locale docs store an array; the caller fans out per locale, so
+		// record the requested locale when this row is locale-scoped.
+		if len(localesArr) == 0 {
+			doc.Scope.Locale = ""
+		} else if scope.Locale != "" && slices.Contains(localesArr, scope.Locale) {
+			doc.Scope.Locale = scope.Locale
+		} else {
+			doc.Scope.Locale = strings.Join(localesArr, ",")
 		}
 		docs = append(docs, doc)
 	}

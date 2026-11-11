@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyH2, TypographyP } from "@/components/ui/typography";
+import { TypographyP } from "@/components/ui/typography";
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import type { GuidelineProjectAssignment } from "@/lib/go-svc/go-svc-guidelines-api";
@@ -44,7 +44,14 @@ export function guidelineAssignmentProjectsQueryKey(organizationSlug: string) {
   return ["guideline-assignment-projects", organizationSlug] as const;
 }
 
-function ScopeBadge({ projectIds }: { projectIds: string[] }) {
+function ScopeBadge({ isGlobal, projectIds }: { isGlobal: boolean; projectIds: string[] }) {
+  if (isGlobal) {
+    return (
+      <Badge variant="outline">
+        <FormattedMessage {...messages.allProjects} />
+      </Badge>
+    );
+  }
   if (projectIds.length === 0) {
     return (
       <Badge variant="outline">
@@ -75,15 +82,17 @@ function ProjectPicker({
   const [selected, setSelected] = useState<string>("");
   const projectsQuery = useQuery({
     queryKey: guidelineAssignmentProjectsQueryKey(organizationSlug),
-    queryFn: async ({ signal }) => {
-      const body = await client.project.list(organizationSlug, { signal });
-      return new Map(body.projects.map((project) => [project.id, project.name] as const));
-    },
+    queryFn: ({ signal }) => client.project.list(organizationSlug, { signal }),
   });
-  const available = [...(projectsQuery.data ?? new Map<string, string>()).entries()]
+  const projectNames = useMemo(
+    () =>
+      new Map((projectsQuery.data?.projects ?? []).map((project) => [project.id, project.name])),
+    [projectsQuery.data],
+  );
+  const available = [...projectNames.entries()]
     .filter(([id]) => !assignedIds.has(id))
     .map(([id, name]) => ({ id, name }));
-  const selectedName = selected ? (projectsQuery.data?.get(selected) ?? selected) : null;
+  const selectedName = selected ? (projectNames.get(selected) ?? selected) : null;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -138,20 +147,35 @@ export function GuidelineDocumentAssignments({
   const assignmentsQuery = useQuery({
     queryKey: guidelineDocumentAssignmentsQueryKey(organizationSlug),
     enabled: !loading,
-    queryFn: async ({ signal }) => {
-      const body = await client.guidelines.listAllDocumentAssignments(organizationSlug, { signal });
-      return new Map(body.assignments.map((a) => [a.documentId, a.projectIds] as const));
-    },
+    queryFn: ({ signal }) =>
+      client.guidelines.listAllDocumentAssignments(organizationSlug, { signal }),
   });
   const projectsQuery = useQuery({
     queryKey: guidelineAssignmentProjectsQueryKey(organizationSlug),
     enabled: !loading,
-    queryFn: async ({ signal }) => {
-      const body = await client.project.list(organizationSlug, { signal });
-      // Same Map shape as the picker query sharing this key, so both
-      // observers read identical cached data regardless of fetch order.
-      return new Map(body.projects.map((p) => [p.id, p.name] as const));
-    },
+    queryFn: ({ signal }) => client.project.list(organizationSlug, { signal }),
+  });
+  const assignmentIdsByDocument = useMemo(
+    () =>
+      new Map(
+        (assignmentsQuery.data?.assignments ?? []).map(
+          (entry) => [entry.documentId, entry.projectIds] as const,
+        ),
+      ),
+    [assignmentsQuery.data],
+  );
+  const projectNames = useMemo(
+    () =>
+      new Map((projectsQuery.data?.projects ?? []).map((project) => [project.id, project.name])),
+    [projectsQuery.data],
+  );
+  const documentQuery = useQuery({
+    // Single-document fetch for scope display; shares the detail page's
+    // ["guideline-document", org, undefined, id] cache entry.
+    queryKey: ["guideline-document", organizationSlug, undefined, documentId],
+    enabled: !loading,
+    queryFn: async ({ signal }) =>
+      client.guidelines.getDocument(organizationSlug, documentId, undefined, { signal }),
   });
 
   const invalidate = () => {
@@ -186,6 +210,27 @@ export function GuidelineDocumentAssignments({
     onSuccess: invalidate,
     onError: (error) => toast.error(error.message),
   });
+  const setGlobal = useMutation({
+    mutationFn: async (isGlobal: boolean) => {
+      try {
+        await client.guidelines.updateDocument(organizationSlug, documentId, { isGlobal });
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.assignFailed)), {
+          cause: error,
+        });
+      }
+    },
+    onSuccess: () => {
+      invalidate();
+      void queryClient.invalidateQueries({
+        queryKey: ["guideline-document", organizationSlug, undefined, documentId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["guideline-documents", organizationSlug],
+      });
+    },
+    onError: (error) => toast.error(error.message),
+  });
 
   if (loading || assignmentsQuery.isPending) {
     return <Skeleton className="h-32 w-full" />;
@@ -206,25 +251,37 @@ export function GuidelineDocumentAssignments({
     );
   }
 
-  const projectIds = assignmentsQuery.data.get(documentId) ?? [];
-  const projectNames = projectsQuery.data ?? new Map<string, string>();
+  const projectIds = assignmentIdsByDocument.get(documentId) ?? [];
   const assigned: GuidelineProjectAssignment[] = projectIds.map((projectId) => ({
     projectId,
     projectName: projectNames.get(projectId) ?? projectId,
   }));
   const assignedIds = new Set(assigned.map((p) => p.projectId));
+  const isGlobal = documentQuery.data?.isGlobal ?? false;
 
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <TypographyH2 className="pb-0 text-lg tracking-[-0.02em]">
+        <h2 className="text-base font-medium text-foreground">
           <FormattedMessage {...messages.sectionTitle} />
-        </TypographyH2>
-        <ScopeBadge projectIds={projectIds} />
+        </h2>
+        <ScopeBadge isGlobal={isGlobal} projectIds={projectIds} />
       </div>
       <TypographyP size="small" tone="subtle" className="max-w-2xl leading-6">
         <FormattedMessage {...messages.sectionDescription} />
       </TypographyP>
+      {canUpdate ? (
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={isGlobal}
+            disabled={setGlobal.isPending}
+            onChange={(event) => setGlobal.mutate(event.target.checked)}
+            className="h-4 w-4 accent-primary"
+          />
+          <FormattedMessage {...messages.allProjects} />
+        </label>
+      ) : null}
       <div className="rounded-xl border border-border px-4 py-3">
         <div className="grid gap-2">
           {assigned.map((project) => (
@@ -234,7 +291,7 @@ export function GuidelineDocumentAssignments({
             >
               <Link
                 href={buildProjectPath(organizationSlug, project.projectId)}
-                className="text-sm font-medium text-foreground hover:underline"
+                className="text-sm font-medium text-foreground underline underline-offset-2"
               >
                 {project.projectName}
               </Link>
@@ -252,7 +309,7 @@ export function GuidelineDocumentAssignments({
             </div>
           ))}
         </div>
-        {canUpdate ? (
+        {canUpdate && !isGlobal ? (
           <div className="mt-3">
             <ProjectPicker
               organizationSlug={organizationSlug}

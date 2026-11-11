@@ -20,6 +20,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
   listDocuments: vi.fn(),
+  listAllDocumentAssignments: vi.fn(),
   listProjects: vi.fn(),
 }));
 
@@ -29,6 +30,7 @@ vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
     client: {
       guidelines: {
         listDocuments: mocks.listDocuments,
+        listAllDocumentAssignments: mocks.listAllDocumentAssignments,
       },
       project: {
         list: mocks.listProjects,
@@ -65,6 +67,7 @@ afterEach(() => {
 describe("KnowledgePageContent", () => {
   it("hides the upload link for readers", async () => {
     mocks.listDocuments.mockResolvedValue([]);
+    mocks.listAllDocumentAssignments.mockResolvedValue({ assignments: [] });
 
     render(
       <KnowledgePageContent
@@ -76,11 +79,12 @@ describe("KnowledgePageContent", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "Guideline" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Add sources" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Create Guideline" })).toBeNull();
   });
 
-  it("links writers to the project upload page", async () => {
+  it("links writers to the org upload page with the project preselected", async () => {
     mocks.listDocuments.mockResolvedValue([]);
+    mocks.listAllDocumentAssignments.mockResolvedValue({ assignments: [] });
 
     render(
       <KnowledgePageContent
@@ -91,9 +95,9 @@ describe("KnowledgePageContent", () => {
       { wrapper },
     );
 
-    expect(await screen.findByRole("button", { name: "Add sources" })).toHaveAttribute(
+    expect(await screen.findByRole("button", { name: "Create Guideline" })).toHaveAttribute(
       "href",
-      "/org/acme/projects/project_1/knowledge/upload",
+      "/org/acme/knowledge/upload?project=project_1",
     );
   });
 
@@ -105,7 +109,7 @@ describe("KnowledgePageContent", () => {
       wrapper,
     });
 
-    expect(await screen.findByRole("button", { name: "Add sources" })).toHaveAttribute(
+    expect(await screen.findByRole("button", { name: "Create Guideline" })).toHaveAttribute(
       "href",
       "/org/acme/knowledge/upload",
     );

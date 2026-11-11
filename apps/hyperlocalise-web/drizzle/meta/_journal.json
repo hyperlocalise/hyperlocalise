@@ -1282,6 +1282,13 @@
       "when": 1794360157009,
       "tag": "0182_figma_visual_context",
       "breakpoints": true
+    },
+    {
+      "idx": 183,
+      "version": "7",
+      "when": 1794368261881,
+      "tag": "0183_faithful_outlaw_kid",
+      "breakpoints": true
     }
   ]
 }

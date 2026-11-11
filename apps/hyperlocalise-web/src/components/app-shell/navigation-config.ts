@@ -715,6 +715,43 @@ export function parseGlossaryRoute(pathname: string | null) {
   };
 }
 
+export function parseGuidelineRoute(pathname: string | null) {
+  if (!pathname) return null;
+
+  const path = stripAppLocalePrefix(pathname);
+  const projectMatch = path.match(
+    /^\/org\/([^/]+)\/projects\/([^/]+)\/knowledge(?:\/([^/]+))?\/?$/,
+  );
+  if (projectMatch) {
+    const [, organizationSlug, projectIdSegment, detailSegment] = projectMatch;
+    return {
+      organizationSlug,
+      projectId: decodePathSegment(projectIdSegment),
+      ...guidelineRouteDetail(detailSegment),
+    };
+  }
+
+  const orgMatch = path.match(/^\/org\/([^/]+)\/knowledge(?:\/([^/]+))?\/?$/);
+  if (!orgMatch) return null;
+
+  const [, organizationSlug, detailSegment] = orgMatch;
+  return {
+    organizationSlug,
+    projectId: undefined,
+    ...guidelineRouteDetail(detailSegment),
+  };
+}
+
+function guidelineRouteDetail(detailSegment: string | undefined) {
+  if (!detailSegment) {
+    return { documentId: null as string | null, page: "list" as const };
+  }
+  if (detailSegment === "upload") {
+    return { documentId: null as string | null, page: "upload" as const };
+  }
+  return { documentId: decodePathSegment(detailSegment), page: "document" as const };
+}
+
 export function parseTranslationMemoryRoute(pathname: string | null) {
   if (!pathname) return null;
 

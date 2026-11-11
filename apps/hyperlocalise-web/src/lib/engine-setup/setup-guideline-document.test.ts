@@ -90,6 +90,7 @@ describe("upsertSetupGuidelineDocument", () => {
     );
     const upload = guidelinesMock.uploadDocument.mock.calls[0]![1];
     expect(upload.filename).toBe("setup-wizard-guidance.md");
+    expect(upload.isGlobal).toBe(true);
     expect(await upload.file.text()).toContain("## Brand voice");
     expect(await upload.file.text()).toContain("Use sentence case for headings.");
   });
@@ -117,6 +118,7 @@ describe("upsertSetupGuidelineDocument", () => {
       "doc_1",
       expect.objectContaining({ filename: "setup-wizard-guidance.md" }),
     );
+    expect(guidelinesMock.replaceDocument.mock.calls[0]?.[2]).not.toHaveProperty("isGlobal");
   });
 
   it("skips the write when the merged content is unchanged", async () => {

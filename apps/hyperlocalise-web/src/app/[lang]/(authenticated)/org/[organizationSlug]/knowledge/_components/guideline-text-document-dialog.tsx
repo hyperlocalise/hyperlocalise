@@ -38,6 +38,10 @@ import {
   useGuidelineDocumentUpload,
 } from "./guideline-documents-section";
 import { guidelineTextDocumentDialogMessages as messages } from "./guideline-text-document-dialog.messages";
+import {
+  GUIDELINE_TEMPLATE_CONTENT,
+  GUIDELINE_TEMPLATE_TITLE,
+} from "./guideline-text-document-template";
 
 const TITLE_MAX_LENGTH = 200;
 const CONTENT_MAX_LENGTH = 50_000;
@@ -58,11 +62,14 @@ function markdownFile(title: string, content: string): File {
   return new File([content], filename, { type: "text/markdown" });
 }
 
+function documentLocales(document: GuidelineDocument): string[] {
+  return document.locales ?? (document.locale ? [document.locale] : []);
+}
+
 /**
- * Creates a guideline document from typed markdown, or edits the title and
- * markdown content of a text-based document. Content edits replace the file
- * as a new revision; binary uploads (PDF, DOCX) are title-only here and keep
- * file replacement to the upload flow.
+ * Creates a guideline from typed markdown or edits title and markdown content.
+ * Locales and project scope are chosen on the org upload page (create) or on
+ * the document detail page (assignments); this dialog only handles the .md body.
  */
 export function GuidelineTextDocumentDialog({
   open,
@@ -70,6 +77,8 @@ export function GuidelineTextDocumentDialog({
   organizationSlug,
   projectId,
   document,
+  initialLocales,
+  initialIsGlobal,
   onSaved,
 }: {
   open: boolean;
@@ -77,7 +86,11 @@ export function GuidelineTextDocumentDialog({
   organizationSlug: string;
   projectId?: string;
   document?: GuidelineDocument | null;
-  onSaved?: () => void;
+  /** Create flow: from the upload page locale picker. */
+  initialLocales?: string[];
+  /** Create flow: from the upload page project scope (all projects). */
+  initialIsGlobal?: boolean;
+  onSaved?: (documentId?: string) => void;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -97,7 +110,7 @@ export function GuidelineTextDocumentDialog({
       client.guidelines.getDocument(organizationSlug, document!.id, projectId, { signal }),
   });
   const loadedContent = contentQuery.data?.content ?? "";
-  const contentEditable = !editing || document.contentType.startsWith("text/");
+  const contentEditable = !editing || (document?.contentType?.startsWith("text/") ?? false);
 
   useEffect(() => {
     if (open) {
@@ -107,7 +120,7 @@ export function GuidelineTextDocumentDialog({
       setContentError(null);
       contentSyncedForRef.current = null;
     }
-  }, [open, document?.id, document?.title]);
+  }, [open, document?.id, document?.title, editing]);
 
   useEffect(() => {
     if (open && editing && contentQuery.data && contentSyncedForRef.current !== document?.id) {
@@ -121,6 +134,8 @@ export function GuidelineTextDocumentDialog({
   const saveEdit = useMutation({
     mutationFn: async () => {
       const trimmedTitle = title.trim();
+      const locales = documentLocales(document!);
+      const isGlobal = document!.isGlobal ?? false;
       const titleChanged = trimmedTitle !== document!.title;
       const contentChanged =
         contentEditable && contentQuery.data != null && content !== loadedContent;
@@ -129,14 +144,14 @@ export function GuidelineTextDocumentDialog({
         await client.guidelines.replaceDocument(
           organizationSlug,
           document!.id,
-          { file, filename: file.name, title: trimmedTitle },
+          { file, filename: file.name, title: trimmedTitle, locales, isGlobal },
           projectId,
         );
       } else if (titleChanged) {
         await client.guidelines.updateDocument(
           organizationSlug,
           document!.id,
-          { title: trimmedTitle },
+          { title: trimmedTitle, locales, isGlobal },
           projectId,
         );
       }
@@ -154,7 +169,7 @@ export function GuidelineTextDocumentDialog({
         });
       }
       onOpenChange(false);
-      onSaved?.();
+      onSaved?.(document?.id);
     },
     onError: (error) => {
       toast.error(intl.formatMessage(messages.saveFailed), { description: error.message });
@@ -190,11 +205,16 @@ export function GuidelineTextDocumentDialog({
     if (!editing) {
       const file = markdownFile(title.trim(), content);
       uploadDocument.mutate(
-        { file, title: title.trim() },
         {
-          onSuccess: () => {
+          file,
+          title: title.trim(),
+          locales: initialLocales ?? [],
+          isGlobal: initialIsGlobal ?? false,
+        },
+        {
+          onSuccess: (document) => {
             onOpenChange(false);
-            onSaved?.();
+            onSaved?.(document.id);
           },
         },
       );
@@ -206,9 +226,18 @@ export function GuidelineTextDocumentDialog({
   const pending = uploadDocument.isPending || saveEdit.isPending;
   const loadingContent = editing && contentQuery.isPending;
 
+  const applyTemplate = () => {
+    setContent(GUIDELINE_TEMPLATE_CONTENT);
+    setContentError(null);
+    if (!title.trim()) {
+      setTitle(GUIDELINE_TEMPLATE_TITLE);
+      setTitleError(null);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>
             <FormattedMessage {...(editing ? messages.editTitle : messages.createTitle)} />
@@ -235,17 +264,30 @@ export function GuidelineTextDocumentDialog({
           </Field>
           {contentEditable ? (
             <Field className="gap-1.5">
-              <FieldLabel htmlFor="guideline-text-content">
-                <FormattedMessage {...messages.contentLabel} />
-              </FieldLabel>
+              <div className="flex items-center justify-between gap-2">
+                <FieldLabel htmlFor="guideline-text-content">
+                  <FormattedMessage {...messages.contentLabel} />
+                </FieldLabel>
+                {!editing ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={applyTemplate}
+                    disabled={pending}
+                  >
+                    <FormattedMessage {...messages.useTemplate} />
+                  </Button>
+                ) : null}
+              </div>
               {loadingContent ? (
                 <Skeleton className="h-48 w-full" />
               ) : (
                 <Textarea
                   id="guideline-text-content"
                   value={content}
-                  rows={20}
-                  className="min-h-96"
+                  rows={12}
+                  className="min-h-48 max-h-[min(32rem,45vh)] overflow-y-auto"
                   onChange={(event) => setContent(event.target.value)}
                   disabled={pending}
                 />
