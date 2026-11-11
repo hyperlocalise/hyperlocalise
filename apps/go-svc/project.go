@@ -55,6 +55,18 @@ func (a projectActor) canManageContentEditorBehavior() bool {
 	return a.role == "admin" || a.role == "localization_manager"
 }
 
+func (a projectActor) canReadJobs() bool {
+	return hasOrganizationCapability(a.role, "jobs:read")
+}
+
+func (a projectActor) canCreateJobs() bool {
+	return hasOrganizationCapability(a.role, "jobs:create")
+}
+
+func (a projectActor) canWriteJobs() bool {
+	return hasOrganizationCapability(a.role, "jobs:write")
+}
+
 type projectError struct {
 	status        int
 	code, message string
@@ -119,16 +131,26 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("PATCH "+project+"/content-editor-behavior", bindActor(api, (*projectAPI).updateContentEditorBehaviorHandler))
 	route("GET "+project+"/content-editor-behavior/preview", bindActor(api, (*projectAPI).contentEditorBehaviorPreviewHandler))
 	route("GET "+orgRoutePrefix+"/tms/projects", bindActor(api, (*projectAPI).liveProjectsHandler))
+	route("GET "+orgRoutePrefix+"/tms/jobs", bindActor(api, (*projectAPI).liveWorkspaceJobsHandler))
 	route("GET "+project+"/files", bindActor(api, (*projectAPI).filesHandler))
 	route("GET "+project+"/files/branches", bindActor(api, (*projectAPI).fileBranchesHandler))
 	route("GET "+project+"/hidden-files", bindActor(api, (*projectAPI).hiddenFilesHandler))
 	route("GET "+project+"/file-progress", bindActor(api, (*projectAPI).fileProgressHandler))
+	route("GET "+project+"/members", bindActor(api, (*projectAPI).liveProjectMembersHandler))
 	route("GET "+project+"/jobs", bindActor(api, (*projectAPI).projectJobsListHandler))
+	route("POST "+project+"/jobs", bindActor(api, (*projectAPI).projectJobsCreateHandler))
 	route("GET "+project+"/jobs/{jobId}", bindActor(api, (*projectAPI).projectJobDetailHandler))
 	route("GET "+project+"/jobs/{jobId}/status", bindActor(api, (*projectAPI).projectJobStatusHandler))
+	route("GET "+project+"/jobs/{jobId}/files", bindActor(api, (*projectAPI).projectJobFilesHandler))
+	route("GET "+project+"/jobs/{jobId}/comments", bindActor(api, (*projectAPI).projectJobCommentsHandler))
 	route("GET "+orgRoutePrefix+"/workspace-files", bindActor(api, (*projectAPI).workspaceFilesHandler))
 	route("GET "+orgRoutePrefix+"/jobs", bindActor(api, (*projectAPI).orgJobsListHandler))
 	route("GET "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobDetailHandler))
+	route("PATCH "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobUpdateHandler))
+	route("PATCH "+orgRoutePrefix+"/jobs/{jobId}/description", bindActor(api, (*projectAPI).orgJobDescriptionHandler))
+	route("DELETE "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobDeleteHandler))
+	route("GET "+orgRoutePrefix+"/jobs/{jobId}/files", bindActor(api, (*projectAPI).orgJobFilesHandler))
+	route("GET "+orgRoutePrefix+"/jobs/{jobId}/comments", bindActor(api, (*projectAPI).orgJobCommentsHandler))
 	route("GET "+orgRoutePrefix+"/jobs/{jobId}/events", bindActor(api, (*projectAPI).orgJobEventsHandler))
 }
 
@@ -238,6 +260,9 @@ func (api *projectAPI) listHandler(r *http.Request, actor projectActor) (any, in
 }
 
 func (api *projectAPI) openJobCountHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if id, live := parseLiveProjectID(r.PathValue("projectId")); live {
+		return api.liveOpenJobCount(r, actor, id)
+	}
 	projectID, err := normalizedNativeProjectID(r.PathValue("projectId"))
 	if err != nil {
 		return nil, 0, err

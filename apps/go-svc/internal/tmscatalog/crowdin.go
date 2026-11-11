@@ -14,10 +14,17 @@ import (
 )
 
 const (
-	crowdinPageLimit      = 500
-	crowdinExportPoll     = time.Second
-	crowdinMaxErrorBytes  = 64 << 10
-	crowdinExportFinished = "finished"
+	crowdinPageLimit                   = 500
+	crowdinExportPoll                  = time.Second
+	crowdinMaxErrorBytes               = 64 << 10
+	crowdinExportFinished              = "finished"
+	crowdinLiveTaskListLimit           = 50
+	crowdinLiveTaskListOrderBy         = "createdAt desc"
+	crowdinRecentTaskListOrderBy       = "updatedAt desc"
+	crowdinSyncTaskPageLimit           = 500
+	crowdinSourceStringBatchPatchLimit = 500
+	crowdinGlossaryListLimit           = 25
+	crowdinGlossaryListOrderBy         = "createdAt desc,name"
 )
 
 // crowdin talks to Crowdin API v2. BaseURL already ends in /api/v2, for both
@@ -192,7 +199,70 @@ func (c *crowdin) doJSON(ctx context.Context, method, path string, body any, out
 	if res.StatusCode < 200 || res.StatusCode > 299 {
 		return crowdinError(res)
 	}
+	if out == nil || res.StatusCode == http.StatusNoContent {
+		_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, crowdinMaxErrorBytes))
+		return nil
+	}
 	return json.NewDecoder(res.Body).Decode(out)
+}
+
+func crowdinGet[T any](ctx context.Context, c *crowdin, path string) (T, error) {
+	var body struct {
+		Data T `json:"data"`
+	}
+	var zero T
+	if err := c.doJSON(ctx, http.MethodGet, path, nil, &body); err != nil {
+		return zero, err
+	}
+	return body.Data, nil
+}
+
+func crowdinSend[T any](ctx context.Context, c *crowdin, method, path string, payload any) (T, error) {
+	var body struct {
+		Data T `json:"data"`
+	}
+	var zero T
+	if err := c.doJSON(ctx, method, path, payload, &body); err != nil {
+		return zero, err
+	}
+	return body.Data, nil
+}
+
+func crowdinIntID(raw, field string) (int, error) {
+	id, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || id <= 0 {
+		return 0, fmt.Errorf("crowdin: invalid %s %q", field, raw)
+	}
+	return id, nil
+}
+
+func crowdinIntIDs(values []string, field string) ([]int, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+	ids := make([]int, 0, len(values))
+	seen := map[int]bool{}
+	for _, value := range values {
+		id, err := crowdinIntID(value, field)
+		if err != nil {
+			return nil, err
+		}
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+func crowdinUsesPerUserAuth(authMode string) bool {
+	switch strings.ToLower(strings.TrimSpace(authMode)) {
+	case "oauth", "pat":
+		return true
+	default:
+		return false
+	}
 }
 
 // crowdinError keeps Crowdin's own message: {"error":{"code":401,"message":"..."}}.
@@ -202,9 +272,22 @@ func crowdinError(res *http.Response) error {
 		Error struct {
 			Message string `json:"message"`
 		} `json:"error"`
+		Errors []struct {
+			Error struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		} `json:"errors"`
 	}
 	_ = json.Unmarshal(raw, &body)
 	message := strings.TrimSpace(body.Error.Message)
+	if message == "" {
+		for _, item := range body.Errors {
+			if text := strings.TrimSpace(item.Error.Message); text != "" {
+				message = text
+				break
+			}
+		}
+	}
 	if message != "" {
 		message = "Crowdin: " + message
 	}

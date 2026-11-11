@@ -448,15 +448,19 @@ func TestProjectJobReadsErrors(t *testing.T) {
 	jobID := mustProjectJob(t, f.scope, projectJobSeed{projectID: projectID})
 	longID := strings.Repeat("a", 129)
 
-	t.Run("provider and non-native projects stay on Hono", func(t *testing.T) {
+	t.Run("materialized provider projects stay native-hidden", func(t *testing.T) {
 		externalID := f.scope.MustProject(t, uniqueProjectID("pexternal"), "External")
 		_, err := f.scope.Pool.Exec(t.Context(), `update projects set source='external_tms' where id=$1`, externalID)
 		require.NoError(t, err)
 		externalJob := mustProjectJob(t, f.scope, projectJobSeed{projectID: externalID})
-		for _, providerProjectID := range []string{"ext:crowdin:1", externalID} {
-			for _, suffix := range []string{"", "/" + externalJob, "/" + externalJob + "/status"} {
-				requireProjectJobsError(t, f.get(t, f.projectPath(providerProjectID, suffix)), http.StatusNotFound, "project_not_found", "Project not found")
-			}
+		for _, suffix := range []string{"", "/" + externalJob, "/" + externalJob + "/status"} {
+			requireProjectJobsError(t, f.get(t, f.projectPath(externalID, suffix)), http.StatusNotFound, "project_not_found", "Project not found")
+		}
+	})
+
+	t.Run("encoded live Crowdin jobs need a TMS mint", func(t *testing.T) {
+		for _, suffix := range []string{"", "/10", "/10/status"} {
+			requireProjectJobsError(t, f.get(t, f.projectPath("ext:crowdin:1", suffix)), http.StatusServiceUnavailable, "tms_unavailable", "TMS projects are unavailable on this server")
 		}
 	})
 

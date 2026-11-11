@@ -39,6 +39,7 @@ import { GoSvcPdfApi } from "./go-svc-pdf-api";
 import { GoSvcPlaintextApi } from "./go-svc-plaintext-api";
 import { GoSvcProjectApi } from "./go-svc-project-api";
 import { GoSvcTeamApi } from "./go-svc-team-api";
+import { GoSvcTmsApi } from "./go-svc-tms-api";
 import { GoSvcTranslationFileApi } from "./go-svc-translation-file-api";
 import { GoSvcWorkspaceApi } from "./go-svc-workspace-api";
 
@@ -70,6 +71,7 @@ export class GoSvcClient {
   readonly qaReport: GoSvcQaReportApi;
   readonly reports: GoSvcReportsApi;
   readonly team: GoSvcTeamApi;
+  readonly tms: GoSvcTmsApi;
   readonly translationFile: GoSvcTranslationFileApi;
   readonly workspace: GoSvcWorkspaceApi;
 
@@ -99,6 +101,7 @@ export class GoSvcClient {
     this.qaReport = new GoSvcQaReportApi(request);
     this.reports = new GoSvcReportsApi(request);
     this.team = new GoSvcTeamApi(request);
+    this.tms = new GoSvcTmsApi(request);
     this.translationFile = new GoSvcTranslationFileApi(request);
     this.workspace = new GoSvcWorkspaceApi(request);
   }
