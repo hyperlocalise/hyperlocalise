@@ -162,6 +162,48 @@ describe("getAppShellBreadcrumbs", () => {
     ]);
   });
 
+  it("returns guideline breadcrumbs for detail and upload pages", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/knowledge", intl)).toEqual([{ label: "Guideline" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/knowledge/upload", intl)).toEqual([
+      { label: "Guideline", href: "/org/acme/knowledge" },
+      { label: "Upload guideline" },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/knowledge/doc_1", intl)).toEqual([
+      { label: "Guideline", href: "/org/acme/knowledge" },
+      { label: "doc_1" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/knowledge/doc_1", intl, {
+        guidelineDocumentTitle: "Brand voice",
+      }),
+    ).toEqual([{ label: "Guideline", href: "/org/acme/knowledge" }, { label: "Brand voice" }]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/knowledge/doc_1", intl, {
+        guidelineDocumentTitleLoading: true,
+      }),
+    ).toEqual([
+      { label: "Guideline", href: "/org/acme/knowledge" },
+      { label: "", isLoading: true },
+    ]);
+    expect(getAppShellBreadcrumbs("/org/acme/projects/proj_1/knowledge/doc_1", intl)).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "proj_1", href: "/org/acme/projects/proj_1" },
+      { label: "Guideline", href: "/org/acme/projects/proj_1/knowledge" },
+      { label: "doc_1" },
+    ]);
+    expect(
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1/knowledge/doc_1", intl, {
+        projectName: "Checkout",
+        guidelineDocumentTitle: "Brand voice",
+      }),
+    ).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "Checkout", href: "/org/acme/projects/proj_1" },
+      { label: "Guideline", href: "/org/acme/projects/proj_1/knowledge" },
+      { label: "Brand voice" },
+    ]);
+  });
+
   it("returns translation memory breadcrumbs for detail and import report pages", () => {
     expect(getAppShellBreadcrumbs("/org/acme/translation-memories", intl)).toEqual([
       { label: "Translation Memories" },

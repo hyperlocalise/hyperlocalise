@@ -270,6 +270,23 @@ describe("GuidelineDocumentDetailContent", () => {
     );
   });
 
+  it("shows an empty state when text content is blank", async () => {
+    defaultMocks();
+    mocks.getDocument.mockResolvedValue(guidelineDocument({ content: "   " }));
+    render(
+      <GuidelineDocumentDetailContent
+        organizationSlug="acme"
+        documentId="doc-brand"
+        canUpdate={false}
+      />,
+      { wrapper },
+    );
+
+    expect(await screen.findByRole("heading", { name: "Content" })).toBeTruthy();
+    expect(screen.getByText("No content yet")).toBeTruthy();
+    expect(screen.getByText("This guideline has no preview text yet.")).toBeTruthy();
+  });
+
   it("shows a notice for binary documents", async () => {
     defaultMocks();
     mocks.getDocument.mockResolvedValue(

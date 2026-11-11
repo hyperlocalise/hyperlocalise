@@ -15,16 +15,23 @@
 import { useId, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { DownloadSimpleIcon, PencilSimpleIcon } from "@phosphor-icons/react";
+import { DownloadSimpleIcon, FileTextIcon, PencilSimpleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
+import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { buildOrganizationPath, buildProjectPath } from "@/components/app-shell/navigation-config";
 import {
   guidelineDocumentLocales,
@@ -134,6 +141,7 @@ export function GuidelineDocumentDetailContent({
     );
   }
   const isText = document.contentType.startsWith("text/");
+  const contentEmpty = isText && (document.content ?? "").trim().length === 0;
   const mandatory = updateMandatory.isPending
     ? (updateMandatory.variables ?? document.mandatory)
     : document.mandatory;
@@ -224,10 +232,24 @@ export function GuidelineDocumentDetailContent({
       </div>
 
       <section className="flex flex-col gap-3">
-        <TypographyH2 className="pb-0 text-lg tracking-[-0.02em]">
+        <h2 className="text-base font-medium text-foreground">
           <FormattedMessage {...messages.contentTitle} />
-        </TypographyH2>
-        {isText ? (
+        </h2>
+        {contentEmpty ? (
+          <Empty className="border border-dashed border-border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FileTextIcon />
+              </EmptyMedia>
+              <EmptyTitle>
+                <FormattedMessage {...messages.emptyContentTitle} />
+              </EmptyTitle>
+              <EmptyDescription>
+                <FormattedMessage {...messages.emptyContentDescription} />
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : isText ? (
           <div className="rounded-xl border border-border px-4 py-3">
             <Streamdown>{document.content ?? ""}</Streamdown>
           </div>

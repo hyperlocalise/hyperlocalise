@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyH2, TypographyP } from "@/components/ui/typography";
+import { TypographyP } from "@/components/ui/typography";
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import type { GuidelineProjectAssignment } from "@/lib/go-svc/go-svc-guidelines-api";
@@ -262,9 +262,9 @@ export function GuidelineDocumentAssignments({
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <TypographyH2 className="pb-0 text-lg tracking-[-0.02em]">
+        <h2 className="text-base font-medium text-foreground">
           <FormattedMessage {...messages.sectionTitle} />
-        </TypographyH2>
+        </h2>
         <ScopeBadge isGlobal={isGlobal} projectIds={projectIds} />
       </div>
       <TypographyP size="small" tone="subtle" className="max-w-2xl leading-6">

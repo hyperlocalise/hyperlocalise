@@ -46,6 +46,7 @@ import {
   buildProjectPath,
   parseDomainRoute,
   parseGlossaryRoute,
+  parseGuidelineRoute,
   parseProjectRoute,
   parseTeamRoute,
   parseTranslationMemoryRoute,
@@ -278,12 +279,14 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
   const domainRoute = parseDomainRoute(pathname);
   const glossaryRoute = parseGlossaryRoute(pathname);
   const translationMemoryRoute = parseTranslationMemoryRoute(pathname);
+  const guidelineRoute = parseGuidelineRoute(pathname);
   const resolvedOrganizationSlug =
     projectRoute?.organizationSlug ??
     teamRoute?.organizationSlug ??
     domainRoute?.organizationSlug ??
     glossaryRoute?.organizationSlug ??
     translationMemoryRoute?.organizationSlug ??
+    guidelineRoute?.organizationSlug ??
     organizationSlug;
 
   const projectQuery = useProjectPageQuery(
@@ -339,6 +342,23 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
     },
   });
 
+  const guidelineDocumentQuery = useQuery({
+    queryKey: [
+      "guideline-document",
+      guidelineRoute?.organizationSlug,
+      guidelineRoute?.projectId,
+      guidelineRoute?.documentId,
+    ],
+    enabled: Boolean(guidelineRoute?.documentId),
+    queryFn: ({ signal }) =>
+      goSvcClient.guidelines.getDocument(
+        guidelineRoute!.organizationSlug,
+        guidelineRoute!.documentId!,
+        undefined,
+        { signal },
+      ),
+  });
+
   const translationMemoryQuery = useQuery({
     queryKey: ["translation-memory", resolvedOrganizationSlug, translationMemoryRoute?.memoryId],
     enabled: Boolean(translationMemoryRoute?.memoryId),
@@ -371,6 +391,9 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
       glossaryNameLoading: glossaryQuery.isPending,
       translationMemoryName: translationMemoryQuery.data?.name,
       translationMemoryNameLoading: translationMemoryQuery.isPending,
+      guidelineDocumentTitle: guidelineDocumentQuery.data?.title,
+      guidelineDocumentTitleLoading:
+        Boolean(guidelineRoute?.documentId) && guidelineDocumentQuery.isPending,
     }),
   );
 

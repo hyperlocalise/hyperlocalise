@@ -70,6 +70,16 @@ export const guidelineDocumentDetailMessages = defineMessages({
     id: "055hetinld",
     description: "Section title for a guideline document's content",
   },
+  emptyContentTitle: {
+    defaultMessage: "No content yet",
+    id: "89WyBBZY4w",
+    description: "Title when a guideline document has no preview text",
+  },
+  emptyContentDescription: {
+    defaultMessage: "This guideline has no preview text yet.",
+    id: "ogrSf/4R6X",
+    description: "Description when a guideline document has no preview text",
+  },
   ready: {
     defaultMessage: "Ready",
     id: "9drYyND719",

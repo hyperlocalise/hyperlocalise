@@ -120,9 +120,9 @@ func insertGuidelineDocument(ctx context.Context, db dictionaryDB, scope guideli
 	record, err := scanGuidelineDocument(db.QueryRow(ctx, `
 		insert into guideline_documents as d (id, organization_id, project_id, locale, locales, is_global, title, storage_location_id, storage_key, filename,
 			content_type, byte_size, revision_id, mandatory, status, enqueued_at, created_by_user_id)
-		values ($3, $1, NULL, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'processing', now(), nullif($15, '')::uuid)
+		values ($2, $1, NULL, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'processing', now(), nullif($14, '')::uuid)
 		returning `+guidelineDocumentColumns,
-		scope.organizationID, scope.projectID, input.id, input.locale, locales, input.isGlobal, input.title, input.storageLocationID, input.storageKey, input.filename,
+		scope.organizationID, input.id, input.locale, locales, input.isGlobal, input.title, input.storageLocationID, input.storageKey, input.filename,
 		input.contentType, input.byteSize, input.revisionID, input.mandatory, input.userID), false)
 	if err != nil {
 		return guidelineDocumentRecord{}, err

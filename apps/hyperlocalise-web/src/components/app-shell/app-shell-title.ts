@@ -525,6 +525,33 @@ function formatTranslationMemoryImportReportTitle(intl: IntlShape): string {
   });
 }
 
+function formatGuidelineUploadTitle(intl: IntlShape): string {
+  return intl.formatMessage({
+    defaultMessage: "Upload guideline",
+    id: "pwTiPpomVO",
+    description: "App shell breadcrumb title for the guideline upload page",
+  });
+}
+
+function guidelineDetailCrumb(
+  intl: IntlShape,
+  detailSegment: string,
+  options?: {
+    guidelineDocumentTitle?: string;
+    guidelineDocumentTitleLoading?: boolean;
+  },
+): AppShellBreadcrumb {
+  if (detailSegment === "upload") {
+    return { label: formatGuidelineUploadTitle(intl) };
+  }
+
+  return buildNamedResourceCrumb(
+    options?.guidelineDocumentTitle,
+    options?.guidelineDocumentTitleLoading,
+    decodePathSegment(detailSegment),
+  );
+}
+
 function buildNamedResourceCrumb(
   name?: string,
   nameLoading?: boolean,
@@ -554,6 +581,8 @@ export function getAppShellBreadcrumbs(
     glossaryNameLoading?: boolean;
     translationMemoryName?: string;
     translationMemoryNameLoading?: boolean;
+    guidelineDocumentTitle?: string;
+    guidelineDocumentTitleLoading?: boolean;
   },
 ): AppShellBreadcrumb[] {
   const orgRoute = parseOrgRoute(pathname);
@@ -742,6 +771,10 @@ export function getAppShellBreadcrumbs(
         crumbs.push({ label: formatNewAutomationTitle(intl) });
       }
 
+      if (projectSection === "knowledge" && issueIdSegment) {
+        crumbs.push(guidelineDetailCrumb(intl, issueIdSegment, options));
+      }
+
       return crumbs;
     }
 
@@ -822,6 +855,20 @@ export function getAppShellBreadcrumbs(
     }
 
     return crumbs;
+  }
+
+  if (section === "knowledge") {
+    if (!subsection) {
+      return [{ label: formatRouteTitle(intl, "knowledge") }];
+    }
+
+    return [
+      {
+        label: formatRouteTitle(intl, "knowledge"),
+        href: buildOrgPath(organizationSlug, "knowledge"),
+      },
+      guidelineDetailCrumb(intl, subsection, options),
+    ];
   }
 
   if (section === "translation-memories") {
