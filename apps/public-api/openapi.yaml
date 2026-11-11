@@ -36,6 +36,26 @@ paths:
                 required: [ok]
                 properties:
                   ok: { type: boolean, const: true }
+  /outbound-ip:
+    get:
+      operationId: getOutboundIP
+      security: []
+      summary: Show the task's public egress address
+      description: >-
+        Calls https://checkip.amazonaws.com from this process and reads the NAT
+        addresses published for public-api in SSM. One response shows the gateway
+        in the task's availability zone; the parameter lists both gateways.
+      responses:
+        "200":
+          description: Both the observed address and the SSM allowlist were read.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutboundIP"
+        "502":
+          description: The checkip call failed. The SSM allowlist is included when that read succeeded.
+        "503":
+          description: The SSM parameter could not be read. The observed address is included when checkip succeeded.
   /v1/me:
     get:
       operationId: getCurrentPrincipal
@@ -1183,6 +1203,26 @@ components:
       required: true
       schema: { type: string, format: uuid }
   schemas:
+    OutboundIP:
+      type: object
+      required: [checkip, ssmParameter, ssmAddresses]
+      properties:
+        checkip:
+          type: string
+          description: Address returned by https://checkip.amazonaws.com for this task.
+        checkipError:
+          type: string
+          description: Present when the checkip call failed.
+        ssmParameter:
+          type: string
+          description: SSM parameter that stores the NAT egress allowlist.
+        ssmAddresses:
+          type: array
+          items: { type: string }
+          description: Both NAT public addresses from the parameter.
+        ssmError:
+          type: string
+          description: Present when the parameter could not be read.
     PrincipalResponse:
       type: object
       required: [principal]
