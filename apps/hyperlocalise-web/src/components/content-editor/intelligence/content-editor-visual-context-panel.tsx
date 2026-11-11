@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ImagesIcon } from "@phosphor-icons/react";
+import { ArrowSquareOutIcon, ImagesIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { ImageLightbox } from "@/components/ui/image-lightbox/image-lightbox";
@@ -83,9 +83,20 @@ function VisualContextScreenshotCard({
 
   return (
     <figure className="overflow-hidden rounded-xl border border-border bg-background">
-      {screenshot.name ? (
-        <figcaption className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
-          {screenshot.name}
+      {screenshot.name || screenshot.figmaUrl ? (
+        <figcaption className="flex items-center gap-2 border-b border-border px-3 py-2 text-xs text-muted-foreground">
+          <span className="min-w-0 flex-1 truncate">{screenshot.name}</span>
+          {screenshot.figmaUrl ? (
+            <a
+              href={screenshot.figmaUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0 items-center gap-1 font-medium text-foreground hover:underline"
+            >
+              <FormattedMessage {...contentEditorVisualContextPanelMessages.openInFigma} />
+              <ArrowSquareOutIcon className="size-3.5" />
+            </a>
+          ) : null}
         </figcaption>
       ) : null}
       <ImageLightbox

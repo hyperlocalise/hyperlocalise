@@ -35,6 +35,13 @@ import {
   pullFigmaPageLocaleContent,
   startFigmaLocalization,
 } from "@/lib/figma/localize-file";
+import {
+  getFigmaKeyTranslations,
+  matchFigmaTextsToKeys,
+  searchFigmaProjectKeys,
+  syncFigmaFrameVisualContext,
+} from "@/lib/figma/design-context";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 import { createLogger } from "@/lib/log";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
@@ -45,8 +52,12 @@ import {
   createFigmaJobBodySchema,
   currentFigmaJobQuerySchema,
   figmaJobIdParamSchema,
+  figmaKeyTranslationsBodySchema,
   figmaLocalesQuerySchema,
+  matchFigmaKeysBodySchema,
   pullFigmaTranslationsQuerySchema,
+  searchFigmaKeysQuerySchema,
+  syncFigmaVisualContextBodySchema,
 } from "./figma-integration.schema";
 
 const validateCollectBody = validator("json", (value, c) => {
@@ -121,6 +132,61 @@ const validatePullQuery = validator("query", (value, c) => {
   }
   return parsed.data;
 });
+
+const validateMatchKeysBody = validator("json", (value, c) => {
+  const parsed = matchFigmaKeysBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_figma_key_match_payload",
+      "Figma key match payload is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateSearchKeysQuery = validator("query", (value, c) => {
+  const parsed = searchFigmaKeysQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_figma_key_search_query",
+      "Figma key search query is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateKeyTranslationsBody = validator("json", (value, c) => {
+  const parsed = figmaKeyTranslationsBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_figma_key_translations_payload",
+      "Figma key translations payload is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateSyncVisualContextBody = validator("json", (value, c) => {
+  const parsed = syncFigmaVisualContextBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_figma_visual_context_payload",
+      "Figma visual context payload is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+/** Go-svc 4xx codes the plugin can act on pass through; anything else is a server failure. */
+const FIGMA_VISUAL_CONTEXT_PASSTHROUGH_STATUS = new Set([400, 404, 413, 415]);
 
 type CreateFigmaIntegrationRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
@@ -389,5 +455,100 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
       } catch (error) {
         return localizeErrorResponse(c, error);
       }
-    });
+    })
+    .post("/keys/match", figmaConnectionAuthMiddleware, validateMatchKeysBody, async (c) => {
+      const payload = c.req.valid("json");
+      const connection = c.var.figmaConnection;
+      await touchFigmaConnectionUsage(connection.id);
+
+      try {
+        const auth = await resolveConnectionAuth(connection);
+        const matches = await matchFigmaTextsToKeys({
+          auth,
+          projectId: payload.projectId,
+          texts: payload.texts,
+        });
+        return c.json({ matches }, 200);
+      } catch (error) {
+        return localizeErrorResponse(c, error);
+      }
+    })
+    .get("/keys/search", figmaConnectionAuthMiddleware, validateSearchKeysQuery, async (c) => {
+      const query = c.req.valid("query");
+      const connection = c.var.figmaConnection;
+      await touchFigmaConnectionUsage(connection.id);
+
+      try {
+        const auth = await resolveConnectionAuth(connection);
+        const keys = await searchFigmaProjectKeys({
+          auth,
+          projectId: query.projectId,
+          query: query.q,
+        });
+        return c.json({ keys }, 200);
+      } catch (error) {
+        return localizeErrorResponse(c, error);
+      }
+    })
+    .post(
+      "/keys/translations",
+      figmaConnectionAuthMiddleware,
+      validateKeyTranslationsBody,
+      async (c) => {
+        const payload = c.req.valid("json");
+        const connection = c.var.figmaConnection;
+        await touchFigmaConnectionUsage(connection.id);
+
+        try {
+          const auth = await resolveConnectionAuth(connection);
+          const translations = await getFigmaKeyTranslations({
+            auth,
+            projectId: payload.projectId,
+            locale: payload.locale,
+            keyIds: payload.keyIds,
+          });
+          return c.json({ translations }, 200);
+        } catch (error) {
+          return localizeErrorResponse(c, error);
+        }
+      },
+    )
+    .post(
+      "/visual-context",
+      figmaConnectionAuthMiddleware,
+      validateSyncVisualContextBody,
+      async (c) => {
+        const payload = c.req.valid("json");
+        const connection = c.var.figmaConnection;
+        await touchFigmaConnectionUsage(connection.id);
+
+        try {
+          const auth = await resolveConnectionAuth(connection);
+          const visualContext = await syncFigmaFrameVisualContext({
+            auth,
+            projectId: payload.projectId,
+            fileKey: payload.fileKey,
+            nodeId: payload.nodeId,
+            name: payload.name,
+            figmaUrl: payload.figmaUrl,
+            contentType: payload.contentType,
+            imageBase64: payload.imageBase64,
+            bindings: payload.bindings,
+          });
+          return c.json({ visualContext }, 201);
+        } catch (error) {
+          if (
+            error instanceof GoSvcClientError &&
+            error.status !== null &&
+            FIGMA_VISUAL_CONTEXT_PASSTHROUGH_STATUS.has(error.status)
+          ) {
+            return c.json(
+              { error: error.code, message: error.message },
+              error.status as 400 | 404 | 413 | 415,
+            );
+          }
+          return localizeErrorResponse(c, error);
+        }
+      },
+    );
 }

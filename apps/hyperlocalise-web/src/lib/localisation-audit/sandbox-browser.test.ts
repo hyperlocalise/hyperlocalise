@@ -61,12 +61,9 @@ vi.mock("@/lib/security/public-http-fetch", async (importOriginal) => {
 
 import { ok } from "@/lib/primitives/result/results";
 
-import {
-  buildAuditPlaywrightScript,
-  createAuditBrowserSession,
-  isBlockedBrowserNavigationUrl,
-  prepareAuditBrowserRuntimeCommand,
-} from "./sandbox-browser";
+import { isBlockedBrowserNavigationUrl } from "./audit-browser-url-guard";
+import { buildAuditPlaywrightScript } from "./audit-playwright-script";
+import { createAuditBrowserSession, prepareAuditBrowserRuntimeCommand } from "./sandbox-browser";
 import { AuditBrowserSetupError } from "./sandbox-browser-error";
 
 describe("audit browser navigation guard", () => {

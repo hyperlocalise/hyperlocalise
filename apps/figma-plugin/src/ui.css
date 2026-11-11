@@ -426,3 +426,44 @@ body {
     transition: none;
   }
 }
+
+.designKeyResults {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--figma-color-border);
+  border-radius: 4px;
+}
+
+.designKeyResult {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--figma-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.designKeyResult:hover:not(:disabled),
+.designKeyResult:focus-visible {
+  background: var(--figma-color-bg-hover);
+}
+
+.designKeyName {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.designKeySource {
+  color: var(--figma-color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

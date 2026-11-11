@@ -1,3 +1,9 @@
+import type {
+  DesignFrameExport,
+  DesignTextNode,
+  FigmaKeyLink,
+  TextFitIssue,
+} from "./design-context";
 import type { FigmaPageJobBinding } from "./page-binding";
 
 export type FigmaSegment = {
@@ -69,6 +75,19 @@ export type UiToSandboxMessage =
       preserveFormatting: boolean;
     }
   | { type: "binding-read"; pageId: string }
+  | { type: "design-scan"; pageId: string; selectionOnly: boolean }
+  | { type: "design-selection"; pageId: string }
+  | { type: "design-link"; links: Array<{ nodeId: string; link: FigmaKeyLink | null }> }
+  | { type: "design-frames"; pageId: string }
+  | { type: "design-export-frame"; frame: Omit<DesignFrameExport, "contentType" | "imageBase64"> }
+  | {
+      type: "design-preview";
+      pageId: string;
+      translations: Array<{ keyId: string; text: string | null }>;
+    }
+  | { type: "design-restore"; pageId: string }
+  | { type: "design-select-nodes"; nodeIds: string[] }
+  | { type: "design-file-link-set"; url: string }
   | { type: "resize-ui"; height: number }
   | { type: "cancel" };
 
@@ -90,6 +109,30 @@ export type SandboxToUiMessage =
   | { type: "binding-loaded"; pageId: string; binding: FigmaPageJobBinding | null }
   | { type: "extracted"; segments: FigmaSegment[]; file: FigmaFileInfo }
   | { type: "applied"; count: number }
+  | {
+      type: "design-scanned";
+      nodes: DesignTextNode[];
+      fileLink: string | null;
+      /** Only set for plugins allowed to read `figma.fileKey`. */
+      figmaFileKey: string | null;
+      /** Layers on the page that still show a translation preview. */
+      previewing: number;
+    }
+  | { type: "design-selection-read"; nodes: DesignTextNode[] }
+  | { type: "design-linked"; count: number }
+  | {
+      type: "design-frames-read";
+      frames: Array<Omit<DesignFrameExport, "contentType" | "imageBase64">>;
+      /** Linked layers that sit directly on the page, outside any frame. */
+      unframed: number;
+      /** Layers on the page that still show a translation preview. */
+      previewing: number;
+    }
+  | { type: "design-frame-exported"; frame: DesignFrameExport }
+  | { type: "design-previewed"; applied: number; missing: number; issues: TextFitIssue[] }
+  | { type: "design-restored"; count: number }
+  | { type: "design-nodes-selected"; count: number }
+  | { type: "design-file-link-saved" }
   | { type: "error"; message: string };
 
 export const SETTINGS_STORAGE_KEY = "hyperlocalise:figma-plugin:settings:v1";

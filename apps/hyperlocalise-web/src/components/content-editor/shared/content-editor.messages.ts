@@ -1524,6 +1524,11 @@ export const contentEditorVisualContextPanelMessages = defineMessages({
     id: "2/f6DOJ16h",
     description: "Accessible fallback label for a screenshot preview image",
   },
+  openInFigma: {
+    defaultMessage: "Open in Figma",
+    id: "KNtGEEzfY/",
+    description: "Link from a visual context screenshot to the Figma frame it was synced from",
+  },
   upload: {
     defaultMessage: "Upload screenshot",
     id: "kWMaY8JWYA",

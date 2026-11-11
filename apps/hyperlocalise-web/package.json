@@ -20,6 +20,7 @@
     "workos:setup": "bun --env-file=.env src/lib/workos/run-workos-setup.ts",
     "crowdin:pat-test": "bun --env-file=.env src/lib/providers/adapters/crowdin/run-crowdin-pat-test.ts",
     "translations:backfill-origin": "bun --preload ./scripts/bun-server-only-stub.ts --env-file=.env src/lib/projects/translations/run-backfill-translation-origins.ts",
+    "localisation-audit:run": "bun --preload ./scripts/bun-server-only-stub.ts src/lib/localisation-audit/run-localisation-audit.ts",
     "reporting:summary": "bun --preload ./scripts/bun-server-only-stub.ts --env-file=.env src/lib/reporting/run-reporting-summary.ts"
   },
   "dependencies": {
@@ -137,6 +138,7 @@
     "next-themes": "0.4.6",
     "octokit": "5.0.5",
     "pg": "8.23.1",
+    "playwright-core": "1.65.0",
     "pptxgenjs": "^4.0.1",
     "react": "19.3.1",
     "react-day-picker": "10.0.2",

@@ -256,6 +256,12 @@ export const env = createEnv({
       .default("false")
       .transform((value) => value === "true"),
 
+    /**
+     * Tilion API key. When set, localisation audits render pages in Tilion cloud
+     * browsers instead of Vercel Sandboxes, falling back to the sandbox on failure.
+     */
+    TILION_API_KEY: z.string().min(1).optional(),
+
     /** Canva app ID used to verify Canva JWTs for the integration API. */
     CANVA_APP_ID: z.string().min(1).optional(),
 
@@ -411,6 +417,7 @@ export const env = createEnv({
     VERCEL_SANDBOX_IMAGE: process.env.VERCEL_SANDBOX_IMAGE,
     RELEASE_SANDBOX_VCR_IMAGE: process.env.RELEASE_SANDBOX_VCR_IMAGE,
     RELEASE_QA_SANDBOX_VCR_IMAGE: process.env.RELEASE_QA_SANDBOX_VCR_IMAGE,
+    TILION_API_KEY: process.env.TILION_API_KEY,
     CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),
     CANVA_CORS_ORIGINS: process.env.CANVA_CORS_ORIGINS,
     CANVA_APP_ORIGIN: process.env.CANVA_APP_ORIGIN,

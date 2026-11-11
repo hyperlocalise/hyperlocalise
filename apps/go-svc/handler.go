@@ -161,6 +161,7 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.contentEditor != nil {
 		h.contentEditor.register(mux, verifier)
+		h.contentEditor.registerInternal(mux)
 	}
 	if h.projects != nil {
 		h.projects.register(mux, verifier)

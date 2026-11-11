@@ -53,6 +53,13 @@ export const projectVisualContextScreenshots = pgTable(
     status: text("status").notNull().default("upload_pending"),
     width: integer("width"),
     height: integer("height"),
+    /**
+     * Set when the Figma plugin synced this screenshot from a frame. A re-sync of the same
+     * frame replaces the row, so linguists always see the current design.
+     */
+    figmaFileKey: text("figma_file_key"),
+    figmaNodeId: text("figma_node_id"),
+    figmaUrl: text("figma_url"),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -72,6 +79,13 @@ export const projectVisualContextScreenshots = pgTable(
       table.projectId,
     ),
     index("idx_project_visual_context_screenshots_stored_file").on(table.storedFileId),
+    uniqueIndex("project_visual_context_screenshots_figma_frame")
+      .on(table.projectId, table.figmaFileKey, table.figmaNodeId)
+      .where(sql`${table.figmaFileKey} is not null`),
+    check(
+      "project_visual_context_screenshots_figma_check",
+      sql`(${table.figmaFileKey} is null) = (${table.figmaNodeId} is null)`,
+    ),
     check(
       "project_visual_context_screenshots_status_check",
       sql`${table.status} in ('upload_pending', 'ready')`,

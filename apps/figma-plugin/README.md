@@ -64,6 +64,22 @@ Same shape as the Canva app: collect source, then translate, then apply.
    or still a multi-word English leftover. A second target locale cannot leave
    the first language on untranslated layers.
 
+### Design context
+
+For projects whose strings already exist as keys (for example repository JSON), the
+**Design context** section links text layers to those keys instead of uploading text:
+
+- **Match keys** links layers by key-shaped layer name, or by unique source-text match
+  (`POST /api/integrations/figma/keys/match`). **Link selected layer to a key…** searches
+  keys (`GET …/keys/search`) for manual links.
+- **Sync to editor** exports each top-level frame with linked layers and stores it as CAT
+  visual context with a marker per key (`POST …/visual-context`). Re-syncing a frame
+  replaces its screenshot. The file link (Share → Copy link) is saved in root plugin data
+  because published plugins cannot read `figma.fileKey`.
+- **Preview** writes one locale's current translations onto linked layers
+  (`POST …/keys/translations`) and flags overflow and character-limit breaks. **Restore
+  source** puts the original text back.
+
 Each page stores `{ projectId, jobId, sourcePath }` in page plugin data
 (`hyperlocalise:binding:v1`). On boot and page change, the plugin asks
 Hyperlocalise for the latest job for that Figma file and page. The server is

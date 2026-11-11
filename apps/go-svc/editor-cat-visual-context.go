@@ -83,6 +83,8 @@ type editorCatVisualContextScreenshot struct {
 	Width    *int                           `json:"width"`
 	Height   *int                           `json:"height"`
 	Markers  []editorCatVisualContextMarker `json:"markers"`
+	// FigmaURL is set when the Figma plugin synced this screenshot from a frame.
+	FigmaURL *string `json:"figmaUrl,omitempty"`
 }
 
 type editorCatVisualContextBinding struct {
@@ -602,7 +604,7 @@ func (api *editorCatAPI) deleteVisualContextObject(r *http.Request, location, ke
 
 func (api *editorCatAPI) listVisualContextScreenshots(r *http.Request, actor editorCatActor, project editorCatProject, keyID string) ([]editorCatVisualContextScreenshot, error) {
 	rows, err := api.pool.Query(r.Context(), `
-        select s.id, s.name, s.object_location, s.object_key, s.width, s.height,
+        select s.id, s.name, s.object_location, s.object_key, s.width, s.height, s.figma_url,
                b.marker_left, b.marker_top, b.marker_width, b.marker_height
         from project_visual_context_bindings b
         join project_visual_context_screenshots s on s.id = b.screenshot_id
@@ -617,7 +619,7 @@ func (api *editorCatAPI) listVisualContextScreenshots(r *http.Request, actor edi
 	defer rows.Close()
 	type pendingShot struct {
 		id, location, key string
-		name              *string
+		name, figmaURL    *string
 		width, height     *int
 		marker            *editorCatVisualContextMarker
 	}
@@ -625,7 +627,7 @@ func (api *editorCatAPI) listVisualContextScreenshots(r *http.Request, actor edi
 	for rows.Next() {
 		var shot pendingShot
 		var left, top, width, height *float64
-		if err = rows.Scan(&shot.id, &shot.name, &shot.location, &shot.key, &shot.width, &shot.height, &left, &top, &width, &height); err != nil {
+		if err = rows.Scan(&shot.id, &shot.name, &shot.location, &shot.key, &shot.width, &shot.height, &shot.figmaURL, &left, &top, &width, &height); err != nil {
 			return nil, err
 		}
 		shot.marker = visualContextMarkerFromColumns(left, top, width, height)
@@ -651,6 +653,7 @@ func (api *editorCatAPI) listVisualContextScreenshots(r *http.Request, actor edi
 			Width:    shot.width,
 			Height:   shot.height,
 			Markers:  markers,
+			FigmaURL: shot.figmaURL,
 		})
 	}
 	return screenshots, nil

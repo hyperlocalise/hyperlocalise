@@ -338,8 +338,8 @@ export function pageFromRendered(rendered: RenderedHtmlPage): LocalisationAuditC
 }
 
 async function defaultCreateRenderer(): Promise<HtmlPageRenderer> {
-  const { createAuditBrowserSession } = await import("./sandbox-browser");
-  return createAuditBrowserSession();
+  const { createAuditPageRenderer } = await import("./audit-page-renderer");
+  return createAuditPageRenderer();
 }
 
 export async function crawlLocalisationAuditSample(

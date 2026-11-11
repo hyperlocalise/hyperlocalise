@@ -1,5 +1,5 @@
 {
-  "id": "5cc331cb-06e5-46d5-937c-93e602147f84",
+  "id": "733bd62c-d248-4ddf-9de5-ae5deab0e81e",
   "prevId": "d67dba26-9294-4b45-b352-970a8a1ebfb4",
   "version": "7",
   "dialect": "postgresql",
@@ -30054,20 +30054,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "locales": {
-          "name": "locales",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'"
-        },
-        "is_global": {
-          "name": "is_global",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "title": {
           "name": "title",
           "type": "text",
@@ -31656,6 +31642,24 @@
           "primaryKey": false,
           "notNull": false
         },
+        "figma_file_key": {
+          "name": "figma_file_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "figma_node_id": {
+          "name": "figma_node_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "figma_url": {
+          "name": "figma_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_by_user_id": {
           "name": "created_by_user_id",
           "type": "uuid",
@@ -31734,6 +31738,34 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "project_visual_context_screenshots_figma_frame": {
+          "name": "project_visual_context_screenshots_figma_frame",
+          "columns": [
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "figma_file_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "figma_node_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"project_visual_context_screenshots\".\"figma_file_key\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -31794,6 +31826,10 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
+        "project_visual_context_screenshots_figma_check": {
+          "name": "project_visual_context_screenshots_figma_check",
+          "value": "(\"project_visual_context_screenshots\".\"figma_file_key\" is null) = (\"project_visual_context_screenshots\".\"figma_node_id\" is null)"
+        },
         "project_visual_context_screenshots_status_check": {
           "name": "project_visual_context_screenshots_status_check",
           "value": "\"project_visual_context_screenshots\".\"status\" in ('upload_pending', 'ready')"
