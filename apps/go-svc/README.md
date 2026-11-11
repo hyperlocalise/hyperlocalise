@@ -137,6 +137,12 @@ models. If that is unset, `OPENAI_API_KEY` covers `openai/*` models plus
 Google, xAI, and non-OpenAI gateway models still need `AI_GATEWAY_API_KEY`. If
 no generation backend is configured, jobs fail with `PROVIDER_ERROR`.
 
+Transcription (`universal-3.5-pro`, `qwen3.8-omni-flash`) posts to AI Gateway's
+native `/v4/ai/transcription-model` JSON endpoint, derived from
+`AI_GATEWAY_BASE_URL` by replacing `/v1` with `/v4/ai`. The gateway does not
+implement OpenAI-compatible `/v1/audio/transcriptions`. Direct OpenAI still
+uses that multipart route.
+
 ### Iris localisation
 
 The Iris editor localises its projects through these routes, all under
