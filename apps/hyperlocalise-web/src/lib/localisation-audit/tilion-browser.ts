@@ -22,7 +22,6 @@ import { filterAllowedBrowserUrls, isAllowedBrowserUrl } from "./audit-browser-u
 import {
   AUDIT_BROWSER_LAYOUT_LIMITS,
   AUDIT_BROWSER_MOBILE_VIEWPORT,
-  AUDIT_BROWSER_NAV_TIMEOUT_MS,
   AUDIT_BROWSER_NETWORKIDLE_TIMEOUT_MS,
   AUDIT_BROWSER_SETTLE_MS,
   AUDIT_BROWSER_USER_AGENT,
@@ -38,7 +37,11 @@ const TILION_SESSION_IDLE_TIMEOUT_SECONDS = 2 * 60;
 const TILION_CREATE_TIMEOUT_MS = 120_000;
 const TILION_DELETE_TIMEOUT_MS = 30_000;
 const TILION_CONNECT_TIMEOUT_MS = 60_000;
+// Block recovery can hold a page load while it solves a challenge (up to ~28 s).
+const TILION_NAV_TIMEOUT_MS = 45_000;
 const TILION_RENDER_CONCURRENCY = 3;
+// The region sets the exit country and the browser's locale; `us` keeps audits on en-US.
+const TILION_SESSION_REGION = "us";
 
 export type TilionAuditBrowserError =
   | { code: "tilion_session_create_failed"; status: number | null }
@@ -71,6 +74,7 @@ async function createTilionSession(
       body: JSON.stringify({
         ttl: TILION_SESSION_TTL_SECONDS,
         idle_timeout: TILION_SESSION_IDLE_TIMEOUT_SECONDS,
+        region: TILION_SESSION_REGION,
       }),
       signal: AbortSignal.timeout(TILION_CREATE_TIMEOUT_MS),
     });
@@ -113,9 +117,10 @@ async function renderTilionPage(
 ): Promise<RenderedHtmlPage | null> {
   const page = await context.newPage();
   try {
+    await page.setViewportSize(AUDIT_BROWSER_VIEWPORT);
     const response = await page.goto(url, {
       waitUntil: "load",
-      timeout: AUDIT_BROWSER_NAV_TIMEOUT_MS,
+      timeout: TILION_NAV_TIMEOUT_MS,
     });
     await page
       .waitForLoadState("networkidle", { timeout: AUDIT_BROWSER_NETWORKIDLE_TIMEOUT_MS })
@@ -154,7 +159,10 @@ async function renderTilionPage(
 
 /**
  * Renders audit pages in one Tilion cloud browser session, driven over CDP.
- * Uses an isolated context so the audit keeps its own user agent and viewport.
+ * Pages open in the session's default context, which carries Tilion's stealth
+ * persona and automatic block recovery, so the user agent and locale are left
+ * to the persona. Only when the session exposes no context does it fall back to
+ * an isolated one with the audit user agent.
  * Tilion's browser runs on Tilion's network and refuses private navigations,
  * so subresource requests are not intercepted the way the sandbox script does.
  */
@@ -169,14 +177,21 @@ export async function createTilionAuditBrowserSession(input: {
 
   let browser: Browser;
   let context: BrowserContext;
+  let ownsContext = false;
   try {
     const { chromium } = await import("playwright-core");
     browser = await chromium.connectOverCDP(connectUrl, { timeout: TILION_CONNECT_TIMEOUT_MS });
-    context = await browser.newContext({
-      userAgent: AUDIT_BROWSER_USER_AGENT,
-      viewport: AUDIT_BROWSER_VIEWPORT,
-      locale: "en-US",
-    });
+    const stealthContext = browser.contexts()[0];
+    if (stealthContext) {
+      context = stealthContext;
+    } else {
+      context = await browser.newContext({
+        userAgent: AUDIT_BROWSER_USER_AGENT,
+        viewport: AUDIT_BROWSER_VIEWPORT,
+        locale: "en-US",
+      });
+      ownsContext = true;
+    }
   } catch {
     await deleteTilionSession(input.apiKey, sessionId);
     return err({ code: "tilion_connect_failed" });
@@ -192,7 +207,9 @@ export async function createTilionAuditBrowserSession(input: {
     },
     async close() {
       try {
-        await context.close().catch(() => undefined);
+        if (ownsContext) {
+          await context.close().catch(() => undefined);
+        }
         await browser.close().catch(() => undefined);
       } finally {
         await deleteTilionSession(input.apiKey, sessionId);

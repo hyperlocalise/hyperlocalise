@@ -18,6 +18,7 @@ const playwrightMocks = vi.hoisted(() => ({
   newPage: vi.fn(),
   browserClose: vi.fn(),
   contextClose: vi.fn(),
+  contexts: vi.fn(),
 }));
 
 const assertResolvablePublicHttpUrlMock = vi.hoisted(() => vi.fn());
@@ -65,11 +66,11 @@ describe("createTilionAuditBrowserSession", () => {
 
     playwrightMocks.browserClose.mockResolvedValue(undefined);
     playwrightMocks.contextClose.mockResolvedValue(undefined);
-    playwrightMocks.newContext.mockResolvedValue({
-      newPage: playwrightMocks.newPage,
-      close: playwrightMocks.contextClose,
-    });
+    const context = { newPage: playwrightMocks.newPage, close: playwrightMocks.contextClose };
+    playwrightMocks.newContext.mockResolvedValue(context);
+    playwrightMocks.contexts.mockReturnValue([context]);
     playwrightMocks.connectOverCDP.mockResolvedValue({
+      contexts: playwrightMocks.contexts,
       newContext: playwrightMocks.newContext,
       close: playwrightMocks.browserClose,
     });
@@ -79,7 +80,7 @@ describe("createTilionAuditBrowserSession", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders vetted URLs in one Tilion session and deletes it on close", async () => {
+  it("renders vetted URLs in the stealth context and deletes the session on close", async () => {
     fetchMock.mockImplementation(async (_url, init) =>
       init?.method === "POST"
         ? Response.json({
@@ -88,13 +89,12 @@ describe("createTilionAuditBrowserSession", () => {
           })
         : new Response(null, { status: 204 }),
     );
-    playwrightMocks.newPage.mockResolvedValue(
-      fakePage({
-        finalUrl: "https://example.com/en",
-        html: "<html lang='en'><title>EN</title></html>",
-        status: 200,
-      }),
-    );
+    const page = fakePage({
+      finalUrl: "https://example.com/en",
+      html: "<html lang='en'><title>EN</title></html>",
+      status: 200,
+    });
+    playwrightMocks.newPage.mockResolvedValue(page);
 
     const session = await createTilionAuditBrowserSession({ apiKey: "tl_key" });
     if (isErr(session)) throw new Error(session.error.code);
@@ -108,17 +108,17 @@ describe("createTilionAuditBrowserSession", () => {
         headers: expect.objectContaining({ Authorization: "Bearer tl_key" }),
       }),
     );
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)).toMatchObject({
+      region: "us",
+    });
     expect(playwrightMocks.connectOverCDP).toHaveBeenCalledWith(
       "wss://back.tilion.dev/v1/session/sess_1/cdp?token=t",
       expect.anything(),
     );
-    expect(playwrightMocks.newContext).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userAgent: AUDIT_BROWSER_USER_AGENT,
-        viewport: AUDIT_BROWSER_VIEWPORT,
-      }),
-    );
+    expect(playwrightMocks.newContext).not.toHaveBeenCalled();
     expect(playwrightMocks.newPage).toHaveBeenCalledTimes(1);
+    expect(page.setViewportSize).toHaveBeenNthCalledWith(1, AUDIT_BROWSER_VIEWPORT);
+    expect(playwrightMocks.contextClose).not.toHaveBeenCalled();
     expect(pages).toEqual([
       {
         requestedUrl: "https://example.com/",
@@ -137,6 +137,27 @@ describe("createTilionAuditBrowserSession", () => {
       `${TILION_API_BASE_URL}/v1/session/sess_1`,
       expect.objectContaining({ method: "DELETE" }),
     );
+  });
+
+  it("falls back to an isolated context with the audit user agent", async () => {
+    fetchMock.mockImplementation(async (_url, init) =>
+      init?.method === "POST"
+        ? Response.json({ session_id: "sess_1", connect_url: "wss://tilion/cdp" })
+        : new Response(null, { status: 204 }),
+    );
+    playwrightMocks.contexts.mockReturnValue([]);
+
+    const session = await createTilionAuditBrowserSession({ apiKey: "tl_key" });
+    if (isErr(session)) throw new Error(session.error.code);
+    await session.value.close();
+
+    expect(playwrightMocks.newContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userAgent: AUDIT_BROWSER_USER_AGENT,
+        viewport: AUDIT_BROWSER_VIEWPORT,
+      }),
+    );
+    expect(playwrightMocks.contextClose).toHaveBeenCalled();
   });
 
   it("drops pages that redirect to a private address", async () => {
