@@ -12,8 +12,11 @@ import (
 )
 
 type guidelineDocumentRecord struct {
-	ID              string   `json:"id"`
-	ProjectID       *string  `json:"projectId,omitempty"`
+	ID        string  `json:"id"`
+	ProjectID *string `json:"projectId,omitempty"`
+	// Deprecated: single-locale reads are retired. Locales carries the
+	// per-document locales (empty means all locales); Locale only mirrors
+	// Locales when exactly one locale is set.
 	Locale          *string  `json:"locale,omitempty"`
 	Locales         []string `json:"locales"`
 	IsGlobal        bool     `json:"isGlobal"`

@@ -44,14 +44,16 @@ type guidelineRetrievePayload struct {
 }
 
 type retrievedGuidelineDocument struct {
-	ID         string   `json:"id"`
-	RevisionID string   `json:"revisionId"`
-	Version    int      `json:"version"`
-	Title      string   `json:"title"`
-	Locale     string   `json:"locale,omitempty"`
-	Locales    []string `json:"locales"`
-	Mandatory  bool     `json:"mandatory"`
-	Content    string   `json:"content,omitempty"`
+	ID         string `json:"id"`
+	RevisionID string `json:"revisionId"`
+	Version    int    `json:"version"`
+	Title      string `json:"title"`
+	// Deprecated: use Locales. Locale only mirrors Locales when exactly
+	// one locale is set.
+	Locale    string   `json:"locale,omitempty"`
+	Locales   []string `json:"locales"`
+	Mandatory bool     `json:"mandatory"`
+	Content   string   `json:"content,omitempty"`
 }
 
 type retrievedGuidelinePassage struct {

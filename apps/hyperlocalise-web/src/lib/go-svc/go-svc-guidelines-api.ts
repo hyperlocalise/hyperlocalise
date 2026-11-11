@@ -114,6 +114,7 @@ export type RetrievedGuidelineDocument = {
   revisionId: string;
   version: number;
   title: string;
+  /** @deprecated Use locales; mirrors locales[0] when exactly one locale is set. */
   locale?: string;
   locales: string[];
   mandatory: boolean;
