@@ -330,38 +330,46 @@ func TestNewIrisGenerationProviderReadsEnv(t *testing.T) {
 	require.Nil(t, composite.openai)
 }
 
-func TestImageLocaliseUsesOpenAIImageModelOnDirectOpenAI(t *testing.T) {
-	var gotModel, gotImageType string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/v1/images/edits", r.URL.Path)
-		require.NoError(t, r.ParseMultipartForm(1<<20))
-		gotModel = r.FormValue("model")
-		_, header, err := r.FormFile("image")
-		require.NoError(t, err)
-		gotImageType = header.Header.Get("Content-Type")
-		_, _ = w.Write([]byte(`{"data":[{"b64_json":"aGVsbG8="}]}`))
-	}))
-	t.Cleanup(server.Close)
-	provider := &irisGatewayProvider{
-		baseURL: defaultIrisOpenAIBaseURL,
-		apiKey:  "sk",
-		httpClient: &http.Client{Transport: rewriteHostRoundTripper{
-			host: server.URL,
-			next: http.DefaultTransport,
-		}},
-	}
+func TestImageLocaliseUsesGPTImage(t *testing.T) {
 	model, ok := irisModelByID("image-localise")
 	require.True(t, ok)
-	require.Equal(t, "google/gemini-3-pro-image", model.GatewayID)
-	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
-		Model:  model,
-		Inputs: []irisProviderInput{{Role: "image", Bytes: []byte("png"), ContentType: "application/octet-stream"}},
-		Fields: irisGenerateRequest{"targetLocale": "fr-FR"},
-	})
-	require.NoError(t, err)
-	require.Len(t, outputs, 1)
-	require.Equal(t, "gpt-image-2.6-flare", gotModel)
-	require.Equal(t, "image/png", gotImageType)
+	require.Equal(t, defaultIrisOpenAIImageModel, model.GatewayID)
+
+	for _, tc := range []struct{ name, baseURL, wantModel string }{
+		{"gateway", defaultIrisGatewayBaseURL, "openai/gpt-image-2.6-flare"},
+		{"direct openai", defaultIrisOpenAIBaseURL, "gpt-image-2.6-flare"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotModel, gotImageType string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, "/v1/images/edits", r.URL.Path)
+				require.NoError(t, r.ParseMultipartForm(1<<20))
+				gotModel = r.FormValue("model")
+				_, header, err := r.FormFile("image")
+				require.NoError(t, err)
+				gotImageType = header.Header.Get("Content-Type")
+				_, _ = w.Write([]byte(`{"data":[{"b64_json":"aGVsbG8="}]}`))
+			}))
+			t.Cleanup(server.Close)
+			provider := &irisGatewayProvider{
+				baseURL: tc.baseURL,
+				apiKey:  "sk",
+				httpClient: &http.Client{Transport: rewriteHostRoundTripper{
+					host: server.URL,
+					next: http.DefaultTransport,
+				}},
+			}
+			outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+				Model:  model,
+				Inputs: []irisProviderInput{{Role: "image", Bytes: []byte("png"), ContentType: "application/octet-stream"}},
+				Fields: irisGenerateRequest{"targetLocale": "fr-FR"},
+			})
+			require.NoError(t, err)
+			require.Len(t, outputs, 1)
+			require.Equal(t, tc.wantModel, gotModel)
+			require.Equal(t, "image/png", gotImageType)
+		})
+	}
 }
 
 func TestIrisImageFormMIME(t *testing.T) {
