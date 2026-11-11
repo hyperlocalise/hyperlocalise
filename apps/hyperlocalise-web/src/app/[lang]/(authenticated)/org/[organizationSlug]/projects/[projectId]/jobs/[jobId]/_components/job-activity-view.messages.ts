@@ -227,4 +227,92 @@ export const jobActivityViewMessages = defineMessages({
     id: "i9VNU3msVg",
     description: "Run step when the run failed",
   },
+  stepGuidelinesOn: {
+    defaultMessage: "Guidelines are turned on for this workspace.",
+    id: "DsIdKW1eBu",
+    description: "Job activity step when guideline documents are enabled",
+  },
+  stepGuidelinesOff: {
+    defaultMessage: "Guidelines are turned off for this workspace.",
+    id: "rq8QUB9XaE",
+    description: "Job activity step when guideline documents are disabled",
+  },
+  stepGuidelinesRetrieveCalled: {
+    defaultMessage: "Requested guidelines for {count, plural, one {# locale} other {# locales}}.",
+    id: "tRvndOqpZA",
+    description: "Job activity step when guideline retrieval is requested",
+  },
+  stepGuidelinesRetrieveSkipped: {
+    defaultMessage: "Skipped requesting guidelines.",
+    id: "MrYO3un+O+",
+    description: "Job activity step when guideline retrieval is not requested",
+  },
+  stepGuidelinesResultOk: {
+    defaultMessage: "Guideline retrieval finished.",
+    id: "re7FPtu6Rh",
+    description: "Job activity step when guideline retrieval succeeds",
+  },
+  stepGuidelinesResultIncluded: {
+    defaultMessage: "Included {names}.",
+    id: "mqz0uJaBHF",
+    description: "Job activity step listing the guideline documents that were included",
+  },
+  stepGuidelinesResultNone: {
+    defaultMessage: "Guideline retrieval finished with no guidelines included.",
+    id: "4iwHjxb1FM",
+    description:
+      "Job activity step when retrieval succeeds but no guideline documents are included",
+  },
+  stepGuidelinesResultTimeout: {
+    defaultMessage: "Guideline retrieval timed out.",
+    id: "/QuTN/lLlh",
+    description: "Job activity step when guideline retrieval times out",
+  },
+  stepGuidelinesResultFailedCode: {
+    defaultMessage: "Guideline retrieval failed ({code}).",
+    id: "tvWxEL+OeJ",
+    description: "Job activity step when guideline retrieval fails with an error code",
+  },
+  stepGuidelinesResultFailed: {
+    defaultMessage: "Guideline retrieval failed.",
+    id: "mTTUgqB18+",
+    description: "Job activity step when guideline retrieval fails",
+  },
+  stepGuidelinesResultSkipped: {
+    defaultMessage: "Skipped guideline retrieval.",
+    id: "qfems+2CbW",
+    description: "Job activity step when guideline retrieval is skipped",
+  },
+  stepGuidelinesMandatory: {
+    defaultMessage:
+      "Included {count, plural, =0 {no always-applied guidelines} one {# always-applied guideline} other {# always-applied guidelines}}. {omitted} did not fit.",
+    id: "k949qy/hv7",
+    description: "Job activity step for always-applied guideline documents",
+  },
+  stepGuidelinesMandatorySkipped: {
+    defaultMessage: "Skipped always-applied guidelines.",
+    id: "k6Uke9LGL6",
+    description: "Job activity step when always-applied guidelines are not considered",
+  },
+  stepGuidelinesPassages: {
+    defaultMessage:
+      "Included {count, plural, =0 {no search passages} one {# search passage} other {# search passages}}.",
+    id: "1VVms1Wl1W",
+    description: "Job activity step for guideline search passages",
+  },
+  stepGuidelinesPassageSources: {
+    defaultMessage: "They come from {count, plural, one {# guideline} other {# guidelines}}.",
+    id: "PBKHzxBSWq",
+    description: "Job activity step for how many guidelines supplied search passages",
+  },
+  stepGuidelinesSearchUnavailable: {
+    defaultMessage: "Guideline search was unavailable, so no passages were included.",
+    id: "0xSp9R1ss3",
+    description: "Job activity step when guideline search is unavailable",
+  },
+  stepGuidelinesPassagesSkipped: {
+    defaultMessage: "Skipped guideline search passages.",
+    id: "hXSN/OaRHq",
+    description: "Job activity step when guideline search passages are not considered",
+  },
 });

@@ -83,6 +83,8 @@ function applyRunEvent(run: JobActivityRun, event: JobEventRecord) {
     case "context_ready":
       run.glossaryTermCount = event.payload.glossaryTermCount;
       break;
+    case "guideline_context":
+      break;
     case "strings_extracted":
       run.stringCount = event.payload.stringCount;
       break;

@@ -17,6 +17,7 @@ import { db, schema } from "@/lib/database/client";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { GlossaryMatchResolution } from "@/lib/providers/contracts/glossary-matcher";
 import type { TranslationMemoryMatchResolution } from "@/lib/providers/contracts/translation-memory-matcher";
+import type { GuidelineRetrievalTrace } from "@/lib/job-events/guideline-context-events";
 import { loadUploadedGuidelinesContext } from "@/lib/knowledge-memory/uploaded-guidelines-context";
 import {
   NO_GUIDELINES_USED,
@@ -63,9 +64,14 @@ export type TranslationGuidelines = {
   /** Guideline text for the prompt; empty when no guideline applies. */
   text: string;
   used: GuidelinesUsed;
+  trace: GuidelineRetrievalTrace | null;
 };
 
-const NO_TRANSLATION_GUIDELINES: TranslationGuidelines = { text: "", used: NO_GUIDELINES_USED };
+const NO_TRANSLATION_GUIDELINES: TranslationGuidelines = {
+  text: "",
+  used: NO_GUIDELINES_USED,
+  trace: null,
+};
 
 /**
  * Loads the uploaded guideline documents for a translation and records which of
@@ -94,6 +100,7 @@ export async function loadTranslationGuidelines(input: {
     used: {
       documents: uploadedGuidelines.documents,
     },
+    trace: uploadedGuidelines.trace ?? null,
   };
 }
 

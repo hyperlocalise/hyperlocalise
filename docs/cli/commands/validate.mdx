@@ -30,7 +30,7 @@ Each check is enabled or disabled and has severity `error` or `warning`. The def
 | `punctuation_mismatch` | warning, disabled | Ending punctuation differs from the source |
 | `character_case_mismatch` | warning, disabled | The first letter's capitalization differs from the source for Latin-script locales `en`, `de`, `es`, `fr`, `it`, `nl`, `pt`, `sv`, `no`, and `da` |
 | `unreachable_plural_case` | error | The target keeps a `plural` or `selectordinal` category that the locale never selects |
-| `guideline` | warning, disabled | Accepted so a project policy stays valid. `validate` does not run it. The editor checks the selected translation against guideline documents when the project turns this on |
+| `guideline` | warning, disabled | Accepted so a project policy stays valid. Severity may be `error` or `warning`. `validate` does not run it. The editor checks the selected translation against guideline documents when the project turns this on |
 
 Spelling runs when `hunspell` is on `PATH` and the locale dictionary is installed. Set `DICPATH` to the dictionary directory, or install the dictionaries under `/usr/share/hunspell`. Otherwise the result lists `spelling` under `skippedChecks`, and text output prints a `skipped spelling` line. Skipped checks leave the exit code unchanged. Each segment reports up to five distinct misspelled words.
 
@@ -40,7 +40,7 @@ Spelling runs when `hunspell` is on `PATH` and the locale dictionary is installe
 
 `--policy-file` loads a JSON policy. Omit it to use the defaults in the table above.
 
-The file must set `"version": 1` and include the checks in the table above. `unreachable_plural_case` may be omitted; the command then enables it as an error. `guideline` may be omitted; the command then disables it as a warning. Severity is `error` or `warning` for every check except `guideline`, which must be `warning`. Unknown fields are rejected.
+The file must set `"version": 1` and include the checks in the table above. `unreachable_plural_case` may be omitted; the command then enables it as an error. `guideline` may be omitted; the command then disables it as a warning. Severity is `error` or `warning` for every check, including `guideline`. Unknown fields are rejected.
 
 ```json
 {

@@ -13,7 +13,10 @@
  * Version 2.0 or later.
  */
 import type { ContentEditorSegmentCheckHandler } from "@/components/content-editor/segment/content-editor-segment-checkbox";
-import { ContentEditorMultilingualTable } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
+import {
+  ContentEditorMultilingualTable,
+  type ContentEditorMultilingualConfig,
+} from "@/components/content-editor/multilingual/content-editor-multilingual-table";
 import { ContentEditorMultilingualImageGallery } from "@/components/content-editor/multilingual/content-editor-multilingual-image-gallery";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
@@ -238,6 +241,18 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   const showTranslationViewSkeleton = store.ui.translationViewLoading;
 
   if (viewMode === "multilingual" && multilingual) {
+    const multilingualConfig: ContentEditorMultilingualConfig = {
+      ...multilingual,
+      onSaveTranslation: multilingual.onSaveTranslation
+        ? (segment, locale, text) =>
+            multilingual.onSaveTranslation!(
+              segment,
+              locale,
+              text,
+              store.intelligenceState.segmentFormatChecks[segment.id],
+            )
+        : undefined,
+    };
     const isImageFile =
       resolveCatFileViewCapabilities({
         sourcePath: selectedSegment?.sourcePath ?? shell.fileContext.sourcePath,
@@ -256,7 +271,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
         {isImageFile ? (
           <ContentEditorMultilingualImageGallery
             key={`${multilingual.projectId}:${selectedSegment?.id ?? multilingual.sourcePath}`}
-            config={multilingual}
+            config={multilingualConfig}
             segments={gallerySegments}
             generations={store.imageGenerations}
             isLoading={isQueueListLoading || isQueueDataPending}
@@ -272,7 +287,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
         ) : (
           <ContentEditorMultilingualTable
             key={`${multilingual.projectId}:${multilingual.sourcePath}`}
-            config={multilingual}
+            config={multilingualConfig}
             segments={queueSegments}
             selectedSegmentId={shell.selectedSegmentId}
             isLoading={isQueueListLoading || isQueueDataPending}

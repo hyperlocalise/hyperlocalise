@@ -16,6 +16,7 @@ import type {
 } from "@/lib/go-svc/go-svc-guidelines-api";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
+import type { GuidelineRetrievalTrace } from "@/lib/job-events/guideline-context-events";
 import type { UploadedGuidelineUse } from "@/lib/translation/generation-provenance";
 
 import { truncateToBudget } from "./knowledge-memory-excerpt";
@@ -57,9 +58,9 @@ export type FormattedUploadedGuidelines = {
 export type UploadedGuidelinesContext = {
   text: string;
   documents: UploadedGuidelineUse[];
+  /** Present when this load recorded a retrieval attempt. */
+  trace?: GuidelineRetrievalTrace;
 };
-
-const NO_UPLOADED_GUIDELINES: UploadedGuidelinesContext = { text: "", documents: [] };
 
 /**
  * Mandatory documents are included whole or omitted, never truncated; omissions
@@ -155,6 +156,77 @@ function uploadedGuidelineUses(
   ];
 }
 
+function guidelineRetrievalTrace(
+  locales: readonly string[],
+  result: GuidelineRetrieveResult,
+  formatted: FormattedUploadedGuidelines,
+): GuidelineRetrievalTrace {
+  const included = new Set(formatted.includedDocumentIds);
+  const mandatoryIds = new Set(
+    result.documents.filter((document) => document.mandatory).map((document) => document.id),
+  );
+  const passageDocumentIds = new Set<string>();
+  let passageCount = 0;
+  for (const passage of result.passages) {
+    if (mandatoryIds.has(passage.documentId) || !included.has(passage.documentId)) {
+      continue;
+    }
+    passageCount += 1;
+    passageDocumentIds.add(passage.documentId);
+  }
+  let mandatoryIncludedCount = 0;
+  for (const id of formatted.includedDocumentIds) {
+    if (mandatoryIds.has(id)) mandatoryIncludedCount += 1;
+  }
+  return {
+    localeCount: locales.length,
+    result: "ok",
+    errorCode: null,
+    mandatoryIncludedCount,
+    mandatoryOmittedCount: formatted.omittedMandatoryDocumentIds.length,
+    passageCount,
+    passageDocumentCount: passageDocumentIds.size,
+    searchAvailable: result.searchAvailable,
+    includedTitles: includedGuidelineTitles(result, formatted),
+  };
+}
+
+function includedGuidelineTitles(
+  result: GuidelineRetrieveResult,
+  formatted: FormattedUploadedGuidelines,
+): string[] {
+  const byId = new Map(result.documents.map((document) => [document.id, document]));
+  const titles: string[] = [];
+  for (const id of formatted.includedDocumentIds) {
+    const document = byId.get(id);
+    if (!document) continue;
+    const title = document.title.trim();
+    titles.push(title || "Untitled guideline");
+  }
+  return titles;
+}
+
+function isTimeoutError(error: unknown, depth = 0): boolean {
+  if (depth > 3 || !(error instanceof Error)) return false;
+  if (error.name === "TimeoutError" || error.name === "AbortError") return true;
+  return isTimeoutError(error.cause, depth + 1);
+}
+
+function failedGuidelineTrace(locales: readonly string[], error: unknown): GuidelineRetrievalTrace {
+  const timeout = isTimeoutError(error);
+  return {
+    localeCount: locales.length,
+    result: timeout ? "timeout" : "failed",
+    errorCode: timeout ? null : error instanceof GoSvcClientError ? error.code : null,
+    mandatoryIncludedCount: 0,
+    mandatoryOmittedCount: 0,
+    passageCount: 0,
+    passageDocumentCount: 0,
+    searchAvailable: false,
+    includedTitles: [],
+  };
+}
+
 /**
  * Best effort: translation continues without guidelines when go-svc is
  * unavailable, so failures resolve to no text and no documents.
@@ -191,7 +263,11 @@ export async function loadUploadedGuidelinesContext(
         maxLength: UPLOADED_GUIDELINES_CONTEXT_MAX_LENGTH,
       });
     }
-    return { text: formatted.text, documents: uploadedGuidelineUses(result, formatted) };
+    return {
+      text: formatted.text,
+      documents: uploadedGuidelineUses(result, formatted),
+      trace: guidelineRetrievalTrace(locales, result, formatted),
+    };
   } catch (error) {
     console.warn("[translation-context] uploaded guideline retrieval failed", {
       organizationId: input.organizationId,
@@ -200,6 +276,6 @@ export async function loadUploadedGuidelinesContext(
       status: error instanceof GoSvcClientError ? error.status : undefined,
       errorName: error instanceof Error ? error.name : typeof error,
     });
-    return NO_UPLOADED_GUIDELINES;
+    return { text: "", documents: [], trace: failedGuidelineTrace(locales, error) };
   }
 }

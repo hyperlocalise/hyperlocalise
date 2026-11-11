@@ -457,9 +457,10 @@ describe("ContentEditorReviewController", () => {
         review: { onApprove },
       });
 
+      const formatChecks = workspace.segmentFormatChecks["seg-02"];
       await controller.approve("seg-02", "Deuxième");
 
-      expect(onApprove).toHaveBeenCalledWith("seg-02", "Deuxième");
+      expect(onApprove).toHaveBeenCalledWith("seg-02", "Deuxième", { formatChecks });
       expect(workspace.selectedSegmentId).toBe("seg-03");
       expect(workspace.getSegmentView("seg-02")?.status).toBe("reviewed");
       expect(workspace.isApproving).toBe(false);
@@ -710,9 +711,10 @@ describe("ContentEditorReviewController", () => {
         review: { onSaveDraft },
       });
 
+      const formatChecks = workspace.segmentFormatChecks["seg-02"];
       await controller.saveDraft("seg-02", "Deuxième");
 
-      expect(onSaveDraft).toHaveBeenCalledWith("seg-02", "Deuxième");
+      expect(onSaveDraft).toHaveBeenCalledWith("seg-02", "Deuxième", { formatChecks });
       expect(workspace.getSegmentView("seg-02")?.targetText).toBe("Deuxième");
       expect(workspace.getSegmentView("seg-02")?.status).toBe("needs_review");
       expect(workspace.isSavingDraft).toBe(false);
@@ -1008,7 +1010,10 @@ describe("ContentEditorReviewController", () => {
     expect(workspace.getSegmentView("seg-03")?.status).toBe("reviewed");
     expect(onBulkApproveComplete).toHaveBeenCalledTimes(1);
     expect(workspace.bulkCompletedCount).toBe(2);
-    expect(onApprove).toHaveBeenCalledWith("seg-03", "Troisième", { deferQueueRefresh: true });
+    expect(onApprove).toHaveBeenCalledWith("seg-03", "Troisième", {
+      deferQueueRefresh: true,
+      formatChecks: [],
+    });
   });
 
   describe("bulkApprove", () => {
@@ -1251,6 +1256,80 @@ describe("ContentEditorReviewController", () => {
 
     await vi.advanceTimersByTimeAsync(1_500);
     expect(runGuidelineCheck).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it("reschedules the guideline check when the service changes", async () => {
+    vi.useFakeTimers();
+    const validateFormat = vi.fn().mockResolvedValue([]);
+    const firstGuideline = vi.fn().mockResolvedValue([]);
+    const secondGuideline = vi.fn().mockResolvedValue([
+      {
+        id: "guideline-0",
+        label: "Guideline",
+        status: "warn" as const,
+        message: "Use vous.",
+      },
+    ]);
+    const workspace = createTestWorkspace({ selectedSegmentId: "seg-01" });
+    const controller = new ContentEditorReviewController(workspace, {
+      intl,
+      services: { validateFormat, runGuidelineCheck: firstGuideline },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+    controller.start();
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(firstGuideline).toHaveBeenCalledTimes(1);
+
+    controller.configure({
+      intl,
+      services: { validateFormat, runGuidelineCheck: secondGuideline },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+    expect(secondGuideline).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(secondGuideline).toHaveBeenCalledTimes(1);
+    expect(firstGuideline).toHaveBeenCalledTimes(1);
+    controller.dispose();
+  });
+
+  it("clears guideline rows when the check is turned off", async () => {
+    vi.useFakeTimers();
+    const validateFormat = vi.fn().mockResolvedValue([]);
+    const runGuidelineCheck = vi.fn().mockResolvedValue([
+      {
+        id: "guideline-0",
+        label: "Guideline",
+        status: "fail" as const,
+        message: "Use vous.",
+      },
+    ]);
+    const workspace = createTestWorkspace({ selectedSegmentId: "seg-01" });
+    const controller = new ContentEditorReviewController(workspace, {
+      intl,
+      services: { validateFormat, runGuidelineCheck },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+    controller.start();
+    await vi.advanceTimersByTimeAsync(1_500);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(workspace.segmentFormatChecks["seg-01"]?.map((check) => check.id)).toContain(
+      "guideline-0",
+    );
+
+    controller.configure({
+      intl,
+      services: { validateFormat },
+      queueFilter: "all",
+      usesServerQueueFilter: false,
+    });
+
+    expect(
+      workspace.segmentFormatChecks["seg-01"]?.some((check) => check.id.startsWith("guideline-")),
+    ).toBe(false);
     controller.dispose();
   });
 

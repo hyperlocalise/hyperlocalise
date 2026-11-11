@@ -263,7 +263,11 @@ describe("ContentEditorWorkspaceContainer side-by-side approve", () => {
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     await waitFor(() =>
-      expect(onApprove).toHaveBeenCalledWith("seg-02", expect.stringContaining(" unsaved")),
+      expect(onApprove).toHaveBeenCalledWith(
+        "seg-02",
+        expect.stringContaining(" unsaved"),
+        expect.objectContaining({ formatChecks: expect.any(Array) }),
+      ),
     );
   });
 });

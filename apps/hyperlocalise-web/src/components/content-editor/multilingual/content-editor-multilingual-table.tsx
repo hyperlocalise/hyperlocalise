@@ -31,7 +31,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/primitives/cn";
 import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.messages";
-import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
+import type {
+  ContentEditorFormatCheck,
+  ContentEditorSegment,
+} from "@/components/content-editor/shared/types";
 import { useContentEditorSegmentTarget } from "@/components/content-editor/project-file/use-content-editor-segment-target";
 import { formatInternalMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-internal-markup";
 import {
@@ -73,6 +76,7 @@ export interface ContentEditorMultilingualConfig {
     segment: ContentEditorSegment,
     locale: string,
     text: string,
+    formatChecks?: readonly ContentEditorFormatCheck[],
   ) => Promise<void>;
   onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
   /** Generates the localised image for one locale; used by the multilingual image gallery. */

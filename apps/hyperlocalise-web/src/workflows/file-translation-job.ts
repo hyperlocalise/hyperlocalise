@@ -33,6 +33,7 @@ import {
 import { addCliTokenUsage, type CliTokenUsage } from "@/lib/translation/cli-token-usage";
 import { isSourceEditableSourcePath } from "@/lib/projects/files/source-text-editable-paths";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
+import { guidelineContextEvents } from "@/lib/job-events/guideline-context-events";
 import type { JobEventInput } from "@/lib/job-events/job-events-contract";
 import {
   captureFileAnalysisStep,
@@ -748,7 +749,11 @@ async function assembleFileTranslationContextStep(input: {
     where: and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.projectId, input.projectId)),
   });
 
-  return context;
+  return {
+    context,
+    knowledgeMemoryEnabled,
+    guidelineTrace: guidelines?.trace ?? null,
+  };
 }
 
 export async function fileTranslationJobWorkflow(event: TranslationJobEventData) {
@@ -1086,10 +1091,14 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     await recordEvents([
       {
         type: "context_ready",
-        payload: { glossaryTermCount: assembled.glossaryTerms?.length ?? 0 },
+        payload: { glossaryTermCount: assembled.context.glossaryTerms?.length ?? 0 },
       },
+      ...guidelineContextEvents({
+        enabled: assembled.knowledgeMemoryEnabled,
+        trace: assembled.guidelineTrace,
+      }),
     ]);
-    return assembled;
+    return assembled.context;
   };
   try {
     // Office and PDF bytes are not plain text, so glossary terms are matched against segment text.

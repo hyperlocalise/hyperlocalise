@@ -298,7 +298,13 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     await user.keyboard("{Control>}a{/Control}Updated translation");
     await user.click(screen.getByRole("button", { name: /Approve/i }));
 
-    await waitFor(() => expect(onApprove).toHaveBeenCalledWith("seg-02", "Updated translation"));
+    await waitFor(() =>
+      expect(onApprove).toHaveBeenCalledWith(
+        "seg-02",
+        "Updated translation",
+        expect.objectContaining({ formatChecks: expect.any(Array) }),
+      ),
+    );
   });
 
   it("approves with Ctrl+Enter while typing in the comfortable target editor", async () => {
@@ -322,7 +328,13 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     );
     await user.keyboard("{Control>}{Enter}{/Control}");
 
-    await waitFor(() => expect(onApprove).toHaveBeenCalledWith("seg-02", "Saved via shortcut"));
+    await waitFor(() =>
+      expect(onApprove).toHaveBeenCalledWith(
+        "seg-02",
+        "Saved via shortcut",
+        expect.objectContaining({ formatChecks: expect.any(Array) }),
+      ),
+    );
   });
 
   it("applies AI suggestions from the editor recommendation panel", async () => {

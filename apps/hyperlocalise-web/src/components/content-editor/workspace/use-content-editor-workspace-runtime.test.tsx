@@ -659,11 +659,12 @@ describe("useContentEditorWorkspaceRuntime", () => {
       review: { onApprove },
     });
 
+    const formatChecks = store.segmentFormatChecks["seg-02"];
     await act(async () => {
       await result.current.dependencies.review.onApprove("seg-02", "Deuxième");
     });
 
-    expect(onApprove).toHaveBeenCalledWith("seg-02", "Deuxième");
+    expect(onApprove).toHaveBeenCalledWith("seg-02", "Deuxième", { formatChecks });
     expect(store.selectedSegmentId).toBe("seg-03");
     expect(store.getSegmentView("seg-02")?.status).toBe("reviewed");
   });

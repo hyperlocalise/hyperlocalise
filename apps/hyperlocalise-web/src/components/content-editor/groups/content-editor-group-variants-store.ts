@@ -246,7 +246,8 @@ export class ContentEditorGroupVariant {
     if (action === "all") this.group.isApplyingToAll = true;
     this.error = null;
     const { segment, locale } = this.group;
-    const write = (text: string) => saveVariant({ segment, locale, occurrences, text, approve });
+    const write = (text: string) =>
+      saveVariant({ segment, locale, occurrences, text, approve, formatChecks: this.formatChecks });
     const draft = this.draft;
     try {
       if (!draft || this.text === this.savedText) await write(this.text);
@@ -324,7 +325,16 @@ export class ContentEditorGroupVariant {
   }
 
   scheduleGuidelineCheck() {
-    if (!this.group.ports.services?.runGuidelineCheck) return;
+    if (!this.group.ports.services?.runGuidelineCheck) {
+      if (this.guidelineTimer) clearTimeout(this.guidelineTimer);
+      this.guidelineTimer = null;
+      this.guidelineAbort?.abort();
+      this.guidelineAbort = null;
+      runInAction(() => {
+        this.formatChecks = this.formatChecks.filter((check) => !isGuidelineFormatCheck(check));
+      });
+      return;
+    }
     if (this.guidelineTimer) clearTimeout(this.guidelineTimer);
     this.guidelineAbort?.abort();
     this.guidelineAbort = null;
@@ -349,7 +359,11 @@ export class ContentEditorGroupVariant {
     this.guidelineAbort = abort;
     const text = this.text;
     try {
-      const checks = await runGuidelineCheck(this.group.segment, text, { signal: abort.signal });
+      const checks = await runGuidelineCheck(
+        { ...this.group.segment, targetLocale: this.group.locale },
+        text,
+        { signal: abort.signal },
+      );
       if (abort.signal.aborted || this.text !== text) return;
       runInAction(() => {
         this.formatChecks = mergeGuidelineFormatChecks(this.formatChecks, checks);
@@ -508,6 +522,13 @@ export class ContentEditorGroupVariants {
     this.getVariant(variantId)?.scheduleGuidelineCheck();
   }
 
+  /** Re-runs the active translation's guideline check after the service changes. */
+  rescheduleGuidelineCheck() {
+    const active =
+      (this.focusedVariantId && this.getVariant(this.focusedVariantId)) || this.variants[0];
+    active?.scheduleGuidelineCheck();
+  }
+
   getVariant(variantId: string) {
     return this.variants.find((variant) => variant.id === variantId) ?? null;
   }
@@ -590,6 +611,7 @@ export class ContentEditorGroupVariants {
         occurrences,
         text,
         approve: false,
+        formatChecks: this.variants.flatMap((variant) => variant.formatChecks),
       });
       runInAction(() => {
         this.reconcileUnlockedDrafts(text);
@@ -637,7 +659,16 @@ export class ContentEditorGroupVariantsRegistry {
   }
 
   setServices(services: ContentEditorGroupVariantsServices) {
+    const previous = this.services.runGuidelineCheck;
     this.services = services;
+    if (previous === services.runGuidelineCheck) return;
+    for (const group of this.groups.values()) {
+      group.ports = {
+        ...group.ports,
+        services: { ...group.ports.services, runGuidelineCheck: services.runGuidelineCheck },
+      };
+      group.rescheduleGuidelineCheck();
+    }
   }
 
   /** Mounted groups unregister themselves on unmount; only text held for them is file-scoped. */
