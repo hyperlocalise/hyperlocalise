@@ -208,6 +208,8 @@ async function requirePage(pageId: string): Promise<PageNode> {
   if (!page) {
     throw new Error("Page not found.");
   }
+  // `dynamic-page` only loads the current page; `findAll` throws on other pages until loaded.
+  await page.loadAsync();
   return page;
 }
 
@@ -344,13 +346,21 @@ async function applyTranslations(
     updates.push({ node, nextText });
   }
 
-  if (updates.length === 0) {
+  const writable = updates.filter((entry) => !entry.node.hasMissingFont);
+  const skippedMissingFont = updates.length - writable.length;
+  if (skippedMissingFont > 0) {
+    figma.notify(
+      `Skipped ${skippedMissingFont} text ${skippedMissingFont === 1 ? "layer" : "layers"} with missing fonts.`,
+    );
+  }
+
+  if (writable.length === 0) {
     return 0;
   }
 
-  await loadFontsForTextNodes(updates.map((entry) => entry.node));
+  await loadFontsForTextNodes(writable.map((entry) => entry.node));
 
-  for (const { node, nextText } of updates) {
+  for (const { node, nextText } of writable) {
     node.characters = nextText;
     // Apply supersedes a design-context preview; Restore must not undo it.
     clearPreviewSource(node);

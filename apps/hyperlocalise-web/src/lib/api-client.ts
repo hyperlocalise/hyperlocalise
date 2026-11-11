@@ -92,7 +92,7 @@ function createOrgSlugClient(origin: string) {
       "intercom",
       "sanity",
     ]),
-    ...pickClientPaths(workspace, ["workspace", "billing", "webhook-endpoints"]),
+    ...pickClientPaths(workspace, ["webhook-endpoints"]),
   };
 }
 

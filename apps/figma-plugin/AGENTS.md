@@ -12,10 +12,10 @@ This plugin uses [Vite+](https://vite.plus) (`vp`) for formatting (oxfmt), linti
 
 Do not install Vitest, Oxlint, or Oxfmt directly. Import test utilities from `vite-plus/test`.
 
-The plugin UI talks to `hyperlocalise-web` over HTTPS. Copy `.env.example` to
-`.env` and set `HYPERLOCALISE_APP_URL` (for example `http://localhost:3000`).
-Rebuild or run `vp run dev` so Vite bakes that default into the UI (or export
-`HYPERLOCALISE_APP_URL` in the shell before build).
+The plugin UI talks to `hyperlocalise-web`. The app URL is embedded at build
+time from the Vite mode in [`vite/app-url.ts`](./vite/app-url.ts): `vp run build`
+uses `https://www.hyperlocalise.com`, and `vp run dev` and tests use
+`http://localhost:3000`. There is no env var.
 
 The plugin UI uses **Preact** and [`@create-figma-plugin/ui`](https://yuanqing.github.io/create-figma-plugin/ui/) for Figma-native controls (`Button`, `Dropdown`, `Textbox`, etc.). Import `@create-figma-plugin/ui/css/base.css` from `ui.css`.
 

@@ -946,7 +946,7 @@ Successful changes publish `workspace_updated` or `workspace_archived` activity 
 
 ### Session handling
 
-PATCH returns `redirectTo` after a slug change. The Go API does not update browser cookies; active-organization cookie and session synchronization belong to the web application.
+PATCH returns `redirectTo` after a slug change. The Go API does not update browser cookies; the web app writes `hl_active_org_slug` after a successful update.
 
 ### Integration tests
 

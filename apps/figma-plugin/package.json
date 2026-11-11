@@ -7,7 +7,7 @@
     "build": "vp build && vp build --config vite.code.config.ts",
     "build:ui": "vp build",
     "build:code": "vp build --config vite.code.config.ts",
-    "dev": "concurrently -n ui,code \"vp build --watch\" \"vp build --config vite.code.config.ts --watch\""
+    "dev": "concurrently -n ui,code \"vp build --watch --mode development\" \"vp build --config vite.code.config.ts --watch\""
   },
   "dependencies": {
     "@create-figma-plugin/ui": "4.0.3",
@@ -20,7 +20,6 @@
     "@testing-library/preact": "^3.2.4",
     "@types/node": "24.19.2",
     "concurrently": "^10.0.6",
-    "dotenv": "18.0.9",
     "jsdom": "^31.0.0",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
