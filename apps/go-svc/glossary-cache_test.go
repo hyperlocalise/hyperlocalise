@@ -100,11 +100,11 @@ func TestGlossaryReadCacheHits(t *testing.T) {
 		keyParts         []string
 	}{
 		{name: "concepts", path: "/concepts", body: `{"concepts":[],"total":0}`, keyParts: []string{"concepts"}},
-		{name: "concepts page", path: "/concepts/page", body: `{"concepts":[],"nextCursor":null,"total":0,"pagination":{"hasMore":false,"limit":50,"returned":0}}`, keyParts: []string{"concepts-page", glossaryQueryDigest("", "", "", "", "")}},
+		{name: "concepts page", path: "/concepts/page", body: `{"concepts":[],"nextCursor":null,"total":0,"pagination":{"hasMore":false,"limit":50,"returned":0}}`, keyParts: []string{"concepts-page", glossaryQueryDigest()}},
 		{name: "authors", path: "/concepts/authors", body: `{"authors":[{"userId":"` + testGlossaryID + `","displayName":"Ada Lovelace"}]}`, keyParts: []string{"authors"}},
 		{name: "concept", path: "/concepts/" + testGlossaryConceptID, body: `{"concept":{"id":"` + testGlossaryConceptID + `"}}`, keyParts: []string{"concept", testGlossaryConceptID}},
 		{name: "terms", path: "/concepts/" + testGlossaryConceptID + "/terms", body: `{"terms":[],"total":0}`, keyParts: []string{"concept", testGlossaryConceptID, "terms"}},
-		{name: "terms page", path: "/concepts/" + testGlossaryConceptID + "/terms/page?locale=fr-FR", body: `{"terms":[],"nextCursor":null,"total":1,"pagination":{"hasMore":false,"limit":50,"returned":0}}`, keyParts: []string{"concept", testGlossaryConceptID, "terms-page", glossaryQueryDigest("", "", "", "", "fr-FR")}},
+		{name: "terms page", path: "/concepts/" + testGlossaryConceptID + "/terms/page?locale=fr-FR", body: `{"terms":[],"nextCursor":null,"total":1,"pagination":{"hasMore":false,"limit":50,"returned":0}}`, keyParts: []string{"concept", testGlossaryConceptID, "terms-page", glossaryQueryDigest("locale=fr-FR")}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

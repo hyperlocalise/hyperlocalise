@@ -8,6 +8,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -233,5 +234,17 @@ func (api *glossaryAPI) cachedGlossaryTermCount(ctx context.Context, actor gloss
 
 func glossaryPageDigest(r *http.Request) string {
 	query := r.URL.Query()
-	return glossaryQueryDigest(query.Get("search"), query.Get("cursor"), query.Get("limit"), query.Get("offset"), query.Get("locale"))
+	if len(query) == 0 {
+		return glossaryQueryDigest()
+	}
+	keys := make([]string, 0, len(query))
+	for key := range query {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, key+"="+strings.Join(query[key], "\x1f"))
+	}
+	return glossaryQueryDigest(parts...)
 }
