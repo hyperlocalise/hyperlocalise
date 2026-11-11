@@ -144,6 +144,7 @@ async function driveConversationRun(input: {
   let dirty = false;
   const pending: { flush: Promise<void> | null } = { flush: null };
   let streamFailed = false;
+  let streamErrored = false;
 
   const flush = async () => {
     const parts = dirty ? latestParts : null;
@@ -184,6 +185,7 @@ async function driveConversationRun(input: {
     }
   } catch (error) {
     streamFailed = true;
+    streamErrored = true;
     console.error("[web-agent] Conversation run stream failed", {
       runId: input.runId,
       err: error instanceof Error ? error.message : "unknown",
@@ -193,11 +195,15 @@ async function driveConversationRun(input: {
     await pending.flush;
   }
 
-  await input.ended;
+  // An errored stream never reaches `onEnd`, so `ended` would never settle.
+  if (!streamErrored) {
+    await input.ended;
+  }
   const outcome = input.getOutcome();
+  // A turn that stored no reply is failed, so the user can send the same message again.
   const status = input.abortController.signal.aborted
     ? "interrupted"
-    : outcome.failed || streamFailed
+    : outcome.failed || streamFailed || !outcome.agentMessageId
       ? "failed"
       : "completed";
 
@@ -404,18 +410,20 @@ export function createWebChatAgentUIStreamResponse(input: {
       }
     },
     onEnd: async ({ responseMessage, isAborted }) => {
+      // A stop can also surface as an error thrown by the agent rather than an abort chunk.
+      const interrupted = isAborted || runAbortController.signal.aborted;
       try {
         if (!persistedDuringExecute) {
           agentMessageId = await persistAssistantMessage({
             conversationId: input.conversationId,
             organizationId: input.toolContext.organizationId,
             parts: responseMessage.parts,
-            interrupted: isAborted,
+            interrupted,
             fullToolOutputs,
           });
         }
 
-        if (shouldTrackUsage && !isAborted) {
+        if (shouldTrackUsage && !interrupted) {
           try {
             const agentTokenUsage = agentTokenUsagePromise
               ? await agentTokenUsagePromise.catch(() => null)
@@ -483,7 +491,8 @@ async function persistAssistantMessage(input: {
 }): Promise<string | null> {
   const parts = persistableParts(input.parts);
   const text = textFromParts(parts).trim();
-  if (!text && parts.length === 0) {
+  // A turn stopped before any output still gets a "Stopped" reply, so it shows as stopped.
+  if (!text && parts.length === 0 && !input.interrupted) {
     return null;
   }
 

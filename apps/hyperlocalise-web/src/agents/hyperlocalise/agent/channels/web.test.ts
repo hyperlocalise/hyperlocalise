@@ -858,6 +858,78 @@ describe("createWebChatAgentUIStreamResponse", () => {
     expect(trackSucceededAgentRuntimeUsageMock).not.toHaveBeenCalled();
   });
 
+  it("stores a stopped reply when the turn is stopped before any output", async () => {
+    saveConversationRunSnapshotMock.mockResolvedValue({ cancelRequested: true });
+    preparedTurnWithStream(
+      (signal) =>
+        new ReadableStream({
+          start(controller) {
+            signal?.addEventListener("abort", () => {
+              controller.enqueue({ type: "abort" });
+              controller.close();
+            });
+          },
+        }),
+    );
+
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      runId: "run_123",
+      messageText: "Help me",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+    });
+    await readSseText(response);
+
+    await waitFor(() =>
+      expect(finishConversationRunMock).toHaveBeenCalledWith({
+        runId: "run_123",
+        status: "interrupted",
+        agentMessageId: "msg_agent",
+      }),
+    );
+    expect(addInteractionMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "(stopped)",
+        parts: [{ type: "data-interrupted", data: { reason: "user_cancelled" } }],
+      }),
+    );
+  });
+
+  it("marks the turn failed when no reply could be stored", async () => {
+    preparedTurnWithStream(
+      () =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue({ type: "start", messageId: "assistant_1" });
+            controller.enqueue({ type: "text-start", id: "text_1" });
+            controller.enqueue({ type: "text-delta", id: "text_1", delta: "Done." });
+            controller.enqueue({ type: "text-end", id: "text_1" });
+            controller.enqueue({ type: "finish" });
+            controller.close();
+          },
+        }),
+    );
+    addInteractionMessageMock.mockRejectedValueOnce(new Error("database unavailable"));
+
+    const response = createWebChatAgentUIStreamResponse({
+      conversationId: "conv_123",
+      runId: "run_123",
+      messageText: "Help me",
+      toolContext: createToolContext(),
+      hasTranslationAttachments: false,
+    });
+    await readSseText(response);
+
+    await waitFor(() =>
+      expect(finishConversationRunMock).toHaveBeenCalledWith({
+        runId: "run_123",
+        status: "failed",
+        agentMessageId: null,
+      }),
+    );
+  });
+
   it("sends a shortened tool result and stores the full one", async () => {
     const longOutput = { content: "x".repeat(5_000) };
     preparedTurnWithStream(
