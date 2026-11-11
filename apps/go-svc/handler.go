@@ -83,6 +83,7 @@ type handler struct {
 	contentEditor        *editorCatAPI
 	projects             *projectAPI
 	conversations        *conversationAPI
+	automations          *automationAPI
 	overview             *overviewAPI
 	publicTranslations   *publicTranslationsAPI
 	publicJobs           *publicJobsAPI
@@ -168,6 +169,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.conversations != nil {
 		h.conversations.register(mux, verifier)
+	}
+	if h.automations != nil {
+		h.automations.register(mux, verifier)
 	}
 	if h.overview != nil {
 		h.overview.register(mux, verifier)

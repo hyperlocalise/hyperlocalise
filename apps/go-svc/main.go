@@ -129,6 +129,7 @@ func main() {
 	h.contentEditor = &editorCatAPI{matchPublisher: visualContextMatchPublisher}
 	h.projects = &projectAPI{activityLog: activityLogPublisher, tms: tms}
 	h.conversations = &conversationAPI{}
+	h.automations = &automationAPI{activityLog: activityLogPublisher}
 	h.overview = &overviewAPI{}
 	h.publicTranslations = &publicTranslationsAPI{auth: newPublicAPIAuthFromEnv(nil, nil)}
 	h.publicJobs = &publicJobsAPI{auth: h.publicTranslations.auth}
@@ -210,6 +211,7 @@ func main() {
 		h.contentEditor.pool = traced
 		h.projects.pool = traced
 		h.conversations.pool = traced
+		h.automations.pool = traced
 		h.overview.pool = traced
 		h.reports.pool = traced
 		h.publicTranslations.auth.pool = traced
@@ -311,6 +313,7 @@ func main() {
 	h.contentEditor.membership = membershipLookup
 	h.projects.membership = membershipLookup
 	h.conversations.membership = membershipLookup
+	h.automations.membership = membershipLookup
 	h.overview.membership = membershipLookup
 	h.overview.flags = h.workspace.flags
 	h.reports.membership = membershipLookup
