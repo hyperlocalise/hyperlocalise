@@ -769,6 +769,47 @@ describe("chat turn runs", () => {
     expect(createWebChatAgentUIStreamResponseMock).toHaveBeenCalledTimes(2);
   });
 
+  it("reports a stale running turn as failed until a client claims it again", async () => {
+    const { headers, chatUrl, startTurn, conversationId } = await createChatConversation();
+    expect((await startTurn()).status).toBe(200);
+    await db
+      .update(schema.conversationRuns)
+      .set({ heartbeatAt: new Date(Date.now() - 5 * 60_000) })
+      .where(eq(schema.conversationRuns.interactionId, conversationId));
+
+    const stale = await app.request(`${chatUrl}/run`, { headers });
+    expect(stale.status).toBe(200);
+    await expect(stale.json()).resolves.toMatchObject({
+      run: { status: "failed", cancelRequested: false },
+    });
+  });
+
+  it("starts the turn again after the previous attempt failed", async () => {
+    const { startTurn, conversationId } = await createChatConversation();
+    expect((await startTurn()).status).toBe(200);
+    await db
+      .update(schema.conversationRuns)
+      .set({ status: "failed" })
+      .where(eq(schema.conversationRuns.interactionId, conversationId));
+
+    const retry = await startTurn();
+    expect(retry.status).toBe(200);
+    expect(createWebChatAgentUIStreamResponseMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns 202 when cancel is requested twice on the same running turn", async () => {
+    const { headers, chatUrl, startTurn } = await createChatConversation();
+    expect((await startTurn()).status).toBe(200);
+
+    const first = await app.request(`${chatUrl}/run/cancel`, { method: "POST", headers });
+    expect(first.status).toBe(202);
+    const second = await app.request(`${chatUrl}/run/cancel`, { method: "POST", headers });
+    expect(second.status).toBe(202);
+    await expect(second.json()).resolves.toMatchObject({
+      run: { status: "running", cancelRequested: true },
+    });
+  });
+
   it("serves a stored full tool result for a message in the conversation", async () => {
     const { headers, chatUrl, conversationId } = await createChatConversation();
     const [agentMessage] = await db

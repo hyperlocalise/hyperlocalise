@@ -309,8 +309,11 @@ func parseAutomationListQuery(r *http.Request, statuses map[string]struct{}) (st
 
 func parseBoundedInt(raw string, min, max int) (int, error) {
 	value, err := strconvAtoi(raw)
-	if err != nil || value < min || value > max {
+	if err != nil {
 		return 0, err
+	}
+	if value < min || value > max {
+		return 0, errors.New("out of range")
 	}
 	return value, nil
 }
