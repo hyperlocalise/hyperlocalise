@@ -72,6 +72,8 @@ import type {
 import { createAuthRoutes, createOrgScopedAppRoutes, createPublicApiRoutes } from "./route-groups";
 import { createInternalTmsRoutes } from "./routes/internal-tms/internal-tms.route";
 import { createInternalDeepAuditRoutes } from "./routes/internal-deep-audits/internal-deep-audits.route";
+import { createProjectRoutes } from "./routes/project/project.route";
+import { goSvcDelegatedAuthMiddleware } from "./auth/go-svc-delegated-auth";
 
 export type CreateAppOptions = {
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
@@ -107,7 +109,7 @@ export function createApp(options: CreateAppOptions = {}): Hono<EvlogVariables> 
     .basePath("/api")
     .onError(handleUnexpectedError)
     .notFound(notFoundHandler)
-    .route("/", createInternalRoutes(options))
+    .route("/", createInternalRoutes({ ...options, jobQueue }))
     .route("/auth", createAuthRoutes())
     .route("/autumn", createAutumnRoutes())
     .route("/blog", createBlogOgImageRoutes())
@@ -155,6 +157,10 @@ function createInternalRoutes(options: CreateAppOptions = {}) {
     .route(
       "/internal/deep-audits",
       createInternalDeepAuditRoutes({ queue: options.localisationDeepAuditQueue }),
+    )
+    .route(
+      "/internal/go-svc/orgs/:organizationSlug/projects",
+      createProjectRoutes({ ...options, authMiddleware: goSvcDelegatedAuthMiddleware }),
     )
     .route(
       "/cron/github-repository-automation-dispatch",

@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import type { EvlogVariables } from "evlog/hono";
 
@@ -153,44 +154,8 @@ export function createWorkosAuthMiddleware() {
         },
       });
     } catch (error) {
-      if (error instanceof StaleOrganizationSlugError) {
-        return apiErrorResponse(c, 403, "stale_organization_slug", "Organization slug changed", {
-          requestedSlug: error.requestedSlug,
-          currentSlug: error.currentSlug,
-          redirectTo: `/org/${error.currentSlug}/dashboard`,
-        });
-      }
-
-      if (error instanceof OrganizationSlugUnresolvableError) {
-        return forbiddenResponse(
-          c,
-          "organization_slug_unresolvable",
-          "Organization slug is unavailable; choose another workspace",
-        );
-      }
-
-      const message = error instanceof Error ? error.message : "unauthorized";
-
-      if (message === "missing_auth_context") {
-        return unauthorizedResponse(c, "unauthorized", "Authentication required");
-      }
-
-      if (message === "archived_organization_access") {
-        return forbiddenResponse(c, "workspace_archived", "This workspace has been archived");
-      }
-
-      if (message === "organization_access_denied") {
-        return forbiddenResponse(c, "organization_access_denied", "Organization access denied");
-      }
-
-      if (message === "workos_membership_lookup_failed") {
-        return forbiddenResponse(
-          c,
-          "workos_membership_lookup_failed",
-          "Organization membership could not be verified",
-        );
-      }
-
+      const response = authErrorResponse(c, error);
+      if (response) return response;
       // Re-throw genuinely unexpected errors so the centralized onError
       // handler can log them and return a safe generic response.
       throw error;
@@ -201,3 +166,49 @@ export function createWorkosAuthMiddleware() {
 }
 
 export const workosAuthMiddleware = createWorkosAuthMiddleware();
+
+/**
+ * The response for an auth failure the session resolver signals by error, or
+ * undefined for an unexpected error the caller should rethrow.
+ */
+export function authErrorResponse(c: Context, error: unknown): Response | undefined {
+  if (error instanceof StaleOrganizationSlugError) {
+    return apiErrorResponse(c, 403, "stale_organization_slug", "Organization slug changed", {
+      requestedSlug: error.requestedSlug,
+      currentSlug: error.currentSlug,
+      redirectTo: `/org/${error.currentSlug}/dashboard`,
+    });
+  }
+
+  if (error instanceof OrganizationSlugUnresolvableError) {
+    return forbiddenResponse(
+      c,
+      "organization_slug_unresolvable",
+      "Organization slug is unavailable; choose another workspace",
+    );
+  }
+
+  const message = error instanceof Error ? error.message : "unauthorized";
+
+  if (message === "missing_auth_context") {
+    return unauthorizedResponse(c, "unauthorized", "Authentication required");
+  }
+
+  if (message === "archived_organization_access") {
+    return forbiddenResponse(c, "workspace_archived", "This workspace has been archived");
+  }
+
+  if (message === "organization_access_denied") {
+    return forbiddenResponse(c, "organization_access_denied", "Organization access denied");
+  }
+
+  if (message === "workos_membership_lookup_failed") {
+    return forbiddenResponse(
+      c,
+      "workos_membership_lookup_failed",
+      "Organization membership could not be verified",
+    );
+  }
+
+  return undefined;
+}

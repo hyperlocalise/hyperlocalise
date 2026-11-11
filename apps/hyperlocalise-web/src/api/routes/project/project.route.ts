@@ -13,7 +13,7 @@
 import path from "node:path";
 
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
@@ -976,6 +976,8 @@ type CreateProjectRoutesOptions = {
   translationQaScanQueue?: TranslationQaScanQueue;
   projectContentSyncQueue?: ProjectContentSyncQueue;
   deferAfterResponse?: (task: () => Promise<unknown>) => void;
+  /** How requests authenticate; the go-svc bridge passes its delegated auth. */
+  authMiddleware?: MiddlewareHandler<{ Variables: AuthVariables }>;
 };
 
 async function withCatTeamGlossaryContext(
@@ -1154,7 +1156,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     options.translationFileImportQueue ?? createTranslationFileImportQueue();
   const translationQaScanQueue = options.translationQaScanQueue ?? createTranslationQaScanQueue();
   return new Hono<{ Variables: AuthVariables }>()
-    .use("*", workosAuthMiddleware)
+    .use("*", options.authMiddleware ?? workosAuthMiddleware)
     .get("/", async (c) => {
       const projects = await listOrganizationProjects(c.var.auth);
       return c.json({ projects }, 200);
