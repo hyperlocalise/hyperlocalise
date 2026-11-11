@@ -42,6 +42,47 @@ func encodeLiveProjectID(providerKind, externalProjectID string) string {
 	return liveProjectIDPrefix + providerKind + ":" + externalProjectID
 }
 
+type liveJobID struct {
+	liveProjectID
+	externalJobID string
+}
+
+// parseLiveJobID reads ext:{kind}:{project}:{job}; the job id is after the last colon.
+func parseLiveJobID(raw string) (liveJobID, bool) {
+	project, ok := parseLiveProjectID(raw)
+	if !ok {
+		return liveJobID{}, false
+	}
+	last := strings.LastIndex(project.externalProjectID, ":")
+	if last < 1 {
+		return liveJobID{}, false
+	}
+	externalProjectID := strings.TrimSpace(project.externalProjectID[:last])
+	externalJobID := strings.TrimSpace(project.externalProjectID[last+1:])
+	if externalProjectID == "" || externalJobID == "" {
+		return liveJobID{}, false
+	}
+	return liveJobID{
+		liveProjectID: liveProjectID{providerKind: project.providerKind, externalProjectID: externalProjectID},
+		externalJobID: externalJobID,
+	}, true
+}
+
+func encodeLiveJobID(providerKind, externalProjectID, externalJobID string) string {
+	return encodeLiveProjectID(providerKind, externalProjectID) + ":" + externalJobID
+}
+
+func liveTMSRequest(r *http.Request) bool {
+	if strings.Contains(r.URL.Path, "/tms/") {
+		return true
+	}
+	if _, ok := parseLiveProjectID(r.PathValue("projectId")); ok {
+		return true
+	}
+	_, ok := parseLiveJobID(r.PathValue("jobId"))
+	return ok
+}
+
 type liveProjectRecord struct {
 	ID                   string         `json:"id"`
 	OrganizationID       string         `json:"organizationId"`

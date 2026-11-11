@@ -297,6 +297,24 @@ func (api *projectAPI) projectJobParams(r *http.Request, actor projectActor) (pr
 	return projectID, jobID, nil
 }
 
+func (api *projectAPI) liveProjectJobID(r *http.Request) (liveProjectID, string, bool) {
+	project, ok := parseLiveProjectID(r.PathValue("projectId"))
+	if !ok {
+		return liveProjectID{}, "", false
+	}
+	jobID := strings.TrimSpace(r.PathValue("jobId"))
+	if encoded, encodedOK := parseLiveJobID(jobID); encodedOK {
+		if encoded.providerKind != project.providerKind || encoded.externalProjectID != project.externalProjectID {
+			return liveProjectID{}, "", true
+		}
+		return project, encoded.externalJobID, true
+	}
+	if jobID == "" {
+		return liveProjectID{}, "", true
+	}
+	return project, jobID, true
+}
+
 func jobListConditions(query jobListQuery, args []any, now time.Time) ([]string, []any) {
 	var conditions []string
 	add := func(format string, value any) {
@@ -440,6 +458,9 @@ func (api *projectAPI) listJobRecords(ctx context.Context, conditions []string, 
 }
 
 func (api *projectAPI) projectJobsListHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if id, live := parseLiveProjectID(r.PathValue("projectId")); live {
+		return api.liveProjectJobs(r, actor, id)
+	}
 	projectID, ok := jobProjectIDParam(r.PathValue("projectId"))
 	if !ok {
 		return nil, 0, projectNotFound()
@@ -476,6 +497,12 @@ func (api *projectAPI) projectJobsListHandler(r *http.Request, actor projectActo
 }
 
 func (api *projectAPI) projectJobDetailHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if project, jobID, live := api.liveProjectJobID(r); live {
+		if jobID == "" {
+			return nil, 0, projectJobNotFound()
+		}
+		return api.liveJobDetail(r, actor, project, jobID)
+	}
 	projectID, jobID, err := api.projectJobParams(r, actor)
 	if err != nil {
 		return nil, 0, err
@@ -498,6 +525,12 @@ func (api *projectAPI) projectJobDetailHandler(r *http.Request, actor projectAct
 }
 
 func (api *projectAPI) projectJobStatusHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if project, jobID, live := api.liveProjectJobID(r); live {
+		if jobID == "" {
+			return nil, 0, projectJobNotFound()
+		}
+		return api.liveJobStatus(r, actor, project, jobID)
+	}
 	projectID, jobID, err := api.projectJobParams(r, actor)
 	if err != nil {
 		return nil, 0, err
@@ -561,6 +594,13 @@ func (api *projectAPI) orgJobsListHandler(r *http.Request, actor projectActor) (
 }
 
 func (api *projectAPI) orgJobDetailHandler(r *http.Request, actor projectActor) (any, int, error) {
+	// Encoded provider ids on GET /jobs/{id} stay native (404 for postgres
+	// mirrors) unless a mint client is configured to read live Crowdin.
+	if api.tms != nil {
+		if job, ok := parseLiveJobID(r.PathValue("jobId")); ok {
+			return api.liveJobDetail(r, actor, job.liveProjectID, job.externalJobID)
+		}
+	}
 	jobID, ok := jobIDParam(r.PathValue("jobId"))
 	if !ok {
 		return nil, 0, projectJobNotFound()

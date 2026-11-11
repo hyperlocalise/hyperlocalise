@@ -968,6 +968,78 @@ describe("GoSvcClient", () => {
     ]);
   });
 
+  it("reads and mutates Crowdin TMS jobs through go-svc", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ jobs: [] }))
+      .mockResolvedValueOnce(Response.json({ jobs: [] }))
+      .mockResolvedValueOnce(Response.json({ jobs: [{ id: "ext:crowdin:7:11" }] }))
+      .mockResolvedValueOnce(Response.json({ job: { id: "ext:crowdin:7:10" } }))
+      .mockResolvedValueOnce(Response.json({ job: { id: "ext:crowdin:7:10" } }))
+      .mockResolvedValueOnce(Response.json({ job: { id: "ext:crowdin:7:10" } }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(Response.json({ files: [] }))
+      .mockResolvedValueOnce(Response.json({ comments: [] }))
+      .mockResolvedValueOnce(Response.json({ members: [] }));
+    const client = clientWith(fetchMock);
+
+    await client.tms.listJobs("acme", { mine: true, recent: false });
+    await client.tms.listProjectJobs("acme", "ext:crowdin:7", { mine: false });
+    await client.tms.createProjectJobs("acme", "ext:crowdin:7", {
+      title: "Homepage",
+      targetLocales: ["fr"],
+      fileIds: ["1"],
+    });
+    await client.tms.getJob("acme", "ext:crowdin:7:10");
+    await client.tms.updateJob("acme", "ext:crowdin:7:10", { title: "Renamed" });
+    await client.tms.updateJobDescription("acme", "ext:crowdin:7:10", "Notes");
+    await client.tms.deleteJob("acme", "ext:crowdin:7:10");
+    await client.tms.listJobFiles("acme", "ext:crowdin:7:10");
+    await client.tms.listJobComments("acme", "ext:crowdin:7:10");
+    await client.tms.listProjectMembers("acme", "ext:crowdin:7");
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method])).toEqual([
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/tms/jobs?mine=true&recent=false`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/projects/ext%3Acrowdin%3A7/jobs?mine=false`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/projects/ext%3Acrowdin%3A7/jobs`, "POST"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/jobs/ext%3Acrowdin%3A7%3A10`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/jobs/ext%3Acrowdin%3A7%3A10`, "PATCH"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/jobs/ext%3Acrowdin%3A7%3A10/description`, "PATCH"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/jobs/ext%3Acrowdin%3A7%3A10`, "DELETE"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/jobs/ext%3Acrowdin%3A7%3A10/files`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/jobs/ext%3Acrowdin%3A7%3A10/comments`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/projects/ext%3Acrowdin%3A7/members`, "GET"],
+    ]);
+  });
+
+  it("surfaces a partial Crowdin job create as an error, not a 2xx success", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json(
+        {
+          error: "provider_task_create_partial",
+          message: "Created 1 of 2 jobs, then failed: provider unavailable",
+          createdCount: 1,
+          jobs: [{ id: "ext:crowdin:7:11" }],
+        },
+        { status: 207 },
+      ),
+    );
+    const client = clientWith(fetchMock);
+
+    await expect(
+      client.tms.createProjectJobs("acme", "ext:crowdin:7", {
+        title: "Homepage",
+        targetLocales: ["fr", "de"],
+        fileIds: ["1"],
+      }),
+    ).rejects.toMatchObject({
+      name: "GoSvcClientError",
+      code: "provider_task_create_partial",
+      status: 207,
+      details: { createdCount: 1, jobs: [{ id: "ext:crowdin:7:11" }] },
+    });
+  });
+
   it("reads inbox notifications, preferences, and mentions from native go-svc reads", async () => {
     const fetchMock = vi
       .fn()

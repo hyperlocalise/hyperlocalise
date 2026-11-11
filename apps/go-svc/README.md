@@ -364,8 +364,10 @@ read-side preview.
 | PATCH | `/projects/{projectId}/content-editor-behavior` | Toggle identical-string grouping (`admin`/`localization_manager` only) |
 | GET | `/projects/{projectId}/content-editor-behavior/preview` | Preview of identical-string grouping (`admin`/`localization_manager` only) |
 | GET | `/tms/projects` | Live projects from the workspace's connected TMS |
+| GET | `/tms/jobs` | Live Crowdin jobs from the connected TMS (`mine`, `recent`) |
 | GET | `/projects/{projectId}/files` | Native repository files, or the TMS file tree for `ext:` ids |
 | GET | `/projects/{projectId}/file-progress?locale=` | Per-file translation and approval progress for one locale |
+| GET | `/projects/{projectId}/members` | Live Crowdin project members for `ext:` ids |
 | GET | `/workspace-files` | Native repository files across every accessible project |
 
 **Native vs live TMS.** List, create, patch, and delete stay native
@@ -373,8 +375,9 @@ read-side preview.
 its plain (non-`ext:`-prefixed) id is `project_not_found`. Encoded live ids
 (`ext:{provider}:{id}`, Crowdin first) are served from the connected TMS with a
 short-lived token minted by the web app: get, locale-progress, files, file
-progress, branches, and hidden files. go-svc never decrypts provider secrets.
-Provider-backed mutation, jobs, and CAT stay on Hono (`provider_cat_deferred`).
+progress, branches, hidden files, jobs, members, and job comments. go-svc never
+decrypts provider secrets. Phrase, Lokalise, and Smartling jobs still stay on
+Hono. CAT stays on Hono (`provider_cat_deferred`).
 
 **Mutation semantics.** Creation enforces the per-organization project limit,
 allocates a unique issue prefix, and creates a default native translation
@@ -470,18 +473,35 @@ Session-authenticated job reads under `/v1/orgs/{organizationSlug}/...` (also `/
 
 | Method | Path | Operation |
 |--------|------|-----------|
-| GET | `/projects/{projectId}/jobs` | List project jobs |
+| GET | `/projects/{projectId}/jobs` | List project jobs. `ext:crowdin:…` reads Crowdin |
+| POST | `/projects/{projectId}/jobs` | Create Crowdin jobs for `ext:crowdin:…` (`jobs:create`) |
 | GET | `/projects/{projectId}/jobs/{jobId}` | Get job details |
 | GET | `/projects/{projectId}/jobs/{jobId}/status` | Get job status |
-| GET | `/jobs` | List organization jobs |
-| GET | `/jobs/{jobId}` | Get native job details |
-| GET | `/jobs/{jobId}/events` | List a job's progress events, oldest first (newest 500) |
+| GET | `/projects/{projectId}/jobs/{jobId}/files` | Live Crowdin job files |
+| GET | `/projects/{projectId}/jobs/{jobId}/comments` | Live Crowdin task comments |
+| GET | `/jobs` | List organization native jobs |
+| GET | `/tms/jobs` | List live Crowdin jobs |
+| GET | `/jobs/{jobId}` | Get native or live (`ext:crowdin:…:…`) job details |
+| PATCH | `/jobs/{jobId}` | Update a live Crowdin job's title, description, or assignees (`jobs:write`) |
+| PATCH | `/jobs/{jobId}/description` | Update a live Crowdin job description (`jobs:write`) |
+| DELETE | `/jobs/{jobId}` | Delete a live Crowdin job (`jobs:write`) |
+| GET | `/jobs/{jobId}/files` | Live Crowdin job files |
+| GET | `/jobs/{jobId}/comments` | Live Crowdin task comments |
+| GET | `/jobs/{jobId}/events` | List a native job's progress events, oldest first (newest 500) |
 
 **Access:** Admins and localization managers can read all organization jobs. Other roles are restricted to accessible project teams, with unassigned projects belonging to the default team. `relationship=assigned` allows organization-wide discovery of assigned jobs.
 
 **Filtering:** Lists support `kind`, `type`, `status`, `open`, `triage`, `relationship` (`assigned`/`created`), and `limit` (1–100, default 50). `triage` takes precedence over `open`, then `status`. Boolean query values use non-empty-string coercion (`open=false` evaluates to true). Results are ordered by `updated_at DESC, id DESC`, with status priority for triage. Pagination is limit-only.
 
-**Provider boundaries:** Project-scoped routes accept native projects only; external projects return `404 project_not_found`. Organization job lists include persisted provider mirrors, but `/jobs/{jobId}` returns `404 job_not_found` for mirrored jobs. No provider credentials or live integrations are accessed.
+**Provider boundaries:** Native project-scoped routes accept native projects
+only; a materialized `external_tms` UUID is `404 project_not_found`. Encoded
+live ids (`ext:crowdin:{project}` and `ext:crowdin:{project}:{task}`) read and
+mutate Crowdin through a minted token. Phrase, Lokalise, and Smartling jobs
+return `501 tms_jobs_unsupported`. Organization `/jobs` lists stay native
+(including persisted provider mirrors); live workspace lists use `/tms/jobs`.
+`/jobs/{jobId}` for a mirrored UUID is still `404 job_not_found`. Creating more
+than one locale at a time can return `207 provider_task_create_partial` with
+the jobs that already exist.
 
 **Responses:** Lists return `{jobs: [...]}`; details return `{job: {...}}`. Project-scoped details omit `projectName`; other records include it. Status responses contain job identifiers, kind, type, status, timestamps, and `lastError`. Timestamps use UTC ISO-8601 with milliseconds. Missing detail fields are `null`; source-file metadata is resolved from stored records.
 

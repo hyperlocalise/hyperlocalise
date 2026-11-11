@@ -41,4 +41,7 @@ sets the header on an outbound TMS request. `Probe` GETs `probeUrl` when present
 
 - go-svc TMS calls depend on the web app being reachable.
 - Browser TMS health checks stay on Hono.
+- Crowdin live jobs, members, and task comments now spend the minted token in
+  go-svc. The web app can switch Hono `/tms-provider` callers to `GoSvcTmsApi`
+  without moving decrypt or OAuth refresh.
 - A later CAT cutover can keep this mint or move decrypt and refresh into go-svc.

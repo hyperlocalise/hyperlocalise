@@ -160,11 +160,11 @@ func TestProjectRoutes(t *testing.T) {
 		require.JSONEq(t, `{"files":[]}`, rec.Body.String())
 	})
 
-	t.Run("does not serve external project ids", func(t *testing.T) {
+	t.Run("live Crowdin open job counts need a TMS mint", func(t *testing.T) {
 		api, scope := projectTestAPI(t)
 		rec := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:1/open-job-count"))
-		require.Equal(t, http.StatusNotFound, rec.Code)
-		require.Contains(t, rec.Body.String(), `"project_not_found"`)
+		require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+		require.Contains(t, rec.Body.String(), `"tms_unavailable"`)
 	})
 }
 
@@ -178,6 +178,12 @@ func TestProjectActorRoles(t *testing.T) {
 	require.True(t, projectActor{role: "localization_manager"}.canManageContentEditorBehavior())
 	require.False(t, projectActor{role: "developer"}.canManageContentEditorBehavior())
 	require.False(t, projectActor{role: "reviewer"}.canManageContentEditorBehavior())
+
+	require.True(t, projectActor{role: "translator"}.canCreateJobs())
+	require.True(t, projectActor{role: "translator"}.canWriteJobs())
+	require.False(t, projectActor{role: "member"}.canCreateJobs())
+	require.False(t, projectActor{role: "member"}.canWriteJobs())
+	require.True(t, projectActor{role: "member"}.canReadJobs())
 }
 
 func TestParseProjectFilesQuery(t *testing.T) {

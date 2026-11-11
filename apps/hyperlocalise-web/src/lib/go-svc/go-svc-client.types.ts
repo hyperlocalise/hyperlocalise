@@ -84,6 +84,8 @@ export type GoSvcErrorBody = {
   error?: string;
   message?: string;
   details?: unknown;
+  createdCount?: number;
+  jobs?: unknown[];
 };
 
 export type WorkspaceSettingsRecord = {
