@@ -7,6 +7,9 @@ import (
 )
 
 func (api *projectAPI) getHandler(r *http.Request, actor projectActor) (any, int, error) {
+	if id, live := parseLiveProjectID(r.PathValue("projectId")); live {
+		return api.liveGet(r, actor, id)
+	}
 	projectID, err := normalizedNativeProjectID(r.PathValue("projectId"))
 	if err != nil {
 		return nil, 0, err

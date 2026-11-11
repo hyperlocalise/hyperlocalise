@@ -50,6 +50,15 @@ func TestLiveProjectFillsMissingSourceAndTargets(t *testing.T) {
 	require.Equal(t, []string{}, record.TargetLocales)
 	require.Equal(t, map[string]any{}, record.Metadata)
 	require.Equal(t, "external_tms", record.Source)
+	require.Nil(t, record.Identifier)
+
+	keyed := liveProject("org-1", "crowdin", tmscatalog.Project{
+		ExternalID: "7",
+		Name:       "App",
+		IsActive:   true,
+		Metadata:   map[string]any{"identifier": " mobile-app "},
+	})
+	require.Equal(t, "mobile-app", *keyed.Identifier)
 }
 
 func TestLiveProviderFailureMapsTimeoutAndTMSErrors(t *testing.T) {
@@ -69,12 +78,47 @@ func TestLiveProviderFailureMapsTimeoutAndTMSErrors(t *testing.T) {
 	require.True(t, errors.Is(asProjectFailure(context.Canceled), context.Canceled))
 }
 
+func TestLiveLocaleProgressRowsSumsPhraseCounts(t *testing.T) {
+	t.Parallel()
+	last := "2026-03-01T00:00:00Z"
+	project := tmscatalog.Project{
+		ExternalID:     "7",
+		Name:           "App",
+		TargetLocales:  []string{"fr", "de"},
+		LastActivityAt: &last,
+	}
+	rows := liveLocaleProgressRows(project, map[string][]tmscatalog.FileProgress{
+		"fr": {
+			{Phrases: tmscatalog.Counts{Total: 10, Translated: 8, Approved: 4}},
+			{Phrases: tmscatalog.Counts{Total: 10, Translated: 2, Approved: 1}},
+		},
+		"de": {},
+	})
+	require.Len(t, rows, 2)
+	require.Equal(t, "fr", rows[0].Locale)
+	require.Equal(t, 50, rows[0].TranslationProgress)
+	require.Equal(t, 25, rows[0].ApprovalProgress)
+	require.Equal(t, localeProgressCounts{Total: 20, Translated: 10, Approved: 5}, rows[0].Phrases)
+	require.Equal(t, localeProgressCounts{}, rows[0].Words)
+	require.Equal(t, &last, rows[0].LastActivityAt)
+	require.Equal(t, "de", rows[1].Locale)
+	require.Equal(t, 0, rows[1].TranslationProgress)
+	require.Equal(t, localeProgressCounts{}, rows[1].Phrases)
+}
+
 func TestLiveTmsHandlersWithoutAConnection(t *testing.T) {
 	api, scope := projectTestAPI(t)
 
 	unavailable := projectRequest(api, scope, scope.OrgPath("/tms/projects"))
 	require.Equal(t, http.StatusServiceUnavailable, unavailable.Code, unavailable.Body.String())
 	require.Contains(t, unavailable.Body.String(), "tms_unavailable")
+
+	liveGetUnavailable := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:7"))
+	require.Equal(t, http.StatusServiceUnavailable, liveGetUnavailable.Code, liveGetUnavailable.Body.String())
+	require.Contains(t, liveGetUnavailable.Body.String(), "tms_unavailable")
+
+	liveProgressUnavailable := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:7/locale-progress"))
+	require.Equal(t, http.StatusServiceUnavailable, liveProgressUnavailable.Code, liveProgressUnavailable.Body.String())
 
 	liveFilesUnavailable := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:7/files"))
 	require.Equal(t, http.StatusServiceUnavailable, liveFilesUnavailable.Code, liveFilesUnavailable.Body.String())

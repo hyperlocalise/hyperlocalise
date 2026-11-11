@@ -355,24 +355,26 @@ read-side preview.
 |--------|------|-----------|
 | GET | `/projects` | List accessible native projects with open job counts |
 | POST | `/projects` | Create a native project (`admin`/`localization_manager`/`developer`) |
-| GET | `/projects/{projectId}` | Project detail with open job count |
-| PATCH | `/projects/{projectId}` | Update project settings (`admin`/`localization_manager`/`developer`) |
+| GET | `/projects/{projectId}` | Project detail. Native ids read Postgres; `ext:{provider}:{id}` reads the connected TMS |
+| PATCH | `/projects/{projectId}` | Update project settings (`admin`/`localization_manager`/`developer`, native only) |
 | DELETE | `/projects/{projectId}` | Delete a native project (`admin`/`localization_manager`/`developer`) |
-| GET | `/projects/{projectId}/locale-progress` | Per-locale word/phrase translation and approval progress |
+| GET | `/projects/{projectId}/locale-progress` | Per-locale word/phrase translation and approval progress (live TMS uses phrase counts from the provider) |
 | GET | `/projects/{projectId}/open-job-count` | Open job count only |
 | GET | `/projects/{projectId}/content-editor-behavior` | Identical-string grouping setting |
 | PATCH | `/projects/{projectId}/content-editor-behavior` | Toggle identical-string grouping (`admin`/`localization_manager` only) |
 | GET | `/projects/{projectId}/content-editor-behavior/preview` | Preview of identical-string grouping (`admin`/`localization_manager` only) |
-| GET | `/projects/{projectId}/files` | Native repository files for one project |
+| GET | `/tms/projects` | Live projects from the workspace's connected TMS |
+| GET | `/projects/{projectId}/files` | Native repository files, or the TMS file tree for `ext:` ids |
 | GET | `/projects/{projectId}/file-progress?locale=` | Per-file translation and approval progress for one locale |
 | GET | `/workspace-files` | Native repository files across every accessible project |
 
-**Native projects only.** Every route above filters to `projects.source = 'native'`
-and returns `project_not_found` for anything else, including a materialized
-`external_tms` project reached by its plain (non-`ext:`-prefixed) id. These
-go-svc routes never load or decrypt provider credentials; encoded/live provider
-project ids (`ext:{provider}:{id}`), connected-TMS projects, and all
-provider-backed project mutation remain on Hono.
+**Native vs live TMS.** List, create, patch, and delete stay native
+(`projects.source = 'native'`). A materialized `external_tms` row reached by
+its plain (non-`ext:`-prefixed) id is `project_not_found`. Encoded live ids
+(`ext:{provider}:{id}`, Crowdin first) are served from the connected TMS with a
+short-lived token minted by the web app: get, locale-progress, files, file
+progress, branches, and hidden files. go-svc never decrypts provider secrets.
+Provider-backed mutation, jobs, and CAT stay on Hono (`provider_cat_deferred`).
 
 **Mutation semantics.** Creation enforces the per-organization project limit,
 allocates a unique issue prefix, and creates a default native translation
