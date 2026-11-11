@@ -118,7 +118,7 @@ bench-public-api: ## run focused public-api request-path benchmarks
 
 .PHONY: bench-go-svc
 bench-go-svc: ## run focused go-svc request-path benchmarks
-	go test -run '^$$' -bench 'Benchmark(USDUnits|USDString|WordCost|ReportingCSVCell|ReportingNumber|RewriteHashedHTMLSegmentKeys|UniqueEditorCatIDs|ParseLatestPublicJobQuery|ParsePublicJobAnalysisUnit)' -benchmem -benchtime=20x ./apps/go-svc
+	go test -run '^$$' -bench 'Benchmark(USDUnits|USDString|WordCost|ReportingCSVCell|ReportingNumber|RewriteHashedHTMLSegmentKeys|UniqueEditorCatIDs|ParseLatestPublicJobQuery|ParsePublicJobAnalysisUnit|ParseAutomationListQuery|ParseWorkspaceAutomationCreate|ParseVisualWorkflowCreate|NormalizeVisualWorkflowDefinition|EmptyVisualWorkflowDefinition|ParseSkillIDs)' -benchmem -benchtime=20x ./apps/go-svc
 
 
 .PHONY: clean

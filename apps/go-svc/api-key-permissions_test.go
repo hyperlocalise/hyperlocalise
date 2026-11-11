@@ -72,6 +72,7 @@ func TestOrganizationCapabilityMapKeepsMemberCapabilities(t *testing.T) {
 		require.Equal(t, managers[role], hasOrganizationCapability(role, "teams:write"), role)
 		require.Equal(t, managers[role], hasOrganizationCapability(role, "api_keys:read"), role)
 		require.Equal(t, managers[role], hasOrganizationCapability(role, "api_keys:write"), role)
+		require.Equal(t, managers[role], hasOrganizationCapability(role, "integrations:write"), role)
 		require.Equal(t, jobWriters[role], hasOrganizationCapability(role, "jobs:create"), role)
 		require.Equal(t, jobWriters[role], hasOrganizationCapability(role, "jobs:write"), role)
 		require.Equal(t, jobWriters[role], hasOrganizationCapability(role, "ai_actions:run"), role)
