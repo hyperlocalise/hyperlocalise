@@ -18,11 +18,11 @@ onto stamped text nodes.
 ```bash
 cd apps/figma-plugin
 vp install
-cp .env.example .env   # set HYPERLOCALISE_APP_URL=http://localhost:3000
-vp run dev
+vp run dev   # talks to http://localhost:3000
 ```
 
-Vite writes `dist/ui.html` and `dist/code.js`. Import the plugin in Figma using `manifest.json`.
+Vite writes `dist/ui.html` and `dist/code.js`. `vp run build` embeds
+`https://www.hyperlocalise.com` instead (see `vite/app-url.ts`). Import the plugin in Figma using `manifest.json`.
 
 1. In Figma, go to **Plugins → Development → Import plugin from manifest…**
 2. Select `apps/figma-plugin/manifest.json`.
@@ -72,9 +72,22 @@ the source of truth. `lastJobId` in client storage is only a local pointer.
 **Open in Hyperlocalise** on the job card opens
 `/org/{slug}/projects/{projectId}/jobs/{jobId}`.
 
-Replace the placeholder `id` in `manifest.json` with your plugin ID from the
-Figma Community when publishing. The plugin icon is set in Figma’s plugin
-listing, not in Hyperlocalise Integrations.
+## Publishing to Figma Community
+
+1. Replace the placeholder `id` in `manifest.json` with the numeric plugin ID
+   Figma assigns (Plugins → Development → New plugin, or on first publish).
+2. Build with `vp run build`. It embeds `https://www.hyperlocalise.com`; the
+   apex domain redirects, and CORS preflight requests do not follow redirects.
+3. Re-import `manifest.json` and test Connect, Upload, Translate, and Apply on
+   several pages against production.
+4. In Figma desktop, open Plugins → Development → Manage plugins in
+   development → Publish. Provide the icon, cover image, description, category,
+   support contact, and the network access and data security answers. The
+   publishing account needs two-factor authentication.
+5. Wait for Figma review. Ship updates by publishing again with release notes.
+
+The plugin icon is set in Figma’s plugin listing, not in Hyperlocalise
+Integrations.
 
 ## License
 

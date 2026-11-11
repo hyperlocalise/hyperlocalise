@@ -10,7 +10,7 @@ import {
 
 describe("figma plugin settings", () => {
   it("normalizes the app URL and fills defaults", () => {
-    expect(normalizeAppUrl("https://app.hyperlocalise.com/")).toBe("https://app.hyperlocalise.com");
+    expect(normalizeAppUrl("https://www.hyperlocalise.com/")).toBe("https://www.hyperlocalise.com");
     expect(mergeSettings({ appUrl: "https://example.test/", selectedLocale: "fr" })).toMatchObject({
       appUrl: DEFAULT_APP_URL,
       selectedLocale: "fr",
@@ -29,7 +29,7 @@ describe("figma plugin settings", () => {
 
   it("clears a legacy sealed session and keeps a PAT", () => {
     const legacy = {
-      appUrl: "https://app.hyperlocalise.com",
+      appUrl: "https://www.hyperlocalise.com",
       sealedSession: "sealed.session.value",
       userEmail: "dev@example.com",
       organizationSlug: "acme",
