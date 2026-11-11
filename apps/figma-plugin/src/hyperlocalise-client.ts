@@ -1,3 +1,4 @@
+import type { DesignFrameExport, DesignKeyMatch, FigmaDesignKey } from "./design-context";
 import type { FigmaPageJob, FigmaSegment } from "./plugin-messages";
 import { normalizeAppUrl } from "./settings";
 
@@ -432,4 +433,135 @@ export async function pullFigmaTranslations(input: {
     return translations;
   }
   throw new Error("Unable to load translations.");
+}
+
+/** Keys per match request; the server accepts up to 2,000 texts. */
+export const FIGMA_KEY_MATCH_BATCH = 500;
+
+export async function matchFigmaKeys(input: {
+  appUrl: string;
+  auth: string | FigmaResourceAuth;
+  projectId: string;
+  texts: Array<{ nodeId: string; text: string; layerName?: string }>;
+}): Promise<DesignKeyMatch[]> {
+  const matches: DesignKeyMatch[] = [];
+  for (let start = 0; start < input.texts.length; start += FIGMA_KEY_MATCH_BATCH) {
+    const response = await fetch(apiUrl(input.appUrl, "/api/integrations/figma/keys/match"), {
+      method: "POST",
+      headers: buildRequestHeaders(input.appUrl, input.auth),
+      body: JSON.stringify({
+        projectId: input.projectId,
+        texts: input.texts.slice(start, start + FIGMA_KEY_MATCH_BATCH),
+      }),
+    });
+    const payload = (await response.json().catch(() => null)) as
+      | ({ matches?: DesignKeyMatch[] } & ErrorPayload)
+      | null;
+    throwIfFailed(response, payload, "figma_key_match_failed", "Unable to match keys.");
+    matches.push(...(payload?.matches ?? []));
+  }
+  return matches;
+}
+
+export async function searchFigmaKeys(input: {
+  appUrl: string;
+  auth: string | FigmaResourceAuth;
+  projectId: string;
+  query: string;
+}): Promise<FigmaDesignKey[]> {
+  const params = new URLSearchParams({ projectId: input.projectId, q: input.query });
+  const response = await fetch(
+    apiUrl(input.appUrl, `/api/integrations/figma/keys/search?${params.toString()}`),
+    { headers: buildRequestHeaders(input.appUrl, input.auth) },
+  );
+  const payload = (await response.json().catch(() => null)) as
+    | ({ keys?: FigmaDesignKey[] } & ErrorPayload)
+    | null;
+  throwIfFailed(response, payload, "figma_key_search_failed", "Unable to search keys.");
+  return payload?.keys ?? [];
+}
+
+export type FigmaKeyTranslation = {
+  keyId: string;
+  text: string | null;
+  status: string | null;
+  maxLength: number | null;
+  sourceText: string;
+};
+
+export async function fetchFigmaKeyTranslations(input: {
+  appUrl: string;
+  auth: string | FigmaResourceAuth;
+  projectId: string;
+  locale: string;
+  keyIds: string[];
+}): Promise<FigmaKeyTranslation[]> {
+  const translations: FigmaKeyTranslation[] = [];
+  for (let start = 0; start < input.keyIds.length; start += FIGMA_KEY_MATCH_BATCH) {
+    const response = await fetch(
+      apiUrl(input.appUrl, "/api/integrations/figma/keys/translations"),
+      {
+        method: "POST",
+        headers: buildRequestHeaders(input.appUrl, input.auth),
+        body: JSON.stringify({
+          projectId: input.projectId,
+          locale: input.locale,
+          keyIds: input.keyIds.slice(start, start + FIGMA_KEY_MATCH_BATCH),
+        }),
+      },
+    );
+    const payload = (await response.json().catch(() => null)) as
+      | ({ translations?: FigmaKeyTranslation[] } & ErrorPayload)
+      | null;
+    throwIfFailed(
+      response,
+      payload,
+      "figma_key_translations_failed",
+      "Unable to load translations for linked keys.",
+    );
+    translations.push(...(payload?.translations ?? []));
+  }
+  return translations;
+}
+
+export async function syncFigmaFrameVisualContext(input: {
+  appUrl: string;
+  auth: string | FigmaResourceAuth;
+  projectId: string;
+  fileKey: string;
+  figmaUrl: string;
+  frame: DesignFrameExport;
+}): Promise<{ screenshotId: string; boundCount: number; replacedFrame: boolean }> {
+  const response = await fetch(apiUrl(input.appUrl, "/api/integrations/figma/visual-context"), {
+    method: "POST",
+    headers: buildRequestHeaders(input.appUrl, input.auth),
+    body: JSON.stringify({
+      projectId: input.projectId,
+      fileKey: input.fileKey,
+      nodeId: input.frame.nodeId,
+      name: input.frame.name.slice(0, 256) || undefined,
+      figmaUrl: input.figmaUrl,
+      contentType: input.frame.contentType,
+      imageBase64: input.frame.imageBase64,
+      bindings: input.frame.bindings,
+    }),
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | ({
+        visualContext?: { screenshotId: string; boundCount: number; replacedFrame: boolean };
+      } & ErrorPayload)
+    | null;
+  throwIfFailed(
+    response,
+    payload,
+    "figma_visual_context_failed",
+    "Unable to sync this frame to Hyperlocalise.",
+  );
+  if (!payload?.visualContext) {
+    throw new HyperlocaliseClientError(
+      "figma_visual_context_failed",
+      "Unable to sync this frame to Hyperlocalise.",
+    );
+  }
+  return payload.visualContext;
 }

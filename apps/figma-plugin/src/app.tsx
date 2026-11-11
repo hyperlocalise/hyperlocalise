@@ -40,7 +40,6 @@ import type {
   FigmaPageOption,
   PluginSettings,
   SandboxToUiMessage,
-  UiToSandboxMessage,
 } from "./plugin-messages";
 import { buildApplySourceByKey } from "./apply-translations";
 import { remapExtractedSegmentsToSource } from "./extract-source";
@@ -104,46 +103,18 @@ import {
 } from "./workflow-ui";
 import { FieldSkeleton, WorkflowSkeleton } from "./loading-skeleton";
 import { usePluginUiResize } from "./use-plugin-ui-resize";
+import { postPluginMessage, requestFromSandbox } from "./sandbox-request";
+import { DesignContextPanel } from "./design-context-panel";
 
 import "./ui.css";
 
 const LEGACY_SESSION_MESSAGE =
   "Your previous Hyperlocalise sign-in is no longer supported. Connect with a connection token from Integrations.";
 
-type BusyAction = "login" | "bind" | "upload" | "apply" | "translate" | null;
+type BusyAction = "login" | "bind" | "upload" | "apply" | "translate" | "design" | null;
 
 function preventLinkNavigation(event: Event) {
   event.preventDefault();
-}
-
-function postPluginMessage(message: UiToSandboxMessage) {
-  parent.postMessage({ pluginMessage: message }, "*");
-}
-
-function requestFromSandbox<T extends SandboxToUiMessage["type"]>(
-  message: UiToSandboxMessage,
-  expectedType: T,
-): Promise<Extract<SandboxToUiMessage, { type: T }>> {
-  return new Promise((resolve, reject) => {
-    const handleMessage = (event: MessageEvent<{ pluginMessage?: SandboxToUiMessage }>) => {
-      const payload = event.data.pluginMessage;
-      if (!payload) {
-        return;
-      }
-      if (payload.type === "error") {
-        window.removeEventListener("message", handleMessage);
-        reject(new Error(payload.message));
-        return;
-      }
-      if (payload.type === expectedType) {
-        window.removeEventListener("message", handleMessage);
-        resolve(payload as Extract<SandboxToUiMessage, { type: T }>);
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-    postPluginMessage(message);
-  });
 }
 
 function isReconnectError(error: unknown) {
@@ -1980,6 +1951,19 @@ export function App() {
                     </Text>
                     <progress className="progressBar" max={100} value={applyProgress.value} />
                   </div>
+                ) : null}
+                {selectedProject && auth && file ? (
+                  <DesignContextPanel
+                    appUrl={settings.appUrl}
+                    auth={auth}
+                    project={selectedProject}
+                    pageId={file.pageId}
+                    fileName={file.fileName}
+                    locale={settings.selectedLocale}
+                    disabled={busy != null}
+                    run={(work) => runAction("design", work)}
+                    showToast={showToast}
+                  />
                 ) : null}
                 {toastMarkup}
               </Container>

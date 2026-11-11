@@ -84,6 +84,24 @@ Apply the source locale if you need a clean English (or source) canvas before th
 
 If segment keys use the older `figma.segment.*` shape, upload again so the plugin mints new stamped keys before you apply.
 
+## Design context for existing keys
+
+Use **Design context** when your strings already live in the project (for example JSON key files synced from a repository) and the design shows them. Linguists then see each key in place on its frame in the editor, and designers can check length and layout before release. This flow does not upload text or create jobs.
+
+1. **Figma file link.** Paste the file link once (**Share → Copy link**). The plugin saves it with the file, so teammates do not need to paste it again.
+2. **Match keys.** The plugin reads the selected layers, or the whole page when nothing is selected, and links each text layer to a project key:
+   - A layer named after a key, such as `checkout.title`, links to that key.
+   - Otherwise a layer links when exactly one key has the same source text (case and spacing are ignored).
+   - Layers that match several keys, or none, stay unlinked. Select one and choose **Link selected layer to a key…** to search and pick the key.
+
+   Running Match keys again never replaces a link someone already set. Keys under the plugin's own `figma/files/` uploads are not offered.
+3. **Sync to editor.** Each top-level frame that holds linked layers is exported and stored as visual context, with a highlight on every linked key. The key's design link is set to that frame when it is empty or already points to Figma. Syncing a frame again replaces its earlier screenshot, so the editor always shows the current design. Linked layers that sit directly on the page, outside a frame, are skipped.
+4. **Preview.** Pick a language under **Translate to** and choose **Preview**. Linked layers show the current translation for their key. Keys without a translation show their original text. The plugin flags layers whose text overflows its box or a clipping frame, and layers longer than the key's character limit. Choose **Select layers** to jump to them, then **Restore source** to put the original text back.
+
+Upload and Apply always use the original text, not a preview. Apply on a previewed layer replaces the preview.
+
+In the editor, a synced screenshot shows **Open in Figma**, which opens the file at that frame.
+
 ## Segment keys
 
 Each text node gets a stable `figma.k.<ulid>` key stored in plugin data (`hyperlocalise:segment:v1`). Keys stay on the node across locale applies. Editing source copy in Figma after upload means that node needs a fresh upload before apply can match the new text.

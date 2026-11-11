@@ -568,6 +568,14 @@ These return `501` with a stable error code. Browser clients keep calling Hono.
 
 Authenticated CAT requests use the same WorkOS session cookie or Bearer access token as dictionary routes. They do not need `X-Go-Svc-Research-Token`.
 
+### Figma frame sync (service token)
+
+`POST /internal/figma/visual-context/sync` stores one Figma frame as native visual context. Only the web app calls it, after it authenticates the Figma plugin connection and checks project access. It needs `X-Go-Svc-Research-Token` and no user session.
+
+Body: `{organizationId, projectId, fileKey, nodeId, name, figmaUrl, contentType, imageBase64, bindings: [{translationKeyId, marker}]}`. `contentType` is `image/png` or `image/jpeg`, up to 10 MB decoded. `figmaUrl` must be an `https` figma.com link. Every key must belong to the project.
+
+go-svc writes the image to object storage and replaces any screenshot for the same `(projectId, fileKey, nodeId)`, with its bindings. It sets each bound key's `design_url` to `figmaUrl` when the key has none or already points to Figma. The CAT `visual-context` lookup returns `figmaUrl` on synced screenshots.
+
 ### TMS access tokens
 
 Connected TMS CAT still stays on Hono (`provider_cat_deferred`). go-svc can call a TMS API directly by minting a short-lived credential from the web app, which remains the vault:

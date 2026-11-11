@@ -29,6 +29,9 @@ Figma bundling uses two Vite builds:
 - **Upload** is collect-only (`POST /api/integrations/figma/collect`). Do not enqueue a translation job from Upload.
 - **Apply** remaps to the stored source file (`pullFigmaSourcePage` + `remapExtractedSegmentsToSource`) before writing. Do not use live canvas text as `sourceByKey`.
 - Stamped nodes get the requested locale or reset to stored source. They must not keep a previous target locale when the new locale has no real translation.
+- **Design context** links text layers to existing project keys (`hyperlocalise:key-link:v1`), not to `figma.k.*` stamps. Match never overwrites an existing link.
+- **Preview** keeps the original text in `hyperlocalise:preview-source:v1` until Restore. Upload and design scans read that text (`sourceTextOf`), never the preview. Apply clears it.
+- **Sync to editor** sends one frame per request (PNG, or JPEG when the PNG is over ~4 MB of base64) to `POST /api/integrations/figma/visual-context`. Keep requests under Vercel's 4.5 MB body limit.
 
 End-user steps: [Localize Figma](../../docs/platform/connections/figma.mdx). Plugin overview: [README.md](./README.md).
 

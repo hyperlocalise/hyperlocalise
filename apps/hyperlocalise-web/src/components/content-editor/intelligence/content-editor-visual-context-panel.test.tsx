@@ -80,6 +80,31 @@ describe("ContentEditorVisualContextPanel", () => {
     expect(onUpload).toHaveBeenCalledWith(file);
   });
 
+  it("links a Figma-synced screenshot back to its frame", () => {
+    renderWithContentEditorProviders(
+      <ContentEditorVisualContextPanel
+        showPanel
+        visualContext={{
+          screenshots: [
+            {
+              id: "shot-figma",
+              name: "Checkout frame",
+              imageUrl: "https://objects.test/frame.png",
+              width: 800,
+              height: 600,
+              markers: [],
+              figmaUrl: "https://www.figma.com/design/FILE/App?node-id=1-2",
+            },
+          ],
+        }}
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: /open in figma/i });
+    expect(link).toHaveAttribute("href", "https://www.figma.com/design/FILE/App?node-id=1-2");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
   it("rejects unsupported screenshot types", () => {
     const onUpload = vi.fn();
 

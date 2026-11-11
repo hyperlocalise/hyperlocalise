@@ -27,6 +27,8 @@ export type ContentEditorVisualContextScreenshot = {
   width: number | null;
   height: number | null;
   markers: ContentEditorVisualContextMarker[];
+  /** Set when the Figma plugin synced this screenshot from a frame. */
+  figmaUrl?: string | null;
 };
 
 export type ContentEditorVisualContext = {

@@ -18,6 +18,27 @@ import type {
   ValidateSegmentResult,
 } from "./go-svc-client.types";
 import { catPath, orgPath, type GoSvcRequest } from "./go-svc-request";
+
+export type FigmaVisualContextSyncBody = {
+  organizationId: string;
+  projectId: string;
+  fileKey: string;
+  nodeId: string;
+  name: string | null;
+  figmaUrl: string;
+  contentType: "image/png" | "image/jpeg";
+  imageBase64: string;
+  bindings: Array<{
+    translationKeyId: string;
+    marker: { left: number; top: number; width: number; height: number } | null;
+  }>;
+};
+
+export type FigmaVisualContextSyncResult = {
+  screenshotId: string;
+  boundCount: number;
+  replacedFrame: boolean;
+};
 import type {
   ProjectFileCatTargetsInput,
   ProjectFileCatTargetRow,
@@ -319,6 +340,18 @@ export class GoSvcCatApi {
   ) {
     return this.request.json<ProjectFileContentEditorVisualContextResponse>(
       catPath(organizationSlug, projectId, "visual-context"),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  /**
+   * Server-only: requires a client created with service authentication. The caller must
+   * authorize the Figma connection and project first. Replaces any earlier screenshot of
+   * the same Figma frame.
+   */
+  syncFigmaVisualContext(body: FigmaVisualContextSyncBody, options: GoSvcRequestOptions = {}) {
+    return this.request.json<{ visualContext: FigmaVisualContextSyncResult }>(
+      "/internal/figma/visual-context/sync",
       { method: "POST", body, ...options },
     );
   }

@@ -26,6 +26,10 @@ const mocks = vi.hoisted(() => ({
   generateFigmaLocaleJobsMock: vi.fn(),
   pullFigmaPageLocaleContentMock: vi.fn(),
   getAccessibleFigmaProjectMock: vi.fn(),
+  matchFigmaTextsToKeysMock: vi.fn(),
+  searchFigmaProjectKeysMock: vi.fn(),
+  getFigmaKeyTranslationsMock: vi.fn(),
+  syncFigmaFrameVisualContextMock: vi.fn(),
   reconcileWorkosMembershipsForUserMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
@@ -45,6 +49,13 @@ vi.mock("@/lib/figma/localize-file", () => ({
   generateFigmaLocaleJobs: mocks.generateFigmaLocaleJobsMock,
   pullFigmaPageLocaleContent: mocks.pullFigmaPageLocaleContentMock,
   getAccessibleFigmaProject: mocks.getAccessibleFigmaProjectMock,
+}));
+
+vi.mock("@/lib/figma/design-context", () => ({
+  matchFigmaTextsToKeys: mocks.matchFigmaTextsToKeysMock,
+  searchFigmaProjectKeys: mocks.searchFigmaProjectKeysMock,
+  getFigmaKeyTranslations: mocks.getFigmaKeyTranslationsMock,
+  syncFigmaFrameVisualContext: mocks.syncFigmaFrameVisualContextMock,
 }));
 
 vi.mock("@/api/auth/workos-membership-reconcile", async (importOriginal) => {
@@ -71,6 +82,7 @@ import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { createFigmaConnection } from "@/lib/figma/connections";
 import { db, schema } from "@/lib/database/client";
 import { env } from "@/lib/env";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 
 const client = testClient<AppType>(createApp());
 const apiKeyFixture = createApiKeyTestFixture();
@@ -788,5 +800,184 @@ describe("figmaIntegrationRoutes", () => {
     });
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({ error: "figma_connection_disabled" });
+  });
+
+  describe("design context", () => {
+    const keyId = "6f1c1f9e-8a7b-4c39-9d1f-3a8f2b1c0d11";
+
+    async function createConnection(name: string) {
+      const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+      await apiKeyFixture.authHeadersFor(identity);
+      const auth = globalThis.__testApiAuthContext!;
+      const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, { name });
+      const projectResponse = await projectFixture.createProjectViaApi(identity);
+      const projectBody = (await projectResponse.json()) as { project: { id: string } };
+      const created = await createFigmaConnection({
+        organizationId: auth.organization.localOrganizationId,
+        userId: auth.user.localUserId,
+        displayName: name,
+        apiKeyId: apiKey.id,
+      });
+      return {
+        projectId: projectBody.project.id,
+        headers: { "X-Hyperlocalise-Connection-Token": created.connectionToken },
+      };
+    }
+
+    it("matches Figma text layers to project keys", async () => {
+      const { projectId, headers } = await createConnection("Figma match");
+      const match = {
+        nodeId: "1:2",
+        matchedBy: "source_text",
+        key: {
+          id: keyId,
+          key: "checkout.title",
+          sourcePath: "en.json",
+          sourceText: "Checkout",
+          maxLength: 20,
+        },
+        candidates: [],
+      };
+      mocks.matchFigmaTextsToKeysMock.mockResolvedValue([match]);
+
+      const response = await client.api.integrations.figma.keys.match.$post(
+        { json: { projectId, texts: [{ nodeId: "1:2", text: "Checkout", layerName: "Title" }] } },
+        { headers },
+      );
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({ matches: [match] });
+      expect(mocks.matchFigmaTextsToKeysMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId,
+          texts: [{ nodeId: "1:2", text: "Checkout", layerName: "Title" }],
+        }),
+      );
+    });
+
+    it("searches keys and returns key translations", async () => {
+      const { projectId, headers } = await createConnection("Figma search");
+      mocks.searchFigmaProjectKeysMock.mockResolvedValue([]);
+      mocks.getFigmaKeyTranslationsMock.mockResolvedValue([
+        { keyId, text: "Paiement", status: "approved", maxLength: 10, sourceText: "Checkout" },
+      ]);
+
+      const search = await client.api.integrations.figma.keys.search.$get(
+        { query: { projectId, q: "checkout" } },
+        { headers },
+      );
+      expect(search.status).toBe(200);
+      await expect(search.json()).resolves.toEqual({ keys: [] });
+
+      const translations = await client.api.integrations.figma.keys.translations.$post(
+        { json: { projectId, locale: "fr-FR", keyIds: [keyId] } },
+        { headers },
+      );
+      expect(translations.status).toBe(200);
+      await expect(translations.json()).resolves.toMatchObject({
+        translations: [{ keyId, text: "Paiement" }],
+      });
+    });
+
+    it("syncs a frame as visual context", async () => {
+      const { projectId, headers } = await createConnection("Figma sync");
+      mocks.syncFigmaFrameVisualContextMock.mockResolvedValue({
+        screenshotId: "shot-1",
+        boundCount: 1,
+        replacedFrame: false,
+      });
+
+      const response = await client.api.integrations.figma["visual-context"].$post(
+        {
+          json: {
+            projectId,
+            fileKey: "FILE",
+            nodeId: "1:2",
+            name: "Checkout",
+            figmaUrl: "https://www.figma.com/design/FILE/App?node-id=1-2",
+            contentType: "image/png",
+            imageBase64: "iVBORw0KGgo=",
+            bindings: [
+              { translationKeyId: keyId, marker: { left: 10, top: 10, width: 20, height: 5 } },
+            ],
+          },
+        },
+        { headers },
+      );
+
+      expect(response.status).toBe(201);
+      await expect(response.json()).resolves.toEqual({
+        visualContext: { screenshotId: "shot-1", boundCount: 1, replacedFrame: false },
+      });
+      expect(mocks.syncFigmaFrameVisualContextMock).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId, contentType: "image/png", nodeId: "1:2" }),
+      );
+    });
+
+    it("rejects frame sync with a non-Figma link or an out-of-frame marker", async () => {
+      const { projectId, headers } = await createConnection("Figma sync invalid");
+      const base = {
+        projectId,
+        fileKey: "FILE",
+        nodeId: "1:2",
+        contentType: "image/png" as const,
+        imageBase64: "iVBORw0KGgo=",
+      };
+
+      const badUrl = await client.api.integrations.figma["visual-context"].$post(
+        {
+          json: {
+            ...base,
+            figmaUrl: "https://evil.example/design",
+            bindings: [{ translationKeyId: keyId, marker: null }],
+          },
+        },
+        { headers },
+      );
+      expect(badUrl.status).toBe(400);
+
+      const badMarker = await client.api.integrations.figma["visual-context"].$post(
+        {
+          json: {
+            ...base,
+            figmaUrl: "https://www.figma.com/design/FILE",
+            bindings: [
+              { translationKeyId: keyId, marker: { left: 90, top: 0, width: 20, height: 5 } },
+            ],
+          },
+        },
+        { headers },
+      );
+      expect(badMarker.status).toBe(400);
+      expect(mocks.syncFigmaFrameVisualContextMock).not.toHaveBeenCalled();
+    });
+
+    it("passes go-svc key errors through to the plugin", async () => {
+      const { projectId, headers } = await createConnection("Figma sync missing key");
+      mocks.syncFigmaFrameVisualContextMock.mockRejectedValue(
+        new GoSvcClientError({
+          code: "translation_key_not_found",
+          message: "One or more keys are not in this project",
+          status: 404,
+        }),
+      );
+
+      const response = await client.api.integrations.figma["visual-context"].$post(
+        {
+          json: {
+            projectId,
+            fileKey: "FILE",
+            nodeId: "1:2",
+            figmaUrl: "https://www.figma.com/design/FILE",
+            contentType: "image/png",
+            imageBase64: "iVBORw0KGgo=",
+            bindings: [{ translationKeyId: keyId, marker: null }],
+          },
+        },
+        { headers },
+      );
+      expect(response.status).toBe(404);
+      await expect(response.json()).resolves.toMatchObject({ error: "translation_key_not_found" });
+    });
   });
 });
