@@ -55,6 +55,16 @@ export const guidelineDocumentsSectionMessages = defineMessages({
     id: "HdjslZ2CfZ",
     description: "Label for a guideline document that applies to every target locale",
   },
+  allProjects: {
+    defaultMessage: "All projects",
+    id: "hGfT9UynLz",
+    description: "Label for a guideline document that applies to every project",
+  },
+  noProjects: {
+    defaultMessage: "No projects",
+    id: "xBWj7BCSI8",
+    description: "Label for a guideline document that applies to no project",
+  },
   characters: {
     defaultMessage: "{count, plural, one {# character} other {# characters}}",
     id: "biMhDQg4+R",

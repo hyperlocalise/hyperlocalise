@@ -229,11 +229,16 @@ func TestGuidelineRetrieveHonorsDocumentProjectAssignments(t *testing.T) {
 	otherID := env.scope.MustProject(t, "project_other_"+env.scope.Slug, "Other")
 	workspacePath := env.scope.OrgPath("/guidelines/documents")
 
-	unassignedRow := seedReadyGuideline(t, env, workspacePath, "Applies everywhere.")
+	globalRow := seedReadyGuideline(t, env, workspacePath, "Applies everywhere.")
 	assignedRow := seedReadyGuideline(t, env, workspacePath, "Assigned project only.")
-	ownedRow := seedReadyGuideline(t, env, env.scope.OrgPath("/projects/"+otherID+"/guidelines/documents"), "Owned by other.")
+	unassignedRow := seedReadyGuideline(t, env, workspacePath, "Applies to no project.")
+	ownedRow := seedReadyGuideline(t, env, workspacePath, "Owned by other.")
+	_, err := env.scope.Pool.Exec(t.Context(), `update guideline_documents set is_global = true where id = $1::uuid`, globalRow)
+	require.NoError(t, err)
 	attach := env.json(http.MethodPost, workspacePath+"/"+assignedRow+"/projects", `{"projectId":"`+assignedID+`"}`)
 	require.Equal(t, http.StatusOK, attach.Code, attach.Body.String())
+	attachOther := env.json(http.MethodPost, workspacePath+"/"+ownedRow+"/projects", `{"projectId":"`+otherID+`"}`)
+	require.Equal(t, http.StatusOK, attachOther.Code, attachOther.Body.String())
 
 	chunk := func(rowID, name string) guidelines.Chunk {
 		return guidelines.Chunk{
@@ -244,8 +249,9 @@ func TestGuidelineRetrieveHonorsDocumentProjectAssignments(t *testing.T) {
 	retriever := &fakeGuidelineRetriever{byLocale: map[string]guidelines.Result{
 		"": {
 			Passages: []guidelines.Chunk{
-				chunk(unassignedRow, "everywhere"),
+				chunk(globalRow, "everywhere"),
 				chunk(assignedRow, "assigned"),
+				chunk(unassignedRow, "unassigned"),
 				chunk(ownedRow, "owned"),
 			},
 			SearchAvailable: true,
@@ -272,15 +278,17 @@ func TestGuidelineRetrieveHonorsDocumentProjectAssignments(t *testing.T) {
 	}
 
 	require.ElementsMatch(t, []string{
-		guidelinepg.UploadedDocumentID(unassignedRow),
+		guidelinepg.UploadedDocumentID(globalRow),
 		guidelinepg.UploadedDocumentID(assignedRow),
 	}, retrieve(assignedID))
 	require.ElementsMatch(t, []string{
-		guidelinepg.UploadedDocumentID(unassignedRow),
+		guidelinepg.UploadedDocumentID(globalRow),
 		guidelinepg.UploadedDocumentID(ownedRow),
 	}, retrieve(otherID))
 	require.ElementsMatch(t, []string{
-		guidelinepg.UploadedDocumentID(unassignedRow),
+		guidelinepg.UploadedDocumentID(globalRow),
 		guidelinepg.UploadedDocumentID(assignedRow),
+		guidelinepg.UploadedDocumentID(unassignedRow),
+		guidelinepg.UploadedDocumentID(ownedRow),
 	}, retrieve(""))
 }

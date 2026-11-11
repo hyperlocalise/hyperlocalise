@@ -12,10 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { buildOrganizationPath, buildProjectPath } from "@/components/app-shell/navigation-config";
+import { buildOrganizationPath } from "@/components/app-shell/navigation-config";
 import { GuidelineDocumentsSection } from "./guideline-documents-section";
 import { KnowledgePageHeader } from "./knowledge-page-view";
-import { KnowledgeProjectsSection } from "./knowledge-projects-section";
 
 export function KnowledgePageContent({
   organizationSlug,
@@ -27,8 +26,12 @@ export function KnowledgePageContent({
   canUpdateKnowledgeMemory: boolean;
 }) {
   const uploadHref = projectId
-    ? buildProjectPath(organizationSlug, projectId, "knowledge/upload")
+    ? `${buildOrganizationPath(organizationSlug, "knowledge/upload")}?project=${encodeURIComponent(projectId)}`
     : buildOrganizationPath(organizationSlug, "knowledge/upload");
+  // Project-scoped guidelines are retired; project pages are readonly and
+  // creation flows through the org upload page with the project preselected.
+  // Writers still get the upload link; only the document list is readonly.
+  const canUpdate = projectId ? false : canUpdateKnowledgeMemory;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
@@ -37,10 +40,8 @@ export function KnowledgePageContent({
       <GuidelineDocumentsSection
         organizationSlug={organizationSlug}
         projectId={projectId}
-        canUpdate={canUpdateKnowledgeMemory}
+        canUpdate={canUpdate}
       />
-
-      {!projectId ? <KnowledgeProjectsSection organizationSlug={organizationSlug} /> : null}
     </div>
   );
 }

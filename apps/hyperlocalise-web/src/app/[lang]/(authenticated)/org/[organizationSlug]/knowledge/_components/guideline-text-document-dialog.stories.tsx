@@ -36,6 +36,14 @@ const pdfDocument = storyGuidelineDocument({
   contentType: "application/pdf",
 });
 
+const multilingualDocument = storyGuidelineDocument({
+  id: "doc-release",
+  title: "Release notes",
+  filename: "release.md",
+  locales: ["fr-FR", "de-DE"],
+  isGlobal: true,
+});
+
 function OpenDialogStory({ document }: { document?: GuidelineDocument | null }) {
   const [open, setOpen] = useState(true);
   return (
@@ -82,4 +90,16 @@ export const EditPdfTitleOnly: Story = {
     },
   },
   render: () => <OpenDialogStory document={pdfDocument} />,
+};
+
+export const EditMultilingual: Story = {
+  parameters: {
+    msw: {
+      handlers: createGuidelineDocumentsMswHandlers({
+        documents: [multilingualDocument],
+        contents: { "doc-release": "# Release notes\n\nKeep product names in English." },
+      }),
+    },
+  },
+  render: () => <OpenDialogStory document={multilingualDocument} />,
 };

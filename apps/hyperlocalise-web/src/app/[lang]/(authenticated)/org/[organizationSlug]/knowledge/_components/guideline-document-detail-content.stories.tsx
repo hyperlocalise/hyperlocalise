@@ -106,17 +106,46 @@ export const ProjectDocument: Story = {
   args: { organizationSlug, projectId: "project_1", documentId: "doc-mobile", canUpdate: true },
   parameters: {
     msw: {
-      handlers: createGuidelineDocumentsMswHandlers({
-        documents: [
-          storyGuidelineDocument({
-            id: "doc-mobile",
-            projectId: "project_1",
-            title: "Mobile app copy rules",
-            filename: "mobile.md",
-          }),
-        ],
-        contents: { "doc-mobile": "# Mobile copy\n\nKeep buttons under 24 characters." },
-      }),
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({
+          documents: [
+            storyGuidelineDocument({
+              id: "doc-mobile",
+              title: "Mobile app copy rules",
+              filename: "mobile.md",
+            }),
+          ],
+          contents: { "doc-mobile": "# Mobile copy\n\nKeep buttons under 24 characters." },
+        }),
+        ...createGuidelineAssignmentMswHandlers({
+          assignedDocuments: [{ documentId: "doc-mobile", projectIds: ["project_1"] }],
+        }),
+      ],
+    },
+  },
+};
+
+export const GlobalDocument: Story = {
+  args: { organizationSlug, documentId: "doc-house", canUpdate: true },
+  parameters: {
+    msw: {
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({
+          documents: [
+            storyGuidelineDocument({
+              id: "doc-house",
+              title: "House voice (all projects)",
+              filename: "voice.md",
+              mandatory: true,
+              locales: ["fr-FR", "de-DE"],
+              isGlobal: true,
+              characterCount: 2140,
+            }),
+          ],
+          contents: { "doc-house": "# House voice\n\nKeep product names in English." },
+        }),
+        ...createGuidelineAssignmentMswHandlers({ assignedDocuments: [] }),
+      ],
     },
   },
 };

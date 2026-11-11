@@ -95,9 +95,7 @@ export function guidelineDocumentsRefetchInterval(
 }
 
 export function guidelineDocumentsQueryKey(organizationSlug: string, projectId?: string) {
-  return projectId
-    ? (["guideline-documents", organizationSlug, projectId] as const)
-    : (["guideline-documents", organizationSlug] as const);
+  return ["guideline-documents", organizationSlug, projectId ?? null] as const;
 }
 
 function errorMessage(code: string | null): MessageDescriptor {
@@ -148,13 +146,24 @@ export function useGuidelineDocumentUpload(organizationSlug: string, projectId?:
   const { client } = useGoSvcClient();
 
   return useMutation({
-    mutationFn: (input: File | { file: File; title?: string }) => {
+    mutationFn: (
+      input: File | { file: File; title?: string; locales?: string[]; isGlobal?: boolean },
+    ) => {
       const file = input instanceof File ? input : input.file;
       const title = input instanceof File ? undefined : input.title;
+      const locales = input instanceof File ? undefined : input.locales;
+      const isGlobal = input instanceof File ? undefined : input.isGlobal;
       return client.guidelines.uploadDocument(
         organizationSlug,
-        title === undefined ? { file, filename: file.name } : { file, filename: file.name, title },
-        projectId,
+        {
+          file,
+          filename: file.name,
+          ...(title === undefined ? {} : { title }),
+          ...(locales === undefined ? {} : { locales }),
+          ...(isGlobal === undefined ? {} : { isGlobal }),
+        },
+        // projectId is deprecated; project targeting uses assignments.
+        undefined,
       );
     },
     onSuccess: (_document, input) => {
@@ -179,6 +188,7 @@ function GuidelineDocumentRow({
   organizationSlug,
   projectId,
   document,
+  linkedProjects,
   canUpdate,
   onEdit,
 }: {
@@ -186,6 +196,8 @@ function GuidelineDocumentRow({
   organizationSlug: string;
   projectId?: string;
   document: GuidelineDocument;
+  /** Null when the document applies to every project; otherwise linked names. */
+  linkedProjects: string[] | null;
   canUpdate: boolean;
   onEdit: (document: GuidelineDocument) => void;
 }) {
@@ -225,7 +237,26 @@ function GuidelineDocumentRow({
         <ItemDescription className="flex flex-wrap gap-x-2">
           <span className="truncate">{document.filename}</span>
           <span aria-hidden="true">·</span>
-          <span>{document.locale ?? <FormattedMessage {...messages.allLocales} />}</span>
+          <span>
+            {(() => {
+              const locales = document.locales ?? (document.locale ? [document.locale] : []);
+              return locales.length > 0 ? (
+                locales.join(", ")
+              ) : (
+                <FormattedMessage {...messages.allLocales} />
+              );
+            })()}
+          </span>
+          <span aria-hidden="true">·</span>
+          <span className="truncate">
+            {linkedProjects === null ? (
+              <FormattedMessage {...messages.allProjects} />
+            ) : linkedProjects.length > 0 ? (
+              linkedProjects.join(", ")
+            ) : (
+              <FormattedMessage {...messages.noProjects} />
+            )}
+          </span>
           {document.status === "ready" && document.indexed ? (
             <>
               <span aria-hidden="true">·</span>
@@ -331,6 +362,22 @@ export function GuidelineDocumentsSection({
       client.guidelines.listDocuments(organizationSlug, projectId, { signal }),
     refetchInterval: (current) => guidelineDocumentsRefetchInterval(current.state.data),
   });
+  // Project views filter server-side (?project= keeps global + assigned docs).
+  // The client-side check below stays as a backup for cached unfiltered data.
+  // Assignments and project names are always loaded so each row can show its
+  // linked projects. The query keys match the assignments section so
+  // observers share cache.
+  const assignmentsQuery = useQuery({
+    queryKey: ["guideline-document-assignments", organizationSlug],
+    enabled: !loading,
+    queryFn: ({ signal }) =>
+      client.guidelines.listAllDocumentAssignments(organizationSlug, { signal }),
+  });
+  const projectsQuery = useQuery({
+    queryKey: ["guideline-assignment-projects", organizationSlug],
+    enabled: !loading,
+    queryFn: ({ signal }) => client.project.list(organizationSlug, { signal }),
+  });
 
   if (loading || query.isPending) {
     return <Skeleton className="h-16 w-full" />;
@@ -345,7 +392,29 @@ export function GuidelineDocumentsSection({
       </div>
     );
   }
-  if (query.data.length === 0) {
+  const assignedIdsByDocument = new Map(
+    (assignmentsQuery.data?.assignments ?? []).map((entry) => [entry.documentId, entry.projectIds]),
+  );
+  const projectNames = new Map(
+    (projectsQuery.data?.projects ?? []).map((project) => [project.id, project.name]),
+  );
+  // Null marks a document that applies to every project; otherwise the
+  // linked project names (falling back to ids while names load).
+  const linkedProjectsFor = (document: GuidelineDocument): string[] | null => {
+    if (document.isGlobal ?? true) return null;
+    return (assignedIdsByDocument.get(document.id) ?? []).map(
+      (projectId) => projectNames.get(projectId) ?? projectId,
+    );
+  };
+  const visibleDocuments =
+    projectId == null
+      ? query.data
+      : query.data.filter(
+          (document) =>
+            linkedProjectsFor(document) === null ||
+            (assignedIdsByDocument.get(document.id) ?? []).includes(projectId),
+        );
+  if (visibleDocuments.length === 0) {
     return null;
   }
 
@@ -360,13 +429,14 @@ export function GuidelineDocumentsSection({
         </p>
       </div>
       <ItemGroup className="gap-2">
-        {query.data.map((document) => (
+        {visibleDocuments.map((document) => (
           <GuidelineDocumentRow
             key={document.id}
             client={client}
             organizationSlug={organizationSlug}
             projectId={projectId}
             document={document}
+            linkedProjects={linkedProjectsFor(document)}
             canUpdate={canUpdate}
             onEdit={setEditingDocument}
           />

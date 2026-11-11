@@ -62,10 +62,12 @@ vi.mock("next/link", () => ({
 const { GuidelineDocumentDetailContent } = await import("./guideline-document-detail-content");
 
 function guidelineDocument(overrides: Partial<GuidelineDocument> = {}): GuidelineDocument {
-  return {
+  const base = {
     id: "doc-brand",
     projectId: null,
     locale: null,
+    locales: [],
+    isGlobal: false,
     title: "Brand voice",
     filename: "brand.md",
     contentType: "text/markdown",
@@ -83,6 +85,7 @@ function guidelineDocument(overrides: Partial<GuidelineDocument> = {}): Guidelin
     content: "# Voice rules\n\nKeep product names in English.",
     ...overrides,
   };
+  return base as GuidelineDocument;
 }
 
 function wrapper({ children }: { children: ReactNode }) {

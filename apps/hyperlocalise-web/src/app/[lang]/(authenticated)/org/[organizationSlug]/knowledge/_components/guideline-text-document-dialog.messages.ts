@@ -85,4 +85,29 @@ export const guidelineTextDocumentDialogMessages = defineMessages({
     id: "cfsFKcP3Bc",
     description: "Save button in the guideline dialog",
   },
+  localesLabel: {
+    defaultMessage: "Locales (empty means all locales)",
+    id: "QtSUvoeMl3",
+    description: "Label for the guideline locales field",
+  },
+  localesPlaceholder: {
+    defaultMessage: "e.g. fr-FR, de-DE",
+    id: "8mriTjjgGK",
+    description: "Placeholder for the guideline locales field",
+  },
+  useTemplate: {
+    defaultMessage: "Use template",
+    id: "FRRCcGcc6B",
+    description: "Button that fills the new-guideline content with the starter template",
+  },
+  localesInvalid: {
+    defaultMessage: "Use comma-separated locale tags.",
+    id: "VNHmzLQSNG",
+    description: "Validation error for the guideline locales field",
+  },
+  globalLabel: {
+    defaultMessage: "Apply to all projects",
+    id: "u2kSCrJqCa",
+    description: "Label for the apply-to-all-projects switch",
+  },
 });

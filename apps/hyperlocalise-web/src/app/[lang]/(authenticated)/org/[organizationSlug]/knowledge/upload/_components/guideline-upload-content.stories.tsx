@@ -12,7 +12,10 @@
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
-import { createGuidelineDocumentsMswHandlers } from "../../_components/guideline-story-fixtures";
+import {
+  createGuidelineAssignmentMswHandlers,
+  createGuidelineDocumentsMswHandlers,
+} from "../../_components/guideline-story-fixtures";
 import { GuidelineUploadContent } from "./guideline-upload-content";
 
 const organizationSlug = "acme";
@@ -40,16 +43,26 @@ type Story = StoryObj<typeof meta>;
 export const OrganizationUpload: Story = {
   args: { backHref: "/org/acme/knowledge" },
   parameters: {
-    msw: { handlers: createGuidelineDocumentsMswHandlers({ documents: [] }) },
+    msw: {
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({ documents: [] }),
+        ...createGuidelineAssignmentMswHandlers({}),
+      ],
+    },
   },
 };
 
-export const ProjectUpload: Story = {
+export const ProjectPreselected: Story = {
   args: {
-    projectId: "project_1",
+    initialProjectId: "project_1",
     backHref: "/org/acme/projects/project_1/knowledge",
   },
   parameters: {
-    msw: { handlers: createGuidelineDocumentsMswHandlers({ documents: [] }) },
+    msw: {
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({ documents: [] }),
+        ...createGuidelineAssignmentMswHandlers({}),
+      ],
+    },
   },
 };

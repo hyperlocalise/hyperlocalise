@@ -342,17 +342,21 @@ func TestGuidelineDocumentAccessControl(t *testing.T) {
 	projectPath := env.scope.OrgPath("/projects/" + projectID + "/guidelines/documents")
 	workspacePath := env.scope.OrgPath("/guidelines/documents")
 
-	created := env.upload(t, http.MethodPost, projectPath, "glossary.txt", []byte("Never translate Acme."), nil)
+	// Project-scoped writes are retired; creation happens on the org route.
+	retired := env.upload(t, http.MethodPost, projectPath, "glossary.txt", []byte("Never translate Acme."), nil)
+	require.Equal(t, http.StatusGone, retired.Code, retired.Body.String())
+
+	created := env.upload(t, http.MethodPost, workspacePath, "glossary.txt", []byte("Never translate Acme."), nil)
 	require.Equal(t, http.StatusAccepted, created.Code, created.Body.String())
 	doc := decodeGuidelineDocument(t, created)
-	require.Equal(t, projectID, *doc.ProjectID)
-	require.Equal(t, projectID, env.publisher.last(t).ProjectID)
+	require.Nil(t, doc.ProjectID)
+	require.Equal(t, "", env.publisher.last(t).ProjectID)
 
-	// Project documents are not reachable through the workspace path.
-	require.Equal(t, http.StatusNotFound, env.json(http.MethodGet, workspacePath+"/"+doc.ID, "").Code)
-	listed := env.json(http.MethodGet, workspacePath, "")
+	// Org documents stay reachable through the deprecated project read path.
+	require.Equal(t, http.StatusOK, env.json(http.MethodGet, projectPath+"/"+doc.ID, "").Code)
+	listed := env.json(http.MethodGet, projectPath, "")
 	require.Equal(t, http.StatusOK, listed.Code)
-	require.Contains(t, listed.Body.String(), `"guidelineDocuments":[]`)
+	require.Contains(t, listed.Body.String(), doc.ID)
 
 	other := newGuidelineTestEnv(t, "admin")
 	crossOrg := other.json(http.MethodGet, other.scope.OrgPath("/guidelines/documents/"+doc.ID), "")

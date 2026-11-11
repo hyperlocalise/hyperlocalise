@@ -44,7 +44,14 @@ export function guidelineAssignmentProjectsQueryKey(organizationSlug: string) {
   return ["guideline-assignment-projects", organizationSlug] as const;
 }
 
-function ScopeBadge({ projectIds }: { projectIds: string[] }) {
+function ScopeBadge({ isGlobal, projectIds }: { isGlobal: boolean; projectIds: string[] }) {
+  if (isGlobal) {
+    return (
+      <Badge variant="outline">
+        <FormattedMessage {...messages.allProjects} />
+      </Badge>
+    );
+  }
   if (projectIds.length === 0) {
     return (
       <Badge variant="outline">
@@ -153,6 +160,14 @@ export function GuidelineDocumentAssignments({
       return new Map(body.projects.map((p) => [p.id, p.name] as const));
     },
   });
+  const documentQuery = useQuery({
+    // Single-document fetch for scope display; shares the detail page's
+    // ["guideline-document", org, undefined, id] cache entry.
+    queryKey: ["guideline-document", organizationSlug, undefined, documentId],
+    enabled: !loading,
+    queryFn: async ({ signal }) =>
+      client.guidelines.getDocument(organizationSlug, documentId, undefined, { signal }),
+  });
 
   const invalidate = () => {
     void queryClient.invalidateQueries({
@@ -186,6 +201,24 @@ export function GuidelineDocumentAssignments({
     onSuccess: invalidate,
     onError: (error) => toast.error(error.message),
   });
+  const setGlobal = useMutation({
+    mutationFn: async (isGlobal: boolean) => {
+      try {
+        await client.guidelines.updateDocument(organizationSlug, documentId, { isGlobal });
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.assignFailed)), {
+          cause: error,
+        });
+      }
+    },
+    onSuccess: () => {
+      invalidate();
+      void queryClient.invalidateQueries({
+        queryKey: ["guideline-document", organizationSlug, undefined, documentId],
+      });
+    },
+    onError: (error) => toast.error(error.message),
+  });
 
   if (loading || assignmentsQuery.isPending) {
     return <Skeleton className="h-32 w-full" />;
@@ -213,6 +246,7 @@ export function GuidelineDocumentAssignments({
     projectName: projectNames.get(projectId) ?? projectId,
   }));
   const assignedIds = new Set(assigned.map((p) => p.projectId));
+  const isGlobal = documentQuery.data?.isGlobal ?? false;
 
   return (
     <section className="flex flex-col gap-3">
@@ -220,11 +254,23 @@ export function GuidelineDocumentAssignments({
         <TypographyH2 className="pb-0 text-lg tracking-[-0.02em]">
           <FormattedMessage {...messages.sectionTitle} />
         </TypographyH2>
-        <ScopeBadge projectIds={projectIds} />
+        <ScopeBadge isGlobal={isGlobal} projectIds={projectIds} />
       </div>
       <TypographyP size="small" tone="subtle" className="max-w-2xl leading-6">
         <FormattedMessage {...messages.sectionDescription} />
       </TypographyP>
+      {canUpdate ? (
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={isGlobal}
+            disabled={setGlobal.isPending}
+            onChange={(event) => setGlobal.mutate(event.target.checked)}
+            className="h-4 w-4 accent-primary"
+          />
+          <FormattedMessage {...messages.allProjects} />
+        </label>
+      ) : null}
       <div className="rounded-xl border border-border px-4 py-3">
         <div className="grid gap-2">
           {assigned.map((project) => (
@@ -252,7 +298,7 @@ export function GuidelineDocumentAssignments({
             </div>
           ))}
         </div>
-        {canUpdate ? (
+        {canUpdate && !isGlobal ? (
           <div className="mt-3">
             <ProjectPicker
               organizationSlug={organizationSlug}

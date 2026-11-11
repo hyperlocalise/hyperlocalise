@@ -13,6 +13,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 import {
+  createGuidelineAssignmentMswHandlers,
   createGuidelineDocumentsMswHandlers,
   storyGuidelineDocument,
 } from "./guideline-story-fixtures";
@@ -42,29 +43,38 @@ export const ProjectGuidelinePage: Story = {
   args: { canUpdateKnowledgeMemory: true },
   parameters: {
     msw: {
-      handlers: createGuidelineDocumentsMswHandlers({
-        documents: [
-          storyGuidelineDocument({
-            id: "doc-mobile",
-            projectId,
-            title: "Mobile app copy rules",
-            filename: "mobile.md",
-            mandatory: true,
-          }),
-          storyGuidelineDocument({
-            id: "doc-release",
-            projectId,
-            title: "Release notes",
-            filename: "release.md",
-            status: "processing",
-            indexed: false,
-            characterCount: 0,
-          }),
-        ],
-        contents: {
-          "doc-mobile": "# Mobile copy\n\nKeep buttons under 24 characters.",
-        },
-      }),
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({
+          documents: [
+            storyGuidelineDocument({
+              id: "doc-mobile",
+              title: "Mobile app copy rules",
+              filename: "mobile.md",
+              mandatory: true,
+            }),
+            storyGuidelineDocument({
+              id: "doc-global",
+              title: "House voice (all projects)",
+              filename: "voice.md",
+              isGlobal: true,
+            }),
+            storyGuidelineDocument({
+              id: "doc-release",
+              title: "Release notes",
+              filename: "release.md",
+              status: "processing",
+              indexed: false,
+              characterCount: 0,
+            }),
+          ],
+          contents: {
+            "doc-mobile": "# Mobile copy\n\nKeep buttons under 24 characters.",
+          },
+        }),
+        ...createGuidelineAssignmentMswHandlers({
+          assignedDocuments: [{ documentId: "doc-mobile", projectIds: ["project_1"] }],
+        }),
+      ],
     },
   },
 };
@@ -73,16 +83,19 @@ export const ProjectReadOnly: Story = {
   args: { canUpdateKnowledgeMemory: false },
   parameters: {
     msw: {
-      handlers: createGuidelineDocumentsMswHandlers({
-        documents: [
-          storyGuidelineDocument({
-            id: "doc-mobile",
-            projectId,
-            title: "Mobile app copy rules",
-            filename: "mobile.md",
-          }),
-        ],
-      }),
+      handlers: [
+        ...createGuidelineDocumentsMswHandlers({
+          documents: [
+            storyGuidelineDocument({
+              id: "doc-mobile",
+              title: "Mobile app copy rules",
+              filename: "mobile.md",
+              isGlobal: true,
+            }),
+          ],
+        }),
+        ...createGuidelineAssignmentMswHandlers({}),
+      ],
     },
   },
 };

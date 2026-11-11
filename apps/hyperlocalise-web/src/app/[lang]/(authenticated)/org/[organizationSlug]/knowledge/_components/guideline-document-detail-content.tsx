@@ -74,6 +74,8 @@ export function GuidelineDocumentDetailContent({
   documentId: string;
   canUpdate: boolean;
 }) {
+  // Project pages are readonly; project scope is managed on the org detail page.
+  const canEdit = projectId ? false : canUpdate;
   const intl = useIntl();
   const queryClient = useQueryClient();
   const { client, loading } = useGoSvcClient();
@@ -148,12 +150,23 @@ export function GuidelineDocumentDetailContent({
           <StatusBadge status={guidelineDocumentDisplayStatus(document)} />
         </div>
         <TypographyP tone="subtle">
-          {document.filename} · {document.locale ?? intl.formatMessage(messages.allLocales)} ·{" "}
+          {document.filename} ·{" "}
+          {(() => {
+            const locales = document.locales ?? (document.locale ? [document.locale] : []);
+            return locales.length > 0
+              ? locales.join(", ")
+              : intl.formatMessage(messages.allLocales);
+          })()}{" "}
+          ·{" "}
+          {(document.isGlobal ?? true)
+            ? intl.formatMessage(messages.allProjects)
+            : intl.formatMessage(messages.selectedProjects)}{" "}
+          ·{" "}
           <FormattedMessage {...messages.characters} values={{ count: document.characterCount }} />
         </TypographyP>
       </div>
 
-      {canUpdate ? (
+      {canEdit ? (
         <div className="flex flex-wrap items-center gap-3">
           <label
             htmlFor={switchId}
@@ -190,15 +203,15 @@ export function GuidelineDocumentDetailContent({
         )}
       </section>
 
-      {!projectId && document.projectId == null ? (
+      {document.projectId == null ? (
         <GuidelineDocumentAssignments
           organizationSlug={organizationSlug}
           documentId={document.id}
-          canUpdate={canUpdate}
+          canUpdate={canEdit}
         />
       ) : null}
 
-      {canUpdate ? (
+      {canEdit ? (
         <GuidelineTextDocumentDialog
           open={editing}
           onOpenChange={setEditing}

@@ -17,8 +17,12 @@ export type GuidelineDocumentStatus = "processing" | "ready" | "failed";
 
 export type GuidelineDocument = {
   id: string;
+  /** @deprecated Project-owned guidelines are retired; always null for new rows. */
   projectId: string | null;
+  /** @deprecated Use locales; mirrors locales[0] when exactly one locale is set. */
   locale: string | null;
+  locales: string[];
+  isGlobal: boolean;
   title: string;
   filename: string;
   contentType: string;
@@ -40,13 +44,19 @@ export type GuidelineDocumentUpload = {
   file: Blob;
   filename: string;
   title?: string;
+  /** @deprecated Prefer locales. */
   locale?: string;
+  locales?: string[];
+  isGlobal?: boolean;
   mandatory?: boolean;
 };
 
 export type GuidelineDocumentMetadata = {
   title?: string;
+  /** @deprecated Prefer locales. */
   locale?: string | null;
+  locales?: string[] | null;
+  isGlobal?: boolean;
   mandatory?: boolean;
 };
 
@@ -105,6 +115,7 @@ export type RetrievedGuidelineDocument = {
   version: number;
   title: string;
   locale?: string;
+  locales: string[];
   mandatory: boolean;
   /** Set for mandatory documents only. */
   content?: string;
@@ -122,17 +133,27 @@ type GuidelineDocumentListPage = {
   pagination: { limit: number; returned: number; hasMore: boolean };
 };
 
-/** Omit projectId for workspace-wide documents. */
+/** Project routes are deprecated; new uploads must use the org route. */
 function documentsPath(organizationSlug: string, projectId?: string, ...segments: string[]) {
   return projectId
     ? orgPath(organizationSlug, "projects", projectId, "guidelines", "documents", ...segments)
     : orgPath(organizationSlug, "guidelines", "documents", ...segments);
 }
 
+export function guidelineDocumentLocales(
+  document: Pick<GuidelineDocument, "locales" | "locale">,
+): string[] {
+  if (document.locales.length > 0) return document.locales;
+  return document.locale ? [document.locale] : [];
+}
+
 function uploadForm(upload: GuidelineDocumentUpload) {
   const form = new FormData();
   if (upload.title !== undefined) form.set("title", upload.title);
-  if (upload.locale !== undefined) form.set("locale", upload.locale);
+  if (upload.locales !== undefined) {
+    form.set("locales", JSON.stringify(upload.locales));
+  } else if (upload.locale !== undefined) form.set("locale", upload.locale);
+  if (upload.isGlobal !== undefined) form.set("is_global", String(upload.isGlobal));
   if (upload.mandatory !== undefined) form.set("mandatory", String(upload.mandatory));
   form.set("file", upload.file, upload.filename);
   return form;
@@ -144,17 +165,25 @@ export class GoSvcGuidelinesApi {
   async listDocuments(
     organizationSlug: string,
     projectId?: string,
-    options: GoSvcRequestOptions = {},
+    options: GoSvcRequestOptions & { locale?: string } = {},
   ) {
-    const path = documentsPath(organizationSlug, projectId);
+    const { locale, ...requestOptions } = options;
+    // Reads always go through the org route; projectId becomes a ?project=
+    // server filter (global or assigned docs) instead of a path scope.
+    const path = documentsPath(organizationSlug);
     const documents: GuidelineDocument[] = [];
     let cursor: string | undefined;
     do {
       const query = new URLSearchParams({ limit: "200" });
+      if (projectId) query.set("project", projectId);
+      if (locale) query.set("locale", locale);
       if (cursor) {
         query.set("cursor", cursor);
       }
-      const body = await this.request.json<GuidelineDocumentListPage>(`${path}?${query}`, options);
+      const body = await this.request.json<GuidelineDocumentListPage>(
+        `${path}?${query}`,
+        requestOptions,
+      );
       documents.push(...body.guidelineDocuments);
       cursor = body.nextCursor ?? undefined;
     } while (cursor);

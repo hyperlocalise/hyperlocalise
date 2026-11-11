@@ -44,13 +44,14 @@ type guidelineRetrievePayload struct {
 }
 
 type retrievedGuidelineDocument struct {
-	ID         string `json:"id"`
-	RevisionID string `json:"revisionId"`
-	Version    int    `json:"version"`
-	Title      string `json:"title"`
-	Locale     string `json:"locale,omitempty"`
-	Mandatory  bool   `json:"mandatory"`
-	Content    string `json:"content,omitempty"`
+	ID         string   `json:"id"`
+	RevisionID string   `json:"revisionId"`
+	Version    int      `json:"version"`
+	Title      string   `json:"title"`
+	Locale     string   `json:"locale,omitempty"`
+	Locales    []string `json:"locales"`
+	Mandatory  bool     `json:"mandatory"`
+	Content    string   `json:"content,omitempty"`
 }
 
 type retrievedGuidelinePassage struct {
@@ -236,25 +237,25 @@ func collectUploaded(results []guidelines.Result, limit int) collectedGuidelines
 }
 
 // mergeQuery reloads metadata only for rows that are still ready and in the
-// requested project and locale scope. An empty locale matches unscoped rows only.
-// Org-wide rows respect guideline_document_projects assignment: an org-wide
-// document with no assignment rows applies to every project; when assignment
-// rows exist the document applies only to listed projects.
+// requested project and locale scope.
+// Project targeting: is_global docs apply to every project; non-global docs
+// apply to the listed assignment projects only (or no project when unassigned).
+// Locale targeting lives in the locales array: empty means all locales.
 const mergeQuery = `
-        select id::text, revision_id::text, version, title, coalesce(locale, '')
+        select id::text, revision_id::text, version, title, locales
         from guideline_documents
         where organization_id::text = $1 and id::text = any($2) and status = 'ready'
           and (
-            (project_id is null and ($3 = '' or not exists (
-              select 1 from guideline_document_projects g
-              where g.document_id = guideline_documents.id
-            ) or exists (
+            $3 = '' or is_global or exists (
               select 1 from guideline_document_projects g
               where g.document_id = guideline_documents.id and g.project_id = $3
-            )))
-            or project_id = $3
+            )
           )
-          and (locale is null or locale = any($4))`
+          and (
+            coalesce(cardinality(locales), 0) = 0
+            or locales && $4
+            or (locale is not null and locale = any($4))
+          )`
 
 // merge adds titles and locales, dropping documents that were deleted, left
 // ready status or scope, or got a new revision since retrieval.
@@ -276,20 +277,23 @@ func (api *guidelineRetrieveAPI) merge(ctx context.Context, scope guidelines.Sco
 	}
 	defer rows.Close()
 	type metadata struct {
-		revisionID, title, locale string
-		version                   int
+		revisionID, title string
+		version           int
+		locales           []string
 	}
 	byID := make(map[string]metadata, len(rowIDs))
 	for rows.Next() {
 		var rowID string
 		var meta metadata
-		if err := rows.Scan(&rowID, &meta.revisionID, &meta.version, &meta.title, &meta.locale); err != nil {
+		var localesArr []string
+		if err := rows.Scan(&rowID, &meta.revisionID, &meta.version, &meta.title, &localesArr); err != nil {
 			return guidelineRetrieveResult{}, err
 		}
 		id := guidelinepg.UploadedDocumentID(rowID)
 		if retrieved := collected.revisions[id]; retrieved == "" || retrieved != meta.revisionID {
 			continue
 		}
+		meta.locales = append([]string{}, localesArr...)
 		byID[id] = meta
 	}
 	if err := rows.Err(); err != nil {
@@ -301,8 +305,16 @@ func (api *guidelineRetrieveAPI) merge(ctx context.Context, scope guidelines.Sco
 			continue
 		}
 		content, isMandatory := mandatory[id]
+		localesOut := append([]string{}, meta.locales...)
+		if localesOut == nil {
+			localesOut = []string{}
+		}
+		legacyLocale := ""
+		if len(localesOut) == 1 {
+			legacyLocale = localesOut[0]
+		}
 		merged.Documents = append(merged.Documents, retrievedGuidelineDocument{
-			ID: id, RevisionID: meta.revisionID, Version: meta.version, Title: meta.title, Locale: meta.locale,
+			ID: id, RevisionID: meta.revisionID, Version: meta.version, Title: meta.title, Locale: legacyLocale, Locales: localesOut,
 			Mandatory: isMandatory, Content: content,
 		})
 	}

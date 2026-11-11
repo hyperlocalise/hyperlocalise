@@ -29,6 +29,7 @@ import {
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
@@ -38,6 +39,10 @@ import {
   useGuidelineDocumentUpload,
 } from "./guideline-documents-section";
 import { guidelineTextDocumentDialogMessages as messages } from "./guideline-text-document-dialog.messages";
+import {
+  GUIDELINE_TEMPLATE_CONTENT,
+  GUIDELINE_TEMPLATE_TITLE,
+} from "./guideline-text-document-template";
 
 const TITLE_MAX_LENGTH = 200;
 const CONTENT_MAX_LENGTH = 50_000;
@@ -77,7 +82,7 @@ export function GuidelineTextDocumentDialog({
   organizationSlug: string;
   projectId?: string;
   document?: GuidelineDocument | null;
-  onSaved?: () => void;
+  onSaved?: (documentId?: string) => void;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -85,8 +90,13 @@ export function GuidelineTextDocumentDialog({
   const editing = document != null;
   const [title, setTitle] = useState(document?.title ?? "");
   const [content, setContent] = useState("");
+  const [localesInput, setLocalesInput] = useState(
+    (document?.locales ?? (document?.locale ? [document.locale] : [])).join(", "),
+  );
+  const [isGlobal, setIsGlobal] = useState(document?.isGlobal ?? false);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [contentError, setContentError] = useState<string | null>(null);
+  const [localesError, setLocalesError] = useState<string | null>(null);
 
   const contentSyncedForRef = useRef<string | null>(null);
 
@@ -103,8 +113,13 @@ export function GuidelineTextDocumentDialog({
     if (open) {
       setTitle(document?.title ?? "");
       setContent("");
+      setLocalesInput(
+        (document?.locales ?? (document?.locale ? [document.locale] : [])).join(", "),
+      );
+      setIsGlobal(document?.isGlobal ?? false);
       setTitleError(null);
       setContentError(null);
+      setLocalesError(null);
       contentSyncedForRef.current = null;
     }
   }, [open, document?.id, document?.title]);
@@ -118,10 +133,24 @@ export function GuidelineTextDocumentDialog({
 
   const uploadDocument = useGuidelineDocumentUpload(organizationSlug, projectId);
 
+  const parseLocales = (): string[] | null => {
+    const parts = localesInput
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (parts.some((part) => part.length > 35 || !/^[A-Za-z0-9_-]+$/.test(part))) return null;
+    return [...new Set(parts)];
+  };
+
   const saveEdit = useMutation({
     mutationFn: async () => {
       const trimmedTitle = title.trim();
+      const locales = parseLocales() ?? [];
       const titleChanged = trimmedTitle !== document!.title;
+      const localesChanged =
+        JSON.stringify(locales) !==
+        JSON.stringify(document!.locales ?? (document!.locale ? [document!.locale] : []));
+      const globalChanged = isGlobal !== document!.isGlobal;
       const contentChanged =
         contentEditable && contentQuery.data != null && content !== loadedContent;
       if (contentChanged) {
@@ -129,14 +158,14 @@ export function GuidelineTextDocumentDialog({
         await client.guidelines.replaceDocument(
           organizationSlug,
           document!.id,
-          { file, filename: file.name, title: trimmedTitle },
+          { file, filename: file.name, title: trimmedTitle, locales, isGlobal },
           projectId,
         );
-      } else if (titleChanged) {
+      } else if (titleChanged || localesChanged || globalChanged) {
         await client.guidelines.updateDocument(
           organizationSlug,
           document!.id,
-          { title: trimmedTitle },
+          { title: trimmedTitle, locales, isGlobal },
           projectId,
         );
       }
@@ -154,7 +183,7 @@ export function GuidelineTextDocumentDialog({
         });
       }
       onOpenChange(false);
-      onSaved?.();
+      onSaved?.(document?.id);
     },
     onError: (error) => {
       toast.error(intl.formatMessage(messages.saveFailed), { description: error.message });
@@ -179,22 +208,29 @@ export function GuidelineTextDocumentDialog({
     } else {
       setContentError(null);
     }
+    const locales = parseLocales();
+    if (locales == null) {
+      setLocalesError(intl.formatMessage(messages.localesInvalid));
+    } else {
+      setLocalesError(null);
+    }
     const titleOk = !!trimmedTitle && trimmedTitle.length <= TITLE_MAX_LENGTH;
     const contentOk =
       !contentEditable || (!!content.trim() && content.length <= CONTENT_MAX_LENGTH);
-    return titleOk && contentOk;
+    return titleOk && contentOk && locales != null;
   };
 
   const handleSave = () => {
     if (!validate()) return;
+    const locales = parseLocales() ?? [];
     if (!editing) {
       const file = markdownFile(title.trim(), content);
       uploadDocument.mutate(
-        { file, title: title.trim() },
+        { file, title: title.trim(), locales, isGlobal },
         {
-          onSuccess: () => {
+          onSuccess: (document) => {
             onOpenChange(false);
-            onSaved?.();
+            onSaved?.(document.id);
           },
         },
       );
@@ -205,6 +241,15 @@ export function GuidelineTextDocumentDialog({
 
   const pending = uploadDocument.isPending || saveEdit.isPending;
   const loadingContent = editing && contentQuery.isPending;
+
+  const applyTemplate = () => {
+    setContent(GUIDELINE_TEMPLATE_CONTENT);
+    setContentError(null);
+    if (!title.trim()) {
+      setTitle(GUIDELINE_TEMPLATE_TITLE);
+      setTitleError(null);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -235,9 +280,22 @@ export function GuidelineTextDocumentDialog({
           </Field>
           {contentEditable ? (
             <Field className="gap-1.5">
-              <FieldLabel htmlFor="guideline-text-content">
-                <FormattedMessage {...messages.contentLabel} />
-              </FieldLabel>
+              <div className="flex items-center justify-between gap-2">
+                <FieldLabel htmlFor="guideline-text-content">
+                  <FormattedMessage {...messages.contentLabel} />
+                </FieldLabel>
+                {!editing ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={applyTemplate}
+                    disabled={pending}
+                  >
+                    <FormattedMessage {...messages.useTemplate} />
+                  </Button>
+                ) : null}
+              </div>
               {loadingContent ? (
                 <Skeleton className="h-48 w-full" />
               ) : (
@@ -258,6 +316,33 @@ export function GuidelineTextDocumentDialog({
               {contentError ? <FieldError>{contentError}</FieldError> : null}
             </Field>
           ) : null}
+          <Field className="gap-1.5">
+            <FieldLabel htmlFor="guideline-text-locales">
+              <FormattedMessage {...messages.localesLabel} />
+            </FieldLabel>
+            <Input
+              id="guideline-text-locales"
+              value={localesInput}
+              placeholder={intl.formatMessage(messages.localesPlaceholder)}
+              onChange={(event) => setLocalesInput(event.target.value)}
+              disabled={pending || loadingContent}
+            />
+            {localesError ? <FieldError>{localesError}</FieldError> : null}
+          </Field>
+          <Field className="gap-1.5">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="guideline-text-global"
+                size="sm"
+                checked={isGlobal}
+                onCheckedChange={setIsGlobal}
+                disabled={pending || loadingContent}
+              />
+              <FieldLabel htmlFor="guideline-text-global">
+                <FormattedMessage {...messages.globalLabel} />
+              </FieldLabel>
+            </div>
+          </Field>
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

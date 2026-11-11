@@ -191,12 +191,11 @@ export const workspaceGuidelineProjects = pgTable(
 );
 
 /**
- * Attaches an org-wide uploaded guideline document to selected projects. An
- * org-wide document with no assignment rows applies to every project in the
- * org (this is how setup-wizard guidance stays global); once assignment rows
- * exist the document applies only to listed projects. Only documents
- * with a null project_id can be attached; project-owned documents belong to
- * one project already.
+ * Attaches an org-wide uploaded guideline document to selected projects.
+ * `is_global = true` means every project including future ones; `false` with
+ * zero rows means no project (the upload default); `false` with rows means
+ * only the listed projects. Only documents with a null project_id can be
+ * attached.
  */
 export const guidelineDocumentProjects = pgTable(
   "guideline_document_projects",
@@ -226,6 +225,14 @@ export const guidelineDocumentProjects = pgTable(
 /**
  * Stores uploaded guideline documents. Extraction and indexing run asynchronously
  * in the guideline ingest worker; `revisionId` identifies the content to index.
+ *
+ * `projectId` is deprecated: all guidelines are org-scoped (`project_id IS NULL`).
+ * Project targeting uses `guideline_document_projects` assignments instead.
+ * Existing project-owned rows are migrated to org rows with a single assignment.
+ * `locale` is deprecated: per-guideline locales live in the `locales` array
+ * (empty = all locales). `isGlobal` distinguishes unassigned docs that apply
+ * to no project (`false`, the upload default) from docs that apply to every
+ * project including future ones (`true`).
  */
 export const guidelineDocuments = pgTable(
   "guideline_documents",
@@ -234,8 +241,13 @@ export const guidelineDocuments = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
+    /** @deprecated Project-owned guidelines are retired; always NULL for new rows. */
     projectId: text("project_id").references(() => projects.id, { onDelete: "cascade" }),
+    /** @deprecated Use locales; NULL stays for unmigrated rows. */
     locale: text("locale"),
+    /** Per-guideline BCP 47 locales; empty means all locales. */
+    locales: text("locales").array().notNull().default([]),
+    isGlobal: boolean("is_global").notNull().default(false),
     title: text("title").notNull(),
     storageLocationId: text("storage_location_id").notNull(),
     storageKey: text("storage_key").notNull(),
