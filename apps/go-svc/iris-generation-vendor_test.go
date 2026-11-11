@@ -372,6 +372,54 @@ func TestImageLocaliseUsesGPTImage(t *testing.T) {
 	}
 }
 
+func TestImageEditSendsPromptAndMask(t *testing.T) {
+	model, ok := irisModelByID("image-edit")
+	require.True(t, ok)
+	require.True(t, irisModelUsesOpenAI(model))
+
+	var gotPrompt, gotMaskType string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/v1/images/edits", r.URL.Path)
+		require.NoError(t, r.ParseMultipartForm(1<<20))
+		gotPrompt = r.FormValue("prompt")
+		_, header, err := r.FormFile("mask")
+		require.NoError(t, err)
+		gotMaskType = header.Header.Get("Content-Type")
+		_, _ = w.Write([]byte(`{"data":[{"b64_json":"aGVsbG8="}]}`))
+	}))
+	t.Cleanup(server.Close)
+	provider := &irisGatewayProvider{
+		baseURL: defaultIrisOpenAIBaseURL,
+		apiKey:  "sk",
+		httpClient: &http.Client{Transport: rewriteHostRoundTripper{
+			host: server.URL,
+			next: http.DefaultTransport,
+		}},
+	}
+	outputs, err := provider.Generate(t.Context(), irisProviderRequest{
+		Model:  model,
+		Prompt: "Remove the logo",
+		Inputs: []irisProviderInput{
+			{Role: "image", Bytes: []byte("png"), ContentType: "image/png"},
+			{Role: "mask", Bytes: []byte("mask"), ContentType: "image/png"},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, outputs, 1)
+	require.Equal(t, "Remove the logo", gotPrompt)
+	require.Equal(t, "image/png", gotMaskType)
+}
+
+func TestValidateImageEdit(t *testing.T) {
+	image := map[string]any{"kind": "asset", "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	_, err := validateIrisGenerateRequest(irisGenerateRequest{"model": "image-edit", "image": image})
+	require.ErrorContains(t, err, "prompt is required")
+	_, err = validateIrisGenerateRequest(irisGenerateRequest{"model": "image-edit", "image": image, "prompt": "x", "mask": "nope"})
+	require.ErrorContains(t, err, "mask must be an uploaded asset")
+	_, err = validateIrisGenerateRequest(irisGenerateRequest{"model": "image-edit", "image": image, "mask": image, "prompt": "x"})
+	require.NoError(t, err)
+}
+
 func TestIrisImageFormMIME(t *testing.T) {
 	ct, ext := irisImageFormMIME(irisProviderInput{ContentType: "application/octet-stream", Bytes: []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}})
 	require.Equal(t, "image/png", ct)

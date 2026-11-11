@@ -84,7 +84,7 @@ func (p *irisCompositeProvider) Generate(ctx context.Context, req irisProviderRe
 }
 
 func irisModelUsesOpenAI(model irisModelInfo) bool {
-	if model.ID == "image-localise" {
+	if model.ID == "image-localise" || model.ID == "image-edit" {
 		// GPT Image, on AI Gateway or on OpenAI when only OPENAI_API_KEY is configured.
 		return true
 	}

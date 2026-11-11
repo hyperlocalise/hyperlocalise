@@ -149,6 +149,12 @@ func (p *irisGatewayProvider) imageEdit(ctx context.Context, req irisProviderReq
 			return nil, err
 		}
 	}
+	// Transparent pixels in the mask are the ones the model may change.
+	if mask, ok := firstInput(req.Inputs, "mask"); ok {
+		if err := writeIrisImageFormFile(writer, "mask", mask, 0, 1); err != nil {
+			return nil, err
+		}
+	}
 	if err := writer.Close(); err != nil {
 		return nil, err
 	}
@@ -272,6 +278,13 @@ func (p *irisGatewayProvider) tool(ctx context.Context, req irisProviderRequest)
 		}
 		req.Prompt = irisImageLocalisePrompt(req.Fields.stringField("targetLocale"), req.Fields.translations(), req.Prompt)
 		// GPT Image edits on AI Gateway and direct OpenAI alike, as hyperlocalise-web localises images.
+		req.Model.GatewayID = irisEnvOr("IRIS_OPENAI_IMAGE_MODEL", req.Model.GatewayID)
+		return p.imageEdit(ctx, req, []irisProviderInput{image}, 1)
+	case "image-edit":
+		image, ok := firstInput(req.Inputs, "image")
+		if !ok {
+			return nil, fmt.Errorf("image input is required")
+		}
 		req.Model.GatewayID = irisEnvOr("IRIS_OPENAI_IMAGE_MODEL", req.Model.GatewayID)
 		return p.imageEdit(ctx, req, []irisProviderInput{image}, 1)
 	case "image-text":

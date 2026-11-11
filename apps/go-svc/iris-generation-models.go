@@ -99,6 +99,7 @@ func irisModels() []irisModelInfo {
 		{ID: "elevenlabs-dubbing", Name: "ElevenLabs Dubbing", Kind: irisKindTool, Provider: irisProviderElevenLabs, NativeID: "dubbing", Pricing: irisPricing{Unit: "input-minute", Credits: 12, Minimum: &min1}, ETASeconds: 240, RequiresRef: true},
 		{ID: "sync-lipsync-2", Name: "Sync Lipsync 2", Kind: irisKindTool, Provider: irisProviderFal, NativeID: "fal-ai/sync-lipsync/v2", Pricing: irisPricing{Unit: "second", Credits: 3, Minimum: &min1}, ETASeconds: 180, RequiresRef: true},
 		{ID: "image-localise", Name: "Image Localise", Kind: irisKindTool, GatewayID: defaultIrisOpenAIImageModel, Pricing: irisPricing{Unit: "image", Credits: 6, Minimum: &min1}, ETASeconds: 30, RequiresRef: true},
+		{ID: "image-edit", Name: "Image Edit", Kind: irisKindTool, GatewayID: defaultIrisOpenAIImageModel, Pricing: irisPricing{Unit: "image", Credits: 6, Minimum: &min1}, ETASeconds: 30, RequiresRef: true},
 		{ID: "image-text", Name: "Image Text", Kind: irisKindTool, GatewayID: defaultGuidelineCheckModel, Pricing: irisPricing{Unit: "flat", Credits: 1, Minimum: &min1}, ETASeconds: 15, RequiresRef: true},
 	}
 }
@@ -170,6 +171,9 @@ func (req irisGenerateRequest) duration() float64 {
 }
 
 const irisMaxImageTranslations = 100
+
+// irisMaxImageEditPrompt bounds an image-edit instruction, in runes.
+const irisMaxImageEditPrompt = 4000
 
 var irisSyncModes = map[string]bool{"cut_off": true, "loop": true, "bounce": true, "silence": true, "remap": true}
 
@@ -351,6 +355,21 @@ func validateIrisGenerateRequest(req irisGenerateRequest) (irisModelInfo, error)
 		if _, ok := req.asset("image"); !ok {
 			return model, fmt.Errorf("image is required")
 		}
+	case "image-edit":
+		if _, ok := req.asset("image"); !ok {
+			return model, fmt.Errorf("image is required")
+		}
+		if req.prompt() == "" {
+			return model, fmt.Errorf("prompt is required")
+		}
+		if len([]rune(req.prompt())) > irisMaxImageEditPrompt {
+			return model, fmt.Errorf("prompt is too long")
+		}
+		if _, ok := req["mask"]; ok {
+			if _, ok := req.asset("mask"); !ok {
+				return model, fmt.Errorf("mask must be an uploaded asset")
+			}
+		}
 	}
 	return model, nil
 }
@@ -364,7 +383,7 @@ func estimateIrisRequest(req irisGenerateRequest) (irisEstimate, irisModelInfo, 
 }
 
 func rejectRemoteAssetURLs(req irisGenerateRequest) error {
-	fields := []string{"image", "video", "audio", "media", "startFrame", "endFrame"}
+	fields := []string{"image", "mask", "video", "audio", "media", "startFrame", "endFrame"}
 	for _, field := range fields {
 		if assetKind(req[field]) == "url" {
 			return fmt.Errorf("remote asset URLs are not supported; upload the file first")
