@@ -572,7 +572,7 @@ Authenticated CAT requests use the same WorkOS session cookie or Bearer access t
 
 `POST /internal/figma/visual-context/sync` stores one Figma frame as native visual context. Only the web app calls it, after it authenticates the Figma plugin connection and checks project access. It needs `X-Go-Svc-Research-Token` and no user session.
 
-Body: `{organizationId, projectId, fileKey, nodeId, name, figmaUrl, contentType, imageBase64, bindings: [{translationKeyId, marker}]}`. `contentType` is `image/png` or `image/jpeg`, up to 10 MB decoded. `figmaUrl` must be an `https` figma.com link. Every key must belong to the project.
+Body: `{organizationId, projectId, fileKey, nodeId, name, figmaUrl, contentType, imageBase64, bindings: [{translationKeyId, marker}]}`. `contentType` is `image/png` or `image/jpeg`, up to 10 MB decoded. `figmaUrl` must be an `https` figma.com link. Keys outside the project (deleted keys or links made for another project) are skipped and counted in `skippedCount`; the request fails with `404` only when none remain.
 
 go-svc writes the image to object storage and replaces any screenshot for the same `(projectId, fileKey, nodeId)`, with its bindings. It sets each bound key's `design_url` to `figmaUrl` when the key has none or already points to Figma. The CAT `visual-context` lookup returns `figmaUrl` on synced screenshots.
 

@@ -54,6 +54,7 @@ type figmaVisualContextSyncPayload struct {
 type figmaVisualContextSyncResult struct {
 	ScreenshotID  string `json:"screenshotId"`
 	BoundCount    int    `json:"boundCount"`
+	SkippedCount  int    `json:"skippedCount"`
 	ReplacedFrame bool   `json:"replacedFrame"`
 }
 
@@ -189,22 +190,40 @@ func (api *editorCatAPI) applyFigmaVisualContextSync(r *http.Request, payload fi
 	if source != "native" {
 		return nil, editorCatProviderDeferred()
 	}
-	keyIDs := make([]string, 0, len(payload.Bindings))
+	requestedIDs := make([]string, 0, len(payload.Bindings))
 	for _, binding := range payload.Bindings {
-		keyIDs = append(keyIDs, binding.TranslationKeyID)
+		requestedIDs = append(requestedIDs, binding.TranslationKeyID)
 	}
-	var found int
-	err = api.pool.QueryRow(ctx, `
-        select count(*) from project_translation_keys
+	rows, err := api.pool.Query(ctx, `
+        select id::text from project_translation_keys
         where organization_id=$1 and project_id=$2 and id = any($3::uuid[])`,
-		payload.OrganizationID, payload.ProjectID, keyIDs,
-	).Scan(&found)
+		payload.OrganizationID, payload.ProjectID, requestedIDs,
+	)
 	if err != nil {
 		return nil, err
 	}
-	if found != len(keyIDs) {
-		return nil, editorCatFailure(404, "translation_key_not_found", "One or more keys are not in this project")
+	existing, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return nil, err
 	}
+	// Layer links live in the Figma file and outlast deleted keys or a project switch.
+	// Skip those keys so one stale link does not block the whole frame.
+	inProject := make(map[string]struct{}, len(existing))
+	for _, id := range existing {
+		inProject[id] = struct{}{}
+	}
+	bindings := make([]figmaVisualContextBinding, 0, len(payload.Bindings))
+	keyIDs := make([]string, 0, len(payload.Bindings))
+	for _, binding := range payload.Bindings {
+		if _, ok := inProject[binding.TranslationKeyID]; ok {
+			bindings = append(bindings, binding)
+			keyIDs = append(keyIDs, binding.TranslationKeyID)
+		}
+	}
+	if len(bindings) == 0 {
+		return nil, editorCatFailure(404, "translation_key_not_found", "None of the linked keys are in this project")
+	}
+	skipped := len(payload.Bindings) - len(bindings)
 
 	screenshotID := uuid.NewString()
 	filename := "figma-frame.png"
@@ -238,6 +257,13 @@ func (api *editorCatAPI) applyFigmaVisualContextSync(r *http.Request, payload fi
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+
+	// Without the lock, two syncs of one frame both miss the other's new row in the
+	// delete below and the second insert hits the per-frame unique index.
+	if _, err = tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`,
+		"figma_visual_context:"+payload.ProjectID+":"+payload.FileKey+":"+payload.NodeID); err != nil {
+		return nil, err
+	}
 
 	var previous struct {
 		location, key string
@@ -286,7 +312,7 @@ func (api *editorCatAPI) applyFigmaVisualContextSync(r *http.Request, payload fi
 	); err != nil {
 		return nil, err
 	}
-	for _, binding := range payload.Bindings {
+	for _, binding := range bindings {
 		var left, top, width, height *float64
 		if binding.Marker != nil {
 			left, top, width, height = &binding.Marker.Left, &binding.Marker.Top, &binding.Marker.Width, &binding.Marker.Height
@@ -323,10 +349,11 @@ func (api *editorCatAPI) applyFigmaVisualContextSync(r *http.Request, payload fi
 	}
 	slog.InfoContext(ctx, "figma_visual_context_synced",
 		"project_id", payload.ProjectID, "screenshot_id", screenshotID,
-		"bound_count", len(payload.Bindings), "replaced", replaced)
+		"bound_count", len(bindings), "skipped_count", skipped, "replaced", replaced)
 	return &figmaVisualContextSyncResult{
 		ScreenshotID:  screenshotID,
-		BoundCount:    len(payload.Bindings),
+		BoundCount:    len(bindings),
+		SkippedCount:  skipped,
 		ReplacedFrame: replaced,
 	}, nil
 }

@@ -139,6 +139,24 @@ func TestFigmaVisualContextSyncRejectsForeignKeys(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "translation_key_not_found")
 }
 
+func TestFigmaVisualContextSyncSkipsKeysOutsideProject(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "admin")
+	api.objects = visualContextObjectRegistry(t)
+	fileID := mustEditorCatSourceFile(t, scope, "locales/en.json")
+	keyID := mustEditorCatKey(t, scope, fileID, "home.title", "Home")
+	rec := figmaVisualContextRequest(t, api, "", figmaSyncPayload(scope.OrganizationID, scope.ProjectID, "5:6", mustVisualContextPNG(t, 2, 2), []figmaVisualContextBinding{
+		{TranslationKeyID: keyID},
+		{TranslationKeyID: uuid.NewString()},
+	}))
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		VisualContext figmaVisualContextSyncResult `json:"visualContext"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, 1, body.VisualContext.BoundCount)
+	require.Equal(t, 1, body.VisualContext.SkippedCount)
+}
+
 func TestFigmaVisualContextSyncRejectsWrongOrganization(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "admin")
 	api.objects = visualContextObjectRegistry(t)
