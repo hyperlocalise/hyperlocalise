@@ -12,11 +12,9 @@
  */
 import type { Sandbox } from "@vercel/sandbox";
 
-import { isErr } from "@/lib/primitives/result/results";
-import { assertResolvablePublicHttpUrl } from "@/lib/security/public-http-fetch";
-import { isBlockedHost, isPublicHttpUrl } from "@/lib/security/ssrf-guard";
 import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
 
+import { filterAllowedBrowserUrls, isAllowedBrowserUrl } from "./audit-browser-url-guard";
 import {
   buildAuditPlaywrightScript,
   SANDBOX_AUDIT_BROWSER_PATHS,
@@ -29,25 +27,12 @@ import { parseAuditPageLayout } from "./layout";
 import { AuditBrowserSetupError } from "./sandbox-browser-error";
 
 export { AuditBrowserSetupError } from "./sandbox-browser-error";
-
 export const AUDIT_BROWSER_SANDBOX_TIMEOUT_MS = 10 * 60 * 1000;
 const AUDIT_BROWSER_DIR = SANDBOX_AUDIT_BROWSER_PATHS.outputDir;
 const AUDIT_BROWSER_SCRIPT_PATH = SANDBOX_AUDIT_BROWSER_PATHS.scriptPath;
 const AUDIT_BROWSER_INPUT_PATH = SANDBOX_AUDIT_BROWSER_PATHS.inputPath;
 const AUDIT_BROWSER_MANIFEST_PATH = SANDBOX_AUDIT_BROWSER_PATHS.manifestPath;
 const ERROR_CODE_PREFIX = "HYPERLOCALISE_AUDIT_BROWSER_ERROR_CODE=";
-
-export function isBlockedBrowserNavigationUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return true;
-    }
-    return isBlockedHost(parsed.hostname);
-  } catch {
-    return true;
-  }
-}
 
 function shellQuote(value: string) {
   return `'${value.replaceAll("'", "'\\''")}'`;
@@ -86,21 +71,6 @@ async function readSandboxText(sandbox: Sandbox, filePath: string): Promise<stri
   }
 }
 
-async function filterPublicUrls(urls: string[]): Promise<string[]> {
-  const allowed: string[] = [];
-  for (const url of urls) {
-    if (!isPublicHttpUrl(url) || isBlockedBrowserNavigationUrl(url)) {
-      continue;
-    }
-    const resolved = await assertResolvablePublicHttpUrl(url);
-    if (isErr(resolved)) {
-      continue;
-    }
-    allowed.push(url);
-  }
-  return allowed;
-}
-
 export async function createAuditBrowserSession(): Promise<HtmlPageRenderer> {
   const sandbox = await createConfiguredVercelSandbox({
     timeout: AUDIT_BROWSER_SANDBOX_TIMEOUT_MS,
@@ -126,7 +96,7 @@ export async function createAuditBrowserSession(): Promise<HtmlPageRenderer> {
 
   return {
     async render(urls: string[]): Promise<RenderedHtmlPage[]> {
-      const allowed = await filterPublicUrls(urls);
+      const allowed = await filterAllowedBrowserUrls(urls);
       if (allowed.length === 0) {
         return [];
       }
@@ -170,11 +140,7 @@ export async function createAuditBrowserSession(): Promise<HtmlPageRenderer> {
         if (!page.htmlPath || page.error) {
           continue;
         }
-        if (!isPublicHttpUrl(page.url) || isBlockedBrowserNavigationUrl(page.url)) {
-          continue;
-        }
-        const finalResolved = await assertResolvablePublicHttpUrl(page.url);
-        if (isErr(finalResolved)) {
+        if (!(await isAllowedBrowserUrl(page.url))) {
           continue;
         }
         const html = await readSandboxText(sandbox, page.htmlPath);

@@ -1,0 +1,202 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+const playwrightMocks = vi.hoisted(() => ({
+  connectOverCDP: vi.fn(),
+  newContext: vi.fn(),
+  newPage: vi.fn(),
+  browserClose: vi.fn(),
+  contextClose: vi.fn(),
+}));
+
+const assertResolvablePublicHttpUrlMock = vi.hoisted(() => vi.fn());
+
+vi.mock("playwright-core", () => ({
+  chromium: { connectOverCDP: playwrightMocks.connectOverCDP },
+}));
+
+vi.mock("@/lib/security/public-http-fetch", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/security/public-http-fetch")>();
+  return {
+    ...actual,
+    assertResolvablePublicHttpUrl: assertResolvablePublicHttpUrlMock,
+  };
+});
+
+import { isErr, ok } from "@/lib/primitives/result/results";
+
+import { AUDIT_BROWSER_USER_AGENT, AUDIT_BROWSER_VIEWPORT } from "./audit-playwright-script";
+import { createTilionAuditBrowserSession, TILION_API_BASE_URL } from "./tilion-browser";
+
+const fetchMock = vi.fn<typeof fetch>();
+
+function fakePage(input: { finalUrl: string; html: string; status: number }) {
+  const layout = { width: 1440, horizontalOverflowPx: 0, clippedText: [], offscreen: [] };
+  return {
+    goto: vi.fn(async () => ({ status: () => input.status })),
+    waitForLoadState: vi.fn(async () => undefined),
+    waitForTimeout: vi.fn(async () => undefined),
+    url: () => input.finalUrl,
+    content: vi.fn(async () => input.html),
+    evaluate: vi.fn(async () => layout),
+    setViewportSize: vi.fn(async () => undefined),
+    close: vi.fn(async () => undefined),
+  };
+}
+
+describe("createTilionAuditBrowserSession", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockReset();
+    for (const mock of Object.values(playwrightMocks)) mock.mockReset();
+    assertResolvablePublicHttpUrlMock.mockReset();
+    assertResolvablePublicHttpUrlMock.mockImplementation(async (url: string) => ok(new URL(url)));
+
+    playwrightMocks.browserClose.mockResolvedValue(undefined);
+    playwrightMocks.contextClose.mockResolvedValue(undefined);
+    playwrightMocks.newContext.mockResolvedValue({
+      newPage: playwrightMocks.newPage,
+      close: playwrightMocks.contextClose,
+    });
+    playwrightMocks.connectOverCDP.mockResolvedValue({
+      newContext: playwrightMocks.newContext,
+      close: playwrightMocks.browserClose,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("renders vetted URLs in one Tilion session and deletes it on close", async () => {
+    fetchMock.mockImplementation(async (_url, init) =>
+      init?.method === "POST"
+        ? Response.json({
+            session_id: "sess_1",
+            connect_url: "wss://back.tilion.dev/v1/session/sess_1/cdp?token=t",
+          })
+        : new Response(null, { status: 204 }),
+    );
+    playwrightMocks.newPage.mockResolvedValue(
+      fakePage({
+        finalUrl: "https://example.com/en",
+        html: "<html lang='en'><title>EN</title></html>",
+        status: 200,
+      }),
+    );
+
+    const session = await createTilionAuditBrowserSession({ apiKey: "tl_key" });
+    if (isErr(session)) throw new Error(session.error.code);
+    const pages = await session.value.render(["https://example.com/", "http://127.0.0.1/secret"]);
+    await session.value.close();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${TILION_API_BASE_URL}/v1/session`,
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ Authorization: "Bearer tl_key" }),
+      }),
+    );
+    expect(playwrightMocks.connectOverCDP).toHaveBeenCalledWith(
+      "wss://back.tilion.dev/v1/session/sess_1/cdp?token=t",
+      expect.anything(),
+    );
+    expect(playwrightMocks.newContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userAgent: AUDIT_BROWSER_USER_AGENT,
+        viewport: AUDIT_BROWSER_VIEWPORT,
+      }),
+    );
+    expect(playwrightMocks.newPage).toHaveBeenCalledTimes(1);
+    expect(pages).toEqual([
+      {
+        requestedUrl: "https://example.com/",
+        url: "https://example.com/en",
+        status: 200,
+        html: "<html lang='en'><title>EN</title></html>",
+        layout: {
+          viewports: [
+            { width: 1440, horizontalOverflowPx: 0, clippedText: [], offscreen: [] },
+            { width: 1440, horizontalOverflowPx: 0, clippedText: [], offscreen: [] },
+          ],
+        },
+      },
+    ]);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      `${TILION_API_BASE_URL}/v1/session/sess_1`,
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("drops pages that redirect to a private address", async () => {
+    fetchMock.mockImplementation(async (_url, init) =>
+      init?.method === "POST"
+        ? Response.json({ session_id: "sess_1", connect_url: "wss://tilion/cdp" })
+        : new Response(null, { status: 204 }),
+    );
+    playwrightMocks.newPage.mockResolvedValue(
+      fakePage({ finalUrl: "http://169.254.169.254/latest", html: "<html></html>", status: 200 }),
+    );
+
+    const session = await createTilionAuditBrowserSession({ apiKey: "tl_key" });
+    if (isErr(session)) throw new Error(session.error.code);
+
+    expect(await session.value.render(["https://example.com/"])).toEqual([]);
+  });
+
+  it("returns an error when Tilion refuses the session", async () => {
+    fetchMock.mockResolvedValue(new Response("{}", { status: 402 }));
+
+    const session = await createTilionAuditBrowserSession({ apiKey: "tl_key" });
+
+    expect(isErr(session) && session.error).toEqual({
+      code: "tilion_session_create_failed",
+      status: 402,
+    });
+    expect(playwrightMocks.connectOverCDP).not.toHaveBeenCalled();
+  });
+
+  it("deletes the session when raw CDP is not enabled for the key", async () => {
+    fetchMock.mockImplementation(async (_url, init) =>
+      init?.method === "POST"
+        ? Response.json({ session_id: "sess_1", connect_url: null })
+        : new Response(null, { status: 204 }),
+    );
+
+    const session = await createTilionAuditBrowserSession({ apiKey: "tl_key" });
+
+    expect(isErr(session) && session.error).toEqual({ code: "tilion_cdp_unavailable" });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      `${TILION_API_BASE_URL}/v1/session/sess_1`,
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("deletes the session when the CDP connection fails", async () => {
+    fetchMock.mockImplementation(async (_url, init) =>
+      init?.method === "POST"
+        ? Response.json({ session_id: "sess_1", connect_url: "wss://tilion/cdp" })
+        : new Response(null, { status: 204 }),
+    );
+    playwrightMocks.connectOverCDP.mockRejectedValue(new Error("403"));
+
+    const session = await createTilionAuditBrowserSession({ apiKey: "tl_key" });
+
+    expect(isErr(session) && session.error).toEqual({ code: "tilion_connect_failed" });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      `${TILION_API_BASE_URL}/v1/session/sess_1`,
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+});

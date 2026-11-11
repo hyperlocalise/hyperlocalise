@@ -16,7 +16,8 @@
  *
  *   vp run localisation-audit:run https://docs.tilion.dev/ [--locale fr] [--out report.json]
  *
- * Pages render in local Playwright Chromium (`vp run e2e:install` once) with the same script the
+ * Pages render in a Tilion cloud browser when `TILION_API_KEY` is set, as in production. Otherwise
+ * they render in local Playwright Chromium (`vp run e2e:install` once) with the same script the
  * sandbox runs. AI-scored checks and the company profile call the AI Gateway, so set
  * `AI_GATEWAY_API_KEY` or `VERCEL_OIDC_TOKEN` (`vercel env pull .env.local`). Without either, those
  * checks come back as not applicable.
@@ -42,6 +43,7 @@ import { resolveDomainIdentity } from "./domain-slug";
 import { parseAuditPageLayout } from "./layout";
 import { hasLocalisationAuditSuccessfulPage } from "./report-coverage";
 import { aggregateLocalisationAuditCredits } from "./score";
+import { createTilionAuditBrowserSession } from "./tilion-browser";
 import type { LocalisationAuditFindingSeverity, LocalisationAuditReport } from "./types";
 
 const execFileAsync = promisify(execFile);
@@ -141,6 +143,19 @@ async function createLocalAuditBrowserSession(): Promise<HtmlPageRenderer> {
   };
 }
 
+async function createRenderer(): Promise<HtmlPageRenderer> {
+  const apiKey = process.env.TILION_API_KEY;
+  if (apiKey) {
+    const tilion = await createTilionAuditBrowserSession({ apiKey });
+    if (!isErr(tilion)) {
+      console.error("Rendering in a Tilion cloud browser.");
+      return tilion.value;
+    }
+    console.error(`Tilion unavailable (${tilion.error.code}), using local Chromium.`);
+  }
+  return createLocalAuditBrowserSession();
+}
+
 function printReport(report: LocalisationAuditReport) {
   const lines = [
     "",
@@ -203,7 +218,7 @@ async function main() {
   console.error(`Crawling ${sourceUrl}...`);
   const crawl = await crawlLocalisationAuditSample(
     { origin: new URL(sourceUrl).origin, sourceUrl, focusLocales },
-    { createRenderer: createLocalAuditBrowserSession },
+    { createRenderer },
   );
   if (crawl.blockedReason) {
     console.error(`Blocked by the site: ${crawl.blockedReason}`);

@@ -47,36 +47,12 @@ export function auditBrowserPaths(outputDir: string) {
 export const SANDBOX_AUDIT_BROWSER_PATHS = auditBrowserPaths(AUDIT_BROWSER_DIR);
 
 /**
- * CJS script that renders audit pages. Defaults to the sandbox Playwright
- * install and directory; local runs pass their own. It launches one Chromium, visits
- * each vetted URL, waits for JS to settle, writes rendered HTML to disk, and
- * records layout measurements at desktop and mobile widths.
+ * Source of `measureAuditLayout(limits)`, which runs in the page. Reports horizontal page
+ * overflow, text clipped by its own box, and elements cut off by the right viewport edge.
+ * Elements inside horizontally scrollable or clipped containers (carousels, off-canvas menus)
+ * are skipped because overflow there is usually intentional.
  */
-export function buildAuditPlaywrightScript(
-  options: { playwrightModule?: string; outputDir?: string } = {},
-) {
-  const playwrightModule = options.playwrightModule ?? SANDBOX_PLAYWRIGHT_MODULE;
-  const paths = options.outputDir
-    ? auditBrowserPaths(options.outputDir)
-    : SANDBOX_AUDIT_BROWSER_PATHS;
-  return `
-const { chromium } = require(${JSON.stringify(playwrightModule)});
-const fs = require("node:fs");
-const path = require("node:path");
-
-const input = JSON.parse(fs.readFileSync(${JSON.stringify(paths.inputPath)}, "utf8"));
-const outputDir = ${JSON.stringify(paths.outputDir)};
-const maxHtmlBytes = ${MAX_PUBLIC_HTTP_RESPONSE_BYTES};
-const navTimeoutMs = ${AUDIT_BROWSER_NAV_TIMEOUT_MS};
-const networkIdleTimeoutMs = ${AUDIT_BROWSER_NETWORKIDLE_TIMEOUT_MS};
-const settleMs = ${AUDIT_BROWSER_SETTLE_MS};
-const mobileViewport = ${JSON.stringify(AUDIT_BROWSER_MOBILE_VIEWPORT)};
-const layoutLimits = ${JSON.stringify(AUDIT_BROWSER_LAYOUT_LIMITS)};
-
-// Runs in the page. Reports horizontal page overflow, text clipped by its own
-// box, and elements cut off by the right viewport edge. Elements inside
-// horizontally scrollable or clipped containers (carousels, off-canvas menus)
-// are skipped because overflow there is usually intentional.
+export const AUDIT_LAYOUT_MEASURE_SOURCE = `
 function measureAuditLayout(limits) {
   const viewportWidth = window.innerWidth;
   const textOf = (element) =>
@@ -131,6 +107,36 @@ function measureAuditLayout(limits) {
     offscreen,
   };
 }
+`.trim();
+
+/**
+ * CJS script that renders audit pages. Defaults to the sandbox Playwright
+ * install and directory; local runs pass their own. It launches one Chromium, visits
+ * each vetted URL, waits for JS to settle, writes rendered HTML to disk, and
+ * records layout measurements at desktop and mobile widths.
+ */
+export function buildAuditPlaywrightScript(
+  options: { playwrightModule?: string; outputDir?: string } = {},
+) {
+  const playwrightModule = options.playwrightModule ?? SANDBOX_PLAYWRIGHT_MODULE;
+  const paths = options.outputDir
+    ? auditBrowserPaths(options.outputDir)
+    : SANDBOX_AUDIT_BROWSER_PATHS;
+  return `
+const { chromium } = require(${JSON.stringify(playwrightModule)});
+const fs = require("node:fs");
+const path = require("node:path");
+
+const input = JSON.parse(fs.readFileSync(${JSON.stringify(paths.inputPath)}, "utf8"));
+const outputDir = ${JSON.stringify(paths.outputDir)};
+const maxHtmlBytes = ${MAX_PUBLIC_HTTP_RESPONSE_BYTES};
+const navTimeoutMs = ${AUDIT_BROWSER_NAV_TIMEOUT_MS};
+const networkIdleTimeoutMs = ${AUDIT_BROWSER_NETWORKIDLE_TIMEOUT_MS};
+const settleMs = ${AUDIT_BROWSER_SETTLE_MS};
+const mobileViewport = ${JSON.stringify(AUDIT_BROWSER_MOBILE_VIEWPORT)};
+const layoutLimits = ${JSON.stringify(AUDIT_BROWSER_LAYOUT_LIMITS)};
+
+${AUDIT_LAYOUT_MEASURE_SOURCE}
 
 async function measureLayout(page) {
   const viewports = [];
