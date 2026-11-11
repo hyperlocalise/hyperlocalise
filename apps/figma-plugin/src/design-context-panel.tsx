@@ -63,7 +63,8 @@ export function DesignContextPanel(props: DesignContextPanelProps) {
   const [figmaFileKey, setFigmaFileKey] = useState<string | null>(null);
   const [progress, setProgress] = useState<StepProgress | null>(null);
   const [issues, setIssues] = useState<TextFitIssue[]>([]);
-  const [previewLocale, setPreviewLocale] = useState<string | null>(null);
+  /** Survives a plugin reopen, so Restore stays reachable for an earlier preview. */
+  const [previewing, setPreviewing] = useState(false);
   const [linking, setLinking] = useState<DesignTextNode | null>(null);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<FigmaDesignKey[]>([]);
@@ -77,6 +78,7 @@ export function DesignContextPanel(props: DesignContextPanelProps) {
         }
         setFigmaFileKey(scan.figmaFileKey);
         setFileLinkDraft(scan.fileLink ?? "");
+        setPreviewing(scan.previewing > 0);
       })
       .catch(() => undefined);
     return () => {
@@ -86,7 +88,6 @@ export function DesignContextPanel(props: DesignContextPanelProps) {
 
   useEffect(() => {
     setIssues([]);
-    setPreviewLocale(null);
     setLinking(null);
   }, [pageId, project.id]);
 
@@ -148,10 +149,15 @@ export function DesignContextPanel(props: DesignContextPanelProps) {
       setProgress({ label: "Finding frames with linked layers…", value: 5 });
       try {
         const fileKey = await resolveFileKey();
-        const { frames, unframed } = await requestFromSandbox(
-          { type: "design-frames", pageId },
-          "design-frames-read",
-        );
+        const {
+          frames,
+          unframed,
+          previewing: previewed,
+        } = await requestFromSandbox({ type: "design-frames", pageId }, "design-frames-read");
+        if (previewed > 0) {
+          setPreviewing(true);
+          throw new Error("Restore source before syncing, so the editor shows the source design.");
+        }
         if (frames.length === 0) {
           throw new Error(
             unframed > 0
@@ -160,6 +166,7 @@ export function DesignContextPanel(props: DesignContextPanelProps) {
           );
         }
         let keyCount = 0;
+        let skippedKeys = 0;
         for (const [index, frame] of frames.entries()) {
           const value = 10 + Math.round((index / frames.length) * 85);
           setProgress({ label: `Syncing “${frame.name}” (${index + 1}/${frames.length})…`, value });
@@ -176,13 +183,18 @@ export function DesignContextPanel(props: DesignContextPanelProps) {
             frame: exported.frame,
           });
           keyCount += result.boundCount;
+          skippedKeys += result.skippedCount ?? 0;
         }
         const frameWord = frames.length === 1 ? "frame" : "frames";
         const skipped =
           unframed > 0 ? ` ${unframed} linked layers outside frames were skipped.` : "";
+        const stale =
+          skippedKeys > 0
+            ? ` ${skippedKeys} linked ${skippedKeys === 1 ? "key is" : "keys are"} no longer in ${project.name}; run Match keys or relink those layers.`
+            : "";
         showToast(
-          `Synced ${frames.length} ${frameWord} for ${keyCount} keys. Linguists now see them in the editor.${skipped}`,
-          unframed > 0 ? "warn" : "positive",
+          `Synced ${frames.length} ${frameWord} for ${keyCount} keys. Linguists now see them in the editor.${skipped}${stale}`,
+          unframed > 0 || skippedKeys > 0 ? "warn" : "positive",
         );
       } finally {
         setProgress(null);
@@ -223,7 +235,7 @@ export function DesignContextPanel(props: DesignContextPanelProps) {
           "design-previewed",
         );
         setIssues(result.issues);
-        setPreviewLocale(locale);
+        setPreviewing(true);
         const summary = previewSummaryMessage({
           localeLabel: localeLabel(locale),
           applied: result.applied,
@@ -243,7 +255,7 @@ export function DesignContextPanel(props: DesignContextPanelProps) {
         "design-restored",
       );
       setIssues([]);
-      setPreviewLocale(null);
+      setPreviewing(false);
       showToast(`Restored ${result.count} layers to their original text.`);
     });
 
@@ -365,7 +377,7 @@ export function DesignContextPanel(props: DesignContextPanelProps) {
         <Button
           fullWidth
           secondary
-          disabled={disabled || !previewLocale}
+          disabled={disabled || !previewing}
           onClick={() => void handleRestore()}
         >
           Restore source

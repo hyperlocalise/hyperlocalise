@@ -37,6 +37,8 @@ export type FigmaVisualContextSyncBody = {
 export type FigmaVisualContextSyncResult = {
   screenshotId: string;
   boundCount: number;
+  /** Linked keys that are no longer in the project and were left out. */
+  skippedCount: number;
   replacedFrame: boolean;
 };
 import type {

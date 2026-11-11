@@ -524,6 +524,14 @@ export async function fetchFigmaKeyTranslations(input: {
   return translations;
 }
 
+export type FigmaFrameSyncResult = {
+  screenshotId: string;
+  boundCount: number;
+  /** Linked keys that are no longer in the project and were left out. */
+  skippedCount?: number;
+  replacedFrame: boolean;
+};
+
 export async function syncFigmaFrameVisualContext(input: {
   appUrl: string;
   auth: string | FigmaResourceAuth;
@@ -531,7 +539,7 @@ export async function syncFigmaFrameVisualContext(input: {
   fileKey: string;
   figmaUrl: string;
   frame: DesignFrameExport;
-}): Promise<{ screenshotId: string; boundCount: number; replacedFrame: boolean }> {
+}): Promise<FigmaFrameSyncResult> {
   const response = await fetch(apiUrl(input.appUrl, "/api/integrations/figma/visual-context"), {
     method: "POST",
     headers: buildRequestHeaders(input.appUrl, input.auth),
@@ -548,7 +556,7 @@ export async function syncFigmaFrameVisualContext(input: {
   });
   const payload = (await response.json().catch(() => null)) as
     | ({
-        visualContext?: { screenshotId: string; boundCount: number; replacedFrame: boolean };
+        visualContext?: FigmaFrameSyncResult;
       } & ErrorPayload)
     | null;
   throwIfFailed(

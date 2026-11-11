@@ -115,6 +115,8 @@ export type SandboxToUiMessage =
       fileLink: string | null;
       /** Only set for plugins allowed to read `figma.fileKey`. */
       figmaFileKey: string | null;
+      /** Layers on the page that still show a translation preview. */
+      previewing: number;
     }
   | { type: "design-selection-read"; nodes: DesignTextNode[] }
   | { type: "design-linked"; count: number }
@@ -123,6 +125,8 @@ export type SandboxToUiMessage =
       frames: Array<Omit<DesignFrameExport, "contentType" | "imageBase64">>;
       /** Linked layers that sit directly on the page, outside any frame. */
       unframed: number;
+      /** Layers on the page that still show a translation preview. */
+      previewing: number;
     }
   | { type: "design-frame-exported"; frame: DesignFrameExport }
   | { type: "design-previewed"; applied: number; missing: number; issues: TextFitIssue[] }

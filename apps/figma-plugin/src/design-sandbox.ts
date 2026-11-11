@@ -81,6 +81,13 @@ function allTextNodes(page: PageNode): TextNode[] {
   return page.findAll((node) => node.type === "TEXT") as TextNode[];
 }
 
+/** Linked layers on the page that still show a translation preview. */
+export function countPreviewedNodes(page: PageNode): number {
+  return allTextNodes(page).filter((node) =>
+    Boolean(node.getPluginData(FIGMA_PREVIEW_SOURCE_NAMESPACE)),
+  ).length;
+}
+
 function nonEmpty(nodes: TextNode[]) {
   return nodes.filter((node) => sourceTextOf(node).trim().length > 0);
 }
@@ -130,6 +137,7 @@ function rectOf(node: { absoluteBoundingBox: Rect | null }): Rect | null {
 export function collectDesignFrames(page: PageNode): {
   frames: Array<Omit<DesignFrameExport, "contentType" | "imageBase64">>;
   unframed: number;
+  previewing: number;
 } {
   const byFrame = new Map<
     string,
@@ -139,7 +147,11 @@ export function collectDesignFrames(page: PageNode): {
     }
   >();
   let unframed = 0;
+  let previewing = 0;
   for (const node of allTextNodes(page)) {
+    if (node.getPluginData(FIGMA_PREVIEW_SOURCE_NAMESPACE)) {
+      previewing += 1;
+    }
     const link = readKeyLink(node);
     if (!link) {
       continue;
@@ -172,6 +184,7 @@ export function collectDesignFrames(page: PageNode): {
       bindings: [...bindings.values()],
     })),
     unframed,
+    previewing,
   };
 }
 

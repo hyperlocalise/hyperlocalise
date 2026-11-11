@@ -20,6 +20,7 @@ import { hadLegacyFigmaSession, mergeSettings } from "./settings";
 import {
   clearPreviewSource,
   collectDesignFrames,
+  countPreviewedNodes,
   exportDesignFrame,
   previewTranslations,
   readFileLink,
@@ -128,6 +129,7 @@ figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
         nodes: scanDesignText(page, msg.selectionOnly),
         fileLink: readFileLink(),
         figmaFileKey: figma.fileKey ?? null,
+        previewing: countPreviewedNodes(page),
       });
       return;
     }
@@ -327,19 +329,25 @@ async function applyTranslations(
   const updates: Array<{ node: TextNode; nextText: string }> = [];
 
   for (const node of nodes) {
-    if (!node.characters.trim()) {
+    // During a design-context preview the canvas shows a translation; match on the source.
+    const nodeText = sourceTextOf(node);
+    if (!nodeText.trim()) {
       continue;
     }
 
     const stampedKey = readStampedSegmentKey(node);
     const nextText = resolveFigmaApplyTarget({
-      nodeText: node.characters,
+      nodeText,
       stampedKey,
       translations,
       textIndex,
       sourceByKey,
     });
-    if (!nextText || nextText === node.characters) {
+    if (!nextText) {
+      continue;
+    }
+    if (nextText === node.characters) {
+      clearPreviewSource(node);
       continue;
     }
 

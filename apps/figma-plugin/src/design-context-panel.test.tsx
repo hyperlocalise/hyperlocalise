@@ -81,7 +81,13 @@ describe("DesignContextPanel", () => {
   it("matches layers to project keys and links unique matches", async () => {
     const sent = mockSandbox((message) => {
       if (message.type === "design-scan") {
-        return { type: "design-scanned", nodes: [textNode], fileLink: null, figmaFileKey: null };
+        return {
+          type: "design-scanned",
+          nodes: [textNode],
+          fileLink: null,
+          figmaFileKey: null,
+          previewing: 0,
+        };
       }
       if (message.type === "design-link") {
         return { type: "design-linked", count: message.links.length };
@@ -119,7 +125,7 @@ describe("DesignContextPanel", () => {
   it("asks for the Figma file link before syncing", async () => {
     mockSandbox((message) =>
       message.type === "design-scan"
-        ? { type: "design-scanned", nodes: [], fileLink: null, figmaFileKey: null }
+        ? { type: "design-scanned", nodes: [], fileLink: null, figmaFileKey: null, previewing: 0 }
         : null,
     );
     const { showToast } = renderPanel();
@@ -147,13 +153,14 @@ describe("DesignContextPanel", () => {
           nodes: [],
           fileLink: "https://www.figma.com/design/AbCdEf123456/Checkout",
           figmaFileKey: null,
+          previewing: 0,
         };
       }
       if (message.type === "design-file-link-set") {
         return { type: "design-file-link-saved" };
       }
       if (message.type === "design-frames") {
-        return { type: "design-frames-read", frames: [frame], unframed: 0 };
+        return { type: "design-frames-read", frames: [frame], unframed: 0, previewing: 0 };
       }
       if (message.type === "design-export-frame") {
         return {
@@ -163,11 +170,16 @@ describe("DesignContextPanel", () => {
       }
       return null;
     });
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockImplementation(() =>
-        jsonResponse({ visualContext: { screenshotId: "s1", boundCount: 1, replacedFrame: true } }),
-      );
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      jsonResponse({
+        visualContext: {
+          screenshotId: "s1",
+          boundCount: 1,
+          skippedCount: 0,
+          replacedFrame: true,
+        },
+      }),
+    );
     const { showToast } = renderPanel();
 
     await waitFor(() => {
@@ -207,6 +219,7 @@ describe("DesignContextPanel", () => {
           ],
           fileLink: null,
           figmaFileKey: "AbCdEf123456",
+          previewing: 0,
         };
       }
       if (message.type === "design-preview") {
@@ -251,5 +264,62 @@ describe("DesignContextPanel", () => {
     });
     expect(screen.getByText("Select layers")).toBeTruthy();
     expect(screen.queryByPlaceholderText("https://www.figma.com/design/…")).toBeNull();
+  });
+
+  it("refuses to sync while a translation preview is on the canvas", async () => {
+    mockSandbox((message) => {
+      if (message.type === "design-scan") {
+        return {
+          type: "design-scanned",
+          nodes: [],
+          fileLink: null,
+          figmaFileKey: "AbCdEf123456",
+          previewing: 0,
+        };
+      }
+      if (message.type === "design-frames") {
+        return { type: "design-frames-read", frames: [], unframed: 0, previewing: 2 };
+      }
+      return null;
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const { showToast } = renderPanel();
+
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText("https://www.figma.com/design/…")).toBeNull();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Sync to editor" }));
+
+    await waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith(
+        "Restore source before syncing, so the editor shows the source design.",
+        "critical",
+      );
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Restore source" }).hasAttribute("disabled")).toBe(
+      false,
+    );
+  });
+
+  it("keeps Restore available for a preview left from an earlier session", async () => {
+    mockSandbox((message) =>
+      message.type === "design-scan"
+        ? {
+            type: "design-scanned",
+            nodes: [],
+            fileLink: null,
+            figmaFileKey: "AbCdEf123456",
+            previewing: 3,
+          }
+        : null,
+    );
+    renderPanel();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Restore source" }).hasAttribute("disabled")).toBe(
+        false,
+      );
+    });
   });
 });

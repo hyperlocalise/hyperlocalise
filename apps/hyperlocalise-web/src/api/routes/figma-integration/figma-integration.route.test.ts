@@ -884,6 +884,7 @@ describe("figmaIntegrationRoutes", () => {
       mocks.syncFigmaFrameVisualContextMock.mockResolvedValue({
         screenshotId: "shot-1",
         boundCount: 1,
+        skippedCount: 0,
         replacedFrame: false,
       });
 
@@ -907,7 +908,12 @@ describe("figmaIntegrationRoutes", () => {
 
       expect(response.status).toBe(201);
       await expect(response.json()).resolves.toEqual({
-        visualContext: { screenshotId: "shot-1", boundCount: 1, replacedFrame: false },
+        visualContext: {
+          screenshotId: "shot-1",
+          boundCount: 1,
+          skippedCount: 0,
+          replacedFrame: false,
+        },
       });
       expect(mocks.syncFigmaFrameVisualContextMock).toHaveBeenCalledWith(
         expect.objectContaining({ projectId, contentType: "image/png", nodeId: "1:2" }),
