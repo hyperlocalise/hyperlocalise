@@ -21,6 +21,7 @@ import {
   fetchEditorGuidelineChecks,
   guidelineFormatChecks,
   mergeGuidelineFormatChecks,
+  qaSaveBlockingChecks,
 } from "./content-editor-guideline-checks";
 
 const lengthCheck: ContentEditorFormatCheck = {
@@ -61,6 +62,30 @@ describe("guidelineFormatChecks", () => {
         relatedTokens: ["tu", "vous"],
       },
     ]);
+  });
+
+  it("maps an error severity to a save-blocking finding", () => {
+    expect(
+      guidelineFormatChecks({
+        label: "Guideline",
+        targetText: "Use tu here",
+        severity: "error",
+        result: {
+          findings: [
+            {
+              segmentId: "s1",
+              field: "target",
+              severity: "error",
+              start: 4,
+              end: 6,
+              message: "Use the formal vous.",
+              suggestion: "vous",
+              passageId: "p1",
+            },
+          ],
+        },
+      })[0],
+    ).toMatchObject({ id: "guideline-0", status: "fail" });
   });
 
   it("does not highlight an omission that spans the whole translation", () => {
@@ -167,5 +192,35 @@ describe("fetchEditorGuidelineChecks", () => {
     } as unknown as GoSvcClient;
 
     await expect(fetchEditorGuidelineChecks(input, client)).resolves.toEqual([]);
+  });
+});
+
+describe("qaSaveBlockingChecks", () => {
+  const lengthFailure: ContentEditorFormatCheck = {
+    id: "length",
+    label: "Length",
+    status: "fail",
+    message: "Too long",
+  };
+
+  it("blocks on a guideline error the editor already reported", () => {
+    expect(
+      qaSaveBlockingChecks(
+        [lengthFailure],
+        [
+          { id: "guideline-0", label: "Guideline", status: "fail", message: "Use vous." },
+          { id: "guideline-limit", label: "Guideline", status: "warn", message: "Limit" },
+        ],
+      ).map((check) => check.id),
+    ).toEqual(["length", "guideline-0"]);
+  });
+
+  it("ignores guideline warnings", () => {
+    expect(
+      qaSaveBlockingChecks(
+        [],
+        [{ id: "guideline-0", label: "Guideline", status: "warn", message: "Use vous." }],
+      ),
+    ).toEqual([]);
   });
 });

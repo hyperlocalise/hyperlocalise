@@ -51,9 +51,12 @@ export function guidelineFormatChecks(input: {
   result: Pick<GuidelineCheckResult, "findings">;
   targetText: string;
   label: string;
+  /** Project QA setting. Warning stays a warning; error blocks saving. */
+  severity?: "error" | "warning";
 }): ContentEditorFormatCheck[] {
+  const status = input.severity === "error" ? "fail" : "warn";
   return input.result.findings.flatMap((finding, index) =>
-    guidelineFormatCheck(finding, index, input.targetText, input.label),
+    guidelineFormatCheck(finding, index, input.targetText, input.label, status),
   );
 }
 
@@ -62,6 +65,7 @@ function guidelineFormatCheck(
   index: number,
   targetText: string,
   label: string,
+  status: "fail" | "warn",
 ): ContentEditorFormatCheck[] {
   if (finding.field !== "target") {
     return [];
@@ -77,12 +81,23 @@ function guidelineFormatCheck(
     {
       id: `${GUIDELINE_FORMAT_CHECK_PREFIX}${index}`,
       label,
-      status: "warn",
+      status,
       category: "qa",
       message: suggestion ? `${message} Suggestion: ${suggestion}` : message,
       ...(relatedTokens ? { relatedTokens } : {}),
     },
   ];
+}
+
+/** Save-blocking checks, including guideline errors the editor has already reported. */
+export function qaSaveBlockingChecks(
+  checks: readonly ContentEditorFormatCheck[],
+  reportedChecks: readonly ContentEditorFormatCheck[] = [],
+): ContentEditorFormatCheck[] {
+  const reportedGuidelineFailures = reportedChecks.filter(
+    (check) => isGuidelineFormatCheck(check) && check.status === "fail",
+  );
+  return [...checks, ...reportedGuidelineFailures].filter((check) => check.status === "fail");
 }
 
 export function guidelineLimitFormatCheck(
@@ -116,6 +131,7 @@ export async function fetchEditorGuidelineChecks(
     segmentId: string;
     label: string;
     limitMessage: string;
+    severity?: "error" | "warning";
     signal?: AbortSignal;
   },
   client: GoSvcClient,
@@ -144,7 +160,7 @@ export async function fetchEditorGuidelineChecks(
       },
       { signal: input.signal },
     );
-    return guidelineFormatChecks({ result, targetText, label });
+    return guidelineFormatChecks({ result, targetText, label, severity: input.severity });
   } catch (error) {
     if (input.signal?.aborted || isAbortError(error)) {
       throw error;

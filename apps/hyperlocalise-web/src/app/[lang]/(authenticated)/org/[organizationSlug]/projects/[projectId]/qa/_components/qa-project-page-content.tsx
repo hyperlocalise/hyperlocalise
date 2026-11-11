@@ -430,12 +430,7 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
                         aria-label={intl.formatMessage(m.enableCheck, {
                           check: qaCheckLabel(check, intl),
                         })}
-                        onCheckedChange={(enabled) =>
-                          updateRule(
-                            check,
-                            check === "guideline" ? { enabled, severity: "warning" } : { enabled },
-                          )
-                        }
+                        onCheckedChange={(enabled) => updateRule(check, { enabled })}
                       />
                       {check === "guideline" ? (
                         <FieldDescription>
@@ -443,20 +438,18 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
                         </FieldDescription>
                       ) : null}
                     </Field>
-                    {check === "guideline" ? null : (
-                      <QaFilter
-                        label={intl.formatMessage(m.severity)}
-                        disabled={!settings?.canManageSchedule || settingsMutation.isPending}
-                        value={policy[check].severity}
-                        onChange={(severity) =>
-                          updateRule(check, { severity: severity as "error" | "warning" })
-                        }
-                        options={(["error", "warning"] as const).map((value) => ({
-                          value,
-                          label: intl.formatMessage(m[value]),
-                        }))}
-                      />
-                    )}
+                    <QaFilter
+                      label={intl.formatMessage(m.severity)}
+                      disabled={!settings?.canManageSchedule || settingsMutation.isPending}
+                      value={policy[check].severity}
+                      onChange={(severity) =>
+                        updateRule(check, { severity: severity as "error" | "warning" })
+                      }
+                      options={(["error", "warning"] as const).map((value) => ({
+                        value,
+                        label: intl.formatMessage(m[value]),
+                      }))}
+                    />
                   </div>
                 ))}
               </div>

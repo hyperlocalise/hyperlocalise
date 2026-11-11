@@ -201,6 +201,17 @@ describe("loadUploadedGuidelinesContext", () => {
         locale: "fr-FR",
       },
     ]);
+    expect(context.trace).toEqual({
+      localeCount: 1,
+      result: "ok",
+      errorCode: null,
+      mandatoryIncludedCount: 1,
+      mandatoryOmittedCount: 0,
+      passageCount: 2,
+      passageDocumentCount: 1,
+      searchAvailable: true,
+      includedTitles: ["Brand guide", "French style"],
+    });
     expect(retrieve).toHaveBeenCalledWith(
       "org",
       { projectId: "project", locales: ["fr-FR"], query: "Acme checkout", limit: 8 },
@@ -264,11 +275,33 @@ describe("loadUploadedGuidelinesContext", () => {
     await expect(loadUploadedGuidelinesContext(input, retrieve)).resolves.toEqual({
       text: "",
       documents: [],
+      trace: {
+        localeCount: 1,
+        result: "failed",
+        errorCode: "guideline_retrieve_failed",
+        mandatoryIncludedCount: 0,
+        mandatoryOmittedCount: 0,
+        passageCount: 0,
+        passageDocumentCount: 0,
+        searchAvailable: false,
+        includedTitles: [],
+      },
     });
     expect(warn).toHaveBeenCalledWith(
       "[translation-context] uploaded guideline retrieval failed",
       expect.objectContaining({ code: "guideline_retrieve_failed", status: 503 }),
     );
+    warn.mockRestore();
+  });
+
+  it("records a timeout when retrieval is aborted", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const retrieve = vi.fn(async () => {
+      throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    });
+    const context = await loadUploadedGuidelinesContext(input, retrieve);
+    expect(context.trace?.result).toBe("timeout");
+    expect(context.trace?.errorCode).toBeNull();
     warn.mockRestore();
   });
 });

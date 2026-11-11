@@ -457,9 +457,10 @@ describe("ContentEditorReviewController", () => {
         review: { onApprove },
       });
 
+      const formatChecks = workspace.segmentFormatChecks["seg-02"];
       await controller.approve("seg-02", "Deuxième");
 
-      expect(onApprove).toHaveBeenCalledWith("seg-02", "Deuxième");
+      expect(onApprove).toHaveBeenCalledWith("seg-02", "Deuxième", { formatChecks });
       expect(workspace.selectedSegmentId).toBe("seg-03");
       expect(workspace.getSegmentView("seg-02")?.status).toBe("reviewed");
       expect(workspace.isApproving).toBe(false);
@@ -710,9 +711,10 @@ describe("ContentEditorReviewController", () => {
         review: { onSaveDraft },
       });
 
+      const formatChecks = workspace.segmentFormatChecks["seg-02"];
       await controller.saveDraft("seg-02", "Deuxième");
 
-      expect(onSaveDraft).toHaveBeenCalledWith("seg-02", "Deuxième");
+      expect(onSaveDraft).toHaveBeenCalledWith("seg-02", "Deuxième", { formatChecks });
       expect(workspace.getSegmentView("seg-02")?.targetText).toBe("Deuxième");
       expect(workspace.getSegmentView("seg-02")?.status).toBe("needs_review");
       expect(workspace.isSavingDraft).toBe(false);
@@ -1008,7 +1010,10 @@ describe("ContentEditorReviewController", () => {
     expect(workspace.getSegmentView("seg-03")?.status).toBe("reviewed");
     expect(onBulkApproveComplete).toHaveBeenCalledTimes(1);
     expect(workspace.bulkCompletedCount).toBe(2);
-    expect(onApprove).toHaveBeenCalledWith("seg-03", "Troisième", { deferQueueRefresh: true });
+    expect(onApprove).toHaveBeenCalledWith("seg-03", "Troisième", {
+      deferQueueRefresh: true,
+      formatChecks: [],
+    });
   });
 
   describe("bulkApprove", () => {

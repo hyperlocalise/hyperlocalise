@@ -25,6 +25,10 @@ const INPUT_PATH = `${QA_WORKSPACE_DIR}/segments.json`;
 const POLICY_PATH = `${QA_WORKSPACE_DIR}/policy.json`;
 const OUTPUT_PATH = `${QA_WORKSPACE_DIR}/results.json`;
 const SANDBOX_TIMEOUT_MS = 10 * 60 * 1000;
+const QA_CLI_FAILURE_REASON_MAX_LENGTH = 180;
+/** Policy and input errors are emitted before any segment is checked. */
+const QA_CLI_SAFE_FAILURE_REASON =
+  /^(?:load QA policy|decode QA policy|decode validation input|unsupported QA policy version|unknown QA check|QA policy is missing|invalid severity for|guideline severity must be warning|targetLocale is required)\b/;
 
 export class QaCliUnavailableError extends Error {
   constructor() {
@@ -113,6 +117,29 @@ function outputBytes(output: string | undefined) {
   return output ? utf8Bytes(output) : 0;
 }
 
+/** Older sandbox CLIs reject an error severity. The scan does not run this check. */
+function cliQaPolicy(policy: QaCheckPolicy): QaCheckPolicy {
+  return {
+    ...policy,
+    guideline: { enabled: policy.guideline.enabled, severity: "warning" },
+  };
+}
+
+function qaCliFailureReason(output: string | undefined) {
+  const line = output
+    ?.split("\n")
+    .map((entry) => entry.trim().replace(/^Error:\s+/, ""))
+    .find(Boolean);
+  if (
+    !line ||
+    line.length > QA_CLI_FAILURE_REASON_MAX_LENGTH ||
+    !QA_CLI_SAFE_FAILURE_REASON.test(line)
+  ) {
+    return null;
+  }
+  return line;
+}
+
 export async function validateQaPageInSandbox(input: {
   segments: QaPageSegment[];
   policy: QaCheckPolicy;
@@ -126,7 +153,7 @@ export async function validateQaPageInSandbox(input: {
 }) {
   const policyJson = JSON.stringify({
     version: 1,
-    checks: input.policy,
+    checks: cliQaPolicy(input.policy),
     glossaryTerms: input.glossaryTerms,
     acceptedWordsByLocale: input.acceptedWordsByLocale,
   });
@@ -258,7 +285,12 @@ export async function validateQaPageInSandbox(input: {
       "qa sandbox validate completed",
     );
     if (command.exitCode !== 0) {
-      throw new Error(`QA CLI validation failed (exit ${command.exitCode})`);
+      const reason = qaCliFailureReason(command.output);
+      throw new Error(
+        reason
+          ? `QA CLI validation failed (exit ${command.exitCode}): ${reason}`
+          : `QA CLI validation failed (exit ${command.exitCode})`,
+      );
     }
 
     phase = "read_results";

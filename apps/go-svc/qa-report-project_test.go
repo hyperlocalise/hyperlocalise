@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidQaPolicyRequiresGuidelineWarning(t *testing.T) {
+func TestValidQaPolicyAcceptsGuidelineError(t *testing.T) {
 	checks := make(map[string]qaCheckSetting, len(qaPolicyCheckTypes))
 	for key := range qaPolicyCheckTypes {
 		checks[key] = qaCheckSetting{Enabled: true, Severity: "warning"}
@@ -20,7 +20,8 @@ func TestValidQaPolicyRequiresGuidelineWarning(t *testing.T) {
 	require.Equal(t, "warning", checks["guideline"].Severity)
 
 	checks["guideline"] = qaCheckSetting{Enabled: true, Severity: "error"}
-	require.False(t, validQaPolicy(checks))
+	require.True(t, validQaPolicy(checks))
+	require.Equal(t, "error", checks["guideline"].Severity)
 }
 
 func TestProjectQaReportRejectsProviderProject(t *testing.T) {

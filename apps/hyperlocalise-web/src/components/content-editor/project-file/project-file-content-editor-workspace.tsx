@@ -65,7 +65,10 @@ import { goSvcErrorMessage, isCatDeferredToApp } from "@/lib/go-svc/go-svc-error
 import { cn } from "@/lib/primitives/cn";
 import { createProjectQaReportClient } from "@/lib/qa/qa-report-client";
 import { applyEditorQaPolicy, DEFAULT_QA_POLICY } from "@/lib/qa/qa-policy";
-import { fetchEditorGuidelineChecks } from "@/components/content-editor/project-file/content-editor-guideline-checks";
+import {
+  fetchEditorGuidelineChecks,
+  qaSaveBlockingChecks,
+} from "@/components/content-editor/project-file/content-editor-guideline-checks";
 import { contentEditorGuidelineCheckMessages } from "@/components/content-editor/project-file/content-editor-guideline-checks.messages";
 
 import {
@@ -83,6 +86,7 @@ import type { MessageFormat } from "@/lib/i18n/message-format";
 import { glossaryFormatChecksForSegment } from "@/components/content-editor/intelligence/content-editor-glossary-checks";
 import { buildCatSegmentShareUrl } from "@/components/content-editor/segment/content-editor-segment-share-link";
 import type {
+  ContentEditorFormatCheck,
   ContentEditorGlossaryTerm,
   ContentEditorSegment,
   ContentEditorSegmentCommentInput,
@@ -630,11 +634,12 @@ export function ProjectFileContentEditorWorkspace({
           segmentId: segment.id,
           label: intl.formatMessage(contentEditorGuidelineCheckMessages.label),
           limitMessage: intl.formatMessage(contentEditorGuidelineCheckMessages.limitReached),
+          severity: qaPolicy.guideline.severity,
           signal: options?.signal,
         },
         goSvcClient,
       ),
-    [goSvcClient, intl, organizationSlug, projectId, sourceLocale],
+    [goSvcClient, intl, organizationSlug, projectId, qaPolicy.guideline.severity, sourceLocale],
   );
   const router = useRouter();
   const [keyTask, setKeyTask] = useState<{ stringIds: string[]; onSaved: () => void } | null>(null);
@@ -707,6 +712,7 @@ export function ProjectFileContentEditorWorkspace({
       },
       locale: string,
       value: string,
+      formatChecks?: readonly ContentEditorFormatCheck[],
     ) => {
       if (!isNativeProject) return;
       const policyResult = await qaPolicyQuery.refetch();
@@ -740,13 +746,16 @@ export function ProjectFileContentEditorWorkspace({
         value.trim()
           ? await glossaryTermsForQaGate(segment.sourceText, locale)
           : [];
-      const failures = [
-        ...validation.value,
-        ...applyEditorQaPolicy(
-          glossaryFormatChecksForSegment(segment.sourceText, value, glossaryTerms, intl),
-          policy,
-        ),
-      ].filter((check) => check.status === "fail");
+      const failures = qaSaveBlockingChecks(
+        [
+          ...validation.value,
+          ...applyEditorQaPolicy(
+            glossaryFormatChecksForSegment(segment.sourceText, value, glossaryTerms, intl),
+            policy,
+          ),
+        ],
+        formatChecks,
+      );
       if (failures.length > 0) {
         throw new Error(
           intl.formatMessage(projectFileCatWorkspaceMessages.qaBlockedSave, {
@@ -789,7 +798,14 @@ export function ProjectFileContentEditorWorkspace({
     );
 
   const handleApprove = useCallback(
-    async (segmentId: string, targetText: string, options?: { deferQueueRefresh?: boolean }) => {
+    async (
+      segmentId: string,
+      targetText: string,
+      options?: {
+        deferQueueRefresh?: boolean;
+        formatChecks?: readonly ContentEditorFormatCheck[];
+      },
+    ) => {
       if (!contentEditorFile?.canEditTranslations) {
         throw new Error(
           intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
@@ -849,7 +865,7 @@ export function ProjectFileContentEditorWorkspace({
 
       if (segment) {
         assertSingleTargetSaveAllowed(segment, targetLocale);
-        await assertQaSaveAllowed(segment, targetLocale, targetText);
+        await assertQaSaveAllowed(segment, targetLocale, targetText, options?.formatChecks);
       }
       const translation = await saveTranslation({
         externalStringId: segmentId,
@@ -942,7 +958,11 @@ export function ProjectFileContentEditorWorkspace({
   };
 
   const handleSaveDraft = useCallback(
-    async (segmentId: string, targetText: string) => {
+    async (
+      segmentId: string,
+      targetText: string,
+      options?: { formatChecks?: readonly ContentEditorFormatCheck[] },
+    ) => {
       if (!contentEditorFile?.canEditTranslations) {
         throw new Error(
           intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
@@ -954,7 +974,7 @@ export function ProjectFileContentEditorWorkspace({
       );
       if (segment) {
         assertSingleTargetSaveAllowed(segment, targetLocale);
-        await assertQaSaveAllowed(segment, targetLocale, targetText);
+        await assertQaSaveAllowed(segment, targetLocale, targetText, options?.formatChecks);
       }
       await saveTranslation({
         externalStringId: segmentId,
@@ -1356,14 +1376,19 @@ export function ProjectFileContentEditorWorkspace({
         contentEditorFile?.segments.map((segment) => [segment.externalStringId, segment]),
       ),
       canEdit: Boolean(contentEditorFile?.canEditTranslations),
-      onSaveTranslation: async (segment: ContentEditorSegment, locale: string, text: string) => {
+      onSaveTranslation: async (
+        segment: ContentEditorSegment,
+        locale: string,
+        text: string,
+        formatChecks?: readonly ContentEditorFormatCheck[],
+      ) => {
         if (!contentEditorFile?.canEditTranslations) {
           throw new Error(
             intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
           );
         }
         assertSingleTargetSaveAllowed(segment, locale);
-        await assertQaSaveAllowed(segment, locale, text);
+        await assertQaSaveAllowed(segment, locale, text, formatChecks);
         await saveTranslation({
           externalStringId: segment.id,
           targetLocale: locale,
@@ -1436,7 +1461,14 @@ export function ProjectFileContentEditorWorkspace({
   );
 
   const saveGroupVariant = useCallback(
-    async ({ segment, locale, occurrences, text, approve }: ContentEditorGroupVariantSaveInput) => {
+    async ({
+      segment,
+      locale,
+      occurrences,
+      text,
+      approve,
+      formatChecks,
+    }: ContentEditorGroupVariantSaveInput) => {
       if (!contentEditorFile?.canEditTranslations) {
         throw new Error(
           intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
@@ -1455,6 +1487,7 @@ export function ProjectFileContentEditorWorkspace({
           },
           locale,
           text,
+          formatChecks,
         );
       }
       await saveTranslation({

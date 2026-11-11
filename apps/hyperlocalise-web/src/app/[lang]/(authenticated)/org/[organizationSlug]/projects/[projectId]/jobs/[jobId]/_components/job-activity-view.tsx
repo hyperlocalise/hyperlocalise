@@ -33,7 +33,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyH4 } from "@/components/ui/typography";
-import type { JobEventRecord } from "@/lib/job-events/job-events-contract";
+import type { JobEventPayloads, JobEventRecord } from "@/lib/job-events/job-events-contract";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { cn } from "@/lib/primitives/cn";
 
@@ -331,6 +331,8 @@ function stepMessage(step: JobEventRecord): ReactNode | null {
       return <FormattedMessage {...messages.stepSucceeded} />;
     case "job_failed":
       return <FormattedMessage {...messages.stepFailed} />;
+    case "guideline_context":
+      return guidelineStepMessage(step.payload);
     // Progress ticks are shown by the locale bars, not as steps.
     case "locale_progress":
     case "job_cancelled":
@@ -341,6 +343,93 @@ function stepMessage(step: JobEventRecord): ReactNode | null {
     default:
       return assertNever(step);
   }
+}
+
+function guidelineStepMessage(payload: JobEventPayloads["guideline_context"]): ReactNode {
+  switch (payload.step) {
+    case "flag":
+      return (
+        <FormattedMessage
+          {...(payload.enabled ? messages.stepGuidelinesOn : messages.stepGuidelinesOff)}
+        />
+      );
+    case "retrieve":
+      return payload.status === "called" ? (
+        <FormattedMessage
+          {...messages.stepGuidelinesRetrieveCalled}
+          values={{ count: payload.localeCount }}
+        />
+      ) : (
+        <FormattedMessage {...messages.stepGuidelinesRetrieveSkipped} />
+      );
+    case "result":
+      if (payload.status === "ok") {
+        return <GuidelineResultMessage payload={payload} />;
+      }
+      if (payload.status === "timeout") {
+        return <FormattedMessage {...messages.stepGuidelinesResultTimeout} />;
+      }
+      if (payload.status === "failed") {
+        return payload.code ? (
+          <FormattedMessage
+            {...messages.stepGuidelinesResultFailedCode}
+            values={{ code: payload.code }}
+          />
+        ) : (
+          <FormattedMessage {...messages.stepGuidelinesResultFailed} />
+        );
+      }
+      return <FormattedMessage {...messages.stepGuidelinesResultSkipped} />;
+    case "mandatory":
+      return payload.status === "recorded" ? (
+        <FormattedMessage
+          {...messages.stepGuidelinesMandatory}
+          values={{ count: payload.includedCount, omitted: payload.omittedCount }}
+        />
+      ) : (
+        <FormattedMessage {...messages.stepGuidelinesMandatorySkipped} />
+      );
+    case "passages":
+      if (payload.status === "skipped") {
+        return <FormattedMessage {...messages.stepGuidelinesPassagesSkipped} />;
+      }
+      if (!payload.searchAvailable) {
+        return <FormattedMessage {...messages.stepGuidelinesSearchUnavailable} />;
+      }
+      return (
+        <>
+          <FormattedMessage
+            {...messages.stepGuidelinesPassages}
+            values={{ count: payload.passageCount }}
+          />{" "}
+          <FormattedMessage
+            {...messages.stepGuidelinesPassageSources}
+            values={{ count: payload.documentCount }}
+          />
+        </>
+      );
+    default:
+      return assertNever(payload);
+  }
+}
+
+function GuidelineResultMessage({
+  payload,
+}: {
+  payload: Extract<JobEventPayloads["guideline_context"], { step: "result" }>;
+}) {
+  const intl = useIntl();
+  if (!payload.titles) {
+    return <FormattedMessage {...messages.stepGuidelinesResultOk} />;
+  }
+  const titles = payload.titles.map((title) => title.trim()).filter(Boolean);
+  if (titles.length === 0) {
+    return <FormattedMessage {...messages.stepGuidelinesResultNone} />;
+  }
+  const names = new Intl.ListFormat(intl.locale, { type: "conjunction", style: "long" }).format(
+    titles,
+  );
+  return <FormattedMessage {...messages.stepGuidelinesResultIncluded} values={{ names }} />;
 }
 
 function RunSteps({ run, now }: { run: JobActivityRun; now: number }) {

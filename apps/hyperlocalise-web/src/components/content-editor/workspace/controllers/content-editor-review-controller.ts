@@ -443,6 +443,10 @@ export class ContentEditorReviewController {
     }
   }
 
+  private formatChecksFor(segmentId: string) {
+    return this.workspace.segmentFormatChecks[segmentId] ?? [];
+  }
+
   private commitFormatChecks(segmentId: string, checks: ContentEditorFormatCheck[]) {
     const current = this.workspace.segmentFormatChecks[segmentId] ?? [];
     this.workspace.setFormatChecks(
@@ -617,7 +621,9 @@ export class ContentEditorReviewController {
         currentIndex >= 0 ? visibleBeforeApprove[currentIndex + 1]?.id : undefined;
 
       const nextStatus =
-        (await this.ports.review?.onApprove?.(segmentId, targetText)) ?? "reviewed";
+        (await this.ports.review?.onApprove?.(segmentId, targetText, {
+          formatChecks: this.formatChecksFor(segmentId),
+        })) ?? "reviewed";
       if (!this.isCurrentFileScope(fileScopeGeneration)) {
         return;
       }
@@ -678,7 +684,10 @@ export class ContentEditorReviewController {
     if (!this.workspace.beginWrite(segmentId, "draft")) return;
     const draftAtSubmission = this.workspace.drafts.get(segmentId)?.targetText;
     try {
-      const nextStatus = (await saveDraft(segmentId, targetText)) ?? "needs_review";
+      const nextStatus =
+        (await saveDraft(segmentId, targetText, {
+          formatChecks: this.formatChecksFor(segmentId),
+        })) ?? "needs_review";
       if (!this.isCurrentFileScope(fileScopeGeneration)) {
         return;
       }
@@ -808,6 +817,7 @@ export class ContentEditorReviewController {
             const status =
               (await this.ports.review?.onApprove?.(segmentId, targetText, {
                 deferQueueRefresh: true,
+                formatChecks: this.formatChecksFor(segmentId),
               })) ?? "reviewed";
             if (!this.isCurrentFileScope(fileScopeGeneration)) return;
             const currentText = this.workspace.drafts.get(segmentId)?.targetText;

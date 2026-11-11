@@ -246,7 +246,8 @@ export class ContentEditorGroupVariant {
     if (action === "all") this.group.isApplyingToAll = true;
     this.error = null;
     const { segment, locale } = this.group;
-    const write = (text: string) => saveVariant({ segment, locale, occurrences, text, approve });
+    const write = (text: string) =>
+      saveVariant({ segment, locale, occurrences, text, approve, formatChecks: this.formatChecks });
     const draft = this.draft;
     try {
       if (!draft || this.text === this.savedText) await write(this.text);
@@ -590,6 +591,7 @@ export class ContentEditorGroupVariants {
         occurrences,
         text,
         approve: false,
+        formatChecks: this.variants.flatMap((variant) => variant.formatChecks),
       });
       runInAction(() => {
         this.reconcileUnlockedDrafts(text);

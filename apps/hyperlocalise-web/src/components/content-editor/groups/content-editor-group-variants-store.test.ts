@@ -111,6 +111,7 @@ describe("ContentEditorGroupVariants", () => {
       occurrences: [occurrence("k1")],
       text: "Membre actif",
       approve: true,
+      formatChecks: [],
     });
     expect(first.pending).toBe(false);
     expect(first.savedText).toBe("Membre actif");

@@ -291,14 +291,28 @@ export const History: Story = {
 };
 
 export const Settings: Story = {
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement }) => {
     await expect(await canvas.findByText("dashboard.reviews.pending")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("tab", { name: "Check settings" }));
     await expect(canvas.getByRole("switch", { name: "Daily scan" })).toBeChecked();
     await expect(canvas.getByText(/Scan this project once a day/)).toBeInTheDocument();
+    await expect(
+      canvas.getByText(/An error blocks saving when the editor has already reported it/),
+    ).toBeInTheDocument();
+    const guidelinesSwitch = canvas.getByRole("switch", { name: "Enable Guidelines" });
+    const guidelinesRow = guidelinesSwitch.closest("div.py-3");
+    if (!(guidelinesRow instanceof HTMLElement)) {
+      throw new Error("Guidelines settings row was not found.");
+    }
+    const severity = within(guidelinesRow).getByRole("combobox", { name: "Severity" });
+    await expect(severity).toHaveTextContent("Warning");
     await expect(canvas.getByRole("button", { name: "Save check settings" })).toBeDisabled();
     await userEvent.click(canvas.getByRole("switch", { name: "Enable Numbers" }));
     await expect(canvas.getByRole("button", { name: "Save check settings" })).toBeEnabled();
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(severity);
+    await userEvent.click(await body.findByRole("option", { name: "Error" }));
+    await expect(severity).toHaveTextContent("Error");
     await userEvent.click(canvas.getByRole("button", { name: "Save check settings" }));
     await expect(await canvas.findByText(/Check settings saved/)).toBeInTheDocument();
   },

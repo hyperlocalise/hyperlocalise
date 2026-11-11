@@ -12,12 +12,38 @@
  */
 
 /**
- * Payloads hold counts, locale codes, error codes, and IDs only. Never store
- * source text, translations, or filenames here.
+ * Payloads hold counts, locale codes, error codes, IDs, and guideline titles.
+ * Never store source text, translations, passage text, or filenames here.
  */
 export type JobEventPayloads = {
   job_started: { targetLocales: string[] };
   context_ready: { glossaryTermCount: number };
+  guideline_context:
+    | { step: "flag"; enabled: boolean }
+    | { step: "retrieve"; status: "called" | "skipped"; localeCount: number }
+    | {
+        step: "result";
+        status: "ok" | "timeout" | "failed" | "skipped";
+        code: string | null;
+        /**
+         * Titles of guidelines included in the prompt, in prompt order.
+         * Missing on events recorded before titles were stored.
+         */
+        titles?: string[];
+      }
+    | {
+        step: "mandatory";
+        status: "recorded" | "skipped";
+        includedCount: number;
+        omittedCount: number;
+      }
+    | {
+        step: "passages";
+        status: "recorded" | "skipped";
+        passageCount: number;
+        documentCount: number;
+        searchAvailable: boolean;
+      };
   strings_extracted: { stringCount: number; localeCount: number };
   translations_reused: { reusedCount: number; totalCount: number };
   locale_progress: { translatedCount: number; totalCount: number };
@@ -41,6 +67,7 @@ export type JobEventType = keyof JobEventPayloads;
 export const JOB_EVENT_TYPES = [
   "job_started",
   "context_ready",
+  "guideline_context",
   "strings_extracted",
   "translations_reused",
   "locale_progress",

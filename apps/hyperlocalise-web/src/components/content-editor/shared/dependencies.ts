@@ -71,11 +71,15 @@ export interface ContentEditorWorkspaceReview {
   onApprove: (
     segmentId: string,
     targetText: string,
-    options?: { deferQueueRefresh?: boolean },
+    options?: {
+      deferQueueRefresh?: boolean;
+      formatChecks?: readonly ContentEditorFormatCheck[];
+    },
   ) => void | ContentEditorSegmentStatus | Promise<void | ContentEditorSegmentStatus>;
   onSaveDraft?: (
     segmentId: string,
     targetText: string,
+    options?: { formatChecks?: readonly ContentEditorFormatCheck[] },
   ) => void | ContentEditorSegmentStatus | Promise<void | ContentEditorSegmentStatus>;
   onAddComment?: (
     segmentId: string,

@@ -82,6 +82,46 @@ describe("validateQaPageInSandbox", () => {
     expect(stop).toHaveBeenCalledOnce();
   });
 
+  it("sends guideline severity as a warning so an older CLI accepts the policy", async () => {
+    await validateQaPageInSandbox({
+      ...input,
+      policy: {
+        ...DEFAULT_QA_POLICY,
+        guideline: { enabled: true, severity: "error" },
+      },
+    });
+    const policyCall = writeFile.mock.calls.find(
+      (call) => call[0] === ".hyperlocalise-qa/policy.json",
+    );
+    const policy = JSON.parse(String(policyCall?.[1])) as {
+      checks: { guideline: { enabled: boolean; severity: string } };
+    };
+    expect(policy.checks.guideline).toEqual({ enabled: true, severity: "warning" });
+  });
+
+  it("keeps a policy error from the CLI and drops segment text", async () => {
+    runCommand
+      .mockResolvedValueOnce({ exitCode: 0, output: "" })
+      .mockResolvedValueOnce({ exitCode: 0, output: "" })
+      .mockResolvedValueOnce({
+        exitCode: 1,
+        output: "Error: load QA policy: guideline severity must be warning\nWelcome to Acme",
+      });
+    await expect(validateQaPageInSandbox(input)).rejects.toThrow(
+      "QA CLI validation failed (exit 1): load QA policy: guideline severity must be warning",
+    );
+  });
+
+  it("omits CLI output that is not a policy error", async () => {
+    runCommand
+      .mockResolvedValueOnce({ exitCode: 0, output: "" })
+      .mockResolvedValueOnce({ exitCode: 0, output: "" })
+      .mockResolvedValueOnce({ exitCode: 2, output: "panic: Welcome to Acme" });
+    await expect(validateQaPageInSandbox(input)).rejects.toThrow(
+      /^QA CLI validation failed \(exit 2\)$/,
+    );
+  });
+
   it("classifies an old CLI and still stops the sandbox", async () => {
     runCommand.mockResolvedValueOnce({ exitCode: 1, output: "unknown command" });
     await expect(validateQaPageInSandbox(input)).rejects.toBeInstanceOf(QaCliUnavailableError);

@@ -71,6 +71,33 @@ func TestLoadPolicyAddsGuidelineDefault(t *testing.T) {
 	}
 }
 
+func TestValidateBatchIgnoresGuidelineErrorSeverity(t *testing.T) {
+	policy := DefaultPolicy()
+	policy.Checks[checkGuideline] = Setting{Enabled: true, Severity: "error"}
+
+	got, err := LoadPolicy(writePolicyFile(t, marshalPolicy(t, policy)))
+	if err != nil {
+		t.Fatalf("LoadPolicy: %v", err)
+	}
+	if setting := got.Checks[checkGuideline]; !setting.Enabled || setting.Severity != "error" {
+		t.Fatalf("guideline = %+v", setting)
+	}
+
+	report, err := ValidateBatch(context.Background(), []Segment{{
+		ID: "one", SourceText: "Hello", TargetText: "", TargetLocale: "fr-FR",
+	}}, got)
+	if err != nil {
+		t.Fatalf("ValidateBatch: %v", err)
+	}
+	for _, result := range report.Results {
+		for _, finding := range result.Checks {
+			if finding.CheckType == checkGuideline {
+				t.Fatalf("guideline finding = %+v", finding)
+			}
+		}
+	}
+}
+
 func TestLoadPolicyAddsUnreachablePluralDefault(t *testing.T) {
 	policy := DefaultPolicy()
 	delete(policy.Checks, checkUnreachablePlural)
@@ -91,9 +118,6 @@ func TestLoadPolicyErrors(t *testing.T) {
 	badSeverity := DefaultPolicy()
 	badSeverity.Checks["length"] = Setting{Enabled: true, Severity: "fatal"}
 
-	guidelineError := DefaultPolicy()
-	guidelineError.Checks[checkGuideline] = Setting{Enabled: true, Severity: "error"}
-
 	unknownCheck := DefaultPolicy()
 	unknownCheck.Checks["made_up"] = Setting{Enabled: true, Severity: "warning"}
 
@@ -111,7 +135,6 @@ func TestLoadPolicyErrors(t *testing.T) {
 		{name: "wrong version", path: writePolicyFile(t, marshalPolicy(t, wrongVersion)), wantErr: "unsupported QA policy version"},
 		{name: "missing check", path: writePolicyFile(t, marshalPolicy(t, missingFormat)), wantErr: "missing format"},
 		{name: "bad severity", path: writePolicyFile(t, marshalPolicy(t, badSeverity)), wantErr: "invalid severity for length"},
-		{name: "guideline error", path: writePolicyFile(t, marshalPolicy(t, guidelineError)), wantErr: "guideline severity must be warning"},
 		{name: "unknown check", path: writePolicyFile(t, marshalPolicy(t, unknownCheck)), wantErr: "unknown QA check made_up"},
 	}
 	for _, tt := range tests {

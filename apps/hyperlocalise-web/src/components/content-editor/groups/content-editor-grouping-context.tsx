@@ -16,7 +16,10 @@ import { createContext, useContext, type ReactNode } from "react";
 
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import type { CatGroupOccurrence } from "@/lib/go-svc/go-svc-cat-groups.types";
-import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
+import type {
+  ContentEditorFormatCheck,
+  ContentEditorSegment,
+} from "@/components/content-editor/shared/types";
 
 export type ContentEditorGroupingViewMode = "individual" | "grouped";
 
@@ -28,6 +31,8 @@ export type ContentEditorGroupVariantSaveInput = {
   occurrences: CatGroupOccurrence[];
   text: string;
   approve: boolean;
+  /** Checks already shown for this translation, including guideline findings. */
+  formatChecks?: readonly ContentEditorFormatCheck[];
 };
 
 export type ContentEditorGroupingController = {
