@@ -25,6 +25,7 @@ const (
 	accessTokenClockLeeway = 30 * time.Second
 	maxJWKSBodyBytes       = 1 << 20
 	workOSProductionAPIURL = "https://api.workos.com"
+	workOSUserIDPrefix     = "user_"
 )
 
 type workosAccessTokenClaims struct {
@@ -103,10 +104,10 @@ func (v *WorkOSSessionVerifier) VerifyAccessToken(ctx context.Context, accessTok
 	if !issuerAllowed(claims.Issuer, v.apiBaseURL, v.clientID) {
 		return AuthClaims{}, newAuthError("invalid_access_token", "invalid access token")
 	}
-	if len(claims.Act) > 0 && string(claims.Act) != "null" {
+	if !strings.HasPrefix(claims.Subject, workOSUserIDPrefix) || claims.SessionID == "" {
 		return AuthClaims{}, newAuthError("invalid_access_token", "invalid access token")
 	}
-	if claims.Subject == "" || claims.SessionID == "" {
+	if !actAllowed(claims.Act) {
 		return AuthClaims{}, newAuthError("invalid_access_token", "invalid access token")
 	}
 
@@ -115,6 +116,24 @@ func (v *WorkOSSessionVerifier) VerifyAccessToken(ctx context.Context, accessTok
 		OrgID:     claims.OrganizationID,
 		SessionID: claims.SessionID,
 	}, nil
+}
+
+// actAllowed accepts a missing `act` claim and the WorkOS impersonation shape,
+// where `act.sub` names the impersonating admin (an email, not a user id).
+// Agent registration JWTs put the claimed user id (`user_...`) in `act.sub`;
+// those stay rejected so agent credentials cannot use this channel.
+func actAllowed(raw json.RawMessage) bool {
+	if len(raw) == 0 || string(raw) == "null" {
+		return true
+	}
+	var act struct {
+		Sub string `json:"sub"`
+	}
+	if err := json.Unmarshal(raw, &act); err != nil {
+		return false
+	}
+	sub := strings.TrimSpace(act.Sub)
+	return sub != "" && !strings.HasPrefix(sub, workOSUserIDPrefix)
 }
 
 func issuerAllowed(issuer, apiBaseURL, clientID string) bool {

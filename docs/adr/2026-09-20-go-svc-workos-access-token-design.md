@@ -32,7 +32,10 @@ Accept WorkOS User Management session access tokens on go-svc as
   app and Iris desktop), `iss` and the JWKS are shared by the environment and
   name its default application, while `client_id` and `aud` name the
   application the user signed in to. (Amended 2026-11-10.)
-- Reject tokens with an `act` claim so agent JWTs cannot reach go-svc.
+- Require `sub` to be a WorkOS user id (`user_...`). Reject an `act` claim
+  unless it is the WorkOS impersonation shape, where `act.sub` is the
+  impersonating admin's email. Agent JWTs (`sub` = agent registration, `act.sub`
+  = user id) cannot reach go-svc. (Amended 2026-11-11 for impersonation.)
 - Prefer a present `wos-session` cookie over Bearer. Do not fall through from
   an invalid cookie to a Bearer token.
 - Do not refresh Bearer tokens in go-svc. Clients refresh and send a new JWT.

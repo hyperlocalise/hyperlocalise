@@ -86,8 +86,10 @@ token credentials, trusted permissions matching PAT scopes plus `mcp`. See
 
 Human WorkOS session access tokens (the JWT inside an AuthKit session) are a
 second credential for go-svc. Verify them against the WorkOS User Management
-JWKS (`/sso/jwks/{client_id}`), not AuthKit agent JWKS. Reject tokens that
-carry `act` so agent credentials cannot reach dictionary, team, or CAT routes.
+JWKS (`/sso/jwks/{client_id}`), not AuthKit agent JWKS. Require `sub` to be a
+WorkOS user id (`user_...`). Accept `act` only in the impersonation shape
+(`act.sub` is the admin's email) and reject `act.sub` values that are user ids,
+so agent credentials cannot reach dictionary, team, or CAT routes.
 See [`docs/adr/2026-09-20-go-svc-workos-access-token-design.md`](../../../../docs/adr/2026-09-20-go-svc-workos-access-token-design.md).
 
 ## Placeholder users

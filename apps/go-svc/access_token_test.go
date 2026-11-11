@@ -215,6 +215,69 @@ func TestWorkOSSessionVerifierRejectsAgentAccessToken(t *testing.T) {
 	require.Equal(t, "invalid_access_token", authReason(err))
 }
 
+func TestWorkOSSessionVerifierRejectsActWithUserSubject(t *testing.T) {
+	fixture := newAccessTokenFixture(t)
+	verifier := accessTokenVerifier(t, fixture)
+	token := fixture.sign(t, map[string]any{
+		"iss":    workOSProductionAPIURL,
+		"aud":    testWorkOSClientID,
+		"sub":    "user_native",
+		"sid":    "session_native",
+		"org_id": "org_native",
+		"act":    map[string]any{"sub": "user_other"},
+		"exp":    time.Now().Add(time.Hour).Unix(),
+	})
+
+	_, err := verifier.VerifyAccessToken(context.Background(), token)
+	require.Error(t, err)
+	require.Equal(t, "invalid_access_token", authReason(err))
+}
+
+func TestWorkOSSessionVerifierRejectsMalformedAct(t *testing.T) {
+	fixture := newAccessTokenFixture(t)
+	verifier := accessTokenVerifier(t, fixture)
+	for name, act := range map[string]any{
+		"string":      "admin@example.com",
+		"empty sub":   map[string]any{"sub": ""},
+		"missing sub": map[string]any{"reason": "support"},
+		"numeric sub": map[string]any{"sub": 7},
+	} {
+		t.Run(name, func(t *testing.T) {
+			token := fixture.sign(t, map[string]any{
+				"iss":    workOSProductionAPIURL,
+				"aud":    testWorkOSClientID,
+				"sub":    "user_native",
+				"sid":    "session_native",
+				"org_id": "org_native",
+				"act":    act,
+				"exp":    time.Now().Add(time.Hour).Unix(),
+			})
+
+			_, err := verifier.VerifyAccessToken(context.Background(), token)
+			require.Error(t, err)
+			require.Equal(t, "invalid_access_token", authReason(err))
+		})
+	}
+}
+
+func TestWorkOSSessionVerifierAcceptsImpersonationAccessToken(t *testing.T) {
+	fixture := newAccessTokenFixture(t)
+	verifier := accessTokenVerifier(t, fixture)
+	token := fixture.sign(t, map[string]any{
+		"iss":    workOSProductionAPIURL,
+		"aud":    testWorkOSClientID,
+		"sub":    "user_native",
+		"sid":    "session_native",
+		"org_id": "org_native",
+		"act":    map[string]any{"sub": "admin@example.com", "reason": "support ticket"},
+		"exp":    time.Now().Add(time.Hour).Unix(),
+	})
+
+	claims, err := verifier.VerifyAccessToken(context.Background(), token)
+	require.NoError(t, err)
+	require.Equal(t, AuthClaims{UserID: "user_native", OrgID: "org_native", SessionID: "session_native"}, claims)
+}
+
 func TestWorkOSSessionVerifierRejectsMissingSessionID(t *testing.T) {
 	fixture := newAccessTokenFixture(t)
 	verifier := accessTokenVerifier(t, fixture)
