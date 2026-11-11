@@ -36,12 +36,14 @@ func TestLiveJobsWithoutAConnection(t *testing.T) {
 		"/projects/ext:crowdin:7/jobs",
 		"/projects/ext:crowdin:7/members",
 		"/projects/ext:crowdin:7/open-job-count",
-		"/jobs/ext:crowdin:7:10",
 	} {
 		rec := projectRequest(api, scope, scope.OrgPath(path))
 		require.Equal(t, http.StatusServiceUnavailable, rec.Code, path+" "+rec.Body.String())
 		require.Contains(t, rec.Body.String(), "tms_unavailable", path)
 	}
+	native := projectRequest(api, scope, scope.OrgPath("/jobs/ext:crowdin:7:10"))
+	require.Equal(t, http.StatusNotFound, native.Code, native.Body.String())
+	require.Contains(t, native.Body.String(), "job_not_found")
 }
 
 func TestLiveCrowdinJobs(t *testing.T) {

@@ -594,8 +594,12 @@ func (api *projectAPI) orgJobsListHandler(r *http.Request, actor projectActor) (
 }
 
 func (api *projectAPI) orgJobDetailHandler(r *http.Request, actor projectActor) (any, int, error) {
-	if job, ok := parseLiveJobID(r.PathValue("jobId")); ok {
-		return api.liveJobDetail(r, actor, job.liveProjectID, job.externalJobID)
+	// Encoded provider ids on GET /jobs/{id} stay native (404 for postgres
+	// mirrors) unless a mint client is configured to read live Crowdin.
+	if api.tms != nil {
+		if job, ok := parseLiveJobID(r.PathValue("jobId")); ok {
+			return api.liveJobDetail(r, actor, job.liveProjectID, job.externalJobID)
+		}
 	}
 	jobID, ok := jobIDParam(r.PathValue("jobId"))
 	if !ok {
