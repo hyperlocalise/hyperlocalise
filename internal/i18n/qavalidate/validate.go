@@ -25,8 +25,10 @@ var checkTypes = []string{
 	"unreachable_plural_case", "guideline",
 }
 
-const checkUnreachablePlural = "unreachable_plural_case"
-const checkGuideline = "guideline"
+const (
+	checkUnreachablePlural = "unreachable_plural_case"
+	checkGuideline         = "guideline"
+)
 
 type Setting struct {
 	Enabled  bool   `json:"enabled"`
