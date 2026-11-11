@@ -17,6 +17,7 @@ import { useEditorPageWindow } from "../project-file/content-editor-page-window"
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useRef } from "react";
 
+import type { ContentEditorSegmentCheckHandler } from "@/components/content-editor/segment/content-editor-segment-checkbox";
 import { isContentEditorImageGenerating } from "@/components/content-editor/project-file/content-editor-image-generation-state";
 import { cn } from "@/lib/primitives/cn";
 import { ContentEditorSectionErrorBoundary } from "@/components/content-editor/workspace/content-editor-section-error-boundary";
@@ -115,7 +116,7 @@ export function ContentEditorSideBySideVirtualList({
   onToggleLocked?: (segmentId: string) => void | Promise<void>;
   checkedSegmentIds?: ReadonlySet<string>;
   showSelection?: boolean;
-  onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
+  onToggleSegmentChecked?: ContentEditorSegmentCheckHandler;
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onNearEnd?: () => void;
@@ -290,7 +291,8 @@ export function ContentEditorSideBySideVirtualList({
                   checkedSegmentIds={checkedSegmentIds}
                   onCheckedChange={
                     showSelection && onToggleSegmentChecked
-                      ? (checked) => onToggleSegmentChecked(segment.id, checked)
+                      ? (checked, extendRange) =>
+                          onToggleSegmentChecked(segment.id, checked, extendRange)
                       : undefined
                   }
                 />

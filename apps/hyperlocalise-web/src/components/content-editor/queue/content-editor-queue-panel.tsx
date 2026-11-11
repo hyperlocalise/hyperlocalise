@@ -25,6 +25,7 @@ import {
   contentEditorQueuePanelMessages,
   contentEditorWorkspaceMessages,
 } from "@/components/content-editor/shared/content-editor.messages";
+import type { ContentEditorSegmentCheckHandler } from "@/components/content-editor/segment/content-editor-segment-checkbox";
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
 import type { SourceFileIngestState } from "@/lib/projects/files/source-file-ingest-state";
 import { isSourceFileIngestInProgress } from "@/lib/projects/files/source-file-ingest-state";
@@ -62,7 +63,7 @@ export function ContentEditorQueuePanel({
   search?: string;
   queueFilter?: ContentEditorQueueFilter;
   checkedSegmentIds?: ReadonlySet<string>;
-  onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
+  onToggleSegmentChecked?: ContentEditorSegmentCheckHandler;
   showSelection?: boolean;
   isFetchingPage?: boolean;
   isQueueLoading?: boolean;

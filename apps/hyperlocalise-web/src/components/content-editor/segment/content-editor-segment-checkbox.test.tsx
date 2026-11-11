@@ -36,6 +36,24 @@ describe("ContentEditorSegmentCheckbox", () => {
     fireEvent.click(checkbox);
 
     expect(checkbox).toHaveFocus();
-    expect(onCheckedChange).toHaveBeenCalledWith(true);
+    expect(onCheckedChange).toHaveBeenCalledWith(true, false);
+  });
+
+  it("says when the box was Shift-clicked, without selecting the page's text", () => {
+    const onCheckedChange = vi.fn();
+    renderWithContentEditorProviders(
+      <ContentEditorSegmentCheckbox
+        segmentId="seg-01"
+        segmentKey="home.title"
+        checkedSegmentIds={new Set()}
+        onCheckedChange={onCheckedChange}
+      />,
+    );
+    const checkbox = screen.getByRole("checkbox", { name: "Select home.title" });
+
+    expect(fireEvent.mouseDown(checkbox, { shiftKey: true })).toBe(false);
+    fireEvent.click(checkbox, { shiftKey: true });
+
+    expect(onCheckedChange).toHaveBeenCalledWith(true, true);
   });
 });

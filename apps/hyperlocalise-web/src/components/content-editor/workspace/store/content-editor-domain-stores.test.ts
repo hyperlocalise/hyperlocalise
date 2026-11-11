@@ -163,6 +163,75 @@ describe("ContentEditorQueueStore", () => {
     expect(queue.selectedSegmentId).toBe("seg-01");
     expect([...queue.checkedSegmentIds]).toEqual([]);
   });
+
+  describe("Shift-click ranges", () => {
+    const order = ["seg-01", "seg-02", "seg-03", "seg-04", "seg-05"];
+    const ticked = (queue: ContentEditorQueueStore) => [...queue.checkedSegmentIds].sort();
+
+    it("ticks every row from the last box clicked to the Shift-clicked one, either way round", () => {
+      const queue = new ContentEditorQueueStore();
+      queue.checkFromClick("seg-04", true);
+      queue.checkFromClick("seg-02", true, order);
+
+      expect(ticked(queue)).toEqual(["seg-02", "seg-03", "seg-04"]);
+    });
+
+    it("gives the range the clicked box's new state, so a Shift-click can untick", () => {
+      const queue = new ContentEditorQueueStore();
+      queue.selectAll(order);
+      queue.checkFromClick("seg-02", false);
+      queue.checkFromClick("seg-04", false, order);
+
+      expect(ticked(queue)).toEqual(["seg-01", "seg-05"]);
+    });
+
+    it("starts the next range at the last box clicked, Shift or not", () => {
+      const queue = new ContentEditorQueueStore();
+      queue.checkFromClick("seg-01", true);
+      queue.checkFromClick("seg-02", true, order);
+      queue.checkFromClick("seg-05", true, order);
+
+      expect(ticked(queue)).toEqual(order);
+      queue.checkFromClick("seg-03", false, order);
+      expect(ticked(queue)).toEqual(["seg-01", "seg-02"]);
+    });
+
+    it("ticks just the clicked row with no earlier click, or one no longer in the list", () => {
+      const queue = new ContentEditorQueueStore();
+      queue.checkFromClick("seg-03", true, order);
+      expect(ticked(queue)).toEqual(["seg-03"]);
+
+      // The list no longer shows seg-03, as after a search.
+      queue.checkFromClick("seg-05", true, ["seg-04", "seg-05"]);
+      expect(ticked(queue)).toEqual(["seg-03", "seg-05"]);
+    });
+
+    it.each([
+      ["the filter changes", (queue: ContentEditorQueueStore) => queue.setFilter("untranslated")],
+      ["the sort changes", (queue: ContentEditorQueueStore) => queue.setSort("untranslated_first")],
+      ["Select is turned off", (queue: ContentEditorQueueStore) => queue.setSelectionMode(false)],
+      [
+        "the file or language changes",
+        (queue: ContentEditorQueueStore) => queue.resetForFileScope(),
+      ],
+    ])("forgets the start when %s", (_case, change) => {
+      const queue = new ContentEditorQueueStore();
+      queue.checkFromClick("seg-01", true);
+      change(queue);
+      queue.checkFromClick("seg-04", true, order);
+
+      expect(ticked(queue)).toEqual(["seg-04"]);
+    });
+
+    it("keeps the start through a search that still lists it", () => {
+      const queue = new ContentEditorQueueStore();
+      queue.checkFromClick("seg-02", true);
+      queue.setSearch("second");
+      queue.checkFromClick("seg-05", true, ["seg-02", "seg-04", "seg-05"]);
+
+      expect(ticked(queue)).toEqual(["seg-02", "seg-04", "seg-05"]);
+    });
+  });
 });
 
 describe("ContentEditorSegmentDraft", () => {
