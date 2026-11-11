@@ -107,9 +107,16 @@ func parseGuidelineDocumentID(raw string) (string, error) {
 	return id.String(), nil
 }
 
-func (api *guidelineDocumentAPI) requireWriter(actor workspaceActor) error {
+func (api *guidelineDocumentAPI) requireKnowledgeMemoryAdmin(actor workspaceActor) error {
 	if !canUpdateKnowledgeMemory(actor.role) {
 		return knowledgeMemoryFailure(403, "forbidden", "Only workspace admins can manage guideline documents")
+	}
+	return nil
+}
+
+func (api *guidelineDocumentAPI) requireWriter(actor workspaceActor) error {
+	if err := api.requireKnowledgeMemoryAdmin(actor); err != nil {
+		return err
 	}
 	if api.publisher == nil {
 		return knowledgeMemoryFailure(503, "guideline_ingest_unavailable", "Guideline document processing is unavailable")
@@ -256,9 +263,6 @@ func (api *guidelineDocumentAPI) upload(_ http.ResponseWriter, r *http.Request, 
 }
 
 func (api *guidelineDocumentAPI) update(_ http.ResponseWriter, r *http.Request, actor workspaceActor) (int, any, error) {
-	if err := api.requireWriter(actor); err != nil {
-		return 0, nil, err
-	}
 	id, err := parseGuidelineDocumentID(r.PathValue("documentId"))
 	if err != nil {
 		return 0, nil, err
@@ -270,6 +274,9 @@ func (api *guidelineDocumentAPI) update(_ http.ResponseWriter, r *http.Request, 
 	pool := api.knowledge.workspace.pool
 	revisionID := uuid.NewString()
 	if isMultipartRequest(r) {
+		if err := api.requireWriter(actor); err != nil {
+			return 0, nil, err
+		}
 		if api.objects == nil {
 			return 0, nil, knowledgeMemoryFailure(503, "object_storage_unavailable", "Guideline document storage is unavailable")
 		}
@@ -302,6 +309,9 @@ func (api *guidelineDocumentAPI) update(_ http.ResponseWriter, r *http.Request, 
 		return http.StatusAccepted, map[string]any{"guidelineDocument": api.publishExtract(r.Context(), record)}, nil
 	}
 
+	if err := api.requireKnowledgeMemoryAdmin(actor); err != nil {
+		return 0, nil, err
+	}
 	change, err := decodeGuidelineDocumentMetadata(r)
 	if err != nil {
 		return 0, nil, err
@@ -314,6 +324,11 @@ func (api *guidelineDocumentAPI) update(_ http.ResponseWriter, r *http.Request, 
 		return 0, nil, guidelineDocumentNotFound()
 	}
 	if record.Status == "failed" {
+		return http.StatusOK, map[string]any{"guidelineDocument": record}, nil
+	}
+	// Metadata-only changes (title, locales, mandatory, is_global) should work
+	// without a live ingest queue; reindex when the publisher is configured.
+	if api.publisher == nil {
 		return http.StatusOK, map[string]any{"guidelineDocument": record}, nil
 	}
 	return http.StatusAccepted, map[string]any{"guidelineDocument": api.publishExtract(r.Context(), record)}, nil

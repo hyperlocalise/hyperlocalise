@@ -181,3 +181,14 @@ export const LoadError: Story = {
     msw: { handlers: createGuidelineDocumentsMswHandlers({ failList: true }) },
   },
 };
+
+export const EmptyOrgList: Story = {
+  args: {
+    organizationSlug,
+    canUpdate: true,
+    createGuidelineHref: "/org/acme/knowledge/upload",
+  },
+  parameters: {
+    msw: { handlers: createGuidelineDocumentsMswHandlers({ documents: [] }) },
+  },
+};

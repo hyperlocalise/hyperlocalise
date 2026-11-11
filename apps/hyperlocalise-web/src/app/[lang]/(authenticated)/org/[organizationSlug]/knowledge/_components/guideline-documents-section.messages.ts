@@ -25,6 +25,33 @@ export const guidelineDocumentsSectionMessages = defineMessages({
     id: "1piQlMbA0v",
     description: "Explanation shown above the list of uploaded guideline documents",
   },
+  emptyTitle: {
+    defaultMessage: "No guidelines yet",
+    id: "TgL7Tdom2s",
+    description: "Title when the organization has no guideline documents",
+  },
+  emptyDescription: {
+    defaultMessage:
+      "Upload a PDF, DOCX, or markdown file so Hyperlocalise can use it in guideline checks.",
+    id: "HSh39++wV6",
+    description: "Description in the empty guideline list state",
+  },
+  emptyProjectTitle: {
+    defaultMessage: "No guidelines for this project",
+    id: "NPxj2A77E6",
+    description: "Title when a project view has no applicable guideline documents",
+  },
+  emptyProjectDescription: {
+    defaultMessage:
+      "Guidelines that apply to every project still show here once uploaded. Assign documents to this project from the organization Guideline page.",
+    id: "pJJ/AoXVu3",
+    description: "Description when a project view has no applicable guideline documents",
+  },
+  createGuideline: {
+    defaultMessage: "Create Guideline",
+    id: "XpRK5J9MH0",
+    description: "Button linking to the guideline upload page from the empty list state",
+  },
   loadFailed: {
     defaultMessage: "Unable to load uploaded guidelines.",
     id: "tVY9dqD8RG",

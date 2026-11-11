@@ -15,7 +15,7 @@
 import { useId, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PencilSimpleIcon, TrashIcon } from "@phosphor-icons/react";
+import { FileTextIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 import { toast } from "sonner";
 
@@ -42,6 +42,14 @@ import {
   ItemGroup,
   ItemTitle,
 } from "@/components/ui/item";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
@@ -344,14 +352,58 @@ function GuidelineDocumentRow({
   );
 }
 
+function GuidelineDocumentsEmpty({
+  projectScoped,
+  createGuidelineHref,
+}: {
+  projectScoped: boolean;
+  createGuidelineHref?: string;
+}) {
+  return (
+    <Empty className="border border-dashed border-border">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <FileTextIcon />
+        </EmptyMedia>
+        <EmptyTitle>
+          <FormattedMessage
+            {...(projectScoped ? messages.emptyProjectTitle : messages.emptyTitle)}
+          />
+        </EmptyTitle>
+        <EmptyDescription>
+          <FormattedMessage
+            {...(projectScoped ? messages.emptyProjectDescription : messages.emptyDescription)}
+          />
+        </EmptyDescription>
+      </EmptyHeader>
+      {createGuidelineHref ? (
+        <EmptyContent>
+          <Button
+            type="button"
+            nativeButton={false}
+            size="sm"
+            render={<Link href={createGuidelineHref} />}
+          >
+            <PlusIcon data-icon="inline-start" />
+            <FormattedMessage {...messages.createGuideline} />
+          </Button>
+        </EmptyContent>
+      ) : null}
+    </Empty>
+  );
+}
+
 export function GuidelineDocumentsSection({
   organizationSlug,
   projectId,
   canUpdate,
+  createGuidelineHref,
 }: {
   organizationSlug: string;
   projectId?: string;
   canUpdate: boolean;
+  /** When set, the empty list shows a link to the upload page (org writers and project pages). */
+  createGuidelineHref?: string;
 }) {
   const { client, loading } = useGoSvcClient();
   const [editingDocument, setEditingDocument] = useState<GuidelineDocument | null>(null);
@@ -415,7 +467,13 @@ export function GuidelineDocumentsSection({
             (assignedIdsByDocument.get(document.id) ?? []).includes(projectId),
         );
   if (visibleDocuments.length === 0) {
-    return null;
+    const projectScoped = projectId != null && (query.data?.length ?? 0) > 0;
+    return (
+      <GuidelineDocumentsEmpty
+        projectScoped={projectScoped}
+        createGuidelineHref={createGuidelineHref}
+      />
+    );
   }
 
   return (

@@ -41,6 +41,7 @@ export function KnowledgePageContent({
         organizationSlug={organizationSlug}
         projectId={projectId}
         canUpdate={canUpdate}
+        createGuidelineHref={canUpdateKnowledgeMemory ? uploadHref : undefined}
       />
     </div>
   );
