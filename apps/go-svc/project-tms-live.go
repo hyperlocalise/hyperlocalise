@@ -155,6 +155,75 @@ func liveProviderFailure(conn tmsConnection, err error) error {
 	return asProjectFailure(tmsProviderFailure(conn, err))
 }
 
+// liveGet serves GET …/projects/ext:…: one live TMS project, the same
+// envelope native getHandler returns so Iris can resolve either kind by id.
+func (api *projectAPI) liveGet(r *http.Request, actor projectActor, id liveProjectID) (any, int, error) {
+	ctx, cancel := context.WithTimeout(r.Context(), tmsLiveRequestTimeout)
+	defer cancel()
+	reader, conn, err := api.liveReader(ctx, actor, &id)
+	if err != nil {
+		return nil, 0, err
+	}
+	project, err := reader.GetProject(ctx, id.externalProjectID)
+	if err != nil {
+		return nil, 0, liveProviderFailure(conn, err)
+	}
+	if project == nil {
+		return nil, 0, projectNotFound()
+	}
+	return map[string]any{"project": liveProject(actor.organizationID, conn.ProviderKind, *project)}, http.StatusOK, nil
+}
+
+// liveLocaleProgress serves GET …/projects/ext:…/locale-progress by summing
+// the TMS's per-file phrase counts for each target locale.
+func (api *projectAPI) liveLocaleProgress(r *http.Request, actor projectActor, id liveProjectID) (any, int, error) {
+	ctx, cancel := context.WithTimeout(r.Context(), tmsLiveRequestTimeout)
+	defer cancel()
+	reader, conn, err := api.liveReader(ctx, actor, &id)
+	if err != nil {
+		return nil, 0, err
+	}
+	project, err := reader.GetProject(ctx, id.externalProjectID)
+	if err != nil {
+		return nil, 0, liveProviderFailure(conn, err)
+	}
+	if project == nil {
+		return nil, 0, projectNotFound()
+	}
+	byLocale := make(map[string][]tmscatalog.FileProgress, len(project.TargetLocales))
+	for _, locale := range project.TargetLocales {
+		rows, progressErr := reader.FileProgress(ctx, id.externalProjectID, locale)
+		if progressErr != nil {
+			logRequestFailure(r, "tms_live_locale_progress_failed", "locale_progress", progressErr, "provider", conn.ProviderKind, "locale", locale)
+			byLocale[locale] = nil
+			continue
+		}
+		byLocale[locale] = rows
+	}
+	return map[string]any{"locales": liveLocaleProgressRows(*project, byLocale)}, http.StatusOK, nil
+}
+
+func liveLocaleProgressRows(project tmscatalog.Project, byLocale map[string][]tmscatalog.FileProgress) []localeProgressRow {
+	rows := make([]localeProgressRow, 0, len(project.TargetLocales))
+	for _, locale := range project.TargetLocales {
+		phrases := localeProgressCounts{}
+		for _, file := range byLocale[locale] {
+			phrases.Total += file.Phrases.Total
+			phrases.Translated += file.Phrases.Translated
+			phrases.Approved += file.Phrases.Approved
+		}
+		rows = append(rows, localeProgressRow{
+			Locale:              locale,
+			TranslationProgress: progressPercent(phrases.Translated, phrases.Total),
+			ApprovalProgress:    progressPercent(phrases.Approved, phrases.Total),
+			Words:               localeProgressCounts{},
+			Phrases:             phrases,
+			LastActivityAt:      project.LastActivityAt,
+		})
+	}
+	return rows
+}
+
 // liveProjectsHandler lists the active TMS's projects, archived ones left out.
 func (api *projectAPI) liveProjectsHandler(r *http.Request, actor projectActor) (any, int, error) {
 	ctx, cancel := context.WithTimeout(r.Context(), tmsLiveRequestTimeout)
@@ -196,7 +265,7 @@ func liveProject(organizationID, providerKind string, project tmscatalog.Project
 	if targets == nil {
 		targets = []string{}
 	}
-	return liveProjectRecord{
+	record := liveProjectRecord{
 		ID:                   encodeLiveProjectID(providerKind, project.ExternalID),
 		OrganizationID:       organizationID,
 		Name:                 project.Name,
@@ -214,6 +283,11 @@ func liveProject(organizationID, providerKind string, project tmscatalog.Project
 		UpdatedAt:            updatedAt,
 		Metadata:             metadata,
 	}
+	if identifier, ok := metadata["identifier"].(string); ok && strings.TrimSpace(identifier) != "" {
+		trimmed := strings.TrimSpace(identifier)
+		record.Identifier = &trimmed
+	}
+	return record
 }
 
 // liveFiles serves GET …/projects/ext:…/files: the project's files in the TMS,
