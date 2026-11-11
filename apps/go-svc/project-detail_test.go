@@ -72,11 +72,11 @@ func TestProjectDetailHandler(t *testing.T) {
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	})
 
-	t.Run("does not serve external project ids", func(t *testing.T) {
+	t.Run("routes external project ids to the live TMS", func(t *testing.T) {
 		api, scope := projectTestAPI(t)
 		rec := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:1"))
-		require.Equal(t, http.StatusNotFound, rec.Code)
-		require.Contains(t, rec.Body.String(), `"project_not_found"`)
+		require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+		require.Contains(t, rec.Body.String(), `"tms_unavailable"`)
 	})
 
 	t.Run("never surfaces a materialized provider project by its plain id", func(t *testing.T) {
