@@ -61,8 +61,8 @@ vi.mock("@/lib/security/public-http-fetch", async (importOriginal) => {
 
 import { ok } from "@/lib/primitives/result/results";
 
+import { buildAuditPlaywrightScript } from "./audit-playwright-script";
 import {
-  buildAuditPlaywrightScript,
   createAuditBrowserSession,
   isBlockedBrowserNavigationUrl,
   prepareAuditBrowserRuntimeCommand,
