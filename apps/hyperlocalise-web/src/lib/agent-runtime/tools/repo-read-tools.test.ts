@@ -30,6 +30,7 @@ import {
   redact,
   type I18NConfigSummary,
 } from "./repo-read-tools";
+import { REPO_BASH_TIMEOUT_EXIT_CODE } from "./workspace/types";
 
 function createTestContext(files: Record<string, string> = {}): { bash: Bash } {
   const fs = new InMemoryFs(files);
@@ -1709,6 +1710,22 @@ describe("createRunHyperlocaliseCliTool", () => {
     const result = await t.execute!({ subcommand: "check" }, toolCallInfo);
     expect(result).toMatchObject({ success: true, exitCode: 0 });
     expect((result as { stdout: string }).stdout).toContain("subcommand=check");
+  });
+
+  it("returns a timed-out failure when the bash adapter stops hl at its timeout", async () => {
+    const ctx = createTestContext();
+    ctx.bash.registerCommand(
+      defineCommand("hl", async () => ({
+        stdout: "",
+        stderr: "hl timed out after 240s and was stopped.",
+        exitCode: REPO_BASH_TIMEOUT_EXIT_CODE,
+      })),
+    );
+
+    const t = createRunHyperlocaliseCliTool(ctx);
+    const result = await t.execute!({ subcommand: "check" }, toolCallInfo);
+    expect(result).toMatchObject({ success: false, timedOut: true });
+    expect((result as { error: string }).error).toContain("Do not retry the same command");
   });
 
   it("passes a tracked i18n.yml as --config when the agent omits config", async () => {

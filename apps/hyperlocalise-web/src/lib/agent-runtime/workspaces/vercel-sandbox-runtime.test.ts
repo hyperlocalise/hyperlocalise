@@ -34,6 +34,7 @@ vi.mock("@vercel/sandbox", () => ({
 
 import {
   buildSandboxWritePathGuardScript,
+  DEFAULT_SANDBOX_COMMAND_TIMEOUT_MS,
   SANDBOX_WRITE_GIT_METADATA_DENIED,
   SANDBOX_WRITE_OUTSIDE_WORKSPACE,
   SANDBOX_WRITE_SYMLINK_DENIED,
@@ -149,6 +150,40 @@ describe("VercelSandboxRuntime", () => {
     expect(sandboxMocks.runCommand).toHaveBeenCalledWith(
       "bash",
       expect.arrayContaining(["-lc", expect.stringContaining(`printf '%s' "$resolved"`)]),
+      expect.anything(),
+    );
+  });
+
+  it("bounds every command with a default timeout and abort signal", async () => {
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      exitCode: 0,
+      output: async () => "ok",
+    });
+    sandboxMocks.get.mockResolvedValueOnce({ runCommand: sandboxMocks.runCommand });
+
+    const runtime = new VercelSandboxRuntime("sbx_123");
+    await runtime.runCommand("hl", ["check"]);
+
+    expect(sandboxMocks.runCommand).toHaveBeenCalledWith("hl", ["check"], {
+      timeoutMs: DEFAULT_SANDBOX_COMMAND_TIMEOUT_MS,
+      signal: expect.any(AbortSignal),
+    });
+  });
+
+  it("passes a caller timeout through to the sandbox", async () => {
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      exitCode: 0,
+      output: async () => "",
+    });
+    sandboxMocks.get.mockResolvedValueOnce({ runCommand: sandboxMocks.runCommand });
+
+    const runtime = new VercelSandboxRuntime("sbx_123");
+    await runtime.runCommand("git", ["status"], { timeoutMs: 1_000 });
+
+    expect(sandboxMocks.runCommand).toHaveBeenCalledWith(
+      "git",
+      ["status"],
+      expect.objectContaining({ timeoutMs: 1_000 }),
     );
   });
 
@@ -181,6 +216,7 @@ describe("VercelSandboxRuntime", () => {
     expect(sandboxMocks.runCommand).toHaveBeenCalledWith(
       "bash",
       expect.arrayContaining(["-lc", expect.stringContaining("realpath -m")]),
+      expect.anything(),
     );
   });
 
@@ -278,6 +314,7 @@ describe("VercelSandboxRuntime", () => {
     expect(sandboxMocks.runCommand).toHaveBeenCalledWith(
       "bash",
       expect.arrayContaining(["-lc", expect.stringContaining("realpath -m")]),
+      expect.anything(),
     );
   });
 });
