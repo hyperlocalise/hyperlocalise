@@ -13,7 +13,7 @@ hyperlocalise validate [flags]
 
 ## Checks
 
-Each check is enabled or disabled and has severity `error` or `warning`. The default policy enables every check except numbers, ending punctuation, capitalization, and guidelines. Those stay off until a policy file turns them on.
+Each check is enabled or disabled and has severity `error` or `warning`. The default policy enables every check except numbers, ending punctuation, capitalization, and guidelines. A policy file can turn on numbers, ending punctuation, and capitalization. `validate` does not run `guideline` even when the policy enables it.
 
 | Check | Default | What it reports |
 | --- | --- | --- |
