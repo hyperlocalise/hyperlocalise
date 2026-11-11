@@ -1012,6 +1012,34 @@ describe("GoSvcClient", () => {
     ]);
   });
 
+  it("surfaces a partial Crowdin job create as an error, not a 2xx success", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json(
+        {
+          error: "provider_task_create_partial",
+          message: "Created 1 of 2 jobs, then failed: provider unavailable",
+          createdCount: 1,
+          jobs: [{ id: "ext:crowdin:7:11" }],
+        },
+        { status: 207 },
+      ),
+    );
+    const client = clientWith(fetchMock);
+
+    await expect(
+      client.tms.createProjectJobs("acme", "ext:crowdin:7", {
+        title: "Homepage",
+        targetLocales: ["fr", "de"],
+        fileIds: ["1"],
+      }),
+    ).rejects.toMatchObject({
+      name: "GoSvcClientError",
+      code: "provider_task_create_partial",
+      status: 207,
+      details: { createdCount: 1, jobs: [{ id: "ext:crowdin:7:11" }] },
+    });
+  });
+
   it("reads inbox notifications, preferences, and mentions from native go-svc reads", async () => {
     const fetchMock = vi
       .fn()

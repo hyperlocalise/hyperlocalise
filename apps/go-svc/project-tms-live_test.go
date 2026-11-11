@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -25,6 +26,20 @@ func TestParseLiveProjectID(t *testing.T) {
 			t.Errorf("parseLiveProjectID(%q) ok, want not live", raw)
 		}
 	}
+}
+
+func TestLiveTMSRequest(t *testing.T) {
+	t.Parallel()
+	tms := httptest.NewRequest(http.MethodGet, "/v1/orgs/acme/tms/jobs", nil)
+	require.True(t, liveTMSRequest(tms))
+
+	native := httptest.NewRequest(http.MethodGet, "/v1/orgs/acme/projects/proj_1/jobs", nil)
+	native.SetPathValue("projectId", "proj_1")
+	require.False(t, liveTMSRequest(native))
+
+	liveJob := httptest.NewRequest(http.MethodGet, "/v1/orgs/acme/jobs/ext:crowdin:7:10", nil)
+	liveJob.SetPathValue("jobId", "ext:crowdin:7:10")
+	require.True(t, liveTMSRequest(liveJob))
 }
 
 func TestLiveFileFilenameFallbacks(t *testing.T) {

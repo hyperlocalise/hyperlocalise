@@ -101,9 +101,9 @@ type liveCreateJobsBody struct {
 }
 
 type liveUpdateJobBody struct {
-	Title                   *string   `json:"title"`
-	Description             *string   `json:"description"`
-	AssigneeExternalUserIDs *[]string `json:"assigneeExternalUserIds"`
+	Title                   *string                `json:"title"`
+	Description             optionalNullableString `json:"description"`
+	AssigneeExternalUserIDs *[]string              `json:"assigneeExternalUserIds"`
 }
 
 type liveUpdateDescriptionBody struct {
@@ -331,16 +331,21 @@ func (api *projectAPI) projectJobsCreateHandler(r *http.Request, actor projectAc
 	if kind == "" {
 		kind = "translation"
 	}
+	switch kind {
+	case "translation", "proofread":
+	default:
+		return nil, 0, projectFailure(http.StatusBadRequest, "invalid_request_body", "Invalid create job payload")
+	}
 	locales := uniqueTrimmed(body.TargetLocales, liveCreateLocaleMax)
 	if len(locales) == 0 || len(locales) > liveCreateLocalesMax {
 		return nil, 0, projectFailure(http.StatusBadRequest, "invalid_request_body", "Invalid create job payload")
 	}
 	fileIDs := uniqueTrimmed(body.FileIDs, liveCreateFileIDMax)
-	if len(fileIDs) == 0 || len(fileIDs) > liveCreateFileIDsMax {
+	if len(fileIDs) == 0 || len(fileIDs) > liveCreateFileIDsMax || !positiveCrowdinIDs(fileIDs) {
 		return nil, 0, projectFailure(http.StatusBadRequest, "invalid_request_body", "Invalid create job payload")
 	}
 	assignees := uniqueTrimmed(body.AssigneeExternalUserIDs, liveCreateAssigneeIDMax)
-	if len(assignees) > liveCreateAssigneesMax {
+	if len(assignees) > liveCreateAssigneesMax || !positiveCrowdinIDs(assignees) {
 		return nil, 0, projectFailure(http.StatusBadRequest, "invalid_request_body", "Invalid create job payload")
 	}
 	var description *string
@@ -407,26 +412,33 @@ func (api *projectAPI) orgJobUpdateHandler(r *http.Request, actor projectActor) 
 		}
 		body.Title = &trimmed
 	}
-	if body.Description != nil {
-		trimmed := strings.TrimSpace(*body.Description)
-		if utf16Length(trimmed) > liveCreateDescriptionMax {
-			return nil, 0, projectFailure(http.StatusBadRequest, "invalid_job_update", "Invalid provider job update payload")
+	var description *string
+	if body.Description.Present {
+		trimmed := ""
+		if body.Description.Value != nil {
+			trimmed = strings.TrimSpace(*body.Description.Value)
+			if utf16Length(trimmed) > liveCreateDescriptionMax {
+				return nil, 0, projectFailure(http.StatusBadRequest, "invalid_job_update", "Invalid provider job update payload")
+			}
 		}
-		body.Description = &trimmed
+		description = &trimmed
 	}
 	if body.AssigneeExternalUserIDs != nil {
 		ids := uniqueTrimmed(*body.AssigneeExternalUserIDs, liveCreateAssigneeIDMax)
 		if len(ids) > liveCreateAssigneesMax {
 			return nil, 0, projectFailure(http.StatusBadRequest, "invalid_job_update", "Invalid provider job update payload")
 		}
+		if !canonicalCrowdinIDs(ids) {
+			return nil, 0, projectFailure(http.StatusBadRequest, "invalid_crowdin_assignee_id", "Assignee ids must be canonical positive Crowdin member ids.")
+		}
 		body.AssigneeExternalUserIDs = &ids
 	}
-	if body.Title == nil && body.Description == nil && body.AssigneeExternalUserIDs == nil {
+	if body.Title == nil && !body.Description.Present && body.AssigneeExternalUserIDs == nil {
 		return nil, 0, projectFailure(http.StatusBadRequest, "invalid_job_update", "At least one of title, description, or assigneeExternalUserIds is required")
 	}
 	return api.updateLiveJob(r, actor, job, tmscatalog.TaskUpdate{
 		Title:        body.Title,
-		Description:  body.Description,
+		Description:  description,
 		AssigneeIDs:  derefStrings(body.AssigneeExternalUserIDs),
 		HasAssignees: body.AssigneeExternalUserIDs != nil,
 	})
@@ -576,14 +588,15 @@ func (api *projectAPI) liveJobFiles(r *http.Request, actor projectActor, id live
 	if err != nil {
 		return nil, 0, liveProviderFailure(conn, err)
 	}
-	wanted := map[string]bool{}
-	for _, fileID := range task.FileIDs {
-		wanted[fileID] = true
+	byID := map[string]tmscatalog.File{}
+	for _, file := range files {
+		byID[file.ExternalResourceID] = file
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	records := []liveFileRecord{}
-	for _, file := range files {
-		if !wanted[file.ExternalResourceID] {
+	for _, fileID := range task.FileIDs {
+		file, ok := byID[fileID]
+		if !ok {
 			continue
 		}
 		records = append(records, liveFile(conn.ProviderKind, id.externalProjectID, file, now))
@@ -694,11 +707,18 @@ func (api *projectAPI) listLiveUserJobs(ctx context.Context, operator tmscatalog
 
 func (api *projectAPI) listLiveProjectJobs(ctx context.Context, actor projectActor, operator tmscatalog.JobOperator, conn tmsConnection, id liveProjectID, query liveJobsQuery, known *tmscatalog.Project) ([]liveJobRecord, error) {
 	if query.mine && operator.UsesPerUserAuth() {
-		var projects []tmscatalog.Project
-		if known != nil {
-			projects = []tmscatalog.Project{*known}
+		project := known
+		if project == nil {
+			loaded, err := operator.GetProject(ctx, id.externalProjectID)
+			if err != nil {
+				return nil, err
+			}
+			if loaded == nil {
+				return []liveJobRecord{}, nil
+			}
+			project = loaded
 		}
-		return api.listLiveUserJobs(ctx, operator, conn.ProviderKind, projects, id.externalProjectID, query)
+		return api.listLiveUserJobs(ctx, operator, conn.ProviderKind, []tmscatalog.Project{*project}, id.externalProjectID, query)
 	}
 	project := known
 	if project == nil {
@@ -856,7 +876,7 @@ func liveJob(providerKind, externalProjectID, projectName string, task tmscatalo
 		ExternalProviderKind:  providerKind,
 		ExternalStatus:        task.Status,
 		ExternalTitle:         title,
-		ExternalDueDate:       task.DueDate,
+		ExternalDueDate:       liveJobTimestampPtr(task.DueDate),
 		ExternalTargetLocales: targets,
 		ExternalAssignedUsers: assigned,
 	}
@@ -930,6 +950,26 @@ func taskAssignedTo(task tmscatalog.Task, wanted map[string]bool) bool {
 		}
 	}
 	return false
+}
+
+func positiveCrowdinIDs(values []string) bool {
+	for _, value := range values {
+		id, err := strconv.Atoi(value)
+		if err != nil || id <= 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func canonicalCrowdinIDs(values []string) bool {
+	for _, value := range values {
+		id, err := strconv.Atoi(value)
+		if err != nil || id <= 0 || strconv.Itoa(id) != value {
+			return false
+		}
+	}
+	return true
 }
 
 func uniqueTrimmed(values []string, maxLen int) []string {

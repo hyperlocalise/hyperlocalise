@@ -150,7 +150,9 @@ export class GoSvcRequest {
 
   private async send(path: string, request: GoSvcJsonRequest): Promise<Response> {
     const response = await this.response(path, request);
-    if (!response.ok) {
+    // 207 Multi-Status is in the 2xx window, but Crowdin job create uses it for a
+    // partial failure. Treat it like an error so callers see createdCount/jobs.
+    if (!response.ok || response.status === 207) {
       throw await responseError(response);
     }
     return response;
@@ -232,8 +234,21 @@ async function responseError(response: Response): Promise<GoSvcClientError> {
         ? body.message
         : `go-svc request failed with status ${response.status}`,
     status: response.status,
-    details: body.details,
+    details: errorDetails(body),
   });
+}
+
+function errorDetails(body: GoSvcErrorBody): unknown {
+  if (body.details !== undefined) {
+    return body.details;
+  }
+  if (body.createdCount === undefined && body.jobs === undefined) {
+    return undefined;
+  }
+  return {
+    ...(body.createdCount !== undefined ? { createdCount: body.createdCount } : {}),
+    ...(body.jobs !== undefined ? { jobs: body.jobs } : {}),
+  };
 }
 
 function isErrorEnvelope(value: unknown): value is GoSvcErrorBody {

@@ -70,6 +70,84 @@ func TestCrowdinCreateTaskPayload(t *testing.T) {
 	}
 }
 
+func TestCrowdinCanonicalID(t *testing.T) {
+	t.Parallel()
+	if _, err := crowdinCanonicalID("12", "assigneeId"); err != nil {
+		t.Fatal(err)
+	}
+	for _, raw := range []string{"", "0", "01", "abc", "-1"} {
+		if _, err := crowdinCanonicalID(raw, "assigneeId"); err == nil {
+			t.Fatalf("crowdinCanonicalID(%q) should fail", raw)
+		}
+	}
+}
+
+func TestCrowdinGetTaskUnknownID(t *testing.T) {
+	t.Parallel()
+	operator := newCrowdin(Credentials{BaseURL: "http://127.0.0.1", HeaderName: "Authorization", HeaderValue: "Bearer x"}, http.DefaultClient)
+	got, err := operator.GetTask(context.Background(), "7", "abc")
+	if err != nil || got != nil {
+		t.Fatalf("invalid task ids are missing, not unreachable: %#v, %v", got, err)
+	}
+}
+
+func TestCrowdinDeleteMissingTask(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/projects/7/tasks/10", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			http.Error(w, "method", http.StatusMethodNotAllowed)
+			return
+		}
+		http.Error(w, "gone", http.StatusNotFound)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	operator, err := NewJobOperator("crowdin", Credentials{
+		BaseURL: srv.URL, HeaderName: "Authorization", HeaderValue: "Bearer x",
+	}, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := operator.DeleteTask(context.Background(), "7", "10"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCrowdinUpdateClearsDescription(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/projects/7/tasks/10", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPatch {
+			http.Error(w, "method", http.StatusMethodNotAllowed)
+			return
+		}
+		var patches []crowdinTaskPatch
+		if err := json.NewDecoder(r.Body).Decode(&patches); err != nil {
+			http.Error(w, "json", http.StatusBadRequest)
+			return
+		}
+		if len(patches) != 1 || patches[0].Path != "/description" || patches[0].Value != "" {
+			http.Error(w, "patch", http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": crowdinTaskFixture(10)})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	operator, err := NewJobOperator("crowdin", Credentials{
+		BaseURL: srv.URL, HeaderName: "Authorization", HeaderValue: "Bearer x",
+	}, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	empty := ""
+	if _, err := operator.UpdateTask(context.Background(), "7", "10", TaskUpdate{Description: &empty}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestCrowdinListAndGetTasks(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()
@@ -152,6 +230,9 @@ func TestCrowdinListAndGetTasks(t *testing.T) {
 	got, err := operator.GetTask(context.Background(), "7", "10")
 	if err != nil || got == nil || got.Title != "Translate homepage" {
 		t.Fatalf("GetTask = %#v, %v", got, err)
+	}
+	if got.ProviderPayload["description"] != nil {
+		t.Fatalf("missing description should be JSON null, got %#v", got.ProviderPayload["description"])
 	}
 	created, err := operator.CreateTask(context.Background(), "7", CreateTask{
 		Title: "Homepage", LanguageID: "fr", FileIDs: []string{"1"},

@@ -173,7 +173,11 @@ func (api *projectAPI) handle(fn func(*http.Request, projectActor) (any, int, er
 			writeProjectError(w, r, "availability", projectFailure(503, "projects_unavailable", "Projects are unavailable"))
 			return
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), projectRequestTimeout)
+		timeout := projectRequestTimeout
+		if liveTMSRequest(r) {
+			timeout = tmsLiveRequestTimeout
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), timeout)
 		defer cancel()
 		r = r.WithContext(ctx)
 		claims, ok := ctx.Value(authContextKey{}).(AuthClaims)

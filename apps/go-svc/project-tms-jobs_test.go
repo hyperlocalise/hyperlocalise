@@ -125,6 +125,8 @@ func TestLiveCrowdinJobs(t *testing.T) {
 	detail := projectRequest(api, scope, scope.OrgPath("/jobs/ext:crowdin:7:10"))
 	require.Equal(t, http.StatusOK, detail.Code, detail.Body.String())
 	require.Contains(t, detail.Body.String(), `"externalJobId":"10"`)
+	require.Contains(t, detail.Body.String(), `"description":null`)
+	require.Contains(t, detail.Body.String(), `"externalDueDate":"2026-12-01T00:00:00.000Z"`)
 
 	status := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:7/jobs/10/status"))
 	require.Equal(t, http.StatusOK, status.Code, status.Body.String())
@@ -156,6 +158,107 @@ func TestLiveCrowdinJobs(t *testing.T) {
 
 	deleted := projectMutationRequest(api, scope, http.MethodDelete, scope.OrgPath("/jobs/ext:crowdin:7:10"), nil)
 	require.Equal(t, http.StatusNoContent, deleted.Code, deleted.Body.String())
+}
+
+func TestLiveCrowdinMineJobsKeepTheProjectName(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/projects/7":
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{
+				"id": 7, "name": "Marketing", "sourceLanguageId": "en", "targetLanguageIds": []string{"fr"},
+			}})
+		case r.Method == http.MethodGet && r.URL.Path == "/user/tasks":
+			require.Equal(t, "7", r.URL.Query().Get("projectId"))
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{{"data": liveCrowdinTask(10)}}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	api, scope := projectTestAPI(t)
+	mustOrgTMSCredential(t, scope)
+	api.tms = &tmsImports{
+		tokens: stubTMSMinter{token: &tmsauth.AccessToken{
+			BaseURL: server.URL, HeaderName: "Authorization", HeaderValue: "Bearer token", AuthMode: "oauth",
+		}},
+		http: server.Client(),
+	}
+	rec := projectRequest(api, scope, scope.OrgPath("/projects/ext:crowdin:7/jobs?mine=true"))
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"projectName":"Marketing"`)
+	require.NotContains(t, rec.Body.String(), `"projectName":"Unknown project"`)
+}
+
+func TestLiveCrowdinJobContractGuards(t *testing.T) {
+	api, scope := projectTestAPI(t)
+	mustOrgTMSCredential(t, scope)
+	api.tms = &tmsImports{
+		tokens: stubTMSMinter{token: &tmsauth.AccessToken{
+			BaseURL: "http://127.0.0.1", HeaderName: "Authorization", HeaderValue: "Bearer token",
+		}},
+		http: http.DefaultClient,
+	}
+
+	missing := projectRequest(api, scope, scope.OrgPath("/jobs/ext:crowdin:7:abc"))
+	require.Equal(t, http.StatusNotFound, missing.Code, missing.Body.String())
+	require.Contains(t, missing.Body.String(), "job_not_found")
+
+	unknownKind := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/ext:crowdin:7/jobs"), map[string]any{
+		"title": "Homepage", "targetLocales": []string{"fr"}, "fileIds": []string{"1"}, "kind": "review",
+	})
+	require.Equal(t, http.StatusBadRequest, unknownKind.Code, unknownKind.Body.String())
+
+	badFile := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects/ext:crowdin:7/jobs"), map[string]any{
+		"title": "Homepage", "targetLocales": []string{"fr"}, "fileIds": []string{"abc"},
+	})
+	require.Equal(t, http.StatusBadRequest, badFile.Code, badFile.Body.String())
+
+	badAssignee := projectMutationRequest(api, scope, http.MethodPatch, scope.OrgPath("/jobs/ext:crowdin:7:10"), map[string]any{
+		"assigneeExternalUserIds": []string{"01"},
+	})
+	require.Equal(t, http.StatusBadRequest, badAssignee.Code, badAssignee.Body.String())
+	require.Contains(t, badAssignee.Body.String(), "invalid_crowdin_assignee_id")
+
+	plusAssignee := projectMutationRequest(api, scope, http.MethodPatch, scope.OrgPath("/jobs/ext:crowdin:7:10"), map[string]any{
+		"assigneeExternalUserIds": []string{"+12"},
+	})
+	require.Equal(t, http.StatusBadRequest, plusAssignee.Code, plusAssignee.Body.String())
+	require.Contains(t, plusAssignee.Body.String(), "invalid_crowdin_assignee_id")
+}
+
+func TestLiveCrowdinClearsANullDescription(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/projects/7":
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{
+				"id": 7, "name": "Marketing", "sourceLanguageId": "en", "targetLanguageIds": []string{"fr"},
+			}})
+		case r.Method == http.MethodPatch && r.URL.Path == "/projects/7/tasks/10":
+			raw, _ := io.ReadAll(r.Body)
+			require.Contains(t, string(raw), `"path":"/description"`)
+			require.Contains(t, string(raw), `"value":""`)
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": liveCrowdinTask(10)})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	api, scope := projectTestAPI(t)
+	mustOrgTMSCredential(t, scope)
+	api.tms = &tmsImports{
+		tokens: stubTMSMinter{token: &tmsauth.AccessToken{
+			BaseURL: server.URL, HeaderName: "Authorization", HeaderValue: "Bearer token",
+		}},
+		http: server.Client(),
+	}
+	rec := projectMutationRequest(api, scope, http.MethodPatch, scope.OrgPath("/jobs/ext:crowdin:7:10"), map[string]any{
+		"description": nil,
+	})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 }
 
 func TestLiveCrowdinJobCreateForbiddenForMember(t *testing.T) {
@@ -207,10 +310,59 @@ func TestLiveCrowdinPartialCreate(t *testing.T) {
 	require.Contains(t, rec.Body.String(), `"createdCount":1`)
 }
 
+func TestLiveCrowdinJobFilesKeepTaskOrder(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/projects/7":
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{
+				"id": 7, "name": "Marketing", "sourceLanguageId": "en", "targetLanguageIds": []string{"fr"},
+			}})
+		case r.Method == http.MethodGet && r.URL.Path == "/projects/7/tasks/10":
+			task := liveCrowdinTask(10)
+			task["fileIds"] = []int{2, 1}
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": task})
+		case strings.HasPrefix(r.URL.Path, "/projects/7/branches"), strings.HasPrefix(r.URL.Path, "/projects/7/directories"):
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": []any{}})
+		case strings.HasPrefix(r.URL.Path, "/projects/7/files"):
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{
+				{"data": map[string]any{"id": 1, "name": "first.json", "type": "json", "revisionId": 1, "status": "active"}},
+				{"data": map[string]any{"id": 2, "name": "second.json", "type": "json", "revisionId": 1, "status": "active"}},
+			}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	api, scope := projectTestAPI(t)
+	mustOrgTMSCredential(t, scope)
+	api.tms = &tmsImports{
+		tokens: stubTMSMinter{token: &tmsauth.AccessToken{
+			BaseURL: server.URL, HeaderName: "Authorization", HeaderValue: "Bearer token",
+		}},
+		http: server.Client(),
+	}
+	rec := projectRequest(api, scope, scope.OrgPath("/jobs/ext:crowdin:7:10/files"))
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		Files []struct {
+			Filename string `json:"filename"`
+			Provider struct {
+				ExternalResourceID string `json:"externalResourceId"`
+			} `json:"provider"`
+		} `json:"files"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Len(t, body.Files, 2)
+	require.Equal(t, "2", body.Files[0].Provider.ExternalResourceID)
+	require.Equal(t, "1", body.Files[1].Provider.ExternalResourceID)
+}
+
 func liveCrowdinTask(id int) map[string]any {
 	return map[string]any{
 		"id": id, "projectId": 7, "type": 0, "status": "todo", "title": "Translate homepage",
-		"languageId": "fr", "fileIds": []int{1},
+		"languageId": "fr", "fileIds": []int{1}, "deadline": "2026-12-01T00:00:00+00:00",
 		"assignees": []map[string]any{{"id": 9, "username": "ada"}},
 		"webUrl":    "https://crowdin.com/project/app/tasks/10",
 		"createdAt": "2026-07-15T10:00:00.000Z", "updatedAt": "2026-07-15T10:00:00.000Z",

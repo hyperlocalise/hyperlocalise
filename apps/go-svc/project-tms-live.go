@@ -72,6 +72,17 @@ func encodeLiveJobID(providerKind, externalProjectID, externalJobID string) stri
 	return encodeLiveProjectID(providerKind, externalProjectID) + ":" + externalJobID
 }
 
+func liveTMSRequest(r *http.Request) bool {
+	if strings.Contains(r.URL.Path, "/tms/") {
+		return true
+	}
+	if _, ok := parseLiveProjectID(r.PathValue("projectId")); ok {
+		return true
+	}
+	_, ok := parseLiveJobID(r.PathValue("jobId"))
+	return ok
+}
+
 type liveProjectRecord struct {
 	ID                   string         `json:"id"`
 	OrganizationID       string         `json:"organizationId"`

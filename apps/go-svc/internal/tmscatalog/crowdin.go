@@ -236,6 +236,19 @@ func crowdinIntID(raw, field string) (int, error) {
 	return id, nil
 }
 
+func crowdinCanonicalID(raw, field string) (int, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw[0] == '0' {
+		return 0, fmt.Errorf("crowdin: invalid %s %q", field, raw)
+	}
+	for i := 0; i < len(raw); i++ {
+		if raw[i] < '0' || raw[i] > '9' {
+			return 0, fmt.Errorf("crowdin: invalid %s %q", field, raw)
+		}
+	}
+	return crowdinIntID(raw, field)
+}
+
 func crowdinIntIDs(values []string, field string) ([]int, error) {
 	if len(values) == 0 {
 		return nil, nil

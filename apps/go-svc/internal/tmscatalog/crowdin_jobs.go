@@ -65,7 +65,7 @@ type crowdinUser struct {
 type crowdinTaskPatch struct {
 	Op    string `json:"op"`
 	Path  string `json:"path"`
-	Value any    `json:"value,omitempty"`
+	Value any    `json:"value"`
 }
 
 func (c *crowdin) UsesPerUserAuth() bool {
@@ -157,7 +157,7 @@ func (c *crowdin) GetTask(ctx context.Context, projectID, taskID string) (*Task,
 	}
 	id, err := crowdinIntID(taskID, "taskId")
 	if err != nil {
-		return nil, err
+		return nil, nil
 	}
 	raw, err := crowdinGet[crowdinTask](ctx, c, "/projects/"+strconv.Itoa(project)+"/tasks/"+strconv.Itoa(id))
 	if err != nil {
@@ -195,7 +195,7 @@ func (c *crowdin) UpdateTask(ctx context.Context, projectID, taskID string, upda
 	}
 	id, err := crowdinIntID(taskID, "taskId")
 	if err != nil {
-		return nil, err
+		return nil, nil
 	}
 	patches := []crowdinTaskPatch{}
 	if update.Title != nil {
@@ -207,7 +207,7 @@ func (c *crowdin) UpdateTask(ctx context.Context, projectID, taskID string, upda
 	if update.HasAssignees {
 		assignees := make([]map[string]int, 0, len(update.AssigneeIDs))
 		for _, rawID := range update.AssigneeIDs {
-			assigneeID, parseErr := crowdinIntID(rawID, "assigneeId")
+			assigneeID, parseErr := crowdinCanonicalID(rawID, "assigneeId")
 			if parseErr != nil {
 				return nil, parseErr
 			}
@@ -234,9 +234,14 @@ func (c *crowdin) DeleteTask(ctx context.Context, projectID, taskID string) erro
 	}
 	id, err := crowdinIntID(taskID, "taskId")
 	if err != nil {
-		return err
+		return nil
 	}
-	return c.doJSON(ctx, http.MethodDelete, "/projects/"+strconv.Itoa(project)+"/tasks/"+strconv.Itoa(id), nil, nil)
+	err = c.doJSON(ctx, http.MethodDelete, "/projects/"+strconv.Itoa(project)+"/tasks/"+strconv.Itoa(id), nil, nil)
+	var providerErr *ProviderError
+	if errors.As(err, &providerErr) && providerErr.Status == http.StatusNotFound {
+		return nil
+	}
+	return err
 }
 
 func (c *crowdin) ListMembers(ctx context.Context, projectID string) ([]Member, error) {
@@ -275,7 +280,7 @@ func (c *crowdin) ListTaskComments(ctx context.Context, projectID, taskID string
 	}
 	id, err := crowdinIntID(taskID, "taskId")
 	if err != nil {
-		return nil, err
+		return nil, nil
 	}
 	raw, err := crowdinList[crowdinTaskComment](ctx, c, "/projects/"+strconv.Itoa(project)+"/tasks/"+strconv.Itoa(id)+"/comments")
 	if err != nil {
@@ -410,6 +415,10 @@ func mapCrowdinTask(task crowdinTask) Task {
 		kind = "proofread"
 	}
 	languageID := firstNonEmpty(task.TargetLanguageID, task.LanguageID)
+	fileIDPayload := task.FileIDs
+	if fileIDPayload == nil {
+		fileIDPayload = []int{}
+	}
 	return Task{
 		ExternalID:       strconv.Itoa(task.ID),
 		ProjectID:        strconv.Itoa(task.ProjectID),
@@ -432,13 +441,14 @@ func mapCrowdinTask(task crowdinTask) Task {
 		ProviderPayload: map[string]any{
 			"projectId":               task.ProjectID,
 			"type":                    task.Type,
-			"description":             deref(task.Description),
-			"fileIds":                 task.FileIDs,
-			"languageId":              deref(languageID),
-			"sourceLanguageId":        deref(task.SourceLanguageID),
-			"targetLanguageId":        deref(task.TargetLanguageID),
+			"description":             optionalJSONString(task.Description),
+			"fileIds":                 fileIDPayload,
+			"languageId":              optionalJSONString(languageID),
+			"sourceLanguageId":        optionalJSONString(task.SourceLanguageID),
+			"targetLanguageId":        optionalJSONString(task.TargetLanguageID),
 			"targetLanguageIds":       targetLocales,
 			"assigneeExternalUserIds": assigneeIDs,
+			"localeReadiness":         nil,
 		},
 	}
 }
@@ -472,6 +482,13 @@ func deref(value *string) string {
 		return ""
 	}
 	return *value
+}
+
+func optionalJSONString(value *string) any {
+	if trimmed := trimmedPtr(value); trimmed != nil {
+		return *trimmed
+	}
+	return nil
 }
 
 func firstNonEmpty(values ...*string) *string {
