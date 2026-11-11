@@ -82,7 +82,7 @@ func (l *liveOutboundIP) observedIP(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	payload, err := io.ReadAll(io.LimitReader(response.Body, outboundIPResponseMaxBytes))
 	if err != nil {
 		return "", err
