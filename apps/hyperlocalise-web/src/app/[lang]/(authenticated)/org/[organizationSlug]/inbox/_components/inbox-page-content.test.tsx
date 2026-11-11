@@ -449,7 +449,7 @@ describe("InboxPageContent item switching", () => {
     navigation.pathname = "/org/acme/inbox/new";
 
     const createConversation = vi.fn();
-    const sendMessage = vi.fn(async () => undefined);
+    const sendMessage = vi.fn(async () => null);
     const inboxApi = createInboxApi(async () => messagesFixture);
     inboxApi.createConversation = createConversation;
     inboxApi.sendMessage = sendMessage;
@@ -480,7 +480,7 @@ describe("InboxPageContent item switching", () => {
     const createConversation = vi.fn(async () => ({
       conversation: { id: firstConversation.id },
     }));
-    const sendMessage = vi.fn(async () => undefined);
+    const sendMessage = vi.fn(async () => null);
     const inboxApi = createInboxApi(async () => messagesFixture);
     inboxApi.createConversation = createConversation;
     inboxApi.sendMessage = sendMessage;

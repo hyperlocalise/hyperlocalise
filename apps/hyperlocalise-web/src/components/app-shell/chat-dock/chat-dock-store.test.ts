@@ -231,4 +231,34 @@ describe("ChatDockStore", () => {
     store.clearPageContext();
     expect(store.pageContext).toBeNull();
   });
+
+  it("queues follow-ups per conversation in order and puts a failed send back first", () => {
+    const store = new ChatDockStore();
+    const firstId = store.enqueueMessage("conv_1", { text: "first", files: [] });
+    store.enqueueMessage("conv_1", { text: "second", files: [] });
+    store.enqueueMessage("conv_2", { text: "other", files: [] });
+
+    expect(store.getQueuedMessages("conv_1").map((message) => message.text)).toEqual([
+      "first",
+      "second",
+    ]);
+
+    const next = store.shiftQueuedMessage("conv_1");
+    expect(next?.id).toBe(firstId);
+    store.requeueMessageFirst("conv_1", next!);
+    expect(store.getQueuedMessages("conv_1")[0]?.id).toBe(firstId);
+
+    expect(store.removeQueuedMessage("conv_1", firstId)?.text).toBe("first");
+    expect(store.shiftQueuedMessage("conv_1")?.text).toBe("second");
+    expect(store.shiftQueuedMessage("conv_1")).toBeNull();
+    expect(store.getQueuedMessages("conv_2")).toHaveLength(1);
+  });
+
+  it("tracks which conversations are stopping", () => {
+    const store = new ChatDockStore();
+    store.setStopping("conv_1", true);
+    expect(store.isStopping("conv_1")).toBe(true);
+    store.setStopping("conv_1", false);
+    expect(store.isStopping("conv_1")).toBe(false);
+  });
 });

@@ -16,6 +16,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -364,4 +365,61 @@ export const interactionMessages = pgTable(
   (table) => [
     index("idx_interaction_messages_interaction_created").on(table.interactionId, table.createdAt),
   ],
+);
+
+export type ConversationRunStatus = "running" | "completed" | "interrupted" | "failed";
+
+/**
+ * One agent turn answering one user message in a chat conversation. The row exists so the turn
+ * outlives the HTTP request that started it: the server keeps running after the client leaves,
+ * writes a snapshot of the reply as it streams, and clients that reconnect read that snapshot.
+ * `user_message_id` is unique, which also makes starting a turn idempotent.
+ */
+export const conversationRuns = pgTable(
+  "conversation_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    interactionId: uuid("interaction_id")
+      .notNull()
+      .references(() => interactions.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userMessageId: uuid("user_message_id")
+      .notNull()
+      .references(() => interactionMessages.id, { onDelete: "cascade" }),
+    status: text("status").$type<ConversationRunStatus>().notNull().default("running"),
+    snapshotParts: jsonb("snapshot_parts").$type<UIMessage["parts"]>(),
+    agentMessageId: uuid("agent_message_id").references(() => interactionMessages.id, {
+      onDelete: "set null",
+    }),
+    cancelRequestedAt: timestamp("cancel_requested_at", { withTimezone: true }),
+    heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("conversation_runs_user_message_id_key").on(table.userMessageId),
+    index("idx_conversation_runs_interaction_created").on(table.interactionId, table.createdAt),
+  ],
+);
+
+/**
+ * Full tool results for an agent message whose stored parts carry a shortened copy. The chat
+ * shows the short copy and loads this one when a reader expands the tool.
+ */
+export const interactionMessageToolOutputs = pgTable(
+  "interaction_message_tool_outputs",
+  {
+    messageId: uuid("message_id")
+      .notNull()
+      .references(() => interactionMessages.id, { onDelete: "cascade" }),
+    toolCallId: text("tool_call_id").notNull(),
+    output: jsonb("output").$type<unknown>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.messageId, table.toolCallId] })],
 );

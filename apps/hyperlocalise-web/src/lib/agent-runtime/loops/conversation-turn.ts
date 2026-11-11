@@ -195,6 +195,8 @@ export type ResolvedRepositoryContext = {
   gitlabContext: RepositoryAgentGitLabContext | null;
   instructions: string | null;
   clarificationFollowUp: string | null;
+  /** Answers offered with the follow-up, such as the enabled repositories. */
+  clarificationOptions?: string[];
   updatedSession: ConversationRepositorySession | null;
 };
 
@@ -367,6 +369,7 @@ async function resolveRepositoryContextWithStoredGitLab(
       gitlabContext: null,
       instructions,
       clarificationFollowUp,
+      clarificationOptions: clarificationFollowUp ? githubContextResolution.options : undefined,
       updatedSession: input.repositorySession,
     };
   }
@@ -614,6 +617,8 @@ export type PrepareConversationAgentTurnResult = {
   agent: Awaited<ReturnType<typeof createConversationToolLoopAgent>>;
   chatMessages: ModelMessage[];
   clarificationFollowUp: string | null;
+  /** Answers the chat can offer as buttons with the follow-up. */
+  clarificationOptions?: string[];
   updatedRepositorySession: ConversationRepositorySession | null;
   staleSandboxId: string | null;
   repositorySandboxId: string | null;
@@ -790,6 +795,10 @@ export async function prepareConversationAgentTurn(
     agent,
     chatMessages: preparedMessages,
     clarificationFollowUp,
+    clarificationOptions:
+      clarificationFollowUp && clarificationFollowUp === repositoryResolution.clarificationFollowUp
+        ? repositoryResolution.clarificationOptions
+        : undefined,
     updatedRepositorySession,
     staleSandboxId,
     repositorySandboxId: sandboxId,

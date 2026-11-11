@@ -14,7 +14,13 @@
  */
 import type { FileUIPart } from "ai";
 import { memo, useEffect, useState } from "react";
-import { FileArrowDownIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react";
+import {
+  FileArrowDownIcon,
+  PaperPlaneTiltIcon,
+  PencilSimpleIcon,
+  StopIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -41,6 +47,8 @@ import { apiClient } from "@/lib/api-client-instance";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
+import { Button } from "@/components/ui/button";
+
 import type { ChatRepository } from "../../_components/chat-repository";
 import { RepositorySelector } from "../../_components/repository-selector";
 import { ProjectSelector } from "../../_components/project-selector";
@@ -56,6 +64,7 @@ import {
   type InboxApi,
   type InboxChatRepository,
 } from "./inbox-api";
+import type { ChatTurnControls, QueuedChatMessageView } from "./chat-turn-controls";
 import { replyComposerMessages } from "./reply-composer.messages";
 
 const inboxApi = createInboxApi(apiClient);
@@ -95,6 +104,8 @@ type ReplyComposerViewProps = {
   repositories: InboxChatRepository[];
   repositoriesIsError: boolean;
   repositoriesIsLoading: boolean;
+  /** Stop and queue controls while the agent answers. Without them the composer just disables. */
+  turnControls?: ChatTurnControls;
 };
 
 export function ReplyComposerView({
@@ -117,6 +128,7 @@ export function ReplyComposerView({
   repositories,
   repositoriesIsError,
   repositoriesIsLoading,
+  turnControls,
 }: ReplyComposerViewProps) {
   const intl = useIntl();
   const [replyText, setReplyText] = useState(draft);
@@ -128,6 +140,7 @@ export function ReplyComposerView({
   const setInput = promptInputController.textInput.setInput;
   const addAttachmentsLabel = intl.formatMessage(replyComposerMessages.addAttachments);
   const sendReplyLabel = intl.formatMessage(replyComposerMessages.sendReply);
+  const canQueue = isStreaming && Boolean(turnControls);
 
   // Sync only when the external draft prop changes (e.g. suggestion chips).
   // Depending on the controller identity or local replyText re-ran this on every
@@ -218,6 +231,13 @@ export function ReplyComposerView({
   return (
     <section className="z-20 shrink-0 border-t border-border bg-background p-3">
       <div className="mx-auto w-full max-w-4xl">
+        {turnControls && turnControls.queuedMessages.length > 0 ? (
+          <QueuedMessageList
+            messages={turnControls.queuedMessages}
+            onEdit={turnControls.onEditQueuedMessage}
+            onRemove={turnControls.onRemoveQueuedMessage}
+          />
+        ) : null}
         <PromptInput
           onSubmit={({ text, files }) => sendReply(text, files)}
           className="overflow-hidden rounded-xl border border-border bg-muted/30 text-foreground shadow-sm [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-xl [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
@@ -249,9 +269,11 @@ export function ReplyComposerView({
               }}
               className="min-h-12 max-h-28 px-3 py-3 text-sm leading-5"
               placeholder={
-                isStreaming
-                  ? intl.formatMessage(replyComposerMessages.streamingPlaceholder)
-                  : (placeholder ?? intl.formatMessage(replyComposerMessages.defaultPlaceholder))
+                canQueue
+                  ? intl.formatMessage(replyComposerMessages.queuePlaceholder)
+                  : isStreaming
+                    ? intl.formatMessage(replyComposerMessages.streamingPlaceholder)
+                    : (placeholder ?? intl.formatMessage(replyComposerMessages.defaultPlaceholder))
               }
               rows={1}
             />
@@ -294,6 +316,23 @@ export function ReplyComposerView({
                 }}
                 triggerStyle="prompt-input"
               />
+              {isStreaming && turnControls ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 rounded-full"
+                  disabled={turnControls.isStopping}
+                  onClick={turnControls.onStop}
+                >
+                  <StopIcon data-icon="inline-start" weight="fill" />
+                  {turnControls.isStopping ? (
+                    <FormattedMessage {...replyComposerMessages.stopping} />
+                  ) : (
+                    <FormattedMessage {...replyComposerMessages.stop} />
+                  )}
+                </Button>
+              ) : null}
               <PromptInputSubmit
                 size="sm"
                 disabled={(!replyText.trim() && attachments.files.length === 0) || disabled}
@@ -311,6 +350,69 @@ export function ReplyComposerView({
           </PromptInputFooter>
         </PromptInput>
       </div>
+    </section>
+  );
+}
+
+function QueuedMessageList({
+  messages,
+  onEdit,
+  onRemove,
+}: {
+  messages: QueuedChatMessageView[];
+  onEdit: (messageId: string) => void;
+  onRemove: (messageId: string) => void;
+}) {
+  const intl = useIntl();
+  const editLabel = intl.formatMessage(replyComposerMessages.editQueued);
+  const removeLabel = intl.formatMessage(replyComposerMessages.removeQueued);
+
+  return (
+    <section
+      className="mb-2 flex flex-col gap-1.5"
+      aria-label={intl.formatMessage(replyComposerMessages.queuedHeading)}
+    >
+      <p className="px-1 text-xs font-medium text-muted-foreground">
+        <FormattedMessage {...replyComposerMessages.queuedHeading} />
+      </p>
+      <ol className="flex flex-col gap-1.5">
+        {messages.map((message) => (
+          <li
+            key={message.id}
+            className="flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-1.5 text-sm text-muted-foreground"
+          >
+            <span className="min-w-0 flex-1 truncate">{message.text}</span>
+            {message.fileCount > 0 ? (
+              <span className="shrink-0 text-xs">
+                <FormattedMessage
+                  {...replyComposerMessages.queuedFiles}
+                  values={{ count: message.fileCount }}
+                />
+              </span>
+            ) : null}
+            <Button
+              type="button"
+              size="icon-xs"
+              variant="ghost"
+              aria-label={editLabel}
+              title={editLabel}
+              onClick={() => onEdit(message.id)}
+            >
+              <PencilSimpleIcon />
+            </Button>
+            <Button
+              type="button"
+              size="icon-xs"
+              variant="ghost"
+              aria-label={removeLabel}
+              title={removeLabel}
+              onClick={() => onRemove(message.id)}
+            >
+              <XIcon />
+            </Button>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }

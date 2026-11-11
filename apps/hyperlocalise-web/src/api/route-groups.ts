@@ -124,6 +124,7 @@ export function createOrgInboxRoutes(options: OrgScopedRouteOptions) {
       "/conversations",
       createConversationRoutes({
         fileStorageAdapter: options.fileStorageAdapter,
+        deferAfterResponse: options.deferAfterResponse,
       }),
     )
     .route("/workflow-approvals", createHumanApprovalRoutes());

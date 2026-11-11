@@ -16,6 +16,7 @@ import { useIntl } from "react-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
 
+import type { ChatTurnControls } from "./chat-turn-controls";
 import { ConversationPanel } from "./conversation-panel";
 import { inboxChatSplitPaneClassName } from "./inbox-chat-split-pane";
 import type { ChatComposerSendOptions } from "./inbox-api";
@@ -77,6 +78,7 @@ export function InboxPageView({
   selectedNotificationIsLoading,
   selection,
   streamedAssistant,
+  turnControls,
   unreadNotificationCount,
 }: {
   conversations: Conversation[];
@@ -118,6 +120,7 @@ export function InboxPageView({
   selectedConversation: Conversation | undefined;
   selectedNotification: InboxIssueNotification | undefined;
   selectedNotificationIsLoading: boolean;
+  turnControls?: ChatTurnControls;
   selection: InboxSelection;
   streamedAssistant: StreamedAssistantMessage | null;
   unreadNotificationCount: number;
@@ -215,6 +218,7 @@ export function InboxPageView({
                 onSendMessage={onSendMessage}
                 organizationSlug={organizationSlug}
                 streamedAssistant={streamedAssistant}
+                turnControls={turnControls}
               />
             )}
           </div>

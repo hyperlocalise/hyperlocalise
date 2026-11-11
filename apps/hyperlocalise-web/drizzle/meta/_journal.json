@@ -1289,6 +1289,13 @@
       "when": 1794368261881,
       "tag": "0183_faithful_outlaw_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 184,
+      "version": "7",
+      "when": 1794376781791,
+      "tag": "0184_lumpy_kree",
+      "breakpoints": true
     }
   ]
 }

@@ -428,4 +428,46 @@ describe("ReplyComposerView draft sync", () => {
     expect(screen.getByRole("textbox")).toHaveValue("French follow-up");
     expect(screen.getByText("hyperlocalise/mobile-app")).toBeInTheDocument();
   });
+
+  it("stops the running turn and manages queued follow-ups", async () => {
+    const user = userEvent.setup();
+    const onStop = vi.fn();
+    const onEditQueuedMessage = vi.fn();
+    const onRemoveQueuedMessage = vi.fn();
+
+    renderComposer(
+      <PromptInputProvider>
+        <ReplyComposerView
+          disabled={false}
+          isStreaming
+          onSend={vi.fn()}
+          projects={[]}
+          projectsIsError={false}
+          projectsIsLoading={false}
+          repositories={[]}
+          repositoriesIsError={false}
+          repositoriesIsLoading={false}
+          turnControls={{
+            isStopping: false,
+            onStop,
+            queuedMessages: [{ id: "q1", text: "Also do German", fileCount: 1 }],
+            onEditQueuedMessage,
+            onRemoveQueuedMessage,
+          }}
+        />
+      </PromptInputProvider>,
+    );
+
+    expect(screen.getByText("Also do German")).toBeTruthy();
+    expect(screen.getByText("1 file")).toBeTruthy();
+    expect(screen.getByRole("textbox")).not.toHaveProperty("disabled", true);
+
+    await user.click(screen.getByRole("button", { name: "Stop" }));
+    await user.click(screen.getByRole("button", { name: "Edit queued message" }));
+    await user.click(screen.getByRole("button", { name: "Remove queued message" }));
+
+    expect(onStop).toHaveBeenCalledTimes(1);
+    expect(onEditQueuedMessage).toHaveBeenCalledWith("q1");
+    expect(onRemoveQueuedMessage).toHaveBeenCalledWith("q1");
+  });
 });

@@ -21,9 +21,36 @@ export type InboxChatToolProgressData = {
   message: string;
 };
 
+/** The agent needs one answer before it can go on; the chat offers the options as buttons. */
+export type InboxChatClarificationData = {
+  question: string;
+  options: string[];
+};
+
+/** The user stopped the turn; the parts before this one are what the agent had produced. */
+export type InboxChatInterruptedData = {
+  reason: "user_cancelled";
+};
+
+/** The tool result in this message is a shortened copy; the full one loads on request. */
+export type InboxChatToolOutputTruncatedData = {
+  toolCallId: string;
+  omitted: number;
+};
+
 export type InboxChatDataTypes = {
   status: InboxChatStatusData;
   toolProgress: InboxChatToolProgressData;
+  clarification: InboxChatClarificationData;
+  interrupted: InboxChatInterruptedData;
+  toolOutputTruncated: InboxChatToolOutputTruncatedData;
 };
+
+/** Data parts that stay in the stored message. Status and progress parts only matter live. */
+export const PERSISTED_INBOX_CHAT_DATA_PART_TYPES: ReadonlySet<string> = new Set([
+  "data-clarification",
+  "data-interrupted",
+  "data-toolOutputTruncated",
+]);
 
 export type InboxChatUIMessage = UIMessage<never, InboxChatDataTypes>;
