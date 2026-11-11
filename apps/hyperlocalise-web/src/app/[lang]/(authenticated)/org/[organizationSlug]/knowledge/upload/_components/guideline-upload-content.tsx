@@ -21,9 +21,9 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { ProjectTargetLocalesPicker } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/_components/project-locale-picker";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import {
@@ -36,17 +36,6 @@ import { guidelineUploadMessages as messages } from "./guideline-upload.messages
 import { useQueryClient } from "@tanstack/react-query";
 
 type ProjectScope = "none" | "all" | "selected";
-
-function parseLocalesInput(value: string): string[] {
-  return [
-    ...new Set(
-      value
-        .split(",")
-        .map((part) => part.trim())
-        .filter(Boolean),
-    ),
-  ];
-}
 
 export function GuidelineUploadContent({
   organizationSlug,
@@ -68,7 +57,7 @@ export function GuidelineUploadContent({
   const preselected = initialProjectId ?? deprecatedProjectId ?? "";
   const [scope, setScope] = useState<ProjectScope>(preselected ? "selected" : "none");
   const [selectedIds, setSelectedIds] = useState<string[]>(preselected ? [preselected] : []);
-  const [localesInput, setLocalesInput] = useState("");
+  const [selectedLocales, setSelectedLocales] = useState<string[]>([]);
   const uploadDocument = useGuidelineDocumentUpload(organizationSlug);
 
   const projectsQuery = useQuery({
@@ -89,7 +78,7 @@ export function GuidelineUploadContent({
     return [...set].sort();
   }, [projectsQuery.data]);
 
-  const locales = parseLocalesInput(localesInput);
+  const locales = selectedLocales;
   const isGlobal = scope === "all";
   const projectIds = scope === "selected" ? selectedIds : [];
 
@@ -131,6 +120,36 @@ export function GuidelineUploadContent({
         >
           <FormattedMessage {...messages.backToGuideline} />
         </Button>
+      </div>
+
+      <KnowledgeUploadSection
+        onStartMarkdownText={() => setTextDialogOpen(true)}
+        onFilesSelected={(files) => {
+          const [file] = files;
+          if (!file) return;
+          if (scope === "selected" && projectIds.length === 0) return;
+          uploadDocument.mutate(
+            { file, title: file.name, locales, isGlobal },
+            {
+              onSuccess: (document) => {
+                void (async () => {
+                  if (projectIds.length > 0) await attachProjects(document.id);
+                  router.push(backHref);
+                })();
+              },
+            },
+          );
+        }}
+      />
+
+      <div className="flex flex-col gap-2">
+        <ProjectTargetLocalesPicker
+          value={selectedLocales}
+          onChange={setSelectedLocales}
+          sourceLocale=""
+          additionalLocales={localeSuggestions}
+          labelMessage={messages.localesLabel}
+        />
       </div>
 
       <section className="flex flex-col gap-3 rounded-xl border border-border px-4 py-3">
@@ -187,51 +206,14 @@ export function GuidelineUploadContent({
             )}
           </div>
         ) : null}
-
-        <Field className="gap-1.5">
-          <FieldLabel htmlFor="guideline-upload-locales">
-            <FormattedMessage {...messages.localesLabel} />
-          </FieldLabel>
-          <Input
-            id="guideline-upload-locales"
-            value={localesInput}
-            placeholder={
-              localeSuggestions.length > 0
-                ? localeSuggestions.slice(0, 4).join(", ")
-                : intl.formatMessage(messages.localesPlaceholder)
-            }
-            onChange={(event) => setLocalesInput(event.target.value)}
-          />
-          <TypographyP size="small" tone="subtle">
-            <FormattedMessage {...messages.localesHint} />
-          </TypographyP>
-        </Field>
       </section>
-
-      <KnowledgeUploadSection
-        onStartMarkdownText={() => setTextDialogOpen(true)}
-        onFilesSelected={(files) => {
-          const [file] = files;
-          if (!file) return;
-          if (scope === "selected" && projectIds.length === 0) return;
-          uploadDocument.mutate(
-            { file, title: file.name, locales, isGlobal },
-            {
-              onSuccess: (document) => {
-                void (async () => {
-                  if (projectIds.length > 0) await attachProjects(document.id);
-                  router.push(backHref);
-                })();
-              },
-            },
-          );
-        }}
-      />
 
       <GuidelineTextDocumentDialog
         open={textDialogOpen}
         onOpenChange={setTextDialogOpen}
         organizationSlug={organizationSlug}
+        initialLocales={locales}
+        initialIsGlobal={isGlobal}
         onSaved={(documentId) => {
           void (async () => {
             if (documentId && projectIds.length > 0) await attachProjects(documentId);

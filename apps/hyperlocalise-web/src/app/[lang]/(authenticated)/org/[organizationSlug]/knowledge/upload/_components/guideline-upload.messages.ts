@@ -66,15 +66,4 @@ export const guidelineUploadMessages = defineMessages({
     id: "HXfvxDUO8O",
     description: "Label for the locales field on the upload page",
   },
-  localesPlaceholder: {
-    defaultMessage: "e.g. fr-FR, de-DE",
-    id: "v24tXtfZEV",
-    description: "Placeholder for the locales field",
-  },
-  localesHint: {
-    defaultMessage:
-      "Comma-separated BCP 47 tags, like Crowdin target languages. Empty means all locales.",
-    id: "sRJEbEbZGp",
-    description: "Hint for the locales field",
-  },
 });

@@ -75,6 +75,8 @@ export function GuidelineTextDocumentDialog({
   organizationSlug,
   projectId,
   document,
+  initialLocales,
+  initialIsGlobal,
   onSaved,
 }: {
   open: boolean;
@@ -82,6 +84,9 @@ export function GuidelineTextDocumentDialog({
   organizationSlug: string;
   projectId?: string;
   document?: GuidelineDocument | null;
+  /** Create flow: prefill from the upload page locale and project scope pickers. */
+  initialLocales?: string[];
+  initialIsGlobal?: boolean;
   onSaved?: (documentId?: string) => void;
 }) {
   const intl = useIntl();
@@ -113,16 +118,27 @@ export function GuidelineTextDocumentDialog({
     if (open) {
       setTitle(document?.title ?? "");
       setContent("");
-      setLocalesInput(
-        (document?.locales ?? (document?.locale ? [document.locale] : [])).join(", "),
-      );
-      setIsGlobal(document?.isGlobal ?? false);
+      const defaultLocales = editing
+        ? (document?.locales ?? (document?.locale ? [document.locale] : []))
+        : (initialLocales ?? []);
+      setLocalesInput(defaultLocales.join(", "));
+      setIsGlobal(editing ? (document?.isGlobal ?? false) : (initialIsGlobal ?? false));
       setTitleError(null);
       setContentError(null);
       setLocalesError(null);
       contentSyncedForRef.current = null;
     }
-  }, [open, document?.id, document?.title]);
+  }, [
+    open,
+    document?.id,
+    document?.title,
+    document?.locale,
+    document?.locales,
+    document?.isGlobal,
+    editing,
+    initialIsGlobal,
+    initialLocales,
+  ]);
 
   useEffect(() => {
     if (open && editing && contentQuery.data && contentSyncedForRef.current !== document?.id) {
