@@ -21,6 +21,21 @@ Select **Send test** to send a `webhook.test` event. Select **Recent deliveries*
 
 You need the API keys permission to manage webhooks.
 
+## Manage endpoints with the API
+
+Admins and localization managers can register the same endpoints with a personal access token. Send `jobs:write` on the token. Create, update, rotate, and delete use `https://api.hyperlocalise.com`.
+
+```bash
+curl --fail-with-body -X POST "https://api.hyperlocalise.com/v1/webhook-endpoints" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://hooks.example.com/hyperlocalise","eventTypes":["job.status_changed"]}'
+```
+
+The JSON response includes `secret` once. Store it. Rotate it with `POST /v1/webhook-endpoints/{endpointId}/rotate-secret`. List endpoints with `GET /v1/webhook-endpoints` (`jobs:read`). See the [OpenAPI document](https://api.hyperlocalise.com/openapi.yaml) for update, delete, and recent deliveries.
+
+Send a test event from **Settings** → **Webhooks**.
+
 ## Events
 
 | Type | Sent when |

@@ -12,6 +12,7 @@ Choose the API that serves your task. The two interfaces use different base URLs
 | Read translation jobs | `https://api.hyperlocalise.com/v1` | Personal access token in `x-api-key`, with `jobs:read` | [Read jobs](/platform/api#read-jobs) |
 | Tag strings, batch review, manage key jobs on native projects | `https://api.hyperlocalise.com/v1` | Personal access token in `x-api-key`, with `strings:read` / `strings:write`, `translations:approve`, or `jobs:write` as needed | [Strings and key jobs](/platform/developers/strings-and-key-jobs) |
 | Read your identity, accessible projects, and Queries | `https://api.hyperlocalise.com/v1` | Personal access token in `x-api-key`, with the required effective permissions | [Projects and Queries](/platform/developers/projects-and-queries) |
+| Register job-change webhook endpoints | `https://api.hyperlocalise.com/v1` | Personal access token in `x-api-key`, with `jobs:read` / `jobs:write`, as an admin or localization manager | [Webhooks](/platform/developers/webhooks) |
 
 [CLI Platform sync](/platform/cli) uses the files and jobs API. Keep its `api_base_url` at `https://hyperlocalise.com/api` unless you are using a separately configured environment. Do not replace it with the Projects and Queries host.
 

@@ -6,7 +6,8 @@ info:
     Read projects, Queries, jobs, glossaries, and translation memories from a Hyperlocalise
     workspace; create native projects from project templates and manage those templates; manage
     the strings, translations, and settings of native projects; round-trip
-    bilingual files; update jobs; and import and export glossaries and translation memories.
+    bilingual files; update jobs; register job-change webhook endpoints; and import and export
+    glossaries and translation memories.
 servers:
   - url: https://api.hyperlocalise.com
 security:
@@ -22,6 +23,7 @@ tags:
   - name: Bilingual files
   - name: Glossaries
   - name: Translation memories
+  - name: Webhooks
 paths:
   /health:
     get:
@@ -1318,6 +1320,179 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/webhook-endpoints:
+    get:
+      operationId: listWebhookEndpoints
+      tags: [Webhooks]
+      summary: List webhook endpoints
+      description: >-
+        Requires `webhooks:read`, which `jobs:read` grants to admins and localization managers.
+        Secrets are never returned. An empty `eventTypes` list receives every job change.
+      responses:
+        "200":
+          description: Webhook endpoints in the workspace, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [webhookEndpoints]
+                properties:
+                  webhookEndpoints:
+                    type: array
+                    items: { $ref: "#/components/schemas/WebhookEndpoint" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createWebhookEndpoint
+      tags: [Webhooks]
+      summary: Register a webhook endpoint
+      description: >-
+        Requires `webhooks:write`, which `jobs:write` grants to admins and localization managers.
+        The signing secret is returned this once. At most 20 endpoints per workspace. HTTPS on a
+        public host only. Omit `eventTypes`, or send `[]`, to receive every job change, including
+        types added later. `projectId` limits deliveries to one project in the workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [url]
+              properties:
+                url: { type: string, minLength: 1, maxLength: 2048 }
+                description: { type: [string, "null"], maxLength: 500 }
+                eventTypes:
+                  type: array
+                  maxItems: 5
+                  items: { $ref: "#/components/schemas/WebhookEventType" }
+                projectId: { type: [string, "null"], maxLength: 128 }
+      responses:
+        "201":
+          description: The endpoint and its signing secret.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [webhookEndpoint, secret]
+                properties:
+                  webhookEndpoint: { $ref: "#/components/schemas/WebhookEndpoint" }
+                  secret: { type: string, description: Standard Webhooks secret, shown once. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/webhook-endpoints/{endpointId}:
+    parameters:
+      - $ref: "#/components/parameters/WebhookEndpointId"
+    patch:
+      operationId: updateWebhookEndpoint
+      tags: [Webhooks]
+      summary: Update a webhook endpoint
+      description: >-
+        Requires `webhooks:write`. `enabled: true` re-enables an endpoint disabled by hand or after
+        too many failed deliveries. The signing secret does not change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                url: { type: string, minLength: 1, maxLength: 2048 }
+                description: { type: [string, "null"], maxLength: 500 }
+                eventTypes:
+                  type: array
+                  maxItems: 5
+                  items: { $ref: "#/components/schemas/WebhookEventType" }
+                projectId: { type: [string, "null"], maxLength: 128 }
+                enabled: { type: boolean }
+      responses:
+        "200":
+          description: The updated endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [webhookEndpoint]
+                properties:
+                  webhookEndpoint: { $ref: "#/components/schemas/WebhookEndpoint" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteWebhookEndpoint
+      tags: [Webhooks]
+      summary: Delete a webhook endpoint
+      description: Requires `webhooks:write`. Queued deliveries for the endpoint are dropped.
+      responses:
+        "204":
+          description: The endpoint was deleted.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/webhook-endpoints/{endpointId}/rotate-secret:
+    post:
+      operationId: rotateWebhookEndpointSecret
+      tags: [Webhooks]
+      summary: Rotate a webhook signing secret
+      description: >-
+        Requires `webhooks:write`. Replaces the secret immediately. The new value is returned this
+        once. The previous secret stops working with the next delivery.
+      parameters:
+        - $ref: "#/components/parameters/WebhookEndpointId"
+      responses:
+        "200":
+          description: The new signing secret.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [secret]
+                properties:
+                  secret: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/webhook-endpoints/{endpointId}/deliveries:
+    get:
+      operationId: listWebhookDeliveries
+      tags: [Webhooks]
+      summary: List recent webhook deliveries
+      description: Requires `webhooks:read`. Newest first. Default `limit` is 50, maximum 100.
+      parameters:
+        - $ref: "#/components/parameters/WebhookEndpointId"
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Recent deliveries for the endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [webhookDeliveries]
+                properties:
+                  webhookDeliveries:
+                    type: array
+                    items: { $ref: "#/components/schemas/WebhookDelivery" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/glossaries:
     get:
       operationId: listGlossaries
@@ -1711,6 +1886,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    WebhookEndpointId:
+      name: endpointId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
   schemas:
     OutboundIP:
       type: object
@@ -2101,6 +2281,39 @@ components:
         imported: { type: integer, minimum: 0, description: Translations saved or already up to date. }
         skipped: { type: integer, minimum: 0 }
         files: { type: integer, minimum: 0 }
+    WebhookEventType:
+      type: string
+      enum: [job.created, job.status_changed, job.assignee_changed, job.due_date_changed, job.details_changed]
+    WebhookEndpoint:
+      type: object
+      required: [id, url, description, eventTypes, projectId, enabled, disabledReason, consecutiveFailures, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        description: { type: [string, "null"] }
+        eventTypes:
+          type: array
+          items: { $ref: "#/components/schemas/WebhookEventType" }
+        projectId: { type: [string, "null"] }
+        enabled: { type: boolean }
+        disabledReason: { type: [string, "null"] }
+        consecutiveFailures: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    WebhookDelivery:
+      type: object
+      required: [id, eventId, eventType, status, attemptCount, lastResponseStatus, lastError, lastAttemptAt, nextAttemptAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        eventId: { type: [string, "null"], format: uuid }
+        eventType: { type: string }
+        status: { type: string, enum: [pending, succeeded, failed] }
+        attemptCount: { type: integer, minimum: 0 }
+        lastResponseStatus: { type: [integer, "null"] }
+        lastError: { type: [string, "null"] }
+        lastAttemptAt: { type: [string, "null"], format: date-time }
+        nextAttemptAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
     Error:
       type: object
       required: [error, message]
@@ -2134,7 +2347,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: The project is not native, the key already exists, the segment is locked, or the job, memory, or glossary is managed elsewhere or archived.
+      description: The project is not native, the key already exists, the segment is locked, the webhook endpoint limit was reached, or the job, memory, or glossary is managed elsewhere or archived.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }

@@ -80,5 +80,16 @@ func effectivePermissions(stored []string, role string) []string {
 	if _, ok := seen["memories:write"]; ok {
 		add("translation-memories:write")
 	}
+	// Job webhooks sit with API keys in Settings. Only admins and localization managers
+	// can manage them there; tokens never carry api_keys:write, so jobs scopes plus that
+	// role gate grant webhooks:read and webhooks:write.
+	if role == "admin" || role == "localization_manager" {
+		if _, ok := seen["jobs:read"]; ok {
+			add("webhooks:read")
+		}
+		if _, ok := seen["jobs:write"]; ok {
+			add("webhooks:write")
+		}
+	}
 	return out
 }

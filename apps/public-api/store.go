@@ -126,6 +126,12 @@ type resourceStore interface {
 	updateProjectTemplate(context.Context, principal, string, projecttemplate.Body) (projecttemplate.Template, error)
 	deleteProjectTemplate(context.Context, principal, string) error
 	createProject(context.Context, principal, projectCreate) (project, error)
+	listWebhookEndpoints(context.Context, principal) ([]webhookEndpoint, error)
+	createWebhookEndpoint(context.Context, principal, webhookCreate) (createdWebhookEndpoint, error)
+	updateWebhookEndpoint(context.Context, principal, string, webhookPatch) (webhookEndpoint, error)
+	deleteWebhookEndpoint(context.Context, principal, string) error
+	rotateWebhookEndpointSecret(context.Context, principal, string) (string, error)
+	listWebhookDeliveries(context.Context, principal, string, int) ([]webhookDelivery, error)
 }
 
 type postgresStore struct {
