@@ -14,6 +14,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/lib/database/client";
 import { formatMemberDisplayName } from "@/lib/members/member-management";
+import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
 
 import { translationSourceFingerprintSql } from "./translation-as-source-fingerprint";
 import { TRANSLATION_AS_SOURCE_UPLOAD_SURFACE } from "./translation-as-source-support";
@@ -39,6 +40,8 @@ export type TranslationAsSourceSend = {
  * The last send of each of `projectId`'s files to each of `destinationProjectIds`, read from the
  * destination's file versions, which store the version each send was built from and the
  * fingerprint of what it read. A file is changed since sent when its fingerprint now differs.
+ * Sends go between default branches, so a copy of a sent file on another branch (a branch
+ * created there copies its versions) is not a send.
  */
 export async function listTranslationAsSourceSends(input: {
   organizationId: string;
@@ -69,9 +72,15 @@ export async function listTranslationAsSourceSends(input: {
         stored.metadata -> 'translationSource' ->> 'fingerprint' as sent_fingerprint,
         sent.created_at as sent_at
       from repository_source_file_versions sent
+      join repository_source_files sent_file
+        on sent_file.id = sent.repository_source_file_id
+        and sent_file.branch_name = ${DEFAULT_PROJECT_BRANCH_NAME}
       join stored_files stored on stored.id = sent.stored_file_id
       join repository_source_file_versions original
         on original.id = (stored.metadata -> 'translationSource' ->> 'sourceFileVersionId')::uuid
+      join repository_source_files original_file
+        on original_file.id = original.repository_source_file_id
+        and original_file.branch_name = ${DEFAULT_PROJECT_BRANCH_NAME}
       where sent.organization_id = ${input.organizationId}
         and sent.project_id in (${destinationIds})
         and sent.upload_surface = ${TRANSLATION_AS_SOURCE_UPLOAD_SURFACE}
@@ -122,8 +131,9 @@ export type TranslationAsSourceReceipt = {
 };
 
 /**
- * The files of `projectId` whose newest version is a send from another project, with where it
- * came from. A file uploaded here again since is not listed: its newest version is that upload.
+ * The files of `projectId`'s default branch whose newest version is a send from another project,
+ * with where it came from. A file uploaded here again since is not listed: its newest version is
+ * that upload. Copies on other branches are not sends.
  */
 export async function listTranslationAsSourceReceipts(input: {
   organizationId: string;
@@ -187,6 +197,7 @@ export async function listTranslationAsSourceReceipts(input: {
       limit 1
     ) previous on true
     where newest.upload_surface = ${TRANSLATION_AS_SOURCE_UPLOAD_SURFACE}
+      and file.branch_name = ${DEFAULT_PROJECT_BRANCH_NAME}
       and stored.metadata -> 'translationSource' ->> 'projectId' is not null
     order by file.source_path
   `);

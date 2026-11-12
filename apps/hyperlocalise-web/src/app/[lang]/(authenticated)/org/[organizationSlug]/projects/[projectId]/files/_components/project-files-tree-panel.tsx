@@ -47,6 +47,7 @@ import { dedupeProjectFilesBySourcePath } from "./project-files-shared";
 import {
   fetchTranslationAsSourceReceipts,
   fetchTranslationAsSourceSends,
+  showsTranslationSourceMarks,
   translationAsSourceReceiptsQueryKey,
   translationAsSourceSendsQueryKey,
 } from "./translation-as-source-sent-mark";
@@ -385,10 +386,11 @@ export function ProjectFilesTreePanel({
     },
   });
 
+  const showsMarks = showsTranslationSourceMarks(projectId, branch);
   // Files sent to another project as its source; a failure only leaves them unmarked.
   const sendsQuery = useQuery({
     queryKey: translationAsSourceSendsQueryKey(organizationSlug, projectId),
-    enabled: !parseProviderProjectId(projectId),
+    enabled: showsMarks,
     queryFn: () => fetchTranslationAsSourceSends(organizationSlug, projectId),
     // Read again each time the page opens, so an approval made in the editor is seen.
     staleTime: 0,
@@ -396,7 +398,7 @@ export function ProjectFilesTreePanel({
   // Files sent here from another project; a failure only leaves them unmarked.
   const receiptsQuery = useQuery({
     queryKey: translationAsSourceReceiptsQueryKey(organizationSlug, projectId),
-    enabled: !parseProviderProjectId(projectId),
+    enabled: showsMarks,
     queryFn: () => fetchTranslationAsSourceReceipts(organizationSlug, projectId),
     staleTime: 0,
   });
@@ -509,8 +511,8 @@ export function ProjectFilesTreePanel({
             onActivateFile={onActivateFile}
             contentEditorOpenHint={contentEditorOpenHint}
             fileActions={fileActions}
-            fileSends={sendsQuery.data}
-            fileReceipts={receiptsQuery.data}
+            fileSends={showsMarks ? sendsQuery.data : undefined}
+            fileReceipts={showsMarks ? receiptsQuery.data : undefined}
           />
           {hasMoreFiles ? (
             <div className="shrink-0 border-t border-border p-2">

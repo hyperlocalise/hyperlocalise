@@ -1147,6 +1147,31 @@ describe("translation as source routes", () => {
     expect(await (await fixture.received()).json()).toEqual({ received: [] });
   });
 
+  it("does not count a copy of a sent file on another branch of the other project", async () => {
+    const fixture = await chainedProjectsFixture();
+    expect((await fixture.send()).status).toBe(201);
+    const [sentVersion] = await fixture.destinationVersions();
+    // A branch created in the other project copies its files' newest versions, stored file included.
+    const [storedFile] = await db
+      .select()
+      .from(schema.storedFiles)
+      .where(eq(schema.storedFiles.id, sentVersion.storedFileId));
+    await createRepositorySourceFileVersion({
+      storedFile,
+      sourcePath: SOURCE_PATH,
+      branchName: "release",
+      uploadSurface: TRANSLATION_AS_SOURCE_UPLOAD_SURFACE,
+    });
+
+    expect(await (await fixture.sent()).json()).toMatchObject({
+      sends: [{ sentAt: sentVersion.createdAt.toISOString(), replacedInDestination: false }],
+    });
+    // One entry: arrays match by length too.
+    expect(await (await fixture.received()).json()).toMatchObject({
+      received: [{ receivedAt: sentVersion.createdAt.toISOString() }],
+    });
+  });
+
   it("marks a send replaced since, and says in the other project what a send replaced", async () => {
     const fixture = await chainedProjectsFixture();
     expect((await fixture.send()).status).toBe(201);

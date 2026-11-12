@@ -17,6 +17,7 @@ import {
   buildTranslationAsSourceSentDecoration,
   fetchTranslationAsSourceReceipts,
   fetchTranslationAsSourceSends,
+  showsTranslationSourceMarks,
   type TranslationAsSourceReceipt,
   type TranslationAsSourceSend,
 } from "./translation-as-source-sent-mark";
@@ -211,5 +212,14 @@ describe("translation as source sent mark", () => {
 
     expect(sendsByPath.get("requests/report.docx")).toEqual([sends[0], sends[1]]);
     expect(sendsByPath.get("prices.xlsx")).toEqual([sends[2]]);
+  });
+});
+
+describe("showsTranslationSourceMarks", () => {
+  it("marks files only on the default branch of a project that stores its own files", () => {
+    expect(showsTranslationSourceMarks("project_website", null)).toBe(true);
+    expect(showsTranslationSourceMarks("project_website", "main")).toBe(true);
+    expect(showsTranslationSourceMarks("project_website", "release/2.0")).toBe(false);
+    expect(showsTranslationSourceMarks("ext:crowdin:42", null)).toBe(false);
   });
 });
