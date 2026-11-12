@@ -69,6 +69,7 @@ func run(ctx context.Context) error {
 	if store.objects == nil || store.glossaryImports == nil {
 		slog.Warn("glossary imports disabled", "reason", "object storage or "+glossaryInterchangeQueueURLEnv+" not configured")
 	}
+	store.webhookSecrets = newWebhookSecretMinterFromEnv()
 	server := &http.Server{
 		Addr:              ":" + port,
 		Handler:           newHandler(auth, store),

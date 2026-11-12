@@ -158,6 +158,9 @@ type postgresStore struct {
 	glossaryImports glossaryImportQueue
 	// autumn checks the workspace's project limit; nil allows one project, as go-svc does.
 	autumn *autumnClient
+	// webhookSecrets mints encrypted signing secrets from the web app. Create and rotate
+	// return webhook_secret_encryption_failed when it is nil.
+	webhookSecrets webhookSecretMinter
 }
 
 // workspaceOperatorPredicate matches go-svc's org-wide glossary, memory, and project access roles.

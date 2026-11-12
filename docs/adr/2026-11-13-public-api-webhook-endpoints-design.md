@@ -15,7 +15,7 @@ Add webhook endpoint management to `apps/public-api` on `https://public-api.hype
 - `POST /v1/webhook-endpoints/{endpointId}/rotate-secret`
 - `GET /v1/webhook-endpoints/{endpointId}/deliveries`
 
-The request and response shapes match the session routes. The signing secret is returned only on create and rotate. URL checks, the 20-endpoint limit, event-type filters, and project filters stay the same. Signing secrets use `PROVIDER_CREDENTIALS_MASTER_KEY` in the same AES-256-GCM JSON as the web app.
+The request and response shapes match the session routes. The signing secret is returned only on create and rotate. URL checks, the 20-endpoint limit, event-type filters, and project filters stay the same. The public API does not hold `PROVIDER_CREDENTIALS_MASTER_KEY`. Create and rotate mint the secret from the web app (`POST /api/internal/webhooks/signing-secret`) and store the encrypted JSON blob. See [Webhook signing-secret mint](2026-11-13-public-api-webhook-secret-mint-design.md).
 
 Effective permissions `webhooks:read` and `webhooks:write` are derived: `jobs:read` / `jobs:write` plus an admin or localization manager role. That matches who can open the Settings page, without a new stored PAT scope.
 
@@ -27,4 +27,4 @@ A new stored `webhooks:write` PAT scope would let a manager grant webhook access
 
 Keeping management on the Hono session API and documenting cookie auth would not let an API key register an endpoint.
 
-Proxying creates to the web app would add a runtime dependency the public API was built to avoid.
+Proxying the whole create through Hono would move CRUD out of public-api. Minting only the signing secret keeps CRUD here and keeps the master key in the web app.
