@@ -37,7 +37,7 @@ vi.mock("@/lib/security/public-http-fetch", async (importOriginal) => {
 
 import { isErr, ok } from "@/lib/primitives/result/results";
 
-import { AUDIT_BROWSER_USER_AGENT, AUDIT_BROWSER_VIEWPORT } from "./audit-playwright-script";
+import { AUDIT_BROWSER_VIEWPORT } from "./audit-playwright-script";
 import { createTilionAuditBrowserSession, TILION_API_BASE_URL } from "./tilion-browser";
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -139,7 +139,7 @@ describe("createTilionAuditBrowserSession", () => {
     );
   });
 
-  it("falls back to an isolated context with the audit user agent", async () => {
+  it("falls back to an isolated context without the audit bot user agent", async () => {
     fetchMock.mockImplementation(async (_url, init) =>
       init?.method === "POST"
         ? Response.json({ session_id: "sess_1", connect_url: "wss://tilion/cdp" })
@@ -152,12 +152,51 @@ describe("createTilionAuditBrowserSession", () => {
     await session.value.close();
 
     expect(playwrightMocks.newContext).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userAgent: AUDIT_BROWSER_USER_AGENT,
-        viewport: AUDIT_BROWSER_VIEWPORT,
-      }),
+      expect.objectContaining({ viewport: AUDIT_BROWSER_VIEWPORT }),
     );
+    expect(playwrightMocks.newContext.mock.calls[0]?.[0]).not.toHaveProperty("userAgent");
     expect(playwrightMocks.contextClose).toHaveBeenCalled();
+  });
+
+  it("fetches text resources through the Tilion browser", async () => {
+    fetchMock.mockImplementation(async (_url, init) =>
+      init?.method === "POST"
+        ? Response.json({ session_id: "sess_1", connect_url: "wss://tilion/cdp" })
+        : new Response(null, { status: 204 }),
+    );
+    const robots = "User-agent: *\nSitemap: https://example.com/sitemap.xml\n";
+    const page = {
+      goto: vi.fn(async () => ({ status: () => 200, text: async () => robots })),
+      url: () => "https://example.com/robots.txt",
+      close: vi.fn(async () => undefined),
+    };
+    playwrightMocks.newPage.mockResolvedValue(page);
+
+    const session = await createTilionAuditBrowserSession({ apiKey: "tl_key" });
+    if (isErr(session)) throw new Error(session.error.code);
+
+    expect(await session.value.fetchText?.("https://example.com/robots.txt")).toBe(robots);
+    expect(page.goto).toHaveBeenCalledWith("https://example.com/robots.txt", expect.anything());
+    expect(page.close).toHaveBeenCalled();
+  });
+
+  it("returns null for missing or private text resources", async () => {
+    fetchMock.mockImplementation(async (_url, init) =>
+      init?.method === "POST"
+        ? Response.json({ session_id: "sess_1", connect_url: "wss://tilion/cdp" })
+        : new Response(null, { status: 204 }),
+    );
+    playwrightMocks.newPage.mockResolvedValue({
+      goto: vi.fn(async () => ({ status: () => 404, text: async () => "Not found" })),
+      url: () => "https://example.com/sitemap.xml",
+      close: vi.fn(async () => undefined),
+    });
+
+    const session = await createTilionAuditBrowserSession({ apiKey: "tl_key" });
+    if (isErr(session)) throw new Error(session.error.code);
+
+    expect(await session.value.fetchText?.("https://example.com/sitemap.xml")).toBeNull();
+    expect(await session.value.fetchText?.("http://127.0.0.1/robots.txt")).toBeNull();
   });
 
   it("drops pages that redirect to a private address", async () => {
