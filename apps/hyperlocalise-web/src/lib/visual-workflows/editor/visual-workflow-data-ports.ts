@@ -52,6 +52,8 @@ function getInputFields(node: VisualWorkflowRfNode) {
     node.data.config.kind === "logic.merge_objects" ||
     node.data.config.kind === "logic.coalesce" ||
     node.data.config.kind === "logic.compare" ||
+    node.data.config.kind === "logic.text_template" ||
+    node.data.config.kind === "logic.concatenate" ||
     node.data.config.kind === "logic.array_transform"
   ) {
     return getWorkflowInputFields({
@@ -107,6 +109,19 @@ function getInputLabel(node: VisualWorkflowRfNode, portId: string): string {
   if (node.data.config.kind === "logic.compare" && portId.startsWith("value.")) {
     const id = portId.slice("value.".length);
     return node.data.config.operands.find((operand) => operand.id === id)?.name ?? portId;
+  }
+  if (node.data.config.kind === "logic.text_template" && portId.startsWith("value.")) {
+    const id = portId.slice("value.".length);
+    return (
+      node.data.config.placeholders.find((placeholder) => placeholder.id === id)?.name ?? portId
+    );
+  }
+  if (node.data.config.kind === "logic.concatenate" && portId.startsWith("value.")) {
+    const id = portId.slice("value.".length);
+    const segment = node.data.config.segments.find(
+      (candidate) => candidate.kind === "input" && candidate.id === id,
+    );
+    return segment?.kind === "input" ? segment.name : portId;
   }
   return portId;
 }

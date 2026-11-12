@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { toVisualWorkflowDefinition } from "../schema/serializers";
+import { toVisualWorkflowV3Definition } from "../schema/serializers";
 import type {
   MockNodeRunStatus,
   VisualWorkflowRfEdge,
@@ -19,6 +19,10 @@ import type {
 import { createMockWorkflowExecutor } from "../runtime/mock-executor";
 import { runVisualWorkflowInterpreter } from "../runtime/interpreter";
 import { redactWorkflowSnapshot, collectWorkflowSecrets } from "../runtime/snapshots";
+import {
+  compileVisualWorkflowV3Definition,
+  toVisualWorkflowExecutionDefinition,
+} from "../validation/compile-workflow-v3";
 const PLAYGROUND_ORGANIZATION_ID = "00000000-0000-4000-8000-000000000099";
 
 export async function runPlaygroundWorkflow(options: {
@@ -40,14 +44,17 @@ export async function runPlaygroundWorkflow(options: {
     return "aborted";
   }
 
-  const definition = toVisualWorkflowDefinition({
+  const definition = toVisualWorkflowV3Definition({
     name: options.name,
     nodes: [...options.nodes],
     edges: [...options.edges],
   });
 
+  const compiled = compileVisualWorkflowV3Definition(definition);
+  if (compiled.issues.length > 0) return "failed";
+
   const result = await runVisualWorkflowInterpreter({
-    definition,
+    definition: toVisualWorkflowExecutionDefinition(compiled),
     organizationId: PLAYGROUND_ORGANIZATION_ID,
     triggerInput: {
       ...options.triggerInput,

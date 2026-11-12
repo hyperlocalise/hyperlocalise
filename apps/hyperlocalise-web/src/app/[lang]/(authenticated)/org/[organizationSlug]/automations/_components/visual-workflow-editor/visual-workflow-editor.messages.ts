@@ -435,6 +435,26 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "Xpq2AJzIub",
     description: "Catalog title for the JSON parse node",
   },
+  nodeTextTemplate: {
+    defaultMessage: "Text template",
+    id: "kHRyfEFkVF",
+    description: "Catalog title for the text template node",
+  },
+  nodeTextTemplateHint: {
+    defaultMessage: "Build text from literals and named typed inputs.",
+    id: "DvvgU2P+3/",
+    description: "Catalog description for the text template node",
+  },
+  nodeConcatenate: {
+    defaultMessage: "Concatenate text",
+    id: "Al2nTSfxH3",
+    description: "Catalog title for the concatenate node",
+  },
+  nodeConcatenateHint: {
+    defaultMessage: "Join literal and typed input segments in a stable order.",
+    id: "B2f/NlfEAd",
+    description: "Catalog description for the concatenate node",
+  },
   nodeJsonParseHint: {
     defaultMessage: "Parse JSON text into a structured value.",
     id: "x5b2BktTkL",
@@ -2118,6 +2138,127 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Initial value",
     id: "LgF4rByVBa",
     description: "Array reduce initial value field",
+  },
+  textTemplateValue: {
+    defaultMessage: "Template",
+    id: "3bcQMgduJp",
+    description: "Text template source label",
+  },
+  textTemplateHint: {
+    defaultMessage:
+      "Insert configured placeholders by name with double braces. Prefix the opening braces with a backslash to keep them literal.",
+    id: "qXJTvRFZiH",
+    description: "Text template source help",
+  },
+  textPlaceholders: {
+    defaultMessage: "Placeholders",
+    id: "4Zj9YBFUdj",
+    description: "Text template placeholders section label",
+  },
+  textPlaceholderName: {
+    defaultMessage: "Placeholder {index} name",
+    id: "6wDuyq0cpl",
+    description: "Accessible label for a text placeholder name",
+  },
+  textPlaceholderType: {
+    defaultMessage: "Placeholder {index} type",
+    id: "N/NbzFAz+G",
+    description: "Accessible label for a text placeholder type",
+  },
+  textMissingBehavior: {
+    defaultMessage: "Missing value behavior {index}",
+    id: "8bgQoug2Ej",
+    description: "Text input missing behavior label",
+  },
+  textMissingRequired: {
+    defaultMessage: "Required",
+    id: "x4f/rPerPG",
+    description: "Required text input behavior",
+  },
+  textMissingOptional: {
+    defaultMessage: "Optional (empty text)",
+    id: "JpowxCgXLz",
+    description: "Optional text input behavior",
+  },
+  textMissingFallback: {
+    defaultMessage: "Use fallback",
+    id: "Fz6zuA10PF",
+    description: "Fallback text input behavior",
+  },
+  textFallbackValue: {
+    defaultMessage: "Fallback value {index}",
+    id: "rb6qeVq4O7",
+    description: "Fallback value field label",
+  },
+  moveTextEntryUp: {
+    defaultMessage: "Move {label} up",
+    id: "6lpT4pRjNb",
+    description: "Accessible label for moving a text entry up",
+  },
+  moveTextEntryDown: {
+    defaultMessage: "Move {label} down",
+    id: "7WssYa0TO4",
+    description: "Accessible label for moving a text entry down",
+  },
+  removeTextEntry: {
+    defaultMessage: "Remove {label}",
+    id: "Zitgadw6n2",
+    description: "Accessible label for removing a text entry",
+  },
+  addTextPlaceholder: {
+    defaultMessage: "Add placeholder",
+    id: "NesSqnxifw",
+    description: "Add text template placeholder button",
+  },
+  concatenateSeparator: {
+    defaultMessage: "Separator",
+    id: "mGotLHc8fH",
+    description: "Concatenate separator label",
+  },
+  concatenateSegments: {
+    defaultMessage: "Segments",
+    id: "jVOTi2/W2r",
+    description: "Concatenate segments section label",
+  },
+  concatenateSegmentKind: {
+    defaultMessage: "Segment {index} kind",
+    id: "RMjxFA8Uzh",
+    description: "Accessible label for concatenate segment kind",
+  },
+  concatenateLiteral: {
+    defaultMessage: "Literal text",
+    id: "LeIm9531Cr",
+    description: "Concatenate literal segment kind",
+  },
+  concatenateInput: {
+    defaultMessage: "Data input",
+    id: "A4hE7lV4P0",
+    description: "Concatenate input segment kind",
+  },
+  concatenateLiteralValue: {
+    defaultMessage: "Segment {index} literal text",
+    id: "TT61gWUTV6",
+    description: "Accessible label for concatenate literal text",
+  },
+  concatenateInputName: {
+    defaultMessage: "Segment {index} input name",
+    id: "1/Kn2lUIgK",
+    description: "Accessible label for concatenate input name",
+  },
+  concatenateInputType: {
+    defaultMessage: "Segment {index} input type",
+    id: "s2HeGRhd3V",
+    description: "Accessible label for concatenate input type",
+  },
+  addConcatenateLiteral: {
+    defaultMessage: "Add literal",
+    id: "q5N5mrNO/W",
+    description: "Add concatenate literal segment button",
+  },
+  addConcatenateInput: {
+    defaultMessage: "Add input",
+    id: "6eixEzMWy3",
+    description: "Add concatenate input segment button",
   },
   slackChannelId: {
     defaultMessage: "Slack channel ID",

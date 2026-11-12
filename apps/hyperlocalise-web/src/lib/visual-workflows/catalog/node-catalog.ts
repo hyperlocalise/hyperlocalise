@@ -34,6 +34,7 @@ import {
   FilesIcon,
   UserSwitchIcon,
   UsersThreeIcon,
+  TextTIcon,
 } from "@phosphor-icons/react/ssr";
 
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
@@ -259,6 +260,18 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     category: "logic",
     enabled: true,
     icon: SealCheckIcon,
+  },
+  {
+    type: "logic.text_template",
+    category: "logic",
+    enabled: true,
+    icon: TextTIcon,
+  },
+  {
+    type: "logic.concatenate",
+    category: "logic",
+    enabled: true,
+    icon: TextTIcon,
   },
   {
     type: "ai.agent",
@@ -578,6 +591,34 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       return { kind: "logic.json_stringify", value: null };
     case "logic.schema_validate":
       return { kind: "logic.schema_validate", value: null, schema: {} };
+    case "logic.text_template":
+      return {
+        kind: "logic.text_template",
+        template: "Hello, {{name}}!",
+        placeholders: [
+          {
+            id: createTextInputId(),
+            name: "name",
+            type: "string",
+            missingBehavior: "required",
+          },
+        ],
+      };
+    case "logic.concatenate":
+      return {
+        kind: "logic.concatenate",
+        separator: " ",
+        segments: [
+          { id: createTextInputId(), kind: "literal", value: "Hello," },
+          {
+            id: createTextInputId(),
+            kind: "input",
+            name: "Name",
+            type: "string",
+            missingBehavior: "required",
+          },
+        ],
+      };
     case "ai.agent":
       return { kind: "ai.agent", prompt: "", onError: "stop" };
     case "logic.for_each":
@@ -821,6 +862,10 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return "Value to JSON text";
     case "logic.schema_validate":
       return "Validate JSON value";
+    case "logic.text_template":
+      return `${config.placeholders.length} placeholders`;
+    case "logic.concatenate":
+      return `${config.segments.length} segments`;
     case "ai.agent":
       return "Tools agent";
     case "logic.for_each":
@@ -897,6 +942,10 @@ export function createCoalesceInputId(): string {
 }
 
 export function createComparisonOperandId(): string {
+  return crypto.randomUUID();
+}
+
+export function createTextInputId(): string {
   return crypto.randomUUID();
 }
 
