@@ -15,26 +15,22 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { ArrowLeftIcon } from "@phosphor-icons/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
-import { ProjectTargetLocalesPicker } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/_components/project-locale-picker";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { useGuidelineDocumentUpload } from "../../_components/guideline-documents-section";
 import { GuidelineTextDocumentDialog } from "../../_components/guideline-text-document-dialog";
 import { KnowledgeUploadSection } from "../../_components/knowledge-upload-section";
+import { GuidelineScopeToolbar, type GuidelineProjectScope } from "./guideline-scope-fields";
 import { guidelineUploadMessages as messages } from "./guideline-upload.messages";
-import { useQueryClient } from "@tanstack/react-query";
-
-type ProjectScope = "none" | "all" | "selected";
 
 export function GuidelineUploadContent({
   organizationSlug,
@@ -56,7 +52,7 @@ export function GuidelineUploadContent({
   const [stagedFile, setStagedFile] = useState<File | null>(null);
   const [scopeError, setScopeError] = useState<string | null>(null);
   const preselected = initialProjectId ?? deprecatedProjectId ?? "";
-  const [scope, setScope] = useState<ProjectScope>(preselected ? "selected" : "none");
+  const [scope, setScope] = useState<GuidelineProjectScope>(preselected ? "selected" : "none");
   const [selectedIds, setSelectedIds] = useState<string[]>(preselected ? [preselected] : []);
   const [selectedLocales, setSelectedLocales] = useState<string[]>([]);
   const uploadDocument = useGuidelineDocumentUpload(organizationSlug);
@@ -132,35 +128,54 @@ export function GuidelineUploadContent({
     );
   };
 
-  const toggleSelected = (id: string, checked: boolean) => {
-    setSelectedIds((prev) =>
-      checked ? [...new Set([...prev, id])] : prev.filter((item) => item !== id),
-    );
-  };
+  const uploading = uploadDocument.isPending;
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <TypographyH1>
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+      <header className="flex flex-col gap-3">
+        <Button
+          type="button"
+          nativeButton={false}
+          variant="ghost"
+          size="sm"
+          className="-ms-2 w-fit text-muted-foreground"
+          render={<Link href={backHref} />}
+        >
+          <ArrowLeftIcon data-icon="inline-start" />
+          <FormattedMessage {...messages.backToGuideline} />
+        </Button>
+        <div className="flex flex-col gap-1">
+          <TypographyH1 className="text-2xl md:text-3xl">
             <FormattedMessage {...messages.title} />
           </TypographyH1>
           <TypographyP tone="subtle">
             <FormattedMessage {...messages.description} />
           </TypographyP>
         </div>
-        <Button
-          type="button"
-          nativeButton={false}
-          variant="outline"
-          size="sm"
-          render={<Link href={backHref} />}
-        >
-          <FormattedMessage {...messages.backToGuideline} />
-        </Button>
-      </div>
+      </header>
+
+      <GuidelineScopeToolbar
+        locales={selectedLocales}
+        onLocalesChange={setSelectedLocales}
+        localeSuggestions={localeSuggestions}
+        scope={scope}
+        onScopeChange={(next) => {
+          setScope(next);
+          setScopeError(null);
+        }}
+        selectedIds={selectedIds}
+        onSelectedIdsChange={(ids) => {
+          setSelectedIds(ids);
+          setScopeError(null);
+        }}
+        projects={projectsQuery.data ?? []}
+        loadingProjects={projectsQuery.isPending}
+        error={scopeError}
+      />
 
       <KnowledgeUploadSection
+        showTitle={false}
+        className="space-y-4"
         onStartMarkdownText={() => {
           if (!scopeReady()) return;
           setTextDialogOpen(true);
@@ -171,90 +186,25 @@ export function GuidelineUploadContent({
         }}
       />
 
-      <div className="flex flex-col gap-2">
-        <ProjectTargetLocalesPicker
-          value={selectedLocales}
-          onChange={setSelectedLocales}
-          sourceLocale=""
-          additionalLocales={localeSuggestions}
-          labelMessage={messages.localesLabel}
-        />
-      </div>
-
-      <section className="flex flex-col gap-3 rounded-xl border border-border px-4 py-3">
-        <Field className="gap-1.5">
-          <FieldLabel>
-            <FormattedMessage {...messages.projectScopeLabel} />
-          </FieldLabel>
-          <div
-            className="flex flex-wrap gap-2"
-            role="radiogroup"
-            aria-label={intl.formatMessage(messages.projectScopeLabel)}
-          >
-            {(
-              [
-                ["none", messages.projectScopeNone],
-                ["all", messages.projectScopeAll],
-                ["selected", messages.projectScopeSelected],
-              ] as const
-            ).map(([value, message]) => (
-              <Button
-                key={value}
-                type="button"
-                variant={scope === value ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setScope(value);
-                  setScopeError(null);
-                }}
-              >
-                <FormattedMessage {...message} />
-              </Button>
-            ))}
-          </div>
-          <TypographyP size="small" tone="subtle">
-            <FormattedMessage {...messages.projectScopeHint} />
-          </TypographyP>
-        </Field>
-
-        {scope === "selected" ? (
-          <div className="grid gap-2">
-            {projectsQuery.isPending ? (
-              <Skeleton className="h-16 w-full" />
-            ) : (projectsQuery.data ?? []).length === 0 ? (
-              <TypographyP size="small" tone="subtle">
-                <FormattedMessage {...messages.noProjects} />
-              </TypographyP>
-            ) : (
-              (projectsQuery.data ?? []).map((project) => (
-                <label key={project.id} className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={selectedIds.includes(project.id)}
-                    onCheckedChange={(checked) => {
-                      toggleSelected(project.id, checked === true);
-                      setScopeError(null);
-                    }}
-                  />
-                  <span className="truncate">{project.name}</span>
-                </label>
-              ))
-            )}
-          </div>
-        ) : null}
-      </section>
-
-      {scopeError ? (
-        <p className="text-sm text-destructive" role="alert">
-          {scopeError}
-        </p>
-      ) : null}
-      {stagedFile ? (
-        <div>
-          <Button type="button" disabled={uploadDocument.isPending} onClick={uploadStagedFile}>
-            <FormattedMessage {...messages.uploadFile} />
-          </Button>
-        </div>
-      ) : null}
+      <footer className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t border-border bg-background/85 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+        {stagedFile ? null : (
+          <p className="me-auto text-xs text-muted-foreground">
+            <FormattedMessage {...messages.chooseFileHint} />
+          </p>
+        )}
+        <Button
+          type="button"
+          nativeButton={false}
+          variant="outline"
+          render={<Link href={backHref} />}
+        >
+          <FormattedMessage {...messages.cancel} />
+        </Button>
+        <Button type="button" disabled={!stagedFile || uploading} onClick={uploadStagedFile}>
+          {uploading ? <Spinner data-icon="inline-start" /> : null}
+          <FormattedMessage {...messages.uploadFile} />
+        </Button>
+      </footer>
 
       <GuidelineTextDocumentDialog
         open={textDialogOpen}
