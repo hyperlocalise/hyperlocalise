@@ -18,15 +18,17 @@ export PORT=8081
 export DATABASE_URL=postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise
 # Optional. Required to expose Queries resources for entitled workspaces.
 # export AUTUMN_API_KEY=am_sk_test_...
-# Required to create or rotate webhook endpoints. Same key as the web app.
-# export PROVIDER_CREDENTIALS_MASTER_KEY=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+# Required to create or rotate webhook endpoints. Same values as go-svc.
+# export HYPERLOCALISE_WEB_INTERNAL_URL=http://localhost:3000
+# export WORKOS_COOKIE_PASSWORD=this-is-a-test-cookie-password-at-least-32-characters
 go run ./apps/public-api
 ```
 
 `PORT` defaults to 8081. `DATABASE_URL` is required. Creating or rotating a webhook
-endpoint also needs `PROVIDER_CREDENTIALS_MASTER_KEY`, the same AES-256-GCM key the
-web app uses to store signing secrets. The service validates PATs directly against
-PostgreSQL and does not need a WorkOS secret or platform URL.
+endpoint asks the web app to mint and encrypt the signing secret, so it also needs
+`WORKOS_COOKIE_PASSWORD` and `HYPERLOCALISE_WEB_INTERNAL_URL` (or
+`HYPERLOCALISE_PUBLIC_APP_URL`). The service does not hold
+`PROVIDER_CREDENTIALS_MASTER_KEY`. PAT validation still uses PostgreSQL only.
 
 ```sh
 curl http://localhost:8081/health
@@ -176,9 +178,10 @@ docker build -f apps/public-api/Dockerfile -t hyperlocalise-public-api .
 ```
 
 Deploy this service behind a TLS ingress with request rate limits. Configure
-`DATABASE_URL`, `PROVIDER_CREDENTIALS_MASTER_KEY`, and optional `AUTUMN_API_KEY`
-through deployment secrets, not build arguments. No DNS or existing API routes
-change automatically.
+`DATABASE_URL`, `WORKOS_COOKIE_PASSWORD`, `HYPERLOCALISE_WEB_INTERNAL_URL` (or
+`HYPERLOCALISE_PUBLIC_APP_URL`), and optional `AUTUMN_API_KEY` through
+deployment secrets, not build arguments. No DNS or existing API routes change
+automatically.
 
 ## Adding resource endpoints
 

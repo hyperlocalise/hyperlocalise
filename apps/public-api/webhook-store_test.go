@@ -9,7 +9,6 @@ import (
 )
 
 func TestWebhookStoreDatabase(t *testing.T) {
-	t.Setenv("PROVIDER_CREDENTIALS_MASTER_KEY", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")
 	f := newDBFixture(t)
 	ctx := t.Context()
 
@@ -75,8 +74,14 @@ func TestWebhookStoreDatabase(t *testing.T) {
 	require.ErrorIs(t, f.store.deleteWebhookEndpoint(ctx, f.actor, created.Endpoint.ID), errWebhookEndpointNotFound)
 }
 
+func TestWebhookStoreCreateWithoutMinter(t *testing.T) {
+	f := newDBFixture(t)
+	f.store.webhookSecrets = nil
+	_, err := f.store.createWebhookEndpoint(t.Context(), f.actor, webhookCreate{URL: "https://hooks.example.com/in"})
+	require.ErrorIs(t, err, errWebhookSecretEncryptionFailed)
+}
+
 func TestWebhookStoreLimit(t *testing.T) {
-	t.Setenv("PROVIDER_CREDENTIALS_MASTER_KEY", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")
 	f := newDBFixture(t)
 	ctx := t.Context()
 	for i := 0; i < maxWebhookEndpointsPerOrganization; i++ {

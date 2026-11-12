@@ -110,11 +110,7 @@ func (s *postgresStore) createWebhookEndpoint(ctx context.Context, actor princip
 	if err != nil {
 		return createdWebhookEndpoint{}, err
 	}
-	secret, err := generateWebhookSecret()
-	if err != nil {
-		return createdWebhookEndpoint{}, err
-	}
-	encrypted, err := encryptWebhookSecret(secret)
+	minted, err := s.mintWebhookSigningSecret(ctx)
 	if err != nil {
 		return createdWebhookEndpoint{}, err
 	}
@@ -142,7 +138,7 @@ func (s *postgresStore) createWebhookEndpoint(ctx context.Context, actor princip
 		(organization_id, url, description, event_types, project_id, secret, created_by_user_id)
 		VALUES ($1, $2, $3, $4::jsonb, $5, $6::jsonb, $7)
 		RETURNING `+webhookEndpointColumns,
-		actor.OrganizationID, input.URL, input.Description, string(eventTypes), projectID, string(encrypted), actor.UserID)
+		actor.OrganizationID, input.URL, input.Description, string(eventTypes), projectID, string(minted.Encrypted), actor.UserID)
 	item, err := scanWebhookEndpoint(row)
 	if err != nil {
 		return createdWebhookEndpoint{}, fmt.Errorf("insert webhook endpoint: %w", err)
@@ -150,7 +146,7 @@ func (s *postgresStore) createWebhookEndpoint(ctx context.Context, actor princip
 	if err := tx.Commit(ctx); err != nil {
 		return createdWebhookEndpoint{}, fmt.Errorf("commit webhook create: %w", err)
 	}
-	return createdWebhookEndpoint{Endpoint: item, Secret: secret}, nil
+	return createdWebhookEndpoint{Endpoint: item, Secret: minted.Secret}, nil
 }
 
 func (s *postgresStore) updateWebhookEndpoint(ctx context.Context, actor principal, endpointID string, patch webhookPatch) (webhookEndpoint, error) {
@@ -230,23 +226,19 @@ func (s *postgresStore) rotateWebhookEndpointSecret(ctx context.Context, actor p
 	if _, err := s.getWebhookEndpoint(ctx, actor, endpointID); err != nil {
 		return "", err
 	}
-	secret, err := generateWebhookSecret()
-	if err != nil {
-		return "", err
-	}
-	encrypted, err := encryptWebhookSecret(secret)
+	minted, err := s.mintWebhookSigningSecret(ctx)
 	if err != nil {
 		return "", err
 	}
 	tag, err := s.pool.Exec(ctx, `UPDATE webhook_endpoints SET secret = $3::jsonb, updated_at = now()
-		WHERE organization_id = $1 AND id = $2`, actor.OrganizationID, endpointID, string(encrypted))
+		WHERE organization_id = $1 AND id = $2`, actor.OrganizationID, endpointID, string(minted.Encrypted))
 	if err != nil {
 		return "", fmt.Errorf("rotate webhook secret: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return "", errWebhookEndpointNotFound
 	}
-	return secret, nil
+	return minted.Secret, nil
 }
 
 func (s *postgresStore) listWebhookDeliveries(ctx context.Context, actor principal, endpointID string, limit int) ([]webhookDelivery, error) {
