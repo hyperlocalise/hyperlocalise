@@ -155,6 +155,11 @@ export const providerProjectBranchesFixture: ProviderProjectBranchOption[] = [
   { name: "feature-checkout", title: "Feature checkout" },
 ];
 
+export const nativeProjectBranchesFixture: ProviderProjectBranchOption[] = [
+  { name: "main", title: null },
+  { name: "feature-checkout", title: "Feature checkout" },
+];
+
 export function createProjectFileDetail(
   file: ProjectFileRecord = projectFilesFixture[0] as ProjectFileRecord,
   overrides: Partial<ProjectFileDetailResponse["file"]> = {},

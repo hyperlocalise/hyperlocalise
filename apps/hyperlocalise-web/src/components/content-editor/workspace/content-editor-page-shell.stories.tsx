@@ -11,9 +11,10 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { fn } from "storybook/test";
-import { expect, userEvent, waitFor, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
+import { ProjectFilesBranchFilterView } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files-branch-filter-view";
+import { nativeProjectBranchesFixture } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files.fixture";
 import {
   CAT_STORY_IMAGE_SOURCE_URL,
   CAT_STORY_IMAGE_TARGET_URL,
@@ -202,6 +203,40 @@ export const Default: Story = {
     await selectFileInTree(canvasElement, contentEditorPageShellProductJsonPath);
     await waitFor(() => expect(canvas.getByText("Source")).toBeInTheDocument());
     await expect(canvas.getByText("dashboard.reviews.pending.card")).toBeInTheDocument();
+  },
+};
+
+export const NativeBranch: Story = {
+  args: {
+    ...Default.args,
+    headerTrailing: (
+      <ProjectFilesBranchFilterView
+        allowAllBranches={false}
+        branches={nativeProjectBranchesFixture}
+        selectedBranch="main"
+        onSelectedBranchChange={() => undefined}
+      />
+    ),
+  },
+  parameters: {
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: "/org/story/projects/story/files/content-editor",
+        query: { branch: "main" },
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const branchLabel = canvas.getByText("Branch");
+    const branchFilter = branchLabel.closest("div");
+    if (!branchFilter) {
+      throw new Error("Expected native branch filter in the CAT header");
+    }
+
+    await expect(within(branchFilter).getByRole("combobox")).toHaveTextContent("main");
+    await expect(canvas.queryByText("All branches")).not.toBeInTheDocument();
   },
 };
 
