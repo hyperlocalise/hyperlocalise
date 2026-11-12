@@ -20,25 +20,4 @@ export const pricingCustomerLogosMessages = defineMessages({
     id: "q2bbkJ9zWw",
     description: "Label above the customer logo carousel on the pricing page",
   },
-  canvaAlt: {
-    defaultMessage: "Canva",
-    id: "dEcrySj/9q",
-    description: "Alt text for the Canva logo in the pricing page customer carousel",
-  },
-  linktreeAlt: {
-    defaultMessage: "Linktree",
-    id: "fleARJw/9M",
-    description: "Alt text for the Linktree logo in the pricing page customer carousel",
-  },
-  ellAgencyAlt: {
-    defaultMessage: "Entre Les Lignes",
-    id: "0FXXvo6mBv",
-    description:
-      "Alt text for the Entre Les Lignes (ell.agency) logo in the pricing page customer carousel",
-  },
-  crestecAlt: {
-    defaultMessage: "Crestec",
-    id: "PNGVbqK1lc",
-    description: "Alt text for the Crestec logo in the pricing page customer carousel",
-  },
 });

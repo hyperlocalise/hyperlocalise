@@ -34,22 +34,6 @@ type CustomerLogo = {
 
 const CUSTOMER_LOGOS: readonly CustomerLogo[] = [
   {
-    id: "canva",
-    src: "/images/customers/canva-logo.svg",
-    alt: m.canvaAlt,
-    width: 80,
-    height: 30,
-    className: "h-7 sm:h-8",
-  },
-  {
-    id: "linktree",
-    src: "/images/customers/linktree-logo.svg",
-    alt: m.linktreeAlt,
-    width: 494,
-    height: 100,
-    className: "h-5 sm:h-6",
-  },
-  {
     id: "heidi-health",
     src: "/images/customers/heidi-health-logo.png",
     alt: heroSectionMessages.heidiHealthAlt,
@@ -71,22 +55,6 @@ const CUSTOMER_LOGOS: readonly CustomerLogo[] = [
     alt: heroSectionMessages.wallStRankAlt,
     width: 3044,
     height: 600,
-    className: "h-6 sm:h-7",
-  },
-  {
-    id: "ell-agency",
-    src: "/images/customers/ell-agency-logo.png",
-    alt: m.ellAgencyAlt,
-    width: 400,
-    height: 84,
-    className: "h-6 sm:h-7",
-  },
-  {
-    id: "crestec",
-    src: "/images/customers/crestec-logo.svg",
-    alt: m.crestecAlt,
-    width: 162,
-    height: 42,
     className: "h-6 sm:h-7",
   },
   {
