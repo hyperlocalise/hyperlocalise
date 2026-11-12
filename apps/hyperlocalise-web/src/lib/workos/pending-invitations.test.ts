@@ -118,7 +118,7 @@ describe("pending invitations", () => {
           id: "invitation_1",
           email: sessionUser.email.toUpperCase(),
           state: "pending",
-          createdAt: "2026-10-02T00:00:00Z",
+          createdAt: new Date("2026-10-02T00:00:00.000Z"),
         },
       ],
     });
@@ -160,7 +160,7 @@ describe("pending invitations", () => {
           id: "invitation_1",
           email: sessionUser.email,
           state: "pending",
-          createdAt: "2026-10-02T00:00:00Z",
+          createdAt: new Date("2026-10-02T00:00:00.000Z"),
         },
       ],
     });
@@ -183,7 +183,7 @@ describe("pending invitations", () => {
           id: "invitation_1",
           email: sessionUser.email,
           state: "pending",
-          createdAt: "2026-10-02T00:00:00Z",
+          createdAt: new Date("2026-10-02T00:00:00.000Z"),
         },
       ],
     });
@@ -206,7 +206,7 @@ describe("pending invitations", () => {
           id: "invitation_1",
           email: sessionUser.email,
           state: "accepted",
-          createdAt: "2026-10-02T00:00:00Z",
+          createdAt: new Date("2026-10-02T00:00:00.000Z"),
         },
       ],
     });
@@ -242,13 +242,13 @@ describe("pending invitations", () => {
           id: "invitation_old",
           email: sessionUser.email,
           state: "accepted",
-          createdAt: "2026-01-01T00:00:00Z",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
         },
         {
           id: "invitation_new",
           email: sessionUser.email,
           state: "expired",
-          createdAt: "2026-10-01T00:00:00Z",
+          createdAt: new Date("2026-10-01T00:00:00.000Z"),
         },
       ],
     });
@@ -270,7 +270,7 @@ describe("pending invitations", () => {
           id: "invitation_1",
           email: sessionUser.email,
           state: "expired",
-          createdAt: "2026-10-02T00:00:00Z",
+          createdAt: new Date("2026-10-02T00:00:00.000Z"),
         },
       ],
     });
@@ -304,7 +304,7 @@ describe("pending invitations", () => {
           id: "invitation_other",
           email: "someone-else@example.com",
           state: "pending",
-          createdAt: "2026-10-02T00:00:00Z",
+          createdAt: new Date("2026-10-02T00:00:00.000Z"),
         },
       ],
     });
