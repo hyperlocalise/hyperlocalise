@@ -81,13 +81,13 @@ Inspect the reported counts, locales, and representative entries after import. K
 
 List glossaries available on the active TMS connection:
 
-`GET https://api.hyperlocalise.com/v1/orgs/{organizationSlug}/tms/glossaries`
+`GET https://public-api.hyperlocalise.com/v1/orgs/{organizationSlug}/tms/glossaries`
 
-Permission: session or token with glossary read access on the organization (same host as other go-svc glossary routes).
+Permission: session or token with glossary read access on the organization (same host as other public API glossary routes).
 
 Start a background import into an existing native glossary:
 
-`POST https://api.hyperlocalise.com/v1/orgs/{organizationSlug}/glossaries/{glossaryId}/concepts/import/from-tms`
+`POST https://public-api.hyperlocalise.com/v1/orgs/{organizationSlug}/glossaries/{glossaryId}/concepts/import/from-tms`
 
 JSON body:
 

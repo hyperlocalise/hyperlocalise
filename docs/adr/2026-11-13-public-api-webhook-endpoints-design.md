@@ -8,7 +8,7 @@ Job-change webhooks already fan out from Hyperlocalise Platform. Workspaces regi
 
 ## Decision
 
-Add webhook endpoint management to `apps/public-api` on `https://api.hyperlocalise.com`:
+Add webhook endpoint management to `apps/public-api` on `https://public-api.hyperlocalise.com`:
 
 - `GET, POST /v1/webhook-endpoints`
 - `PATCH, DELETE /v1/webhook-endpoints/{endpointId}`

@@ -451,7 +451,7 @@ Read job status and stored result metadata:
 - `GET /v1/jobs/{jobId}/status`
 - `GET /v1/jobs/{jobId}/analysis?unit=words`
 
-These routes replace the former web app reads on `https://hyperlocalise.com/api/v1/jobs/...`. Clients call `https://api.hyperlocalise.com/v1/jobs/...`. Job creation (`POST /api/v1/jobs`) stays on the web app.
+These routes replace the former web app reads on `https://hyperlocalise.com/api/v1/jobs/...`. PAT clients call `https://public-api.hyperlocalise.com/v1/jobs/...`. Job creation (`POST /api/v1/jobs`) stays on the web app.
 
 All routes require PAT or WorkOS agent authentication with `jobs:read`. Workspace-wide roles can read all jobs in the organization; other roles are limited to projects accessible through their teams.
 
