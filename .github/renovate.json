@@ -46,6 +46,11 @@
       "description": "Keep formatjs packages on versions compatible with eslint-plugin-formatjs until the plugin catches up.",
       "matchPackageNames": ["@formatjs/intl-localematcher"],
       "allowedVersions": "<0.9.0"
+    },
+    {
+      "description": "@univerjs/slides and slides-ui are still on 1.3.x; keep the Univer stack aligned to avoid PluginCtor mismatches.",
+      "matchPackageNames": ["/^@univerjs\\//"],
+      "allowedVersions": "<1.4.0"
     }
   ]
 }
