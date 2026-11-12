@@ -169,7 +169,7 @@ overrides:
   fast-uri@^3.0.0: 3.1.9
   qs: 6.17.1
   ip-address@^10.0.0: 10.7.6
-  hono: 4.13.16
+  hono: 4.13.17
   '@hono/node-server': 2.1.6
 
 importers:
@@ -178,7 +178,7 @@ importers:
     dependencies:
       deepsec:
         specifier: ^2.3.10
-        version: 2.3.11(@anthropic-ai/sdk@0.129.0(zod@4.1.11))(@aws-sdk/credential-provider-node@3.972.87)(@modelcontextprotocol/sdk@1.32.1(zod@4.1.11))(@smithy/signature-v4@5.7.4)(ws@8.22.0)(zod@4.1.11)
+        version: 2.3.12(@anthropic-ai/sdk@0.129.0(zod@4.1.11))(@aws-sdk/credential-provider-node@3.972.87)(@modelcontextprotocol/sdk@1.32.1(zod@4.1.11))(@smithy/signature-v4@5.7.4)(ws@8.22.0)(zod@4.1.11)
 
 packages:
 
@@ -378,7 +378,7 @@ packages:
     resolution: {integrity: sha512-p/KH9MnfNcsm3sR6x4lNgm5j+QN4Et8srKredl9DZfXiyZ1UQ3aQ2YVpFLbqktYN5JI+DB+VZFKM2PqE5hLKjQ==}
     engines: {node: '>=20'}
     peerDependencies:
-      hono: 4.13.16
+      hono: 4.13.17
 
   '@isaacs/fs-minipass@4.0.1':
     resolution: {integrity: sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==}
@@ -694,8 +694,8 @@ packages:
       supports-color:
         optional: true
 
-  deepsec@2.3.11:
-    resolution: {integrity: sha512-1/itrK1VP5FoJttjqVx7b1GrsLqNxRrl+rjSsVkkIX4BMNG9DJ3Bg27/bl7cMxlSDYG4NOgaPkh+eNLS9yNJ4g==}
+  deepsec@2.3.12:
+    resolution: {integrity: sha512-oxFzB0YbX0XAjntBPCZcTLIOO1BN05dgKH8B8HtIswcLtefNL2vPy7fbzaWgyTnI+WQHOnl5UIeJAMmp27dnwQ==}
     hasBin: true
 
   depd@2.0.0:
@@ -871,8 +871,8 @@ packages:
   highlight.js@10.7.3:
     resolution: {integrity: sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A==}
 
-  hono@4.13.16:
-    resolution: {integrity: sha512-AOLOEhvrV+iH92xXCnFr/5+3KjPKcI3xP63XJtX5spAnkznPdHijlIsUTpi7/9EhWqrTCekw5c5zh1K+YsVw7A==}
+  hono@4.13.17:
+    resolution: {integrity: sha512-vZIcbkvjOR5hHRWERbGkr8fGfF0GGM1ooYkuH448iO3b2AdVEr3AXZSw4Z3Kn+1L5z0CVoVeyV29VGYmFh05kQ==}
     engines: {node: '>=16.9.0'}
 
   hosted-git-info@9.0.3:
@@ -1761,9 +1761,9 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@hono/node-server@2.1.6(hono@4.13.16)':
+  '@hono/node-server@2.1.6(hono@4.13.17)':
     dependencies:
-      hono: 4.13.16
+      hono: 4.13.17
 
   '@isaacs/fs-minipass@4.0.1':
     dependencies:
@@ -1773,7 +1773,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.32.1(zod@4.1.11)':
     dependencies:
-      '@hono/node-server': 2.1.6(hono@4.13.16)
+      '@hono/node-server': 2.1.6(hono@4.13.17)
       ajv: 8.20.0
       ajv-formats: 3.0.1
       content-type: 1.0.5
@@ -1783,7 +1783,7 @@ snapshots:
       eventsource-parser: 3.1.1
       express: 5.3.0
       express-rate-limit: 8.7.1(express@5.3.0)
-      hono: 4.13.16
+      hono: 4.13.17
       jose: 6.2.12
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -2050,7 +2050,7 @@ snapshots:
     dependencies:
       ms: 2.1.3
 
-  deepsec@2.3.11(@anthropic-ai/sdk@0.129.0(zod@4.1.11))(@aws-sdk/credential-provider-node@3.972.87)(@modelcontextprotocol/sdk@1.32.1(zod@4.1.11))(@smithy/signature-v4@5.7.4)(ws@8.22.0)(zod@4.1.11):
+  deepsec@2.3.12(@anthropic-ai/sdk@0.129.0(zod@4.1.11))(@aws-sdk/credential-provider-node@3.972.87)(@modelcontextprotocol/sdk@1.32.1(zod@4.1.11))(@smithy/signature-v4@5.7.4)(ws@8.22.0)(zod@4.1.11):
     dependencies:
       '@anthropic-ai/claude-agent-sdk': 0.3.304(@anthropic-ai/sdk@0.129.0(zod@4.1.11))(@modelcontextprotocol/sdk@1.32.1(zod@4.1.11))(zod@4.1.11)
       '@earendil-works/pi-coding-agent': 1.5.0(@aws-sdk/credential-provider-node@3.972.87)(@modelcontextprotocol/sdk@1.32.1(zod@4.1.11))(@smithy/signature-v4@5.7.4)(ws@8.22.0)(zod@4.1.11)
@@ -2284,7 +2284,7 @@ snapshots:
 
   highlight.js@10.7.3: {}
 
-  hono@4.13.16: {}
+  hono@4.13.17: {}
 
   hosted-git-info@9.0.3:
     dependencies:
