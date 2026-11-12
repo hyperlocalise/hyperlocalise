@@ -15,6 +15,8 @@ import {
   getStoredFileContent,
 } from "@/lib/file-storage/records";
 import { getProjectSourceLocale } from "@/lib/projects/files/office-source-entries";
+import { getRepositorySourceFileImportSettings } from "@/lib/projects/files/source-file-import-settings";
+import type { ExcelImportSettings } from "@/lib/projects/files/source-file-import-settings-schema";
 import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import {
@@ -89,6 +91,7 @@ async function applyOfficeTranslations(input: {
   values: Readonly<Record<string, string>>;
   sourceLocale: string | null;
   targetLocale: string;
+  excelImportSettings?: ExcelImportSettings;
 }): Promise<
   Result<
     Omit<ProjectOfficeTranslationDownload, "translatedKeyCount">,
@@ -102,7 +105,13 @@ async function applyOfficeTranslations(input: {
       if (isErr(template)) {
         return template;
       }
-      const content = await applyXlsxTranslations({ ...input, template: template.value });
+      const content = await applyXlsxTranslations({
+        template: template.value,
+        values: input.values,
+        sourceLocale: input.sourceLocale,
+        targetLocale: input.targetLocale,
+        importOptions: input.excelImportSettings,
+      });
       return isErr(content)
         ? content
         : ok({ content: content.value, contentType: XLSX_CONTENT_TYPE, extension: ".xlsx" });
@@ -153,7 +162,7 @@ export async function loadProjectOfficeTranslationDownload(input: {
     return ok(null);
   }
 
-  const [translations, version, sourceLocale] = await Promise.all([
+  const [translations, version, sourceLocale, importSettings] = await Promise.all([
     loadProjectTranslationsAsPrefilledEntries({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -168,6 +177,7 @@ export async function loadProjectOfficeTranslationDownload(input: {
       sourcePath: input.sourcePath,
     }),
     getProjectSourceLocale(input),
+    format === "xlsx" || format === "xls" ? getRepositorySourceFileImportSettings(input) : null,
   ]);
   if (translations.loadedKeyCount === 0) {
     return ok(null);
@@ -196,6 +206,7 @@ export async function loadProjectOfficeTranslationDownload(input: {
     values: translations.prefilled,
     sourceLocale: sourceLocale.value,
     targetLocale: input.targetLocale,
+    excelImportSettings: importSettings?.importSettings.excel,
   });
   if (isErr(generated)) {
     return generated;

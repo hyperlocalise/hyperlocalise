@@ -19,7 +19,10 @@ import { xlsxLocaleColumn } from "./xlsx-columns";
 import {
   isTranslatableXlsxCell,
   loadXlsxWorkbook,
+  readXlsxEntries,
   XLSX_SHEET_SEPARATOR,
+  type XlsxEntry,
+  type XlsxImportOptions,
   type XlsxSheet,
   type XlsxWorkbookError,
 } from "./xlsx-workbook";
@@ -189,11 +192,42 @@ function cellWritesForCellLayout(
   return writes;
 }
 
+/** Writes for a sheet whose strings have no column per language: each value replaces its source cell. */
+function cellWritesForSourceColumn(
+  rowKeys: ReadonlyMap<number, string>,
+  values: Readonly<Record<string, string>>,
+  sourceColumn: number,
+): CellWrite[] {
+  const writes: CellWrite[] = [];
+  for (const [row, key] of rowKeys) {
+    const value = values[key];
+    if (value) {
+      writes.push({ row, column: sourceColumn, text: value });
+    }
+  }
+  return writes;
+}
+
+/** Row keys of each sheet as its import settings key them, by zero-based row. */
+function settingsRowKeys(entries: readonly XlsxEntry[]): Map<string, Map<number, string>> {
+  const bySheet = new Map<string, Map<number, string>>();
+  for (const entry of entries) {
+    let rows = bySheet.get(entry.sheet);
+    if (!rows) {
+      rows = new Map();
+      bySheet.set(entry.sheet, rows);
+    }
+    rows.set(XLSX.utils.decode_cell(entry.cell).r, entry.key);
+  }
+  return bySheet;
+}
+
 function cellWritesForRows(
   sheet: XlsxSheet,
   values: Readonly<Record<string, string>>,
   sourceColumn: number,
   targetLocale: string,
+  rowKeys: ReadonlyMap<number, string> = sheet.rowKeys,
 ): SheetPatch {
   let targetColumn = xlsxLocaleColumn(sheet.columns, targetLocale, [sourceColumn]);
   const writes: CellWrite[] = [];
@@ -212,7 +246,9 @@ function cellWritesForRows(
     });
   }
   for (let row = 1; row < sheet.rowCount; row += 1) {
-    const key = sheet.rowKeys.get(row);
+    // Only rows the reader takes a string from: a key the file no longer has may still hold
+    // a translation.
+    const key = isTranslatableXlsxCell(sheet, row, sourceColumn) ? rowKeys.get(row) : undefined;
     const value = key ? values[key] : undefined;
     const existing = sheet.rows.get(row)?.get(targetColumn);
     if (existing?.hasFormula) {
@@ -451,12 +487,17 @@ export function patchWorksheetXml(xml: string, patch: SheetPatch): string {
  * supplied, so stale or unapproved text does not survive a patch of the original
  * workbook. Cell-layout sheets receive values in place of the source text. Empty
  * values, unknown keys, and formula cells are skipped there.
+ *
+ * A workbook whose import settings name a source column is keyed by those settings. A sheet
+ * whose first row is a header naming the source language in that column still gets a column
+ * per language; in any other sheet each value replaces the source cell its key was read from.
  */
 export async function applyXlsxTranslations(input: {
   template: Uint8Array;
   values: Readonly<Record<string, string>>;
   sourceLocale: string | null | undefined;
   targetLocale: string;
+  importOptions?: XlsxImportOptions;
 }): Promise<Result<Buffer, XlsxWorkbookError>> {
   const workbook = await loadXlsxWorkbook(input.template);
   if (isErr(workbook)) {
@@ -465,13 +506,30 @@ export async function applyXlsxTranslations(input: {
   const zip = workbook.value.archive;
   const parts = await worksheetPartsByName(zip);
   const sourceLocale = input.sourceLocale?.trim() ? input.sourceLocale : input.targetLocale;
+  // Ingest falls back to the default keys when the settings read no string at all.
+  const settingsSourceColumn = input.importOptions?.columns?.source ?? null;
+  const settingsEntries =
+    settingsSourceColumn === null
+      ? []
+      : readXlsxEntries(workbook.value, sourceLocale, sourceLocale, input.importOptions);
+  const settingsKeys = settingsEntries.length > 0 ? settingsRowKeys(settingsEntries) : null;
 
   for (const sheet of workbook.value.sheets) {
     const sourceColumn = xlsxLocaleColumn(sheet.columns, sourceLocale);
-    const patch =
-      sourceColumn < 0
-        ? { writes: cellWritesForCellLayout(sheet, input.values) }
-        : cellWritesForRows(sheet, input.values, sourceColumn, input.targetLocale);
+    let patch: SheetPatch;
+    if (settingsKeys && settingsSourceColumn !== null) {
+      const rowKeys = settingsKeys.get(sheet.name) ?? new Map<number, string>();
+      const firstRowNamesLanguages =
+        input.importOptions?.firstLineContainsHeader !== false &&
+        sourceColumn === settingsSourceColumn;
+      patch = firstRowNamesLanguages
+        ? cellWritesForRows(sheet, input.values, sourceColumn, input.targetLocale, rowKeys)
+        : { writes: cellWritesForSourceColumn(rowKeys, input.values, settingsSourceColumn) };
+    } else if (sourceColumn < 0) {
+      patch = { writes: cellWritesForCellLayout(sheet, input.values) };
+    } else {
+      patch = cellWritesForRows(sheet, input.values, sourceColumn, input.targetLocale);
+    }
     const partPath = parts.get(sheet.name);
     const part = partPath ? zip.file(partPath) : null;
     if (!partPath || !part || patch.writes.length === 0) {

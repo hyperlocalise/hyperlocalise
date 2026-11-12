@@ -52,7 +52,11 @@ workbook generated from those translations; see
 **Download translations** returns a copy of the source workbook with ready
 translations in the target locale's column, or in place for free-form sheets.
 Untranslated rows stay empty, and cells for other locales keep their existing
-text. Translations already in the workbook are not imported on upload; use
+text. When the file's **Import filters** set a source column and the first row
+does not name the source language there, the sheet has no column per language:
+each ready translation replaces the text in the source column, and other rows
+keep their source text.
+Translations already in the workbook are not imported on upload; use
 **Import translations** with the filled workbook to load them.
 
 Legacy `.xls` workbooks are read with the same rules. Their translated download

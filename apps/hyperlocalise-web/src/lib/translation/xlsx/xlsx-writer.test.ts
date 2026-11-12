@@ -172,6 +172,113 @@ describe("applyXlsxTranslations", () => {
     expect(pricing.Z9).toBeUndefined();
     expect(workbook.Sheets.Lookup!.A1?.v).toBe("Hidden text");
   });
+
+  it("replaces source cells in place when import settings name the source column", async () => {
+    const template = buildXlsxFixture([
+      {
+        name: "Strings",
+        cells: {
+          A1: "编号",
+          B1: "内容",
+          C1: "备注",
+          A2: "welcome.title",
+          B2: "欢迎",
+          C2: "首页",
+          A3: "welcome.body",
+          B3: "正文",
+        },
+      },
+    ]);
+    const out = await apply({
+      template,
+      values: { "welcome.title": "Welcome", "Strings!B3": "not this file's key" },
+      sourceLocale: "zh-CN",
+      targetLocale: "en-US",
+      importOptions: { firstLineContainsHeader: true, columns: { identifier: 0, source: 1 } },
+    });
+    const sheet = XLSX.read(out, { type: "array" }).Sheets.Strings!;
+    expect(sheet.B1?.v).toBe("内容");
+    expect(sheet.A2?.v).toBe("welcome.title");
+    expect(sheet.B2?.v).toBe("Welcome");
+    expect(sheet.C2?.v).toBe("首页");
+    expect(sheet.B3?.v).toBe("正文");
+    expect(sheet.D1).toBeUndefined();
+  });
+
+  it("keeps a column per language when the first row names the source language in the set column", async () => {
+    const out = await apply({
+      template: buildXlsxFixture([
+        {
+          name: "Strings",
+          cells: {
+            A1: "Identifier",
+            B1: "English",
+            C1: "German",
+            A2: "home.title",
+            B2: "Home",
+            C2: "Alte Startseite",
+            A3: "home.cta",
+            B3: "Go",
+          },
+        },
+      ]),
+      values: { "home.title": "Startseite", "home.cta": "Los" },
+      sourceLocale: "en",
+      targetLocale: "de",
+      importOptions: { columns: { identifier: 0, source: 1 } },
+    });
+    const sheet = XLSX.read(out, { type: "array" }).Sheets.Strings!;
+    expect([sheet.B2?.v, sheet.B3?.v]).toEqual(["Home", "Go"]);
+    expect([sheet.C2?.v, sheet.C3?.v]).toEqual(["Startseite", "Los"]);
+  });
+
+  it("replaces in place when the first row is not a header, even if it reads as a language", async () => {
+    const out = await apply({
+      template: buildXlsxFixture([
+        {
+          name: "Languages",
+          cells: { A1: "lang.en", B1: "English", A2: "lang.de", B2: "German" },
+        },
+      ]),
+      values: { "lang.en": "Englisch", "lang.de": "Deutsch" },
+      sourceLocale: "en",
+      targetLocale: "de",
+      importOptions: { firstLineContainsHeader: false, columns: { identifier: 0, source: 1 } },
+    });
+    const sheet = XLSX.read(out, { type: "array" }).Sheets.Languages!;
+    expect([sheet.B1?.v, sheet.B2?.v]).toEqual(["Englisch", "Deutsch"]);
+    expect(sheet.C1).toBeUndefined();
+  });
+
+  it("writes by the first row when the set source column has no text", async () => {
+    const out = await apply({
+      template: multilingualXlsxFixture(),
+      values: { "home.cta": "Essai gratuit" },
+      sourceLocale: "en",
+      targetLocale: "fr",
+      // Column G is empty, so ingest keyed the sheet by its first row.
+      importOptions: { columns: { source: 6 } },
+    });
+    expect(await entries(out, "en", "fr")).toEqual({ "home.cta": "Essai gratuit" });
+  });
+
+  it("does not write a translation into a row whose source cell is no longer text", async () => {
+    const out = await apply({
+      template: buildXlsxFixture([
+        {
+          name: "Strings",
+          cells: { A1: "Key", B1: "English", C1: "German", A2: "sale", A3: "home", B3: "Home" },
+        },
+      ]),
+      // "sale" lost its English after it was translated; its key may still be on record.
+      values: { sale: "Schlussverkauf", home: "Startseite" },
+      sourceLocale: "en",
+      targetLocale: "de",
+    });
+    const sheet = XLSX.read(out, { type: "array" }).Sheets.Strings!;
+    expect(sheet.C2).toBeUndefined();
+    expect(sheet.C3?.v).toBe("Startseite");
+  });
 });
 
 describe("patchWorksheetXml", () => {

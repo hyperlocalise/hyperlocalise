@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   getLatestRepositorySourceFileVersion: vi.fn(),
   getStoredFileContent: vi.fn(),
   getProjectSourceLocale: vi.fn(),
+  getRepositorySourceFileImportSettings: vi.fn(),
 }));
 
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
@@ -40,6 +41,11 @@ vi.mock("@/lib/file-storage/records", () => ({
 
 vi.mock("@/lib/projects/files/office-source-entries", () => ({
   getProjectSourceLocale: (...args: unknown[]) => mocks.getProjectSourceLocale(...args),
+}));
+
+vi.mock("@/lib/projects/files/source-file-import-settings", () => ({
+  getRepositorySourceFileImportSettings: (...args: unknown[]) =>
+    mocks.getRepositorySourceFileImportSettings(...args),
 }));
 
 import {
@@ -118,6 +124,7 @@ describe("loadProjectOfficeTranslationDownload", () => {
       content: Buffer.from(multilingualXlsxFixture()),
     });
     mocks.getProjectSourceLocale.mockResolvedValue(ok("en"));
+    mocks.getRepositorySourceFileImportSettings.mockResolvedValue(null);
   });
 
   it("returns null for paths that are not Office files", async () => {
@@ -139,6 +146,26 @@ describe("loadProjectOfficeTranslationDownload", () => {
 
     expect(result).toEqual(ok(null));
     expect(mocks.getStoredFileContent).not.toHaveBeenCalled();
+  });
+
+  it("writes into the source column the file's import settings name", async () => {
+    // Column B ("French") is set as the source column, with keys from column A.
+    mocks.getRepositorySourceFileImportSettings.mockResolvedValue({
+      importSettings: { excel: { columns: { identifier: 0, source: 1 } } },
+    });
+    mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue(
+      readyTranslations({ prefilled: { "home.title": "Startseite" } }),
+    );
+
+    const result = await loadProjectOfficeTranslationDownload({ ...INPUT, targetLocale: "de-DE" });
+
+    if (!isOk(result) || !result.value) {
+      throw new Error("expected a generated workbook");
+    }
+    const sheet = XLSX.read(result.value.content, { type: "buffer" }).Sheets.Strings!;
+    expect(sheet.B2?.v).toBe("Startseite");
+    expect(sheet.C2).toBeUndefined();
+    expect(sheet.D2?.v).toBe("Home");
   });
 
   it("forwards ready-only and optional approved-only gates to the prefill loader", async () => {
