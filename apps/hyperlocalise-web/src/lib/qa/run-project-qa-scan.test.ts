@@ -609,6 +609,116 @@ describe("run-project-qa-scan claim and reclaim", () => {
       ]),
     );
   });
+
+  it("keeps previous guideline findings open when the run halted", async () => {
+    const { organization, user } = await authFixture.createLocalWorkosIdentity();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const project = await insertProject({
+      organizationId: organization.id,
+      userId: user.id,
+      teamId: team.id,
+      source: "native",
+    });
+    const [key] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "greeting",
+        sourceText: "Hello",
+        normalizedSourceText: "hello",
+      })
+      .returning({ id: schema.projectTranslationKeys.id });
+
+    const [previousRun] = await db
+      .insert(schema.translationQaRuns)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        trigger: "manual",
+        status: "succeeded",
+        createdByUserId: user.id,
+        summary: emptyTranslationQaSummary(),
+        completedAt: new Date(),
+      })
+      .returning({ id: schema.translationQaRuns.id });
+
+    const claimed = await claimTranslationQaRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "manual",
+      createdByUserId: user.id,
+    });
+    expect(claimed).toMatchObject({ ok: true });
+    if (!claimed.ok) {
+      throw new Error("expected claimed run");
+    }
+
+    await db
+      .update(schema.translationQaRuns)
+      .set({
+        checkPolicy: {
+          ...DEFAULT_QA_POLICY,
+          guideline: { enabled: true, severity: "warning" },
+        },
+        summary: {
+          ...emptyTranslationQaSummary(),
+          guidelineCheckHaltCode: "guideline_check_limit_reached",
+        },
+      })
+      .where(eq(schema.translationQaRuns.id, claimed.runId));
+
+    const finding = {
+      runId: previousRun!.id,
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: key!.id,
+      key: "greeting",
+      sourceText: "Hello",
+      targetText: "Hello",
+      relatedTokens: [] as string[],
+      message: "Earlier finding",
+    };
+    await db.insert(schema.translationQaFindings).values([
+      {
+        ...finding,
+        targetLocale: "de-DE",
+        checkType: "guideline",
+        category: "qa",
+        severity: "warning" as const,
+      },
+      {
+        ...finding,
+        targetLocale: "de-DE",
+        checkType: "not_localized",
+        category: "qa",
+        severity: "error" as const,
+      },
+    ]);
+
+    await expect(
+      completeTranslationQaScan({
+        runId: claimed.runId,
+        organizationId: organization.id,
+        projectId: project.id,
+      }),
+    ).resolves.toEqual({ ok: true, alreadyCompleted: false });
+
+    const findings = await db
+      .select({
+        checkType: schema.translationQaFindings.checkType,
+        status: schema.translationQaFindings.status,
+      })
+      .from(schema.translationQaFindings)
+      .where(eq(schema.translationQaFindings.runId, previousRun!.id));
+
+    expect(findings).toEqual(
+      expect.arrayContaining([
+        { checkType: "guideline", status: "open" },
+        { checkType: "not_localized", status: "resolved" },
+      ]),
+    );
+  });
 });
 
 describe("scanTranslationQaPage", () => {

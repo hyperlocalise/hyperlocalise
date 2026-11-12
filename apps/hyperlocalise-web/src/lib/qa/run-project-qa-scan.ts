@@ -477,6 +477,8 @@ export async function scanTranslationQaPage(input: {
       localeCount: locales.length,
       segmentCount: segments.length,
       findingCount: results.reduce((count, result) => count + result.checks.length, 0),
+      guidelineFindingCount: guidelineResult.findings.length,
+      guidelineHaltCode: guidelineResult.haltCode,
       skippedLocaleCount: Object.keys(skippedChecksByLocale).length,
       durationMs: Date.now() - pageStartedAt,
       done,
@@ -608,7 +610,7 @@ export async function completeTranslationQaScan(input: {
       and not (${JSON.stringify(disabledCheckTypes)}::jsonb ? old.check_type)
       and not (old.check_type = 'spelling' and ${JSON.stringify(run.summary.skippedChecksByLocale ?? {})}::jsonb ? old.target_locale)
       and not (old.check_type = 'guideline' and ${Boolean(run.summary.guidelineCheckHaltCode)})
-      and not exists (select 1 from translation_qa_findings current)
+      and not exists (select 1 from translation_qa_findings current
           where current.run_id = ${input.runId} and current.translation_key_id = old.translation_key_id
           and current.target_locale = old.target_locale and current.check_type = old.check_type)`);
   await db
