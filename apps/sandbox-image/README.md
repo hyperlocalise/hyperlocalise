@@ -31,7 +31,7 @@ passwordless sudo), with:
 
 Keep those `ARG`s aligned with
 `apps/hyperlocalise-web/src/lib/vercel-sandbox-config.ts`. The CLI pin lives in
-`apps/hyperlocalise-web/src/lib/translation/sandbox-cli-release.ts`.
+`apps/hyperlocalise-web/src/lib/translation/sandbox-cli-version.ts`.
 
 ## Hunspell
 

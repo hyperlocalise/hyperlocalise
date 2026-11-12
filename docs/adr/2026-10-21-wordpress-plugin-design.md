@@ -15,7 +15,7 @@ WordPress sites that need translation already run a multilingual plugin, usually
 - Use the existing public API only:
   - `POST /api/v1/files` uploads one flat JSON source file per post at `wordpress/{site}/{post-type}/{post-id}.json`. `{site}` is the home URL's host plus path, so subdirectory multisites do not collide.
   - `POST /api/v1/jobs` creates one file job.
-  - Job status is read from `api.hyperlocalise.com/v1/jobs/{id}/status`.
+  - Job status is read from `public-api.hyperlocalise.com/v1/jobs/{id}/status`.
   - Translations are read from `/api/v1/projects/{id}/translations/download`.
 - Segment content from `parse_blocks()` output. Keys are `title`, `excerpt`, `content.{block-path}.{part}.{chunk}`, and `meta.{key}`. Block comments and attributes are never sent.
 - Create new translations as drafts. Do not overwrite published translations unless the site opts in.

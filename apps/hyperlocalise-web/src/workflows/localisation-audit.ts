@@ -62,6 +62,8 @@ export async function localisationAuditWorkflow(event: LocalisationAuditEventDat
         origin: prepared.origin,
         sourceUrl: prepared.sourceUrl,
         focusLocales: prepared.focusLocales,
+        auditId: prepared.auditId,
+        attemptNumber: prepared.attemptNumber,
       });
 
       await setLocalisationAuditProgressStep({

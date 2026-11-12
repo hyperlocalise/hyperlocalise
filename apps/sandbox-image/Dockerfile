@@ -59,12 +59,12 @@ ENV HOME=/root
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Keep in sync with apps/hyperlocalise-web/src/lib/vercel-sandbox-config.ts
-# (HYPERLOCALISE_VERSION: apps/hyperlocalise-web/src/lib/translation/sandbox-cli-release.ts)
+# (HYPERLOCALISE_VERSION: apps/hyperlocalise-web/src/lib/translation/sandbox-cli-version.ts)
 # Pin the patch. `latest-v24.x` does not change the Dockerfile text, so Docker
 # keeps an older Node layer across security releases.
 ARG NODE_VERSION=24.22.1
 ARG RIPGREP_VERSION=15.2.0
-ARG HYPERLOCALISE_VERSION=1.13.9
+ARG HYPERLOCALISE_VERSION=1.13.10
 ARG PLAYWRIGHT_VERSION=1.63.0
 # Optional pin; omit / leave empty to install the latest Volta release.
 ARG VOLTA_VERSION=

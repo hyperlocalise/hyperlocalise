@@ -1,0 +1,29 @@
+---
+title: "v1.13.10"
+description: "Go CLI release notes for v1.13.10."
+---
+
+`hl validate` and `hl check` accept a `guideline` check in Cloud QA policy files so a project policy loads without being rejected. The CLI does not run that check; the editor does.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.13.10) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.13.9...v1.13.10)
+
+## Breaking changes
+
+None.
+
+## Features
+
+- Accept [`guideline` in QA policy files](https://github.com/hyperlocalise/hyperlocalise/pull/3191). A policy may omit the key (then it is a disabled warning) or set severity to `error` or `warning`. `hl validate` and `hl check --qa-policy` load the file and emit no guideline findings. See [`validate`](/cli/commands/validate).
+
+## Fixes
+
+None.
+
+## Tests
+
+- Policy load fills a missing `guideline` check as a disabled warning.
+- `ValidateBatch` emits no `guideline` findings when the check is enabled as an error.
+
+## Maintenance
+
+- Bump Go dependencies, including AWS SDK for Go v2 (aws-sdk-go-v2 to v1.47.8, config to v1.33.16, S3 to v1.114.9, Secrets Manager to v1.50.11, SQS to v1.52.11, Textract to v1.49.12), `golang.org/x/oauth2` to v0.38.0, and `golang.org/x/sync` to v0.25.0 ([#3187](https://github.com/hyperlocalise/hyperlocalise/pull/3187)).

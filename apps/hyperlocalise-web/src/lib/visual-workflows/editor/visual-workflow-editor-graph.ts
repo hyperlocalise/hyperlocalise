@@ -350,6 +350,36 @@ export function applyNodeConfigUpdate(
     };
   }
   if (
+    current?.data.config.kind === "logic.text_template" &&
+    nextConfig.kind === "logic.text_template"
+  ) {
+    return {
+      nodes: nextNodes,
+      edges: pruneObjectValuePortEdges(
+        edges,
+        nodeId,
+        collectRemovedObjectPortIds(current.data.config.placeholders, nextConfig.placeholders),
+      ),
+    };
+  }
+  if (
+    current?.data.config.kind === "logic.concatenate" &&
+    nextConfig.kind === "logic.concatenate"
+  ) {
+    const currentInputs = current.data.config.segments.filter(
+      (segment) => segment.kind === "input",
+    );
+    const nextInputs = nextConfig.segments.filter((segment) => segment.kind === "input");
+    return {
+      nodes: nextNodes,
+      edges: pruneObjectValuePortEdges(
+        edges,
+        nodeId,
+        collectRemovedObjectPortIds(currentInputs, nextInputs),
+      ),
+    };
+  }
+  if (
     current?.data.config.kind === "logic.array_transform" &&
     nextConfig.kind === "logic.array_transform"
   ) {

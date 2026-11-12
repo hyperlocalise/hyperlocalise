@@ -40,7 +40,7 @@ describe("PricingModelsBrowser", () => {
     );
     expect(screen.getByText(/one default the whole workspace can share/i)).toBeVisible();
     expect(screen.queryByRole("button", { name: /GPT-5.4 Nano/ })).not.toBeInTheDocument();
-    expect(screen.getByText("10 models")).toBeVisible();
+    expect(screen.getByText("13 models")).toBeVisible();
   });
 
   it("filters by job, switches the explanation, and can search the full catalog", async () => {
@@ -50,9 +50,11 @@ describe("PricingModelsBrowser", () => {
     const jobs = screen.getByRole("group", { name: "Filter by job" });
     await user.click(within(jobs).getByRole("button", { name: "Voice" }));
 
-    expect(screen.getByRole("button", { name: /Fish Audio/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /^ElevenLabs v4/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /^ElevenLabs Dubbing/ })).toBeVisible();
     expect(screen.queryByRole("button", { name: /GPT-6 Luna/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/rhythm and length of a line/i)).toBeVisible();
+    expect(screen.getByText(/give a script a voice/i)).toBeVisible();
+    expect(screen.getByText("In Iris")).toBeVisible();
 
     await user.click(within(jobs).getByRole("button", { name: "All" }));
     await user.click(screen.getByRole("button", { name: /Claude Sonnet 5/ }));
@@ -62,7 +64,7 @@ describe("PricingModelsBrowser", () => {
       screen.queryByText(/one default the whole workspace can share/i),
     ).not.toBeInTheDocument();
 
-    await user.type(screen.getByRole("searchbox", { name: "Search models" }), "nano");
+    await user.type(screen.getByRole("searchbox", { name: "Search models" }), "5.4 nano");
 
     expect(screen.getByText("Nothing recommended matches")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Show every model" }));

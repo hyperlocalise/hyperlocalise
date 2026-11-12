@@ -87,6 +87,7 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "settingsActivityLogs",
   "settingsApiKeys",
   "settingsWebhooks",
+  "settingsProjectTemplates",
   "settingsBilling",
   "settingsLinkedDomains",
   "settingsMembers",
@@ -994,6 +995,18 @@ const AUTHENTICATED_ROUTE_COPY = {
       defaultMessage: "Workspace webhook endpoints.",
       id: "xAG52WUnvX",
       description: "Document description for workspace webhook settings",
+    },
+  },
+  settingsProjectTemplates: {
+    title: {
+      defaultMessage: "Project templates",
+      id: "Uv5W10c9un",
+      description: "Document title for workspace project template settings",
+    },
+    description: {
+      defaultMessage: "Saved starting points for new projects.",
+      id: "nf3vGVeAOD",
+      description: "Document description for workspace project template settings",
     },
   },
   settingsBilling: {

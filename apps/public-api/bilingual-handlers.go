@@ -95,7 +95,8 @@ func (s apiServer) projectBilingualFile(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s apiServer) importBilingualFile(w http.ResponseWriter, r *http.Request, projectID string) {
-	p, ok := s.authenticateWithStore(w, r, "strings:write")
+	// The import saves rows as approved translations.
+	p, ok := s.authenticateWithStore(w, r, "translations:approve")
 	if !ok {
 		return
 	}

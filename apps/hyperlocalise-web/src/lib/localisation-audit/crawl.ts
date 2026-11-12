@@ -10,7 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createLogger, type Logger } from "@/lib/log";
 import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/public-http-fetch";
+
+import { auditElapsedMs, auditErrorLogFields, auditStatusCounts } from "./audit-log";
 
 import type {
   CrawlLocalisationAuditSampleOptions,
@@ -34,6 +37,8 @@ export type {
   HtmlPageRenderer,
   RenderedHtmlPage,
 } from "./crawl-renderer";
+
+const crawlLogger = createLogger("localisation-audit-crawl");
 
 const MAX_PAGES = 15;
 const FETCH_TIMEOUT_MS = 12_000;
@@ -78,7 +83,8 @@ type SafeFetchResult<T> = { ok: true; value: T } | { ok: false };
 
 /**
  * Follow redirects manually so each hop is re-validated by withPublicHttpFetch.
- * Used for robots.txt and sitemaps only — HTML pages render in Playwright.
+ * Used for robots.txt and sitemaps only when the renderer cannot fetch them —
+ * HTML pages render in Playwright.
  */
 async function fetchPublicWithSafeRedirects<T>(
   startUrl: string,
@@ -134,7 +140,7 @@ async function fetchPublicWithSafeRedirects<T>(
   }
 }
 
-async function fetchText(url: string): Promise<string | null> {
+async function fetchTextDirect(url: string): Promise<string | null> {
   const result = await fetchPublicWithSafeRedirects(url, async (response) => {
     if (response.status < 200 || response.status >= 400) {
       return null;
@@ -184,8 +190,13 @@ function parseRobotsSitemaps(robots: string): string[] {
   return urls;
 }
 
-async function fetchSitemapSignals(origin: string): Promise<LocalisationAuditSitemapSignal> {
-  return (await collectSitemap(origin)).signal;
+export type TextFetcher = (url: string) => Promise<string | null>;
+
+async function fetchSitemapSignals(
+  origin: string,
+  fetcher?: TextFetcher,
+): Promise<LocalisationAuditSitemapSignal> {
+  return (await collectSitemap(origin, PUBLIC_SITEMAP_LIMITS, { fetchText: fetcher })).signal;
 }
 
 export type SitemapCollectionLimits = {
@@ -210,7 +221,9 @@ const PUBLIC_SITEMAP_LIMITS: SitemapCollectionLimits = {
 export async function collectSitemap(
   origin: string,
   limits: SitemapCollectionLimits = PUBLIC_SITEMAP_LIMITS,
+  options?: { fetchText?: TextFetcher },
 ): Promise<{ signal: LocalisationAuditSitemapSignal; siteUrls: string[] }> {
+  const fetchText = options?.fetchText ?? fetchTextDirect;
   const originHost = new URL(origin).hostname;
   const siteUrls = new Set<string>();
   const robotsUrl = new URL("/robots.txt", origin).toString();
@@ -350,9 +363,16 @@ export async function crawlLocalisationAuditSample(
   },
   options?: CrawlLocalisationAuditSampleOptions,
 ): Promise<LocalisationAuditCrawlResult> {
+  const logger = crawlLogger.child(options?.logBindings ?? {});
+  const startedAt = performance.now();
   try {
-    return await crawlLocalisationAuditSampleInner(input, options);
+    return await crawlLocalisationAuditSampleInner(input, options, logger);
   } catch (error) {
+    logger.error("localisation audit crawl threw", {
+      ...auditErrorLogFields(error),
+      setupError: error instanceof AuditBrowserSetupError,
+      durationMs: auditElapsedMs(startedAt),
+    });
     if (error instanceof AuditBrowserSetupError) {
       throw error;
     }
@@ -366,13 +386,25 @@ async function crawlLocalisationAuditSampleInner(
     sourceUrl: string;
     focusLocales?: string[];
   },
-  options?: CrawlLocalisationAuditSampleOptions,
+  options: CrawlLocalisationAuditSampleOptions | undefined,
+  logger: Logger,
 ): Promise<LocalisationAuditCrawlResult> {
   const createRenderer = options?.createRenderer ?? defaultCreateRenderer;
+  const startedAt = performance.now();
   const renderer = await createRenderer();
+  const rendererKind = renderer.kind ?? "custom";
+  logger.info("localisation audit crawl renderer ready", {
+    rendererKind,
+    durationMs: auditElapsedMs(startedAt),
+  });
   try {
+    const homeStartedAt = performance.now();
     const homeRendered = (await renderer.render([input.sourceUrl]))[0];
     if (!homeRendered) {
+      logger.warn("localisation audit homepage did not render", {
+        rendererKind,
+        durationMs: auditElapsedMs(homeStartedAt),
+      });
       return { pages: [], sitemap: EMPTY_SITEMAP_SIGNAL };
     }
 
@@ -380,7 +412,22 @@ async function crawlLocalisationAuditSampleInner(
       homeRendered.status,
       homeRendered.html,
     );
+    logger.info("localisation audit homepage rendered", {
+      rendererKind,
+      status: homeRendered.status,
+      blockedReason: homeBlockedReason,
+      redirected: homeRendered.url !== homeRendered.requestedUrl,
+      htmlBytes: homeRendered.html.length,
+      durationMs: auditElapsedMs(homeStartedAt),
+    });
     if (homeBlockedReason) {
+      // The sandbox sends HyperlocaliseAuditBot; a block there may only mean Tilion was unavailable.
+      logger.warn("localisation audit homepage blocked", {
+        rendererKind,
+        status: homeRendered.status,
+        blockedReason: homeBlockedReason,
+        sentAuditBotUserAgent: rendererKind === "sandbox",
+      });
       return {
         pages: [],
         sitemap: EMPTY_SITEMAP_SIGNAL,
@@ -417,12 +464,13 @@ async function crawlLocalisationAuditSampleInner(
       .toSorted((a, b) => b.score - a.score)
       .slice(0, MAX_PAGES);
 
+    const fetchText = renderer.fetchText?.bind(renderer);
     const otherUrls = ranked
       .filter((entry) => entry.url !== homePage.url)
       .map((entry) => entry.url);
     const [otherRendered, sitemap] = await Promise.all([
       otherUrls.length > 0 ? renderer.render(otherUrls) : Promise.resolve([]),
-      fetchSitemapSignals(input.origin),
+      fetchSitemapSignals(input.origin, fetchText),
     ]);
 
     // Terminal blocked status is homepage-only (see ADR 2026-08-17 blocked-domain).
@@ -430,8 +478,10 @@ async function crawlLocalisationAuditSampleInner(
     // crawl or hide a prior report after reclaim — skip those pages instead.
     const pagesByUrl = new Map<string, LocalisationAuditCrawledPage>();
     pagesByUrl.set(homePage.url, homePage);
+    let skippedBlocked = 0;
     for (const rendered of otherRendered) {
       if (detectLocalisationAuditCrawlBlock(rendered.status, rendered.html)) {
+        skippedBlocked += 1;
         continue;
       }
       const page = pageFromRendered(rendered);
@@ -440,12 +490,25 @@ async function crawlLocalisationAuditSampleInner(
       pagesByUrl.set(rendered.url, page);
     }
 
-    return {
-      pages: ranked
-        .map((entry) => pagesByUrl.get(entry.url))
-        .filter((page): page is LocalisationAuditCrawledPage => page != null),
-      sitemap,
-    };
+    const pages = ranked
+      .map((entry) => pagesByUrl.get(entry.url))
+      .filter((page): page is LocalisationAuditCrawledPage => page != null);
+    logger.info("localisation audit crawl finished", {
+      rendererKind,
+      seededCount: seeded.size,
+      requestedCount: otherUrls.length,
+      renderedCount: otherRendered.length,
+      notRenderedCount: otherUrls.length - otherRendered.length,
+      skippedBlockedCount: skippedBlocked,
+      pageCount: pages.length,
+      statusCounts: auditStatusCounts(pages),
+      sitemapFetchedViaBrowser: fetchText != null,
+      robotsFound: sitemap.robotsFound,
+      sitemapCount: sitemap.sitemapUrls.length,
+      localizedUrlCount: sitemap.localizedUrls.length,
+      durationMs: auditElapsedMs(startedAt),
+    });
+    return { pages, sitemap };
   } finally {
     await renderer.close().catch(() => undefined);
   }

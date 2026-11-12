@@ -14,15 +14,10 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { buildPricingFaqJsonLd, getPricingFaqItems } from "./pricing-faq-content";
 import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
-import {
-  hyperlocaliseImageModelId,
-  hyperlocaliseTranscribeModelId,
-  hyperlocaliseTtsModelId,
-  hyperlocaliseVideoModelId,
-} from "@/lib/providers/managed-model-ids";
 import { llmProviderContentEditoralog } from "@/lib/providers/shared/catalog";
 import { curatedOpenAiNativeModels } from "@/lib/providers/shared/vercel-ai-gateway-openai-models";
 
+import { PRICING_IRIS_MODELS } from "./pricing-iris-models";
 import {
   getPricingAiFeatures,
   getPricingMatrixSections,
@@ -55,6 +50,8 @@ describe("pricing page content", () => {
       "AI Feature",
       "Queries Board",
       "$20 per month AI credit",
+      "20 guideline checks per week",
+      "Guidelines",
     ]);
     expect(plans.find((plan) => plan.id === "growth")?.features).toEqual([
       "20 automations",
@@ -67,6 +64,8 @@ describe("pricing page content", () => {
       "Automation Workflow",
       "Queries Board",
       "$2,000 per month AI credit",
+      "2,000 guideline checks per week",
+      "Guidelines",
     ]);
     expect(plans.find((plan) => plan.id === "free")?.cta).toEqual({
       kind: "signup",
@@ -137,18 +136,17 @@ describe("pricing page content", () => {
     );
     expect(includedOpenAi).toContain(`openai/${hyperlocaliseAgentModelId}`);
 
-    expect(catalog.find((model) => model.modelId === hyperlocaliseTtsModelId)?.name).toBe(
-      "Fish Audio",
+    const irisModels = catalog.filter((model) => model.surface === "iris");
+    expect(irisModels.map((model) => model.modelId)).toEqual(
+      expect.arrayContaining(PRICING_IRIS_MODELS.map((model) => model.id)),
     );
-    expect(catalog.find((model) => model.modelId === hyperlocaliseTranscribeModelId)?.job).toBe(
-      "listen",
-    );
-    expect(catalog.find((model) => model.modelId === hyperlocaliseImageModelId)?.access).toBe(
-      "included",
-    );
-    expect(catalog.find((model) => model.modelId === hyperlocaliseVideoModelId)?.access).toBe(
-      "included",
-    );
+    expect(irisModels).toHaveLength(PRICING_IRIS_MODELS.length);
+    expect(irisModels.every((model) => model.access === "included")).toBe(true);
+    expect(irisModels.every((model) => model.summary.length > 0)).toBe(true);
+    expect(catalog.find((model) => model.modelId === "elevenlabs-dubbing")?.job).toBe("speak");
+    expect(catalog.find((model) => model.modelId === "elevenlabs-music")?.job).toBe("sound");
+    expect(catalog.find((model) => model.modelId === "universal-3.5-pro")?.job).toBe("listen");
+    expect(section.jobs.map((job) => job.id)).toContain("sound");
     expect(
       new Set(
         catalog.filter((model) => model.providerId === "anthropic").map((model) => model.modelId),
@@ -166,15 +164,18 @@ describe("pricing page content", () => {
     );
     expect(catalog.filter((model) => model.recommended).map((model) => model.name)).toEqual([
       "GPT-6 Luna",
-      "GPT-6 Luna Fast",
-      "GPT-6.1 Sol",
       "Claude Sonnet 5",
-      "Claude Opus 5.5",
-      "Gemini 3.8 Flash",
-      "Fish Audio",
-      "Gemini transcription",
-      "GPT Image",
-      "Seedance",
+      "Nano Banana 2.1",
+      "GPT Image 2.6 Sunburst",
+      "Image Localise",
+      "Veo 3.1",
+      "Kling 3.0",
+      "Seedance 2.5",
+      "Sync Lipsync 2",
+      "ElevenLabs v4",
+      "ElevenLabs Dubbing",
+      "ElevenLabs Music",
+      "Universal 3.5 Pro",
     ]);
   });
 

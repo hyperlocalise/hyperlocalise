@@ -105,6 +105,11 @@ export const settingsNavMessages = defineMessages({
     id: "lPfrAUX2bp",
     description: "Settings nav item for organization API keys",
   },
+  projectTemplates: {
+    defaultMessage: "Project templates",
+    id: "MoLG2DoOuG",
+    description: "Settings nav item for saved project templates",
+  },
   webhooks: {
     defaultMessage: "Webhooks",
     id: "1tOsR5PIC6",
