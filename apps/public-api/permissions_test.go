@@ -52,6 +52,17 @@ func TestEffectivePermissions(t *testing.T) {
 		perms := effectivePermissions([]string{"files:write"}, "member")
 		require.Empty(t, perms)
 	})
+
+	t.Run("managers with job scopes can manage webhooks", func(t *testing.T) {
+		for _, role := range []string{"admin", "localization_manager"} {
+			perms := effectivePermissions([]string{"jobs:read", "jobs:write"}, role)
+			require.Contains(t, perms, "webhooks:read", role)
+			require.Contains(t, perms, "webhooks:write", role)
+		}
+		require.NotContains(t, effectivePermissions([]string{"jobs:read", "jobs:write"}, "developer"), "webhooks:write")
+		require.NotContains(t, effectivePermissions([]string{"jobs:read"}, "admin"), "webhooks:write")
+		require.Contains(t, effectivePermissions([]string{"jobs:read"}, "admin"), "webhooks:read")
+	})
 }
 
 func TestRoleAllowsCapability(t *testing.T) {

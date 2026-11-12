@@ -51,6 +51,7 @@ import { VisualWorkflowCompactNode } from "./nodes/visual-workflow-compact-node"
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { deriveForEachLoopRegion } from "@/lib/visual-workflows/editor/for-each-body-membership";
 import { listVisualWorkflowReferenceLines } from "@/lib/visual-workflows/editor/visual-workflow-reference-lines";
+import { getVisualWorkflowDataPorts } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
 
 export const VISUAL_WORKFLOW_NODE_TYPES = Object.fromEntries(
   VISUAL_NODE_CATALOG.filter((item) => item.enabled).map((item) => [
@@ -100,6 +101,7 @@ export function presentVisualWorkflowEdges(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
 ): VisualWorkflowCanvasEdge[] {
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
   const regions: ForEachPresentedRegion[] = nodes
     .filter((node) => ["logic.for_each", "logic.array_transform"].includes(node.data.catalogType))
     .map((node) => {
@@ -131,11 +133,23 @@ export function presentVisualWorkflowEdges(
     if (edge.data?.kind === "data") {
       // A wire drawn in this session carries the dashed style it was made with; wires are solid.
       const { strokeDasharray: _, ...style } = edge.style ?? {};
+      const sourceNode = nodesById.get(edge.source);
+      const targetNode = nodesById.get(edge.target);
+      const sourceLabel = sourceNode
+        ? getVisualWorkflowDataPorts({ node: sourceNode, edges }).outputs.find(
+            (port) => port.id === edge.sourceHandle,
+          )?.label
+        : undefined;
+      const targetLabel = targetNode
+        ? getVisualWorkflowDataPorts({ node: targetNode, edges }).inputs.find(
+            (port) => port.id === edge.targetHandle,
+          )?.label
+        : undefined;
       return {
         ...edge,
         ...EDGE_LABEL_PROPS,
         style,
-        label: `${edge.sourceHandle ?? "output"} → ${edge.targetHandle ?? "input"}`,
+        label: `${sourceLabel ?? edge.sourceHandle ?? "output"} → ${targetLabel ?? edge.targetHandle ?? "input"}`,
         markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
       };
     }

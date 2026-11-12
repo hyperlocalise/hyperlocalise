@@ -22,6 +22,7 @@ import { app } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
+import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-error";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
@@ -41,12 +42,14 @@ import type {
 
 const {
   countTmsProviderLiveOpenJobsForProjectMock,
+  getTmsProviderLiveCatLabelsMock,
   getTmsProviderLiveProjectMock,
   listTmsProviderLiveFilesForProjectMock,
   listTmsProviderLiveProjectBranchesMock,
   resolveApiAuthContextFromSessionMock,
 } = vi.hoisted(() => ({
   countTmsProviderLiveOpenJobsForProjectMock: vi.fn(),
+  getTmsProviderLiveCatLabelsMock: vi.fn(),
   getTmsProviderLiveProjectMock: vi.fn(),
   listTmsProviderLiveFilesForProjectMock: vi.fn(),
   listTmsProviderLiveProjectBranchesMock: vi.fn(),
@@ -71,6 +74,7 @@ vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
   return {
     ...actual,
     getTmsProviderLiveProject: getTmsProviderLiveProjectMock,
+    getTmsProviderLiveCatLabels: getTmsProviderLiveCatLabelsMock,
     countTmsProviderLiveOpenJobsForProject: countTmsProviderLiveOpenJobsForProjectMock,
     listTmsProviderLiveFilesForProject: listTmsProviderLiveFilesForProjectMock,
     listTmsProviderLiveProjectBranches: listTmsProviderLiveProjectBranchesMock,
@@ -1073,5 +1077,205 @@ describe("project file import settings", () => {
       },
     );
     expect(invalidResponse.status).toBe(400);
+  });
+});
+
+describe("project CAT labels route", () => {
+  it("returns distinct native key tags as CAT labels", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const [sourceFile] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({ organizationId: organization.id, projectId: project.id, sourcePath: "en.json" })
+      .returning({ id: schema.repositorySourceFiles.id });
+    await db.insert(schema.projectTranslationKeys).values([
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        repositorySourceFileId: sourceFile!.id,
+        key: "a",
+        sourceText: "a",
+        normalizedSourceText: "a",
+        tags: ["checkout", "web"],
+      },
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        repositorySourceFileId: sourceFile!.id,
+        key: "b",
+        sourceText: "b",
+        normalizedSourceText: "b",
+        tags: ["checkout"],
+      },
+    ]);
+    const other = await projectFixture.createStoredProjectFixture();
+    await db.insert(schema.projectTranslationKeys).values({
+      organizationId: other.organization.id,
+      projectId: other.project.id,
+      key: "other",
+      sourceText: "other",
+      normalizedSourceText: "other",
+      tags: ["foreign"],
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.labels.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      labels: [
+        { id: "checkout", title: "checkout" },
+        { id: "web", title: "web" },
+      ],
+    });
+    expect(getTmsProviderLiveCatLabelsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns not found for a native project the actor cannot see", async () => {
+    const identity = projectFixture.createWorkosIdentityWithRole("admin");
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.labels.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: `project_${randomUUID()}`,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ error: "project_not_found" });
+  });
+
+  it("returns Crowdin labels for a live provider project", async () => {
+    const admin = projectFixture.createWorkosIdentityWithRole("admin");
+    const headers = await projectFixture.authHeadersFor(admin);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const userId = globalThis.__testApiAuthContext!.user.localUserId;
+    const externalProjectId = "902812";
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId,
+    });
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+    getTmsProviderLiveCatLabelsMock.mockResolvedValue([
+      { id: "3", title: "checkout" },
+      { id: "4", title: "release" },
+    ]);
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.labels.$get(
+      {
+        param: {
+          organizationSlug: admin.organization.slug ?? "missing-slug",
+          projectId,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      labels: [
+        { id: "3", title: "checkout" },
+        { id: "4", title: "release" },
+      ],
+    });
+    expect(getTmsProviderLiveCatLabelsMock).toHaveBeenCalledWith(
+      organizationId,
+      externalProjectId,
+      {
+        actorUserId: userId,
+      },
+    );
+  });
+
+  it("maps Crowdin label lookup failures through the live TMS error envelope", async () => {
+    const admin = projectFixture.createWorkosIdentityWithRole("admin");
+    const headers = await projectFixture.authHeadersFor(admin);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const userId = globalThis.__testApiAuthContext!.user.localUserId;
+    const externalProjectId = "not-a-number";
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId,
+    });
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+    getTmsProviderLiveCatLabelsMock.mockRejectedValue(
+      new TmsProviderLiveError(
+        "invalid_crowdin_project_or_file_id",
+        "Crowdin project identifier is invalid.",
+      ),
+    );
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.labels.$get(
+      {
+        param: {
+          organizationSlug: admin.organization.slug ?? "missing-slug",
+          projectId,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "invalid_crowdin_project_or_file_id",
+    });
+  });
+
+  it("returns provider unavailable when a live project has no matching connection", async () => {
+    const admin = projectFixture.createWorkosIdentityWithRole("admin");
+    const headers = await projectFixture.authHeadersFor(admin);
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902813",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.labels.$get(
+      {
+        param: {
+          organizationSlug: admin.organization.slug ?? "missing-slug",
+          projectId,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ error: "no_active_tms_provider" });
+    expect(getTmsProviderLiveCatLabelsMock).not.toHaveBeenCalled();
   });
 });

@@ -5,9 +5,10 @@ info:
   description: >-
     Read projects, Queries, jobs, glossaries, and translation memories from a Hyperlocalise
     workspace; create native projects from project templates and manage those templates; define
-    custom project fields and set their values; manage the strings, translations, and settings of
-    native projects; search strings; round-trip bilingual files; update jobs one at a time or in
-    bulk; and import and export glossaries and translation memories.
+    custom project fields and set their values; manage the strings, translations, screenshots,
+    and settings of native projects; search strings; round-trip bilingual files; update jobs one
+    at a time or in bulk; register job-change webhook endpoints; and import and export glossaries
+    and translation memories.
 servers:
   - url: https://api.hyperlocalise.com
 security:
@@ -21,9 +22,11 @@ tags:
   - name: Jobs
   - name: Strings
   - name: Translations
+  - name: Screenshots
   - name: Bilingual files
   - name: Glossaries
   - name: Translation memories
+  - name: Webhooks
 paths:
   /health:
     get:
@@ -1263,6 +1266,230 @@ paths:
         "413": { $ref: "#/components/responses/PayloadTooLarge" }
         "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/screenshots:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: listScreenshots
+      tags: [Screenshots]
+      summary: List project screenshots
+      description: >-
+        Requires `strings:read`. Native projects only. Filter with `stringId` or `key` (and
+        `filePath` when the key exists in more than one file). Newest first. `imageUrl` is a
+        time-limited download for `ready` screenshots. Figma-synced frames appear here with
+        `figmaUrl`; this API does not create them.
+      parameters:
+        - name: stringId
+          in: query
+          description: Only screenshots marked on this string. Do not send with `key`.
+          schema: { type: string, format: uuid }
+        - name: key
+          in: query
+          description: Only screenshots marked on this key. Do not send with `stringId`.
+          schema: { type: string, maxLength: 1000 }
+        - name: filePath
+          in: query
+          description: With `key`, only markers in this source file.
+          schema: { type: string, maxLength: 2048 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [ready, upload_pending] }
+        - $ref: "#/components/parameters/Limit50"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Screenshots.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [screenshots, pagination]
+                properties:
+                  screenshots:
+                    type: array
+                    items: { $ref: "#/components/schemas/Screenshot" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createScreenshot
+      tags: [Screenshots]
+      summary: Start a screenshot upload
+      description: >-
+        Requires `strings:write`. Native projects only. Returns a screenshot in `upload_pending`
+        and a time-limited PUT URL. PUT the image bytes (PNG, JPEG, or WebP, 1 byte to 10 MB)
+        with the returned headers, then call finalize. Object storage must be configured or the
+        service returns `503 screenshot_storage_unavailable`. Optional `markers` attach keys
+        before the image is ready. Figma fields are read-only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [filename, contentType, byteSize]
+              properties:
+                filename: { type: string, minLength: 1, maxLength: 255, description: A PNG, JPEG, or WebP file name. Spaces become underscores. }
+                contentType: { type: string, enum: [image/png, image/jpeg, image/jpg, image/webp] }
+                byteSize: { type: integer, format: int64, minimum: 1, maximum: 10485760 }
+                name: { type: [string, "null"], maxLength: 256 }
+                width: { type: [integer, "null"], minimum: 1, maximum: 10000 }
+                height: { type: [integer, "null"], minimum: 1, maximum: 10000 }
+                markers:
+                  type: array
+                  maxItems: 1000
+                  items: { $ref: "#/components/schemas/ScreenshotMarkerInput" }
+      responses:
+        "201":
+          description: Pending screenshot and upload request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScreenshotCreateResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/screenshots/{screenshotId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/ScreenshotId"
+    get:
+      operationId: getScreenshot
+      tags: [Screenshots]
+      summary: Get a screenshot
+      description: Requires `strings:read`. Native projects only.
+      responses:
+        "200":
+          description: Screenshot.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScreenshotResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteScreenshot
+      tags: [Screenshots]
+      summary: Delete a screenshot
+      description: Requires `strings:write`. Native projects only. Removes the image, its markers, and the stored object.
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/screenshots/{screenshotId}/finalize:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/ScreenshotId"
+    post:
+      operationId: finalizeScreenshot
+      tags: [Screenshots]
+      summary: Finalize a screenshot upload
+      description: >-
+        Requires `strings:write`. Native projects only. Call after the PUT to the upload URL
+        succeeds. Verifies the object is a PNG, JPEG, or WebP of the declared size and marks
+        the screenshot `ready`. Missing uploads return `409 screenshot_upload_missing`. Invalid
+        images are discarded and return `415 screenshot_invalid_image`. Send `{}` when there is
+        nothing to change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: [string, "null"], maxLength: 256 }
+                width: { type: [integer, "null"], minimum: 1, maximum: 10000 }
+                height: { type: [integer, "null"], minimum: 1, maximum: 10000 }
+      responses:
+        "200":
+          description: Ready screenshot.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScreenshotResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/screenshots/{screenshotId}/markers:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/ScreenshotId"
+    post:
+      operationId: upsertScreenshotMarkers
+      tags: [Screenshots]
+      summary: Add or update screenshot markers
+      description: >-
+        Requires `strings:write`. Native projects only. Upserts 1 to 1,000 markers. Each marker
+        picks a string with `stringId`, or `key` (and `filePath` when the key exists in more than
+        one file). A second marker for the same string on this screenshot replaces the box.
+        Duplicate keys return `400 ambiguous_key`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [markers]
+              properties:
+                markers:
+                  type: array
+                  minItems: 1
+                  maxItems: 1000
+                  items: { $ref: "#/components/schemas/ScreenshotMarkerInput" }
+      responses:
+        "200":
+          description: Upserted markers.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [markers]
+                properties:
+                  markers:
+                    type: array
+                    items: { $ref: "#/components/schemas/ScreenshotMarker" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/screenshots/{screenshotId}/markers/{markerId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - $ref: "#/components/parameters/ScreenshotId"
+      - $ref: "#/components/parameters/MarkerId"
+    delete:
+      operationId: deleteScreenshotMarker
+      tags: [Screenshots]
+      summary: Delete a screenshot marker
+      description: Requires `strings:write`. Native projects only.
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/projects/{projectId}/bilingual-file:
     parameters:
       - $ref: "#/components/parameters/ProjectId"
@@ -1653,6 +1880,179 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/webhook-endpoints:
+    get:
+      operationId: listWebhookEndpoints
+      tags: [Webhooks]
+      summary: List webhook endpoints
+      description: >-
+        Requires `webhooks:read`, which `jobs:read` grants to admins and localization managers.
+        Secrets are never returned. An empty `eventTypes` list receives every job change.
+      responses:
+        "200":
+          description: Webhook endpoints in the workspace, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [webhookEndpoints]
+                properties:
+                  webhookEndpoints:
+                    type: array
+                    items: { $ref: "#/components/schemas/WebhookEndpoint" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createWebhookEndpoint
+      tags: [Webhooks]
+      summary: Register a webhook endpoint
+      description: >-
+        Requires `webhooks:write`, which `jobs:write` grants to admins and localization managers.
+        The signing secret is returned this once. At most 20 endpoints per workspace. HTTPS on a
+        public host only. Omit `eventTypes`, or send `[]`, to receive every job change, including
+        types added later. `projectId` limits deliveries to one project in the workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [url]
+              properties:
+                url: { type: string, minLength: 1, maxLength: 2048 }
+                description: { type: [string, "null"], maxLength: 500 }
+                eventTypes:
+                  type: array
+                  maxItems: 5
+                  items: { $ref: "#/components/schemas/WebhookEventType" }
+                projectId: { type: [string, "null"], maxLength: 128 }
+      responses:
+        "201":
+          description: The endpoint and its signing secret.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [webhookEndpoint, secret]
+                properties:
+                  webhookEndpoint: { $ref: "#/components/schemas/WebhookEndpoint" }
+                  secret: { type: string, description: Standard Webhooks secret, shown once. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/webhook-endpoints/{endpointId}:
+    parameters:
+      - $ref: "#/components/parameters/WebhookEndpointId"
+    patch:
+      operationId: updateWebhookEndpoint
+      tags: [Webhooks]
+      summary: Update a webhook endpoint
+      description: >-
+        Requires `webhooks:write`. `enabled: true` re-enables an endpoint disabled by hand or after
+        too many failed deliveries. The signing secret does not change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                url: { type: string, minLength: 1, maxLength: 2048 }
+                description: { type: [string, "null"], maxLength: 500 }
+                eventTypes:
+                  type: array
+                  maxItems: 5
+                  items: { $ref: "#/components/schemas/WebhookEventType" }
+                projectId: { type: [string, "null"], maxLength: 128 }
+                enabled: { type: boolean }
+      responses:
+        "200":
+          description: The updated endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [webhookEndpoint]
+                properties:
+                  webhookEndpoint: { $ref: "#/components/schemas/WebhookEndpoint" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteWebhookEndpoint
+      tags: [Webhooks]
+      summary: Delete a webhook endpoint
+      description: Requires `webhooks:write`. Queued deliveries for the endpoint are dropped.
+      responses:
+        "204":
+          description: The endpoint was deleted.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/webhook-endpoints/{endpointId}/rotate-secret:
+    post:
+      operationId: rotateWebhookEndpointSecret
+      tags: [Webhooks]
+      summary: Rotate a webhook signing secret
+      description: >-
+        Requires `webhooks:write`. Replaces the secret immediately. The new value is returned this
+        once. The previous secret stops working with the next delivery.
+      parameters:
+        - $ref: "#/components/parameters/WebhookEndpointId"
+      responses:
+        "200":
+          description: The new signing secret.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [secret]
+                properties:
+                  secret: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/webhook-endpoints/{endpointId}/deliveries:
+    get:
+      operationId: listWebhookDeliveries
+      tags: [Webhooks]
+      summary: List recent webhook deliveries
+      description: Requires `webhooks:read`. Newest first. Default `limit` is 50, maximum 100.
+      parameters:
+        - $ref: "#/components/parameters/WebhookEndpointId"
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Recent deliveries for the endpoint.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [webhookDeliveries]
+                properties:
+                  webhookDeliveries:
+                    type: array
+                    items: { $ref: "#/components/schemas/WebhookDelivery" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/glossaries:
     get:
       operationId: listGlossaries
@@ -2031,6 +2431,16 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    ScreenshotId:
+      name: screenshotId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    MarkerId:
+      name: markerId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     GlossaryId:
       name: glossaryId
       in: path
@@ -2049,6 +2459,11 @@ components:
       schema: { type: string, maxLength: 128 }
     MemoryId:
       name: memoryId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    WebhookEndpointId:
+      name: endpointId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -2319,6 +2734,83 @@ components:
       required: [string]
       properties:
         string: { $ref: "#/components/schemas/String" }
+    ScreenshotMarkerBox:
+      type: object
+      additionalProperties: false
+      required: [left, top, width, height]
+      description: Percent of the image. `left + width` and `top + height` must stay at or below 100.
+      properties:
+        left: { type: number, minimum: 0, maximum: 100 }
+        top: { type: number, minimum: 0, maximum: 100 }
+        width: { type: number, exclusiveMinimum: 0, maximum: 100 }
+        height: { type: number, exclusiveMinimum: 0, maximum: 100 }
+    ScreenshotMarkerInput:
+      type: object
+      additionalProperties: false
+      description: Pick the string with `stringId`, or `key` (and `filePath` when the key exists in more than one file).
+      properties:
+        stringId: { type: string, format: uuid }
+        key: { type: string, minLength: 1, maxLength: 1000 }
+        filePath: { type: string, maxLength: 2048 }
+        marker: { $ref: "#/components/schemas/ScreenshotMarkerBox" }
+    ScreenshotMarker:
+      type: object
+      required: [id, screenshotId, stringId, key, filePath, marker, source]
+      properties:
+        id: { type: string, format: uuid }
+        screenshotId: { type: string, format: uuid }
+        stringId: { type: string, format: uuid }
+        key: { type: string }
+        filePath: { type: [string, "null"] }
+        marker: { oneOf: [{ $ref: "#/components/schemas/ScreenshotMarkerBox" }, { type: "null" }] }
+        source: { type: string, enum: [manual, auto] }
+    Screenshot:
+      type: object
+      required: [id, name, filename, contentType, status, width, height, imageUrl, figmaUrl, markers, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: [string, "null"] }
+        filename: { type: string }
+        contentType: { type: string, enum: [image/png, image/jpeg, image/webp] }
+        status: { type: string, enum: [upload_pending, ready] }
+        width: { type: [integer, "null"] }
+        height: { type: [integer, "null"] }
+        imageUrl:
+          type: [string, "null"]
+          format: uri
+          description: Time-limited download URL for `ready` screenshots.
+        figmaUrl:
+          type: [string, "null"]
+          format: uri
+          description: Set when the Figma plugin synced this screenshot from a frame. Read-only.
+        markers:
+          type: array
+          items: { $ref: "#/components/schemas/ScreenshotMarker" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ScreenshotResponse:
+      type: object
+      required: [screenshot]
+      properties:
+        screenshot: { $ref: "#/components/schemas/Screenshot" }
+    ScreenshotUpload:
+      type: object
+      required: [url, method, headers, expiresAt]
+      properties:
+        url: { type: string, format: uri }
+        method: { type: string, enum: [PUT] }
+        headers:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+        expiresAt: { type: string, format: date-time }
+    ScreenshotCreateResult:
+      type: object
+      required: [screenshot, upload]
+      properties:
+        screenshot: { $ref: "#/components/schemas/Screenshot" }
+        upload: { $ref: "#/components/schemas/ScreenshotUpload" }
     Translation:
       type: object
       required: [id, stringId, key, locale, text, status, provenance, origin, reviewedByUserId, reviewedAt, createdAt, updatedAt]
@@ -2510,6 +3002,39 @@ components:
         imported: { type: integer, minimum: 0, description: Translations saved or already up to date. }
         skipped: { type: integer, minimum: 0 }
         files: { type: integer, minimum: 0 }
+    WebhookEventType:
+      type: string
+      enum: [job.created, job.status_changed, job.assignee_changed, job.due_date_changed, job.details_changed]
+    WebhookEndpoint:
+      type: object
+      required: [id, url, description, eventTypes, projectId, enabled, disabledReason, consecutiveFailures, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        description: { type: [string, "null"] }
+        eventTypes:
+          type: array
+          items: { $ref: "#/components/schemas/WebhookEventType" }
+        projectId: { type: [string, "null"] }
+        enabled: { type: boolean }
+        disabledReason: { type: [string, "null"] }
+        consecutiveFailures: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    WebhookDelivery:
+      type: object
+      required: [id, eventId, eventType, status, attemptCount, lastResponseStatus, lastError, lastAttemptAt, nextAttemptAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        eventId: { type: [string, "null"], format: uuid }
+        eventType: { type: string }
+        status: { type: string, enum: [pending, succeeded, failed] }
+        attemptCount: { type: integer, minimum: 0 }
+        lastResponseStatus: { type: [integer, "null"] }
+        lastError: { type: [string, "null"] }
+        lastAttemptAt: { type: [string, "null"], format: date-time }
+        nextAttemptAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
     Error:
       type: object
       required: [error, message]
@@ -2547,7 +3072,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: The project is not native, the key already exists, the segment is locked, or the job, memory, or glossary is managed elsewhere or archived.
+      description: The project is not native, the key already exists, the segment is locked, the webhook endpoint limit was reached, or the job, memory, or glossary is managed elsewhere or archived.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }

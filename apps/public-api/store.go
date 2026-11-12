@@ -136,6 +136,19 @@ type resourceStore interface {
 	setProjectCustomFields(context.Context, principal, string, map[string]json.RawMessage) ([]customfield.ProjectValue, error)
 	missingStringKeys(context.Context, principal, string, []string) ([]string, error)
 	bulkUpdateJobs(context.Context, principal, []string, jobPatch) ([]job, error)
+	listWebhookEndpoints(context.Context, principal) ([]webhookEndpoint, error)
+	createWebhookEndpoint(context.Context, principal, webhookCreate) (createdWebhookEndpoint, error)
+	updateWebhookEndpoint(context.Context, principal, string, webhookPatch) (webhookEndpoint, error)
+	deleteWebhookEndpoint(context.Context, principal, string) error
+	rotateWebhookEndpointSecret(context.Context, principal, string) (string, error)
+	listWebhookDeliveries(context.Context, principal, string, int) ([]webhookDelivery, error)
+	listScreenshots(context.Context, principal, string, screenshotFilters) ([]screenshot, int, error)
+	getScreenshot(context.Context, principal, string, string) (screenshot, error)
+	createScreenshot(context.Context, principal, string, screenshotCreate) (screenshotCreateResult, error)
+	finalizeScreenshot(context.Context, principal, string, string, screenshotFinalize) (screenshot, error)
+	deleteScreenshot(context.Context, principal, string, string) error
+	upsertScreenshotMarkers(context.Context, principal, string, string, []screenshotMarkerInput) ([]screenshotMarker, error)
+	deleteScreenshotMarker(context.Context, principal, string, string, string) error
 }
 
 type postgresStore struct {

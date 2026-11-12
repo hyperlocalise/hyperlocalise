@@ -178,6 +178,14 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
     defaultValue: messages.selectPathDefaultValue,
   },
   "logic.json_parse": { text: messages.jsonParseText },
+  "logic.text_template": {
+    template: messages.textTemplateValue,
+    placeholders: messages.textPlaceholders,
+  },
+  "logic.concatenate": {
+    separator: messages.concatenateSeparator,
+    segments: messages.concatenateSegments,
+  },
   "logic.json_stringify": { value: messages.jsonStringifyValue },
   "logic.schema_validate": {
     value: messages.schemaValidateValue,

@@ -810,6 +810,85 @@ describe("chat turn runs", () => {
     });
   });
 
+  it("refuses a turn on a conversation that is not a chat thread", async () => {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const [interaction] = await db
+      .insert(schema.interactions)
+      .values({
+        organizationId,
+        source: "workflow_approval",
+        title: "Approve copy",
+      })
+      .returning({ id: schema.interactions.id });
+    await db.insert(schema.inboxItems).values({
+      interactionId: interaction!.id,
+      organizationId,
+      status: "active",
+    });
+    const [message] = await db
+      .insert(schema.interactionMessages)
+      .values({
+        interactionId: interaction!.id,
+        senderType: "user",
+        text: "Please review",
+      })
+      .returning({ id: schema.interactionMessages.id });
+
+    const response = await app.request(
+      `/api/orgs/${identity.organization.slug}/conversations/${interaction!.id}/chat`,
+      {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: message!.id,
+              role: "user",
+              parts: [{ type: "text", text: "Please review" }],
+            },
+          ],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "conversation_not_replyable" });
+    expect(createWebChatAgentUIStreamResponseMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a turn that is not the latest user message", async () => {
+    const { headers, chatUrl, startTurn, conversationId } = await createChatConversation();
+    await db.insert(schema.interactionMessages).values({
+      interactionId: conversationId,
+      senderType: "user",
+      text: "Newer question",
+      createdAt: new Date(Date.now() + 1_000),
+    });
+
+    const response = await startTurn();
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "stale_user_message" });
+    expect(createWebChatAgentUIStreamResponseMock).not.toHaveBeenCalled();
+
+    const unknown = await app.request(chatUrl, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [
+          {
+            id: "00000000-0000-4000-8000-000000000001",
+            role: "user",
+            parts: [{ type: "text", text: "Translate this to fr-FR" }],
+          },
+        ],
+      }),
+    });
+    expect(unknown.status).toBe(404);
+    await expect(unknown.json()).resolves.toEqual({ error: "user_message_not_found" });
+  });
+
   it("serves a stored full tool result for a message in the conversation", async () => {
     const { headers, chatUrl, conversationId } = await createChatConversation();
     const [agentMessage] = await db
