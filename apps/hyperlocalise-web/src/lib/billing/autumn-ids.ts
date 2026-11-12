@@ -45,6 +45,8 @@ export const autumnFeatureIds = {
   automationWorkflow: "automation_workflow",
   /** Workspace and project Queries / issue sheet surfaces. */
   queriesBoard: "queries-board",
+  /** Workspace and project Guidelines (guideline documents, checks, and agent recall). */
+  guidelines: "guidelines",
 } as const;
 
 export type AutumnFeatureId = (typeof autumnFeatureIds)[keyof typeof autumnFeatureIds];

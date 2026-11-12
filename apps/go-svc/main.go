@@ -165,6 +165,9 @@ func main() {
 		h.irisGeneration.membership = membershipLookup
 	}
 	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
+	if h.autumn != nil {
+		h.knowledgeMemories.autumn = autumnClientChecker{client: h.autumn}
+	}
 	h.reports = newReportingAPI()
 	if workosClient != nil {
 		h.workspace.flags = workosWorkspaceFlags{client: workosClient}

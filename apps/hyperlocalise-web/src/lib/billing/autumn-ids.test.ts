@@ -38,6 +38,7 @@ describe("autumn identifiers", () => {
       aiFeatures: "ai_features",
       automationWorkflow: "automation_workflow",
       queriesBoard: "queries-board",
+      guidelines: "guidelines",
     });
 
     expect(usageFeatureIds).toEqual({

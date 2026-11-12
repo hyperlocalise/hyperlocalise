@@ -21,7 +21,7 @@ const {
   engineSetupEnqueueMock,
   resolveApiAuthContextFromSessionMock,
   upsertSetupDocumentMock,
-  workspaceKnowledgeFlagRunMock,
+  resolveWorkspaceKnowledgeFlagMock,
 } = vi.hoisted(() => ({
   assertResolvablePublicHttpUrlMock: vi.fn(),
   engineSetupEnqueueMock: vi.fn(async () => ({ ids: ["wrun_engine_setup_test"] })),
@@ -34,7 +34,7 @@ const {
   upsertSetupDocumentMock: vi.fn(async () =>
     ok({ documentId: "doc_setup_1", revisionId: "22222222-2222-2222-2222-222222222222" }),
   ),
-  workspaceKnowledgeFlagRunMock: vi.fn(async () => true),
+  resolveWorkspaceKnowledgeFlagMock: vi.fn(async () => true),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -49,7 +49,7 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
   return {
     ...actual,
-    workspaceKnowledgeFlag: { run: workspaceKnowledgeFlagRunMock },
+    resolveWorkspaceKnowledgeFlag: resolveWorkspaceKnowledgeFlagMock,
   };
 });
 
@@ -151,7 +151,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  workspaceKnowledgeFlagRunMock.mockResolvedValue(true);
+  resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(true);
   assertResolvablePublicHttpUrlMock.mockResolvedValue(ok(new URL("https://example.com/")));
 });
 
@@ -161,8 +161,8 @@ afterEach(async () => {
 });
 
 describe("engineSetupRoutes", () => {
-  it("denies access when workspace knowledge is disabled", async () => {
-    workspaceKnowledgeFlagRunMock.mockResolvedValue(false);
+  it("denies access when Guidelines is not entitled", async () => {
+    resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(false);
     const identity = fixture.createWorkosIdentity();
     const headers = await fixture.authHeadersFor(identity);
 

@@ -160,7 +160,7 @@ import { mcpCheckGuidelinesInputSchema } from "@/api/routes/mcp/mcp-check-guidel
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
 import { loadUploadedGuidelinesContext } from "@/lib/knowledge-memory/uploaded-guidelines-context";
-import { workspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
+import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 
 // upload_sources accepts up to maxPublicUploadBytes, possibly base64-encoded,
 // so the transport body cap must leave room for that plus the JSON-RPC envelope.
@@ -393,18 +393,9 @@ export function getMcpProtectedResourceMetadata(origin: string, apiBasePath = "/
 }
 
 async function isMcpKnowledgeMemoryFeatureEnabled(apiAuth: ApiAuthContext) {
-  try {
-    return (
-      (await workspaceKnowledgeFlag.run({
-        identify: () => ({
-          organization: { id: apiAuth.organization.workosOrganizationId },
-          user: { id: apiAuth.user.workosUserId },
-        }),
-      })) === true
-    );
-  } catch {
-    return false;
-  }
+  return resolveWorkspaceKnowledgeFlag({
+    organizationId: apiAuth.organization.localOrganizationId,
+  });
 }
 
 async function readTokenRequestBody(request: Request) {

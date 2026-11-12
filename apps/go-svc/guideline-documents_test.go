@@ -24,23 +24,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type guidelineTestFlagsStub struct {
-	enabled bool
-	err     error
-}
-
-func (s guidelineTestFlagsStub) Enabled(context.Context, string, string, string) (bool, error) {
-	return s.enabled, s.err
-}
-
-func guidelineTestHandler(scope *testenv.Scope, role string, flags workspaceFlagChecker) *handler {
+func guidelineTestHandler(scope *testenv.Scope, role string, guidelinesAllowed bool) *handler {
 	h := newHandler()
 	h.workspace = &workspaceAPI{
 		pool:       scope.Pool,
 		membership: scope.Membership(role),
-		flags:      flags,
 	}
-	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
+	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace, autumn: stubAutumnChecker{allowed: guidelinesAllowed}}
 	return h
 }
 
@@ -88,7 +78,7 @@ type guidelineTestEnv struct {
 func newGuidelineTestEnv(t *testing.T, role string) *guidelineTestEnv {
 	t.Helper()
 	scope := testenv.Seed(t, testenv.Options{Role: role})
-	h := guidelineTestHandler(scope, role, guidelineTestFlagsStub{enabled: true})
+	h := guidelineTestHandler(scope, role, true)
 	publisher := &recordingGuidelinePublisher{}
 	registry, err := objectstore.NewRegistry("r2-primary", map[string]objectstore.Store{"r2-primary": memory.New()})
 	require.NoError(t, err)
@@ -100,7 +90,7 @@ func newGuidelineTestEnv(t *testing.T, role string) *guidelineTestEnv {
 // asRole reuses this org with a different WorkOS role. Document uploads require
 // an admin; guideline checks do not.
 func (e *guidelineTestEnv) asRole(role string) *guidelineTestEnv {
-	h := guidelineTestHandler(e.scope, role, guidelineTestFlagsStub{enabled: true})
+	h := guidelineTestHandler(e.scope, role, true)
 	h.knowledgeMemories.guidelineIngest = e.publisher
 	h.guidelineDocuments = newGuidelineDocumentAPI(h.knowledgeMemories, e.objects, e.publisher)
 	return &guidelineTestEnv{scope: e.scope, handler: h, publisher: e.publisher, objects: e.objects}
@@ -261,6 +251,19 @@ func TestGuidelineDocumentDeleteWithoutIngestPublisher(t *testing.T) {
 	deleted := env.json(http.MethodDelete, path+"/"+doc.ID, "")
 	require.Equal(t, http.StatusNoContent, deleted.Code, deleted.Body.String())
 	require.Equal(t, http.StatusNotFound, env.json(http.MethodGet, path+"/"+doc.ID, "").Code)
+}
+
+func TestGuidelineRoutesRequireAutumnGuidelinesFeature(t *testing.T) {
+	env := newGuidelineTestEnv(t, "admin")
+	env.handler.knowledgeMemories.autumn = stubAutumnChecker{allowed: false}
+
+	listed := env.json(http.MethodGet, env.scope.OrgPath("/guidelines/documents"), "")
+	require.Equal(t, http.StatusForbidden, listed.Code, listed.Body.String())
+	require.Contains(t, listed.Body.String(), "feature_unavailable")
+
+	env.handler.knowledgeMemories.autumn = nil
+	unconfigured := env.json(http.MethodGet, env.scope.OrgPath("/guidelines/documents"), "")
+	require.Equal(t, http.StatusForbidden, unconfigured.Code, unconfigured.Body.String())
 }
 
 func TestGuidelineDocumentListPagination(t *testing.T) {
