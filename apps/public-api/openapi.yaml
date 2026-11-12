@@ -9,7 +9,7 @@ info:
     bilingual files; update jobs; register job-change webhook endpoints; and import and export
     glossaries and translation memories.
 servers:
-  - url: https://api.hyperlocalise.com
+  - url: https://public-api.hyperlocalise.com
 security:
   - personalAccessToken: []
 tags:

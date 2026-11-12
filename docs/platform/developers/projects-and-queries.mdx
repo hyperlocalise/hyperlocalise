@@ -17,7 +17,7 @@ Create a [personal access token](/platform/settings#personal-access-tokens) and 
 ## Verify your identity
 
 ```bash
-curl --fail-with-body "https://api.hyperlocalise.com/v1/me"     -H "x-api-key: $HYPERLOCALISE_API_KEY"
+curl --fail-with-body "https://public-api.hyperlocalise.com/v1/me"     -H "x-api-key: $HYPERLOCALISE_API_KEY"
 ```
 
 The JSON response contains `principal`, including token and workspace identifiers, effective permissions, and entitlements. Verify that it identifies the workspace you intended before requesting its resources.
@@ -25,7 +25,7 @@ The JSON response contains `principal`, including token and workspace identifier
 ## List projects
 
 ```bash
-curl --fail-with-body "https://api.hyperlocalise.com/v1/projects?limit=20&offset=0"     -H "x-api-key: $HYPERLOCALISE_API_KEY"
+curl --fail-with-body "https://public-api.hyperlocalise.com/v1/projects?limit=20&offset=0"     -H "x-api-key: $HYPERLOCALISE_API_KEY"
 ```
 
 Only accessible projects are returned. Use the returned identifiers when requesting a project's details.
@@ -33,14 +33,14 @@ Only accessible projects are returned. Use the returned identifiers when request
 ## List Queries
 
 ```bash
-curl --fail-with-body "https://api.hyperlocalise.com/v1/queries?status=open&limit=20&offset=0"     -H "x-api-key: $HYPERLOCALISE_API_KEY"
+curl --fail-with-body "https://public-api.hyperlocalise.com/v1/queries?status=open&limit=20&offset=0"     -H "x-api-key: $HYPERLOCALISE_API_KEY"
 ```
 
 Queries support filters including project, status, type, priority, locale, assignee, and search. Follow the API reference for exact fields and allowed values. Use `limit` and `offset` to page through collections.
 
 ## Reference and errors
 
-The service exposes its [interactive reference](https://api.hyperlocalise.com/docs) and [OpenAPI document](https://api.hyperlocalise.com/openapi.yaml). The OpenAPI document also covers native-project strings, screenshots, batch review, and key job management. File upload and job creation stay on `hyperlocalise.com`; see [Files and jobs](/platform/api) and [Strings and key jobs](/platform/developers/strings-and-key-jobs).
+The service exposes its [interactive reference](https://public-api.hyperlocalise.com/docs) and [OpenAPI document](https://public-api.hyperlocalise.com/openapi.yaml). The OpenAPI document also covers native-project strings, screenshots, batch review, and key job management. File upload and job creation stay on `hyperlocalise.com`; see [Files and jobs](/platform/api) and [Strings and key jobs](/platform/developers/strings-and-key-jobs).
 
 | Status | Next step |
 | --- | --- |

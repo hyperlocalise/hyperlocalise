@@ -19,7 +19,7 @@ Hyperlocalise translates your content with your workspace's glossary, translatio
 * New translations are drafts. Published translations stay unchanged unless you allow overwrites.
 * Titles, excerpts, block content, and chosen custom fields, including Yoast SEO and Rank Math fields, are translated.
 
-The plugin calls the Hyperlocalise API at hyperlocalise.com and api.hyperlocalise.com when you send, check, or save translations. Post content you send is uploaded to your Hyperlocalise project. See the [Hyperlocalise terms](https://hyperlocalise.com/terms) and [privacy policy](https://hyperlocalise.com/privacy).
+The plugin calls the Hyperlocalise API at hyperlocalise.com and public-api.hyperlocalise.com when you send, check, or save translations. Post content you send is uploaded to your Hyperlocalise project. See the [Hyperlocalise terms](https://hyperlocalise.com/terms) and [privacy policy](https://hyperlocalise.com/privacy).
 
 == Installation ==
 

@@ -59,7 +59,7 @@ The [public API](/platform/api) creates projects from templates and manages temp
 Create one project per request from a template:
 
 ```bash
-curl -X POST https://api.hyperlocalise.com/v1/projects \
+curl -X POST https://public-api.hyperlocalise.com/v1/projects \
   -H "x-api-key: $HYPERLOCALISE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name":"REQ-1042 Futures page","templateId":"'$TEMPLATE_ID'","targetLocales":["en-US","vi-VN"]}'
