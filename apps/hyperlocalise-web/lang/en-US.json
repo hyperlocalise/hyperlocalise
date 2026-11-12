@@ -1083,6 +1083,10 @@
     "defaultMessage": "Source words × their languages",
     "description": "Detail under the words to translate card"
   },
+  "/QuTN/lLlh": {
+    "defaultMessage": "Guideline retrieval timed out.",
+    "description": "Job activity step when guideline retrieval times out"
+  },
   "/R/xwR7ZOR": {
     "defaultMessage": "Project",
     "description": "Label for the translation memory project filter"
@@ -1214,6 +1218,10 @@
   "/bH75mQmVa": {
     "defaultMessage": "Wednesday",
     "description": "Weekday option for scheduled automation"
+  },
+  "/cTcrQO3Yh": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button in edit locales dialog"
   },
   "/cgIKQ7r8o": {
     "defaultMessage": "Enable all",
@@ -1526,6 +1534,10 @@
   "07NPIW0cJ3": {
     "defaultMessage": "Clear filters",
     "description": "Button that clears all active issue list filters"
+  },
+  "07nyefIF8a": {
+    "defaultMessage": "Describe and search footage",
+    "description": "Card summary for the Qwen 3.8 Omni Flash media model on the pricing page"
   },
   "07pTu6Ro98": {
     "defaultMessage": "Unlimited",
@@ -2167,6 +2179,10 @@
     "defaultMessage": "Growth Plan",
     "description": "Growth plan name on the pricing page"
   },
+  "0xSp9R1ss3": {
+    "defaultMessage": "Guideline search was unavailable, so no passages were included.",
+    "description": "Job activity step when guideline search is unavailable"
+  },
   "0xs+BR2vTX": {
     "defaultMessage": "Could not save automation settings.",
     "description": "Fallback error when automation settings save fails without a specific message"
@@ -2351,10 +2367,6 @@
     "defaultMessage": "@Hyperlocalise Review this launch copy against our brand guidelines and flag anything that needs attention.",
     "description": "Marketing homepage agentRequest"
   },
-  "1KKO0Okjmc": {
-    "defaultMessage": "It reads copy aloud so you can check rhythm and length before a voiceover goes out. Included on paid plans. Usage comes out of your monthly AI credit.",
-    "description": "Story for the text to speech model on the pricing page"
-  },
   "1KXz+b/LeX": {
     "defaultMessage": "Heading 3",
     "description": "Slash menu item for a level-3 heading"
@@ -2471,6 +2483,10 @@
     "defaultMessage": "Keyword research, rankings, technical SEO, content optimization, and locale-aware audits built into Hyperlocalise.",
     "description": "Built-in SEO product description on the integrations page"
   },
+  "1VVms1Wl1W": {
+    "defaultMessage": "Included {count, plural, =0 {no search passages} one {# search passage} other {# search passages}}.",
+    "description": "Job activity step for guideline search passages"
+  },
   "1WHEF2Z8lT": {
     "defaultMessage": "History could not be loaded.",
     "description": "Glossary interchange history load error"
@@ -2478,6 +2494,10 @@
   "1WYC40KrqC": {
     "defaultMessage": "SEO blog",
     "description": "Flow template pill for SEO blog"
+  },
+  "1WbVlM2sdF": {
+    "defaultMessage": "Edit and extend existing footage",
+    "description": "Card summary for the Kling 3.0 Omni video model on the pricing page"
   },
   "1WcWsw29Gt": {
     "defaultMessage": "New key",
@@ -3230,6 +3250,10 @@
   "2VWwjqjclF": {
     "defaultMessage": "Assignee",
     "description": "Label for single-assignee selection on native jobs"
+  },
+  "2VrNu3mZmp": {
+    "defaultMessage": "Expressive people and faces",
+    "description": "Card summary for the MiniMax H3 Max video model on the pricing page"
   },
   "2WCxnj9DvK": {
     "defaultMessage": "Could not add a step",
@@ -4631,6 +4655,10 @@
     "defaultMessage": "Reports",
     "description": "Reports mock UI eyebrow label"
   },
+  "4Yjt4O6mA1": {
+    "defaultMessage": "In Iris",
+    "description": "Label for the Iris model id in the pricing model detail"
+  },
   "4YpYvVky/W": {
     "defaultMessage": "Brought your changes back over the reloaded automation",
     "description": "Notice after a reload from the server was undone"
@@ -4710,6 +4738,10 @@
   "4iAGuhOoL/": {
     "defaultMessage": "General question",
     "description": "Issue Sheet issue type option for a general question"
+  },
+  "4iwHjxb1FM": {
+    "defaultMessage": "Guideline retrieval finished with no guidelines included.",
+    "description": "Job activity step when retrieval succeeds but no guideline documents are included"
   },
   "4jL6ZFEZhQ": {
     "defaultMessage": "Glossary",
@@ -4962,6 +4994,10 @@
   "55UxBxUnw3": {
     "defaultMessage": "+{count} more",
     "description": "Button showing additional QA issues and opening the full QA details"
+  },
+  "55i6amXT6x": {
+    "defaultMessage": "Detailed images that follow the brief",
+    "description": "Card summary for the Nano Banana Pro image model on the pricing page"
   },
   "55pv/fQdGW": {
     "defaultMessage": "Numbers",
@@ -5250,6 +5286,10 @@
   "5V5XZ84WTf": {
     "defaultMessage": "Pick assignee",
     "description": "Catalog title for the step that chooses who does a piece of work"
+  },
+  "5V7e1iLBtQ": {
+    "defaultMessage": "Captions and transcripts",
+    "description": "Card summary for the Universal 3.5 Pro transcription model on the pricing page"
   },
   "5VQvCOhS8Q": {
     "defaultMessage": "Filter, map, reduce, or find values in an ordered collection.",
@@ -5935,10 +5975,6 @@
     "defaultMessage": "Tone: friendly, direct",
     "description": "Brand style rule chip"
   },
-  "6ZdUFhWyMC": {
-    "defaultMessage": "Checked in the editor while you translate. A warning does not block saving. Project scans do not run this check.",
-    "description": "Help for the editor-only guideline QA check"
-  },
   "6ZyNhsk6BY": {
     "defaultMessage": "Hyperlocalise helps teams launch product content globally with market nuance, translation, and first-class human review.",
     "description": "Supporting copy under the company page headline"
@@ -6266,6 +6302,10 @@
   "74ZBFjwzSh": {
     "defaultMessage": "Password reset article",
     "description": "Sample article title in the help center workflow"
+  },
+  "74efu3oueY": {
+    "defaultMessage": "A localised cut needs to look as good as the original.",
+    "description": "Situation for Iris video tools on the pricing page"
   },
   "756ODq6uhK": {
     "defaultMessage": "Localize campaign copy",
@@ -6642,6 +6682,10 @@
   "7bsA3fdcWa": {
     "defaultMessage": "Applies only to this translation and check. Changes to the text or check will require review again.",
     "description": "QA review: ignoreHelp"
+  },
+  "7cH/khk2xj": {
+    "defaultMessage": "Music from a short description",
+    "description": "Card summary for the ElevenLabs Music model on the pricing page"
   },
   "7cvXshAN8y": {
     "defaultMessage": "Least busy: fewest open jobs",
@@ -7843,6 +7887,10 @@
     "defaultMessage": "Your story.\nThe same impact.",
     "description": "Title for the slides format panel"
   },
+  "9LIEz31Fmx": {
+    "defaultMessage": "Artistic, editorial looks",
+    "description": "Card summary for the Krea 2 Large image model on the pricing page"
+  },
   "9LhH/qmimS": {
     "defaultMessage": "{card} · prices of {date}",
     "description": "Rate card cell: the card's name, then the day its prices were taken"
@@ -8383,6 +8431,10 @@
     "defaultMessage": "Control how source strings are organized in the Content Editor, and what source text changes do to approved translations.",
     "description": "Content Editor settings section description"
   },
+  "A83QwAGhC6": {
+    "defaultMessage": "Make campaign images in Iris from a brief or a reference picture. Pick the model whose style fits, then localise the result for each market. Usage comes out of your monthly AI credit.",
+    "description": "Story for Iris image generation models on the pricing page"
+  },
   "A9BYSi93bG": {
     "defaultMessage": "Response",
     "description": "Section title for API response schema"
@@ -8418,6 +8470,10 @@
   "AB+BNzkQF0": {
     "defaultMessage": "Warning",
     "description": "Document editor: callout kind"
+  },
+  "ABp/G73p+A": {
+    "defaultMessage": "Match lips to the new language",
+    "description": "Card summary for the Sync Lipsync 2 model on the pricing page"
   },
   "ACTAy3p5p3": {
     "defaultMessage": "Fixed",
@@ -9503,10 +9559,6 @@
     "defaultMessage": "Week",
     "description": "Switch option: one bar per week"
   },
-  "Bqz0aRCBut": {
-    "defaultMessage": "Describe a short clip when a market needs motion as well as words. Included on paid plans. Usage comes out of your monthly AI credit.",
-    "description": "Story for the video model on the pricing page"
-  },
   "BrXfVaiNs0": {
     "defaultMessage": "Workspace subscription plan",
     "description": "Fallback description when an Autumn plan has no description"
@@ -9538,6 +9590,10 @@
   "BsQAY8Fc69": {
     "defaultMessage": "Hyperlocalise gives localisation operations a single control plane across sources, models, reviewers, and sync targets.",
     "description": "Workflow section description for the localisation-operations use case"
+  },
+  "BsjNKJYjjz": {
+    "defaultMessage": "You need captions, a transcript, or a summary of footage.",
+    "description": "Situation for Iris transcription models on the pricing page"
   },
   "BtlJ9IYjPk": {
     "defaultMessage": "Delete locale",
@@ -10150,6 +10206,10 @@
   "Cjmm2y/kv2": {
     "defaultMessage": "Track keywords",
     "description": "Submit add keywords dialog"
+  },
+  "Ck9Q3FTTik": {
+    "defaultMessage": "Your brand and style rules, checked against copy and remembered by the agent.",
+    "description": "Pricing matrix section description for Guidelines"
   },
   "CkFkjy7fQ+": {
     "defaultMessage": "Use test data",
@@ -10934,6 +10994,10 @@
   "DsCAD1RMQU": {
     "defaultMessage": "Actor",
     "description": "Label for the activity log actor filter"
+  },
+  "DsIdKW1eBu": {
+    "defaultMessage": "Guidelines are turned on for this workspace.",
+    "description": "Job activity step when guideline documents are enabled"
   },
   "DsRoK8kvzv": {
     "defaultMessage": "Suggested copy",
@@ -12243,6 +12307,10 @@
     "defaultMessage": "Leave brand PDFs, market notes, and policy libraries where legal and brand already keep them. Or type a guideline in Hyperlocalise. Agents read either one.",
     "description": "Body copy for the Guidelines sources section"
   },
+  "FkVjP5MgdL": {
+    "defaultMessage": "Short video from a brief",
+    "description": "Card summary for the Seedance 2.5 video model on the pricing page"
+  },
   "Fkgfxe1y6x": {
     "defaultMessage": "translation",
     "description": "Job kind label for translation jobs"
@@ -12366,6 +12434,10 @@
   "FxGatVHbDJ": {
     "defaultMessage": "Translation memories",
     "description": "Accessible label for the translation memories list section"
+  },
+  "FxLEHPtV49": {
+    "defaultMessage": "Translate the text inside an image",
+    "description": "Card summary for the Iris Image Localise tool on the pricing page"
   },
   "FxNFbqpNBI": {
     "defaultMessage": "Channel ID",
@@ -12807,10 +12879,6 @@
     "defaultMessage": "Contentful",
     "description": "Automation run trigger source label for Contentful-triggered runs"
   },
-  "Ge+3hBBbLV": {
-    "defaultMessage": "You need an image, not another paragraph.",
-    "description": "Situation for the image model on the pricing page"
-  },
   "GeD3IIa8Fg": {
     "defaultMessage": "Update the metadata stored with this project.",
     "description": "Description of the edit project dialog"
@@ -12886,6 +12954,10 @@
   "GkBUFyeO69": {
     "defaultMessage": "Schedule hour",
     "description": "Accessible label for the schedule hour selector"
+  },
+  "Gke6lGkaom": {
+    "defaultMessage": "Remove an image background",
+    "description": "Card summary for the Bria RMBG 2.0 background removal tool on the pricing page"
   },
   "Gl+LobSOlL": {
     "defaultMessage": "deleted an automation",
@@ -13263,6 +13335,10 @@
     "defaultMessage": "Team role updated",
     "description": "Toast after a team member’s role is updated"
   },
+  "HGWh4sPGlW": {
+    "defaultMessage": "Domains",
+    "description": "Domains list page heading"
+  },
   "HGhsIR52do": {
     "defaultMessage": "Costs by project",
     "description": "Accessible name of the costs table"
@@ -13386,6 +13462,10 @@
   "HUCubZRiHL": {
     "defaultMessage": "Product strings",
     "description": "Name of the product strings content source."
+  },
+  "HVLwZCD46Y": {
+    "defaultMessage": "Guideline checks / week",
+    "description": "Pricing matrix row label for the weekly guideline check quota"
   },
   "HVWNQgqVcW": {
     "defaultMessage": "Your invitation was accepted, but the workspace is not ready yet. Reload this page in a moment.",
@@ -14575,6 +14655,10 @@
     "defaultMessage": "Could not load",
     "description": "Home card count when that resource failed to load"
   },
+  "JJcwSISxif": {
+    "defaultMessage": "Sharp images up to 4K",
+    "description": "Card summary for the Nano Banana 2.1 image model on the pricing page"
+  },
   "JJe6JcgNwt": {
     "defaultMessage": "Reset URL",
     "description": "Button that replaces a workflow's webhook URL with a new one"
@@ -15074,6 +15158,10 @@
   "K76rTMej1a": {
     "defaultMessage": "Linked issues",
     "description": "Editor mock use case pill for issues linked to strings"
+  },
+  "K7nUTSGC5h": {
+    "defaultMessage": "Music & sound",
+    "description": "Filter label for music and sound effect models on the pricing page"
   },
   "K85G3xZFL6": {
     "defaultMessage": "This preview now meets the threshold for TMS sync.",
@@ -16091,6 +16179,10 @@
     "defaultMessage": "{count, plural, one {# pending action across your workspace.} other {# pending actions across your workspace.}}",
     "description": "Dashboard hero description with pending action count"
   },
+  "LljPoRBdjK": {
+    "defaultMessage": "20 guideline checks per week",
+    "description": "Starter plan feature: weekly guideline check quota"
+  },
   "Llo60/JvXZ": {
     "defaultMessage": "Your live site",
     "description": "Eyebrow for the Domains live page section"
@@ -16142,6 +16234,10 @@
   "LpAm1eoUb6": {
     "defaultMessage": "Workspace overview could not be loaded.",
     "description": "Error when the overview snapshot fails to load"
+  },
+  "LpSbNeWQyy": {
+    "defaultMessage": "Change part of an image with words",
+    "description": "Card summary for the Iris Image Edit tool on the pricing page"
   },
   "Lps9d8jAkf": {
     "defaultMessage": "Enable {count}",
@@ -16879,6 +16975,10 @@
     "defaultMessage": "Images from links",
     "description": "AI feature: images found at a link in a string"
   },
+  "MrYO3un+O+": {
+    "defaultMessage": "Skipped requesting guidelines.",
+    "description": "Job activity step when guideline retrieval is not requested"
+  },
   "MrZ8+8I97E": {
     "defaultMessage": "Score",
     "description": "Column heading for scores on the localisation audit leaderboard"
@@ -17363,6 +17463,10 @@
     "defaultMessage": "Glossary not found.",
     "description": "Empty state when a glossary cannot be found"
   },
+  "NZeWaBrCtn": {
+    "defaultMessage": "Photoreal images up to 4K",
+    "description": "Card summary for the FLUX.3 Image model on the pricing page"
+  },
   "NZgVd5LQvT": {
     "defaultMessage": "Failed to load projects",
     "description": "Fallback error when projects fail to load on the glossaries page"
@@ -17682,10 +17786,6 @@
   "O+ldw8Aj3z": {
     "defaultMessage": "Unknown",
     "description": "Fallback label when an automation has no creator name"
-  },
-  "O+malJ4pAE": {
-    "defaultMessage": "Turn a recording into text your team can review and translate. Included on paid plans. Usage comes out of your monthly AI credit.",
-    "description": "Story for the transcription model on the pricing page"
   },
   "O/4w7DJ8Jn": {
     "defaultMessage": "Check copy against style guides and market rules before publish.",
@@ -18183,6 +18283,10 @@
     "defaultMessage": "Best for most domains.",
     "description": "Verification method help"
   },
+  "OlWT3zl2O8": {
+    "defaultMessage": "Iris reads the copy baked into an image, translates it with your glossary and translation memory, and redraws it in place. Edit any area of a picture with a short instruction.",
+    "description": "Story for Iris image localisation tools on the pricing page"
+  },
   "Om0BHjcSlW": {
     "defaultMessage": "Hours logged",
     "description": "Reports mock UI hours logged metric label"
@@ -18494,6 +18598,10 @@
   "PBDgruWZRx": {
     "defaultMessage": "Source",
     "description": "Projects list sourceLabel"
+  },
+  "PBKHzxBSWq": {
+    "defaultMessage": "They come from {count, plural, one {# guideline} other {# guidelines}}.",
+    "description": "Job activity step for how many guidelines supplied search passages"
   },
   "PBd06JWdET": {
     "defaultMessage": "Style guide",
@@ -18831,6 +18939,10 @@
     "defaultMessage": "traduction automatique",
     "description": "Seed keyword placeholder"
   },
+  "Pmd/DH6eoc": {
+    "defaultMessage": "Steady voice-over in many languages",
+    "description": "Card summary for the ElevenLabs v3 voice model on the pricing page"
+  },
   "Pn+G9vzgVQ": {
     "defaultMessage": "Properties",
     "description": "Document editor: button that edits an MDX component's text properties"
@@ -19086,6 +19198,10 @@
   "Q6hHUNtw7B": {
     "defaultMessage": "Export · {filename}",
     "description": "Name of a glossary export run identified by its filename"
+  },
+  "Q7Cm8GRzCH": {
+    "defaultMessage": "Quick drafts for exploring ideas",
+    "description": "Card summary for the FLUX.2 Klein image model on the pricing page"
   },
   "Q7NvaWMPza": {
     "defaultMessage": "Error code",
@@ -19531,6 +19647,10 @@
     "defaultMessage": "Glossary violation",
     "description": "Issue type filter option for a glossary violation"
   },
+  "QoE8dVpJFP": {
+    "defaultMessage": "Guidelines",
+    "description": "Pricing matrix section title for Guidelines"
+  },
   "QoSDgiiNvY": {
     "defaultMessage": "Localisation score {score}/100 for {domain}. Technical and linguistic findings from Hyperlocalise.",
     "description": "Meta description for a completed localisation audit result page"
@@ -19658,6 +19778,10 @@
   "R1l6Bs+7Ss": {
     "defaultMessage": "Cancel",
     "description": "Cancel button in members dialogs"
+  },
+  "R2E1/A87hi": {
+    "defaultMessage": "An image is almost right but needs a cut-out or more detail.",
+    "description": "Situation for Iris image tools on the pricing page"
   },
   "R32W5WVswi": {
     "defaultMessage": "removed a member",
@@ -19890,10 +20014,6 @@
   "RSCu8OSDph": {
     "defaultMessage": "No description yet",
     "description": "Fallback text when a project card has no description"
-  },
-  "RSD6Hb39Fw": {
-    "defaultMessage": "Turn speech into text",
-    "description": "Summary for the transcription model on the pricing page"
   },
   "RSG9yRsAq1": {
     "defaultMessage": "Turn off",
@@ -20462,6 +20582,10 @@
   "SGrQFByJdA": {
     "defaultMessage": "Blog | Hyperlocalise",
     "description": "Meta title for the marketing blog index page"
+  },
+  "SH/3azga8A": {
+    "defaultMessage": "Quick, low-cost voice-over",
+    "description": "Card summary for the Gemini 3.8 Flash TTS voice model on the pricing page"
   },
   "SHEAO5sth2": {
     "defaultMessage": "Video Editor",
@@ -21263,6 +21387,10 @@
     "defaultMessage": "Apply for startup pricing",
     "description": "Primary CTA on the startups page hero and program section"
   },
+  "TS5xLIAyN5": {
+    "defaultMessage": "Finish a localised video in Iris. Upscale footage, or re-time a speaker's lips to the new language so the dub looks natural.",
+    "description": "Story for Iris video tools (upscaling, lip-sync) on the pricing page"
+  },
   "TSLfOgCp9k": {
     "defaultMessage": "Collection expression",
     "description": "Label for for-each collection expression field"
@@ -21342,6 +21470,10 @@
   "TYbrzdSaf3": {
     "defaultMessage": "Connected to {serverUrl} as {username}.",
     "description": "Integration row description once a GitLab server is connected"
+  },
+  "TYdpmDdWse": {
+    "defaultMessage": "Paid plans include writing models, plus every image, video, voice, and sound model in Iris. Those draw from your monthly AI credit. Connect OpenAI, Anthropic, or Gemini when you want a writer billed to that account.",
+    "description": "Supporting copy for the models section on the pricing page"
   },
   "TYisbjRrWY": {
     "defaultMessage": "imported translation memory",
@@ -21590,10 +21722,6 @@
   "Tr1gN4gyGr": {
     "defaultMessage": "QA issues",
     "description": "Label for the QA issues presence filter"
-  },
-  "Tr9qQQZ/aQ": {
-    "defaultMessage": "Describe the picture you need for a campaign or a stand-in visual. Included on paid plans. Usage comes out of your monthly AI credit.",
-    "description": "Story for the image model on the pricing page"
   },
   "TrBjo12/3b": {
     "defaultMessage": "HTTP, webhooks & AI steps",
@@ -22427,10 +22555,6 @@
     "defaultMessage": "Failed",
     "description": "Run card badge when the run failed"
   },
-  "V5Cs48ujmR": {
-    "defaultMessage": "Hear how a line sounds",
-    "description": "Summary for the text to speech model on the pricing page"
-  },
   "V5IhYqq1Fk": {
     "defaultMessage": "Manage",
     "description": "Button label to expand integration settings"
@@ -22442,6 +22566,10 @@
   "V5oxauHGks": {
     "defaultMessage": "{count, plural, one {Translation agent queued for # file} other {Translation agent queued for # files}}",
     "description": "Toast after agent translation jobs are queued for a locale"
+  },
+  "V6jqG39WLh": {
+    "defaultMessage": "Check copy against your guidelines before it ships.",
+    "description": "Pricing matrix detail explaining guideline checks"
   },
   "V88J+lbuKL": {
     "defaultMessage": "CTR",
@@ -22554,6 +22682,10 @@
   "VGayu+ZFkL": {
     "defaultMessage": "Previous segment ({shortcut})",
     "description": "Tooltip for the previous segment navigation button"
+  },
+  "VGcJbowtpZ": {
+    "defaultMessage": "Fast, low-cost images",
+    "description": "Card summary for the Nano Banana 2 image model on the pricing page"
   },
   "VGmQfcA1bL": {
     "defaultMessage": "Remove this Zernio connection from automations before deleting it.",
@@ -23022,6 +23154,10 @@
   "W3I3Xglsup": {
     "defaultMessage": "Filter ({count})",
     "description": "Filter button label when jobs list filters are active"
+  },
+  "W3Kw7PrCu5": {
+    "defaultMessage": "Fast, low-cost clips",
+    "description": "Card summary for the Grok Imagine Video 1.5 model on the pricing page"
   },
   "W3dD2MKin0": {
     "defaultMessage": "{count, plural, one {This automation uses an account you connected and may stop working:} other {These automations use accounts you connected and may stop working:}}",
@@ -24559,10 +24695,6 @@
     "defaultMessage": "Locale",
     "description": "Placeholder for the CAT header target locale select when empty"
   },
-  "YP1eohi/Yy": {
-    "defaultMessage": "You want to hear the rhythm and length of a line.",
-    "description": "Situation for the text to speech model on the pricing page"
-  },
   "YPUY3Uik30": {
     "defaultMessage": "Retry",
     "description": "Button label to retry loading automation settings"
@@ -24586,6 +24718,10 @@
   "YSaCuF5iBS": {
     "defaultMessage": "Cost per click in the provider currency.",
     "description": "Keyword research screen: cpcHelp"
+  },
+  "YT+yFQwxhg": {
+    "defaultMessage": "These locales apply to every research view for {domain}.",
+    "description": "Help text when editing saved research locales"
   },
   "YTRbiRB1qL": {
     "defaultMessage": "No assigned Hyperlocalise jobs found.",
@@ -25443,6 +25579,10 @@
     "defaultMessage": "Language",
     "description": "QA review: language"
   },
+  "ZlYASzr31X": {
+    "defaultMessage": "Turn a brief, a still, or a start and end frame into a short clip in Iris. Then subtitle, dub, and check it for every locale in the same project.",
+    "description": "Story for Iris video generation models on the pricing page"
+  },
   "ZlYq8eSzg2": {
     "defaultMessage": "Query parameters",
     "description": "HTTP node query parameters label"
@@ -25518,6 +25658,10 @@
   "ZqN2yepK3V": {
     "defaultMessage": "You want quicker replies from this OpenAI model.",
     "description": "Situation for a faster included OpenAI model on the pricing page"
+  },
+  "ZqYKrJ31FK": {
+    "defaultMessage": "Smooth motion from a still",
+    "description": "Card summary for the Kling 3.0 video model on the pricing page"
   },
   "Zqf++rV/7O": {
     "defaultMessage": "Automation",
@@ -25843,6 +25987,10 @@
     "defaultMessage": "Explore integrations",
     "description": "Marketing homepage integrationsLink"
   },
+  "aD74hNO0Gf": {
+    "defaultMessage": "Guidelines",
+    "description": "Pricing matrix row label for Guidelines access"
+  },
   "aD9snRqB1l": {
     "defaultMessage": "Select a GitLab project",
     "description": "Placeholder when no GitLab project is selected"
@@ -25958,6 +26106,10 @@
   "aLgr7cq8Pf": {
     "defaultMessage": "Export",
     "description": "Confirm button in the export dialog"
+  },
+  "aMDdzu5mOx": {
+    "defaultMessage": "Edit locales",
+    "description": "Dialog title when editing saved research locales"
   },
   "aMPe6yzgje": {
     "defaultMessage": "Onboarding",
@@ -26378,10 +26530,6 @@
   "b/pQ8GedZy": {
     "defaultMessage": "The assistant updated this automation",
     "description": "Summary line above the form after changes on a saved automation"
-  },
-  "b/ulx7nVXu": {
-    "defaultMessage": "A recording needs to become copy you can localize.",
-    "description": "Situation for the transcription model on the pricing page"
   },
   "b04WpJPIZh": {
     "defaultMessage": "Keywords",
@@ -27283,10 +27431,6 @@
     "defaultMessage": "Tick the strings for the new task, then choose More → Add to a task…",
     "description": "Notice above the queue when the editor was opened from the jobs page to make a task from strings"
   },
-  "cHYsUGiY4s": {
-    "defaultMessage": "Still images from a short brief",
-    "description": "Summary for the image model on the pricing page"
-  },
   "cHvtlHrefQ": {
     "defaultMessage": "Source image",
     "description": "Alt text for the CAT source image preview"
@@ -27334,6 +27478,10 @@
   "cN7lGns1+R": {
     "defaultMessage": "Unable to save sync settings.",
     "description": "Error shown when saving the project sync settings fails"
+  },
+  "cObYw5PnTj": {
+    "defaultMessage": "You need a voice-over in a new language.",
+    "description": "Situation for Iris voice models on the pricing page"
   },
   "cOeHLAqsSE": {
     "defaultMessage": "Contentful webhook ID: {webhookId}",
@@ -28903,6 +29051,10 @@
     "defaultMessage": "{workflowName} will be removed from this workspace and will no longer run.",
     "description": "Delete visual workflow confirmation describing the selected workflow"
   },
+  "eQHvXLzoHf": {
+    "defaultMessage": "This domain has no research locales.",
+    "description": "Explanation when a verified domain has no saved research locales"
+  },
   "eQIxzTUwry": {
     "defaultMessage": "Ahrefs",
     "description": "Ahrefs tool chip in content ops terminal mock"
@@ -29110,6 +29262,10 @@
   "ehBAg1ZBrW": {
     "defaultMessage": "Locale",
     "description": "System field mapping label for target locale"
+  },
+  "ehdRjJUoSM": {
+    "defaultMessage": "Upscale a small image",
+    "description": "Card summary for the SeedVR 2 image upscaler on the pricing page"
   },
   "ehiNyfW7wC": {
     "defaultMessage": "Add competitors",
@@ -29363,6 +29519,10 @@
     "defaultMessage": "Add the versions and the site changes each one should turn on.",
     "description": "Hyperlab home how-it-works step 3"
   },
+  "f45fdRyrBr": {
+    "defaultMessage": "A still image is not enough for the campaign.",
+    "description": "Situation for Iris video generation models on the pricing page"
+  },
   "f46AmI9URt": {
     "defaultMessage": "Search",
     "description": "Domains solution tab for SEO"
@@ -29478,6 +29638,10 @@
   "fGjKs76+lc": {
     "defaultMessage": "Back to Guideline",
     "description": "Link back to the Guideline page from the upload page"
+  },
+  "fH8zr33NAK": {
+    "defaultMessage": "Photoreal motion",
+    "description": "Card summary for the FLUX.3 Video model on the pricing page"
   },
   "fHIwmwiNEw": {
     "defaultMessage": "Hyperlocalise reloads in the language you pick.",
@@ -29875,6 +30039,10 @@
     "defaultMessage": "Email · yesterday",
     "description": "Inbox conversation meta in content ops mock"
   },
+  "fsQLLi+dCQ": {
+    "defaultMessage": "Dub a video into another language and keep each speaker's own voice. Iris separates up to nine speakers and lines the new audio up with the cut.",
+    "description": "Story for the Iris dubbing model on the pricing page"
+  },
   "fsj2SHFeSt": {
     "defaultMessage": "Files failed to load.",
     "description": "Error title when the project files list fails to load"
@@ -30147,6 +30315,10 @@
     "defaultMessage": "Manage the shared workspace guideline documents used by this automation.",
     "description": "Description for the workspace guideline management sheet"
   },
+  "gDctOAs44P": {
+    "defaultMessage": "Images with clean, readable text",
+    "description": "Card summary for the GPT Image 2.6 Sunburst image model on the pricing page"
+  },
   "gDhdBdZD2s": {
     "defaultMessage": "More",
     "description": "Screen reader label for the breadcrumb ellipsis overflow indicator"
@@ -30178,6 +30350,10 @@
   "gGRRIh5EV/": {
     "defaultMessage": "Linked to Figma brand {brandId}",
     "description": "Shows the Figma brand bound to a connection"
+  },
+  "gGk72zH7oe": {
+    "defaultMessage": "Give a script a voice in Iris. Choose a voice, hear a preview, and place the line straight on the timeline.",
+    "description": "Story for Iris voice (text-to-speech) models on the pricing page"
   },
   "gHUxugs0eg": {
     "defaultMessage": "Built for localisation teams. Start free today.",
@@ -30255,6 +30431,10 @@
     "defaultMessage": "Connect GitLab in Integrations first.",
     "description": "Error shown when a GitLab project sync is saved while the workspace has no GitLab connection"
   },
+  "gNQMgRK+w9": {
+    "defaultMessage": "Clean up a picture before it ships. Remove a background or sharpen a small image in one step on the Iris canvas.",
+    "description": "Story for Iris image tools (background removal, upscaling) on the pricing page"
+  },
   "gNwdZXjHEr": {
     "defaultMessage": "Cancel",
     "description": "Cancel button in the placeholder format dialog"
@@ -30294,6 +30474,10 @@
   "gQTLQI8WWt": {
     "defaultMessage": "Some locales still need translation",
     "description": "Heading when a job finished some locales and left others for retry"
+  },
+  "gQVNehK3w1": {
+    "defaultMessage": "Natural, expressive voice-over",
+    "description": "Card summary for the ElevenLabs v4 voice model on the pricing page"
   },
   "gQaOHIIj8G": {
     "defaultMessage": "Review imports and exports, then open a report to download a finished export.",
@@ -30574,6 +30758,10 @@
   "gq9Z4S47VX": {
     "defaultMessage": "Enabled",
     "description": "Slack agent status title when connected and enabled"
+  },
+  "gqAXExJP8/": {
+    "defaultMessage": "Reliable photoreal images",
+    "description": "Card summary for the FLUX.2 Pro image model on the pricing page"
   },
   "gr/+9uTU/3": {
     "defaultMessage": "This workspace is archived and can no longer be opened.",
@@ -31086,6 +31274,10 @@
   "hX5nMex6ry": {
     "defaultMessage": "Regenerate image",
     "description": "Image viewer: regenerate"
+  },
+  "hXSN/OaRHq": {
+    "defaultMessage": "Skipped guideline search passages.",
+    "description": "Job activity step when guideline search passages are not considered"
   },
   "hXSssVY0i9": {
     "defaultMessage": "Pending",
@@ -31987,6 +32179,10 @@
     "defaultMessage": "Release check",
     "description": "Workflow step 6 label for the product-localisation use case"
   },
+  "ioDvkfLpcy": {
+    "defaultMessage": "Read the copy in an image",
+    "description": "Card summary for the Iris Image Text tool on the pricing page"
+  },
   "iohP8x/4Gk": {
     "defaultMessage": "Failed to load Zernio connections.",
     "description": "Error when Zernio connections cannot be loaded"
@@ -32386,6 +32582,10 @@
   "jQ5TgyeZII": {
     "defaultMessage": "Check locale coverage, terminology, and compliance gates.",
     "description": "Validation tool description in the marketing automation editor mock"
+  },
+  "jR18LljICi": {
+    "defaultMessage": "Upload style guides and brand docs for the workspace or a single project.",
+    "description": "Pricing matrix detail explaining Guidelines"
   },
   "jRn12WvzpR": {
     "defaultMessage": "Format",
@@ -32847,6 +33047,10 @@
     "defaultMessage": "Sanity authorized with OAuth",
     "description": "Heading when Sanity is connected via OAuth"
   },
+  "k6Uke9LGL6": {
+    "defaultMessage": "Skipped always-applied guidelines.",
+    "description": "Job activity step when always-applied guidelines are not considered"
+  },
   "k6wO1BhuBw": {
     "defaultMessage": "Source video unavailable",
     "description": "Empty state when the CAT source video cannot be shown"
@@ -32866,6 +33070,10 @@
   "k8haXRuhS3": {
     "defaultMessage": "Move up",
     "description": "Button to move an issue column earlier in sort order"
+  },
+  "k949qy/hv7": {
+    "defaultMessage": "Included {count, plural, =0 {no always-applied guidelines} one {# always-applied guideline} other {# always-applied guidelines}}. {omitted} did not fit.",
+    "description": "Job activity step for always-applied guideline documents"
   },
   "k9j7R6aLei": {
     "defaultMessage": "Could not load messages",
@@ -32934,6 +33142,10 @@
   "kDiXBdNQE9": {
     "defaultMessage": "Provider: {value}",
     "description": "Chip label for the active provider filter"
+  },
+  "kDjV6WPg42": {
+    "defaultMessage": "Score a clip or add sound effects from a short description, without leaving the Iris timeline.",
+    "description": "Story for Iris music and sound effect models on the pricing page"
   },
   "kEhYEqOX8G": {
     "defaultMessage": "Disconnect",
@@ -33235,6 +33447,10 @@
     "defaultMessage": "Create team",
     "description": "Button to open the create team dialog"
   },
+  "kfPXpCYidI": {
+    "defaultMessage": "Bold, stylised images",
+    "description": "Card summary for the Grok Imagine 2.0 image model on the pricing page"
+  },
   "kfgkg2ouHx": {
     "defaultMessage": "Preview is not available for this file type. Use Download to save the original file.",
     "description": "Notice when a guideline document has no text preview"
@@ -33483,13 +33699,13 @@
     "defaultMessage": "Optional. Add anything specific to your team: tone, report format, what to ignore.",
     "description": "Placeholder for the automation instructions textarea when a skill is attached"
   },
+  "l+omfB57gF": {
+    "defaultMessage": "Guidelines",
+    "description": "Paid plan feature: Guidelines access"
+  },
   "l+wMmn4Krw": {
     "defaultMessage": "Failed to load Semrush connections.",
     "description": "Error when Semrush connections cannot be loaded"
-  },
-  "l//f5K3F+p": {
-    "defaultMessage": "ByteDance",
-    "description": "ByteDance provider name on the pricing page"
   },
   "l0LaeWZhOk": {
     "defaultMessage": "Term used instead",
@@ -33962,6 +34178,10 @@
   "lm8uSjSdQw": {
     "defaultMessage": "Missing translation",
     "description": "QA review: not_localized"
+  },
+  "lmCtTpX8xG": {
+    "defaultMessage": "Checked in the editor while you translate. A warning does not block saving. An error blocks saving when the editor has already reported it. Project scans do not run this check.",
+    "description": "Help for the editor-only guideline QA check"
   },
   "lmLPnsMyhs": {
     "defaultMessage": "Go to dashboard",
@@ -34479,6 +34699,10 @@
     "defaultMessage": "Zoom out",
     "description": "Accessible label for zooming out within the image lightbox"
   },
+  "mTTUgqB18+": {
+    "defaultMessage": "Guideline retrieval failed.",
+    "description": "Job activity step when guideline retrieval fails"
+  },
   "mTauU9Q8fj": {
     "defaultMessage": "Unchanged",
     "description": "Tab for deep audit findings also present in the previous run"
@@ -34779,6 +35003,10 @@
     "defaultMessage": "Help center localisation",
     "description": "Hero eyebrow for the help-center-localisation use case"
   },
+  "mqz0uJaBHF": {
+    "defaultMessage": "Included {names}.",
+    "description": "Job activity step listing the guideline documents that were included"
+  },
   "mrbQRCFXKI": {
     "defaultMessage": "Complete this workflow with declared typed outputs.",
     "description": "Catalog description for the terminal workflow return node"
@@ -34846,6 +35074,14 @@
   "mzBTNMYPpo": {
     "defaultMessage": "Choose a project above to pick target locales.",
     "description": "Empty state when Create job target locales need a project first"
+  },
+  "n+3XFK8STI": {
+    "defaultMessage": "A video needs music or sound that fits the local cut.",
+    "description": "Situation for Iris music and sound effect models on the pricing page"
+  },
+  "n+AIAUMlWH": {
+    "defaultMessage": "People on screen should sound like themselves in every market.",
+    "description": "Situation for the Iris dubbing model on the pricing page"
   },
   "n+YVQESgnK": {
     "defaultMessage": "Update the team name or slug used across the workspace.",
@@ -35467,6 +35703,10 @@
     "defaultMessage": "Layer {index}",
     "description": "Image viewer: region"
   },
+  "no9lD9eDrr": {
+    "defaultMessage": "Cinematic clips with sound",
+    "description": "Card summary for the Veo 3.1 video model on the pricing page"
+  },
   "nojhrDNSfO": {
     "defaultMessage": "Apply low-quality TM match?",
     "description": "Title for confirmation dialog when applying a TM match below 70%"
@@ -35955,6 +36195,10 @@
     "defaultMessage": "Save check settings",
     "description": "Save QA policy"
   },
+  "ob6BOeVg1Z": {
+    "defaultMessage": "Quicker, cheaper Veo clips",
+    "description": "Card summary for the Veo 3.1 Fast video model on the pricing page"
+  },
   "obN/tl+Sdr": {
     "defaultMessage": "Run ID",
     "description": "QA run ID label"
@@ -36303,10 +36547,6 @@
     "defaultMessage": "Assign new guideline",
     "description": "Subheading for assigning an org guideline to the current project"
   },
-  "p2iBQGftoM": {
-    "defaultMessage": "Fish Audio",
-    "description": "Fish Audio provider name on the pricing page"
-  },
   "p3FC9aFD6g": {
     "defaultMessage": "Save split",
     "description": "Button to save a variant rollout percentage"
@@ -36642,10 +36882,6 @@
   "pW1y7yrfkU": {
     "defaultMessage": "Actions for {name}",
     "description": "Accessible label for a workspace member row actions menu"
-  },
-  "pWIlwfK6L5": {
-    "defaultMessage": "A still image is not enough for the campaign.",
-    "description": "Situation for the video model on the pricing page"
   },
   "pWLMdEuyPH": {
     "defaultMessage": "{requestedLocale} is not a target locale for this file. Double-click a file or use Open Editor to edit {targetLocale}.",
@@ -37070,6 +37306,10 @@
   "q2LrsHfEDQ": {
     "defaultMessage": "Reading localisation diff...",
     "description": "Automations mock UI localisation review step 2"
+  },
+  "q2bbkJ9zWw": {
+    "defaultMessage": "Used by teams at",
+    "description": "Label above the customer logo carousel on the pricing page"
   },
   "q3g6c65hVD": {
     "defaultMessage": "Uploading…",
@@ -37507,9 +37747,17 @@
     "defaultMessage": "Japan can see a new checkout while France stays on the original.",
     "description": "Proof point 1 body for the Hyperlab product page"
   },
+  "qen7eE/t1H": {
+    "defaultMessage": "A banner or screenshot has text that must change per locale.",
+    "description": "Situation for Iris image localisation tools on the pricing page"
+  },
   "qfAtSAXlkS": {
     "defaultMessage": "Automations failed to load.",
     "description": "Error title when the automations list request fails"
+  },
+  "qfems+2CbW": {
+    "defaultMessage": "Skipped guideline retrieval.",
+    "description": "Job activity step when guideline retrieval is skipped"
   },
   "qg9c/jOJZY": {
     "defaultMessage": "Scan in progress. Findings appear when it finishes.",
@@ -37991,10 +38239,6 @@
     "defaultMessage": "From address",
     "description": "Label for the sender email address field"
   },
-  "rK02Gg9nl5": {
-    "defaultMessage": "Paid plans include models for writing, voice, listening, pictures, and video. Those draw from your monthly AI credit. Connect OpenAI, Anthropic, or Gemini when you want a writer billed to that account.",
-    "description": "Supporting copy for the models section on the pricing page"
-  },
   "rK4mJieBAr": {
     "defaultMessage": "Ignored",
     "description": "QA review: ignored"
@@ -38062,6 +38306,10 @@
   "rQ7m4xP0Uf": {
     "defaultMessage": "of type",
     "description": "Prose between the Contentful trigger name and the content types that start a run"
+  },
+  "rQQ1b1ARBO": {
+    "defaultMessage": "Dub video in the speakers' own voices",
+    "description": "Card summary for the ElevenLabs Dubbing model on the pricing page"
   },
   "rQXpyeuWHx": {
     "defaultMessage": "{count} failed",
@@ -38183,6 +38431,10 @@
     "defaultMessage": "Role",
     "description": "Label for the invite member role field"
   },
+  "re7FPtu6Rh": {
+    "defaultMessage": "Guideline retrieval finished.",
+    "description": "Job activity step when guideline retrieval succeeds"
+  },
   "reIlcT0QRC": {
     "defaultMessage": "Research",
     "description": "Job kind option on the job changed trigger"
@@ -38238,6 +38490,10 @@
   "riG8529T+y": {
     "defaultMessage": "General",
     "description": "Heading for the general project settings section"
+  },
+  "riJZSqihrB": {
+    "defaultMessage": "You need a new visual for a campaign or a market.",
+    "description": "Situation for Iris image generation models on the pricing page"
   },
   "rjJJmHDMJh": {
     "defaultMessage": "Finding context…",
@@ -38314,6 +38570,10 @@
   "rpzNVqnjuM": {
     "defaultMessage": "You do not have permission to manage AI providers in this workspace.",
     "description": "Shown when the current role cannot view AI Engine provider settings"
+  },
+  "rq8QUB9XaE": {
+    "defaultMessage": "Guidelines are turned off for this workspace.",
+    "description": "Job activity step when guideline documents are disabled"
   },
   "rqH4qSNbvK": {
     "defaultMessage": "Connected as {accountLogin}. {repoSummary}",
@@ -39107,10 +39367,6 @@
     "defaultMessage": "Create PR",
     "description": "GitHub pull request action label in the scenario card"
   },
-  "t1MgIE0AON": {
-    "defaultMessage": "Short video from a brief",
-    "description": "Summary for the video model on the pricing page"
-  },
   "t1ZP8XrgYe": {
     "defaultMessage": "Added skill: {skill}",
     "description": "Listed change of the assistant: a skill was attached"
@@ -39254,6 +39510,10 @@
   "tCw1pmceT2": {
     "defaultMessage": "Yes. AI moves drafts forward while reviewers compare, refine, comment, and make the final approval decision.",
     "description": "Content Studio FAQ answer about AI review"
+  },
+  "tDEahIWt6A": {
+    "defaultMessage": "Clips that keep a reference look",
+    "description": "Card summary for the Wan 3.0 video model on the pricing page"
   },
   "tDv3EqS/ae": {
     "defaultMessage": "Cancel",
@@ -39427,6 +39687,10 @@
     "defaultMessage": "Multilingual Content Studio",
     "description": "Marketing homepage studio"
   },
+  "tRvndOqpZA": {
+    "defaultMessage": "Requested guidelines for {count, plural, one {# locale} other {# locales}}.",
+    "description": "Job activity step when guideline retrieval is requested"
+  },
   "tS5s/SaJpX": {
     "defaultMessage": "AEO",
     "description": "Domains mock UI audit dimension label"
@@ -39579,6 +39843,10 @@
     "defaultMessage": "Selected",
     "description": "Project scope option for selected projects"
   },
+  "tkQdxeGO1o": {
+    "defaultMessage": "No research locales yet",
+    "description": "Title when a verified domain has no saved research locales"
+  },
   "tkW5GO4WZC": {
     "defaultMessage": "Loading endpoints…",
     "description": "Shown while webhook endpoints load"
@@ -39602,6 +39870,10 @@
   "tn+bJsIn8B": {
     "defaultMessage": "Marketing",
     "description": "First breadcrumb in the marketing hero CAT workspace mock"
+  },
+  "toQvY0saVD": {
+    "defaultMessage": "Sound effects on demand",
+    "description": "Card summary for the ElevenLabs SFX model on the pricing page"
   },
   "toROT17dSP": {
     "defaultMessage": "Could not update this finding. Please retry.",
@@ -39682,6 +39954,10 @@
   "tuvZlDHxtM": {
     "defaultMessage": "Greek (Greece)",
     "description": "Display name for BCP-47 locale el-GR"
+  },
+  "tvWxEL+OeJ": {
+    "defaultMessage": "Guideline retrieval failed ({code}).",
+    "description": "Job activity step when guideline retrieval fails with an error code"
   },
   "tw8Dxn5ajk": {
     "defaultMessage": "Competitors added to this lookup.",
@@ -40662,6 +40938,10 @@
   "vEvX8KwGFa": {
     "defaultMessage": "This will stop the job from appearing queued or running and prevent the current workflow run from updating it later.",
     "description": "Description in the mark-as-failed confirmation dialog"
+  },
+  "vF01WtRXQ8": {
+    "defaultMessage": "Upscale a video",
+    "description": "Card summary for the ByteDance video upscaler on the pricing page"
   },
   "vFJiS8I8Kx": {
     "defaultMessage": "Built for localisation operations at scale",
@@ -42035,6 +42315,10 @@
     "defaultMessage": "Preview is not available for this file type yet.",
     "description": "Empty state when CAT File view has no registered preview adapter"
   },
+  "x9Bzf0OHbt": {
+    "defaultMessage": "Choose the locales this domain researches.",
+    "description": "Dialog description when editing saved research locales"
+  },
   "x9HI7zKaWm": {
     "defaultMessage": "Search event details",
     "description": "Glossary history search input placeholder"
@@ -42155,6 +42439,10 @@
     "defaultMessage": "Hyperlocalise detects the latest billing FAQ changes from your help center.",
     "description": "Details shown when the source update card is selected."
   },
+  "xH5zSd7FDU": {
+    "defaultMessage": "High-resolution clips",
+    "description": "Card summary for the MiniMax H3 video model on the pricing page"
+  },
   "xHmiZAvHuU": {
     "defaultMessage": "Ask, Translation, and Coding use the workspace default model today. Text to speech, Transcribe, Image generation, and Video generation use included models. Per-capability overrides are coming soon.",
     "description": "Description under the Hyperlocalise Agent section heading"
@@ -42247,6 +42535,10 @@
     "defaultMessage": "Workspace",
     "description": "Workspace page header eyebrow label for jobs"
   },
+  "xT56xHEVrR": {
+    "defaultMessage": "Iris transcribes speech for captions and subtitles, and can describe what happens in a clip so you can find a moment fast.",
+    "description": "Story for Iris transcription and media understanding models on the pricing page"
+  },
   "xTFJa5ogoK": {
     "defaultMessage": "Usage meter",
     "description": "Segment context label for the usage meter in the CAT mock"
@@ -42274,6 +42566,10 @@
   "xUdbOFsZxg": {
     "defaultMessage": "Book an audit review",
     "description": "CTA to book a localisation audit review with the Hyperlocalise team"
+  },
+  "xV9j96h4Sa": {
+    "defaultMessage": "2,000 guideline checks per week",
+    "description": "Growth plan feature: weekly guideline check quota"
   },
   "xVjKDBvqPx": {
     "defaultMessage": "Push {count, plural, one {# item} other {# items}}",
@@ -43162,6 +43458,10 @@
   "yj4HofLXjM": {
     "defaultMessage": "No models match",
     "description": "Title when pricing model filters return nothing"
+  },
+  "yk3F4PfHvt": {
+    "defaultMessage": "Polished product and lifestyle shots",
+    "description": "Card summary for the Seedream 5.0 Pro image model on the pricing page"
   },
   "ykDxLMM1xO": {
     "defaultMessage": "Definition, context, or example sentence",
