@@ -920,6 +920,9 @@
   "/QuCM2WH7H": {
     "defaultMessage": "Mots sources × leurs langues"
   },
+  "/QuTN/lLlh": {
+    "defaultMessage": "La récupération des consignes a expiré."
+  },
   "/R/xwR7ZOR": {
     "defaultMessage": "Projet"
   },
@@ -1042,6 +1045,9 @@
   },
   "/bULn4h8+q": {
     "defaultMessage": "Variantes {count, number}"
+  },
+  "/cTcrQO3Yh": {
+    "defaultMessage": "Annuler"
   },
   "/cgIKQ7r8o": {
     "defaultMessage": "Tout activer"
@@ -1333,6 +1339,9 @@
   },
   "07NPIW0cJ3": {
     "defaultMessage": "Effacer les filtres"
+  },
+  "07nyefIF8a": {
+    "defaultMessage": "Décrivez et recherchez des séquences vidéo."
   },
   "07pTu6Ro98": {
     "defaultMessage": "Unlimited"
@@ -1901,6 +1910,9 @@
   "0x5bWok1f2": {
     "defaultMessage": "Forfait Croissance"
   },
+  "0xSp9R1ss3": {
+    "defaultMessage": "La recherche de directives était indisponible, aucun passage n’a donc été inclus."
+  },
   "0xVoz6BUOo": {
     "defaultMessage": "Regrouper par gravité"
   },
@@ -2189,11 +2201,17 @@
   "1VNZg9UkcM": {
     "defaultMessage": "Anthropic"
   },
+  "1VVms1Wl1W": {
+    "defaultMessage": "Inclus {count, plural, =0 {aucun passage de recherche} one {# passage de recherche} other {# passages de recherche}}."
+  },
   "1WHEF2Z8lT": {
     "defaultMessage": "L’historique n’a pas pu être chargé."
   },
   "1WYC40KrqC": {
     "defaultMessage": "Blog SEO"
+  },
+  "1WbVlM2sdF": {
+    "defaultMessage": "Modifiez et prolongez vos séquences vidéo existantes."
   },
   "1WcWsw29Gt": {
     "defaultMessage": "Nouvelle clé"
@@ -2842,6 +2860,9 @@
   },
   "2VWwjqjclF": {
     "defaultMessage": "Responsable"
+  },
+  "2VrNu3mZmp": {
+    "defaultMessage": "Des personnes et des visages expressifs"
   },
   "2WCxnj9DvK": {
     "defaultMessage": "Impossible d’ajouter une étape."
@@ -4094,6 +4115,9 @@
   "4YZHJp3TTf": {
     "defaultMessage": "Rapports"
   },
+  "4Yjt4O6mA1": {
+    "defaultMessage": "Dans Iris"
+  },
   "4YpYvVky/W": {
     "defaultMessage": "Vos modifications ont été réappliquées à l’automatisation rechargée."
   },
@@ -4159,6 +4183,9 @@
   },
   "4ipjfzP7qr": {
     "defaultMessage": "Traduire"
+  },
+  "4iwHjxb1FM": {
+    "defaultMessage": "La récupération des directives est terminée, mais aucune directive n’a été incluse."
   },
   "4jL6ZFEZhQ": {
     "defaultMessage": "Glossary"
@@ -4390,6 +4417,9 @@
   },
   "55UxBxUnw3": {
     "defaultMessage": "+{count} de plus"
+  },
+  "55i6amXT6x": {
+    "defaultMessage": "Des images détaillées conformes au brief"
   },
   "55pv/fQdGW": {
     "defaultMessage": "Nombres"
@@ -4639,6 +4669,9 @@
   },
   "5V5XZ84WTf": {
     "defaultMessage": "Choisir un responsable"
+  },
+  "5V7e1iLBtQ": {
+    "defaultMessage": "Légendes et transcriptions"
   },
   "5VQvCOhS8Q": {
     "defaultMessage": "Filtrer, mapper, réduire ou rechercher des valeurs dans une collection ordonnée."
@@ -5525,6 +5558,9 @@
   "74ZBFjwzSh": {
     "defaultMessage": "Article sur la réinitialisation du mot de passe"
   },
+  "74efu3oueY": {
+    "defaultMessage": "Un montage localisé doit être aussi réussi que l’original."
+  },
   "756ODq6uhK": {
     "defaultMessage": "Localiser le contenu de la campagne"
   },
@@ -5848,6 +5884,9 @@
   },
   "7bzkQaXdN3": {
     "defaultMessage": "Updated"
+  },
+  "7cH/khk2xj": {
+    "defaultMessage": "Musique à partir d'une brève description"
   },
   "7cvXshAN8y": {
     "defaultMessage": "Le moins occupé : le moins de tâches ouvertes"
@@ -6896,6 +6935,9 @@
   "9LD3POhUor": {
     "defaultMessage": "Votre histoire.\nLe même impact."
   },
+  "9LIEz31Fmx": {
+    "defaultMessage": "Styles artistiques et éditoriaux"
+  },
   "9LcPjakBL/": {
     "defaultMessage": "2 intégrations"
   },
@@ -7358,6 +7400,9 @@
   "A7wtt7iAbG": {
     "defaultMessage": "Définissez l’organisation des chaînes source dans l’éditeur de contenu et l’effet des modifications du texte source sur les traductions approuvées."
   },
+  "A83QwAGhC6": {
+    "defaultMessage": "Créez des visuels de campagne dans Iris à partir d’un brief ou d’une image de référence. Choisissez le modèle dont le style vous convient, puis adaptez le résultat à chaque marché. L’utilisation est déduite de votre crédit IA mensuel."
+  },
   "A8n3883pxm": {
     "defaultMessage": "L’historique des importations n’a pas pu être chargé"
   },
@@ -7396,6 +7441,9 @@
   },
   "ABTbyceqH3": {
     "defaultMessage": "Exécuter les vérifications maintenant"
+  },
+  "ABp/G73p+A": {
+    "defaultMessage": "Faites correspondre les mouvements des lèvres à la nouvelle langue."
   },
   "ACTAy3p5p3": {
     "defaultMessage": "Corrigé"
@@ -8348,6 +8396,9 @@
   "BsQAY8Fc69": {
     "defaultMessage": "Hyperlocalise offre aux opérations de localisation un plan de contrôle unique sur les sources, les modèles, les relecteurs et les cibles de synchronisation."
   },
+  "BsjNKJYjjz": {
+    "defaultMessage": "Vous avez besoin de sous-titres, d'une transcription ou d'un résumé de vos vidéos."
+  },
   "BtlJ9IYjPk": {
     "defaultMessage": "Supprimer la langue locale"
   },
@@ -8893,6 +8944,9 @@
   },
   "Ck9MOHJiWV": {
     "defaultMessage": "Ce domaine est déjà associé. Modifiez plutôt ses paramètres régionaux."
+  },
+  "Ck9Q3FTTik": {
+    "defaultMessage": "Vos règles de marque et de style, vérifiées par rapport aux textes et mémorisées par l’agent."
   },
   "CkFkjy7fQ+": {
     "defaultMessage": "Utiliser les données de test"
@@ -9595,6 +9649,9 @@
   },
   "DsCAD1RMQU": {
     "defaultMessage": "Acteur"
+  },
+  "DsIdKW1eBu": {
+    "defaultMessage": "Les consignes sont activées pour cet espace de travail."
   },
   "DsRoK8kvzv": {
     "defaultMessage": "Copie suggérée"
@@ -10733,6 +10790,9 @@
   "FkOEgV248R": {
     "defaultMessage": "Laissez les PDF de marque, les notes de marché et les bibliothèques de politiques là où les services juridique et de marque les conservent déjà. Ou saisissez une directive dans Hyperlocalise. Les agents lisent l’une ou l’autre."
   },
+  "FkVjP5MgdL": {
+    "defaultMessage": "Vidéo courte à partir d’un brief"
+  },
   "FkaxnjKpJo": {
     "defaultMessage": "Échec du chargement des jetons d’accès personnel."
   },
@@ -10837,6 +10897,9 @@
   },
   "FxGatVHbDJ": {
     "defaultMessage": "Mémoires de traduction"
+  },
+  "FxLEHPtV49": {
+    "defaultMessage": "Traduisez le texte contenu dans une image."
   },
   "FxNFbqpNBI": {
     "defaultMessage": "ID du canal"
@@ -11279,6 +11342,9 @@
   "GkBUFyeO69": {
     "defaultMessage": "Heure de programmation"
   },
+  "Gke6lGkaom": {
+    "defaultMessage": "Supprimer l’arrière-plan d’une image"
+  },
   "Gl+LobSOlL": {
     "defaultMessage": "a supprimé une automatisation"
   },
@@ -11624,6 +11690,9 @@
   "HGHGAGahop": {
     "defaultMessage": "Rôle de l’équipe mis à jour"
   },
+  "HGWh4sPGlW": {
+    "defaultMessage": "Domaines"
+  },
   "HGhsIR52do": {
     "defaultMessage": "Coûts par projet"
   },
@@ -11731,6 +11800,9 @@
   },
   "HV+orx8sr6": {
     "defaultMessage": "Détecter les modifications des chaînes et traduire automatiquement"
+  },
+  "HVLwZCD46Y": {
+    "defaultMessage": "Vérifications des directives / semaine"
   },
   "HVWNQgqVcW": {
     "defaultMessage": "Votre invitation a été acceptée, mais l’espace de travail n’est pas encore prêt. Rechargez cette page dans un instant."
@@ -12815,6 +12887,9 @@
   "JJS6v4yMLE": {
     "defaultMessage": "Impossible de charger"
   },
+  "JJcwSISxif": {
+    "defaultMessage": "Des images nettes jusqu’en 4K"
+  },
   "JJe6JcgNwt": {
     "defaultMessage": "Réinitialiser l’URL"
   },
@@ -13279,6 +13354,9 @@
   },
   "K76rTMej1a": {
     "defaultMessage": "Problèmes associés"
+  },
+  "K7nUTSGC5h": {
+    "defaultMessage": "Musique et son"
   },
   "K85G3xZFL6": {
     "defaultMessage": "Cet aperçu atteint désormais le seuil requis pour la synchronisation TMS."
@@ -14156,6 +14234,9 @@
   "Ll8TcrApq9": {
     "defaultMessage": "{count, plural, one {# action en attente dans votre espace de travail.} other {# actions en attente dans votre espace de travail.}}"
   },
+  "LljPoRBdjK": {
+    "defaultMessage": "20 vérifications des consignes par semaine"
+  },
   "Llo60/JvXZ": {
     "defaultMessage": "Votre site en ligne"
   },
@@ -14197,6 +14278,9 @@
   },
   "LpAm1eoUb6": {
     "defaultMessage": "La vue d’ensemble de l’espace de travail n’a pas pu être chargée."
+  },
+  "LpSbNeWQyy": {
+    "defaultMessage": "Modifiez une partie d’une image avec des mots"
   },
   "Lps9d8jAkf": {
     "defaultMessage": "Activer {count}"
@@ -14834,6 +14918,9 @@
   "MrMT7zpFGE": {
     "defaultMessage": "Images provenant de liens"
   },
+  "MrYO3un+O+": {
+    "defaultMessage": "Demande de consignes ignorée."
+  },
   "MrZ8+8I97E": {
     "defaultMessage": "Score"
   },
@@ -15262,6 +15349,9 @@
   },
   "NZeEWnotlt": {
     "defaultMessage": "Glossaire introuvable."
+  },
+  "NZeWaBrCtn": {
+    "defaultMessage": "Images photoréalistes jusqu’en 4K"
   },
   "NZgVd5LQvT": {
     "defaultMessage": "Échec du chargement des projets"
@@ -15950,6 +16040,9 @@
   "OlLKnWDUCM": {
     "defaultMessage": "Idéal pour la plupart des domaines."
   },
+  "OlWT3zl2O8": {
+    "defaultMessage": "Iris détecte le texte intégré à une image, le traduit en s’appuyant sur votre glossaire et votre mémoire de traduction, puis le redessine à son emplacement. Modifiez n’importe quelle zone d’une image à l’aide d’une simple instruction."
+  },
   "Om0BHjcSlW": {
     "defaultMessage": "Heures enregistrées"
   },
@@ -16222,6 +16315,9 @@
   },
   "PBDgruWZRx": {
     "defaultMessage": "Source"
+  },
+  "PBKHzxBSWq": {
+    "defaultMessage": "Ils proviennent de {count, plural, one {# consigne} other {# consignes}}."
   },
   "PBd06JWdET": {
     "defaultMessage": "Guide de style"
@@ -16529,6 +16625,9 @@
   "PmPfVWTjmU": {
     "defaultMessage": "traduction automatique"
   },
+  "Pmd/DH6eoc": {
+    "defaultMessage": "Voix off stable dans de nombreuses langues."
+  },
   "Pn+G9vzgVQ": {
     "defaultMessage": "Properties"
   },
@@ -16756,6 +16855,9 @@
   },
   "Q6oQuKFEbX": {
     "defaultMessage": "Apportez votre propre stack de modèles"
+  },
+  "Q7Cm8GRzCH": {
+    "defaultMessage": "Des brouillons rapides pour explorer des idées"
   },
   "Q7NvaWMPza": {
     "defaultMessage": "Code d’erreur"
@@ -17153,6 +17255,9 @@
   "QoBU315wiz": {
     "defaultMessage": "Violation du glossaire"
   },
+  "QoE8dVpJFP": {
+    "defaultMessage": "Guidelines"
+  },
   "QoSDgiiNvY": {
     "defaultMessage": "Score de localisation de {score}/100 pour {domain}. Résultats techniques et linguistiques de Hyperlocalise."
   },
@@ -17284,6 +17389,9 @@
   },
   "R1l6Bs+7Ss": {
     "defaultMessage": "Cancel"
+  },
+  "R2E1/A87hi": {
+    "defaultMessage": "Une image est presque parfaite, mais nécessite un détourage ou plus de détails."
   },
   "R32W5WVswi": {
     "defaultMessage": "a retiré un membre"
@@ -17969,6 +18077,9 @@
   "SGrQFByJdA": {
     "defaultMessage": "Blog | Hyperlocalise"
   },
+  "SH/3azga8A": {
+    "defaultMessage": "Voix off rapide et économique."
+  },
   "SHEAO5sth2": {
     "defaultMessage": "Éditeur vidéo"
   },
@@ -18653,6 +18764,9 @@
   "TRlFNEhzfJ": {
     "defaultMessage": "Postulez au tarif startup"
   },
+  "TS5xLIAyN5": {
+    "defaultMessage": "Finalisez une vidéo localisée dans Iris. Augmentez la résolution des séquences ou synchronisez les mouvements des lèvres d’un intervenant avec la nouvelle langue pour que le doublage paraisse naturel."
+  },
   "TS8IDVeEcm": {
     "defaultMessage": "Déconnecter pour tout l’espace de travail ? Les automatisations repasseront sur GitLab.com et les conversations cesseront d’utiliser les projets de ce serveur."
   },
@@ -18724,6 +18838,9 @@
   },
   "TYbrzdSaf3": {
     "defaultMessage": "Connecté à {serverUrl} en tant que {username}."
+  },
+  "TYdpmDdWse": {
+    "defaultMessage": "Les forfaits payants incluent des modèles de rédaction, ainsi que tous les modèles d’image, de vidéo, de voix et de son d’Iris. Ces modèles utilisent vos crédits IA mensuels. Connectez OpenAI, Anthropic ou Gemini si vous souhaitez qu’un modèle de rédaction soit facturé sur ce compte."
   },
   "TYisbjRrWY": {
     "defaultMessage": "Mémoire de traduction importée"
@@ -19703,6 +19820,9 @@
   "V5oxauHGks": {
     "defaultMessage": "{count, plural, one {L’agent de traduction a mis # fichier en file d’attente} other {L’agent de traduction a mis # fichiers en file d’attente}}"
   },
+  "V6jqG39WLh": {
+    "defaultMessage": "Vérifiez le contenu par rapport à vos directives avant sa mise en ligne."
+  },
   "V88J+lbuKL": {
     "defaultMessage": "CTR"
   },
@@ -19792,6 +19912,9 @@
   },
   "VGayu+ZFkL": {
     "defaultMessage": "Segment précédent ({shortcut})"
+  },
+  "VGcJbowtpZ": {
+    "defaultMessage": "Images rapides et peu coûteuses"
   },
   "VGmQfcA1bL": {
     "defaultMessage": "Supprimez cette connexion Zernio des automatisations avant de la supprimer."
@@ -20221,6 +20344,9 @@
   },
   "W3I3Xglsup": {
     "defaultMessage": "Filtrer ({count})"
+  },
+  "W3Kw7PrCu5": {
+    "defaultMessage": "Clips rapides et peu coûteux"
   },
   "W3V5ERIIW9": {
     "defaultMessage": "Linked context"
@@ -21638,6 +21764,9 @@
   "YSaCuF5iBS": {
     "defaultMessage": "Coût par clic dans la devise du fournisseur."
   },
+  "YT+yFQwxhg": {
+    "defaultMessage": "Ces paramètres régionaux s’appliquent à toutes les vues de recherche pour {domain}."
+  },
   "YTRbiRB1qL": {
     "defaultMessage": "Aucun travail Hyperlocalise attribué trouvé."
   },
@@ -22412,6 +22541,9 @@
   "Zl5aU8sAfv": {
     "defaultMessage": "Langue"
   },
+  "ZlYASzr31X": {
+    "defaultMessage": "Transformez un brief, une image fixe ou une première et une dernière image en un court clip dans Iris. Puis sous-titrez-le, doublez-le et vérifiez-le pour chaque langue et région dans le même projet."
+  },
   "ZlYq8eSzg2": {
     "defaultMessage": "Paramètres de requête"
   },
@@ -22471,6 +22603,9 @@
   },
   "ZqN2yepK3V": {
     "defaultMessage": "Vous souhaitez obtenir des réponses plus rapides de la part de ce modèle OpenAI."
+  },
+  "ZqYKrJ31FK": {
+    "defaultMessage": "Mouvement fluide à partir d’une image fixe"
   },
   "Zqf++rV/7O": {
     "defaultMessage": "Automation"
@@ -22754,6 +22889,9 @@
   "aCbkq8HVzj": {
     "defaultMessage": "Découvrez les intégrations"
   },
+  "aD74hNO0Gf": {
+    "defaultMessage": "Guidelines"
+  },
   "aD9snRqB1l": {
     "defaultMessage": "Sélectionnez un projet GitLab"
   },
@@ -22861,6 +22999,9 @@
   },
   "aLgr7cq8Pf": {
     "defaultMessage": "Exporter"
+  },
+  "aMDdzu5mOx": {
+    "defaultMessage": "Modifier les paramètres régionaux"
   },
   "aMPe6yzgje": {
     "defaultMessage": "Onboarding"
@@ -24061,6 +24202,9 @@
   },
   "cOUufId3s0": {
     "defaultMessage": "Associer une variante"
+  },
+  "cObYw5PnTj": {
+    "defaultMessage": "Vous avez besoin d’une voix off dans une nouvelle langue."
   },
   "cOeHLAqsSE": {
     "defaultMessage": "ID du webhook Contentful : {webhookId}"
@@ -25388,6 +25532,9 @@
   "eQ9Hm8R7yH": {
     "defaultMessage": "{workflowName} sera supprimé de cet espace de travail et ne s’exécutera plus."
   },
+  "eQHvXLzoHf": {
+    "defaultMessage": "Ce domaine n’a pas de langues de recherche."
+  },
   "eQIxzTUwry": {
     "defaultMessage": "Ahrefs"
   },
@@ -25561,6 +25708,9 @@
   },
   "ehBAg1ZBrW": {
     "defaultMessage": "Paramètres régionaux"
+  },
+  "ehdRjJUoSM": {
+    "defaultMessage": "Agrandissez une petite image"
   },
   "ehiNyfW7wC": {
     "defaultMessage": "Ajouter des concurrents"
@@ -25799,6 +25949,9 @@
   "f3sl/ZbsET": {
     "defaultMessage": "Ajoutez les versions et les modifications du site que chacune doit activer."
   },
+  "f45fdRyrBr": {
+    "defaultMessage": "Une image fixe ne suffit pas pour la campagne."
+  },
   "f46AmI9URt": {
     "defaultMessage": "Rechercher"
   },
@@ -25900,6 +26053,9 @@
   },
   "fGjKs76+lc": {
     "defaultMessage": "Retour aux consignes"
+  },
+  "fH8zr33NAK": {
+    "defaultMessage": "Mouvement photoréaliste"
   },
   "fHCU/ReHP1": {
     "defaultMessage": "Jeton d’accès personnel révoqué"
@@ -26264,6 +26420,9 @@
   "fsHdGSEIEq": {
     "defaultMessage": "E-mail · hier"
   },
+  "fsQLLi+dCQ": {
+    "defaultMessage": "Doublez une vidéo dans une autre langue tout en conservant la voix de chaque intervenant. Iris distingue jusqu’à neuf intervenants et synchronise le nouvel audio avec le montage."
+  },
   "fsj2SHFeSt": {
     "defaultMessage": "Échec du chargement des fichiers."
   },
@@ -26507,6 +26666,9 @@
   "gDQWtH8Qce": {
     "defaultMessage": "Gérez les documents de directives partagés de l’espace de travail utilisés par cette automatisation."
   },
+  "gDctOAs44P": {
+    "defaultMessage": "Images avec du texte clair et lisible"
+  },
   "gDhdBdZD2s": {
     "defaultMessage": "More"
   },
@@ -26533,6 +26695,9 @@
   },
   "gGRRIh5EV/": {
     "defaultMessage": "Associé à la marque Figma {brandId}"
+  },
+  "gGk72zH7oe": {
+    "defaultMessage": "Donnez une voix à un script dans Iris. Choisissez une voix, écoutez un aperçu, puis placez la réplique directement sur la timeline."
   },
   "gHUxugs0eg": {
     "defaultMessage": "Conçu pour les équipes de localisation. Commencez gratuitement dès aujourd’hui."
@@ -26594,6 +26759,9 @@
   "gNGTIO7J5R": {
     "defaultMessage": "Connectez d’abord GitLab dans Intégrations."
   },
+  "gNQMgRK+w9": {
+    "defaultMessage": "Retouchez une image avant de l’envoyer. Supprimez son arrière-plan ou améliorez la netteté d’une petite image en une seule étape sur le canevas Iris."
+  },
   "gNb7LVmFTm": {
     "defaultMessage": "Vérifiez hreflang, la prise en charge du RTL, la terminologie et la conformité"
   },
@@ -26632,6 +26800,9 @@
   },
   "gQTLQI8WWt": {
     "defaultMessage": "Certaines langues doivent encore être traduites."
+  },
+  "gQVNehK3w1": {
+    "defaultMessage": "Voix off naturelle et expressive."
   },
   "gQaOHIIj8G": {
     "defaultMessage": "Consultez les imports et les exports, puis ouvrez un rapport pour télécharger un export terminé."
@@ -26857,6 +27028,9 @@
   },
   "gq9Z4S47VX": {
     "defaultMessage": "Activé"
+  },
+  "gqAXExJP8/": {
+    "defaultMessage": "Des images photoréalistes fiables"
   },
   "gqCGKqkwz/": {
     "defaultMessage": "Consultez les domaines vérifiés et les rapports d’audit de localisation associés."
@@ -27316,6 +27490,9 @@
   },
   "hX5nMex6ry": {
     "defaultMessage": "Régénérer l’image"
+  },
+  "hXSN/OaRHq": {
+    "defaultMessage": "Passages de recherche dans les consignes ignorés."
   },
   "hXSssVY0i9": {
     "defaultMessage": "En attente"
@@ -28133,6 +28310,9 @@
   "io50TjMItx": {
     "defaultMessage": "Vérification de version"
   },
+  "ioDvkfLpcy": {
+    "defaultMessage": "Lire le texte d’une image"
+  },
   "iohP8x/4Gk": {
     "defaultMessage": "Échec du chargement des connexions Zernio."
   },
@@ -28489,6 +28669,9 @@
   },
   "jQ86ApxA97": {
     "defaultMessage": "treatment"
+  },
+  "jR18LljICi": {
+    "defaultMessage": "Importez des guides de style et des documents de marque pour l’espace de travail ou pour un projet spécifique."
   },
   "jRn12WvzpR": {
     "defaultMessage": "Format"
@@ -28910,6 +29093,9 @@
   "k68En99ftY": {
     "defaultMessage": "Sanity autorisé via OAuth"
   },
+  "k6Uke9LGL6": {
+    "defaultMessage": "Consignes toujours appliquées ignorées."
+  },
   "k6wO1BhuBw": {
     "defaultMessage": "Vidéo source indisponible"
   },
@@ -28927,6 +29113,9 @@
   },
   "k8haXRuhS3": {
     "defaultMessage": "Déplacer vers le haut"
+  },
+  "k949qy/hv7": {
+    "defaultMessage": "Inclus : {count, plural, =0 {aucune directive toujours appliquée} one {# directive toujours appliquée} other {# directives toujours appliquées}}. {omitted} n’ont pas pu être incluses."
   },
   "k9j7R6aLei": {
     "defaultMessage": "Impossible de charger les messages."
@@ -28993,6 +29182,9 @@
   },
   "kDiXBdNQE9": {
     "defaultMessage": "Fournisseur : {value}"
+  },
+  "kDjV6WPg42": {
+    "defaultMessage": "Composez la bande-son d’un clip ou ajoutez des effets sonores à partir d’une courte description, sans quitter la timeline Iris."
   },
   "kE7O20HfQk": {
     "defaultMessage": "Restant (USD)"
@@ -29258,6 +29450,9 @@
   "kf0aB8NC11": {
     "defaultMessage": "Créer une équipe"
   },
+  "kfPXpCYidI": {
+    "defaultMessage": "Images audacieuses et stylisées"
+  },
   "kfgkg2ouHx": {
     "defaultMessage": "L’aperçu n’est pas disponible pour ce type de fichier. Utilisez Télécharger pour enregistrer le fichier original."
   },
@@ -29488,6 +29683,9 @@
   },
   "l+RVkhyT2N": {
     "defaultMessage": "Créez d’abord un projet, puis importez les problèmes dans son tableau."
+  },
+  "l+omfB57gF": {
+    "defaultMessage": "Guidelines"
   },
   "l+wMmn4Krw": {
     "defaultMessage": "Échec du chargement des connexions Semrush."
@@ -29908,6 +30106,9 @@
   },
   "lm8uSjSdQw": {
     "defaultMessage": "Traduction manquante"
+  },
+  "lmCtTpX8xG": {
+    "defaultMessage": "Vérifié dans l’éditeur pendant la traduction. Un avertissement n’empêche pas l’enregistrement. Une erreur empêche l’enregistrement lorsque l’éditeur l’a déjà signalée. Les analyses du projet n’exécutent pas cette vérification."
   },
   "lmLPnsMyhs": {
     "defaultMessage": "Accéder au tableau de bord"
@@ -30374,6 +30575,9 @@
   "mTRhHwVIHd": {
     "defaultMessage": "Chaque contenu produit doit respecter la marque, être conforme et rester cohérent sur tous les marchés."
   },
+  "mTTUgqB18+": {
+    "defaultMessage": "Échec de la récupération des consignes."
+  },
   "mTauU9Q8fj": {
     "defaultMessage": "Inchangés"
   },
@@ -30611,6 +30815,9 @@
   "mqqP30mDIQ": {
     "defaultMessage": "Localisation du centre d’aide"
   },
+  "mqz0uJaBHF": {
+    "defaultMessage": "Inclus : {names}."
+  },
   "mrbQRCFXKI": {
     "defaultMessage": "Terminez ce flux de travail avec des sorties typées déclarées."
   },
@@ -30679,6 +30886,12 @@
   },
   "mzBTNMYPpo": {
     "defaultMessage": "Choisissez un projet ci-dessus pour sélectionner les langues cibles."
+  },
+  "n+3XFK8STI": {
+    "defaultMessage": "Une vidéo a besoin d’une musique ou d’un son qui s’accorde avec le montage local."
+  },
+  "n+AIAUMlWH": {
+    "defaultMessage": "Les personnes à l’écran doivent garder leur voix, quel que soit le marché."
   },
   "n+YVQESgnK": {
     "defaultMessage": "Mettez à jour le nom ou le slug de l’équipe utilisé dans tout l’espace de travail."
@@ -31226,6 +31439,9 @@
   "no/lSfBlo9": {
     "defaultMessage": "Calque {index}"
   },
+  "no9lD9eDrr": {
+    "defaultMessage": "Clips cinématographiques avec son"
+  },
   "noSrhn1pJ3": {
     "defaultMessage": "Last updated {timestamp}"
   },
@@ -31651,6 +31867,9 @@
   },
   "oayHNZPeA1": {
     "defaultMessage": "Enregistrer les paramètres de vérification"
+  },
+  "ob6BOeVg1Z": {
+    "defaultMessage": "Des clips Veo plus rapides et moins chers"
   },
   "obN/tl+Sdr": {
     "defaultMessage": "ID d’exécution"
@@ -32609,6 +32828,9 @@
   "q2LrsHfEDQ": {
     "defaultMessage": "Lecture des différences de localisation…"
   },
+  "q2bbkJ9zWw": {
+    "defaultMessage": "Utilisé par les équipes de"
+  },
   "q3g6c65hVD": {
     "defaultMessage": "Uploading…"
   },
@@ -33002,11 +33224,17 @@
   "qeiT6t1lgh": {
     "defaultMessage": "Le Japon peut voir un nouveau processus de paiement tandis que la France reste sur l’original."
   },
+  "qen7eE/t1H": {
+    "defaultMessage": "Une bannière ou une capture d’écran contient du texte qui doit être adapté à chaque langue et région."
+  },
   "qfAtSAXlkS": {
     "defaultMessage": "Échec du chargement des automatisations."
   },
   "qfZTKSfQgm": {
     "defaultMessage": "Validation"
+  },
+  "qfems+2CbW": {
+    "defaultMessage": "Récupération des consignes ignorée."
   },
   "qfnq4xZIyD": {
     "defaultMessage": "La révision humaine au premier plan"
@@ -33491,6 +33719,9 @@
   "rQDAKZnTf9": {
     "defaultMessage": "Editor"
   },
+  "rQQ1b1ARBO": {
+    "defaultMessage": "Doublez la vidéo avec les voix originales des intervenants."
+  },
   "rQXpyeuWHx": {
     "defaultMessage": "{count} échoués"
   },
@@ -33608,6 +33839,9 @@
   "re+MJ8bLl3": {
     "defaultMessage": "Facultatif. Saisissez votre adresse e-mail professionnelle et nous vous enverrons un résumé concis de ce rapport public."
   },
+  "re7FPtu6Rh": {
+    "defaultMessage": "Récupération des directives terminée."
+  },
   "reIlcT0QRC": {
     "defaultMessage": "Recherche"
   },
@@ -33658,6 +33892,9 @@
   },
   "riG8529T+y": {
     "defaultMessage": "General"
+  },
+  "riJZSqihrB": {
+    "defaultMessage": "Vous avez besoin d’un nouveau visuel pour une campagne ou un marché."
   },
   "ricOYRLhS+": {
     "defaultMessage": "Impossible de charger les décomptes de mots."
@@ -33718,6 +33955,9 @@
   },
   "rpzNVqnjuM": {
     "defaultMessage": "Vous n’avez pas l’autorisation de gérer les fournisseurs d’IA dans cet espace de travail."
+  },
+  "rq8QUB9XaE": {
+    "defaultMessage": "Les directives sont désactivées pour cet espace de travail."
   },
   "rqH4qSNbvK": {
     "defaultMessage": "Connecté en tant que {accountLogin}. {repoSummary}"
@@ -34568,6 +34808,9 @@
   "tCw1pmceT2": {
     "defaultMessage": "Oui. L’IA fait progresser les brouillons pendant que les réviseurs les comparent, les affinent, les commentent et prennent la décision finale d’approbation."
   },
+  "tDEahIWt6A": {
+    "defaultMessage": "Des clips qui conservent l’apparence de référence"
+  },
   "tDv3EqS/ae": {
     "defaultMessage": "Annuler"
   },
@@ -34717,6 +34960,9 @@
   },
   "tRWPFtS/bI": {
     "defaultMessage": "Studio de contenu multilingue"
+  },
+  "tRvndOqpZA": {
+    "defaultMessage": "Directives demandées pour {count, plural, one {# locale} other {# locales}}."
   },
   "tS5s/SaJpX": {
     "defaultMessage": "AEO"
@@ -34871,6 +35117,9 @@
   "tkB+3J0DjZ": {
     "defaultMessage": "Sélectionné"
   },
+  "tkQdxeGO1o": {
+    "defaultMessage": "Aucune langue de recherche pour le moment"
+  },
   "tkW5GO4WZC": {
     "defaultMessage": "Chargement des points de terminaison…"
   },
@@ -34894,6 +35143,9 @@
   },
   "to5Onmz+Xc": {
     "defaultMessage": "Audit de localisation"
+  },
+  "toQvY0saVD": {
+    "defaultMessage": "Effets sonores à la demande"
   },
   "toROT17dSP": {
     "defaultMessage": "Impossible de mettre à jour ce constat. Veuillez réessayer."
@@ -34957,6 +35209,9 @@
   },
   "tuvZlDHxtM": {
     "defaultMessage": "Grec (Grèce)"
+  },
+  "tvWxEL+OeJ": {
+    "defaultMessage": "La récupération des consignes a échoué ({code})."
   },
   "tw8Dxn5ajk": {
     "defaultMessage": "Concurrents ajoutés à cette recherche."
@@ -35791,6 +36046,9 @@
   },
   "vEvX8KwGFa": {
     "defaultMessage": "Cela empêchera le travail d’apparaître comme étant en attente ou en cours d’exécution et empêchera l’exécution actuelle du workflow de le mettre à jour ultérieurement."
+  },
+  "vF01WtRXQ8": {
+    "defaultMessage": "Améliorez la résolution d’une vidéo"
   },
   "vFJiS8I8Kx": {
     "defaultMessage": "Conçu pour les opérations de localisation à grande échelle"
@@ -37001,6 +37259,9 @@
   "x8Rt8oWLMk": {
     "defaultMessage": "L’aperçu n’est pas encore disponible pour ce type de fichier."
   },
+  "x9Bzf0OHbt": {
+    "defaultMessage": "Choisissez les locales étudiées par ce domaine."
+  },
   "x9HI7zKaWm": {
     "defaultMessage": "Rechercher les détails de l’événement"
   },
@@ -37109,6 +37370,9 @@
   "xGxuDGxg+Z": {
     "defaultMessage": "Hyperlocalise détecte les dernières modifications de la FAQ de facturation de votre centre d’aide."
   },
+  "xH5zSd7FDU": {
+    "defaultMessage": "Clips haute résolution"
+  },
   "xHmiZAvHuU": {
     "defaultMessage": "Ask, Translation et Coding utilisent aujourd’hui le modèle par défaut de l’espace de travail. La synthèse vocale, la transcription, la génération d’images et la génération de vidéos utilisent les modèles inclus. Les remplacements par fonctionnalité seront bientôt disponibles."
   },
@@ -37193,6 +37457,9 @@
   "xSmzy2H6ua": {
     "defaultMessage": "Workspace"
   },
+  "xT56xHEVrR": {
+    "defaultMessage": "Iris transcrit la parole pour générer des légendes et des sous-titres, et peut décrire ce qui se passe dans un clip pour vous aider à retrouver rapidement un passage."
+  },
   "xTFJa5ogoK": {
     "defaultMessage": "Compteur d’utilisation"
   },
@@ -37219,6 +37486,9 @@
   },
   "xUdbOFsZxg": {
     "defaultMessage": "Réserver un examen d’audit"
+  },
+  "xV9j96h4Sa": {
+    "defaultMessage": "2 000 vérifications des consignes par semaine"
   },
   "xVjKDBvqPx": {
     "defaultMessage": "Envoyer {count, plural, one {# élément} other {# éléments}}"
@@ -37972,6 +38242,9 @@
   },
   "yj4HofLXjM": {
     "defaultMessage": "Aucun modèle ne correspond"
+  },
+  "yk3F4PfHvt": {
+    "defaultMessage": "Photos de produits et de lifestyle soignées"
   },
   "ykDxLMM1xO": {
     "defaultMessage": "Définition, contexte ou exemple de phrase"
