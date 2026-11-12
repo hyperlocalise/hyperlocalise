@@ -65,7 +65,7 @@ func TestCheckReusesCachedModelOutput(t *testing.T) {
 	req := cacheCheckRequest("Peux-tu aider ?", "fr-FR")
 	checker := New(retriever, model, WithCache(cache))
 
-	first, err := checker.CheckBeforeModel(context.Background(), scope, req, func(context.Context) error {
+	first, err := checker.CheckBeforeModel(context.Background(), scope, req, func(context.Context, float64) error {
 		hooks++
 		return nil
 	})
@@ -77,7 +77,7 @@ func TestCheckReusesCachedModelOutput(t *testing.T) {
 	require.Equal(t, 1, cache.sets)
 	require.Equal(t, cacheTTL, cache.ttl)
 
-	second, err := checker.CheckBeforeModel(context.Background(), scope, req, func(context.Context) error {
+	second, err := checker.CheckBeforeModel(context.Background(), scope, req, func(context.Context, float64) error {
 		hooks++
 		return nil
 	})

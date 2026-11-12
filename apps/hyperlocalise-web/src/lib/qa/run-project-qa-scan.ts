@@ -30,6 +30,7 @@ import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-wi
 import { capResolvedSpellcheckWords } from "@/lib/spellcheck-dictionary/normalize-word";
 import { DEFAULT_QA_POLICY, resolveQaPolicy, type QaCheckPolicy } from "./qa-policy";
 import { notifyQaScanFailed, notifyQaScanSucceeded } from "./qa-scan-notifications";
+import { runScanGuidelineChecks, type ScanGuidelineSegment } from "./scan-guideline-check";
 import { QaCliUnavailableError, validateQaPageInSandbox } from "./validate-page-in-sandbox";
 
 const logger = createLogger("translation-qa-scan");
@@ -276,6 +277,14 @@ export async function scanTranslationQaPage(input: {
         inArray(schema.translationQaFindings.translationKeyId, keyIds),
       ),
     );
+  await db
+    .delete(schema.translationQaGuidelineCoverage)
+    .where(
+      and(
+        eq(schema.translationQaGuidelineCoverage.runId, input.runId),
+        inArray(schema.translationQaGuidelineCoverage.translationKeyId, keyIds),
+      ),
+    );
 
   const translations =
     locales.length === 0
@@ -382,11 +391,21 @@ export async function scanTranslationQaPage(input: {
       "translation qa scan page used in-process fallback",
     );
   }
+  const segmentByKeyLocale = new Map<string, ScanGuidelineSegment>();
   for (const [index, { key, targetLocale }] of requests.entries()) {
     const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
     const targetText = translation?.text ?? "";
     const { checks, skippedChecks = [] } = results[index] ?? { checks: [], skippedChecks: [] };
     if (skippedChecks.length) skippedChecksByLocale[targetLocale] = skippedChecks;
+    segmentByKeyLocale.set(`${key.translationKeyId}\0${targetLocale}`, {
+      translationKeyId: key.translationKeyId,
+      key: key.key,
+      sourceText: key.sourceText,
+      targetText,
+      targetLocale,
+      translationId: translation?.id ?? null,
+      sourcePath: key.sourcePath,
+    });
     for (const check of checks) {
       if (!translationQaCheckTypes.includes(check.checkType as TranslationQaCheckType)) {
         throw new Error("QA CLI returned an unknown check type");
@@ -412,6 +431,57 @@ export async function scanTranslationQaPage(input: {
       if (pendingFindings.length >= FINDING_INSERT_CHUNK) await flushFindings();
     }
   }
+
+  const guidelineResult = await runScanGuidelineChecks({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourceLocale: project.sourceLocale,
+    segments: [...segmentByKeyLocale.values()],
+    policy,
+    alreadyHalted: Boolean(run.summary.guidelineCheckHaltCode),
+    onBatchComplete: () => touchTranslationQaRun(input.runId),
+  });
+  if (guidelineResult.coveredKeyLocales.length) {
+    await db
+      .insert(schema.translationQaGuidelineCoverage)
+      .values(
+        guidelineResult.coveredKeyLocales.map((row) => ({
+          runId: input.runId,
+          translationKeyId: row.translationKeyId,
+          targetLocale: row.targetLocale,
+        })),
+      )
+      .onConflictDoNothing();
+  }
+  for (const row of guidelineResult.findings) {
+    pendingFindings.push({
+      runId: input.runId,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      translationKeyId: row.segment.translationKeyId,
+      translationId: row.segment.translationId,
+      sourcePath: row.segment.sourcePath,
+      key: row.segment.key,
+      targetLocale: row.segment.targetLocale,
+      checkType: "guideline",
+      severity: row.check.severity,
+      category: row.check.category,
+      message: row.check.message,
+      relatedTokens: row.check.relatedTokens,
+      sourceText: row.segment.sourceText,
+      targetText: row.segment.targetText,
+      ruleVersion: QA_CHECK_VERSION,
+    });
+    if (pendingFindings.length >= FINDING_INSERT_CHUNK) await flushFindings();
+  }
+
+  if (!guidelineResult.ok && guidelineResult.haltCode && !run.summary.guidelineCheckHaltCode) {
+    await db.execute(
+      sql`update translation_qa_runs set summary = jsonb_set(summary, '{guidelineCheckHaltCode}', ${JSON.stringify(guidelineResult.haltCode)}::jsonb)
+        where id = ${input.runId}`,
+    );
+  }
+
   await db.execute(sql`update translation_qa_runs set summary = jsonb_set(summary, '{skippedChecksByLocale}',
       coalesce(summary->'skippedChecksByLocale', '{}'::jsonb) || ${JSON.stringify(skippedChecksByLocale)}::jsonb)
       where id = ${input.runId}`);
@@ -554,6 +624,15 @@ export async function completeTranslationQaScan(input: {
       and old.run_id <> ${input.runId} and old.status = 'open'
       and not (${JSON.stringify(disabledCheckTypes)}::jsonb ? old.check_type)
       and not (old.check_type = 'spelling' and ${JSON.stringify(run.summary.skippedChecksByLocale ?? {})}::jsonb ? old.target_locale)
+      and not (
+        old.check_type = 'guideline'
+        and not exists (
+          select 1 from translation_qa_guideline_coverage cov
+          where cov.run_id = ${input.runId}
+            and cov.translation_key_id = old.translation_key_id
+            and cov.target_locale = old.target_locale
+        )
+      )
       and not exists (select 1 from translation_qa_findings current
           where current.run_id = ${input.runId} and current.translation_key_id = old.translation_key_id
           and current.target_locale = old.target_locale and current.check_type = old.check_type)`);
@@ -758,10 +837,7 @@ function uniqueSortedLocales(locales: readonly string[]) {
 
 function disabledQaCheckTypes(policy: QaCheckPolicy | null | undefined) {
   const resolved = resolveQaPolicy(policy);
-  // Guideline review runs in the editor, so a scan never rechecks it.
-  return translationQaCheckTypes.filter(
-    (checkType) => checkType === "guideline" || !resolved[checkType].enabled,
-  );
+  return translationQaCheckTypes.filter((checkType) => !resolved[checkType].enabled);
 }
 
 function normalizeQaSpellcheckLocale(locale: string) {

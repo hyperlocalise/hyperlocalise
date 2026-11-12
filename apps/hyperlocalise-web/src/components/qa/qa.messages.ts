@@ -421,9 +421,9 @@ export const qaMessages = defineMessages({
   },
   guidelineCheckHelp: {
     defaultMessage:
-      "Checked in the editor while you translate. A warning does not block saving. An error blocks saving when the editor has already reported it. Project scans do not run this check.",
-    description: "Help for the editor-only guideline QA check",
-    id: "lmCtTpX8xG",
+      "Checked in the editor while you translate and in project QA scans when enabled. Warnings do not block saving. An error blocks saving when the editor has already reported it. Each model check counts toward your weekly allowance; cached segments are free. A scan that hits the allowance keeps findings it already saved.",
+    description: "Help for the guideline QA check in the editor and scans",
+    id: 'mManOVpSCM',
   },
   enableCheck: {
     defaultMessage: "Enable {check}",

@@ -415,41 +415,40 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
               <p className="text-xs text-muted-foreground">{intl.formatMessage(m.errorBehavior)}</p>
               <div className="flex flex-col divide-y divide-border">
                 {translationQaCheckTypes.map((check) => (
-                  <div
-                    key={check}
-                    className="flex flex-wrap items-center justify-between gap-3 py-3"
-                  >
-                    <Field className="w-auto">
-                      <FieldLabel htmlFor={`qa-rule-${check}`}>
-                        {qaCheckLabel(check, intl)}
-                      </FieldLabel>
-                      <Switch
-                        id={`qa-rule-${check}`}
-                        checked={policy[check].enabled}
+                  <div key={check} className="flex flex-col gap-1 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <Field className="w-auto">
+                        <FieldLabel htmlFor={`qa-rule-${check}`}>
+                          {qaCheckLabel(check, intl)}
+                        </FieldLabel>
+                        <Switch
+                          id={`qa-rule-${check}`}
+                          checked={policy[check].enabled}
+                          disabled={!settings?.canManageSchedule || settingsMutation.isPending}
+                          aria-label={intl.formatMessage(m.enableCheck, {
+                            check: qaCheckLabel(check, intl),
+                          })}
+                          onCheckedChange={(enabled) => updateRule(check, { enabled })}
+                        />
+                      </Field>
+                      <QaFilter
+                        label={intl.formatMessage(m.severity)}
                         disabled={!settings?.canManageSchedule || settingsMutation.isPending}
-                        aria-label={intl.formatMessage(m.enableCheck, {
-                          check: qaCheckLabel(check, intl),
-                        })}
-                        onCheckedChange={(enabled) => updateRule(check, { enabled })}
+                        value={policy[check].severity}
+                        onChange={(severity) =>
+                          updateRule(check, { severity: severity as "error" | "warning" })
+                        }
+                        options={(["error", "warning"] as const).map((value) => ({
+                          value,
+                          label: intl.formatMessage(m[value]),
+                        }))}
                       />
-                      {check === "guideline" ? (
-                        <FieldDescription>
-                          {intl.formatMessage(m.guidelineCheckHelp)}
-                        </FieldDescription>
-                      ) : null}
-                    </Field>
-                    <QaFilter
-                      label={intl.formatMessage(m.severity)}
-                      disabled={!settings?.canManageSchedule || settingsMutation.isPending}
-                      value={policy[check].severity}
-                      onChange={(severity) =>
-                        updateRule(check, { severity: severity as "error" | "warning" })
-                      }
-                      options={(["error", "warning"] as const).map((value) => ({
-                        value,
-                        label: intl.formatMessage(m[value]),
-                      }))}
-                    />
+                    </div>
+                    {check === "guideline" ? (
+                      <FieldDescription className="text-sm text-muted-foreground">
+                        {intl.formatMessage(m.guidelineCheckHelp)}
+                      </FieldDescription>
+                    ) : null}
                   </div>
                 ))}
               </div>
