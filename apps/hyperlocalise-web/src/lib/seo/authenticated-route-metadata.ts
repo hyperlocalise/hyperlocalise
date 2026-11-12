@@ -65,6 +65,7 @@ export const AUTHENTICATED_PAGE_KEYS = [
   "projectAutomationDetail",
   "projectAutomationNew",
   "projectAutomations",
+  "projectBranches",
   "projectContentEditor",
   "projectFiles",
   "projectGuideline",
@@ -731,6 +732,18 @@ const AUTHENTICATED_ROUTE_COPY = {
       defaultMessage: "Automations for this project.",
       id: "PF6BH9QY3j",
       description: "Document description for the project automations page",
+    },
+  },
+  projectBranches: {
+    title: {
+      defaultMessage: "Branches",
+      id: "qR8wBranch2",
+      description: "Document title for the native project version branches page",
+    },
+    description: {
+      defaultMessage: "Create, sync, and merge version branches in this project.",
+      id: "sT9wBranch3",
+      description: "Document description for the native project version branches page",
     },
   },
   projectContentEditor: {

@@ -18,6 +18,8 @@ import { db, type schema } from "@/lib/database/client";
 import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
 import { readOfficeSourceTexts } from "@/lib/projects/files/office-source-entries";
 import { loadProjectOfficeTranslationDownload } from "@/lib/projects/files/office-translation-download";
 import { getRepositorySourceFileImportSettings } from "@/lib/projects/files/source-file-import-settings";
@@ -73,6 +75,7 @@ export type TranslationAsSourceError =
   | { code: "file_cannot_be_written" }
   | { code: "file_reads_differently" }
   | { code: "destination_file_replaced" }
+  | { code: "destination_branch_protected" }
   | { code: "upload_failed" };
 
 export type TranslationAsSourceResult = {
@@ -241,12 +244,31 @@ function readBackProblem(
   return null;
 }
 
+/** Whether the destination's default branch, which a send writes to, takes uploads. */
+async function destinationBranchIsProtected(input: {
+  organizationId: string;
+  destinationProjectId: string;
+  actorUserId: string;
+}): Promise<boolean> {
+  await projectBranchService.ensureDefaultBranch({
+    organizationId: input.organizationId,
+    projectId: input.destinationProjectId,
+    createdByUserId: input.actorUserId,
+  });
+  const writable = await projectBranchService.assertWritable({
+    projectId: input.destinationProjectId,
+    branchName: DEFAULT_PROJECT_BRANCH_NAME,
+  });
+  return isErr(writable) && writable.error === "protected_branch";
+}
+
 /**
  * Builds `sourcePath` in `locale` from approved translations and uploads it to
  * `destinationProject` as a source file under the same path (`.xlsx` for an `.xls` file), so
  * both projects key the file's strings alike and a later send updates the same strings. Each
  * send gives the destination file the original's import settings, which the file was built
- * through.
+ * through. A send reads the file on the sending project's default branch and writes it to the
+ * destination's default branch; files at the same path on other branches play no part.
  *
  * Refused while any string in the file lacks an approved translation: the writers keep the
  * original text where a translation is missing, which the destination would read as source.
@@ -288,6 +310,7 @@ export async function sendTranslationAsSource(input: {
     organizationId: input.organizationId,
     projectId: sourceProject.id,
     sourcePath: input.sourcePath,
+    branchName: DEFAULT_PROJECT_BRANCH_NAME,
   };
   const [sourceFile, version] = await Promise.all([
     getRepositorySourceFileByPath(scope),
@@ -337,6 +360,15 @@ export async function sendTranslationAsSource(input: {
     destinationPath,
     repositorySourceFileId: sourceFile.id,
   };
+  if (
+    await destinationBranchIsProtected({
+      organizationId: input.organizationId,
+      destinationProjectId: destinationProject.id,
+      actorUserId: input.actorUserId,
+    })
+  ) {
+    return err({ code: "destination_branch_protected" });
+  }
   const replacing = translationAsSourceDestinationRefusal(
     await getTranslationAsSourceDestinationFile(destination),
     input.replaceVersionId,
@@ -401,6 +433,7 @@ export async function sendTranslationAsSource(input: {
       content: built.value.content,
     },
     sourcePath: destinationPath,
+    branch: DEFAULT_PROJECT_BRANCH_NAME,
     importSettings,
     uploadSurface: TRANSLATION_AS_SOURCE_UPLOAD_SURFACE,
     uploadedByUserId: input.actorUserId,
@@ -414,6 +447,10 @@ export async function sendTranslationAsSource(input: {
     deferAfterResponse: input.deferAfterResponse,
     fileStorageAdapter: input.fileStorageAdapter,
   });
+  // The branch may have been protected while the file was being built.
+  if (isErr(uploaded) && uploaded.error.code === "protected_branch") {
+    return err({ code: "destination_branch_protected" });
+  }
   if (isErr(uploaded) || uploaded.value.destination !== "native") {
     return err({ code: "upload_failed" });
   }

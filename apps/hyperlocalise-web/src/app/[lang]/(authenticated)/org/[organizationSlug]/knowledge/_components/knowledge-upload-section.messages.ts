@@ -40,11 +40,6 @@ export const knowledgeUploadSectionMessages = defineMessages({
     id: "bl+DouTlcU",
     description: "Separator between knowledge upload dropzone and source buttons",
   },
-  selectedFiles: {
-    defaultMessage: "{count, plural, one {# file selected} other {# files selected}}",
-    id: "80QeJXvhPz",
-    description: "Count of files selected in the knowledge upload dropzone",
-  },
   googleDrive: {
     defaultMessage: "Add Google Drive",
     id: "BCjCYwwMon",
@@ -66,8 +61,8 @@ export const knowledgeUploadSectionMessages = defineMessages({
     description: "Button to import knowledge from a website",
   },
   markdownText: {
-    defaultMessage: "Markdown/Text",
-    id: "wE0HX7UKYn",
+    defaultMessage: "Write in Markdown",
+    id: "c03uFBN80f",
     description: "Button to start a blank markdown knowledge memory document",
   },
   comingSoon: {
@@ -89,5 +84,15 @@ export const knowledgeUploadSectionMessages = defineMessages({
     defaultMessage: "That file is larger than 25 MB.",
     id: "UxELaHpNTI",
     description: "Toast when the selected knowledge upload file exceeds the size limit",
+  },
+  replaceFile: {
+    defaultMessage: "Replace",
+    id: "24HdfRVkvE",
+    description: "Button to choose a different file for the guideline upload",
+  },
+  removeFile: {
+    defaultMessage: "Remove file",
+    id: "Qgbvs1lDve",
+    description: "Accessible label for removing the chosen guideline upload file",
   },
 });

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
+	"github.com/hyperlocalise/hyperlocalise/internal/nativeproject"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -362,6 +363,7 @@ type projectFilesQuery struct {
 	search        string
 	empty         bool
 	locale        string
+	branch        string
 }
 
 func parseProjectFilesQuery(values url.Values) (projectFilesQuery, error) {
@@ -401,6 +403,7 @@ func parseProjectFilesQuery(values url.Values) (projectFilesQuery, error) {
 		len(syncState) > 64 || len(branch) > 256 || (values.Has("branch") && branch == "") {
 		return invalid()
 	}
+	query.branch = branch
 	query.empty = origin == "provider" || resourceType == "key" ||
 		(providerKind != "" && providerKind != "all") ||
 		(syncState != "" && syncState != "all" && syncState != "repository")
@@ -440,6 +443,8 @@ func (api *projectAPI) files(ctx context.Context, actor projectActor, projectID 
 		args = append(args, query.locale)
 		filters = append(filters, fmt.Sprintf("p.target_locales ? $%d", len(args)))
 	}
+	args = append(args, nativeproject.ResolveBranchName(query.branch))
+	filters = append(filters, fmt.Sprintf("ranked.branch_name = $%d", len(args)))
 	args = append(args, query.limit, query.offset)
 	limitPosition := len(args) - 1
 	offsetPosition := len(args)
@@ -456,12 +461,14 @@ func (api *projectAPI) files(ctx context.Context, actor projectActor, projectID 
 				v.workflow_run_id, v.created_at as uploaded_at, v.stored_file_id,
 				v.ingest_state, v.ingest_error,
 				f.metadata, f.filename, f.byte_size,
+				sf.branch_name,
 				row_number() over (
-					partition by v.source_path
+					partition by v.repository_source_file_id
 					order by v.created_at desc, v.id desc
 				) as version_rank
 			from repository_source_file_versions v
 			join project p on p.id = v.project_id and p.organization_id = v.organization_id
+			join repository_source_files sf on sf.id = v.repository_source_file_id
 			join stored_files f on f.id = v.stored_file_id
 				and f.organization_id = v.organization_id
 				and f.project_id = v.project_id

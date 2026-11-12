@@ -155,4 +155,12 @@ describe("canUseTranslationAsSource", () => {
       }),
     ).toBe(false);
   });
+
+  it("is offered only on the default branch, which sends read from", () => {
+    const wordFile = createProjectFileRecord({ sourcePath: "docs/brief.docx" });
+
+    expect(canUseTranslationAsSource("project_website", wordFile, "main")).toBe(true);
+    expect(canUseTranslationAsSource("project_website", wordFile, "")).toBe(true);
+    expect(canUseTranslationAsSource("project_website", wordFile, "release/2.0")).toBe(false);
+  });
 });

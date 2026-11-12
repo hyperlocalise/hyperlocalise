@@ -15,6 +15,7 @@ export * from "./schema/enums";
 export * from "./schema/organizations";
 export * from "./schema/providers";
 export * from "./schema/projects";
+export * from "./schema/project-branches";
 export * from "./schema/translation-memory";
 export * from "./schema/project-templates";
 export * from "./schema/custom-fields";

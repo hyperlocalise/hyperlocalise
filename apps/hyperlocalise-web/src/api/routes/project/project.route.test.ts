@@ -287,7 +287,7 @@ describe("project file provider routes", () => {
     );
   });
 
-  it("returns an empty branch list for native projects without calling the live provider", async () => {
+  it("lists the default main branch for native projects without calling the live provider", async () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
 
@@ -305,7 +305,7 @@ describe("project file provider routes", () => {
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as ProjectProviderBranchesResponse;
-    expect(body).toEqual({ branches: [] });
+    expect(body).toEqual({ branches: [{ name: "main", title: null }] });
     expect(listTmsProviderLiveProjectBranchesMock).not.toHaveBeenCalled();
   });
 

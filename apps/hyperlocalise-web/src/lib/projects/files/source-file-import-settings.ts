@@ -35,6 +35,8 @@ export async function getRepositorySourceFileImportSettings(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
+  /** The file's branch; any branch's file at the path when left out. */
+  branchName?: string;
 }) {
   const sourcePath = normalizeSourcePath(input.sourcePath);
   const [row] = await db
@@ -48,6 +50,9 @@ export async function getRepositorySourceFileImportSettings(input: {
         eq(schema.repositorySourceFiles.organizationId, input.organizationId),
         eq(schema.repositorySourceFiles.projectId, input.projectId),
         eq(schema.repositorySourceFiles.sourcePath, sourcePath),
+        input.branchName === undefined
+          ? undefined
+          : eq(schema.repositorySourceFiles.branchName, input.branchName),
       ),
     )
     .limit(1);

@@ -36,6 +36,7 @@ import {
   canOpenProjectFileContentEditor,
   resolveProjectFileContentEditorTargetLocaleResolution,
 } from "@/lib/projects/project-file-content-editor-routing";
+import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
 import { getSupportedSourceUploadAccept } from "@/lib/translation/file-formats";
 
 import {
@@ -267,7 +268,12 @@ const ProjectFilesPageContentInner = observer(function ProjectFilesPageContentIn
 
   const selectedSourcePath = searchParams.get("sourcePath");
   const highlightLocale = searchParams.get("locale");
-  const selectedBranch = searchParams.get("branch");
+  const selectedBranchParam = searchParams.get("branch");
+  const projectCapabilities = getProjectWorkspaceCapabilities({ projectId: pageStore.projectId });
+  const isProviderProject = projectCapabilities.isProviderProject;
+  const selectedBranch = isProviderProject
+    ? selectedBranchParam
+    : selectedBranchParam || DEFAULT_PROJECT_BRANCH_NAME;
 
   const setSelectedSourcePath = useCallback(
     (sourcePath: string | null) => {
@@ -323,6 +329,9 @@ const ProjectFilesPageContentInner = observer(function ProjectFilesPageContentIn
         formData.set("file", file);
         formData.set("sourcePath", sourcePathForFile(file));
         if (keepApproved) formData.set("keepApproved", "true");
+        if (!isProviderProject && selectedBranch) {
+          formData.set("branch", selectedBranch);
+        }
 
         const response = await fetch(apiPath(organizationSlug, projectId), {
           method: "POST",
@@ -345,7 +354,7 @@ const ProjectFilesPageContentInner = observer(function ProjectFilesPageContentIn
       pageStore.clearSelectedFiles();
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: projectFilesQueryKey(organizationSlug, projectId),
+          queryKey: projectFilesQueryKey(organizationSlug, projectId, undefined, selectedBranch),
         }),
         // A new upload of a sent file can change its sent mark, and one here removes its From mark.
         queryClient.invalidateQueries({
@@ -389,8 +398,6 @@ const ProjectFilesPageContentInner = observer(function ProjectFilesPageContentIn
   );
 
   const resolvedFiles = useMemo(() => sortFilesByPath(loadedFiles), [loadedFiles]);
-  const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
-  const isProviderProject = projectCapabilities.isProviderProject;
   const projectQuery = useProjectPageQuery(organizationSlug, projectId);
   const projectTargetLocales = projectQuery.data?.targetLocales;
   const projectSourceLocale = projectQuery.data?.sourceLocale ?? "en";
@@ -606,14 +613,13 @@ const ProjectFilesPageContentInner = observer(function ProjectFilesPageContentIn
             fileActions={treeFileActions}
             branch={selectedBranch}
             headerActions={
-              isProviderProject ? (
-                <ProjectFilesBranchFilter
-                  organizationSlug={organizationSlug}
-                  projectId={projectId}
-                  selectedBranch={selectedBranch}
-                  onSelectedBranchChange={setSelectedBranch}
-                />
-              ) : null
+              <ProjectFilesBranchFilter
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+                selectedBranch={selectedBranch}
+                onSelectedBranchChange={setSelectedBranch}
+                allowAllBranches={isProviderProject}
+              />
             }
           />
         )}

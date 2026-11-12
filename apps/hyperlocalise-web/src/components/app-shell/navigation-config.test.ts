@@ -260,6 +260,7 @@ describe("path builders", () => {
       ["Files", "/org/acme/projects/proj_1/files"],
       ["Content Editor", "/org/acme/projects/proj_1/strings"],
       ["Video Editor", "/org/acme/projects/proj_1/videos"],
+      ["Branches", "/org/acme/projects/proj_1/branches"],
       ["QA", "/org/acme/projects/proj_1/qa"],
       ["Guideline", "/org/acme/projects/proj_1/knowledge"],
       ["Jobs", "/org/acme/projects/proj_1/jobs"],
@@ -297,6 +298,7 @@ describe("path builders", () => {
       "Video Editor",
     ]);
     expect(groups[2]?.items.map((item) => item.label)).toEqual([
+      "Branches",
       "QA",
       "Guideline",
       "Jobs",
@@ -509,6 +511,20 @@ describe("buildProjectNavigationItems", () => {
     });
     const items = buildProjectNavigationItems("acme", projectId, intl);
     expect(items.find((item) => item.label === "Content Editor")).toBeUndefined();
+  });
+
+  it("includes Branches for native projects and hides it for provider projects", () => {
+    const items = buildProjectNavigationItems("acme", "proj_1", intl);
+    expect(items.find((item) => item.label === "Branches")?.href).toBe(
+      "/org/acme/projects/proj_1/branches",
+    );
+
+    const providerId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+    const providerItems = buildProjectNavigationItems("acme", providerId, intl);
+    expect(providerItems.find((item) => item.label === "Branches")).toBeUndefined();
   });
 
   it("hides QA for provider projects", () => {

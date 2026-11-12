@@ -16,6 +16,11 @@ import type { IntlShape } from "react-intl";
 import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.messages";
+import {
+  DEFAULT_PROJECT_BRANCH_NAME,
+  resolvedProjectBranchName,
+} from "@/lib/projects/branches/project-branch-name";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { translationAsSourceSentMarkMessages as messages } from "./translation-as-source-sent-mark.messages";
 
@@ -23,6 +28,17 @@ const CHANGED_COLOR = "var(--ds-amber-900)";
 
 /** Longer project names are cut in the row's mark; the tooltip has the whole name. */
 const MARK_PROJECT_NAME_MAX_LENGTH = 24;
+
+/**
+ * Whether the Files page marks sent and received files: in projects that store their own files,
+ * on the default branch only, since sends go between default branches.
+ */
+export function showsTranslationSourceMarks(projectId: string, branch: string | null): boolean {
+  return (
+    !parseProviderProjectId(projectId) &&
+    resolvedProjectBranchName(branch) === DEFAULT_PROJECT_BRANCH_NAME
+  );
+}
 
 /** The last send of a file to one project, as the Files page lists it. */
 export type TranslationAsSourceSend = {

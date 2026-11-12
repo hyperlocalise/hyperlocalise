@@ -921,6 +921,7 @@ function ProjectFileContentEditorPageContentInner({
         initialQueueFilterQualifier={initialQueueFilterQualifier}
         initialQueueAdvanced={initialQueueAdvanced}
         sourcePathsFilter={sourcePaths}
+        branch={branch}
         layout="fullscreen"
         className="min-h-0 flex-1"
         pageNavigationGuardRef={pageNavigationGuardRef}

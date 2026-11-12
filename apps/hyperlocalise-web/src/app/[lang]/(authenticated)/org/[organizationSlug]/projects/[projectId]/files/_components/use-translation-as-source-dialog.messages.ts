@@ -154,6 +154,12 @@ export const useTranslationAsSourceDialogMessages = defineMessages({
     id: "lzBzhUGbTB",
     description: "Shown when a file cannot be sent because it has no strings",
   },
+  destinationBranchProtected: {
+    defaultMessage: "That project's default branch is protected, so files cannot be sent to it.",
+    id: "9vyJJBOGUU",
+    description:
+      "Shown when a send is refused because the chosen project's default branch, which sends are written to, is protected",
+  },
   roleCannotSend: {
     defaultMessage: "Your role cannot send files to another project.",
     id: "aVCtNPy4Tq",

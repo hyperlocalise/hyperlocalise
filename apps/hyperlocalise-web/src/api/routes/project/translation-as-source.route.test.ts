@@ -21,6 +21,7 @@ import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { db, schema } from "@/lib/database/client";
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
 import {
   createRepositorySourceFileVersion,
   createStoredFile,
@@ -363,6 +364,7 @@ async function addToDestination(
     sourcePath?: string;
     uploadSurface?: string;
     uploadedByUserId?: string;
+    branchName?: string;
   } = {},
 ) {
   const sourcePath = options.sourcePath ?? SOURCE_PATH;
@@ -378,6 +380,7 @@ async function addToDestination(
   return createRepositorySourceFileVersion({
     storedFile,
     sourcePath,
+    branchName: options.branchName,
     uploadSurface: options.uploadSurface ?? "files_page",
     uploadedByUserId: options.uploadedByUserId ?? null,
   });
@@ -907,6 +910,69 @@ describe("translation as source routes", () => {
     expect((await fixture.send({ replaceVersionId: synced.id })).status).toBe(201);
   });
 
+  it("reads and writes each project's default branch, whatever other branches have at the path", async () => {
+    const fixture = await chainedProjectsFixture();
+    // A newer upload on another branch of the sending project, still being read: a send that
+    // read it would be refused as not ready.
+    const branchStoredFile = await createStoredFile({
+      organizationId: fixture.organization.id,
+      projectId: fixture.original.id,
+      role: "source",
+      sourceKind: "repository_file",
+      filename: "report.docx",
+      contentType: DOCX_CONTENT_TYPE,
+      content: Buffer.from("release copy"),
+    });
+    await createRepositorySourceFileVersion({
+      storedFile: branchStoredFile,
+      sourcePath: SOURCE_PATH,
+      branchName: "release",
+    });
+    const onDestinationBranch = await addToDestination(fixture, { branchName: "release" });
+
+    expect(await (await fixture.destinationFile()).json()).toMatchObject({
+      destinationFile: { state: "empty", path: SOURCE_PATH },
+    });
+    const response = await fixture.send();
+
+    expect(response.status).toBe(201);
+    const sent = await fixture.sentFile();
+    expect(sent.version.id).not.toBe(onDestinationBranch.id);
+    const [sentFile] = await db
+      .select({ branchName: schema.repositorySourceFiles.branchName })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.id, sent.version.repositorySourceFileId));
+    expect(sentFile.branchName).toBe("main");
+    const [storedFile] = await db
+      .select({ metadata: schema.storedFiles.metadata })
+      .from(schema.storedFiles)
+      .where(eq(schema.storedFiles.id, sent.version.storedFileId));
+    expect(storedFile.metadata).toMatchObject({
+      translationSource: { sourceFileVersionId: fixture.version.id },
+    });
+    // The other branch's file is left as it was, and the next send finds its own send.
+    expect(await fixture.destinationVersions()).toHaveLength(2);
+    expect((await fixture.send()).status).toBe(201);
+  });
+
+  it("refuses when the other project's default branch is protected", async () => {
+    const fixture = await chainedProjectsFixture();
+    const branch = await projectBranchService.ensureDefaultBranch({
+      organizationId: fixture.organization.id,
+      projectId: fixture.destination.id,
+    });
+    await db
+      .update(schema.projectBranches)
+      .set({ isProtected: true })
+      .where(eq(schema.projectBranches.id, branch.id));
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: "destination_branch_protected" });
+    expect(await fixture.destinationVersions()).toEqual([]);
+  });
+
   it("checks the other project's .xlsx file before sending an old .xls file", async () => {
     const xlsx = await excelFile({ A1: "姓名", A2: "张三" });
     const fixture = await chainedProjectsFixture({
@@ -1079,6 +1145,31 @@ describe("translation as source routes", () => {
     });
     await createRepositorySourceFileVersion({ storedFile: byHand, sourcePath: SOURCE_PATH });
     expect(await (await fixture.received()).json()).toEqual({ received: [] });
+  });
+
+  it("does not count a copy of a sent file on another branch of the other project", async () => {
+    const fixture = await chainedProjectsFixture();
+    expect((await fixture.send()).status).toBe(201);
+    const [sentVersion] = await fixture.destinationVersions();
+    // A branch created in the other project copies its files' newest versions, stored file included.
+    const [storedFile] = await db
+      .select()
+      .from(schema.storedFiles)
+      .where(eq(schema.storedFiles.id, sentVersion.storedFileId));
+    await createRepositorySourceFileVersion({
+      storedFile,
+      sourcePath: SOURCE_PATH,
+      branchName: "release",
+      uploadSurface: TRANSLATION_AS_SOURCE_UPLOAD_SURFACE,
+    });
+
+    expect(await (await fixture.sent()).json()).toMatchObject({
+      sends: [{ sentAt: sentVersion.createdAt.toISOString(), replacedInDestination: false }],
+    });
+    // One entry: arrays match by length too.
+    expect(await (await fixture.received()).json()).toMatchObject({
+      received: [{ receivedAt: sentVersion.createdAt.toISOString() }],
+    });
   });
 
   it("marks a send replaced since, and says in the other project what a send replaced", async () => {
