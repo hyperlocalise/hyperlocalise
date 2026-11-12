@@ -62,6 +62,7 @@ import { createWorkspaceJobRoutes } from "./routes/project/job.route";
 import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
 import { createPublicFileRoutes } from "./routes/public-files/public-files.route";
+import { createPublicTranslationSourceRoutes } from "./routes/public-files/public-translation-source.route";
 import { createPublicImageRoutes } from "./routes/public-images/public-images.route";
 import { createPublicJobRoutes } from "./routes/public-jobs/public-jobs.route";
 import { createPublicTranslationRoutes } from "./routes/public-translations/public-translations.route";
@@ -112,6 +113,13 @@ export function createPublicApiRoutes(options: PublicApiRouteOptions) {
     )
     .route("/jobs", createPublicJobRoutes(options))
     .route("/projects", createPublicTranslationRoutes())
+    .route(
+      "/projects",
+      createPublicTranslationSourceRoutes({
+        deferAfterResponse: options.deferAfterResponse,
+        fileStorageAdapter: options.fileStorageAdapter,
+      }),
+    )
     .route(
       "/projects",
       createPublicImageRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
