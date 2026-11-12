@@ -499,6 +499,12 @@ func ProjectValues(ctx context.Context, db DB, organizationID, projectID string)
 		if err != nil {
 			return nil, err
 		}
+		if value == nil {
+			continue
+		}
+		if selected, ok := value.([]Option); ok && len(selected) == 0 {
+			continue
+		}
 		values = append(values, ProjectValue{FieldID: fields[i].ID, Key: fields[i].Key, Name: fields[i].Name, Type: fields[i].Type, Value: value})
 	}
 	return values, nil
@@ -560,7 +566,7 @@ func SetProjectValues(ctx context.Context, tx DB, organizationID, userID, projec
 	seen := map[string]string{}
 	for _, name := range names {
 		label := "customFields." + name
-		field, err := Get(ctx, tx, organizationID, strings.TrimSpace(name))
+		field, err := get(ctx, tx, organizationID, strings.TrimSpace(name), " for update")
 		if errors.Is(err, ErrNotFound) {
 			return invalid(label, "no custom field has this key")
 		}

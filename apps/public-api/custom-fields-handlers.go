@@ -40,7 +40,7 @@ func (s apiServer) customFields(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var body customfield.CreateInput
-		if !decodeJSONBody(w, r, &body) {
+		if !decodeJSONBodyLimit(w, r, &body, maxStringBatchBodyBytes) {
 			return
 		}
 		field, err := s.store.createCustomField(r.Context(), p, body)
@@ -85,7 +85,7 @@ func (s apiServer) customField(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPatch:
 		var body customfield.UpdateInput
-		if !decodeJSONBody(w, r, &body) {
+		if !decodeJSONBodyLimit(w, r, &body, maxStringBatchBodyBytes) {
 			return
 		}
 		if body.Empty() {
@@ -160,7 +160,7 @@ func (s apiServer) projectCustomFields(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			CustomFields map[string]json.RawMessage `json:"customFields"`
 		}
-		if !decodeJSONBody(w, r, &body) {
+		if !decodeJSONBodyLimit(w, r, &body, maxStringBatchBodyBytes) {
 			return
 		}
 		values, err = s.store.setProjectCustomFields(r.Context(), p, projectID, body.CustomFields)

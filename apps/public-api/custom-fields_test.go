@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -121,6 +123,20 @@ func TestCustomFieldRoutes(t *testing.T) {
 		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 		require.JSONEq(t, `"REQ-7"`, string(store.projectValues["request_ref"]))
 		require.Equal(t, "null", string(store.projectValues["due"]))
+	})
+
+	t.Run("accepts values larger than the default JSON body", func(t *testing.T) {
+		values := map[string]string{}
+		for i := range 30 {
+			values[fmt.Sprintf("field_%d", i)] = strings.Repeat("x", customfield.MaxTextLength)
+		}
+		payload, err := json.Marshal(map[string]any{"customFields": values})
+		require.NoError(t, err)
+		require.Greater(t, len(payload), maxRequestBodyBytes)
+		store := &fakeResourceStore{}
+		w := sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodPut, "/v1/projects/p1/custom-fields", string(payload))
+		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+		require.Len(t, store.projectValues, 30)
 	})
 
 	t.Run("maps errors", func(t *testing.T) {
@@ -265,6 +281,20 @@ func TestStringSearch(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, w.Code)
 		w = sendResource(t, resourcePrincipal(readScopes...), store, http.MethodPost, "/v1/projects/p1/strings/search", `{"keys":[""]}`)
 		require.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("accepts a key list larger than the default JSON body", func(t *testing.T) {
+		keys := make([]string, maxSelectedStrings)
+		for i := range keys {
+			keys[i] = fmt.Sprintf("%s-%d", strings.Repeat("k", 280), i)
+		}
+		payload, err := json.Marshal(map[string]any{"keys": keys, "limit": 1000})
+		require.NoError(t, err)
+		require.Greater(t, len(payload), maxRequestBodyBytes)
+		store := &fakeResourceStore{}
+		w := sendResource(t, resourcePrincipal(readScopes...), store, http.MethodPost, "/v1/projects/p1/strings/search", string(payload))
+		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+		require.Len(t, store.stringFilters.Keys, maxSelectedStrings)
 	})
 
 	t.Run("database", func(t *testing.T) {

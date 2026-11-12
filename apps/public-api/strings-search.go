@@ -40,7 +40,7 @@ func (s apiServer) projectStringsSearch(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	var body stringSearchBody
-	if !decodeJSONBody(w, r, &body) {
+	if !decodeJSONBodyLimit(w, r, &body, maxStringBatchBodyBytes) {
 		return
 	}
 	limit := defaultSearchLimit

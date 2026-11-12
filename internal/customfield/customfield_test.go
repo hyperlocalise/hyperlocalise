@@ -55,6 +55,18 @@ func TestNormalize(t *testing.T) {
 	}
 }
 
+func TestPresentOmitsStaleSelectValues(t *testing.T) {
+	field := Field{Type: TypeSingleSelect, Options: []Option{{ID: "a1", Value: "EU"}}}
+	value, err := present(field, []byte(`"gone"`))
+	require.NoError(t, err)
+	require.Nil(t, value)
+
+	multi := Field{Type: TypeMultiSelect, Options: []Option{{ID: "a1", Value: "EU"}}}
+	value, err = present(multi, []byte(`["gone"]`))
+	require.NoError(t, err)
+	require.Equal(t, []Option{}, value)
+}
+
 func TestNormalizeCreate(t *testing.T) {
 	in, err := NormalizeCreate(CreateInput{Key: "request_ref", Name: " Request ", Type: TypeText})
 	require.NoError(t, err)
