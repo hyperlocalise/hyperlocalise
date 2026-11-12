@@ -89,6 +89,12 @@ async function createEndpoint(
 
 type SentRequest = Parameters<WebhookSender>[0];
 
+// Postgres stamps next_attempt_at with microsecond now(). A millisecond JS
+// clock can still read as just before it, so claim past the queue time.
+function afterQueueTime() {
+  return new Date(Date.now() + 1_000);
+}
+
 function recordingSender(status: number) {
   const requests: SentRequest[] = [];
   const sender: WebhookSender = async (request) => {
@@ -167,7 +173,7 @@ describe("deliverDueWebhooks", () => {
     await dispatchJobChangeEvents({ organizationId });
 
     const { requests, sender } = recordingSender(204);
-    const result = await deliverDueWebhooks({ organizationId, sender });
+    const result = await deliverDueWebhooks({ organizationId, sender, now: afterQueueTime() });
     expect(result).toEqual({ attempted: 1, succeeded: 1, retrying: 0, failed: 0 });
 
     const [request] = requests;
@@ -202,9 +208,7 @@ describe("deliverDueWebhooks", () => {
     await dispatchJobChangeEvents({ organizationId });
     const { sender } = recordingSender(500);
 
-    // The first `nextAttemptAt` is Postgres `now()` with microsecond precision, so a
-    // millisecond JS clock can read as just before it. Start well past the queue time.
-    let now = new Date(Date.now() + 1_000);
+    let now = afterQueueTime();
     for (let attempt = 1; attempt <= WEBHOOK_MAX_ATTEMPTS; attempt += 1) {
       const result = await deliverDueWebhooks({ organizationId, sender, now });
       expect(result.attempted).toBe(1);
@@ -235,7 +239,11 @@ describe("deliverDueWebhooks", () => {
     await insertJob(organizationId);
     await dispatchJobChangeEvents({ organizationId });
 
-    await deliverDueWebhooks({ organizationId, sender: recordingSender(503).sender });
+    await deliverDueWebhooks({
+      organizationId,
+      sender: recordingSender(503).sender,
+      now: afterQueueTime(),
+    });
 
     const [row] = await db
       .select()

@@ -312,6 +312,37 @@ describe("GuidelineDocumentDetailContent", () => {
     expect(screen.getByText(/Preview is not available/)).toBeTruthy();
   });
 
+  it.each([
+    { contentType: "application/pdf", filename: "legal.pdf" },
+    {
+      contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      filename: "legal.docx",
+    },
+  ])("shows extracted text for $filename", async ({ contentType, filename }) => {
+    defaultMocks();
+    mocks.getDocument.mockResolvedValue(
+      guidelineDocument({
+        id: "doc-legal",
+        title: "Legal glossary",
+        filename,
+        contentType,
+        content: "Keep product names in English.",
+      }),
+    );
+    render(
+      <GuidelineDocumentDetailContent
+        organizationSlug="acme"
+        documentId="doc-legal"
+        canUpdate={false}
+      />,
+      { wrapper },
+    );
+
+    expect(await screen.findByRole("heading", { name: "Legal glossary" })).toBeTruthy();
+    expect(screen.getByText("Keep product names in English.")).toBeTruthy();
+    expect(screen.queryByText(/Preview is not available/)).toBeNull();
+  });
+
   it("retries when loading fails", async () => {
     mocks.getDocument.mockRejectedValueOnce(new Error("boom"));
     mocks.getDocument.mockResolvedValue(guidelineDocument());
