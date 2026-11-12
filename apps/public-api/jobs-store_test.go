@@ -140,6 +140,19 @@ func TestJobStoreSourceFile(t *testing.T) {
 	require.Equal(t, &jobSourceFile{FileID: storedID, Path: ptr(path), Branch: ptr("main")}, item.SourceFile)
 	require.Equal(t, "zh-CN", *item.SourceLocale)
 	require.Equal(t, &[]string{"en-US"}, item.TargetLocales)
+
+	items, total, err := f.store.listJobs(t.Context(), f.actor, jobFilters{Limit: 10})
+	require.NoError(t, err)
+	require.Equal(t, 1, total)
+	require.Len(t, items, 1)
+	require.Equal(t, item.SourceFile, items[0].SourceFile)
+	require.Equal(t, item.SourceLocale, items[0].SourceLocale)
+	require.Equal(t, item.TargetLocales, items[0].TargetLocales)
+
+	f.exec(t, `UPDATE repository_source_files SET branch_name='release-2' WHERE id=$1`, fileID)
+	item, err = f.store.getJob(t.Context(), f.actor, jobID)
+	require.NoError(t, err)
+	require.Equal(t, "release-2", *item.SourceFile.Branch)
 }
 
 func TestJobSourceFields(t *testing.T) {
@@ -150,7 +163,8 @@ func TestJobSourceFields(t *testing.T) {
 	require.Nil(t, jobSourceFileOf(&blank, &path, &branch))
 
 	require.Equal(t, &[]string{"fr", "de"}, jobTargetLocales([]byte(`["fr","de"]`)))
-	for _, raw := range []string{"", "null", `"fr"`, `[1]`} {
+	require.Equal(t, &[]string{}, jobTargetLocales([]byte(`[]`)))
+	for _, raw := range []string{"", "null", `"fr"`, `[1]`, `{"fr":true}`} {
 		require.Nil(t, jobTargetLocales([]byte(raw)), raw)
 	}
 }
