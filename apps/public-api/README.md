@@ -1,6 +1,9 @@
 # Public API
 
 Standalone Go service for external consumers using Hyperlocalise personal access tokens.
+Production is `https://public-api.hyperlocalise.com`. Interactive docs are at
+`https://public-api.hyperlocalise.com/docs` and the OpenAPI document at
+`https://public-api.hyperlocalise.com/openapi.yaml`.
 The web frontend continues to use its existing APIs. It does not call this service.
 The API reports the token's effective identity, reads Projects, Queries, Jobs,
 Glossaries, and Translation memories, creates native projects (optionally from a
@@ -177,8 +180,8 @@ docker build -f apps/public-api/Dockerfile -t hyperlocalise-public-api .
 
 Deploy this service behind a TLS ingress with request rate limits. Configure
 `DATABASE_URL`, `PROVIDER_CREDENTIALS_MASTER_KEY`, and optional `AUTUMN_API_KEY`
-through deployment secrets, not build arguments. No DNS or existing API routes
-change automatically.
+through deployment secrets, not build arguments. Production DNS is
+`public-api.hyperlocalise.com`.
 
 ## Adding resource endpoints
 

@@ -9,7 +9,7 @@ Use this API on **native projects** to read and update strings, set tags and des
 ## Base URL and authentication
 
 ```
-https://api.hyperlocalise.com/v1
+https://public-api.hyperlocalise.com/v1
 ```
 
 Send the same [personal access token](/platform/settings#personal-access-tokens) as Projects and Queries:
@@ -32,7 +32,7 @@ External TMS projects return `409` with `project_not_native` for string and tran
 
 A token never grants more than its owner's role allows. See [Roles and permissions](/platform/workspace/roles).
 
-The [interactive reference](https://api.hyperlocalise.com/docs) and [OpenAPI document](https://api.hyperlocalise.com/openapi.yaml) list every field and error code.
+The [interactive reference](https://public-api.hyperlocalise.com/docs) and [OpenAPI document](https://public-api.hyperlocalise.com/openapi.yaml) list every field and error code.
 
 ## Pick strings in bulk
 
@@ -56,7 +56,7 @@ Tag many strings and set a design link in one call:
 
 ```bash
 curl --fail-with-body \
-  -X POST "https://api.hyperlocalise.com/v1/projects/$PROJECT_ID/strings/bulk-update" \
+  -X POST "https://public-api.hyperlocalise.com/v1/projects/$PROJECT_ID/strings/bulk-update" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY" \
   -H "content-type: application/json" \
   -d '{
@@ -80,7 +80,7 @@ Upload a PNG, JPEG, or WebP (1 byte to 10 MB) in three steps. The image is the s
 
 ```bash
 curl --fail-with-body \
-  -X POST "https://api.hyperlocalise.com/v1/projects/$PROJECT_ID/screenshots" \
+  -X POST "https://public-api.hyperlocalise.com/v1/projects/$PROJECT_ID/screenshots" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY" \
   -H "content-type: application/json" \
   -d '{
@@ -101,7 +101,7 @@ PUT the file to `upload.url` with `upload.headers`, then:
 
 ```bash
 curl --fail-with-body \
-  -X POST "https://api.hyperlocalise.com/v1/projects/$PROJECT_ID/screenshots/$SCREENSHOT_ID/finalize" \
+  -X POST "https://public-api.hyperlocalise.com/v1/projects/$PROJECT_ID/screenshots/$SCREENSHOT_ID/finalize" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY" \
   -H "content-type: application/json" \
   -d '{}'
@@ -119,7 +119,7 @@ Without object storage the write routes return `503 screenshot_storage_unavailab
 
 ```bash
 curl --fail-with-body \
-  -X POST "https://api.hyperlocalise.com/v1/projects/$PROJECT_ID/translations/approve" \
+  -X POST "https://public-api.hyperlocalise.com/v1/projects/$PROJECT_ID/translations/approve" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY" \
   -H "content-type: application/json" \
   -d '{
@@ -134,7 +134,7 @@ Requires `translations:approve`. Blank translations, rejected translations, text
 
 ```bash
 curl --fail-with-body \
-  -X POST "https://api.hyperlocalise.com/v1/projects/$PROJECT_ID/translations/send-to-review" \
+  -X POST "https://public-api.hyperlocalise.com/v1/projects/$PROJECT_ID/translations/send-to-review" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY" \
   -H "content-type: application/json" \
   -d '{ "keys": ["checkout.title"] }'
@@ -153,7 +153,7 @@ Create a key job with `POST https://hyperlocalise.com/api/v1/jobs` and `type: "k
 ```bash
 # Strings in the job (hidden strings included)
 curl --fail-with-body \
-  "https://api.hyperlocalise.com/v1/jobs/$JOB_ID/strings?limit=50" \
+  "https://public-api.hyperlocalise.com/v1/jobs/$JOB_ID/strings?limit=50" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY"
 ```
 
@@ -161,7 +161,7 @@ Add visible strings (hidden strings and strings in no file are skipped):
 
 ```bash
 curl --fail-with-body \
-  -X POST "https://api.hyperlocalise.com/v1/jobs/$JOB_ID/strings" \
+  -X POST "https://public-api.hyperlocalise.com/v1/jobs/$JOB_ID/strings" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY" \
   -H "content-type: application/json" \
   -d '{ "tags": ["release-7"] }'
@@ -173,7 +173,7 @@ Remove strings with `DELETE` on the same path and a selection body. A job must k
 
 ```bash
 curl --fail-with-body \
-  "https://api.hyperlocalise.com/v1/jobs/$JOB_ID/locales" \
+  "https://public-api.hyperlocalise.com/v1/jobs/$JOB_ID/locales" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY"
 ```
 
