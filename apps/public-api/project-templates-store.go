@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/customfield"
 	"github.com/hyperlocalise/hyperlocalise/internal/nativeproject"
 	"github.com/hyperlocalise/hyperlocalise/internal/projecttemplate"
 )
@@ -21,6 +23,8 @@ var (
 type projectCreate struct {
 	projecttemplate.ProjectRequest
 	TemplateID *string
+	// CustomFields are values to set on the new project, keyed by field key or ID.
+	CustomFields map[string]json.RawMessage
 }
 
 func (s *postgresStore) listProjectTemplates(ctx context.Context, actor principal) ([]projecttemplate.Template, error) {
@@ -137,6 +141,11 @@ func (s *postgresStore) createProject(ctx context.Context, actor principal, req 
 	}, input)
 	if err != nil {
 		return project{}, err
+	}
+	if len(req.CustomFields) > 0 {
+		if err := customfield.SetProjectValues(ctx, tx, actor.OrganizationID, actor.UserID, projectID, req.CustomFields); err != nil {
+			return project{}, err
+		}
 	}
 	payload := map[string]any{"name": input.Name, "resourceId": projectID, "source": "native"}
 	if template != nil {

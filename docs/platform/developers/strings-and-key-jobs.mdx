@@ -28,7 +28,7 @@ External TMS projects return `409` with `project_not_native` for string and tran
 | Create or edit strings, send translations to review | `strings:write` (included with `files:write` for roles other than member) |
 | Add or remove tags and design links | `strings:write`, and the token owner must be an admin, localization manager, or developer |
 | Approve translations in bulk | `translations:approve` (included with `files:write` for admins, localization managers, and reviewers) |
-| Manage key job strings and locales, read job lists | `jobs:read` / `jobs:write` |
+| Manage key job strings and locales, read job lists, update jobs one at a time or in bulk | `jobs:read` / `jobs:write` |
 
 A token never grants more than its owner's role allows. See [Roles and permissions](/platform/workspace/roles).
 
@@ -69,6 +69,30 @@ curl --fail-with-body \
 The response is `{ "updated": <count> }`. Send `"designUrl": null` to clear the link. Use `removeTags` to drop tags without adding others.
 
 Only the bulk-update route writes tags and links; single-string `PATCH`, create, and batch upsert do not.
+
+## Search strings
+
+`POST /v1/projects/{projectId}/strings/search` takes the list filters in a JSON body, so one call can check up to 1,000 key names and return up to 1,000 strings. Filters combine with AND:
+
+| Field | Meaning |
+| --- | --- |
+| `keys` | Up to 1,000 exact key names |
+| `keyPrefix` | Keys that start with this text, matched literally and case-sensitively |
+| `search` | Case-insensitive match on key or source text |
+| `filePath` | Strings from one source file |
+| `tags` | Up to 10 tags; a string must carry every tag |
+| `includeHidden` | Include hidden strings (default `false`) |
+| `limit`, `offset` | Page size 1–1,000 (default 100) and start |
+
+```bash
+curl --fail-with-body \
+  -X POST "https://api.hyperlocalise.com/v1/projects/$PROJECT_ID/strings/search" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -H "content-type: application/json" \
+  -d '{ "keys": ["checkout.title", "checkout.pay", "checkout.old"], "limit": 1000 }'
+```
+
+The response has `strings`, `pagination`, and `missingKeys`: the requested keys, in request order, that name no string in the project (in any file, hidden or not). Use it to find which keys to create before you add strings to a key job.
 
 ## Batch review
 
@@ -137,6 +161,23 @@ curl --fail-with-body \
 Each locale row includes total, translated, approved, and needs-review counts over the job's visible strings. Progress is computed when you ask; sending a translation back to review lowers counts immediately.
 
 Add or remove target languages with `POST /v1/jobs/{jobId}/locales` and `DELETE /v1/jobs/{jobId}/locales/{locale}` while the job is open. Patch title, description, due date, or owner with `PATCH /v1/jobs/{jobId}`.
+
+### Update many jobs at once
+
+`POST /v1/jobs/bulk-update` applies one change to up to 100 jobs, such as moving every job of a request to a new due date:
+
+```bash
+curl --fail-with-body \
+  -X POST "https://api.hyperlocalise.com/v1/jobs/bulk-update" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "jobIds": ["'$JOB_ID_1'", "'$JOB_ID_2'"],
+    "dueAt": "2026-12-01T09:00:00Z"
+  }'
+```
+
+It takes the same fields as `PATCH /v1/jobs/{jobId}` (`title`, `description`, `dueAt`, `ownerEmail`; `null` clears all but `title`) and returns `{ "jobs": [...] }` in request order. The update is all or nothing: if one job is missing, provider-backed, or cannot take the owner, no job changes and the error's `details.jobId` names that job. Each job still sends its own job-changed webhook.
 
 Finish the job with `POST https://hyperlocalise.com/api/v1/jobs/{jobId}/complete` on the files-and-jobs host. See [Complete a task for people](/platform/api#complete-a-task-for-people).
 

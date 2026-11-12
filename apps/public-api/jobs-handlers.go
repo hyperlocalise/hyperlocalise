@@ -90,34 +90,46 @@ func (s apiServer) job(w http.ResponseWriter, r *http.Request) {
 	}{item})
 }
 
+// jobPatchBody is the body of a job update; a bulk update adds jobIds.
+type jobPatchBody struct {
+	Title       *string        `json:"title"`
+	Description optionalString `json:"description"`
+	DueAt       optionalTime   `json:"dueAt"`
+	OwnerEmail  optionalString `json:"ownerEmail"`
+}
+
+// patch trims and checks the body. It reports false when no field is set or a value is invalid.
+func (b jobPatchBody) patch() (jobPatch, bool) {
+	if b.Title != nil {
+		trimmed := strings.TrimSpace(*b.Title)
+		b.Title = &trimmed
+	}
+	b.Description.Value = trimmedOrNil(b.Description.Value)
+	b.OwnerEmail.Value = trimmedOrNil(b.OwnerEmail.Value)
+	empty := b.Title == nil && !b.Description.Set && !b.DueAt.Set && !b.OwnerEmail.Set
+	validOwner := b.OwnerEmail.Value == nil || validEmail(*b.OwnerEmail.Value)
+	if empty || (b.Title != nil && (*b.Title == "" || len(*b.Title) > 256)) ||
+		!validOptionalText(b.Description.Value, 2048) || !validOwner {
+		return jobPatch{}, false
+	}
+	return jobPatch(b), true
+}
+
 func (s apiServer) updateJob(w http.ResponseWriter, r *http.Request, jobID string) {
 	p, ok := s.authenticateWithStore(w, r, "jobs:write")
 	if !ok {
 		return
 	}
-	var body struct {
-		Title       *string        `json:"title"`
-		Description optionalString `json:"description"`
-		DueAt       optionalTime   `json:"dueAt"`
-		OwnerEmail  optionalString `json:"ownerEmail"`
-	}
+	var body jobPatchBody
 	if !decodeJSONBody(w, r, &body) {
 		return
 	}
-	if body.Title != nil {
-		trimmed := strings.TrimSpace(*body.Title)
-		body.Title = &trimmed
-	}
-	body.Description.Value = trimmedOrNil(body.Description.Value)
-	body.OwnerEmail.Value = trimmedOrNil(body.OwnerEmail.Value)
-	empty := body.Title == nil && !body.Description.Set && !body.DueAt.Set && !body.OwnerEmail.Set
-	validOwner := body.OwnerEmail.Value == nil || validEmail(*body.OwnerEmail.Value)
-	if empty || (body.Title != nil && (*body.Title == "" || len(*body.Title) > 256)) ||
-		!validOptionalText(body.Description.Value, 2048) || !validOwner {
+	patch, valid := body.patch()
+	if !valid {
 		writeError(w, http.StatusBadRequest, "invalid_body", "Provide title, description, dueAt, or ownerEmail with valid values")
 		return
 	}
-	item, err := s.store.updateJob(r.Context(), p, jobID, jobPatch(body))
+	item, err := s.store.updateJob(r.Context(), p, jobID, patch)
 	if err != nil {
 		writeJobStoreError(w, err, "update job")
 		return
@@ -125,6 +137,68 @@ func (s apiServer) updateJob(w http.ResponseWriter, r *http.Request, jobID strin
 	writeJSON(w, http.StatusOK, struct {
 		Job job `json:"job"`
 	}{item})
+}
+
+// maxBulkJobs caps the jobs one bulk update changes.
+const maxBulkJobs = 100
+
+// jobsBulkUpdate applies one change to many jobs, all or nothing.
+func (s apiServer) jobsBulkUpdate(w http.ResponseWriter, r *http.Request) {
+	if !allowMethods(w, r, http.MethodPost) {
+		return
+	}
+	p, ok := s.authenticateWithStore(w, r, "jobs:write")
+	if !ok {
+		return
+	}
+	var body struct {
+		JobIDs []string `json:"jobIds"`
+		jobPatchBody
+	}
+	if !decodeJSONBody(w, r, &body) {
+		return
+	}
+	patch, valid := body.patch()
+	jobIDs := make([]string, 0, len(body.JobIDs))
+	seen := map[string]struct{}{}
+	for _, id := range body.JobIDs {
+		id = strings.TrimSpace(id)
+		if id == "" || len(id) > 128 {
+			valid = false
+			break
+		}
+		if _, dup := seen[id]; !dup {
+			seen[id] = struct{}{}
+			jobIDs = append(jobIDs, id)
+		}
+	}
+	if !valid || len(jobIDs) == 0 || len(jobIDs) > maxBulkJobs {
+		writeError(w, http.StatusBadRequest, "invalid_body",
+			"Provide 1 to 100 jobIds and at least one of title, description, dueAt, or ownerEmail with valid values")
+		return
+	}
+	items, err := s.store.bulkUpdateJobs(r.Context(), p, jobIDs, patch)
+	if err != nil {
+		// Name the job that stopped the update, so the caller can fix or drop it and retry.
+		var bulk jobBulkError
+		if errors.As(err, &bulk) {
+			for _, response := range jobErrorResponses {
+				if errors.Is(err, response.err) {
+					writeJSON(w, response.status, struct {
+						Error   string            `json:"error"`
+						Message string            `json:"message"`
+						Details map[string]string `json:"details"`
+					}{response.code, response.message, map[string]string{"jobId": bulk.JobID}})
+					return
+				}
+			}
+		}
+		writeJobStoreError(w, err, "bulk update jobs")
+		return
+	}
+	writeJSON(w, http.StatusOK, struct {
+		Jobs []job `json:"jobs"`
+	}{items})
 }
 
 func validEmail(value string) bool {

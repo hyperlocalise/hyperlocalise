@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/customfield"
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/hyperlocalise/hyperlocalise/internal/projecttemplate"
@@ -126,6 +127,15 @@ type resourceStore interface {
 	updateProjectTemplate(context.Context, principal, string, projecttemplate.Body) (projecttemplate.Template, error)
 	deleteProjectTemplate(context.Context, principal, string) error
 	createProject(context.Context, principal, projectCreate) (project, error)
+	listCustomFields(context.Context, principal) ([]customfield.Field, error)
+	getCustomField(context.Context, principal, string) (customfield.Field, error)
+	createCustomField(context.Context, principal, customfield.CreateInput) (customfield.Field, error)
+	updateCustomField(context.Context, principal, string, customfield.UpdateInput) (customfield.Field, error)
+	deleteCustomField(context.Context, principal, string) error
+	getProjectCustomFields(context.Context, principal, string) ([]customfield.ProjectValue, error)
+	setProjectCustomFields(context.Context, principal, string, map[string]json.RawMessage) ([]customfield.ProjectValue, error)
+	missingStringKeys(context.Context, principal, string, []string) ([]string, error)
+	bulkUpdateJobs(context.Context, principal, []string, jobPatch) ([]job, error)
 }
 
 type postgresStore struct {
