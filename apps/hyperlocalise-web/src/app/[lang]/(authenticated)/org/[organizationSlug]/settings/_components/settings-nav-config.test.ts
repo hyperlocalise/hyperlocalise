@@ -64,6 +64,17 @@ describe("settings nav config", () => {
     ]);
   });
 
+  it("shows project templates to every workspace member", () => {
+    const visible = filterVisibleSettingsNavGroups(settingsNavGroups, ["projects:read"]);
+
+    expect(visible.flatMap((group) => group.items.map((item) => item.id))).toContain(
+      "project-templates",
+    );
+    expect(resolveActiveSettingsNavItem("/org/acme/settings/project-templates", "acme")).toBe(
+      "project-templates",
+    );
+  });
+
   it("builds settings destinations under the settings layout", () => {
     expect(buildSettingsItemHref("acme", "members")).toBe("/org/acme/settings/members");
     expect(buildSettingsItemHref("acme", "integrations")).toBe("/org/acme/settings/integrations");

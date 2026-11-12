@@ -69,6 +69,8 @@ func newHandlerWithOutbound(auth authenticator, store resourceStore, outbound ou
 	mux.HandleFunc("/v1/jobs/{jobId}/strings", s.jobStrings)
 	mux.HandleFunc("/v1/jobs/{jobId}/locales", s.jobLocales)
 	mux.HandleFunc("/v1/jobs/{jobId}/locales/{locale}", s.jobLocale)
+	mux.HandleFunc("/v1/project-templates", s.projectTemplates)
+	mux.HandleFunc("/v1/project-templates/{templateId}", s.projectTemplate)
 	mux.HandleFunc("/v1/queries", s.queries)
 	mux.HandleFunc("/v1/queries/", s.query)
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
@@ -100,11 +102,15 @@ func (s apiServer) me(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s apiServer) projects(w http.ResponseWriter, r *http.Request) {
-	if !allowRead(w, r) {
-		return
-	}
 	if r.URL.Path != "/v1/projects" {
 		writeError(w, http.StatusNotFound, "not_found", "Route not found")
+		return
+	}
+	if r.Method == http.MethodPost {
+		s.createProject(w, r)
+		return
+	}
+	if !allowRead(w, r) {
 		return
 	}
 	p, ok := s.authenticate(w, r, "projects:read")

@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   applyProjectSettingsSection,
+  applyProjectTemplate,
   createProjectFormFromRow,
   projectFormHasErrors,
   projectSettingsSectionIsDirty,
@@ -271,5 +272,60 @@ describe("project form helpers", () => {
       ...current,
       targetLocales: ["ja-JP"],
     });
+  });
+});
+
+describe("applyProjectTemplate", () => {
+  const template = {
+    id: "8a3c2f0e-1111-4c4c-9d9d-000000000001",
+    sourceLocale: "zh-CN",
+    targetLocales: ["en-US", "es-419"],
+    projectDescription: "Intake request",
+    translationContext: "Product UI, formal tone",
+  };
+
+  it("fills locales and text from the template and keeps the typed name", () => {
+    const values = applyProjectTemplate(
+      {
+        name: "REQ-1042",
+        identifier: "",
+        description: "",
+        translationContext: "",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+      template,
+    );
+
+    expect(values).toMatchObject({
+      name: "REQ-1042",
+      templateId: template.id,
+      sourceLocale: "zh-CN",
+      targetLocales: ["en-US", "es-419"],
+      description: "Intake request",
+      translationContext: "Product UI, formal tone",
+    });
+    expect(toProjectPayload(values, { mode: "create" })).toMatchObject({
+      templateId: template.id,
+      sourceLocale: "zh-CN",
+    });
+  });
+
+  it("clears the template when the user goes back to a blank project", () => {
+    const withTemplate = applyProjectTemplate(
+      {
+        name: "x",
+        identifier: "",
+        description: "",
+        translationContext: "",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+      template,
+    );
+    const blank = applyProjectTemplate(withTemplate, null);
+
+    expect(blank.templateId).toBeUndefined();
+    expect(toProjectPayload(blank, { mode: "create" })).not.toHaveProperty("templateId");
   });
 });

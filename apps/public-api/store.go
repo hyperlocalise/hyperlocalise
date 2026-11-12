@@ -10,6 +10,7 @@ import (
 
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
+	"github.com/hyperlocalise/hyperlocalise/internal/projecttemplate"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -119,6 +120,12 @@ type resourceStore interface {
 	jobLocales(context.Context, principal, string) ([]jobLocaleProgress, error)
 	addJobLocale(context.Context, principal, string, string) ([]jobLocaleProgress, error)
 	removeJobLocale(context.Context, principal, string, string) ([]jobLocaleProgress, error)
+	listProjectTemplates(context.Context, principal) ([]projecttemplate.Template, error)
+	getProjectTemplate(context.Context, principal, string) (projecttemplate.Template, error)
+	createProjectTemplate(context.Context, principal, projecttemplate.Body, *string) (projecttemplate.Template, error)
+	updateProjectTemplate(context.Context, principal, string, projecttemplate.Body) (projecttemplate.Template, error)
+	deleteProjectTemplate(context.Context, principal, string) error
+	createProject(context.Context, principal, projectCreate) (project, error)
 }
 
 type postgresStore struct {
@@ -126,6 +133,8 @@ type postgresStore struct {
 	// objects and glossaryImports are optional; glossary imports need both.
 	objects         *objectstore.Registry
 	glossaryImports glossaryImportQueue
+	// autumn checks the workspace's project limit; nil allows one project, as go-svc does.
+	autumn *autumnClient
 }
 
 // workspaceOperatorPredicate matches go-svc's org-wide glossary, memory, and project access roles.

@@ -155,6 +155,7 @@
                     "group": "Project management",
                     "pages": [
                       "platform/projects/create-project",
+                      "platform/projects/templates",
                       "platform/projects/settings",
                       "platform/projects/languages",
                       {

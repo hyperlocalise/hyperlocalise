@@ -122,6 +122,7 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	}
 	route("GET "+projects, bindActor(api, (*projectAPI).listHandler))
 	route("POST "+projects, bindActor(api, (*projectAPI).createHandler))
+	api.registerTemplates(route)
 	route("GET "+project, bindActor(api, (*projectAPI).getHandler))
 	route("PATCH "+project, bindActor(api, (*projectAPI).updateHandler))
 	route("DELETE "+project, bindActor(api, (*projectAPI).deleteHandler))

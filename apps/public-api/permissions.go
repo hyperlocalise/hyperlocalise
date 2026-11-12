@@ -61,10 +61,18 @@ func effectivePermissions(stored []string, role string) []string {
 		if role == "admin" || role == "localization_manager" || role == "reviewer" {
 			add("translations:approve")
 		}
+		// Project templates follow go-svc: admins and localization managers manage them.
+		if role == "admin" || role == "localization_manager" {
+			add("project-templates:write")
+		}
 		// Glossary edits follow go-svc: managers, and translators on their teams' glossaries.
 		if role == "admin" || role == "localization_manager" || role == "translator" {
 			add("glossaries:write")
 		}
+	}
+	// Every workspace member can list templates to create a project from one, as in go-svc.
+	if _, ok := seen["projects:read"]; ok {
+		add("project-templates:read")
 	}
 	if _, ok := seen["memories:read"]; ok {
 		add("translation-memories:read")
