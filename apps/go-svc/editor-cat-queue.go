@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/nativeproject"
 	"github.com/hyperlocalise/hyperlocalise/internal/sourcetext"
 	"github.com/hyperlocalise/hyperlocalise/internal/translationorigin"
 	"github.com/jackc/pgx/v5"
@@ -116,6 +117,7 @@ type editorCatQueueQuery struct {
 	sourcePaths          []string
 	// grouped collapses identical source strings into one representative segment.
 	grouped bool
+	branch  string
 }
 
 func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
@@ -172,6 +174,10 @@ func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
 	if parsed := parseEditorCatSourcePaths(values.Get("sourcePaths")); len(parsed) > 0 {
 		sourcePaths = parsed
 	}
+	branch := nativeproject.ResolveBranchName(values.Get("branch"))
+	if len(branch) > 128 {
+		return editorCatQueueQuery{}, editorCatFailure(400, "invalid_project_payload", "Invalid CAT query")
+	}
 	return editorCatQueueQuery{
 		sourcePath:           sourcePath,
 		targetLocale:         targetLocale,
@@ -184,6 +190,7 @@ func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
 		limit:                limit,
 		sourcePaths:          sourcePaths,
 		grouped:              trimEditorCat(values.Get("grouped")) == "true",
+		branch:               branch,
 	}, nil
 }
 
@@ -543,11 +550,12 @@ func editorCatGeneratedDownloadPath(organizationSlug, projectID, sourcePath, tar
 }
 
 func (api *editorCatAPI) sourceFileID(r *http.Request, actor editorCatActor, project editorCatProject, sourcePath string) (string, error) {
+	branch := nativeproject.ResolveBranchName(r.URL.Query().Get("branch"))
 	var id string
 	err := api.pool.QueryRow(r.Context(), `
         select id from repository_source_files
-        where organization_id=$1 and project_id=$2 and source_path=$3
-        limit 1`, actor.organizationID, project.ID, sourcePath).Scan(&id)
+        where organization_id=$1 and project_id=$2 and source_path=$3 and branch_name=$4
+        limit 1`, actor.organizationID, project.ID, sourcePath, branch).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", editorCatFailure(400, "source_file_not_found", "Source file not found for the given path")
 	}
@@ -565,6 +573,10 @@ func escapeEditorCatIlike(value string) string {
 func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project editorCatProject, query editorCatQueueQuery, sourceFileID *string, includeSourcePath bool) ([]editorCatSegment, int, error) {
 	args := []any{actor.organizationID, project.ID}
 	where := `k.organization_id=$1 and k.project_id=$2 and ` + editorCatExcludeCalloutFenceSQL("k")
+	if sourceFileID == nil {
+		args = append(args, query.branch)
+		where += ` and k.branch_name=$` + strconv.Itoa(len(args))
+	}
 	if sourceFileID != nil {
 		args = append(args, *sourceFileID)
 		where += ` and k.repository_source_file_id=$` + strconv.Itoa(len(args))

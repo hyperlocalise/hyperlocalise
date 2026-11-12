@@ -68,6 +68,7 @@ import {
   maxCatFilteredExportSegments,
 } from "@/lib/projects/content-editor/content-editor-filtered-export";
 import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
 import { listProjectKeyTags } from "@/lib/projects/jobs/key-job";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 
@@ -290,6 +291,7 @@ import {
 import { createJobRoutes } from "./job.route";
 import { createIssueSheetRoutes } from "./issue-sheet.route";
 import { createProjectAssetRoutes } from "./project-assets.route";
+import { createProjectBranchRoutes } from "./project-branches.route";
 import {
   generateContentEditorAiRecommendation,
   loadContentEditorSegmentConcordance,
@@ -1040,6 +1042,7 @@ export async function loadProjectFileContentEditorQueue(
       organizationSlug,
       pagination,
       sourcePaths: sourcePathsFilter,
+      branchName: query.branch,
     });
 
     if (!contentEditorQueue) {
@@ -1171,6 +1174,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       "/:projectId/assets",
       createProjectAssetRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
     )
+    .route("/:projectId/branches", createProjectBranchRoutes())
     .get(
       "/:projectId/files/detail/cat/queue",
       validateProjectParams,
@@ -3992,7 +3996,17 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }
 
       if (target.kind !== "provider") {
-        return c.json({ branches: [] }, 200);
+        const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+        await projectBranchService.ensureDefaultBranch({
+          organizationId: project.organizationId,
+          projectId: project.id,
+          createdByUserId: project.createdByUserId,
+        });
+        const branches = await projectBranchService.listActivePickerOptions(project.id);
+        return c.json({ branches }, 200);
       }
 
       try {
@@ -4142,6 +4156,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           commitSha: asString(body.commitSha),
           workflowRunId: asString(body.workflowRunId),
           keepApproved: asString(body.keepApproved),
+          branch: asString(body.branch),
         });
 
         if (!parsed.success) {
@@ -4156,6 +4171,23 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         if (!inferSupportedSourceUploadFormat(parsed.data.sourcePath)) {
           return unsupportedProjectFileResponse(c, parsed.data.sourcePath);
         }
+
+        await projectBranchService.ensureDefaultBranch({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          createdByUserId: c.var.auth.user.localUserId,
+        });
+        const writableBranch = await projectBranchService.assertWritable({
+          projectId: params.projectId,
+          branchName: parsed.data.branch,
+        });
+        if (!writableBranch.ok) {
+          if (writableBranch.error === "protected_branch") {
+            return conflictResponse(c, "protected_branch", "This branch is protected.");
+          }
+          return notFoundResponse(c, "branch_not_found", "Branch not found.");
+        }
+        const uploadBranchName = writableBranch.value;
 
         const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
         let uploadedFile: typeof schema.storedFiles.$inferSelect | null = null;
@@ -4185,6 +4217,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             const version = await createRepositorySourceFileVersion({
               storedFile: uploadedFile,
               sourcePath: parsed.data.sourcePath,
+              branchName: uploadBranchName,
               sourceHash: parsed.data.sourceHash,
               commitSha: parsed.data.commitSha,
               workflowRunId: parsed.data.workflowRunId,

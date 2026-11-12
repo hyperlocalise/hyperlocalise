@@ -55,6 +55,13 @@ vi.mock("./source-file-ingest", () => ({
   enqueueSourceFileIngestAfterUpload: enqueueSourceFileIngestAfterUploadMock,
 }));
 
+vi.mock("@/lib/projects/branches/project-branch-service", () => ({
+  projectBranchService: {
+    ensureDefaultBranch: vi.fn(async () => ({ name: "main" })),
+    assertWritable: vi.fn(async () => ({ ok: true, value: "main" })),
+  },
+}));
+
 vi.mock("@/lib/log", async () => {
   const { createTestLogger } = await import("@/test/create-test-logger");
   return {

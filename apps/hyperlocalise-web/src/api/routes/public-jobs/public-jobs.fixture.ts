@@ -254,7 +254,11 @@ export async function insertRepositoryPublicFileJob(params: {
         createdAt: params.versionCreatedAt,
       })
       .onConflictDoUpdate({
-        target: [schema.repositorySourceFiles.projectId, schema.repositorySourceFiles.sourcePath],
+        target: [
+          schema.repositorySourceFiles.projectId,
+          schema.repositorySourceFiles.branchName,
+          schema.repositorySourceFiles.sourcePath,
+        ],
         set: { updatedAt: params.versionCreatedAt },
       })
       .returning();

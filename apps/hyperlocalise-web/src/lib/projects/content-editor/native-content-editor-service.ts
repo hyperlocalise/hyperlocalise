@@ -255,6 +255,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
     organizationSlug: string;
     pagination?: ProjectFileContentEditorPaginationInput;
     sourcePaths?: readonly string[] | null;
+    branchName?: string | null;
   }): Promise<ProjectFileContentEditorQueueFile | null> {
     if (isContentEditorAllFilesSourcePath(input.sourcePath)) {
       return this.getAllFilesCatQueue(input);
@@ -264,6 +265,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
+      branchName: input.branchName,
     });
 
     if (!sourceFile) {
@@ -453,6 +455,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationId: string;
       projectId: string;
       sourcePath: string;
+      branchName?: string | null;
     },
     file: ProjectFileContentEditorQueueFile,
   ): Promise<ProjectFileContentEditorQueueFile> {
@@ -460,6 +463,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
+      branchName: input.branchName,
       db: this.database,
     });
     if (!latestVersion) {
@@ -481,6 +485,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       targetLocale: string;
       canEditTranslations: boolean;
       organizationSlug: string;
+      branchName?: string | null;
     };
     sourceFileId: string;
     createdAt?: Date | null;
@@ -492,6 +497,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
         organizationId: input.input.organizationId,
         projectId: input.input.projectId,
         sourcePath: input.input.sourcePath,
+        branchName: input.input.branchName,
         db: this.database,
       }),
       getImageVariant({
@@ -561,6 +567,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       targetLocale: string;
       canEditTranslations: boolean;
       organizationSlug: string;
+      branchName?: string | null;
     };
     sourceFileId: string;
     createdAt?: Date | null;
@@ -572,6 +579,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
         organizationId: input.input.organizationId,
         projectId: input.input.projectId,
         sourcePath: input.input.sourcePath,
+        branchName: input.input.branchName,
         db: this.database,
       }),
       getVideoVariant({
@@ -641,6 +649,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       targetLocale: string;
       canEditTranslations: boolean;
       organizationSlug: string;
+      branchName?: string | null;
     };
     sourceFileId: string;
     createdAt?: Date | null;
@@ -652,6 +661,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
         organizationId: input.input.organizationId,
         projectId: input.input.projectId,
         sourcePath: input.input.sourcePath,
+        branchName: input.input.branchName,
         db: this.database,
       }),
       getImageVariant({
@@ -723,6 +733,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       sourcePath: string;
       targetLocale: string;
       organizationSlug: string;
+      branchName?: string | null;
     };
     sourceFileId: string;
   }): Promise<
@@ -736,6 +747,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
         organizationId: input.input.organizationId,
         projectId: input.input.projectId,
         sourcePath: input.input.sourcePath,
+        branchName: input.input.branchName,
         db: this.database,
       }),
       getImageVariant({
@@ -796,6 +808,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       sourcePath: string;
       targetLocale: string;
       organizationSlug: string;
+      branchName?: string | null;
     };
     sourceFileId: string;
     targetDownloadPath?: string;
@@ -804,6 +817,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationId: input.input.organizationId,
       projectId: input.input.projectId,
       sourcePath: input.input.sourcePath,
+      branchName: input.input.branchName,
       db: this.database,
     });
 
@@ -884,6 +898,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
     canEditTranslations: boolean;
     pagination?: ProjectFileContentEditorPaginationInput;
     sourcePaths?: readonly string[] | null;
+    branchName?: string | null;
   }): Promise<ProjectFileContentEditorQueueFile> {
     const paginationInput = input.pagination ?? {
       offset: 0,
@@ -909,6 +924,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
         queueFilterQualifier: paginationInput.queueFilterQualifier,
         advancedFilter: paginationInput.advancedFilter,
         sourcePaths: input.sourcePaths,
+        branchName: input.branchName,
       }),
       this.translations.listKeysForProject({
         organizationId: input.organizationId,
@@ -922,6 +938,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
         advancedFilter: paginationInput.advancedFilter,
         queueSort: paginationInput.queueSort,
         sourcePaths: input.sourcePaths,
+        branchName: input.branchName,
       }),
     ]);
 
@@ -993,6 +1010,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationId: string;
       projectId: string;
       sourcePath: string;
+      branchName?: string | null;
     },
     keys: T[],
   ): Promise<T[]> {
@@ -1006,6 +1024,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
+      branchName: input.branchName,
       db: this.database,
     });
     if (!version?.storedFileId) {
@@ -1029,6 +1048,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
     organizationSlug: string;
     projectId: string;
     sourcePath: string;
+    branchName?: string | null;
     keys: readonly string[];
   }): Promise<string | null> {
     if (!resolveLottieSourceKind(input.sourcePath, input.keys)) {
@@ -1039,6 +1059,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
+      branchName: input.branchName,
       db: this.database,
     });
     if (!latestVersion?.storedFileId) {

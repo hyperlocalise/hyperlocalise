@@ -131,6 +131,11 @@ export const repositorySourceFiles = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     sourcePath: text("source_path").notNull(),
+    /**
+     * Native version branch this file belongs to. Defaults to `main` so existing
+     * uploads stay on the default branch without a backfill of application code.
+     */
+    branchName: text("branch_name").notNull().default("main"),
     segmentationSettings: jsonb("segmentation_settings")
       .$type<RepositorySourceFileSegmentationSettings>()
       .notNull()
@@ -158,7 +163,11 @@ export const repositorySourceFiles = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    uniqueIndex("repository_source_files_project_path_key").on(table.projectId, table.sourcePath),
+    uniqueIndex("repository_source_files_project_branch_path_key").on(
+      table.projectId,
+      table.branchName,
+      table.sourcePath,
+    ),
     index("idx_repository_source_files_org_project").on(table.organizationId, table.projectId),
     index("idx_repository_source_files_reconciled_version").on(table.reconciledSourceFileVersionId),
   ],
@@ -205,7 +214,7 @@ export const repositorySourceFileVersions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("repository_source_file_versions_stored_file_key").on(table.storedFileId),
+    index("idx_repository_source_file_versions_stored_file").on(table.storedFileId),
     index("idx_repository_source_file_versions_file_created").on(
       table.repositorySourceFileId,
       table.createdAt,
