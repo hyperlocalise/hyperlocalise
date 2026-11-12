@@ -12,9 +12,11 @@
  */
 import type { Sandbox } from "@vercel/sandbox";
 
+import { createLogger } from "@/lib/log";
 import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
 
 import { filterAllowedBrowserUrls, isAllowedBrowserUrl } from "./audit-browser-url-guard";
+import { redactAuditErrorText } from "./audit-log";
 import {
   buildAuditPlaywrightScript,
   SANDBOX_AUDIT_BROWSER_PATHS,
@@ -27,6 +29,8 @@ import { parseAuditPageLayout } from "./layout";
 import { AuditBrowserSetupError } from "./sandbox-browser-error";
 
 export { AuditBrowserSetupError } from "./sandbox-browser-error";
+const logger = createLogger("localisation-audit-sandbox");
+
 export const AUDIT_BROWSER_SANDBOX_TIMEOUT_MS = 10 * 60 * 1000;
 const AUDIT_BROWSER_DIR = SANDBOX_AUDIT_BROWSER_PATHS.outputDir;
 const AUDIT_BROWSER_SCRIPT_PATH = SANDBOX_AUDIT_BROWSER_PATHS.scriptPath;
@@ -95,6 +99,7 @@ export async function createAuditBrowserSession(): Promise<HtmlPageRenderer> {
   const browsersPath = shellQuote(SANDBOX_PLAYWRIGHT_BROWSERS_DIR);
 
   return {
+    kind: "sandbox",
     async render(urls: string[]): Promise<RenderedHtmlPage[]> {
       const allowed = await filterAllowedBrowserUrls(urls);
       if (allowed.length === 0) {
@@ -120,11 +125,16 @@ export async function createAuditBrowserSession(): Promise<HtmlPageRenderer> {
         ],
       });
       if (result.exitCode !== 0) {
+        logger.warn("sandbox audit browser script failed", {
+          exitCode: result.exitCode,
+          urlCount: allowed.length,
+        });
         return [];
       }
 
       const manifestText = await readSandboxText(sandbox, AUDIT_BROWSER_MANIFEST_PATH);
       if (!manifestText) {
+        logger.warn("sandbox audit browser wrote no manifest", { urlCount: allowed.length });
         return [];
       }
 
@@ -132,12 +142,18 @@ export async function createAuditBrowserSession(): Promise<HtmlPageRenderer> {
       try {
         manifest = JSON.parse(manifestText) as { pages?: AuditBrowserManifestPage[] };
       } catch {
+        logger.warn("sandbox audit browser manifest is not valid json", {
+          urlCount: allowed.length,
+        });
         return [];
       }
 
       const rendered: RenderedHtmlPage[] = [];
+      const pageErrors: Record<string, number> = {};
       for (const page of manifest.pages ?? []) {
         if (!page.htmlPath || page.error) {
+          const key = page.error ? redactAuditErrorText(page.error).slice(0, 120) : "no_html";
+          pageErrors[key] = (pageErrors[key] ?? 0) + 1;
           continue;
         }
         if (!(await isAllowedBrowserUrl(page.url))) {
@@ -153,6 +169,13 @@ export async function createAuditBrowserSession(): Promise<HtmlPageRenderer> {
           status: page.status,
           html,
           layout: parseAuditPageLayout(page.layout),
+        });
+      }
+      if (Object.keys(pageErrors).length > 0) {
+        logger.warn("sandbox audit browser skipped pages", {
+          urlCount: allowed.length,
+          renderedCount: rendered.length,
+          pageErrors,
         });
       }
       return rendered;

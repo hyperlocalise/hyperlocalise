@@ -14,10 +14,17 @@ import { randomUUID } from "node:crypto";
 
 import type { Browser, BrowserContext } from "playwright-core";
 
+import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { MAX_PUBLIC_HTTP_RESPONSE_BYTES } from "@/lib/security/public-http-fetch";
 
+import {
+  auditErrorLogFields,
+  describeAuditError,
+  redactAuditErrorText,
+  type AuditErrorDetail,
+} from "./audit-log";
 import { filterAllowedBrowserUrls, isAllowedBrowserUrl } from "./audit-browser-url-guard";
 import {
   AUDIT_BROWSER_LAYOUT_LIMITS,
@@ -29,6 +36,8 @@ import {
 } from "./audit-playwright-script";
 import type { HtmlPageRenderer, RenderedHtmlPage } from "./crawl-renderer";
 import { parseAuditPageLayout } from "./layout";
+
+const logger = createLogger("localisation-audit-tilion");
 
 export const TILION_API_BASE_URL = "https://back.tilion.dev";
 const TILION_SESSION_TTL_SECONDS = 10 * 60;
@@ -42,10 +51,20 @@ const TILION_RENDER_CONCURRENCY = 3;
 // The region sets the exit country and the browser's locale; `us` keeps audits on en-US.
 const TILION_SESSION_REGION = "us";
 
+/** Error name and message with URL paths, query strings and bearer tokens removed. */
+export type TilionErrorDetail = AuditErrorDetail;
+
+export type TilionConnectStage = "import" | "connect" | "context";
+
 export type TilionAuditBrowserError =
-  | { code: "tilion_session_create_failed"; status: number | null }
-  | { code: "tilion_cdp_unavailable" }
-  | { code: "tilion_connect_failed" };
+  | { code: "tilion_session_create_failed"; status: number | null; detail?: TilionErrorDetail }
+  | { code: "tilion_cdp_unavailable"; sessionId: string }
+  | {
+      code: "tilion_connect_failed";
+      stage: TilionConnectStage;
+      sessionId: string;
+      detail: TilionErrorDetail;
+    };
 
 type TilionSessionResponse = {
   session_id?: string;
@@ -77,11 +96,20 @@ async function createTilionSession(
       }),
       signal: AbortSignal.timeout(TILION_CREATE_TIMEOUT_MS),
     });
-  } catch {
-    return err({ code: "tilion_session_create_failed", status: null });
+  } catch (error) {
+    return err({
+      code: "tilion_session_create_failed",
+      status: null,
+      detail: describeAuditError(error),
+    });
   }
   if (!response.ok) {
-    return err({ code: "tilion_session_create_failed", status: response.status });
+    const body = await response.text().catch(() => "");
+    return err({
+      code: "tilion_session_create_failed",
+      status: response.status,
+      detail: { name: "HttpError", message: redactAuditErrorText(body) },
+    });
   }
 
   const session = (await response.json().catch(() => null)) as TilionSessionResponse | null;
@@ -90,7 +118,7 @@ async function createTilionSession(
   }
   if (!session.connect_url) {
     await deleteTilionSession(apiKey, session.session_id);
-    return err({ code: "tilion_cdp_unavailable" });
+    return err({ code: "tilion_cdp_unavailable", sessionId: session.session_id });
   }
   return ok({ sessionId: session.session_id, connectUrl: session.connect_url });
 }
@@ -128,6 +156,7 @@ async function renderTilionPage(
 
     const finalUrl = page.url();
     if (!(await isAllowedBrowserUrl(finalUrl))) {
+      logger.warn("tilion page landed on a disallowed url", { reason: "blocked_final_url" });
       return null;
     }
     const html = truncateHtml(await page.content());
@@ -149,7 +178,8 @@ async function renderTilionPage(
       html,
       layout: parseAuditPageLayout(viewports.length > 0 ? { viewports } : null),
     };
-  } catch {
+  } catch (error) {
+    logger.warn("tilion page render failed", auditErrorLogFields(error));
     return null;
   } finally {
     await page.close().catch(() => undefined);
@@ -176,13 +206,15 @@ async function fetchTilionText(context: BrowserContext, url: string): Promise<st
     }
     const status = response.status();
     if (status < 200 || status >= 400) {
+      logger.info("tilion text fetch returned a non-success status", { status });
       return null;
     }
     if (!(await isAllowedBrowserUrl(page.url()))) {
       return null;
     }
     return truncateHtml(await response.text());
-  } catch {
+  } catch (error) {
+    logger.warn("tilion text fetch failed", auditErrorLogFields(error));
     return null;
   } finally {
     await page.close().catch(() => undefined);
@@ -208,12 +240,15 @@ export async function createTilionAuditBrowserSession(input: {
   }
   const { sessionId, connectUrl } = session.value;
 
-  let browser: Browser;
+  let browser: Browser | undefined;
   let context: BrowserContext;
   let ownsContext = false;
+  let stage: TilionConnectStage = "import";
   try {
     const { chromium } = await import("playwright-core");
+    stage = "connect";
     browser = await chromium.connectOverCDP(connectUrl, { timeout: TILION_CONNECT_TIMEOUT_MS });
+    stage = "context";
     const stealthContext = browser.contexts()[0];
     if (stealthContext) {
       context = stealthContext;
@@ -224,12 +259,20 @@ export async function createTilionAuditBrowserSession(input: {
       });
       ownsContext = true;
     }
-  } catch {
+  } catch (error) {
+    await browser?.close().catch(() => undefined);
     await deleteTilionSession(input.apiKey, sessionId);
-    return err({ code: "tilion_connect_failed" });
+    return err({
+      code: "tilion_connect_failed",
+      stage,
+      sessionId,
+      detail: describeAuditError(error),
+    });
   }
+  const connectedBrowser = browser;
 
   return ok({
+    kind: "tilion",
     async render(urls: string[]): Promise<RenderedHtmlPage[]> {
       const allowed = await filterAllowedBrowserUrls(urls);
       const rendered = await mapWithConcurrency(allowed, TILION_RENDER_CONCURRENCY, (url) =>
@@ -245,7 +288,7 @@ export async function createTilionAuditBrowserSession(input: {
         if (ownsContext) {
           await context.close().catch(() => undefined);
         }
-        await browser.close().catch(() => undefined);
+        await connectedBrowser.close().catch(() => undefined);
       } finally {
         await deleteTilionSession(input.apiKey, sessionId);
       }

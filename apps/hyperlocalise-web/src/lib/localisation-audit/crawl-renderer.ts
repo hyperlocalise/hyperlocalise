@@ -20,7 +20,11 @@ export type RenderedHtmlPage = {
   layout?: LocalisationAuditPageLayout | null;
 };
 
+export type HtmlPageRendererKind = "tilion" | "sandbox";
+
 export type HtmlPageRenderer = {
+  /** Which browser renders pages, for logs. The sandbox sends the audit bot user agent. */
+  kind?: HtmlPageRendererKind;
   render(urls: string[]): Promise<RenderedHtmlPage[]>;
   /**
    * Fetches a text resource such as robots.txt or a sitemap through the same
@@ -34,4 +38,6 @@ export type HtmlPageRenderer = {
 
 export type CrawlLocalisationAuditSampleOptions = {
   createRenderer?: () => Promise<HtmlPageRenderer>;
+  /** Opaque ids (audit id, attempt) bound to crawl logs. Never URLs or names. */
+  logBindings?: Record<string, string | number>;
 };
