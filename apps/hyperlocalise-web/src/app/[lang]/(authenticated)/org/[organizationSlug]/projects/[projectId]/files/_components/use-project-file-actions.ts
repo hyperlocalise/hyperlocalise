@@ -23,6 +23,10 @@ import {
 import { sourcePathSupportsSrxSegmentation } from "@/lib/i18n/srx/format-supports";
 import { sourcePathImportKind } from "@/lib/projects/files/source-file-import-settings-schema";
 import { supportsTranslationAsSource } from "@/lib/projects/files/translation-as-source-support";
+import {
+  DEFAULT_PROJECT_BRANCH_NAME,
+  resolvedProjectBranchName,
+} from "@/lib/projects/branches/project-branch-name";
 import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resource-capabilities";
 import {
   inferSupportedFileTranslationFileFormat,
@@ -46,12 +50,18 @@ export type ProjectFileActionCapabilities = {
 
 /**
  * Only Word and Excel files in projects that store their own files can send their translation
- * to another project as its source; see the chained stages design record.
+ * to another project as its source, and only from the default branch, which sends read from;
+ * see the chained stages design record.
  */
-export function canUseTranslationAsSource(projectId: string, file: ProjectFileRecord) {
+export function canUseTranslationAsSource(
+  projectId: string,
+  file: ProjectFileRecord,
+  branch: string | null = null,
+) {
   return (
     !file.provider &&
     getProjectWorkspaceCapabilities({ projectId }).canUploadFiles &&
+    resolvedProjectBranchName(branch) === DEFAULT_PROJECT_BRANCH_NAME &&
     supportsTranslationAsSource(file.sourcePath)
   );
 }
@@ -99,7 +109,7 @@ export function buildProjectFileActionCapabilities({
     canTranslateWithAgent,
     canConfigureSegmentation: isNativeFile && sourcePathSupportsSrxSegmentation(file.sourcePath),
     canConfigureImportSettings: isNativeFile && sourcePathImportKind(file.sourcePath) !== null,
-    canUseTranslationAsSource: canUseTranslationAsSource(projectId, file),
+    canUseTranslationAsSource: canUseTranslationAsSource(projectId, file, branch),
     contentEditorHref,
     isNativeFile,
     translateDisabledTitle,

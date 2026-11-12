@@ -85,6 +85,7 @@ const REFUSAL_MESSAGES: Partial<Record<string, MessageDescriptor>> = {
   no_strings: messages.noStrings,
   forbidden: messages.roleCannotSend,
   destination_file_replaced: messages.destinationChanged,
+  destination_branch_protected: messages.destinationBranchProtected,
 };
 
 /** What the chosen project has at the path a send writes to, as the route describes it. */

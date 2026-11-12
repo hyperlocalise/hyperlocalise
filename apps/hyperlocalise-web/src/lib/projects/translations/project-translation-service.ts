@@ -903,6 +903,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     readyTranslationsOnly?: boolean;
     /** When true, keep only translations whose status is approved. */
     approvedTranslationsOnly?: boolean;
+    /** The file's branch; the default branch when left out. */
+    branchName?: string | null;
   }): Promise<{
     prefilled: Record<string, string>;
     retryKeys: string[];
@@ -915,6 +917,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
+      branchName: input.branchName,
     });
 
     if (!sourceFile) {
