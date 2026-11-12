@@ -4,10 +4,11 @@ info:
   version: 1.0.0
   description: >-
     Read projects, Queries, jobs, glossaries, and translation memories from a Hyperlocalise
-    workspace; create native projects from project templates and manage those templates; manage
-    the strings, translations, screenshots, and settings of native projects; round-trip
-    bilingual files; update jobs; register job-change webhook endpoints; and import and export
-    glossaries and translation memories.
+    workspace; create native projects from project templates and manage those templates; define
+    custom project fields and set their values; manage the strings, translations, screenshots,
+    and settings of native projects; search strings; round-trip bilingual files; update jobs one
+    at a time or in bulk; register job-change webhook endpoints; and import and export glossaries
+    and translation memories.
 servers:
   - url: https://public-api.hyperlocalise.com
 security:
@@ -16,6 +17,7 @@ tags:
   - name: Identity
   - name: Projects
   - name: Project templates
+  - name: Custom fields
   - name: Queries
   - name: Jobs
   - name: Strings
@@ -112,8 +114,9 @@ paths:
         target locales, description, translation context, team, content editor settings,
         translation memories, and glossaries. Fields in the request override the template's.
         Without `templateId`, `sourceLocale` and `targetLocales` are required. Without
-        translation memories, the project gets a new one of its own. Counts toward the
-        workspace's project limit.
+        translation memories, the project gets a new one of its own. `customFields` sets custom
+        field values in the same request, as `PUT /v1/projects/{projectId}/custom-fields` does.
+        Counts toward the workspace's project limit.
       requestBody:
         required: true
         content:
@@ -137,6 +140,7 @@ paths:
                   type: string
                   format: uuid
                   description: A team the key owner may use. Defaults to the template's team, then the owner's first team.
+                customFields: { $ref: "#/components/schemas/CustomFieldValuesInput" }
       responses:
         "201":
           description: Created project.
@@ -362,6 +366,219 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/custom-fields:
+    get:
+      operationId: listCustomFields
+      tags: [Custom fields]
+      summary: List custom fields
+      description: Requires `custom-fields:read`, which every key with `files:read` or `projects:read` has.
+      responses:
+        "200":
+          description: The workspace's custom fields, by name, with their options.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [customFields]
+                properties:
+                  customFields:
+                    type: array
+                    items: { $ref: "#/components/schemas/CustomField" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createCustomField
+      tags: [Custom fields]
+      summary: Create a custom field
+      description: >-
+        Requires `custom-fields:write`, which `files:write` grants to admins and localization
+        managers. `single_select` and `multi_select` fields need at least one option; other
+        types take none. The key and type cannot change later. A workspace has at most 200
+        fields.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [key, name, type]
+              properties:
+                key: { type: string, pattern: "^[a-z][a-z0-9_]*$", maxLength: 64 }
+                name: { type: string, minLength: 1, maxLength: 200 }
+                description: { type: string, maxLength: 2000 }
+                type: { $ref: "#/components/schemas/CustomFieldType" }
+                options:
+                  type: array
+                  maxItems: 500
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [value]
+                    properties:
+                      value: { type: string, minLength: 1, maxLength: 200 }
+      responses:
+        "201":
+          description: Created field.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustomFieldResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: Another field has this key (`custom_field_key_taken`), or the workspace has 200 fields (`custom_field_limit_reached`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/custom-fields/{fieldId}:
+    parameters:
+      - $ref: "#/components/parameters/FieldId"
+    get:
+      operationId: getCustomField
+      tags: [Custom fields]
+      summary: Get a custom field
+      description: Requires `custom-fields:read`.
+      responses:
+        "200":
+          description: The field.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustomFieldResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateCustomField
+      tags: [Custom fields]
+      summary: Rename a custom field or change its options
+      description: >-
+        Requires `custom-fields:write`. `options` is the field's whole option list, in display
+        order: an entry with `id` keeps that option (renamed to `value`, so projects that chose it
+        keep it), an entry without `id` adds one, and options left out are removed, along with
+        every project's choice of them.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                name: { type: string, minLength: 1, maxLength: 200 }
+                description: { type: string, maxLength: 2000 }
+                options:
+                  type: array
+                  maxItems: 500
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [value]
+                    properties:
+                      id: { type: string, format: uuid }
+                      value: { type: string, minLength: 1, maxLength: 200 }
+      responses:
+        "200":
+          description: Updated field.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustomFieldResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteCustomField
+      tags: [Custom fields]
+      summary: Delete a custom field
+      description: Requires `custom-fields:write`. Removes every project's value for the field.
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/custom-fields/{fieldId}/options:
+    parameters:
+      - $ref: "#/components/parameters/FieldId"
+    get:
+      operationId: listCustomFieldOptions
+      tags: [Custom fields]
+      summary: List a custom field's options
+      description: Requires `custom-fields:read`. Empty for fields that are not selects.
+      responses:
+        "200":
+          description: Options in display order.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [options]
+                properties:
+                  options:
+                    type: array
+                    items: { $ref: "#/components/schemas/CustomFieldOption" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/custom-fields:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: getProjectCustomFields
+      tags: [Custom fields]
+      summary: Get a project's custom field values
+      description: Requires `projects:read`. Lists only the fields set on the project.
+      responses:
+        "200":
+          description: The project's values.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectCustomFieldsResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    put:
+      operationId: setProjectCustomFields
+      tags: [Custom fields]
+      summary: Set a project's custom field values
+      description: >-
+        Requires `projects:write`. Sets the fields named in `customFields` and clears those set to
+        `null`; fields left out keep their values. Records `project_settings_changed`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [customFields]
+              properties:
+                customFields: { $ref: "#/components/schemas/CustomFieldValuesInput" }
+      responses:
+        "200":
+          description: The project's values after the change.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectCustomFieldsResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "503": { $ref: "#/components/responses/Unavailable" }
   /v1/queries:
     get:
@@ -638,6 +855,63 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/projects/{projectId}/strings/search:
+    post:
+      operationId: searchStrings
+      tags: [Strings]
+      summary: Search strings by key name, prefix, text, file, or tag
+      description: >-
+        Requires `strings:read`. The list endpoint's filters in a JSON body, so one call can look
+        up to 1,000 key names and return up to 1,000 strings. Filters combine with AND.
+        `missingKeys` lists, in request order, the `keys` that name no string in the project, in
+        any file and whether hidden or not.
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                keys:
+                  type: array
+                  maxItems: 1000
+                  items: { type: string, minLength: 1, maxLength: 1000 }
+                keyPrefix: { type: string, maxLength: 1000, description: "Keys starting with this text, matched literally and case-sensitively." }
+                search: { type: string, maxLength: 200, description: "Case-insensitive match on key or source text." }
+                filePath: { type: string, maxLength: 2048 }
+                tags:
+                  type: array
+                  maxItems: 10
+                  items: { $ref: "#/components/schemas/Tag" }
+                includeHidden: { type: boolean, default: false }
+                limit: { type: integer, minimum: 1, maximum: 1000, default: 100 }
+                offset: { type: integer, minimum: 0, maximum: 1000000, default: 0 }
+      responses:
+        "200":
+          description: Matching strings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [strings, missingKeys, pagination]
+                properties:
+                  strings:
+                    type: array
+                    items: { $ref: "#/components/schemas/String" }
+                  missingKeys:
+                    type: array
+                    items: { type: string }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "413": { $ref: "#/components/responses/PayloadTooLarge" }
         "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "503": { $ref: "#/components/responses/Unavailable" }
@@ -1331,6 +1605,67 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/jobs/bulk-update:
+    post:
+      operationId: bulkUpdateJobs
+      tags: [Jobs]
+      summary: Update the title, description, due date, or owner of many jobs
+      description: >-
+        Requires `jobs:write`. Applies the same change to every job in `jobIds`, with the rules of
+        `PATCH /v1/jobs/{jobId}`, in one transaction: if any job cannot change, none do, and the
+        error's `details.jobId` names the job that stopped the update. Repeated IDs count once.
+        Each job records its own `job_updated` event and webhook change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [jobIds]
+              minProperties: 2
+              properties:
+                jobIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items: { type: string, minLength: 1, maxLength: 128 }
+                title: { type: string, minLength: 1, maxLength: 256 }
+                description: { type: [string, "null"], maxLength: 2048 }
+                dueAt: { type: [string, "null"], format: date-time }
+                ownerEmail: { type: [string, "null"], format: email, maxLength: 320 }
+      responses:
+        "200":
+          description: Updated jobs, in request order.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [jobs]
+                properties:
+                  jobs:
+                    type: array
+                    items: { $ref: "#/components/schemas/Job" }
+        "400":
+          description: Invalid body, or a job cannot take the change; `details.jobId` names the job.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: A job does not exist or is not accessible (`job_not_found`); `details.jobId` names it.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: A job is provider-backed (`provider_job_not_updatable`); `details.jobId` names it.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "503": { $ref: "#/components/responses/Unavailable" }
   /v1/jobs/{jobId}:
     parameters:
@@ -2111,6 +2446,12 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    FieldId:
+      name: fieldId
+      in: path
+      required: true
+      description: A custom field's ID or key.
+      schema: { type: string, maxLength: 128 }
     JobId:
       name: jobId
       in: path
@@ -2241,6 +2582,74 @@ components:
       required: [projectTemplate]
       properties:
         projectTemplate: { $ref: "#/components/schemas/ProjectTemplate" }
+    CustomFieldType:
+      type: string
+      enum: [text, number, date, url, checkbox, single_select, multi_select]
+    CustomFieldOption:
+      type: object
+      required: [id, value]
+      properties:
+        id: { type: string, format: uuid }
+        value: { type: string }
+    CustomField:
+      type: object
+      required: [id, key, name, description, type, options, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        key: { type: string }
+        name: { type: string }
+        description: { type: string }
+        type: { $ref: "#/components/schemas/CustomFieldType" }
+        options:
+          type: array
+          items: { $ref: "#/components/schemas/CustomFieldOption" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CustomFieldResponse:
+      type: object
+      required: [customField]
+      properties:
+        customField: { $ref: "#/components/schemas/CustomField" }
+    CustomFieldValuesInput:
+      type: object
+      description: >-
+        Values keyed by field key or ID, at most 100. `null` clears a value. Text is 1 to 10,000
+        characters, a URL is http or https, a date is `YYYY-MM-DD`, a number is a JSON number, a
+        checkbox is a boolean, a single select is one option ID or value, and a multi select is a
+        non-empty list of option IDs or values. Option values match ignoring case.
+      maxProperties: 100
+      additionalProperties:
+        oneOf:
+          - type: "null"
+          - type: string
+          - type: number
+          - type: boolean
+          - type: array
+            items: { type: string }
+    ProjectCustomFieldValue:
+      type: object
+      required: [fieldId, key, name, type, value]
+      properties:
+        fieldId: { type: string, format: uuid }
+        key: { type: string }
+        name: { type: string }
+        type: { $ref: "#/components/schemas/CustomFieldType" }
+        value:
+          description: A string, number, or boolean; an option for a single select; a list of options for a multi select.
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - $ref: "#/components/schemas/CustomFieldOption"
+            - type: array
+              items: { $ref: "#/components/schemas/CustomFieldOption" }
+    ProjectCustomFieldsResponse:
+      type: object
+      required: [customFields]
+      properties:
+        customFields:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectCustomFieldValue" }
     Query:
       type: object
       required: [id, identifier, number, projectId, projectName, title, description, issueType, status, createdAt, updatedAt]
@@ -2632,6 +3041,10 @@ components:
       properties:
         error: { type: string }
         message: { type: string }
+        details:
+          type: object
+          description: Structured context, such as the `jobId` that stopped a bulk job update.
+          additionalProperties: true
   responses:
     BadRequest:
       description: Invalid query parameters or request body.

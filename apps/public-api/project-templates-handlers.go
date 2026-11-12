@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/customfield"
 	"github.com/hyperlocalise/hyperlocalise/internal/nativeproject"
 	"github.com/hyperlocalise/hyperlocalise/internal/projecttemplate"
 )
@@ -14,9 +16,12 @@ import (
 // same codes go-svc returns to the web app.
 func writeProjectTemplateError(w http.ResponseWriter, err error, operation string) {
 	var validation projecttemplate.ValidationError
+	var fieldValidation customfield.ValidationError
 	switch {
 	case errors.As(err, &validation):
 		writeError(w, http.StatusBadRequest, "invalid_body", validation.Message)
+	case errors.As(err, &fieldValidation):
+		writeError(w, http.StatusBadRequest, "invalid_body", fieldValidation.Error())
 	case errors.Is(err, projecttemplate.ErrNotFound):
 		writeError(w, http.StatusNotFound, "project_template_not_found", "Project template not found")
 	case errors.Is(err, projecttemplate.ErrNameTaken):
@@ -156,12 +161,13 @@ func (s apiServer) createProject(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct {
 		projecttemplate.ProjectRequest
-		TemplateID *string `json:"templateId"`
+		TemplateID   *string                    `json:"templateId"`
+		CustomFields map[string]json.RawMessage `json:"customFields"`
 	}
 	if !decodeJSONBody(w, r, &body) {
 		return
 	}
-	req := projectCreate{ProjectRequest: body.ProjectRequest}
+	req := projectCreate{ProjectRequest: body.ProjectRequest, CustomFields: body.CustomFields}
 	if body.TemplateID != nil {
 		trimmed := strings.TrimSpace(*body.TemplateID)
 		req.TemplateID = &trimmed

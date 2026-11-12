@@ -19,6 +19,7 @@ type fakeTMSStore struct {
 	fakeMemoryInterchangeStore
 	fakeGlossaryImportStore
 	fakeProjectTemplateStore
+	fakeExtrasStore
 	fakeWebhookStore
 	fakeScreenshotStore
 	tmsErr           error

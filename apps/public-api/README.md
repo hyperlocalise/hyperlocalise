@@ -7,8 +7,9 @@ Production is `https://public-api.hyperlocalise.com`. Interactive docs are at
 The web frontend continues to use its existing APIs. It does not call this service.
 The API reports the token's effective identity, reads Projects, Queries, Jobs,
 Glossaries, and Translation memories, creates native projects (optionally from a
-project template) and manages project templates, manages the strings, translations,
-screenshots, and settings of native projects, round-trips bilingual files, updates jobs, exports
+project template) and manages project templates, defines custom project fields and sets
+their values, manages and searches the strings, translations, screenshots, and settings of native
+projects, round-trips bilingual files, updates jobs one at a time or in bulk, exports
 glossaries, imports and exports glossaries and translation memories, and registers job-change
 webhook endpoints. Job creation and file uploads continue to use the existing platform API.
 
@@ -110,10 +111,13 @@ filters. Missing and inaccessible records both return `404`.
 | Resource | Endpoints | Permission |
 | --- | --- | --- |
 | Project settings | `PATCH /v1/projects/{projectId}` (name, description, translation context, target locales) | `projects:write` |
-| Jobs | `GET /v1/jobs`, `GET, PATCH /v1/jobs/{jobId}` | `jobs:read` / `jobs:write` |
+| Jobs | `GET /v1/jobs`, `GET, PATCH /v1/jobs/{jobId}`, `POST /v1/jobs/bulk-update` (up to 100 jobs, all or nothing) | `jobs:read` / `jobs:write` |
 | Key job strings and languages | `GET, POST, DELETE /v1/jobs/{jobId}/strings`, `GET, POST /v1/jobs/{jobId}/locales`, `DELETE .../locales/{locale}` | `jobs:read` (and `strings:read` to list strings) / `jobs:write` |
 | Locale progress | `GET /v1/projects/{projectId}/locales` | `strings:read` |
 | Strings | `GET, POST /v1/projects/{projectId}/strings`, `POST .../strings/batch`, `GET, PATCH, DELETE /v1/projects/{projectId}/strings/{stringId}` | `strings:read` / `strings:write` |
+| String search | `POST /v1/projects/{projectId}/strings/search` (up to 1,000 keys, reports `missingKeys`) | `strings:read` |
+| Custom fields | `GET, POST /v1/custom-fields`, `GET, PATCH, DELETE /v1/custom-fields/{fieldId}`, `GET .../options` | `custom-fields:read` / `custom-fields:write` (admins and localization managers) |
+| Project custom field values | `GET, PUT /v1/projects/{projectId}/custom-fields`; `customFields` on `POST /v1/projects` | `projects:read` / `projects:write` |
 | Tags and design links | `POST /v1/projects/{projectId}/strings/bulk-update` | `strings:write`, for admins, localization managers and developers |
 | Screenshots | `GET, POST /v1/projects/{projectId}/screenshots`, `GET, DELETE .../screenshots/{screenshotId}`, `POST .../finalize`, `POST .../markers`, `DELETE .../markers/{markerId}` | `strings:read` / `strings:write` |
 | Batch review | `POST /v1/projects/{projectId}/translations/approve`, `POST .../translations/send-to-review` | `translations:approve` / `strings:write` |

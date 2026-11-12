@@ -1,0 +1,131 @@
+---
+title: "Custom fields API"
+sidebarTitle: "Custom fields"
+description: "Define project fields such as a request reference or target markets, with option lists for select fields, and set their values with a personal access token."
+---
+
+Custom fields add your own structured data to projects: a request reference, the requester, a link to the brief, or the markets a request is for. You define each field once for the workspace, then set values on projects. Select fields offer a fixed list of options, so every project uses the same spelling.
+
+## Base URL and authentication
+
+```
+https://api.hyperlocalise.com/v1
+```
+
+Send a [personal access token](/platform/settings#personal-access-tokens) in the `x-api-key` header.
+
+| Task | Effective permission |
+| --- | --- |
+| List fields and their options | `custom-fields:read` (included with `files:read` or `projects:read`) |
+| Create, change, or delete fields | `custom-fields:write` (included with `files:write` for admins and localization managers) |
+| Read a project's values | `projects:read` |
+| Set a project's values | `projects:write` (included with `files:write` for admins, localization managers, and developers) |
+
+## Field types
+
+| Type | Value you send | Value you get back |
+| --- | --- | --- |
+| `text` | A string, 1–10,000 characters | The string |
+| `number` | A JSON number | The number |
+| `date` | A `YYYY-MM-DD` string | The string |
+| `url` | An `http` or `https` URL | The string |
+| `checkbox` | `true` or `false` | The boolean |
+| `single_select` | One option ID or option value | The option, `{ "id", "value" }` |
+| `multi_select` | A list of option IDs or values | A list of options |
+
+Option values match ignoring case. A field's key and type cannot change after you create it. A workspace has at most 200 fields, and a select field at most 500 options.
+
+## Define a field
+
+```bash
+curl --fail-with-body \
+  -X POST "https://api.hyperlocalise.com/v1/custom-fields" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "key": "markets",
+    "name": "Markets",
+    "type": "multi_select",
+    "options": [{ "value": "EU" }, { "value": "LATAM" }, { "value": "APAC" }]
+  }'
+```
+
+The key starts with a lowercase letter and uses lowercase letters, digits, and underscores. Every route that takes `{fieldId}` also accepts the key, so `GET /v1/custom-fields/markets/options` lists that field's options.
+
+### Change options
+
+`PATCH /v1/custom-fields/{fieldId}` with `options` replaces the whole list, in display order:
+
+- An entry with `id` keeps that option and renames it to `value`. Projects that chose it keep their choice.
+- An entry without `id` adds an option.
+- Options you leave out are removed, along with every project's choice of them.
+
+```bash
+curl --fail-with-body \
+  -X PATCH "https://api.hyperlocalise.com/v1/custom-fields/markets" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -H "content-type: application/json" \
+  -d '{ "options": [{ "id": "'$EU_OPTION_ID'", "value": "Europe" }, { "value": "MEA" }] }'
+```
+
+Deleting a field removes every project's value for it.
+
+## Set values on a project
+
+`PUT /v1/projects/{projectId}/custom-fields` sets the fields you name, keyed by field key or ID. `null` clears a value, and fields you leave out keep theirs:
+
+```bash
+curl --fail-with-body \
+  -X PUT "https://api.hyperlocalise.com/v1/projects/$PROJECT_ID/custom-fields" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "customFields": {
+      "request_ref": "REQ-1042",
+      "brief": "https://example.com/briefs/1042",
+      "markets": ["EU", "LATAM"]
+    }
+  }'
+```
+
+The response, like `GET` on the same path, lists the values set on the project:
+
+```json
+{
+  "customFields": [
+    {
+      "fieldId": "6f1c…",
+      "key": "markets",
+      "name": "Markets",
+      "type": "multi_select",
+      "value": [{ "id": "a1b2…", "value": "EU" }, { "id": "c3d4…", "value": "LATAM" }]
+    }
+  ]
+}
+```
+
+A request with any invalid value changes nothing and returns `400` with `invalid_body`; the message names the field, for example `customFields.markets: "Mars" is not an option of this field`.
+
+### Set values when you create a project
+
+`POST /v1/projects` accepts the same `customFields` object, so a request's project gets its reference and links in the call that creates it, including from a [project template](/platform/projects/templates):
+
+```bash
+curl --fail-with-body \
+  -X POST "https://api.hyperlocalise.com/v1/projects" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "name": "REQ-1042 Pricing page",
+    "templateId": "'$TEMPLATE_ID'",
+    "customFields": { "request_ref": "REQ-1042", "markets": ["EU"] }
+  }'
+```
+
+If a value is invalid, the project is not created.
+
+## Next
+
+- [Projects and Queries](/platform/developers/projects-and-queries)
+- [Project templates](/platform/projects/templates)
+- [Interactive reference](https://api.hyperlocalise.com/docs)
