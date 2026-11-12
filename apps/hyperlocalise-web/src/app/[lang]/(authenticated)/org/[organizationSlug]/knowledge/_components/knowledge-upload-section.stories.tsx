@@ -32,11 +32,13 @@ function UploadSectionStory({
   initialTextDialogOpen?: boolean;
 }) {
   const [textDialogOpen, setTextDialogOpen] = useState(initialTextDialogOpen);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   return (
     <>
       <KnowledgeUploadSection
         onStartMarkdownText={() => setTextDialogOpen(true)}
-        onFilesSelected={() => {}}
+        selectedFile={selectedFile}
+        onFilesSelected={(files) => setSelectedFile(files[0] ?? null)}
       />
       <GuidelineTextDocumentDialog
         open={textDialogOpen}

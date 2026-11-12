@@ -32,7 +32,12 @@ import {
 import { isErr } from "@/lib/primitives/result/results";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 
-import { badRequestResponse, payloadTooLargeResponse } from "@/api/response.schema";
+import {
+  badRequestResponse,
+  conflictResponse,
+  notFoundResponse,
+  payloadTooLargeResponse,
+} from "@/api/response.schema";
 
 import { uploadBodySchema, fileParamsSchema, maxPublicUploadBytes } from "./public-files.schema";
 import {
@@ -81,6 +86,10 @@ function sourceUploadErrorResponse(
         },
         502,
       );
+    case "protected_branch":
+      return conflictResponse(c, "protected_branch", "This branch is protected.");
+    case "branch_not_found":
+      return notFoundResponse(c, "branch_not_found", "Branch not found.");
   }
 }
 

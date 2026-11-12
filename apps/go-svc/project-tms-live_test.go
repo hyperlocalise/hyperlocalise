@@ -162,7 +162,7 @@ func TestLiveTmsHandlersWithoutAConnection(t *testing.T) {
 
 	branchesNative := projectRequest(api, scope, scope.OrgPath("/projects/"+scope.ProjectID+"/files/branches"))
 	require.Equal(t, http.StatusOK, branchesNative.Code, branchesNative.Body.String())
-	require.JSONEq(t, `{"branches":[]}`, branchesNative.Body.String())
+	require.JSONEq(t, `{"branches":[{"name":"main","title":null}]}`, branchesNative.Body.String())
 
 	unknownLive := projectRequest(api, scope, scope.OrgPath("/projects/ext:unknown:1/hidden-files"))
 	require.Equal(t, http.StatusNotFound, unknownLive.Code, unknownLive.Body.String())

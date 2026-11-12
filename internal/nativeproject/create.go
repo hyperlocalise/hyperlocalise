@@ -134,7 +134,27 @@ func Create(ctx context.Context, tx DB, actor Actor, in Input) (string, error) {
 			return "", err
 		}
 	}
+	if err := EnsureDefaultBranch(ctx, tx, actor.OrganizationID, createdID, actor.UserID); err != nil {
+		return "", err
+	}
 	return createdID, nil
+}
+
+// EnsureDefaultBranch creates the `main` version branch when the native project has none.
+func EnsureDefaultBranch(ctx context.Context, tx DB, organizationID, projectID, createdByUserID string) error {
+	var createdBy any
+	if createdByUserID != "" {
+		createdBy = createdByUserID
+	}
+	_, err := tx.Exec(ctx, `
+		insert into project_branches (organization_id, project_id, name, is_default, created_by_user_id)
+		select $1, $2, $3, true, $4
+		where not exists (
+			select 1 from project_branches
+			where project_id = $2 and name = $3 and status = 'active'
+		)`,
+		organizationID, projectID, DefaultBranchName, createdBy)
+	return err
 }
 
 // ResolveTeam returns teamID when the actor may use it, or the actor's first team. A workspace

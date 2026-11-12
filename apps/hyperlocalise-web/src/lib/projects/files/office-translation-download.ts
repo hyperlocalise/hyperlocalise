@@ -154,6 +154,8 @@ export async function loadProjectOfficeTranslationDownload(input: {
   sourcePath: string;
   targetLocale: string;
   approvedTranslationsOnly?: boolean;
+  /** The file's branch; the default branch's file when left out, its import settings from any. */
+  branchName?: string;
 }): Promise<
   Result<ProjectOfficeTranslationDownload | null, ProjectOfficeTranslationDownloadError>
 > {
@@ -170,11 +172,13 @@ export async function loadProjectOfficeTranslationDownload(input: {
       targetLocale: input.targetLocale,
       readyTranslationsOnly: true,
       approvedTranslationsOnly: input.approvedTranslationsOnly,
+      branchName: input.branchName,
     }),
     getLatestRepositorySourceFileVersion({
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
+      branchName: input.branchName,
     }),
     getProjectSourceLocale(input),
     format === "xlsx" || format === "xls" ? getRepositorySourceFileImportSettings(input) : null,

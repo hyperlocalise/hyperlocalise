@@ -22,6 +22,7 @@ import {
 } from "@/api/response.schema";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { isErr } from "@/lib/primitives/result/results";
+import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
 import {
   isTranslationSourceDestination,
   sendTranslationAsSource,
@@ -87,6 +88,7 @@ const REFUSAL_MESSAGES: Record<
     | "file_build_failed"
     | "upload_failed"
     | "destination_file_replaced"
+    | "destination_branch_protected"
   >,
   string
 > = {
@@ -145,6 +147,7 @@ export function createTranslationAsSourceRoutes(
         organizationId,
         projectId: sourceProject.id,
         sourcePath: query.sourcePath,
+        branchName: DEFAULT_PROJECT_BRANCH_NAME,
       });
       if (!sourceFile) {
         return notFoundResponse(c, "source_file_not_found", "Source file not found");
@@ -325,6 +328,12 @@ export function createTranslationAsSourceRoutes(
               c,
               error.code,
               "The other project has a file at this path that this file did not send. Check what it is, then confirm to replace it.",
+            );
+          case "destination_branch_protected":
+            return conflictResponse(
+              c,
+              error.code,
+              "The other project's default branch is protected, so files cannot be sent to it.",
             );
           case "file_build_failed":
           case "upload_failed":

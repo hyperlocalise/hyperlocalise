@@ -146,7 +146,7 @@ func mustJobSourceVersion(t *testing.T, scope *testenv.Scope, storedFileID, sour
 	require.NoError(t, scope.Pool.QueryRow(t.Context(), `
         insert into repository_source_files (organization_id, project_id, source_path)
         values ($1, $2, $3)
-        on conflict (project_id, source_path) do update set updated_at=now()
+        on conflict (project_id, branch_name, source_path) do update set updated_at=now()
         returning id`, scope.OrganizationID, scope.ProjectID, sourcePath).Scan(&sourceFileID))
 	_, err := scope.Pool.Exec(t.Context(), `
         insert into repository_source_file_versions (repository_source_file_id, organization_id, project_id, source_path, stored_file_id, created_at)

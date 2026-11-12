@@ -14,6 +14,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/lib/database/client";
 import { formatMemberDisplayName } from "@/lib/members/member-management";
+import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
 import { officeTranslationDownloadFilename } from "@/lib/projects/files/office-translation-download";
 import { inferSupportedOfficeTranslationFileFormat } from "@/lib/translation/file-formats";
 
@@ -47,7 +48,10 @@ export function translationAsSourceDestinationPath(sourcePath: string): string {
     : sourcePath;
 }
 
-/** The destination's newest version at `destinationPath`, and where it came from. */
+/**
+ * The destination's newest version at `destinationPath` on its default branch, which a send
+ * writes to, and where it came from.
+ */
 export async function getTranslationAsSourceDestinationFile(input: {
   organizationId: string;
   destinationProjectId: string;
@@ -77,6 +81,9 @@ export async function getTranslationAsSourceDestinationFile(input: {
       origin.project_id as origin_project_id,
       origin.source_path as origin_path
     from repository_source_file_versions newest
+    join repository_source_files newest_file
+      on newest_file.id = newest.repository_source_file_id
+      and newest_file.branch_name = ${DEFAULT_PROJECT_BRANCH_NAME}
     join stored_files stored on stored.id = newest.stored_file_id
     left join users uploader on uploader.id = newest.uploaded_by_user_id
     left join repository_source_file_versions origin
