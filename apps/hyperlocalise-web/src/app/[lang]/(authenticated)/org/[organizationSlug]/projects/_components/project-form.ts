@@ -12,6 +12,7 @@
  */
 import type { IntlShape } from "@formatjs/intl";
 
+import type { ProjectTemplateRecord } from "@/lib/go-svc/go-svc-client.types";
 import { canonicalizeLocale, normalizeProjectLocales } from "@/lib/i18n/locales";
 import { projectIssueIdentifierSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 
@@ -25,6 +26,8 @@ export type ProjectFormValues = {
   translationContext: string;
   sourceLocale: string;
   targetLocales: string[];
+  /** The project template a new project starts from. Create only. */
+  templateId?: string;
 };
 
 export type ProjectFormErrors = Partial<Record<keyof ProjectFormValues, string>> & {
@@ -139,7 +142,34 @@ export type ProjectMetadataPayload = {
 export type ProjectCreatePayload = ProjectMetadataPayload & {
   sourceLocale: string;
   targetLocales: string[];
+  templateId?: string;
 };
+
+/**
+ * Fills the form from a template, keeping the name the user typed. The server also copies the
+ * template's translation memories, glossaries, team and editor settings; the form's locales and
+ * text override the template's, so what the user sees is what the project gets.
+ */
+export function applyProjectTemplate(
+  values: ProjectFormValues,
+  template: Pick<
+    ProjectTemplateRecord,
+    "id" | "sourceLocale" | "targetLocales" | "projectDescription" | "translationContext"
+  > | null,
+): ProjectFormValues {
+  if (!template) {
+    const { templateId: _templateId, ...rest } = values;
+    return rest;
+  }
+  return {
+    ...values,
+    templateId: template.id,
+    sourceLocale: template.sourceLocale,
+    targetLocales: [...template.targetLocales],
+    description: template.projectDescription,
+    translationContext: template.translationContext,
+  };
+}
 
 export type ProjectUpdatePayload = Partial<ProjectMetadataPayload> & {
   identifier?: string;
@@ -209,6 +239,7 @@ export function toProjectPayload(
   return {
     ...payload,
     ...buildLocalePayload(values),
+    ...(values.templateId ? { templateId: values.templateId } : {}),
   };
 }
 

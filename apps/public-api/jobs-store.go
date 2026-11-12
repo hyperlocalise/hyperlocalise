@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -206,18 +207,59 @@ func loadJob(ctx context.Context, db queryRower, actor principal, jobID string) 
 // metadata, an owner must be an active member who can access the project, and provider-backed
 // jobs are rejected.
 func (s *postgresStore) updateJob(ctx context.Context, actor principal, jobID string, patch jobPatch) (job, error) {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return job{}, fmt.Errorf("begin transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
+	var updated job
+	err := s.inTx(ctx, func(tx pgx.Tx) error {
+		var err error
+		updated, err = applyJobPatch(ctx, tx, actor, jobID, patch)
+		return err
+	})
+	return updated, err
+}
 
+// jobBulkError names the job a bulk update stopped at.
+type jobBulkError struct {
+	JobID string
+	Err   error
+}
+
+func (e jobBulkError) Error() string { return "job " + e.JobID + ": " + e.Err.Error() }
+func (e jobBulkError) Unwrap() error { return e.Err }
+
+// bulkUpdateJobs applies one patch to every job in one transaction: either all jobs change or
+// none do. Jobs are locked in ID order so concurrent bulk updates cannot deadlock, and the
+// result follows the request order.
+func (s *postgresStore) bulkUpdateJobs(ctx context.Context, actor principal, jobIDs []string, patch jobPatch) ([]job, error) {
+	ordered := append([]string(nil), jobIDs...)
+	sort.Strings(ordered)
+	byID := make(map[string]job, len(ordered))
+	err := s.inTx(ctx, func(tx pgx.Tx) error {
+		for _, jobID := range ordered {
+			updated, err := applyJobPatch(ctx, tx, actor, jobID, patch)
+			if err != nil {
+				return jobBulkError{JobID: jobID, Err: err}
+			}
+			byID[jobID] = updated
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	items := make([]job, 0, len(jobIDs))
+	for _, jobID := range jobIDs {
+		items = append(items, byID[jobID])
+	}
+	return items, nil
+}
+
+// applyJobPatch updates one job in the caller's transaction.
+func applyJobPatch(ctx context.Context, tx pgx.Tx, actor principal, jobID string, patch jobPatch) (job, error) {
 	var projectID *string
 	var kind string
 	var external bool
 	var before jobAssignment
 	var beforeDetails jobDetails
-	err = tx.QueryRow(ctx, `SELECT j.project_id, j.kind::text, x.job_id IS NOT NULL,
+	err := tx.QueryRow(ctx, `SELECT j.project_id, j.kind::text, x.job_id IS NOT NULL,
 			j.owner_user_id::text, j.assignee_type::text,
 			j.due_at, j.input_payload->'metadata'->>'title', j.input_payload->'metadata'->>'description'
 		FROM jobs j
@@ -312,9 +354,6 @@ func (s *postgresStore) updateJob(ctx context.Context, actor principal, jobID st
 		Payload:    map[string]any{"jobId": jobID, "kind": kind, "projectId": *projectID, "changedFields": patch.changedFields()},
 	}); err != nil {
 		return job{}, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return job{}, fmt.Errorf("commit job update: %w", err)
 	}
 	return updated, nil
 }

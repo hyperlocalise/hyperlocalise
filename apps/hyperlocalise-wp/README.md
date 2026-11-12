@@ -9,7 +9,7 @@ Hyperlocalise does not store languages or translation relationships itself. The 
 1. An editor selects **Send for translation** in the Hyperlocalise box on the post screen, or the **Send to Hyperlocalise** bulk action on the posts list.
 2. The plugin builds one flat JSON source file per post and uploads it to the project with `POST /api/v1/files`. The file is stored at `wordpress/{site}/{post-type}/{post-id}.json`, where `{site}` is the home URL's host and path, such as `example-com-fr` for `https://example.com/fr/`. Subdirectory multisites and several installs on one host therefore stay separate within a shared project.
 3. It creates a file job with `POST /api/v1/jobs`. The job targets every site language that maps to a project target locale.
-4. WP-Cron checks running jobs every five minutes through `GET https://api.hyperlocalise.com/v1/jobs/{id}/status`. Editors can also select **Check status**.
+4. WP-Cron checks running jobs every five minutes through `GET https://public-api.hyperlocalise.com/v1/jobs/{id}/status`. Editors can also select **Check status**.
 5. When the job is ready, the plugin downloads each locale with `GET /api/v1/projects/{id}/translations/download`. It writes the result into the multilingual plugin's translation of the post.
 
 Write-back rules:

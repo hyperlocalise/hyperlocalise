@@ -49,11 +49,13 @@ export function ProjectFilesBranchFilter({
   projectId,
   selectedBranch,
   onSelectedBranchChange,
+  allowAllBranches = true,
 }: {
   organizationSlug: string;
   projectId: string;
   selectedBranch: string | null;
   onSelectedBranchChange: (branch: string | null) => void;
+  allowAllBranches?: boolean;
 }) {
   const branchesQuery = useQuery({
     queryKey: projectProviderBranchesQueryKey(organizationSlug, projectId),
@@ -66,6 +68,7 @@ export function ProjectFilesBranchFilter({
       selectedBranch={selectedBranch}
       onSelectedBranchChange={onSelectedBranchChange}
       isLoading={branchesQuery.isLoading}
+      allowAllBranches={allowAllBranches}
     />
   );
 }

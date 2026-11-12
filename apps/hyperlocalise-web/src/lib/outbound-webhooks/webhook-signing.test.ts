@@ -12,10 +12,14 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { isErr } from "@/lib/primitives/result/results";
+import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
+
 import {
   WEBHOOK_SECRET_PREFIX,
   buildWebhookHeaders,
   generateWebhookSecret,
+  mintWebhookSigningSecret,
   signWebhookPayload,
   verifyWebhookSignature,
 } from "./webhook-signing";
@@ -26,6 +30,21 @@ describe("webhook signing", () => {
     expect(secret.startsWith(WEBHOOK_SECRET_PREFIX)).toBe(true);
     expect(Buffer.from(secret.slice(WEBHOOK_SECRET_PREFIX.length), "base64")).toHaveLength(32);
     expect(generateWebhookSecret()).not.toBe(secret);
+  });
+
+  it("mints an encrypted secret that decrypts to the plaintext", () => {
+    const minted = mintWebhookSigningSecret();
+    expect(minted.ok).toBe(true);
+    if (isErr(minted)) {
+      throw new Error("expected mint to succeed");
+    }
+    expect(minted.value.secret.startsWith(WEBHOOK_SECRET_PREFIX)).toBe(true);
+    expect(JSON.stringify(minted.value.encrypted)).not.toContain(minted.value.secret);
+    const decrypted = decryptProviderCredential(minted.value.encrypted);
+    expect(isErr(decrypted)).toBe(false);
+    if (!isErr(decrypted)) {
+      expect(decrypted.value).toBe(minted.value.secret);
+    }
   });
 
   it("matches the Standard Webhooks reference vector", () => {

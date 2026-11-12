@@ -367,6 +367,7 @@ describe("projectFileCatQueryKey", () => {
       50,
       null,
       false,
+      null,
     ]);
   });
 
@@ -386,7 +387,7 @@ describe("projectFileCatQueryKey", () => {
     const page1 = projectFileCatQueryKey({ ...base, offset: 50 });
 
     expect(page0).not.toEqual(page1);
-    expect(page1.at(-3)).toBe(50);
+    expect(page1[13]).toBe(50);
   });
 });
 
@@ -416,6 +417,7 @@ describe("projectFileCatBaseQueryKey", () => {
       50,
       null,
       false,
+      null,
     ]);
     expect(key).not.toContain(0);
   });
@@ -506,6 +508,12 @@ describe("canReuseCatQueuePlaceholderData", () => {
       canReuseCatQueuePlaceholderData(
         previousKey,
         projectFileCatBaseQueryKey({ ...baseKeyInput, projectId: "project_2" }),
+      ),
+    ).toBe(false);
+    expect(
+      canReuseCatQueuePlaceholderData(
+        previousKey,
+        projectFileCatBaseQueryKey({ ...baseKeyInput, branch: "feature" }),
       ),
     ).toBe(false);
   });

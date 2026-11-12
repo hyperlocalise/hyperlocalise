@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/tmscatalog"
+	"github.com/hyperlocalise/hyperlocalise/internal/nativeproject"
 )
 
 // Live TMS projects, read from the connected provider with a token minted by
@@ -462,12 +463,38 @@ func (api *projectAPI) hiddenFilesHandler(r *http.Request, actor projectActor) (
 	return map[string]any{"files": records}, http.StatusOK, nil
 }
 
-// fileBranchesHandler serves GET …/files/branches. Native projects have none.
+// fileBranchesHandler serves GET …/files/branches. Native projects list version branches.
 func (api *projectAPI) fileBranchesHandler(r *http.Request, actor projectActor) (any, int, error) {
 	records := []liveBranchRecord{}
 	id, live := parseLiveProjectID(r.PathValue("projectId"))
 	if !live {
-		if _, err := normalizedNativeProjectID(r.PathValue("projectId")); err != nil {
+		projectID, err := normalizedNativeProjectID(r.PathValue("projectId"))
+		if err != nil {
+			return nil, 0, err
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), projectRequestTimeout)
+		defer cancel()
+		if err := nativeproject.EnsureDefaultBranch(ctx, api.pool, actor.organizationID, projectID, actor.userID); err != nil {
+			return nil, 0, err
+		}
+		rows, err := api.pool.Query(ctx, `
+			select name, title
+			from project_branches
+			where organization_id = $1 and project_id = $2 and status = 'active'
+			order by is_default desc, name`,
+			actor.organizationID, projectID)
+		if err != nil {
+			return nil, 0, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var record liveBranchRecord
+			if err := rows.Scan(&record.Name, &record.Title); err != nil {
+				return nil, 0, err
+			}
+			records = append(records, record)
+		}
+		if err := rows.Err(); err != nil {
 			return nil, 0, err
 		}
 		return map[string]any{"branches": records}, http.StatusOK, nil

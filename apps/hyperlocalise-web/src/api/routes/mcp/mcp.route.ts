@@ -2584,6 +2584,12 @@ async function createMcpServerForRequest(
           case "source_upload_failed":
             return mcpToolError("source_upload_failed", "Source file upload failed");
 
+          case "protected_branch":
+            return mcpToolError("protected_branch", "This branch is protected");
+
+          case "branch_not_found":
+            return mcpToolError("branch_not_found", "Branch not found");
+
           case "provider_credential_not_found":
           case "invalid_crowdin_project_id":
           case "crowdin_branch_not_found":

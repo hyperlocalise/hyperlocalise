@@ -191,7 +191,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
     await user.dblClick(screen.getByRole("button", { name: "en-US.json" }));
 
     expect(routerPushMock).toHaveBeenCalledWith(
-      "/org/acme/projects/proj_1/files/content-editor?sourcePath=en-US.json&locale=vi",
+      "/org/acme/projects/proj_1/files/content-editor?sourcePath=en-US.json&locale=vi&branch=main",
     );
   });
 
@@ -204,7 +204,7 @@ describe("ProjectFilesPageContent CAT entry UX", () => {
     await user.dblClick(screen.getByRole("button", { name: "en-US.json" }));
 
     expect(routerPushMock).toHaveBeenCalledWith(
-      "/org/acme/projects/proj_1/files/content-editor?sourcePath=en-US.json&locale=vi",
+      "/org/acme/projects/proj_1/files/content-editor?sourcePath=en-US.json&locale=vi&branch=main",
     );
   });
 

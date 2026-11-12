@@ -144,6 +144,14 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     title: "Validate schema",
     purpose: "Validate a value against a bounded structured schema.",
   },
+  "logic.text_template": {
+    title: "Text template",
+    purpose: "Build text from a template and stable typed placeholders.",
+  },
+  "logic.concatenate": {
+    title: "Concatenate text",
+    purpose: "Join ordered literals and typed input values into text.",
+  },
   "ai.agent": { title: "AI Agent", purpose: "Placeholder agent step with tools." },
   "logic.for_each": { title: "Loop", purpose: "Iterate over a collection sequentially." },
   "logic.array_transform": {

@@ -367,6 +367,8 @@ export const projectFileCatQuerySchema = z.object({
   sortBucketOffset: z.coerce.number().int().min(0).optional(),
   /** Native only. Collapses identical source strings into one segment with `occurrenceCount`. */
   grouped: z.enum(["true"]).optional(),
+  /** Native version branch. Defaults to `main` in go-svc. */
+  branch: z.string().trim().min(1).max(128).optional(),
 });
 
 export const projectFileCatLabelSchema = z.object({
@@ -541,6 +543,7 @@ export const projectFileUploadBodySchema = z.object({
   commitSha: z.string().trim().min(1).max(256).optional(),
   workflowRunId: z.string().trim().min(1).max(256).optional(),
   keepApproved: z.enum(["true", "false"]).optional(),
+  branch: z.string().trim().min(1).max(128).optional(),
 });
 
 export const projectFileTranslationImportBodySchema = z.object({

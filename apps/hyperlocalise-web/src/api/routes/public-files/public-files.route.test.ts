@@ -21,6 +21,8 @@ import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
 import { err, ok } from "@/lib/primitives/result/results";
 
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
+
 import {
   createMemoryFileStorageAdapter,
   createExternalTmsPublicApiFixture,
@@ -209,6 +211,60 @@ describe("publicFileRoutes", () => {
 
     expect(downloadResponse.status).toBe(200);
     expect(await downloadResponse.text()).toBe("# Hello");
+  });
+
+  it("rejects native uploads onto a protected branch", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await projectBranchService.ensureDefaultBranch({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: project.createdByUserId,
+    });
+    const protectedResult = await projectBranchService.update({
+      projectId: project.id,
+      name: "main",
+      isProtected: true,
+    });
+    expect(protectedResult.ok).toBe(true);
+
+    const response = await client.api.v1.files.$post(
+      {
+        form: {
+          projectId: project.id,
+          sourcePath: "content/en/home.md",
+          file: new File(["# Hello"], "home.md", { type: "text/markdown" }),
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "protected_branch",
+      message: "This branch is protected.",
+    });
+  });
+
+  it("rejects native uploads onto a missing branch", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+
+    const response = await client.api.v1.files.$post(
+      {
+        form: {
+          projectId: project.id,
+          sourcePath: "content/en/home.md",
+          branch: "missing",
+          file: new File(["# Hello"], "home.md", { type: "text/markdown" }),
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "branch_not_found",
+      message: "Branch not found.",
+    });
   });
 
   it("groups repeated repository uploads by project and source path", async () => {

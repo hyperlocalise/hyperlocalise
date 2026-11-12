@@ -621,44 +621,6 @@ func (api *linkedDomainAPI) assertAccessibleProject(ctx context.Context, db dict
 	return err
 }
 
-func loadTakenProjectIdentifiers(ctx context.Context, db dictionaryDB, organizationID string) (map[string]struct{}, error) {
-	taken := map[string]struct{}{}
-	rows, err := db.Query(ctx, `select identifier from projects where organization_id=$1`, organizationID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var identifier string
-		if err := rows.Scan(&identifier); err != nil {
-			return nil, err
-		}
-		taken[strings.ToUpper(strings.TrimSpace(identifier))] = struct{}{}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	prefixRows, err := db.Query(ctx, `
-		select distinct split_part(identifier, '-', 1) as prefix
-		from issue_sheet_issues
-		where organization_id=$1`, organizationID)
-	if err != nil {
-		return nil, err
-	}
-	defer prefixRows.Close()
-	for prefixRows.Next() {
-		var prefix string
-		if err := prefixRows.Scan(&prefix); err != nil {
-			return nil, err
-		}
-		prefix = strings.ToUpper(strings.TrimSpace(prefix))
-		if prefix != "" {
-			taken[prefix] = struct{}{}
-		}
-	}
-	return taken, prefixRows.Err()
-}
-
 func linkedDomainProjectIdentifierCandidate(attempt int, base string) string {
 	if attempt <= 1 {
 		return base

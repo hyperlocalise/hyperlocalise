@@ -61,16 +61,38 @@ func effectivePermissions(stored []string, role string) []string {
 		if role == "admin" || role == "localization_manager" || role == "reviewer" {
 			add("translations:approve")
 		}
+		// Project templates follow go-svc: admins and localization managers manage them.
+		// Custom field definitions follow them too.
+		if role == "admin" || role == "localization_manager" {
+			add("project-templates:write")
+			add("custom-fields:write")
+		}
 		// Glossary edits follow go-svc: managers, and translators on their teams' glossaries.
 		if role == "admin" || role == "localization_manager" || role == "translator" {
 			add("glossaries:write")
 		}
+	}
+	// Every workspace member can list templates to create a project from one, as in go-svc.
+	if _, ok := seen["projects:read"]; ok {
+		add("project-templates:read")
+		add("custom-fields:read")
 	}
 	if _, ok := seen["memories:read"]; ok {
 		add("translation-memories:read")
 	}
 	if _, ok := seen["memories:write"]; ok {
 		add("translation-memories:write")
+	}
+	// Job webhooks sit with API keys in Settings. Only admins and localization managers
+	// can manage them there; tokens never carry api_keys:write, so jobs scopes plus that
+	// role gate grant webhooks:read and webhooks:write.
+	if role == "admin" || role == "localization_manager" {
+		if _, ok := seen["jobs:read"]; ok {
+			add("webhooks:read")
+		}
+		if _, ok := seen["jobs:write"]; ok {
+			add("webhooks:write")
+		}
 	}
 	return out
 }

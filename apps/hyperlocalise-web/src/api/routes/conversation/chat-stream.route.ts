@@ -88,6 +88,10 @@ export function createChatStreamRoutes(options: CreateChatStreamRoutesOptions = 
         return notFoundResponse(c);
       }
 
+      if (!isAiActionAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
       const run = await getLatestConversationRun(paramResult.data.conversationId);
       return c.json({ run: run ? serializeConversationRun(run) : null }, 200);
     })
@@ -122,6 +126,10 @@ export function createChatStreamRoutes(options: CreateChatStreamRoutesOptions = 
       const conversation = await canAccessInteraction(c.var.auth, paramResult.data.conversationId);
       if (!conversation) {
         return notFoundResponse(c);
+      }
+
+      if (!isAiActionAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
       }
 
       const result = await getInteractionMessageToolOutput({

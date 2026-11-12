@@ -1630,6 +1630,129 @@ describe("VisualWorkflowConfigPanel", () => {
     expect(screen.getByText(/connect a string output/i)).toBeInTheDocument();
   });
 
+  it("edits text templates while preserving stable placeholder IDs", () => {
+    const onChangeConfig = vi.fn();
+
+    function StatefulTextTemplatePanel() {
+      const [config, setConfig] = useState<
+        Extract<VisualNodeConfig, { kind: "logic.text_template" }>
+      >({
+        kind: "logic.text_template",
+        template: "Hello, {{name}}!",
+        placeholders: [
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "name",
+            type: "string",
+            missingBehavior: "required",
+          },
+        ],
+      });
+      return (
+        <VisualWorkflowConfigPanel
+          node={{
+            id: "text-template",
+            type: "logic.text_template",
+            position: { x: 0, y: 0 },
+            ...getVisualNodeDimensions("logic.text_template"),
+            data: { catalogType: "logic.text_template", config, runStatus: "idle" },
+          }}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={(next) => {
+            onChangeConfig(next);
+            if (next.kind === "logic.text_template") setConfig(next);
+          }}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+        />
+      );
+    }
+
+    renderPanel(<StatefulTextTemplatePanel />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Template" }), {
+      target: { value: "Welcome, {{customer}}!" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Placeholder 1 name" }), {
+      target: { value: "customer" },
+    });
+
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        template: "Welcome, {{customer}}!",
+        placeholders: [
+          expect.objectContaining({
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "customer",
+          }),
+        ],
+      }),
+    );
+    expect(screen.getByText("Connect this on the canvas.")).toBeInTheDocument();
+    expect(screen.queryByText("11111111-1111-4111-8111-111111111111")).not.toBeInTheDocument();
+  });
+
+  it("edits and reorders concatenate segments without changing their IDs", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+
+    function StatefulConcatenatePanel() {
+      const [config, setConfig] = useState<
+        Extract<VisualNodeConfig, { kind: "logic.concatenate" }>
+      >({
+        kind: "logic.concatenate",
+        separator: " ",
+        segments: [
+          { id: "11111111-1111-4111-8111-111111111111", kind: "literal", value: "Hello" },
+          {
+            id: "22222222-2222-4222-8222-222222222222",
+            kind: "input",
+            name: "name",
+            type: "string",
+            missingBehavior: "required",
+          },
+        ],
+      });
+      return (
+        <VisualWorkflowConfigPanel
+          node={{
+            id: "concatenate",
+            type: "logic.concatenate",
+            position: { x: 0, y: 0 },
+            ...getVisualNodeDimensions("logic.concatenate"),
+            data: { catalogType: "logic.concatenate", config, runStatus: "idle" },
+          }}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={(next) => {
+            onChangeConfig(next);
+            if (next.kind === "logic.concatenate") setConfig(next);
+          }}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+        />
+      );
+    }
+
+    renderPanel(<StatefulConcatenatePanel />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Separator" }), {
+      target: { value: ", " },
+    });
+    await user.click(screen.getByRole("button", { name: "Move name up" }));
+
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        separator: ", ",
+        segments: [
+          expect.objectContaining({ id: "22222222-2222-4222-8222-222222222222" }),
+          expect.objectContaining({ id: "11111111-1111-4111-8111-111111111111" }),
+        ],
+      }),
+    );
+    expect(screen.getByText("Connect this on the canvas.")).toBeInTheDocument();
+    expect(screen.queryByText("22222222-2222-4222-8222-222222222222")).not.toBeInTheDocument();
+  });
+
   it("keeps invalid Stringify JSON drafts without replacing the stored value", () => {
     const onChangeConfig = vi.fn();
 

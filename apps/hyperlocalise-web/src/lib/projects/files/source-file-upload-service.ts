@@ -26,6 +26,8 @@ import {
   enqueueFileUploadedActivity,
   uploadActivityActor,
 } from "@/lib/activity-log/file-segment-events";
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
+import { resolvedProjectBranchName } from "@/lib/projects/branches/project-branch-name";
 import { enqueueSourceFileIngestAfterUpload } from "./source-file-ingest";
 
 type ProjectRecord = typeof schema.projects.$inferSelect;
@@ -112,6 +114,8 @@ export type SourceFileUploadError =
   | { code: "external_tms_project_not_found" }
   | { code: "provider_credential_not_found" }
   | { code: "source_upload_failed" }
+  | { code: "protected_branch" }
+  | { code: "branch_not_found" }
   | ExternalTmsSourceFileUploadError;
 
 export async function uploadSourceFile(
@@ -121,12 +125,28 @@ export async function uploadSourceFile(
     return uploadExternalTmsSourceFile(input);
   }
 
-  return ok(await uploadNativeSourceFile(input));
+  return uploadNativeSourceFile(input);
 }
 
 async function uploadNativeSourceFile(
   input: SourceFileUploadInput,
-): Promise<NativeSourceFileUploadResult> {
+): Promise<Result<NativeSourceFileUploadResult, SourceFileUploadError>> {
+  await projectBranchService.ensureDefaultBranch({
+    organizationId: input.organizationId,
+    projectId: input.project.id,
+    createdByUserId: input.uploadedByUserId ?? null,
+  });
+  const branchName = resolvedProjectBranchName(input.branch);
+  const writable = await projectBranchService.assertWritable({
+    projectId: input.project.id,
+    branchName,
+  });
+  if (isErr(writable)) {
+    return err({
+      code: writable.error === "protected_branch" ? "protected_branch" : "branch_not_found",
+    });
+  }
+
   const adapter = input.fileStorageAdapter ?? getFileStorageAdapter();
   let uploadedFile: typeof schema.storedFiles.$inferSelect | null = null;
 
@@ -155,6 +175,7 @@ async function uploadNativeSourceFile(
       const version = await createRepositorySourceFileVersion({
         storedFile: uploadedFile,
         sourcePath: input.sourcePath,
+        branchName: writable.value,
         sourceHash: input.sourceHash ?? undefined,
         commitSha: input.commitSha ?? undefined,
         workflowRunId: input.workflowRunId ?? undefined,
@@ -211,7 +232,7 @@ async function uploadNativeSourceFile(
     versionId: version.id,
   });
 
-  return {
+  return ok({
     destination: "native",
     file: {
       id: storedFile.id,
@@ -221,7 +242,7 @@ async function uploadNativeSourceFile(
       byteSize: storedFile.byteSize,
       sha256: storedFile.sha256,
     },
-  };
+  });
 }
 
 async function uploadExternalTmsSourceFile(
