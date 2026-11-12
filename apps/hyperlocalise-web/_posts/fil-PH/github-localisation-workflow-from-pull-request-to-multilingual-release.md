@@ -65,7 +65,7 @@ Gumamit ng GitHub environment gaya ng `localisation` para sa mga kredensyal sa p
 Gumawa ng `i18n.yml` sa root ng repository:
 
 ```yaml
-version: hyperlocalise@1.13.9
+version: hyperlocalise@1.13.10
 
 locales:
   source: en-US
