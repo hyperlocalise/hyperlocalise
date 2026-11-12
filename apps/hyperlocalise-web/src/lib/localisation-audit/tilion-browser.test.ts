@@ -216,13 +216,14 @@ describe("createTilionAuditBrowserSession", () => {
   });
 
   it("returns an error when Tilion refuses the session", async () => {
-    fetchMock.mockResolvedValue(new Response("{}", { status: 402 }));
+    fetchMock.mockResolvedValue(new Response('{"error":"quota exceeded"}', { status: 402 }));
 
     const session = await createTilionAuditBrowserSession({ apiKey: "tl_key" });
 
     expect(isErr(session) && session.error).toEqual({
       code: "tilion_session_create_failed",
       status: 402,
+      detail: { name: "HttpError", message: '{"error":"quota exceeded"}' },
     });
     expect(playwrightMocks.connectOverCDP).not.toHaveBeenCalled();
   });
@@ -236,7 +237,10 @@ describe("createTilionAuditBrowserSession", () => {
 
     const session = await createTilionAuditBrowserSession({ apiKey: "tl_key" });
 
-    expect(isErr(session) && session.error).toEqual({ code: "tilion_cdp_unavailable" });
+    expect(isErr(session) && session.error).toEqual({
+      code: "tilion_cdp_unavailable",
+      sessionId: "sess_1",
+    });
     expect(fetchMock).toHaveBeenLastCalledWith(
       `${TILION_API_BASE_URL}/v1/session/sess_1`,
       expect.objectContaining({ method: "DELETE" }),
@@ -249,11 +253,21 @@ describe("createTilionAuditBrowserSession", () => {
         ? Response.json({ session_id: "sess_1", connect_url: "wss://tilion/cdp" })
         : new Response(null, { status: 204 }),
     );
-    playwrightMocks.connectOverCDP.mockRejectedValue(new Error("403"));
+    playwrightMocks.connectOverCDP.mockRejectedValue(
+      new Error("browserType.connectOverCDP: 403 at wss://tilion.dev/cdp/sess_1?token=secret"),
+    );
 
     const session = await createTilionAuditBrowserSession({ apiKey: "tl_key" });
 
-    expect(isErr(session) && session.error).toEqual({ code: "tilion_connect_failed" });
+    expect(isErr(session) && session.error).toEqual({
+      code: "tilion_connect_failed",
+      stage: "connect",
+      sessionId: "sess_1",
+      detail: {
+        name: "Error",
+        message: "browserType.connectOverCDP: 403 at wss://tilion.dev/<redacted>",
+      },
+    });
     expect(fetchMock).toHaveBeenLastCalledWith(
       `${TILION_API_BASE_URL}/v1/session/sess_1`,
       expect.objectContaining({ method: "DELETE" }),
