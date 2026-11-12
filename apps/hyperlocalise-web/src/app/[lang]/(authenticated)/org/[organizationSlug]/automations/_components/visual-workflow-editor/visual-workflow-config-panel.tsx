@@ -20,6 +20,7 @@ import { WorkflowCredentialField } from "./workflow-credential-field";
 import { WorkflowDataPanel } from "./workflow-data-panel";
 import { WorkflowBoundField, type BoundPort } from "./workflow-bound-field";
 import { WorkflowTestDataPanel } from "./workflow-test-data-panel";
+import { ConcatenateConfig, TextTemplateConfig } from "./visual-workflow-text-config";
 import type {
   WorkflowBinding,
   WorkflowNodeContract,
@@ -2013,6 +2014,12 @@ export function VisualWorkflowConfigPanel({
             onChange={(text) => onChangeConfig({ ...config, text })}
             placeholder='{"name":"Ada"}'
           />
+        ) : null}
+        {config.kind === "logic.text_template" ? (
+          <TextTemplateConfig config={config} onChange={(next) => onChangeConfig(next)} />
+        ) : null}
+        {config.kind === "logic.concatenate" ? (
+          <ConcatenateConfig config={config} onChange={(next) => onChangeConfig(next)} />
         ) : null}
         {config.kind === "logic.json_stringify" ? (
           <JsonBoundField

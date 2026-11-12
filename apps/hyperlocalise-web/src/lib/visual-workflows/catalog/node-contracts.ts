@@ -469,6 +469,16 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     ],
     mock: { value: null, valid: true, errors: [] },
   },
+  "logic.text_template": {
+    inputs: [],
+    outputs: [output("text", "string")],
+    mock: { text: "Hello, Ada!" },
+  },
+  "logic.concatenate": {
+    inputs: [],
+    outputs: [output("text", "string")],
+    mock: { text: "Hello, Ada" },
+  },
   "logic.for_each": {
     inputs: [field("collection", "array")],
     outputs: [
@@ -738,6 +748,24 @@ export function getWorkflowOutputFields(node: CanonicalVisualWorkflowNode): Work
 }
 
 export function getWorkflowInputFields(node: CanonicalVisualWorkflowNode): WorkflowInputField[] {
+  if (node.config.kind === "logic.text_template") {
+    return node.config.placeholders.map((placeholder) => ({
+      name: `value.${placeholder.id}`,
+      type: placeholder.type,
+      required: placeholder.missingBehavior === "required",
+    }));
+  }
+
+  if (node.config.kind === "logic.concatenate") {
+    return node.config.segments
+      .filter((segment) => segment.kind === "input")
+      .map((segment) => ({
+        name: `value.${segment.id}`,
+        type: segment.type,
+        required: segment.missingBehavior === "required",
+      }));
+  }
+
   if (node.config.kind === "logic.compare") {
     return node.config.operands.map((operand) => ({
       name: `value.${operand.id}`,

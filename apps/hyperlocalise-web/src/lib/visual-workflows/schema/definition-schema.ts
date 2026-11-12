@@ -12,6 +12,8 @@
  */
 import { z } from "zod";
 
+import { parseTextTemplate } from "./text-template";
+
 import { contentSyncProviderSchema } from "@/lib/agents/content-sync/content-sync-types";
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
 import {
@@ -100,6 +102,8 @@ export const visualCatalogTypeSchema = z.enum([
   "logic.json_parse",
   "logic.json_stringify",
   "logic.schema_validate",
+  "logic.text_template",
+  "logic.concatenate",
   "ai.agent",
   "logic.for_each",
   "logic.array_transform",
@@ -670,6 +674,118 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     value: z.unknown(),
     schema: z.record(z.string(), z.unknown()),
   }),
+  z
+    .object({
+      kind: z.literal("logic.text_template"),
+      template: z.string().max(100_000),
+      placeholders: z
+        .array(
+          z.object({
+            id: z.string().uuid(),
+            name: z.string().trim().min(1).max(128),
+            type: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+            missingBehavior: z.enum(["required", "optional", "fallback"]),
+            fallback: z.string().max(20_000).optional(),
+          }),
+        )
+        .max(32),
+    })
+    .superRefine((config, context) => {
+      const ids = new Set<string>();
+      const names = new Set<string>();
+      config.placeholders.forEach((placeholder, index) => {
+        if (ids.has(placeholder.id)) {
+          context.addIssue({
+            code: "custom",
+            path: ["placeholders", index, "id"],
+            message: "duplicate_text_placeholder_id",
+          });
+        }
+        if (names.has(placeholder.name)) {
+          context.addIssue({
+            code: "custom",
+            path: ["placeholders", index, "name"],
+            message: "duplicate_text_placeholder_name",
+          });
+        }
+        if (placeholder.missingBehavior === "fallback" && placeholder.fallback === undefined) {
+          context.addIssue({
+            code: "custom",
+            path: ["placeholders", index, "fallback"],
+            message: "text_placeholder_fallback_required",
+          });
+        }
+        ids.add(placeholder.id);
+        names.add(placeholder.name);
+      });
+      const parsed = parseTextTemplate(config.template);
+      if (!parsed.valid) {
+        context.addIssue({
+          code: "custom",
+          path: ["template"],
+          message: "malformed_text_template",
+        });
+        return;
+      }
+      for (const name of new Set(parsed.placeholderNames)) {
+        if (!names.has(name)) {
+          context.addIssue({
+            code: "custom",
+            path: ["template"],
+            message: "unknown_text_placeholder",
+          });
+        }
+      }
+    }),
+  z
+    .object({
+      kind: z.literal("logic.concatenate"),
+      segments: z
+        .array(
+          z.discriminatedUnion("kind", [
+            z.object({
+              id: z.string().uuid(),
+              kind: z.literal("literal"),
+              value: z.string().max(20_000),
+            }),
+            z.object({
+              id: z.string().uuid(),
+              kind: z.literal("input"),
+              name: z.string().trim().min(1).max(128),
+              type: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+              missingBehavior: z.enum(["required", "optional", "fallback"]),
+              fallback: z.string().max(20_000).optional(),
+            }),
+          ]),
+        )
+        .min(1)
+        .max(32),
+      separator: z.string().max(1_000),
+    })
+    .superRefine((config, context) => {
+      const ids = new Set<string>();
+      config.segments.forEach((segment, index) => {
+        if (ids.has(segment.id)) {
+          context.addIssue({
+            code: "custom",
+            path: ["segments", index, "id"],
+            message: "duplicate_concatenate_segment_id",
+          });
+        }
+        if (
+          segment.kind === "input" &&
+          segment.missingBehavior === "fallback" &&
+          segment.fallback === undefined
+        ) {
+          context.addIssue({
+            code: "custom",
+            path: ["segments", index, "fallback"],
+            message: "concatenate_segment_fallback_required",
+          });
+        }
+        ids.add(segment.id);
+      });
+    }),
   z.object({
     kind: z.literal("ai.agent"),
     prompt: z.string().max(20_000),

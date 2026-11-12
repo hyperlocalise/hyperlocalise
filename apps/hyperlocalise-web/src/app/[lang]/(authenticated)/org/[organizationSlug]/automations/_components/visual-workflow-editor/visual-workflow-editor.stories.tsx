@@ -2314,3 +2314,214 @@ export const FileOperationsNarrow: Story = {
     await expect(canvas.getAllByText(/messages\.yaml/).length).toBeGreaterThan(0);
   },
 };
+
+const templateNameInputId = "11111111-1111-4111-8111-111111111111";
+const templateCountInputId = "22222222-2222-4222-8222-222222222222";
+const concatenateInputId = "33333333-3333-4333-8333-333333333333";
+
+const textOperationNodes = [
+  {
+    id: "trigger-text",
+    type: "trigger.manual" as const,
+    position: { x: 60, y: 220 },
+    data: {
+      catalogType: "trigger.manual" as const,
+      config: { kind: "trigger.manual" as const },
+      outputFields: [
+        { path: "customerName", type: "string" as const },
+        { path: "itemCount", type: "number" as const },
+      ],
+      runStatus: "succeeded" as const,
+      lastOutput: { customerName: "Ada", itemCount: 3 },
+    },
+  },
+  {
+    id: "text-template",
+    type: "logic.text_template" as const,
+    position: { x: 390, y: 160 },
+    data: {
+      catalogType: "logic.text_template" as const,
+      config: {
+        kind: "logic.text_template" as const,
+        template: "Hello, {{name}}. You have {{count}} items.",
+        placeholders: [
+          {
+            id: templateNameInputId,
+            name: "name",
+            type: "string" as const,
+            missingBehavior: "required" as const,
+          },
+          {
+            id: templateCountInputId,
+            name: "count",
+            type: "number" as const,
+            missingBehavior: "fallback" as const,
+            fallback: "no",
+          },
+        ],
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: { text: "Hello, Ada. You have 3 items." },
+    },
+  },
+  {
+    id: "concatenate-text",
+    type: "logic.concatenate" as const,
+    position: { x: 750, y: 220 },
+    data: {
+      catalogType: "logic.concatenate" as const,
+      config: {
+        kind: "logic.concatenate" as const,
+        separator: " ",
+        segments: [
+          {
+            id: "44444444-4444-4444-8444-444444444444",
+            kind: "literal" as const,
+            value: "Preview:",
+          },
+          {
+            id: concatenateInputId,
+            kind: "input" as const,
+            name: "renderedText",
+            type: "string" as const,
+            missingBehavior: "required" as const,
+          },
+        ],
+      },
+      runStatus: "succeeded" as const,
+      lastOutput: { text: "Preview: Hello, Ada. You have 3 items." },
+    },
+  },
+];
+
+const textOperationEdges = [
+  {
+    id: "trigger-template-execution",
+    source: "trigger-text",
+    target: "text-template",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "trigger-template-name",
+    source: "trigger-text",
+    target: "text-template",
+    sourceHandle: "customerName",
+    targetHandle: `value.${templateNameInputId}`,
+    label: "customerName → name",
+    data: { kind: "data" as const },
+  },
+  {
+    id: "trigger-template-count",
+    source: "trigger-text",
+    target: "text-template",
+    sourceHandle: "itemCount",
+    targetHandle: `value.${templateCountInputId}`,
+    label: "itemCount → count",
+    data: { kind: "data" as const },
+  },
+  {
+    id: "template-concatenate-execution",
+    source: "text-template",
+    target: "concatenate-text",
+    sourceHandle: "success",
+    targetHandle: "input",
+    data: { kind: "execution" as const },
+  },
+  {
+    id: "template-concatenate-text",
+    source: "text-template",
+    target: "concatenate-text",
+    sourceHandle: "text",
+    targetHandle: `value.${concatenateInputId}`,
+    label: "text → renderedText",
+    data: { kind: "data" as const },
+  },
+];
+
+export const TextOperationsConfigured: Story = {
+  name: "Text Operations — configured and connected",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Builds bounded plain text from named typed placeholders, then joins the rendered output with a literal segment.",
+      },
+    },
+  },
+  args: {
+    initialName: "Build a customer notification",
+    initialNodes: textOperationNodes,
+    initialEdges: textOperationEdges,
+    initialTestSetup: {
+      data: {
+        "trigger-text": { customerName: "Ada", itemCount: 3 },
+      },
+      realNodeIds: [],
+      failures: {},
+    },
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const nameInput = await canvas.findByLabelText(
+      "Data input: name, string",
+      {},
+      { timeout: 10_000 },
+    );
+    await expect(nameInput).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data input: count, number")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data input: renderedText, string")).toBeInTheDocument();
+    await expect(canvas.getAllByLabelText("Data output: text, string")).toHaveLength(2);
+    await expect(canvas.getByText(/Preview: Hello, Ada/)).toBeInTheDocument();
+
+    await userEvent.click(nameInput.closest(".react-flow__node")!);
+    await expect(canvas.getByRole("textbox", { name: "Template" })).toHaveValue(
+      "Hello, {{name}}. You have {{count}} items.",
+    );
+    await expect(canvas.getByRole("textbox", { name: "Placeholder 1 name" })).toHaveValue("name");
+  },
+};
+
+export const TextOperationsValidationError: Story = {
+  name: "Text Operations — validation error",
+  args: {
+    ...TextOperationsConfigured.args,
+    initialName: "Fix an unknown text placeholder",
+    initialNodes: textOperationNodes.map((node) =>
+      node.id === "text-template" && node.data.config.kind === "logic.text_template"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: { ...node.data.config, template: "Hello, {{missing}}!" },
+              runStatus: "idle" as const,
+              lastOutput: undefined,
+            },
+          }
+        : node,
+    ),
+  },
+  play: async ({ canvas }) => {
+    const nameInput = await canvas.findByLabelText(
+      "Data input: name, string",
+      {},
+      { timeout: 10_000 },
+    );
+    await userEvent.click(nameInput.closest(".react-flow__node")!);
+    await expect(
+      canvas.getByText("Fix the step configuration before saving this workflow."),
+    ).toBeInTheDocument();
+  },
+};
+
+export const TextOperationsNarrow: Story = {
+  name: "Text Operations — narrow",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: { ...TextOperationsConfigured.args },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findAllByText("Succeeded", {}, { timeout: 10_000 })).toHaveLength(3);
+    await expect(canvas.getByText(/Preview: Hello, Ada/)).toBeInTheDocument();
+  },
+};

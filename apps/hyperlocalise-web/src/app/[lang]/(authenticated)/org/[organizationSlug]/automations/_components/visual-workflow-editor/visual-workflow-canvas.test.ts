@@ -199,6 +199,38 @@ describe("presentVisualWorkflowEdges", () => {
       markerEnd: { type: "arrowclosed" },
     });
   });
+
+  it("shows dynamic input names instead of stable port IDs on data edges", () => {
+    const trigger = node("trigger", "trigger.manual");
+    trigger.data.outputFields = [{ path: "customerName", type: "string" }];
+    const template = node("template", "logic.text_template");
+    template.data.config = {
+      kind: "logic.text_template",
+      template: "Hello {{name}}",
+      placeholders: [
+        {
+          id: "11111111-1111-4111-8111-111111111111",
+          name: "name",
+          type: "string",
+          missingBehavior: "required",
+        },
+      ],
+    };
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "name-binding",
+        source: "trigger",
+        target: "template",
+        sourceHandle: "customerName",
+        targetHandle: "value.11111111-1111-4111-8111-111111111111",
+        data: { kind: "data" },
+      },
+    ];
+
+    expect(presentVisualWorkflowEdges([trigger, template], edges)[0]?.label).toBe(
+      "customerName → name",
+    );
+  });
 });
 
 describe("presentVisualWorkflowEdges wire weights and reference lines", () => {
