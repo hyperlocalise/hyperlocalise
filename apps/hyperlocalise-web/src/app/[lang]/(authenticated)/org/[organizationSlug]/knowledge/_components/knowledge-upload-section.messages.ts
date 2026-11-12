@@ -40,11 +40,6 @@ export const knowledgeUploadSectionMessages = defineMessages({
     id: "bl+DouTlcU",
     description: "Separator between knowledge upload dropzone and source buttons",
   },
-  selectedFiles: {
-    defaultMessage: "{count, plural, one {# file selected} other {# files selected}}",
-    id: "80QeJXvhPz",
-    description: "Count of files selected in the knowledge upload dropzone",
-  },
   googleDrive: {
     defaultMessage: "Add Google Drive",
     id: "BCjCYwwMon",

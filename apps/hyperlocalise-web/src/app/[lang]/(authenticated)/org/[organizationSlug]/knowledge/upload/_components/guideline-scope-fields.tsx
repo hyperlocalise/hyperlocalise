@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useId, useMemo, useState, type ReactNode } from "react";
+import { useId, useMemo, type ReactNode } from "react";
 import {
   CaretDownIcon,
   FoldersIcon,
@@ -20,6 +20,7 @@ import {
   MagnifyingGlassIcon,
   PlusIcon,
 } from "@phosphor-icons/react";
+import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -31,30 +32,17 @@ import {
   formatLocaleDisplayName,
   formatLocaleOptionLabel,
 } from "@/lib/i18n/locale-display-names.messages";
-import {
-  canonicalizeLocale,
-  COMMON_LOCALES,
-  getLocaleFlagEmoji,
-  isValidLocaleInput,
-} from "@/lib/i18n/locales";
+import { COMMON_LOCALES, getLocaleFlagEmoji } from "@/lib/i18n/locales";
 import { cn } from "@/lib/primitives/cn";
 
+import { customLocaleFromQuery, matchesSearchQuery } from "../store/guideline-upload-page-store";
+import { useGuidelineUploadPageStore } from "../store/guideline-upload-store-context";
 import { guidelineUploadMessages as messages } from "./guideline-upload.messages";
-
-export type GuidelineProjectScope = "none" | "all" | "selected";
 
 type ProjectOption = { id: string; name: string };
 
-/** Custom entries must look like a language code (`fr`, `pt-BR`, `zh-Hant-TW`), not a word. */
-const CUSTOM_LOCALE_PATTERN = /^[a-z]{2,3}(?:[-_][a-z0-9]{2,8})*$/i;
 /** Selected names shown in a pill before collapsing to a count. */
 const MAX_PILL_NAMES = 2;
-
-function matches(query: string, ...values: string[]) {
-  const needle = query.trim().toLowerCase();
-  if (!needle) return true;
-  return values.some((value) => value.toLowerCase().includes(needle));
-}
 
 /** Filter-style pill: icon, muted label, current value, caret. */
 function ScopePill({
@@ -133,20 +121,13 @@ function CheckRow({
   );
 }
 
-function LocalesPill({
-  value,
-  onChange,
-  suggestions,
-}: {
-  value: string[];
-  onChange: (locales: string[]) => void;
-  suggestions: string[];
-}) {
+const LocalesPill = observer(function LocalesPill({ suggestions }: { suggestions: string[] }) {
   const intl = useIntl();
-  const [query, setQuery] = useState("");
+  const store = useGuidelineUploadPageStore();
+  const { locales, localeQuery } = store;
 
   const options = useMemo(() => {
-    const codes = new Set<string>([...COMMON_LOCALES, ...suggestions, ...value]);
+    const codes = new Set<string>([...COMMON_LOCALES, ...suggestions, ...locales]);
     return [...codes]
       .map((id) => ({
         id,
@@ -155,33 +136,28 @@ function LocalesPill({
         flag: getLocaleFlagEmoji(id),
       }))
       .toSorted((a, b) => a.label.localeCompare(b.label, intl.locale));
-  }, [intl, suggestions, value]);
+  }, [intl, suggestions, locales]);
 
-  const selected = useMemo(() => options.filter((o) => value.includes(o.id)), [options, value]);
-  const visible = options.filter((o) => matches(query, o.label, o.searchValue, o.id));
-
-  const typed = query.trim();
-  const customLocale =
-    typed && CUSTOM_LOCALE_PATTERN.test(typed) && isValidLocaleInput(typed)
-      ? (canonicalizeLocale(typed) as string)
-      : null;
-  const showCustom =
-    customLocale != null && !options.some((o) => o.id.toLowerCase() === customLocale.toLowerCase());
-
-  const toggle = (id: string, checked: boolean) =>
-    onChange(checked ? [...value, id] : value.filter((locale) => locale !== id));
+  const selected = options.filter((option) => locales.includes(option.id));
+  const visible = options.filter((option) =>
+    matchesSearchQuery(localeQuery, option.label, option.searchValue, option.id),
+  );
+  const customLocale = customLocaleFromQuery(
+    localeQuery,
+    options.map((option) => option.id),
+  );
 
   const summary =
     selected.length === 0 ? (
       <FormattedMessage {...messages.localesAll} />
     ) : selected.length <= MAX_PILL_NAMES ? (
-      selected.map((o) => o.label).join(", ")
+      selected.map((option) => option.label).join(", ")
     ) : (
       <FormattedMessage {...messages.localesCount} values={{ count: selected.length }} />
     );
 
   return (
-    <Popover onOpenChange={(open) => !open && setQuery("")}>
+    <Popover onOpenChange={(open) => !open && store.setLocaleQuery("")}>
       <ScopePill
         icon={<GlobeSimpleIcon className="size-4" />}
         label={<FormattedMessage {...messages.localesLabel} />}
@@ -190,8 +166,8 @@ function LocalesPill({
       />
       <PopoverContent align="start" className="w-80 gap-2 p-2">
         <SearchInput
-          value={query}
-          onChange={setQuery}
+          value={localeQuery}
+          onChange={(query) => store.setLocaleQuery(query)}
           placeholder={intl.formatMessage(messages.localesSearchPlaceholder)}
         />
         <div className="flex items-center justify-between px-2 text-xs text-muted-foreground">
@@ -202,42 +178,39 @@ function LocalesPill({
               variant="link"
               size="xs"
               className="h-auto px-0"
-              onClick={() => onChange([])}
+              onClick={() => store.clearLocales()}
             >
               <FormattedMessage {...messages.clear} />
             </Button>
           ) : null}
         </div>
         <div className="-mx-2 max-h-72 overflow-y-auto px-2">
-          {visible.map((o) => (
+          {visible.map((option) => (
             <CheckRow
-              key={o.id}
-              checked={value.includes(o.id)}
-              onCheckedChange={(checked) => toggle(o.id, checked)}
+              key={option.id}
+              checked={locales.includes(option.id)}
+              onCheckedChange={(checked) => store.toggleLocale(option.id, checked)}
             >
-              {o.flag ? (
+              {option.flag ? (
                 <span aria-hidden="true" className="leading-none">
-                  {o.flag}
+                  {option.flag}
                 </span>
               ) : null}
-              <span className="min-w-0 flex-1 truncate">{o.label}</span>
-              <span className="text-xs text-muted-foreground">{o.id}</span>
+              <span className="min-w-0 flex-1 truncate">{option.label}</span>
+              <span className="text-xs text-muted-foreground">{option.id}</span>
             </CheckRow>
           ))}
-          {showCustom ? (
+          {customLocale ? (
             <button
               type="button"
-              onClick={() => {
-                toggle(customLocale, true);
-                setQuery("");
-              }}
+              onClick={() => store.addCustomLocale(customLocale)}
               className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-start text-sm hover:bg-muted"
             >
               <PlusIcon className="size-4 text-muted-foreground" />
               <FormattedMessage {...messages.addCustomLocale} values={{ locale: customLocale }} />
             </button>
           ) : null}
-          {visible.length === 0 && !showCustom ? (
+          {visible.length === 0 && !customLocale ? (
             <p className="px-2 py-3 text-center text-sm text-muted-foreground">
               <FormattedMessage {...messages.noMatchingLocales} />
             </p>
@@ -246,7 +219,7 @@ function LocalesPill({
       </PopoverContent>
     </Popover>
   );
-}
+});
 
 const SCOPE_OPTIONS = [
   ["none", messages.projectScopeNone, messages.projectScopeNoneHint],
@@ -254,28 +227,19 @@ const SCOPE_OPTIONS = [
   ["selected", messages.projectScopeSelected, messages.projectScopeSelectedHint],
 ] as const;
 
-function ProjectsPill({
-  scope,
-  onScopeChange,
-  selectedIds,
-  onSelectedIdsChange,
+const ProjectsPill = observer(function ProjectsPill({
   projects,
   loadingProjects,
-  invalid,
 }: {
-  scope: GuidelineProjectScope;
-  onScopeChange: (scope: GuidelineProjectScope) => void;
-  selectedIds: string[];
-  onSelectedIdsChange: (ids: string[]) => void;
   projects: ProjectOption[];
   loadingProjects: boolean;
-  invalid: boolean;
 }) {
   const intl = useIntl();
   const groupId = useId();
-  const [query, setQuery] = useState("");
-  const selected = projects.filter((project) => selectedIds.includes(project.id));
-  const visible = projects.filter((project) => matches(query, project.name));
+  const store = useGuidelineUploadPageStore();
+  const { scope, selectedProjectIds, projectQuery } = store;
+  const selected = projects.filter((project) => selectedProjectIds.includes(project.id));
+  const visible = projects.filter((project) => matchesSearchQuery(projectQuery, project.name));
 
   const summary =
     scope === "none" ? (
@@ -291,13 +255,13 @@ function ProjectsPill({
     );
 
   return (
-    <Popover onOpenChange={(open) => !open && setQuery("")}>
+    <Popover onOpenChange={(open) => !open && store.setProjectQuery("")}>
       <ScopePill
         icon={<FoldersIcon className="size-4" />}
         label={<FormattedMessage {...messages.projectScopeLabel} />}
         value={summary}
         active={scope !== "none"}
-        invalid={invalid}
+        invalid={store.showProjectRequiredError}
       />
       <PopoverContent align="start" className="w-80 gap-2 p-2">
         <div role="radiogroup" aria-labelledby={groupId} className="flex flex-col gap-0.5">
@@ -312,7 +276,7 @@ function ProjectsPill({
                 type="button"
                 role="radio"
                 aria-checked={checked}
-                onClick={() => onScopeChange(value)}
+                onClick={() => store.setScope(value)}
                 className={cn(
                   "flex items-start gap-2.5 rounded-lg px-2 py-1.5 text-start hover:bg-muted",
                   checked && "bg-muted",
@@ -351,22 +315,16 @@ function ProjectsPill({
             ) : (
               <>
                 <SearchInput
-                  value={query}
-                  onChange={setQuery}
+                  value={projectQuery}
+                  onChange={(query) => store.setProjectQuery(query)}
                   placeholder={intl.formatMessage(messages.projectsSearchPlaceholder)}
                 />
                 <div className="-mx-2 max-h-56 overflow-y-auto px-2">
                   {visible.map((project) => (
                     <CheckRow
                       key={project.id}
-                      checked={selectedIds.includes(project.id)}
-                      onCheckedChange={(checked) =>
-                        onSelectedIdsChange(
-                          checked
-                            ? [...selectedIds, project.id]
-                            : selectedIds.filter((id) => id !== project.id),
-                        )
-                      }
+                      checked={selectedProjectIds.includes(project.id)}
+                      onCheckedChange={(checked) => store.toggleProject(project.id, checked)}
                     >
                       <span className="min-w-0 flex-1 truncate">{project.name}</span>
                     </CheckRow>
@@ -384,57 +342,37 @@ function ProjectsPill({
       </PopoverContent>
     </Popover>
   );
-}
+});
 
 /**
  * Compact "Applies to" bar for the guideline create page: locale and project
- * scope live in pill popovers so the content area keeps the full width.
+ * scope live in pill popovers so the content area keeps the full width. Reads
+ * and writes scope through the page store; project data comes from the query.
  */
-export function GuidelineScopeToolbar({
-  locales,
-  onLocalesChange,
+export const GuidelineScopeToolbar = observer(function GuidelineScopeToolbar({
   localeSuggestions,
-  scope,
-  onScopeChange,
-  selectedIds,
-  onSelectedIdsChange,
   projects,
   loadingProjects,
-  error,
 }: {
-  locales: string[];
-  onLocalesChange: (locales: string[]) => void;
   localeSuggestions: string[];
-  scope: GuidelineProjectScope;
-  onScopeChange: (scope: GuidelineProjectScope) => void;
-  selectedIds: string[];
-  onSelectedIdsChange: (ids: string[]) => void;
   projects: ProjectOption[];
   loadingProjects: boolean;
-  error?: string | null;
 }) {
+  const store = useGuidelineUploadPageStore();
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center gap-2">
         <span className="me-1 text-sm text-muted-foreground">
           <FormattedMessage {...messages.appliesToHeading} />
         </span>
-        <LocalesPill value={locales} onChange={onLocalesChange} suggestions={localeSuggestions} />
-        <ProjectsPill
-          scope={scope}
-          onScopeChange={onScopeChange}
-          selectedIds={selectedIds}
-          onSelectedIdsChange={onSelectedIdsChange}
-          projects={projects}
-          loadingProjects={loadingProjects}
-          invalid={Boolean(error)}
-        />
+        <LocalesPill suggestions={localeSuggestions} />
+        <ProjectsPill projects={projects} loadingProjects={loadingProjects} />
       </div>
-      {error ? (
+      {store.showProjectRequiredError ? (
         <p className="text-sm text-destructive" role="alert">
-          {error}
+          <FormattedMessage {...messages.projectRequired} />
         </p>
       ) : null}
     </div>
   );
-}
+});

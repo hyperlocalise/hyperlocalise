@@ -14,7 +14,7 @@
  */
 import { useRef, useState, type DragEvent, type ReactNode } from "react";
 import { FileTextIcon, StackIcon, TextTIcon, UploadSimpleIcon, XIcon } from "@phosphor-icons/react";
-import { FormattedMessage, useIntl } from "react-intl";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { siGoogledrive, siNotion } from "simple-icons";
 import { toast } from "sonner";
 
@@ -31,7 +31,17 @@ import {
   type KnowledgeUploadActionId,
 } from "./knowledge-upload.shared";
 
-const BYTES_PER_MEGABYTE = 1024 * 1024;
+const BYTES_PER_KILOBYTE = 1024;
+const BYTES_PER_MEGABYTE = BYTES_PER_KILOBYTE * 1024;
+
+function formatFileSize(intl: IntlShape, bytes: number): string {
+  const megabytes = bytes >= BYTES_PER_MEGABYTE;
+  return intl.formatNumber(bytes / (megabytes ? BYTES_PER_MEGABYTE : BYTES_PER_KILOBYTE), {
+    style: "unit",
+    unit: megabytes ? "megabyte" : "kilobyte",
+    maximumFractionDigits: megabytes ? 1 : 0,
+  });
+}
 
 /** Primary-tinted dot grid (matches the featured pricing card), faded toward the bottom. */
 const DROPZONE_DOT_GRID_STYLE = {
@@ -78,24 +88,26 @@ function UploadSourceButton({
 export function KnowledgeUploadSection({
   onStartMarkdownText,
   onFilesSelected,
+  selectedFile = null,
   showTitle = true,
   className,
 }: {
   onStartMarkdownText: () => void;
+  /** Enables file upload. Called with the accepted files, or `[]` when the file is removed. */
   onFilesSelected?: (files: File[]) => void;
+  /** The chosen file, owned by the parent. Shows a file row in place of the dropzone. */
+  selectedFile?: File | null;
   /** Hide the section heading when the parent already labels it. */
   showTitle?: boolean;
   className?: string;
 }) {
   const intl = useIntl();
   const inputRef = useRef<HTMLInputElement>(null);
+  // Transient drag highlight only; the chosen file lives in the parent.
   const [isDragging, setIsDragging] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const canUploadFiles = onFilesSelected != null;
-  const [selectedFile] = selectedFiles;
 
   const clearFiles = () => {
-    setSelectedFiles([]);
     onFilesSelected?.([]);
   };
 
@@ -116,7 +128,6 @@ export function KnowledgeUploadSection({
       return;
     }
 
-    setSelectedFiles(accepted);
     onFilesSelected?.(accepted);
   };
 
@@ -179,11 +190,7 @@ export function KnowledgeUploadSection({
               {selectedFile.name}
             </p>
             <p className="text-xs text-muted-foreground">
-              {intl.formatNumber(selectedFile.size / BYTES_PER_MEGABYTE, {
-                style: "unit",
-                unit: "megabyte",
-                maximumFractionDigits: 1,
-              })}
+              {formatFileSize(intl, Math.max(selectedFile.size, BYTES_PER_KILOBYTE))}
             </p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={() => inputRef.current?.click()}>

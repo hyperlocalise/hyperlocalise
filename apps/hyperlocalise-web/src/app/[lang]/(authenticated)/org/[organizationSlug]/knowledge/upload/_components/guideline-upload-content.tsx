@@ -12,10 +12,11 @@
  */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon } from "@phosphor-icons/react";
+import { observer } from "mobx-react-lite";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -29,7 +30,11 @@ import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { useGuidelineDocumentUpload } from "../../_components/guideline-documents-section";
 import { GuidelineTextDocumentDialog } from "../../_components/guideline-text-document-dialog";
 import { KnowledgeUploadSection } from "../../_components/knowledge-upload-section";
-import { GuidelineScopeToolbar, type GuidelineProjectScope } from "./guideline-scope-fields";
+import {
+  GuidelineUploadPageStoreProvider,
+  useGuidelineUploadPageStore,
+} from "../store/guideline-upload-store-context";
+import { GuidelineScopeToolbar } from "./guideline-scope-fields";
 import { guidelineUploadMessages as messages } from "./guideline-upload.messages";
 
 export function GuidelineUploadContent({
@@ -44,17 +49,27 @@ export function GuidelineUploadContent({
   initialProjectId?: string;
   backHref: string;
 }) {
+  return (
+    <GuidelineUploadPageStoreProvider
+      organizationSlug={organizationSlug}
+      initialProjectId={initialProjectId ?? deprecatedProjectId}
+    >
+      <GuidelineUploadContentView backHref={backHref} />
+    </GuidelineUploadPageStoreProvider>
+  );
+}
+
+const GuidelineUploadContentView = observer(function GuidelineUploadContentView({
+  backHref,
+}: {
+  backHref: string;
+}) {
+  const store = useGuidelineUploadPageStore();
+  const { organizationSlug } = store;
   const router = useRouter();
   const intl = useIntl();
   const queryClient = useQueryClient();
   const { client, loading } = useGoSvcClient();
-  const [textDialogOpen, setTextDialogOpen] = useState(false);
-  const [stagedFile, setStagedFile] = useState<File | null>(null);
-  const [scopeError, setScopeError] = useState<string | null>(null);
-  const preselected = initialProjectId ?? deprecatedProjectId ?? "";
-  const [scope, setScope] = useState<GuidelineProjectScope>(preselected ? "selected" : "none");
-  const [selectedIds, setSelectedIds] = useState<string[]>(preselected ? [preselected] : []);
-  const [selectedLocales, setSelectedLocales] = useState<string[]>([]);
   const uploadDocument = useGuidelineDocumentUpload(organizationSlug);
 
   const projectsQuery = useQuery({
@@ -75,10 +90,6 @@ export function GuidelineUploadContent({
     return [...set].sort();
   }, [projectsQuery.data]);
 
-  const locales = selectedLocales;
-  const isGlobal = scope === "all";
-  const projectIds = scope === "selected" ? selectedIds : [];
-
   const invalidateGuidelineLists = () => {
     void queryClient.invalidateQueries({
       queryKey: ["guideline-documents", organizationSlug],
@@ -88,25 +99,13 @@ export function GuidelineUploadContent({
     });
   };
 
-  const attachProjects = async (documentId: string) => {
-    for (const pid of projectIds) {
-      await client.guidelines.attachDocumentProject(organizationSlug, documentId, pid);
-    }
-  };
-
-  const scopeReady = () => {
-    if (scope === "selected" && projectIds.length === 0) {
-      setScopeError(intl.formatMessage(messages.projectRequired));
-      return false;
-    }
-    setScopeError(null);
-    return true;
-  };
-
   const finishCreate = async (documentId: string | undefined) => {
+    const projectIds = store.projectIdsToAttach;
     try {
-      if (documentId && projectIds.length > 0) {
-        await attachProjects(documentId);
+      if (documentId) {
+        for (const projectId of projectIds) {
+          await client.guidelines.attachDocumentProject(organizationSlug, documentId, projectId);
+        }
       }
       invalidateGuidelineLists();
       router.push(backHref);
@@ -117,9 +116,10 @@ export function GuidelineUploadContent({
   };
 
   const uploadStagedFile = () => {
-    if (!stagedFile || !scopeReady()) return;
+    const file = store.stagedFile;
+    if (!file || !store.validateScope()) return;
     uploadDocument.mutate(
-      { file: stagedFile, title: stagedFile.name, locales, isGlobal },
+      { file, title: file.name, locales: store.locales, isGlobal: store.isGlobal },
       {
         onSuccess: (document) => {
           void finishCreate(document.id);
@@ -155,39 +155,21 @@ export function GuidelineUploadContent({
       </header>
 
       <GuidelineScopeToolbar
-        locales={selectedLocales}
-        onLocalesChange={setSelectedLocales}
         localeSuggestions={localeSuggestions}
-        scope={scope}
-        onScopeChange={(next) => {
-          setScope(next);
-          setScopeError(null);
-        }}
-        selectedIds={selectedIds}
-        onSelectedIdsChange={(ids) => {
-          setSelectedIds(ids);
-          setScopeError(null);
-        }}
         projects={projectsQuery.data ?? []}
         loadingProjects={projectsQuery.isPending}
-        error={scopeError}
       />
 
       <KnowledgeUploadSection
         showTitle={false}
         className="space-y-4"
-        onStartMarkdownText={() => {
-          if (!scopeReady()) return;
-          setTextDialogOpen(true);
-        }}
-        onFilesSelected={(files) => {
-          const [file] = files;
-          setStagedFile(file ?? null);
-        }}
+        selectedFile={store.stagedFile}
+        onStartMarkdownText={() => store.startMarkdownText()}
+        onFilesSelected={(files) => store.stageFile(files[0] ?? null)}
       />
 
       <footer className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t border-border bg-background/85 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        {stagedFile ? null : (
+        {store.canUploadFile ? null : (
           <p className="me-auto text-xs text-muted-foreground">
             <FormattedMessage {...messages.chooseFileHint} />
           </p>
@@ -200,22 +182,26 @@ export function GuidelineUploadContent({
         >
           <FormattedMessage {...messages.cancel} />
         </Button>
-        <Button type="button" disabled={!stagedFile || uploading} onClick={uploadStagedFile}>
+        <Button
+          type="button"
+          disabled={!store.canUploadFile || uploading}
+          onClick={uploadStagedFile}
+        >
           {uploading ? <Spinner data-icon="inline-start" /> : null}
           <FormattedMessage {...messages.uploadFile} />
         </Button>
       </footer>
 
       <GuidelineTextDocumentDialog
-        open={textDialogOpen}
-        onOpenChange={setTextDialogOpen}
+        open={store.textDialogOpen}
+        onOpenChange={(open) => store.setTextDialogOpen(open)}
         organizationSlug={organizationSlug}
-        initialLocales={locales}
-        initialIsGlobal={isGlobal}
+        initialLocales={store.locales}
+        initialIsGlobal={store.isGlobal}
         onSaved={(documentId) => {
           void finishCreate(documentId);
         }}
       />
     </div>
   );
-}
+});
