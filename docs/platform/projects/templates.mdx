@@ -1,0 +1,68 @@
+---
+title: "Start projects from templates"
+sidebarTitle: "Project templates"
+description: "Save the languages, settings, translation memories and glossaries you reuse, and create projects from them in the app or the API."
+---
+
+A project template is a saved starting point for new Hyperlocalise projects. When you create a project from a template, the project starts with the template's:
+
+- Source and target languages
+- Project description and translation context
+- Team
+- Translation memories and glossaries, in priority order
+- Editor settings: source text editing, grouping of identical strings, and what happens to approved translations when the source changes
+
+The project gets a copy of these values. Changing or deleting the template later doesn't change projects already created from it.
+
+A template with no translation memories gives each new project a translation memory of its own, as a blank project gets. A template with translation memories attaches those shared memories instead.
+
+## Who can use templates
+
+Every workspace member can see templates and pick one when they create a project. Only admins and localization managers can create, edit and delete templates.
+
+## Create a template
+
+From scratch:
+
+1. Open **Settings** → **Project templates**.
+2. Select **New template**.
+3. Choose the languages, team, translation memories and glossaries, and editor settings. Memories and glossaries are attached in the order you tick them; the first has the highest priority. Only glossaries whose source language matches the template's are listed.
+4. Select **Save template**.
+
+From an existing project:
+
+1. Open **Projects**.
+2. Open the project's **⋯** menu and select **Save as template**.
+3. Name the template and select **Save template**. It copies the project's languages, description, translation context, team, editor settings, translation memories and glossaries.
+
+## Create a project from a template
+
+1. Open **Projects** and select **Create project**.
+2. In **Start from**, pick the template. The languages and description fill in from it.
+3. Enter a name, change anything you need, and save.
+
+The languages and text in the dialog win over the template's. The template's translation memories, glossaries, team and editor settings are applied as saved. If you change the source language, every glossary in the template must still use that source language, or the project isn't created.
+
+## Use templates through the API
+
+The [public API](/platform/api) creates projects from templates and manages templates:
+
+| Method | Path | Permission |
+| --- | --- | --- |
+| `GET` | `/v1/project-templates` | Any key with `files:read` |
+| `GET` | `/v1/project-templates/{templateId}` | Any key with `files:read` |
+| `POST` | `/v1/project-templates` | `files:write`, owned by an admin or localization manager |
+| `PATCH` | `/v1/project-templates/{templateId}` | `files:write`, owned by an admin or localization manager |
+| `DELETE` | `/v1/project-templates/{templateId}` | `files:write`, owned by an admin or localization manager |
+| `POST` | `/v1/projects` | `files:write`, owned by an admin, localization manager or developer |
+
+Create one project per request from a template:
+
+```bash
+curl -X POST https://api.hyperlocalise.com/v1/projects \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"REQ-1042 Futures page","templateId":"'$TEMPLATE_ID'","targetLocales":["en-US","vi-VN"]}'
+```
+
+Fields you send override the template's. `POST /v1/project-templates` accepts `fromProjectId` to copy an existing project. New projects count toward your plan's project limit.

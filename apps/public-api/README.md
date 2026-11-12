@@ -3,7 +3,8 @@
 Standalone Go service for external consumers using Hyperlocalise personal access tokens.
 The web frontend continues to use its existing APIs. It does not call this service.
 The API reports the token's effective identity, reads Projects, Queries, Jobs,
-Glossaries, and Translation memories, manages the strings, translations, and
+Glossaries, and Translation memories, creates native projects (optionally from a
+project template) and manages project templates, manages the strings, translations, and
 settings of native projects, round-trips bilingual files, updates jobs, exports
 glossaries, and imports and exports glossaries and translation memories. Job creation and file
 uploads continue to use the existing platform API.
@@ -28,6 +29,10 @@ key, or platform URL.
 curl http://localhost:8081/health
 curl -H "x-api-key: $HYPERLOCALISE_API_KEY" http://localhost:8081/v1/me
 curl -H "x-api-key: $HYPERLOCALISE_API_KEY" http://localhost:8081/v1/projects
+curl -H "x-api-key: $HYPERLOCALISE_API_KEY" http://localhost:8081/v1/project-templates
+curl -X POST -H "x-api-key: $HYPERLOCALISE_API_KEY" -H 'Content-Type: application/json' \
+    -d '{"name":"REQ-1042 Futures page","templateId":"'$TEMPLATE_ID'"}' \
+    http://localhost:8081/v1/projects
 curl -H "x-api-key: $HYPERLOCALISE_API_KEY" 'http://localhost:8081/v1/queries?status=open'
 curl -H "x-api-key: $HYPERLOCALISE_API_KEY" http://localhost:8081/v1/projects/$PROJECT_ID/locales
 curl -H "x-api-key: $HYPERLOCALISE_API_KEY" 'http://localhost:8081/v1/projects/'$PROJECT_ID'/translations?locale=fr'

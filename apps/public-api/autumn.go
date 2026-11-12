@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -87,4 +88,44 @@ func (c *autumnClient) queriesEnabledForPermissions(ctx context.Context, organiz
 
 func autumnClientFromEnv(apiKey string) *autumnClient {
 	return newAutumnClient(apiKey)
+}
+
+// errUsageCheckFailed means Autumn could not say whether the workspace has room.
+var errUsageCheckFailed = errors.New("usage check failed")
+
+// allowsUsage reports whether the workspace's balance for feature covers required units, as
+// go-svc checks project creation.
+func (c *autumnClient) allowsUsage(ctx context.Context, organizationID, featureID string, required float64) (bool, error) {
+	body, err := json.Marshal(map[string]any{
+		"customer_id":      organizationID,
+		"feature_id":       featureID,
+		"required_balance": required,
+		"with_preview":     true,
+	})
+	if err != nil {
+		return false, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/v1/balances.check", bytes.NewReader(body))
+	if err != nil {
+		return false, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.secretKey)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Api-Version", c.apiVersion)
+	res, err := c.http.Do(req)
+	if err != nil {
+		return false, errUsageCheckFailed
+	}
+	defer func() { _ = res.Body.Close() }()
+	raw, err := io.ReadAll(io.LimitReader(res.Body, 64*1024))
+	if err != nil || res.StatusCode < 200 || res.StatusCode >= 300 {
+		return false, errUsageCheckFailed
+	}
+	var parsed struct {
+		Allowed bool `json:"allowed"`
+	}
+	if json.Unmarshal(raw, &parsed) != nil {
+		return false, errUsageCheckFailed
+	}
+	return parsed.Allowed, nil
 }

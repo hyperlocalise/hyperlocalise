@@ -72,6 +72,11 @@ export const projectsTableMessages = defineMessages({
     id: "g7kCok/oT0",
     description: "Menu item to edit a project",
   },
+  saveAsTemplate: {
+    defaultMessage: "Save as template...",
+    id: "/rfol+jIWh",
+    description: "Menu item that saves a project's settings as a project template",
+  },
   deleteProject: {
     defaultMessage: "Delete project...",
     id: "eEy5UfpPzO",

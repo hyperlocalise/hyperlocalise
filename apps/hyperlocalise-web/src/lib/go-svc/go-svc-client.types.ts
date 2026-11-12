@@ -782,9 +782,37 @@ export type CreateProjectBody = {
   description?: string;
   translationContext?: string;
   teamId?: string;
+  sourceLocale?: string;
+  targetLocales?: string[];
+  /** Starts the project from a template. Fields left out come from the template. */
+  templateId?: string;
+};
+
+/** A saved starting point for native projects. */
+export type ProjectTemplateRecord = {
+  id: string;
+  name: string;
+  description: string;
   sourceLocale: string;
   targetLocales: string[];
+  projectDescription: string;
+  translationContext: string;
+  teamId: string | null;
+  automaticallyGroupIdenticalStrings: boolean;
+  sourceTextEditable: boolean;
+  approvedTranslationsOnSourceChange: ApprovedTranslationsOnSourceChange;
+  /** Highest priority first. */
+  memoryIds: string[];
+  /** Highest priority first. */
+  glossaryIds: string[];
+  createdAt: string;
+  updatedAt: string;
 };
+
+/** Template fields to create or patch. `teamId: null` clears the team. */
+export type ProjectTemplateBody = Partial<
+  Omit<ProjectTemplateRecord, "id" | "createdAt" | "updatedAt">
+>;
 
 export type UpdateProjectBody = {
   name?: string;

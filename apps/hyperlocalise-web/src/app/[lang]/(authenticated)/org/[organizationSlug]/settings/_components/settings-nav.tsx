@@ -43,6 +43,7 @@ const groupMessages = {
 
 const itemMessages = {
   general: messages.general,
+  "project-templates": messages.projectTemplates,
   members: messages.members,
   integrations: messages.integrations,
   "ai-engine": messages.aiEngine,

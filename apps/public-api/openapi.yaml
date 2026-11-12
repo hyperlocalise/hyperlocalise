@@ -4,7 +4,8 @@ info:
   version: 1.0.0
   description: >-
     Read projects, Queries, jobs, glossaries, and translation memories from a Hyperlocalise
-    workspace; manage the strings, translations, and settings of native projects; round-trip
+    workspace; create native projects from project templates and manage those templates; manage
+    the strings, translations, and settings of native projects; round-trip
     bilingual files; update jobs; and import and export glossaries and translation memories.
 servers:
   - url: https://api.hyperlocalise.com
@@ -13,6 +14,7 @@ security:
 tags:
   - name: Identity
   - name: Projects
+  - name: Project templates
   - name: Queries
   - name: Jobs
   - name: Strings
@@ -97,6 +99,69 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createProject
+      tags: [Projects]
+      summary: Create a native project, optionally from a project template
+      description: >-
+        Requires `projects:write`, which `files:write` grants to admins, localization managers,
+        and developers. With `templateId`, the project starts from the template: its source and
+        target locales, description, translation context, team, content editor settings,
+        translation memories, and glossaries. Fields in the request override the template's.
+        Without `templateId`, `sourceLocale` and `targetLocales` are required. Without
+        translation memories, the project gets a new one of its own. Counts toward the
+        workspace's project limit.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 200 }
+                templateId: { type: string, format: uuid }
+                description: { type: string, maxLength: 10000 }
+                translationContext: { type: string, maxLength: 20000 }
+                sourceLocale: { type: string, maxLength: 50 }
+                targetLocales:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items: { type: string, maxLength: 50 }
+                teamId:
+                  type: string
+                  format: uuid
+                  description: A team the key owner may use. Defaults to the template's team, then the owner's first team.
+      responses:
+        "201":
+          description: Created project.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project]
+                properties:
+                  project: { $ref: "#/components/schemas/Project" }
+        "400":
+          description: >-
+            Invalid body (`invalid_body`), unknown team (`invalid_team`), or a template resource
+            that no longer exists or does not fit the project (`translation_memory_not_found`,
+            `glossary_not_found`, `glossary_source_locale_mismatch`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Missing `projects:write`, or the workspace reached its project limit (`workspace_resource_limit_reached`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/projects/{projectId}:
     get:
       operationId: getProject
@@ -165,6 +230,135 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "413": { $ref: "#/components/responses/PayloadTooLarge" }
         "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/project-templates:
+    get:
+      operationId: listProjectTemplates
+      tags: [Project templates]
+      summary: List project templates
+      description: Requires `project-templates:read`, which every key with `files:read` or `projects:read` has.
+      responses:
+        "200":
+          description: The workspace's templates, by name.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [projectTemplates]
+                properties:
+                  projectTemplates:
+                    type: array
+                    items: { $ref: "#/components/schemas/ProjectTemplate" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createProjectTemplate
+      tags: [Project templates]
+      summary: Create a project template
+      description: >-
+        Requires `project-templates:write`, which `files:write` grants to admins and localization
+        managers. With `fromProjectId`, the template copies that native project's locales,
+        description, translation context, team, content editor settings, translation memories,
+        and glossaries; other fields in the body override the copied values. Otherwise `name`,
+        `sourceLocale`, and `targetLocales` are required. Every glossary must use the template's
+        source locale.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/ProjectTemplateFields"
+                - type: object
+                  properties:
+                    fromProjectId: { type: string, maxLength: 128 }
+      responses:
+        "201":
+          description: Created template.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectTemplateResponse" }
+        "400":
+          description: >-
+            Invalid body (`invalid_body`), or a team, translation memory, or glossary that does not
+            exist or does not fit (`invalid_team`, `translation_memory_not_found`,
+            `glossary_not_found`, `glossary_source_locale_mismatch`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Another template has this name (`project_template_name_taken`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/project-templates/{templateId}:
+    parameters:
+      - name: templateId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getProjectTemplate
+      tags: [Project templates]
+      summary: Get a project template
+      description: Requires `project-templates:read`.
+      responses:
+        "200":
+          description: Template detail.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectTemplateResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateProjectTemplate
+      tags: [Project templates]
+      summary: Update a project template
+      description: >-
+        Requires `project-templates:write`. Set fields replace the stored values; `memoryIds` and
+        `glossaryIds` replace the whole list, in priority order. `teamId: null` clears the team.
+        Projects already created from the template do not change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/ProjectTemplateFields"
+                - minProperties: 1
+      responses:
+        "200":
+          description: Updated template.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectTemplateResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteProjectTemplate
+      tags: [Project templates]
+      summary: Delete a project template
+      description: Requires `project-templates:write`. Projects created from the template keep their settings.
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
   /v1/queries:
     get:
@@ -1580,6 +1774,58 @@ components:
         active: { type: boolean }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    ProjectTemplateFields:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        sourceLocale: { type: string, maxLength: 50 }
+        targetLocales:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { type: string, maxLength: 50 }
+        projectDescription: { type: string, maxLength: 10000, description: Copied to each new project's description. }
+        translationContext: { type: string, maxLength: 20000 }
+        teamId: { type: [string, "null"], format: uuid }
+        automaticallyGroupIdenticalStrings: { type: boolean }
+        sourceTextEditable: { type: boolean }
+        approvedTranslationsOnSourceChange: { type: string, enum: [stay_approved, needs_review] }
+        memoryIds:
+          type: array
+          maxItems: 50
+          description: Translation memories to attach, highest priority first.
+          items: { type: string, format: uuid }
+        glossaryIds:
+          type: array
+          maxItems: 50
+          description: Glossaries to attach, highest priority first. Each must use the template's source locale.
+          items: { type: string, format: uuid }
+    ProjectTemplate:
+      type: object
+      required: [id, name, description, sourceLocale, targetLocales, projectDescription, translationContext, teamId, automaticallyGroupIdenticalStrings, sourceTextEditable, approvedTranslationsOnSourceChange, memoryIds, glossaryIds, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        sourceLocale: { type: string }
+        targetLocales: { type: array, items: { type: string } }
+        projectDescription: { type: string }
+        translationContext: { type: string }
+        teamId: { type: [string, "null"], format: uuid }
+        automaticallyGroupIdenticalStrings: { type: boolean }
+        sourceTextEditable: { type: boolean }
+        approvedTranslationsOnSourceChange: { type: string, enum: [stay_approved, needs_review] }
+        memoryIds: { type: array, items: { type: string, format: uuid } }
+        glossaryIds: { type: array, items: { type: string, format: uuid } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectTemplateResponse:
+      type: object
+      required: [projectTemplate]
+      properties:
+        projectTemplate: { $ref: "#/components/schemas/ProjectTemplate" }
     Query:
       type: object
       required: [id, identifier, number, projectId, projectName, title, description, issueType, status, createdAt, updatedAt]

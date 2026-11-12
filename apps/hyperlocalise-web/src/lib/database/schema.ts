@@ -16,6 +16,7 @@ export * from "./schema/organizations";
 export * from "./schema/providers";
 export * from "./schema/projects";
 export * from "./schema/translation-memory";
+export * from "./schema/project-templates";
 export * from "./schema/spellcheck-dictionaries";
 export * from "./schema/glossary-interchange";
 export * from "./schema/glossary-history";
