@@ -15,7 +15,10 @@ import { flag, type Flag } from "flags/next";
 import { and, eq } from "drizzle-orm";
 
 import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
-import { isAutumnBooleanFeatureEnabled } from "@/lib/billing/autumn-boolean-feature-access";
+import {
+  isAutumnBooleanFeatureEnabled,
+  type AutumnBooleanFeatureId,
+} from "@/lib/billing/autumn-boolean-feature-access";
 import { db, schema } from "@/lib/database/client";
 import type { AppAuthContext } from "@/lib/workos/app-auth";
 
@@ -27,7 +30,6 @@ import {
   WORKSPACE_FEATURE_UNAVAILABLE_REASON,
   WORKSPACE_GLOSSARY_SEARCH_FLAG,
   WORKSPACE_HYPERLAB_FLAG,
-  WORKSPACE_KNOWLEDGE_FLAG,
   WORKSPACE_REPORTS_FLAG,
   WORKSPACE_VISUAL_MOCK_FLAG,
   type WorkosFlagEntities,
@@ -46,13 +48,6 @@ export const workspaceAutomationsFlag = flag<boolean, WorkosFlagEntities>({
   key: WORKSPACE_AUTOMATIONS_FLAG,
   defaultValue: false,
   description: "Workspace automations for scheduled and GitHub-triggered workflows.",
-  adapter: workosAdapter(),
-});
-
-export const workspaceKnowledgeFlag = flag<boolean, WorkosFlagEntities>({
-  key: WORKSPACE_KNOWLEDGE_FLAG,
-  defaultValue: false,
-  description: "Workspace knowledge memory for agents and teams.",
   adapter: workosAdapter(),
 });
 
@@ -110,7 +105,10 @@ export async function evaluateWorkspaceFeatureFlags(
     queriesBoard,
   ] = await Promise.all([
     workspaceAutomationsFlag.run({ identify }),
-    workspaceKnowledgeFlag.run({ identify }),
+    isAutumnBooleanFeatureEnabled({
+      organizationId,
+      featureId: autumnFeatureIds.guidelines,
+    }),
     workspaceVisualMockFlag.run({ identify }),
     workspaceDomainsFlag.run({ identify }),
     workspaceGlossarySearchFlag.run({ identify }),
@@ -140,7 +138,7 @@ export async function evaluateWorkspaceFeatureFlags(
 }
 
 export async function getAutumnWorkspaceBooleanFeatureEnabled(
-  featureId: typeof autumnFeatureIds.automationWorkflow | typeof autumnFeatureIds.queriesBoard,
+  featureId: AutumnBooleanFeatureId,
   auth: Pick<AppAuthContext, "activeOrganization" | "user">,
 ): Promise<boolean> {
   return isAutumnBooleanFeatureEnabled({
@@ -150,7 +148,7 @@ export async function getAutumnWorkspaceBooleanFeatureEnabled(
 }
 
 export async function requireAutumnWorkspaceBooleanFeature(
-  featureId: typeof autumnFeatureIds.automationWorkflow | typeof autumnFeatureIds.queriesBoard,
+  featureId: AutumnBooleanFeatureId,
   auth: Pick<AppAuthContext, "activeOrganization" | "user">,
 ) {
   const enabled = await getAutumnWorkspaceBooleanFeatureEnabled(featureId, auth);
@@ -246,23 +244,26 @@ async function resolveWorkspaceOrganizationFlag(
 }
 
 /**
- * Resolves workspaceKnowledgeFlag from just an internal organizationId, for callers with no live
- * HTTP auth context to build a WorkOS identify() from — background jobs, queue workers, and
- * workspace-automation tool calls. Mirrors resolveWorkspaceVisualMockFlag's DB-join-then-run-flag
- * shape, minus the user lookup those callers don't have either.
+ * Resolves the Autumn `guidelines` entitlement from an internal organizationId. Works for
+ * callers with no live HTTP auth context — background jobs, queue workers, and
+ * workspace-automation tool calls — as well as API routes.
  *
- * The typed-note HTTP routes now answer 410 Gone, but that check lives only on the
- * human-facing HTTP routes — nothing stopped an automation's stored toolConfig (set once,
- * possibly before the flag was disabled, or via direct API access that skips UI validation)
- * from reaching recall_memory and reading guideline documents on a schedule regardless of the
- * flag. Call this at the point of use, not just at config-save time, so disabling the flag
- * actually stops in-flight automations too.
+ * An automation's stored toolConfig (set once, possibly before the plan lost Guidelines, or via
+ * direct API access that skips UI validation) could otherwise keep reaching recall_memory and
+ * reading guideline documents on a schedule. Call this at the point of use, not just at
+ * config-save time, so losing the entitlement actually stops in-flight automations too.
  */
 export async function resolveWorkspaceKnowledgeFlag(input: {
   organizationId: string;
-  dbClient?: Pick<typeof db, "select">;
 }): Promise<boolean> {
-  return resolveWorkspaceOrganizationFlag(workspaceKnowledgeFlag, input);
+  try {
+    return await isAutumnBooleanFeatureEnabled({
+      organizationId: input.organizationId,
+      featureId: autumnFeatureIds.guidelines,
+    });
+  } catch {
+    return false;
+  }
 }
 
 /**

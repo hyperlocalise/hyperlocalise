@@ -19,6 +19,8 @@ const (
 
 	// QueriesBoard is the Autumn feature ID for issue-sheet / Queries.
 	QueriesBoard = "queries-board"
+	// Guidelines is the boolean plan gate for guideline documents, checks and recall.
+	Guidelines = "guidelines"
 	// AIFeatures is the boolean plan gate for model-backed actions.
 	AIFeatures = "ai_features"
 	// AITokens is the USD AI-credit balance (customer = local organization id).

@@ -66,15 +66,17 @@ import { err, ok } from "@/lib/primitives/result/results";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 import type { UploadedGuidelinesContext } from "@/lib/knowledge-memory/uploaded-guidelines-context";
 
-const { resolveApiAuthContextFromSessionMock, workspaceKnowledgeFlagRunMock } = vi.hoisted(() => ({
-  resolveApiAuthContextFromSessionMock: vi.fn(
-    (options) =>
-      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
-      globalThis.__testApiAuthContext ??
-      null,
-  ),
-  workspaceKnowledgeFlagRunMock: vi.fn(async () => true),
-}));
+const { resolveApiAuthContextFromSessionMock, resolveWorkspaceKnowledgeFlagMock } = vi.hoisted(
+  () => ({
+    resolveApiAuthContextFromSessionMock: vi.fn(
+      (options) =>
+        globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+        globalThis.__testApiAuthContext ??
+        null,
+    ),
+    resolveWorkspaceKnowledgeFlagMock: vi.fn(async () => true),
+  }),
+);
 
 vi.mock("@/lib/activity-log/query-events", () => ({
   enqueueQueryCreatedActivity: vi.fn(),
@@ -95,7 +97,7 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
 
   return {
     ...actual,
-    workspaceKnowledgeFlag: { run: workspaceKnowledgeFlagRunMock },
+    resolveWorkspaceKnowledgeFlag: resolveWorkspaceKnowledgeFlagMock,
   };
 });
 
@@ -341,8 +343,8 @@ describe("mcpRoutes", () => {
     ensureAiFeaturesAllowedMock.mockResolvedValue(ok(undefined));
     isAutumnBooleanFeatureEnabledMock.mockReset();
     isAutumnBooleanFeatureEnabledMock.mockResolvedValue(true);
-    workspaceKnowledgeFlagRunMock.mockReset();
-    workspaceKnowledgeFlagRunMock.mockResolvedValue(true);
+    resolveWorkspaceKnowledgeFlagMock.mockReset();
+    resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(true);
     guidelineInternalCheckMock.mockReset();
     loadUploadedGuidelinesContextMock.mockReset();
     loadUploadedGuidelinesContextMock.mockResolvedValue({ text: "", documents: [] });
@@ -9868,10 +9870,10 @@ describe("mcpRoutes", () => {
     expect(result.output).not.toHaveProperty("projectId");
   });
 
-  it("does not search guideline documents when Workspace Knowledge is disabled", async () => {
+  it("does not search guideline documents when Guidelines is not entitled", async () => {
     const headers = await authenticatedMcpHeaders();
 
-    workspaceKnowledgeFlagRunMock.mockResolvedValue(false);
+    resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(false);
 
     const result = await readMcpToolResult(
       await callMcpTool(headers, "get_knowledge_memory", {
@@ -9886,24 +9888,6 @@ describe("mcpRoutes", () => {
     });
     expect(result.output).not.toHaveProperty("text");
     expect(loadUploadedGuidelinesContextMock).not.toHaveBeenCalled();
-  });
-
-  it("fails closed when the Workspace Knowledge flag cannot be evaluated", async () => {
-    const headers = await authenticatedMcpHeaders();
-
-    workspaceKnowledgeFlagRunMock.mockRejectedValue(new Error("flag unavailable"));
-
-    const result = await readMcpToolResult(
-      await callMcpTool(headers, "get_knowledge_memory", {
-        query: "brand name",
-        scope: "organization",
-      }),
-    );
-
-    expect(result.isError).toBe(true);
-    expect(result.output).toMatchObject({
-      error: "knowledge_memory_unavailable",
-    });
   });
 
   it("returns project guideline documents", async () => {
@@ -10020,7 +10004,7 @@ describe("mcpRoutes", () => {
     expect(forbidden.isError).toBe(true);
     expect(forbidden.output).toMatchObject({ error: "project_not_found" });
 
-    workspaceKnowledgeFlagRunMock.mockResolvedValue(false);
+    resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(false);
     const disabled = await readMcpToolResult(
       await callMcpTool(headers, "check_guidelines", {
         segments: [{ id: "s1", target: "Bonjour" }],

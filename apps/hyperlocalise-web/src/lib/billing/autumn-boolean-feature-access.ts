@@ -19,7 +19,9 @@ const AUTUMN_API_VERSION = "2.2.0";
 
 export type AutumnBooleanFeatureId = Extract<
   AutumnFeatureId,
-  typeof autumnFeatureIds.automationWorkflow | typeof autumnFeatureIds.queriesBoard
+  | typeof autumnFeatureIds.automationWorkflow
+  | typeof autumnFeatureIds.queriesBoard
+  | typeof autumnFeatureIds.guidelines
 >;
 
 /**

@@ -17,9 +17,9 @@ import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 import { createTranslationJobEventQueue } from "@/lib/workflow/queues";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
-// Delegates to resolveWorkspaceKnowledgeFlag (which takes an internal organizationId directly)
-// instead of re-running its own org lookup + workspaceKnowledgeFlag.run() — this call site only
-// has a projectId, so it resolves that to an organizationId first.
+// Delegates to resolveWorkspaceKnowledgeFlag (the Autumn `guidelines` entitlement, keyed by
+// internal organizationId) — this call site only has a projectId, so it resolves that to an
+// organizationId first.
 async function resolveKnowledgeMemoryEnabled(projectId: string) {
   const [project] = await db
     .select({ organizationId: schema.projects.organizationId })

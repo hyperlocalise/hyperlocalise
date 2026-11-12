@@ -25,7 +25,7 @@ import type { WorkspaceOrchestratorSession } from "../context";
  * documents that apply to every locale are considered, mirroring translation jobs that exceed
  * the per-request locale budget.
  *
- * Also re-checks the workspace-knowledge feature flag at call time, not just toolConfig — a
+ * Also re-checks the Autumn `guidelines` entitlement at call time, not just toolConfig — a
  * stored toolConfig alone isn't a reliable gate. recall_memory is the first forced tool whenever
  * guideline lookup is planned at all, so this returning a nonfatal "not found" instead of
  * throwing when the flag is off matters even more here: a thrown error on the very first step

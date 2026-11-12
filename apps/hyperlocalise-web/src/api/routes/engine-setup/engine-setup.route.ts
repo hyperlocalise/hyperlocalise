@@ -34,7 +34,7 @@ import {
   type EngineSetupRun,
   type EngineSetupSuggestion,
 } from "@/lib/engine-setup/store";
-import { workspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
+import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { resolveDomainIdentity } from "@/lib/localisation-audit/domain-slug";
 import { createLogger } from "@/lib/log";
@@ -112,18 +112,9 @@ function canManageEngineSetup(role: AuthVariables["auth"]["membership"]["role"])
 }
 
 async function isEngineSetupEnabled(auth: AuthVariables["auth"]) {
-  try {
-    return (
-      (await workspaceKnowledgeFlag.run({
-        identify: () => ({
-          organization: { id: auth.organization.workosOrganizationId },
-          user: { id: auth.user.workosUserId },
-        }),
-      })) === true
-    );
-  } catch {
-    return false;
-  }
+  return resolveWorkspaceKnowledgeFlag({
+    organizationId: auth.organization.localOrganizationId,
+  });
 }
 
 function toEngineSetupRunRecord(run: EngineSetupRun) {

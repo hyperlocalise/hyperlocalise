@@ -10,20 +10,24 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 )
 
 const (
-	knowledgeMemoryFeatureFlag = "workspace-knowledge"
-	knowledgeMemoryBodyLimit   = 1 << 20
-	knowledgeMemoryTimeout     = 30 * time.Second
+	knowledgeMemoryBodyLimit = 1 << 20
+	knowledgeMemoryTimeout   = 30 * time.Second
 )
 
 // knowledgeMemoryAPI is the shared authenticated handler wrapper for the
 // guideline document, assignment, check and retrieve routes. The typed
 // workspace and project notes it used to serve are retired; every guideline
 // is a guideline_documents record now.
+// Access is gated on the Autumn `guidelines` boolean feature; a nil autumn
+// checker denies every request.
 type knowledgeMemoryAPI struct {
 	workspace       *workspaceAPI
+	autumn          autumnChecker
 	guidelineIngest guidelineIngestPublisher
 }
 
@@ -84,13 +88,8 @@ func (api *knowledgeMemoryAPI) handleWith(mutation bool, bodyLimit int64, timeou
 			writeKnowledgeMemoryError(w, r, mapOrganizationAccessError(err, knowledgeMemoryFailure))
 			return
 		}
-		if err := api.workspace.requireFlag(ctx, actor, knowledgeMemoryFeatureFlag, "Workspace knowledge is not enabled for this organization"); err != nil {
-			var failure *workspaceError
-			if errors.As(err, &failure) {
-				writeKnowledgeMemoryError(w, r, knowledgeMemoryFailure(failure.status, failure.code, failure.message))
-			} else {
-				writeKnowledgeMemoryError(w, r, err)
-			}
+		if api.autumn == nil || !api.autumn.BooleanFeatureEnabled(ctx, actor.organizationID, autumn.Guidelines) {
+			writeKnowledgeMemoryError(w, r, knowledgeMemoryFailure(403, "feature_unavailable", "Guidelines are not enabled for this organization"))
 			return
 		}
 
