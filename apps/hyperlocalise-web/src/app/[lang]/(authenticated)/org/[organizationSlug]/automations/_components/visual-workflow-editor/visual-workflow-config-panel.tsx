@@ -344,7 +344,9 @@ export function VisualWorkflowConfigPanel({
       field.name.startsWith("value.") &&
       config.kind !== "logic.create_object" &&
       config.kind !== "logic.merge_objects" &&
-      config.kind !== "logic.compare",
+      config.kind !== "logic.compare" &&
+      config.kind !== "logic.text_template" &&
+      config.kind !== "logic.concatenate",
   );
 
   // The tab stays as chosen from step to step, and starts over when the panel is opened again.
@@ -2016,10 +2018,18 @@ export function VisualWorkflowConfigPanel({
           />
         ) : null}
         {config.kind === "logic.text_template" ? (
-          <TextTemplateConfig config={config} onChange={(next) => onChangeConfig(next)} />
+          <TextTemplateConfig
+            config={config}
+            connectedInput={connectedInputProps}
+            onChange={(next) => onChangeConfig(next)}
+          />
         ) : null}
         {config.kind === "logic.concatenate" ? (
-          <ConcatenateConfig config={config} onChange={(next) => onChangeConfig(next)} />
+          <ConcatenateConfig
+            config={config}
+            connectedInput={connectedInputProps}
+            onChange={(next) => onChangeConfig(next)}
+          />
         ) : null}
         {config.kind === "logic.json_stringify" ? (
           <JsonBoundField

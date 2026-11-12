@@ -20,10 +20,16 @@ import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 
 export const TEXT_NODE_LIMITS = { maxOutputBytes: 256_000 } as const;
 
-type TextResult = { ok: true; text: string } | { ok: false; code: string; message: string };
+type TextResult =
+  | { ok: true; text: string }
+  | { ok: false; code: string; message: string; inputId?: string };
 
-function failure(code: string, message: string): VisualWorkflowNodeExecutionResult {
-  return { ok: false, error: { code, message } };
+function failure(
+  code: string,
+  message: string,
+  extra?: { inputId?: string },
+): VisualWorkflowNodeExecutionResult {
+  return { ok: false, error: { code, message, ...extra } };
 }
 
 function stringifyTextValue(value: unknown): TextResult {
@@ -54,8 +60,13 @@ function resolveTextValue(input: {
   missingBehavior: VisualTextMissingBehavior;
   fallback?: string;
   label: string;
+  inputId: string;
 }): TextResult {
-  if (input.value !== undefined && input.value !== null) return stringifyTextValue(input.value);
+  const withId = (result: TextResult): TextResult =>
+    result.ok ? result : { ...result, inputId: input.inputId };
+  if (input.value !== undefined && input.value !== null) {
+    return withId(stringifyTextValue(input.value));
+  }
   switch (input.missingBehavior) {
     case "optional":
       return { ok: true, text: "" };
@@ -66,6 +77,7 @@ function resolveTextValue(input: {
         ok: false,
         code: "missing_text_input",
         message: `Required text input "${input.label}" is missing.`,
+        inputId: input.inputId,
       };
   }
 }
@@ -91,6 +103,15 @@ function tooLarge(): VisualWorkflowNodeExecutionResult {
   return failure("text_output_too_large", "Text output exceeds the maximum size.");
 }
 
+function appendResolved(
+  builder: BoundedTextBuilder,
+  resolved: TextResult,
+): VisualWorkflowNodeExecutionResult | undefined {
+  if (!resolved.ok) return failure(resolved.code, resolved.message, { inputId: resolved.inputId });
+  if (!builder.append(resolved.text)) return tooLarge();
+  return undefined;
+}
+
 export function executeTextTemplate(input: {
   template: string;
   placeholders: readonly VisualTextTemplatePlaceholder[];
@@ -103,38 +124,30 @@ export function executeTextTemplate(input: {
     input.placeholders.map((placeholder) => [placeholder.name, placeholder]),
   );
   const builder = new BoundedTextBuilder();
-  let offset = 0;
 
-  while (offset < input.template.length) {
-    const opening = input.template.indexOf("{{", offset);
-    if (opening < 0) {
-      if (!builder.append(input.template.slice(offset))) return tooLarge();
-      break;
-    }
-    if (opening > 0 && input.template[opening - 1] === "\\") {
-      if (!builder.append(input.template.slice(offset, opening - 1)) || !builder.append("{{")) {
-        return tooLarge();
-      }
-      offset = opening + 2;
+  for (const token of parsed.tokens) {
+    if (token.kind === "literal") {
+      if (!builder.append(token.value)) return tooLarge();
       continue;
     }
-    if (!builder.append(input.template.slice(offset, opening))) return tooLarge();
-    const closing = input.template.indexOf("}}", opening + 2);
-    if (closing < 0) return failure("invalid_text_template", "Text template is malformed.");
-    const name = input.template.slice(opening + 2, closing).trim();
-    const placeholder = placeholders.get(name);
+    const placeholder = placeholders.get(token.name);
     if (!placeholder) {
-      return failure("unknown_text_placeholder", `Text placeholder "${name}" is not configured.`);
+      return failure(
+        "unknown_text_placeholder",
+        `Text placeholder "${token.name}" is not configured.`,
+      );
     }
-    const resolved = resolveTextValue({
-      value: input.resolvedConfig[`value.${placeholder.id}`],
-      missingBehavior: placeholder.missingBehavior,
-      fallback: placeholder.fallback,
-      label: placeholder.name,
-    });
-    if (!resolved.ok) return failure(resolved.code, resolved.message);
-    if (!builder.append(resolved.text)) return tooLarge();
-    offset = closing + 2;
+    const failed = appendResolved(
+      builder,
+      resolveTextValue({
+        value: input.resolvedConfig[`value.${placeholder.id}`],
+        missingBehavior: placeholder.missingBehavior,
+        fallback: placeholder.fallback,
+        label: placeholder.name,
+        inputId: placeholder.id,
+      }),
+    );
+    if (failed) return failed;
   }
 
   return { ok: true, output: { text: builder.value() } };
@@ -152,14 +165,17 @@ export function executeConcatenate(input: {
       if (!builder.append(segment.value)) return tooLarge();
       continue;
     }
-    const resolved = resolveTextValue({
-      value: input.resolvedConfig[`value.${segment.id}`],
-      missingBehavior: segment.missingBehavior,
-      fallback: segment.fallback,
-      label: segment.name,
-    });
-    if (!resolved.ok) return failure(resolved.code, resolved.message);
-    if (!builder.append(resolved.text)) return tooLarge();
+    const failed = appendResolved(
+      builder,
+      resolveTextValue({
+        value: input.resolvedConfig[`value.${segment.id}`],
+        missingBehavior: segment.missingBehavior,
+        fallback: segment.fallback,
+        label: segment.name,
+        inputId: segment.id,
+      }),
+    );
+    if (failed) return failed;
   }
   return { ok: true, output: { text: builder.value() } };
 }

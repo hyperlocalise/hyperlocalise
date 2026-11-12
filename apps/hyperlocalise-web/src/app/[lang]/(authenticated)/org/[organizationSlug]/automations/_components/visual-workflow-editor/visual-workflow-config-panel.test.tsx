@@ -1689,6 +1689,7 @@ describe("VisualWorkflowConfigPanel", () => {
       }),
     );
     expect(screen.getByText("Connect this on the canvas.")).toBeInTheDocument();
+    expect(screen.queryByText("11111111-1111-4111-8111-111111111111")).not.toBeInTheDocument();
   });
 
   it("edits and reorders concatenate segments without changing their IDs", async () => {
@@ -1748,6 +1749,8 @@ describe("VisualWorkflowConfigPanel", () => {
         ],
       }),
     );
+    expect(screen.getByText("Connect this on the canvas.")).toBeInTheDocument();
+    expect(screen.queryByText("22222222-2222-4222-8222-222222222222")).not.toBeInTheDocument();
   });
 
   it("keeps invalid Stringify JSON drafts without replacing the stored value", () => {

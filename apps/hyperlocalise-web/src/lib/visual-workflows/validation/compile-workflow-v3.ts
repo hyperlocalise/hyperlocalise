@@ -543,7 +543,9 @@ export function compileVisualWorkflowV3Definition(
       kind: "reference",
       nodeId: source.id,
       path: edge.sourcePortId.split("."),
-      ...(target.config.kind === "logic.merge" || target.config.kind === "logic.coalesce"
+      ...(target.config.kind === "logic.merge" ||
+      target.config.kind === "logic.coalesce" ||
+      targetField?.required === false
         ? { optional: true }
         : {}),
     };

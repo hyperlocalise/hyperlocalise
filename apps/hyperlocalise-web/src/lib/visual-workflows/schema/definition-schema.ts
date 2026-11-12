@@ -12,7 +12,7 @@
  */
 import { z } from "zod";
 
-import { parseTextTemplate } from "./text-template";
+import { isValidTextPlaceholderName, parseTextTemplate } from "./text-template";
 
 import { contentSyncProviderSchema } from "@/lib/agents/content-sync/content-sync-types";
 import { EMAIL_PROVIDER_SLUGS } from "@/lib/email/constants";
@@ -682,7 +682,12 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
         .array(
           z.object({
             id: z.string().uuid(),
-            name: z.string().trim().min(1).max(128),
+            name: z
+              .string()
+              .trim()
+              .min(1)
+              .max(128)
+              .refine(isValidTextPlaceholderName, { message: "invalid_text_placeholder_name" }),
             type: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
             missingBehavior: z.enum(["required", "optional", "fallback"]),
             fallback: z.string().max(20_000).optional(),
@@ -727,7 +732,8 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
         });
         return;
       }
-      for (const name of new Set(parsed.placeholderNames)) {
+      const used = new Set(parsed.placeholderNames);
+      for (const name of used) {
         if (!names.has(name)) {
           context.addIssue({
             code: "custom",
@@ -736,6 +742,15 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
           });
         }
       }
+      config.placeholders.forEach((placeholder, index) => {
+        if (!used.has(placeholder.name)) {
+          context.addIssue({
+            code: "custom",
+            path: ["placeholders", index, "name"],
+            message: "unused_text_placeholder",
+          });
+        }
+      });
     }),
   z
     .object({
@@ -764,6 +779,7 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
     })
     .superRefine((config, context) => {
       const ids = new Set<string>();
+      const names = new Set<string>();
       config.segments.forEach((segment, index) => {
         if (ids.has(segment.id)) {
           context.addIssue({
@@ -771,6 +787,16 @@ const visualNodeConfigBaseSchema = z.discriminatedUnion("kind", [
             path: ["segments", index, "id"],
             message: "duplicate_concatenate_segment_id",
           });
+        }
+        if (segment.kind === "input") {
+          if (names.has(segment.name)) {
+            context.addIssue({
+              code: "custom",
+              path: ["segments", index, "name"],
+              message: "duplicate_concatenate_input_name",
+            });
+          }
+          names.add(segment.name);
         }
         if (
           segment.kind === "input" &&

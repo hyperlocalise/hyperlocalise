@@ -100,9 +100,27 @@ describe("Text node configuration", () => {
     expect(visualNodeConfigSchema.safeParse({ ...base, template: "Hello {{name" }).success).toBe(
       false,
     );
+    expect(
+      visualNodeConfigSchema.safeParse({
+        ...base,
+        placeholders: [{ ...base.placeholders[0]!, name: "customer name" }],
+      }).success,
+    ).toBe(false);
+    expect(
+      visualNodeConfigSchema.safeParse({
+        ...base,
+        template: "{{name}}",
+      }).success,
+    ).toBe(false);
     expect(parseTextTemplate(String.raw`Literal \{{name}} and {{company}}`)).toEqual({
       valid: true,
       placeholderNames: ["company"],
+      tokens: [
+        { kind: "literal", value: "Literal " },
+        { kind: "literal", value: "{{" },
+        { kind: "literal", value: "name}} and " },
+        { kind: "placeholder", name: "company" },
+      ],
     });
   });
 
@@ -127,6 +145,15 @@ describe("Text node configuration", () => {
       visualNodeConfigSchema.safeParse({
         ...config,
         segments: [...config.segments, { ...config.segments[0] }],
+      }).success,
+    ).toBe(false);
+    expect(
+      visualNodeConfigSchema.safeParse({
+        ...config,
+        segments: [
+          config.segments[1]!,
+          { ...config.segments[1]!, id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" },
+        ],
       }).success,
     ).toBe(false);
   });
@@ -323,6 +350,87 @@ describe("Text node configuration", () => {
       code: "incompatible_data_types",
       edgeId: "trigger-name",
       nodeId: "template",
+    });
+  });
+
+  it("compiles optional and fallback text ports as optional references", () => {
+    const definition: VisualWorkflowV3Definition = {
+      schemaVersion: 3,
+      name: "Optional text",
+      nodes: [
+        {
+          id: "trigger",
+          type: "trigger.manual",
+          config: { kind: "trigger.manual" },
+        },
+        {
+          id: "template",
+          type: "logic.text_template",
+          config: {
+            kind: "logic.text_template",
+            template: "{{name}} {{count}}",
+            placeholders: [
+              {
+                id: placeholderId,
+                name: "name",
+                type: "string",
+                missingBehavior: "optional",
+              },
+              {
+                id: optionalId,
+                name: "count",
+                type: "string",
+                missingBehavior: "fallback",
+                fallback: "0",
+              },
+            ],
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "trigger-template",
+          kind: "execution",
+          source: "trigger",
+          target: "template",
+          sourcePortId: "success",
+          targetPortId: "input",
+        },
+        {
+          id: "trigger-name",
+          kind: "data",
+          source: "trigger",
+          target: "template",
+          sourcePortId: "triggeredAt",
+          targetPortId: `value.${placeholderId}`,
+        },
+        {
+          id: "trigger-count",
+          kind: "data",
+          source: "trigger",
+          target: "template",
+          sourcePortId: "triggeredAt",
+          targetPortId: `value.${optionalId}`,
+        },
+      ],
+      editor: { positions: {} },
+    };
+
+    const compiled = compileVisualWorkflowV3Definition(definition);
+    expect(compiled.issues).toEqual([]);
+    expect(compiled.definition.nodes[1]?.inputs).toEqual({
+      [`value.${placeholderId}`]: {
+        kind: "reference",
+        nodeId: "trigger",
+        path: ["triggeredAt"],
+        optional: true,
+      },
+      [`value.${optionalId}`]: {
+        kind: "reference",
+        nodeId: "trigger",
+        path: ["triggeredAt"],
+        optional: true,
+      },
     });
   });
 

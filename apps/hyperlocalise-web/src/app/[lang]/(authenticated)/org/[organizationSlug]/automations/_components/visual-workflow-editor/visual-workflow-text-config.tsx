@@ -35,6 +35,7 @@ import type {
 } from "@/lib/visual-workflows/schema/types";
 
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
+import { WorkflowBoundField, type BoundPort } from "./workflow-bound-field";
 
 const VALUE_TYPES: WorkflowValueType[] = [
   "string",
@@ -45,6 +46,11 @@ const VALUE_TYPES: WorkflowValueType[] = [
   "unknown",
 ];
 const MISSING_BEHAVIORS: VisualTextMissingBehavior[] = ["required", "optional", "fallback"];
+
+export type TextConnectedInput = {
+  port: BoundPort;
+  invalid: boolean;
+};
 
 function MoveAndRemoveButtons({
   index,
@@ -72,7 +78,7 @@ function MoveAndRemoveButtons({
         aria-label={intl.formatMessage(messages.moveTextEntryUp, { label })}
         onClick={() => onMove(-1)}
       >
-        <CaretUpIcon />
+        <CaretUpIcon className="size-4" />
       </Button>
       <Button
         type="button"
@@ -82,7 +88,7 @@ function MoveAndRemoveButtons({
         aria-label={intl.formatMessage(messages.moveTextEntryDown, { label })}
         onClick={() => onMove(1)}
       >
-        <CaretDownIcon />
+        <CaretDownIcon className="size-4" />
       </Button>
       <Button
         type="button"
@@ -92,7 +98,7 @@ function MoveAndRemoveButtons({
         aria-label={intl.formatMessage(messages.removeTextEntry, { label })}
         onClick={onRemove}
       >
-        <TrashIcon />
+        <TrashIcon className="size-4" />
       </Button>
     </div>
   );
@@ -102,11 +108,13 @@ function MissingBehaviorFields({
   behavior,
   fallback,
   id,
+  index,
   onChange,
 }: {
   behavior: VisualTextMissingBehavior;
   fallback?: string;
   id: string;
+  index: number;
   onChange: (behavior: VisualTextMissingBehavior, fallback?: string) => void;
 }) {
   const intl = useIntl();
@@ -120,7 +128,7 @@ function MissingBehaviorFields({
           onChange(next, next === "fallback" ? (fallback ?? "") : undefined);
         }}
       >
-        <SelectTrigger aria-label={intl.formatMessage(messages.textMissingBehavior)}>
+        <SelectTrigger aria-label={intl.formatMessage(messages.textMissingBehavior, { index })}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -138,7 +146,7 @@ function MissingBehaviorFields({
       {behavior === "fallback" ? (
         <Input
           id={`${id}-fallback`}
-          aria-label={intl.formatMessage(messages.textFallbackValue)}
+          aria-label={intl.formatMessage(messages.textFallbackValue, { index })}
           value={fallback ?? ""}
           onChange={(event) => onChange("fallback", event.target.value)}
         />
@@ -149,9 +157,11 @@ function MissingBehaviorFields({
 
 export function TextTemplateConfig({
   config,
+  connectedInput,
   onChange,
 }: {
   config: Extract<VisualNodeConfig, { kind: "logic.text_template" }>;
+  connectedInput: (portId: string) => TextConnectedInput;
   onChange: (config: Extract<VisualNodeConfig, { kind: "logic.text_template" }>) => void;
 }) {
   const intl = useIntl();
@@ -174,87 +184,104 @@ export function TextTemplateConfig({
       <Label>
         <FormattedMessage {...messages.textPlaceholders} />
       </Label>
-      {config.placeholders.map((placeholder, index) => (
-        <div key={placeholder.id} className="grid gap-2 rounded-md border border-border p-2">
-          <div className="grid grid-cols-[1fr_7rem] gap-2">
-            <Input
-              aria-label={intl.formatMessage(messages.textPlaceholderName, { index: index + 1 })}
-              value={placeholder.name}
-              onChange={(event) =>
+      {config.placeholders.map((placeholder, index) => {
+        const portId = `value.${placeholder.id}`;
+        const connected = connectedInput(portId);
+        return (
+          <div key={placeholder.id} className="grid gap-2 rounded-md border border-border p-2">
+            <div className="grid grid-cols-[1fr_7rem] gap-2">
+              <Input
+                aria-label={intl.formatMessage(messages.textPlaceholderName, { index: index + 1 })}
+                value={placeholder.name}
+                aria-invalid={connected.invalid || undefined}
+                onChange={(event) =>
+                  onChange({
+                    ...config,
+                    placeholders: config.placeholders.map((entry, entryIndex) =>
+                      entryIndex === index ? { ...entry, name: event.target.value } : entry,
+                    ),
+                  })
+                }
+              />
+              <Select
+                value={placeholder.type}
+                onValueChange={(type) => {
+                  if (!VALUE_TYPES.includes(type as WorkflowValueType)) return;
+                  onChange({
+                    ...config,
+                    placeholders: config.placeholders.map((entry, entryIndex) =>
+                      entryIndex === index ? { ...entry, type: type as WorkflowValueType } : entry,
+                    ),
+                  });
+                }}
+              >
+                <SelectTrigger
+                  aria-label={intl.formatMessage(messages.textPlaceholderType, {
+                    index: index + 1,
+                  })}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {VALUE_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <MissingBehaviorFields
+              id={`vw-placeholder-${placeholder.id}`}
+              index={index + 1}
+              behavior={placeholder.missingBehavior}
+              fallback={placeholder.fallback}
+              onChange={(missingBehavior, fallback) =>
                 onChange({
                   ...config,
-                  placeholders: config.placeholders.map((entry, entryIndex) =>
-                    entryIndex === index ? { ...entry, name: event.target.value } : entry,
-                  ),
+                  placeholders: config.placeholders.map((entry, entryIndex) => {
+                    if (entryIndex !== index) return entry;
+                    const { fallback: _removed, ...withoutFallback } = entry;
+                    return {
+                      ...withoutFallback,
+                      missingBehavior,
+                      ...(missingBehavior === "fallback" ? { fallback: fallback ?? "" } : {}),
+                    };
+                  }),
                 })
               }
             />
-            <Select
-              value={placeholder.type}
-              onValueChange={(type) => {
-                if (!VALUE_TYPES.includes(type as WorkflowValueType)) return;
+            <WorkflowBoundField
+              id={`vw-text-value-${placeholder.id}`}
+              label={placeholder.name}
+              value=""
+              onChange={() => {}}
+              editable={false}
+              invalid={connected.invalid}
+              port={connected.port}
+            />
+            <MoveAndRemoveButtons
+              index={index}
+              count={config.placeholders.length}
+              label={placeholder.name || String(index + 1)}
+              onMove={(direction) => {
+                const placeholders = [...config.placeholders];
+                [placeholders[index], placeholders[index + direction]] = [
+                  placeholders[index + direction]!,
+                  placeholders[index]!,
+                ];
+                onChange({ ...config, placeholders });
+              }}
+              onRemove={() =>
                 onChange({
                   ...config,
-                  placeholders: config.placeholders.map((entry, entryIndex) =>
-                    entryIndex === index ? { ...entry, type: type as WorkflowValueType } : entry,
-                  ),
-                });
-              }}
-            >
-              <SelectTrigger
-                aria-label={intl.formatMessage(messages.textPlaceholderType, { index: index + 1 })}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {VALUE_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  placeholders: config.placeholders.filter((_, entryIndex) => entryIndex !== index),
+                })
+              }
+            />
           </div>
-          <MissingBehaviorFields
-            id={`vw-placeholder-${placeholder.id}`}
-            behavior={placeholder.missingBehavior}
-            fallback={placeholder.fallback}
-            onChange={(missingBehavior, fallback) =>
-              onChange({
-                ...config,
-                placeholders: config.placeholders.map((entry, entryIndex) => {
-                  if (entryIndex !== index) return entry;
-                  const { fallback: _removed, ...withoutFallback } = entry;
-                  return {
-                    ...withoutFallback,
-                    missingBehavior,
-                    ...(missingBehavior === "fallback" ? { fallback: fallback ?? "" } : {}),
-                  };
-                }),
-              })
-            }
-          />
-          <MoveAndRemoveButtons
-            index={index}
-            count={config.placeholders.length}
-            label={placeholder.name || String(index + 1)}
-            onMove={(direction) => {
-              const placeholders = [...config.placeholders];
-              [placeholders[index], placeholders[index + direction]] = [
-                placeholders[index + direction]!,
-                placeholders[index]!,
-              ];
-              onChange({ ...config, placeholders });
-            }}
-            onRemove={() =>
-              onChange({
-                ...config,
-                placeholders: config.placeholders.filter((_, entryIndex) => entryIndex !== index),
-              })
-            }
-          />
-        </div>
-      ))}
+        );
+      })}
       <Button
         type="button"
         variant="outline"
@@ -275,7 +302,7 @@ export function TextTemplateConfig({
           })
         }
       >
-        <PlusIcon />
+        <PlusIcon className="size-4" />
         <FormattedMessage {...messages.addTextPlaceholder} />
       </Button>
     </div>
@@ -284,9 +311,11 @@ export function TextTemplateConfig({
 
 export function ConcatenateConfig({
   config,
+  connectedInput,
   onChange,
 }: {
   config: Extract<VisualNodeConfig, { kind: "logic.concatenate" }>;
+  connectedInput: (portId: string) => TextConnectedInput;
   onChange: (config: Extract<VisualNodeConfig, { kind: "logic.concatenate" }>) => void;
 }) {
   const intl = useIntl();
@@ -312,117 +341,138 @@ export function ConcatenateConfig({
       <Label>
         <FormattedMessage {...messages.concatenateSegments} />
       </Label>
-      {config.segments.map((segment, index) => (
-        <div key={segment.id} className="grid gap-2 rounded-md border border-border p-2">
-          <Select
-            value={segment.kind}
-            onValueChange={(kind) => {
-              if (kind === "literal") updateSegment(index, { id: segment.id, kind, value: "" });
-              if (kind === "input")
-                updateSegment(index, {
-                  id: segment.id,
-                  kind,
-                  name: `Value ${index + 1}`,
-                  type: "string",
-                  missingBehavior: "required",
-                });
-            }}
-          >
-            <SelectTrigger
-              aria-label={intl.formatMessage(messages.concatenateSegmentKind, { index: index + 1 })}
+      {config.segments.map((segment, index) => {
+        const connected =
+          segment.kind === "input" ? connectedInput(`value.${segment.id}`) : undefined;
+        return (
+          <div key={segment.id} className="grid gap-2 rounded-md border border-border p-2">
+            <Select
+              value={segment.kind}
+              onValueChange={(kind) => {
+                if (kind === "literal") updateSegment(index, { id: segment.id, kind, value: "" });
+                if (kind === "input")
+                  updateSegment(index, {
+                    id: segment.id,
+                    kind,
+                    name: `Value ${index + 1}`,
+                    type: "string",
+                    missingBehavior: "required",
+                  });
+              }}
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="literal">
-                <FormattedMessage {...messages.concatenateLiteral} />
-              </SelectItem>
-              <SelectItem value="input">
-                <FormattedMessage {...messages.concatenateInput} />
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          {segment.kind === "literal" ? (
-            <Textarea
-              aria-label={intl.formatMessage(messages.concatenateLiteralValue, {
-                index: index + 1,
-              })}
-              value={segment.value}
-              onChange={(event) => updateSegment(index, { ...segment, value: event.target.value })}
-            />
-          ) : (
-            <>
-              <div className="grid grid-cols-[1fr_7rem] gap-2">
-                <Input
-                  aria-label={intl.formatMessage(messages.concatenateInputName, {
-                    index: index + 1,
-                  })}
-                  value={segment.name}
-                  onChange={(event) =>
-                    updateSegment(index, { ...segment, name: event.target.value })
-                  }
-                />
-                <Select
-                  value={segment.type}
-                  onValueChange={(type) => {
-                    if (VALUE_TYPES.includes(type as WorkflowValueType)) {
-                      updateSegment(index, { ...segment, type: type as WorkflowValueType });
-                    }
-                  }}
-                >
-                  <SelectTrigger
-                    aria-label={intl.formatMessage(messages.concatenateInputType, {
+              <SelectTrigger
+                aria-label={intl.formatMessage(messages.concatenateSegmentKind, {
+                  index: index + 1,
+                })}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="literal">
+                  <FormattedMessage {...messages.concatenateLiteral} />
+                </SelectItem>
+                <SelectItem value="input">
+                  <FormattedMessage {...messages.concatenateInput} />
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {segment.kind === "literal" ? (
+              <Textarea
+                aria-label={intl.formatMessage(messages.concatenateLiteralValue, {
+                  index: index + 1,
+                })}
+                value={segment.value}
+                onChange={(event) =>
+                  updateSegment(index, { ...segment, value: event.target.value })
+                }
+              />
+            ) : (
+              <>
+                <div className="grid grid-cols-[1fr_7rem] gap-2">
+                  <Input
+                    aria-label={intl.formatMessage(messages.concatenateInputName, {
                       index: index + 1,
                     })}
+                    value={segment.name}
+                    aria-invalid={connected?.invalid || undefined}
+                    onChange={(event) =>
+                      updateSegment(index, { ...segment, name: event.target.value })
+                    }
+                  />
+                  <Select
+                    value={segment.type}
+                    onValueChange={(type) => {
+                      if (VALUE_TYPES.includes(type as WorkflowValueType)) {
+                        updateSegment(index, { ...segment, type: type as WorkflowValueType });
+                      }
+                    }}
                   >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {VALUE_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <MissingBehaviorFields
-                id={`vw-concatenate-${segment.id}`}
-                behavior={segment.missingBehavior}
-                fallback={segment.fallback}
-                onChange={(missingBehavior, fallback) => {
-                  const { fallback: _removed, ...withoutFallback } = segment;
-                  updateSegment(index, {
-                    ...withoutFallback,
-                    missingBehavior,
-                    ...(missingBehavior === "fallback" ? { fallback: fallback ?? "" } : {}),
-                  });
-                }}
-              />
-            </>
-          )}
-          <MoveAndRemoveButtons
-            index={index}
-            count={config.segments.length}
-            canRemove={config.segments.length > 1}
-            label={segment.kind === "literal" ? `Literal ${index + 1}` : segment.name}
-            onMove={(direction) => {
-              const segments = [...config.segments];
-              [segments[index], segments[index + direction]] = [
-                segments[index + direction]!,
-                segments[index]!,
-              ];
-              onChange({ ...config, segments });
-            }}
-            onRemove={() =>
-              onChange({
-                ...config,
-                segments: config.segments.filter((_, entryIndex) => entryIndex !== index),
-              })
-            }
-          />
-        </div>
-      ))}
+                    <SelectTrigger
+                      aria-label={intl.formatMessage(messages.concatenateInputType, {
+                        index: index + 1,
+                      })}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {VALUE_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <MissingBehaviorFields
+                  id={`vw-concatenate-${segment.id}`}
+                  index={index + 1}
+                  behavior={segment.missingBehavior}
+                  fallback={segment.fallback}
+                  onChange={(missingBehavior, fallback) => {
+                    const { fallback: _removed, ...withoutFallback } = segment;
+                    updateSegment(index, {
+                      ...withoutFallback,
+                      missingBehavior,
+                      ...(missingBehavior === "fallback" ? { fallback: fallback ?? "" } : {}),
+                    });
+                  }}
+                />
+                {connected ? (
+                  <WorkflowBoundField
+                    id={`vw-concatenate-value-${segment.id}`}
+                    label={segment.name}
+                    value=""
+                    onChange={() => {}}
+                    editable={false}
+                    invalid={connected.invalid}
+                    port={connected.port}
+                  />
+                ) : null}
+              </>
+            )}
+            <MoveAndRemoveButtons
+              index={index}
+              count={config.segments.length}
+              canRemove={config.segments.length > 1}
+              label={segment.kind === "literal" ? `Literal ${index + 1}` : segment.name}
+              onMove={(direction) => {
+                const segments = [...config.segments];
+                [segments[index], segments[index + direction]] = [
+                  segments[index + direction]!,
+                  segments[index]!,
+                ];
+                onChange({ ...config, segments });
+              }}
+              onRemove={() =>
+                onChange({
+                  ...config,
+                  segments: config.segments.filter((_, entryIndex) => entryIndex !== index),
+                })
+              }
+            />
+          </div>
+        );
+      })}
       <div className="grid grid-cols-2 gap-2">
         <Button
           type="button"
@@ -439,7 +489,7 @@ export function ConcatenateConfig({
             })
           }
         >
-          <PlusIcon />
+          <PlusIcon className="size-4" />
           <FormattedMessage {...messages.addConcatenateLiteral} />
         </Button>
         <Button
@@ -463,7 +513,7 @@ export function ConcatenateConfig({
             })
           }
         >
-          <PlusIcon />
+          <PlusIcon className="size-4" />
           <FormattedMessage {...messages.addConcatenateInput} />
         </Button>
       </div>

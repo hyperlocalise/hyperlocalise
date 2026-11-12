@@ -2166,8 +2166,8 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Accessible label for a text placeholder type",
   },
   textMissingBehavior: {
-    defaultMessage: "Missing value behavior",
-    id: "ATVHyZrvlr",
+    defaultMessage: "Missing value behavior {index}",
+    id: "8bgQoug2Ej",
     description: "Text input missing behavior label",
   },
   textMissingRequired: {
@@ -2186,8 +2186,8 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Fallback text input behavior",
   },
   textFallbackValue: {
-    defaultMessage: "Fallback value",
-    id: "uw5fmeyoQN",
+    defaultMessage: "Fallback value {index}",
+    id: "rb6qeVq4O7",
     description: "Fallback value field label",
   },
   moveTextEntryUp: {

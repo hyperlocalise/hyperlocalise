@@ -60,7 +60,10 @@ describe("Text Template workflow node", () => {
     ).toEqual({ ok: true, output: { text: " 0" } });
     expect(
       executeTextTemplate({ template: "{{name}}", placeholders, resolvedConfig: {} }),
-    ).toMatchObject({ ok: false, error: { code: "missing_text_input" } });
+    ).toMatchObject({
+      ok: false,
+      error: { code: "missing_text_input", inputId: nameId },
+    });
   });
 
   it("returns HTML and Markdown-looking input as ordinary untrusted text", () => {
@@ -91,7 +94,7 @@ describe("Text Template workflow node", () => {
         placeholders: [{ ...placeholders[0]!, type: "unknown" }],
         resolvedConfig: { [`value.${nameId}`]: circular },
       }),
-    ).toMatchObject({ ok: false, error: { code: "invalid_text_value" } });
+    ).toMatchObject({ ok: false, error: { code: "invalid_text_value", inputId: nameId } });
     expect(
       executeTextTemplate({
         template: "{{name}}",
@@ -114,6 +117,27 @@ describe("Text Template workflow node", () => {
     expect(
       executeLogicVisualWorkflowNode({ node: resolved, context, inputsResolved: true }),
     ).toEqual({ ok: true, output: { text: "Hello Ada" } });
+  });
+
+  it("uses fallback when a wired optional path is missing", () => {
+    const node: CanonicalVisualWorkflowNode = {
+      id: "template",
+      type: "logic.text_template",
+      config: { kind: "logic.text_template", template: "Hello {{name}}: {{count}}", placeholders },
+      inputs: {
+        [`value.${nameId}`]: { kind: "reference", nodeId: "source", path: ["name"] },
+        [`value.${countId}`]: {
+          kind: "reference",
+          nodeId: "source",
+          path: ["missing"],
+          optional: true,
+        },
+      },
+    };
+    const resolved = resolveWorkflowNodeInputs(node, context);
+    expect(
+      executeLogicVisualWorkflowNode({ node: resolved, context, inputsResolved: true }),
+    ).toEqual({ ok: true, output: { text: "Hello Ada: 0" } });
   });
 });
 
@@ -145,6 +169,49 @@ describe("Concatenate workflow node", () => {
         },
       }),
     ).toEqual({ ok: true, output: { text: 'Count | 3 | {"locale":"de"}' } });
+  });
+
+  it("applies optional and fallback behavior and rejects a missing required segment", () => {
+    const segments = [
+      { id: "literal", kind: "literal" as const, value: "Hello" },
+      {
+        id: nameId,
+        kind: "input" as const,
+        name: "name",
+        type: "string" as const,
+        missingBehavior: "optional" as const,
+      },
+      {
+        id: countId,
+        kind: "input" as const,
+        name: "count",
+        type: "number" as const,
+        missingBehavior: "fallback" as const,
+        fallback: "0",
+      },
+    ];
+    expect(executeConcatenate({ separator: " ", segments, resolvedConfig: {} })).toEqual({
+      ok: true,
+      output: { text: "Hello  0" },
+    });
+    expect(
+      executeConcatenate({
+        separator: " ",
+        segments: [
+          {
+            id: nameId,
+            kind: "input",
+            name: "name",
+            type: "string",
+            missingBehavior: "required",
+          },
+        ],
+        resolvedConfig: {},
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { code: "missing_text_input", inputId: nameId },
+    });
   });
 
   it("counts separators toward the output limit", () => {
