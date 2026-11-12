@@ -20,6 +20,11 @@ import {
 } from "./scan-guideline-check";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 
+const { internalCheck, resolveWorkspaceKnowledgeFlag } = vi.hoisted(() => ({
+  internalCheck: vi.fn(),
+  resolveWorkspaceKnowledgeFlag: vi.fn(async () => true),
+}));
+
 const enabledPolicy = {
   ...DEFAULT_QA_POLICY,
   guideline: { enabled: true, severity: "warning" as const },
@@ -38,17 +43,21 @@ function segment(id: string, overrides: Partial<ScanGuidelineSegment> = {}): Sca
   };
 }
 
-const internalCheck = vi.fn();
-
 vi.mock("@/lib/go-svc/go-svc-server-client", () => ({
   createGoSvcServerClient: () => ({
     guidelines: { internalCheck },
   }),
 }));
 
+vi.mock("@/lib/flags/workspace-flags", () => ({
+  resolveWorkspaceKnowledgeFlag,
+}));
+
 describe("runScanGuidelineChecks", () => {
   beforeEach(() => {
     internalCheck.mockReset();
+    resolveWorkspaceKnowledgeFlag.mockReset();
+    resolveWorkspaceKnowledgeFlag.mockResolvedValue(true);
   });
 
   it("skips API calls when guideline is disabled", async () => {
@@ -71,6 +80,22 @@ describe("runScanGuidelineChecks", () => {
     });
     expect(result.ok).toBe(true);
     expect(internalCheck).not.toHaveBeenCalled();
+    expect(resolveWorkspaceKnowledgeFlag).not.toHaveBeenCalled();
+  });
+
+  it("skips API calls when Knowledge is not enabled", async () => {
+    resolveWorkspaceKnowledgeFlag.mockResolvedValueOnce(false);
+    const result = await runScanGuidelineChecks({
+      organizationId: "org",
+      projectId: "proj",
+      sourceLocale: "en-US",
+      policy: enabledPolicy,
+      segments: [segment("key-1")],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.findings).toEqual([]);
+    expect(internalCheck).not.toHaveBeenCalled();
+    expect(resolveWorkspaceKnowledgeFlag).toHaveBeenCalledWith({ organizationId: "org" });
   });
 
   it("skips API calls for whitespace-only targets", async () => {

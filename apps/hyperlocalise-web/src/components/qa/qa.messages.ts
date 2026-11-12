@@ -261,9 +261,9 @@ export const qaMessages = defineMessages({
   },
   coverageHelp: {
     defaultMessage:
-      "Scans and the editor use the same format, placeholder, ICU, length, spelling and glossary checks. Warnings flag an issue; errors also block saving and approving in the editor.",
+      "Scans and the editor use the same format, placeholder, ICU, length, spelling, glossary and guideline checks. Warnings flag an issue; errors also block saving and approving in the editor.",
     description: "QA review: coverageHelp",
-    id: "3OCNlGSX6Y",
+    id: 'tkvPfaR9Sq',
   },
   legacy: {
     defaultMessage:

@@ -17,6 +17,7 @@ import { observer } from "mobx-react-lite";
 import { CheckCircleIcon } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
+import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -74,6 +75,7 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
   canPromoteFindings: boolean;
 }) {
   const intl = useIntl();
+  const knowledgeEnabled = useAppShellStore().workspaceFeatureFlags.knowledge;
   const queryClient = useQueryClient();
   const { client } = useGoSvcClient();
   const api = useMemo(() => createProjectQaReportClient(client), [client]);
@@ -414,7 +416,10 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
               </p>
               <p className="text-xs text-muted-foreground">{intl.formatMessage(m.errorBehavior)}</p>
               <div className="flex flex-col divide-y divide-border">
-                {translationQaCheckTypes.map((check) => (
+                {(knowledgeEnabled
+                  ? translationQaCheckTypes
+                  : translationQaCheckTypes.filter((check) => check !== "guideline")
+                ).map((check) => (
                   <div key={check} className="flex flex-col gap-1 py-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <Field className="w-auto">

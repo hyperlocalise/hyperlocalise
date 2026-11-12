@@ -13,7 +13,9 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
+import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
 import { qaOrganizationSlug, qaWebsiteProjectId } from "@/components/qa/qa.fixture";
+import { DISABLED_WORKSPACE_FEATURE_FLAGS } from "@/lib/flags/workos-flag-entities";
 import {
   qaProjectCleanMswHandlers,
   qaProjectErrorMswHandlers,
@@ -53,6 +55,16 @@ const meta = {
     projectId: qaWebsiteProjectId,
     canPromoteFindings: true,
   },
+  decorators: [
+    (Story) => (
+      <AppShellStoreProvider
+        defaultNavigationGroups={[]}
+        workspaceFeatureFlags={{ ...DISABLED_WORKSPACE_FEATURE_FLAGS, knowledge: true }}
+      >
+        <Story />
+      </AppShellStoreProvider>
+    ),
+  ],
 } satisfies Meta<typeof QaProjectPageContent>;
 
 export default meta;
