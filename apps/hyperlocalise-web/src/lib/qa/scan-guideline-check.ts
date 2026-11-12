@@ -45,7 +45,6 @@ export type ScanGuidelineFindingRow = {
 export type ScanGuidelineBatchResult = {
   ok: boolean;
   findings: ScanGuidelineFindingRow[];
-  coveredKeyLocales: Array<{ translationKeyId: string; targetLocale: string }>;
   haltCode?: string;
 };
 
@@ -172,20 +171,10 @@ export async function runScanGuidelineChecks(input: {
   onBatchComplete?: () => Promise<void>;
 }): Promise<ScanGuidelineBatchResult> {
   const severity = input.policy.guideline.severity;
-  const covered: Array<{ translationKeyId: string; targetLocale: string }> = [];
   const findings: ScanGuidelineFindingRow[] = [];
 
   if (!input.policy.guideline.enabled || input.alreadyHalted) {
-    return { ok: true, findings, coveredKeyLocales: covered };
-  }
-
-  for (const segment of input.segments) {
-    if (!segment.targetText.trim()) {
-      covered.push({
-        translationKeyId: segment.translationKeyId,
-        targetLocale: segment.targetLocale,
-      });
-    }
+    return { ok: true, findings };
   }
 
   const client = createGoSvcServerClient();
@@ -207,10 +196,6 @@ export async function runScanGuidelineChecks(input: {
         if (unchecked.has(segment.translationKeyId)) {
           continue;
         }
-        covered.push({
-          translationKeyId: segment.translationKeyId,
-          targetLocale: segment.targetLocale,
-        });
         for (const finding of result.findings) {
           if (finding.segmentId !== segment.translationKeyId) {
             continue;
@@ -226,7 +211,6 @@ export async function runScanGuidelineChecks(input: {
           ok: false,
           haltCode: "guideline_check_limit_reached",
           findings,
-          coveredKeyLocales: covered,
         };
       }
       await input.onBatchComplete?.();
@@ -235,9 +219,9 @@ export async function runScanGuidelineChecks(input: {
         error instanceof GoSvcClientError && error.code && HALT_CODES.has(error.code)
           ? error.code
           : "guideline_check_failed";
-      return { ok: false, haltCode: code, findings, coveredKeyLocales: covered };
+      return { ok: false, haltCode: code, findings };
     }
   }
 
-  return { ok: true, findings, coveredKeyLocales: covered };
+  return { ok: true, findings };
 }

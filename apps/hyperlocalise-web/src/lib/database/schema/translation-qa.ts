@@ -140,28 +140,3 @@ export const translationQaFindings = pgTable(
     index("idx_translation_qa_findings_run_check").on(table.runId, table.checkType),
   ],
 );
-
-/**
- * Segments a QA scan actually guideline-checked during a run (editor-shaped lookups and
- * empty-target skips). Used when resolving older guideline findings without re-checking.
- */
-export const translationQaGuidelineCoverage = pgTable(
-  "translation_qa_guideline_coverage",
-  {
-    runId: uuid("run_id")
-      .notNull()
-      .references(() => translationQaRuns.id, { onDelete: "cascade" }),
-    translationKeyId: uuid("translation_key_id")
-      .notNull()
-      .references(() => projectTranslationKeys.id, { onDelete: "cascade" }),
-    targetLocale: text("target_locale").notNull(),
-  },
-  (table) => [
-    index("idx_translation_qa_guideline_coverage_run").on(table.runId),
-    uniqueIndex("translation_qa_guideline_coverage_run_key_locale").on(
-      table.runId,
-      table.translationKeyId,
-      table.targetLocale,
-    ),
-  ],
-);

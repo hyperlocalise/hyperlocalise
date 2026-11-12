@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { DEFAULT_QA_POLICY } from "./qa-policy";
 import { mapGuidelineFindingToQaCheck, runScanGuidelineChecks } from "./scan-guideline-check";
@@ -25,6 +25,10 @@ vi.mock("@/lib/go-svc/go-svc-server-client", () => ({
 }));
 
 describe("runScanGuidelineChecks", () => {
+  beforeEach(() => {
+    internalCheck.mockReset();
+  });
+
   it("skips API calls when guideline is disabled", async () => {
     const result = await runScanGuidelineChecks({
       organizationId: "org",
@@ -45,10 +49,9 @@ describe("runScanGuidelineChecks", () => {
     });
     expect(result.ok).toBe(true);
     expect(internalCheck).not.toHaveBeenCalled();
-    expect(result.coveredKeyLocales).toEqual([]);
   });
 
-  it("records coverage for whitespace-only targets without calling go-svc", async () => {
+  it("skips API calls for whitespace-only targets", async () => {
     const policy = {
       ...DEFAULT_QA_POLICY,
       guideline: { enabled: true, severity: "warning" as const },
@@ -71,12 +74,10 @@ describe("runScanGuidelineChecks", () => {
       ],
     });
     expect(internalCheck).not.toHaveBeenCalled();
-    expect(result.coveredKeyLocales).toEqual([
-      { translationKeyId: "key-1", targetLocale: "fr-FR" },
-    ]);
+    expect(result.findings).toEqual([]);
   });
 
-  it("halts after a limit error and keeps covered segments", async () => {
+  it("halts after a limit error", async () => {
     internalCheck.mockRejectedValueOnce(
       new GoSvcClientError({
         code: "guideline_check_limit_reached",
@@ -107,7 +108,7 @@ describe("runScanGuidelineChecks", () => {
     });
     expect(result.ok).toBe(false);
     expect(result.haltCode).toBe("guideline_check_limit_reached");
-    expect(result.coveredKeyLocales).toEqual([]);
+    expect(result.findings).toEqual([]);
   });
 });
 
