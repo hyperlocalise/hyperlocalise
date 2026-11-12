@@ -29,6 +29,11 @@ minimumReleaseAgeExclude:
   - mermaid@12.1.0
   - msw@3.0.2
   - "@ai-sdk/workflow@2.0.59"
+packageExtensions:
+  # autumn-js@1.5.60+ imports fzstd without declaring it.
+  autumn-js:
+    dependencies:
+      fzstd: "0.1.1"
 overrides:
   # Pin each undici major independently (transitive deps use 6/7/8).
   "undici@^6.0.0": "6.29.1"
