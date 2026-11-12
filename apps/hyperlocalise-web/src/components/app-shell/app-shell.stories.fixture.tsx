@@ -92,13 +92,12 @@ export function buildAppShellStoryNavigationGroups(locale: string = "en") {
   );
 }
 
-export function buildAppShellStoryProjectNavigationGroups(locale: string = "en") {
+export function buildAppShellStoryProjectNavigationGroups(
+  locale: string = "en",
+  projectId: string = APP_SHELL_STORY_PROJECT_ID,
+) {
   const intl = getIntlShape(locale) as IntlShape;
-  return buildProjectNavigationGroups(
-    APP_SHELL_STORY_ORGANIZATION_SLUG,
-    APP_SHELL_STORY_PROJECT_ID,
-    intl,
-  );
+  return buildProjectNavigationGroups(APP_SHELL_STORY_ORGANIZATION_SLUG, projectId, intl);
 }
 
 export function buildAppShellStoryDomainNavigationGroups(locale: string = "en") {
@@ -258,13 +257,19 @@ export function AppShellHeaderStoryFrame({
   );
 }
 
-function ProjectSidebarStorySetup() {
+function ProjectSidebarStorySetup({
+  projectId = APP_SHELL_STORY_PROJECT_ID,
+  projectName = "Website localization",
+}: {
+  projectId?: string;
+  projectName?: string;
+}) {
   useAppShellNavigationCustom({
-    groups: buildAppShellStoryProjectNavigationGroups(),
+    groups: buildAppShellStoryProjectNavigationGroups("en", projectId),
     projectContext: {
       organizationSlug: APP_SHELL_STORY_ORGANIZATION_SLUG,
-      projectId: APP_SHELL_STORY_PROJECT_ID,
-      projectName: "Website localization",
+      projectId,
+      projectName,
     },
   });
 
@@ -287,9 +292,13 @@ function DomainSidebarStorySetup() {
 export function AppShellSidebarStoryFrame({
   collapsed = false,
   variant = "global",
+  projectId = APP_SHELL_STORY_PROJECT_ID,
+  projectName = "Website localization",
 }: {
   collapsed?: boolean;
   variant?: "global" | "project" | "domain";
+  projectId?: string;
+  projectName?: string;
 }) {
   return (
     <AppShellStoreProvider
@@ -302,7 +311,9 @@ export function AppShellSidebarStoryFrame({
         className="min-h-[36rem] rounded-2xl border bg-background text-foreground"
       >
         <SidebarStoreBridge />
-        {variant === "project" ? <ProjectSidebarStorySetup /> : null}
+        {variant === "project" ? (
+          <ProjectSidebarStorySetup projectId={projectId} projectName={projectName} />
+        ) : null}
         {variant === "domain" ? <DomainSidebarStorySetup /> : null}
         <Sidebar variant="sidebar" collapsible="icon">
           <SidebarHeader className="h-(--app-shell-header-height) shrink-0 justify-center border-b border-sidebar-border px-2 py-0 group-data-[collapsible=icon]:items-center">
