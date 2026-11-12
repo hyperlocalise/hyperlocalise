@@ -2941,10 +2941,11 @@ components:
           description: >-
             The file the job translates or reviews. `null` for jobs without a file, such as key
             jobs.
-          required: [fileId, path]
+          required: [fileId, path, branch]
           properties:
             fileId: { type: string, description: "Stored file id, as the `/v1/files` routes use." }
             path: { type: [string, "null"], description: "The file's path in the project; `null` when it has none." }
+            branch: { type: [string, "null"], description: "The project version branch the file belongs to; `null` when it has no path." }
         sourceLocale: { type: [string, "null"] }
         targetLocales:
           type: [array, "null"]

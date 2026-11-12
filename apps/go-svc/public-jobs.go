@@ -28,7 +28,7 @@ const publicJobEditableColumnsSQL = `j.input_payload->'metadata'->>'title', j.in
 
 // What a job translates, from its saved input: its source file (key jobs have none) and languages.
 // Reads that select these join the job's source file as sf.
-const publicJobInputColumnsSQL = `j.input_payload->>'sourceFileId', sf.source_path,
+const publicJobInputColumnsSQL = `j.input_payload->>'sourceFileId', sf.source_path, sf.branch_name,
             j.input_payload->>'sourceLocale', j.input_payload->'targetLocales'`
 
 const publicJobAccessSQL = `j.organization_id=$2 and ($3 or exists(select 1 from projects p
@@ -49,6 +49,7 @@ type publicJobOutputFile struct {
 type publicJobSourceFile struct {
 	FileID string  `json:"fileId"`
 	Path   *string `json:"path"`
+	Branch *string `json:"branch"`
 }
 
 type publicJobEnvelope struct {
@@ -100,6 +101,7 @@ type publicJobRow struct {
 	ownerEmail     *string
 	sourceFileID   *string
 	sourcePath     *string
+	sourceBranch   *string
 	sourceLocale   *string
 	targetLocales  []byte
 }
@@ -310,7 +312,7 @@ func scanPublicJob(row pgx.Row) (publicJobRow, error) {
 	err := row.Scan(&job.id, &job.projectID, &job.kind, &job.jobType, &job.status, &job.outcomeKind,
 		&job.outcomePayload, &job.lastError, &job.createdAt, &job.updatedAt, &job.completedAt,
 		&job.title, &job.description, &job.dueAt, &job.ownerEmail,
-		&job.sourceFileID, &job.sourcePath, &job.sourceLocale, &job.targetLocales)
+		&job.sourceFileID, &job.sourcePath, &job.sourceBranch, &job.sourceLocale, &job.targetLocales)
 	return job, err
 }
 
@@ -329,19 +331,19 @@ func (job publicJobRow) envelope() publicJobEnvelope {
 		DueAt:         formatOptionalPublicJobTime(job.dueAt),
 		OwnerEmail:    job.ownerEmail,
 		OutputFiles:   publicJobOutputFiles(job.jobType, job.outcomeKind, job.outcomePayload),
-		SourceFile:    publicJobSourceFileOf(job.sourceFileID, job.sourcePath),
+		SourceFile:    publicJobSourceFileOf(job.sourceFileID, job.sourcePath, job.sourceBranch),
 		SourceLocale:  job.sourceLocale,
 		TargetLocales: publicJobTargetLocales(job.targetLocales),
 	}
 }
 
-// publicJobSourceFileOf returns the stored file a job translates; its path is null when the file
-// is not tracked at a path in the project.
-func publicJobSourceFileOf(fileID, path *string) *publicJobSourceFile {
+// publicJobSourceFileOf returns the stored file a job translates; its path and version branch are
+// null when the file is not tracked at a path in the project.
+func publicJobSourceFileOf(fileID, path, branch *string) *publicJobSourceFile {
 	if fileID == nil || trimDictionaryInput(*fileID) == "" {
 		return nil
 	}
-	return &publicJobSourceFile{FileID: *fileID, Path: path}
+	return &publicJobSourceFile{FileID: *fileID, Path: path, Branch: branch}
 }
 
 // publicJobTargetLocales returns the saved target locales, or null when they are missing or not a

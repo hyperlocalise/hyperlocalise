@@ -32,11 +32,12 @@ type jobOutputFile struct {
 	Filename string `json:"filename"`
 }
 
-// jobSourceFile is the stored file a job translates; Path is nil when the file is not tracked at a
-// path in the project.
+// jobSourceFile is the stored file a job translates; Path and Branch are nil when the file is not
+// tracked at a path in the project.
 type jobSourceFile struct {
 	FileID string  `json:"fileId"`
 	Path   *string `json:"path"`
+	Branch *string `json:"branch"`
 }
 
 // job matches go-svc's public job envelope, plus kind.
@@ -90,7 +91,7 @@ const jobColumns = `
 	j.outcome_payload, j.last_error, j.created_at, j.updated_at, j.completed_at,
 	j.input_payload->'metadata'->>'title', j.input_payload->'metadata'->>'description',
 	j.due_at, ou.email,
-	j.input_payload->>'sourceFileId', sf.source_path,
+	j.input_payload->>'sourceFileId', sf.source_path, sf.branch_name,
 	j.input_payload->>'sourceLocale', j.input_payload->'targetLocales'`
 
 const jobFrom = `
@@ -104,14 +105,14 @@ func scanJob(row rowScanner) (job, error) {
 	var item job
 	var outcomeKind *string
 	var outcomePayload, targetLocales []byte
-	var sourceFileID, sourcePath *string
+	var sourceFileID, sourcePath, sourceBranch *string
 	err := row.Scan(&item.ID, &item.ProjectID, &item.Kind, &item.Type, &item.Status, &outcomeKind,
 		&outcomePayload, &item.LastError, &item.CreatedAt, &item.UpdatedAt, &item.CompletedAt,
 		&item.Title, &item.Description, &item.DueAt, &item.OwnerEmail,
-		&sourceFileID, &sourcePath, &item.SourceLocale, &targetLocales)
+		&sourceFileID, &sourcePath, &sourceBranch, &item.SourceLocale, &targetLocales)
 	if err == nil {
 		item.OutputFiles = jobOutputFiles(item.Type, outcomeKind, outcomePayload)
-		item.SourceFile = jobSourceFileOf(sourceFileID, sourcePath)
+		item.SourceFile = jobSourceFileOf(sourceFileID, sourcePath, sourceBranch)
 		item.TargetLocales = jobTargetLocales(targetLocales)
 	}
 	return item, err
@@ -119,11 +120,11 @@ func scanJob(row rowScanner) (job, error) {
 
 // jobSourceFileOf mirrors go-svc's publicJobSourceFileOf: a job without a saved source file id,
 // such as a key job, has no source file.
-func jobSourceFileOf(fileID, path *string) *jobSourceFile {
+func jobSourceFileOf(fileID, path, branch *string) *jobSourceFile {
 	if fileID == nil || strings.TrimSpace(*fileID) == "" {
 		return nil
 	}
-	return &jobSourceFile{FileID: *fileID, Path: path}
+	return &jobSourceFile{FileID: *fileID, Path: path, Branch: branch}
 }
 
 // jobTargetLocales mirrors go-svc's publicJobTargetLocales: nil unless the saved value is a list

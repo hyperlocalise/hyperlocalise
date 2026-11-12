@@ -318,11 +318,11 @@ func TestPublicJobOutputFiles(t *testing.T) {
 }
 
 func TestPublicJobSourceFileOf(t *testing.T) {
-	fileID, blank, path := "file_1", " \t", "a/b.json"
-	require.Equal(t, &publicJobSourceFile{FileID: fileID, Path: &path}, publicJobSourceFileOf(&fileID, &path))
-	require.Equal(t, &publicJobSourceFile{FileID: fileID}, publicJobSourceFileOf(&fileID, nil))
-	require.Nil(t, publicJobSourceFileOf(nil, &path))
-	require.Nil(t, publicJobSourceFileOf(&blank, &path))
+	fileID, blank, path, branch := "file_1", " \t", "a/b.json", "main"
+	require.Equal(t, &publicJobSourceFile{FileID: fileID, Path: &path, Branch: &branch}, publicJobSourceFileOf(&fileID, &path, &branch))
+	require.Equal(t, &publicJobSourceFile{FileID: fileID}, publicJobSourceFileOf(&fileID, nil, nil))
+	require.Nil(t, publicJobSourceFileOf(nil, &path, &branch))
+	require.Nil(t, publicJobSourceFileOf(&blank, &path, &branch))
 }
 
 func TestPublicJobTargetLocales(t *testing.T) {
@@ -375,9 +375,15 @@ func TestPublicJobsRead(t *testing.T) {
 			inputPayload: `{"sourceFileId":"` + fileID + `","fileFormat":"docx","sourceLocale":"zh-CN","targetLocales":["en-US"]}`,
 		})
 		job := decodePublicJob(t, f.get(t, "/v1/jobs/"+id))
-		require.Equal(t, map[string]any{"fileId": fileID, "path": "docs/zh/guide.docx"}, job["sourceFile"])
+		require.Equal(t, map[string]any{"fileId": fileID, "path": "docs/zh/guide.docx", "branch": "main"}, job["sourceFile"])
 		require.Equal(t, "zh-CN", job["sourceLocale"])
 		require.Equal(t, []any{"en-US"}, job["targetLocales"])
+
+		_, err := f.scope.Pool.Exec(t.Context(), `update repository_source_files set branch_name='release-2' where id=(
+            select repository_source_file_id from repository_source_file_versions where id=$1)`, versionID)
+		require.NoError(t, err)
+		job = decodePublicJob(t, f.get(t, "/v1/jobs/"+id))
+		require.Equal(t, "release-2", job["sourceFile"].(map[string]any)["branch"])
 	})
 
 	t.Run("returns a null path for a file not tracked at a path", func(t *testing.T) {
@@ -386,7 +392,7 @@ func TestPublicJobsRead(t *testing.T) {
 			jobType: "file", inputPayload: `{"sourceFileId":"file_untracked","sourceLocale":"en","targetLocales":["fr"]}`,
 		})
 		job := decodePublicJob(t, f.get(t, "/v1/jobs/"+id))
-		require.Equal(t, map[string]any{"fileId": "file_untracked", "path": nil}, job["sourceFile"])
+		require.Equal(t, map[string]any{"fileId": "file_untracked", "path": nil, "branch": nil}, job["sourceFile"])
 	})
 
 	t.Run("returns no source file for a key job", func(t *testing.T) {
@@ -641,7 +647,7 @@ func TestPublicJobsLatest(t *testing.T) {
 		})
 		job := decodePublicJob(t, f.latest(t, p, sourcePath))
 		require.Equal(t, id, job["id"])
-		require.Equal(t, map[string]any{"fileId": "file_source", "path": sourcePath}, job["sourceFile"])
+		require.Equal(t, map[string]any{"fileId": "file_source", "path": sourcePath, "branch": "main"}, job["sourceFile"])
 		require.Equal(t, []any{"fr-FR"}, job["targetLocales"])
 	})
 

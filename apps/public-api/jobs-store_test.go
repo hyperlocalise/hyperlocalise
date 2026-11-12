@@ -137,17 +137,17 @@ func TestJobStoreSourceFile(t *testing.T) {
 
 	item, err := f.store.getJob(t.Context(), f.actor, jobID)
 	require.NoError(t, err)
-	require.Equal(t, &jobSourceFile{FileID: storedID, Path: ptr(path)}, item.SourceFile)
+	require.Equal(t, &jobSourceFile{FileID: storedID, Path: ptr(path), Branch: ptr("main")}, item.SourceFile)
 	require.Equal(t, "zh-CN", *item.SourceLocale)
 	require.Equal(t, &[]string{"en-US"}, item.TargetLocales)
 }
 
 func TestJobSourceFields(t *testing.T) {
-	fileID, blank, path := "file_1", " ", "a/b.json"
-	require.Equal(t, &jobSourceFile{FileID: fileID, Path: &path}, jobSourceFileOf(&fileID, &path))
-	require.Equal(t, &jobSourceFile{FileID: fileID}, jobSourceFileOf(&fileID, nil))
-	require.Nil(t, jobSourceFileOf(nil, &path))
-	require.Nil(t, jobSourceFileOf(&blank, &path))
+	fileID, blank, path, branch := "file_1", " ", "a/b.json", "main"
+	require.Equal(t, &jobSourceFile{FileID: fileID, Path: &path, Branch: &branch}, jobSourceFileOf(&fileID, &path, &branch))
+	require.Equal(t, &jobSourceFile{FileID: fileID}, jobSourceFileOf(&fileID, nil, nil))
+	require.Nil(t, jobSourceFileOf(nil, &path, &branch))
+	require.Nil(t, jobSourceFileOf(&blank, &path, &branch))
 
 	require.Equal(t, &[]string{"fr", "de"}, jobTargetLocales([]byte(`["fr","de"]`)))
 	for _, raw := range []string{"", "null", `"fr"`, `[1]`} {
