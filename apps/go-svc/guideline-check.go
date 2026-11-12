@@ -16,7 +16,6 @@ import (
 )
 
 const (
-	guidelineCheckFeatureID = "guideline_checks"
 	guidelineCheckBodyLimit = 256 << 10
 	guidelineCheckTimeout   = 90 * time.Second
 	// WriteTimeout is 75s globally. These routes need longer so a check that
@@ -189,7 +188,7 @@ func (api *guidelineCheckAPI) evaluate(ctx context.Context, organizationID strin
 		if api.meter == nil {
 			return nil
 		}
-		allowance, err := api.meter.Check(ctx, autumn.CheckRequest{CustomerID: organizationID, FeatureID: guidelineCheckFeatureID, RequiredBalance: &units})
+		allowance, err := api.meter.Check(ctx, autumn.CheckRequest{CustomerID: organizationID, FeatureID: autumn.GuidelineChecks, RequiredBalance: &units})
 		if err != nil {
 			return knowledgeMemoryFailure(503, "guideline_check_limit_check_failed", "Unable to verify guideline check usage")
 		}
@@ -225,7 +224,7 @@ func (api *guidelineCheckAPI) evaluate(ctx context.Context, organizationID strin
 		trackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
 		if err := api.meter.Track(trackCtx, autumn.TrackRequest{
-			CustomerID: organizationID, FeatureID: guidelineCheckFeatureID, Value: units, IdempotencyKey: uuid.NewString(),
+			CustomerID: organizationID, FeatureID: autumn.GuidelineChecks, Value: units, IdempotencyKey: uuid.NewString(),
 		}); err != nil {
 			slog.WarnContext(ctx, "guideline_check_usage_track_failed", "organization_id", organizationID, "error", err)
 		}

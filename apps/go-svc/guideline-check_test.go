@@ -101,7 +101,7 @@ func TestGuidelineCheckReturnsGroundedFindings(t *testing.T) {
 	require.False(t, result.SearchAvailable)
 
 	require.Len(t, meter.checks, 1)
-	require.Equal(t, guidelineCheckFeatureID, meter.checks[0].FeatureID)
+	require.Equal(t, autumn.GuidelineChecks, meter.checks[0].FeatureID)
 	require.Equal(t, 1.0, *meter.checks[0].RequiredBalance)
 	require.Len(t, meter.tracks, 1)
 	require.Equal(t, env.scope.OrganizationID, meter.tracks[0].CustomerID)

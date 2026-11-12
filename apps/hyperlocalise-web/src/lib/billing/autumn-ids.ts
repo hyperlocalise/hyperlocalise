@@ -45,8 +45,10 @@ export const autumnFeatureIds = {
   automationWorkflow: "automation_workflow",
   /** Workspace and project Queries / issue sheet surfaces. */
   queriesBoard: "queries-board",
-  /** Workspace and project Guidelines (guideline documents, checks, and agent recall). */
+  /** Boolean gate for guideline documents, recall, and knowledge surfaces. */
   guidelines: "guidelines",
+  /** Consumable allowance for per-segment CAT / MCP guideline format checks (go-svc). */
+  guidelineChecks: "guideline_checks",
 } as const;
 
 export type AutumnFeatureId = (typeof autumnFeatureIds)[keyof typeof autumnFeatureIds];
