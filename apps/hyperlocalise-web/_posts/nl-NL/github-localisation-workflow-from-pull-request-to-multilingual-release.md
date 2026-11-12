@@ -65,7 +65,7 @@ Gebruik een GitHub-omgeving zoals `localisation` voor productie-inloggegevens al
 Maak `i18n.yml` aan in de hoofdmap van de repository:
 
 ```yaml
-version: hyperlocalise@1.13.9
+version: hyperlocalise@1.13.10
 
 locales:
   source: en-US
