@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 )
 
 type memoryGuidelineCache struct {
+	mu     sync.Mutex
 	values map[string]string
 	getErr error
 	setErr error
@@ -20,6 +22,8 @@ type memoryGuidelineCache struct {
 }
 
 func (m *memoryGuidelineCache) Get(_ context.Context, key string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.getErr != nil {
 		return "", m.getErr
 	}
@@ -31,6 +35,8 @@ func (m *memoryGuidelineCache) Get(_ context.Context, key string) (string, error
 }
 
 func (m *memoryGuidelineCache) Set(_ context.Context, key, value string, ttl time.Duration) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.sets++
 	m.ttl = ttl
 	if m.setErr != nil {
@@ -41,6 +47,34 @@ func (m *memoryGuidelineCache) Set(_ context.Context, key, value string, ttl tim
 	}
 	m.values[key] = value
 	return nil
+}
+
+func (m *memoryGuidelineCache) setCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.sets
+}
+
+func (m *memoryGuidelineCache) lastTTL() time.Duration {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.ttl
+}
+
+func (m *memoryGuidelineCache) put(key, value string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.values == nil {
+		m.values = map[string]string{}
+	}
+	m.values[key] = value
+}
+
+func (m *memoryGuidelineCache) value(key string) (string, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	v, ok := m.values[key]
+	return v, ok
 }
 
 func groundedOutput() string {
@@ -74,8 +108,8 @@ func TestCheckReusesCachedModelOutput(t *testing.T) {
 	require.True(t, first.ModelInvoked)
 	require.Len(t, first.Findings, 1)
 	require.Equal(t, 1, hooks)
-	require.Equal(t, 1, cache.sets)
-	require.Equal(t, cacheTTL, cache.ttl)
+	require.Equal(t, 1, cache.setCount())
+	require.Equal(t, cacheTTL, cache.lastTTL())
 
 	second, err := checker.CheckBeforeModel(context.Background(), scope, req, func(context.Context, float64) error {
 		hooks++
@@ -87,7 +121,7 @@ func TestCheckReusesCachedModelOutput(t *testing.T) {
 	require.Equal(t, first.Findings, second.Findings)
 	require.Equal(t, 1, model.calls)
 	require.Equal(t, 1, hooks)
-	require.Equal(t, 1, cache.sets)
+	require.Equal(t, 1, cache.setCount())
 }
 
 func TestCheckCacheMissesWhenThePromptChanges(t *testing.T) {
@@ -125,7 +159,7 @@ func TestCheckDoesNotCacheUnreadableModelOutput(t *testing.T) {
 	cache := &memoryGuidelineCache{}
 	_, err := New(retriever, model, WithCache(cache)).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, cacheCheckRequest("Bonjour", "fr-FR"))
 	require.ErrorIs(t, err, ErrUnreadableOutput)
-	require.Zero(t, cache.sets)
+	require.Zero(t, cache.setCount())
 }
 
 func TestCheckFallsBackWhenCachedOutputFailsGrounding(t *testing.T) {
@@ -137,7 +171,7 @@ func TestCheckFallsBackWhenCachedOutputFailsGrounding(t *testing.T) {
 	scope := guidelines.Scope{OrganizationID: "org"}
 	passages, err := promptPassages(retriever.result)
 	require.NoError(t, err)
-	cache.values[cacheKey(scope.OrganizationID, model.Name(), userPrompt(req, passages))] = "not json"
+	cache.put(cacheKey(scope.OrganizationID, model.Name(), userPrompt(req, passages)), "not json")
 
 	result, err := New(retriever, model, WithCache(cache)).Check(context.Background(), scope, req)
 	require.NoError(t, err)
@@ -145,7 +179,9 @@ func TestCheckFallsBackWhenCachedOutputFailsGrounding(t *testing.T) {
 	require.True(t, result.ModelInvoked)
 	require.Len(t, result.Findings, 1)
 	require.Equal(t, 1, model.calls)
-	require.Equal(t, groundedOutput(), cache.values[cacheKey(scope.OrganizationID, model.Name(), userPrompt(req, passages))])
+	cached, ok := cache.value(cacheKey(scope.OrganizationID, model.Name(), userPrompt(req, passages)))
+	require.True(t, ok)
+	require.Equal(t, groundedOutput(), cached)
 }
 
 func TestCheckCacheErrorsStillReturnFindings(t *testing.T) {
@@ -167,7 +203,7 @@ func TestCheckCacheErrorsStillReturnFindings(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Findings, 1)
 	require.Equal(t, 1, model.calls)
-	require.Equal(t, 1, setFailed.sets)
+	require.Equal(t, 1, setFailed.setCount())
 }
 
 func TestCheckWithoutCacheCallsTheModelEveryTime(t *testing.T) {
@@ -193,5 +229,5 @@ func TestCheckSkipsOversizedCachedOutput(t *testing.T) {
 	result, err := New(retriever, model, WithCache(cache)).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, cacheCheckRequest("Bonjour", "fr-FR"))
 	require.NoError(t, err)
 	require.Empty(t, result.Findings)
-	require.Zero(t, cache.sets)
+	require.Zero(t, cache.setCount())
 }

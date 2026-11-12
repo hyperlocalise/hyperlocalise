@@ -13,8 +13,30 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { DEFAULT_QA_POLICY } from "./qa-policy";
-import { mapGuidelineFindingToQaCheck, runScanGuidelineChecks } from "./scan-guideline-check";
+import {
+  mapGuidelineFindingToQaCheck,
+  runScanGuidelineChecks,
+  type ScanGuidelineSegment,
+} from "./scan-guideline-check";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
+
+const enabledPolicy = {
+  ...DEFAULT_QA_POLICY,
+  guideline: { enabled: true, severity: "warning" as const },
+};
+
+function segment(id: string, overrides: Partial<ScanGuidelineSegment> = {}): ScanGuidelineSegment {
+  return {
+    translationKeyId: id,
+    key: id,
+    sourceText: "Hello",
+    targetText: "Bonjour",
+    targetLocale: "fr-FR",
+    translationId: null,
+    sourcePath: null,
+    ...overrides,
+  };
+}
 
 const internalCheck = vi.fn();
 
@@ -52,26 +74,12 @@ describe("runScanGuidelineChecks", () => {
   });
 
   it("skips API calls for whitespace-only targets", async () => {
-    const policy = {
-      ...DEFAULT_QA_POLICY,
-      guideline: { enabled: true, severity: "warning" as const },
-    };
     const result = await runScanGuidelineChecks({
       organizationId: "org",
       projectId: "proj",
       sourceLocale: "en-US",
-      policy,
-      segments: [
-        {
-          translationKeyId: "key-1",
-          key: "hello",
-          sourceText: "Hello",
-          targetText: "   ",
-          targetLocale: "fr-FR",
-          translationId: null,
-          sourcePath: null,
-        },
-      ],
+      policy: enabledPolicy,
+      segments: [segment("key-1", { targetText: "   " })],
     });
     expect(internalCheck).not.toHaveBeenCalled();
     expect(result.findings).toEqual([]);
@@ -85,30 +93,63 @@ describe("runScanGuidelineChecks", () => {
         status: 402,
       }),
     );
-    const policy = {
-      ...DEFAULT_QA_POLICY,
-      guideline: { enabled: true, severity: "warning" as const },
-    };
     const result = await runScanGuidelineChecks({
       organizationId: "org",
       projectId: "proj",
       sourceLocale: "en-US",
-      policy,
-      segments: [
-        {
-          translationKeyId: "key-1",
-          key: "hello",
-          sourceText: "Hello",
-          targetText: "Bonjour",
-          targetLocale: "fr-FR",
-          translationId: null,
-          sourcePath: null,
-        },
-      ],
+      policy: enabledPolicy,
+      segments: [segment("key-1")],
     });
     expect(result.ok).toBe(false);
     expect(result.haltCode).toBe("guideline_check_limit_reached");
     expect(result.findings).toEqual([]);
+  });
+
+  it("maps findings from a partial 200 and keeps cached hits when some segments are unchecked", async () => {
+    internalCheck.mockResolvedValueOnce({
+      findings: [
+        {
+          segmentId: "key-1",
+          field: "target",
+          severity: "error",
+          start: 5,
+          end: 7,
+          message: "Use vous",
+          suggestion: "vous",
+          passageId: "p1",
+        },
+        {
+          segmentId: "key-2",
+          field: "target",
+          severity: "error",
+          start: 0,
+          end: 2,
+          message: "Should not map an unchecked segment",
+          passageId: "p1",
+        },
+      ],
+      passages: [],
+      searchAvailable: true,
+      model: "test",
+      uncheckedSegmentIds: ["key-2"],
+    });
+    const result = await runScanGuidelineChecks({
+      organizationId: "org",
+      projectId: "proj",
+      sourceLocale: "en-US",
+      policy: enabledPolicy,
+      segments: [segment("key-1", { targetText: "Peux-tu aider ?" }), segment("key-2")],
+    });
+    expect(result.ok).toBe(false);
+    expect(result.haltCode).toBe("guideline_check_limit_reached");
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]?.segment.translationKeyId).toBe("key-1");
+    expect(result.findings[0]?.check).toMatchObject({
+      checkType: "guideline",
+      severity: "warning",
+      message: "Use vous Suggestion: vous",
+      relatedTokens: ["tu", "vous"],
+    });
   });
 });
 
@@ -119,15 +160,17 @@ describe("mapGuidelineFindingToQaCheck", () => {
         segmentId: "key",
         field: "target",
         severity: "error",
-        start: 0,
-        end: 2,
+        start: 5,
+        end: 7,
         message: "Use vous",
         passageId: "p1",
       },
-      "tu",
+      "Peux-tu aider ?",
       "warning",
     );
     expect(check?.severity).toBe("warning");
     expect(check?.checkType).toBe("guideline");
+    expect(check?.message).toBe("Use vous");
+    expect(check?.relatedTokens).toEqual(["tu"]);
   });
 });

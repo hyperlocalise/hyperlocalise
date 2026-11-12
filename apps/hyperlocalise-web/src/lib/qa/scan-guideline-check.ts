@@ -13,12 +13,15 @@
 import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
 import type { GuidelineCheckFinding } from "@/lib/go-svc/go-svc-guidelines-api";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
+import { createLogger } from "@/lib/log";
 
 import type { QaCheckPolicy } from "./qa-policy";
 import type { TranslationQaCheck, TranslationQaSeverity } from "./types";
 
 export const GUIDELINE_CHECK_MAX_SEGMENTS = 50;
 export const GUIDELINE_CHECK_MAX_RUNES = 16_000;
+
+const logger = createLogger("translation-qa-scan-guidelines");
 
 const HALT_CODES = new Set([
   "guideline_check_limit_reached",
@@ -179,6 +182,7 @@ export async function runScanGuidelineChecks(input: {
 
   const client = createGoSvcServerClient();
   for (const batch of buildBatches(input.segments)) {
+    const batchStartedAt = Date.now();
     try {
       const result = await client.guidelines.internalCheck(input.organizationId, {
         projectId: input.projectId,
@@ -192,6 +196,7 @@ export async function runScanGuidelineChecks(input: {
         })),
       });
       const unchecked = new Set(result.uncheckedSegmentIds ?? []);
+      let mappedCount = 0;
       for (const segment of batch.segments) {
         if (unchecked.has(segment.translationKeyId)) {
           continue;
@@ -203,9 +208,20 @@ export async function runScanGuidelineChecks(input: {
           const mapped = mapGuidelineFindingToQaCheck(finding, segment.targetText, severity);
           if (mapped) {
             findings.push({ segment, check: mapped });
+            mappedCount += 1;
           }
         }
       }
+      logger.info(
+        {
+          projectId: input.projectId,
+          segmentCount: batch.segments.length,
+          mappedFindingCount: mappedCount,
+          uncheckedCount: unchecked.size,
+          durationMs: Date.now() - batchStartedAt,
+        },
+        "translation qa scan guideline batch completed",
+      );
       if (unchecked.size > 0) {
         return {
           ok: false,
@@ -219,6 +235,15 @@ export async function runScanGuidelineChecks(input: {
         error instanceof GoSvcClientError && error.code && HALT_CODES.has(error.code)
           ? error.code
           : "guideline_check_failed";
+      logger.warn(
+        {
+          projectId: input.projectId,
+          segmentCount: batch.segments.length,
+          durationMs: Date.now() - batchStartedAt,
+          haltCode: code,
+        },
+        "translation qa scan guideline batch halted",
+      );
       return { ok: false, haltCode: code, findings };
     }
   }

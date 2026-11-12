@@ -5,11 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"time"
 	"unicode/utf16"
 	"unicode/utf8"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
+	"golang.org/x/sync/errgroup"
 )
+
+const checkRetrieveConcurrency = 8
 
 // ErrMeterLimit means the organization's guideline check allowance blocked the
 // model call. When some segments were already served from cache, CheckBeforeModel
@@ -17,10 +22,11 @@ import (
 var ErrMeterLimit = errors.New("guideline check meter limit")
 
 type segmentGuidelineState struct {
-	segment  Segment
-	passages []Passage
-	findings []Finding
-	cited    []Passage
+	segment         Segment
+	passages        []Passage
+	findings        []Finding
+	cited           []Passage
+	searchAvailable bool
 	// clean with no passages to send
 	noGuidelines bool
 	fromCache    bool
@@ -37,52 +43,48 @@ func (c *Checker) checkBeforeModelBatch(
 		Passages: []Passage{},
 		Model:    c.model.Name(),
 	}
-	var states []segmentGuidelineState
-	var misses []segmentGuidelineState
-	searchAvailable := false
-
-	for _, segment := range req.Segments {
-		subReq := req
-		subReq.Segments = []Segment{segment}
-		retrieved, err := c.retriever.Retrieve(ctx, scope, retrievalQuery(subReq), retrieveLimit)
-		if err != nil {
-			return Result{}, fmt.Errorf("retrieve guidelines: %w", err)
-		}
-		searchAvailable = searchAvailable || retrieved.SearchAvailable
-		passages, err := promptPassages(retrieved)
-		if err != nil {
-			return Result{}, err
-		}
-		if len(passages) == 0 {
-			states = append(states, segmentGuidelineState{segment: segment, noGuidelines: true})
-			continue
-		}
-		user := userPrompt(subReq, passages)
-		if raw, ok := c.cachedOutput(ctx, scope, user); ok {
-			findings, cited, groundErr := groundFindings(subReq, passages, raw)
-			if groundErr == nil {
-				states = append(states, segmentGuidelineState{
-					segment: segment, passages: passages, findings: findings, cited: cited, fromCache: true,
-				})
-				continue
+	retrieveStarted := time.Now()
+	states := make([]segmentGuidelineState, len(req.Segments))
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.SetLimit(checkRetrieveConcurrency)
+	for i, segment := range req.Segments {
+		group.Go(func() error {
+			state, err := c.prepareSegment(groupCtx, scope, req, segment)
+			if err != nil {
+				return err
 			}
-		}
-		state := segmentGuidelineState{segment: segment, passages: passages}
-		states = append(states, state)
-		misses = append(misses, state)
+			states[i] = state
+			return nil
+		})
 	}
-	result.SearchAvailable = searchAvailable
+	if err := group.Wait(); err != nil {
+		return Result{}, err
+	}
+
+	var misses []segmentGuidelineState
 	cachedHits := 0
 	for _, state := range states {
 		if state.fromCache {
 			cachedHits++
+		}
+		if state.searchAvailable {
+			result.SearchAvailable = true
 		}
 		if state.noGuidelines {
 			continue
 		}
 		result.Findings = appendFindingsDedupe(result.Findings, state.findings)
 		result.Passages = appendPassagesDedupe(result.Passages, state.cited)
+		if !state.fromCache {
+			misses = append(misses, state)
+		}
 	}
+	slog.InfoContext(ctx, "guideline_check_batch_retrieve",
+		"segments", len(req.Segments),
+		"cached_hits", cachedHits,
+		"misses", len(misses),
+		"duration_ms", time.Since(retrieveStarted).Milliseconds(),
+	)
 
 	if len(misses) == 0 {
 		result.Cached = allBatchFromCache(states)
@@ -196,6 +198,44 @@ func (c *Checker) checkBeforeModelSingle(
 	return result, nil
 }
 
+func (c *Checker) prepareSegment(
+	ctx context.Context,
+	scope guidelines.Scope,
+	req Request,
+	segment Segment,
+) (segmentGuidelineState, error) {
+	subReq := req
+	subReq.Segments = []Segment{segment}
+	retrieved, err := c.retriever.Retrieve(ctx, scope, retrievalQuery(subReq), retrieveLimit)
+	if err != nil {
+		return segmentGuidelineState{}, fmt.Errorf("retrieve guidelines: %w", err)
+	}
+	passages, err := promptPassages(retrieved)
+	if err != nil {
+		return segmentGuidelineState{}, err
+	}
+	state := segmentGuidelineState{
+		segment:         segment,
+		passages:        passages,
+		searchAvailable: retrieved.SearchAvailable,
+	}
+	if len(passages) == 0 {
+		state.noGuidelines = true
+		return state, nil
+	}
+	user := userPrompt(subReq, passages)
+	if raw, ok := c.cachedOutput(ctx, scope, user); ok {
+		findings, cited, groundErr := groundFindings(subReq, passages, raw)
+		if groundErr == nil {
+			state.findings = findings
+			state.cited = cited
+			state.fromCache = true
+			return state, nil
+		}
+	}
+	return state, nil
+}
+
 func (c *Checker) storeMissesToSegmentCache(
 	ctx context.Context,
 	scope guidelines.Scope,
@@ -226,6 +266,8 @@ func (c *Checker) storeSegmentCache(
 		var ok bool
 		raw, ok = modelJSONForSegmentCache(segment, segmentPassages, segmentFindings)
 		if !ok {
+			// Findings that cannot be remapped onto this segment's passages must
+			// not become {"findings":[]}; that would look like a clean editor hit.
 			return
 		}
 	}

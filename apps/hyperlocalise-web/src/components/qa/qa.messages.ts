@@ -421,9 +421,15 @@ export const qaMessages = defineMessages({
   },
   guidelineCheckHelp: {
     defaultMessage:
-      "Checked in the editor while you translate and in project QA scans when enabled. Warnings do not block saving. An error blocks saving when the editor has already reported it. Each model check counts toward your weekly allowance; cached segments are free. A scan that hits the allowance keeps findings it already saved.",
+      "Checked in the editor while you translate and in project QA scans when enabled. Warnings do not block saving. An error blocks saving when the editor has already reported it. Each model check counts toward your weekly allowance; cached segments are free. If a scan hits the allowance or the checker stops, it keeps findings it already saved, leaves older guideline findings open, and notes that guideline checks were incomplete.",
     description: "Help for the guideline QA check in the editor and scans",
-    id: 'mManOVpSCM',
+    id: 'EUVGhPdYFZ',
+  },
+  guidelineCheckHalted: {
+    defaultMessage:
+      "Guideline checks stopped before every translation was reviewed. Findings from this scan are incomplete, and older guideline findings stay open.",
+    description: "QA run notice when guideline checks halted mid-scan",
+    id: 'WaSnm7wizj',
   },
   enableCheck: {
     defaultMessage: "Enable {check}",
