@@ -121,6 +121,7 @@ func TestOpenAPIDocumentCoversImplementedResources(t *testing.T) {
 		"/v1/translation-memories/{memoryId}/export", "/v1/glossaries/{glossaryId}/export",
 		"/v1/jobs/{jobId}/strings", "/v1/jobs/{jobId}/locales",
 		"/v1/project-templates", "/v1/project-templates/{templateId}",
+		"/v1/webhook-endpoints", "/v1/webhook-endpoints/{endpointId}/deliveries",
 	} {
 		require.Contains(t, document.Paths, path)
 		require.Contains(t, document.Paths[path], "get")
@@ -140,10 +141,14 @@ func TestOpenAPIDocumentCoversImplementedResources(t *testing.T) {
 		"/v1/projects":                                         "post",
 		"/v1/project-templates":                                "post",
 		"/v1/project-templates/{templateId}":                   "patch",
+		"/v1/webhook-endpoints":                                "post",
+		"/v1/webhook-endpoints/{endpointId}":                   "patch",
+		"/v1/webhook-endpoints/{endpointId}/rotate-secret":     "post",
 	} {
 		require.Contains(t, document.Paths[path], method)
 	}
 	require.Contains(t, document.Paths["/v1/projects/{projectId}/strings/{stringId}"], "delete")
+	require.Contains(t, document.Paths["/v1/webhook-endpoints/{endpointId}"], "delete")
 
 	w := httptest.NewRecorder()
 	newHandler(authFunc(func(context.Context, string) (principal, error) { return principal{}, nil })).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/openapi.yaml", nil))
