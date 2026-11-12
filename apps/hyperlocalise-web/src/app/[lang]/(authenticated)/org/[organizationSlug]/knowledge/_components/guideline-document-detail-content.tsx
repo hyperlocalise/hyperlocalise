@@ -142,7 +142,7 @@ export function GuidelineDocumentDetailContent({
     );
   }
   const isText = document.contentType.startsWith("text/");
-  const contentEmpty = isText && (document.content ?? "").trim().length === 0;
+  const preview = (document.content ?? "").trim();
   const mandatory = updateMandatory.isPending
     ? (updateMandatory.variables ?? document.mandatory)
     : document.mandatory;
@@ -234,7 +234,11 @@ export function GuidelineDocumentDetailContent({
         <h2 className="text-base font-medium text-foreground">
           <FormattedMessage {...messages.contentTitle} />
         </h2>
-        {contentEmpty ? (
+        {preview ? (
+          <div className="rounded-xl border border-border px-4 py-3">
+            <Streamdown>{document.content ?? ""}</Streamdown>
+          </div>
+        ) : isText ? (
           <Empty className="border border-dashed border-border">
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -248,10 +252,6 @@ export function GuidelineDocumentDetailContent({
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
-        ) : isText ? (
-          <div className="rounded-xl border border-border px-4 py-3">
-            <Streamdown>{document.content ?? ""}</Streamdown>
-          </div>
         ) : (
           <TypographyP size="small" tone="subtle">
             <FormattedMessage {...messages.binaryContentNotice} />
