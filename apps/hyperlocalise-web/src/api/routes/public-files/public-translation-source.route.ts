@@ -40,6 +40,7 @@ import {
   getTranslationAsSourceDestinationFile,
   translationAsSourceDestinationPath,
 } from "@/lib/projects/files/translation-as-source-destination";
+import { DEFAULT_PROJECT_BRANCH_NAME } from "@/lib/projects/branches/project-branch-name";
 import { getRepositorySourceFileByPath } from "@/lib/projects/translations/project-translation-service";
 
 import { projectNotFoundResponse } from "./public-files.shared";
@@ -176,6 +177,12 @@ export function createPublicTranslationSourceRoutes(
             { destinationFile },
           );
         }
+        case "destination_branch_protected":
+          return conflictResponse(
+            c,
+            error.code,
+            "The destination's default branch is protected, so files cannot be sent to it.",
+          );
         case "source_file_not_found":
           return notFoundResponse(c, error.code, "Source file not found");
         case "source_file_not_ready":
@@ -214,6 +221,7 @@ async function describeDestinationFile(input: {
     organizationId,
     projectId: input.sourceProject.id,
     sourcePath: input.sourcePath,
+    branchName: DEFAULT_PROJECT_BRANCH_NAME,
   });
   if (!sourceFile) {
     return null;

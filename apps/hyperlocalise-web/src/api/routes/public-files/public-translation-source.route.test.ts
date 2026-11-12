@@ -21,6 +21,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
+import { projectBranchService } from "@/lib/projects/branches/project-branch-service";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import {
   createRepositorySourceFileVersion,
@@ -236,6 +237,7 @@ async function addToDestination(
     uploadedByApiKeyId?: string;
     uploadSurface?: string;
     metadata?: Record<string, unknown>;
+    branchName?: string;
   } = {},
 ) {
   const storedFile = await createStoredFile({
@@ -251,6 +253,7 @@ async function addToDestination(
   return createRepositorySourceFileVersion({
     storedFile,
     sourcePath: SOURCE_PATH,
+    branchName: options.branchName,
     uploadSurface: options.uploadSurface ?? "files_page",
     uploadedByUserId: options.uploadedByUserId ?? null,
     uploadedByApiKeyId: options.uploadedByApiKeyId ?? null,
@@ -314,6 +317,42 @@ describe("public translation source route", () => {
 
     expect(again.status).toBe(201);
     expect(await fixture.destinationVersions()).toHaveLength(2);
+  });
+
+  it("sends to the other project's default branch, whatever its other branches have", async () => {
+    const fixture = await chainedProjectsFixture();
+    const onBranch = await addToDestination(fixture, { branchName: "release" });
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(201);
+    const [sent] = await fixture.destinationVersions();
+    expect(sent.id).not.toBe(onBranch.id);
+    const [sentFile] = await db
+      .select({ branchName: schema.repositorySourceFiles.branchName })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.id, sent.repositorySourceFileId));
+    expect(sentFile.branchName).toBe("main");
+  });
+
+  it("refuses when the other project's default branch is protected", async () => {
+    const fixture = await chainedProjectsFixture();
+    const branch = await projectBranchService.ensureDefaultBranch({
+      organizationId: fixture.organizationId,
+      projectId: fixture.destination.id,
+    });
+    await db
+      .update(schema.projectBranches)
+      .set({ isProtected: true })
+      .where(eq(schema.projectBranches.id, branch.id));
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "destination_branch_protected",
+    });
+    expect(await fixture.destinationVersions()).toHaveLength(0);
   });
 
   it("refuses while a string has no approved translation, with how many are missing", async () => {

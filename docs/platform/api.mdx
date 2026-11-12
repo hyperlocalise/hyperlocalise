@@ -142,6 +142,8 @@ The same action as **Use translation as source…** on the Files page. It builds
 }
 ```
 
+A send reads the file from this project's default branch, `main`, and uploads it to the other project's `main` branch; there is no `branch` parameter. Files at the same path on other branches are left alone.
+
 Sending the file again updates the same strings in the other project. A send replaces the other project's file at that path without asking only when that file came from this file's last send. Anything else there, such as a file uploaded by hand or added by a repository sync, is refused with `destination_file_replaced`; `details.destinationFile` says what it is:
 
 ```json
@@ -176,6 +178,7 @@ Refusals:
 | 404 | `project_not_found`, `destination_project_not_found`, `source_file_not_found` | Not found, or the key's owner cannot open it |
 | 409 | `translations_not_approved` | Some strings have no approved translation in that language. `details` has `missingCount`, `totalCount`, and up to 20 `missingStrings` (`key`, `sourceText`) |
 | 409 | `destination_file_replaced` | The other project has a file at that path this file did not send (above) |
+| 409 | `destination_branch_protected` | The other project's `main` branch is protected |
 | 409 | `source_file_not_ready` | The file's newest upload is still being read. Try again shortly |
 | 422 | `source_file_read_failed` | The file's newest upload could not be read. Upload it again |
 | 422 | `no_strings`, `file_cannot_be_written`, `file_reads_differently` | The file cannot be sent as it is |
