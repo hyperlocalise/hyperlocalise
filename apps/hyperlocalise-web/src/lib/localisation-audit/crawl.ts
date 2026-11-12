@@ -78,7 +78,8 @@ type SafeFetchResult<T> = { ok: true; value: T } | { ok: false };
 
 /**
  * Follow redirects manually so each hop is re-validated by withPublicHttpFetch.
- * Used for robots.txt and sitemaps only — HTML pages render in Playwright.
+ * Used for robots.txt and sitemaps only when the renderer cannot fetch them —
+ * HTML pages render in Playwright.
  */
 async function fetchPublicWithSafeRedirects<T>(
   startUrl: string,
@@ -134,7 +135,7 @@ async function fetchPublicWithSafeRedirects<T>(
   }
 }
 
-async function fetchText(url: string): Promise<string | null> {
+async function fetchTextDirect(url: string): Promise<string | null> {
   const result = await fetchPublicWithSafeRedirects(url, async (response) => {
     if (response.status < 200 || response.status >= 400) {
       return null;
@@ -184,8 +185,13 @@ function parseRobotsSitemaps(robots: string): string[] {
   return urls;
 }
 
-async function fetchSitemapSignals(origin: string): Promise<LocalisationAuditSitemapSignal> {
-  return (await collectSitemap(origin)).signal;
+export type TextFetcher = (url: string) => Promise<string | null>;
+
+async function fetchSitemapSignals(
+  origin: string,
+  fetcher?: TextFetcher,
+): Promise<LocalisationAuditSitemapSignal> {
+  return (await collectSitemap(origin, PUBLIC_SITEMAP_LIMITS, { fetchText: fetcher })).signal;
 }
 
 export type SitemapCollectionLimits = {
@@ -210,7 +216,9 @@ const PUBLIC_SITEMAP_LIMITS: SitemapCollectionLimits = {
 export async function collectSitemap(
   origin: string,
   limits: SitemapCollectionLimits = PUBLIC_SITEMAP_LIMITS,
+  options?: { fetchText?: TextFetcher },
 ): Promise<{ signal: LocalisationAuditSitemapSignal; siteUrls: string[] }> {
+  const fetchText = options?.fetchText ?? fetchTextDirect;
   const originHost = new URL(origin).hostname;
   const siteUrls = new Set<string>();
   const robotsUrl = new URL("/robots.txt", origin).toString();
@@ -422,7 +430,7 @@ async function crawlLocalisationAuditSampleInner(
       .map((entry) => entry.url);
     const [otherRendered, sitemap] = await Promise.all([
       otherUrls.length > 0 ? renderer.render(otherUrls) : Promise.resolve([]),
-      fetchSitemapSignals(input.origin),
+      fetchSitemapSignals(input.origin, renderer.fetchText?.bind(renderer)),
     ]);
 
     // Terminal blocked status is homepage-only (see ADR 2026-08-17 blocked-domain).

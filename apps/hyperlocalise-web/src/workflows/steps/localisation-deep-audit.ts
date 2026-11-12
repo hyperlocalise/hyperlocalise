@@ -118,6 +118,7 @@ export async function discoverDeepAuditStep(input: {
 
   const renderer = await createAuditPageRenderer();
   let home: LocalisationAuditCrawledPage | null = null;
+  let sitemap: Awaited<ReturnType<typeof collectSitemap>>;
   try {
     const rendered = (await renderer.render([input.sourceUrl]))[0];
     if (!rendered) {
@@ -127,11 +128,15 @@ export async function discoverDeepAuditStep(input: {
       return { ok: false as const, code: "crawl_blocked" as const };
     }
     home = pageFromRendered(rendered);
+    // Fetch robots.txt and sitemaps through the same browser session when it can.
+    sitemap = await collectSitemap(input.origin, DEEP_AUDIT_SITEMAP_LIMITS, {
+      fetchText: renderer.fetchText?.bind(renderer),
+    });
   } finally {
     await renderer.close().catch(() => undefined);
   }
 
-  const { signal, siteUrls } = await collectSitemap(input.origin, DEEP_AUDIT_SITEMAP_LIMITS);
+  const { signal, siteUrls } = sitemap;
   const homeLinks = [
     ...home.hreflang.map((entry) => entry.href),
     ...home.anchors.map((anchor) => anchor.href),

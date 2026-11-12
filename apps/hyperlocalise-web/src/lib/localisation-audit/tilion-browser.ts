@@ -24,7 +24,6 @@ import {
   AUDIT_BROWSER_MOBILE_VIEWPORT,
   AUDIT_BROWSER_NETWORKIDLE_TIMEOUT_MS,
   AUDIT_BROWSER_SETTLE_MS,
-  AUDIT_BROWSER_USER_AGENT,
   AUDIT_BROWSER_VIEWPORT,
   AUDIT_LAYOUT_MEASURE_SOURCE,
 } from "./audit-playwright-script";
@@ -158,11 +157,45 @@ async function renderTilionPage(
 }
 
 /**
+ * Fetches a text resource (robots.txt, sitemap XML) by navigating to it in the
+ * Tilion browser and reading the raw response body, so the request carries the
+ * stealth persona instead of a bot user agent.
+ */
+async function fetchTilionText(context: BrowserContext, url: string): Promise<string | null> {
+  if (!(await isAllowedBrowserUrl(url))) {
+    return null;
+  }
+  const page = await context.newPage();
+  try {
+    const response = await page.goto(url, {
+      waitUntil: "load",
+      timeout: TILION_NAV_TIMEOUT_MS,
+    });
+    if (!response) {
+      return null;
+    }
+    const status = response.status();
+    if (status < 200 || status >= 400) {
+      return null;
+    }
+    if (!(await isAllowedBrowserUrl(page.url()))) {
+      return null;
+    }
+    return truncateHtml(await response.text());
+  } catch {
+    return null;
+  } finally {
+    await page.close().catch(() => undefined);
+  }
+}
+
+/**
  * Renders audit pages in one Tilion cloud browser session, driven over CDP.
  * Pages open in the session's default context, which carries Tilion's stealth
  * persona and automatic block recovery, so the user agent and locale are left
- * to the persona. Only when the session exposes no context does it fall back to
- * an isolated one with the audit user agent.
+ * to the persona. Only when the session exposes no context does it open an
+ * isolated one, still without the audit bot user agent. robots.txt and sitemaps
+ * are fetched through the same browser via `fetchText`.
  * Tilion's browser runs on Tilion's network and refuses private navigations,
  * so subresource requests are not intercepted the way the sandbox script does.
  */
@@ -186,7 +219,6 @@ export async function createTilionAuditBrowserSession(input: {
       context = stealthContext;
     } else {
       context = await browser.newContext({
-        userAgent: AUDIT_BROWSER_USER_AGENT,
         viewport: AUDIT_BROWSER_VIEWPORT,
         locale: "en-US",
       });
@@ -204,6 +236,9 @@ export async function createTilionAuditBrowserSession(input: {
         renderTilionPage(context, url),
       );
       return rendered.filter((page): page is RenderedHtmlPage => page != null);
+    },
+    fetchText(url: string) {
+      return fetchTilionText(context, url);
     },
     async close() {
       try {

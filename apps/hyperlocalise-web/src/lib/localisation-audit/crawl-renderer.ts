@@ -22,6 +22,13 @@ export type RenderedHtmlPage = {
 
 export type HtmlPageRenderer = {
   render(urls: string[]): Promise<RenderedHtmlPage[]>;
+  /**
+   * Fetches a text resource such as robots.txt or a sitemap through the same
+   * browser, so it leaves from the same network and identity as rendered pages.
+   * Returns null on a non-2xx/3xx status, a disallowed URL, or a failure.
+   * Renderers without it fall back to a direct HTTP fetch.
+   */
+  fetchText?(url: string): Promise<string | null>;
   close(): Promise<void>;
 };
 
