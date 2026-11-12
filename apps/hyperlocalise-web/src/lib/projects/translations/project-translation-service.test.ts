@@ -48,6 +48,7 @@ vi.mock("@/lib/database/client", () => ({
       sourcePath: "sourcePath",
       organizationId: "organizationId",
       projectId: "projectId",
+      branchName: "branchName",
     },
     projectTranslationKeys: {
       id: "id",

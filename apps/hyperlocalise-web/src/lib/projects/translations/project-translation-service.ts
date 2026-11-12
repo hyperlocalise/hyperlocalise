@@ -41,6 +41,7 @@ type ProjectKeysScopeInput = {
   organizationId: string;
   projectId: string;
   sourcePaths?: readonly string[] | null;
+  branchName?: string | null;
 };
 
 const maxKeysPerImport = 5_000;
@@ -91,6 +92,7 @@ function translationKeysProjectConditions(input: ProjectKeysScopeInput) {
   return and(
     eq(schema.projectTranslationKeys.organizationId, input.organizationId),
     eq(schema.projectTranslationKeys.projectId, input.projectId),
+    eq(schema.projectTranslationKeys.branchName, input.branchName?.trim() || "main"),
     excludeMarkdownCalloutFenceKeys(),
   );
 }
@@ -284,6 +286,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     organizationId: string;
     projectId: string;
     sourcePath: string;
+    branchName?: string | null;
   }) {
     const [row] = await this.database
       .select({
@@ -298,6 +301,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           eq(schema.repositorySourceFiles.organizationId, input.organizationId),
           eq(schema.repositorySourceFiles.projectId, input.projectId),
           eq(schema.repositorySourceFiles.sourcePath, input.sourcePath),
+          eq(schema.repositorySourceFiles.branchName, input.branchName?.trim() || "main"),
         ),
       )
       .limit(1);
@@ -364,6 +368,13 @@ export class ProjectTranslationService extends ProjectServiceBase {
     if (entries.length === 0) {
       return { imported: 0, updated: 0, clashes: [] };
     }
+
+    const [sourceFile] = await database
+      .select({ branchName: schema.repositorySourceFiles.branchName })
+      .from(schema.repositorySourceFiles)
+      .where(eq(schema.repositorySourceFiles.id, input.repositorySourceFileId))
+      .limit(1);
+    const branchName = sourceFile?.branchName ?? "main";
 
     const existingQuery = database
       .select({
@@ -437,6 +448,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           projectId: input.projectId,
           repositorySourceFileId: input.repositorySourceFileId,
           key: entry.key,
+          branchName,
           sourceText: entry.sourceText,
           normalizedSourceText: entry.normalizedSourceText,
           importedSourceText: entry.importedSourceText,
@@ -598,6 +610,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
         and(
           eq(schema.repositorySourceFiles.projectId, input.projectId),
           eq(schema.repositorySourceFiles.sourcePath, input.sourcePath),
+          eq(schema.repositorySourceFiles.branchName, "main"),
         ),
       )
       .limit(1);
@@ -715,6 +728,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     queueFilterQualifier?: string;
     advancedFilter?: ContentEditorAdvancedQueueFilter;
     sourcePaths?: readonly string[] | null;
+    branchName?: string | null;
   }) {
     const [row] = await this.database
       .select({ total: count() })
@@ -754,6 +768,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     advancedFilter?: ContentEditorAdvancedQueueFilter;
     queueSort?: ProjectFileContentEditorQueueSort;
     sourcePaths?: readonly string[] | null;
+    branchName?: string | null;
   }) {
     const limit = input.limit ?? 2_000;
     const offset = input.offset ?? 0;
@@ -1074,6 +1089,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
             eq(schema.repositorySourceFiles.organizationId, input.organizationId),
             eq(schema.repositorySourceFiles.projectId, input.projectId),
             eq(schema.repositorySourceFiles.sourcePath, input.sourcePath),
+            eq(schema.repositorySourceFiles.branchName, "main"),
           ),
         )
         .limit(1);
@@ -1283,6 +1299,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           eq(schema.repositorySourceFiles.organizationId, input.organizationId),
           eq(schema.repositorySourceFiles.projectId, input.projectId),
           eq(schema.repositorySourceFiles.sourcePath, input.sourcePath),
+          eq(schema.repositorySourceFiles.branchName, "main"),
         ),
       )
       .limit(1);
@@ -1413,6 +1430,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           eq(schema.repositorySourceFiles.organizationId, input.organizationId),
           eq(schema.repositorySourceFiles.projectId, input.projectId),
           eq(schema.repositorySourceFiles.sourcePath, input.sourcePath),
+          eq(schema.repositorySourceFiles.branchName, "main"),
         ),
       )
       .limit(1);

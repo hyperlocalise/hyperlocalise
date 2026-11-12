@@ -35,11 +35,14 @@ export function ProjectFilesBranchFilterView({
   selectedBranch,
   onSelectedBranchChange,
   isLoading = false,
+  allowAllBranches = true,
 }: {
   branches: ProviderProjectBranchOption[];
   selectedBranch: string | null;
   onSelectedBranchChange: (branch: string | null) => void;
   isLoading?: boolean;
+  /** Provider trees can show every branch at once. Native trees cannot. */
+  allowAllBranches?: boolean;
 }) {
   const intl = useIntl();
 
@@ -55,13 +58,15 @@ export function ProjectFilesBranchFilterView({
     return null;
   }
 
+  const fallbackBranch = allowAllBranches ? "__all__" : (branches[0]?.name ?? "__all__");
+
   return (
     <div className="flex items-center gap-2">
       <TypographyP className="shrink-0" size="xsmall" tone="subtle">
         <FormattedMessage {...messages.branchLabel} />
       </TypographyP>
       <Select
-        value={selectedBranch ?? "__all__"}
+        value={selectedBranch ?? fallbackBranch}
         onValueChange={(value) => {
           onSelectedBranchChange(value === "__all__" ? null : value);
         }}
@@ -70,9 +75,11 @@ export function ProjectFilesBranchFilterView({
           <SelectValue placeholder={intl.formatMessage(messages.allBranches)} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="__all__">
-            <FormattedMessage {...messages.allBranches} />
-          </SelectItem>
+          {allowAllBranches ? (
+            <SelectItem value="__all__">
+              <FormattedMessage {...messages.allBranches} />
+            </SelectItem>
+          ) : null}
           {branches.map((branch) => (
             <SelectItem key={branch.name} value={branch.name}>
               {branch.title?.trim()
