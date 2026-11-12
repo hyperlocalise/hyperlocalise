@@ -385,9 +385,15 @@ export const qaMessages = defineMessages({
   },
   guidelineCheckHelp: {
     defaultMessage:
-      "Checked in the editor while you translate. A warning does not affect saving. An error asks the translator to confirm before saving when the editor has already reported it. Project scans do not run this check.",
-    description: "Help for the editor-only guideline QA check",
-    id: "dxHRYcypd0",
+      "Checked in the editor while you translate and in project QA scans when enabled. Warnings do not block saving. An error asks the translator to confirm before saving when the editor has already reported it. Each check counts toward your weekly guideline allowance; a cache hit is not billed. Flagged rows include an explanation when reasoning succeeds. If a scan hits the allowance or the checker stops, it keeps findings it already saved, leaves older guideline findings open, and notes that guideline checks were incomplete.",
+    description: "Help for the guideline QA check in the editor and scans",
+    id: "EUVGhPdYFZ",
+  },
+  guidelineCheckHalted: {
+    defaultMessage:
+      "Guideline checks stopped before every translation was reviewed. Findings from this scan are incomplete, and older guideline findings stay open.",
+    description: "QA run notice when guideline checks halted mid-scan",
+    id: "WaSnm7wizj",
   },
   policySaved: {
     defaultMessage: "Check settings saved. Run a new scan to apply them to existing translations.",

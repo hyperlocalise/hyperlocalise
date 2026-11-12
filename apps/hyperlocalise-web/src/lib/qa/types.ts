@@ -12,7 +12,7 @@
  */
 import type { MessageFormat } from "@/lib/i18n/message-format";
 
-/** Checks a project scan can store. Guideline review runs in the editor only. */
+/** Checks a project scan persists as findings. */
 export const translationQaScanCheckTypes = [
   "not_localized",
   "whitespace_only",
@@ -27,9 +27,10 @@ export const translationQaScanCheckTypes = [
   "punctuation_mismatch",
   "character_case_mismatch",
   "unreachable_plural_case",
+  "guideline",
 ] as const;
 
-export const translationQaCheckTypes = [...translationQaScanCheckTypes, "guideline"] as const;
+export const translationQaCheckTypes = [...translationQaScanCheckTypes] as const;
 
 export type TranslationQaCheckType = (typeof translationQaCheckTypes)[number];
 
@@ -83,4 +84,5 @@ export type TranslationQaSummary = {
   byLocale: Record<string, number>;
   skippedChecksByLocale?: Record<string, string[]>;
   checkVersion?: number;
+  guidelineCheckHaltCode?: string;
 };

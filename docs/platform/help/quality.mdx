@@ -25,6 +25,14 @@ Fix the affected translation, then improve the resource or instruction that caus
 
 A glossary is for terms; a guideline is for instructions; a translation memory is for reusable sentence pairs. Use the appropriate [language resource](/platform/knowledge) rather than placing every rule in one document.
 
+## Project QA
+
+On a native project, open **QA**, then **Check settings**. Turn on **Guidelines**, set **Warning** or **Error**, and **Save check settings**. Run a scan manually or turn on the daily scan.
+
+With **Guidelines** on, each scan checks stored translations against your [guideline documents](/platform/knowledge/guidelines) and saves each issue as a finding. Empty or whitespace-only targets are skipped. Warnings do not block saving in the editor. An error blocks saving only after the editor has already reported it.
+
+Each segment sent to the model counts toward your plan's weekly guideline check allowance. A segment checked in the last day is reused from cache and is not charged again. If the allowance runs out during a scan, the scan still finishes its other checks, keeps guideline findings it already saved, and leaves older guideline findings in place for segments it did not check.
+
 ## Test the improvement
 
 Run a small representative translation request with the updated resources and review its output. Updating resources does not retroactively rewrite existing translations. Include ambiguous wording, plural messages, and short labels in the sample when those caused the original issue.
