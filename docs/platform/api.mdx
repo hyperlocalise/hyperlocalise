@@ -32,7 +32,7 @@ Missing, invalid, or revoked keys return `401` with `error: "unauthorized"`. An 
 
 | Permission | Used by |
 | --- | --- |
-| `files:write` | Upload a source file |
+| `files:write` | Upload a source file, and send a translation as another project's source |
 | `files:read` | Download a stored file, reconstructed translation, or image variant |
 | `jobs:write` | Create a translation job |
 | `jobs:read` | Read job status, latest job for a source path, and match-band analysis |
@@ -106,6 +106,82 @@ This is the same upload `hyperlocalise sync push` performs. It does not create a
 Permission: `files:read`
 
 Returns the file bytes with `Content-Type` and `Content-Disposition`.
+
+### Use a translation as another project's source
+
+`POST /v1/projects/{projectId}/files/translation-source`
+
+Permission: `files:write`, and a role that can manage projects (admin, localization manager or developer) with access to both projects
+
+The same action as **Use translation as source…** on the Files page. It builds a Word or Excel file of project `projectId` from its approved translations in the other project's source language, and uploads it to the other project as a source file under the same path. An `.xls` file arrives as `.xlsx`. The other project's source language must be one of this project's target languages. See [Translate through another language first](/platform/projects/files#translate-through-another-language-first) for how the two projects work together.
+
+```json
+{
+  "sourcePath": "requests/report.docx",
+  "destinationProjectId": "project_456",
+  "replaceVersionId": "8d6c0f0e-..."
+}
+```
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `sourcePath` | yes | The file's path in project `projectId` |
+| `destinationProjectId` | yes | The project to send it to |
+| `replaceVersionId` | no | The other project's file version at that path to replace, from a `destination_file_replaced` refusal |
+
+`201` response, with the file's path in the other project:
+
+```json
+{
+  "file": {
+    "destinationProjectId": "project_456",
+    "sourcePath": "requests/report.docx",
+    "sourceFileVersionId": "...",
+    "stringCount": 42
+  }
+}
+```
+
+Sending the file again updates the same strings in the other project. A send replaces the other project's file at that path without asking only when that file came from this file's last send. Anything else there, such as a file uploaded by hand or added by a repository sync, is refused with `destination_file_replaced`; `details.destinationFile` says what it is:
+
+```json
+{
+  "error": "destination_file_replaced",
+  "message": "...",
+  "details": {
+    "destinationFile": {
+      "path": "requests/report.docx",
+      "versionId": "8d6c0f0e-...",
+      "addedAt": "2026-11-13T02:10:00.000Z",
+      "addedBy": "Ana Silva",
+      "addedThroughApi": false,
+      "fromRepositorySync": false,
+      "sentFrom": null
+    }
+  }
+}
+```
+
+To replace it, send again with its `versionId` as `replaceVersionId`. If another file arrives there in the meantime, the send is refused again with the new version. `addedBy` is the person who uploaded the file, or the owner of the API key that did, when `addedThroughApi` is `true`. It is `null` when that is not known, for example for a removed member. `destinationFile` is `null` when the file there changed again while the refusal was made; send again as before. `sentFrom` names the project and path a file sent from elsewhere came from; `projectId` and `projectName` are `null` when the key's owner cannot open that project. A file from a repository sync may be stored again by the sync's next run.
+
+Refusals:
+
+| Status | `error` | When |
+|---|---|---|
+| 400 | `invalid_translation_as_source_payload` | The body is not valid |
+| 400 | `unsupported_file_format` | The file is not a Word or Excel file |
+| 400 | `same_project`, `project_not_native` | The other project is this one, or either project is in a connected TMS |
+| 400 | `locale_not_a_target`, `destination_source_locale_mismatch` | The other project's source language is not one of this project's target languages |
+| 403 | `forbidden` | The key lacks `files:write`, or its owner's role cannot manage projects |
+| 404 | `project_not_found`, `destination_project_not_found`, `source_file_not_found` | Not found, or the key's owner cannot open it |
+| 409 | `translations_not_approved` | Some strings have no approved translation in that language. `details` has `missingCount`, `totalCount`, and up to 20 `missingStrings` (`key`, `sourceText`) |
+| 409 | `destination_file_replaced` | The other project has a file at that path this file did not send (above) |
+| 409 | `source_file_not_ready` | The file's newest upload is still being read. Try again shortly |
+| 422 | `source_file_read_failed` | The file's newest upload could not be read. Upload it again |
+| 422 | `no_strings`, `file_cannot_be_written`, `file_reads_differently` | The file cannot be sent as it is |
+| 500 | `file_build_failed`, `upload_failed` | Try again |
+
+To send a file once its translation is finished, listen for the job-change [webhook](/platform/developers/webhooks) on its review job (`job.status_changed` to `succeeded`), then send the file under the path it was uploaded with. A finished review job does not mean every string is approved: if some are not, the send is refused with `translations_not_approved`, and can be sent again once they are.
 
 ## Jobs
 
@@ -413,6 +489,15 @@ curl -X POST "https://hyperlocalise.com/api/v1/files" \
   -F "projectId=project_123" \
   -F "sourcePath=locales/en-US.json" \
   -F "file=@locales/en-US.json"
+```
+
+Send a Word file's approved English to the English project:
+
+```bash
+curl -X POST "https://hyperlocalise.com/api/v1/projects/project_123/files/translation-source" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"sourcePath":"requests/report.docx","destinationProjectId":"project_456"}'
 ```
 
 Download the French reconstruction:
