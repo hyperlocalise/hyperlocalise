@@ -72,7 +72,11 @@ func (c *Checker) checkBeforeModelBatch(
 		misses = append(misses, state)
 	}
 	result.SearchAvailable = searchAvailable
+	cachedHits := 0
 	for _, state := range states {
+		if state.fromCache {
+			cachedHits++
+		}
 		if state.noGuidelines {
 			continue
 		}
@@ -113,6 +117,7 @@ func (c *Checker) checkBeforeModelBatch(
 			result.Findings = appendFindingsDedupe(result.Findings, findings)
 			result.Passages = appendPassagesDedupe(result.Passages, cited)
 			result.Cached = true
+			c.storeMissesToSegmentCache(ctx, scope, req, misses, findings)
 			return result, nil
 		}
 	}
@@ -120,7 +125,7 @@ func (c *Checker) checkBeforeModelBatch(
 	billable := float64(len(misses))
 	if beforeModel != nil {
 		if err := beforeModel(ctx, billable); err != nil {
-			if errors.Is(err, ErrMeterLimit) && len(misses) < len(req.Segments) {
+			if errors.Is(err, ErrMeterLimit) && cachedHits > 0 {
 				result.UncheckedSegmentIDs = missSegmentIDs(misses)
 				return result, nil
 			}
@@ -141,12 +146,7 @@ func (c *Checker) checkBeforeModelBatch(
 	c.storeOutput(ctx, scope, batchUser, raw)
 	result.Findings = appendFindingsDedupe(result.Findings, batchFindings)
 	result.Passages = appendPassagesDedupe(result.Passages, batchCited)
-
-	bySegment := findingsBySegmentID(batchFindings)
-	for _, miss := range misses {
-		segFindings := bySegment[miss.segment.ID]
-		c.storeSegmentCache(ctx, scope, req, miss.segment, miss.passages, segFindings)
-	}
+	c.storeMissesToSegmentCache(ctx, scope, req, misses, batchFindings)
 
 	return result, nil
 }
@@ -194,6 +194,19 @@ func (c *Checker) checkBeforeModelSingle(
 	}
 	c.storeOutput(ctx, scope, user, raw)
 	return result, nil
+}
+
+func (c *Checker) storeMissesToSegmentCache(
+	ctx context.Context,
+	scope guidelines.Scope,
+	req Request,
+	misses []segmentGuidelineState,
+	batchFindings []Finding,
+) {
+	bySegment := findingsBySegmentID(batchFindings)
+	for _, miss := range misses {
+		c.storeSegmentCache(ctx, scope, req, miss.segment, miss.passages, bySegment[miss.segment.ID])
+	}
 }
 
 func (c *Checker) storeSegmentCache(
@@ -247,6 +260,9 @@ func modelJSONForSegmentCache(segment Segment, segmentPassages []Passage, findin
 			Suggestion: f.Suggestion,
 			Passage:    label,
 		})
+	}
+	if len(out) == 0 {
+		return "", false
 	}
 	encoded, err := json.Marshal(struct {
 		Findings []modelFinding `json:"findings"`

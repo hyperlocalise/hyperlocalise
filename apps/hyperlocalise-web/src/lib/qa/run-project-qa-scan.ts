@@ -277,14 +277,6 @@ export async function scanTranslationQaPage(input: {
         inArray(schema.translationQaFindings.translationKeyId, keyIds),
       ),
     );
-  await db
-    .delete(schema.translationQaGuidelineCoverage)
-    .where(
-      and(
-        eq(schema.translationQaGuidelineCoverage.runId, input.runId),
-        inArray(schema.translationQaGuidelineCoverage.translationKeyId, keyIds),
-      ),
-    );
 
   const translations =
     locales.length === 0
@@ -441,18 +433,6 @@ export async function scanTranslationQaPage(input: {
     alreadyHalted: Boolean(run.summary.guidelineCheckHaltCode),
     onBatchComplete: () => touchTranslationQaRun(input.runId),
   });
-  if (guidelineResult.coveredKeyLocales.length) {
-    await db
-      .insert(schema.translationQaGuidelineCoverage)
-      .values(
-        guidelineResult.coveredKeyLocales.map((row) => ({
-          runId: input.runId,
-          translationKeyId: row.translationKeyId,
-          targetLocale: row.targetLocale,
-        })),
-      )
-      .onConflictDoNothing();
-  }
   for (const row of guidelineResult.findings) {
     pendingFindings.push({
       runId: input.runId,
@@ -600,6 +580,7 @@ export async function completeTranslationQaScan(input: {
         byLocale,
         checkVersion: QA_CHECK_VERSION,
         skippedChecksByLocale: run.summary.skippedChecksByLocale ?? {},
+        guidelineCheckHaltCode: run.summary.guidelineCheckHaltCode,
       },
       completedAt,
     })
@@ -618,22 +599,16 @@ export async function completeTranslationQaScan(input: {
   // Older snapshots become fixed only after this run rechecked that check and
   // no longer finds it. Disabled policy checks were not rechecked, including
   // spelling turned off in policy. Skipped spelling was not rechecked either.
+  // A guideline halt means this run did not finish checking, so previous
+  // guideline findings stay open.
   const disabledCheckTypes = disabledQaCheckTypes(run.checkPolicy);
   await db.execute(sql`update translation_qa_findings old set status = 'resolved', reviewed_at = ${completedAt}
       where old.organization_id = ${input.organizationId} and old.project_id = ${input.projectId}
       and old.run_id <> ${input.runId} and old.status = 'open'
       and not (${JSON.stringify(disabledCheckTypes)}::jsonb ? old.check_type)
       and not (old.check_type = 'spelling' and ${JSON.stringify(run.summary.skippedChecksByLocale ?? {})}::jsonb ? old.target_locale)
-      and not (
-        old.check_type = 'guideline'
-        and not exists (
-          select 1 from translation_qa_guideline_coverage cov
-          where cov.run_id = ${input.runId}
-            and cov.translation_key_id = old.translation_key_id
-            and cov.target_locale = old.target_locale
-        )
-      )
-      and not exists (select 1 from translation_qa_findings current
+      and not (old.check_type = 'guideline' and ${Boolean(run.summary.guidelineCheckHaltCode)})
+      and not exists (select 1 from translation_qa_findings current)
           where current.run_id = ${input.runId} and current.translation_key_id = old.translation_key_id
           and current.target_locale = old.target_locale and current.check_type = old.check_type)`);
   await db

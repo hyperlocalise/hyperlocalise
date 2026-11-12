@@ -38,6 +38,43 @@ func TestBatchCheckReusesPerSegmentCache(t *testing.T) {
 	require.GreaterOrEqual(t, cache.sets, 2)
 }
 
+func TestBatchCheckPersistsPerSegmentCache(t *testing.T) {
+	note := mandatoryDoc("workspace:org", "Use vous, never tu.")
+	retriever := &fakeRetriever{result: guidelines.Result{Mandatory: []guidelines.Document{note}, SearchAvailable: true}}
+	model := &fakeModel{output: `{"findings":[{"segmentId":"a","field":"target","severity":"error","quote":"tu","message":"Use vous.","suggestion":"vous","passage":"P1"}]}`}
+	cache := &memoryGuidelineCache{}
+	checker := New(retriever, model, WithCache(cache))
+	scope := guidelines.Scope{OrganizationID: "org", Locale: "fr-FR"}
+	batch := Request{
+		TargetLocale: "fr-FR",
+		Checks:       []Field{FieldTarget},
+		Segments: []Segment{
+			{ID: "a", Source: "Hi", Target: "Peux-tu aider ?"},
+			{ID: "b", Source: "Bye", Target: "Au revoir"},
+		},
+	}
+
+	result, err := checker.CheckBeforeModel(context.Background(), scope, batch, nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, model.calls)
+	require.Len(t, result.Findings, 1)
+
+	for _, segment := range batch.Segments {
+		cached, err := checker.CheckBeforeModel(context.Background(), scope, Request{
+			TargetLocale: "fr-FR",
+			Checks:       []Field{FieldTarget},
+			Segments:     []Segment{segment},
+		}, func(context.Context, float64) error {
+			t.Fatal("cached segment must not bill")
+			return nil
+		})
+		require.NoError(t, err)
+		require.True(t, cached.Cached)
+		require.False(t, cached.ModelInvoked)
+	}
+	require.Equal(t, 1, model.calls)
+}
+
 func TestBatchMeterLimitReturnsPartial(t *testing.T) {
 	note := mandatoryDoc("workspace:org", "Use vous, never tu.")
 	retriever := &fakeRetriever{result: guidelines.Result{Mandatory: []guidelines.Document{note}, SearchAvailable: true}}
@@ -46,7 +83,11 @@ func TestBatchMeterLimitReturnsPartial(t *testing.T) {
 	scope := guidelines.Scope{OrganizationID: "org", Locale: "fr-FR"}
 
 	// Segment a is already in cache; segment b would need the model.
-	_, err := checker.CheckBeforeModel(context.Background(), scope, cacheCheckRequest("Peux-tu aider ?", "fr-FR"), nil)
+	_, err := checker.CheckBeforeModel(context.Background(), scope, Request{
+		TargetLocale: "fr-FR",
+		Checks:       []Field{FieldTarget},
+		Segments:     []Segment{{ID: "a", Source: "Hi", Target: "Peux-tu aider ?"}},
+	}, nil)
 	require.NoError(t, err)
 
 	result, err := checker.CheckBeforeModel(context.Background(), scope, Request{
