@@ -124,7 +124,7 @@ export async function acceptPendingInvitation(input: {
       .filter((candidate) => candidate.email.trim().toLowerCase() === email)
       .sort(
         (a, b) =>
-          b.createdAt.localeCompare(a.createdAt) ||
+          b.createdAt.getTime() - a.createdAt.getTime() ||
           Number(b.state === "pending") - Number(a.state === "pending"),
       );
     if (latest?.state === "pending") {
