@@ -10,9 +10,33 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { Icon } from "@phosphor-icons/react";
+import {
+  BrainIcon,
+  ChatCircleTextIcon,
+  CpuIcon,
+  GitDiffIcon,
+  ImageSquareIcon,
+  LightningIcon,
+  ListChecksIcon,
+  SparkleIcon,
+  TranslateIcon,
+} from "@phosphor-icons/react/ssr";
+
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
 
 import type { PricingAiFeature } from "./pricing-page-content";
+
+const featureIcons: Record<string, Icon> = {
+  "ask-about-any-string": ChatCircleTextIcon,
+  "visual-context": ImageSquareIcon,
+  "translate-in-chat": TranslateIcon,
+  "recent-change-briefs": GitDiffIcon,
+  "organization-memory": BrainIcon,
+  "tms-aware-drafting-qa": ListChecksIcon,
+  "agent-automations": LightningIcon,
+  "bring-your-own-llm": CpuIcon,
+};
 
 type PricingAiFeaturesSectionProps = {
   heading: string;
@@ -39,16 +63,30 @@ export function PricingAiFeaturesSection({
         </TypographyP>
       </div>
 
-      <ul className="divide-y divide-border border-t border-border">
-        {features.map((feature) => (
-          <li
-            key={feature.id}
-            className="grid gap-1 py-5 sm:grid-cols-[minmax(12rem,0.9fr)_minmax(0,1.4fr)] sm:items-baseline sm:gap-8"
-          >
-            <p className="text-sm font-semibold text-foreground sm:text-base">{feature.title}</p>
-            <p className="text-sm text-muted-foreground sm:text-base">{feature.description}</p>
-          </li>
-        ))}
+      <ul className="grid gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
+        {features.map((feature) => {
+          const FeatureIcon = featureIcons[feature.id] ?? SparkleIcon;
+
+          return (
+            <li
+              key={feature.id}
+              className="group flex flex-col gap-4 bg-background p-6 transition-colors hover:bg-primary/[0.03]"
+            >
+              <span
+                aria-hidden
+                className="inline-flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform duration-300 group-hover:-translate-y-0.5"
+              >
+                <FeatureIcon className="size-5" weight="duotone" />
+              </span>
+              <div className="space-y-1.5">
+                <p className="text-sm font-semibold text-foreground sm:text-base">
+                  {feature.title}
+                </p>
+                <p className="text-sm text-muted-foreground">{feature.description}</p>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

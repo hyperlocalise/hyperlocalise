@@ -11,27 +11,30 @@
  * Version 2.0 or later.
  */
 import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
-import {
-  hyperlocaliseImageModelId,
-  hyperlocaliseTranscribeModelId,
-  hyperlocaliseTtsModelId,
-  hyperlocaliseVideoModelId,
-} from "@/lib/providers/managed-model-ids";
 
+import {
+  PRICING_IRIS_MODELS,
+  type PricingIrisCopyGroup,
+  type PricingIrisJob,
+  type PricingIrisVendorId,
+} from "./pricing-iris-models";
 import {
   getPricingByokProviderModelIds,
   pricingManagedAgentGatewayModelIds,
   type PricingByokProviderId,
 } from "./pricing-supported-models";
 
-export type PricingModelJob = "write" | "speak" | "listen" | "picture" | "video";
+export type PricingModelJob = "write" | PricingIrisJob;
 
 export type PricingModelAccess = "included" | "byok";
 
-export type PricingModelProviderId = "openai" | "anthropic" | "gemini" | "fish" | "bytedance";
+export type PricingModelProviderId = "openai" | "anthropic" | "gemini" | PricingIrisVendorId;
 
-/** Shared plain-language copy. Many catalog rows point at the same key. */
-export type PricingModelCopyKey =
+/** Where a team picks the model: AI Engine for writers, Iris for creative work. */
+export type PricingModelSurface = "ai-engine" | "iris";
+
+/** Shared plain-language copy for writing models. Many rows point at the same key. */
+export type PricingWriterCopyKey =
   | "luna"
   | "luna-fast"
   | "openai-writer"
@@ -40,11 +43,11 @@ export type PricingModelCopyKey =
   | "opus"
   | "haiku"
   | "gemini-flash"
-  | "gemini-pro"
-  | "voice"
-  | "listen"
-  | "picture"
-  | "video";
+  | "gemini-pro";
+
+export type PricingModelCopy =
+  | { kind: "writer"; key: PricingWriterCopyKey }
+  | { kind: "iris"; group: PricingIrisCopyGroup };
 
 export type PricingCatalogEntry = {
   modelId: string;
@@ -52,7 +55,8 @@ export type PricingCatalogEntry = {
   providerId: PricingModelProviderId;
   job: PricingModelJob;
   access: PricingModelAccess;
-  copyKey: PricingModelCopyKey;
+  surface: PricingModelSurface;
+  copy: PricingModelCopy;
   recommended: boolean;
   /** Workspace default writer. */
   highlight: boolean;
@@ -77,27 +81,23 @@ const NAME_WORDS: Record<string, string> = {
   terra: "Terra",
 };
 
-const MEDIA_NAMES: Record<string, string> = {
-  [hyperlocaliseTtsModelId]: "Fish Audio",
-  [hyperlocaliseTranscribeModelId]: "Gemini transcription",
-  [hyperlocaliseImageModelId]: "GPT Image",
-  [hyperlocaliseVideoModelId]: "Seedance",
-};
-
-/** Models a localization manager should see before the long tail. */
 const managedDefaultModelId = `openai/${hyperlocaliseAgentModelId}`;
 
+/** Models a localization manager should see before the long tail, in display order. */
 export const pricingRecommendedModelIds = [
   managedDefaultModelId,
-  "openai/gpt-6-luna-fast",
-  "openai/gpt-6.1-sol",
   "claude-sonnet-5",
-  "claude-opus-5-5",
-  "gemini-3.8-flash",
-  hyperlocaliseTtsModelId,
-  hyperlocaliseTranscribeModelId,
-  hyperlocaliseImageModelId,
-  hyperlocaliseVideoModelId,
+  "nano-banana-2.1",
+  "gpt-image-2.6-sunburst",
+  "image-localise",
+  "veo-3.1",
+  "kling-3-pro",
+  "seedance-2.5",
+  "sync-lipsync-2",
+  "elevenlabs-v4",
+  "elevenlabs-dubbing",
+  "elevenlabs-music",
+  "universal-3.5-pro",
 ] as const;
 
 const recommendedModelIds = new Set<string>(pricingRecommendedModelIds);
@@ -107,11 +107,6 @@ const recommendedModelIds = new Set<string>(pricingRecommendedModelIds);
  * Product names stay in English.
  */
 export function formatPricingModelName(modelId: string): string {
-  const mediaName = MEDIA_NAMES[modelId];
-  if (mediaName) {
-    return mediaName;
-  }
-
   const slug = modelId.split("/").pop() ?? modelId;
   const fast = slug.endsWith("-fast");
   const base = fast ? slug.slice(0, -"-fast".length) : slug;
@@ -146,12 +141,7 @@ export function formatPricingModelName(modelId: string): string {
   return parts.join(" ");
 }
 
-function copyKeyForModel(modelId: string, job: PricingModelJob): PricingModelCopyKey {
-  if (job === "speak") return "voice";
-  if (job === "listen") return "listen";
-  if (job === "picture") return "picture";
-  if (job === "video") return "video";
-
+function writerCopyKey(modelId: string): PricingWriterCopyKey {
   const slug = modelId.split("/").pop() ?? modelId;
   if (slug === "gpt-6-luna") return "luna";
   if (slug === "gpt-6-luna-fast") return "luna-fast";
@@ -164,30 +154,36 @@ function copyKeyForModel(modelId: string, job: PricingModelJob): PricingModelCop
   return "openai-writer";
 }
 
-function jobForModel(modelId: string): PricingModelJob {
-  if (modelId === hyperlocaliseTtsModelId) return "speak";
-  if (modelId === hyperlocaliseTranscribeModelId) return "listen";
-  if (modelId === hyperlocaliseImageModelId) return "picture";
-  if (modelId === hyperlocaliseVideoModelId) return "video";
-  return "write";
-}
-
-function entryFor(
+function writerEntry(
   modelId: string,
   providerId: PricingModelProviderId,
   access: PricingModelAccess,
 ): PricingCatalogEntry {
-  const job = jobForModel(modelId);
   return {
     modelId,
     name: formatPricingModelName(modelId),
     providerId,
-    job,
+    job: "write",
     access,
-    copyKey: copyKeyForModel(modelId, job),
+    surface: "ai-engine",
+    copy: { kind: "writer", key: writerCopyKey(modelId) },
     recommended: recommendedModelIds.has(modelId),
     highlight: modelId === managedDefaultModelId,
   };
+}
+
+function irisEntries(): PricingCatalogEntry[] {
+  return PRICING_IRIS_MODELS.map((model) => ({
+    modelId: model.id,
+    name: model.name,
+    providerId: model.vendor,
+    job: model.job,
+    access: "included",
+    surface: "iris",
+    copy: { kind: "iris", group: model.group },
+    recommended: recommendedModelIds.has(model.id),
+    highlight: false,
+  }));
 }
 
 function orderCatalog(entries: readonly PricingCatalogEntry[]): PricingCatalogEntry[] {
@@ -203,14 +199,13 @@ function orderCatalog(entries: readonly PricingCatalogEntry[]): PricingCatalogEn
 export function getPricingCatalogEntries(): readonly PricingCatalogEntry[] {
   const writingProviders: readonly PricingByokProviderId[] = ["anthropic", "gemini"];
   const entries = [
-    ...pricingManagedAgentGatewayModelIds.map((modelId) => entryFor(modelId, "openai", "included")),
-    entryFor(hyperlocaliseTtsModelId, "fish", "included"),
-    entryFor(hyperlocaliseTranscribeModelId, "gemini", "included"),
-    entryFor(hyperlocaliseImageModelId, "openai", "included"),
-    entryFor(hyperlocaliseVideoModelId, "bytedance", "included"),
+    ...pricingManagedAgentGatewayModelIds.map((modelId) =>
+      writerEntry(modelId, "openai", "included"),
+    ),
+    ...irisEntries(),
     ...writingProviders.flatMap((providerId) =>
       getPricingByokProviderModelIds(providerId).map((modelId) =>
-        entryFor(modelId, providerId, "byok"),
+        writerEntry(modelId, providerId, "byok"),
       ),
     ),
   ];
