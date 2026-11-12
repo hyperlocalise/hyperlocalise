@@ -111,6 +111,14 @@ type resourceStore interface {
 	exportGlossary(context.Context, principal, string, string) (interchangeFile, error)
 	queueGlossaryImport(context.Context, principal, string, glossaryImportInput) (glossaryImportReport, error)
 	getGlossaryImportReport(context.Context, principal, string, string) (glossaryImportReport, error)
+	bulkUpdateStrings(context.Context, principal, string, stringBulkUpdate) (int, error)
+	reviewTranslations(context.Context, principal, string, stringSelector, []string, reviewChange) (int, error)
+	listJobStrings(context.Context, principal, string, int, int) ([]translationString, int, error)
+	addJobStrings(context.Context, principal, string, stringSelector) (int, error)
+	removeJobStrings(context.Context, principal, string, stringSelector) (int, error)
+	jobLocales(context.Context, principal, string) ([]jobLocaleProgress, error)
+	addJobLocale(context.Context, principal, string, string) ([]jobLocaleProgress, error)
+	removeJobLocale(context.Context, principal, string, string) ([]jobLocaleProgress, error)
 }
 
 type postgresStore struct {

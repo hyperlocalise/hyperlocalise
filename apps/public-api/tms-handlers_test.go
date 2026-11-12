@@ -13,6 +13,7 @@ import (
 
 type fakeTMSStore struct {
 	fakeBilingualStore
+	fakeKeyStore
 	fakeJobStore
 	fakeProjectAdminStore
 	fakeMemoryInterchangeStore
@@ -139,6 +140,8 @@ func sendResource(t *testing.T, p principal, store resourceStore, method, target
 var (
 	readScopes  = effectivePermissions([]string{"files:read"}, "member")
 	writeScopes = effectivePermissions([]string{"files:read", "files:write"}, "developer")
+	// A reviewer's token can also approve and reject.
+	approveScopes = effectivePermissions([]string{"files:read", "files:write"}, "reviewer")
 )
 
 func TestProjectLocalesRoute(t *testing.T) {
@@ -387,8 +390,25 @@ func TestTranslationRoutes(t *testing.T) {
 		} {
 			store := &fakeResourceStore{}
 			store.tmsErr = err
-			w := sendResource(t, resourcePrincipal(writeScopes...), store, http.MethodPut, "/v1/projects/project-1/strings/string-1/translations/fr", `{"text":"x","status":"approved"}`)
+			w := sendResource(t, resourcePrincipal(approveScopes...), store, http.MethodPut, "/v1/projects/project-1/strings/string-1/translations/fr", `{"text":"x","status":"approved"}`)
 			require.Equal(t, status, w.Code)
+		}
+	})
+
+	t.Run("approving and rejecting need translations:approve", func(t *testing.T) {
+		for _, role := range []string{"developer", "translator"} {
+			scopes := effectivePermissions([]string{"files:read", "files:write"}, role)
+			for _, status := range []string{"approved", "rejected"} {
+				w := sendResource(t, resourcePrincipal(scopes...), &fakeResourceStore{}, http.MethodPut,
+					"/v1/projects/project-1/strings/string-1/translations/fr", `{"text":"x","status":"`+status+`"}`)
+				require.Equal(t, http.StatusForbidden, w.Code, role+" "+status)
+				require.Contains(t, w.Body.String(), "translations:approve")
+			}
+			for _, status := range []string{"draft", "needs_review"} {
+				w := sendResource(t, resourcePrincipal(scopes...), &fakeResourceStore{}, http.MethodPut,
+					"/v1/projects/project-1/strings/string-1/translations/fr", `{"text":"x","status":"`+status+`"}`)
+				require.Equal(t, http.StatusOK, w.Code, role+" "+status)
+			}
 		}
 	})
 

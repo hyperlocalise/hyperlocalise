@@ -119,6 +119,7 @@ func TestOpenAPIDocumentCoversImplementedResources(t *testing.T) {
 		"/v1/translation-memories", "/v1/translation-memories/{memoryId}", "/v1/translation-memories/{memoryId}/entries",
 		"/v1/projects/{projectId}/bilingual-file", "/v1/jobs", "/v1/jobs/{jobId}",
 		"/v1/translation-memories/{memoryId}/export", "/v1/glossaries/{glossaryId}/export",
+		"/v1/jobs/{jobId}/strings", "/v1/jobs/{jobId}/locales",
 	} {
 		require.Contains(t, document.Paths, path)
 		require.Contains(t, document.Paths[path], "get")
@@ -129,6 +130,12 @@ func TestOpenAPIDocumentCoversImplementedResources(t *testing.T) {
 		"/v1/projects/{projectId}/strings/{stringId}/translations/{locale}": "put",
 		"/v1/projects/{projectId}/bilingual-file":                           "post",
 		"/v1/jobs/{jobId}": "patch",
+		"/v1/projects/{projectId}/strings/bulk-update":         "post",
+		"/v1/projects/{projectId}/translations/approve":        "post",
+		"/v1/projects/{projectId}/translations/send-to-review": "post",
+		"/v1/jobs/{jobId}/strings":                             "delete",
+		"/v1/jobs/{jobId}/locales":                             "post",
+		"/v1/jobs/{jobId}/locales/{locale}":                    "delete",
 	} {
 		require.Contains(t, document.Paths[path], method)
 	}

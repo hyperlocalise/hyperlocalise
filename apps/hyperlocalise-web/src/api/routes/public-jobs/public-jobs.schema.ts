@@ -16,9 +16,11 @@ import { z } from "zod";
 
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
 import {
+  keysTranslationJobInputSchema,
   maxTranslationMetadataEntries,
   maxTranslationTargetLocales,
 } from "@/api/routes/project/job.schema";
+import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { supportedFileTranslationFileFormats } from "@/lib/translation/file-formats";
 
 const publicJobMetadataSchema = z
@@ -70,6 +72,15 @@ export const createPublicJobBodySchema = z.discriminatedUnion("type", [
       metadata: publicJobMetadataSchema,
     }),
   }),
+  z.object({
+    type: z.literal("keys"),
+    projectId: projectIdSchema,
+    ...createPublicJobSharedFields,
+    keysInput: keysTranslationJobInputSchema.refine((input) => input.overwriteUnapproved !== true, {
+      message: "overwriteUnapproved is for AI translation only",
+      path: ["overwriteUnapproved"],
+    }),
+  }),
 ]);
 
 // Printable ASCII without spaces, so keys compare exactly.
@@ -101,10 +112,15 @@ function sortedMetadata(metadata: Record<string, string> | undefined) {
   return sorted;
 }
 
+function hashedLocale(value: string) {
+  return canonicalizeLocale(value) ?? value;
+}
+
 /**
  * SHA-256 of the create body after trimming, lowercasing `ownerEmail`,
- * normalising `dueAt` to UTC, and sorting metadata keys, so a retry that
- * only changes those forms still matches the first request.
+ * normalising `dueAt` to UTC, sorting metadata keys, and (for key jobs)
+ * canonicalising locales and sorting the selection, so a retry that only
+ * changes those forms still matches the first request.
  */
 export function hashPublicJobRequest(payload: CreatePublicJobBody) {
   const title = payload.title || undefined;
@@ -113,33 +129,49 @@ export function hashPublicJobRequest(payload: CreatePublicJobBody) {
   const ownerEmail = payload.ownerEmail?.toLowerCase() || undefined;
   const shared = { title, description, dueAt, ownerEmail };
 
+  const sorted = (values: string[] | undefined) =>
+    values ? [...new Set(values)].sort() : undefined;
   const canonical =
-    payload.type === "string"
+    payload.type === "keys"
       ? {
           type: payload.type,
           projectId: payload.projectId,
           ...shared,
-          stringInput: {
-            sourceText: payload.stringInput.sourceText,
-            sourceLocale: payload.stringInput.sourceLocale,
-            targetLocales: payload.stringInput.targetLocales,
-            metadata: sortedMetadata(payload.stringInput.metadata),
-            context: payload.stringInput.context,
-            maxLength: payload.stringInput.maxLength,
+          keysInput: {
+            sourceLocale: hashedLocale(payload.keysInput.sourceLocale),
+            targetLocales: sorted(payload.keysInput.targetLocales.map(hashedLocale)),
+            metadata: sortedMetadata(payload.keysInput.metadata),
+            stringIds: sorted(payload.keysInput.stringIds),
+            keys: sorted(payload.keysInput.keys),
+            tags: sorted(payload.keysInput.tags),
           },
         }
-      : {
-          type: payload.type,
-          projectId: payload.projectId,
-          ...shared,
-          fileInput: {
-            sourceFileId: payload.fileInput.sourceFileId,
-            fileFormat: payload.fileInput.fileFormat,
-            sourceLocale: payload.fileInput.sourceLocale,
-            targetLocales: payload.fileInput.targetLocales,
-            metadata: sortedMetadata(payload.fileInput.metadata),
-          },
-        };
+      : payload.type === "string"
+        ? {
+            type: payload.type,
+            projectId: payload.projectId,
+            ...shared,
+            stringInput: {
+              sourceText: payload.stringInput.sourceText,
+              sourceLocale: payload.stringInput.sourceLocale,
+              targetLocales: payload.stringInput.targetLocales,
+              metadata: sortedMetadata(payload.stringInput.metadata),
+              context: payload.stringInput.context,
+              maxLength: payload.stringInput.maxLength,
+            },
+          }
+        : {
+            type: payload.type,
+            projectId: payload.projectId,
+            ...shared,
+            fileInput: {
+              sourceFileId: payload.fileInput.sourceFileId,
+              fileFormat: payload.fileInput.fileFormat,
+              sourceLocale: payload.fileInput.sourceLocale,
+              targetLocales: payload.fileInput.targetLocales,
+              metadata: sortedMetadata(payload.fileInput.metadata),
+            },
+          };
 
   return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
 }

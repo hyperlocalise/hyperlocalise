@@ -57,6 +57,10 @@ func effectivePermissions(stored []string, role string) []string {
 		if role == "admin" || role == "localization_manager" || role == "developer" {
 			add("projects:write")
 		}
+		// Approving and rejecting follow the web app's write_back:approve, as the MCP tools do.
+		if role == "admin" || role == "localization_manager" || role == "reviewer" {
+			add("translations:approve")
+		}
 		// Glossary edits follow go-svc: managers, and translators on their teams' glossaries.
 		if role == "admin" || role == "localization_manager" || role == "translator" {
 			add("glossaries:write")

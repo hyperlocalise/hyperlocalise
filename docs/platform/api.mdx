@@ -34,7 +34,7 @@ Missing, invalid, or revoked keys return `401` with `error: "unauthorized"`. An 
 | --- | --- |
 | `files:write` | Upload a source file |
 | `files:read` | Download a stored file, reconstructed translation, or image variant |
-| `jobs:write` | Create a translation job |
+| `jobs:write` | Create a translation job or a key job, and complete a task for people |
 | `jobs:read` | Read job status, latest job for a source path, and match-band analysis |
 | `memories:read` | Export translation memory entries as TMX or CSV |
 | `memories:write` | Import translation memory entries from TMX or CSV |
@@ -160,9 +160,28 @@ JSON body. Discriminate on `type`.
 }
 ```
 
+**Key job**
+
+A task for people on a chosen set of strings, picked one way only: `stringIds`, `keys` (key names, in any file), or `tags` (strings carrying every tag when the job is created). Up to 5,000 strings; hidden strings and strings in no file are left out. A key job runs no AI translation and is never queued: it starts as `waiting_for_review` for people to translate and review in the Content Editor.
+
+```json
+{
+  "type": "keys",
+  "projectId": "project_123",
+  "title": "Release 7 checkout",
+  "keysInput": {
+    "sourceLocale": "en-US",
+    "targetLocales": ["fr-FR", "de-DE"],
+    "keys": ["checkout.title", "checkout.pay"]
+  }
+}
+```
+
+A key job's `201` response has `"type": "keys"` and `"status": "waiting_for_review"`.
+
 #### Title, deadline and owner
 
-Both job types take these optional top-level fields:
+Every job type takes these optional top-level fields:
 
 | Field | Type | Notes |
 |---|---|---|
@@ -214,9 +233,30 @@ curl --fail-with-body "https://hyperlocalise.com/api/v1/jobs" \
 | 400 | `owner_not_found` | `ownerEmail` is not a workspace member |
 | 400 | `invalid_idempotency_key` | Empty, too long, or not printable ASCII |
 | 422 | `idempotency_key_reused` | Key already used with a different body |
+| 400 | `no_strings_matched` | A key job's selection matches no visible string |
+| 400 | `too_many_strings` | A key job's selection matches more than 5,000 strings |
+| 409 | `project_not_native` | A key job names an external TMS project |
 | 503 | `job_queue_unavailable` | The job was created but not enqueued. Retry with the same key |
 
-The CLI does not call this endpoint during `sync push`. Platform automations and the UI create jobs after upload.
+### Complete a task for people
+
+`POST /v1/jobs/{jobId}/complete`
+
+Permission: `jobs:write`
+
+Finishes an open task for people, such as a key job or a proofread job, the same way **Mark done** does in the app. Reviewers, localization managers, and admins can complete any such task; anyone else only a task assigned to them. A completed task can't be reopened.
+
+```json
+{ "job": { "id": "job_...", "status": "succeeded" } }
+```
+
+| Status | `error` | When |
+|---|---|---|
+| 403 | `forbidden` | The task is assigned to someone else, or your role can't change jobs |
+| 404 | `job_not_found` | No such job in a project you can access |
+| 409 | `job_action_unavailable` | The job is not an open task for people |
+
+The CLI does not call these endpoints during `sync push`. Platform automations and the UI create jobs after upload.
 
 ### Read jobs
 
