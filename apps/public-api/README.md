@@ -4,8 +4,8 @@ Standalone Go service for external consumers using Hyperlocalise personal access
 The web frontend continues to use its existing APIs. It does not call this service.
 The API reports the token's effective identity, reads Projects, Queries, Jobs,
 Glossaries, and Translation memories, creates native projects (optionally from a
-project template) and manages project templates, manages the strings, translations, and
-settings of native projects, round-trips bilingual files, updates jobs, exports
+project template) and manages project templates, manages the strings, translations,
+screenshots, and settings of native projects, round-trips bilingual files, updates jobs, exports
 glossaries, imports and exports glossaries and translation memories, and registers job-change
 webhook endpoints. Job creation and file uploads continue to use the existing platform API.
 
@@ -112,6 +112,7 @@ filters. Missing and inaccessible records both return `404`.
 | Locale progress | `GET /v1/projects/{projectId}/locales` | `strings:read` |
 | Strings | `GET, POST /v1/projects/{projectId}/strings`, `POST .../strings/batch`, `GET, PATCH, DELETE /v1/projects/{projectId}/strings/{stringId}` | `strings:read` / `strings:write` |
 | Tags and design links | `POST /v1/projects/{projectId}/strings/bulk-update` | `strings:write`, for admins, localization managers and developers |
+| Screenshots | `GET, POST /v1/projects/{projectId}/screenshots`, `GET, DELETE .../screenshots/{screenshotId}`, `POST .../finalize`, `POST .../markers`, `DELETE .../markers/{markerId}` | `strings:read` / `strings:write` |
 | Batch review | `POST /v1/projects/{projectId}/translations/approve`, `POST .../translations/send-to-review` | `translations:approve` / `strings:write` |
 | Bilingual files | `GET, POST /v1/projects/{projectId}/bilingual-file` (CSV, TMX, XLF, XLIFF, XLSX) | `strings:read` / `translations:approve` |
 | Translations | `GET /v1/projects/{projectId}/translations`, `GET /v1/projects/{projectId}/strings/{stringId}/translations`, `GET, PUT .../translations/{locale}` | `strings:read` / `strings:write`; `translations:approve` to approve or reject |
@@ -122,15 +123,23 @@ filters. Missing and inaccessible records both return `404`.
 | Webhook endpoints | `GET, POST /v1/webhook-endpoints`, `PATCH, DELETE /v1/webhook-endpoints/{endpointId}`, `POST .../rotate-secret`, `GET .../deliveries` | `webhooks:read` / `webhooks:write` |
 
 Project lists and nested string routes treat unassigned projects as belonging to
-the workspace default team, matching go-svc. String and translation writes apply
-to native projects only; external TMS projects return `409 project_not_native`.
-They take the same key row lock as the web app and go-svc editors, skip locked
-segments with `409 segment_locked` (including delete and source-text edits), and
-record a `project_translation_revisions` row attributed to the token owner with
-actor kind `api_key`. Translation lists omit hidden strings unless
+the workspace default team, matching go-svc. String, translation, and screenshot
+writes apply to native projects only; external TMS projects return
+`409 project_not_native`. String and translation writes take the same key row
+lock as the web app and go-svc editors, skip locked segments with
+`409 segment_locked` (including delete and source-text edits), and record a
+`project_translation_revisions` row attributed to the token owner with actor
+kind `api_key`. Translation lists omit hidden strings unless
 `includeHidden=true`. Glossary and memory visibility follows go-svc: operators
 see everything, members see organization libraries plus those their teams'
 projects use.
+
+Screenshot create returns a time-limited PUT URL. PUT the PNG, JPEG, or WebP
+bytes, then finalize. Markers are percent boxes that bind a screenshot to a
+string (`stringId`, or `key` and `filePath` when the key exists in more than one
+file). Object storage must be configured or screenshot writes return
+`503 screenshot_storage_unavailable`. Figma-synced frames appear on the list
+with `figmaUrl`; this API does not create them.
 
 Bilingual imports, string batches, and memory imports apply in one transaction.
 Bilingual imports save approved translations with provenance `import` and skip
@@ -141,9 +150,10 @@ Every new write records a workspace activity-log event in the same transaction
 as the change, attributed to the token (`api_key` actor, the token id as the
 credential, its owner as the user): `file_translations_imported` per file a
 bilingual import changed, `job_updated`, `project_settings_changed`,
-`project_strings_updated`, and `translation_memory_imported`. Memory and
-glossary exports record `translation_memory_exported` and `glossary_exported`,
-best effort, as go-svc does. Translations of strings that belong to no file
+`project_strings_updated`, and `translation_memory_imported`. Screenshot and
+marker writes record none yet. Memory and glossary exports record
+`translation_memory_exported` and `glossary_exported`, best effort, as go-svc
+does. Translations of strings that belong to no file
 have no file to target and record no event.
 
 Glossary imports reuse the web app's pipeline: the file is stored in object

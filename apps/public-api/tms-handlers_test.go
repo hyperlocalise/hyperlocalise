@@ -20,6 +20,7 @@ type fakeTMSStore struct {
 	fakeGlossaryImportStore
 	fakeProjectTemplateStore
 	fakeWebhookStore
+	fakeScreenshotStore
 	tmsErr           error
 	strings          []translationString
 	translations     []translationRecord
