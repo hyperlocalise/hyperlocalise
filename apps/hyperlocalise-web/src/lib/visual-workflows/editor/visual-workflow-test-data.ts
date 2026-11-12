@@ -114,6 +114,8 @@ const MOCKABLE: Record<VisualCatalogType, boolean> = {
   "logic.json_parse": false,
   "logic.json_stringify": false,
   "logic.schema_validate": false,
+  "logic.text_template": false,
+  "logic.concatenate": false,
   "logic.for_each": false,
   "logic.array_transform": false,
   "logic.retry": false,

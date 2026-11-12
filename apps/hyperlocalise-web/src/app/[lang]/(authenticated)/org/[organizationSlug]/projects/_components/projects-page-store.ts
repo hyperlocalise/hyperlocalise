@@ -26,6 +26,8 @@ export class ProjectsPageStore {
   projectDialogMode: ProjectDialogMode = null;
   editingProject: ProjectListRow | null = null;
   deleteProject: ProjectListRow | null = null;
+  /** The native project the Save as template dialog copies, or null when it is closed. */
+  templateSourceProject: ProjectListRow | null = null;
   nativeVisibleCount = PROJECTS_PAGE_SIZE;
   tmsVisibleCount = PROJECTS_PAGE_SIZE;
   recentProjects: Array<{ id: string; name: string }> = [];
@@ -90,6 +92,10 @@ export class ProjectsPageStore {
 
     this.projectDialogMode = null;
     this.editingProject = null;
+  }
+
+  setTemplateSourceProject(project: ProjectListRow | null) {
+    this.templateSourceProject = project;
   }
 
   setDeleteProject(project: ProjectListRow | null) {

@@ -16,7 +16,7 @@ https://hyperlocalise.com/api/v1
 
 The CLI `hyperlocalise.api_base_url` default is `https://hyperlocalise.com/api`. Paths below are relative to that host, including `/v1`, except job reads.
 
-Read jobs from `https://api.hyperlocalise.com/v1`. See [Read jobs](#read-jobs).
+Read jobs from `https://public-api.hyperlocalise.com/v1`. See [Read jobs](#read-jobs).
 
 ## Authentication
 
@@ -34,7 +34,7 @@ Missing, invalid, or revoked keys return `401` with `error: "unauthorized"`. An 
 | --- | --- |
 | `files:write` | Upload a source file |
 | `files:read` | Download a stored file, reconstructed translation, or image variant |
-| `jobs:write` | Create a translation job |
+| `jobs:write` | Create a translation job or a key job, and complete a task for people |
 | `jobs:read` | Read job status, latest job for a source path, and match-band analysis |
 | `memories:read` | Export translation memory entries as TMX or CSV |
 | `memories:write` | Import translation memory entries from TMX or CSV |
@@ -160,9 +160,28 @@ JSON body. Discriminate on `type`.
 }
 ```
 
+**Key job**
+
+A task for people on a chosen set of strings, picked one way only: `stringIds`, `keys` (key names, in any file), or `tags` (strings carrying every tag when the job is created). Up to 5,000 strings; hidden strings and strings in no file are left out. A key job runs no AI translation and is never queued: it starts as `waiting_for_review` for people to translate and review in the Content Editor.
+
+```json
+{
+  "type": "keys",
+  "projectId": "project_123",
+  "title": "Release 7 checkout",
+  "keysInput": {
+    "sourceLocale": "en-US",
+    "targetLocales": ["fr-FR", "de-DE"],
+    "keys": ["checkout.title", "checkout.pay"]
+  }
+}
+```
+
+A key job's `201` response has `"type": "keys"` and `"status": "waiting_for_review"`.
+
 #### Title, deadline and owner
 
-Both job types take these optional top-level fields:
+Every job type takes these optional top-level fields:
 
 | Field | Type | Notes |
 |---|---|---|
@@ -214,23 +233,46 @@ curl --fail-with-body "https://hyperlocalise.com/api/v1/jobs" \
 | 400 | `owner_not_found` | `ownerEmail` is not a workspace member |
 | 400 | `invalid_idempotency_key` | Empty, too long, or not printable ASCII |
 | 422 | `idempotency_key_reused` | Key already used with a different body |
+| 400 | `no_strings_matched` | A key job's selection matches no visible string |
+| 400 | `too_many_strings` | A key job's selection matches more than 5,000 strings |
+| 409 | `project_not_native` | A key job names an external TMS project |
 | 503 | `job_queue_unavailable` | The job was created but not enqueued. Retry with the same key |
 
-The CLI does not call this endpoint during `sync push`. Platform automations and the UI create jobs after upload.
+### Complete a task for people
+
+`POST /v1/jobs/{jobId}/complete`
+
+Permission: `jobs:write`
+
+Finishes an open task for people, such as a key job or a proofread job, the same way **Mark done** does in the app. Reviewers, localization managers, and admins can complete any such task; anyone else only a task assigned to them. A completed task can't be reopened.
+
+```json
+{ "job": { "id": "job_...", "status": "succeeded" } }
+```
+
+| Status | `error` | When |
+|---|---|---|
+| 403 | `forbidden` | The task is assigned to someone else, or your role can't change jobs |
+| 404 | `job_not_found` | No such job in a project you can access |
+| 409 | `job_action_unavailable` | The job is not an open task for people |
+
+The CLI does not call these endpoints during `sync push`. Platform automations and the UI create jobs after upload.
+
+After you create a key job, list its strings, add or remove keys, read per-locale progress, and change target languages on `https://public-api.hyperlocalise.com/v1`. See [Strings and key jobs](/platform/developers/strings-and-key-jobs#key-jobs-after-creation).
 
 ### Read jobs
 
 Job reads use a different host from the rest of this API:
 
 ```
-https://api.hyperlocalise.com/v1
+https://public-api.hyperlocalise.com/v1
 ```
 
 Send the same `x-api-key`. `https://hyperlocalise.com/api/v1` no longer serves these routes.
 
 ### Latest job for a source path
 
-`GET https://api.hyperlocalise.com/v1/jobs/latest?projectId={projectId}&sourcePath={sourcePath}`
+`GET https://public-api.hyperlocalise.com/v1/jobs/latest?projectId={projectId}&sourcePath={sourcePath}`
 
 Permission: `jobs:read`
 
@@ -238,7 +280,7 @@ Returns the most recent succeeded file job for that source path, including `outp
 
 ### Get a job
 
-`GET https://api.hyperlocalise.com/v1/jobs/{jobId}`
+`GET https://public-api.hyperlocalise.com/v1/jobs/{jobId}`
 
 Permission: `jobs:read`
 
@@ -266,20 +308,20 @@ Permission: `jobs:read`
 
 ### Job status
 
-`GET https://api.hyperlocalise.com/v1/jobs/{jobId}/status`
+`GET https://public-api.hyperlocalise.com/v1/jobs/{jobId}/status`
 
 Permission: `jobs:read`
 
 Smaller payload with `id`, `projectId`, `kind`, `type`, `status`, timestamps, and `lastError`.
 
 ```bash
-curl --fail-with-body "https://api.hyperlocalise.com/v1/jobs/$JOB_ID/status" \
+curl --fail-with-body "https://public-api.hyperlocalise.com/v1/jobs/$JOB_ID/status" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY"
 ```
 
 ### Match-band analysis
 
-`GET https://api.hyperlocalise.com/v1/jobs/{jobId}/analysis`
+`GET https://public-api.hyperlocalise.com/v1/jobs/{jobId}/analysis`
 
 Permission: `jobs:read`
 
@@ -318,7 +360,7 @@ Optional query: `unit` is `words` (default), `strings`, `characters`, or `charac
 - Money, rate cards, and cost estimates are not included.
 
 ```bash
-curl --fail-with-body "https://api.hyperlocalise.com/v1/jobs/$JOB_ID/analysis?unit=words" \
+curl --fail-with-body "https://public-api.hyperlocalise.com/v1/jobs/$JOB_ID/analysis?unit=words" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY"
 ```
 
@@ -327,28 +369,28 @@ curl --fail-with-body "https://api.hyperlocalise.com/v1/jobs/$JOB_ID/analysis?un
 TMX import and export use the same host as job reads:
 
 ```
-https://api.hyperlocalise.com/v1
+https://public-api.hyperlocalise.com/v1
 ```
 
 Send the same `x-api-key`. These routes wrap the native workspace memory the owner can already see. They do not create memories or list them.
 
 ### Export entries
 
-`GET https://api.hyperlocalise.com/v1/translation-memories/{memoryId}/entries/export?format=tmx`
+`GET https://public-api.hyperlocalise.com/v1/translation-memories/{memoryId}/entries/export?format=tmx`
 
 Permission: `memories:read`
 
 Returns TMX 1.4 bytes (`application/x-tmx+xml`). Pass `format=csv` for the Hyperlocalise row layout. Optional `sourceLocale` and `targetLocale` filter to one language pair.
 
 ```bash
-curl --fail-with-body "https://api.hyperlocalise.com/v1/translation-memories/$MEMORY_ID/entries/export?format=tmx" \
+curl --fail-with-body "https://public-api.hyperlocalise.com/v1/translation-memories/$MEMORY_ID/entries/export?format=tmx" \
   -H "x-api-key: $HYPERLOCALISE_API_KEY" \
   -o product.tmx
 ```
 
 ### Import entries
 
-`POST https://api.hyperlocalise.com/v1/translation-memories/{memoryId}/entries/import`
+`POST https://public-api.hyperlocalise.com/v1/translation-memories/{memoryId}/entries/import`
 
 Permission: `memories:write`
 
@@ -371,11 +413,11 @@ Requires an active Crowdin, Phrase Strings, or Smartling connection (the credent
 
 List provider translation memories:
 
-`GET https://api.hyperlocalise.com/v1/orgs/{organizationSlug}/tms/translation-memories`
+`GET https://public-api.hyperlocalise.com/v1/orgs/{organizationSlug}/tms/translation-memories`
 
 Import into a native memory (background TMX export + interchange queue):
 
-`POST https://api.hyperlocalise.com/v1/orgs/{organizationSlug}/translation-memories/{memoryId}/entries/import/from-tms`
+`POST https://public-api.hyperlocalise.com/v1/orgs/{organizationSlug}/translation-memories/{memoryId}/entries/import/from-tms`
 
 Body: `{ "credentialId": "<uuid>", "externalId": "<provider id>" }`. Response `202` includes `attemptId`.
 

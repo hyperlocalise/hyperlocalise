@@ -42,6 +42,8 @@ type translationString struct {
 	MaxLength  *int      `json:"maxLength"`
 	Hidden     bool      `json:"hidden"`
 	FilePath   *string   `json:"filePath"`
+	Tags       []string  `json:"tags"`
+	DesignURL  *string   `json:"designUrl"`
 	CreatedAt  time.Time `json:"createdAt"`
 	UpdatedAt  time.Time `json:"updatedAt"`
 }
@@ -78,6 +80,8 @@ type projectLocales struct {
 
 type stringFilters struct {
 	Keys          []string
+	KeyPrefix     string
+	Tags          []string
 	Search        string
 	FilePath      string
 	IncludeHidden bool
@@ -89,6 +93,8 @@ type translationFilters struct {
 	Locale        string
 	Status        string
 	Origin        string
+	Keys          []string
+	UpdatedSince  *time.Time
 	IncludeHidden bool
 	Limit         int
 	Offset        int
@@ -237,7 +243,7 @@ func percentage(count, total int) int {
 
 const stringColumns = `
 	k.id, k.key, k.source_text, k.context, k.type, k.max_length, k.is_hidden,
-	f.source_path, k.created_at, k.updated_at`
+	f.source_path, k.tags, k.design_url, k.created_at, k.updated_at`
 
 const stringFrom = `
 	FROM project_translation_keys k
@@ -247,7 +253,7 @@ func scanString(row rowScanner) (translationString, error) {
 	var item translationString
 	err := row.Scan(
 		&item.ID, &item.Key, &item.SourceText, &item.Context, &item.Type, &item.MaxLength, &item.Hidden,
-		&item.FilePath, &item.CreatedAt, &item.UpdatedAt,
+		&item.FilePath, &item.Tags, &item.DesignURL, &item.CreatedAt, &item.UpdatedAt,
 	)
 	return item, err
 }
@@ -269,6 +275,12 @@ func (s *postgresStore) listStrings(ctx context.Context, actor principal, projec
 	}
 	if len(filters.Keys) > 0 {
 		where.add("k.key = ANY(?::text[])", filters.Keys)
+	}
+	if filters.KeyPrefix != "" {
+		where.add(`k.key LIKE ? ESCAPE '\'`, likePrefix(filters.KeyPrefix))
+	}
+	if len(filters.Tags) > 0 {
+		where.add("k.tags @> ?::text[]", filters.Tags)
 	}
 	var total int
 	if err := s.pool.QueryRow(ctx, `SELECT count(*) `+stringFrom+` WHERE `+where.sql(), where.args...).Scan(&total); err != nil {
@@ -515,6 +527,12 @@ func (s *postgresStore) listTranslations(ctx context.Context, actor principal, p
 	}
 	if filters.Status != "" {
 		where.add("t.status::text = ?", filters.Status)
+	}
+	if len(filters.Keys) > 0 {
+		where.add("k.key = ANY(?::text[])", filters.Keys)
+	}
+	if filters.UpdatedSince != nil {
+		where.add("t.updated_at >= ?", *filters.UpdatedSince)
 	}
 	var total int
 	if err := s.pool.QueryRow(ctx, `SELECT count(*) `+translationFrom+` WHERE `+where.sql(), where.args...).Scan(&total); err != nil {
@@ -770,6 +788,22 @@ func rejectIfStringLocked(ctx context.Context, tx pgx.Tx, actor principal, scope
 // its source text changed, keeping their text, and records a revision for each. The caller
 // holds the key's row lock, as every translation writer does.
 func sendApprovedTranslationsToReview(ctx context.Context, tx pgx.Tx, actor principal, scope projectScope, stringID string) error {
+	_, err := moveTranslations(ctx, tx,
+		`t.organization_id = $1 AND t.project_id = $2 AND t.translation_key_id = $3 AND t.status = 'approved'`,
+		`status = 'needs_review', reviewed_by_user_id = NULL, reviewed_at = NULL`,
+		actor.OrganizationID, scope.ID, stringID, actor.UserID)
+	if err != nil {
+		return fmt.Errorf("send translations to review: %w", err)
+	}
+	return nil
+}
+
+// moveTranslations applies set to the translations of project_translations t that match, keeping
+// their text, and records a revision for each: a baseline of the earlier state for a translation
+// without history, then the new state. The last of args is the acting user's id, which set may
+// use as $len(args); match uses the others.
+func moveTranslations(ctx context.Context, tx pgx.Tx, match, set string, args ...any) (int64, error) {
+	actorParam := fmt.Sprintf("$%d::uuid", len(args))
 	if _, err := tx.Exec(ctx, `INSERT INTO project_translation_revisions (
 			organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
 			provenance, origin, source_job_id, actor_kind, created_at
@@ -779,32 +813,32 @@ func sendApprovedTranslationsToReview(ctx context.Context, tx pgx.Tx, actor prin
 			CASE t.provenance WHEN 'agent' THEN 'agent' WHEN 'manual' THEN 'user' ELSE 'system' END,
 			t.updated_at
 		FROM project_translations t
-		WHERE t.organization_id = $1 AND t.project_id = $2 AND t.translation_key_id = $3
-			AND t.status = 'approved'
+		WHERE `+match+`
 			AND NOT EXISTS (SELECT 1 FROM project_translation_revisions r WHERE r.translation_id = t.id)`,
-		actor.OrganizationID, scope.ID, stringID,
+		args[:len(args)-1]...,
 	); err != nil {
-		return fmt.Errorf("record baseline revisions: %w", err)
+		return 0, fmt.Errorf("record baseline revisions: %w", err)
 	}
-	if _, err := tx.Exec(ctx, `WITH moved AS (
-			UPDATE project_translations
-			SET status = 'needs_review', reviewed_by_user_id = NULL, reviewed_at = NULL, updated_at = now()
-			WHERE organization_id = $1 AND project_id = $2 AND translation_key_id = $3 AND status = 'approved'
-			RETURNING organization_id, project_id, id, translation_key_id, target_locale, text, status,
-				provenance, origin, source_job_id
+	tag, err := tx.Exec(ctx, `WITH moved AS (
+			UPDATE project_translations t
+			SET `+set+`, updated_at = now()
+			WHERE `+match+`
+			RETURNING t.organization_id, t.project_id, t.id, t.translation_key_id, t.target_locale, t.text,
+				t.status, t.provenance, t.origin, t.source_job_id
 		)
 		INSERT INTO project_translation_revisions (
 			organization_id, project_id, translation_id, translation_key_id, target_locale, text, status,
 			provenance, origin, source_job_id, actor_kind, actor_user_id, created_at
 		)
 		SELECT organization_id, project_id, id, translation_key_id, target_locale, text, status,
-			provenance, origin, source_job_id, 'api_key', $4::uuid, clock_timestamp()
+			provenance, origin, source_job_id, 'api_key', `+actorParam+`, clock_timestamp()
 		FROM moved`,
-		actor.OrganizationID, scope.ID, stringID, actor.UserID,
-	); err != nil {
-		return fmt.Errorf("send translations to review: %w", err)
+		args...,
+	)
+	if err != nil {
+		return 0, err
 	}
-	return nil
+	return tag.RowsAffected(), nil
 }
 
 func reviewerForTranslationStatus(status, userID string, now time.Time) (*string, *time.Time) {

@@ -43,12 +43,22 @@ func newHandlerWithOutbound(auth authenticator, store resourceStore, outbound ou
 	mux.HandleFunc("/v1/projects/", s.project)
 	mux.HandleFunc("/v1/projects/{projectId}", s.projectDetail)
 	mux.HandleFunc("/v1/projects/{projectId}/locales", s.projectLocales)
+	mux.HandleFunc("/v1/projects/{projectId}/custom-fields", s.projectCustomFields)
 	mux.HandleFunc("/v1/projects/{projectId}/strings", s.projectStrings)
 	mux.HandleFunc("/v1/projects/{projectId}/strings/batch", s.projectStringsBatch)
+	mux.HandleFunc("/v1/projects/{projectId}/strings/search", s.projectStringsSearch)
+	mux.HandleFunc("/v1/projects/{projectId}/strings/bulk-update", s.projectStringsBulkUpdate)
 	mux.HandleFunc("/v1/projects/{projectId}/strings/{stringId}", s.projectString)
 	mux.HandleFunc("/v1/projects/{projectId}/strings/{stringId}/translations", s.stringTranslations)
 	mux.HandleFunc("/v1/projects/{projectId}/strings/{stringId}/translations/{locale}", s.stringTranslation)
 	mux.HandleFunc("/v1/projects/{projectId}/translations", s.projectTranslations)
+	mux.HandleFunc("/v1/projects/{projectId}/translations/approve", s.projectTranslationsApprove)
+	mux.HandleFunc("/v1/projects/{projectId}/translations/send-to-review", s.projectTranslationsSendToReview)
+	mux.HandleFunc("/v1/projects/{projectId}/screenshots", s.projectScreenshots)
+	mux.HandleFunc("/v1/projects/{projectId}/screenshots/{screenshotId}", s.projectScreenshot)
+	mux.HandleFunc("/v1/projects/{projectId}/screenshots/{screenshotId}/finalize", s.projectScreenshotFinalize)
+	mux.HandleFunc("/v1/projects/{projectId}/screenshots/{screenshotId}/markers", s.projectScreenshotMarkers)
+	mux.HandleFunc("/v1/projects/{projectId}/screenshots/{screenshotId}/markers/{markerId}", s.projectScreenshotMarker)
 	mux.HandleFunc("/v1/projects/{projectId}/bilingual-file", s.projectBilingualFile)
 	mux.HandleFunc("/v1/glossaries", s.glossaries)
 	mux.HandleFunc("/v1/glossaries/{glossaryId}", s.glossary)
@@ -62,7 +72,20 @@ func newHandlerWithOutbound(auth authenticator, store resourceStore, outbound ou
 	mux.HandleFunc("/v1/translation-memories/{memoryId}/export", s.memoryExport)
 	mux.HandleFunc("/v1/translation-memories/{memoryId}/import", s.memoryImport)
 	mux.HandleFunc("/v1/jobs", s.jobs)
+	mux.HandleFunc("/v1/jobs/bulk-update", s.jobsBulkUpdate)
 	mux.HandleFunc("/v1/jobs/{jobId}", s.job)
+	mux.HandleFunc("/v1/jobs/{jobId}/strings", s.jobStrings)
+	mux.HandleFunc("/v1/jobs/{jobId}/locales", s.jobLocales)
+	mux.HandleFunc("/v1/jobs/{jobId}/locales/{locale}", s.jobLocale)
+	mux.HandleFunc("/v1/webhook-endpoints", s.webhookEndpoints)
+	mux.HandleFunc("/v1/webhook-endpoints/{endpointId}", s.webhookEndpoint)
+	mux.HandleFunc("/v1/webhook-endpoints/{endpointId}/rotate-secret", s.rotateWebhookSecret)
+	mux.HandleFunc("/v1/webhook-endpoints/{endpointId}/deliveries", s.webhookDeliveries)
+	mux.HandleFunc("/v1/project-templates", s.projectTemplates)
+	mux.HandleFunc("/v1/project-templates/{templateId}", s.projectTemplate)
+	mux.HandleFunc("/v1/custom-fields", s.customFields)
+	mux.HandleFunc("/v1/custom-fields/{fieldId}", s.customField)
+	mux.HandleFunc("/v1/custom-fields/{fieldId}/options", s.customFieldOptions)
 	mux.HandleFunc("/v1/queries", s.queries)
 	mux.HandleFunc("/v1/queries/", s.query)
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
@@ -94,11 +117,15 @@ func (s apiServer) me(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s apiServer) projects(w http.ResponseWriter, r *http.Request) {
-	if !allowRead(w, r) {
-		return
-	}
 	if r.URL.Path != "/v1/projects" {
 		writeError(w, http.StatusNotFound, "not_found", "Route not found")
+		return
+	}
+	if r.Method == http.MethodPost {
+		s.createProject(w, r)
+		return
+	}
+	if !allowRead(w, r) {
 		return
 	}
 	p, ok := s.authenticate(w, r, "projects:read")

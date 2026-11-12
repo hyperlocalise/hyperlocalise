@@ -20,6 +20,7 @@ import { WorkflowCredentialField } from "./workflow-credential-field";
 import { WorkflowDataPanel } from "./workflow-data-panel";
 import { WorkflowBoundField, type BoundPort } from "./workflow-bound-field";
 import { WorkflowTestDataPanel } from "./workflow-test-data-panel";
+import { ConcatenateConfig, TextTemplateConfig } from "./visual-workflow-text-config";
 import type {
   WorkflowBinding,
   WorkflowNodeContract,
@@ -343,7 +344,9 @@ export function VisualWorkflowConfigPanel({
       field.name.startsWith("value.") &&
       config.kind !== "logic.create_object" &&
       config.kind !== "logic.merge_objects" &&
-      config.kind !== "logic.compare",
+      config.kind !== "logic.compare" &&
+      config.kind !== "logic.text_template" &&
+      config.kind !== "logic.concatenate",
   );
 
   // The tab stays as chosen from step to step, and starts over when the panel is opened again.
@@ -2012,6 +2015,20 @@ export function VisualWorkflowConfigPanel({
             {...connectedInputProps("text")}
             onChange={(text) => onChangeConfig({ ...config, text })}
             placeholder='{"name":"Ada"}'
+          />
+        ) : null}
+        {config.kind === "logic.text_template" ? (
+          <TextTemplateConfig
+            config={config}
+            connectedInput={connectedInputProps}
+            onChange={(next) => onChangeConfig(next)}
+          />
+        ) : null}
+        {config.kind === "logic.concatenate" ? (
+          <ConcatenateConfig
+            config={config}
+            connectedInput={connectedInputProps}
+            onChange={(next) => onChangeConfig(next)}
           />
         ) : null}
         {config.kind === "logic.json_stringify" ? (

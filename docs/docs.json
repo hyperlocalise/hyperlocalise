@@ -155,6 +155,7 @@
                     "group": "Project management",
                     "pages": [
                       "platform/projects/create-project",
+                      "platform/projects/templates",
                       "platform/projects/settings",
                       "platform/projects/languages",
                       {
@@ -230,6 +231,8 @@
                       "platform/developers/api-overview",
                       "platform/api",
                       "platform/developers/projects-and-queries",
+                      "platform/developers/custom-fields",
+                      "platform/developers/strings-and-key-jobs",
                       "platform/mcp",
                       "platform/developers/mcp-tools",
                       "platform/developers/webhooks",
@@ -544,6 +547,7 @@
                         "root": "changelog",
                         "directory": "accordion",
                         "pages": [
+                          "changelog/v1-13-10",
                           "changelog/v1-13-9",
                           "changelog/v1-13-8",
                           "changelog/v1-13-7",

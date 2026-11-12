@@ -23,6 +23,7 @@ import {
 import { executeCreateObject, executeMergeObjects } from "./object-nodes";
 import { executeSelectPath } from "./select-path-node";
 import { executeJsonParse, executeJsonStringify, executeSchemaValidate } from "./json-nodes";
+import { executeConcatenate, executeTextTemplate } from "./text-nodes";
 
 export function executeLogicVisualWorkflowNode(input: {
   node: CanonicalVisualWorkflowNode;
@@ -162,6 +163,18 @@ export function executeLogicVisualWorkflowNode(input: {
       return executeJsonStringify(node.config.value);
     case "logic.schema_validate":
       return executeSchemaValidate(node.config.value, node.config.schema);
+    case "logic.text_template":
+      return executeTextTemplate({
+        template: node.config.template,
+        placeholders: node.config.placeholders,
+        resolvedConfig: node.config as unknown as Record<string, unknown>,
+      });
+    case "logic.concatenate":
+      return executeConcatenate({
+        segments: node.config.segments,
+        separator: node.config.separator,
+        resolvedConfig: node.config as unknown as Record<string, unknown>,
+      });
     case "logic.for_each": {
       const items = resolveVisualWorkflowCollection(node.config.collection, context);
       return {

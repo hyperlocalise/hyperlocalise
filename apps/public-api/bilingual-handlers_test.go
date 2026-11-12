@@ -111,7 +111,7 @@ func TestBilingualImportRoute(t *testing.T) {
 	t.Run("imports a file", func(t *testing.T) {
 		store := &fakeResourceStore{}
 		store.bilingualCounts = bilingualImportCounts{Matched: 1, Imported: 1, Files: 1}
-		w := sendBilingualForm(t, resourcePrincipal(writeScopes...), store, map[string]string{"locale": "fr", "filePath": "en.json"}, "fixed.csv", csv)
+		w := sendBilingualForm(t, resourcePrincipal(approveScopes...), store, map[string]string{"locale": "fr", "filePath": "en.json"}, "fixed.csv", csv)
 		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 		require.JSONEq(t, `{"import":{"matched":1,"imported":1,"skipped":0,"files":1}}`, w.Body.String())
 		require.Equal(t, "fr", store.bilingualImport.Locale)
@@ -122,14 +122,19 @@ func TestBilingualImportRoute(t *testing.T) {
 
 	t.Run("format field overrides the file name", func(t *testing.T) {
 		store := &fakeResourceStore{}
-		w := sendBilingualForm(t, resourcePrincipal(writeScopes...), store, map[string]string{"locale": "fr", "format": "csv"}, "upload.bin", csv)
+		w := sendBilingualForm(t, resourcePrincipal(approveScopes...), store, map[string]string{"locale": "fr", "format": "csv"}, "upload.bin", csv)
 		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 		require.Nil(t, store.bilingualImport.FilePath)
 	})
 
-	t.Run("requires write scope", func(t *testing.T) {
+	t.Run("requires translations:approve", func(t *testing.T) {
 		w := sendBilingualForm(t, resourcePrincipal(readScopes...), &fakeResourceStore{}, map[string]string{"locale": "fr"}, "fixed.csv", csv)
 		require.Equal(t, http.StatusForbidden, w.Code)
+		for _, role := range []string{"developer", "translator"} {
+			scopes := effectivePermissions([]string{"files:read", "files:write"}, role)
+			w := sendBilingualForm(t, resourcePrincipal(scopes...), &fakeResourceStore{}, map[string]string{"locale": "fr"}, "fixed.csv", csv)
+			require.Equal(t, http.StatusForbidden, w.Code, role)
+		}
 	})
 
 	t.Run("rejects bad forms", func(t *testing.T) {
@@ -146,21 +151,21 @@ func TestBilingualImportRoute(t *testing.T) {
 			{map[string]string{"locale": "fr"}, "fixed.tmx", []byte("<not-tmx"), "invalid_bilingual_file"},
 		}
 		for _, tc := range cases {
-			w := sendBilingualForm(t, resourcePrincipal(writeScopes...), &fakeResourceStore{}, tc.fields, tc.filename, tc.body)
+			w := sendBilingualForm(t, resourcePrincipal(approveScopes...), &fakeResourceStore{}, tc.fields, tc.filename, tc.body)
 			require.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
 			require.Contains(t, w.Body.String(), tc.code)
 		}
 	})
 
 	t.Run("rejects json bodies", func(t *testing.T) {
-		w := sendResource(t, resourcePrincipal(writeScopes...), &fakeResourceStore{}, http.MethodPost, "/v1/projects/project-1/bilingual-file", `{}`)
+		w := sendResource(t, resourcePrincipal(approveScopes...), &fakeResourceStore{}, http.MethodPost, "/v1/projects/project-1/bilingual-file", `{}`)
 		require.Equal(t, http.StatusUnsupportedMediaType, w.Code)
 	})
 
 	t.Run("maps store errors", func(t *testing.T) {
 		store := &fakeResourceStore{}
 		store.bilingualErr = errProjectNotNative
-		w := sendBilingualForm(t, resourcePrincipal(writeScopes...), store, map[string]string{"locale": "fr"}, "fixed.csv", csv)
+		w := sendBilingualForm(t, resourcePrincipal(approveScopes...), store, map[string]string{"locale": "fr"}, "fixed.csv", csv)
 		require.Equal(t, http.StatusConflict, w.Code)
 		require.Contains(t, w.Body.String(), "project_not_native")
 	})
