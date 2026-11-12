@@ -132,6 +132,13 @@ type resourceStore interface {
 	deleteWebhookEndpoint(context.Context, principal, string) error
 	rotateWebhookEndpointSecret(context.Context, principal, string) (string, error)
 	listWebhookDeliveries(context.Context, principal, string, int) ([]webhookDelivery, error)
+	listScreenshots(context.Context, principal, string, screenshotFilters) ([]screenshot, int, error)
+	getScreenshot(context.Context, principal, string, string) (screenshot, error)
+	createScreenshot(context.Context, principal, string, screenshotCreate) (screenshotCreateResult, error)
+	finalizeScreenshot(context.Context, principal, string, string, screenshotFinalize) (screenshot, error)
+	deleteScreenshot(context.Context, principal, string, string) error
+	upsertScreenshotMarkers(context.Context, principal, string, string, []screenshotMarkerInput) ([]screenshotMarker, error)
+	deleteScreenshotMarker(context.Context, principal, string, string, string) error
 }
 
 type postgresStore struct {

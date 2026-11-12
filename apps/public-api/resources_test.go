@@ -115,7 +115,8 @@ func TestOpenAPIDocumentCoversImplementedResources(t *testing.T) {
 		"/health", "/outbound-ip", "/v1/me", "/v1/projects", "/v1/projects/{projectId}", "/v1/queries", "/v1/queries/{queryId}",
 		"/v1/projects/{projectId}/locales", "/v1/projects/{projectId}/strings", "/v1/projects/{projectId}/strings/{stringId}",
 		"/v1/projects/{projectId}/strings/{stringId}/translations", "/v1/projects/{projectId}/strings/{stringId}/translations/{locale}",
-		"/v1/projects/{projectId}/translations", "/v1/glossaries", "/v1/glossaries/{glossaryId}", "/v1/glossaries/{glossaryId}/terms",
+		"/v1/projects/{projectId}/translations", "/v1/projects/{projectId}/screenshots", "/v1/projects/{projectId}/screenshots/{screenshotId}",
+		"/v1/glossaries", "/v1/glossaries/{glossaryId}", "/v1/glossaries/{glossaryId}/terms",
 		"/v1/translation-memories", "/v1/translation-memories/{memoryId}", "/v1/translation-memories/{memoryId}/entries",
 		"/v1/projects/{projectId}/bilingual-file", "/v1/jobs", "/v1/jobs/{jobId}",
 		"/v1/translation-memories/{memoryId}/export", "/v1/glossaries/{glossaryId}/export",
@@ -132,22 +133,27 @@ func TestOpenAPIDocumentCoversImplementedResources(t *testing.T) {
 		"/v1/projects/{projectId}/strings/{stringId}/translations/{locale}": "put",
 		"/v1/projects/{projectId}/bilingual-file":                           "post",
 		"/v1/jobs/{jobId}": "patch",
-		"/v1/projects/{projectId}/strings/bulk-update":         "post",
-		"/v1/projects/{projectId}/translations/approve":        "post",
-		"/v1/projects/{projectId}/translations/send-to-review": "post",
-		"/v1/jobs/{jobId}/strings":                             "delete",
-		"/v1/jobs/{jobId}/locales":                             "post",
-		"/v1/jobs/{jobId}/locales/{locale}":                    "delete",
-		"/v1/projects":                                         "post",
-		"/v1/project-templates":                                "post",
-		"/v1/project-templates/{templateId}":                   "patch",
-		"/v1/webhook-endpoints":                                "post",
-		"/v1/webhook-endpoints/{endpointId}":                   "patch",
-		"/v1/webhook-endpoints/{endpointId}/rotate-secret":     "post",
+		"/v1/projects/{projectId}/strings/bulk-update":                 "post",
+		"/v1/projects/{projectId}/translations/approve":                "post",
+		"/v1/projects/{projectId}/translations/send-to-review":         "post",
+		"/v1/projects/{projectId}/screenshots":                         "post",
+		"/v1/projects/{projectId}/screenshots/{screenshotId}/finalize": "post",
+		"/v1/projects/{projectId}/screenshots/{screenshotId}/markers":  "post",
+		"/v1/jobs/{jobId}/strings":                                     "delete",
+		"/v1/jobs/{jobId}/locales":                                     "post",
+		"/v1/jobs/{jobId}/locales/{locale}":                            "delete",
+		"/v1/projects":                                                 "post",
+		"/v1/project-templates":                                        "post",
+		"/v1/project-templates/{templateId}":                           "patch",
+		"/v1/webhook-endpoints":                                        "post",
+		"/v1/webhook-endpoints/{endpointId}":                           "patch",
+		"/v1/webhook-endpoints/{endpointId}/rotate-secret":             "post",
 	} {
 		require.Contains(t, document.Paths[path], method)
 	}
 	require.Contains(t, document.Paths["/v1/projects/{projectId}/strings/{stringId}"], "delete")
+	require.Contains(t, document.Paths["/v1/projects/{projectId}/screenshots/{screenshotId}"], "delete")
+	require.Contains(t, document.Paths["/v1/projects/{projectId}/screenshots/{screenshotId}/markers/{markerId}"], "delete")
 	require.Contains(t, document.Paths["/v1/webhook-endpoints/{endpointId}"], "delete")
 
 	w := httptest.NewRecorder()

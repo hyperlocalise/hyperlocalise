@@ -27,11 +27,16 @@ All routes are for native projects and use the existing scopes (`strings:read` /
 - `POST /api/v1/jobs` takes `type: "keys"` for native projects, picking keys by `stringIds`, `keys` or `tags` (a tag picks the keys carrying it at that moment), up to 5,000, with the editor's rules for hidden keys, keys in no file and the open-jobs limit. `POST /api/v1/jobs/{jobId}/complete` finishes a task for people with **Mark done**'s rules: reviewers and managers may finish any task, anyone else only a task assigned to them. Both stay in the web app, where jobs are created today and where **Mark done** records its events and its Reports entry. A task created here starts its Reports analysis, as one made in the app does, and stores the project's spelling of its languages.
 - `GET`, `POST` and `DELETE /v1/jobs/{jobId}/strings` list, add and remove a job's keys. `GET /v1/jobs/{jobId}/locales` gives each language's progress over the job's visible keys; progress is worked out when asked for, so a translation sent back to review lowers it at once. `POST /v1/jobs/{jobId}/locales` and `DELETE /v1/jobs/{jobId}/locales/{locale}` add and remove a language. Changes are only allowed while the job is open.
 - The string, batch review and job string and language routes are in the standalone public API service (`apps/public-api`), next to the other string routes.
-- Uploading screenshots and linking them to keys is left to the public API's screenshot routes, built with the Screenshots page as separate work.
+
+### Screenshots
+
+- `GET, POST /v1/projects/{projectId}/screenshots` lists and starts an upload. Create returns a time-limited PUT URL; `POST .../screenshots/{screenshotId}/finalize` verifies the object and marks it ready. `GET` and `DELETE` address one screenshot. Markers live at `POST .../markers` (upsert) and `DELETE .../markers/{markerId}`.
+- Reads need `strings:read`; writes need `strings:write` (the same CAT `canEdit` rule as the editor, not the key-details role). Native projects only. PNG, JPEG and WebP, 1 byte to 10 MB. Markers are optional percent boxes (0–100) that pick a string by `stringId` or `key` (`filePath` when the key exists in more than one file). Figma-synced frames appear with `figmaUrl`; this API does not write Figma fields. The Figma plugin still syncs frames through its internal route.
+- The same `project_visual_context_screenshots` and `project_visual_context_bindings` tables as the Content Editor. Object storage must be configured or writes return `503 screenshot_storage_unavailable`.
 
 ## Consequences
 
-- Bulk update writes the existing `project_strings_updated` activity entry. Batch review and the job string and language routes write none yet; adding an event type touches the activity log contract in two services.
+- Bulk update writes the existing `project_strings_updated` activity entry. Batch review, screenshot and marker writes, and the job string and language routes write none yet; adding an event type touches the activity log contract in two services.
 - Reports misses changes made through the Go routes: strings and languages added to a task are not analysed again, those removed stay in its analysis, and batch approvals are not counted as work on a task, because Reports starts its analysis and counts approvals in the web app. Reports has no customer users yet.
 - The public API applies the app's approve rule as the AI assistant's tools do. The content editor does not check it yet in two places: its approve button, and its bilingual import, which saves rows as approved. Developers and translators can still approve there.
 
