@@ -13,6 +13,7 @@
 import { and, asc, count, eq, gt, inArray, lt, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 import type { MessageFormat } from "@/lib/i18n/message-format";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
@@ -602,8 +603,17 @@ export async function completeTranslationQaScan(input: {
   // no longer finds it. Disabled policy checks were not rechecked, including
   // spelling turned off in policy. Skipped spelling was not rechecked either.
   // A guideline halt means this run did not finish checking, so previous
-  // guideline findings stay open.
+  // guideline findings stay open. Knowledge off is the same: the scan skipped
+  // internalCheck even if the saved policy still has Guidelines enabled.
   const disabledCheckTypes = disabledQaCheckTypes(run.checkPolicy);
+  if (!disabledCheckTypes.includes("guideline")) {
+    const knowledgeEnabled = await resolveWorkspaceKnowledgeFlag({
+      organizationId: input.organizationId,
+    });
+    if (!knowledgeEnabled) {
+      disabledCheckTypes.push("guideline");
+    }
+  }
   await db.execute(sql`update translation_qa_findings old set status = 'resolved', reviewed_at = ${completedAt}
       where old.organization_id = ${input.organizationId} and old.project_id = ${input.projectId}
       and old.run_id <> ${input.runId} and old.status = 'open'

@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
 import type { GuidelineCheckFinding } from "@/lib/go-svc/go-svc-guidelines-api";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
@@ -177,6 +178,10 @@ export async function runScanGuidelineChecks(input: {
   const findings: ScanGuidelineFindingRow[] = [];
 
   if (!input.policy.guideline.enabled || input.alreadyHalted) {
+    return { ok: true, findings };
+  }
+
+  if (!(await resolveWorkspaceKnowledgeFlag({ organizationId: input.organizationId }))) {
     return { ok: true, findings };
   }
 

@@ -234,6 +234,15 @@ export const qaMessages = defineMessages({
     description: "QA review: coverage",
     id: "rC0aFF7mAf",
   },
+<<<<<<< HEAD
+=======
+  coverageHelp: {
+    defaultMessage:
+      "Scans and the editor use the same format, placeholder, ICU, length, spelling, glossary and guideline checks. Warnings flag an issue; errors also block saving and approving in the editor.",
+    description: "QA review: coverageHelp",
+    id: 'tkvPfaR9Sq',
+  },
+>>>>>>> 1940e7547 (fix(qa): gate scan guideline checks on Knowledge entitlement)
   legacy: {
     defaultMessage:
       "This older scan used a limited set of checks. Run a new scan for full coverage.",
