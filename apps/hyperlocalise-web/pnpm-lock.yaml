@@ -429,10 +429,10 @@ importers:
         version: 3.9.1
       '@workos-inc/authkit-nextjs':
         specifier: 4.6.3
-        version: 4.6.3(@workos-inc/node@10.14.0)(next@16.4.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
+        version: 4.6.3(@workos-inc/node@12.2.0)(next@16.4.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
       '@workos-inc/node':
-        specifier: ^10.14.0
-        version: 10.14.0
+        specifier: ^12.0.0
+        version: 12.2.0
       '@workos-inc/widgets':
         specifier: ^1.20.1
         version: 1.20.2(@radix-ui/themes@3.3.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@tanstack/react-query@5.106.1(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -5614,8 +5614,8 @@ packages:
       react: ^18.0 || ^19.0.0
       react-dom: ^18.0 || ^19.0.0
 
-  '@workos-inc/node@10.14.0':
-    resolution: {integrity: sha512-SnY9OHTzTyOmgJQj9+/6x116m+d+zJoQw5e8teNWKUuGe8FOKngVdBXRvZgdFxaL+3UfQbMlp95V67t43VYOWQ==}
+  '@workos-inc/node@12.2.0':
+    resolution: {integrity: sha512-uWzWtPieLqn+juXcIm8YQxh0qokZg0dnjzGm5AHeemiG6VeqzGYc6nlqQ2zw/OI80aYuaPo/ZOURACyQuqYgnA==}
     engines: {node: '>=22.11.0'}
 
   '@workos-inc/widgets@1.20.2':
@@ -16301,10 +16301,10 @@ snapshots:
       ulid: 3.0.2
       zod: 4.5.4
 
-  '@workos-inc/authkit-nextjs@4.6.3(@workos-inc/node@10.14.0)(next@16.4.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)':
+  '@workos-inc/authkit-nextjs@4.6.3(@workos-inc/node@12.2.0)(next@16.4.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)':
     dependencies:
       '@sindresorhus/fnv1a': 3.1.0
-      '@workos-inc/node': 10.14.0
+      '@workos-inc/node': 12.2.0
       iron-session: 8.0.4
       jose: 5.10.0
       next: 16.4.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -16316,7 +16316,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@workos-inc/node@10.14.0': {}
+  '@workos-inc/node@12.2.0': {}
 
   '@workos-inc/widgets@1.20.2(@radix-ui/themes@3.3.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@tanstack/react-query@5.106.1(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
