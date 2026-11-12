@@ -122,3 +122,42 @@ describe("hashPublicJobRequest file jobs", () => {
     expect(hashPublicJobRequest(left)).toBe(hashPublicJobRequest(right));
   });
 });
+
+describe("hashPublicJobRequest key jobs", () => {
+  const keyJob = {
+    type: "keys" as const,
+    projectId: "project_123",
+    keysInput: {
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      keys: ["home.title"],
+    },
+  };
+
+  function parsedKeys(overrides: Record<string, unknown> = {}) {
+    const result = createPublicJobBodySchema.safeParse({ ...keyJob, ...overrides });
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      throw new Error("expected a valid public key job body");
+    }
+    return result.data;
+  }
+
+  it("treats locale case as the same request", () => {
+    expect(
+      hashPublicJobRequest(
+        parsedKeys({
+          keysInput: { ...keyJob.keysInput, sourceLocale: "en-us", targetLocales: ["fr-fr"] },
+        }),
+      ),
+    ).toBe(hashPublicJobRequest(parsedKeys()));
+  });
+
+  it("treats key order as the same request", () => {
+    expect(
+      hashPublicJobRequest(parsedKeys({ keysInput: { ...keyJob.keysInput, keys: ["b", "a"] } })),
+    ).toBe(
+      hashPublicJobRequest(parsedKeys({ keysInput: { ...keyJob.keysInput, keys: ["a", "b"] } })),
+    );
+  });
+});

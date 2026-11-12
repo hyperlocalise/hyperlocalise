@@ -11,5 +11,5 @@ overrides:
   "fast-uri@^3.0.0": "3.1.9"
   qs: "6.17.1"
   "ip-address@^10.0.0": "10.7.6"
-  hono: "4.13.16"
+  hono: "4.13.17"
   "@hono/node-server": "2.1.6"

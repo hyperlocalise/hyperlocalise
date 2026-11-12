@@ -64,7 +64,7 @@ vi.mock("@/lib/providers/adapters/crowdin/crowdin-api", () => ({
   CrowdinApiError: class CrowdinApiError extends Error {
     status: number;
 
-    constructor(status: number, message: string) {
+    constructor(message: string, status: number, _responseBody?: unknown) {
       super(message);
       this.name = "CrowdinApiError";
       this.status = status;
@@ -72,9 +72,13 @@ vi.mock("@/lib/providers/adapters/crowdin/crowdin-api", () => ({
   },
 }));
 
-import { CrowdinApiClient } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import { CrowdinApiClient, CrowdinApiError } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-error";
-import { getTmsProviderLiveProject, tryLoadActiveTmsProviderContext } from "./tms-provider-live";
+import {
+  getTmsProviderLiveCatLabels,
+  getTmsProviderLiveProject,
+  tryLoadActiveTmsProviderContext,
+} from "./tms-provider-live";
 
 const phraseOAuthCredential = {
   id: "credential-1",
@@ -167,5 +171,77 @@ describe("getTmsProviderLiveProject", () => {
     });
     expect(getProject).toHaveBeenCalledWith(42);
     expect(listBranches).toHaveBeenCalledWith(42);
+  });
+});
+
+describe("getTmsProviderLiveCatLabels", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns an empty list for a connected non-Crowdin TMS", async () => {
+    getActiveOrganizationExternalTmsProviderCredentialRowMock.mockResolvedValue({
+      ...crowdinCredential,
+      id: "credential-phrase",
+      providerKind: "phrase",
+      displayName: "Phrase",
+    });
+    resolveExternalTmsSecretMaterialMock.mockResolvedValue("phrase-token");
+
+    await expect(
+      getTmsProviderLiveCatLabels("org-1", "42", { actorUserId: "user-1" }),
+    ).resolves.toEqual([]);
+    expect(CrowdinApiClient).not.toHaveBeenCalled();
+  });
+
+  it("rejects a Crowdin project id that is not numeric", async () => {
+    getActiveOrganizationExternalTmsProviderCredentialRowMock.mockResolvedValue(crowdinCredential);
+    resolveExternalTmsSecretMaterialMock.mockResolvedValue("crowdin-token");
+
+    const promise = getTmsProviderLiveCatLabels("org-1", "not-a-number");
+
+    await expect(promise).rejects.toBeInstanceOf(TmsProviderLiveError);
+    await expect(promise).rejects.toMatchObject({
+      code: "invalid_crowdin_project_or_file_id",
+    });
+    expect(CrowdinApiClient).not.toHaveBeenCalled();
+  });
+
+  it("maps Crowdin 401 to a credential error", async () => {
+    getActiveOrganizationExternalTmsProviderCredentialRowMock.mockResolvedValue(crowdinCredential);
+    resolveExternalTmsSecretMaterialMock.mockResolvedValue("crowdin-token");
+    const listLabels = vi.fn().mockRejectedValue(new CrowdinApiError("Unauthorized", 401, {}));
+    vi.mocked(CrowdinApiClient).mockImplementation(function () {
+      return { listLabels } as never;
+    });
+
+    const promise = getTmsProviderLiveCatLabels("org-1", "42");
+
+    await expect(promise).rejects.toBeInstanceOf(TmsProviderLiveError);
+    await expect(promise).rejects.toMatchObject({
+      code: "crowdin_auth_invalid",
+      message: "Crowdin credentials are invalid.",
+    });
+    expect(listLabels).toHaveBeenCalledWith(42);
+  });
+
+  it("returns Crowdin label ids as strings", async () => {
+    getActiveOrganizationExternalTmsProviderCredentialRowMock.mockResolvedValue(crowdinCredential);
+    resolveExternalTmsSecretMaterialMock.mockResolvedValue("crowdin-token");
+    const listLabels = vi.fn().mockResolvedValue([
+      { id: 3, title: "checkout" },
+      { id: 4, title: "release" },
+    ]);
+    vi.mocked(CrowdinApiClient).mockImplementation(function () {
+      return { listLabels } as never;
+    });
+
+    await expect(
+      getTmsProviderLiveCatLabels("org-1", "42", { actorUserId: "user-1" }),
+    ).resolves.toEqual([
+      { id: "3", title: "checkout" },
+      { id: "4", title: "release" },
+    ]);
+    expect(listLabels).toHaveBeenCalledWith(42);
   });
 });

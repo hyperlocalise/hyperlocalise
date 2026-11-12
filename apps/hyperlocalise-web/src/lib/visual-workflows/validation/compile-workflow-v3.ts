@@ -543,7 +543,9 @@ export function compileVisualWorkflowV3Definition(
       kind: "reference",
       nodeId: source.id,
       path: edge.sourcePortId.split("."),
-      ...(target.config.kind === "logic.merge" || target.config.kind === "logic.coalesce"
+      ...(target.config.kind === "logic.merge" ||
+      target.config.kind === "logic.coalesce" ||
+      targetField?.required === false
         ? { optional: true }
         : {}),
     };
@@ -564,7 +566,9 @@ export function compileVisualWorkflowV3Definition(
       node.config.kind !== "logic.merge_objects" &&
       node.config.kind !== "logic.select_path" &&
       node.config.kind !== "logic.coalesce" &&
-      node.config.kind !== "logic.compare"
+      node.config.kind !== "logic.compare" &&
+      node.config.kind !== "logic.text_template" &&
+      node.config.kind !== "logic.concatenate"
     )
       continue;
 

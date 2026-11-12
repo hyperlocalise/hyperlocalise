@@ -12,12 +12,15 @@
  */
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
+import { getPricingIrisGroupCopy, getPricingIrisModelSummaries } from "./pricing-iris-model-copy";
+import { pricingIrisVendorNames } from "./pricing-iris-models";
 import {
   getPricingCatalogEntries,
   type PricingModelAccess,
-  type PricingModelCopyKey,
   type PricingModelJob,
   type PricingModelProviderId,
+  type PricingModelSurface,
+  type PricingWriterCopyKey,
 } from "./pricing-model-catalog";
 
 export type PricingPlanId = "free" | "starter" | "growth" | "enterprise";
@@ -40,8 +43,29 @@ export type PricingPlan = {
   popular: boolean;
   includesFrom: string | null;
   features: string[];
+  /** Icon key for each entry in `features`, in the same order. */
+  featureIcons: PricingFeatureIcon[];
   cta: PricingPlanCta;
 };
+
+export type PricingFeatureIcon =
+  | "projects"
+  | "seats"
+  | "integrations"
+  | "ai"
+  | "queries"
+  | "credit"
+  | "automations"
+  | "agent-runs"
+  | "translation"
+  | "workflow"
+  | "limits"
+  | "sso"
+  | "sla"
+  | "support"
+  | "security"
+  | "guidelines"
+  | "guideline-checks";
 
 export type PricingMatrixCell =
   | { kind: "check" }
@@ -178,6 +202,7 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           description: "Free plan feature: seat limit",
         }),
       ],
+      featureIcons: ["projects", "seats"],
       cta: { label: startForFree, kind: "signup" },
     },
     {
@@ -229,6 +254,26 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           id: "fnuHA5r7aQ",
           description: "Starter plan feature: included monthly AI credit",
         }),
+        intl.formatMessage({
+          defaultMessage: "20 guideline checks per week",
+          id: "LljPoRBdjK",
+          description: "Starter plan feature: weekly guideline check quota",
+        }),
+        intl.formatMessage({
+          defaultMessage: "Guidelines",
+          id: "l+omfB57gF",
+          description: "Paid plan feature: Guidelines access",
+        }),
+      ],
+      featureIcons: [
+        "integrations",
+        "projects",
+        "seats",
+        "ai",
+        "queries",
+        "credit",
+        "guideline-checks",
+        "guidelines",
       ],
       cta: { label: getStarted, kind: "signup" },
     },
@@ -301,6 +346,30 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           id: "blxqR2KvgQ",
           description: "Growth plan feature: included monthly AI credit",
         }),
+        intl.formatMessage({
+          defaultMessage: "2,000 guideline checks per week",
+          id: "xV9j96h4Sa",
+          description: "Growth plan feature: weekly guideline check quota",
+        }),
+        intl.formatMessage({
+          defaultMessage: "Guidelines",
+          id: "l+omfB57gF",
+          description: "Paid plan feature: Guidelines access",
+        }),
+      ],
+      featureIcons: [
+        "automations",
+        "integrations",
+        "projects",
+        "seats",
+        "agent-runs",
+        "translation",
+        "ai",
+        "workflow",
+        "queries",
+        "credit",
+        "guideline-checks",
+        "guidelines",
       ],
       cta: { label: getStarted, kind: "signup" },
     },
@@ -349,6 +418,7 @@ export function getPricingPlans(locale: string): PricingPlan[] {
           description: "Enterprise plan feature: security review help",
         }),
       ],
+      featureIcons: ["limits", "sso", "sla", "support", "security"],
       cta: {
         label: intl.formatMessage({
           defaultMessage: "Contact Sales",
@@ -525,6 +595,61 @@ export function getPricingMatrixSections(locale: string): PricingMatrixSection[]
             starter: { kind: "check" },
             growth: { kind: "check" },
             enterprise: { kind: "check" },
+          },
+        },
+      ],
+    },
+    {
+      id: "guidelines",
+      title: intl.formatMessage({
+        defaultMessage: "Guidelines",
+        id: "QoE8dVpJFP",
+        description: "Pricing matrix section title for Guidelines",
+      }),
+      description: intl.formatMessage({
+        defaultMessage:
+          "Your brand and style rules, checked against copy and remembered by the agent.",
+        id: "Ck9Q3FTTik",
+        description: "Pricing matrix section description for Guidelines",
+      }),
+      rows: [
+        {
+          id: "guidelines-access",
+          label: intl.formatMessage({
+            defaultMessage: "Guidelines",
+            id: "aD74hNO0Gf",
+            description: "Pricing matrix row label for Guidelines access",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage:
+              "Upload style guides and brand docs for the workspace or a single project.",
+            id: "jR18LljICi",
+            description: "Pricing matrix detail explaining Guidelines",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "check" },
+            growth: { kind: "check" },
+            enterprise: { kind: "check" },
+          },
+        },
+        {
+          id: "guideline-checks",
+          label: intl.formatMessage({
+            defaultMessage: "Guideline checks / week",
+            id: "HVLwZCD46Y",
+            description: "Pricing matrix row label for the weekly guideline check quota",
+          }),
+          detail: intl.formatMessage({
+            defaultMessage: "Check copy against your guidelines before it ships.",
+            id: "V6jqG39WLh",
+            description: "Pricing matrix detail explaining guideline checks",
+          }),
+          cells: {
+            free: { kind: "dash" },
+            starter: { kind: "text", value: "20" },
+            growth: { kind: "text", value: "2,000" },
+            enterprise: { kind: "text", value: custom },
           },
         },
       ],
@@ -783,6 +908,8 @@ export type PricingBrowserModel = {
   billingLabel: string;
   highlight: string | null;
   recommended: boolean;
+  /** Where the model is picked, which sets the label beside its id. */
+  surface: PricingModelSurface;
 };
 
 export type PricingModelFilterOption = {
@@ -806,6 +933,7 @@ export type PricingModelsSectionContent = {
   columnBilling: string;
   useWhenLabel: string;
   modelIdLabel: string;
+  irisModelIdLabel: string;
   models: readonly PricingBrowserModel[];
   emptyRecommendedTitle: string;
   emptyRecommendedBody: string;
@@ -837,6 +965,7 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
   });
 
   const providerNames = {
+    ...pricingIrisVendorNames,
     openai: intl.formatMessage({
       defaultMessage: "OpenAI",
       id: "ebSc/SgRuM",
@@ -851,16 +980,6 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
       defaultMessage: "Google Gemini",
       id: "4I4RDHWJ2Q",
       description: "Google Gemini provider name on the pricing BYOK section",
-    }),
-    fish: intl.formatMessage({
-      defaultMessage: "Fish Audio",
-      id: "p2iBQGftoM",
-      description: "Fish Audio provider name on the pricing page",
-    }),
-    bytedance: intl.formatMessage({
-      defaultMessage: "ByteDance",
-      id: "l//f5K3F+p",
-      description: "ByteDance provider name on the pricing page",
     }),
   } as const satisfies Record<PricingModelProviderId, string>;
 
@@ -1027,82 +1146,13 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
         description: "Situation for Gemini Pro on the pricing page",
       }),
     },
-    voice: {
-      summary: intl.formatMessage({
-        defaultMessage: "Hear how a line sounds",
-        id: "V5Cs48ujmR",
-        description: "Summary for the text to speech model on the pricing page",
-      }),
-      story: intl.formatMessage({
-        defaultMessage:
-          "It reads copy aloud so you can check rhythm and length before a voiceover goes out. Included on paid plans. Usage comes out of your monthly AI credit.",
-        id: "1KKO0Okjmc",
-        description: "Story for the text to speech model on the pricing page",
-      }),
-      useWhen: intl.formatMessage({
-        defaultMessage: "You want to hear the rhythm and length of a line.",
-        id: "YP1eohi/Yy",
-        description: "Situation for the text to speech model on the pricing page",
-      }),
-    },
-    listen: {
-      summary: intl.formatMessage({
-        defaultMessage: "Turn speech into text",
-        id: "RSD6Hb39Fw",
-        description: "Summary for the transcription model on the pricing page",
-      }),
-      story: intl.formatMessage({
-        defaultMessage:
-          "Turn a recording into text your team can review and translate. Included on paid plans. Usage comes out of your monthly AI credit.",
-        id: "O+malJ4pAE",
-        description: "Story for the transcription model on the pricing page",
-      }),
-      useWhen: intl.formatMessage({
-        defaultMessage: "A recording needs to become copy you can localize.",
-        id: "b/ulx7nVXu",
-        description: "Situation for the transcription model on the pricing page",
-      }),
-    },
-    picture: {
-      summary: intl.formatMessage({
-        defaultMessage: "Still images from a short brief",
-        id: "cHYsUGiY4s",
-        description: "Summary for the image model on the pricing page",
-      }),
-      story: intl.formatMessage({
-        defaultMessage:
-          "Describe the picture you need for a campaign or a stand-in visual. Included on paid plans. Usage comes out of your monthly AI credit.",
-        id: "Tr9qQQZ/aQ",
-        description: "Story for the image model on the pricing page",
-      }),
-      useWhen: intl.formatMessage({
-        defaultMessage: "You need an image, not another paragraph.",
-        id: "Ge+3hBBbLV",
-        description: "Situation for the image model on the pricing page",
-      }),
-    },
-    video: {
-      summary: intl.formatMessage({
-        defaultMessage: "Short video from a brief",
-        id: "t1MgIE0AON",
-        description: "Summary for the video model on the pricing page",
-      }),
-      story: intl.formatMessage({
-        defaultMessage:
-          "Describe a short clip when a market needs motion as well as words. Included on paid plans. Usage comes out of your monthly AI credit.",
-        id: "Bqz0aRCBut",
-        description: "Story for the video model on the pricing page",
-      }),
-      useWhen: intl.formatMessage({
-        defaultMessage: "A still image is not enough for the campaign.",
-        id: "pWIlwfK6L5",
-        description: "Situation for the video model on the pricing page",
-      }),
-    },
   } as const satisfies Record<
-    PricingModelCopyKey,
+    PricingWriterCopyKey,
     { summary: string; story: string; useWhen: string }
   >;
+
+  const irisGroupCopy = getPricingIrisGroupCopy(intl);
+  const irisSummaries = getPricingIrisModelSummaries(intl);
 
   const billingLabels = {
     included: includedBilling,
@@ -1117,8 +1167,8 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
     }),
     subcopy: intl.formatMessage({
       defaultMessage:
-        "Paid plans include models for writing, voice, listening, pictures, and video. Those draw from your monthly AI credit. Connect OpenAI, Anthropic, or Gemini when you want a writer billed to that account.",
-      id: "rK02Gg9nl5",
+        "Paid plans include writing models, plus every image, video, voice, and sound model in Iris. Those draw from your monthly AI credit. Connect OpenAI, Anthropic, or Gemini when you want a writer billed to that account.",
+      id: "TYdpmDdWse",
       description: "Supporting copy for the models section on the pricing page",
     }),
     searchLabel: intl.formatMessage({
@@ -1213,6 +1263,14 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
           description: "Filter label for video models on the pricing page",
         }),
       },
+      {
+        id: "sound",
+        label: intl.formatMessage({
+          defaultMessage: "Music & sound",
+          id: "K7nUTSGC5h",
+          description: "Filter label for music and sound effect models on the pricing page",
+        }),
+      },
     ],
     accessOptions: [
       {
@@ -1251,8 +1309,19 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
       id: "9Cdevjsa8b",
       description: "Label for the technical model id in the pricing model detail",
     }),
+    irisModelIdLabel: intl.formatMessage({
+      defaultMessage: "In Iris",
+      id: "4Yjt4O6mA1",
+      description: "Label for the Iris model id in the pricing model detail",
+    }),
     models: getPricingCatalogEntries().map((entry) => {
-      const entryCopy = copy[entry.copyKey];
+      const entryCopy =
+        entry.copy.kind === "writer"
+          ? copy[entry.copy.key]
+          : {
+              ...irisGroupCopy[entry.copy.group],
+              summary: irisSummaries[entry.modelId] ?? "",
+            };
       return {
         modelId: entry.modelId,
         name: entry.name,
@@ -1266,6 +1335,7 @@ export function getPricingModelsSectionContent(locale: string): PricingModelsSec
         billingLabel: billingLabels[entry.access],
         highlight: entry.highlight ? workspaceDefault : null,
         recommended: entry.recommended,
+        surface: entry.surface,
       };
     }),
     emptyRecommendedTitle: intl.formatMessage({

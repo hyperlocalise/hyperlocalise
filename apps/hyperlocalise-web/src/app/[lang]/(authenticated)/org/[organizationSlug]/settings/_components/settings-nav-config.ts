@@ -16,6 +16,7 @@ import { stripAppLocalePrefix } from "@/components/app-shell/navigation-config";
 
 export const settingsNavItemIds = [
   "general",
+  "project-templates",
   "activity-logs",
   "members",
   "integrations",
@@ -58,6 +59,11 @@ export const settingsNavGroups: readonly SettingsNavGroupConfig[] = [
     id: "workspace",
     items: [
       { id: "general", href: "" },
+      {
+        id: "project-templates",
+        href: "project-templates",
+        requiredCapability: "projects:read",
+      },
       {
         id: "activity-logs",
         href: "activity-logs",
@@ -175,6 +181,10 @@ export function resolveActiveSettingsNavItem(
 
   if (normalizedPath === settingsRoot) {
     return "general";
+  }
+
+  if (normalizedPath.startsWith(`${settingsRoot}/project-templates`)) {
+    return "project-templates";
   }
 
   if (normalizedPath.startsWith(`${settingsRoot}/billing`)) {

@@ -25,8 +25,19 @@ import {
 } from "@/api/auth/api-key";
 import { publicApiAuthMiddleware } from "@/api/auth/workos-agent";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { getAccessibleProjectIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
-import { badRequestResponse } from "@/api/response.schema";
+import { isJobMutationAllowed } from "@/api/auth/capability-guards";
+import { hasCapability } from "@/api/auth/policy";
+import {
+  buildAccessibleJobsWhere,
+  getAccessibleProjectIds,
+  hasOrganizationWideProjectAccess,
+} from "@/api/auth/team-access";
+import {
+  badRequestResponse,
+  conflictResponse,
+  forbiddenResponse,
+  notFoundResponse,
+} from "@/api/response.schema";
 import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import { db, schema } from "@/lib/database/client";
 import { insertJobs, updateJobs } from "@/lib/job-change-events/job-writes";
@@ -35,12 +46,22 @@ import {
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
+import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
+import {
+  insertKeyJobKeys,
+  KeyJobSelectionFailure,
+  keyJobInputPayload,
+  keyJobSelectionMessages,
+} from "@/lib/projects/jobs/key-job";
 import {
   ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
 } from "@/lib/file-storage/records";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import { isErr } from "@/lib/primitives/result/results";
+import { markTaskDone } from "@/lib/projects/jobs/mark-task-done";
+import { startTaskAnalysis } from "@/lib/reporting/task-analysis-start";
 import {
   enqueueJobCreatedActivity,
   enqueueJobFailedActivity,
@@ -59,6 +80,7 @@ import {
 import {
   createPublicJobBodySchema,
   hashPublicJobRequest,
+  jobIdParamsSchema,
   publicJobIdempotencyKeySchema,
   type CreatePublicJobBody,
 } from "./public-jobs.schema";
@@ -207,6 +229,17 @@ async function reclaimPublicJobAfterQueueFailure(jobId: string) {
   return updated ?? null;
 }
 
+/**
+ * The project's own spelling of a locale it accepted without regard to case, so a task's
+ * languages match its translations exactly, as tasks made in the app do.
+ */
+function projectLocaleSpelling(projectLocales: string[], locale: string) {
+  const canonical = canonicalizeLocale(locale) ?? locale;
+  return (
+    projectLocales.find((entry) => entry.toLowerCase() === canonical.toLowerCase()) ?? canonical
+  );
+}
+
 /** Finds the workspace member a client names as the job's owner, matching email without case. */
 async function findPublicJobOwner(organizationId: string, email: string) {
   const [owner] = await db
@@ -233,7 +266,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
     kind: string;
     organizationId: string;
     projectId: string;
-    type: CreatePublicJobBody["type"];
+    type: Exclude<CreatePublicJobBody["type"], "keys">;
   }) {
     if (!options.jobQueue) {
       return true;
@@ -275,7 +308,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
     organizationId: string,
     idempotency: PublicJobIdempotency,
   ) {
-    if (isRecoverableQueueFailure(earlier)) {
+    if (payload.type !== "keys" && isRecoverableQueueFailure(earlier)) {
       const claimed = await reclaimPublicJobAfterQueueFailure(earlier.id);
       if (claimed) {
         const enqueued = await enqueueCreatedPublicJob({
@@ -306,228 +339,342 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
     return c.json({ job: publicJobCreateResult(earlier) }, 200);
   }
 
-  return new Hono<{ Variables: ApiKeyAuthVariables }>().use("*", publicApiAuthMiddleware).post(
-    "/",
-    requireApiKeyPermission("jobs:write"),
-    bodyLimit({
-      maxSize: 1024 * 1024, // 1MB
-      onError: (c) => c.json({ error: "payload_too_large" }, 413),
-    }),
-    validateCreateJobBody,
-    async (c) => {
-      const payload = c.req.valid("json");
-      const organizationId = c.var.auth.organization.localOrganizationId;
+  return new Hono<{ Variables: ApiKeyAuthVariables }>()
+    .use("*", publicApiAuthMiddleware)
+    .post(
+      "/",
+      requireApiKeyPermission("jobs:write"),
+      bodyLimit({
+        maxSize: 1024 * 1024, // 1MB
+        onError: (c) => c.json({ error: "payload_too_large" }, 413),
+      }),
+      validateCreateJobBody,
+      async (c) => {
+        const payload = c.req.valid("json");
+        const organizationId = c.var.auth.organization.localOrganizationId;
 
-      let idempotency: PublicJobIdempotency | null = null;
-      const idempotencyKeyHeader = c.req.header("idempotency-key");
-      if (idempotencyKeyHeader !== undefined) {
-        const parsedKey = publicJobIdempotencyKeySchema.safeParse(idempotencyKeyHeader);
-        if (!parsedKey.success) {
-          return invalidIdempotencyKeyResponse(c);
-        }
-        idempotency = { key: parsedKey.data, requestHash: hashPublicJobRequest(payload) };
-      }
-      const projectAccessScope = await resolveApiKeyProjectAccessScope(c.var.auth.teamAccess);
-
-      const project = await getProjectForAccessScope(projectAccessScope, payload.projectId);
-
-      if (!project) {
-        return projectNotFoundResponse(c);
-      }
-
-      // A matching body names the same project, so the access check above covers a replay too.
-      if (idempotency) {
-        const earlier = await findIdempotentPublicJob(organizationId, idempotency);
-        if (earlier?.kind === "reused") {
-          return idempotencyKeyReusedResponse(c);
-        }
-        if (earlier?.kind === "replayed") {
-          return replayIdempotentPublicJob(c, earlier.job, payload, organizationId, idempotency);
-        }
-      }
-
-      const baseInputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
-      const title = payload.title?.trim();
-      const description = payload.description?.trim();
-      // Title and description live in metadata, where the in-app job editor keeps them.
-      const inputPayload =
-        title || description
-          ? {
-              ...baseInputPayload,
-              metadata: {
-                ...baseInputPayload.metadata,
-                ...(title ? { title } : {}),
-                ...(description ? { description } : {}),
-              },
-            }
-          : baseInputPayload;
-
-      const localeValidation = validateJobLocalesAgainstProject(project, {
-        sourceLocale: inputPayload.sourceLocale,
-        targetLocales: inputPayload.targetLocales,
-      });
-      if (isErr(localeValidation)) {
-        return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
-      }
-
-      const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(c, organizationId);
-      if (aiFeaturesDenied) {
-        return aiFeaturesDenied;
-      }
-
-      let ownerUserId: string | null = null;
-      if (payload.ownerEmail) {
-        const owner = await findPublicJobOwner(organizationId, payload.ownerEmail);
-        if (!owner) {
-          return ownerNotFoundResponse(c);
-        }
-        ownerUserId = owner.id;
-      }
-
-      if (payload.type === "file") {
-        const sourceFile = await getStoredFileForJobScope({
-          organizationId,
-          projectId: payload.projectId,
-          fileId: payload.fileInput.sourceFileId,
-        });
-
-        if (
-          !sourceFile ||
-          !canAccessStoredFileWithProjectScope(c.var.auth.teamAccess, projectAccessScope, {
-            organizationId: sourceFile.organizationId,
-            projectId: sourceFile.projectId,
-            createdByUserId: sourceFile.createdByUserId,
-          })
-        ) {
-          return sourceFileNotFoundResponse(c);
-        }
-
-        const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
-        if (!inferredFileFormat) {
-          return unsupportedSourceFileFormatResponse(c);
-        }
-
-        if (inferredFileFormat !== payload.fileInput.fileFormat) {
-          return sourceFileFormatMismatchResponse(c, inferredFileFormat);
-        }
-      }
-
-      const jobId = `job_${randomUUID()}`;
-      let job;
-      try {
-        [job] = await db.transaction(async (tx) => {
-          const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
-            tx,
-            organizationId,
-          );
-          if (isErr(jobBudget)) {
-            throw new OrganizationJobBudgetExceededError(jobBudget.error);
+        let idempotency: PublicJobIdempotency | null = null;
+        const idempotencyKeyHeader = c.req.header("idempotency-key");
+        if (idempotencyKeyHeader !== undefined) {
+          const parsedKey = publicJobIdempotencyKeySchema.safeParse(idempotencyKeyHeader);
+          if (!parsedKey.success) {
+            return invalidIdempotencyKeyResponse(c);
           }
+          idempotency = { key: parsedKey.data, requestHash: hashPublicJobRequest(payload) };
+        }
+        const projectAccessScope = await resolveApiKeyProjectAccessScope(c.var.auth.teamAccess);
 
-          const sourceFileVersion =
-            payload.type === "file"
-              ? await ensureRepositorySourceFileVersionForStoredFile({
-                  db: tx,
-                  organizationId,
-                  projectId: payload.projectId,
-                  fileId: payload.fileInput.sourceFileId,
-                })
-              : null;
+        const project = await getProjectForAccessScope(projectAccessScope, payload.projectId);
 
-          const [createdJob] = await insertJobs(tx, {
-            values: {
-              id: jobId,
-              organizationId,
-              projectId: payload.projectId,
-              kind: "translation",
-              status: "queued",
-              inputPayload,
-              apiKeyId: storedOrganizationApiKeyId(c.var.auth),
-              ownerUserId,
-              assigneeType: ownerUserId ? "user" : null,
-              dueAt: payload.dueAt ? new Date(payload.dueAt) : null,
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+        if (payload.type === "keys" && project.source !== "native") {
+          return c.json(
+            {
+              error: "project_not_native",
+              message: "Tasks made of strings are for native projects",
             },
-            returning: "all",
-          });
-
-          if (idempotency) {
-            // A concurrent request with the same key waits here until the first commits, then
-            // finds the key taken and rolls back its own job.
-            const [claimed] = await tx
-              .insert(schema.publicJobIdempotencyKeys)
-              .values({
-                organizationId,
-                key: idempotency.key,
-                requestHash: idempotency.requestHash,
-                jobId,
-              })
-              .onConflictDoNothing()
-              .returning({ jobId: schema.publicJobIdempotencyKeys.jobId });
-            if (!claimed) {
-              throw new PublicJobIdempotencyConflictError();
-            }
-          }
-
-          const [details] = await tx
-            .insert(schema.translationJobDetails)
-            .values({
-              jobId,
-              type: payload.type,
-              sourceFileVersionId: sourceFileVersion?.id ?? null,
-            })
-            .returning();
-
-          const usageEventResult = await reserveUsageEvent({
-            db: tx,
-            organizationId,
-            featureId: usageFeatureIds.translationJobs,
-            operationKey: `job:${jobId}:translation_jobs`,
-            source: "translation_job_create",
-            jobId,
-            quantity: 1,
-          });
-          if (isErr(usageEventResult)) {
-            throw new Error(formatUsageControlError(usageEventResult.error));
-          }
-
-          return [{ ...createdJob, type: details.type }];
-        });
-      } catch (error) {
-        if (error instanceof OrganizationJobBudgetExceededError) {
-          return c.json({ error: error.budgetError.code, message: error.budgetError.message }, 429);
+            409,
+          );
         }
-        if (error instanceof PublicJobIdempotencyConflictError && idempotency) {
+
+        // A matching body names the same project, so the access check above covers a replay too.
+        if (idempotency) {
           const earlier = await findIdempotentPublicJob(organizationId, idempotency);
+          if (earlier?.kind === "reused") {
+            return idempotencyKeyReusedResponse(c);
+          }
           if (earlier?.kind === "replayed") {
             return replayIdempotentPublicJob(c, earlier.job, payload, organizationId, idempotency);
           }
-          return idempotencyKeyReusedResponse(c);
         }
-        throw error;
-      }
 
-      await enqueueJobCreatedActivity({
-        ...publicApiActivityActor(c.var.auth),
-        jobId: job.id,
-        kind: job.kind,
-        organizationId,
-        projectId: job.projectId,
-        status: job.status,
-      });
+        const baseInputPayload =
+          payload.type === "string"
+            ? payload.stringInput
+            : payload.type === "file"
+              ? payload.fileInput
+              : keyJobInputPayload({
+                  ...payload.keysInput,
+                  sourceLocale: projectLocaleSpelling(
+                    project.sourceLocale ? [project.sourceLocale] : [],
+                    payload.keysInput.sourceLocale,
+                  ),
+                  targetLocales: payload.keysInput.targetLocales.map((locale) =>
+                    projectLocaleSpelling(project.targetLocales, locale),
+                  ),
+                });
+        // A key job is a task for people: no AI call, no usage, never queued.
+        const isKeyJob = payload.type === "keys";
+        const title = payload.title?.trim();
+        const description = payload.description?.trim();
+        // Title and description live in metadata, where the in-app job editor keeps them.
+        const inputPayload =
+          title || description
+            ? {
+                ...baseInputPayload,
+                metadata: {
+                  ...baseInputPayload.metadata,
+                  ...(title ? { title } : {}),
+                  ...(description ? { description } : {}),
+                },
+              }
+            : baseInputPayload;
 
-      const enqueued = await enqueueCreatedPublicJob({
-        actor: publicApiActivityActor(c.var.auth),
-        jobId: job.id,
-        kind: job.kind,
-        organizationId,
-        projectId: payload.projectId,
-        type: payload.type,
-      });
-      if (!enqueued) {
-        return jobQueueUnavailableResponse(c);
-      }
+        const localeValidation = validateJobLocalesAgainstProject(project, {
+          sourceLocale: inputPayload.sourceLocale,
+          targetLocales: inputPayload.targetLocales,
+        });
+        if (isErr(localeValidation)) {
+          return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
+        }
 
-      return c.json({ job: { id: job.id, type: payload.type, status: "queued" } }, 201);
-    },
-  );
+        const aiFeaturesDenied = isKeyJob
+          ? null
+          : await rejectIfAiFeaturesUnavailable(c, organizationId);
+        if (aiFeaturesDenied) {
+          return aiFeaturesDenied;
+        }
+
+        let ownerUserId: string | null = null;
+        if (payload.ownerEmail) {
+          const owner = await findPublicJobOwner(organizationId, payload.ownerEmail);
+          if (!owner) {
+            return ownerNotFoundResponse(c);
+          }
+          ownerUserId = owner.id;
+        }
+
+        if (payload.type === "file") {
+          const sourceFile = await getStoredFileForJobScope({
+            organizationId,
+            projectId: payload.projectId,
+            fileId: payload.fileInput.sourceFileId,
+          });
+
+          if (
+            !sourceFile ||
+            !canAccessStoredFileWithProjectScope(c.var.auth.teamAccess, projectAccessScope, {
+              organizationId: sourceFile.organizationId,
+              projectId: sourceFile.projectId,
+              createdByUserId: sourceFile.createdByUserId,
+            })
+          ) {
+            return sourceFileNotFoundResponse(c);
+          }
+
+          const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
+          if (!inferredFileFormat) {
+            return unsupportedSourceFileFormatResponse(c);
+          }
+
+          if (inferredFileFormat !== payload.fileInput.fileFormat) {
+            return sourceFileFormatMismatchResponse(c, inferredFileFormat);
+          }
+        }
+
+        const jobId = `job_${randomUUID()}`;
+        let job;
+        try {
+          [job] = await db.transaction(async (tx) => {
+            const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
+              tx,
+              organizationId,
+              { isKeyJob },
+            );
+            if (isErr(jobBudget)) {
+              throw new OrganizationJobBudgetExceededError(jobBudget.error);
+            }
+
+            const sourceFileVersion =
+              payload.type === "file"
+                ? await ensureRepositorySourceFileVersionForStoredFile({
+                    db: tx,
+                    organizationId,
+                    projectId: payload.projectId,
+                    fileId: payload.fileInput.sourceFileId,
+                  })
+                : null;
+
+            const [createdJob] = await insertJobs(tx, {
+              values: {
+                id: jobId,
+                organizationId,
+                projectId: payload.projectId,
+                kind: isKeyJob ? "proofread" : "translation",
+                status: isKeyJob ? "waiting_for_review" : "queued",
+                inputPayload,
+                apiKeyId: storedOrganizationApiKeyId(c.var.auth),
+                ownerUserId,
+                assigneeType: ownerUserId ? "user" : null,
+                dueAt: payload.dueAt ? new Date(payload.dueAt) : null,
+              },
+              returning: "all",
+            });
+
+            if (idempotency) {
+              // A concurrent request with the same key waits here until the first commits, then
+              // finds the key taken and rolls back its own job.
+              const [claimed] = await tx
+                .insert(schema.publicJobIdempotencyKeys)
+                .values({
+                  organizationId,
+                  key: idempotency.key,
+                  requestHash: idempotency.requestHash,
+                  jobId,
+                })
+                .onConflictDoNothing()
+                .returning({ jobId: schema.publicJobIdempotencyKeys.jobId });
+              if (!claimed) {
+                throw new PublicJobIdempotencyConflictError();
+              }
+            }
+
+            const [details] = await tx
+              .insert(schema.translationJobDetails)
+              .values({
+                jobId,
+                type: payload.type,
+                sourceFileVersionId: sourceFileVersion?.id ?? null,
+              })
+              .returning();
+
+            if (payload.type === "keys") {
+              const linked = await insertKeyJobKeys(tx, {
+                organizationId,
+                projectId: payload.projectId,
+                jobId,
+                selection: payload.keysInput,
+              });
+              if (isErr(linked)) {
+                throw new KeyJobSelectionFailure(linked.error);
+              }
+              return [{ ...createdJob, type: details.type }];
+            }
+
+            const usageEventResult = await reserveUsageEvent({
+              db: tx,
+              organizationId,
+              featureId: usageFeatureIds.translationJobs,
+              operationKey: `job:${jobId}:translation_jobs`,
+              source: "translation_job_create",
+              jobId,
+              quantity: 1,
+            });
+            if (isErr(usageEventResult)) {
+              throw new Error(formatUsageControlError(usageEventResult.error));
+            }
+
+            return [{ ...createdJob, type: details.type }];
+          });
+        } catch (error) {
+          if (error instanceof OrganizationJobBudgetExceededError) {
+            return c.json(
+              { error: error.budgetError.code, message: error.budgetError.message },
+              429,
+            );
+          }
+          if (error instanceof KeyJobSelectionFailure) {
+            const { code } = error.selectionError;
+            return badRequestResponse(c, code, keyJobSelectionMessages[code]);
+          }
+          if (error instanceof PublicJobIdempotencyConflictError && idempotency) {
+            const earlier = await findIdempotentPublicJob(organizationId, idempotency);
+            if (earlier?.kind === "replayed") {
+              return replayIdempotentPublicJob(
+                c,
+                earlier.job,
+                payload,
+                organizationId,
+                idempotency,
+              );
+            }
+            return idempotencyKeyReusedResponse(c);
+          }
+          throw error;
+        }
+
+        await enqueueJobCreatedActivity({
+          ...publicApiActivityActor(c.var.auth),
+          jobId: job.id,
+          kind: job.kind,
+          organizationId,
+          projectId: job.projectId,
+          status: job.status,
+        });
+
+        if (payload.type === "keys") {
+          // A task for people runs no agent, so Reports records its strings now, as in the app.
+          await startTaskAnalysis({
+            organizationId,
+            projectId: payload.projectId,
+            jobId: job.id,
+            step: "review",
+            sourceLocale: inputPayload.sourceLocale,
+            targetLocales: inputPayload.targetLocales,
+            repositorySourceFileId: null,
+          });
+          return c.json(
+            { job: { id: job.id, type: payload.type, status: "waiting_for_review" } },
+            201,
+          );
+        }
+
+        const enqueued = await enqueueCreatedPublicJob({
+          actor: publicApiActivityActor(c.var.auth),
+          jobId: job.id,
+          kind: job.kind,
+          organizationId,
+          projectId: payload.projectId,
+          type: payload.type,
+        });
+        if (!enqueued) {
+          return jobQueueUnavailableResponse(c);
+        }
+
+        return c.json({ job: { id: job.id, type: payload.type, status: "queued" } }, 201);
+      },
+    )
+    .post(
+      "/:jobId/complete",
+      requireApiKeyPermission("jobs:write"),
+      validator("param", (value, c) => {
+        const parsed = jobIdParamsSchema.safeParse(value);
+        return parsed.success ? parsed.data : notFoundResponse(c, "job_not_found", "Job not found");
+      }),
+      async (c) => {
+        const teamAccess = c.var.auth.teamAccess;
+        const role = teamAccess.organization.membership.role;
+        if (!isJobMutationAllowed(role)) {
+          return forbiddenResponse(c);
+        }
+        // The same rules as Mark done in the app: reviewers and managers finish any task for
+        // people, anyone else only a task assigned to them.
+        const done = await markTaskDone({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          jobId: c.req.valid("param").jobId,
+          actorUserId: teamAccess.user.localUserId,
+          actorMayFinishAnyTask: hasCapability(role, "reviews:approve"),
+          accessWhere: await buildAccessibleJobsWhere(teamAccess),
+        });
+        if (isErr(done)) {
+          switch (done.error.code) {
+            case "job_not_found":
+              return notFoundResponse(c, "job_not_found", "Job not found");
+            case "not_task_assignee":
+              return forbiddenResponse(c);
+            case "job_action_unavailable":
+              return conflictResponse(
+                c,
+                "job_action_unavailable",
+                "Only an open task for people can be completed",
+              );
+            default:
+              return assertNever(done.error);
+          }
+        }
+        return c.json({ job: { id: done.value.id, status: "succeeded" } }, 200);
+      },
+    );
 }

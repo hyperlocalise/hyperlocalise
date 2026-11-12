@@ -10,6 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import {
+  auditElapsedMs,
+  auditStatusCounts,
+  redactAuditErrorText,
+} from "@/lib/localisation-audit/audit-log";
 import { runLocalisationAuditCredits } from "@/lib/localisation-audit/credits/runner";
 import { pageLocale } from "@/lib/localisation-audit/credits/shared";
 import {
@@ -42,6 +47,12 @@ import type {
 } from "@/lib/localisation-audit/types";
 import { LOCALISATION_AUDIT_USER_AGENT_NAME } from "@/lib/localisation-audit/user-agent";
 
+// `@/lib/log` must load inside the step: a static import crashes the workflow sandbox.
+async function stepLogger(bindings: Record<string, string | number>) {
+  const { createLogger } = await import("@/lib/log");
+  return createLogger("localisation-deep-audit-step").child(bindings);
+}
+
 const DEEP_AUDIT_SITEMAP_LIMITS = {
   maxLocalizedUrls: 50,
   maxNestedSitemaps: 20,
@@ -66,14 +77,21 @@ function toPageInsert(
 export async function prepareDeepAuditStep(input: { runId: string }) {
   "use step";
 
+  const log = await stepLogger({ runId: input.runId });
   const found = await findDeepAuditRunWithDomain(input.runId);
   if (!found) {
+    log.warn("deep audit prepare: run not found");
     return { ok: false as const, code: "deep_audit_not_found" as const };
   }
   if (found.run.status !== "queued") {
+    log.info("deep audit prepare: run not queued", { status: found.run.status });
     return { ok: false as const, code: "deep_audit_not_queued" as const };
   }
   if (found.domain.status !== "verified") {
+    log.info("deep audit prepare: domain not verified", {
+      linkedDomainId: found.run.linkedDomainId,
+      domainStatus: found.domain.status,
+    });
     await failDeepAudit({
       runId: input.runId,
       errorCode: "linked_domain_not_verified",
@@ -82,8 +100,14 @@ export async function prepareDeepAuditStep(input: { runId: string }) {
     return { ok: false as const, code: "linked_domain_not_verified" as const };
   }
   if (!(await markDeepAuditCrawling(input.runId))) {
+    log.info("deep audit prepare: could not mark crawling");
     return { ok: false as const, code: "deep_audit_not_queued" as const };
   }
+  log.info("deep audit prepare: crawling", {
+    organizationId: found.run.organizationId,
+    linkedDomainId: found.run.linkedDomainId,
+    pageLimit: found.run.pageLimit,
+  });
   return {
     ok: true as const,
     organizationId: found.run.organizationId,
@@ -116,22 +140,49 @@ export async function discoverDeepAuditStep(input: {
   ]);
   const { createAuditPageRenderer } = await import("@/lib/localisation-audit/audit-page-renderer");
 
+  const log = await stepLogger({ runId: input.runId, organizationId: input.organizationId });
+  const startedAt = performance.now();
   const renderer = await createAuditPageRenderer();
+  const rendererKind = renderer.kind ?? "custom";
   let home: LocalisationAuditCrawledPage | null = null;
+  let sitemap: Awaited<ReturnType<typeof collectSitemap>>;
   try {
     const rendered = (await renderer.render([input.sourceUrl]))[0];
     if (!rendered) {
+      log.warn("deep audit discover: homepage did not render", {
+        rendererKind,
+        durationMs: auditElapsedMs(startedAt),
+      });
       return { ok: false as const, code: "crawl_failed" as const };
     }
-    if (detectLocalisationAuditCrawlBlock(rendered.status, rendered.html)) {
+    const blockedReason = detectLocalisationAuditCrawlBlock(rendered.status, rendered.html);
+    log.info("deep audit discover: homepage rendered", {
+      rendererKind,
+      status: rendered.status,
+      blockedReason,
+      redirected: rendered.url !== rendered.requestedUrl,
+      durationMs: auditElapsedMs(startedAt),
+    });
+    if (blockedReason) {
+      // The sandbox sends HyperlocaliseAuditBot; a block there may only mean Tilion was unavailable.
+      log.warn("deep audit discover: homepage blocked", {
+        rendererKind,
+        status: rendered.status,
+        blockedReason,
+        sentAuditBotUserAgent: rendererKind === "sandbox",
+      });
       return { ok: false as const, code: "crawl_blocked" as const };
     }
     home = pageFromRendered(rendered);
+    // Fetch robots.txt and sitemaps through the same browser session when it can.
+    sitemap = await collectSitemap(input.origin, DEEP_AUDIT_SITEMAP_LIMITS, {
+      fetchText: renderer.fetchText?.bind(renderer),
+    });
   } finally {
     await renderer.close().catch(() => undefined);
   }
 
-  const { signal, siteUrls } = await collectSitemap(input.origin, DEEP_AUDIT_SITEMAP_LIMITS);
+  const { signal, siteUrls } = sitemap;
   const homeLinks = [
     ...home.hreflang.map((entry) => entry.href),
     ...home.anchors.map((anchor) => anchor.href),
@@ -153,9 +204,20 @@ export async function discoverDeepAuditStep(input: {
     pages: [toPageInsert(input.sourceUrl, home)],
   });
   if (!stored.accepted) {
+    log.info("deep audit discover: cancelled");
     return { ok: false as const, code: "cancelled" as const };
   }
   await setDeepAuditPagesDiscovered(input.runId, urls.length + 1);
+  log.info("deep audit discover: page set chosen", {
+    rendererKind,
+    homeLinkCount: homeLinks.length,
+    sitemapSiteUrlCount: siteUrls.length,
+    selectedCount: urls.length,
+    robotsFound: signal.robotsFound,
+    sitemapCount: signal.sitemapUrls.length,
+    localizedUrlCount: signal.localizedUrls.length,
+    durationMs: auditElapsedMs(startedAt),
+  });
 
   return { ok: true as const, urls, sitemap: signal };
 }
@@ -171,7 +233,10 @@ export async function renderDeepAuditBatchStep(input: {
 }) {
   "use step";
 
+  const log = await stepLogger({ runId: input.runId, organizationId: input.organizationId });
+  const startedAt = performance.now();
   if ((await getDeepAuditStatus(input.runId)) !== "crawling") {
+    log.info("deep audit batch: run no longer crawling", { urlCount: input.urls.length });
     return { cancelled: true as const, rendered: 0, blocked: 0, alternates: [] as string[] };
   }
 
@@ -183,11 +248,15 @@ export async function renderDeepAuditBatchStep(input: {
     ]);
 
   const renderer = await createAuditPageRenderer();
+  const rendererKind = renderer.kind ?? "custom";
   const inserts: DeepAuditPageInsert[] = [];
   const renderedPages: LocalisationAuditCrawledPage[] = [];
   let blocked = 0;
+  let renderedCount = 0;
   try {
-    for (const rendered of await renderer.render(input.urls)) {
+    const batch = await renderer.render(input.urls);
+    renderedCount = batch.length;
+    for (const rendered of batch) {
       if (detectLocalisationAuditCrawlBlock(rendered.status, rendered.html)) {
         blocked += 1;
         continue;
@@ -204,6 +273,16 @@ export async function renderDeepAuditBatchStep(input: {
     runId: input.runId,
     organizationId: input.organizationId,
     pages: inserts,
+  });
+  log.info("deep audit batch rendered", {
+    rendererKind,
+    urlCount: input.urls.length,
+    renderedCount,
+    notRenderedCount: input.urls.length - renderedCount,
+    blockedCount: blocked,
+    statusCounts: auditStatusCounts(renderedPages),
+    storedAccepted: stored.accepted,
+    durationMs: auditElapsedMs(startedAt),
   });
   if (!stored.accepted) {
     return { cancelled: true as const, rendered: 0, blocked, alternates: [] as string[] };
@@ -244,7 +323,10 @@ export async function scoreDeepAuditStep(input: {
 }) {
   "use step";
 
+  const log = await stepLogger({ runId: input.runId, organizationId: input.organizationId });
+  const startedAt = performance.now();
   if (!(await markDeepAuditScoring(input.runId))) {
+    log.info("deep audit score: run not crawling");
     return { ok: false as const, code: "deep_audit_not_crawling" as const };
   }
 
@@ -257,6 +339,11 @@ export async function scoreDeepAuditStep(input: {
   const crawledPages = unique.map((row) => row.artifact);
 
   if (!hasLocalisationAuditSuccessfulPage(crawledPages)) {
+    log.warn("deep audit score: no successful page", {
+      storedPageCount: stored.length,
+      uniquePageCount: unique.length,
+      statusCounts: auditStatusCounts(crawledPages),
+    });
     await failDeepAudit({
       runId: input.runId,
       errorCode: "crawl_failed",
@@ -308,8 +395,18 @@ export async function scoreDeepAuditStep(input: {
     findings: records,
   });
   if (!completed) {
+    log.info("deep audit score: run not scoring");
     return { ok: false as const, code: "deep_audit_not_scoring" as const };
   }
+  log.info("deep audit completed", {
+    score,
+    uniquePageCount: unique.length,
+    statusCounts: auditStatusCounts(crawledPages),
+    detectedLocaleCount: scored.detectedLocales.length,
+    findingsCount: records.length,
+    hasPreviousRun: Boolean(previous),
+    durationMs: auditElapsedMs(startedAt),
+  });
   return { ok: true as const, score, findingsCount: records.length };
 }
 
@@ -324,6 +421,10 @@ export async function failDeepAuditStep(input: {
   errorMessage?: string;
 }) {
   "use step";
+  (await stepLogger({ runId: input.runId })).error("deep audit failed", {
+    errorCode: input.errorCode,
+    errorMessage: input.errorMessage ? redactAuditErrorText(input.errorMessage) : undefined,
+  });
   await failDeepAudit({
     runId: input.runId,
     errorCode: input.errorCode,

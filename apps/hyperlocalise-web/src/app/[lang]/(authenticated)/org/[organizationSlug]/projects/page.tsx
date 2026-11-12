@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { ProjectsPageContent } from "./_components/projects-page-content";
 
@@ -28,5 +29,13 @@ export default function ProjectsPage({
 
 async function ProjectsPageLoader({ params }: { params: Promise<{ organizationSlug: string }> }) {
   const { organizationSlug } = await params;
-  return <ProjectsPageContent organizationSlug={organizationSlug} />;
+  const auth = await requireAppAuthContext({ organizationSlug });
+  // go-svc lets admins and localization managers manage templates; workspace:update is the web
+  // capability those two roles share.
+  return (
+    <ProjectsPageContent
+      organizationSlug={organizationSlug}
+      canManageTemplates={auth.capabilities.includes("workspace:update")}
+    />
+  );
 }

@@ -57,6 +57,8 @@ export type VisualCatalogType =
   | "logic.json_parse"
   | "logic.json_stringify"
   | "logic.schema_validate"
+  | "logic.text_template"
+  | "logic.concatenate"
   | "ai.agent"
   | "logic.for_each"
   | "logic.array_transform"
@@ -72,6 +74,27 @@ export type VisualCatalogType =
   | "flow.call_workflow";
 
 export type VisualCatalogCategory = "trigger" | "action" | "localization" | "logic" | "ai" | "flow";
+
+export type VisualTextMissingBehavior = "required" | "optional" | "fallback";
+
+export type VisualTextTemplatePlaceholder = {
+  id: string;
+  name: string;
+  type: WorkflowValueType;
+  missingBehavior: VisualTextMissingBehavior;
+  fallback?: string;
+};
+
+export type VisualConcatenateSegment =
+  | { id: string; kind: "literal"; value: string }
+  | {
+      id: string;
+      kind: "input";
+      name: string;
+      type: WorkflowValueType;
+      missingBehavior: VisualTextMissingBehavior;
+      fallback?: string;
+    };
 
 /** Who works on a human task: translating from scratch, post-editing a draft, or proofreading. */
 export type VisualTaskStep = "translate" | "edit" | "proofread";
@@ -443,6 +466,16 @@ export type VisualNodeConfig =
   | { kind: "logic.json_parse"; text: string }
   | { kind: "logic.json_stringify"; value: unknown }
   | { kind: "logic.schema_validate"; value: unknown; schema: Record<string, unknown> }
+  | {
+      kind: "logic.text_template";
+      template: string;
+      placeholders: VisualTextTemplatePlaceholder[];
+    }
+  | {
+      kind: "logic.concatenate";
+      segments: VisualConcatenateSegment[];
+      separator: string;
+    }
   | { kind: "ai.agent"; prompt: string; onError?: VisualNodeErrorBehavior }
   | { kind: "logic.for_each"; collection: string }
   | {

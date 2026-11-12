@@ -14,6 +14,8 @@ import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
 
+import { auditElapsedMs } from "./audit-log";
+
 import type { HtmlPageRenderer } from "./crawl-renderer";
 
 const logger = createLogger("localisation-audit-page-renderer");
@@ -24,15 +26,26 @@ const logger = createLogger("localisation-audit-page-renderer");
  * start a session.
  */
 export async function createAuditPageRenderer(): Promise<HtmlPageRenderer> {
-  if (env.TILION_API_KEY) {
+  if (!env.TILION_API_KEY) {
+    logger.info("tilion api key not set, rendering audit pages in sandbox");
+  } else {
     const { createTilionAuditBrowserSession } = await import("./tilion-browser");
+    const startedAt = performance.now();
     const tilion = await createTilionAuditBrowserSession({ apiKey: env.TILION_API_KEY });
     if (!isErr(tilion)) {
+      logger.info("tilion audit browser ready", { durationMs: auditElapsedMs(startedAt) });
       return tilion.value;
     }
+    const error = tilion.error;
     logger.warn("tilion audit browser unavailable, falling back to sandbox", {
-      code: tilion.error.code,
-      status: "status" in tilion.error ? tilion.error.status : undefined,
+      code: error.code,
+      status: "status" in error ? error.status : undefined,
+      stage: "stage" in error ? error.stage : undefined,
+      tilionSessionId: "sessionId" in error ? error.sessionId : undefined,
+      errorName: "detail" in error ? error.detail?.name : undefined,
+      errorMessage: "detail" in error ? error.detail?.message : undefined,
+      errorCauseCode: "detail" in error ? error.detail?.causeCode : undefined,
+      durationMs: auditElapsedMs(startedAt),
     });
   }
 
