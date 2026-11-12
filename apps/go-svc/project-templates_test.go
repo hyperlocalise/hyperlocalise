@@ -55,11 +55,11 @@ func TestProjectTemplateCreateAndApply(t *testing.T) {
 	memoryID, glossaryID := seedTemplateResources(t, scope, "zh-CN")
 
 	tmpl := createTemplate(t, api, scope, map[string]any{
-		"name":                               "WEEX UI strings",
+		"name":                               "App UI strings",
 		"sourceLocale":                       "zh_CN",
 		"targetLocales":                      []string{"en-US", "es-419", "az", "en-us"},
-		"projectDescription":                 "Request from Lark",
-		"translationContext":                 "Crypto exchange UI",
+		"projectDescription":                 "Request from the intake form",
+		"translationContext":                 "Product UI, formal tone",
 		"sourceTextEditable":                 true,
 		"approvedTranslationsOnSourceChange": "needs_review",
 		"memoryIds":                          []string{memoryID},
@@ -72,7 +72,7 @@ func TestProjectTemplateCreateAndApply(t *testing.T) {
 
 	list := projectMutationRequest(api, scope, http.MethodGet, scope.OrgPath("/project-templates"), nil)
 	require.Equal(t, http.StatusOK, list.Code, list.Body.String())
-	require.Contains(t, list.Body.String(), "WEEX UI strings")
+	require.Contains(t, list.Body.String(), "App UI strings")
 
 	rec := projectMutationRequest(api, scope, http.MethodPost, scope.OrgPath("/projects"), map[string]any{
 		"name":          "REQ-1042 Futures page",
@@ -84,8 +84,8 @@ func TestProjectTemplateCreateAndApply(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &project))
 	require.Equal(t, "zh-CN", *project.Project.SourceLocale)
 	require.Equal(t, []string{"en-US", "vi-VN"}, project.Project.TargetLocales, "request locales override the template")
-	require.Equal(t, "Request from Lark", project.Project.Description)
-	require.Equal(t, "Crypto exchange UI", project.Project.TranslationContext)
+	require.Equal(t, "Request from the intake form", project.Project.Description)
+	require.Equal(t, "Product UI, formal tone", project.Project.TranslationContext)
 
 	ctx := t.Context()
 	var editable bool

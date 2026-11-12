@@ -47,8 +47,8 @@ export const projectTemplateDialogMessages = defineMessages({
     description: "Label for the project template description field",
   },
   descriptionPlaceholder: {
-    defaultMessage: "Product UI requests from the Lark form",
-    id: "vtZoNZj4T3",
+    defaultMessage: "Product UI requests from the intake form",
+    id: "/ZCPIo8OYx",
     description: "Placeholder for the project template description field",
   },
   teamLabel: {

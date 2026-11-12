@@ -78,7 +78,7 @@ func TestProjectTemplateRoutes(t *testing.T) {
 	t.Run("creates from a project with overrides", func(t *testing.T) {
 		store := &fakeResourceStore{}
 		w := sendResource(t, resourcePrincipal(templateManagerScopes...), store, http.MethodPost, "/v1/project-templates",
-			`{"name":"WEEX","fromProjectId":" project_1 ","teamId":null,"targetLocales":["es-419"]}`)
+			`{"name":"App UI","fromProjectId":" project_1 ","teamId":null,"targetLocales":["es-419"]}`)
 		require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 		require.Equal(t, "project_1", *store.fromProjectID)
 		require.True(t, store.templateBody.TeamID.Set)

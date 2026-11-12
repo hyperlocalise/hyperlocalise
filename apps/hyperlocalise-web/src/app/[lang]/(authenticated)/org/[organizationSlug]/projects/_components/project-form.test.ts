@@ -280,8 +280,8 @@ describe("applyProjectTemplate", () => {
     id: "8a3c2f0e-1111-4c4c-9d9d-000000000001",
     sourceLocale: "zh-CN",
     targetLocales: ["en-US", "es-419"],
-    projectDescription: "Lark request",
-    translationContext: "Crypto exchange UI",
+    projectDescription: "Intake request",
+    translationContext: "Product UI, formal tone",
   };
 
   it("fills locales and text from the template and keeps the typed name", () => {
@@ -302,8 +302,8 @@ describe("applyProjectTemplate", () => {
       templateId: template.id,
       sourceLocale: "zh-CN",
       targetLocales: ["en-US", "es-419"],
-      description: "Lark request",
-      translationContext: "Crypto exchange UI",
+      description: "Intake request",
+      translationContext: "Product UI, formal tone",
     });
     expect(toProjectPayload(values, { mode: "create" })).toMatchObject({
       templateId: template.id,
