@@ -47,6 +47,7 @@ export function projectFileCatQueryKey(input: {
   offset: number;
   sourcePaths?: string | null;
   grouped?: boolean;
+  branch?: string | null;
 }) {
   return [
     "project-file-content-editor-queue",
@@ -65,6 +66,7 @@ export function projectFileCatQueryKey(input: {
     input.offset,
     input.sourcePaths ?? null,
     input.grouped ?? false,
+    input.branch ?? null,
   ] as const;
 }
 
@@ -83,6 +85,7 @@ export function projectFileCatBaseQueryKey(input: {
   limit: number;
   sourcePaths?: string | null;
   grouped?: boolean;
+  branch?: string | null;
 }) {
   return [
     "project-file-content-editor-queue",
@@ -100,10 +103,11 @@ export function projectFileCatBaseQueryKey(input: {
     input.limit,
     input.sourcePaths ?? null,
     input.grouped ?? false,
+    input.branch ?? null,
   ] as const;
 }
 
-const CAT_QUEUE_BASE_QUERY_KEY_LENGTH = 15;
+const CAT_QUEUE_BASE_QUERY_KEY_LENGTH = 16;
 
 function contentEditorQueuePlaceholderIdentity(key: readonly unknown[]) {
   if (
@@ -113,7 +117,18 @@ function contentEditorQueuePlaceholderIdentity(key: readonly unknown[]) {
     return null;
   }
 
-  return [key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[13], key[14]] as const;
+  return [
+    key[0],
+    key[1],
+    key[2],
+    key[3],
+    key[4],
+    key[5],
+    key[6],
+    key[13],
+    key[14],
+    key[15],
+  ] as const;
 }
 
 /**
@@ -161,6 +176,7 @@ export async function fetchProjectFileContentEditorQueuePage(input: {
   sortBucket?: number;
   sortBucketOffset?: number;
   sourcePaths?: string | null;
+  branch?: string | null;
   intl: ContentEditorFormatMessageIntl;
   signal?: AbortSignal;
   goSvcClient?: GoSvcClient;
@@ -189,6 +205,7 @@ export async function fetchProjectFileContentEditorQueuePage(input: {
             ? { queueFilterQualifier: input.queueFilterQualifier }
             : {}),
           ...(input.queueAdvanced ? { queueAdvanced: input.queueAdvanced } : {}),
+          ...(input.branch ? { branch: input.branch } : {}),
           offset: input.offset,
           limit: input.limit,
         },
@@ -229,6 +246,7 @@ export async function fetchProjectFileContentEditorQueuePage(input: {
         ...(input.phraseScanSkip != null ? { phraseScanSkip: input.phraseScanSkip } : {}),
         ...(input.sortBucket != null ? { sortBucket: input.sortBucket } : {}),
         ...(input.sortBucketOffset != null ? { sortBucketOffset: input.sortBucketOffset } : {}),
+        ...(input.branch ? { branch: input.branch } : {}),
       },
     },
     { init: { signal: input.signal } },

@@ -149,6 +149,7 @@ export function useContentEditorSegmentQuery(input: {
   sourcePaths?: string | null;
   /** Native only: one row per identical source string. */
   grouped?: boolean;
+  branch?: string | null;
   goSvcClient?: GoSvcClient;
   projectSource?: ContentEditorProjectSource | null;
 }) {
@@ -229,8 +230,10 @@ export function useContentEditorSegmentQuery(input: {
         limit,
         sourcePaths: input.sourcePaths,
         grouped: input.grouped,
+        branch: input.branch,
       }),
     [
+      input.branch,
       input.grouped,
       debouncedSearch,
       input.organizationSlug,
@@ -314,6 +317,7 @@ export function useContentEditorSegmentQuery(input: {
         offset: pageParam.offset,
         ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
         ...(input.grouped ? { grouped: "true" as const } : {}),
+        ...(input.branch ? { branch: input.branch } : {}),
       };
       if (input.goSvcClient && useGoSvcCat && !providerFallback.current.has(input.projectId)) {
         try {
@@ -350,6 +354,7 @@ export function useContentEditorSegmentQuery(input: {
         sortBucket: pageParam.sortBucket,
         sortBucketOffset: pageParam.sortBucketOffset,
         sourcePaths: input.sourcePaths,
+        branch: input.branch,
         intl,
       });
     },
@@ -431,8 +436,10 @@ export function useContentEditorSegmentQuery(input: {
         offset: 0,
         sourcePaths: input.sourcePaths,
         grouped: input.grouped,
+        branch: input.branch,
       }),
     [
+      input.branch,
       input.grouped,
       debouncedSearch,
       input.organizationSlug,

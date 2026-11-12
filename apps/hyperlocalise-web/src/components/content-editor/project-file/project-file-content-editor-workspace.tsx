@@ -188,6 +188,7 @@ export function ProjectFileContentEditorWorkspace({
   initialQueueFilterQualifier,
   initialQueueAdvanced,
   sourcePathsFilter = null,
+  branch = null,
   layout = "default",
   className,
   pageNavigationGuardRef,
@@ -214,6 +215,7 @@ export function ProjectFileContentEditorWorkspace({
   initialQueueFilterQualifier?: string;
   initialQueueAdvanced?: ContentEditorAdvancedQueueFilter;
   sourcePathsFilter?: string | null;
+  branch?: string | null;
   layout?: "default" | "fullscreen";
   className?: string;
   pageNavigationGuardRef?: ContentEditorPageNavigationGuardRef;
@@ -365,6 +367,7 @@ export function ProjectFileContentEditorWorkspace({
     projectSource,
     sourcePaths: sourcePathsFilter,
     grouped: isGrouped,
+    branch,
   });
 
   useContentEditorWorkspaceQuerySync({

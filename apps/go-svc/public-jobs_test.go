@@ -123,7 +123,7 @@ func mustPublicJobSourceVersion(t *testing.T, scope *testenv.Scope, projectID, s
 	require.NoError(t, scope.Pool.QueryRow(t.Context(), `
         insert into repository_source_files (organization_id, project_id, source_path)
         values ($1, $2, $3)
-        on conflict (project_id, source_path) do update set updated_at=now()
+        on conflict (project_id, branch_name, source_path) do update set updated_at=now()
         returning id`, scope.OrganizationID, projectID, sourcePath).Scan(&sourceFileID))
 	var versionID string
 	require.NoError(t, scope.Pool.QueryRow(t.Context(), `

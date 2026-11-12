@@ -79,3 +79,18 @@ export const HiddenWhenEmpty: Story = {
     await expect(canvas.queryByText("Branch")).not.toBeInTheDocument();
   },
 };
+
+export const NativeWithoutAllBranches: Story = {
+  args: {
+    allowAllBranches: false,
+    selectedBranch: "main",
+    branches: [
+      { name: "main", title: null },
+      { name: "feature-checkout", title: "Feature checkout" },
+    ],
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("combobox")).toHaveTextContent("main");
+    await expect(canvas.queryByText("All branches")).not.toBeInTheDocument();
+  },
+};
