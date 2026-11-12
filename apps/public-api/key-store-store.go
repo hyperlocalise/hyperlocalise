@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/keymeta"
 	"github.com/jackc/pgx/v5"
@@ -125,9 +126,15 @@ const (
 func (s *postgresStore) reviewTranslations(ctx context.Context, actor principal, projectID string, sel stringSelector, locales []string, change reviewChange) (int, error) {
 	moved := 0
 	err := s.withNativeProject(ctx, actor, projectID, func(tx pgx.Tx, scope projectScope) error {
-		for _, locale := range locales {
-			if !contains(scope.TargetLocales, locale) {
-				return errLocaleNotInProject
+		resolved := locales
+		if len(locales) > 0 {
+			resolved = make([]string, len(locales))
+			for i, locale := range locales {
+				spelling, ok := localeIn(scope.TargetLocales, locale)
+				if !ok {
+					return errLocaleNotInProject
+				}
+				resolved[i] = spelling
 			}
 		}
 		where := newSQLFilter("k.organization_id = $1 AND k.project_id = $2", actor.OrganizationID, scope.ID)
@@ -136,8 +143,8 @@ func (s *postgresStore) reviewTranslations(ctx context.Context, actor principal,
 		if err != nil {
 			return err
 		}
-		if locales == nil {
-			locales = []string{}
+		if resolved == nil {
+			resolved = []string{}
 		}
 		from := `t.status = 'approved'`
 		set := `status = 'needs_review', reviewed_by_user_id = NULL, reviewed_at = NULL`
@@ -157,7 +164,7 @@ func (s *postgresStore) reviewTranslations(ctx context.Context, actor principal,
 					AND l.external_string_id = t.translation_key_id::text AND l.target_locale = t.target_locale
 			)`
 		count, err := moveTranslations(ctx, tx, match, set,
-			actor.OrganizationID, scope.ID, keyIDs, locales, actor.UserID)
+			actor.OrganizationID, scope.ID, keyIDs, resolved, actor.UserID)
 		if err != nil {
 			return fmt.Errorf("review translations: %w", err)
 		}
@@ -289,9 +296,12 @@ func (s *postgresStore) removeJobStrings(ctx context.Context, actor principal, j
 		sel.apply(where)
 		where.args = append(where.args, scope.JobID)
 		n := len(where.args)
+		// Start from the job's keys (at most 5,000) so a wide tag does not scan the project.
 		tag, err := tx.Exec(ctx, fmt.Sprintf(`DELETE FROM translation_job_keys jk
-			USING project_translation_keys k
-			WHERE jk.job_id = $%d AND jk.translation_key_id = k.id AND %s`, n, where.sql()), where.args...)
+			WHERE jk.job_id = $%d AND EXISTS (
+				SELECT 1 FROM project_translation_keys k
+				WHERE k.id = jk.translation_key_id AND %s
+			)`, n, where.sql()), where.args...)
 		if err != nil {
 			return fmt.Errorf("remove job strings: %w", err)
 		}
@@ -353,9 +363,10 @@ func keyJobProgress(ctx context.Context, tx pgx.Tx, scope keyJobScope) ([]jobLoc
 	})
 }
 
-func (s *postgresStore) addJobLocale(ctx context.Context, actor principal, jobID, locale string) ([]jobLocaleProgress, error) {
+func (s *postgresStore) addJobLocale(ctx context.Context, actor principal, jobID, raw string) ([]jobLocaleProgress, error) {
 	return s.changeJobLocales(ctx, actor, jobID, func(scope keyJobScope, project projectScope) ([]string, error) {
-		if !contains(project.TargetLocales, locale) {
+		locale, ok := localeIn(project.TargetLocales, raw)
+		if !ok {
 			return nil, errLocaleNotInProject
 		}
 		if contains(scope.TargetLocales, locale) {
@@ -368,9 +379,10 @@ func (s *postgresStore) addJobLocale(ctx context.Context, actor principal, jobID
 	})
 }
 
-func (s *postgresStore) removeJobLocale(ctx context.Context, actor principal, jobID, locale string) ([]jobLocaleProgress, error) {
+func (s *postgresStore) removeJobLocale(ctx context.Context, actor principal, jobID, raw string) ([]jobLocaleProgress, error) {
 	return s.changeJobLocales(ctx, actor, jobID, func(scope keyJobScope, _ projectScope) ([]string, error) {
-		if !contains(scope.TargetLocales, locale) {
+		locale, ok := localeIn(scope.TargetLocales, raw)
+		if !ok {
 			return nil, errKeyJobLocaleNotIncluded
 		}
 		if len(scope.TargetLocales) == 1 {
@@ -384,6 +396,22 @@ func (s *postgresStore) removeJobLocale(ctx context.Context, actor principal, jo
 		}
 		return kept, nil
 	})
+}
+
+// localeIn returns the spelling of raw in locales. Job create stores the project's spelling;
+// this matches "en-us" to "en-US" the same way.
+func localeIn(locales []string, raw string) (string, bool) {
+	canonical, ok := canonicalLocale(raw)
+	needle := raw
+	if ok {
+		needle = canonical
+	}
+	for _, locale := range locales {
+		if strings.EqualFold(locale, needle) || strings.EqualFold(locale, raw) {
+			return locale, true
+		}
+	}
+	return "", false
 }
 
 func (s *postgresStore) changeJobLocales(ctx context.Context, actor principal, jobID string, change func(keyJobScope, projectScope) ([]string, error)) ([]jobLocaleProgress, error) {

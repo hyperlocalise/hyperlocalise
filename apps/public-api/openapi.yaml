@@ -1639,7 +1639,7 @@ components:
       pattern: "^[A-Za-z0-9_-]{1,64}$"
     StringSelection:
       type: object
-      description: Pick strings one way only. `keys` match in any file; `tags` pick strings carrying every tag. Bulk update and batch review refuse a selection matching more than 1,000 strings (`too_many_strings`).
+      description: Pick strings one way only. `keys` match in any file; `tags` pick strings carrying every tag. Bulk update and batch review refuse a selection matching more than 1,000 strings (`too_many_strings`). Adding strings to a key job refuses more than 5,000.
       properties:
         stringIds: { type: array, maxItems: 1000, items: { type: string, format: uuid } }
         keys: { type: array, maxItems: 1000, items: { type: string, maxLength: 1000 } }

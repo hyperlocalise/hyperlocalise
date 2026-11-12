@@ -135,6 +135,11 @@ func TestReviewTranslationsDB(t *testing.T) {
 
 	_, err = f.store.reviewTranslations(ctx, f.actor, f.project, stringSelector{Keys: []string{"a"}}, []string{"ja"}, reviewApprove)
 	require.ErrorIs(t, err, errLocaleNotInProject)
+
+	approved, err = f.store.reviewTranslations(ctx, f.actor, f.project, stringSelector{Keys: []string{"a"}}, []string{"FR"}, reviewApprove)
+	require.NoError(t, err)
+	require.Equal(t, 1, approved)
+	require.Equal(t, "approved", f.status(t, a.ID, "fr"))
 }
 
 func TestKeyJobsDB(t *testing.T) {
@@ -195,4 +200,53 @@ func TestKeyJobsDB(t *testing.T) {
 
 	_, err = f.store.jobLocales(ctx, f.actor, "job_missing")
 	require.ErrorIs(t, err, errJobNotFound)
+}
+
+func TestRemoveJobStringsIgnoresUnselectedProjectMatches(t *testing.T) {
+	f := newDBFixture(t)
+	ctx := t.Context()
+	f.sourceFile(t, "en.json")
+	keep := f.createString(t, "en.json", "keep", "Keep", nil)
+	tagged := f.createString(t, "en.json", "tagged", "Tagged", nil)
+	f.exec(t, `UPDATE project_translation_keys SET tags = '{wide}' WHERE id = $1`, tagged.ID)
+	f.exec(t, `INSERT INTO project_translation_keys (organization_id, project_id, key, source_text, normalized_source_text, tags)
+		SELECT $1, $2, 'wide.' || n, 'x', 'x', '{wide}' FROM generate_series(1, $3::int) n`,
+		f.actor.OrganizationID, f.project, maxSelectedStrings+1)
+	jobID := f.keyJob(t, `["fr"]`, keep.ID, tagged.ID)
+
+	removed, err := f.store.removeJobStrings(ctx, f.actor, jobID, stringSelector{Tags: []string{"wide"}})
+	require.NoError(t, err)
+	require.Equal(t, 1, removed)
+	items, total, err := f.store.listJobStrings(ctx, f.actor, jobID, 10, 0)
+	require.NoError(t, err)
+	require.Equal(t, 1, total)
+	require.Equal(t, keep.ID, items[0].ID)
+}
+
+func TestJobLocaleMatchesProjectSpelling(t *testing.T) {
+	f := newDBFixture(t)
+	ctx := t.Context()
+	f.sourceFile(t, "en.json")
+	a := f.createString(t, "en.json", "a", "A", nil)
+	jobID := f.keyJob(t, `["fr"]`, a.ID)
+
+	locales, err := f.store.addJobLocale(ctx, f.actor, jobID, "DE")
+	require.NoError(t, err)
+	require.Equal(t, []string{"fr", "de"}, []string{locales[0].Locale, locales[1].Locale})
+
+	locales, err = f.store.removeJobLocale(ctx, f.actor, jobID, "FR")
+	require.NoError(t, err)
+	require.Equal(t, "de", locales[0].Locale)
+}
+
+func TestLocaleIn(t *testing.T) {
+	locales := []string{"en-US", "fr"}
+	spelling, ok := localeIn(locales, "en-us")
+	require.True(t, ok)
+	require.Equal(t, "en-US", spelling)
+	spelling, ok = localeIn(locales, "FR")
+	require.True(t, ok)
+	require.Equal(t, "fr", spelling)
+	_, ok = localeIn(locales, "de")
+	require.False(t, ok)
 }

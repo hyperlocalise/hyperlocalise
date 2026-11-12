@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -116,6 +119,20 @@ func TestStringsBulkUpdateRoute(t *testing.T) {
 			w := sendResource(t, keyDetailsPrincipal(role), &fakeResourceStore{}, http.MethodPost, target, `{"keys":["a"],"addTags":["x"]}`)
 			require.Equal(t, http.StatusForbidden, w.Code, role)
 		}
+	})
+
+	t.Run("accepts a selection larger than the default JSON body", func(t *testing.T) {
+		keys := make([]string, maxSelectedStrings)
+		for i := range keys {
+			keys[i] = fmt.Sprintf("%s-%d", strings.Repeat("k", 280), i)
+		}
+		payload, err := json.Marshal(map[string]any{"keys": keys, "addTags": []string{"x"}})
+		require.NoError(t, err)
+		require.Greater(t, len(payload), maxRequestBodyBytes)
+		store := &fakeResourceStore{}
+		w := sendResource(t, keyDetailsPrincipal("developer"), store, http.MethodPost, target, string(payload))
+		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+		require.Len(t, store.bulk.Select.Keys, maxSelectedStrings)
 	})
 }
 

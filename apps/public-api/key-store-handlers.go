@@ -93,7 +93,7 @@ func (s apiServer) projectStringsBulkUpdate(w http.ResponseWriter, r *http.Reque
 		RemoveTags []string       `json:"removeTags"`
 		DesignURL  optionalString `json:"designUrl"`
 	}
-	if !decodeJSONBody(w, r, &body) {
+	if !decodeJSONBodyLimit(w, r, &body, maxStringBatchBodyBytes) {
 		return
 	}
 	sel, valid := body.selector(true)
@@ -154,7 +154,7 @@ func (s apiServer) reviewTranslations(w http.ResponseWriter, r *http.Request, ch
 		selectorBody
 		Locales []string `json:"locales"`
 	}
-	if !decodeJSONBody(w, r, &body) {
+	if !decodeJSONBodyLimit(w, r, &body, maxStringBatchBodyBytes) {
 		return
 	}
 	sel, valid := body.selector(true)
@@ -215,7 +215,7 @@ func (s apiServer) jobStrings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body selectorBody
-	if !decodeJSONBody(w, r, &body) {
+	if !decodeJSONBodyLimit(w, r, &body, maxStringBatchBodyBytes) {
 		return
 	}
 	sel, valid := body.selector(true)
