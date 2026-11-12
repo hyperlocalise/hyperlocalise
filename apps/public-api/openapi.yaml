@@ -2911,7 +2911,7 @@ components:
         updatedAt: { type: string, format: date-time }
     Job:
       type: object
-      required: [id, projectId, kind, type, status, createdAt, updatedAt, completedAt, lastError, title, description, dueAt, ownerEmail, outputFiles]
+      required: [id, projectId, kind, type, status, createdAt, updatedAt, completedAt, lastError, title, description, dueAt, ownerEmail, outputFiles, sourceFile, sourceLocale, targetLocales]
       properties:
         id: { type: string }
         projectId: { type: [string, "null"] }
@@ -2936,6 +2936,20 @@ components:
               fileId: { type: string }
               locale: { type: string }
               filename: { type: string }
+        sourceFile:
+          type: [object, "null"]
+          description: >-
+            The file the job translates or reviews. `null` for jobs without a file, such as key
+            jobs.
+          required: [fileId, path, branch]
+          properties:
+            fileId: { type: string, description: "Stored file id, as the `/v1/files` routes use." }
+            path: { type: [string, "null"], description: "The file's path in the project; `null` when it has none." }
+            branch: { type: [string, "null"], description: "The project version branch the file belongs to; `null` when it has no path." }
+        sourceLocale: { type: [string, "null"] }
+        targetLocales:
+          type: [array, "null"]
+          items: { type: string }
     JobResponse:
       type: object
       required: [job]
