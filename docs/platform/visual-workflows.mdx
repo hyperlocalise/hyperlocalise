@@ -86,6 +86,43 @@ Use a **Webhook** trigger when another system should start the workflow with an 
 
 The endpoint accepts bodies up to 256 KiB and responds with `202` when a run is queued. Duplicate deliveries with the same idempotency key return the original run id. Webhook-triggered workflows are not reusable with **Call workflow** (that contract requires a **Manual** trigger).
 
+## Send reviewed translations to another project
+
+To [translate through another language first](/platform/projects/files#translate-through-another-language-first) without sending each file by hand, send a file to the second project when its review task is done:
+
+1. **Job changed**: choose the first project, for example the one with Chinese source files. Set **Changes** to **Status changed**, **Job kinds** to **Proofread** and **New status** to **Succeeded**. Leave **Changes** on **Status changed**: with other changes, editing a finished task's title or due date would start the workflow again.
+2. **Use translation as source**: leave **Job ID** as `{{ trigger.jobId }}` and choose the second project in **Send to project**. Its source language must be the in-between language, such as `en-US`.
+3. **Publish** and keep the workflow **Active**.
+
+When a reviewer selects **Mark done** on the task, the run starts within a minute and sends the task's file to the project to send to, as **Use translation as source…** on **Files** does. Create the tasks with an **Assign task** step as **Proofread** tasks, for example in a **Source upload** workflow that machine translates each new file and assigns a **Proofread** task in the in-between language. **Post-edit** tasks cannot be marked done, so they never start this workflow.
+
+The step sends Word and Excel files on the project's default branch only, and never replaces a file in the project to send to that it did not send.
+
+When a person must act before the file can go, the step fails. With **If this step fails** on **Stop workflow**, the run shows as failed: fix the cause, then retry the run from its history. With **Error branch**, connect the step's error path to **Notify Slack** or **Send email** with `{{ nodes.<step id>.error.message }}`. With **Error branch** or **Continue workflow**, the run counts as handled and cannot be retried, so once the cause is fixed, send the file with **Use translation as source…** on **Files**. To try the error path with **Test workflow**, set this step's test data to fail first.
+
+| Error | What to do |
+| --- | --- |
+| `translations_not_approved` | The task was marked done while some strings had no approved translation. Approve them, then retry the run or send the file from **Files**. |
+| `destination_file_replaced` | The project to send to has a file at this path that this file did not send. Send the file once with **Use translation as source…** on **Files** to replace it. |
+| `destination_branch_protected` | The project to send to has a protected default branch. Unprotect it, then retry the run or send the file from **Files**. |
+| `source_file_not_ready`, `source_file_read_failed` | A newer upload of the file is still being read, or could not be read. Retry once it is read, or upload it again. |
+| `file_reads_differently`, `file_cannot_be_written` | The file cannot be sent as it is; see [Files](/platform/projects/files#translate-through-another-language-first). |
+
+A workflow cannot be published while the step has no **Job ID** or no **Send to project**. The step also fails when the task or a project no longer exists, or either project's files are kept in a connected TMS. The trigger needs the first project: with **Any project**, a finished task in any other project that translates into the in-between language would be sent too, so the workflow cannot be published that way. To send finished tasks from every such project on purpose, tick **Send tasks from any project** on **Use translation as source**; tasks in other languages then end with `task_in_other_language`. Building or storing the file can also fail; retry the run.
+
+When there is nothing to send, the step succeeds with `sent` set to `false`, and `reason` and `message` say why:
+
+| `reason` | What it means |
+| --- | --- |
+| `already_sent` | The project to send to already has this file with these translations. |
+| `sent_from_destination` | The file's content came from the project to send to, so it is not sent back. |
+| `task_has_no_file`, `task_in_other_language` | The task is not about one file, or not in the source language of the project to send to. A project to send to whose source language is none of the task's languages also ends here, so check it if every run says this. |
+| `source_file_not_found` | The task's file was removed from the project. |
+| `unsupported_file_format`, `no_strings` | Not a Word or Excel file, or a file with no strings. |
+| `not_on_default_branch` | The file is on another branch of the project; only the default branch is sent. |
+
+Each finished task sends its file once. A translation changed after the send is not sent again by itself: the file shows **Changed since sent** on **Files**, and **Use translation as source…** sends it again. In the second project, a file the workflow sent reads **Sent here automatically from** the first project.
+
 ## Pause for a reviewer
 
 **Human approval** pauses the run until an authorized reviewer decides. Configure a reviewer (a person or a team), optional prompt text, and a deadline. The reviewer opens the request from **Inbox** and chooses **Approve**, **Reject**, or **Request changes**. If nobody decides before the deadline, the request expires and the error branch can continue. Wire the decision into later steps; do not treat a paused run as failed.
