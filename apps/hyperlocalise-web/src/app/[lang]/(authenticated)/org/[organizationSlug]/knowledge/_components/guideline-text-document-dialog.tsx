@@ -17,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { MarkdownEditor } from "@/components/markdown-editor/markdown-editor";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,7 +30,6 @@ import {
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
 import type { GuidelineDocument } from "@/lib/go-svc/go-svc-guidelines-api";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
@@ -42,6 +42,7 @@ import {
   GUIDELINE_TEMPLATE_CONTENT,
   GUIDELINE_TEMPLATE_TITLE,
 } from "./guideline-text-document-template";
+import { KnowledgeUploadSection } from "./knowledge-upload-section";
 
 const TITLE_MAX_LENGTH = 200;
 const CONTENT_MAX_LENGTH = 50_000;
@@ -67,7 +68,7 @@ function documentLocales(document: GuidelineDocument): string[] {
 }
 
 /**
- * Creates a guideline from typed markdown or edits title and markdown content.
+ * Creates a guideline from typed content or edits title and body.
  * Locales and project scope are chosen on the org upload page (create) or on
  * the document detail page (assignments); this dialog only handles the .md body.
  */
@@ -98,24 +99,31 @@ export function GuidelineTextDocumentDialog({
   const editing = document != null;
   const [title, setTitle] = useState(document?.title ?? "");
   const [content, setContent] = useState("");
+  const [editorEpoch, setEditorEpoch] = useState(0);
+  const [replacementFile, setReplacementFile] = useState<File | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [contentError, setContentError] = useState<string | null>(null);
 
   const contentSyncedForRef = useRef<string | null>(null);
 
+  const documentIsText = document?.contentType?.startsWith("text/") ?? false;
   const contentQuery = useQuery({
     queryKey: ["guideline-document-content", organizationSlug, projectId, document?.id],
-    enabled: open && editing && !loading,
+    enabled: open && editing && documentIsText && !loading,
     queryFn: ({ signal }) =>
       client.guidelines.getDocument(organizationSlug, document!.id, projectId, { signal }),
   });
   const loadedContent = contentQuery.data?.content ?? "";
-  const contentEditable = !editing || (document?.contentType?.startsWith("text/") ?? false);
+  const contentEditable = replacementFile == null && (!editing || documentIsText);
+  const selectedFile =
+    replacementFile ?? (document ? { name: document.filename, size: document.byteSize } : null);
 
   useEffect(() => {
     if (open) {
       setTitle(document?.title ?? "");
       setContent("");
+      setEditorEpoch(0);
+      setReplacementFile(null);
       setTitleError(null);
       setContentError(null);
       contentSyncedForRef.current = null;
@@ -138,8 +146,24 @@ export function GuidelineTextDocumentDialog({
       const isGlobal = document!.isGlobal ?? false;
       const titleChanged = trimmedTitle !== document!.title;
       const contentChanged =
-        contentEditable && contentQuery.data != null && content !== loadedContent;
-      if (contentChanged) {
+        !replacementFile &&
+        contentEditable &&
+        contentQuery.data != null &&
+        content !== loadedContent;
+      if (replacementFile) {
+        await client.guidelines.replaceDocument(
+          organizationSlug,
+          document!.id,
+          {
+            file: replacementFile,
+            filename: replacementFile.name,
+            title: trimmedTitle,
+            locales,
+            isGlobal,
+          },
+          projectId,
+        );
+      } else if (contentChanged) {
         const file = markdownFile(trimmedTitle, content);
         await client.guidelines.replaceDocument(
           organizationSlug,
@@ -185,7 +209,7 @@ export function GuidelineTextDocumentDialog({
     } else {
       setTitleError(null);
     }
-    if (!contentEditable) {
+    if (replacementFile || !contentEditable) {
       setContentError(null);
     } else if (!content.trim()) {
       setContentError(intl.formatMessage(messages.contentRequired));
@@ -196,7 +220,9 @@ export function GuidelineTextDocumentDialog({
     }
     const titleOk = !!trimmedTitle && trimmedTitle.length <= TITLE_MAX_LENGTH;
     const contentOk =
-      !contentEditable || (!!content.trim() && content.length <= CONTENT_MAX_LENGTH);
+      replacementFile != null ||
+      !contentEditable ||
+      (!!content.trim() && content.length <= CONTENT_MAX_LENGTH);
     return titleOk && contentOk;
   };
 
@@ -224,10 +250,11 @@ export function GuidelineTextDocumentDialog({
   };
 
   const pending = uploadDocument.isPending || saveEdit.isPending;
-  const loadingContent = editing && contentQuery.isPending;
+  const loadingContent = editing && contentEditable && contentQuery.isPending;
 
   const applyTemplate = () => {
     setContent(GUIDELINE_TEMPLATE_CONTENT);
+    setEditorEpoch((epoch) => epoch + 1);
     setContentError(null);
     if (!title.trim()) {
       setTitle(GUIDELINE_TEMPLATE_TITLE);
@@ -237,8 +264,8 @@ export function GuidelineTextDocumentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[min(90dvh,48rem)] flex-col overflow-hidden sm:max-w-4xl">
+        <DialogHeader className="shrink-0">
           <DialogTitle>
             <FormattedMessage {...(editing ? messages.editTitle : messages.createTitle)} />
           </DialogTitle>
@@ -248,7 +275,7 @@ export function GuidelineTextDocumentDialog({
             />
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4">
+        <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-2">
           <Field className="gap-1.5">
             <FieldLabel htmlFor="guideline-text-title">
               <FormattedMessage {...messages.titleLabel} />
@@ -262,8 +289,17 @@ export function GuidelineTextDocumentDialog({
             />
             {titleError ? <FieldError>{titleError}</FieldError> : null}
           </Field>
+          {editing && selectedFile ? (
+            <KnowledgeUploadSection
+              showTitle={false}
+              allowRemove={false}
+              className="space-y-3"
+              selectedFile={selectedFile}
+              onFilesSelected={(files) => setReplacementFile(files[0] ?? null)}
+            />
+          ) : null}
           {contentEditable ? (
-            <Field className="gap-1.5">
+            <Field className="min-h-0 gap-1.5">
               <div className="flex items-center justify-between gap-2">
                 <FieldLabel htmlFor="guideline-text-content">
                   <FormattedMessage {...messages.contentLabel} />
@@ -283,13 +319,18 @@ export function GuidelineTextDocumentDialog({
               {loadingContent ? (
                 <Skeleton className="h-48 w-full" />
               ) : (
-                <Textarea
+                <MarkdownEditor
+                  key={editorEpoch}
                   id="guideline-text-content"
                   value={content}
-                  rows={12}
-                  className="min-h-48 max-h-[min(32rem,45vh)] overflow-y-auto"
-                  onChange={(event) => setContent(event.target.value)}
+                  onChange={setContent}
+                  onInitialContent={setContent}
                   disabled={pending}
+                  placeholder={intl.formatMessage(messages.contentPlaceholder)}
+                  ariaLabel={intl.formatMessage(messages.contentLabel)}
+                  chrome="default"
+                  imageUpload={{ organizationSlug, projectId }}
+                  className="min-h-48"
                 />
               )}
               {contentQuery.isError ? (
@@ -301,14 +342,14 @@ export function GuidelineTextDocumentDialog({
             </Field>
           ) : null}
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             <FormattedMessage {...messages.cancel} />
           </Button>
           <Button
             type="button"
             onClick={handleSave}
-            disabled={pending || loadingContent || contentQuery.isError}
+            disabled={pending || loadingContent || (contentEditable && contentQuery.isError)}
           >
             <FormattedMessage {...messages.save} />
           </Button>

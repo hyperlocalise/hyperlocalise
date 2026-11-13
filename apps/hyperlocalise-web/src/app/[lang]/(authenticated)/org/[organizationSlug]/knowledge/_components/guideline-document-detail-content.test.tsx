@@ -66,6 +66,25 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+vi.mock("@/components/markdown-editor/markdown-editor", () => ({
+  MarkdownEditor: ({
+    value,
+    onChange,
+    ariaLabel,
+  }: {
+    value: string;
+    onChange: (next: string) => void;
+    ariaLabel?: string;
+  }) => (
+    <textarea
+      aria-label={ariaLabel}
+      value={value}
+      onChange={(event) => onChange(event.currentTarget.value)}
+    />
+  ),
+  MarkdownPreview: ({ value }: { value: string }) => <div>{value}</div>,
+}));
+
 const { GuidelineDocumentDetailContent } = await import("./guideline-document-detail-content");
 const { guidelineAssignmentProjectsQueryKey, guidelineDocumentAssignmentsQueryKey } =
   await import("./guideline-document-assignments");
@@ -172,7 +191,7 @@ describe("GuidelineDocumentDetailContent", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "Brand voice" })).toBeTruthy();
-    expect(screen.getByText("Keep product names in English.")).toBeTruthy();
+    expect(screen.getByText(/Keep product names in English/)).toBeTruthy();
     expect(await screen.findByRole("link", { name: "Mobile app" })).toHaveAttribute(
       "href",
       "/org/acme/projects/project_1",
@@ -339,7 +358,7 @@ describe("GuidelineDocumentDetailContent", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "Legal glossary" })).toBeTruthy();
-    expect(screen.getByText("Keep product names in English.")).toBeTruthy();
+    expect(screen.getByText(/Keep product names in English/)).toBeTruthy();
     expect(screen.queryByText(/Preview is not available/)).toBeNull();
   });
 

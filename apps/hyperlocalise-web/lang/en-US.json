@@ -3271,10 +3271,6 @@
     "defaultMessage": "Description",
     "description": "Heading for the job description section on the task overview tab"
   },
-  "2XlmC+CUlh": {
-    "defaultMessage": "Update the title or markdown content of this guideline document.",
-    "description": "Description for the edit guideline dialog"
-  },
   "2Y27cUhCTS": {
     "defaultMessage": "See the UI context",
     "description": "AI feature capability title: visual context"
@@ -11263,6 +11259,10 @@
     "defaultMessage": "Desktop preview",
     "description": "Aria label for desktop device toggle in visual editor canvas"
   },
+  "EH5Z9+FhIV": {
+    "defaultMessage": "Enter some content.",
+    "description": "Validation error when the guideline content is empty"
+  },
   "EHt7HrHrIe": {
     "defaultMessage": "Remove returned output {index}",
     "description": "Remove Return output button"
@@ -12667,10 +12667,6 @@
     "defaultMessage": "Get meaning, where it appears in the product, and how to translate it.",
     "description": "AI feature capability body: ask about strings"
   },
-  "GKDBXV4awc": {
-    "defaultMessage": "Write markdown guidance. Choose locales and projects on the upload page.",
-    "description": "Description for the new typed guideline dialog"
-  },
   "GKE7xJDkbr": {
     "defaultMessage": "Add the brands you compete with in this market.",
     "description": "Empty brand lookup description"
@@ -13423,6 +13419,10 @@
     "defaultMessage": "Loading versions…",
     "description": "Shown while the saved versions of a translation load"
   },
+  "HQKSy02lKS": {
+    "defaultMessage": "Write the guidance…",
+    "description": "Placeholder for the guideline content editor"
+  },
   "HQcx54morj": {
     "defaultMessage": "Project removed",
     "description": "Toast after a project is removed from a translation memory"
@@ -13438,10 +13438,6 @@
   "HS6xLp94fT": {
     "defaultMessage": "Source upload",
     "description": "Run history trigger source for source upload runs"
-  },
-  "HSh39++wV6": {
-    "defaultMessage": "Upload a PDF, DOCX, or markdown file so Hyperlocalise can use it in guideline checks.",
-    "description": "Description in the empty guideline list state"
   },
   "HSs8QGWi6n": {
     "defaultMessage": "attached translation memory to a project",
@@ -16546,6 +16542,10 @@
   "MFyr6tzoKS": {
     "defaultMessage": "Commonly used",
     "description": "Category label for translator-essential unicode characters"
+  },
+  "MG9BeVzbX5": {
+    "defaultMessage": "Update the title, file, or content of this guideline.",
+    "description": "Description for the edit guideline dialog"
   },
   "MGO8MFzpRG": {
     "defaultMessage": "Approved",
@@ -21403,10 +21403,6 @@
     "defaultMessage": "See the full leaderboard",
     "description": "CTA linking from a localisation audit result to the public leaderboard"
   },
-  "TU5Vr/IFlt": {
-    "defaultMessage": "Markdown content",
-    "description": "Label for the guideline markdown content field"
-  },
   "TUhxc0TwuH": {
     "defaultMessage": "Whoever already owns them—usually brand, legal, or localisation. Hyperlocalise does not replace that library. It reads it.",
     "description": "Guidelines FAQ answer about ownership"
@@ -21954,6 +21950,10 @@
   "UByH5+e0Xk": {
     "defaultMessage": "Marketing localisation",
     "description": "Hero eyebrow for the marketing-localisation use case"
+  },
+  "UC1OAjERlk": {
+    "defaultMessage": "Content",
+    "description": "Label for the guideline content field"
   },
   "UCLrz7xtcS": {
     "defaultMessage": "Content Studio",
@@ -29163,6 +29163,10 @@
     "defaultMessage": "Due date (optional)",
     "description": "Label of the new task's due date"
   },
+  "eZBI4zBlZX": {
+    "defaultMessage": "Upload a document or write the guidance, then choose where it applies.",
+    "description": "Description for the guideline upload page"
+  },
   "eZMddlPk0j": {
     "defaultMessage": "Connect {integrationName} to Hyperlocalise and start running localization workflows with agents, reviewers, and automations in one workspace.",
     "description": "Supporting copy for the bottom CTA on integration detail pages"
@@ -34266,6 +34270,10 @@
   "ltNQ+N6Q+g": {
     "defaultMessage": "Cancel",
     "description": "Cancel button on the edit TM segment dialog"
+  },
+  "lty6wrMmF0": {
+    "defaultMessage": "Write the guidance. Locales and projects are already set on the upload page.",
+    "description": "Description for the new typed guideline dialog"
   },
   "luuUuOK83f": {
     "defaultMessage": "Finding recommended markets…",
@@ -39859,6 +39867,10 @@
     "defaultMessage": "All",
     "description": "QA review: all"
   },
+  "tlhF4FQ2PT": {
+    "defaultMessage": "Choose a file, or write the guideline.",
+    "description": "Footer hint on the guideline upload page before a file is selected"
+  },
   "tm2wgAMGK3": {
     "defaultMessage": "Join the waitlist",
     "description": "Primary button that opens the Iris Tally waitlist form"
@@ -43143,10 +43155,6 @@
     "defaultMessage": "Guidance that powers global growth in every market",
     "description": "Guideline mock UI section heading"
   },
-  "yEVnG/ui9T": {
-    "defaultMessage": "Enter some markdown content.",
-    "description": "Validation error when the guideline content is empty"
-  },
   "yEwFJfSgTY": {
     "defaultMessage": "Custom",
     "description": "Matrix cell value for custom enterprise limits"
@@ -44167,6 +44175,10 @@
     "defaultMessage": "Configure",
     "description": "Button that opens Auto-review configuration"
   },
+  "zlNzIgAmkU": {
+    "defaultMessage": "Upload a PDF, Word, or text file so Hyperlocalise can use it in guideline checks.",
+    "description": "Description in the empty guideline list state"
+  },
   "zljXhBmvix": {
     "defaultMessage": "Output {index}",
     "description": "Sequence execution output label"
@@ -44230,6 +44242,10 @@
   "zuCO/3GiEh": {
     "defaultMessage": "Documentation",
     "description": "Marketing navbar link to product documentation"
+  },
+  "zuK3zVbLqY": {
+    "defaultMessage": "Write a guideline",
+    "description": "Button to start a blank guideline document"
   },
   "zuMuHjuvlv": {
     "defaultMessage": "Last 24 hours",

@@ -62,6 +62,24 @@ vi.mock("sonner", () => ({
   toast: { error: mocks.toastError, success: mocks.toastSuccess },
 }));
 
+vi.mock("@/components/markdown-editor/markdown-editor", () => ({
+  MarkdownEditor: ({
+    value,
+    onChange,
+    ariaLabel,
+  }: {
+    value: string;
+    onChange: (next: string) => void;
+    ariaLabel?: string;
+  }) => (
+    <textarea
+      aria-label={ariaLabel}
+      value={value}
+      onChange={(event) => onChange(event.currentTarget.value)}
+    />
+  ),
+}));
+
 const { GuidelineDocumentsSection, guidelineDocumentsRefetchInterval, useGuidelineDocumentUpload } =
   await import("./guideline-documents-section");
 
@@ -368,7 +386,7 @@ describe("GuidelineDocumentsSection", () => {
 
     await user.click(await screen.findByRole("button", { name: "Edit" }));
     const titleInput = await screen.findByLabelText("Title");
-    const contentInput = await screen.findByLabelText("Markdown content");
+    const contentInput = await screen.findByLabelText("Content");
     expect(titleInput).toHaveValue("French style guide");
     expect(contentInput).toHaveValue("# Voice");
 

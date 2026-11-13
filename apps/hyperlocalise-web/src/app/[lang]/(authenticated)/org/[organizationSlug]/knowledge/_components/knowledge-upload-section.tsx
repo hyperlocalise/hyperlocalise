@@ -85,20 +85,25 @@ function UploadSourceButton({
   );
 }
 
+export type KnowledgeUploadSelectedFile = Pick<File, "name" | "size">;
+
 export function KnowledgeUploadSection({
   onStartMarkdownText,
   onFilesSelected,
   selectedFile = null,
   showTitle = true,
+  allowRemove = true,
   className,
 }: {
-  onStartMarkdownText: () => void;
+  onStartMarkdownText?: () => void;
   /** Enables file upload. Called with the accepted files, or `[]` when the file is removed. */
   onFilesSelected?: (files: File[]) => void;
   /** The chosen file, owned by the parent. Shows a file row in place of the dropzone. */
-  selectedFile?: File | null;
+  selectedFile?: KnowledgeUploadSelectedFile | null;
   /** Hide the section heading when the parent already labels it. */
   showTitle?: boolean;
+  /** Hide the remove control when the parent must keep a file (edit). */
+  allowRemove?: boolean;
   className?: string;
 }) {
   const intl = useIntl();
@@ -150,7 +155,7 @@ export function KnowledgeUploadSection({
         }
         return;
       case "markdown-text":
-        onStartMarkdownText();
+        onStartMarkdownText?.();
         return;
     }
   };
@@ -196,15 +201,17 @@ export function KnowledgeUploadSection({
           <Button type="button" variant="ghost" size="sm" onClick={() => inputRef.current?.click()}>
             <FormattedMessage {...knowledgeUploadSectionMessages.replaceFile} />
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={intl.formatMessage(knowledgeUploadSectionMessages.removeFile)}
-            onClick={clearFiles}
-          >
-            <XIcon />
-          </Button>
+          {allowRemove ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={intl.formatMessage(knowledgeUploadSectionMessages.removeFile)}
+              onClick={clearFiles}
+            >
+              <XIcon />
+            </Button>
+          ) : null}
         </div>
       ) : null}
 
@@ -274,37 +281,39 @@ export function KnowledgeUploadSection({
         </>
       ) : null}
 
-      <div className={cn("flex flex-wrap justify-center gap-2", selectedFile && "hidden")}>
-        {KNOWLEDGE_EXTERNAL_IMPORT_SOURCES_ENABLED ? (
-          <>
-            <UploadSourceButton
-              icon={<SimpleBrandIcon icon={siGoogledrive} colored className="size-4" />}
-              label={<FormattedMessage {...knowledgeUploadSectionMessages.googleDrive} />}
-              onClick={() => handleAction("google-drive")}
-            />
-            <UploadSourceButton
-              icon={<SharePointMark />}
-              label={<FormattedMessage {...knowledgeUploadSectionMessages.sharepoint} />}
-              onClick={() => handleAction("sharepoint")}
-            />
-            <UploadSourceButton
-              icon={<SimpleBrandIcon icon={siNotion} colored className="size-4" />}
-              label={<FormattedMessage {...knowledgeUploadSectionMessages.notion} />}
-              onClick={() => handleAction("notion")}
-            />
-            <UploadSourceButton
-              icon={<StackIcon className="size-4 text-muted-foreground" />}
-              label={<FormattedMessage {...knowledgeUploadSectionMessages.importWebsite} />}
-              onClick={() => handleAction("import-website")}
-            />
-          </>
-        ) : null}
-        <UploadSourceButton
-          icon={<TextTIcon className="size-4 text-muted-foreground" />}
-          label={<FormattedMessage {...knowledgeUploadSectionMessages.markdownText} />}
-          onClick={() => handleAction("markdown-text")}
-        />
-      </div>
+      {onStartMarkdownText ? (
+        <div className={cn("flex flex-wrap justify-center gap-2", selectedFile && "hidden")}>
+          {KNOWLEDGE_EXTERNAL_IMPORT_SOURCES_ENABLED ? (
+            <>
+              <UploadSourceButton
+                icon={<SimpleBrandIcon icon={siGoogledrive} colored className="size-4" />}
+                label={<FormattedMessage {...knowledgeUploadSectionMessages.googleDrive} />}
+                onClick={() => handleAction("google-drive")}
+              />
+              <UploadSourceButton
+                icon={<SharePointMark />}
+                label={<FormattedMessage {...knowledgeUploadSectionMessages.sharepoint} />}
+                onClick={() => handleAction("sharepoint")}
+              />
+              <UploadSourceButton
+                icon={<SimpleBrandIcon icon={siNotion} colored className="size-4" />}
+                label={<FormattedMessage {...knowledgeUploadSectionMessages.notion} />}
+                onClick={() => handleAction("notion")}
+              />
+              <UploadSourceButton
+                icon={<StackIcon className="size-4 text-muted-foreground" />}
+                label={<FormattedMessage {...knowledgeUploadSectionMessages.importWebsite} />}
+                onClick={() => handleAction("import-website")}
+              />
+            </>
+          ) : null}
+          <UploadSourceButton
+            icon={<TextTIcon className="size-4 text-muted-foreground" />}
+            label={<FormattedMessage {...knowledgeUploadSectionMessages.markdownText} />}
+            onClick={() => handleAction("markdown-text")}
+          />
+        </div>
+      ) : null}
     </section>
   );
 }
