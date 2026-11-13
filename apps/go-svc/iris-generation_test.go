@@ -26,6 +26,16 @@ import (
 
 const irisTestPath = "/v1/orgs/acme/iris"
 
+func testIrisCredits() irisCreditConfig {
+	return irisCreditConfig{
+		FalImageModelID:          "custom/fal-image",
+		FalVideoModelID:          "custom/fal-video",
+		ElevenLabsSecondModelID:  "custom/el-second",
+		ElevenLabsMinuteModelID:  "custom/el-minute",
+		ElevenLabsDubbingModelID: "custom/el-dubbing",
+	}
+}
+
 type stubIrisMeter struct {
 	features    bool
 	tokens      bool
@@ -161,12 +171,14 @@ func TestIrisGenerationModelsAndEstimate(t *testing.T) {
 	t.Run("lists iris models", func(t *testing.T) {
 		rec := irisRequest(api, http.MethodGet, irisTestPath+"/models", nil)
 		require.Equal(t, http.StatusOK, rec.Code)
-		var models []irisModelInfo
+		var models []map[string]any
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &models))
 		require.GreaterOrEqual(t, len(models), 20)
 		ids := make([]string, 0, len(models))
 		for _, model := range models {
-			ids = append(ids, model.ID)
+			require.Equal(t, map[string]any{"id": model["id"], "name": model["name"]}, model)
+			id, _ := model["id"].(string)
+			ids = append(ids, id)
 		}
 		require.Contains(t, ids, "flux-2-klein")
 		require.Contains(t, ids, "elevenlabs-v4")
@@ -187,6 +199,7 @@ func TestIrisGenerationModelsAndEstimate(t *testing.T) {
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &estimate))
 		require.True(t, estimate.Allowed)
 		require.Equal(t, "ai_tokens", estimate.FeatureID)
+		require.Equal(t, irisEstimateUnitUSD, estimate.Unit)
 
 		rec = irisRequest(api, http.MethodPost, irisTestPath+"/estimate", map[string]any{
 			"model": "gemini-3.8-flash-tts", "prompt": strings.Repeat("hi ", 40), "voice": "Zephyr",
@@ -452,11 +465,7 @@ func TestIrisGenerationAutumnGate(t *testing.T) {
 	t.Run("tracks agent_runs and synthetic image credit after a successful job", func(t *testing.T) {
 		meter := &stubIrisMeter{features: true, tokens: true}
 		api.meter = meter
-		api.credits = irisCreditConfig{
-			ImageModelID: "custom/image",
-			VideoModelID: "custom/video",
-			AudioModelID: "custom/audio",
-		}
+		api.credits = testIrisCredits()
 		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
 			"idempotencyKey": "99999999-9999-9999-9999-999999999999",
 			"request":        map[string]any{"model": "flux-2-klein", "prompt": "a cat", "count": 2},
@@ -469,7 +478,8 @@ func TestIrisGenerationAutumnGate(t *testing.T) {
 		require.Equal(t, 1.0, meter.tracks[0].Value)
 		require.Len(t, meter.tokenTracks, 1)
 		require.Equal(t, autumn.AITokens, meter.tokenTracks[0].FeatureID)
-		require.Equal(t, "custom/image", meter.tokenTracks[0].ModelID)
+		require.Equal(t, "custom/fal-image", meter.tokenTracks[0].ModelID)
+		require.Equal(t, "fal", meter.tokenTracks[0].Properties["vendor"])
 		require.Equal(t, 0, meter.tokenTracks[0].InputTokens)
 		require.Equal(t, 1, meter.tokenTracks[0].OutputTokens)
 
@@ -487,28 +497,45 @@ func TestIrisGenerationAutumnGate(t *testing.T) {
 	t.Run("tracks synthetic video seconds after a successful job", func(t *testing.T) {
 		meter := &stubIrisMeter{features: true, tokens: true}
 		api.meter = meter
-		api.credits = irisCreditConfig{ImageModelID: "custom/image", VideoModelID: "custom/video", AudioModelID: "custom/audio"}
+		api.credits = testIrisCredits()
 		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
 			"idempotencyKey": "99999999-9999-9999-9999-999999999998",
 			"request":        map[string]any{"model": "seedance-2.5", "prompt": "a clip", "duration": 8},
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
 		require.Len(t, meter.tokenTracks, 1)
-		require.Equal(t, "custom/video", meter.tokenTracks[0].ModelID)
+		require.Equal(t, "custom/fal-video", meter.tokenTracks[0].ModelID)
+		require.Equal(t, "fal", meter.tokenTracks[0].Properties["vendor"])
 		require.Equal(t, 8, meter.tokenTracks[0].OutputTokens)
 	})
 
-	t.Run("tracks synthetic audio units after a successful job", func(t *testing.T) {
+	t.Run("tracks gateway image credit on the Models.dev id", func(t *testing.T) {
 		meter := &stubIrisMeter{features: true, tokens: true}
 		api.meter = meter
-		api.credits = irisCreditConfig{ImageModelID: "custom/image", VideoModelID: "custom/video", AudioModelID: "custom/audio"}
+		api.credits = testIrisCredits()
+		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
+			"idempotencyKey": "99999999-9999-9999-9999-999999999996",
+			"request":        map[string]any{"model": "nano-banana-2.1", "prompt": "a cat"},
+		})
+		require.Equal(t, http.StatusOK, rec.Code)
+		require.Len(t, meter.tokenTracks, 1)
+		require.Equal(t, "google/gemini-3-pro-image", meter.tokenTracks[0].ModelID)
+		require.Equal(t, "gateway", meter.tokenTracks[0].Properties["vendor"])
+		require.Equal(t, 1, meter.tokenTracks[0].OutputTokens)
+	})
+
+	t.Run("tracks synthetic audio seconds on the ElevenLabs second id", func(t *testing.T) {
+		meter := &stubIrisMeter{features: true, tokens: true}
+		api.meter = meter
+		api.credits = testIrisCredits()
 		rec := irisRequest(api, http.MethodPost, irisTestPath+"/generate", map[string]any{
 			"idempotencyKey": "99999999-9999-9999-9999-999999999997",
 			"request":        map[string]any{"model": "elevenlabs-music", "prompt": "a score", "duration": 12},
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
 		require.Len(t, meter.tokenTracks, 1)
-		require.Equal(t, "custom/audio", meter.tokenTracks[0].ModelID)
+		require.Equal(t, "custom/el-second", meter.tokenTracks[0].ModelID)
+		require.Equal(t, "elevenlabs", meter.tokenTracks[0].Properties["vendor"])
 		require.Equal(t, 12, meter.tokenTracks[0].OutputTokens)
 	})
 
@@ -535,93 +562,131 @@ func TestIrisGenerationAutumnGate(t *testing.T) {
 }
 
 func TestIrisSyntheticCredit(t *testing.T) {
-	credits := irisCreditConfig{
-		ImageModelID: "custom/image",
-		VideoModelID: "custom/video",
-		AudioModelID: "custom/audio",
-	}
+	credits := testIrisCredits()
 	tests := []struct {
 		name   string
 		job    irisJobRecord
 		model  string
+		vendor string
 		output int
 	}{
 		{
-			name:   "images from generated assets",
+			name:   "fal images from generated assets",
 			job:    irisJobRecord{ID: "job_img", OrgID: "org_local", Model: "flux-2-klein", Assets: []irisJobAsset{{Filename: "a"}, {Filename: "b"}}},
-			model:  "custom/image",
+			model:  "custom/fal-image",
+			vendor: "fal",
 			output: 2,
 		},
 		{
-			name:   "video seconds",
-			job:    irisJobRecord{ID: "job_vid", OrgID: "org_local", Model: "seedance-2.5", Request: irisGenerateRequest{"duration": float64(8)}},
-			model:  "custom/video",
-			output: 8,
-		},
-		{
-			name:   "video default seconds",
-			job:    irisJobRecord{ID: "job_vid_default", OrgID: "org_local", Model: "seedance-2.5"},
-			model:  "custom/video",
-			output: 6,
-		},
-		{
-			name:   "audio seconds",
-			job:    irisJobRecord{ID: "job_audio", OrgID: "org_local", Model: "elevenlabs-music", Request: irisGenerateRequest{"duration": float64(12)}},
-			model:  "custom/audio",
-			output: 12,
-		},
-		{
-			name:   "voice minutes",
-			job:    irisJobRecord{ID: "job_voice", OrgID: "org_local", Model: "elevenlabs-v4"},
-			model:  "custom/audio",
+			name:   "gateway images",
+			job:    irisJobRecord{ID: "job_gateway_img", OrgID: "org_local", Model: "nano-banana-2.1", Assets: []irisJobAsset{{Filename: "a"}}},
+			model:  "google/gemini-3-pro-image",
+			vendor: "gateway",
 			output: 1,
 		},
 		{
-			name:   "upscaler video seconds",
+			name:   "fal video seconds",
+			job:    irisJobRecord{ID: "job_vid", OrgID: "org_local", Model: "seedance-2.5", Request: irisGenerateRequest{"duration": float64(8)}},
+			model:  "custom/fal-video",
+			vendor: "fal",
+			output: 8,
+		},
+		{
+			name:   "fal video default seconds",
+			job:    irisJobRecord{ID: "job_vid_default", OrgID: "org_local", Model: "seedance-2.5"},
+			model:  "custom/fal-video",
+			vendor: "fal",
+			output: 6,
+		},
+		{
+			name:   "gateway video seconds",
+			job:    irisJobRecord{ID: "job_veo", OrgID: "org_local", Model: "veo-3.1", Request: irisGenerateRequest{"duration": float64(8)}},
+			model:  "google/veo-3.1",
+			vendor: "gateway",
+			output: 8,
+		},
+		{
+			name:   "elevenlabs audio seconds",
+			job:    irisJobRecord{ID: "job_audio", OrgID: "org_local", Model: "elevenlabs-music", Request: irisGenerateRequest{"duration": float64(12)}},
+			model:  "custom/el-second",
+			vendor: "elevenlabs",
+			output: 12,
+		},
+		{
+			name:   "elevenlabs voice minutes",
+			job:    irisJobRecord{ID: "job_voice", OrgID: "org_local", Model: "elevenlabs-v4"},
+			model:  "custom/el-minute",
+			vendor: "elevenlabs",
+			output: 1,
+		},
+		{
+			name:   "fal upscaler video seconds",
 			job:    irisJobRecord{ID: "job_upscaler", OrgID: "org_local", Model: "bytedance-upscaler", Request: irisGenerateRequest{"duration": float64(10)}},
-			model:  "custom/video",
+			model:  "custom/fal-video",
+			vendor: "fal",
 			output: 10,
 		},
 		{
-			name:   "transcribe input minutes",
+			name:   "gateway transcribe input minutes",
 			job:    irisJobRecord{ID: "job_transcribe", OrgID: "org_local", Model: "universal-3.5-pro", Request: irisGenerateRequest{"duration": float64(90)}},
-			model:  "custom/audio",
+			model:  "google/gemini-3.5-transcribe",
+			vendor: "gateway",
 			output: 2,
 		},
 		{
 			name:   "fish audio transcribe input minutes",
 			job:    irisJobRecord{ID: "job_fish_transcribe", OrgID: "org_local", Model: "fish-audio-transcribe-1", Request: irisGenerateRequest{"duration": float64(90)}},
-			model:  "custom/audio",
+			model:  "fish-audio/transcribe-1",
+			vendor: "gateway",
 			output: 2,
 		},
 		{
 			name:   "fish audio voice minutes",
 			job:    irisJobRecord{ID: "job_fish_voice", OrgID: "org_local", Model: "fish-audio-s2.1-pro"},
-			model:  "custom/audio",
+			model:  "fish-audio/s2.1-pro",
+			vendor: "gateway",
 			output: 1,
 		},
 		{
 			name:   "omni flash default input minute",
 			job:    irisJobRecord{ID: "job_omni", OrgID: "org_local", Model: "qwen3.8-omni-flash"},
-			model:  "custom/audio",
+			model:  "alibaba/qwen3-omni-flash",
+			vendor: "gateway",
 			output: 1,
 		},
 		{
-			name:   "dubbing default input minute",
+			name:   "elevenlabs dubbing default input minute",
 			job:    irisJobRecord{ID: "job_dub", OrgID: "org_local", Model: "elevenlabs-dubbing"},
-			model:  "custom/audio",
+			model:  "custom/el-dubbing",
+			vendor: "elevenlabs",
 			output: 1,
 		},
 		{
-			name:   "lipsync video seconds",
+			name:   "fal lipsync video seconds",
 			job:    irisJobRecord{ID: "job_lipsync", OrgID: "org_local", Model: "sync-lipsync-2", Request: irisGenerateRequest{"duration": float64(15)}},
-			model:  "custom/video",
+			model:  "custom/fal-video",
+			vendor: "fal",
 			output: 15,
 		},
 		{
-			name:   "image text flat image credit",
+			name:   "image text flat gateway image credit",
 			job:    irisJobRecord{ID: "job_ocr", OrgID: "org_local", Model: "image-text"},
-			model:  "custom/image",
+			model:  "openai/gpt-6-luna",
+			vendor: "gateway",
+			output: 1,
+		},
+		{
+			name:   "fal image tool",
+			job:    irisJobRecord{ID: "job_bria", OrgID: "org_local", Model: "bria-rmbg-2.0"},
+			model:  "custom/fal-image",
+			vendor: "fal",
+			output: 1,
+		},
+		{
+			name:   "gemini tts gateway audio minute",
+			job:    irisJobRecord{ID: "job_gemini_tts", OrgID: "org_local", Model: "gemini-3.8-flash-tts"},
+			model:  "google/gemini-2.5-flash-preview-tts",
+			vendor: "gateway",
 			output: 1,
 		},
 	}
@@ -631,11 +696,45 @@ func TestIrisSyntheticCredit(t *testing.T) {
 			require.True(t, ok)
 			require.Equal(t, autumn.AITokens, req.FeatureID)
 			require.Equal(t, tt.model, req.ModelID)
+			require.Equal(t, tt.vendor, req.Properties["vendor"])
 			require.Equal(t, 0, req.InputTokens)
 			require.Equal(t, tt.output, req.OutputTokens)
 			require.Equal(t, tt.job.OrgID, req.CustomerID)
 		})
 	}
+}
+
+func TestIrisCreditModelsFromEnv(t *testing.T) {
+	t.Setenv("AI_CREDIT_FAL_IMAGE_MODEL_ID", "env/fal-image")
+	t.Setenv("AI_CREDIT_FAL_VIDEO_MODEL_ID", "env/fal-video")
+	t.Setenv("AI_CREDIT_ELEVENLABS_SECOND_MODEL_ID", "env/el-second")
+	t.Setenv("AI_CREDIT_ELEVENLABS_MINUTE_MODEL_ID", "env/el-minute")
+	t.Setenv("AI_CREDIT_ELEVENLABS_DUBBING_MODEL_ID", "env/el-dubbing")
+
+	cfg := (*irisGenerationAPI)(nil).creditModels()
+	require.Equal(t, "env/fal-image", cfg.FalImageModelID)
+	require.Equal(t, "env/fal-video", cfg.FalVideoModelID)
+	require.Equal(t, "env/el-second", cfg.ElevenLabsSecondModelID)
+	require.Equal(t, "env/el-minute", cfg.ElevenLabsMinuteModelID)
+	require.Equal(t, "env/el-dubbing", cfg.ElevenLabsDubbingModelID)
+
+	api := &irisGenerationAPI{credits: irisCreditConfig{FalImageModelID: "cfg/fal-image"}}
+	require.Equal(t, "cfg/fal-image", api.creditModels().FalImageModelID)
+}
+
+func TestIrisCreditModelsDefaults(t *testing.T) {
+	t.Setenv("AI_CREDIT_FAL_IMAGE_MODEL_ID", "")
+	t.Setenv("AI_CREDIT_FAL_VIDEO_MODEL_ID", "")
+	t.Setenv("AI_CREDIT_ELEVENLABS_SECOND_MODEL_ID", "")
+	t.Setenv("AI_CREDIT_ELEVENLABS_MINUTE_MODEL_ID", "")
+	t.Setenv("AI_CREDIT_ELEVENLABS_DUBBING_MODEL_ID", "")
+
+	cfg := (*irisGenerationAPI)(nil).creditModels()
+	require.Equal(t, defaultIrisFalImageCreditModel, cfg.FalImageModelID)
+	require.Equal(t, defaultIrisFalVideoCreditModel, cfg.FalVideoModelID)
+	require.Equal(t, defaultIrisElevenLabsSecondCreditModel, cfg.ElevenLabsSecondModelID)
+	require.Equal(t, defaultIrisElevenLabsMinuteCreditModel, cfg.ElevenLabsMinuteModelID)
+	require.Equal(t, defaultIrisElevenLabsDubbingCreditModel, cfg.ElevenLabsDubbingModelID)
 }
 
 func TestIrisGenerationDoesNotTrackFailedJobs(t *testing.T) {

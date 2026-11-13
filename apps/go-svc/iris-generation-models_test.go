@@ -19,9 +19,7 @@ func TestIrisPublicModelsExposeCatalog(t *testing.T) {
 		require.NotEmpty(t, model.ID)
 		require.NotEmpty(t, model.Name)
 		require.NotEmpty(t, model.Kind)
-		require.Greater(t, model.Pricing.Credits, 0.0, model.ID)
-		require.Equal(t, model.ID, public[i]["id"])
-		require.Equal(t, model.Name, public[i]["name"])
+		require.Equal(t, map[string]any{"id": model.ID, "name": model.Name}, public[i])
 		_, ok := irisModelByID(model.ID)
 		require.True(t, ok, model.ID)
 		_, dup := seen[model.ID]
@@ -273,6 +271,7 @@ func TestEstimateIrisRequest(t *testing.T) {
 	require.Equal(t, "flux-2-pro", model.ID)
 	require.True(t, estimate.Allowed)
 	require.Equal(t, "ai_tokens", estimate.FeatureID)
+	require.Equal(t, irisEstimateUnitUSD, estimate.Unit)
 	require.Equal(t, model.ETASeconds, estimate.ETASeconds)
 
 	_, _, err = estimateIrisRequest(irisGenerateRequest{"model": "flux-2-pro"})

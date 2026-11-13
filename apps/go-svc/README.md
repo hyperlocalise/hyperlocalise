@@ -119,6 +119,22 @@ and reads the result. Neither package exposes an HTTP route.
 | `FAL_KEY` | fal.ai API key sent as `Authorization: Key ...`. Required for native Flux, Kling, Seedance, Wan, MiniMax, Krea, Seedream, Bria, SeedVR, ByteDance upscaler, and Sync lipsync Iris models. |
 | `FAL_QUEUE_URL` | Optional. Defaults to `https://queue.fal.run`. |
 
+Successful Iris generate jobs consume workspace **AI Credit**: Autumn feature `ai_tokens` (USD) via `trackTokens`, plus one `agent_runs`. Platform `FAL_KEY` and `ELEVENLABS_API_KEY` always debit that wallet. Organization LLM keys do not skip Fal or ElevenLabs billing. `/iris/estimate` returns remaining USD with `unit: "usd"`. The model catalog publishes `id` and `name` only; it does not publish Diffusion credit prices.
+
+AI Gateway jobs (`google/*`, `openai/*`, `xai/*`, `fish-audio/*`, Gemini TTS/transcribe) send the real Gateway / Models.dev id to `trackTokens`. Autumn already prices those. Do not set `AI_CREDIT_IMAGE_MODEL_ID`, `AI_CREDIT_VIDEO_MODEL_ID`, or `AI_CREDIT_AUDIO_MINUTE_MODEL_ID`. There is no custom GPT Image, Seedance, or Gateway-audio fallback.
+
+Fal and ElevenLabs are not on Gateway, so they use custom Autumn ids. `inputCost` is `0`. `outputCost` is vendor USD for one frozen unit × `1,000,000`. List prices read 13 Nov 2026 from Fal model pages and [ElevenLabs API pricing](https://elevenlabs.io/pricing/api).
+
+| Variable | Default | Frozen unit | List price | `outputCost` |
+|----------|---------|-------------|------------|--------------|
+| `AI_CREDIT_FAL_IMAGE_MODEL_ID` | `custom/hyperlocalise-fal-image` | 1 Fal image | $0.03 (FLUX.2 Pro, first MP) | 30000 |
+| `AI_CREDIT_FAL_VIDEO_MODEL_ID` | `custom/hyperlocalise-fal-video` | 1 Fal video second | $0.168 (Kling 3.0 Pro, audio on) | 168000 |
+| `AI_CREDIT_ELEVENLABS_SECOND_MODEL_ID` | `custom/hyperlocalise-elevenlabs-second` | 1 ElevenLabs music/SFX second | $0.0025 (Music $0.15/min) | 2500 |
+| `AI_CREDIT_ELEVENLABS_MINUTE_MODEL_ID` | `custom/hyperlocalise-elevenlabs-minute` | 1 ElevenLabs TTS input-minute | $0.08 (v4 / v3 / Multilingual v2) | 80000 |
+| `AI_CREDIT_ELEVENLABS_DUBBING_MODEL_ID` | `custom/hyperlocalise-elevenlabs-dubbing` | 1 ElevenLabs source-minute | $0.50 (Dubbing v1, no watermark) | 500000 |
+
+Do not set `AI_CREDIT_AUDIO_MODEL_ID`. That mixed ElevenLabs seconds and minutes on one id.
+
 Example Go usage:
 
 ```go
@@ -156,7 +172,7 @@ The Iris editor localises its projects through these routes, all under
 | Method | Path | Operation |
 |--------|------|-----------|
 | POST | `/localise/lookup` | Glossary terms found in `texts` (with their `targetLocale` translation, forbidden flag and note) and exact translation-memory matches. Reads only what the member's glossary and memory access allows. |
-| POST | `/localise/translate` | Translates up to 200 `messages` (`id`, `text`, `description`): approved memory matches first, then the translation model with the glossary and `guidance` in the prompt. Results stay in request order. Translations that drop an ICU placeholder are left out. Billed as AI tokens. |
+| POST | `/localise/translate` | Translates up to 200 `messages` (`id`, `text`, `description`): approved memory matches first, then the translation model with the glossary and `guidance` in the prompt. Results stay in request order. Translations that drop an ICU placeholder are left out. Billed as AI credit. |
 | POST | `/localise/memory` | Saves approved `entries` (`source`, `target`) into `memoryId`, or the oldest native memory, or a new "Iris" memory. Admins and localization managers only; existing pairs are skipped. |
 
 Localisation models on `/generate`: `elevenlabs-dubbing` (ElevenLabs Dubbing:
