@@ -43,6 +43,10 @@ import {
   formatLocaleOptionLabel,
 } from "@/lib/i18n/locale-display-names.messages";
 
+import {
+  fetchTranslationAsSourceSends,
+  translationAsSourceSendsQueryKey,
+} from "./translation-as-source-sent-mark";
 import { useTranslationAsSourceDialogMessages as messages } from "./use-translation-as-source-dialog.messages";
 
 type TranslationSourceDestination = {
@@ -179,6 +183,13 @@ export function UseTranslationAsSourceDialog({
     },
   });
 
+  // The same list the Files page marks its rows with; without it the dialog just says nothing.
+  const sendsQuery = useQuery({
+    queryKey: translationAsSourceSendsQueryKey(organizationSlug, projectId),
+    enabled: open,
+    queryFn: () => fetchTranslationAsSourceSends(organizationSlug, projectId),
+  });
+
   const destinations = destinationsQuery.data ?? [];
   const destination =
     destinations.find((entry) => entry.id === selectedId) ?? destinations[0] ?? null;
@@ -217,6 +228,9 @@ export function UseTranslationAsSourceDialog({
       ? destinationFile
       : null;
   const noticeId = useId();
+  const lastSend = destination
+    ? sendsQuery.data?.get(sourcePath)?.find((send) => send.destinationProjectId === destination.id)
+    : undefined;
   const loadErrorMessage =
     destinationsQuery.error instanceof Error
       ? destinationsQuery.error.message
@@ -263,6 +277,9 @@ export function UseTranslationAsSourceDialog({
     // The chosen project's file is read again after any send, so the notice stays true.
     onSettled: () => queryClient.invalidateQueries({ queryKey: destinationFileQueryKey }),
     onSuccess: (target) => {
+      void queryClient.invalidateQueries({
+        queryKey: translationAsSourceSendsQueryKey(organizationSlug, projectId),
+      });
       toast.success(intl.formatMessage(messages.sendSuccess, { project: target.name }));
       onOpenChange(false);
     },
@@ -323,6 +340,20 @@ export function UseTranslationAsSourceDialog({
                 ))}
               </SelectContent>
             </Select>
+            {lastSend ? (
+              <p className="text-sm text-muted-foreground">
+                <FormattedMessage
+                  {...(lastSend.changedSinceSent ? messages.lastSentChanged : messages.lastSent)}
+                  values={{
+                    date: intl.formatDate(lastSend.sentAt, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    }),
+                    language: formatLocaleDisplayName(intl, lastSend.locale),
+                  }}
+                />
+              </p>
+            ) : null}
             {replacing ? (
               <p
                 id={noticeId}

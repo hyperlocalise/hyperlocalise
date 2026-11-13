@@ -4,8 +4,8 @@
 
 Ships in parts. This record is written with the first part and is updated as the others land:
 
-1. **Word and Excel files, sent by hand** from the Files page (this change).
-2. A mark on the file when the translation changed after it was last sent.
+1. **Word and Excel files, sent by hand** from the Files page.
+2. **A mark on the file** when the translation changed after it was last sent. Built: see [Sent and changed since](#sent-and-changed-since).
 3. Automatic sending when the language is fully approved.
 4. The original source text shown as a reference line in the destination project's content editor.
 5. The same action in the public API.
@@ -52,6 +52,27 @@ Other platforms do this in four ways:
   PowerPoint was not checked and is left out.
 - **A string the sent file no longer has is hidden, not deleted.** An upload by hand deletes strings missing from the new file, with their translations and history. A sent file follows the repository sync rule instead: the string is hidden and comes back with its translations when a later send has it again.
 
+## Sent and changed since
+
+On the first project's Files page, a file that was sent shows **Sent** after its latest job status, or in place of **Uploaded** when it has had no job. Its tooltip names each project it was sent to and when it was last sent there, and the **Use translation as source…** dialog says the same for the chosen project, for people who cannot hover. A hidden file shows **Hidden** instead. The mark reads **Changed since sent** when sending again would send something else to any of those projects.
+
+Each send stores a fingerprint of what it read on the file version it makes in the second project: the content hash of the original's newest upload, its import settings, the first project's source language (the Excel writer reads it), and each string's key and approved translation in the language sent (strings the file no longer has, hidden by an upload, are left out; a string hidden by hand is still in the file, and for one without an approved translation whether it is hidden is included, since that decides whether a send is refused). The mark compares that with the fingerprint now. So:
+
+- an approved translation edited, or set back to review, counts. It stops counting once the text that was sent is approved again;
+- a new upload with other content counts, and so does a change to the file's **Import filters**;
+- a translation saved again unchanged, another language, and a string the file no longer has do not count.
+
+The send reads its fingerprint before it reads the translations. A change made while the file is being built may reach the file and still make it read as changed: the error is always towards sending again, never towards missing a change.
+
+When the second project's file at that path was replaced after the send (an upload there, or a send from elsewhere), the mark reads **Replaced in** that project instead, since sending again would ask first. The mark stores nothing in the first project. Only projects the person can open, and whose source language is one of this project's languages, are listed, so no other project's name is shown.
+
+In the second project, a file whose newest version came from a send shows **From** and the sending project's name, or **From another project** for people who cannot open that project; its tooltip says when the file was sent, and, when the send replaced a version that did not come from the same file, which version it replaced and who uploaded it, so people there can find out what was replaced and ask. It is read from the newest version's upload surface and the metadata the send stored, so a later upload there by hand removes it. Without it, nothing in the second project said its files came from another project.
+
+Known limits:
+
+- The file counts as changed when it is uploaded again with any other content, such as the same text saved again in Word or Excel: the fingerprint holds the file's content hash, not its strings.
+- The check reads every string of each sent file in the language sent, each time the Files page opens. Very large sent files make the page's first mark slower to appear.
+
 ## Why not the alternatives
 
 - **A switch inside one project** changes what "source text" means for every reader of it (AI translation, quality checks, the editor, Reports word counts), and sends every language through the pivot unless exceptions are added per language.
@@ -78,7 +99,7 @@ Each upload of a source file is kept as a version, and each translation has its 
 
 - **Two projects to watch.** There is no single view of a request's progress across both.
 - **Glossaries.** A glossary is attached by its source language, so the second project needs a glossary whose source is the pivot language.
-- **Sending is by hand** until part 3. Until part 2 nothing marks a file whose translation changed after it was sent.
+- **Sending is by hand** until part 3.
 - **A changed string waits for a person.** When a re-sent file changes a string, the destination keeps its earlier translation for review; a later file job does not translate it again, because file jobs keep any translation that has text.
 - **Text Word does not offer as strings stays as it was.** The display text of link fields, a table of contents, inline content controls and comments are not strings today, so they keep the original language in every translated file, including the one sent.
 - **A send replaces only its own copy without asking.** When the destination's newest version at that path is the last send from this same file, a send replaces it. Anything else (a version uploaded there by hand or through the API, one an integration added, one sent from another project or from another file of this project, such as `a.xls` and `a.xlsx` both arriving as `a.xlsx`) is replaced only when a person saw it: the dialog shows where it came from and who added it before sending, the button reads **Replace in** that project, and the request carries the version shown. The send checks again just before uploading, so a file that arrives in the meantime is not replaced unseen; an upload whose save is still under way at that moment is not seen and can still be replaced, which the second project's **From** mark then shows. A file the destination's repository sync added is treated the same way, and the notice says that the sync may store its copy again on its next run. One rule serves sends by hand and automatic sends; an automatic send, which no one sees, never replaces such a file. The server checks the approvals first, so a refusal over the file there never hides strings that are still missing.

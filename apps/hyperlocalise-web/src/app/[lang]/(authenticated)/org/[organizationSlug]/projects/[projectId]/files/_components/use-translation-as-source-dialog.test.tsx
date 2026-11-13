@@ -23,6 +23,7 @@ import { UseTranslationAsSourceDialog } from "./use-translation-as-source-dialog
 const apiMocks = vi.hoisted(() => ({
   getDestinations: vi.fn(),
   getDestinationFile: vi.fn(),
+  getSent: vi.fn(async () => new Response(JSON.stringify({ sends: [] }), { status: 200 })),
   send: vi.fn(),
   toastSuccess: vi.fn(),
 }));
@@ -39,6 +40,7 @@ vi.mock("@/lib/api-client-instance", () => ({
                   $post: apiMocks.send,
                   destinations: { $get: apiMocks.getDestinations },
                   "destination-file": { $get: apiMocks.getDestinationFile },
+                  sent: { $get: apiMocks.getSent },
                 },
               },
             },
@@ -401,6 +403,38 @@ describe("UseTranslationAsSourceDialog", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(/uploaded by Mei Chen/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+  });
+
+  it("says when the file was last sent to the chosen project and that it changed since", async () => {
+    apiMocks.getDestinations.mockResolvedValue(
+      jsonResponse({ destinations: [englishProject, frenchProject] }),
+    );
+    apiMocks.getSent.mockResolvedValueOnce(
+      jsonResponse({
+        sends: [
+          {
+            sourcePath: "docs/brief.docx",
+            destinationProjectId: "project_en",
+            destinationProjectName: "English stage",
+            locale: "en",
+            sentAt: "2026-11-10T13:56:58.674Z",
+            changedSinceSent: true,
+          },
+        ],
+      }),
+    );
+
+    renderDialog();
+
+    expect(
+      await screen.findByText(
+        /^Last sent to this project on .+\. The English translation has changed since, or the file was uploaded again\.$/,
+      ),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("combobox"));
+    await userEvent.click(await screen.findByRole("option", { name: /French stage/ }));
+    expect(screen.queryByText(/^Last sent to this project/)).not.toBeInTheDocument();
   });
 
   it("says so when no project can take the translation", async () => {

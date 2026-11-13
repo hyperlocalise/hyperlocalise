@@ -32,6 +32,10 @@ import {
   getTranslationAsSourceDestinationFile,
   translationAsSourceDestinationPath,
 } from "@/lib/projects/files/translation-as-source-destination";
+import {
+  listTranslationAsSourceReceipts,
+  listTranslationAsSourceSends,
+} from "@/lib/projects/files/translation-as-source-sends";
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import { getRepositorySourceFileByPath } from "@/lib/projects/translations/project-translation-service";
 
@@ -195,6 +199,75 @@ export function createTranslationAsSourceRoutes(
                 }
               : null,
           },
+        },
+        200,
+      );
+    })
+    .get("/sent", validateParams, async (c) => {
+      const project = await getOwnedProjectRecord(c.var.auth, c.req.valid("param").projectId);
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      // Only sends to projects this person can open, so no other project's name is shown, and
+      // that could take a send now, which keeps the search to a few projects.
+      const projects = await listOrganizationProjects(c.var.auth, { source: "native" });
+      const projectNames = new Map(
+        projects
+          .filter((candidate) => isTranslationSourceDestination(project, candidate))
+          .map((candidate) => [candidate.id, candidate.name]),
+      );
+      const sends = await listTranslationAsSourceSends({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: project.id,
+        destinationProjectIds: [...projectNames.keys()],
+      });
+
+      return c.json(
+        {
+          sends: sends.map((send) => ({
+            sourcePath: send.sourcePath,
+            destinationProjectId: send.destinationProjectId,
+            destinationProjectName: projectNames.get(send.destinationProjectId) ?? "",
+            locale: send.locale,
+            sentAt: send.sentAt.toISOString(),
+            changedSinceSent: send.changedSinceSent,
+            replacedInDestination: send.replacedInDestination,
+          })),
+        },
+        200,
+      );
+    })
+    .get("/received", validateParams, async (c) => {
+      const project = await getOwnedProjectRecord(c.var.auth, c.req.valid("param").projectId);
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      const [receipts, projects] = await Promise.all([
+        listTranslationAsSourceReceipts({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: project.id,
+        }),
+        listOrganizationProjects(c.var.auth, { source: "native" }),
+      ]);
+      // A project this person cannot open is not named.
+      const projectNames = new Map(projects.map((candidate) => [candidate.id, candidate.name]));
+
+      return c.json(
+        {
+          received: receipts.map((receipt) => ({
+            sourcePath: receipt.sourcePath,
+            fromProjectName: projectNames.get(receipt.fromProjectId) ?? null,
+            locale: receipt.locale,
+            receivedAt: receipt.receivedAt.toISOString(),
+            replaced: receipt.replaced
+              ? {
+                  addedAt: receipt.replaced.addedAt.toISOString(),
+                  addedBy: receipt.replaced.addedBy,
+                }
+              : null,
+          })),
         },
         200,
       );

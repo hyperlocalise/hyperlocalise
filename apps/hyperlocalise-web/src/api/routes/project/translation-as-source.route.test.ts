@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import * as XLSX from "xlsx";
 import { testClient } from "hono/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -33,9 +33,15 @@ import {
   normalizeImportSettings,
   type RepositorySourceFileImportSettings,
 } from "@/lib/projects/files/source-file-import-settings-schema";
+import { translationSourceFingerprintSql } from "@/lib/projects/files/translation-as-source-fingerprint";
 import { TRANSLATION_AS_SOURCE_UPLOAD_SURFACE } from "@/lib/projects/files/translation-as-source-support";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
+import {
+  projectTranslationRevisionColumns,
+  recordProjectTranslationRevisions,
+  writeProjectTranslations,
+} from "@/lib/projects/translations/project-translation-revisions";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import { DOCX_CONTENT_TYPE, readDocxEntries } from "@/lib/translation/ooxml/docx-document";
 import { ooxmlFixture } from "@/lib/translation/ooxml/ooxml.fixture";
@@ -276,6 +282,7 @@ async function chainedProjectsFixture(
   };
 
   return {
+    identity,
     organization,
     user,
     original,
@@ -284,6 +291,14 @@ async function chainedProjectsFixture(
     version,
     keys,
     destinations: () => route.destinations.$get({ param }, { headers }),
+    sent: (otherHeaders?: Record<string, string>) =>
+      route.sent.$get({ param }, { headers: otherHeaders ?? headers }),
+    /** The destination's files sent there from another project. */
+    received: (otherHeaders?: Record<string, string>) =>
+      route.received.$get(
+        { param: { ...param, projectId: destination.id } },
+        { headers: otherHeaders ?? headers },
+      ),
     /** What the destination has where the fixture file would be sent. */
     destinationFile: () =>
       route["destination-file"].$get(
@@ -369,6 +384,61 @@ async function addToDestination(
     uploadSurface: options.uploadSurface ?? "files_page",
     uploadedByUserId: options.uploadedByUserId ?? null,
   });
+}
+
+type ChainedProjects = Awaited<ReturnType<typeof chainedProjectsFixture>>;
+
+/**
+ * Saves a translation of the fixture's first string through the app's history writer, which
+ * keeps a translation's earlier text when its first change is recorded.
+ */
+async function saveTranslation(
+  fixture: ChainedProjects,
+  values: { locale?: string; text?: string; status: "approved" | "needs_review" },
+) {
+  const key = fixture.keys[0];
+  const locale = values.locale ?? PIVOT_LOCALE;
+  await writeProjectTranslations(
+    db,
+    {
+      organizationId: fixture.organization.id,
+      translationKeyIds: [key.id],
+      targetLocales: [locale],
+    },
+    async (tx, before) => {
+      const previous = [...before.values()][0];
+      const saved = await tx
+        .insert(schema.projectTranslations)
+        .values({
+          organizationId: fixture.organization.id,
+          projectId: fixture.original.id,
+          translationKeyId: key.id,
+          targetLocale: locale,
+          text: values.text ?? previous?.text ?? "",
+          status: values.status,
+          provenance: "manual",
+        })
+        .onConflictDoUpdate({
+          target: [
+            schema.projectTranslations.translationKeyId,
+            schema.projectTranslations.targetLocale,
+          ],
+          set: { text: sql`excluded.text`, status: sql`excluded.status`, updatedAt: sql`now()` },
+        })
+        .returning(projectTranslationRevisionColumns);
+      await recordProjectTranslationRevisions(tx, { before, saved });
+    },
+  );
+}
+
+/** Whether the file shows as changed since its last send. */
+async function changedSinceSent(fixture: ChainedProjects) {
+  const response = await fixture.sent();
+  const body = await response.json();
+  if (!("sends" in body)) {
+    throw new Error("could not list the sends");
+  }
+  return body.sends.map((send) => send.changedSinceSent);
 }
 
 describe("translation as source routes", () => {
@@ -924,6 +994,300 @@ describe("translation as source routes", () => {
     expect(await (await fixture.destinationFile()).json()).toMatchObject({
       destinationFile: { state: "other", path: "requests/prices.xlsx" },
     });
+  });
+
+  it("lists the file's last send to each project, unchanged until a translation changes", async () => {
+    const fixture = await chainedProjectsFixture();
+    expect(await (await fixture.sent()).json()).toEqual({ sends: [] });
+
+    expect((await fixture.send()).status).toBe(201);
+    expect((await fixture.send()).status).toBe(201);
+
+    const [lastSent] = await fixture.destinationVersions();
+    const response = await fixture.sent();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      sends: [
+        {
+          sourcePath: SOURCE_PATH,
+          destinationProjectId: fixture.destination.id,
+          destinationProjectName: "Requests (English)",
+          locale: PIVOT_LOCALE,
+          sentAt: lastSent.createdAt.toISOString(),
+          changedSinceSent: false,
+          replacedInDestination: false,
+        },
+      ],
+    });
+
+    await saveTranslation(fixture, { text: "Better English", status: "approved" });
+    expect(await changedSinceSent(fixture)).toEqual([true]);
+
+    expect((await fixture.send()).status).toBe(201);
+    expect(await changedSinceSent(fixture)).toEqual([false]);
+  });
+
+  it("counts a translation sent back to review until it is approved again as it was", async () => {
+    const fixture = await chainedProjectsFixture();
+    expect((await fixture.send()).status).toBe(201);
+
+    await saveTranslation(fixture, { text: "Draft English", status: "needs_review" });
+    expect(await changedSinceSent(fixture)).toEqual([true]);
+
+    await saveTranslation(fixture, {
+      text: `English for ${fixture.keys[0].key}`,
+      status: "approved",
+    });
+    expect(await changedSinceSent(fixture)).toEqual([false]);
+  });
+
+  it("does not count another language, a dropped string, or a translation saved unchanged", async () => {
+    const fixture = await chainedProjectsFixture();
+    expect((await fixture.send()).status).toBe(201);
+
+    await saveTranslation(fixture, { locale: "zh-TW", text: "繁體中文", status: "approved" });
+    expect(await changedSinceSent(fixture)).toEqual([false]);
+
+    await saveTranslation(fixture, { status: "approved" });
+    expect(await changedSinceSent(fixture)).toEqual([false]);
+
+    // A string an upload dropped is hidden and not in the file, so its translation is not sent.
+    await db
+      .update(schema.projectTranslationKeys)
+      .set({ isHidden: true, hiddenBySyncAt: new Date() })
+      .where(eq(schema.projectTranslationKeys.id, fixture.keys[0].id));
+    expect((await fixture.send()).status).toBe(201);
+    await saveTranslation(fixture, { text: "Better English", status: "approved" });
+    expect(await changedSinceSent(fixture)).toEqual([false]);
+  });
+
+  it("counts hiding a string by hand only while it has no approved translation", async () => {
+    const fixture = await chainedProjectsFixture();
+    expect((await fixture.send()).status).toBe(201);
+    const hide = (keyIndex: number, isHidden: boolean) =>
+      db
+        .update(schema.projectTranslationKeys)
+        .set({ isHidden })
+        .where(eq(schema.projectTranslationKeys.id, fixture.keys[keyIndex].id));
+    const fingerprint = async () => {
+      const result = await db.execute<{ fingerprint: string }>(
+        sql`select ${translationSourceFingerprintSql({
+          organizationId: fixture.organization.id,
+          projectId: fixture.original.id,
+          repositorySourceFileId: fixture.version.repositorySourceFileId,
+          locale: PIVOT_LOCALE,
+        })} as fingerprint`,
+      );
+      return result.rows[0].fingerprint;
+    };
+
+    // Its approved translation is written into the file either way.
+    await hide(0, true);
+    expect(await changedSinceSent(fixture)).toEqual([false]);
+
+    // Hiding one still waiting for approval decides whether a send is refused.
+    await db
+      .update(schema.projectTranslations)
+      .set({ status: "needs_review" })
+      .where(eq(schema.projectTranslations.translationKeyId, fixture.keys[1].id));
+    const waiting = await fingerprint();
+    await hide(1, true);
+    expect(await fingerprint()).not.toBe(waiting);
+  });
+
+  it("counts a change to the file's import settings", async () => {
+    const fixture = await chainedProjectsFixture();
+    expect((await fixture.send()).status).toBe(201);
+
+    await db
+      .update(schema.repositorySourceFiles)
+      .set({
+        importSettings: {
+          ...defaultRepositorySourceFileImportSettings(),
+          excel: { firstLineContainsHeader: false, columns: { source: 1 } },
+        },
+      })
+      .where(eq(schema.repositorySourceFiles.id, fixture.version.repositorySourceFileId));
+
+    expect(await changedSinceSent(fixture)).toEqual([true]);
+  });
+
+  it("lists in the other project where each file sent there came from", async () => {
+    const fixture = await chainedProjectsFixture();
+    expect(await (await fixture.received()).json()).toEqual({ received: [] });
+
+    expect((await fixture.send()).status).toBe(201);
+
+    const [sentVersion] = await fixture.destinationVersions();
+    const response = await fixture.received();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      received: [
+        {
+          sourcePath: SOURCE_PATH,
+          fromProjectName: fixture.original.name,
+          locale: PIVOT_LOCALE,
+          receivedAt: sentVersion.createdAt.toISOString(),
+          replaced: null,
+        },
+      ],
+    });
+
+    // A file uploaded there by hand since is that project's own again.
+    const byHand = await createStoredFile({
+      organizationId: fixture.organization.id,
+      projectId: fixture.destination.id,
+      role: "source",
+      sourceKind: "repository_file",
+      filename: "report.docx",
+      contentType: DOCX_CONTENT_TYPE,
+      content: Buffer.from("uploaded by hand"),
+    });
+    await createRepositorySourceFileVersion({ storedFile: byHand, sourcePath: SOURCE_PATH });
+    expect(await (await fixture.received()).json()).toEqual({ received: [] });
+  });
+
+  it("does not count a copy of a sent file on another branch of the other project", async () => {
+    const fixture = await chainedProjectsFixture();
+    expect((await fixture.send()).status).toBe(201);
+    const [sentVersion] = await fixture.destinationVersions();
+    // A branch created in the other project copies its files' newest versions, stored file included.
+    const [storedFile] = await db
+      .select()
+      .from(schema.storedFiles)
+      .where(eq(schema.storedFiles.id, sentVersion.storedFileId));
+    await createRepositorySourceFileVersion({
+      storedFile,
+      sourcePath: SOURCE_PATH,
+      branchName: "release",
+      uploadSurface: TRANSLATION_AS_SOURCE_UPLOAD_SURFACE,
+    });
+
+    expect(await (await fixture.sent()).json()).toMatchObject({
+      sends: [{ sentAt: sentVersion.createdAt.toISOString(), replacedInDestination: false }],
+    });
+    // One entry: arrays match by length too.
+    expect(await (await fixture.received()).json()).toMatchObject({
+      received: [{ receivedAt: sentVersion.createdAt.toISOString() }],
+    });
+  });
+
+  it("marks a send replaced since, and says in the other project what a send replaced", async () => {
+    const fixture = await chainedProjectsFixture();
+    expect((await fixture.send()).status).toBe(201);
+    const byHand = await addToDestination(fixture, { uploadedByUserId: fixture.user.id });
+
+    expect(await (await fixture.sent()).json()).toMatchObject({
+      sends: [{ replacedInDestination: true }],
+    });
+    expect(await (await fixture.received()).json()).toEqual({ received: [] });
+
+    expect((await fixture.send({ replaceVersionId: byHand.id })).status).toBe(201);
+    expect(await (await fixture.sent()).json()).toMatchObject({
+      sends: [{ replacedInDestination: false }],
+    });
+    expect(await (await fixture.received()).json()).toMatchObject({
+      received: [
+        {
+          sourcePath: SOURCE_PATH,
+          replaced: { addedAt: byHand.createdAt.toISOString(), addedBy: expect.any(String) },
+        },
+      ],
+    });
+
+    // A send that replaces the last send from the same file replaced nothing worth naming.
+    await saveTranslation(fixture, { text: "Better English", status: "approved" });
+    expect((await fixture.send()).status).toBe(201);
+    expect(await (await fixture.received()).json()).toMatchObject({
+      received: [{ replaced: null }],
+    });
+  });
+
+  it("does not name the project a file came from to someone who cannot open it", async () => {
+    const fixture = await chainedProjectsFixture();
+    expect((await fixture.send()).status).toBe(201);
+    const [otherTeam] = await db
+      .insert(schema.teams)
+      .values({ organizationId: fixture.organization.id, slug: "chinese", name: "Chinese" })
+      .returning();
+    await db
+      .update(schema.projects)
+      .set({ teamId: otherTeam.id })
+      .where(eq(schema.projects.id, fixture.original.id));
+    const developer = projectFixture.createWorkosIdentityForOrganization(
+      fixture.identity.organization,
+      "developer",
+    );
+    await projectFixture.authHeadersFor(developer);
+    await db.insert(schema.teamMemberships).values({
+      teamId: fixture.destination.teamId!,
+      userId: await projectFixture.getLocalUserId(developer.user.workosUserId),
+      role: "member",
+    });
+
+    const response = await fixture.received(await projectFixture.authHeadersFor(developer));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      received: [{ sourcePath: SOURCE_PATH, fromProjectName: null }],
+    });
+  });
+
+  it("does not list a send to a project the person cannot open", async () => {
+    const fixture = await chainedProjectsFixture();
+    expect((await fixture.send()).status).toBe(201);
+    const [otherTeam] = await db
+      .insert(schema.teams)
+      .values({ organizationId: fixture.organization.id, slug: "english", name: "English" })
+      .returning();
+    await db
+      .update(schema.projects)
+      .set({ teamId: otherTeam.id })
+      .where(eq(schema.projects.id, fixture.destination.id));
+    const developer = projectFixture.createWorkosIdentityForOrganization(
+      fixture.identity.organization,
+      "developer",
+    );
+    await projectFixture.authHeadersFor(developer);
+    await db.insert(schema.teamMemberships).values({
+      teamId: fixture.original.teamId!,
+      userId: await projectFixture.getLocalUserId(developer.user.workosUserId),
+      role: "member",
+    });
+
+    const response = await fixture.sent(await projectFixture.authHeadersFor(developer));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ sends: [] });
+    expect(await changedSinceSent(fixture)).toEqual([false]);
+  });
+
+  it("counts a new upload of the file with other content as a change", async () => {
+    const fixture = await chainedProjectsFixture();
+    expect((await fixture.send()).status).toBe(201);
+    const upload = async (content: Uint8Array) => {
+      const storedFile = await createStoredFile({
+        organizationId: fixture.organization.id,
+        projectId: fixture.original.id,
+        role: "source",
+        sourceKind: "repository_file",
+        filename: "report.docx",
+        contentType: DOCX_CONTENT_TYPE,
+        content: Buffer.from(content),
+      });
+      await createRepositorySourceFileVersion({ storedFile, sourcePath: SOURCE_PATH });
+    };
+
+    // The same bytes again: the fixture's own stored file, since a new build stamps new zip times.
+    const [sameFile] = await db
+      .select()
+      .from(schema.storedFiles)
+      .where(eq(schema.storedFiles.id, fixture.version.storedFileId));
+    await createRepositorySourceFileVersion({ storedFile: sameFile, sourcePath: SOURCE_PATH });
+    expect(await changedSinceSent(fixture)).toEqual([false]);
+
+    await upload(new TextEncoder().encode("another file"));
+    expect(await changedSinceSent(fixture)).toEqual([true]);
   });
 
   it("refuses files that are not Word or Excel files", async () => {

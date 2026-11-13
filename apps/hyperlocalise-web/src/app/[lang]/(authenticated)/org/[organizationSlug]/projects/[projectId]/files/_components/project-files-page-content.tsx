@@ -57,6 +57,10 @@ import { ProjectFilesTree } from "./project-files-tree";
 import { formatBytes } from "./project-files-shared";
 import { projectFilesPageContentMessages as messages } from "./project-files-page-content.messages";
 import { useProjectFileActions } from "./use-project-file-actions";
+import {
+  translationAsSourceReceiptsQueryKey,
+  translationAsSourceSendsQueryKey,
+} from "./translation-as-source-sent-mark";
 import { UseTranslationAsSourceDialog } from "./use-translation-as-source-dialog";
 import {
   PROJECT_FILES_MAX_UPLOAD,
@@ -348,9 +352,18 @@ const ProjectFilesPageContentInner = observer(function ProjectFilesPageContentIn
       setKeepApprovedTranslations(false);
       const lastUploadedPath = files.at(-1) ? sourcePathForFile(files.at(-1) as File) : null;
       pageStore.clearSelectedFiles();
-      await queryClient.invalidateQueries({
-        queryKey: projectFilesQueryKey(organizationSlug, projectId, undefined, selectedBranch),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: projectFilesQueryKey(organizationSlug, projectId, undefined, selectedBranch),
+        }),
+        // A new upload of a sent file can change its sent mark, and one here removes its From mark.
+        queryClient.invalidateQueries({
+          queryKey: translationAsSourceSendsQueryKey(organizationSlug, projectId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: translationAsSourceReceiptsQueryKey(organizationSlug, projectId),
+        }),
+      ]);
       if (lastUploadedPath) {
         setSelectedSourcePath(lastUploadedPath);
       }

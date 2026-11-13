@@ -37,11 +37,22 @@ import { projectFilesTreeMessages as messages } from "./project-files-tree.messa
 import { PROJECT_FILES_TREE_ICONS } from "./project-files-tree-icons";
 import { dedupeProjectFilesBySourcePath, formatBytes } from "./project-files-shared";
 import { buildProjectFileActionCapabilities } from "./use-project-file-actions";
+import {
+  buildTranslationAsSourceSentDecoration,
+  type TranslationAsSourceReceipt,
+  type TranslationAsSourceSend,
+} from "./translation-as-source-sent-mark";
 import { useProjectFilesTreeCollapsedFolders } from "./use-project-files-tree-collapsed-folders";
 
 export const TREE_HEIGHT_PX = 480;
 
 const NO_FILE_PROGRESS: readonly ProjectFileProgressRecord[] = [];
+
+/** The other projects each file was sent to as their source, by path. */
+export type ProjectFilesTreeFileSends = ReadonlyMap<string, readonly TranslationAsSourceSend[]>;
+
+/** The files sent here from another project, by path. */
+export type ProjectFilesTreeFileReceipts = ReadonlyMap<string, TranslationAsSourceReceipt>;
 
 /** Let the progress badge keep its width; long file names middle-truncate instead. */
 const PROJECT_FILES_TREE_UNSAFE_CSS = `[data-item-section="decoration"] { flex: 1 0 auto; }`;
@@ -117,6 +128,8 @@ export function ProjectFilesTree({
   fileProgress,
   searchQuery,
   collapsedFoldersStorageKey,
+  fileSends,
+  fileReceipts,
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
@@ -126,6 +139,10 @@ export function ProjectFilesTree({
   ariaLabel?: string;
   /** Persists collapsed folders in localStorage under this key. */
   collapsedFoldersStorageKey?: string;
+  /** Marks files sent to another project as its source, after their latest job status. */
+  fileSends?: ProjectFilesTreeFileSends;
+  /** Marks files sent here from another project. */
+  fileReceipts?: ProjectFilesTreeFileReceipts;
   /** Stretch to the parent height instead of the fixed TREE_HEIGHT_PX. */
   fillHeight?: boolean;
   /** Per-file progress for the active locale, shown as "translated% · approved%". */
@@ -146,6 +163,8 @@ export function ProjectFilesTree({
         fileProgress={fileProgress}
         searchQuery={searchQuery}
         collapsedFoldersStorageKey={collapsedFoldersStorageKey}
+        fileSends={fileSends}
+        fileReceipts={fileReceipts}
       />
     );
   }
@@ -161,6 +180,8 @@ export function ProjectFilesTree({
       fileProgress={fileProgress}
       searchQuery={searchQuery}
       collapsedFoldersStorageKey={collapsedFoldersStorageKey}
+      fileSends={fileSends}
+      fileReceipts={fileReceipts}
     />
   );
 }
@@ -176,6 +197,8 @@ function ProjectFilesTreeView({
   fileProgress = NO_FILE_PROGRESS,
   searchQuery,
   collapsedFoldersStorageKey,
+  fileSends,
+  fileReceipts,
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
@@ -187,6 +210,8 @@ function ProjectFilesTreeView({
   fileProgress?: readonly ProjectFileProgressRecord[];
   searchQuery?: string;
   collapsedFoldersStorageKey?: string;
+  fileSends?: ProjectFilesTreeFileSends;
+  fileReceipts?: ProjectFilesTreeFileReceipts;
 }) {
   const hasExternalSearch = searchQuery !== undefined;
   const intl = useIntl();
@@ -216,6 +241,8 @@ function ProjectFilesTreeView({
   const latestStateRef = useRef({
     fileActions,
     fileByPath,
+    fileSends,
+    fileReceipts,
     intl,
     onSelectFile,
     onActivateFile,
@@ -254,12 +281,23 @@ function ProjectFilesTreeView({
     latestStateRef.current = {
       fileActions,
       fileByPath,
+      fileSends,
+      fileReceipts,
       intl,
       onActivateFile,
       onSelectFile,
       progressLookup,
     };
-  }, [fileActions, fileByPath, intl, onActivateFile, onSelectFile, progressLookup]);
+  }, [
+    fileActions,
+    fileByPath,
+    fileSends,
+    fileReceipts,
+    intl,
+    onActivateFile,
+    onSelectFile,
+    progressLookup,
+  ]);
 
   contextMenuHandlersRef.current = {
     onOpen: (itemPath, context) => {
@@ -365,6 +403,8 @@ function ProjectFilesTreeView({
 
       const {
         fileByPath: files,
+        fileSends: sendsByPath,
+        fileReceipts: receiptsByPath,
         intl: latestIntl,
         progressLookup: lookup,
       } = latestStateRef.current;
@@ -380,6 +420,20 @@ function ProjectFilesTreeView({
       );
       if (progressDecoration || file.provider) {
         return progressDecoration;
+      }
+
+      const sends = sendsByPath?.get(file.sourcePath);
+      const receipt = receiptsByPath?.get(file.sourcePath);
+      if (sends?.length || receipt) {
+        return buildTranslationAsSourceSentDecoration(
+          sends ?? [],
+          {
+            jobStatus: file.latestJob?.status ?? null,
+            metadata: fileListMetadata(file, latestIntl),
+          },
+          latestIntl,
+          receipt,
+        );
       }
 
       return {
@@ -429,7 +483,7 @@ function ProjectFilesTreeView({
   // Pierre has no decoration refresh API; re-setting icons re-renders every row.
   useEffect(() => {
     model.setIcons(PROJECT_FILES_TREE_ICONS);
-  }, [model, progressLookup]);
+  }, [model, progressLookup, fileSends, fileReceipts]);
 
   useEffect(() => {
     if (!selectedSourcePath || !fileByPath.has(selectedSourcePath)) {
