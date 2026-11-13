@@ -63,6 +63,25 @@ describe("ContentEditorKeyDetails", () => {
     expect(screen.queryByRole("button", { name: "Edit link" })).not.toBeInTheDocument();
   });
 
+  it("does not turn an unsafe stored design value into a link", () => {
+    renderDetails({ tags: ["release-7"], designUrl: "javascript:alert(1)" }, null);
+
+    expect(screen.getByText("release-7")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.queryByText("Design")).not.toBeInTheDocument();
+  });
+
+  it("lets an editor remove an unsafe stored design value", async () => {
+    const user = userEvent.setup();
+    const edit = editing();
+    renderDetails({ tags: [], designUrl: "javascript:alert(1)" }, edit);
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.getByText("javascript:alert(1)")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Remove link" }));
+    expect(edit.onSetDesignUrl).toHaveBeenCalledWith({ segmentId: "key-1", designUrl: null });
+  });
+
   it("hides the rows a viewer can neither read nor fill", () => {
     renderDetails({ tags: [], designUrl: "https://www.figma.com/file/a" }, null);
 

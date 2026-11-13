@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { isValidLabelId } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { cn } from "@/lib/primitives/cn";
+import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 
 import { contentEditorKeyDetailsMessages as messages } from "./content-editor-key-details.messages";
 
@@ -79,7 +80,7 @@ export function useContentEditorKeyDetailsVisible({
   designUrl?: string;
 }) {
   const editing = useKeyDetailsEditingFor(segmentId);
-  return tags.length > 0 || Boolean(designUrl) || editing !== null;
+  return tags.length > 0 || Boolean(sanitizeExternalUrl(designUrl)) || editing !== null;
 }
 
 /** A string's tags and design link as property rows, editable in place for people who may. */
@@ -93,7 +94,8 @@ export function ContentEditorKeyDetails({
   designUrl?: string;
 }) {
   const editing = useKeyDetailsEditingFor(segmentId);
-  if (tags.length === 0 && !designUrl && !editing) {
+  const href = sanitizeExternalUrl(designUrl);
+  if (tags.length === 0 && !href && !editing) {
     return null;
   }
   return (
@@ -103,7 +105,7 @@ export function ContentEditorKeyDetails({
           <KeyTags segmentId={segmentId} tags={tags} editing={editing} />
         </PropertyRow>
       ) : null}
-      {designUrl || editing ? (
+      {href || editing ? (
         <PropertyRow label={<FormattedMessage {...messages.designLabel} />}>
           <DesignLink
             key={`${segmentId ?? ""}:${designUrl ?? ""}`}
@@ -439,24 +441,36 @@ function DesignLink({
     );
   }
 
-  const target = describeDesignUrl(designUrl);
+  const href = sanitizeExternalUrl(designUrl);
+  const target = describeDesignUrl(href ?? designUrl);
   const TargetIcon = target.isFigma ? FigmaLogoIcon : LinkSimpleIcon;
+  const name = (
+    <>
+      <TargetIcon className="size-3.5 shrink-0" />
+      <span className="min-w-0 truncate">{target.name}</span>
+    </>
+  );
 
   return (
     <div>
       <div className="group flex h-6 min-w-0 items-center gap-1">
-        <a
-          href={designUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={designUrl}
-          aria-label={intl.formatMessage(messages.openDesign, { name: target.name })}
-          className="inline-flex min-w-0 items-center gap-1.5 rounded-sm text-xs font-medium text-foreground hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-        >
-          <TargetIcon className="size-3.5 shrink-0" />
-          <span className="min-w-0 truncate">{target.name}</span>
-          <ArrowSquareOutIcon className="size-3 shrink-0 text-muted-foreground" />
-        </a>
+        {href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={href}
+            aria-label={intl.formatMessage(messages.openDesign, { name: target.name })}
+            className="inline-flex min-w-0 items-center gap-1.5 rounded-sm text-xs font-medium text-foreground hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            {name}
+            <ArrowSquareOutIcon className="size-3 shrink-0 text-muted-foreground" />
+          </a>
+        ) : (
+          <span className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium text-foreground">
+            {name}
+          </span>
+        )}
         {editing ? (
           <span className="ml-auto flex shrink-0 items-center opacity-60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
             <Button
