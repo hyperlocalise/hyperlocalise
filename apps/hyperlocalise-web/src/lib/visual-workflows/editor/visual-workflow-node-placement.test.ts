@@ -70,6 +70,24 @@ describe("placeNewVisualWorkflowNode", () => {
     ).toEqual({ x: 380, y: 80 });
   });
 
+  it("puts a step added from a later output one row lower per output above it", () => {
+    const retry: VisualWorkflowRfNode = {
+      id: "retry",
+      type: "logic.retry",
+      position: { x: 40, y: 80 },
+      height: 120,
+      data: {
+        catalogType: "logic.retry",
+        config: createDefaultConfig("logic.retry"),
+        runStatus: "idle",
+      },
+    };
+    const place = (handleId: string) =>
+      placeNewVisualWorkflowNode({ nodes: [retry], source: retry, handleId }).y;
+
+    expect([place("attempt"), place("succeeded"), place("exhausted")]).toEqual([80, 236, 392]);
+  });
+
   it("falls back to a fixed spot when the view is not known", () => {
     expect(placeNewVisualWorkflowNode({ nodes: [node("a", { x: 0, y: 0 })] })).toEqual({
       x: 144,

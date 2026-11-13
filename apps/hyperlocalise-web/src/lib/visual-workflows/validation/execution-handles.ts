@@ -36,7 +36,7 @@ export function getAllowedExecutionSourceHandles(
     return ["success", "error"];
   }
   if (node.config.kind === "logic.switch") {
-    return ["default", ...node.config.cases.map((entry) => entry.id)];
+    return [...node.config.cases.map((entry) => entry.id), "default"];
   }
   if (["logic.for_each", "logic.array_transform"].includes(node.type)) {
     return ["each", "done"];

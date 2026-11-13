@@ -22,6 +22,7 @@ import type {
 } from "../schema/types";
 import { isTriggerType } from "../catalog/node-catalog";
 import {
+  computeFlowBodyNodeIdsFromV3Edges,
   computeForEachBodyNodeIdsFromV3Edges,
   computeTryCatchBodyNodeIdsFromV3Edges,
 } from "../editor/for-each-body-membership";
@@ -140,60 +141,9 @@ function hasDataTargetPort(node: CanonicalVisualWorkflowNode, portId: string): b
 }
 
 function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> {
-  if (["flow.stop", "flow.return", "flow.fail"].includes(node.type)) {
-    return new Set();
-  }
-  if (node.type === "logic.if") {
-    return new Set(["true", "false"]);
-  }
-
-  if (node.config.kind === "logic.switch") {
-    return new Set(["default", ...node.config.cases.map((caseEntry) => caseEntry.id)]);
-  }
-
-  if (["logic.for_each", "logic.array_transform"].includes(node.type)) {
-    return new Set(["each", "done"]);
-  }
-
-  if (node.type === "logic.merge") {
-    return new Set(["completed", "timed_out", "error"]);
-  }
-
-  if (node.type === "logic.json_parse" || node.type === "logic.schema_validate") {
-    return new Set(["success", "invalid"]);
-  }
-
-  if (node.type === "logic.json_stringify") {
-    return new Set(["success", "error"]);
-  }
-
-  if (["action.file_read", "action.file_write", "action.file_convert"].includes(node.type)) {
-    return new Set(["success", "error"]);
-  }
-
-  const portIds = new Set(["success"]);
-
-  if ("onError" in node.config && node.config.onError === "branch") {
-    portIds.add("error");
-  }
-
-  if (node.type === "flow.human_approval") {
-    return new Set(["approved", "rejected", "changes_requested", "timed_out"]);
-  }
-
-  if (node.type === "flow.wait") {
-    return new Set(["completed", "timed_out", "error"]);
-  }
-
-  if (node.config.kind === "logic.sequence") {
-    return new Set(node.config.outputs.map((output) => output.id));
-  }
-
-  if (node.type === "logic.try_catch") {
-    return new Set(["try", "success", "catch", "finally"]);
-  }
-
-  return portIds;
+  return new Set(
+    getAllowedExecutionSourceHandles(node).filter((handle): handle is string => handle !== null),
+  );
 }
 
 function executionTargetPortIds(node: CanonicalVisualWorkflowNode): Set<string> {
@@ -629,22 +579,14 @@ export function toVisualWorkflowExecutionDefinition(
   return {
     schemaVersion: 2,
     name: compiled.definition.name,
-    nodes: compiled.definition.nodes.map((node) =>
-      ["logic.for_each", "logic.array_transform"].includes(node.type)
-        ? {
-            ...node,
-            bodyNodeIds: computeForEachBodyNodeIdsFromV3Edges(node.id, compiled.definition.edges),
-          }
-        : node.type === "logic.try_catch"
-          ? {
-              ...node,
-              bodyNodeIds: computeTryCatchBodyNodeIdsFromV3Edges(
-                node.id,
-                compiled.definition.edges,
-              ),
-            }
-          : node,
-    ),
+    nodes: compiled.definition.nodes.map((node) => {
+      const bodyNodeIds = computeFlowBodyNodeIdsFromV3Edges(
+        node.type,
+        node.id,
+        compiled.definition.edges,
+      );
+      return bodyNodeIds ? { ...node, bodyNodeIds } : node;
+    }),
     edges: compiled.executionEdges.map((edge) => ({
       id: edge.id,
       source: edge.source,

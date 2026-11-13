@@ -14,8 +14,8 @@
  */
 import { readWorkflowPath } from "@/lib/visual-workflows/runtime/bindings";
 import { BroadcastIcon, WarningCircleIcon } from "@phosphor-icons/react";
-import { Handle, Position, useEdges, type NodeProps } from "@xyflow/react";
-import { defineMessages, FormattedMessage, useIntl } from "react-intl";
+import { Handle, Position, useEdges, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
+import { defineMessages, FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import { Card } from "@/components/ui/card";
 import {
@@ -26,11 +26,15 @@ import {
   TRIGGER_BADGE_ICON,
 } from "@/lib/visual-workflows/catalog/node-catalog";
 import {
+  canvasDataHandleId,
+  fromCanvasEdgeHandles,
+} from "@/lib/visual-workflows/editor/canvas-handle-ids";
+import {
   getVisualWorkflowDataPorts,
   type VisualWorkflowDataPort,
 } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
 import { isExecutionHandleConnected } from "@/lib/visual-workflows/editor/visual-workflow-execution-ports";
-import { nodeSupportsErrorBranch } from "@/lib/visual-workflows/runtime/node-options";
+import { getAllowedExecutionSourceHandles } from "@/lib/visual-workflows/validation/execution-handles";
 import type {
   VisualWorkflowCanvasEdge,
   VisualWorkflowRfNode,
@@ -41,7 +45,15 @@ import { useVisualWorkflowCanvasActions } from "../visual-workflow-canvas-action
 import { visualWorkflowEditorMessages as messages } from "../visual-workflow-editor.messages";
 import { visualWorkflowNodeTitleMessage } from "../visual-workflow-node-picker";
 import { VisualWorkflowQuickAddButton } from "./visual-workflow-quick-add-button";
-import { createElement, Fragment, type ComponentProps, type CSSProperties } from "react";
+import {
+  createElement,
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  type ComponentProps,
+  type CSSProperties,
+} from "react";
 
 const nodeStatusMessages = defineMessages({
   running: { defaultMessage: "Running", id: "ZWQ+8S8rpv", description: "Workflow node status" },
@@ -235,17 +247,61 @@ function spreadTop(index: number, count: number): CSSProperties {
   return executionTop((index + 1) / (count + 1));
 }
 
-const TRY_CATCH_HANDLES = [
-  { id: "try", ariaLabel: "Try", message: messages.tryHandle },
-  { id: "success", ariaLabel: "Success", message: messages.successHandle },
-  { id: "catch", ariaLabel: "Catch", message: messages.catchHandle, className: "text-destructive" },
-  {
-    id: "finally",
-    ariaLabel: "Finally",
-    message: messages.finallyHandle,
+type ExecutionOutputLook = {
+  message: MessageDescriptor;
+  ariaLabel: string;
+  /** A text colour for the handle and its label. */
+  className?: string;
+};
+
+// How the card names an execution output, by its id. Switch cases and Sequence outputs are named
+// by the step's own settings.
+const EXECUTION_OUTPUT_LOOK: Record<string, ExecutionOutputLook> = {
+  true: { message: messages.trueHandle, ariaLabel: "true" },
+  false: { message: messages.falseHandle, ariaLabel: "false", className: "text-muted-foreground" },
+  success: { message: messages.jsonSuccessHandle, ariaLabel: "Success" },
+  invalid: { message: messages.invalidHandle, ariaLabel: "Invalid", className: "text-destructive" },
+  error: { message: messages.errorHandle, ariaLabel: "Error", className: "text-destructive" },
+  each: { message: messages.eachHandle, ariaLabel: "Each item" },
+  done: { message: messages.doneHandle, ariaLabel: "Done" },
+  attempt: { message: messages.attemptHandle, ariaLabel: "Attempt" },
+  succeeded: { message: messages.succeededHandle, ariaLabel: "Succeeded" },
+  exhausted: {
+    message: messages.exhaustedHandle,
+    ariaLabel: "Exhausted",
     className: "text-muted-foreground",
   },
-];
+  approved: { message: messages.approvedHandle, ariaLabel: "Approved" },
+  rejected: {
+    message: messages.rejectedHandle,
+    ariaLabel: "Rejected",
+    className: "text-destructive",
+  },
+  changes_requested: { message: messages.changesRequestedHandle, ariaLabel: "Changes requested" },
+  timed_out: {
+    message: messages.timedOutHandle,
+    ariaLabel: "Timed out",
+    className: "text-muted-foreground",
+  },
+  completed: { message: messages.completedHandle, ariaLabel: "Completed" },
+  try: { message: messages.tryHandle, ariaLabel: "Try" },
+  catch: { message: messages.catchHandle, ariaLabel: "Catch", className: "text-destructive" },
+  finally: {
+    message: messages.finallyHandle,
+    ariaLabel: "Finally",
+    className: "text-muted-foreground",
+  },
+  default: {
+    message: messages.switchDefaultHandle,
+    ariaLabel: "default",
+    className: "text-muted-foreground",
+  },
+};
+
+const TRY_CATCH_SUCCESS_LOOK: ExecutionOutputLook = {
+  message: messages.successHandle,
+  ariaLabel: "Success",
+};
 
 /** One way the workflow can leave a step, as drawn on the card's right edge. */
 type ExecutionOutput = {
@@ -301,7 +357,7 @@ function DataPortLabel({
     >
       {direction === "input" ? (
         <DataHandle
-          id={port.id}
+          id={canvasDataHandleId(port.id)}
           type="target"
           position={Position.Left}
           connected={connected}
@@ -315,7 +371,7 @@ function DataPortLabel({
 
       {direction === "output" ? (
         <DataHandle
-          id={port.id}
+          id={canvasDataHandleId(port.id)}
           type="source"
           position={Position.Right}
           connected={connected}
@@ -332,7 +388,8 @@ function DataPortLabel({
 export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<VisualWorkflowRfNode>) {
   const intl = useIntl();
   // The canvas's own list, which holds the drawn reference lines as well as the stored edges.
-  const edges = useEdges<VisualWorkflowCanvasEdge>();
+  const canvasEdges = useEdges<VisualWorkflowCanvasEdge>();
+  const edges = useMemo(() => canvasEdges.map(fromCanvasEdgeHandles), [canvasEdges]);
   const { onAddFromNode, issueNodeIds, freshNodeIds, pointedNodeId, realNodeIds } =
     useVisualWorkflowCanvasActions();
   const hasIssue = issueNodeIds.has(id);
@@ -341,7 +398,6 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
   const isPointed = !selected && pointedNodeId === id;
   const catalog = catalogItemByType(data.catalogType);
   const isTrigger = isTriggerType(data.catalogType);
-  const isTerminal = ["flow.stop", "flow.return", "flow.fail"].includes(data.catalogType);
   const dataPorts = getVisualWorkflowDataPorts({
     node: {
       id,
@@ -356,195 +412,69 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
   const subtitle = data.previewSubtitle ?? resolveNodeSubtitle(data.config);
 
   const mergeInputs = data.config.kind === "logic.merge" ? data.config.inputs : [];
-  const outputs: ExecutionOutput[] = (() => {
-    if (isTerminal) {
-      return [];
-    }
-    if (data.config.kind === "logic.sequence") {
-      const { outputs } = data.config;
-      return outputs.map((output, index) => ({
-        id: output.id,
-        label: output.label,
-        ariaLabel: `Sequence output: ${output.label}`,
-        top: spreadTop(index, outputs.length),
-      }));
+  // The card draws the outputs the connection check and the compiler accept. An ordinary step's
+  // main output (listed with null, its id before outputs had ids) has no label.
+  const allowedOutputs = getAllowedExecutionSourceHandles({
+    type: data.catalogType,
+    config: data.config,
+  });
+  const outputIds = allowedOutputs.filter((handle): handle is string => handle !== null);
+  const describeOutput = (outputId: string): Omit<ExecutionOutput, "top"> => {
+    if (outputId === "success" && allowedOutputs.includes(null)) {
+      return { id: outputId, label: null, ariaLabel: "Execution success" };
     }
     if (data.config.kind === "logic.switch") {
-      const handles = [
-        ...data.config.cases.map((caseEntry, index) => ({
-          id: caseEntry.id,
-          label: intl.formatMessage(messages.switchCaseHandle, { index: index + 1 }),
-        })),
-        { id: "default", label: intl.formatMessage(messages.switchDefaultHandle) },
-      ];
-      return handles.map((handle, index) => ({
-        ...handle,
-        ariaLabel: handle.label,
-        top: spreadTop(index, handles.length),
-        className: handle.id === "default" ? "text-muted-foreground" : undefined,
-      }));
+      const index = data.config.cases.findIndex((caseEntry) => caseEntry.id === outputId);
+      if (index >= 0) {
+        const label = intl.formatMessage(messages.switchCaseHandle, { index: index + 1 });
+        return { id: outputId, label, ariaLabel: label };
+      }
     }
-    if (data.catalogType === "logic.if") {
-      return [
-        {
-          id: "true",
-          label: intl.formatMessage(messages.trueHandle),
-          ariaLabel: "true",
-          top: executionTop(0.35),
-        },
-        {
-          id: "false",
-          label: intl.formatMessage(messages.falseHandle),
-          ariaLabel: "false",
-          top: executionTop(0.65),
-          className: "text-muted-foreground",
-        },
-      ];
+    if (data.config.kind === "logic.sequence") {
+      const output = data.config.outputs.find((entry) => entry.id === outputId);
+      if (output) {
+        return { id: outputId, label: output.label, ariaLabel: `Sequence output: ${output.label}` };
+      }
     }
-    if (
-      data.catalogType === "logic.json_parse" ||
-      data.catalogType === "logic.json_stringify" ||
-      data.catalogType === "logic.schema_validate"
-    ) {
-      const failsAsError = data.catalogType === "logic.json_stringify";
-      return [
-        {
-          id: "success",
-          label: intl.formatMessage(messages.jsonSuccessHandle),
-          ariaLabel: "Success",
-          top: executionTop(0.35),
-        },
-        {
-          id: failsAsError ? "error" : "invalid",
-          label: intl.formatMessage(failsAsError ? messages.errorHandle : messages.invalidHandle),
-          ariaLabel: failsAsError ? "Error" : "Invalid",
-          top: executionTop(0.65),
-          className: "text-destructive",
-        },
-      ];
+    const look =
+      data.catalogType === "logic.try_catch" && outputId === "success"
+        ? TRY_CATCH_SUCCESS_LOOK
+        : EXECUTION_OUTPUT_LOOK[outputId];
+    return look
+      ? {
+          id: outputId,
+          label: intl.formatMessage(look.message),
+          ariaLabel: look.ariaLabel,
+          className: look.className,
+        }
+      : { id: outputId, label: outputId, ariaLabel: outputId };
+  };
+  // A lone output stays on the input's row; several are spread evenly down the execution zone.
+  const outputs: ExecutionOutput[] = outputIds.map((outputId, index) => ({
+    ...describeOutput(outputId),
+    top:
+      outputIds.length > 1
+        ? spreadTop(index, outputIds.length)
+        : hasDataPorts
+          ? { top: EXECUTION_MAIN_ROW_TOP }
+          : undefined,
+  }));
+  // React Flow measures a step's handles when it is first drawn. A handle added or moved later
+  // (the error branch, a declared output) takes no wire until the step is measured again.
+  const updateNodeInternals = useUpdateNodeInternals();
+  const handleLayout = [
+    ...mergeInputs.map((input) => `input:${input.id}`),
+    ...outputs.map((output) => `output:${output.id}`),
+    ...dataPorts.inputs.map((port) => `data-input:${port.id}`),
+    ...dataPorts.outputs.map((port) => `data-output:${port.id}`),
+  ].join("\n");
+  const measuredHandleLayout = useRef(handleLayout);
+  useEffect(() => {
+    if (measuredHandleLayout.current !== handleLayout) {
+      measuredHandleLayout.current = handleLayout;
+      updateNodeInternals(id);
     }
-    if (["logic.for_each", "logic.array_transform"].includes(data.catalogType)) {
-      return [
-        {
-          id: "each",
-          label: intl.formatMessage(messages.eachHandle),
-          ariaLabel: "Each item",
-          top: executionTop(0.35),
-        },
-        {
-          id: "done",
-          label: intl.formatMessage(messages.doneHandle),
-          ariaLabel: "Done",
-          top: executionTop(0.65),
-        },
-      ];
-    }
-    if (data.catalogType === "logic.retry") {
-      return [
-        {
-          id: "attempt",
-          label: intl.formatMessage(messages.attemptHandle),
-          ariaLabel: "Attempt",
-          top: spreadTop(0, 3),
-        },
-        {
-          id: "succeeded",
-          label: intl.formatMessage(messages.succeededHandle),
-          ariaLabel: "Succeeded",
-          top: spreadTop(1, 3),
-        },
-        {
-          id: "exhausted",
-          label: intl.formatMessage(messages.exhaustedHandle),
-          ariaLabel: "Exhausted",
-          top: spreadTop(2, 3),
-          className: "text-muted-foreground",
-        },
-      ];
-    }
-    if (data.catalogType === "flow.human_approval") {
-      return [
-        {
-          id: "approved",
-          label: intl.formatMessage(messages.approvedHandle),
-          ariaLabel: "Approved",
-          top: spreadTop(0, 4),
-        },
-        {
-          id: "rejected",
-          label: intl.formatMessage(messages.rejectedHandle),
-          ariaLabel: "Rejected",
-          top: spreadTop(1, 4),
-          className: "text-destructive",
-        },
-        {
-          id: "changes_requested",
-          label: intl.formatMessage(messages.changesRequestedHandle),
-          ariaLabel: "Changes requested",
-          top: spreadTop(2, 4),
-        },
-        {
-          id: "timed_out",
-          label: intl.formatMessage(messages.timedOutHandle),
-          ariaLabel: "Timed out",
-          top: spreadTop(3, 4),
-          className: "text-muted-foreground",
-        },
-      ];
-    }
-    if (data.catalogType === "flow.wait" || data.catalogType === "logic.merge") {
-      return [
-        {
-          id: "completed",
-          label: intl.formatMessage(messages.completedHandle),
-          ariaLabel: "Completed",
-          top: spreadTop(0, 3),
-        },
-        {
-          id: "timed_out",
-          label: intl.formatMessage(messages.timedOutHandle),
-          ariaLabel: "Timed out",
-          top: spreadTop(1, 3),
-          className: "text-muted-foreground",
-        },
-        {
-          id: "error",
-          label: intl.formatMessage(messages.errorHandle),
-          ariaLabel: "Error",
-          top: spreadTop(2, 3),
-          className: "text-destructive",
-        },
-      ];
-    }
-    if (data.catalogType === "logic.try_catch") {
-      return TRY_CATCH_HANDLES.map((handle, index) => ({
-        id: handle.id,
-        label: intl.formatMessage(handle.message),
-        ariaLabel: handle.ariaLabel,
-        top: spreadTop(index, TRY_CATCH_HANDLES.length),
-        className: handle.className,
-      }));
-    }
-    return [
-      {
-        id: "success",
-        label: null,
-        ariaLabel: "Execution success",
-        top: hasDataPorts ? { top: EXECUTION_MAIN_ROW_TOP } : undefined,
-      },
-      ...(nodeSupportsErrorBranch(data.config)
-        ? [
-            {
-              id: "error",
-              label: intl.formatMessage(messages.errorHandle),
-              ariaLabel: undefined,
-              top: executionTop(hasDataPorts ? 0.88 : 0.75),
-              className: "text-destructive",
-            },
-          ]
-        : []),
-    ];
-  })();
+  }, [handleLayout, id, updateNodeInternals]);
   const showAddButtons = !data.hideAddAction && outputs.length > 0;
   const hasOutputLabels = outputs.some((output) => output.label !== null);
 
@@ -556,13 +486,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
   };
 
   // The most handles that are spread evenly down one side of the step.
-  const spreadExecutionHandleCount = Math.max(
-    mergeInputs.length,
-    data.config.kind === "logic.sequence" || data.config.kind === "logic.switch"
-      ? outputs.length
-      : 0,
-    data.catalogType === "logic.try_catch" ? TRY_CATCH_HANDLES.length : 0,
-  );
+  const spreadExecutionHandleCount = Math.max(mergeInputs.length, outputs.length);
   const executionZoneHeight = hasDataPorts
     ? Math.max(EXECUTION_ZONE_MIN_HEIGHT, (spreadExecutionHandleCount + 1) * EXECUTION_HANDLE_PITCH)
     : null;

@@ -49,6 +49,10 @@ import type {
 import { ShortcutHintAnchor, VisualWorkflowCanvasShortcutHints } from "../automation-shortcut-hint";
 import { VisualWorkflowCompactNode } from "./nodes/visual-workflow-compact-node";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
+import {
+  fromCanvasEdgeHandles,
+  toCanvasEdgeHandles,
+} from "@/lib/visual-workflows/editor/canvas-handle-ids";
 import { deriveForEachLoopRegion } from "@/lib/visual-workflows/editor/for-each-body-membership";
 import { listVisualWorkflowReferenceLines } from "@/lib/visual-workflows/editor/visual-workflow-reference-lines";
 import { getVisualWorkflowDataPorts } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
@@ -171,12 +175,14 @@ export function presentVisualWorkflowEdges(
     return edge.label === undefined ? wire : { ...wire, ...EDGE_LABEL_PROPS };
   });
 
-  return [...presented, ...referenceLines];
+  return [...presented, ...referenceLines].map(toCanvasEdgeHandles);
 }
 
-/** The edges among those the canvas draws that are stored with the workflow. */
+/** The edges among those the canvas draws that are stored with the workflow, as stored. */
 function storedEdges(edges: readonly VisualWorkflowCanvasEdge[]): VisualWorkflowRfEdge[] {
-  return edges.filter((edge): edge is VisualWorkflowRfEdge => edge.data?.kind !== "reference");
+  return edges
+    .filter((edge): edge is VisualWorkflowRfEdge => edge.data?.kind !== "reference")
+    .map(fromCanvasEdgeHandles);
 }
 
 /** Reads the canvas position at the middle of the view, or null while the canvas is not shown. */

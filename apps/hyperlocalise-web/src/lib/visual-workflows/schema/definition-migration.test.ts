@@ -353,3 +353,38 @@ it("replaces stale For Each membership in an existing v3 definition", () => {
 
   expect(definition.nodes.find((node) => node.id === "loop")?.bodyNodeIds).toEqual(["body"]);
 });
+
+it("works out Retry and Try / Catch bodies from their wires when a definition is read", () => {
+  const execution = (id: string, source: string, target: string, sourcePortId: string) => ({
+    id,
+    kind: "execution" as const,
+    source,
+    target,
+    sourcePortId,
+    targetPortId: "input",
+  });
+  const step = (id: string, type: string, config: object) => ({ id, type, config });
+  const definition = parseVisualWorkflowV3Definition({
+    schemaVersion: 3,
+    name: "Bodies from wires",
+    nodes: [
+      step("trigger", "trigger.manual", { kind: "trigger.manual" }),
+      { ...step("retry", "logic.retry", { kind: "logic.retry" }), bodyNodeIds: ["stale"] },
+      step("attempt", "logic.set", { kind: "logic.set", assignments: [] }),
+      step("next", "logic.set", { kind: "logic.set", assignments: [] }),
+      step("boundary", "logic.try_catch", { kind: "logic.try_catch" }),
+      step("work", "logic.set", { kind: "logic.set", assignments: [] }),
+    ],
+    edges: [
+      execution("start", "trigger", "retry", "success"),
+      execution("try-again", "retry", "attempt", "attempt"),
+      execution("carry-on", "retry", "next", "succeeded"),
+      execution("guard", "next", "boundary", "success"),
+      execution("try", "boundary", "work", "try"),
+    ],
+    editor: { positions: {} },
+  });
+
+  const bodyOf = (id: string) => definition.nodes.find((node) => node.id === id)?.bodyNodeIds;
+  expect([bodyOf("retry"), bodyOf("boundary")]).toEqual([["attempt"], ["work"]]);
+});

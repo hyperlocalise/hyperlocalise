@@ -446,7 +446,6 @@ export function VisualWorkflowConfigPanel({
             <WorkflowDataPanel
               section="outputs"
               node={node}
-              nodes={nodes}
               edges={edges}
               organizationSlug={organizationSlug}
               onChange={onChangeContract}
@@ -3183,7 +3182,6 @@ export function VisualWorkflowConfigPanel({
           <WorkflowDataPanel
             section="settings"
             node={node}
-            nodes={nodes}
             edges={edges}
             organizationSlug={organizationSlug}
             onChange={onChangeContract}

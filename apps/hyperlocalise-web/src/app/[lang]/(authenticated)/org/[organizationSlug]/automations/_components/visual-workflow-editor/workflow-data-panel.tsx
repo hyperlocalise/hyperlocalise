@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel, FieldDescription, FieldGroup } from "@/components/ui/field";
-import { Checkbox } from "@/components/ui/checkbox";
 import { NODE_CONTRACTS } from "@/lib/visual-workflows/catalog/node-contracts";
 import type {
   VisualWorkflowRfNode,
@@ -26,7 +25,10 @@ import type {
   WorkflowNodeContract,
   WorkflowBinding,
 } from "@/lib/visual-workflows/schema/types";
-import { computeForEachBodyNodeIds } from "@/lib/visual-workflows/editor/for-each-body-membership";
+import {
+  computeForEachBodyNodeIds,
+  computeRetryBodyNodeIds,
+} from "@/lib/visual-workflows/editor/for-each-body-membership";
 const HTTP_SECRET_BINDING_PATH = /^(headers|body)\.[A-Za-z0-9_.-]+$/;
 
 export function listHttpSecretBindings(
@@ -61,7 +63,6 @@ export function upsertHttpSecretBinding(input: {
  */
 export function WorkflowDataPanel({
   node,
-  nodes,
   edges,
   onChange,
   organizationSlug,
@@ -70,7 +71,6 @@ export function WorkflowDataPanel({
   node: VisualWorkflowRfNode;
   organizationSlug?: string;
   section: "settings" | "outputs";
-  nodes: readonly VisualWorkflowRfNode[];
   edges: readonly VisualWorkflowRfEdge[];
   onChange: (patch: WorkflowNodeContract) => void;
 }) {
@@ -86,6 +86,8 @@ export function WorkflowDataPanel({
     node.data.catalogType,
   );
   const forEachBodyNodeIds = isCollectionRegion ? computeForEachBodyNodeIds(node.id, edges) : [];
+  const retryBodyNodeIds =
+    node.data.catalogType === "logic.retry" ? computeRetryBodyNodeIds(node.id, edges) : [];
   const hasBody = isCollectionRegion || node.data.catalogType === "logic.retry";
   const hasSecretField = node.data.catalogType === "action.http" && Boolean(organizationSlug);
   if (section === "settings") {
@@ -203,26 +205,30 @@ export function WorkflowDataPanel({
               })}
             </FieldLabel>
 
-            {nodes
-              .filter(
-                (candidate) =>
-                  candidate.id !== node.id && !candidate.data.catalogType.startsWith("trigger."),
-              )
-              .map((candidate) => (
-                <FieldLabel key={candidate.id}>
-                  <Checkbox
-                    checked={node.data.bodyNodeIds?.includes(candidate.id) ?? false}
-                    onCheckedChange={(checked) =>
-                      onChange({
-                        bodyNodeIds: checked
-                          ? [...(node.data.bodyNodeIds ?? []), candidate.id]
-                          : (node.data.bodyNodeIds ?? []).filter((id) => id !== candidate.id),
-                      })
-                    }
-                  />
-                  {candidate.id}
-                </FieldLabel>
-              ))}
+            <FieldDescription>
+              {intl.formatMessage({
+                description: "Explanation of graph-derived retry body membership",
+                id: "y09od3b6rv",
+                defaultMessage:
+                  "Membership is derived automatically from connections leaving the Attempt port.",
+              })}
+            </FieldDescription>
+
+            {retryBodyNodeIds.length > 0 ? (
+              <ul className="space-y-1 text-sm">
+                {retryBodyNodeIds.map((bodyNodeId) => (
+                  <li key={bodyNodeId}>{bodyNodeId}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                {intl.formatMessage({
+                  description: "Empty graph-derived retry body",
+                  id: "fW53zWBv5R",
+                  defaultMessage: "No nodes are connected to the Attempt port.",
+                })}
+              </p>
+            )}
           </Field>
         ) : null}
       </FieldGroup>

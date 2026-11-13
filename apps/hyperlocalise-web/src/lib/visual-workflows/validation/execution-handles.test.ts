@@ -44,7 +44,7 @@ describe("getAllowedExecutionSourceHandles", () => {
           ],
         }),
       ),
-    ).toEqual(["default", "case-a", "case-b"]);
+    ).toEqual(["case-a", "case-b", "default"]);
   });
 
   it("lists For Each each and done handles", () => {

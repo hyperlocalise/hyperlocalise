@@ -12,7 +12,8 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { createDefaultConfig } from "../catalog/node-catalog";
+import { createDefaultConfig, isTriggerType, VISUAL_NODE_CATALOG } from "../catalog/node-catalog";
+import { getAllowedExecutionSourceHandles } from "./execution-handles";
 import {
   compileVisualWorkflowV3Definition,
   toVisualWorkflowExecutionDefinition,
@@ -1479,5 +1480,53 @@ it("rejects outgoing edges from terminal nodes", () => {
     code: "terminal_node_outgoing_edge",
     edgeId: "terminal-set",
     nodeId: "terminal",
+  });
+});
+
+describe("every execution handle a step offers", () => {
+  const sources = VISUAL_NODE_CATALOG.filter((item) => item.enabled && !isTriggerType(item.type))
+    .flatMap((item) => {
+      const config = createDefaultConfig(item.type);
+      return "onError" in config
+        ? [
+            { type: item.type, config },
+            { type: item.type, config: { ...config, onError: "branch" as const } },
+          ]
+        : [{ type: item.type, config }];
+    })
+    .flatMap((source) =>
+      getAllowedExecutionSourceHandles(source)
+        .filter((handle): handle is string => handle !== null)
+        .map((handle, index) => ({ ...source, handle, index })),
+    );
+
+  it.each(sources)("accepts a wire from $type's output $index", ({ type, config, handle }) => {
+    const workflow = definition([
+      {
+        id: "trigger-source",
+        kind: "execution",
+        source: "trigger",
+        target: "source",
+        sourcePortId: "success",
+        targetPortId: "input",
+      },
+      {
+        id: "source-set",
+        kind: "execution",
+        source: "source",
+        target: "set",
+        sourcePortId: handle,
+        targetPortId: "input",
+      },
+    ]);
+    workflow.nodes.push({
+      id: "source",
+      type,
+      config,
+    } as VisualWorkflowV3Definition["nodes"][number]);
+
+    const { issues } = compileVisualWorkflowV3Definition(workflow);
+
+    expect(issues.filter((issue) => issue.edgeId === "source-set")).toEqual([]);
   });
 });

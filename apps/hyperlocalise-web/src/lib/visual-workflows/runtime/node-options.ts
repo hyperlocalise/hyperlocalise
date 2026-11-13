@@ -18,7 +18,3 @@ export function resolveNodeErrorBehavior(config: VisualNodeConfig): VisualNodeEr
   }
   return "stop";
 }
-
-export function nodeSupportsErrorBranch(config: VisualNodeConfig): boolean {
-  return resolveNodeErrorBehavior(config) === "branch";
-}

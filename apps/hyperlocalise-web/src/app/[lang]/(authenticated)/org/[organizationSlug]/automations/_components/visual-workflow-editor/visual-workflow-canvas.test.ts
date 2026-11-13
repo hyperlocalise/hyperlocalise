@@ -200,6 +200,33 @@ describe("presentVisualWorkflowEdges", () => {
     });
   });
 
+  it("attaches a data wire and an execution wire of the same name to different handles", () => {
+    const read = node("read", "action.file_read");
+    const edges: VisualWorkflowRfEdge[] = [
+      executionEdge("on-error", "read", "request", "error"),
+      {
+        id: "error-value",
+        source: "read",
+        target: "request",
+        sourceHandle: "error",
+        targetHandle: "body",
+        data: { kind: "data" },
+      },
+    ];
+
+    const presented = presentVisualWorkflowEdges([read, node("request", "action.http")], edges);
+
+    expect(presented.find((edge) => edge.id === "on-error")).toMatchObject({
+      sourceHandle: "error",
+      targetHandle: "input",
+    });
+    expect(presented.find((edge) => edge.id === "error-value")).toMatchObject({
+      sourceHandle: "data:error",
+      targetHandle: "data:body",
+      label: "error → body",
+    });
+  });
+
   it("shows dynamic input names instead of stable port IDs on data edges", () => {
     const trigger = node("trigger", "trigger.manual");
     trigger.data.outputFields = [{ path: "customerName", type: "string" }];
@@ -282,9 +309,9 @@ describe("presentVisualWorkflowEdges wire weights and reference lines", () => {
         (line) => `${line.source}.${line.sourceHandle} -> ${line.target}.${line.targetHandle}`,
       ),
     ).toEqual([
-      "http.status -> slack.message",
-      "trigger.triggeredAt -> slack.message",
-      "http.json -> slack.message",
+      "http.data:status -> slack.data:message",
+      "trigger.data:triggeredAt -> slack.data:message",
+      "http.data:json -> slack.data:message",
     ]);
     expect(lines[0]).toMatchObject({
       selectable: false,

@@ -427,6 +427,35 @@ describe("removeVisualWorkflowNode", () => {
   });
 });
 
+describe("a connection drawn on the canvas", () => {
+  it("is saved with plain port ids", () => {
+    const read = node("read", "action.file_read");
+    const request = node("request", "action.http");
+    const run: VisualWorkflowRfEdge = {
+      id: "run",
+      source: "read",
+      target: "request",
+      sourceHandle: "success",
+      targetHandle: "input",
+      data: { kind: "execution" },
+    };
+
+    const result = applyVisualWorkflowGraphConnection([read, request], [run], {
+      source: "read",
+      target: "request",
+      sourceHandle: "data:content",
+      targetHandle: "data:body",
+    });
+
+    expect(result.edges.find((edge) => edge.id !== "run")).toMatchObject({
+      id: "xy-edge__readcontent-requestbody",
+      sourceHandle: "content",
+      targetHandle: "body",
+      data: { kind: "data" },
+    });
+  });
+});
+
 describe("applyNodeConfigUpdate", () => {
   it("prunes a stale Reduce initial-value edge when changing operation", () => {
     const transform = node("transform", "logic.array_transform", {
@@ -535,6 +564,85 @@ describe("applyNodeConfigUpdate", () => {
     });
 
     expect(result.nodes.find((entry) => entry.id === "transform")?.data.inputs).toEqual({});
+  });
+
+  it("removes the error branch's wire when On error stops the workflow again", () => {
+    const request = node("request", "action.http");
+    request.data.config = {
+      ...request.data.config,
+      onError: "branch",
+    } as typeof request.data.config;
+    const edges: VisualWorkflowRfEdge[] = [
+      { id: "next", source: "request", target: "next", sourceHandle: "success" },
+      { id: "on-error", source: "request", target: "fallback", sourceHandle: "error" },
+      {
+        id: "status-value",
+        source: "request",
+        target: "fallback",
+        sourceHandle: "status",
+        targetHandle: "value",
+        data: { kind: "data" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate(
+      [request, node("next", "logic.set"), node("fallback", "logic.set")],
+      edges,
+      "request",
+      { ...request.data.config, onError: "stop" } as typeof request.data.config,
+    );
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["next", "status-value"]);
+  });
+
+  it("keeps a Set field's wires while its name is edited, so retyping the name finds them", () => {
+    const set = node("set", "logic.set", {
+      config: { kind: "logic.set", assignments: [{ key: "total", value: "1" }] },
+    });
+    const edges: VisualWorkflowRfEdge[] = [
+      {
+        id: "total",
+        source: "set",
+        target: "request",
+        sourceHandle: "total",
+        targetHandle: "url",
+        data: { kind: "data" },
+      },
+    ];
+
+    const result = applyNodeConfigUpdate([set, node("request", "action.http")], edges, "set", {
+      kind: "logic.set",
+      assignments: [{ key: "tota", value: "1" }],
+    });
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["total"]);
+  });
+
+  it("removes the wires of a Set field that is deleted", () => {
+    const set = node("set", "logic.set", {
+      config: {
+        kind: "logic.set",
+        assignments: [
+          { key: "total", value: "1" },
+          { key: "count", value: "2" },
+        ],
+      },
+    });
+    const edges: VisualWorkflowRfEdge[] = ["total", "count"].map((key) => ({
+      id: key,
+      source: "set",
+      target: "request",
+      sourceHandle: key,
+      targetHandle: key === "total" ? "url" : "body",
+      data: { kind: "data" },
+    }));
+
+    const result = applyNodeConfigUpdate([set, node("request", "action.http")], edges, "set", {
+      kind: "logic.set",
+      assignments: [{ key: "count", value: "2" }],
+    });
+
+    expect(result.edges.map((edge) => edge.id)).toEqual(["count"]);
   });
 
   it("removes edges for deleted Switch cases and keeps other branches", () => {
@@ -1062,5 +1170,47 @@ describe("reconnectVisualWorkflowGraphConnection", () => {
     });
 
     expect(result.nodes[0]?.height).toBe(376);
+  });
+});
+
+describe("a Retry step's wires", () => {
+  function retryGraph(extraEdges: VisualWorkflowRfEdge[]) {
+    return {
+      nodes: [
+        node("trigger", "trigger.manual"),
+        node("retry", "logic.retry"),
+        node("attempt", "logic.set"),
+        node("next", "logic.set"),
+      ],
+      edges: [
+        { id: "start", source: "trigger", target: "retry", sourceHandle: "success" },
+        { id: "try", source: "retry", target: "attempt", sourceHandle: "attempt" },
+        ...extraEdges,
+      ],
+    };
+  }
+
+  it("saves the steps wired from Attempt as its body and passes validation", () => {
+    const saved = definition(
+      retryGraph([{ id: "carry-on", source: "retry", target: "next", sourceHandle: "succeeded" }]),
+    );
+
+    expect(saved.nodes.find((entry) => entry.id === "retry")?.bodyNodeIds).toEqual(["attempt"]);
+    expect(validateVisualWorkflowDefinition(saved)).toEqual([]);
+  });
+
+  it("points at the wire that leaves the body, not at Succeeded", () => {
+    const saved = definition(
+      retryGraph([
+        { id: "carry-on", source: "retry", target: "next", sourceHandle: "succeeded" },
+        { id: "leaves-body", source: "attempt", target: "next", sourceHandle: "success" },
+      ]),
+    );
+
+    expect(
+      validateVisualWorkflowDefinition(saved)
+        .filter((issue) => issue.code === "invalid_retry")
+        .map((issue) => issue.edgeId),
+    ).toEqual(["leaves-body"]);
   });
 });

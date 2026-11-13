@@ -137,6 +137,17 @@ describe("computeRetryBodyNodeIds", () => {
     expect(computeRetryBodyNodeIds("retry", edges)).toEqual(["first", "second"]);
   });
 
+  it("leaves out the steps Succeeded or Exhausted lead to", () => {
+    const edges = [
+      executionEdge("attempt-first", "retry", "first", "attempt"),
+      executionEdge("first-next", "first", "next"),
+      executionEdge("succeeded-next", "retry", "next", "succeeded"),
+      executionEdge("exhausted-alert", "retry", "alert", "exhausted"),
+    ];
+
+    expect(computeRetryBodyNodeIds("retry", edges)).toEqual(["first"]);
+  });
+
   it("derives membership from v3 execution edges and ignores data edges", () => {
     expect(
       computeForEachBodyNodeIdsFromV3Edges("loop", [
