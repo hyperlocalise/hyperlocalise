@@ -26,6 +26,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     iconKey: "github",
     websiteUrl: "https://github.com",
     relatedSlugs: ["gitlab", "slack", "crowdin"],
+    relatedUseCaseSlug: "github-release-localisation",
     keywords: ["GitHub localization", "GitHub translation workflow", "Hyperlocalise GitHub"],
   },
   {
@@ -38,6 +39,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     iconKey: "gitlab",
     websiteUrl: "https://gitlab.com",
     relatedSlugs: ["github", "slack", "jira"],
+    relatedUseCaseSlug: "github-release-localisation",
     keywords: ["GitLab localization", "GitLab translation workflow"],
   },
   {
@@ -50,6 +52,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     logoSrc: "/images/slack-logo.svg",
     websiteUrl: "https://slack.com",
     relatedSlugs: ["github", "jira", "linear"],
+    relatedUseCaseSlug: "localisation-operations",
     keywords: ["Slack localization", "translation review Slack", "Hyperlocalise Slack"],
   },
   {
@@ -72,6 +75,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     iconKey: "jira",
     websiteUrl: "https://www.atlassian.com/software/jira",
     relatedSlugs: ["linear", "slack", "github"],
+    relatedUseCaseSlug: "localisation-operations",
     keywords: ["Jira localization", "translation issue tracking"],
   },
   {
@@ -84,6 +88,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     iconKey: "linear",
     websiteUrl: "https://linear.app",
     relatedSlugs: ["jira", "slack", "github"],
+    relatedUseCaseSlug: "localisation-operations",
     keywords: ["Linear localization", "translation workflow Linear"],
   },
   {
@@ -118,6 +123,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     websiteUrl: "https://crowdin.com",
     tmsProviderKind: "crowdin",
     relatedSlugs: ["lokalise", "phrase", "github"],
+    relatedUseCaseSlug: "localisation-operations",
     keywords: ["Crowdin integration", "Crowdin Hyperlocalise", "TMS connector"],
   },
   {
@@ -131,6 +137,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     websiteUrl: "https://lokalise.com",
     tmsProviderKind: "lokalise",
     relatedSlugs: ["crowdin", "phrase", "notion"],
+    relatedUseCaseSlug: "localisation-operations",
     keywords: ["Lokalise integration", "Lokalise Hyperlocalise"],
   },
   {
@@ -144,6 +151,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     websiteUrl: "https://phrase.com",
     tmsProviderKind: "phrase",
     relatedSlugs: ["crowdin", "lokalise", "smartling"],
+    relatedUseCaseSlug: "localisation-operations",
     keywords: ["Phrase integration", "Phrase TMS Hyperlocalise"],
   },
   {
@@ -157,6 +165,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     websiteUrl: "https://www.smartling.com",
     tmsProviderKind: "smartling",
     relatedSlugs: ["phrase", "crowdin"],
+    relatedUseCaseSlug: "localisation-operations",
     keywords: ["Smartling integration", "enterprise localization TMS"],
   },
   {
@@ -169,6 +178,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     logoSrc: "/images/contentful-logo.svg",
     websiteUrl: "https://www.contentful.com",
     relatedSlugs: ["canva", "ahrefs", "semrush"],
+    relatedUseCaseSlug: "marketing-localisation",
     keywords: ["Contentful localization", "CMS translation connector"],
   },
   {
@@ -181,6 +191,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     logoSrc: "/images/canva-logo.svg",
     websiteUrl: "https://www.canva.com",
     relatedSlugs: ["contentful", "intercom"],
+    relatedUseCaseSlug: "marketing-localisation",
     keywords: ["Canva localization", "design localization connector"],
   },
   {
@@ -244,6 +255,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     iconKey: "notion",
     websiteUrl: "https://www.notion.so",
     relatedSlugs: ["lokalise", "contentful"],
+    relatedUseCaseSlug: "localisation-quality-monitoring",
     keywords: ["Notion localization guidelines", "style guide import"],
   },
   {
@@ -256,6 +268,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     logoSrc: "/images/intercom-logo.svg",
     websiteUrl: "https://www.intercom.com",
     relatedSlugs: ["contentful", "resend", "slack"],
+    relatedUseCaseSlug: "help-center-localisation",
     keywords: ["Intercom localization", "customer support translation"],
   },
   {
@@ -339,6 +352,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     iconKey: "resend",
     websiteUrl: "https://resend.com",
     relatedSlugs: ["intercom", "slack"],
+    relatedUseCaseSlug: "marketing-localisation",
     keywords: ["Resend localization", "transactional email translation"],
   },
   {
@@ -352,6 +366,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     websiteUrl: "https://zernio.com",
     docsUrl: "https://docs.zernio.com",
     relatedSlugs: ["intercom", "braze", "resend"],
+    relatedUseCaseSlug: "marketing-localisation",
     keywords: ["Zernio ads", "create ads", "Meta ads", "Google Ads localization"],
   },
   {
@@ -363,6 +378,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     workspace: true,
     logoSrc: brandLogomarkSrc,
     relatedSlugs: ["statsig", "github", "contentful"],
+    relatedUseCaseSlug: "market-experimentation",
     keywords: ["localization experiments", "Hyperlab", "feature testing localization"],
   },
   {
@@ -375,6 +391,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     logoSrc: "/images/statsig-logo.png",
     websiteUrl: "https://www.statsig.com",
     relatedSlugs: ["hyperlab"],
+    relatedUseCaseSlug: "market-experimentation",
     keywords: ["Statsig localization", "feature flags localization", "localized experiments"],
   },
   {
@@ -396,6 +413,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     logoSrc: "/images/ahrefs-logo.svg",
     websiteUrl: "https://ahrefs.com",
     relatedSlugs: ["semrush", "contentful"],
+    relatedUseCaseSlug: "market-entry",
     keywords: ["Ahrefs localization", "SEO localization workflow"],
   },
   {
@@ -408,6 +426,7 @@ export const integrationCatalogEntries: IntegrationCatalogEntry[] = [
     logoSrc: "/images/semrush-logo.svg",
     websiteUrl: "https://www.semrush.com",
     relatedSlugs: ["ahrefs", "contentful"],
+    relatedUseCaseSlug: "market-entry",
     keywords: ["Semrush localization", "SEO translation workflow"],
   },
   {

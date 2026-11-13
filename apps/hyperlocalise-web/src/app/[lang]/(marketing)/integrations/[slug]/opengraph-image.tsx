@@ -21,7 +21,7 @@ import {
 
 import { getIntegrationRouteMetadata } from "./integration-route-metadata";
 
-export const alt = "Hyperlocalise";
+export const alt = "Hyperlocalise integration";
 export const size = marketingOgImageSize;
 export const contentType = marketingOgImageContentType;
 
@@ -61,7 +61,7 @@ export default async function Image({ params }: IntegrationOgImageProps) {
   }
 
   return createMarketingOgImage({
-    heading: toMarketingOgHeading(metadata.title),
+    heading: toMarketingOgHeading(integration.headline),
     description: metadata.description,
     locale: lang,
   });

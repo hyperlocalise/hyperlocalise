@@ -44,8 +44,9 @@ describe("integrations-page-content", () => {
     const integration = getMarketingIntegrationBySlug("en", "github");
 
     expect(integration?.name).toBe("GitHub");
-    expect(integration?.products.length).toBeGreaterThan(0);
-    expect(integration?.overview.length).toBeGreaterThan(0);
+    expect(integration?.headline).toBe("Catch missing translations before the GitHub PR merges");
+    expect(integration?.relatedUseCaseSlug).toBe("github-release-localisation");
+    expect(integration?.faqs.length).toBe(3);
     expect(integration?.capabilities.length).toBeGreaterThan(0);
     expect(integration?.workflows.length).toBeGreaterThan(0);
     expect(integration?.setupSteps.length).toBeGreaterThan(0);
@@ -75,5 +76,16 @@ describe("integrations-page-content", () => {
     const related = getRelatedIntegrations("en", integration!);
     expect(related.length).toBeGreaterThan(0);
     expect(related.every((item) => item.slug !== "github")).toBe(true);
+  });
+
+  it("gives every marketing integration a unique outcome headline and three FAQs", () => {
+    const integrations = getMarketingIntegrations("en");
+    const headlines = integrations.map((integration) => integration.headline);
+
+    expect(new Set(headlines).size).toBe(headlines.length);
+    expect(integrations.every((integration) => integration.headline !== integration.name)).toBe(
+      true,
+    );
+    expect(integrations.every((integration) => integration.faqs.length === 3)).toBe(true);
   });
 });

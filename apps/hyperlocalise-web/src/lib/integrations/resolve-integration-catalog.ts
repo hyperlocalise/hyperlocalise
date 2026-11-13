@@ -17,6 +17,7 @@ import {
   type IntegrationCatalogSlug,
 } from "@/lib/integrations/integration-catalog.copy";
 import { getIntegrationDetailCopyDescriptors } from "@/lib/integrations/integration-catalog.detail.copy";
+import { getIntegrationFaqDescriptors } from "@/lib/integrations/integration-catalog.faq.copy";
 import {
   integrationCatalogEntries,
   marketingIntegrationSlugs,
@@ -27,6 +28,7 @@ import type {
   ResolvedIntegration,
   ResolvedIntegrationCopy,
   ResolvedIntegrationCapability,
+  ResolvedIntegrationFaq,
   ResolvedIntegrationProduct,
   ResolvedIntegrationSetupStep,
   ResolvedIntegrationWorkflow,
@@ -44,11 +46,13 @@ function resolveIntegrationCopy(
     return {
       name: entry.slug,
       tagline: "",
+      headline: entry.slug,
       overview: [],
       capabilities: [],
       workflows: [],
       setupSteps: [],
       products: [],
+      faqs: [],
       metadata: {
         title: entry.slug,
         description: "",
@@ -59,6 +63,7 @@ function resolveIntegrationCopy(
 
   const name = intl.formatMessage(descriptors.name);
   const tagline = intl.formatMessage(descriptors.tagline);
+  const headline = descriptors.headline ? intl.formatMessage(descriptors.headline) : name;
   const overview = descriptors.overview?.map((paragraph) => intl.formatMessage(paragraph)) ?? [];
   const productName = descriptors.productName ? intl.formatMessage(descriptors.productName) : name;
   const productDescription = descriptors.productDescription
@@ -93,14 +98,21 @@ function resolveIntegrationCopy(
       }))
     : [{ name: productName, description: productDescription }];
 
+  const faqs: ResolvedIntegrationFaq[] = getIntegrationFaqDescriptors(entry.slug).map((item) => ({
+    question: intl.formatMessage(item.question),
+    answer: intl.formatMessage(item.answer),
+  }));
+
   return {
     name,
     tagline,
+    headline,
     overview,
     capabilities,
     workflows,
     setupSteps,
     products,
+    faqs,
     metadata: {
       title: descriptors.metadataTitle
         ? intl.formatMessage(descriptors.metadataTitle)
