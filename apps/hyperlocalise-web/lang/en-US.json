@@ -13063,10 +13063,6 @@
     "defaultMessage": "{count} duplicates skipped",
     "description": "Badge showing how many duplicate rows will be skipped"
   },
-  "GvDnvlt5d2": {
-    "defaultMessage": "Update the title or content of this guideline.",
-    "description": "Description for the edit guideline dialog"
-  },
   "GvUbPf6mr6": {
     "defaultMessage": "Add a domain",
     "description": "Dialog title"
@@ -16546,6 +16542,10 @@
   "MFyr6tzoKS": {
     "defaultMessage": "Commonly used",
     "description": "Category label for translator-essential unicode characters"
+  },
+  "MG9BeVzbX5": {
+    "defaultMessage": "Update the title, file, or content of this guideline.",
+    "description": "Description for the edit guideline dialog"
   },
   "MGO8MFzpRG": {
     "defaultMessage": "Approved",

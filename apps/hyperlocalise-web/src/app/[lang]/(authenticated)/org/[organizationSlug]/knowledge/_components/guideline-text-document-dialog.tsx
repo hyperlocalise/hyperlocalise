@@ -42,6 +42,7 @@ import {
   GUIDELINE_TEMPLATE_CONTENT,
   GUIDELINE_TEMPLATE_TITLE,
 } from "./guideline-text-document-template";
+import { KnowledgeUploadSection } from "./knowledge-upload-section";
 
 const TITLE_MAX_LENGTH = 200;
 const CONTENT_MAX_LENGTH = 50_000;
@@ -99,25 +100,30 @@ export function GuidelineTextDocumentDialog({
   const [title, setTitle] = useState(document?.title ?? "");
   const [content, setContent] = useState("");
   const [editorEpoch, setEditorEpoch] = useState(0);
+  const [replacementFile, setReplacementFile] = useState<File | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [contentError, setContentError] = useState<string | null>(null);
 
   const contentSyncedForRef = useRef<string | null>(null);
 
+  const documentIsText = document?.contentType?.startsWith("text/") ?? false;
   const contentQuery = useQuery({
     queryKey: ["guideline-document-content", organizationSlug, projectId, document?.id],
-    enabled: open && editing && !loading,
+    enabled: open && editing && documentIsText && !loading,
     queryFn: ({ signal }) =>
       client.guidelines.getDocument(organizationSlug, document!.id, projectId, { signal }),
   });
   const loadedContent = contentQuery.data?.content ?? "";
-  const contentEditable = !editing || (document?.contentType?.startsWith("text/") ?? false);
+  const contentEditable = replacementFile == null && (!editing || documentIsText);
+  const selectedFile =
+    replacementFile ?? (document ? { name: document.filename, size: document.byteSize } : null);
 
   useEffect(() => {
     if (open) {
       setTitle(document?.title ?? "");
       setContent("");
       setEditorEpoch(0);
+      setReplacementFile(null);
       setTitleError(null);
       setContentError(null);
       contentSyncedForRef.current = null;
@@ -140,8 +146,24 @@ export function GuidelineTextDocumentDialog({
       const isGlobal = document!.isGlobal ?? false;
       const titleChanged = trimmedTitle !== document!.title;
       const contentChanged =
-        contentEditable && contentQuery.data != null && content !== loadedContent;
-      if (contentChanged) {
+        !replacementFile &&
+        contentEditable &&
+        contentQuery.data != null &&
+        content !== loadedContent;
+      if (replacementFile) {
+        await client.guidelines.replaceDocument(
+          organizationSlug,
+          document!.id,
+          {
+            file: replacementFile,
+            filename: replacementFile.name,
+            title: trimmedTitle,
+            locales,
+            isGlobal,
+          },
+          projectId,
+        );
+      } else if (contentChanged) {
         const file = markdownFile(trimmedTitle, content);
         await client.guidelines.replaceDocument(
           organizationSlug,
@@ -187,7 +209,7 @@ export function GuidelineTextDocumentDialog({
     } else {
       setTitleError(null);
     }
-    if (!contentEditable) {
+    if (replacementFile || !contentEditable) {
       setContentError(null);
     } else if (!content.trim()) {
       setContentError(intl.formatMessage(messages.contentRequired));
@@ -198,7 +220,9 @@ export function GuidelineTextDocumentDialog({
     }
     const titleOk = !!trimmedTitle && trimmedTitle.length <= TITLE_MAX_LENGTH;
     const contentOk =
-      !contentEditable || (!!content.trim() && content.length <= CONTENT_MAX_LENGTH);
+      replacementFile != null ||
+      !contentEditable ||
+      (!!content.trim() && content.length <= CONTENT_MAX_LENGTH);
     return titleOk && contentOk;
   };
 
@@ -226,7 +250,7 @@ export function GuidelineTextDocumentDialog({
   };
 
   const pending = uploadDocument.isPending || saveEdit.isPending;
-  const loadingContent = editing && contentQuery.isPending;
+  const loadingContent = editing && contentEditable && contentQuery.isPending;
 
   const applyTemplate = () => {
     setContent(GUIDELINE_TEMPLATE_CONTENT);
@@ -265,6 +289,15 @@ export function GuidelineTextDocumentDialog({
             />
             {titleError ? <FieldError>{titleError}</FieldError> : null}
           </Field>
+          {editing && selectedFile ? (
+            <KnowledgeUploadSection
+              showTitle={false}
+              allowRemove={false}
+              className="space-y-3"
+              selectedFile={selectedFile}
+              onFilesSelected={(files) => setReplacementFile(files[0] ?? null)}
+            />
+          ) : null}
           {contentEditable ? (
             <Field className="min-h-0 gap-1.5">
               <div className="flex items-center justify-between gap-2">
@@ -316,7 +349,7 @@ export function GuidelineTextDocumentDialog({
           <Button
             type="button"
             onClick={handleSave}
-            disabled={pending || loadingContent || contentQuery.isError}
+            disabled={pending || loadingContent || (contentEditable && contentQuery.isError)}
           >
             <FormattedMessage {...messages.save} />
           </Button>

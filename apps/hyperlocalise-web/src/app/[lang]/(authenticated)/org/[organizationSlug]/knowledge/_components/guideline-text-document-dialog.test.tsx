@@ -231,4 +231,97 @@ describe("GuidelineTextDocumentDialog template", () => {
     expect(await screen.findByLabelText("Title")).toHaveValue("Voice guide");
     expect(screen.queryByRole("button", { name: "Use template" })).toBeNull();
   });
+
+  it("does not show a file picker when creating", () => {
+    render(
+      <GuidelineTextDocumentDialog
+        open
+        onOpenChange={() => {}}
+        organizationSlug="acme"
+        document={null}
+      />,
+      { wrapper },
+    );
+
+    expect(screen.queryByRole("button", { name: "Replace" })).toBeNull();
+    expect(screen.queryByText("voice.md")).toBeNull();
+  });
+
+  it("prefills the current file and keeps the editor when editing text", async () => {
+    mocks.getDocument.mockResolvedValue(guidelineDocument({ content: "# Voice" }));
+
+    render(
+      <GuidelineTextDocumentDialog
+        open
+        onOpenChange={() => {}}
+        organizationSlug="acme"
+        document={guidelineDocument()}
+      />,
+      { wrapper },
+    );
+
+    expect(await screen.findByText("voice.md")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Replace" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Remove file" })).toBeNull();
+    expect(await screen.findByLabelText("Content")).toHaveValue("# Voice");
+  });
+
+  it("shows the current file without an editor when editing a PDF", async () => {
+    render(
+      <GuidelineTextDocumentDialog
+        open
+        onOpenChange={() => {}}
+        organizationSlug="acme"
+        document={guidelineDocument({
+          title: "Legal glossary",
+          filename: "legal.pdf",
+          contentType: "application/pdf",
+          byteSize: 4096,
+        })}
+      />,
+      { wrapper },
+    );
+
+    expect(await screen.findByLabelText("Title")).toHaveValue("Legal glossary");
+    expect(screen.getByText("legal.pdf")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Replace" })).toBeTruthy();
+    expect(screen.queryByLabelText("Content")).toBeNull();
+    expect(mocks.getDocument).not.toHaveBeenCalled();
+  });
+
+  it("replaces the current file instead of writing editor content", async () => {
+    const user = userEvent.setup();
+    mocks.getDocument.mockResolvedValue(guidelineDocument({ content: "# Voice" }));
+    mocks.replaceDocument.mockResolvedValue(guidelineDocument({ version: 2 }));
+    const replacement = new File(["%PDF-1.4"], "legal.pdf", { type: "application/pdf" });
+
+    render(
+      <GuidelineTextDocumentDialog
+        open
+        onOpenChange={() => {}}
+        organizationSlug="acme"
+        document={guidelineDocument()}
+      />,
+      { wrapper },
+    );
+
+    expect(await screen.findByText("voice.md")).toBeTruthy();
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(fileInput, replacement);
+
+    expect(await screen.findByText("legal.pdf")).toBeTruthy();
+    expect(screen.queryByLabelText("Content")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Save guideline" }));
+    await waitFor(() => expect(mocks.replaceDocument).toHaveBeenCalled());
+    const upload = mocks.replaceDocument.mock.calls[0]![2] as {
+      file: File;
+      filename: string;
+      title: string;
+    };
+    expect(upload.file).toBe(replacement);
+    expect(upload.filename).toBe("legal.pdf");
+    expect(upload.title).toBe("Voice guide");
+    expect(mocks.updateDocument).not.toHaveBeenCalled();
+  });
 });

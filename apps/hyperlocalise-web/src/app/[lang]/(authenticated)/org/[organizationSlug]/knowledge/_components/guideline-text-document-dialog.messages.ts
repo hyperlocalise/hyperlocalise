@@ -31,8 +31,8 @@ export const guidelineTextDocumentDialogMessages = defineMessages({
     description: "Title for the edit guideline dialog",
   },
   editDescription: {
-    defaultMessage: "Update the title or content of this guideline.",
-    id: "GvDnvlt5d2",
+    defaultMessage: "Update the title, file, or content of this guideline.",
+    id: "MG9BeVzbX5",
     description: "Description for the edit guideline dialog",
   },
   titleLabel: {
