@@ -1185,6 +1185,46 @@ export const integrationCatalogCopy = {
       id: "intSanityTagline",
       description: "Sanity integration description on the integrations page",
     },
+    headline: {
+      defaultMessage: "Translate Sanity documents and write locale drafts back",
+      id: "intSanityHeadline",
+      description: "Sanity integration marketing page headline",
+    },
+    overview: [
+      {
+        defaultMessage:
+          "Editors translate the open document or a selection of documents from Sanity Studio with the Hyperlocalise plugin, then apply the locale drafts.",
+        id: "intSanityOverview0",
+        description: "Sanity integration marketing overview paragraph",
+      },
+      {
+        defaultMessage:
+          "For bulk work, an automation imports the document types you choose from a dataset. Your team translates and reviews them in Hyperlocalise, then pushes approved translations back as drafts.",
+        id: "intSanityOverview1",
+        description: "Sanity integration marketing overview paragraph",
+      },
+    ],
+    productName: {
+      defaultMessage: "Sanity",
+      id: "intSanityProductName",
+      description: "Sanity integration product name on marketing detail page",
+    },
+    productDescription: {
+      defaultMessage: "Studio plugin, dataset imports, and locale draft writeback.",
+      id: "intSanityProductDescription",
+      description: "Sanity integration product description on marketing detail page",
+    },
+    metadataTitle: {
+      defaultMessage: "Sanity localization plugin and connector | Hyperlocalise",
+      id: "intSanityMetaTitle",
+      description: "Sanity integration marketing page meta title",
+    },
+    metadataDescription: {
+      defaultMessage:
+        "Translate Sanity documents from Studio or in bulk with review in Hyperlocalise, then write locale drafts back to your dataset.",
+      id: "intSanityMetaDescription",
+      description: "Sanity integration marketing page meta description",
+    },
   },
   similarweb: {
     name: {

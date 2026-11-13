@@ -25,31 +25,6 @@ export const homepageMessages = defineMessages({
     id: "qtFi5mIdMd",
     description: "Marketing homepage explore",
   },
-  studio: {
-    defaultMessage: "Multilingual Content Studio",
-    id: "tRWPFtS/bI",
-    description: "Marketing homepage studio",
-  },
-  automation: {
-    defaultMessage: "Automation Workflow",
-    id: "2KR5bvMkfl",
-    description: "Marketing homepage automation",
-  },
-  domains: {
-    defaultMessage: "Domains",
-    id: "zNmC1jJaJH",
-    description: "Marketing homepage domains",
-  },
-  hyperlab: {
-    defaultMessage: "Hyperlab",
-    id: "9C8qy32ZkS",
-    description: "Marketing homepage hyperlab",
-  },
-  guidelines: {
-    defaultMessage: "Guidelines",
-    id: "8uzShqQtyV",
-    description: "Marketing homepage guidelines",
-  },
   agentsEyebrow: {
     defaultMessage: "Agents in your tools",
     id: "zPtX/ng4pa",
@@ -139,7 +114,6 @@ export const homepageMessages = defineMessages({
     id: "F4EMUioZm7",
     description: "Marketing homepage capability section eyebrow",
   },
-  create: { defaultMessage: "Create", id: "YRSpPEFYYW", description: "Marketing homepage create" },
   pricingTitle: {
     defaultMessage: "Plans and pricing",
     id: "5cSzEqDNOr",
@@ -166,87 +140,16 @@ export const homepageMessages = defineMessages({
     id: "veSeQbmJ++",
     description: "Marketing homepage finalBody",
   },
-  workspace: {
-    defaultMessage: "Launch workspace",
-    id: "c2aaI2EycT",
-    description: "Marketing homepage workspace",
-  },
-  article: {
-    defaultMessage: "Campaign article",
-    id: "Gk94HE+Dk2",
-    description: "Marketing homepage article",
-  },
   status: { defaultMessage: "Status", id: "6br9F/sHMY", description: "Marketing homepage status" },
   review: {
     defaultMessage: "In review",
     id: "XXEWFtjcDJ",
     description: "Marketing homepage review",
   },
-  ready: { defaultMessage: "Ready", id: "tPdhg+F/zW", description: "Marketing homepage ready" },
-  brief: {
-    defaultMessage: "Campaign brief",
-    id: "sKJqM/aeDo",
-    description: "Marketing homepage brief",
-  },
-  briefBody: {
-    defaultMessage:
-      "Introduce the new collection with a confident, welcoming voice. Adapt the story for each market.",
-    id: "YZlH8FHk0N",
-    description: "Marketing homepage briefBody",
-  },
-  draftTitle: {
-    defaultMessage: "Something new. Something that feels like you.",
-    id: "4OZk1mqF44",
-    description: "Marketing homepage draftTitle",
-  },
-  draftBody: {
-    defaultMessage:
-      "Discover a collection made for everyday moments. Thoughtfully designed, wherever life takes you.",
-    id: "h+PFiww5O5",
-    description: "Marketing homepage draftBody",
-  },
-  contextApplied: {
-    defaultMessage: "Brand guidelines applied",
-    id: "NsIWQkoQ0H",
-    description: "Marketing homepage contextApplied",
-  },
-  humanReview: {
-    defaultMessage: "Human review",
-    id: "4xGHlU/JKa",
-    description: "Marketing homepage humanReview",
-  },
-  cmsAddress: {
-    defaultMessage: "journal.example.com",
-    id: "zHHbPSaMjm",
-    description: "Marketing homepage cmsAddress",
-  },
-  seo: { defaultMessage: "SEO metadata", id: "DRcNDUO56y", description: "Marketing homepage seo" },
-  voiceBody: {
-    defaultMessage:
-      "Confident, thoughtful, and welcoming. Use clear language and speak directly to your reader.",
-    id: "xjrZfzDX6N",
-    description: "Marketing homepage voiceBody",
-  },
   heroHeadline: {
     defaultMessage: "The AI partner for international growth.",
     id: "FFaCGrMI3V",
     description: "Marketing homepage heroHeadline",
-  },
-  heroLineOne: {
-    defaultMessage: "Every market.",
-    id: "ghrd1fKtKu",
-    description: "Marketing homepage heroLineOne",
-  },
-  heroLineTwo: {
-    defaultMessage: "One content operation.",
-    id: "0bXlCFWfWP",
-    description: "Marketing homepage heroLineTwo",
-  },
-  interact: {
-    defaultMessage:
-      "Explore the demo. Select a use case, inspect the content, and see the workflow.",
-    id: "dfe8IPv6I2",
-    description: "Marketing homepage interact",
   },
   journeyTitle: {
     defaultMessage: "Ask Hyperlocalise to take your content global.",
@@ -258,22 +161,6 @@ export const homepageMessages = defineMessages({
       "From launches and campaigns to search and compliance, give Hyperlocalise the outcome you want. It coordinates the content, context, workflows, and guardrails required to get there.",
     id: "g9pX0J1RG+",
     description: "Marketing homepage capability section body",
-  },
-  journeyBrief: {
-    defaultMessage: "“Localise this release for every market and check it against our guidelines.”",
-    id: "B2fyqr4e9V",
-    description: "Marketing homepage journeyBrief",
-  },
-  journeyBriefLabel: {
-    defaultMessage:
-      "One ask triggers the full operation, without adding headcount or slowing the calendar.",
-    id: "gnGg0U5eTD",
-    description: "Marketing homepage journeyBriefLabel",
-  },
-  journeyAskTitle: {
-    defaultMessage: "Start with one request",
-    id: "Baldv9loXT",
-    description: "Carousel card title for the connected campaign prompt",
   },
   journeyCarouselPage: {
     defaultMessage: "{current}/{count}",
@@ -359,112 +246,6 @@ export const homepageMessages = defineMessages({
     defaultMessage: "Move faster → without losing control",
     id: "YwLXaKADU8",
     description: "Capability carousel card 05 kicker",
-  },
-  journeyCreateTitle: {
-    defaultMessage: "Produce more global content without growing the team",
-    id: "nINOvNM0Nl",
-    description: "Marketing homepage journeyCreateTitle",
-  },
-  journeyCreateBody: {
-    defaultMessage:
-      "Create and adapt text, documents, presentations, images, and video for every market from one studio. Reviewers see what they need; output keeps moving.",
-    id: "zqUNf7FmTO",
-    description: "Marketing homepage journeyCreateBody",
-  },
-  journeyCreateOutput: {
-    defaultMessage: "Output: market-ready content at higher volume",
-    id: "TxDh7vr+WV",
-    description: "Marketing homepage journeyCreateOutput",
-  },
-  journeyAutomateTitle: {
-    defaultMessage: "Cut the time between draft and approval",
-    id: "xy6zgENBqJ",
-    description: "Marketing homepage journeyAutomateTitle",
-  },
-  journeyAutomateBody: {
-    defaultMessage:
-      "Orchestrate agents, reviewers, and sign-offs on a workflow built for speed and control. Repeatable runs mean launches stop waiting on manual coordination.",
-    id: "CRoKyTUiXS",
-    description: "Marketing homepage journeyAutomateBody",
-  },
-  journeyAutomateOutput: {
-    defaultMessage: "Output: faster cycles you can run again and again",
-    id: "t6CkSuu5ac",
-    description: "Marketing homepage journeyAutomateOutput",
-  },
-  journeyPublishTitle: {
-    defaultMessage: "Get multilingual content live, and found",
-    id: "OVGI0Wj4Qj",
-    description: "Marketing homepage journeyPublishTitle",
-  },
-  journeyPublishBody: {
-    defaultMessage:
-      "Publish to your CMS with SEO and AEO in the same motion. Every market gets a page that ranks, answers, and converts, not just a translated file sitting in a folder.",
-    id: "xCzW2pNolA",
-    description: "Marketing homepage journeyPublishBody",
-  },
-  journeyPublishOutput: {
-    defaultMessage: "Output: published content built for discovery and conversion",
-    id: "mKCVvMW7tj",
-    description: "Marketing homepage journeyPublishOutput",
-  },
-  journeyOptimiseTitle: {
-    defaultMessage: "Learn what wins, then ship smarter",
-    id: "HX9puvVtWs",
-    description: "Marketing homepage journeyOptimiseTitle",
-  },
-  journeyOptimiseBody: {
-    defaultMessage:
-      "Experiment across markets, compare performance, and carry winners into the next campaign. Growth comes from iteration, not guesswork.",
-    id: "V0+b9BqdcA",
-    description: "Marketing homepage journeyOptimiseBody",
-  },
-  journeyOptimiseOutput: {
-    defaultMessage: "Output: data that improves the next go-to-market push",
-    id: "GNU5p1qHqo",
-    description: "Marketing homepage journeyOptimiseOutput",
-  },
-  journeyGuidelinesTitle: {
-    defaultMessage: "Scale output without losing brand or compliance",
-    id: "kX9aB3SHmV",
-    description: "Marketing homepage journeyGuidelinesTitle",
-  },
-  journeyGuidelinesBody: {
-    defaultMessage:
-      "Shared brand, terminology, and market rules keep every asset on-message, whether a person or an agent touched it. Move fast across markets without the rework that erodes margin.",
-    id: "kpjKvK4p0n",
-    description: "Marketing homepage journeyGuidelinesBody",
-  },
-  cmsMode: {
-    defaultMessage: "Content publishing",
-    id: "tsWN7Tg2q2",
-    description: "Marketing homepage cmsMode",
-  },
-  discoveryMode: {
-    defaultMessage: "SEO & AEO",
-    id: "qs2xntPsAx",
-    description: "Marketing homepage discoveryMode",
-  },
-  cmsDemoHeading: {
-    defaultMessage: "One publication. A home in every market.",
-    id: "/v3eeOYlRS",
-    description: "Marketing homepage cmsDemoHeading",
-  },
-  cmsDemoBody: {
-    defaultMessage:
-      "Select a market to preview its content. Switch to SEO & AEO to explore discovery checks.",
-    id: "s+2GHVE/L/",
-    description: "Marketing homepage cmsDemoBody",
-  },
-  cmsLocaleLabel: {
-    defaultMessage: "Preview market",
-    id: "8K7EOzqAsw",
-    description: "Marketing homepage cmsLocaleLabel",
-  },
-  cmsPreviewLabel: {
-    defaultMessage: "CMS publication preview",
-    id: "SlBx5n8apE",
-    description: "Marketing homepage cmsPreviewLabel",
   },
   agentChannelSwitchAria: {
     defaultMessage: "Preview the agent in Slack, Teams, or GitHub",
@@ -585,9 +366,9 @@ export const homepageMessages = defineMessages({
   },
   stackBody: {
     defaultMessage:
-      "Language is where most teams start. We take you further, into the culture and the rules of every market you enter.",
-    id: "Wtma4d2vV6",
-    description: "Marketing homepage growth stack overview intro",
+      "Most tools stop at translation. Hyperlocalise covers the whole launch: the language, the culture and the rules of every market you enter.",
+    id: "hr/sRuub5S",
+    description: "Marketing homepage stackBody",
   },
   stackLanguageLabel: {
     defaultMessage: "Language",
@@ -601,9 +382,9 @@ export const homepageMessages = defineMessages({
   },
   stackLanguageBody: {
     defaultMessage:
-      "Website and app localisation with AI translation, translation memory and glossaries, synced to your TMS on every release.",
-    id: "8tv7vEJn8/",
-    description: "Marketing homepage growth stack column body for language",
+      "An AI-native TMS for product, website and docs localisation: translation memory, glossaries, QA and in-context review, built into every release.",
+    id: "XH7dsb84Ea",
+    description: "Marketing homepage stackLanguageBody",
   },
   stackCultureLabel: {
     defaultMessage: "Culture",
@@ -617,9 +398,9 @@ export const homepageMessages = defineMessages({
   },
   stackCultureBody: {
     defaultMessage:
-      "Transcreation for ad creative, images and video, with on-screen copy, subtitles and dubbing adapted to each market's culture.",
-    id: "XEMBe6hAF9",
-    description: "Marketing homepage growth stack column body for culture",
+      "Transcreation for ads, landing pages, emails, images and video, with on-screen copy, subtitles and dubbing adapted to each market.",
+    id: "uEol2W4zcS",
+    description: "Marketing homepage stackCultureBody",
   },
   stackComplianceLabel: {
     defaultMessage: "Compliance",
@@ -638,20 +419,20 @@ export const homepageMessages = defineMessages({
     description: "Marketing homepage growth stack column body for compliance",
   },
   languageEyebrow: {
-    defaultMessage: "Translation & TMS",
-    id: "+J+H2tCApl",
-    description: "Marketing homepage language section eyebrow naming the Domains product",
+    defaultMessage: "Translation management system",
+    id: "3qHAztA4gY",
+    description: "Marketing homepage languageEyebrow",
   },
   languageTitle: {
-    defaultMessage: "Your product, in every language.",
-    id: "9Aho2Q6h1v",
-    description: "Marketing homepage language section heading",
+    defaultMessage: "A TMS built for continuous localisation.",
+    id: "2zaTwDOxrO",
+    description: "Marketing homepage languageTitle",
   },
   languageBody: {
     defaultMessage:
-      "Your translation memory, glossaries and a CAT workspace for reviewers, with agents that translate every release from GitHub, your CMS or the TMS you already use.",
-    id: "IHZ+ZoUXoS",
-    description: "Marketing homepage language section body",
+      "Localise your product, website and documentation in one TMS, with translation memory, glossaries, a CAT editor and review workflows. Agents translate every release from GitHub or your CMS, so new strings, pages and docs ship localised instead of weeks later.",
+    id: "mm3OTXVD2B",
+    description: "Marketing homepage languageBody",
   },
   languageLink: {
     defaultMessage: "Explore Content Studio",
@@ -659,9 +440,9 @@ export const homepageMessages = defineMessages({
     description: "Marketing homepage language section link to the Domains product page",
   },
   cultureEyebrow: {
-    defaultMessage: "Creative localisation",
-    id: "XVzkAdvDvW",
-    description: "Marketing homepage culture section eyebrow naming the Iris product",
+    defaultMessage: "Ad & creative localisation",
+    id: "iaFi/aFdft",
+    description: "Marketing homepage cultureEyebrow",
   },
   cultureTitle: {
     defaultMessage: "Feel local, not translated.",
@@ -670,9 +451,9 @@ export const homepageMessages = defineMessages({
   },
   cultureBody: {
     defaultMessage:
-      "A Fourth of July banner means nothing in Tokyo. Iris transcreates your ad creative, images and video for every market: it rewrites on-screen copy, adds subtitles and dubbing, and checks the layout in every language.",
-    id: "SN5dJJSc9Y",
-    description: "Marketing homepage culture section body about Iris",
+      "A Fourth of July banner means nothing in Tokyo. Iris transcreates paid social ads, banners, product imagery and video for every market. It rewrites on-screen copy, adds subtitles and dubbing, and checks every layout before launch.",
+    id: "VGiAz0bPNK",
+    description: "Marketing homepage cultureBody",
   },
   cultureLink: {
     defaultMessage: "Meet Iris",
@@ -691,9 +472,9 @@ export const homepageMessages = defineMessages({
   },
   hyperlabBody: {
     defaultMessage:
-      "Run a different version in each market, measure what converts, and roll the winner out everywhere.",
-    id: "FIDjnxIGy/",
-    description: "Marketing homepage experiments block body",
+      "A/B test ads, landing pages and messaging in each market. Measure conversion, then roll the winner out everywhere.",
+    id: "KTTH0w3uly",
+    description: "Marketing homepage hyperlabBody",
   },
   hyperlabLink: {
     defaultMessage: "See how Hyperlab works",
@@ -759,10 +540,9 @@ export const homepageMessages = defineMessages({
       "Locale status: waiting for human review, in the Translation pipeline illustration on the marketing homepage language section",
   },
   tmsPanelSynced: {
-    defaultMessage: "Synced to TMS",
-    id: "EQG3eUFdjD",
-    description:
-      "Locale status: translations synced to the translation management system, in the Translation pipeline illustration on the marketing homepage language section",
+    defaultMessage: "Shipped",
+    id: "XHDLKsDqnu",
+    description: "Marketing homepage tmsPanelSynced",
   },
   tmsPanelMemory: {
     defaultMessage: "Translation memory",
@@ -789,8 +569,8 @@ export const homepageMessages = defineMessages({
       "Number of glossary terms applied in the Translation pipeline illustration on the marketing homepage language section",
   },
   heroEyebrow: {
-    defaultMessage: "AI localisation platform",
-    id: "fJdI7lGsBG",
+    defaultMessage: "Agentic localisation platform",
+    id: "JpPN4GGwvP",
     description: "Marketing homepage hero eyebrow naming the product category",
   },
   integrationsLabel: {
@@ -805,9 +585,9 @@ export const homepageMessages = defineMessages({
   },
   auditBody: {
     defaultMessage:
-      "Get a free localisation audit of your website in the languages and markets you are targeting.",
-    id: "OT++BZvDKF",
-    description: "Marketing homepage localisation audit call to action body",
+      "Get a free localisation score out of 100 for your website in the markets you are targeting. Results in 1–3 minutes.",
+    id: "hwxaR/JS8e",
+    description: "Marketing homepage auditBody",
   },
   auditCta: {
     defaultMessage: "Run a free audit",
@@ -815,15 +595,15 @@ export const homepageMessages = defineMessages({
     description: "Marketing homepage localisation audit call to action button",
   },
   useCasesTitle: {
-    defaultMessage: "Built for every team going global",
-    id: "3mOQDWP5YA",
-    description: "Marketing homepage use cases section heading",
+    defaultMessage: "Built for localisation, growth and marketing teams",
+    id: "GiM7BsX8W8",
+    description: "Marketing homepage useCasesTitle",
   },
   useCasesBody: {
     defaultMessage:
-      "From product releases and help centers to marketing campaigns and localisation operations.",
-    id: "SPTx8TifWg",
-    description: "Marketing homepage use cases section intro",
+      "App and website localisation, help centres, paid campaigns, lifecycle email and new-market launches.",
+    id: "K/6LHyFXoo",
+    description: "Marketing homepage useCasesBody",
   },
   integrationsAll: {
     defaultMessage: "See all integrations",
@@ -837,8 +617,264 @@ export const homepageMessages = defineMessages({
   },
   integrationsBody: {
     defaultMessage:
-      "Connect your TMS, GitHub, CMS and workspace tools in a few clicks. Hyperlocalise works alongside what your team already uses.",
-    id: "y9fPrujNUO",
-    description: "Marketing homepage integrations section body",
+      "Connect GitHub, your CMS, and marketing tools like Braze, HubSpot and Mailchimp in a few clicks. Already on another TMS? Connect it and start today.",
+    id: "iEfqVSf7s8",
+    description: "Marketing homepage integrationsBody",
+  },
+  languageMigrationNote: {
+    defaultMessage:
+      "Switching TMS? Import your translation memory and glossaries, or connect Phrase, Lokalise, Crowdin or Smartling to start today and migrate at your own pace.",
+    id: "CaHBpEUYDO",
+    description: "Marketing homepage languageMigrationNote",
+  },
+  languageDetailContinuousTitle: {
+    defaultMessage: "Product, website and docs localisation",
+    id: "OKElC8KspG",
+    description: "Marketing homepage languageDetailContinuousTitle",
+  },
+  languageDetailContinuousBody: {
+    defaultMessage:
+      "App strings, marketing pages, help centres and developer docs are picked up from GitHub, GitLab or your CMS as you ship and sent back translated. No file handoffs.",
+    id: "kUoez4YALb",
+    description: "Marketing homepage languageDetailContinuousBody",
+  },
+  languageDetailMemoryTitle: {
+    defaultMessage: "Translation memory and glossaries",
+    id: "LS0oTfpHOm",
+    description: "Marketing homepage languageDetailMemoryTitle",
+  },
+  languageDetailMemoryBody: {
+    defaultMessage:
+      "Every translation reuses approved segments and applies your terminology, so quality goes up and cost per word comes down.",
+    id: "xSO+PNO66q",
+    description: "Marketing homepage languageDetailMemoryBody",
+  },
+  languageDetailReviewTitle: {
+    defaultMessage: "Review and quality checks",
+    id: "vFXL8WUX2+",
+    description: "Marketing homepage languageDetailReviewTitle",
+  },
+  languageDetailReviewBody: {
+    defaultMessage:
+      "Reviewers approve in a CAT editor with source, target and context side by side. Automated checks flag terminology and style issues.",
+    id: "7oGopm8Owk",
+    description: "Marketing homepage languageDetailReviewBody",
+  },
+  languageDetailFormatsTitle: {
+    defaultMessage: "Every format you ship",
+    id: "Vrb0kfj4ag",
+    description: "Marketing homepage languageDetailFormatsTitle",
+  },
+  languageDetailFormatsBody: {
+    defaultMessage:
+      "JSON, XLIFF, ARB, gettext PO, Apple .strings, Markdown and more, synced with the CLI or GitHub Action.",
+    id: "92EjpHEYTE",
+    description: "Marketing homepage languageDetailFormatsBody",
+  },
+  cultureDetailAdsTitle: {
+    defaultMessage: "Ads and social creative",
+    id: "RxXfO2kGMc",
+    description: "Marketing homepage cultureDetailAdsTitle",
+  },
+  cultureDetailAdsBody: {
+    defaultMessage:
+      "Rewrite the copy inside banners, social ads and product images so every variant reads as if it was made locally.",
+    id: "ppqMLxTM9D",
+    description: "Marketing homepage cultureDetailAdsBody",
+  },
+  cultureDetailVideoTitle: {
+    defaultMessage: "Video, subtitles and dubbing",
+    id: "eer2y1nbKY",
+    description: "Marketing homepage cultureDetailVideoTitle",
+  },
+  cultureDetailVideoBody: {
+    defaultMessage:
+      "Subtitle and dub product videos and video ads for each market, without going back to the edit suite.",
+    id: "APhBkCRVZL",
+    description: "Marketing homepage cultureDetailVideoBody",
+  },
+  cultureDetailCampaignTitle: {
+    defaultMessage: "Campaigns, landing pages and email",
+    id: "yB9lg4mn7m",
+    description: "Marketing homepage cultureDetailCampaignTitle",
+  },
+  cultureDetailCampaignBody: {
+    defaultMessage:
+      "Transcreate campaign messaging, landing pages and lifecycle emails, connected to Braze, HubSpot, Mailchimp and Customer.io.",
+    id: "VYl6cpU8IR",
+    description: "Marketing homepage cultureDetailCampaignBody",
+  },
+  cultureDetailLayoutTitle: {
+    defaultMessage: "Layout checks in every language",
+    id: "L5UoC4Vg1/",
+    description: "Marketing homepage cultureDetailLayoutTitle",
+  },
+  cultureDetailLayoutBody: {
+    defaultMessage:
+      "Catch truncated text and broken layouts before a long German headline breaks your banner.",
+    id: "UHMt7jDxTK",
+    description: "Marketing homepage cultureDetailLayoutBody",
+  },
+  complianceDetailPoliciesTitle: {
+    defaultMessage: "Your policies, connected",
+    id: "sEWDwqVF8w",
+    description: "Marketing homepage complianceDetailPoliciesTitle",
+  },
+  complianceDetailPoliciesBody: {
+    defaultMessage:
+      "Connect the legal and policy docs you already keep in Drive, Notion or SharePoint. Guidelines turns them into checks.",
+    id: "ODaXpgKA1z",
+    description: "Marketing homepage complianceDetailPoliciesBody",
+  },
+  complianceDetailRegulationTitle: {
+    defaultMessage: "Local regulations",
+    id: "3o/gPAEQqF",
+    description: "Marketing homepage complianceDetailRegulationTitle",
+  },
+  complianceDetailRegulationBody: {
+    defaultMessage:
+      "Check marketing claims against each market's rules, from GDPR consent wording to AI disclosures and health claims.",
+    id: "uvhZLO/6ZN",
+    description: "Marketing homepage complianceDetailRegulationBody",
+  },
+  complianceDetailBrandTitle: {
+    defaultMessage: "Brand voice and terminology",
+    id: "K/bDHBWEug",
+    description: "Marketing homepage complianceDetailBrandTitle",
+  },
+  complianceDetailBrandBody: {
+    defaultMessage:
+      "Hold every market to your tone of voice and approved terms, whether a person or an agent wrote the copy.",
+    id: "erZyQ4Dqdy",
+    description: "Marketing homepage complianceDetailBrandBody",
+  },
+  complianceDetailBlockTitle: {
+    defaultMessage: "Checked before it goes live",
+    id: "m8ZeR42e5L",
+    description: "Marketing homepage complianceDetailBlockTitle",
+  },
+  complianceDetailBlockBody: {
+    defaultMessage:
+      "Anything that fails a check is blocked from publishing, with the issue flagged for your reviewers.",
+    id: "F6peAzh+UW",
+    description: "Marketing homepage complianceDetailBlockBody",
+  },
+  guidesTitle: {
+    defaultMessage: "Quick-start guides",
+    id: "4HsHkAVEfj",
+    description: "Marketing homepage guidesTitle",
+  },
+  guidesBody: {
+    defaultMessage: "Up and running in an afternoon. Pick the path that fits your team.",
+    id: "NEJrk523BS",
+    description: "Marketing homepage guidesBody",
+  },
+  guidesAll: {
+    defaultMessage: "Browse all docs",
+    id: "HjDd1APjzG",
+    description: "Marketing homepage guidesAll",
+  },
+  guideMoveTitle: {
+    defaultMessage: "Moving to Hyperlocalise",
+    id: "+bpfog/7t8",
+    description: "Marketing homepage guideMoveTitle",
+  },
+  guideMoveBody: {
+    defaultMessage:
+      "Connect your current TMS, or bring your files, translation memory and glossaries across.",
+    id: "Q7NI31xU1e",
+    description: "Marketing homepage guideMoveBody",
+  },
+  guideManagersTitle: {
+    defaultMessage: "For localisation managers",
+    id: "0bpfyZZqJG",
+    description: "Marketing homepage guideManagersTitle",
+  },
+  guideManagersBody: {
+    defaultMessage: "Set up a project, prepare language resources and run your first review.",
+    id: "hB/BQKNAEf",
+    description: "Marketing homepage guideManagersBody",
+  },
+  guideGithubTitle: {
+    defaultMessage: "GitHub localisation workflow",
+    id: "VLSAkxahzf",
+    description: "Marketing homepage guideGithubTitle",
+  },
+  guideGithubBody: {
+    defaultMessage:
+      "Translate source files from a pull request and return approved translations to git.",
+    id: "BDA/gqLEJS",
+    description: "Marketing homepage guideGithubBody",
+  },
+  guideSanityTitle: {
+    defaultMessage: "Localise Sanity content",
+    id: "JbM23rQM/o",
+    description: "Marketing homepage guideSanityTitle",
+  },
+  guideSanityBody: {
+    defaultMessage: "Translate documents from Sanity Studio and write locale drafts back.",
+    id: "s9p79lfTen",
+    description: "Marketing homepage guideSanityBody",
+  },
+  guideCliTitle: {
+    defaultMessage: "Translate your first file",
+    id: "wNFnoTPkkO",
+    description: "Marketing homepage guideCliTitle",
+  },
+  guideCliBody: {
+    defaultMessage: "Install the CLI and localise a JSON file in a few commands.",
+    id: "esU+kN70MQ",
+    description: "Marketing homepage guideCliBody",
+  },
+  guideTmTitle: {
+    defaultMessage: "Import translation memory",
+    id: "tg2s/tuo8D",
+    description: "Marketing homepage guideTmTitle",
+  },
+  guideTmBody: {
+    defaultMessage:
+      "Bring your existing TMX or CSV so every translation starts from what you already have.",
+    id: "xxyyEzwt/Q",
+    description: "Marketing homepage guideTmBody",
+  },
+  auditTechnicalTitle: {
+    defaultMessage: "Technical",
+    id: "yJiXnsxN4n",
+    description: "Marketing homepage auditTechnicalTitle",
+  },
+  auditTechnicalBody: {
+    defaultMessage: "Hreflang, locale routing and sitemaps",
+    id: "29b9BJLtO6",
+    description: "Marketing homepage auditTechnicalBody",
+  },
+  auditLinguisticTitle: {
+    defaultMessage: "Linguistic",
+    id: "yHf+EVA3Yl",
+    description: "Marketing homepage auditLinguisticTitle",
+  },
+  auditLinguisticBody: {
+    defaultMessage: "Untranslated pages and brand voice",
+    id: "+Y1qXQRnb7",
+    description: "Marketing homepage auditLinguisticBody",
+  },
+  auditContextualTitle: {
+    defaultMessage: "Contextual",
+    id: "5SIKU9pq2Z",
+    description: "Marketing homepage auditContextualTitle",
+  },
+  auditContextualBody: {
+    defaultMessage: "Prices, dates and examples for each market",
+    id: "s/g9Iuph++",
+    description: "Marketing homepage auditContextualBody",
+  },
+  auditVisualTitle: {
+    defaultMessage: "Visual",
+    id: "NaySrlINdE",
+    description: "Marketing homepage auditVisualTitle",
+  },
+  auditVisualBody: {
+    defaultMessage: "Layouts, fonts and images with longer text",
+    id: "mQpQTZ6lEJ",
+    description: "Marketing homepage auditVisualBody",
   },
 });

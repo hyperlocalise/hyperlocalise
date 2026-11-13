@@ -37,6 +37,7 @@ import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-
 
 const metadataKeywords = [
   "Hyperlocalise",
+  "agentic localisation platform",
   "AI localisation platform",
   "localization platform",
   "international growth",
@@ -62,14 +63,14 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
   const intl = getIntlShape(locale);
 
   const title = intl.formatMessage({
-    defaultMessage: "AI Localisation Platform for International Growth | Hyperlocalise",
-    id: "iakGT6ABzj",
+    defaultMessage: "Agentic Localisation Platform & TMS for International Growth | Hyperlocalise",
+    id: "KmIemL3Bty",
     description: "Page title for the marketing homepage",
   });
   const description = intl.formatMessage({
     defaultMessage:
-      "The AI localisation platform for international growth. Translate websites and apps with your TMS, adapt images and video to local cultures, and check every market's rules before you go live.",
-    id: "jgfYN8ytVV",
+      "The AI-native TMS for localisation and growth teams. Translate apps and websites, transcreate ads and campaigns, and launch in new markets faster.",
+    id: "s5WD/UpqV1",
     description: "Meta description for the marketing homepage",
   });
   const openGraphDescription = intl.formatMessage({

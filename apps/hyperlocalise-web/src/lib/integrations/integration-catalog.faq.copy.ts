@@ -296,6 +296,32 @@ export const integrationFaqCopy = {
       "Contentful integration FAQ answer about publishing",
     ),
   ],
+  sanity: [
+    faq(
+      "How do editors translate from Sanity Studio?",
+      "intSanityFaqQ1",
+      "Sanity integration FAQ about the Studio plugin",
+      "Install the Hyperlocalise Studio plugin. Editors translate the open document or a selection of documents from the editor view or bulk tool, then apply the locale drafts.",
+      "intSanityFaqA1",
+      "Sanity integration FAQ answer about the Studio plugin",
+    ),
+    faq(
+      "Can we localise Sanity content in bulk?",
+      "intSanityFaqQ2",
+      "Sanity integration FAQ about bulk localisation",
+      "Yes. An automation imports the document types you choose from a dataset on a schedule. Your team translates and reviews them, then pushes approved translations back.",
+      "intSanityFaqA2",
+      "Sanity integration FAQ answer about bulk localisation",
+    ),
+    faq(
+      "Do editors still publish in Sanity?",
+      "intSanityFaqQ3",
+      "Sanity integration FAQ about publishing",
+      "Yes. Hyperlocalise writes translations to Sanity as drafts. Your team reviews and publishes them in Sanity.",
+      "intSanityFaqA3",
+      "Sanity integration FAQ answer about publishing",
+    ),
+  ],
   canva: [
     faq(
       "Can we localise Canva designs without rebuilding layouts?",

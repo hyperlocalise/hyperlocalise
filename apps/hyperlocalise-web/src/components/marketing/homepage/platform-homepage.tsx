@@ -36,6 +36,7 @@ import {
   LanguageSection,
   LocalisationAuditCta,
   IntegrationsSection,
+  QuickStartGuidesSection,
   type HomepageIntegration,
   UseCasesSection,
 } from "./growth-sections";
@@ -438,11 +439,12 @@ export function PlatformHomepage({
       </section>
       <GrowthStackOverview />
       <LanguageSection />
-      <IntegrationsSection integrations={integrations} />
-      {children}
       <CultureSection />
       <ComplianceSection />
       <LocalisationAuditCta />
+      <IntegrationsSection integrations={integrations} />
+      <QuickStartGuidesSection />
+      {children}
       <AgentsSection />
       <UseCasesSection />
       <section id="explore" className="scroll-mt-16">

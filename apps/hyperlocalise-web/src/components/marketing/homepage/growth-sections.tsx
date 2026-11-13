@@ -159,6 +159,58 @@ function FeatureRow({
   );
 }
 
+type PillarDetail = { title: MessageDescriptor; body: MessageDescriptor };
+
+const LANGUAGE_DETAILS: PillarDetail[] = [
+  { title: m.languageDetailContinuousTitle, body: m.languageDetailContinuousBody },
+  { title: m.languageDetailMemoryTitle, body: m.languageDetailMemoryBody },
+  { title: m.languageDetailReviewTitle, body: m.languageDetailReviewBody },
+  { title: m.languageDetailFormatsTitle, body: m.languageDetailFormatsBody },
+];
+
+const CULTURE_DETAILS: PillarDetail[] = [
+  { title: m.cultureDetailAdsTitle, body: m.cultureDetailAdsBody },
+  { title: m.cultureDetailVideoTitle, body: m.cultureDetailVideoBody },
+  { title: m.cultureDetailCampaignTitle, body: m.cultureDetailCampaignBody },
+  { title: m.cultureDetailLayoutTitle, body: m.cultureDetailLayoutBody },
+];
+
+const COMPLIANCE_DETAILS: PillarDetail[] = [
+  { title: m.complianceDetailPoliciesTitle, body: m.complianceDetailPoliciesBody },
+  { title: m.complianceDetailRegulationTitle, body: m.complianceDetailRegulationBody },
+  { title: m.complianceDetailBrandTitle, body: m.complianceDetailBrandBody },
+  { title: m.complianceDetailBlockTitle, body: m.complianceDetailBlockBody },
+];
+
+/** Four capability columns under a pillar's feature row. */
+function PillarDetails({ items, onDark = false }: { items: PillarDetail[]; onDark?: boolean }) {
+  return (
+    <ul className="mt-14 grid gap-x-8 gap-y-10 sm:mt-20 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((item) => (
+        <li
+          key={item.title.id}
+          className={cn(
+            "flex flex-col gap-2 border-t pt-5",
+            onDark ? "border-white/25" : "border-border",
+          )}
+        >
+          <h3 className="text-base font-semibold leading-snug tracking-[-0.01em] text-balance">
+            <FormattedMessage {...item.title} />
+          </h3>
+          <p
+            className={cn(
+              "text-sm leading-6 text-pretty",
+              onDark ? "text-white/75" : "text-muted-foreground",
+            )}
+          >
+            <FormattedMessage {...item.body} />
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function GrowthStackOverview() {
   const columns = [
     {
@@ -361,6 +413,94 @@ export function IntegrationsSection({ integrations }: { integrations: HomepageIn
   );
 }
 
+const DOCS_ORIGIN = "https://hyperlocalise.dev";
+
+const QUICK_START_GUIDES: (PillarDetail & { href: string })[] = [
+  {
+    title: m.guideMoveTitle,
+    body: m.guideMoveBody,
+    href: `${DOCS_ORIGIN}/platform/getting-started/moving-to-hyperlocalise`,
+  },
+  {
+    title: m.guideManagersTitle,
+    body: m.guideManagersBody,
+    href: `${DOCS_ORIGIN}/platform/getting-started/managers`,
+  },
+  {
+    title: m.guideGithubTitle,
+    body: m.guideGithubBody,
+    href: `${DOCS_ORIGIN}/platform/tutorials/github-localisation-workflow`,
+  },
+  {
+    title: m.guideSanityTitle,
+    body: m.guideSanityBody,
+    href: `${DOCS_ORIGIN}/platform/connections/sanity-studio-plugin`,
+  },
+  {
+    title: m.guideCliTitle,
+    body: m.guideCliBody,
+    href: `${DOCS_ORIGIN}/cli/getting-started/quickstart`,
+  },
+  {
+    title: m.guideTmTitle,
+    body: m.guideTmBody,
+    href: `${DOCS_ORIGIN}/platform/translation-memory-import-export`,
+  },
+];
+
+/** Brief list of docs guides that get a team started quickly. */
+export function QuickStartGuidesSection() {
+  return (
+    <section
+      id="quick-start"
+      aria-labelledby="quick-start-heading"
+      className="scroll-mt-16 border-t border-border"
+    >
+      <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20 lg:px-10">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex max-w-2xl flex-col gap-3">
+            <h2
+              id="quick-start-heading"
+              className="font-heading text-[clamp(1.75rem,2.5vw,2.25rem)] leading-[1.15] text-balance"
+            >
+              <FormattedMessage {...m.guidesTitle} />
+            </h2>
+            <p className="text-base leading-7 text-pretty text-muted-foreground">
+              <FormattedMessage {...m.guidesBody} />
+            </p>
+          </div>
+          <a
+            href={DOCS_ORIGIN}
+            className="rounded-sm text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4"
+          >
+            <FormattedMessage {...m.guidesAll} /> <span aria-hidden>↗</span>
+          </a>
+        </div>
+        <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {QUICK_START_GUIDES.map((guide) => (
+            <li key={guide.href}>
+              <a
+                href={guide.href}
+                className="flex h-full flex-col gap-1.5 rounded-xl border border-border px-5 py-4 transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-4 motion-reduce:transition-none"
+              >
+                <span className="flex items-center justify-between gap-3 text-sm font-semibold">
+                  <FormattedMessage {...guide.title} />
+                  <span aria-hidden className="text-muted-foreground">
+                    ↗
+                  </span>
+                </span>
+                <span className="text-sm leading-6 text-pretty text-muted-foreground">
+                  <FormattedMessage {...guide.body} />
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 export function LanguageSection() {
   const step = useStep(TMS_STEPS);
 
@@ -375,8 +515,8 @@ export function LanguageSection() {
               body={m.languageBody}
               headingId="language-heading"
             >
-              <p className="text-sm leading-6 text-muted-foreground">
-                <FormattedMessage {...m.languagePublishNote} />
+              <p className="max-w-xl rounded-lg border border-border bg-background px-4 py-3 text-sm leading-6 text-foreground">
+                <FormattedMessage {...m.languageMigrationNote} />
               </p>
               <SectionLink href="/product/multilingual-content-studio" label={m.languageLink} />
             </FeatureCopy>
@@ -387,6 +527,10 @@ export function LanguageSection() {
             </MockStage>
           }
         />
+        <PillarDetails items={LANGUAGE_DETAILS} />
+        <p className="mt-10 text-sm leading-6 text-muted-foreground">
+          <FormattedMessage {...m.languagePublishNote} />
+        </p>
       </div>
     </section>
   );
@@ -463,6 +607,7 @@ export function CultureSection() {
             }
             visual={<IrisFilmPanel />}
           />
+          <PillarDetails items={CULTURE_DETAILS} onDark />
         </div>
       </div>
       <div className={SECTION_CLASS}>
@@ -516,32 +661,54 @@ export function ComplianceSection() {
             </MockStage>
           }
         />
+        <PillarDetails items={COMPLIANCE_DETAILS} />
       </div>
     </section>
   );
 }
 
+const AUDIT_CHECKS: PillarDetail[] = [
+  { title: m.auditTechnicalTitle, body: m.auditTechnicalBody },
+  { title: m.auditLinguisticTitle, body: m.auditLinguisticBody },
+  { title: m.auditContextualTitle, body: m.auditContextualBody },
+  { title: m.auditVisualTitle, body: m.auditVisualBody },
+];
+
 export function LocalisationAuditCta() {
   const locale = useAppLocale();
   return (
     <section aria-labelledby="audit-heading" className="px-5 sm:px-8 lg:px-10">
-      <div className="relative isolate mx-auto flex max-w-7xl flex-col items-start gap-6 overflow-hidden rounded-[1.5rem] px-6 py-12 text-white sm:flex-row sm:items-center sm:justify-between sm:px-12">
+      <div className="relative isolate mx-auto flex max-w-7xl flex-col gap-10 overflow-hidden rounded-[1.5rem] px-6 py-12 text-white sm:px-12">
         <SectionMeshBackground src={SAGE_MESH_GRADIENT_SRC} />
         <div aria-hidden className="absolute inset-0 -z-10 bg-black/35" />
-        <div className="flex max-w-xl flex-col gap-3">
-          <h2 id="audit-heading" className="font-heading text-3xl leading-tight text-balance">
-            <FormattedMessage {...m.auditTitle} />
-          </h2>
-          <p className="text-base leading-7 text-pretty text-white/80">
-            <FormattedMessage {...m.auditBody} />
-          </p>
+        <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex max-w-xl flex-col gap-3">
+            <h2 id="audit-heading" className="font-heading text-3xl leading-tight text-balance">
+              <FormattedMessage {...m.auditTitle} />
+            </h2>
+            <p className="text-base leading-7 text-pretty text-white/80">
+              <FormattedMessage {...m.auditBody} />
+            </p>
+          </div>
+          <Link
+            href={rewriteAppLocalePath("/localisation-audit", locale)}
+            className="shrink-0 rounded-md bg-white px-5 py-3 text-sm font-medium text-foreground transition-colors hover:bg-white/90 focus-visible:outline-2 focus-visible:outline-offset-4 motion-reduce:transition-none"
+          >
+            <FormattedMessage {...m.auditCta} /> <span aria-hidden>↗</span>
+          </Link>
         </div>
-        <Link
-          href={rewriteAppLocalePath("/localisation-audit", locale)}
-          className="shrink-0 rounded-md bg-white px-5 py-3 text-sm font-medium text-foreground transition-colors hover:bg-white/90 focus-visible:outline-2 focus-visible:outline-offset-4 motion-reduce:transition-none"
-        >
-          <FormattedMessage {...m.auditCta} /> <span aria-hidden>↗</span>
-        </Link>
+        <ul className="grid gap-x-8 gap-y-6 border-t border-white/20 pt-8 sm:grid-cols-2 lg:grid-cols-4">
+          {AUDIT_CHECKS.map((check) => (
+            <li key={check.title.id} className="flex flex-col gap-1">
+              <span className="text-sm font-semibold text-white">
+                <FormattedMessage {...check.title} />
+              </span>
+              <span className="text-sm leading-6 text-pretty text-white/75">
+                <FormattedMessage {...check.body} />
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );
