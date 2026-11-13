@@ -119,6 +119,22 @@ and reads the result. Neither package exposes an HTTP route.
 | `FAL_KEY` | fal.ai API key sent as `Authorization: Key ...`. Required for native Flux, Kling, Seedance, Wan, MiniMax, Krea, Seedream, Bria, SeedVR, ByteDance upscaler, and Sync lipsync Iris models. |
 | `FAL_QUEUE_URL` | Optional. Defaults to `https://queue.fal.run`. |
 
+Successful Iris generate jobs consume workspace **AI Credit**: Autumn feature `ai_tokens` (USD) via `trackTokens`, plus one `agent_runs`. Platform `FAL_KEY` and `ELEVENLABS_API_KEY` always debit that wallet. Organization LLM keys do not skip Fal or ElevenLabs billing. `/iris/estimate` returns remaining USD with `unit: "usd"`. The model catalog publishes `id` and `name` only; it does not publish Diffusion credit prices.
+
+Override the custom Autumn model IDs with these env vars. Each ID has one frozen synthetic unit; never change a custom model's unit after usage has been recorded.
+
+| Variable | Default | Synthetic unit |
+|----------|---------|----------------|
+| `AI_CREDIT_IMAGE_MODEL_ID` | `custom/hyperlocalise-gpt-image-2` | 1 output token = 1 AI Gateway image |
+| `AI_CREDIT_VIDEO_MODEL_ID` | `custom/hyperlocalise-seedance-2-5` | 1 output token = 1 AI Gateway video second |
+| `AI_CREDIT_FAL_IMAGE_MODEL_ID` | `custom/hyperlocalise-fal-image` | 1 output token = 1 Fal image |
+| `AI_CREDIT_FAL_VIDEO_MODEL_ID` | `custom/hyperlocalise-fal-video` | 1 output token = 1 Fal video second |
+| `AI_CREDIT_ELEVENLABS_SECOND_MODEL_ID` | `custom/hyperlocalise-elevenlabs-second` | 1 output token = 1 ElevenLabs audio second |
+| `AI_CREDIT_ELEVENLABS_MINUTE_MODEL_ID` | `custom/hyperlocalise-elevenlabs-minute` | 1 output token = 1 ElevenLabs input-minute |
+| `AI_CREDIT_AUDIO_MINUTE_MODEL_ID` | `custom/hyperlocalise-audio-minute` | 1 output token = 1 AI Gateway audio input-minute |
+
+Do not set `AI_CREDIT_AUDIO_MODEL_ID`. That mixed ElevenLabs seconds and minutes on one id.
+
 Example Go usage:
 
 ```go
@@ -156,7 +172,7 @@ The Iris editor localises its projects through these routes, all under
 | Method | Path | Operation |
 |--------|------|-----------|
 | POST | `/localise/lookup` | Glossary terms found in `texts` (with their `targetLocale` translation, forbidden flag and note) and exact translation-memory matches. Reads only what the member's glossary and memory access allows. |
-| POST | `/localise/translate` | Translates up to 200 `messages` (`id`, `text`, `description`): approved memory matches first, then the translation model with the glossary and `guidance` in the prompt. Results stay in request order. Translations that drop an ICU placeholder are left out. Billed as AI tokens. |
+| POST | `/localise/translate` | Translates up to 200 `messages` (`id`, `text`, `description`): approved memory matches first, then the translation model with the glossary and `guidance` in the prompt. Results stay in request order. Translations that drop an ICU placeholder are left out. Billed as AI credit. |
 | POST | `/localise/memory` | Saves approved `entries` (`source`, `target`) into `memoryId`, or the oldest native memory, or a new "Iris" memory. Admins and localization managers only; existing pairs are skipped. |
 
 Localisation models on `/generate`: `elevenlabs-dubbing` (ElevenLabs Dubbing:

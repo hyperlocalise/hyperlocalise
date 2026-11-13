@@ -24,22 +24,41 @@ Models.dev publishes token pricing for `openai/gpt-image-2`. Track the real inpu
 usage reported by AI SDK against that standard model ID.
 
 Keep custom models only for modalities without published token pricing or when a provider omits
-usage:
+usage. Each custom ID has one frozen synthetic unit:
 
-- `custom/hyperlocalise-gpt-image-2`: fallback where one output token equals one generated image.
-- `custom/hyperlocalise-seedance-2-5`: one output token equals one generated video second.
+- `custom/hyperlocalise-gpt-image-2`: one output token equals one AI Gateway image.
+- `custom/hyperlocalise-seedance-2-5`: one output token equals one AI Gateway video second.
+- `custom/hyperlocalise-fal-image`: one output token equals one Fal image (Flux, Seedream, Krea, Bria, SeedVR, …).
+- `custom/hyperlocalise-fal-video`: one output token equals one Fal video second (Kling, Seedance, Wan, MiniMax, lipsync, video upscale).
+- `custom/hyperlocalise-elevenlabs-second`: one output token equals one ElevenLabs music or SFX second.
+- `custom/hyperlocalise-elevenlabs-minute`: one output token equals one ElevenLabs TTS or dubbing input-minute.
+- `custom/hyperlocalise-audio-minute`: one output token equals one AI Gateway audio input-minute (Gemini TTS, Fish Audio, transcription).
+
+Do not bill Fal on the GPT Image or Seedance custom IDs. Do not mix seconds and minutes on
+one ElevenLabs ID. `custom/hyperlocalise-elevenlabs-audio` is retired.
 
 Autumn requires both custom-model rates. Set `inputCost` to `0`; set `outputCost` to the
 provider cost for one synthetic unit multiplied by `1,000,000`. Apply customer markup in the
 AI credit-system configuration.
 
 Every priced media variant must have a distinct custom model ID. Do not change a custom
-model's unit semantics after usage has been recorded.
+model's unit semantics after usage has been recorded. Start with one Fal-image ID and one
+Fal-video ID if markup can absorb vendor spread; split later with new IDs.
+
+Organization LLM keys (`organization_llm_provider_credentials`) skip the `ai_tokens` debit
+only for that language-model call. They do not pay Fal or ElevenLabs. Platform `FAL_KEY`
+and `ELEVENLABS_API_KEY` always consume AI credit. Org-owned Fal or ElevenLabs keys do not
+exist yet; when they do, skip the debit only when that job's vendor is the org's key.
 
 ## Runtime configuration
 
 - `AI_CREDIT_IMAGE_MODEL_ID`
 - `AI_CREDIT_VIDEO_MODEL_ID`
+- `AI_CREDIT_FAL_IMAGE_MODEL_ID`
+- `AI_CREDIT_FAL_VIDEO_MODEL_ID`
+- `AI_CREDIT_ELEVENLABS_SECOND_MODEL_ID`
+- `AI_CREDIT_ELEVENLABS_MINUTE_MODEL_ID`
+- `AI_CREDIT_AUDIO_MINUTE_MODEL_ID`
 - `AI_CREDIT_PRICING_VERSION`
 
 Job-count meters (`translation_jobs`, `agent_runs`) still use `balances.track`. AI credit

@@ -18,13 +18,22 @@ import (
 )
 
 const (
-	irisMinAICreditUSD = 0.01
-	irisCleanupTimeout = 5 * time.Second
-	irisGenerationPath = orgRoutePrefix + "/iris"
+	irisMinAICreditUSD  = 0.01
+	irisCleanupTimeout  = 5 * time.Second
+	irisGenerationPath  = orgRoutePrefix + "/iris"
+	irisEstimateUnitUSD = "usd"
 
-	defaultIrisImageCreditModel = "custom/hyperlocalise-gpt-image-2"
-	defaultIrisVideoCreditModel = "custom/hyperlocalise-seedance-2-5"
-	defaultIrisAudioCreditModel = "custom/hyperlocalise-elevenlabs-audio"
+	irisCreditVendorGateway    = "gateway"
+	irisCreditVendorFal        = "fal"
+	irisCreditVendorElevenLabs = "elevenlabs"
+
+	defaultIrisImageCreditModel            = "custom/hyperlocalise-gpt-image-2"
+	defaultIrisVideoCreditModel            = "custom/hyperlocalise-seedance-2-5"
+	defaultIrisFalImageCreditModel         = "custom/hyperlocalise-fal-image"
+	defaultIrisFalVideoCreditModel         = "custom/hyperlocalise-fal-video"
+	defaultIrisElevenLabsSecondCreditModel = "custom/hyperlocalise-elevenlabs-second"
+	defaultIrisElevenLabsMinuteCreditModel = "custom/hyperlocalise-elevenlabs-minute"
+	defaultIrisAudioMinuteCreditModel      = "custom/hyperlocalise-audio-minute"
 )
 
 type irisUsageMeter interface {
@@ -34,9 +43,13 @@ type irisUsageMeter interface {
 }
 
 type irisCreditConfig struct {
-	ImageModelID string
-	VideoModelID string
-	AudioModelID string
+	ImageModelID            string
+	VideoModelID            string
+	FalImageModelID         string
+	FalVideoModelID         string
+	ElevenLabsSecondModelID string
+	ElevenLabsMinuteModelID string
+	AudioMinuteModelID      string
 }
 
 type irisOrgScope struct {
@@ -127,6 +140,7 @@ func (api *irisGenerationAPI) scope(w http.ResponseWriter, r *http.Request) (iri
 
 func (api *irisGenerationAPI) autumnEstimate(ctx context.Context, orgID string, estimate irisEstimate) irisEstimate {
 	estimate.FeatureID = autumn.AITokens
+	estimate.Unit = irisEstimateUnitUSD
 	if api.meter == nil {
 		return estimate
 	}
@@ -152,6 +166,9 @@ func (api *irisGenerationAPI) autumnEstimate(ctx context.Context, orgID string, 
 	return estimate
 }
 
+// ensureAIAllowed gates iris generate on Autumn ai_features and the USD
+// ai_tokens wallet. Platform Fal and ElevenLabs keys always consume AI credit.
+// Org LLM BYOK is not consulted: those credentials do not pay Fal or ElevenLabs.
 func (api *irisGenerationAPI) ensureAIAllowed(ctx context.Context, orgID string) (int, string, string, bool) {
 	if api.meter == nil {
 		return 0, "", "", true
@@ -181,7 +198,11 @@ func (api *irisGenerationAPI) creditModels() irisCreditConfig {
 	}
 	cfg.ImageModelID = irisFirstNonEmpty(cfg.ImageModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_IMAGE_MODEL_ID")), defaultIrisImageCreditModel)
 	cfg.VideoModelID = irisFirstNonEmpty(cfg.VideoModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_VIDEO_MODEL_ID")), defaultIrisVideoCreditModel)
-	cfg.AudioModelID = irisFirstNonEmpty(cfg.AudioModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_AUDIO_MODEL_ID")), defaultIrisAudioCreditModel)
+	cfg.FalImageModelID = irisFirstNonEmpty(cfg.FalImageModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_FAL_IMAGE_MODEL_ID")), defaultIrisFalImageCreditModel)
+	cfg.FalVideoModelID = irisFirstNonEmpty(cfg.FalVideoModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_FAL_VIDEO_MODEL_ID")), defaultIrisFalVideoCreditModel)
+	cfg.ElevenLabsSecondModelID = irisFirstNonEmpty(cfg.ElevenLabsSecondModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_ELEVENLABS_SECOND_MODEL_ID")), defaultIrisElevenLabsSecondCreditModel)
+	cfg.ElevenLabsMinuteModelID = irisFirstNonEmpty(cfg.ElevenLabsMinuteModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_ELEVENLABS_MINUTE_MODEL_ID")), defaultIrisElevenLabsMinuteCreditModel)
+	cfg.AudioMinuteModelID = irisFirstNonEmpty(cfg.AudioMinuteModelID, strings.TrimSpace(os.Getenv("AI_CREDIT_AUDIO_MINUTE_MODEL_ID")), defaultIrisAudioMinuteCreditModel)
 	return cfg
 }
 
@@ -209,11 +230,45 @@ func (api *irisGenerationAPI) trackUsage(ctx context.Context, job irisJobRecord)
 	}
 }
 
+func irisCreditVendor(model irisModelInfo) string {
+	switch model.Provider {
+	case irisProviderFal:
+		return irisCreditVendorFal
+	case irisProviderElevenLabs:
+		return irisCreditVendorElevenLabs
+	default:
+		return irisCreditVendorGateway
+	}
+}
+
+func irisFalVideoModel(model irisModelInfo) bool {
+	if model.Provider != irisProviderFal {
+		return false
+	}
+	return model.Kind == irisKindVideo || model.ID == "bytedance-upscaler" || model.ID == "sync-lipsync-2"
+}
+
+func irisGatewayAudioMinuteModel(model irisModelInfo) bool {
+	if model.Provider != irisProviderGateway {
+		return false
+	}
+	if model.Kind == irisKindVoice {
+		return true
+	}
+	switch model.ID {
+	case "universal-3.5-pro", "fish-audio-transcribe-1", "qwen3.8-omni-flash":
+		return true
+	default:
+		return false
+	}
+}
+
 func irisSyntheticCredit(job irisJobRecord, credits irisCreditConfig) (autumn.TrackTokensRequest, bool) {
 	model, ok := irisModelByID(job.Model)
 	if !ok {
 		return autumn.TrackTokensRequest{}, false
 	}
+	vendor := irisCreditVendor(model)
 	req := autumn.TrackTokensRequest{
 		CustomerID: job.OrgID,
 		FeatureID:  autumn.AITokens,
@@ -221,17 +276,27 @@ func irisSyntheticCredit(job irisJobRecord, credits irisCreditConfig) (autumn.Tr
 			"job_id": job.ID,
 			"model":  job.Model,
 			"kind":   string(model.Kind),
+			"vendor": vendor,
 		},
 	}
 	switch {
-	case model.Kind == irisKindVideo || model.ID == "bytedance-upscaler" || model.ID == "sync-lipsync-2":
+	case irisFalVideoModel(model):
+		req.ModelID = credits.FalVideoModelID
+		req.OutputTokens = irisDurationSeconds(job)
+	case model.Provider == irisProviderFal:
+		req.ModelID = credits.FalImageModelID
+		req.OutputTokens = irisImageCount(job)
+	case model.Provider == irisProviderElevenLabs && model.Kind == irisKindAudio:
+		req.ModelID = credits.ElevenLabsSecondModelID
+		req.OutputTokens = irisDurationSeconds(job)
+	case model.Provider == irisProviderElevenLabs:
+		req.ModelID = credits.ElevenLabsMinuteModelID
+		req.OutputTokens = irisInputMinutes(job)
+	case model.Kind == irisKindVideo:
 		req.ModelID = credits.VideoModelID
 		req.OutputTokens = irisDurationSeconds(job)
-	case model.Kind == irisKindAudio:
-		req.ModelID = credits.AudioModelID
-		req.OutputTokens = irisDurationSeconds(job)
-	case model.Kind == irisKindVoice || model.ID == "universal-3.5-pro" || model.ID == "fish-audio-transcribe-1" || model.ID == "qwen3.8-omni-flash" || model.ID == "elevenlabs-dubbing":
-		req.ModelID = credits.AudioModelID
+	case irisGatewayAudioMinuteModel(model):
+		req.ModelID = credits.AudioMinuteModelID
 		req.OutputTokens = irisInputMinutes(job)
 	default:
 		req.ModelID = credits.ImageModelID
