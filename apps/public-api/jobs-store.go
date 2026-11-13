@@ -32,22 +32,33 @@ type jobOutputFile struct {
 	Filename string `json:"filename"`
 }
 
+// jobSourceFile is the stored file a job translates; Path and Branch are nil when the file is not
+// tracked at a path in the project.
+type jobSourceFile struct {
+	FileID string  `json:"fileId"`
+	Path   *string `json:"path"`
+	Branch *string `json:"branch"`
+}
+
 // job matches go-svc's public job envelope, plus kind.
 type job struct {
-	ID          string           `json:"id"`
-	ProjectID   *string          `json:"projectId"`
-	Kind        string           `json:"kind"`
-	Type        *string          `json:"type"`
-	Status      string           `json:"status"`
-	CreatedAt   time.Time        `json:"createdAt"`
-	UpdatedAt   time.Time        `json:"updatedAt"`
-	CompletedAt *time.Time       `json:"completedAt"`
-	LastError   *string          `json:"lastError"`
-	Title       *string          `json:"title"`
-	Description *string          `json:"description"`
-	DueAt       *time.Time       `json:"dueAt"`
-	OwnerEmail  *string          `json:"ownerEmail"`
-	OutputFiles *[]jobOutputFile `json:"outputFiles"`
+	ID            string           `json:"id"`
+	ProjectID     *string          `json:"projectId"`
+	Kind          string           `json:"kind"`
+	Type          *string          `json:"type"`
+	Status        string           `json:"status"`
+	CreatedAt     time.Time        `json:"createdAt"`
+	UpdatedAt     time.Time        `json:"updatedAt"`
+	CompletedAt   *time.Time       `json:"completedAt"`
+	LastError     *string          `json:"lastError"`
+	Title         *string          `json:"title"`
+	Description   *string          `json:"description"`
+	DueAt         *time.Time       `json:"dueAt"`
+	OwnerEmail    *string          `json:"ownerEmail"`
+	OutputFiles   *[]jobOutputFile `json:"outputFiles"`
+	SourceFile    *jobSourceFile   `json:"sourceFile"`
+	SourceLocale  *string          `json:"sourceLocale"`
+	TargetLocales *[]string        `json:"targetLocales"`
 }
 
 type jobFilters struct {
@@ -79,24 +90,51 @@ const jobColumns = `
 	j.id, j.project_id, j.kind::text, d.type::text, j.status::text, d.outcome_kind::text,
 	j.outcome_payload, j.last_error, j.created_at, j.updated_at, j.completed_at,
 	j.input_payload->'metadata'->>'title', j.input_payload->'metadata'->>'description',
-	j.due_at, ou.email`
+	j.due_at, ou.email,
+	j.input_payload->>'sourceFileId', sf.source_path, sf.branch_name,
+	j.input_payload->>'sourceLocale', j.input_payload->'targetLocales'`
 
 const jobFrom = `
 	FROM jobs j
 	LEFT JOIN translation_job_details d ON d.job_id = j.id
+	LEFT JOIN repository_source_file_versions v ON v.id = d.source_file_version_id
+	LEFT JOIN repository_source_files sf ON sf.id = v.repository_source_file_id
 	LEFT JOIN users ou ON ou.id = j.owner_user_id`
 
 func scanJob(row rowScanner) (job, error) {
 	var item job
 	var outcomeKind *string
-	var outcomePayload []byte
+	var outcomePayload, targetLocales []byte
+	var sourceFileID, sourcePath, sourceBranch *string
 	err := row.Scan(&item.ID, &item.ProjectID, &item.Kind, &item.Type, &item.Status, &outcomeKind,
 		&outcomePayload, &item.LastError, &item.CreatedAt, &item.UpdatedAt, &item.CompletedAt,
-		&item.Title, &item.Description, &item.DueAt, &item.OwnerEmail)
+		&item.Title, &item.Description, &item.DueAt, &item.OwnerEmail,
+		&sourceFileID, &sourcePath, &sourceBranch, &item.SourceLocale, &targetLocales)
 	if err == nil {
 		item.OutputFiles = jobOutputFiles(item.Type, outcomeKind, outcomePayload)
+		item.SourceFile = jobSourceFileOf(sourceFileID, sourcePath, sourceBranch)
+		item.TargetLocales = jobTargetLocales(targetLocales)
 	}
 	return item, err
+}
+
+// jobSourceFileOf mirrors go-svc's publicJobSourceFileOf: a job without a saved source file id,
+// such as a key job, has no source file.
+func jobSourceFileOf(fileID, path, branch *string) *jobSourceFile {
+	if fileID == nil || strings.TrimSpace(*fileID) == "" {
+		return nil
+	}
+	return &jobSourceFile{FileID: *fileID, Path: path, Branch: branch}
+}
+
+// jobTargetLocales mirrors go-svc's publicJobTargetLocales: nil unless the saved value is a list
+// of strings.
+func jobTargetLocales(raw []byte) *[]string {
+	var locales []string
+	if err := json.Unmarshal(raw, &locales); err != nil || locales == nil {
+		return nil
+	}
+	return &locales
 }
 
 // jobOutputFiles mirrors go-svc's publicJobOutputFiles: a finished file job lists its output

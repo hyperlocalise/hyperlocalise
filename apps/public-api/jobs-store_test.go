@@ -31,6 +31,9 @@ func TestJobStoreDatabase(t *testing.T) {
 	require.Equal(t, jobID, items[0].ID)
 	require.Equal(t, "Old", *items[0].Title)
 	require.NotNil(t, items[0].OwnerEmail)
+	require.Equal(t, "en", *items[0].SourceLocale)
+	require.Nil(t, items[0].SourceFile)
+	require.Nil(t, items[0].TargetLocales)
 
 	// Members without team access see neither job.
 	member := principal{UserID: uuid.NewString(), OrganizationID: f.actor.OrganizationID}
@@ -114,6 +117,56 @@ func TestJobStoreDatabase(t *testing.T) {
 	require.ErrorIs(t, err, errJobNotFound)
 	// Failed updates record nothing.
 	require.Len(t, f.activities(t, "job_updated"), 3)
+}
+
+func TestJobStoreSourceFile(t *testing.T) {
+	f := newDBFixture(t)
+	const path = "docs/zh/guide.docx"
+	fileID := f.sourceFile(t, path)
+	storedID := "file_" + uuid.NewString()
+	f.exec(t, `INSERT INTO stored_files (id, organization_id, role, source_kind, storage_provider, storage_key, storage_url, filename, content_type, byte_size, sha256)
+		VALUES ($1, $2, 'source', 'repository_file', 'test', $1, $1, 'guide.docx', 'application/octet-stream', 2, 'x')`, storedID, f.actor.OrganizationID)
+	var versionID string
+	require.NoError(t, f.pool.QueryRow(t.Context(), `INSERT INTO repository_source_file_versions (organization_id, project_id, repository_source_file_id, source_path, stored_file_id)
+		VALUES ($1, $2, $3, $4, $5) RETURNING id`, f.actor.OrganizationID, f.project, fileID, path, storedID).Scan(&versionID))
+	jobID := "job_" + uuid.NewString()
+	f.exec(t, `INSERT INTO jobs (id, organization_id, project_id, kind, status, input_payload)
+		VALUES ($1, $2, $3, 'proofread', 'succeeded', $4::jsonb)`, jobID, f.actor.OrganizationID, f.project,
+		`{"sourceFileId":"`+storedID+`","sourceLocale":"zh-CN","targetLocales":["en-US"]}`)
+	f.exec(t, `INSERT INTO translation_job_details (job_id, type, source_file_version_id) VALUES ($1, 'file', $2)`, jobID, versionID)
+
+	item, err := f.store.getJob(t.Context(), f.actor, jobID)
+	require.NoError(t, err)
+	require.Equal(t, &jobSourceFile{FileID: storedID, Path: ptr(path), Branch: ptr("main")}, item.SourceFile)
+	require.Equal(t, "zh-CN", *item.SourceLocale)
+	require.Equal(t, &[]string{"en-US"}, item.TargetLocales)
+
+	items, total, err := f.store.listJobs(t.Context(), f.actor, jobFilters{Limit: 10})
+	require.NoError(t, err)
+	require.Equal(t, 1, total)
+	require.Len(t, items, 1)
+	require.Equal(t, item.SourceFile, items[0].SourceFile)
+	require.Equal(t, item.SourceLocale, items[0].SourceLocale)
+	require.Equal(t, item.TargetLocales, items[0].TargetLocales)
+
+	f.exec(t, `UPDATE repository_source_files SET branch_name='release-2' WHERE id=$1`, fileID)
+	item, err = f.store.getJob(t.Context(), f.actor, jobID)
+	require.NoError(t, err)
+	require.Equal(t, "release-2", *item.SourceFile.Branch)
+}
+
+func TestJobSourceFields(t *testing.T) {
+	fileID, blank, path, branch := "file_1", " ", "a/b.json", "main"
+	require.Equal(t, &jobSourceFile{FileID: fileID, Path: &path, Branch: &branch}, jobSourceFileOf(&fileID, &path, &branch))
+	require.Equal(t, &jobSourceFile{FileID: fileID}, jobSourceFileOf(&fileID, nil, nil))
+	require.Nil(t, jobSourceFileOf(nil, &path, &branch))
+	require.Nil(t, jobSourceFileOf(&blank, &path, &branch))
+
+	require.Equal(t, &[]string{"fr", "de"}, jobTargetLocales([]byte(`["fr","de"]`)))
+	require.Equal(t, &[]string{}, jobTargetLocales([]byte(`[]`)))
+	for _, raw := range []string{"", "null", `"fr"`, `[1]`, `{"fr":true}`} {
+		require.Nil(t, jobTargetLocales([]byte(raw)), raw)
+	}
 }
 
 func TestJobPatchHelpers(t *testing.T) {

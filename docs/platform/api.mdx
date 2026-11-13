@@ -380,10 +380,17 @@ Permission: `jobs:read`
     "ownerEmail": "pm@example.com",
     "outputFiles": [
       { "fileId": "file_...", "locale": "fr-FR", "filename": "fr.json" }
-    ]
+    ],
+    "sourceFile": { "fileId": "file_...", "path": "locales/en.json", "branch": "main" },
+    "sourceLocale": "en",
+    "targetLocales": ["fr-FR"]
   }
 }
 ```
+
+`sourceFile` is the stored file the job translates or reviews: `fileId` is its id for [Download a stored file](#download-a-stored-file), `path` is its path in the project, and `branch` is the project version branch it is on (both `null` if it has no path). It is `null` for jobs not made from a stored file, such as key jobs. `sourceLocale` and `targetLocales` are the languages the job was created with; they are `null` for jobs synced from another TMS.
+
+To act when a review task finishes, listen for the job-change [webhook](/platform/developers/webhooks), then read the job here to find its file and languages.
 
 ### Job status
 
