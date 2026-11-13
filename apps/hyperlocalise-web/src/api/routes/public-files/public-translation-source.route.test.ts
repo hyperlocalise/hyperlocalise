@@ -574,6 +574,34 @@ describe("public translation source route", () => {
     }
   });
 
+  it("refuses a live TMS project that stores files outside the workspace", async () => {
+    const fixture = await chainedProjectsFixture();
+    await db
+      .update(schema.projects)
+      .set({ source: "external_tms" })
+      .where(eq(schema.projects.id, fixture.destination.id));
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: "project_not_native" });
+  });
+
+  it("refuses a project that has no source language", async () => {
+    const fixture = await chainedProjectsFixture();
+    await db
+      .update(schema.projects)
+      .set({ sourceLocale: null })
+      .where(eq(schema.projects.id, fixture.destination.id));
+
+    const response = await fixture.send();
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "destination_source_locale_mismatch",
+    });
+  });
+
   it("needs the files:write permission", async () => {
     const fixture = await chainedProjectsFixture();
     await fixture.setPermissions(["jobs:read", "jobs:write", "files:read"]);

@@ -1017,4 +1017,45 @@ describe("chat turn runs", () => {
     const adminRun = await app.request(`${chatUrl}/run`, { headers: adminHeaders });
     expect(adminRun.status).toBe(200);
   });
+
+  it("refuses members without ai_actions:run from starting or cancelling a chat turn", async () => {
+    const admin = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(admin);
+    expect(projectResponse.status).toBe(201);
+    const projectBody = (await projectResponse.json()) as {
+      project: { id: string; teamId: string };
+    };
+
+    const { chatUrl, startTurn } = await createChatConversation({
+      identity: admin,
+      projectId: projectBody.project.id,
+    });
+    expect((await startTurn()).status).toBe(200);
+    createWebChatAgentUIStreamResponseMock.mockClear();
+
+    const member = createWorkosIdentityForOrganization(admin.organization, "member");
+    const memberHeaders = await authHeadersFor(member);
+    await ensureTeamMembership({
+      teamId: projectBody.project.teamId,
+      userId: await getLocalUserId(member.user.workosUserId),
+    });
+
+    const memberTurn = await app.request(chatUrl, {
+      method: "POST",
+      headers: { ...memberHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ id: "ignored", role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    });
+    expect(memberTurn.status).toBe(403);
+    await expect(memberTurn.json()).resolves.toEqual({ error: "forbidden" });
+    expect(createWebChatAgentUIStreamResponseMock).not.toHaveBeenCalled();
+
+    const memberCancel = await app.request(`${chatUrl}/run/cancel`, {
+      method: "POST",
+      headers: memberHeaders,
+    });
+    expect(memberCancel.status).toBe(403);
+    await expect(memberCancel.json()).resolves.toEqual({ error: "forbidden" });
+  });
 });

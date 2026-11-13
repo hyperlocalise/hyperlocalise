@@ -32,7 +32,12 @@ import {
 import { verifyWebhookSignature } from "@/lib/outbound-webhooks/webhook-signing";
 import { isErr } from "@/lib/primitives/result/results";
 
-import { dispatchJobChangeEvents, JOB_CHANGE_EVENT_MAX_CLAIMS } from "./job-change-event-pump";
+import {
+  dispatchJobChangeEvents,
+  JOB_CHANGE_EVENT_MAX_CLAIMS,
+  JOB_CHANGE_EVENT_RETENTION_MS,
+  pruneJobChangeEvents,
+} from "./job-change-event-pump";
 import { insertJobs, updateJobs } from "./job-writes";
 
 const organizationIds: string[] = [];
@@ -266,6 +271,94 @@ describe("deliverDueWebhooks", () => {
       enabled: true,
       consecutiveFailures: 0,
     });
+  });
+});
+
+describe("pruneJobChangeEvents", () => {
+  it("deletes dispatched events and finished deliveries past the retention window", async () => {
+    const organizationId = await insertOrganization();
+    const { endpoint } = await createEndpoint(organizationId);
+    const now = new Date("2026-11-13T00:00:00.000Z");
+    const stale = new Date(now.getTime() - JOB_CHANGE_EVENT_RETENTION_MS - 60_000);
+    const recent = new Date(now.getTime() - 24 * 60 * 60_000);
+
+    await db.insert(schema.jobChangeEvents).values([
+      {
+        organizationId,
+        jobId: "job_stale_dispatched",
+        kind: "translation",
+        type: "job.created",
+        toStatus: "queued",
+        occurredAt: stale,
+        dispatchedAt: stale,
+      },
+      {
+        organizationId,
+        jobId: "job_recent_dispatched",
+        kind: "translation",
+        type: "job.created",
+        toStatus: "queued",
+        occurredAt: recent,
+        dispatchedAt: recent,
+      },
+      {
+        organizationId,
+        jobId: "job_stale_pending",
+        kind: "translation",
+        type: "job.created",
+        toStatus: "queued",
+        occurredAt: stale,
+      },
+    ]);
+
+    await db.insert(schema.webhookDeliveries).values([
+      {
+        organizationId,
+        endpointId: endpoint.id,
+        eventType: "job.created",
+        payload: { type: "job.created" },
+        status: "succeeded",
+        completedAt: stale,
+        createdAt: stale,
+      },
+      {
+        organizationId,
+        endpointId: endpoint.id,
+        eventType: "job.status_changed",
+        payload: { type: "job.status_changed" },
+        status: "pending",
+        createdAt: stale,
+      },
+      {
+        organizationId,
+        endpointId: endpoint.id,
+        eventType: "job.details_changed",
+        payload: { type: "job.details_changed" },
+        status: "failed",
+        completedAt: recent,
+        createdAt: recent,
+      },
+    ]);
+
+    await expect(pruneJobChangeEvents(now)).resolves.toEqual({ events: 1, deliveries: 1 });
+
+    const events = await db
+      .select({ jobId: schema.jobChangeEvents.jobId })
+      .from(schema.jobChangeEvents)
+      .where(eq(schema.jobChangeEvents.organizationId, organizationId));
+    expect(events.map((event) => event.jobId).sort()).toEqual([
+      "job_recent_dispatched",
+      "job_stale_pending",
+    ]);
+
+    const deliveries = await db
+      .select({ eventType: schema.webhookDeliveries.eventType })
+      .from(schema.webhookDeliveries)
+      .where(eq(schema.webhookDeliveries.organizationId, organizationId));
+    expect(deliveries.map((delivery) => delivery.eventType).sort()).toEqual([
+      "job.details_changed",
+      "job.status_changed",
+    ]);
   });
 });
 
