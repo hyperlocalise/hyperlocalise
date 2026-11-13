@@ -53,17 +53,18 @@ var (
 		"not_localized": {}, "whitespace_only": {}, "same_as_source": {}, "escaped_char_mismatch": {},
 		"length": {}, "placeholder_mismatch": {}, "glossary_violation": {}, "format": {}, "spelling": {},
 		"numbers_mismatch": {}, "punctuation_mismatch": {}, "character_case_mismatch": {},
-		"unreachable_plural_case": {},
+		"unreachable_plural_case": {}, "guideline": {},
 	}
 	translationQaSeverities = map[string]struct{}{"error": {}, "warning": {}}
 )
 
 type qaSummary struct {
-	ByCheckType           map[string]int      `json:"byCheckType"`
-	BySeverity            map[string]int      `json:"bySeverity"`
-	ByLocale              map[string]int      `json:"byLocale"`
-	SkippedChecksByLocale map[string][]string `json:"skippedChecksByLocale,omitempty"`
-	CheckVersion          int                 `json:"checkVersion,omitempty"`
+	ByCheckType            map[string]int      `json:"byCheckType"`
+	BySeverity             map[string]int      `json:"bySeverity"`
+	ByLocale               map[string]int      `json:"byLocale"`
+	SkippedChecksByLocale  map[string][]string `json:"skippedChecksByLocale,omitempty"`
+	CheckVersion           int                 `json:"checkVersion,omitempty"`
+	GuidelineCheckHaltCode string              `json:"guidelineCheckHaltCode,omitempty"`
 }
 
 func emptyQaSummary() qaSummary {

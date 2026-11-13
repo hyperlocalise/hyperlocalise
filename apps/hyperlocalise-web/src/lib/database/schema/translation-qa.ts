@@ -37,6 +37,8 @@ export type TranslationQaSummary = {
   byLocale: Record<string, number>;
   skippedChecksByLocale?: Record<string, string[]>;
   checkVersion?: number;
+  /** Set when guideline checks stop early; holds the go-svc error code only. */
+  guidelineCheckHaltCode?: string;
 };
 
 /**

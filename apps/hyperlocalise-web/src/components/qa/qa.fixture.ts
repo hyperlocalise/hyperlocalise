@@ -136,6 +136,22 @@ export const qaPartialReport = createQaReport({
   },
 });
 
+export const qaGuidelineHaltedReport = createQaReport({
+  id: "run_guideline_halted",
+  projectId: qaWebsiteProjectId,
+  status: "succeeded",
+  segmentCount: 64,
+  findingCount: 1,
+  warningCount: 1,
+  summary: {
+    byCheckType: { guideline: 1 },
+    bySeverity: { warning: 1 },
+    byLocale: { "fr-FR": 1 },
+    checkVersion: 2,
+    guidelineCheckHaltCode: "guideline_check_limit_reached",
+  },
+});
+
 export function createQaProjectSettings(
   overrides: Partial<{
     cadence: "off" | "daily";

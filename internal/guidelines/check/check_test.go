@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
@@ -15,6 +16,7 @@ import (
 )
 
 type fakeRetriever struct {
+	mu     sync.Mutex
 	result guidelines.Result
 	err    error
 	scope  guidelines.Scope
@@ -23,8 +25,16 @@ type fakeRetriever struct {
 }
 
 func (f *fakeRetriever) Retrieve(_ context.Context, scope guidelines.Scope, query string, limit int) (guidelines.Result, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.scope, f.query, f.limit = scope, query, limit
 	return f.result, f.err
+}
+
+func (f *fakeRetriever) lastCall() (query string, limit int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.query, f.limit
 }
 
 type fakeModel struct {
@@ -71,8 +81,9 @@ func TestCheckGroundsFindings(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, result.SearchAvailable)
 	require.Equal(t, "test-model", result.Model)
-	require.Equal(t, 12, retriever.limit)
-	require.Contains(t, retriever.query, "Peux-tu")
+	query, limit := retriever.lastCall()
+	require.Equal(t, 12, limit)
+	require.Contains(t, query, "Peux-tu")
 	require.Contains(t, model.user, `<passage label="P1">`)
 	require.Contains(t, model.user, `<passage label="P3">`)
 	require.NotContains(t, model.user, `<passage label="P4">`, "duplicate mandatory chunk from search is not repeated")

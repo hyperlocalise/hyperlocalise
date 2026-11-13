@@ -77,7 +77,7 @@ Turn on the **Guidelines** check so the editor flags text that breaks these docu
 
 Open the project **QA** page, then **Check settings**. Under **Checks included**, turn on **Guidelines**, set **Severity** to **Warning** or **Error**, and select **Save check settings**. **Guidelines** stays off until you save it.
 
-The editor runs the check while you translate. A warning shows the issue and still allows saving. An error blocks saving when the editor has already reported the issue. A project scan does not run this check.
+The editor runs the check while you translate. A warning shows the issue and still allows saving. An error blocks saving when the editor has already reported the issue. A project [QA scan](/platform/help/quality#project-qa) runs the same check when **Guidelines** is on and saves each issue as a finding. If the weekly allowance runs out during a scan, the scan still finishes, keeps guideline findings it already saved, and leaves older guideline findings open. The QA run notes that guideline checks were incomplete.
 
 ## What to include
 
@@ -102,6 +102,6 @@ Keep a clear owner for the document so project and workspace guidance do not giv
 
 ## Check text against guidelines
 
-Turn on [the editor QA check](#turn-on-the-qa-check) so translators see guideline findings while they work. Agents can also check source text or translations with the [`check_guidelines` MCP tool](/platform/developers/mcp-tools#guideline-checks). Send up to 50 segments with an optional project and target locale. Each finding points to the exact text that breaks a rule and quotes the guideline passage it relies on. Findings without a supporting guideline passage are discarded.
+Turn on [the editor and scan QA check](#turn-on-the-qa-check) so translators see guideline findings while they work and scans store the same issues as findings. Agents can also check source text or translations with the [`check_guidelines` MCP tool](/platform/developers/mcp-tools#guideline-checks). Send up to 50 segments with an optional project and target locale. Each finding points to the exact text that breaks a rule and quotes the guideline passage it relies on. Findings without a supporting guideline passage are discarded.
 
 An empty result means no guideline violation was found. It does not confirm that the translation is accurate, so keep reviewing a sample. Each checked segment counts toward your plan's guideline check usage.

@@ -13,7 +13,13 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent } from "storybook/test";
 
-import { qaFailedReport, qaPartialReport, qaRunningReport, qaWebsiteReport } from "./qa.fixture";
+import {
+  qaFailedReport,
+  qaGuidelineHaltedReport,
+  qaPartialReport,
+  qaRunningReport,
+  qaWebsiteReport,
+} from "./qa.fixture";
 import { QaRunStatus } from "./qa-status";
 
 const meta = {
@@ -75,6 +81,19 @@ export const Succeeded: Story = {
       canvas.getByText("128 translations checked · 2 errors · 3 warnings"),
     ).toBeInTheDocument();
     await expect(canvas.getByText(/Checked /)).toBeInTheDocument();
+  },
+};
+
+export const GuidelineHalted: Story = {
+  args: {
+    report: qaGuidelineHaltedReport,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByText(
+        "Guideline checks stopped before every translation was reviewed. Findings from this scan are incomplete, and older guideline findings stay open.",
+      ),
+    ).toBeInTheDocument();
   },
 };
 

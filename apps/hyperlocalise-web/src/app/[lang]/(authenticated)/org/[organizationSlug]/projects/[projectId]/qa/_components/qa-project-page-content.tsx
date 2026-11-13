@@ -17,6 +17,7 @@ import { observer } from "mobx-react-lite";
 import { CheckCircleIcon } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
+import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -74,6 +75,7 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
   canPromoteFindings: boolean;
 }) {
   const intl = useIntl();
+  const knowledgeEnabled = useAppShellStore().workspaceFeatureFlags.knowledge;
   const queryClient = useQueryClient();
   const { client } = useGoSvcClient();
   const api = useMemo(() => createProjectQaReportClient(client), [client]);
@@ -414,42 +416,44 @@ const QaProjectPageContentView = observer(function QaProjectPageContentView({
               </p>
               <p className="text-xs text-muted-foreground">{intl.formatMessage(m.errorBehavior)}</p>
               <div className="flex flex-col divide-y divide-border">
-                {translationQaCheckTypes.map((check) => (
-                  <div
-                    key={check}
-                    className="flex flex-wrap items-center justify-between gap-3 py-3"
-                  >
-                    <Field className="w-auto">
-                      <FieldLabel htmlFor={`qa-rule-${check}`}>
-                        {qaCheckLabel(check, intl)}
-                      </FieldLabel>
-                      <Switch
-                        id={`qa-rule-${check}`}
-                        checked={policy[check].enabled}
+                {(knowledgeEnabled
+                  ? translationQaCheckTypes
+                  : translationQaCheckTypes.filter((check) => check !== "guideline")
+                ).map((check) => (
+                  <div key={check} className="flex flex-col gap-1 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <Field className="w-auto">
+                        <FieldLabel htmlFor={`qa-rule-${check}`}>
+                          {qaCheckLabel(check, intl)}
+                        </FieldLabel>
+                        <Switch
+                          id={`qa-rule-${check}`}
+                          checked={policy[check].enabled}
+                          disabled={!settings?.canManageSchedule || settingsMutation.isPending}
+                          aria-label={intl.formatMessage(m.enableCheck, {
+                            check: qaCheckLabel(check, intl),
+                          })}
+                          onCheckedChange={(enabled) => updateRule(check, { enabled })}
+                        />
+                      </Field>
+                      <QaFilter
+                        label={intl.formatMessage(m.severity)}
                         disabled={!settings?.canManageSchedule || settingsMutation.isPending}
-                        aria-label={intl.formatMessage(m.enableCheck, {
-                          check: qaCheckLabel(check, intl),
-                        })}
-                        onCheckedChange={(enabled) => updateRule(check, { enabled })}
+                        value={policy[check].severity}
+                        onChange={(severity) =>
+                          updateRule(check, { severity: severity as "error" | "warning" })
+                        }
+                        options={(["error", "warning"] as const).map((value) => ({
+                          value,
+                          label: intl.formatMessage(m[value]),
+                        }))}
                       />
-                      {check === "guideline" ? (
-                        <FieldDescription>
-                          {intl.formatMessage(m.guidelineCheckHelp)}
-                        </FieldDescription>
-                      ) : null}
-                    </Field>
-                    <QaFilter
-                      label={intl.formatMessage(m.severity)}
-                      disabled={!settings?.canManageSchedule || settingsMutation.isPending}
-                      value={policy[check].severity}
-                      onChange={(severity) =>
-                        updateRule(check, { severity: severity as "error" | "warning" })
-                      }
-                      options={(["error", "warning"] as const).map((value) => ({
-                        value,
-                        label: intl.formatMessage(m[value]),
-                      }))}
-                    />
+                    </div>
+                    {check === "guideline" ? (
+                      <FieldDescription className="text-sm text-muted-foreground">
+                        {intl.formatMessage(m.guidelineCheckHelp)}
+                      </FieldDescription>
+                    ) : null}
                   </div>
                 ))}
               </div>

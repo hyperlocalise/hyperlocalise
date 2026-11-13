@@ -59,6 +59,7 @@ export type WorkspaceQaReportRow = {
       byLocale: Record<string, number>;
       checkVersion?: number;
       skippedChecksByLocale?: Record<string, string[]>;
+      guidelineCheckHaltCode?: string;
     };
     errorCode: string | null;
     errorMessage: string | null;
@@ -105,6 +106,7 @@ export type ProjectQaReport = {
     byLocale: Record<string, number>;
     checkVersion?: number;
     skippedChecksByLocale?: Record<string, string[]>;
+    guidelineCheckHaltCode?: string;
   };
   errorCode: string | null;
   errorMessage: string | null;

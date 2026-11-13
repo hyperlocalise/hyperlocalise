@@ -93,9 +93,14 @@ type Result struct {
 	Passages        []Passage `json:"passages"`
 	SearchAvailable bool      `json:"searchAvailable"`
 	Model           string    `json:"model"`
+	// UncheckedSegmentIDs lists miss ids when usage blocked the model but other
+	// segments in the request were already served from cache.
+	UncheckedSegmentIDs []string `json:"uncheckedSegmentIds,omitempty"`
 	// ModelInvoked is true only when the model was called. Empty retrievals and cache
 	// hits stay false so callers can skip usage metering. It is not part of the HTTP response.
 	ModelInvoked bool `json:"-"`
+	// BilledSegmentCount is how many segments count toward guideline check usage.
+	BilledSegmentCount int `json:"-"`
 	// Cached is true when findings were rebuilt from stored model output. The model
 	// was not called. It is not part of the HTTP response.
 	Cached bool `json:"-"`
@@ -189,55 +194,27 @@ func Normalize(req Request) (Request, error) {
 	return req, nil
 }
 
-// Check retrieves guidelines once for the whole request, asks the model for
-// findings, and keeps only findings that are grounded in the request.
+// Check retrieves guidelines, asks the model for findings, and keeps only
+// findings that are grounded in the request. Multi-segment requests look up
+// Valkey per segment, then run one model call for the misses.
 func (c *Checker) Check(ctx context.Context, scope guidelines.Scope, req Request) (Result, error) {
 	return c.CheckBeforeModel(ctx, scope, req, nil)
 }
 
+// BeforeModelHook runs only when the model will be charged for billableSegments units.
+type BeforeModelHook func(context.Context, float64) error
+
 // CheckBeforeModel is Check with a hook that runs only when a guideline passage
 // applies and the model is about to be called. A hook error skips the model.
-func (c *Checker) CheckBeforeModel(ctx context.Context, scope guidelines.Scope, req Request, beforeModel func(context.Context) error) (Result, error) {
+func (c *Checker) CheckBeforeModel(ctx context.Context, scope guidelines.Scope, req Request, beforeModel BeforeModelHook) (Result, error) {
 	req, err := Normalize(req)
 	if err != nil {
 		return Result{}, err
 	}
-	retrieved, err := c.retriever.Retrieve(ctx, scope, retrievalQuery(req), retrieveLimit)
-	if err != nil {
-		return Result{}, fmt.Errorf("retrieve guidelines: %w", err)
+	if len(req.Segments) == 1 {
+		return c.checkBeforeModelSingle(ctx, scope, req, beforeModel)
 	}
-	result := Result{Findings: []Finding{}, Passages: []Passage{}, SearchAvailable: retrieved.SearchAvailable, Model: c.model.Name()}
-	passages, err := promptPassages(retrieved)
-	if err != nil {
-		return Result{}, err
-	}
-	if len(passages) == 0 {
-		return result, nil
-	}
-	user := userPrompt(req, passages)
-	if raw, ok := c.cachedOutput(ctx, scope, user); ok {
-		findings, cited, groundErr := groundFindings(req, passages, raw)
-		if groundErr == nil {
-			result.Findings, result.Passages, result.Cached = findings, cited, true
-			return result, nil
-		}
-	}
-	if beforeModel != nil {
-		if err := beforeModel(ctx); err != nil {
-			return Result{}, err
-		}
-	}
-	result.ModelInvoked = true
-	raw, err := c.model.Complete(ctx, systemPrompt, user)
-	if err != nil {
-		return Result{}, fmt.Errorf("guideline check model: %w", err)
-	}
-	result.Findings, result.Passages, err = groundFindings(req, passages, raw)
-	if err != nil {
-		return Result{}, err
-	}
-	c.storeOutput(ctx, scope, user, raw)
-	return result, nil
+	return c.checkBeforeModelBatch(ctx, scope, req, beforeModel)
 }
 
 func cacheKey(organizationID, modelName, user string) string {

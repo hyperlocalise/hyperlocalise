@@ -39,7 +39,7 @@ type guidelineCheckMeter interface {
 }
 
 type guidelineChecker interface {
-	CheckBeforeModel(context.Context, guidelines.Scope, check.Request, func(context.Context) error) (check.Result, error)
+	CheckBeforeModel(context.Context, guidelines.Scope, check.Request, check.BeforeModelHook) (check.Result, error)
 }
 
 type guidelineCheckAPI struct {
@@ -182,9 +182,8 @@ func (api *guidelineCheckAPI) evaluate(ctx context.Context, organizationID strin
 		scope.ProjectID = projectID
 	}
 
-	units := float64(len(request.Segments))
 	started := time.Now()
-	result, err := api.checker.CheckBeforeModel(ctx, scope, request, func(ctx context.Context) error {
+	result, err := api.checker.CheckBeforeModel(ctx, scope, request, func(ctx context.Context, units float64) error {
 		if api.meter == nil {
 			return nil
 		}
@@ -193,7 +192,7 @@ func (api *guidelineCheckAPI) evaluate(ctx context.Context, organizationID strin
 			return knowledgeMemoryFailure(503, "guideline_check_limit_check_failed", "Unable to verify guideline check usage")
 		}
 		if !allowance.Allowed {
-			return knowledgeMemoryFailure(402, "guideline_check_limit_reached", "Guideline check limit reached")
+			return check.ErrMeterLimit
 		}
 		return nil
 	})
@@ -206,6 +205,9 @@ func (api *guidelineCheckAPI) evaluate(ctx context.Context, organizationID strin
 			"guideline_check_mandatory_too_large",
 			"Mandatory guidelines exceed the size limit for a single check. Shorten always-applied notes or uploaded documents.",
 		)
+	}
+	if errors.Is(err, check.ErrMeterLimit) {
+		return 0, nil, knowledgeMemoryFailure(402, "guideline_check_limit_reached", "Guideline check limit reached")
 	}
 	var memoryErr *knowledgeMemoryError
 	if errors.As(err, &memoryErr) {
@@ -220,11 +222,11 @@ func (api *guidelineCheckAPI) evaluate(ctx context.Context, organizationID strin
 		"findings", len(result.Findings), "search_available", result.SearchAvailable, "model_invoked", result.ModelInvoked,
 		"cache_hit", result.Cached, "duration_ms", time.Since(started).Milliseconds())
 
-	if result.ModelInvoked && api.meter != nil {
+	if result.ModelInvoked && result.BilledSegmentCount > 0 && api.meter != nil {
 		trackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
 		if err := api.meter.Track(trackCtx, autumn.TrackRequest{
-			CustomerID: organizationID, FeatureID: autumn.GuidelineChecks, Value: units, IdempotencyKey: uuid.NewString(),
+			CustomerID: organizationID, FeatureID: autumn.GuidelineChecks, Value: float64(result.BilledSegmentCount), IdempotencyKey: uuid.NewString(),
 		}); err != nil {
 			slog.WarnContext(ctx, "guideline_check_usage_track_failed", "organization_id", organizationID, "error", err)
 		}

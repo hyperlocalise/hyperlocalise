@@ -234,6 +234,9 @@ export function QaRunStatus({
         </p>
       ) : null}
       {skipped ? <QaNotice message={intl.formatMessage(m.skipped, { checks: skipped })} /> : null}
+      {report.summary.guidelineCheckHaltCode ? (
+        <QaNotice message={intl.formatMessage(m.guidelineCheckHalted)} />
+      ) : null}
       {!report.summary.checkVersion ? <QaNotice message={intl.formatMessage(m.legacy)} /> : null}
     </div>
   );

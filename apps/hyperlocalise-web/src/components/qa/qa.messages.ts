@@ -261,9 +261,9 @@ export const qaMessages = defineMessages({
   },
   coverageHelp: {
     defaultMessage:
-      "Scans and the editor use the same format, placeholder, ICU, length, spelling and glossary checks. Warnings flag an issue; errors also block saving and approving in the editor.",
+      "Scans and the editor use the same format, placeholder, ICU, length, spelling, glossary and guideline checks. Warnings flag an issue; errors also block saving and approving in the editor.",
     description: "QA review: coverageHelp",
-    id: "3OCNlGSX6Y",
+    id: "tkvPfaR9Sq",
   },
   legacy: {
     defaultMessage:
@@ -421,9 +421,15 @@ export const qaMessages = defineMessages({
   },
   guidelineCheckHelp: {
     defaultMessage:
-      "Checked in the editor while you translate. A warning does not block saving. An error blocks saving when the editor has already reported it. Project scans do not run this check.",
-    description: "Help for the editor-only guideline QA check",
-    id: "lmCtTpX8xG",
+      "Checked in the editor while you translate and in project QA scans when enabled. Warnings do not block saving. An error blocks saving when the editor has already reported it. Each model check counts toward your weekly allowance; cached segments are free. If a scan hits the allowance or the checker stops, it keeps findings it already saved, leaves older guideline findings open, and notes that guideline checks were incomplete.",
+    description: "Help for the guideline QA check in the editor and scans",
+    id: "EUVGhPdYFZ",
+  },
+  guidelineCheckHalted: {
+    defaultMessage:
+      "Guideline checks stopped before every translation was reviewed. Findings from this scan are incomplete, and older guideline findings stay open.",
+    description: "QA run notice when guideline checks halted mid-scan",
+    id: "WaSnm7wizj",
   },
   enableCheck: {
     defaultMessage: "Enable {check}",
