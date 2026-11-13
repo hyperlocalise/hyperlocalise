@@ -23,6 +23,7 @@ import {
   ContentEditorKeyDetailsEditingContext,
   ContentEditorKeyTagFilterContext,
   type ContentEditorKeyDetailsEditing,
+  describeDesignUrl,
   parseTagInput,
 } from "./content-editor-key-details";
 
@@ -53,12 +54,20 @@ describe("ContentEditorKeyDetails", () => {
     renderDetails({ tags: ["release-7"], designUrl: "https://www.figma.com/file/a" }, null);
 
     expect(screen.getByText("release-7")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open design" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Open design figma.com" })).toHaveAttribute(
       "href",
       "https://www.figma.com/file/a",
     );
     expect(screen.queryByRole("button", { name: "Remove tag release-7" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add tag" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit link" })).not.toBeInTheDocument();
+  });
+
+  it("hides the rows a viewer can neither read nor fill", () => {
+    renderDetails({ tags: [], designUrl: "https://www.figma.com/file/a" }, null);
+
+    expect(screen.queryByText("Tags")).not.toBeInTheDocument();
+    expect(screen.getByText("Design")).toBeInTheDocument();
   });
 
   it("adds typed tags and removes one", async () => {
@@ -66,8 +75,12 @@ describe("ContentEditorKeyDetails", () => {
     const edit = editing();
     renderDetails({ tags: ["release-7"] }, edit);
 
-    await user.type(screen.getByRole("textbox", { name: "Add tags" }), "checkout, release-7 new");
+    expect(screen.queryByRole("textbox", { name: "Add tags" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add tag" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Add tags" }),
+      "checkout, release-7 new{Enter}",
+    );
     expect(edit.onSetTags).toHaveBeenCalledWith({
       segmentIds: ["key-1"],
       addTags: ["checkout", "new"],
@@ -87,10 +100,39 @@ describe("ContentEditorKeyDetails", () => {
     const edit = editing();
     renderDetails({ tags: [] }, edit);
 
-    await user.type(screen.getByRole("textbox", { name: "Add tags" }), "bad!tag");
     await user.click(screen.getByRole("button", { name: "Add tag" }));
+    await user.type(screen.getByRole("textbox", { name: "Add tags" }), "bad!tag{Enter}");
     expect(screen.getByRole("alert")).toHaveTextContent("A tag is up to 64 letters");
     expect(edit.onSetTags).not.toHaveBeenCalled();
+  });
+
+  it("closes the tag field on Escape without saving", async () => {
+    const user = userEvent.setup();
+    const edit = editing();
+    renderDetails({ tags: [] }, edit);
+
+    await user.click(screen.getByRole("button", { name: "Add tag" }));
+    await user.type(screen.getByRole("textbox", { name: "Add tags" }), "draft{Escape}");
+    expect(screen.queryByRole("textbox", { name: "Add tags" })).not.toBeInTheDocument();
+    expect(edit.onSetTags).not.toHaveBeenCalled();
+  });
+
+  it("commits a typed tag when the field loses focus", async () => {
+    const user = userEvent.setup();
+    const edit = editing();
+    renderDetails({ tags: [] }, edit);
+
+    await user.click(screen.getByRole("button", { name: "Add tag" }));
+    await user.type(screen.getByRole("textbox", { name: "Add tags" }), "checkout");
+    await user.tab();
+    await waitFor(() =>
+      expect(edit.onSetTags).toHaveBeenCalledWith({
+        segmentIds: ["key-1"],
+        addTags: ["checkout"],
+        removeTags: [],
+      }),
+    );
+    expect(edit.onSetTags).toHaveBeenCalledTimes(1);
   });
 
   it("sets, refuses and removes a design link", async () => {
@@ -100,14 +142,12 @@ describe("ContentEditorKeyDetails", () => {
 
     await user.click(screen.getByRole("button", { name: "Add design link" }));
     const field = screen.getByLabelText("Design link");
-    await user.type(field, "javascript:alert(1)");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.type(field, "javascript:alert(1){Enter}");
     expect(screen.getByRole("alert")).toHaveTextContent("https://");
     expect(edit.onSetDesignUrl).not.toHaveBeenCalled();
 
     await user.clear(field);
-    await user.type(field, "https://www.figma.com/file/b");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.type(field, "https://www.figma.com/file/b{Enter}");
     await waitFor(() =>
       expect(edit.onSetDesignUrl).toHaveBeenCalledWith({
         segmentId: "key-1",
@@ -117,9 +157,28 @@ describe("ContentEditorKeyDetails", () => {
     unmount();
 
     renderDetails({ tags: [], designUrl: "https://www.figma.com/file/b" }, edit);
-    await user.click(screen.getByRole("button", { name: "Edit link" }));
     await user.click(screen.getByRole("button", { name: "Remove link" }));
     expect(edit.onSetDesignUrl).toHaveBeenLastCalledWith({ segmentId: "key-1", designUrl: null });
+    expect(edit.onSetDesignUrl).toHaveBeenCalledTimes(2);
+  });
+
+  it("removes the link when the field is cleared, and cancels on Escape", async () => {
+    const user = userEvent.setup();
+    const edit = editing();
+    renderDetails({ tags: [], designUrl: "https://www.figma.com/file/b" }, edit);
+
+    await user.click(screen.getByRole("button", { name: "Edit link" }));
+    await user.type(screen.getByLabelText("Design link"), "changed{Escape}");
+    expect(screen.queryByLabelText("Design link")).not.toBeInTheDocument();
+    expect(edit.onSetDesignUrl).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Edit link" }));
+    await user.clear(screen.getByLabelText("Design link"));
+    await user.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(edit.onSetDesignUrl).toHaveBeenCalledWith({ segmentId: "key-1", designUrl: null }),
+    );
+    expect(edit.onSetDesignUrl).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -128,7 +187,7 @@ describe("ContentEditorKeyDetails outside the queue", () => {
     renderDetails({ tags: ["release-7"] }, { ...editing(), canEditSegment: () => false });
 
     expect(screen.getByText("release-7")).toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: "Add tags" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add tag" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add design link" })).not.toBeInTheDocument();
   });
 });
@@ -147,6 +206,22 @@ describe("ContentEditorKeyDetails tag filter", () => {
 
     await user.click(screen.getByRole("button", { name: "Show strings tagged release-7" }));
     expect(filterByTag).toHaveBeenCalledWith("release-7");
+  });
+});
+
+describe("describeDesignUrl", () => {
+  it("names a Figma link by its file and anything else by its host", () => {
+    expect(
+      describeDesignUrl("https://www.figma.com/design/AbC123/Checkout-v3?node-id=12-34"),
+    ).toEqual({ name: "Checkout v3", isFigma: true });
+    expect(describeDesignUrl("https://www.figma.com/file/a")).toEqual({
+      name: "figma.com",
+      isFigma: true,
+    });
+    expect(describeDesignUrl("https://www.zeroheight.com/x/buttons")).toEqual({
+      name: "zeroheight.com",
+      isFigma: false,
+    });
   });
 });
 
