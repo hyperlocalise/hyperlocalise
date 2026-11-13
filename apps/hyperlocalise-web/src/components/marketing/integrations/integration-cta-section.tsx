@@ -22,7 +22,7 @@ type IntegrationCtaSectionProps = {
   headline: string;
   description: string;
   primaryCtaLabel: string;
-  secondaryCtaLabel: string;
+  secondaryCtaLabel?: string;
 };
 
 export function IntegrationCtaSection({
@@ -33,34 +33,28 @@ export function IntegrationCtaSection({
 }: IntegrationCtaSectionProps) {
   return (
     <Box paddingX="3u" paddingY="8u">
-      <div className="mx-auto max-w-4xl">
-        <Box background="surface" border="standard" borderRadius="large" padding="6u">
-          <div className="text-center">
-            <Rows spacing="3u" align="center">
-              <TypographyH2 alignment="center" size="medium">
-                {headline}
-              </TypographyH2>
-              <TypographyP alignment="center" tone="subtle">
-                {description}
-              </TypographyP>
-              <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-                <Button
-                  nativeButton={false}
-                  render={<a href={REQUEST_DEMO_URL} rel="noopener noreferrer" target="_blank" />}
-                >
-                  {primaryCtaLabel}
-                </Button>
-                <Button
-                  nativeButton={false}
-                  render={<a href="/auth/sign-in" rel="noopener noreferrer" />}
-                  variant="outline"
-                >
-                  {secondaryCtaLabel}
-                </Button>
-              </div>
-            </Rows>
+      <div className="mx-auto max-w-3xl">
+        <Rows spacing="3u">
+          <TypographyH2 size="medium">{headline}</TypographyH2>
+          <TypographyP tone="subtle">{description}</TypographyP>
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+            <Button
+              nativeButton={false}
+              render={<a href={REQUEST_DEMO_URL} rel="noopener noreferrer" target="_blank" />}
+            >
+              {primaryCtaLabel}
+            </Button>
+            {secondaryCtaLabel ? (
+              <Button
+                nativeButton={false}
+                render={<a href="/auth/sign-in" rel="noopener noreferrer" />}
+                variant="outline"
+              >
+                {secondaryCtaLabel}
+              </Button>
+            ) : null}
           </div>
-        </Box>
+        </Rows>
       </div>
     </Box>
   );

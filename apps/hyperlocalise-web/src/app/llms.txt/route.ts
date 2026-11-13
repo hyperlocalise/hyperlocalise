@@ -48,6 +48,24 @@ const productLinks: LlmsLink[] = [
   },
 ];
 
+const integrationLinks: LlmsLink[] = [
+  {
+    title: "GitHub",
+    href: `${SITE_URL}/en/integrations/github`,
+    description: "Catch missing translations before a GitHub pull request merges",
+  },
+  {
+    title: "Slack",
+    href: `${SITE_URL}/en/integrations/slack`,
+    description: "Send localisation review requests into the Slack channel that owns the launch",
+  },
+  {
+    title: "Crowdin",
+    href: `${SITE_URL}/en/integrations/crowdin`,
+    description: "Keep Crowdin as the TMS of record while Hyperlocalise runs review around it",
+  },
+];
+
 const useCaseLinks: LlmsLink[] = [
   {
     title: "Localisation operations",
@@ -130,6 +148,10 @@ ${formatLinks(productLinks)}
 ## Use cases
 
 ${formatLinks(useCaseLinks)}
+
+## Integrations
+
+${formatLinks(integrationLinks)}
 
 ## Docs
 

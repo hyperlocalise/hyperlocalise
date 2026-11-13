@@ -38,4 +38,10 @@ describe("IntegrationLogoMark", () => {
 
     expect(screen.getByRole("img", { name: "GitHub logo" })).toBeInTheDocument();
   });
+
+  it("prefers a vector icon over a raster logo when the slug has a simple-icon", () => {
+    render(<IntegrationLogoMark logoSrc="/images/tms/crowdin.png" name="Crowdin" slug="crowdin" />);
+
+    expect(screen.getByRole("img", { name: "Crowdin logo" }).tagName).toBe("svg");
+  });
 });

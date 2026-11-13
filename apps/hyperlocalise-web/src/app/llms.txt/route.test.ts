@@ -59,6 +59,10 @@ describe("llms.txt route", () => {
       "[Hyperlab](https://www.hyperlocalise.com/en/product/hyperlab): Try it in one market. Keep what works.",
     );
     expect(body).toContain("https://www.hyperlocalise.com/en/use-cases/");
+    expect(body).toContain("## Integrations");
+    expect(body).toContain(
+      "[GitHub](https://www.hyperlocalise.com/en/integrations/github): Catch missing translations before a GitHub pull request merges.",
+    );
     expect(body).toContain("https://hyperlocalise.dev");
     expect(body).toContain("## Agents");
     expect(body).toContain("[Agent registration](https://www.hyperlocalise.com/auth.md)");

@@ -48,10 +48,6 @@ export function getRelatedIntegrations(locale: string, integration: MarketingInt
   return resolveRelatedIntegrations(locale, integration);
 }
 
-export function getIntegrationNamesBySlug(locale: string) {
-  return Object.fromEntries(getMarketingIntegrations(locale).map((item) => [item.slug, item.name]));
-}
-
 export function getIntegrationCategoryLabels(locale: string) {
   return getMarketingIntegrationCategoryLabels(locale);
 }
@@ -111,6 +107,82 @@ export function getIntegrationsIndexCopy(locale: string) {
   };
 }
 
+export function getRelatedUseCaseLink(locale: string, slug: string | undefined) {
+  if (!slug) {
+    return null;
+  }
+
+  const intl = getIntlShape(locale);
+
+  switch (slug) {
+    case "github-release-localisation":
+      return {
+        href: `/use-cases/${slug}`,
+        label: intl.formatMessage({
+          defaultMessage: "See how localisation runs in pull requests",
+          id: "VyKWMvrc32",
+          description: "Link from an integration detail page to a related use case",
+        }),
+      };
+    case "localisation-operations":
+      return {
+        href: `/use-cases/${slug}`,
+        label: intl.formatMessage({
+          defaultMessage: "See localisation operations",
+          id: "aTMMaZ/NIC",
+          description: "Link from an integration detail page to a related use case",
+        }),
+      };
+    case "localisation-quality-monitoring":
+      return {
+        href: `/use-cases/${slug}`,
+        label: intl.formatMessage({
+          defaultMessage: "See quality and guidelines",
+          id: "dMlTGb8y8K",
+          description: "Link from an integration detail page to a related use case",
+        }),
+      };
+    case "help-center-localisation":
+      return {
+        href: `/use-cases/${slug}`,
+        label: intl.formatMessage({
+          defaultMessage: "See help center localisation",
+          id: "S98L6UPCrs",
+          description: "Link from an integration detail page to a related use case",
+        }),
+      };
+    case "marketing-localisation":
+      return {
+        href: `/use-cases/${slug}`,
+        label: intl.formatMessage({
+          defaultMessage: "See global campaign localisation",
+          id: "0a2t1DglvU",
+          description: "Link from an integration detail page to a related use case",
+        }),
+      };
+    case "market-experimentation":
+      return {
+        href: `/use-cases/${slug}`,
+        label: intl.formatMessage({
+          defaultMessage: "See market experiments",
+          id: "Iqtp/O62+3",
+          description: "Link from an integration detail page to a related use case",
+        }),
+      };
+    case "market-entry":
+      return {
+        href: `/use-cases/${slug}`,
+        label: intl.formatMessage({
+          defaultMessage: "See market entry",
+          id: "QQ7mjZLpf/",
+          description: "Link from an integration detail page to a related use case",
+        }),
+      };
+    default:
+      return null;
+  }
+}
+
 export function getIntegrationDetailCopy(locale: string) {
   const intl = getIntlShape(locale);
 
@@ -120,147 +192,61 @@ export function getIntegrationDetailCopy(locale: string) {
       id: "a+4byYqJMM",
       description: "Breadcrumb link back to the integrations marketplace index",
     }),
-    categoriesHeading: intl.formatMessage({
-      defaultMessage: "Categories",
-      id: "1aPQynUfhP",
-      description: "Sidebar heading for integration categories on the detail page",
-    }),
-    typeHeading: intl.formatMessage({
-      defaultMessage: "Type",
-      id: "+aLhmpE/3m",
-      description: "Sidebar heading for integration type on the detail page",
-    }),
-    statusHeading: intl.formatMessage({
-      defaultMessage: "Status",
-      id: "I9YGK1GW7I",
-      description: "Sidebar heading for integration status on the detail page",
-    }),
-    resourcesHeading: intl.formatMessage({
-      defaultMessage: "Resources",
-      id: "mCX+DFnK+p",
-      description: "Sidebar heading for integration resources on the detail page",
-    }),
-    overviewHeading: intl.formatMessage({
-      defaultMessage: "Overview",
-      id: "PcuSoVGaBu",
-      description: "Heading for the integration overview section",
-    }),
-    productsHeading: intl.formatMessage({
-      defaultMessage: "Products",
-      id: "+yckLBiVoH",
-      description: "Heading for the integration products section",
-    }),
     capabilitiesHeading: intl.formatMessage({
-      defaultMessage: "Capabilities",
-      id: "oUdwcZdkjG",
+      defaultMessage: "What you get",
+      id: "tXZ8YklgV8",
       description: "Heading for the integration capabilities section",
     }),
     workflowsHeading: intl.formatMessage({
-      defaultMessage: "Visual workflow examples",
-      id: "p/CGM67hkK",
-      description: "Heading for the integration workflow examples section",
-    }),
-    workflowsDescription: intl.formatMessage({
-      defaultMessage:
-        "See how teams connect this integration to Hyperlocalise for localization workflows.",
-      id: "2i4QuyVvsX",
-      description: "Supporting copy for the integration workflow examples section",
-    }),
-    workflowTriggerLabel: intl.formatMessage({
-      defaultMessage: "Trigger",
-      id: "MsnNcIq3o0",
-      description: "Label for workflow trigger nodes in the preview canvas",
-    }),
-    workflowActionLabel: intl.formatMessage({
-      defaultMessage: "Action",
-      id: "q9W62WYB+b",
-      description: "Label for workflow action nodes in the preview canvas",
-    }),
-    workflowPreviewHint: intl.formatMessage({
-      defaultMessage: "Click a step or use play to preview how the automation runs.",
-      id: "WCvOhYUxHY",
-      description: "Hint text above the interactive workflow preview canvas",
-    }),
-    workflowPlayLabel: intl.formatMessage({
-      defaultMessage: "Play workflow preview",
-      id: "HnLFJWChXa",
-      description: "Accessible label for playing the workflow preview animation",
-    }),
-    workflowPauseLabel: intl.formatMessage({
-      defaultMessage: "Pause workflow preview",
-      id: "Go2Z9TjTft",
-      description: "Accessible label for pausing the workflow preview animation",
+      defaultMessage: "How it works",
+      id: "EhdpNlS7rB",
+      description: "Heading for the integration how-it-works section",
     }),
     setupHeading: intl.formatMessage({
       defaultMessage: "Getting started",
       id: "0rhtNVSwNB",
       description: "Heading for the integration setup instructions section",
     }),
+    faqHeading: intl.formatMessage({
+      defaultMessage: "Questions",
+      id: "XqRKDh+lFi",
+      description: "Heading for the integration FAQ section",
+    }),
     relatedHeading: intl.formatMessage({
       defaultMessage: "Related integrations",
       id: "MvleTlgom0",
       description: "Heading for related integrations on the detail page",
-    }),
-    websiteLink: intl.formatMessage({
-      defaultMessage: "Website",
-      id: "DbC71eoMLw",
-      description: "External link label to an integration vendor website",
     }),
     docsLink: intl.formatMessage({
       defaultMessage: "Documentation",
       id: "rEDnl3jroe",
       description: "External link label to integration documentation",
     }),
-    connectCta: intl.formatMessage({
-      defaultMessage: "Connect in workspace",
-      id: "QNSRYIrpG+",
-      description: "Primary CTA on an integration detail page",
-    }),
-    comingSoonCta: intl.formatMessage({
-      defaultMessage: "Coming soon",
-      id: "RiK2KmxM3l",
-      description: "Disabled CTA label for integrations that are not available yet",
-    }),
-    typeNative: intl.formatMessage({
-      defaultMessage: "Hyperlocalise native",
-      id: "XTqDUMqK14",
-      description: "Integration type label for built-in Hyperlocalise products",
-    }),
-    typePartner: intl.formatMessage({
-      defaultMessage: "Partner integration",
-      id: "uOIaXMBfe4",
-      description: "Integration type label for third-party connectors",
-    }),
-    statusAvailable: intl.formatMessage({
-      defaultMessage: "Available",
-      id: "RmyEf4DNO6",
-      description: "Integration status label for available connectors",
-    }),
-    statusComingSoon: intl.formatMessage({
+    comingSoonLabel: intl.formatMessage({
       defaultMessage: "Coming soon",
       id: "lgEi9eqa79",
       description: "Integration status label for upcoming connectors",
     }),
-    statusNative: intl.formatMessage({
-      defaultMessage: "Included",
-      id: "Qyr22h2tBu",
-      description: "Integration status label for built-in Hyperlocalise capabilities",
+    requestDemoCta: intl.formatMessage({
+      defaultMessage: "Request a demo",
+      id: "S2P95qzM5L",
+      description: "Primary CTA button on integration pages",
+    }),
+    signInLink: intl.formatMessage({
+      defaultMessage: "Sign in",
+      id: "gf1qW8hspy",
+      description: "Quiet sign-in link on an integration detail page",
     }),
     finalCtaHeadline: intl.formatMessage({
-      defaultMessage: "Get started with Hyperlocalise today",
-      id: "vAwILOzBUa",
+      defaultMessage: "See it on a real localisation workflow",
+      id: "zB4jW+ECjI",
       description: "Headline for the bottom CTA on integration pages",
     }),
     finalCtaDescription: intl.formatMessage({
       defaultMessage:
-        "Connect your stack and run agent-native localization workflows with reviewers, automations, and launch tools in one workspace.",
-      id: "JRwdGo2HxU",
+        "Walk through how your stack, reviewers, and launch checks fit together. No workspace required to start.",
+      id: "XQHjNKbGQ9",
       description: "Supporting copy for the bottom CTA on integration pages",
-    }),
-    finalCtaPrimaryLabel: intl.formatMessage({
-      defaultMessage: "Request a demo",
-      id: "S2P95qzM5L",
-      description: "Primary CTA button on integration pages",
     }),
     finalCtaSecondaryLabel: intl.formatMessage({
       defaultMessage: "Sign in to workspace",
@@ -280,14 +266,14 @@ export function getIntegrationCtaCopy(locale: string, integrationName?: string) 
       ? intl.formatMessage(
           {
             defaultMessage:
-              "Connect {integrationName} to Hyperlocalise and start running localization workflows with agents, reviewers, and automations in one workspace.",
-            id: "eZMddlPk0j",
+              "Request a demo to see {integrationName} in a localisation workflow with reviewers and launch checks.",
+            id: "evNqLiubhh",
             description: "Supporting copy for the bottom CTA on integration detail pages",
           },
           { integrationName },
         )
       : copy.finalCtaDescription,
-    primaryCtaLabel: copy.finalCtaPrimaryLabel,
+    primaryCtaLabel: copy.requestDemoCta,
     secondaryCtaLabel: copy.finalCtaSecondaryLabel,
   };
 }

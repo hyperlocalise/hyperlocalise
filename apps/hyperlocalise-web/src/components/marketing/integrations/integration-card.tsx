@@ -57,6 +57,7 @@ export function IntegrationCard({
             iconKey={integration.iconKey}
             logoSrc={integration.logoSrc}
             name={integration.name}
+            slug={integration.slug}
           />
           <Rows spacing="1u">
             <TypographyP weight="medium">{integration.name}</TypographyP>
