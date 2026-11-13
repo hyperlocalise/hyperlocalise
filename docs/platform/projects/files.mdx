@@ -55,6 +55,7 @@ When every string of a Word or Excel file is approved in the first project, open
 - A string the file no longer has when you send it again is hidden in the second project, not deleted, so its translations are kept. It is shown again if a later send has it. Word paragraphs and Excel cells are matched by position, so removing one from the middle of a file moves the strings after it.
 - Admins, localization managers, and developers can send a file. Both projects must be in the same workspace.
 - Sends use each project's default branch, `main`: the action is offered only on that branch, and the file goes to the second project's `main` branch. Files with the same path on other branches are left alone. If the second project's `main` branch is protected, the send is refused.
+- Scripts can send a file through the API. See [Use a translation as another project's source](/platform/api#use-a-translation-as-another-projects-source).
 - Word (`.docx`) and Excel (`.xlsx`, `.xls`) files only. In Word files, links inserted as fields, tables of contents, and comments are not strings, so they keep the original language.
 - An Excel file's **Import filters** are copied to the second project each time it is sent, replacing any saved there. An `.xls` file arrives as `.xlsx`. Context and comment columns are not strings, so they keep the original language.
 - An Excel file is not sent when the second project would not read it as the same strings. This happens when:
