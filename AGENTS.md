@@ -79,6 +79,9 @@ go build -o $(go env GOPATH)/bin/golangci-lint github.com/golangci/golangci-lint
   # AI_GATEWAY_API_KEY=
   # Optional. Enables server-side GA4 custom events via Measurement Protocol.
   # GA_MEASUREMENT_PROTOCOL_API_SECRET=
+  # Optional. PostHog product analytics. No-ops when unset.
+  # NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=phc_...
+  # NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
  ```
 - Run `vp run db:migrate` after starting Postgres to apply Drizzle migrations.
 - The `make test` target uses coverage flags that may warn about a missing `covdata` tool — all actual tests still pass. Use `go test ./...` if you want a clean exit code without coverage.

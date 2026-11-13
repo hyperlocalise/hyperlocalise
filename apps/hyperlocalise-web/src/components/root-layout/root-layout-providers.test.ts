@@ -21,6 +21,8 @@ describe("root layout server render", () => {
 
     expect(source).not.toMatch(/\bcacheComponents\s*:/);
     expect(source).not.toMatch(/\bpartialPrefetching\s*:/);
+    expect(source).toMatch(/\bskipTrailingSlashRedirect\s*:\s*true/);
+    expect(source).toMatch(/\bposthogNextRewrites\b/);
   });
 
   it("sets document lang from the request locale on the root html element", () => {
@@ -48,6 +50,7 @@ describe("root layout server render", () => {
     expect(source).toMatch(/\bgetAppLocale\b/);
     expect(source).toMatch(/\bwithAuth\b/);
     expect(source).toMatch(/\{children\}/);
+    expect(source).toMatch(/PostHogIdentity/);
     expect(source).not.toMatch(/<Suspense/);
   });
 
@@ -62,6 +65,18 @@ describe("root layout server render", () => {
     expect(source).not.toMatch(/\bLocaleDocumentLangScript\b/);
     expect(source).toMatch(/return children/);
     expect(source).not.toMatch(/<Suspense/);
+  });
+
+  it("initializes PostHog from the client instrumentation file", () => {
+    const source = readFileSync(
+      path.join(import.meta.dirname, "../../instrumentation-client.ts"),
+      "utf8",
+    );
+
+    expect(source).toMatch(/posthog\.init/);
+    expect(source).toMatch(/POSTHOG_INGEST_PATH/);
+    expect(source).toMatch(/autocapture:\s*false/);
+    expect(source).toMatch(/disable_session_recording:\s*true/);
   });
 
   it("defaults the color theme to light", () => {

@@ -4,6 +4,7 @@ allowBuilds:
   '@swc/core': false
   bun: true
   cbor-extract: false
+  core-js: false
   esbuild: false
   msw: false
   node-liblzma: false

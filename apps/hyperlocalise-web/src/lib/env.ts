@@ -319,6 +319,18 @@ export const env = createEnv({
 
     /** Public WorkOS OAuth redirect URI exposed to the browser. Optional — falls back to WORKOS_REDIRECT_URI. */
     NEXT_PUBLIC_WORKOS_REDIRECT_URI: z.url().optional(),
+
+    /**
+     * PostHog project token. Optional — without it, PostHog client and server
+     * capture no-op. The token is public by design (`phc_…`).
+     */
+    NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: z.string().min(1).optional(),
+
+    /**
+     * PostHog ingest host. Optional — defaults to US Cloud. Use
+     * `https://eu.i.posthog.com` for EU Cloud.
+     */
+    NEXT_PUBLIC_POSTHOG_HOST: z.url().optional(),
   },
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
@@ -450,6 +462,8 @@ export const env = createEnv({
       process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI ??
       process.env.WORKOS_REDIRECT_URI ??
       (isTestEnv ? "http://localhost:3000/auth/callback" : undefined),
+    NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
+    NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
   },
 });
 
